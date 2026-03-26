@@ -57,39 +57,57 @@
             </div>
             <div class="card-body">
                 <div class="row">
-                    <div class="col-md-4">
-                        <!-- 바퀴 정보 -->
+                    <!-- 좌측 바퀴 정보 -->
+                    <div class="col-md-4">                        
+
                         <div class="row">
                             <!-- FL 바퀴 정보 -->
                             <div class="col-md-6">
                                 <div class="card text-center">
+                                    <div class="card-header">
+                                        <h4 class="mb-0">Wheel FL</h4>
+                                    </div>
                                     <div class="card-body">
-                                        <i class="bi bi-arrow-up-right-square fs-1 text-primary"></i>
-                                        <h5 class="card-title mt-2">FL Wheel</h5> 
+                                        <img src="img/smart_wheel.png" alt="FL Wheel Image" class="img-fluid mb-2" >
                                     </div>
                                 </div>
                             </div>
                             <div class="col-md-6">
-                                <table class="table table-bordered">
+                                <table class="table table-bordered table-striped">
+                                    <colgroup>
+                                        <col width="33%;">
+                                        <col >
+                                    </colgroup>
+
                                     <thead>
                                         <tr>
                                             <th class="text-center" scope="col" colspan="2">Motor</th> 
                                         </tr>
                                     </thead>
+
                                     <tbody>
                                         <tr>
                                             <th scope="row">Speed</th>
-                                            <td>45 km/h</td>
+                                            <td class="text-end">23 km/h</td>
                                         </tr>
                                         <tr>
-                                            <th scope="row">Torque</th>
-                                            <td>120 Nm</td>
+                                            <th scope="row">Power</th>
+                                            <td class="text-end">120 kW</td>
                                         </tr>
                                         <tr>
-                                            <th scope="row">Temperature</th>
-                                            <td>75 °C</td>
+                                            <th scope="row">PID</th>
+                                            <td class="text-end">0.2</td>
                                         </tr>
                                     </tbody>
+
+                                    <thead>
+                                        <tr>
+                                            <th class="text-center" scope="col" colspan="2">
+                                                Sensor 
+                                            </th> 
+                                        </tr>
+                                    </thead>
+
                                 </table> 
                             </div> 
                         </div>
@@ -105,15 +123,19 @@
                             </div>
                         </div>
                     </div>
+                    <!-- // 좌측 바퀴 정보 -->
+
+                    <!-- 차량 정보 -->
                     <div class="col-md-4">
                         <div class="card text-center">
                             <div class="card-body">
-                                <i class="bi bi-battery-charging fs-1 text-success"></i>
-                                <h5 class="card-title mt-2">Battery</h5>
-                                <p class="card-text display-6">85%</p>
+                                <img src="img/car_frame.png" alt="Vehicle Image" class="img-fluid mb-2" >
                             </div>
                         </div>
                     </div>
+                    <!-- // 차량 정보 -->
+
+                    <!-- 우측 바퀴 정보 -->
                     <div class="col-md-4">
                         <div class="card text-center">
                             <div class="card-body">
@@ -123,6 +145,8 @@
                             </div>
                         </div>
                     </div> 
+                    <!-- // 우측 바퀴 정보 -->
+
                 </div>
             </div>
         </div>
@@ -188,7 +212,6 @@
                             <div class="card-body">
                                 <i class="fas fa-road fs-1 text-dark"></i>
                                 <h5 class="card-title mt-2">도로</h5>
-                                <p class="card-text display-6">포장도로</p>
                                 <span class="badge bg-success fs-6">양호</span>
                             </div>
                         </div>
@@ -198,7 +221,6 @@
                             <div class="card-body">
                                 <i class="fas fa-mountain fs-1 text-warning"></i>
                                 <h5 class="card-title mt-2">자갈길</h5>
-                                <p class="card-text display-6">비포장도로</p>
                                 <span class="badge bg-warning fs-6">주의</span>
                             </div>
                         </div>
@@ -208,7 +230,6 @@
                             <div class="card-body">
                                 <i class="fas fa-exclamation-triangle fs-1 text-danger"></i>
                                 <h5 class="card-title mt-2">포트홀</h5>
-                                <p class="card-text display-6">도로 손상</p>
                                 <span class="badge bg-danger fs-6">위험</span>
                             </div>
                         </div>

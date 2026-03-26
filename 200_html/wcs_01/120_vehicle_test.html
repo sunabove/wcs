@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Wheel Test & Diagnostics</title>
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+
+    <style>
+        body {
+            background: #0f2238;
+            color: white;
+        }
+
+        .dashboard {
+            background: #1b3553;
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 0 12px rgba(0, 0, 0, 0.4);
+        }
+
+        .header {
+            font-size: 28px;
+            font-weight: 600;
+            margin-bottom: 20px;
+        }
+
+        .section {
+            background: #213e63;
+            border-radius: 12px;
+            padding: 20px;
+            height: 100%;
+        }
+
+        .section-title {
+            font-size: 22px;
+            margin-bottom: 20px;
+        }
+
+        .test-btn {
+            background: linear-gradient(#6f8fb5, #3a5d87);
+            border: none;
+            color: white;
+            font-size: 18px;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 15px;
+            width: 100%;
+            transition: 0.2s;
+        }
+
+        .test-btn:hover {
+            background: linear-gradient(#87a7d0, #4a76a9);
+        }
+
+        .icon {
+            margin-right: 10px;
+            font-size: 22px;
+        }
+    </style>
+
+</head>
+
+
+<body>
+
+    <div class="container mt-4">
+
+        <div class="dashboard">
+
+            <div class="header">
+                <a href="100_vehicle_status.html"> WCS </a>
+                &nbsp;&nbsp; Wheel Test & Diagnostics
+            </div>
+
+
+            <div class="row g-4">
+
+
+                <!-- Motor Test -->
+
+                <div class="col-md-6">
+
+                    <div class="section">
+
+                        <div class="section-title">Motor Test</div>
+
+                        <button class="test-btn">
+                            <i class="bi bi-car-front icon"></i>
+                            FL Motor Test
+                        </button>
+
+                        <button class="test-btn">
+                            <i class="bi bi-car-front icon"></i>
+                            FR Motor Test
+                        </button>
+
+                        <button class="test-btn">
+                            <i class="bi bi-car-front icon"></i>
+                            RL Motor Test
+                        </button>
+
+                        <button class="test-btn">
+                            <i class="bi bi-car-front icon"></i>
+                            RR Motor Test
+                        </button>
+
+                    </div>
+
+                </div>
+
+
+                <!-- Drive Tests -->
+
+                <div class="col-md-6">
+
+                    <div class="section">
+
+                        <div class="section-title">Drive Tests</div>
+
+                        <button class="test-btn">
+                            <i class="bi bi-play-fill icon"></i>
+                            Forward Test
+                        </button>
+
+                        <button class="test-btn">
+                            <i class="bi bi-arrow-left icon"></i>
+                            Reverse Test
+                        </button>
+
+                        <button class="test-btn">
+                            <i class="bi bi-arrow-repeat icon"></i>
+                            Spin Test
+                        </button>
+
+                        <button class="test-btn">
+                            <i class="bi bi-arrow-counterclockwise icon"></i>
+                            Pivot Test
+                        </button>
+
+                    </div>
+
+                </div>
+
+
+            </div>
+
+        </div>
+
+    </div>
+
+</body>
+
+</html>

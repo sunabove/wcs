@@ -1,49 +1,91 @@
-# main.py
+import json
 from fastapi import FastAPI
-import sqlite3
-import platform
+from pydantic import BaseModel
+import paho.mqtt.client as mqtt
+import threading
 
 app = FastAPI()
 
-def getDbPath() -> str:
-    # OS별 데이터베이스 경로 설정
-    DB_PATH = "/home/www/data/wcs.db"
+# -----------------------------
+# MQTT 설정
+# -----------------------------
+MQTT_BROKER = "localhost" 
+MQTT_PORT = 1883
+MQTT_TOPIC = "test/topic"
 
-    if platform.system() == "Windows":
-        DB_PATH = f"C:{DB_PATH}" 
-    pass
+# 최신 데이터 저장소 (in-memory)
+mqtt_data_store = {}
 
-    return DB_PATH
-pass # getDbPath
+# -----------------------------
+# MQTT 콜백
+# -----------------------------
+def on_connect(client, userdata, flags, rc):
+    print("MQTT Connected:", rc)
+    client.subscribe(MQTT_TOPIC)
 
-def get_db_connection():
-    conn = sqlite3.connect( getDbPath() )
-    conn.row_factory = sqlite3.Row  # dict 형태로 반환
-    return conn
-pass # get_db_connection
+def on_message(client, userdata, msg):
+    payload = msg.payload.decode()
+    print(f"Received: {msg.topic} -> {payload}")
 
-@app.get("/items/{item_id}")
-def read_item(item_id: int):
-    return {
-        "item_id": item_id,
-        "name": "example item"
-    }
-pass # read_item
- 
-@app.get("/")
-def read_wcs_data():
-    conn = get_db_connection()
-    cursor = conn.cursor()
+    try:
+        mqtt_data_store[msg.topic] = json.loads(payload)
+    except:
+        mqtt_data_store[msg.topic] = payload
 
-    cursor.execute("SELECT key, value, update_dt FROM wcs_data")
-    rows = cursor.fetchall()
 
-    conn.close()
+# -----------------------------
+# MQTT 클라이언트 시작
+# -----------------------------
+def start_mqtt():
+    client = mqtt.Client()
+    client.on_connect = on_connect
+    client.on_message = on_message
 
-    # Row → list (컬럼명 없이 값만 반환)
-    result = [list(row) for row in rows]
+    client.connect(MQTT_BROKER, MQTT_PORT, 60)
+    client.loop_forever()
 
-    return result
 
-pass # read_wcs_data
+# 백그라운드 스레드 실행
+threading.Thread(target=start_mqtt, daemon=True).start() 
 
+# -----------------------------
+# API 모델
+# -----------------------------
+class PublishModel(BaseModel):
+    topic: str
+    message: dict
+
+
+# -----------------------------
+# API - publish
+# -----------------------------
+@app.post("/mqtt/publish")
+def publish(data: PublishModel):
+    client = mqtt.Client()
+    client.connect(MQTT_BROKER, MQTT_PORT, 60)
+
+    payload = json.dumps(data.message)
+    client.publish(data.topic, payload)
+
+    return {"status": "published", "topic": data.topic}
+
+
+# -----------------------------
+# API - 최신 데이터 조회
+# -----------------------------
+@app.get("/mqtt/{topic:path}")
+def get_latest(topic: str):
+    if topic in mqtt_data_store:
+        return {
+            "topic": topic,
+            "data": mqtt_data_store[topic]
+        }
+    return {"error": "No data"}
+pass 
+
+# -----------------------------
+# API - 전체 데이터 조회
+# -----------------------------
+@app.get("/mqtt")
+def get_all():
+    return mqtt_data_store

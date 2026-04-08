@@ -4,8 +4,8 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 
 // 각 뷰어를 위한 클래스
 class URDFViewer {
-    constructor(containerId, viewLabel, viewIndex) {
-        this.container = document.getElementById(containerId);
+    constructor(containerElement, viewLabel, viewIndex) {
+        this.container = containerElement;
         this.viewLabel = viewLabel;
         this.viewIndex = viewIndex;
         this.robotModel = null;
@@ -230,13 +230,28 @@ class URDFViewer {
 
 // 초기화 함수
 function initURDFViewers() {
-    // 4개의 뷰어 생성
-    console.log("🚀 4개 URDF Viewer 초기화 시작...");
+    console.log("🚀 URDF Viewer 초기화 시작...");
     
-    const viewer1 = new URDFViewer('robot-container-1', 'View 1', 1);
-    const viewer2 = new URDFViewer('robot-container-2', 'View 2', 2); 
-    const viewer3 = new URDFViewer('robot-container-3', 'View 3', 3);
-    const viewer4 = new URDFViewer('robot-container-4', 'View 4', 4);
+    // robot-container 클래스를 가진 모든 요소들 찾기
+    const containers = document.querySelectorAll('.robot-container');
+    
+    if (containers.length === 0) {
+        console.error("❌ robot-container 클래스를 가진 요소를 찾을 수 없습니다.");
+        return;
+    }
+    
+    console.log(`📦 ${containers.length}개의 robot-container 발견`);
+    
+    // 각 컨테이너에 대해 URDFViewer 생성 (viewIndex는 1부터 시작)
+    containers.forEach((container, index) => {
+        const viewIndex = index + 1; // 1부터 시작
+        const containerClass = container.className;
+        const viewLabel = `View ${viewIndex}`;
+        
+        console.log(`🔧 ${containerClass} 요소 초기화 중... (ViewIndex: ${viewIndex})`);
+        
+        const viewer = new URDFViewer(container, viewLabel, viewIndex);
+    });
 
     console.log("🚀 모든 URDF Viewer 초기화 완료");
 }

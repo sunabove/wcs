@@ -1,0 +1,100 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- This URDF was automatically created by SolidWorks to URDF Exporter! Originally created by Stephen Brawner (brawner@gmail.com) 
+     Commit Version: 1.6.0-4-g7f85cfe  Build Version: 1.6.7995.38578
+     For more information, please see http://wiki.ros.org/sw_urdf_exporter -->
+<robot
+  name="wheel_3">
+  <link
+    name="base_link">
+    <inertial>
+      <origin
+        xyz="-0.0209401994436368 -0.03468166025715 0.004580485435404"
+        rpy="0 0 0" />
+      <mass
+        value="0.603804602107906" />
+      <inertia
+        ixx="0.000986438821104325"
+        ixy="3.72843947434931E-07"
+        ixz="0.000108532845784776"
+        iyy="0.00133833127114958"
+        iyz="2.25728945212652E-06"
+        izz="0.000778588035048408" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="../meshes/base_link.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.894117647058823 0.894117647058823 0.894117647058823 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+	  filename="../meshes/base_link.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <link
+    name="empty_link">
+    <inertial>
+      <origin
+        xyz="0 1.38777878078145E-17 -1.90819582357449E-17"
+        rpy="0 0 0" />
+      <mass
+        value="0.0716105823136073" />
+      <inertia
+        ixx="0.000438013363634798"
+        ixy="5.17559206309011E-20"
+        ixz="-7.17073701408525E-20"
+        iyy="0.000224580784697599"
+        iyz="5.59041745187838E-20"
+        izz="0.000224580784697599" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="../meshes/empty_link.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.223529411764706 0.223529411764706 0.223529411764706 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="../meshes/empty_link.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="base_to_empty_link"
+    type="continuous">
+    <origin
+      xyz="0.0067313 -1.0322 -0.053632"
+      rpy="-1.6997 0 1.5708" />
+    <parent
+      link="base_link" />
+    <child
+      link="empty_link" />
+    <axis
+      xyz="0 0 0" />
+  </joint>
+</robot>

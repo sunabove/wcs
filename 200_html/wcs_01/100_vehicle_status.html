@@ -564,11 +564,13 @@
         // MQTT 클라이언트 설정 및 연결 (Mosquitto 브로커용)
         function initMQTTClient() {
             try {
-                // Mosquitto 브로커 WebSocket 설정
-                // Mosquitto 기본 WebSocket 포트: 9001 또는 8080
-                const brokerUrl = 'ws://localhost:9001'; // Mosquitto WebSocket 포트
+                // Mosquitto 브로커 WebSocket 설정 (동적 호스트명 사용)
+                // 현재 페이지의 호스트명을 가져와서 MQTT 브로커 URL 구성
+                const currentHost = window.location.hostname || 'localhost';
+                const brokerUrl = `ws://${currentHost}:9001`; // Mosquitto WebSocket 포트
                 
                 console.log('🦟 Mosquitto 브로커 연결 시도중...', brokerUrl);
+                console.log('🌐 현재 호스트:', currentHost);
                 
                 const client = mqtt.connect(brokerUrl, {
                     clientId: 'vehicle_status_client_' + Math.random().toString(16).substr(2, 8),

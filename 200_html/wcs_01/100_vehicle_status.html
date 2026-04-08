@@ -532,7 +532,17 @@
         <p class="mb-0">&copy; 2024 Wheel Control System. All rights reserved.</p>
     </footer>
 
-    <script src="../urdf/urdf.js"></script>
+    <!-- Import map for module resolution -->
+    <script type="importmap">
+        {
+        "imports": {
+                "three": "https://cdn.jsdelivr.net/npm/three@0.160/build/three.module.js",
+                "three/examples/jsm/": "https://cdn.jsdelivr.net/npm/three@0.160/examples/jsm/",
+                "urdf-loader": "https://cdn.jsdelivr.net/npm/urdf-loader@0.12.3/src/URDFLoader.js"
+            }
+        }
+    </script>
+    <script type="module" src="../urdf/urdf.js"></script>
 
 </body>
 

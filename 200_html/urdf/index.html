@@ -8,17 +8,48 @@
     body { margin: 0; overflow: hidden; }
     canvas { display: block; }
   </style>
+  
+  <!-- Import map for module resolution -->
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.160/build/three.module.js",
+      "three/examples/jsm/": "https://cdn.jsdelivr.net/npm/three@0.160/examples/jsm/"
+    }
+  }
+  </script>
 </head>
 
 <body>
-  <!-- Load Three.js first -->
-  <script src="https://cdn.jsdelivr.net/npm/three@0.160/build/three.min.js"></script>
-  <!-- Load OrbitControls -->
-  <script src="https://cdn.jsdelivr.net/npm/three@0.160/examples/js/controls/OrbitControls.js"></script>
-  <!-- Load URDFLoader -->
-  <script src="https://cdn.jsdelivr.net/npm/urdf-loader@0.12.3/umd/URDFLoader.min.js"></script>
+  <script type="module">
+    import * as THREE from 'three';
+    import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+    
+    // Try to import URDFLoader from different sources
+    let URDFLoader;
+    try {
+      // Method 1: Try as named export
+      const module1 = await import('https://cdn.jsdelivr.net/npm/urdf-loader@0.12.3/src/URDFLoader.js');
+      URDFLoader = module1.URDFLoader || module1.default;
+    } catch (e) {
+      console.warn('Method 1 failed:', e);
+      try {
+        // Method 2: Try as default export
+        const module2 = await import('https://cdn.jsdelivr.net/npm/urdf-loader@0.12.3/src/URDFLoader.js');
+        URDFLoader = module2.default;
+      } catch (e2) {
+        console.error('Failed to load URDFLoader:', e2);
+        // Method 3: Fallback to creating a simple mock
+        URDFLoader = class {
+          constructor() {}
+          load(url, onLoad, onProgress, onError) {
+            console.warn('URDFLoader not available. Mock loader created.');
+            if (onError) onError('URDFLoader not available');
+          }
+        };
+      }
+    }
 
-  <script>
     // Scene
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0x222222);
@@ -34,10 +65,11 @@
     document.body.appendChild(renderer.domElement);
 
     // Controls
-    const controls = new THREE.OrbitControls(camera, renderer.domElement);
+    const controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
     controls.target.set(0, 0.6, 0);
 
+    // Lights (URDF meshes can be dark without ambient light)
     // Lights (URDF meshes can be dark without ambient light)
     scene.add(new THREE.HemisphereLight(0xffffff, 0x444444, 1.0));
 

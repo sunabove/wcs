@@ -19,6 +19,9 @@
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js" defer></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.3.0/dist/chart.umd.min.js" defer></script>
+    
+    <!-- MQTT.js CDN -->
+    <script src="https://unpkg.com/mqtt@4.3.7/dist/mqtt.min.js"></script>
 
     <script src="./010_wcs_common.js" defer></script>
 
@@ -555,6 +558,231 @@
         }
     </script>
     <script type="module" src="/urdf/urdf.js"></script>
+    
+    <!-- MQTT 클라이언트 코드 -->
+    <script>
+        // MQTT 클라이언트 설정 및 연결 (Mosquitto 브로커용)
+        function initMQTTClient() {
+            try {
+                // Mosquitto 브로커 WebSocket 설정
+                // Mosquitto 기본 WebSocket 포트: 9001 또는 8080
+                const brokerUrl = 'ws://localhost:9001'; // Mosquitto WebSocket 포트
+                
+                console.log('🦟 Mosquitto 브로커 연결 시도중...', brokerUrl);
+                
+                const client = mqtt.connect(brokerUrl, {
+                    clientId: 'vehicle_status_client_' + Math.random().toString(16).substr(2, 8),
+                    clean: true,
+                    connectTimeout: 5000,        // Mosquitto에 맞게 타임아웃 조정
+                    reconnectPeriod: 2000,       // 재연결 간격 조정
+                    keepalive: 60,               // Mosquitto 기본 keepalive
+                    protocolVersion: 4,          // MQTT 3.1.1 (Mosquitto 호환)
+                    // 필요시 인증 정보 추가
+                    // username: 'your_username',
+                    // password: 'your_password'
+                });
+                
+                // 연결 성공
+                client.on('connect', function (connack) {
+                    console.log('✅ Mosquitto 브로커 연결 성공');
+                    console.log('🔗 연결 정보:', connack);
+                    
+                    // "test/topic" 구독
+                    client.subscribe('test/topic', { qos: 1 }, function (err, granted) {
+                        if (!err) {
+                            console.log('📡 "test/topic" 구독 성공');
+                            console.log('🎯 QoS 설정:', granted);
+                            
+                            // jQuery를 사용한 UI 업데이트
+                            $('body').append('<div id="mqtt-status" style="position:fixed; top:10px; right:10px; background:#28a745; color:white; padding:8px 12px; border-radius:5px; font-size:12px; box-shadow:0 2px 5px rgba(0,0,0,0.2); z-index:9999;"><i class="fas fa-wifi" style="margin-right:5px;"></i>Mosquitto 연결됨</div>');
+                            
+                            // 테스트 메시지 발송 (선택사항)
+                            setTimeout(() => {
+                                const testMessage = JSON.stringify({
+                                    timestamp: new Date().toISOString(),
+                                    client: 'vehicle_status',
+                                    message: 'Connection test from web client'
+                                });
+                                client.publish('test/topic', testMessage, { qos: 1 });
+                                console.log('📤 테스트 메시지 발송:', testMessage);
+                            }, 1000);
+                            
+                        } else {
+                            console.error('❌ "test/topic" 구독 실패:', err);
+                            
+                            // jQuery를 사용한 에러 표시
+                            $('body').append('<div id="mqtt-status" style="position:fixed; top:10px; right:10px; background:#dc3545; color:white; padding:8px 12px; border-radius:5px; font-size:12px; box-shadow:0 2px 5px rgba(0,0,0,0.2); z-index:9999;"><i class="fas fa-exclamation-triangle" style="margin-right:5px;"></i>MQTT 구독 실패</div>');
+                        }
+                    });
+                });
+                
+                // 메시지 수신
+                client.on('message', function (topic, message) {
+                    if (topic === 'test/topic') {
+                        const messageStr = message.toString();
+                        console.log('📩 [test/topic] 메시지 수신:', messageStr);
+                        
+                        // jQuery를 사용한 DOM 업데이트
+                        const timestamp = new Date().toLocaleTimeString();
+                        const logEntry = `<div style="border-bottom:1px solid #eee; padding:5px; font-size:12px;">${timestamp} - ${messageStr}</div>`;
+                        
+                        // 로그 컨테이너가 없으면 생성 (Mosquitto 전용 스타일)
+                        if ($('#mqtt-log').length === 0) {
+                            $('body').append(`
+                                <div id="mqtt-log" style="position:fixed; bottom:10px; right:10px; width:350px; max-height:200px; background:rgba(40,167,69,0.95); color:white; border-radius:8px; overflow:hidden; font-family:monospace; box-shadow:0 4px 12px rgba(0,0,0,0.3); z-index:9998; border:2px solid #28a745;">
+                                    <div class="mqtt-header" style="background:#1e7e34; padding:8px; text-align:center; font-weight:bold; cursor:pointer;"><i class="fas fa-server" style="margin-right:5px;"></i>Mosquitto Log</div>
+                                    <div id="mqtt-messages" style="padding:5px; max-height:150px; overflow-y:auto;"></div>
+                                </div>
+                            `);
+                        }
+                        
+                        // jQuery를 사용하여 새 메시지 추가
+                        $('#mqtt-messages').prepend(logEntry);
+                        
+                        // Mosquitto 통계 업데이트
+                        const messageCount = $('#mqtt-messages > div').length;
+                        $('#mqtt-log .mqtt-header').html(`<i class="fas fa-server" style="margin-right:5px;"></i>Mosquitto Log (${messageCount})`);
+                        
+                        // 최대 15개 메시지만 유지 (Mosquitto 로그 최적화)
+                        const messages = $('#mqtt-messages > div');
+                        if (messages.length > 15) {
+                            messages.slice(15).remove();
+                        }
+                        
+                        // JSON 파싱 시도 (Mosquitto 메시지 처리)
+                        try {
+                            const jsonData = JSON.parse(messageStr);
+                            console.log('📊 [test/topic] Mosquitto JSON 데이터:', jsonData);
+                            
+                            // jQuery를 사용하여 특정 데이터 업데이트
+                            if (jsonData.speed) {
+                                console.log('🚗 차량 속도 업데이트 (Mosquitto):', jsonData.speed);
+                                // 실제 UI 업데이트 로직
+                            }
+                            
+                            if (jsonData.temperature) {
+                                console.log('🌡️ 온도 데이터 (Mosquitto):', jsonData.temperature);
+                            }
+                            
+                            if (jsonData.status) {
+                                console.log('🟢 상태 업데이트 (Mosquitto):', jsonData.status);
+                                
+                                // 상태에 따른 UI 업데이트
+                                const statusColor = jsonData.status === 'online' ? '#28a745' : 
+                                                  jsonData.status === 'warning' ? '#ffc107' : '#dc3545';
+                                $('#mqtt-status').css('background', statusColor);
+                            }
+                            
+                        } catch (e) {
+                            // JSON이 아닌 경우 일반 텍스트로 처리
+                            console.log('📝 [test/topic] Mosquitto 텍스트 데이터:', messageStr);
+                        }
+                    }
+                });
+                
+                // 연결 오류 (Mosquitto 전용 에러 처리)
+                client.on('error', function (err) {
+                    console.error('❌ Mosquitto 연결 오류:', err);
+                    
+                    // jQuery를 사용한 에러 상태 표시
+                    $('#mqtt-status').css({
+                        'background': '#dc3545',
+                        'animation': 'blink 1s infinite'
+                    }).html('<i class="fas fa-exclamation-triangle" style="margin-right:5px;"></i>Mosquitto 오류');
+                    
+                    // 에러 상세 정보 표시
+                    if (err.message) {
+                        console.error('에러 상세:', err.message);
+                    }
+                });
+                
+                // 연결 끊김 (Mosquitto 연결 끊김 이벤트)
+                client.on('close', function () {
+                    console.log('🦟 Mosquitto 연결이 끊어졌습니다.');
+                    
+                    // jQuery를 사용한 연결 상태 업데이트
+                    $('#mqtt-status').css('background', '#fd7e14').html('<i class="fas fa-unlink" style="margin-right:5px;"></i>Mosquitto 끊어짐');
+                });
+                
+                // 재연결 (Mosquitto 재연결 로직)
+                client.on('reconnect', function () {
+                    console.log('🔄 Mosquitto 재연결 시도중...');
+                    
+                    // jQuery를 사용한 재연결 상태 표시
+                    $('#mqtt-status').css('background', '#17a2b8').html('<i class="fas fa-sync fa-spin" style="margin-right:5px;"></i>Mosquitto 재연결 중...');
+                });
+                
+                // 전역 변수로 저장 (필요시 다른 곳에서 사용 가능)
+                window.mqttClient = client;
+                
+            } catch (error) {
+                console.error('❌ Mosquitto 클라이언트 초기화 오류:', error);
+                
+                // jQuery를 사용한 초기화 에러 표시
+                $('body').append('<div style="position:fixed; top:10px; right:10px; background:#dc3545; color:white; padding:8px 12px; border-radius:5px; font-size:12px; box-shadow:0 2px 5px rgba(0,0,0,0.2); z-index:9999;"><i class="fas fa-times-circle" style="margin-right:5px;"></i>Mosquitto 초기화 실패</div>');
+            }
+        }
+        
+        // jQuery DOM ready 이벤트
+        $(document).ready(function() {
+            console.log('🦟 jQuery DOM 준비 완료 - Mosquitto 차량 대시보드 시작');
+            
+            // Mosquitto MQTT 클라이언트 초기화
+            initMQTTClient();
+            
+            // Mosquitto 로그 패널 고급 기능
+            $(document).on('click', '#mqtt-log .mqtt-header', function() {
+                $('#mqtt-messages').slideToggle(200);
+                const icon = $(this).find('i.fa-server, i.fa-chevron-down');
+                if (icon.hasClass('fa-server')) {
+                    icon.removeClass('fa-server').addClass('fa-chevron-down');
+                } else {
+                    icon.removeClass('fa-chevron-down').addClass('fa-server');
+                }
+            });
+            
+            // 로그 클리어 버튼 기능 (더블클릭)
+            $(document).on('dblclick', '#mqtt-log .mqtt-header', function() {
+                $('#mqtt-messages').empty();
+                $(this).html('<i class="fas fa-server" style="margin-right:5px;"></i>Mosquitto Log (0)');
+                console.log('🧹 Mosquitto 로그 지워짐');
+            });
+        });
+        
+        // Mosquitto 메시지 전송 함수 (jQuery + QoS 지원)
+        function sendMQTTMessage(topic, message, qos) {
+            qos = qos || 1; // 기본 QoS 1 (Mosquitto 배송 보장)
+            
+            if (window.mqttClient && window.mqttClient.connected) {
+                // JSON 객체는 문자열로 변환
+                const messageStr = typeof message === 'object' ? JSON.stringify(message) : message;
+                
+                window.mqttClient.publish(topic, messageStr, { qos: qos }, function(err) {
+                    if (!err) {
+                        console.log(`📤 Mosquitto 메시지 전송성공 [QoS ${qos}]:`, topic, messageStr);
+                        
+                        // jQuery를 사용한 전송 피드백
+                        $('body').append(`<div id="mqtt-sent" style="position:fixed; top:50px; right:10px; background:#28a745; color:white; padding:8px 12px; border-radius:5px; font-size:12px; box-shadow:0 2px 5px rgba(0,0,0,0.2); z-index:9999;"><i class="fas fa-paper-plane" style="margin-right:5px;"></i>Mosquitto 전송완료 (QoS ${qos})</div>`);
+                        setTimeout(() => $('#mqtt-sent').fadeOut(500, () => $('#mqtt-sent').remove()), 3000);
+                    } else {
+                        console.error('❌ Mosquitto 메시지 전송 실패:', err);
+                        
+                        $('body').append('<div style="position:fixed; top:50px; right:10px; background:#dc3545; color:white; padding:8px 12px; border-radius:5px; font-size:12px; box-shadow:0 2px 5px rgba(0,0,0,0.2); z-index:9999;"><i class="fas fa-exclamation-triangle" style="margin-right:5px;"></i>전송 실패</div>');
+                        setTimeout(() => $('div:contains("전송 실패")').fadeOut().remove(), 3000);
+                    }
+                });
+            } else {
+                console.error('❌ Mosquitto 클라이언트가 연결되지 않음');
+                
+                $('body').append('<div style="position:fixed; top:50px; right:10px; background:#ffc107; color:#212529; padding:8px 12px; border-radius:5px; font-size:12px; box-shadow:0 2px 5px rgba(0,0,0,0.2); z-index:9999;"><i class="fas fa-unlink" style="margin-right:5px;"></i>Mosquitto 연결 필요</div>');
+                setTimeout(() => $('div:contains("Mosquitto 연결 필요")').fadeOut().remove(), 3000);
+            }
+        }
+            } else {
+                console.error('❌ MQTT 클라이언트가 연결되지 않음');
+            }
+        }
+    </script>
 
 </body>
 

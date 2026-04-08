@@ -145,7 +145,7 @@ class URDFViewer {
                     let cameraPosition;
 
                     cameraPosition = {
-                                x: center.x + cameraDist * 0.2,
+                                x: center.x + cameraDist * 0.1,
                                 y: center.y + cameraDist * 1.2,
                                 z: center.z - cameraDist * 0.8
                             };

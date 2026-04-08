@@ -141,35 +141,35 @@ class URDFViewer {
                     // 카메라 위치 자동 조정 - 각 뷰마다 다른 각도
                     const cameraDist = maxDim === 0 ? 2 : maxDim * 0.6;
                     
-                    // 각 뷰에 따른 다른 초기 카메라 위치 설정
+                    // 각 뷰에 따른 다른 초기 카메라 위치 설정 (case 2를 기준으로 약간씩 조정)
                     let cameraPosition;
                     switch(this.viewIndex) {
-                        case 1: // View 1 - 앞쪽 오른쪽 위
+                        case 1: // View 1 - 기준에서 x를 우측으로 약간 조정
                             cameraPosition = {
-                                x: center.x + cameraDist * 0.8,
+                                x: center.x - cameraDist * 0.5,
                                 y: center.y + cameraDist * 1.2,
                                 z: center.z + cameraDist * 0.8
                             };
                             break;
-                        case 2: // View 2 - 앞쪽 왼쪽 위  
+                        case 2: // View 2 - 기준 위치 (앞쪽 왼쪽 위)
                             cameraPosition = {
                                 x: center.x - cameraDist * 0.8,
                                 y: center.y + cameraDist * 1.2,
                                 z: center.z + cameraDist * 0.8
                             };
                             break;
-                        case 3: // View 3 - 뒤쪽 오른쪽 위
-                            cameraPosition = {
-                                x: center.x + cameraDist * 0.8,
-                                y: center.y + cameraDist * 1.2,
-                                z: center.z - cameraDist * 0.8
-                            };
-                            break;
-                        case 4: // View 4 - 뒤쪽 왼쪽 위
+                        case 3: // View 3 - 기준에서 z를 뒤쪽으로 약간 조정
                             cameraPosition = {
                                 x: center.x - cameraDist * 0.8,
                                 y: center.y + cameraDist * 1.2,
-                                z: center.z - cameraDist * 0.8
+                                z: center.z + cameraDist * 0.5
+                            };
+                            break;
+                        case 4: // View 4 - 기준에서 x를 더 왼쪽으로, z를 뒤쪽으로 약간 조정
+                            cameraPosition = {
+                                x: center.x - cameraDist * 1.1,
+                                y: center.y + cameraDist * 1.2,
+                                z: center.z + cameraDist * 0.5
                             };
                             break;
                         default:

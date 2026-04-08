@@ -249,7 +249,7 @@ function initURDFViewers() {
         const viewLabel = `View ${viewIndex}`;
         
         // 컨테이너 내부의 기존 HTML 요소들 모두 삭제
-        container.innerHTML = '';
+        //container.innerHTML = '';
         
         console.log(`🔧 ${containerClass} 요소 초기화 중... (ViewIndex: ${viewIndex})`);
         

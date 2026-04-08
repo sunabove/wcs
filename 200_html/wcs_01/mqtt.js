@@ -6,7 +6,7 @@ function initMQTTClient() {
         const currentHost = window.location.hostname || 'localhost';
         const brokerUrl = `ws://${currentHost}:9001`; // Mosquitto WebSocket 포트
         
-        console.log('[MQTT] 🦟 Mosquitto 브로커 연결 시도중...', brokerUrl);
+        console.log('[MQTT] 🦟 브로커 연결 시도중...', brokerUrl);
         console.log('[MQTT] 🌐 현재 호스트:', currentHost);
         
         const client = mqtt.connect(brokerUrl, {
@@ -67,20 +67,20 @@ function initMQTTClient() {
                 // JSON 파싱 시도 (Mosquitto 메시지 처리)
                 try {
                     const jsonData = JSON.parse(messageStr);
-                    console.log('[MQTT] 📊 [test/topic] Mosquitto JSON 데이터:', jsonData);
+                    console.log('[MQTT] 📊 [test/topic] JSON 데이터:', jsonData);
                     
                     // 특정 데이터 타입별 로깅
                     if (jsonData.speed) {
-                        console.log('[MQTT] 🚗 차량 속도 업데이트 (Mosquitto):', jsonData.speed);
+                        console.log('[MQTT] 🚗 차량 속도 업데이트:', jsonData.speed);
                         // 실제 UI 업데이트 로직을 여기에 추가 가능
                     }
                     
                     if (jsonData.temperature) {
-                        console.log('[MQTT] 🌡️ 온도 데이터 (Mosquitto):', jsonData.temperature);
+                        console.log('[MQTT] 🌡️ 온도 데이터:', jsonData.temperature);
                     }
                     
                     if (jsonData.status) {
-                        console.log('[MQTT] 🟢 상태 업데이트 (Mosquitto):', jsonData.status);
+                        console.log('[MQTT] 🟢 상태 업데이트:', jsonData.status);
                         
                         // 상태에 따른 UI 업데이트 (MQTT 상태 표시만 유지)
                         const statusColor = jsonData.status === 'online' ? '#28a745' : 
@@ -90,7 +90,7 @@ function initMQTTClient() {
                     
                 } catch (e) {
                     // JSON이 아닌 경우 일반 텍스트로 처리
-                    console.warn('[MQTT] 📝 [test/topic] Mosquitto 텍스트 데이터:', messageStr);
+                    console.warn('[MQTT] 📝 [test/topic] 텍스트 데이터:', messageStr);
                 }
             }
         });
@@ -150,23 +150,23 @@ function sendMQTTMessage(topic, message, qos) {
             const timestamp = new Date().toLocaleTimeString();
             
             if (!err) {
-                console.log(`[MQTT] 📤 [${timestamp}] Mosquitto 메시지 전송성공 [QoS ${qos}]:`, topic, messageStr);
+                console.log(`[MQTT] 📤 [${timestamp}] 메시지 전송성공 [QoS ${qos}]:`, topic, messageStr);
             } else {
-                console.error(`[MQTT] ❌ [${timestamp}] Mosquitto 메시지 전송 실패:`, err);
+                console.error(`[MQTT] ❌ [${timestamp}] 메시지 전송 실패:`, err);
                 console.error(`[MQTT]    - 토픽: ${topic}`);
                 console.error(`[MQTT]    - 메시지: ${messageStr}`);
             }
         });
     } else {
         const timestamp = new Date().toLocaleTimeString();
-        console.error(`[MQTT] ❌ [${timestamp}] Mosquitto 클라이언트가 연결되지 않음`);
-        console.warn('[MQTT]    - MQTT 클라이언트 연결 상태를 확인하세요.');
+        console.error(`[MQTT] ❌ [${timestamp}] 클라이언트가 연결되지 않음`);
+        console.warn('[MQTT] - MQTT 클라이언트 연결 상태를 확인하세요.');
     }
 }
 
 // MQTT 초기화 함수 (페이지 로드 시 자동 실행)
 $(document).ready(function() {
-    console.log('[MQTT] 🦟 jQuery DOM 준비 완료 - Mosquitto 차량 대시보드 시작');
+    console.log('[MQTT] 🦟 jQuery DOM 준비 완료 - 차량 대시보드 시작');
     
     // Mosquitto MQTT 클라이언트 초기화
     initMQTTClient();

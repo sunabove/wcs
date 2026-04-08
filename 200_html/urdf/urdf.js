@@ -9,7 +9,7 @@ class URDFViewer {
         this.viewLabel = viewLabel;
         this.viewIndex = viewIndex;
         this.robotModel = null;
-        this.goalTarget = new this.THREE.Vector3(0, 0, 0);
+        this.goalTarget = new THREE.Vector3(0, 0, 0);
         this.targetMarker = null;
         
         this.init();
@@ -24,39 +24,39 @@ class URDFViewer {
         console.log(`${this.viewLabel} 컨테이너 크기: ${width}x${height}`);
 
         // Scene 생성
-        this.scene = new this.THREE.Scene();
-        this.scene.background = new this.THREE.Color(0xf8f8f8);
+        this.scene = new THREE.Scene();
+        this.scene.background = new THREE.Color(0xf8f8f8);
 
         // Camera 생성
-        this.camera = new this.THREE.PerspectiveCamera(50, width / height, 0.01, 1000);
+        this.camera = new THREE.PerspectiveCamera(50, width / height, 0.01, 1000);
         this.camera.position.set(3, 3, 3);
 
         // Renderer 생성
-        this.renderer = new this.THREE.WebGLRenderer({ antialias: true });
+        this.renderer = new THREE.WebGLRenderer({ antialias: true });
         this.renderer.setSize(width, height);
         this.renderer.shadowMap.enabled = true;
-        this.renderer.shadowMap.type = this.THREE.PCFSoftShadowMap;
+        this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
         this.container.appendChild(this.renderer.domElement);
 
         // Controls 설정
-        this.controls = new this.OrbitControls(this.camera, this.renderer.domElement);
+        this.controls = new OrbitControls(this.camera, this.renderer.domElement);
         this.controls.enableDamping = true;
         this.controls.dampingFactor = 0.05;
 
         // 조명 설정
-        const directionalLight = new this.THREE.DirectionalLight(0xffffff, 1.5);
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 1.5);
         directionalLight.position.set(5, 5, 5);
         directionalLight.castShadow = true;
         this.scene.add(directionalLight);
 
-        const ambientLight = new this.THREE.AmbientLight(0x404040, 0.6);
+        const ambientLight = new THREE.AmbientLight(0x404040, 0.6);
         this.scene.add(ambientLight);
 
         // 바닥 그리드와 축 추가
-        const gridHelper = new this.THREE.GridHelper(10, 20, 0x888888, 0xcccccc);
+        const gridHelper = new THREE.GridHelper(10, 20, 0x888888, 0xcccccc);
         this.scene.add(gridHelper);
 
-        const axesHelper = new this.THREE.AxesHelper(1);
+        const axesHelper = new THREE.AxesHelper(1);
         this.scene.add(axesHelper);
 
         // 마우스 이벤트 설정
@@ -73,8 +73,8 @@ class URDFViewer {
     }
 
     setupMouseEvents() {
-        const raycaster = new this.THREE.Raycaster();
-        const mouse = new this.THREE.Vector2();
+        const raycaster = new THREE.Raycaster();
+        const mouse = new THREE.Vector2();
 
         this.container.addEventListener('mousedown', (event) => {
             const rect = this.container.getBoundingClientRect();
@@ -105,15 +105,15 @@ class URDFViewer {
         }
 
         // 새 마커 생성
-        const geometry = new this.THREE.SphereGeometry(0.05, 8, 8);
-        const material = new this.THREE.MeshBasicMaterial({ color: 0xff0000 });
-        this.targetMarker = new this.THREE.Mesh(geometry, material);
+        const geometry = new THREE.SphereGeometry(0.05, 8, 8);
+        const material = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+        this.targetMarker = new THREE.Mesh(geometry, material);
         this.targetMarker.position.copy(position);
         this.scene.add(this.targetMarker);
     }
 
     loadURDF() {
-        const loader = new this.URDFLoader();
+        const loader = new URDFLoader();
         
         console.log(`${this.viewLabel} URDF 파일 로딩 중...`);
 
@@ -130,9 +130,9 @@ class URDFViewer {
 
                 // 자동 피팅 로직
                 setTimeout(() => {
-                    const bbox = new this.THREE.Box3().setFromObject(robot);
-                    const center = bbox.getCenter(new this.THREE.Vector3());
-                    const size = bbox.getSize(new this.THREE.Vector3());
+                    const bbox = new THREE.Box3().setFromObject(robot);
+                    const center = bbox.getCenter(new THREE.Vector3());
+                    const size = bbox.getSize(new THREE.Vector3());
                     const maxDim = Math.max(size.x, size.y, size.z);
 
                     console.log(`📏 ${this.viewLabel} 모델 크기:`, size);
@@ -229,24 +229,16 @@ class URDFViewer {
 }
 
 // 초기화 함수
-async function initURDFViewers() {
-    try {
-        console.log("🚀 모듈 로딩 시작...");
-        const modules = await loadModules();
-        console.log("✅ 모듈 로딩 완료");
-        
-        // 4개의 뷰어 생성
-        console.log("🚀 4개 URDF Viewer 초기화 시작...");
-        
-        const viewer1 = new URDFViewer('robot-container-1', 'View 1', 1, modules);
-        const viewer2 = new URDFViewer('robot-container-2', 'View 2', 2, modules); 
-        const viewer3 = new URDFViewer('robot-container-3', 'View 3', 3, modules);
-        const viewer4 = new URDFViewer('robot-container-4', 'View 4', 4, modules);
+function initURDFViewers() {
+    // 4개의 뷰어 생성
+    console.log("🚀 4개 URDF Viewer 초기화 시작...");
+    
+    const viewer1 = new URDFViewer('robot-container-1', 'View 1', 1);
+    const viewer2 = new URDFViewer('robot-container-2', 'View 2', 2); 
+    const viewer3 = new URDFViewer('robot-container-3', 'View 3', 3);
+    const viewer4 = new URDFViewer('robot-container-4', 'View 4', 4);
 
-        console.log("🚀 모든 URDF Viewer 초기화 완료");
-    } catch (error) {
-        console.error("❌ 모듈 로딩 실패:", error);
-    }
+    console.log("🚀 모든 URDF Viewer 초기화 완료");
 }
 
 // DOM 준비 후 초기화

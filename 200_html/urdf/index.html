@@ -5,8 +5,30 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>URDF Viewer</title>
   <style>
-    body { margin: 0; overflow: hidden; }
-    canvas { display: block; }
+    body { 
+      margin: 0; 
+      padding: 20px; 
+      font-family: Arial, sans-serif;
+      background-color: #f0f0f0;
+    }
+    #robot-container { 
+      width: 800px; 
+      height: 600px; 
+      margin: 0 auto; 
+      border: 2px solid #333; 
+      border-radius: 8px; 
+      overflow: hidden;
+      background-color: white;
+    }
+    .controls {
+      text-align: center;
+      margin: 20px 0;
+    }
+    .info {
+      text-align: center;
+      color: #666;
+      margin-top: 10px;
+    }
   </style>
   
   <!-- Import map for module resolution -->
@@ -14,60 +36,195 @@
   {
     "imports": {
       "three": "https://cdn.jsdelivr.net/npm/three@0.160/build/three.module.js",
-      "three/examples/jsm/": "https://cdn.jsdelivr.net/npm/three@0.160/examples/jsm/"
+      "three/examples/jsm/": "https://cdn.jsdelivr.net/npm/three@0.160/examples/jsm/",
+      "urdf-loader": "https://cdn.jsdelivr.net/npm/urdf-loader@0.12.3/src/URDFLoader.js"
     }
   }
   </script>
 </head>
 
 <body>
+  <div class="controls">
+    <h1>URDF Viewer</h1>
+    <p>Click and drag to rotate • Scroll to zoom • Click on robot to set target</p>
+  </div>
+  
+  <div id="robot-container"></div>
+  
+  <div class="info">
+    <p>Robot model will appear above. Check console for loading status.</p>
+  </div>
+
   <script type="module">
     import * as THREE from 'three';
+    import URDFLoader from 'urdf-loader';
     import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
-    
-    // Try to import URDFLoader from different sources
-    let URDFLoader;
-    try {
-      // Method 1: Try as named export
-      const module1 = await import('https://cdn.jsdelivr.net/npm/urdf-loader@0.12.3/src/URDFLoader.js');
-      URDFLoader = module1.URDFLoader || module1.default;
-    } catch (e) {
-      console.warn('Method 1 failed:', e);
-      try {
-        // Method 2: Try as default export
-        const module2 = await import('https://cdn.jsdelivr.net/npm/urdf-loader@0.12.3/src/URDFLoader.js');
-        URDFLoader = module2.default;
-      } catch (e2) {
-        console.error('Failed to load URDFLoader:', e2);
-        // Method 3: Fallback to creating a simple mock
-        URDFLoader = class {
-          constructor() {}
-          load(url, onLoad, onProgress, onError) {
-            console.warn('URDFLoader not available. Mock loader created.');
-            if (onError) onError('URDFLoader not available');
-          }
-        };
-      }
-    }
 
-    // Scene
+    const container = document.getElementById('robot-container');
+
+    let robotModel = null;
+    let goalTarget = new THREE.Vector3(0, 0, 0);
+
+    // 고정 크기 (main.js를 참고하여 더 큰 크기로 설정)
+    const width = 800;
+    const height = 600;
+
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x222222);
+    scene.background = new THREE.Color(0xf8f8f8); // 약간 더 밝은 배경
 
-    // Camera
-    const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.01, 1000);
-    camera.position.set(2, 2, 2);
+    const camera = new THREE.PerspectiveCamera(50, width/height, 0.01, 1000);
+    camera.position.set(3, 3, 3);
 
-    // Renderer
     const renderer = new THREE.WebGLRenderer({ antialias: true });
-    renderer.setPixelRatio(window.devicePixelRatio);
-    renderer.setSize(window.innerWidth, window.innerHeight);
-    document.body.appendChild(renderer.domElement);
+    renderer.setSize(width, height);
+    renderer.shadowMap.enabled = true; // 그림자 활성화
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    container.appendChild(renderer.domElement);
 
-    // Controls
+    // OrbitControls 설정 (main.js 방식)
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
-    controls.target.set(0, 0.6, 0);
+    controls.dampingFactor = 0.05;
+
+    // 조명 설정 (main.js 방식 + 추가 조명)
+    const directionalLight = new THREE.DirectionalLight(0xffffff, 1.5);
+    directionalLight.position.set(5, 5, 5);
+    directionalLight.castShadow = true; // 그림자 생성
+    scene.add(directionalLight);
+    
+    const ambientLight = new THREE.AmbientLight(0x404040, 0.6);
+    scene.add(ambientLight);
+
+    // 바닥 그리드 추가
+    const gridHelper = new THREE.GridHelper(10, 20, 0x888888, 0xcccccc);
+    scene.add(gridHelper);
+
+    // 축 표시기 추가 
+    const axesHelper = new THREE.AxesHelper(1);
+    scene.add(axesHelper);
+
+    // Raycaster 설정 (main.js 참고)
+    const raycaster = new THREE.Raycaster();
+    const mouse = new THREE.Vector2();
+
+    // 마우스 클릭 이벤트 (main.js 참고)
+    container.addEventListener('mousedown', (event) => {
+      const rect = container.getBoundingClientRect();
+      mouse.x = ((event.clientX - rect.left) / width) * 2 - 1;
+      mouse.y = -((event.clientY - rect.top) / height) * 2 + 1;
+
+      raycaster.setFromCamera(mouse, camera);
+
+      // 로봇 모델만 검사
+      if (robotModel) {
+        const intersects = raycaster.intersectObject(robotModel, true);
+
+        if (intersects.length > 0) {
+          goalTarget.copy(intersects[0].point);
+          console.log("목표 지점 설정:", goalTarget);
+          
+          // 시각적 피드백: 클릭한 지점에 마커 표시
+          showTargetMarker(intersects[0].point);
+        }
+      }
+    });
+
+    // 목표 지점 마커 표시 함수
+    let targetMarker = null;
+    function showTargetMarker(position) {
+      // 기존 마커 제거
+      if (targetMarker) {
+        scene.remove(targetMarker);
+      }
+      
+      // 새 마커 생성
+      const geometry = new THREE.SphereGeometry(0.05, 8, 8);
+      const material = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+      targetMarker = new THREE.Mesh(geometry, material);
+      targetMarker.position.copy(position);
+      scene.add(targetMarker);
+    }
+
+    // URDF 로더 (main.js 방식)
+    const loader = new URDFLoader();
+    
+    // 로딩 시작 메시지
+    console.log("URDF 파일 로딩 중...");
+    
+    loader.load(
+      "./robot.urdf", // 또는 실제 URDF 파일 경로
+      robot => {
+        console.log("✅ URDF 로드 성공");
+        
+        // main.js처럼 스케일링 (단위 변환)
+        robot.scale.set(1000, 1000, 1000); 
+
+        scene.add(robot);
+        robotModel = robot;
+
+        // main.js의 자동 피팅 로직
+        setTimeout(() => {
+          const bbox = new THREE.Box3().setFromObject(robot);
+          const center = bbox.getCenter(new THREE.Vector3());
+          const size = bbox.getSize(new THREE.Vector3());
+          const maxDim = Math.max(size.x, size.y, size.z);
+
+          console.log("📏 모델 크기:", size);
+          console.log("📍 모델 중심:", center);
+
+          // 카메라 위치 자동 조정
+          const cameraDist = maxDim === 0 ? 2 : maxDim * 0.6; 
+          
+          camera.position.set(
+            center.x + cameraDist, 
+            center.y + cameraDist, 
+            center.z + cameraDist
+          );
+          camera.lookAt(center);
+
+          // 회전 중심 업데이트
+          goalTarget.copy(center);
+          controls.target.copy(center); 
+          controls.update();
+
+          console.log("✅ 자동 피팅 완료: 거리", cameraDist.toFixed(4));
+        }, 200); // 0.2초 대기
+      },
+      progress => {
+        if (progress?.total) {
+          const percent = ((progress.loaded / progress.total) * 100).toFixed(1);
+          console.log(`URDF 로딩 진행률: ${percent}%`);
+        }
+      },
+      error => {
+        console.error("❌ URDF 로드 실패:", error);
+        console.log("robot.urdf 파일이 현재 디렉토리에 있는지 확인하세요.");
+      }
+    );
+
+    // 윈도우 리사이즈 처리
+    window.addEventListener('resize', () => {
+      // 고정 크기이므로 리사이즈 시에도 원래 크기 유지
+      renderer.setSize(width, height);
+    });
+
+    // 애니메이션 루프
+    function animate() {
+      requestAnimationFrame(animate);
+      
+      // OrbitControls 업데이트 (damping 효과)
+      controls.update();
+      
+      renderer.render(scene, camera);
+    }
+    
+    animate();
+    
+    // 초기화 완료 메시지
+    console.log("🚀 URDF Viewer 초기화 완료");
+  </script>
+</body>
+</html>
 
     // Lights (URDF meshes can be dark without ambient light)
     // Lights (URDF meshes can be dark without ambient light)

@@ -8,7 +8,7 @@ Requires=mosquitto.service
 User=www
 WorkingDirectory=/home/www/wcs/300_python
 
-ExecStart=/usr/bin/python3 mqttDataSimulator.py
+ExecStart=/usr/bin/python3 /home/www/wcs/300_python/mqttDataSimulator.py
 
 Restart=always
 

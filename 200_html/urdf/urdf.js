@@ -1,24 +1,10 @@
-// 동적 import로 모든 의존성 로드
-async function loadModules() {
-    const [
-        THREE,
-        { URDFLoader },
-        { OrbitControls }
-    ] = await Promise.all([
-        import('https://cdn.jsdelivr.net/npm/three@0.160/build/three.module.js'),
-        import('https://cdn.jsdelivr.net/npm/urdf-loader@0.12.3/src/URDFLoader.js'),
-        import('https://cdn.jsdelivr.net/npm/three@0.160/examples/jsm/controls/OrbitControls.js')
-    ]);
-    
-    return { THREE, URDFLoader, OrbitControls };
-}
+import * as THREE from 'three';
+import URDFLoader from 'urdf-loader';
+import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 
 // 각 뷰어를 위한 클래스
 class URDFViewer {
-    constructor(containerId, viewLabel, viewIndex, { THREE, URDFLoader, OrbitControls }) {
-        this.THREE = THREE;
-        this.URDFLoader = URDFLoader;
-        this.OrbitControls = OrbitControls;
+    constructor(containerId, viewLabel, viewIndex) {
         this.container = document.getElementById(containerId);
         this.viewLabel = viewLabel;
         this.viewIndex = viewIndex;

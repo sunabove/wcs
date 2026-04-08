@@ -8,24 +8,17 @@
     body { margin: 0; overflow: hidden; }
     canvas { display: block; }
   </style>
-
-  <!-- Import map so URDFLoader can resolve "three" -->
-  <script type="importmap">
-  {
-    "imports": {
-      "three": "https://cdn.jsdelivr.net/npm/three@0.160/build/three.module.js",
-      "three/examples/jsm/": "https://cdn.jsdelivr.net/npm/three@0.160/examples/jsm/"
-    }
-  }
-  </script>
 </head>
 
 <body>
-  <script type="module">
-    import * as THREE from 'three';
-    import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
-    import { URDFLoader } from 'https://cdn.jsdelivr.net/npm/urdf-loader@0.12.3/src/URDFLoader.js';
+  <!-- Load Three.js first -->
+  <script src="https://cdn.jsdelivr.net/npm/three@0.160/build/three.min.js"></script>
+  <!-- Load OrbitControls -->
+  <script src="https://cdn.jsdelivr.net/npm/three@0.160/examples/js/controls/OrbitControls.js"></script>
+  <!-- Load URDFLoader -->
+  <script src="https://cdn.jsdelivr.net/npm/urdf-loader@0.12.3/umd/URDFLoader.min.js"></script>
 
+  <script>
     // Scene
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0x222222);
@@ -41,7 +34,7 @@
     document.body.appendChild(renderer.domElement);
 
     // Controls
-    const controls = new OrbitControls(camera, renderer.domElement);
+    const controls = new THREE.OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
     controls.target.set(0, 0.6, 0);
 

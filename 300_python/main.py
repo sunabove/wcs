@@ -77,8 +77,7 @@ def publish(data: PublishModel):
 def get_latest(topic: str):
     if topic in mqtt_data_store:
         return {
-            "topic": topic,
-            "data": mqtt_data_store[topic]
+            topic : mqtt_data_store[topic]
         }
     return {"error": "No data"}
 pass 

@@ -29,7 +29,7 @@ class URDFViewer {
 
         // Camera 생성
         this.camera = new THREE.PerspectiveCamera(50, width / height, 0.01, 1000);
-        this.camera.position.set(3, 3, 3);
+        this.camera.position.set(3*2, 3*2, 3*2);
 
         // Renderer 생성
         this.renderer = new THREE.WebGLRenderer({ antialias: true });

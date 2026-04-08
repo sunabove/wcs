@@ -1,0 +1,16 @@
+[Unit]
+Description=MQTT Data Simulator Service
+After=network.target mosquitto.service
+Wants=mosquitto.service
+Requires=mosquitto.service
+
+[Service]
+User=www
+WorkingDirectory=/home/www/wcs/300_python
+
+ExecStart=/usr/bin/python3 mqttDataSimulator.py
+
+Restart=always
+
+[Install]
+WantedBy=multi-user.target

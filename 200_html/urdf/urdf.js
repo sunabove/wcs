@@ -245,6 +245,7 @@ function initURDFViewers() {
     // 각 컨테이너에 대해 URDFViewer 생성 (viewIndex는 1부터 시작)
     containers.forEach((container, index) => {
         var viewIndex = index + 1; // 1부터 시작
+        viewIndex = 1 ; 
         const containerClass = container.className;
         const viewLabel = `View ${viewIndex}`;
         

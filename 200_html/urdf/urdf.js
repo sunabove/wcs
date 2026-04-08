@@ -139,7 +139,7 @@ class URDFViewer {
                     console.log(`📍 ${this.viewLabel} 모델 중심:`, center);
 
                     // 카메라 위치 자동 조정 - 각 뷰마다 다른 각도 (거리를 더 여유롭게)
-                    const cameraDist = maxDim === 0 ? 3 : maxDim * 1.3;
+                    const cameraDist = maxDim === 0 ? 3 : maxDim * 1.4;
                     
                     // 각 뷰에 따른 다른 초기 카메라 위치 설정 (더 안전한 거리로 조정)
                     let cameraPosition;

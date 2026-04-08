@@ -33,7 +33,7 @@ function initMQTTClient() {
                     console.log('[MQTT] 🎯 QoS 설정:', granted);
                     
                     // jQuery를 사용한 UI 업데이트
-                    $('body').append('<div id="mqtt-status" style="position:fixed; top:10px; right:10px; background:#28a745; color:white; padding:8px 12px; border-radius:5px; font-size:12px; box-shadow:0 2px 5px rgba(0,0,0,0.2); z-index:9999;"><i class="fas fa-wifi" style="margin-right:5px;"></i>Mosquitto 연결됨</div>');
+                    $('body').append('<div id="mqtt-status" style="position:fixed; top:10px; right:10px; background:#28a745; color:white; padding:8px 12px; border-radius:5px; font-size:12px; box-shadow:0 2px 5px rgba(0,0,0,0.2); z-index:9999;"><i class="fas fa-wifi" style="margin-right:5px;"></i>MQTT 연결됨</div>');
                     
                     // 테스트 메시지 발송 (선택사항)
                     setTimeout(() => {
@@ -90,7 +90,7 @@ function initMQTTClient() {
                     
                 } catch (e) {
                     // JSON이 아닌 경우 일반 텍스트로 처리
-                    console.warn('[MQTT] 📝 [test/topic] Mosquitto 텍스트 데이터 (JSON 파싱 실패):', messageStr);
+                    console.warn('[MQTT] 📝 [test/topic] Mosquitto 텍스트 데이터:', messageStr);
                 }
             }
         });

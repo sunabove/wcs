@@ -27,8 +27,8 @@ class URDFViewer {
         this.scene = new THREE.Scene();
         this.scene.background = new THREE.Color(0xf8f8f8);
 
-        // Camera 생성 (FOV를 더 넓게 조정)
-        this.camera = new THREE.PerspectiveCamera(75, width / height, 0.01, 1000);
+        // Camera 생성
+        this.camera = new THREE.PerspectiveCamera(50, width / height, 0.01, 1000);
         this.camera.position.set(3*2, 3*2, 3*2);
 
         // Renderer 생성
@@ -138,38 +138,38 @@ class URDFViewer {
                     console.log(`📏 ${this.viewLabel} 모델 크기:`, size);
                     console.log(`📍 ${this.viewLabel} 모델 중심:`, center);
 
-                    // 카메라 위치 자동 조정 - 각 뷰마다 다른 각도 (거리를 더 여유롭게)
-                    const cameraDist = maxDim === 0 ? 3 : maxDim * 1.4;
+                    // 카메라 위치 자동 조정 - 각 뷰마다 다른 각도
+                    const cameraDist = maxDim === 0 ? 2 : maxDim * 0.6;
                     
-                    // 각 뷰에 따른 다른 초기 카메라 위치 설정 (더 안전한 거리로 조정)
+                    // 각 뷰에 따른 다른 초기 카메라 위치 설정
                     let cameraPosition;
                     switch(this.viewIndex) {
                         case 1: // View 1 - 앞쪽 오른쪽 위
                             cameraPosition = {
-                                x: center.x + cameraDist * 1.0,
-                                y: center.y + cameraDist * 1.5,
-                                z: center.z + cameraDist * 1.0
+                                x: center.x + cameraDist * 0.8,
+                                y: center.y + cameraDist * 1.2,
+                                z: center.z + cameraDist * 0.8
                             };
                             break;
                         case 2: // View 2 - 앞쪽 왼쪽 위  
                             cameraPosition = {
-                                x: center.x - cameraDist * 1.0,
-                                y: center.y + cameraDist * 1.5,
-                                z: center.z + cameraDist * 1.0
+                                x: center.x - cameraDist * 0.8,
+                                y: center.y + cameraDist * 1.2,
+                                z: center.z + cameraDist * 0.8
                             };
                             break;
                         case 3: // View 3 - 뒤쪽 오른쪽 위
                             cameraPosition = {
-                                x: center.x + cameraDist * 1.0,
-                                y: center.y + cameraDist * 1.5,
-                                z: center.z - cameraDist * 1.0
+                                x: center.x + cameraDist * 0.8,
+                                y: center.y + cameraDist * 1.2,
+                                z: center.z - cameraDist * 0.8
                             };
                             break;
                         case 4: // View 4 - 뒤쪽 왼쪽 위
                             cameraPosition = {
-                                x: center.x - cameraDist * 1.0,
-                                y: center.y + cameraDist * 1.5,
-                                z: center.z - cameraDist * 1.0
+                                x: center.x - cameraDist * 0.8,
+                                y: center.y + cameraDist * 1.2,
+                                z: center.z - cameraDist * 0.8
                             };
                             break;
                         default:

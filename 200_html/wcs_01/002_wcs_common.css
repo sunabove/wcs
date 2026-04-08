@@ -1,0 +1,8 @@
+.robot-container {
+    overflow: hidden;
+    background-color: white;
+    position: relative;
+    max-width: 600px;
+    height: 80vh;
+    max-height: 400px;
+}

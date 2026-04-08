@@ -143,9 +143,9 @@ class URDFViewer {
                     
                     // 각 뷰에 따른 다른 초기 카메라 위치 설정
                     let cameraPosition;
-                    
+
                     cameraPosition = {
-                                x: center.x + cameraDist * 0.8,
+                                x: center.x + cameraDist * 0.4,
                                 y: center.y + cameraDist * 1.2,
                                 z: center.z - cameraDist * 0.8
                             };

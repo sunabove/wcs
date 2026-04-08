@@ -57,17 +57,6 @@
             margin-top: 10px;
         }
     </style>
-
-    <!-- Import map for module resolution -->
-    <script type="importmap">
-  {
-    "imports": {
-      "three": "https://cdn.jsdelivr.net/npm/three@0.160/build/three.module.js",
-      "three/examples/jsm/": "https://cdn.jsdelivr.net/npm/three@0.160/examples/jsm/",
-      "urdf-loader": "https://cdn.jsdelivr.net/npm/urdf-loader@0.12.3/src/URDFLoader.js"
-    }
-  }
-  </script>
 </head>
 
 <body>
@@ -95,7 +84,7 @@
         <p>Robot model will appear in each panel above. Check console for loading status.</p>
     </div>
 
-    <script type="module" src="urdf.js"></script>
+    <script src="urdf.js"></script>
 </body>
 
 </html>

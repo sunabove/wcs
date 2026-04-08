@@ -78,16 +78,16 @@
 
     <div id="robot-grid">
         <div class="robot-container" id="robot-container-1">
-            <div class="label">View 1</div>
+            <div class="label">Front Right</div>
         </div>
         <div class="robot-container" id="robot-container-2">
-            <div class="label">View 2</div>
+            <div class="label">Front Left</div>
         </div>
         <div class="robot-container" id="robot-container-3">
-            <div class="label">View 3</div>
+            <div class="label">Back Right</div>
         </div>
         <div class="robot-container" id="robot-container-4">
-            <div class="label">View 4</div>
+            <div class="label">Back Left</div>
         </div>
     </div>
     
@@ -102,9 +102,10 @@
 
         // 각 뷰어를 위한 클래스
         class URDFViewer {
-            constructor(containerId, viewLabel) {
+            constructor(containerId, viewLabel, viewIndex) {
                 this.container = document.getElementById(containerId);
                 this.viewLabel = viewLabel;
+                this.viewIndex = viewIndex;
                 this.robotModel = null;
                 this.goalTarget = new THREE.Vector3(0, 0, 0);
                 this.targetMarker = null;
@@ -235,13 +236,52 @@
                             console.log(`📏 ${this.viewLabel} 모델 크기:`, size);
                             console.log(`📍 ${this.viewLabel} 모델 중심:`, center);
 
-                            // 카메라 위치 자동 조정
+                            // 카메라 위치 자동 조정 - 각 뷰마다 다른 각도
                             const cameraDist = maxDim === 0 ? 2 : maxDim * 0.6;
+                            
+                            // 각 뷰에 따른 다른 초기 카메라 위치 설정
+                            let cameraPosition;
+                            switch(this.viewIndex) {
+                                case 1: // View 1 - 앞쪽 오른쪽 위
+                                    cameraPosition = {
+                                        x: center.x + cameraDist * 0.8,
+                                        y: center.y + cameraDist * 1.2,
+                                        z: center.z + cameraDist * 0.8
+                                    };
+                                    break;
+                                case 2: // View 2 - 앞쪽 왼쪽 위  
+                                    cameraPosition = {
+                                        x: center.x - cameraDist * 0.8,
+                                        y: center.y + cameraDist * 1.2,
+                                        z: center.z + cameraDist * 0.8
+                                    };
+                                    break;
+                                case 3: // View 3 - 뒤쪽 오른쪽 위
+                                    cameraPosition = {
+                                        x: center.x + cameraDist * 0.8,
+                                        y: center.y + cameraDist * 1.2,
+                                        z: center.z - cameraDist * 0.8
+                                    };
+                                    break;
+                                case 4: // View 4 - 뒤쪽 왼쪽 위
+                                    cameraPosition = {
+                                        x: center.x - cameraDist * 0.8,
+                                        y: center.y + cameraDist * 1.2,
+                                        z: center.z - cameraDist * 0.8
+                                    };
+                                    break;
+                                default:
+                                    cameraPosition = {
+                                        x: center.x + cameraDist,
+                                        y: center.y + cameraDist,
+                                        z: center.z + cameraDist
+                                    };
+                            }
 
                             this.camera.position.set(
-                                center.x + cameraDist,
-                                center.y + cameraDist,
-                                center.z + cameraDist
+                                cameraPosition.x,
+                                cameraPosition.y,
+                                cameraPosition.z
                             );
                             this.camera.lookAt(center);
 
@@ -289,10 +329,10 @@
         // 4개의 뷰어 생성
         console.log("🚀 4개 URDF Viewer 초기화 시작...");
         
-        const viewer1 = new URDFViewer('robot-container-1', 'View 1');
-        const viewer2 = new URDFViewer('robot-container-2', 'View 2'); 
-        const viewer3 = new URDFViewer('robot-container-3', 'View 3');
-        const viewer4 = new URDFViewer('robot-container-4', 'View 4');
+        const viewer1 = new URDFViewer('robot-container-1', 'View 1', 1);
+        const viewer2 = new URDFViewer('robot-container-2', 'View 2', 2); 
+        const viewer3 = new URDFViewer('robot-container-3', 'View 3', 3);
+        const viewer4 = new URDFViewer('robot-container-4', 'View 4', 4);
 
         console.log("🚀 모든 URDF Viewer 초기화 완료");
     </script>

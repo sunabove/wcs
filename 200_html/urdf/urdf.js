@@ -146,7 +146,7 @@ class URDFViewer {
                     switch(this.viewIndex) {
                         case 1: // View 1 - 앞쪽 오른쪽 위
                             cameraPosition = {
-                                x: center.x - cameraDist * 0.8,
+                                x: center.x + cameraDist * 0.8,
                                 y: center.y + cameraDist * 1.2,
                                 z: center.z + cameraDist * 0.8
                             };
@@ -160,16 +160,16 @@ class URDFViewer {
                             break;
                         case 3: // View 3 - 뒤쪽 오른쪽 위
                             cameraPosition = {
-                                x: center.x - cameraDist * 0.8,
+                                x: center.x + cameraDist * 0.8,
                                 y: center.y + cameraDist * 1.2,
-                                z: center.z + cameraDist * 0.8
+                                z: center.z - cameraDist * 0.8
                             };
                             break;
                         case 4: // View 4 - 뒤쪽 왼쪽 위
                             cameraPosition = {
                                 x: center.x - cameraDist * 0.8,
                                 y: center.y + cameraDist * 1.2,
-                                z: center.z + cameraDist * 0.8
+                                z: center.z - cameraDist * 0.8
                             };
                             break;
                         default:

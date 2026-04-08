@@ -19,42 +19,46 @@ mqtt_data_store = {}
 # -----------------------------
 # MQTT 콜백
 # -----------------------------
-def on_connect(client, userdata, flags, rc):
+def mqtt_on_connect(client, userdata, flags, rc):
     print("MQTT Connected:", rc)
+    
     client.subscribe(MQTT_TOPIC)
+pass # mqtt_on_connect
 
-def on_message(client, userdata, msg):
+def mqtt_on_message(client, userdata, msg):
     payload = msg.payload.decode()
+    
     print(f"Received: {msg.topic} -> {payload}")
 
     try:
         mqtt_data_store[msg.topic] = json.loads(payload)
     except:
         mqtt_data_store[msg.topic] = payload
-
+    pass
+pass # mqtt_on_message
 
 # -----------------------------
 # MQTT 클라이언트 시작
 # -----------------------------
-def start_mqtt():
+def start_mqtt_runnable():
     client = mqtt.Client()
-    client.on_connect = on_connect
-    client.on_message = on_message
+    client.on_connect = mqtt_on_connect
+    client.on_message = mqtt_on_message
 
     client.connect(MQTT_BROKER, MQTT_PORT, 60)
     client.loop_forever()
-
+pass # start_mqtt_runnable
 
 # 백그라운드 스레드 실행
-threading.Thread(target=start_mqtt, daemon=True).start() 
+threading.Thread(target=start_mqtt_runnable, daemon=True).start() 
 
 # -----------------------------
 # API 모델
 # -----------------------------
-class PublishModel(BaseModel):
+class PublishModel(BaseModel) :
     topic: str
     message: dict
-
+pass # PublishModel
 
 # -----------------------------
 # API - publish
@@ -68,19 +72,7 @@ def publish(data: PublishModel):
     client.publish(data.topic, payload)
 
     return {"status": "published", "topic": data.topic}
-
-
-# -----------------------------
-# API - 최신 데이터 조회
-# -----------------------------
-@app.get("/mqtt/{topic:path}")
-def get_latest(topic: str):
-    if topic in mqtt_data_store:
-        return {
-            topic : mqtt_data_store[topic]
-        }
-    return {"error": "No data"}
-pass 
+pass # publish 
 
 # -----------------------------
 # API - 전체 데이터 조회
@@ -88,3 +80,19 @@ pass
 @app.get("/mqtt")
 def get_all():
     return mqtt_data_store
+pass # get_all
+
+# -----------------------------
+# API - 최신 데이터 조회
+# -----------------------------
+@app.get("/mqtt/{topic:path}")
+def get_topic(topic: str):
+    if topic in mqtt_data_store:
+        return {
+            topic : mqtt_data_store[topic]
+        }
+    pass 
+
+    return { "error": "No data" }
+pass # get_topic
+

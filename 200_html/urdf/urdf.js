@@ -143,42 +143,12 @@ class URDFViewer {
                     
                     // 각 뷰에 따른 다른 초기 카메라 위치 설정
                     let cameraPosition;
-                    switch(this.viewIndex) {
-                        case 1: // View 1 - 앞쪽 오른쪽 위
-                            cameraPosition = {
-                                x: center.x + cameraDist * 0.8,
-                                y: center.y + cameraDist * 1.2,
-                                z: center.z + cameraDist * 0.8
-                            };
-                            break;
-                        case 2: // View 2 - 앞쪽 왼쪽 위  
-                            cameraPosition = {
-                                x: center.x - cameraDist * 0.8,
-                                y: center.y + cameraDist * 1.2,
-                                z: center.z + cameraDist * 0.8
-                            };
-                            break;
-                        case 3: // View 3 - 뒤쪽 오른쪽 위
-                            cameraPosition = {
+                    
+                    cameraPosition = {
                                 x: center.x + cameraDist * 0.8,
                                 y: center.y + cameraDist * 1.2,
                                 z: center.z - cameraDist * 0.8
                             };
-                            break;
-                        case 4: // View 4 - 뒤쪽 왼쪽 위
-                            cameraPosition = {
-                                x: center.x - cameraDist * 0.8,
-                                y: center.y + cameraDist * 1.2,
-                                z: center.z - cameraDist * 0.8
-                            };
-                            break;
-                        default:
-                            cameraPosition = {
-                                x: center.x + cameraDist,
-                                y: center.y + cameraDist,
-                                z: center.z + cameraDist
-                            };
-                    }
 
                     this.camera.position.set(
                         cameraPosition.x,

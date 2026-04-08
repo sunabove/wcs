@@ -14,8 +14,10 @@
         }
 
         #robot-container {
-            width: 800px;
-            height: 600px;
+            width: 90vw;
+            max-width: 1200px;
+            height: 70vh;
+            max-height: 800px;
             margin: 0 auto;
             border: 2px solid #333;
             border-radius: 8px;
@@ -60,9 +62,12 @@
         let robotModel = null;
         let goalTarget = new THREE.Vector3(0, 0, 0);
 
-        // 고정 크기 (main.js를 참고하여 더 큰 크기로 설정)
-        const width = 800;
-        const height = 600;
+        // 동적 크기 계산
+        const containerRect = container.getBoundingClientRect();
+        const width = containerRect.width;
+        const height = containerRect.height;
+        
+        console.log(`컨테이너 크기: ${width}x${height}`);
 
         const scene = new THREE.Scene();
         scene.background = new THREE.Color(0xf8f8f8); // 약간 더 밝은 배경
@@ -199,8 +204,19 @@
 
         // 윈도우 리사이즈 처리
         window.addEventListener('resize', () => {
-            // 고정 크기이므로 리사이즈 시에도 원래 크기 유지
-            renderer.setSize(width, height);
+            // 컨테이너 크기를 다시 측정
+            const newRect = container.getBoundingClientRect();
+            const newWidth = newRect.width;
+            const newHeight = newRect.height;
+            
+            // 카메라 종횡비 업데이트
+            camera.aspect = newWidth / newHeight;
+            camera.updateProjectionMatrix();
+            
+            // 렌더러 크기 업데이트
+            renderer.setSize(newWidth, newHeight);
+            
+            console.log(`리사이즈: ${newWidth}x${newHeight}`);
         });
 
         // 애니메이션 루프

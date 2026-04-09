@@ -67,14 +67,13 @@ function prcessMqttMessage(topic, value) {
         
         // 상위 엘리먼트(tr)에 업데이트 효과 적용 (시각적 피드백)
         const $parentRow = $targetElement.closest('tr');
-        $parentRow.css({
-            'transition': 'background-color 0.3s ease',
-            'background-color': '#e3f2fd'
-        });
         
-        // jQuery를 사용한 지연 효과 - 상위 엘리먼트에서 제거
+        // CSS 클래스를 사용해서 !important 우선순위 적용
+        $parentRow.addClass('mqtt-update-highlight');
+        
+        // jQuery를 사용한 지연 효과 - CSS 클래스 제거
         setTimeout(() => {
-            $parentRow.css('background-color', '');
+            $parentRow.removeClass('mqtt-update-highlight');
         }, 500);
         
         console.log(`[MQTT] ✅ DOM 업데이트 성공: ${topic} -> ${formattedValue}`);

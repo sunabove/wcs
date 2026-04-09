@@ -6,3 +6,9 @@
     height: 80vh;
     max-height: 400px;
 }
+
+/* MQTT 업데이트 하이라이트 효과 */
+.mqtt-update-highlight {
+    background-color: #e3f2fd !important;
+    transition: background-color 0.3s ease;
+}

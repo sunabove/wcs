@@ -21,8 +21,25 @@ function prcessMqttMessage(topic, value) {
         console.log('[MQTT] 📝 일반 데이터:', topic, value);
     }
 
-    // jQuery를 사용한 DOM 업데이트: topic을 id로 사용해서 해당 요소 찾기
-    const $targetElement = $(`#${CSS.escape(topic)}`);
+    // jQuery를 사용한 DOM 업데이트: topic을 id로 사용해서 해당 요소 찾기 (속성 선택자 사용)
+    const $targetElement = $(`[id="${topic}"]`);
+    
+    // vehicle/run/state 특별 처리 (상태별 요소 표시/숨김)
+    if (topic === 'vehicle/run/state') {
+        const state = parseInt(value);
+        
+        // 모든 상태 요소 숨기기 (속성 선택자 사용)
+        $('[id="vehicle/run/state/0"], [id="vehicle/run/state/1"]').hide();
+        
+        // 해당 상태 요소만 표시
+        if (state === 0) {
+            $('[id="vehicle/run/state/0"]').show();
+            console.log('[MQTT] 🔴 차량 상태: IDLE (정지)');
+        } else {
+            $('[id="vehicle/run/state/1"]').show();
+            console.log('[MQTT] 🟢 차량 상태: RUNNING (동작중)');
+        }
+    }
     
     if ($targetElement.length > 0) {
         // 숫자 값 포맷팅

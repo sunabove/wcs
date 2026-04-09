@@ -68,6 +68,7 @@ class MqttSimulator:
         self.elapsed_time = 0
         self.distance = 0.0
         self.battery_voltage = 48.0
+        self.battery_max_voltage = 48.0  # 배터리 최대 전압 (100% 기준)
         self.exec_state = ExecState.RUNNING
         self.command = OperationCommand.FORWARD
         self.surface_state = SurfaceState.ROAD  # 초기 노면 상태
@@ -216,12 +217,17 @@ class MqttSimulator:
     pass  # _publish
 
     def _publish_vehicle(self):
+        # 배터리 잔량(%) 계산 및 발행
+        remain_percent = max(0, min(100, (self.battery_voltage / self.battery_max_voltage) * 100))
+        
         self._publish("vehicle/run/state", self.exec_state.value)
         self._publish("vehicle/drive/elapsed_time", self.elapsed_time)
         self._publish("vehicle/drive/available_time", max(0, 3600 - self.elapsed_time))
         self._publish("vehicle/drive/distance", round(self.distance, 2))
         self._publish("vehicle/battery/voltage", round(self.battery_voltage, 2))
-        self._publish("vehicle/battery/remain_time", int(self.battery_voltage * 60))
+        self._publish("vehicle/battery/remain_time", int(self.battery_voltage * 60)) 
+        self._publish("vehicle/battery/remain_amount", round(remain_percent, 1))
+        
         self._publish("vehicle/surface/state", self.surface_state.value)
 
         self._publish("vehicle/max_speed", 2.0)

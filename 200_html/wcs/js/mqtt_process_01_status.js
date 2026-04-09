@@ -1,3 +1,4 @@
+// mqtt_process_01_status.js
 
 function prcessMqttMessage(topic, value) {
 
@@ -65,44 +66,48 @@ function prcessMqttMessage(topic, value) {
         // jQuery를 사용한 DOM 요소 업데이트
         $targetElement.text(formattedValue);
         
-        // tr의 index를 구해서 색상 결정
-        const $parentRow = $targetElement.closest('tr');
-        const rowIndex = $parentRow.index();
-        
-        // tr index에 따른 색상 배열 (첫 번째와 두 번째 색상)
-        const colorPairs = [
-            { first: '#e91e63', second: '#9c27b0' },  // index 0: 핑크 → 보라
-            { first: '#2196f3', second: '#03a9f4' },  // index 1: 파란색 → 하늘색
-            { first: '#4caf50', second: '#8bc34a' },  // index 2: 초록색 → 연초록
-            { first: '#ff9800', second: '#ffc107' },  // index 3: 주황색 → 노란색
-            { first: '#f44336', second: '#ff5722' },  // index 4: 빨간색 → 주황빨강
-            { first: '#673ab7', second: '#3f51b5' },  // index 5: 보라 → 인디고
-        ];
-        
-        // 색상 선택 (index가 배열 길이보다 크면 순환)
-        const colorPair = colorPairs[rowIndex % colorPairs.length];
-        
-        // tr index에 따른 2단계 전경색 변경 효과
-        $targetElement.css({
-            'transition': 'color 0.15s ease',
-            'color': colorPair.first,  // 첫 번째 색상
-            'font-weight': 'bold'
-        });
-        
-        // 150ms 후 두 번째 색상으로 변경
-        setTimeout(() => {
-            $targetElement.css('color', colorPair.second);  // 두 번째 색상
-        }, 150);
-        
-        // 500ms 후 원래 색상으로 복원
-        setTimeout(() => {
-            $targetElement.css({ 
-                'font-weight': 'bold'
-            });
-        }, 500);
+        updateTargetElementCss($targetElement);
         
         console.log(`[MQTT] ✅ DOM 업데이트 성공: ${topic} -> ${formattedValue} (행 인덱스: ${rowIndex}, 색상: ${colorPair.first} → ${colorPair.second})`);
     } else {
         console.log(`[MQTT] ❌ DOM 요소를 찾을 수 없음: ${topic}`);
     }
-}
+} // prcessMqttMessage
+
+function updateTargetElementCss( $targetElement ) {
+    // tr의 index를 구해서 색상 결정
+    const $parentRow = $targetElement.closest('tr');
+    const rowIndex = $parentRow.index();
+    
+    // tr index에 따른 색상 배열 (첫 번째와 두 번째 색상)
+    const colorPairs = [
+        { first: '#e91e63', second: '#9c27b0' },  // index 0: 핑크 → 보라
+        { first: '#2196f3', second: '#03a9f4' },  // index 1: 파란색 → 하늘색
+        { first: '#4caf50', second: '#8bc34a' },  // index 2: 초록색 → 연초록
+        { first: '#ff9800', second: '#ffc107' },  // index 3: 주황색 → 노란색
+        { first: '#f44336', second: '#ff5722' },  // index 4: 빨간색 → 주황빨강
+        { first: '#673ab7', second: '#3f51b5' },  // index 5: 보라 → 인디고
+    ];
+    
+    // 색상 선택 (index가 배열 길이보다 크면 순환)
+    const colorPair = colorPairs[rowIndex % colorPairs.length];
+    
+    // tr index에 따른 2단계 전경색 변경 효과
+    $targetElement.css({
+        'transition': 'color 0.15s ease',
+        'color': colorPair.first,  // 첫 번째 색상
+        'font-weight': 'bold'
+    });
+    
+    // 150ms 후 두 번째 색상으로 변경
+    setTimeout(() => {
+        $targetElement.css('color', colorPair.second);  // 두 번째 색상
+    }, 150);
+    
+    // 500ms 후 원래 색상으로 복원
+    setTimeout(() => {
+        $targetElement.css({ 
+            'font-weight': 'bold'
+        });
+    }, 500);
+} // updateTargetElementCss

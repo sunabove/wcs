@@ -46,10 +46,10 @@
     <!-- 상단 메뉴 -->
     <header class="p-1 text-bg-dark fs-5">
 
-        <div class="container">
+        <div class="container p-0">
             <div class="d-flex flex-wrap align-items-center justify-content-between">
 
-                <ul class="nav col-12 col-lg-auto me-lg-auto mb-2 justify-content-center mb-md-0">
+                <ul class="nav flex-grow-1 mb-2 justify-content-center mb-md-0">
                     <li>
                         <a href="100_vehicle_status.html" class="nav-link px-2 text-secondary">
                             <i class="bi bi-speedometer2 me-2"></i>
@@ -71,7 +71,7 @@
                 </ul>
 
                 <!-- MQTT 상태 표시 영역 -->
-                <div id="mqtt-status-container" class="ms-auto">
+                <div id="mqtt-status-container" class="d-flex align-items-center">
                     <!-- MQTT 상태가 여기에 동적으로 추가됩니다 -->
                 </div>
 

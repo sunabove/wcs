@@ -106,6 +106,7 @@ class MqttSimulator:
             "ang_speed": 0.0,
             "ang_acc": 0.0,
             "torque": 0.0,
+            "power": 0.0,
             "pid_p": 0.0,
             "pid_i": 0.0,
             "pid_d": 0.0,
@@ -176,6 +177,7 @@ class MqttSimulator:
             w["ang_acc"] = random.uniform(-1, 1)
 
             w["torque"] = random.uniform(0, 10)
+            w["power"] = random.uniform(0, 150)  # 전력 0-150W 범위
 
             w["pid_p"] = random.uniform(0, 1)
             w["pid_i"] = random.uniform(0, 1)
@@ -243,6 +245,7 @@ class MqttSimulator:
             self._publish(f"{base}/angle/acceleration", w["ang_acc"])
 
             self._publish(f"{base}/torque", w["torque"])
+            self._publish(f"{base}/power", w["power"])
 
             self._publish(f"{base}/pid/p", w["pid_p"])
             self._publish(f"{base}/pid/i", w["pid_i"])

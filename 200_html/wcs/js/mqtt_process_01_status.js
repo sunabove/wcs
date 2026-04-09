@@ -92,7 +92,14 @@ function prcessMqttMessage(topic, value) {
             const numValue = parseFloat(value);
             
             // SI 단위계 토픽별 단위 및 포맷팅
-            if (topic.includes('/linear/speed')) {
+            if (topic === 'vehicle/drive/available_time') {
+                // 시분 변환 표시 (초 → 시:분)
+                const hours = Math.floor(numValue / 3600);
+                const minutes = Math.floor((numValue % 3600) / 60);
+                formattedValue = `${hours}:${minutes.toString().padStart(2, '0')}`;
+            } else if (topic === 'vehicle/battery/remain_amount') {
+                formattedValue = `${numValue.toFixed(1)}%`;  // 배터리 잔량 퍼센트
+            } else if (topic.includes('/linear/speed')) {
                 formattedValue = `${numValue.toFixed(3)} m/s`;  // SI: 미터/초
             } else if (topic.includes('/power')) {
                 formattedValue = `${Math.round(numValue)} W`;  // SI: 와트
@@ -116,12 +123,12 @@ function prcessMqttMessage(topic, value) {
                 formattedValue = `${numValue.toFixed(3)} m/s²`;  // SI: 미터/초²
             } else if (topic.includes('/torque')) {
                 formattedValue = `${numValue.toFixed(2)} Nm`;  // SI: 뉴턴미터
-            } else if (topic.includes('_time') || topic.includes('/elapsed_time') || topic.includes('/available_time') || topic.includes('/remain_time')) {
+            } else if (topic.includes('_time') || topic.includes('/elapsed_time') || topic.includes('/remain_time')) {
                 formattedValue = `${Math.round(numValue)} s`;  // SI: 초
             } else if (topic.includes('/position/')) {
                 formattedValue = `${numValue.toFixed(3)} m`;  // SI: 미터 (위치)
             } else if (topic.includes('/remain_amount')) {
-                formattedValue = `${numValue.toFixed(1)} %`;  // 퍼센트
+                formattedValue = `${numValue.toFixed(1)} %`;  // 기타 퍼센트 값
             } else {
                 // 기본 숫자 포맷
                 formattedValue = numValue.toFixed(2);

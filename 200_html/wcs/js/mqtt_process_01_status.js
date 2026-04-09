@@ -134,7 +134,7 @@ function getFormattedTopicValue(topic, value) {
     } else if (topic === 'vehicle/drive/total_distance') {
         // 총 이동거리는 km 단위로 변환 표시 (m → km)
         const kilometers = numValue / 1000;
-        formattedValue = `${kilometers.toFixed(3)} km`;
+        formattedValue = `${Math.round(kilometers)} km`;
     } else if (topic === 'vehicle/battery/remain_amount') {
         formattedValue = `${numValue.toFixed(0)}%`;  // 배터리 잔량 퍼센트
     } else if (topic.includes('/linear/speed')) {

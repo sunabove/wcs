@@ -85,77 +85,7 @@ function prcessMqttMessage(topic, value) {
     
     if ($targetElement.length > 0) {
         // 숫자 값 포맷팅
-        let formattedValue = value;
-        
-        // 숫자인 경우 적절한 포맷 적용
-        if (!isNaN(value)) {
-            const numValue = parseFloat(value);
-            
-            // SI 단위계 토픽별 단위 및 포맷팅
-            if (topic === 'vehicle/drive/available_time') {
-                // 시분 변환 표시 (초 → 시:분)
-                const hours = Math.floor(numValue / 3600);
-                const minutes = Math.floor((numValue % 3600) / 60); 
-                if (hours === 0) {
-                    formattedValue = `${minutes}분`;  // 시간이 0이면 분만 표시
-                } else {
-                    formattedValue = `${hours}:${minutes.toString().padStart(2, '0')}`;
-                }
-            } else if (topic === 'vehicle/battery/remain_time') {
-                // 배터리 잔여 시간도 시:분으로 표시
-                const hours = Math.floor(numValue / 3600);
-                const minutes = Math.floor((numValue % 3600) / 60);
-                if (hours === 0) {
-                    formattedValue = `${minutes}분`;  // 시간이 0이면 분만 표시
-                } else {
-                    formattedValue = `${hours}:${minutes.toString().padStart(2, '0')}`;
-                }
-            } else if (topic === 'vehicle/drive/elapsed_time') {
-                // 경과 시간도 시:분으로 표시
-                const hours = Math.floor(numValue / 3600);
-                const minutes = Math.floor((numValue % 3600) / 60);
-                if (hours === 0) {
-                    formattedValue = `${minutes}분`;  // 시간이 0이면 분만 표시
-                } else {
-                    formattedValue = `${hours}:${minutes.toString().padStart(2, '0')}`;
-                }
-            } else if (topic === 'vehicle/battery/remain_amount') {
-                formattedValue = `${numValue.toFixed(0)}%`;  // 배터리 잔량 퍼센트
-            } else if (topic.includes('/linear/speed')) {
-                formattedValue = `${numValue.toFixed(3)} m/s`;  // SI: 미터/초
-            } else if (topic.includes('/power')) {
-                formattedValue = `${Math.round(numValue)} W`;  // SI: 와트
-            } else if (topic.includes('/pid/')) {
-                formattedValue = numValue.toFixed(3);  // 무차원
-            } else if (topic.includes('/tof/distance')) {
-                formattedValue = `${numValue.toFixed(3)} m`;  // SI: 미터 (ToF 센서)
-            } else if (topic.includes('/angle')) {
-                // radian을 도(degree)로 변환 표시
-                const degrees = (numValue * 180 / Math.PI);
-                formattedValue = `${degrees.toFixed(1)}°`;
-            } else if (topic.includes('/axis/angle')) {
-                // 축 각도도 radian에서 도로 변환 표시
-                const degrees = (numValue * 180 / Math.PI);
-                formattedValue = `${degrees.toFixed(1)}°`;
-            } else if (topic.includes('/voltage')) {
-                formattedValue = `${numValue.toFixed(2)} V`;  // SI: 볼트
-            } else if (topic.includes('/distance') || topic.includes('/total_distance')) {
-                formattedValue = `${numValue.toFixed(3)} m`;  // SI: 미터
-            } else if (topic.includes('/acceleration')) {
-                formattedValue = `${numValue.toFixed(3)} m/s²`;  // SI: 미터/초²
-            } else if (topic.includes('/torque')) {
-                formattedValue = `${numValue.toFixed(2)} Nm`;  // SI: 뉴턴미터
-            } else if (topic.includes('_time')) {
-                formattedValue = `${Math.round(numValue)} s`;  // SI: 초 (기타 시간 값들)
-            } else if (topic.includes('/position/')) {
-                formattedValue = `${numValue.toFixed(3)} m`;  // SI: 미터 (위치)
-            } else if (topic.includes('/remain_amount')) {
-                formattedValue = `${numValue.toFixed(1)} %`;  // 기타 퍼센트 값
-            } else {
-                // 기본 숫자 포맷
-                formattedValue = numValue.toFixed(2);
-            }
-        }
+        let formattedValue = getFormattedTopicValue(topic, value);
         
         // jQuery를 사용한 DOM 요소 업데이트
         $targetElement.text(formattedValue);
@@ -167,6 +97,83 @@ function prcessMqttMessage(topic, value) {
         console.log(`[MQTT] ❌ DOM 요소를 찾을 수 없음: ${topic}`);
     }
 } // prcessMqttMessage
+
+function getFormattedTopicValue(topic, value) {
+    const numValue = parseFloat(value);
+
+    let formattedValue = value;
+            
+    // SI 단위계 토픽별 단위 및 포맷팅
+    if (topic === 'vehicle/drive/available_time') {
+        // 시분 변환 표시 (초 → 시:분)
+        const hours = Math.floor(numValue / 3600);
+        const minutes = Math.floor((numValue % 3600) / 60); 
+        if (hours === 0) {
+            formattedValue = `${minutes}분`;  // 시간이 0이면 분만 표시
+        } else {
+            formattedValue = `${hours}:${minutes.toString().padStart(2, '0')}`;
+        }
+    } else if (topic === 'vehicle/battery/remain_time') {
+        // 배터리 잔여 시간도 시:분으로 표시
+        const hours = Math.floor(numValue / 3600);
+        const minutes = Math.floor((numValue % 3600) / 60);
+        if (hours === 0) {
+            formattedValue = `${minutes}분`;  // 시간이 0이면 분만 표시
+        } else {
+            formattedValue = `${hours}:${minutes.toString().padStart(2, '0')}`;
+        }
+    } else if (topic === 'vehicle/drive/elapsed_time') {
+        // 경과 시간도 시:분으로 표시
+        const hours = Math.floor(numValue / 3600);
+        const minutes = Math.floor((numValue % 3600) / 60);
+        if (hours === 0) {
+            formattedValue = `${minutes}분`;  // 시간이 0이면 분만 표시
+        } else {
+            formattedValue = `${hours}:${minutes.toString().padStart(2, '0')}`;
+        }
+    } else if (topic === 'vehicle/battery/remain_amount') {
+        formattedValue = `${numValue.toFixed(0)}%`;  // 배터리 잔량 퍼센트
+    } else if (topic.includes('/linear/speed')) {
+        formattedValue = `${numValue.toFixed(3)} m/s`;  // SI: 미터/초
+    } else if (topic.includes('/power')) {
+        formattedValue = `${Math.round(numValue)} W`;  // SI: 와트
+    } else if (topic.includes('/pid/')) {
+        formattedValue = numValue.toFixed(3);  // 무차원
+    } else if (topic.includes('/tof/distance')) {
+        formattedValue = `${numValue.toFixed(3)} m`;  // SI: 미터 (ToF 센서)
+    } else if (topic.includes('/angle')) {
+        // radian을 도(degree)로 변환 표시
+        const degrees = (numValue * 180 / Math.PI);
+        formattedValue = `${degrees.toFixed(1)}°`;
+    } else if (topic.includes('/axis/angle')) {
+        // 축 각도도 radian에서 도로 변환 표시
+        const degrees = (numValue * 180 / Math.PI);
+        formattedValue = `${degrees.toFixed(1)}°`;
+    } else if (topic.includes('/voltage')) {
+        formattedValue = `${numValue.toFixed(2)} V`;  // SI: 볼트
+    } else if (topic === 'vehicle/drive/total_distance') {
+        // 총 이동거리는 km 단위로 변환 표시 (m → km)
+        const kilometers = numValue / 1000;
+        formattedValue = `${kilometers.toFixed(3)} km`;
+    } else if (topic.includes('/distance') || topic.includes('/total_distance')) {
+        formattedValue = `${numValue.toFixed(3)} m`;  // SI: 미터 (기타 거리)
+    } else if (topic.includes('/acceleration')) {
+        formattedValue = `${numValue.toFixed(3)} m/s²`;  // SI: 미터/초²
+    } else if (topic.includes('/torque')) {
+        formattedValue = `${numValue.toFixed(2)} Nm`;  // SI: 뉴턴미터
+    } else if (topic.includes('_time')) {
+        formattedValue = `${Math.round(numValue)} s`;  // SI: 초 (기타 시간 값들)
+    } else if (topic.includes('/position/')) {
+        formattedValue = `${numValue.toFixed(3)} m`;  // SI: 미터 (위치)
+    } else if (topic.includes('/remain_amount')) {
+        formattedValue = `${numValue.toFixed(1)} %`;  // 기타 퍼센트 값
+    } else {
+        // 기본 숫자 포맷
+        formattedValue = numValue.toFixed(2);
+    }
+
+    return formattedValue;
+} // getFormattedValue
 
 function updateTargetElementCss( $targetElement ) {
     // tr의 index를 구해서 색상 결정

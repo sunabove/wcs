@@ -1,6 +1,8 @@
 
 function prcessMqttMessage(topic, numValue) {
 
+    console.log(`[MQTT] 🧩 prcessMqttMessage 호출 - topic: ${topic}, value: ${numValue}`);
+
     // 토픽별 분류 및 상세 로깅
     if (topic.startsWith('vehicle/')) {
         console.log('[MQTT] 🚗 차량 데이터:', topic, numValue);

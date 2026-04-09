@@ -96,7 +96,29 @@ function prcessMqttMessage(topic, value) {
                 // 시분 변환 표시 (초 → 시:분)
                 const hours = Math.floor(numValue / 3600);
                 const minutes = Math.floor((numValue % 3600) / 60); 
-                formattedValue = `${hours}시간 ${minutes.toString().padStart(2, '0')}분`;
+                if (hours === 0) {
+                    formattedValue = `${minutes}분`;  // 시간이 0이면 분만 표시
+                } else {
+                    formattedValue = `${hours}:${minutes.toString().padStart(2, '0')}`;
+                }
+            } else if (topic === 'vehicle/battery/remain_time') {
+                // 배터리 잔여 시간도 시:분으로 표시
+                const hours = Math.floor(numValue / 3600);
+                const minutes = Math.floor((numValue % 3600) / 60);
+                if (hours === 0) {
+                    formattedValue = `${minutes}분`;  // 시간이 0이면 분만 표시
+                } else {
+                    formattedValue = `${hours}:${minutes.toString().padStart(2, '0')}`;
+                }
+            } else if (topic === 'vehicle/drive/elapsed_time') {
+                // 경과 시간도 시:분으로 표시
+                const hours = Math.floor(numValue / 3600);
+                const minutes = Math.floor((numValue % 3600) / 60);
+                if (hours === 0) {
+                    formattedValue = `${minutes}분`;  // 시간이 0이면 분만 표시
+                } else {
+                    formattedValue = `${hours}:${minutes.toString().padStart(2, '0')}`;
+                }
             } else if (topic === 'vehicle/battery/remain_amount') {
                 formattedValue = `${numValue.toFixed(0)}%`;  // 배터리 잔량 퍼센트
             } else if (topic.includes('/linear/speed')) {
@@ -123,8 +145,8 @@ function prcessMqttMessage(topic, value) {
                 formattedValue = `${numValue.toFixed(3)} m/s²`;  // SI: 미터/초²
             } else if (topic.includes('/torque')) {
                 formattedValue = `${numValue.toFixed(2)} Nm`;  // SI: 뉴턴미터
-            } else if (topic.includes('_time') || topic.includes('/elapsed_time') || topic.includes('/remain_time')) {
-                formattedValue = `${Math.round(numValue)} s`;  // SI: 초
+            } else if (topic.includes('_time')) {
+                formattedValue = `${Math.round(numValue)} s`;  // SI: 초 (기타 시간 값들)
             } else if (topic.includes('/position/')) {
                 formattedValue = `${numValue.toFixed(3)} m`;  // SI: 미터 (위치)
             } else if (topic.includes('/remain_amount')) {

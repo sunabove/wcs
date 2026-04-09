@@ -23,19 +23,28 @@ function prcessMqttMessage(topic, value) {
 
     // jQuery를 사용한 DOM 업데이트: topic을 id로 사용해서 해당 요소 찾기 (속성 선택자 사용)
     const $targetElement = $(`[id="${topic}"]`);
-    // vehicle/run/state 특별 처리 (상태별 요소 표시/숨김)
+    // vehicle/run/state 특별 처리 (상태별 버튼 enable/disable)
     if (topic === 'vehicle/run/state') {
         const state = parseInt(value);
         
-        // 모든 상태 요소 숨기기 (속성 선택자 사용)
-        $('[id="vehicle/run/state/0"], [id="vehicle/run/state/1"]').hide();
+        // 모든 상태 버튼 비활성화 (속성 선택자 사용)
+        $('[id="vehicle/run/state/0"], [id="vehicle/run/state/1"]')
+            .prop('disabled', true)
+            .removeClass('btn-success btn-primary')
+            .addClass('btn-secondary');
         
-        // 해당 상태 요소만 표시
+        // 해당 상태 버튼만 활성화
         if (state === 0) {
-            $('[id="vehicle/run/state/0"]').show();
+            $('[id="vehicle/run/state/0"]')
+                .prop('disabled', false)
+                .removeClass('btn-secondary')
+                .addClass('btn-danger');
             console.log('[MQTT] 🔴 차량 상태: IDLE (정지)');
         } else {
-            $('[id="vehicle/run/state/1"]').show();
+            $('[id="vehicle/run/state/1"]')
+                .prop('disabled', false)
+                .removeClass('btn-secondary')
+                .addClass('btn-success');
             console.log('[MQTT] 🟢 차량 상태: RUNNING (동작중)');
         }
     }

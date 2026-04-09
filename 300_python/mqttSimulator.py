@@ -223,7 +223,7 @@ class MqttSimulator:
         self._publish("vehicle/run/state", self.exec_state.value)
         self._publish("vehicle/drive/elapsed_time", self.elapsed_time)
         self._publish("vehicle/drive/available_time", max(0, 3600 - self.elapsed_time))
-        self._publish("vehicle/drive/distance", round(self.distance, 2))
+        self._publish("vehicle/drive/total_distance", round(self.distance, 2))
         self._publish("vehicle/battery/voltage", round(self.battery_voltage, 2))
         self._publish("vehicle/battery/remain_time", int(self.battery_voltage * 60)) 
         self._publish("vehicle/battery/remain_amount", round(remain_percent, 1))

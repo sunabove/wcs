@@ -36,7 +36,7 @@ function initMQTTClient() {
                     $('#mqtt-status-container').html('<div id="mqtt-status" class="badge fs-6" style="background:#28a745; color:white; padding:8px 12px; border-radius:5px; box-shadow:0 2px 5px rgba(0,0,0,0.2);"><i class="fas fa-wifi" style="margin-right:5px;"></i>MQTT 연결됨</div>');
                     
                     // 메시지 표시 영역 초기화
-                    $('#mqtt-topic').text('연결완료');
+                    $('#mqtt-topic').text('연결완료:');
                     $('#mqtt-value').text('모든 토픽 수신 대기중');
                     
                     // 테스트 메시지 발송 (선택사항)
@@ -61,7 +61,7 @@ function initMQTTClient() {
             const timestamp = new Date().toLocaleTimeString();
             
             // UI에 최근 메시지 표시 (Bootstrap text-truncate로 처리)
-            $('#mqtt-topic').text(topic);
+            $('#mqtt-topic').text(topic + ':');
             $('#mqtt-value').text(messageStr);
             
             // 토픽에 따른 배경색 변경
@@ -158,7 +158,7 @@ function initMQTTClient() {
             }).html('<i class="fas fa-exclamation-triangle" style="margin-right:5px;"></i>Mosquitto 오류');
             
             // 메시지 표시 영역 업데이트
-            $('#mqtt-topic').text('연결오류');
+            $('#mqtt-topic').text('연결오류:');
             $('#mqtt-value').text('브로커에 연결할 수 없습니다');
             
             // 에러 상세 정보 표시
@@ -175,7 +175,7 @@ function initMQTTClient() {
             $('#mqtt-status').css('background', '#fd7e14').html('<i class="fas fa-unlink" style="margin-right:5px;"></i>Mosquitto 끊어짐');
             
             // 메시지 표시 영역 업데이트
-            $('#mqtt-topic').text('연결끊어짐');
+            $('#mqtt-topic').text('연결끊어짐:');
             $('#mqtt-value').text('브로커 연결이 끊어졌습니다');
         });
         
@@ -187,7 +187,7 @@ function initMQTTClient() {
             $('#mqtt-status').css('background', '#17a2b8').html('<i class="fas fa-sync fa-spin" style="margin-right:5px;"></i>Mosquitto 재연결 중...');
             
             // 메시지 표시 영역 업데이트
-            $('#mqtt-topic').text('재연결중');
+            $('#mqtt-topic').text('재연결중:');
             $('#mqtt-value').text('브로커 재연결 시도중...');
         });
         

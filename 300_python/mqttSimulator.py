@@ -6,6 +6,7 @@ import platform
 import sys
 import os
 import signal
+import math
 from enum import IntEnum
 import paho.mqtt.client as mqtt
 
@@ -79,8 +80,8 @@ class MqttSimulator:
         self.linear_acc = 0.0
 
         self.angle = 0.0
-        self.angular_speed = 0.0
-        self.angular_acc = 0.0
+        self.angle_speed = 0.0
+        self.angle_acc = 0.0
 
         # wheel 상태
         self.wheels = {wid: self._init_wheel() for wid in WHEEL_IDS}
@@ -103,8 +104,8 @@ class MqttSimulator:
             "speed": 0.0,
             "acc": 0.0,
             "angle": 0.0,
-            "ang_speed": 0.0,
-            "ang_acc": 0.0,
+            "angle_speed": 0.0,
+            "angle_acc": 0.0,
             "axis_angle": 0.0,
             "torque": 0.0,
             "power": 0.0,
@@ -160,9 +161,9 @@ class MqttSimulator:
         self.linear_speed = random.uniform(0, 2)
         self.linear_acc = random.uniform(-0.5, 0.5)
 
-        self.angle += random.uniform(-5, 5)
-        self.angular_speed = random.uniform(0, 2)
-        self.angular_acc = random.uniform(-1, 1)
+        self.angle += random.uniform(-math.pi/36, math.pi/36)  # 약 -5도~5도 (radian)
+        self.angle_speed = random.uniform(0, 2)
+        self.angle_acc = random.uniform(-1, 1)
     pass  # _update_vehicle
 
     def _update_wheels(self):
@@ -173,10 +174,10 @@ class MqttSimulator:
             w["speed"] = random.uniform(0, 2)
             w["acc"] = random.uniform(-0.5, 0.5)
 
-            w["angle"] = random.uniform(0, 360)
-            w["ang_speed"] = random.uniform(0, 2)
-            w["ang_acc"] = random.uniform(-1, 1)
-            w["axis_angle"] = random.uniform(-45, 45)  # 축 각도 -45~45도 범위
+            w["angle"] = random.uniform(0, 2 * math.pi)  # 0~2π radian (0~360도)
+            w["angle_speed"] = random.uniform(0, 2)
+            w["angle_acc"] = random.uniform(-1, 1)
+            w["axis_angle"] = random.uniform(-math.pi/4, math.pi/4)  # -π/4~π/4 radian (-45~45도)
 
             w["torque"] = random.uniform(0, 10)
             w["power"] = random.uniform(0, 150)  # 전력 0-150W 범위
@@ -226,9 +227,9 @@ class MqttSimulator:
         self._publish("vehicle/linear/speed", self.linear_speed)
         self._publish("vehicle/linear/acceleration", self.linear_acc)
 
-        self._publish("vehicle/angle/degree", self.angle)
-        self._publish("vehicle/angle/speed", self.angular_speed)
-        self._publish("vehicle/angle/acceleration", self.angular_acc)
+        self._publish("vehicle/angle", self.angle)  # radian 단위
+        self._publish("vehicle/angle/speed", self.angle_speed)
+        self._publish("vehicle/angle/acceleration", self.angle_acc)
     pass  # _publish_position
 
     def _publish_wheels(self):
@@ -242,10 +243,10 @@ class MqttSimulator:
             self._publish(f"{base}/linear/speed", w["speed"])
             self._publish(f"{base}/linear/acceleration", w["acc"])
 
-            self._publish(f"{base}/angle", w["angle"])
-            self._publish(f"{base}/angle/speed", w["ang_speed"])
-            self._publish(f"{base}/angle/acceleration", w["ang_acc"])
-            self._publish(f"{base}/axis/angle", w["axis_angle"])
+            self._publish(f"{base}/angle/radian", w["angle"])  # 바퀴 회전각 (radian)
+            self._publish(f"{base}/angle/speed", w["angle_speed"])
+            self._publish(f"{base}/angle/acceleration", w["angle_acc"])
+            self._publish(f"{base}/axis/angle", w["axis_angle"])  # 스티어링 각도 (radian)
 
             self._publish(f"{base}/torque", w["torque"])
             self._publish(f"{base}/power", w["power"])

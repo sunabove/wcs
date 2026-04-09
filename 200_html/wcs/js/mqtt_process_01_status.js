@@ -65,21 +65,15 @@ function prcessMqttMessage(topic, value) {
         // jQuery를 사용한 DOM 요소 업데이트
         $targetElement.text(formattedValue);
         
-        // 상위 엘리먼트(tr)에 업데이트 효과 적용 (시각적 피드백)
-        const $parentRow = $targetElement.closest('tr');
-        
-        // CSS 클래스 추가와 함께 인라인 스타일로도 강제 적용
-        $parentRow.addClass('mqtt-update-highlight');
-        
-        // 모든 td 요소에 직접 인라인 스타일 적용
-        $parentRow.find('td, th').each(function() {
-            $(this).attr('style', 'background-color: #e3f2fd !important; transition: all 0.3s ease;');
+        // jQuery를 사용한 업데이트 효과 (시각적 피드백)
+        $targetElement.css({
+            'transition': 'background-color 0.3s ease',
+            'background-color': '#e3f2fd'
         });
         
-        // jQuery를 사용한 지연 효과 - CSS 클래스와 인라인 스타일 제거
+        // jQuery를 사용한 지연 효과
         setTimeout(() => {
-            $parentRow.removeClass('mqtt-update-highlight');
-            $parentRow.find('td, th').removeAttr('style');
+            $targetElement.css('background-color', '');
         }, 500);
         
         console.log(`[MQTT] ✅ DOM 업데이트 성공: ${topic} -> ${formattedValue}`);

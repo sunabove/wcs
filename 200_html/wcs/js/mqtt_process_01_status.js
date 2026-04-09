@@ -23,7 +23,6 @@ function prcessMqttMessage(topic, value) {
 
     // jQuery를 사용한 DOM 업데이트: topic을 id로 사용해서 해당 요소 찾기 (속성 선택자 사용)
     const $targetElement = $(`[id="${topic}"]`);
-    
     // vehicle/run/state 특별 처리 (상태별 요소 표시/숨김)
     if (topic === 'vehicle/run/state') {
         const state = parseInt(value);

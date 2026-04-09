@@ -164,6 +164,11 @@ class MqttSimulator:
         self.angle += random.uniform(-math.pi/36, math.pi/36)  # 약 -5도~5도 (radian)
         self.angle_speed = random.uniform(0, 2)
         self.angle_acc = random.uniform(-1, 1)
+        
+        # 실행 상태를 주기적으로 변경 (10초마다)
+        if self.elapsed_time % 10 == 0:
+            self.exec_state = random.choice([ExecState.IDLE, ExecState.RUNNING])
+            print(f"[SIMULATOR] 차량 상태 변경: {self.exec_state.name} ({self.exec_state.value})")
     pass  # _update_vehicle
 
     def _update_wheels(self):

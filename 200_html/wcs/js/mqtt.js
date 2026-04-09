@@ -41,11 +41,7 @@ function initMQTTClient() {
                     
                     // 테스트 메시지 발송 (선택사항)
                     setTimeout(() => {
-                        const testMessage = JSON.stringify({
-                            timestamp: new Date().toISOString(),
-                            client: 'web_client',
-                            message: 'All topics monitoring started'
-                        });
+                        const testMessage = 'web_client';
                         client.publish('web/status', testMessage, { qos: 1 });
                         console.log('[MQTT] 📤 테스트 메시지 발송:', testMessage);
                     }, 1000);

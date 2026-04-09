@@ -26,10 +26,10 @@ function initMQTTClient() {
             console.log('[MQTT] ✅ Mosquitto 브로커 연결 성공');
             console.log('[MQTT] 🔗 연결 정보:', connack);
             
-            // "test/topic" 구독
-            client.subscribe('test/topic', { qos: 1 }, function (err, granted) {
+            // 모든 토픽 구독 (와일드카드 사용)
+            client.subscribe('#', { qos: 1 }, function (err, granted) {
                 if (!err) {
-                    console.log('[MQTT] 📡 "test/topic" 구독 성공');
+                    console.log('[MQTT] 📡 모든 토픽 구독 성공');
                     console.log('[MQTT] 🎯 QoS 설정:', granted);
                     
                     // jQuery를 사용한 UI 업데이트
@@ -39,15 +39,15 @@ function initMQTTClient() {
                     setTimeout(() => {
                         const testMessage = JSON.stringify({
                             timestamp: new Date().toISOString(),
-                            client: 'vehicle_status',
-                            message: 'Connection test from web client'
+                            client: 'web_client',
+                            message: 'All topics monitoring started'
                         });
-                        client.publish('test/topic', testMessage, { qos: 1 });
+                        client.publish('web/status', testMessage, { qos: 1 });
                         console.log('[MQTT] 📤 테스트 메시지 발송:', testMessage);
                     }, 1000);
                     
                 } else {
-                    console.error('[MQTT] ❌ "test/topic" 구독 실패:', err);
+                    console.error('[MQTT] ❌ 전체 토픽 구독 실패:', err);
                     
                     // jQuery를 사용한 에러 표시
                     $('#mqtt-status-container').html('<div id="mqtt-status" class="badge fs-6" style="background:#dc3545; color:white; padding:8px 12px; border-radius:5px; box-shadow:0 2px 5px rgba(0,0,0,0.2);"><i class="fas fa-exclamation-triangle" style="margin-right:5px;"></i>MQTT 구독 실패</div>');
@@ -55,42 +55,74 @@ function initMQTTClient() {
             });
         });
         
-        // 메시지 수신
+        // 모든 토픽 메시지 수신
         client.on('message', function (topic, message) {
-            if (topic === 'test/topic') {
-                const messageStr = message.toString();
-                const timestamp = new Date().toLocaleTimeString();
+            const messageStr = message.toString();
+            const timestamp = new Date().toLocaleTimeString();
+            
+            // 모든 토픽에 대하여 로그 출력
+            console.log(`[MQTT] 📩 [${timestamp}] [${topic}] 메시지 수신:`, messageStr);
+            
+            // 토픽별 분류 및 상세 로깅
+            if (topic.startsWith('vehicle/')) {
+                console.log('[MQTT] 🚗 차량 데이터:', topic, messageStr);
+            } else if (topic.startsWith('sensor/')) {
+                console.log('[MQTT] 📡 센서 데이터:', topic, messageStr);
+            } else if (topic.startsWith('system/')) {
+                console.log('[MQTT] ⚙️ 시스템 데이터:', topic, messageStr);
+            } else if (topic.startsWith('test/')) {
+                console.log('[MQTT] 🧪 테스트 데이터:', topic, messageStr);
+            } else if (topic.startsWith('web/')) {
+                console.log('[MQTT] 🌐 웹 클라이언트 데이터:', topic, messageStr);
+            } else {
+                console.log('[MQTT] 📝 일반 데이터:', topic, messageStr);
+            }
+            
+            // JSON 파싱 시도
+            try {
+                const jsonData = JSON.parse(messageStr);
+                console.log(`[MQTT] 📊 [${topic}] JSON 데이터:`, jsonData);
                 
-                // Console 로그로만 출력
-                console.log(`[MQTT] 📩 [${timestamp}] [${topic}] 메시지 수신:`, messageStr);
+                // 특정 데이터 타입별 로깅
+                if (jsonData.speed !== undefined) {
+                    console.log('[MQTT] 🚗 속도 데이터:', jsonData.speed, 'from', topic);
+                }
                 
-                // JSON 파싱 시도 (Mosquitto 메시지 처리)
-                try {
-                    const jsonData = JSON.parse(messageStr);
-                    console.log('[MQTT] 📊 [test/topic] JSON 데이터:', jsonData);
+                if (jsonData.temperature !== undefined) {
+                    console.log('[MQTT] 🌡️ 온도 데이터:', jsonData.temperature, 'from', topic);
+                }
+                
+                if (jsonData.battery !== undefined) {
+                    console.log('[MQTT] 🔋 배터리 데이터:', jsonData.battery, 'from', topic);
+                }
+                
+                if (jsonData.status !== undefined) {
+                    console.log('[MQTT] 🟢 상태 업데이트:', jsonData.status, 'from', topic);
                     
-                    // 특정 데이터 타입별 로깅
-                    if (jsonData.speed) {
-                        console.log('[MQTT] 🚗 차량 속도 업데이트:', jsonData.speed);
-                        // 실제 UI 업데이트 로직을 여기에 추가 가능
-                    }
-                    
-                    if (jsonData.temperature) {
-                        console.log('[MQTT] 🌡️ 온도 데이터:', jsonData.temperature);
-                    }
-                    
-                    if (jsonData.status) {
-                        console.log('[MQTT] 🟢 상태 업데이트:', jsonData.status);
-                        
-                        // 상태에 따른 UI 업데이트 (MQTT 상태 표시만 유지)
+                    // UI 상태 업데이트
+                    if (topic.includes('system') || topic.includes('vehicle')) {
                         const statusColor = jsonData.status === 'online' ? '#28a745' : 
                                           jsonData.status === 'warning' ? '#ffc107' : '#dc3545';
                         $('#mqtt-status').css('background', statusColor);
                     }
-                    
-                } catch (e) {
-                    // JSON이 아닌 경우 일반 텍스트로 처리
-                    console.warn('[MQTT] 📝 [test/topic] 텍스트 데이터:', messageStr);
+                }
+                
+                if (jsonData.command !== undefined) {
+                    console.log('[MQTT] ⚡ 명령 수신:', jsonData.command, 'from', topic);
+                }
+                
+                if (jsonData.distance !== undefined) {
+                    console.log('[MQTT] 📏 거리 데이터:', jsonData.distance, 'from', topic);
+                }
+                
+            } catch (e) {
+                // JSON이 아닌 경우 일반 텍스트로 처리
+                console.log(`[MQTT] 📝 [${topic}] 텍스트 데이터:`, messageStr);
+                
+                // 숫자 값 처리
+                const numValue = parseFloat(messageStr);
+                if (!isNaN(numValue)) {
+                    console.log(`[MQTT] 🔢 [${topic}] 숫자 값:`, numValue);
                 }
             }
         });

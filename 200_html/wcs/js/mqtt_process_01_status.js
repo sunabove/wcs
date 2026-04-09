@@ -38,7 +38,7 @@ function prcessMqttMessage(topic, value) {
             $('[id="vehicle/run/state/0"]')
                 .prop('disabled', false)
                 .removeClass('btn-secondary')
-                .addClass('btn-danger');
+                .addClass('btn-success');
             console.log('[MQTT] 🔴 차량 상태: IDLE (정지)');
         } else {
             $('[id="vehicle/run/state/1"]')

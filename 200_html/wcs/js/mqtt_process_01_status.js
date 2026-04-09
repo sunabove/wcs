@@ -136,7 +136,12 @@ function prcessMqttMessage(topic, value) {
 function updateTargetElementCss( $targetElement ) {
     // tr의 index를 구해서 색상 결정
     const $parentRow = $targetElement.closest('tr');
-    const rowIndex = $parentRow.index();
+    let rowIndex = $parentRow.length > 0 ? $parentRow.index() : 0;
+    
+    // rowIndex가 유효하지 않은 경우 기본값 0으로 설정
+    if (rowIndex < 0 || isNaN(rowIndex)) {
+        rowIndex = 0;
+    }
     
     // tr index에 따른 색상 배열 (첫 번째와 두 번째 색상)
     const colorPairs = [
@@ -150,6 +155,12 @@ function updateTargetElementCss( $targetElement ) {
     
     // 색상 선택 (index가 배열 길이보다 크면 순환)
     const colorPair = colorPairs[rowIndex % colorPairs.length];
+    
+    // colorPair가 유효한지 확인
+    if (!colorPair) {
+        console.warn('[CSS] 색상 배열에서 유효한 colorPair를 찾을 수 없음. rowIndex:', rowIndex);
+        return; // 에러 방지를 위해 함수 종료
+    }
     
     // tr index에 따른 2단계 전경색 변경 효과
     $targetElement.css({
@@ -169,4 +180,5 @@ function updateTargetElementCss( $targetElement ) {
             'font-weight': 'bold'
         });
     }, 500);
+    
 } // updateTargetElementCss

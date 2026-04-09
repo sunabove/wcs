@@ -69,7 +69,7 @@ function prcessMqttMessage(topic, value) {
         $targetElement.css({
             'transition': 'color 0.15s ease',
             'color': '#2196f3',  // 첫 번째 색상: 파란색
-            'font-weight': 'bold'
+            'font-weight': ''
         });
         
         // 150ms 후 두 번째 색상으로 변경

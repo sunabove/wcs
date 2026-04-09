@@ -70,6 +70,7 @@ class MqttSimulator:
         self.battery_voltage = 48.0
         self.exec_state = ExecState.RUNNING
         self.command = OperationCommand.FORWARD
+        self.surface_state = SurfaceState.ROAD  # 초기 노면 상태
 
         # 위치 상태
         self.pos_x = 0.0
@@ -169,6 +170,12 @@ class MqttSimulator:
         if self.elapsed_time % 10 == 0:
             self.exec_state = random.choice([ExecState.IDLE, ExecState.RUNNING])
             print(f"[SIMULATOR] 차량 상태 변경: {self.exec_state.name} ({self.exec_state.value})")
+            
+            # 노면 상태를 주기적으로 변경 (10초마다)
+            self.surface_state = random.choice(list(SurfaceState))
+            surface_names = ['ROAD', 'GRAVEL', 'ICE', 'POTHOLE']
+            surface_name = surface_names[self.surface_state.value]
+            print(f"[SIMULATOR] 노면 상태 변경: {surface_name} ({self.surface_state.value})")
     pass  # _update_vehicle
 
     def _update_wheels(self):
@@ -215,7 +222,7 @@ class MqttSimulator:
         self._publish("vehicle/drive/distance", round(self.distance, 2))
         self._publish("vehicle/battery/voltage", round(self.battery_voltage, 2))
         self._publish("vehicle/battery/remain_time", int(self.battery_voltage * 60))
-        self._publish("vehicle/surface/state", random.choice(list(SurfaceState)).value)
+        self._publish("vehicle/surface/state", self.surface_state.value)
 
         self._publish("vehicle/max_speed", 2.0)
         self._publish("vehicle/max_angular_speed", 1.0)

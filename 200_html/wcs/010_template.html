@@ -36,9 +36,8 @@
                 "urdf-loader": "https://cdn.jsdelivr.net/npm/urdf-loader@0.12.3/src/URDFLoader.js"
             }
         }
-    </script> 
-    <!-- 캐시 방지 유틸리티 -->
-    <script src="./js/cache-buster.js"></script>
+    </script>
+
     <script src="./js/010_wcs_common.js" defer></script>
 </head>
 
@@ -48,7 +47,7 @@
     <header class="p-1 text-bg-dark fs-5">
 
         <div class="container">
-            <div class="d-flex flex-wrap align-items-center justify-content-center justify-content-lg-start">
+            <div class="d-flex flex-wrap align-items-center justify-content-between">
 
                 <ul class="nav col-12 col-lg-auto me-lg-auto mb-2 justify-content-center mb-md-0">
                     <li>
@@ -70,6 +69,11 @@
                         </a>
                     </li>
                 </ul>
+
+                <!-- MQTT 상태 표시 영역 -->
+                <div id="mqtt-status-container" class="ms-auto">
+                    <!-- MQTT 상태가 여기에 동적으로 추가됩니다 -->
+                </div>
 
             </div>
         </div>

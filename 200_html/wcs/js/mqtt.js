@@ -33,7 +33,7 @@ function initMQTTClient() {
                     console.log('[MQTT] 🎯 QoS 설정:', granted);
                     
                     // jQuery를 사용한 UI 업데이트
-                    $('body').append('<div id="mqtt-status" style="position:fixed; top:10px; right:10px; background:#28a745; color:white; padding:8px 12px; border-radius:5px; font-size:12px; box-shadow:0 2px 5px rgba(0,0,0,0.2); z-index:9999;"><i class="fas fa-wifi" style="margin-right:5px;"></i>MQTT 연결됨</div>');
+                    $('#mqtt-status-container').html('<div id="mqtt-status" class="badge fs-6" style="background:#28a745; color:white; padding:8px 12px; border-radius:5px; box-shadow:0 2px 5px rgba(0,0,0,0.2);"><i class="fas fa-wifi" style="margin-right:5px;"></i>MQTT 연결됨</div>');
                     
                     // 테스트 메시지 발송 (선택사항)
                     setTimeout(() => {
@@ -50,7 +50,7 @@ function initMQTTClient() {
                     console.error('[MQTT] ❌ "test/topic" 구독 실패:', err);
                     
                     // jQuery를 사용한 에러 표시
-                    $('body').append('<div id="mqtt-status" style="position:fixed; top:10px; right:10px; background:#dc3545; color:white; padding:8px 12px; border-radius:5px; font-size:12px; box-shadow:0 2px 5px rgba(0,0,0,0.2); z-index:9999;"><i class="fas fa-exclamation-triangle" style="margin-right:5px;"></i>MQTT 구독 실패</div>');
+                    $('#mqtt-status-container').html('<div id="mqtt-status" class="badge fs-6" style="background:#dc3545; color:white; padding:8px 12px; border-radius:5px; box-shadow:0 2px 5px rgba(0,0,0,0.2);"><i class="fas fa-exclamation-triangle" style="margin-right:5px;"></i>MQTT 구독 실패</div>');
                 }
             });
         });
@@ -134,7 +134,7 @@ function initMQTTClient() {
         console.error('[MQTT] ❌ Mosquitto 클라이언트 초기화 오류:', error);
         
         // jQuery를 사용한 초기화 에러 표시
-        $('body').append('<div style="position:fixed; top:10px; right:10px; background:#dc3545; color:white; padding:8px 12px; border-radius:5px; font-size:12px; box-shadow:0 2px 5px rgba(0,0,0,0.2); z-index:9999;"><i class="fas fa-times-circle" style="margin-right:5px;"></i>Mosquitto 초기화 실패</div>');
+        $('#mqtt-status-container').html('<div class="badge fs-6" style="background:#dc3545; color:white; padding:8px 12px; border-radius:5px; box-shadow:0 2px 5px rgba(0,0,0,0.2);"><i class="fas fa-times-circle" style="margin-right:5px;"></i>Mosquitto 초기화 실패</div>');
     }
 }
 

@@ -91,31 +91,37 @@ function prcessMqttMessage(topic, value) {
         if (!isNaN(value)) {
             const numValue = parseFloat(value);
             
-            // 토픽별 단위 및 포맷팅
+            // SI 단위계 토픽별 단위 및 포맷팅
             if (topic.includes('/linear/speed')) {
-                formattedValue = `${numValue.toFixed(1)} m/s`;
+                formattedValue = `${numValue.toFixed(3)} m/s`;  // SI: 미터/초
             } else if (topic.includes('/power')) {
-                formattedValue = `${Math.round(numValue)} W`;
+                formattedValue = `${Math.round(numValue)} W`;  // SI: 와트
             } else if (topic.includes('/pid/')) {
-                formattedValue = numValue.toFixed(3);
+                formattedValue = numValue.toFixed(3);  // 무차원
             } else if (topic.includes('/tof/distance')) {
-                formattedValue = `${numValue.toFixed(1)} cm`;
+                formattedValue = `${numValue.toFixed(3)} m`;  // SI: 미터 (ToF 센서)
             } else if (topic.includes('/angle')) {
-                // radian을 도(degree)로 변환
+                // radian을 도(degree)로 변환 표시
                 const degrees = (numValue * 180 / Math.PI);
                 formattedValue = `${degrees.toFixed(1)}°`;
             } else if (topic.includes('/axis/angle')) {
-                // 축 각도도 radian에서 도로 변환
+                // 축 각도도 radian에서 도로 변환 표시
                 const degrees = (numValue * 180 / Math.PI);
                 formattedValue = `${degrees.toFixed(1)}°`;
             } else if (topic.includes('/voltage')) {
-                formattedValue = `${numValue.toFixed(1)} V`;
-            } else if (topic.includes('/distance')) {
-                formattedValue = `${numValue.toFixed(2)} m`;
+                formattedValue = `${numValue.toFixed(2)} V`;  // SI: 볼트
+            } else if (topic.includes('/distance') || topic.includes('/total_distance')) {
+                formattedValue = `${numValue.toFixed(3)} m`;  // SI: 미터
             } else if (topic.includes('/acceleration')) {
-                formattedValue = `${numValue.toFixed(2)} m/s²`;
+                formattedValue = `${numValue.toFixed(3)} m/s²`;  // SI: 미터/초²
             } else if (topic.includes('/torque')) {
-                formattedValue = `${numValue.toFixed(1)} Nm`;
+                formattedValue = `${numValue.toFixed(2)} Nm`;  // SI: 뉴턴미터
+            } else if (topic.includes('_time') || topic.includes('/elapsed_time') || topic.includes('/available_time') || topic.includes('/remain_time')) {
+                formattedValue = `${Math.round(numValue)} s`;  // SI: 초
+            } else if (topic.includes('/position/')) {
+                formattedValue = `${numValue.toFixed(3)} m`;  // SI: 미터 (위치)
+            } else if (topic.includes('/remain_amount')) {
+                formattedValue = `${numValue.toFixed(1)} %`;  // 퍼센트
             } else {
                 // 기본 숫자 포맷
                 formattedValue = numValue.toFixed(2);
@@ -180,5 +186,5 @@ function updateTargetElementCss( $targetElement ) {
             'font-weight': 'bold'
         });
     }, 500);
-    
+
 } // updateTargetElementCss

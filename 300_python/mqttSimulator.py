@@ -150,22 +150,25 @@ class MqttSimulator:
             print(f"[CLEANUP] 정리 중 오류: {e}")
     pass  # _cleanup
 
-    # ===== 데이터 생성 =====
+    # ===== 데이터 생성 (SI 단위계 준수) =====
     def _update_vehicle(self):
-        self.elapsed_time += 1
-        self.distance += random.uniform(0.1, 0.5)
-        self.battery_voltage -= random.uniform(0.001, 0.01)
+        # SI 단위계: 시간(초), 거리(미터), 속도(m/s), 가속도(m/s²), 각도(rad)
+        self.elapsed_time += 1  # 초(s)
+        self.distance += random.uniform(0.1, 0.5)  # 미터(m) 단위를 추가
+        self.battery_voltage -= random.uniform(0.001, 0.01)  # 볼트(V)
 
-        # 위치
-        self.pos_x += random.uniform(-0.5, 0.5)
-        self.pos_y += random.uniform(-0.5, 0.5)
+        # 위치: 미터(m)
+        self.pos_x += random.uniform(-0.5, 0.5)  # m
+        self.pos_y += random.uniform(-0.5, 0.5)  # m
 
-        self.linear_speed = random.uniform(0, 2)
-        self.linear_acc = random.uniform(-0.5, 0.5)
+        # 선속도: m/s, 선가속도: m/s²
+        self.linear_speed = random.uniform(0, 2)  # m/s
+        self.linear_acc = random.uniform(-0.5, 0.5)  # m/s²
 
+        # 각도: radian, 각속도: rad/s, 각가속도: rad/s²
         self.angle += random.uniform(-math.pi/36, math.pi/36)  # 약 -5도~5도 (radian)
-        self.angle_speed = random.uniform(0, 2)
-        self.angle_acc = random.uniform(-1, 1)
+        self.angle_speed = random.uniform(0, 2)  # rad/s
+        self.angle_acc = random.uniform(-1, 1)  # rad/s²
         
         # 실행 상태를 주기적으로 변경 (10초마다)
         if self.elapsed_time % 10 == 0:
@@ -180,26 +183,32 @@ class MqttSimulator:
     pass  # _update_vehicle
 
     def _update_wheels(self):
+        # SI 단위계: 각 바퀄별 물리량 업데이트
         for wid, w in self.wheels.items():
-            w["x"] += random.uniform(-0.1, 0.1)
-            w["y"] += random.uniform(-0.1, 0.1)
+            # 위치: 미터(m)
+            w["x"] += random.uniform(-0.1, 0.1)  # m
+            w["y"] += random.uniform(-0.1, 0.1)  # m
 
-            w["speed"] = random.uniform(0, 2)
-            w["acc"] = random.uniform(-0.5, 0.5)
+            # 선속도: m/s, 선가속도: m/s²
+            w["speed"] = random.uniform(0, 2)  # m/s
+            w["acc"] = random.uniform(-0.5, 0.5)  # m/s²
 
+            # 각도: radian (0~2π), 각속도: rad/s, 각가속도: rad/s²
             w["angle"] = random.uniform(0, 2 * math.pi)  # 0~2π radian (0~360도)
-            w["angle_speed"] = random.uniform(0, 2)
-            w["angle_acc"] = random.uniform(-1, 1)
+            w["angle_speed"] = random.uniform(0, 2)  # rad/s
+            w["angle_acc"] = random.uniform(-1, 1)  # rad/s²
             w["axis_angle"] = random.uniform(-math.pi/4, math.pi/4)  # -π/4~π/4 radian (-45~45도)
 
-            w["torque"] = random.uniform(0, 10)
+            # 토크: Nm, 전력: W
+            w["torque"] = random.uniform(0, 10)  # Nm (뉴턴미터)
             w["power"] = random.uniform(0, 150)  # 전력 0-150W 범위
 
             w["pid_p"] = random.uniform(0, 1)
             w["pid_i"] = random.uniform(0, 1)
             w["pid_d"] = random.uniform(0, 1)
 
-            w["tof_distance"] = random.uniform(0, 5)
+            # SI 단위계: 거리는 미터(m) 단위
+            w["tof_distance"] = random.uniform(0.0, 2.0)  # 0-2m (ToF 센서 측정 범위)
             w["tof_calib"] = random.uniform(0, 1)
 
             w["state"] = random.choice(list(ExecState))
@@ -220,62 +229,74 @@ class MqttSimulator:
         # 배터리 잔량(%) 계산 및 발행
         remain_percent = max(0, min(100, (self.battery_voltage / self.battery_max_voltage) * 100))
         
+        # SI 단위계 값들 발행
+        # 시간: 초(s), 거리: 미터(m)
         self._publish("vehicle/run/state", self.exec_state.value)
-        self._publish("vehicle/drive/elapsed_time", self.elapsed_time)
-        self._publish("vehicle/drive/available_time", max(0, 3600 - self.elapsed_time))
-        self._publish("vehicle/drive/total_distance", round(self.distance, 2))
-        self._publish("vehicle/battery/voltage", round(self.battery_voltage, 2))
-        self._publish("vehicle/battery/remain_time", int(self.battery_voltage * 60)) 
-        self._publish("vehicle/battery/remain_amount", round(remain_percent, 1))
+        self._publish("vehicle/drive/elapsed_time", self.elapsed_time)  # 초(s)
+        self._publish("vehicle/drive/available_time", max(0, 3600 - self.elapsed_time))  # 초(s)
+        self._publish("vehicle/drive/total_distance", round(self.distance, 3))  # 미터(m)
+        self._publish("vehicle/battery/voltage", round(self.battery_voltage, 2))  # 볼트(V)
+        self._publish("vehicle/battery/remain_time", int(self.battery_voltage * 60))  # 초(s)
+        self._publish("vehicle/battery/remain_amount", round(remain_percent, 1))  # 퍼센트(%)
         
         self._publish("vehicle/surface/state", self.surface_state.value)
 
-        self._publish("vehicle/max_speed", 2.0)
-        self._publish("vehicle/max_angular_speed", 1.0)
+        # SI 단위계: 속도(m/s), 각속도(rad/s)
+        self._publish("vehicle/max_speed", 2.0)  # m/s
+        self._publish("vehicle/max_angular_speed", 1.0)  # rad/s
 
         self._publish("vehicle/operation/command", self.command.value)
         self._publish("vehicle/operation/state", self.exec_state.value)
     pass  # _publish_vehicle
 
     def _publish_position(self):
-        self._publish("vehicle/position/x", self.pos_x)
-        self._publish("vehicle/position/y", self.pos_y)
-        self._publish("vehicle/position/z", self.pos_z)
+        # SI 단위계: 위치(m), 속도(m/s), 가속도(m/s²), 각도(rad), 각속도(rad/s), 각가속도(rad/s²)
+        self._publish("vehicle/position/x", round(self.pos_x, 3))  # 미터(m)
+        self._publish("vehicle/position/y", round(self.pos_y, 3))  # 미터(m)
+        self._publish("vehicle/position/z", round(self.pos_z, 3))  # 미터(m)
 
-        self._publish("vehicle/linear/speed", self.linear_speed)
-        self._publish("vehicle/linear/acceleration", self.linear_acc)
+        self._publish("vehicle/linear/speed", round(self.linear_speed, 3))  # m/s
+        self._publish("vehicle/linear/acceleration", round(self.linear_acc, 3))  # m/s²
 
-        self._publish("vehicle/angle", self.angle)  # radian 단위
-        self._publish("vehicle/angle/speed", self.angle_speed)
-        self._publish("vehicle/angle/acceleration", self.angle_acc)
+        self._publish("vehicle/angle", round(self.angle, 4))  # radian
+        self._publish("vehicle/angle/speed", round(self.angle_speed, 3))  # rad/s
+        self._publish("vehicle/angle/acceleration", round(self.angle_acc, 3))  # rad/s²
     pass  # _publish_position
 
     def _publish_wheels(self):
+        # SI 단위계: 각 바퀴별 데이터 발행
         for wid, w in self.wheels.items():
             base = f"wheel/{wid}"
 
-            self._publish(f"{base}/position/x", w["x"])
-            self._publish(f"{base}/position/y", w["y"])
-            self._publish(f"{base}/position/z", w["z"])
+            # 위치: 미터(m)
+            self._publish(f"{base}/position/x", round(w["x"], 3))  # m
+            self._publish(f"{base}/position/y", round(w["y"], 3))  # m  
+            self._publish(f"{base}/position/z", round(w["z"], 3))  # m
 
-            self._publish(f"{base}/linear/speed", w["speed"])
-            self._publish(f"{base}/linear/acceleration", w["acc"])
+            # 선속도: m/s, 가속도: m/s²
+            self._publish(f"{base}/linear/speed", round(w["speed"], 3))  # m/s
+            self._publish(f"{base}/linear/acceleration", round(w["acc"], 3))  # m/s²
 
-            self._publish(f"{base}/angle/radian", w["angle"])  # 바퀴 회전각 (radian)
-            self._publish(f"{base}/angle/speed", w["angle_speed"])
-            self._publish(f"{base}/angle/acceleration", w["angle_acc"])
-            self._publish(f"{base}/axis/angle", w["axis_angle"])  # 스티어링 각도 (radian)
+            # 각도: radian, 각속도: rad/s, 각가속도: rad/s²
+            self._publish(f"{base}/angle/radian", round(w["angle"], 4))  # rad (바퀴 회전각)
+            self._publish(f"{base}/angle/speed", round(w["angle_speed"], 3))  # rad/s
+            self._publish(f"{base}/angle/acceleration", round(w["angle_acc"], 3))  # rad/s²
+            self._publish(f"{base}/axis/angle", round(w["axis_angle"], 4))  # rad (스티어링 각도)
 
-            self._publish(f"{base}/torque", w["torque"])
-            self._publish(f"{base}/power", w["power"])
+            # 토크: Nm, 전력: W
+            self._publish(f"{base}/torque", round(w["torque"], 2))  # Nm (뉴턴미터)
+            self._publish(f"{base}/power", round(w["power"], 1))  # W (와트)
 
-            self._publish(f"{base}/pid/p", w["pid_p"])
-            self._publish(f"{base}/pid/i", w["pid_i"])
-            self._publish(f"{base}/pid/d", w["pid_d"])
+            # PID 제어값 (무차원)
+            self._publish(f"{base}/pid/p", round(w["pid_p"], 3))
+            self._publish(f"{base}/pid/i", round(w["pid_i"], 3))
+            self._publish(f"{base}/pid/d", round(w["pid_d"], 3))
 
-            self._publish(f"{base}/tof/distance", w["tof_distance"])
-            self._publish(f"{base}/tof/calibration", w["tof_calib"])
+            # ToF 센서: 거리(m), 보정값(무차원)
+            self._publish(f"{base}/tof/distance", round(w["tof_distance"], 3))  # m
+            self._publish(f"{base}/tof/calibration", round(w["tof_calib"], 3))
 
+            # 운영 상태
             self._publish(f"{base}/operation/command", w["command"].value)
             self._publish(f"{base}/operation/state", w["state"].value)
     pass  # _publish_wheels
@@ -369,6 +390,7 @@ def main():
         print(f"MQTT Broker: {BROKER}:{PORT}")
         print(f"PID: {os.getpid()}")
         print("[SERVICE] systemd 서비스 관리 모드")
+        print("[SI UNITS] SI 단위계 준수: 시간(s), 거리(m), 속도(m/s), 가속도(m/s²), 각도(rad), 토크(Nm), 전력(W)")
         print("=" * 50)
 
         simulator = MqttSimulator(BROKER, PORT)

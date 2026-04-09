@@ -70,6 +70,14 @@
                     </li>
                 </ul>
 
+                <!-- 최근 MQTT 메시지 표시 영역 -->
+                <div id="mqtt-message-display" class="d-flex align-items-center me-3" style="max-width: 400px; overflow: hidden;">
+                    <div class="badge bg-info text-dark fs-6 px-3 py-2" style="white-space: nowrap;">
+                        <i class="fas fa-envelope me-2"></i>
+                        <span id="mqtt-topic">대기중...</span> : <span id="mqtt-value">-</span>
+                    </div>
+                </div>
+
                 <!-- MQTT 상태 표시 영역 -->
                 <div id="mqtt-status-container" class="d-flex align-items-center">
                     <!-- MQTT 상태가 여기에 동적으로 추가됩니다 -->

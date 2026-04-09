@@ -35,6 +35,10 @@ function initMQTTClient() {
                     // jQuery를 사용한 UI 업데이트
                     $('#mqtt-status-container').html('<div id="mqtt-status" class="badge fs-6" style="background:#28a745; color:white; padding:8px 12px; border-radius:5px; box-shadow:0 2px 5px rgba(0,0,0,0.2);"><i class="fas fa-wifi" style="margin-right:5px;"></i>MQTT 연결됨</div>');
                     
+                    // 메시지 표시 영역 초기화
+                    $('#mqtt-topic').text('연결완료');
+                    $('#mqtt-value').text('모든 토픽 수신 대기중');
+                    
                     // 테스트 메시지 발송 (선택사항)
                     setTimeout(() => {
                         const testMessage = JSON.stringify({
@@ -59,6 +63,27 @@ function initMQTTClient() {
         client.on('message', function (topic, message) {
             const messageStr = message.toString();
             const timestamp = new Date().toLocaleTimeString();
+            
+            // UI에 최근 메시지 표시 (메시지가 길 경우 잘라서 표시)
+            const displayValue = messageStr.length > 30 ? messageStr.substring(0, 30) + '...' : messageStr;
+            $('#mqtt-topic').text(topic);
+            $('#mqtt-value').text(displayValue);
+            
+            // 토픽에 따른 배경색 변경
+            let badgeColor = 'bg-info';
+            if (topic.startsWith('vehicle/')) {
+                badgeColor = 'bg-success';
+            } else if (topic.startsWith('sensor/')) {
+                badgeColor = 'bg-warning';
+            } else if (topic.startsWith('system/')) {
+                badgeColor = 'bg-primary';
+            } else if (topic.startsWith('test/')) {
+                badgeColor = 'bg-secondary';
+            }
+            
+            // 배지 색상 업데이트
+            const badge = $('#mqtt-message-display .badge');
+            badge.removeClass('bg-info bg-success bg-warning bg-primary bg-secondary').addClass(badgeColor);
             
             // 모든 토픽에 대하여 로그 출력
             console.log(`[MQTT] 📩 [${timestamp}] topic: ${topic}, value: ${messageStr}`);
@@ -137,6 +162,10 @@ function initMQTTClient() {
                 'animation': 'blink 1s infinite'
             }).html('<i class="fas fa-exclamation-triangle" style="margin-right:5px;"></i>Mosquitto 오류');
             
+            // 메시지 표시 영역 업데이트
+            $('#mqtt-topic').text('연결오류');
+            $('#mqtt-value').text('브로커에 연결할 수 없습니다');
+            
             // 에러 상세 정보 표시
             if (err.message) {
                 console.error('[MQTT] 에러 상세:', err.message);
@@ -149,6 +178,10 @@ function initMQTTClient() {
             
             // jQuery를 사용한 연결 상태 업데이트
             $('#mqtt-status').css('background', '#fd7e14').html('<i class="fas fa-unlink" style="margin-right:5px;"></i>Mosquitto 끊어짐');
+            
+            // 메시지 표시 영역 업데이트
+            $('#mqtt-topic').text('연결끊어짐');
+            $('#mqtt-value').text('브로커 연결이 끊어졌습니다');
         });
         
         // 재연결 (Mosquitto 재연결 로직)
@@ -157,6 +190,10 @@ function initMQTTClient() {
             
             // jQuery를 사용한 재연결 상태 표시
             $('#mqtt-status').css('background', '#17a2b8').html('<i class="fas fa-sync fa-spin" style="margin-right:5px;"></i>Mosquitto 재연결 중...');
+            
+            // 메시지 표시 영역 업데이트
+            $('#mqtt-topic').text('재연결중');
+            $('#mqtt-value').text('브로커 재연결 시도중...');
         });
         
         // 전역 변수로 저장 (필요시 다른 곳에서 사용 가능)

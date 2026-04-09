@@ -68,7 +68,7 @@ function prcessMqttMessage(topic, value) {
         
         updateTargetElementCss($targetElement);
         
-        console.log(`[MQTT] ✅ DOM 업데이트 성공: ${topic} -> ${formattedValue} (행 인덱스: ${rowIndex}, 색상: ${colorPair.first} → ${colorPair.second})`);
+        console.log(`[MQTT] ✅ DOM 업데이트 성공: ${topic} -> ${formattedValue}`);
     } else {
         console.log(`[MQTT] ❌ DOM 요소를 찾을 수 없음: ${topic}`);
     }

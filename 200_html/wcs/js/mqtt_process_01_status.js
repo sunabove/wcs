@@ -65,15 +65,16 @@ function prcessMqttMessage(topic, value) {
         // jQuery를 사용한 DOM 요소 업데이트
         $targetElement.text(formattedValue);
         
-        // jQuery를 사용한 업데이트 효과 (시각적 피드백)
-        $targetElement.css({
+        // 상위 엘리먼트(tr)에 업데이트 효과 적용 (시각적 피드백)
+        const $parentRow = $targetElement.closest('tr');
+        $parentRow.css({
             'transition': 'background-color 0.3s ease',
             'background-color': '#e3f2fd'
         });
         
-        // jQuery를 사용한 지연 효과
+        // jQuery를 사용한 지연 효과 - 상위 엘리먼트에서 제거
         setTimeout(() => {
-            $targetElement.css('background-color', '');
+            $parentRow.css('background-color', '');
         }, 500);
         
         console.log(`[MQTT] ✅ DOM 업데이트 성공: ${topic} -> ${formattedValue}`);

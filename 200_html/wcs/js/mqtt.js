@@ -55,61 +55,53 @@ function initMQTTClient() {
             });
         });
         
-        // 모든 토픽 메시지 수신
+        // 모든 토픽 메시지 수신 (성능 최적화 적용)
         client.on('message', function (topic, message) {
             const messageStr = message.toString();
-            const timestamp = new Date().toLocaleTimeString();
             
-            // 모든 토픽에 대하여 로그 출력
-            console.log(`[MQTT] 📩 [${timestamp}] topic: ${topic}, value: ${messageStr}`);
-            
-            // UI에 최근 메시지 표시 (Bootstrap text-truncate로 처리)
-            $('#mqtt-topic').text(topic + ' :');
-            $('#mqtt-value').text(messageStr);
-            
-            // 토픽에 따른 배경색 변경
-            let badgeColor = 'bg-info';
-            if (topic.startsWith('vehicle/')) {
-                badgeColor = 'bg-success';
-            } else if (topic.startsWith('sensor/')) {
-                badgeColor = 'bg-warning';
-            } else if (topic.startsWith('system/')) {
-                badgeColor = 'bg-primary';
-            } else if (topic.startsWith('test/')) {
-                badgeColor = 'bg-secondary';
+            // 로깅 최적화: vehicle/ 토픽만 상세 로그, 나머지는 요약
+            if (topic.startsWith('vehicle/') || topic.startsWith('wheel/')) {
+                console.log(`[MQTT] 📩 ${topic}: ${messageStr}`);
+            } else {
+                // 기타 토픽은 간소화된 로그
+                console.log(`[MQTT] 📝 ${topic.split('/')[0]}/*: ${messageStr}`);
             }
             
-            // 배지 색상 업데이트
-            const badge = $('#mqtt-message-display .badge');
-            badge.removeClass('bg-info bg-success bg-warning bg-primary bg-secondary').addClass(badgeColor);
+            // UI 업데이트 throttling (100ms 간격)
+            if (!client.lastUIUpdate || Date.now() - client.lastUIUpdate > 100) {
+                $('#mqtt-topic').text(topic + ' :');
+                $('#mqtt-value').text(messageStr);
+                
+                // 토픽에 따른 배경색 변경
+                let badgeColor = 'bg-info';
+                if (topic.startsWith('vehicle/')) {
+                    badgeColor = 'bg-success';
+                } else if (topic.startsWith('sensor/')) {
+                    badgeColor = 'bg-warning';
+                } else if (topic.startsWith('system/')) {
+                    badgeColor = 'bg-primary';
+                } else if (topic.startsWith('test/')) {
+                    badgeColor = 'bg-secondary';
+                }
+                
+                // 배지 색상 업데이트
+                const badge = $('#mqtt-message-display .badge');
+                badge.removeClass('bg-info bg-success bg-warning bg-primary bg-secondary').addClass(badgeColor);
+                
+                client.lastUIUpdate = Date.now();
+            }
             
-            let numValue = NaN; // 초기값 설정
-            
-            // JSON 파싱 시도
-            try {
-                const jsonData = JSON.parse(messageStr);
-                console.log(`[MQTT] 📊 [${topic}] JSON 데이터:`, jsonData); 
-
-                numValue = parseFloat(jsonData);
-                if (!isNaN(numValue)) {
-                    console.log(`[MQTT] 🔢 [${topic}] 숫자 값:`, numValue);
-                } 
-            } catch (e) {
-                // JSON이 아닌 경우 일반 텍스트로 처리
-                // 숫자 값 처리
-                numValue = parseFloat(messageStr);
-                if (!isNaN(numValue)) {
-                    console.log(`[MQTT] 🔢 [${topic}] 숫자 값:`, numValue);
-                } 
+            // 숫자 파싱 최적화
+            let processedValue = messageStr;
+            const numValue = parseFloat(messageStr);
+            if (!isNaN(numValue)) {
+                processedValue = numValue;
             }
 
             // prcessMqttMessage 함수가 정의되어 있으면 호출
             if (typeof prcessMqttMessage === 'function') {
-                prcessMqttMessage(topic, isNaN(numValue) ? messageStr : numValue);
-            } else {
-                console.warn('[MQTT] ⚠️ prcessMqttMessage 함수가 정의되지 않았습니다. 메시지 처리 생략:', topic, messageStr);
+                prcessMqttMessage(topic, processedValue);
             }
-
         });
         
         // 연결 오류 (Mosquitto 전용 에러 처리)

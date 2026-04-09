@@ -23,7 +23,7 @@ function prcessMqttMessage(topic, value) {
 
     // jQuery를 사용한 DOM 업데이트: topic을 id로 사용해서 해당 요소 찾기 (속성 선택자 사용)
     const $targetElement = $(`[id="${topic}"]`);
-    
+
     // vehicle/run/state 특별 처리 (상태별 버튼 enable/disable)
     if (topic === 'vehicle/run/state') {
         const state = parseInt(value);
@@ -50,17 +50,23 @@ function prcessMqttMessage(topic, value) {
         }
     }
 
-    // vehicle/surface/state 특별 처리 (노면 상태별 테두리 강조)
+    // vehicle/surface/state 특별 처리 (노면 상태별 테두리 강조 및 disabled 효과)
     if (topic === 'vehicle/surface/state') {
         const state = parseInt(value);
         
-        // 모든 노면 상태 요소의 테두리 제거 (속성 선택자 사용)
-        $('[id^="vehicle/surface/state/"]').removeClass('border-primary border-3');
+        // 모든 노면 상태 요소의 테두리 제거 및 disabled 효과 적용
+        $('[id^="vehicle/surface/state/"]')
+            .removeClass('border-primary border-3')
+            .addClass('disabled')
+            .css({ 'opacity': '0.3', 'color': '#999' });
         
-        // 해당 노면 상태 요소에 테두리 추가
+        // 해당 노면 상태 요소에 테두리 추가 및 활성화
         const $currentStateElement = $(`[id="vehicle/surface/state/${state}"]`);
         if ($currentStateElement.length > 0) {
-            $currentStateElement.addClass('border-primary border-3');
+            $currentStateElement
+                .addClass('border-primary border-3')
+                .removeClass('disabled')
+                .css({ 'opacity': '1', 'color': '', 'font-weight': 'bold' });
             
             const stateNames = ['ROAD', 'GRAVEL', 'ICE', 'POTHOLE'];
             const stateName = stateNames[state] || 'UNKNOWN';

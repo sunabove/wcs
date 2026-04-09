@@ -95,10 +95,10 @@ function prcessMqttMessage(topic, value) {
             if (topic === 'vehicle/drive/available_time') {
                 // 시분 변환 표시 (초 → 시:분)
                 const hours = Math.floor(numValue / 3600);
-                const minutes = Math.floor((numValue % 3600) / 60);
+                const minutes = Math.floor((numValue % 3600) / 60); 
                 formattedValue = `${hours}:${minutes.toString().padStart(2, '0')}`;
             } else if (topic === 'vehicle/battery/remain_amount') {
-                formattedValue = `${numValue.toFixed(1)}%`;  // 배터리 잔량 퍼센트
+                formattedValue = `${numValue.toFixed(0)}%`;  // 배터리 잔량 퍼센트
             } else if (topic.includes('/linear/speed')) {
                 formattedValue = `${numValue.toFixed(3)} m/s`;  // SI: 미터/초
             } else if (topic.includes('/power')) {

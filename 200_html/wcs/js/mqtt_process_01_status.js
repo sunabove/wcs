@@ -96,8 +96,7 @@ function prcessMqttMessage(topic, value) {
         
         // 500ms 후 원래 색상으로 복원
         setTimeout(() => {
-            $targetElement.css({
-                'color': '',
+            $targetElement.css({ 
                 'font-weight': 'bold'
             });
         }, 500);

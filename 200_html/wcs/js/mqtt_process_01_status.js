@@ -61,7 +61,7 @@ function prcessMqttMessage(topic, value) {
             .css({ 
                 'opacity': '0.6', 
                 'color': '#999',
-                'background-color': '#f8f9fa'  // 약간 어두운 배경색
+                'background-color': '#666'  // Light gray 배경색
             });
         
         // 해당 노면 상태 요소에 테두리 추가 및 활성화

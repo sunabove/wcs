@@ -60,6 +60,9 @@ function initMQTTClient() {
             const messageStr = message.toString();
             const timestamp = new Date().toLocaleTimeString();
             
+            // 모든 토픽에 대하여 로그 출력
+            console.log(`[MQTT] 📩 [${timestamp}] topic: ${topic}, value: ${messageStr}`);
+            
             // UI에 최근 메시지 표시 (Bootstrap text-truncate로 처리)
             $('#mqtt-topic').text(topic + ' :');
             $('#mqtt-value').text(messageStr);
@@ -80,71 +83,31 @@ function initMQTTClient() {
             const badge = $('#mqtt-message-display .badge');
             badge.removeClass('bg-info bg-success bg-warning bg-primary bg-secondary').addClass(badgeColor);
             
-            // 모든 토픽에 대하여 로그 출력
-            console.log(`[MQTT] 📩 [${timestamp}] topic: ${topic}, value: ${messageStr}`);
-            
-            // 토픽별 분류 및 상세 로깅
-            if (topic.startsWith('vehicle/')) {
-                console.log('[MQTT] 🚗 차량 데이터:', topic, messageStr);
-            } else if (topic.startsWith('sensor/')) {
-                console.log('[MQTT] 📡 센서 데이터:', topic, messageStr);
-            } else if (topic.startsWith('system/')) {
-                console.log('[MQTT] ⚙️ 시스템 데이터:', topic, messageStr);
-            } else if (topic.startsWith('test/')) {
-                console.log('[MQTT] 🧪 테스트 데이터:', topic, messageStr);
-            } else if (topic.startsWith('web/')) {
-                console.log('[MQTT] 🌐 웹 클라이언트 데이터:', topic, messageStr);
-            } else {
-                console.log('[MQTT] 📝 일반 데이터:', topic, messageStr);
-            }
+            let numValue = NaN; // 초기값 설정
             
             // JSON 파싱 시도
             try {
                 const jsonData = JSON.parse(messageStr);
-                console.log(`[MQTT] 📊 [${topic}] JSON 데이터:`, jsonData);
-                
-                // 특정 데이터 타입별 로깅
-                if (jsonData.speed !== undefined) {
-                    console.log('[MQTT] 🚗 속도 데이터:', jsonData.speed, 'from', topic);
-                }
-                
-                if (jsonData.temperature !== undefined) {
-                    console.log('[MQTT] 🌡️ 온도 데이터:', jsonData.temperature, 'from', topic);
-                }
-                
-                if (jsonData.battery !== undefined) {
-                    console.log('[MQTT] 🔋 배터리 데이터:', jsonData.battery, 'from', topic);
-                }
-                
-                if (jsonData.status !== undefined) {
-                    console.log('[MQTT] 🟢 상태 업데이트:', jsonData.status, 'from', topic);
-                    
-                    // UI 상태 업데이트
-                    if (topic.includes('system') || topic.includes('vehicle')) {
-                        const statusColor = jsonData.status === 'online' ? '#28a745' : 
-                                          jsonData.status === 'warning' ? '#ffc107' : '#dc3545';
-                        $('#mqtt-status').css('background', statusColor);
-                    }
-                }
-                
-                if (jsonData.command !== undefined) {
-                    console.log('[MQTT] ⚡ 명령 수신:', jsonData.command, 'from', topic);
-                }
-                
-                if (jsonData.distance !== undefined) {
-                    console.log('[MQTT] 📏 거리 데이터:', jsonData.distance, 'from', topic);
-                }
-                
-            } catch (e) {
-                // JSON이 아닌 경우 일반 텍스트로 처리
-                console.log(`[MQTT] 📝 [${topic}] 텍스트 데이터:`, messageStr);
-                
-                // 숫자 값 처리
-                const numValue = parseFloat(messageStr);
+                console.log(`[MQTT] 📊 [${topic}] JSON 데이터:`, jsonData); 
+
+                numValue = parseFloat(jsonData);
                 if (!isNaN(numValue)) {
                     console.log(`[MQTT] 🔢 [${topic}] 숫자 값:`, numValue);
-                }
+                } 
+            } catch (e) {
+                // JSON이 아닌 경우 일반 텍스트로 처리
+                // 숫자 값 처리
+                numValue = parseFloat(messageStr);
+                if (!isNaN(numValue)) {
+                    console.log(`[MQTT] 🔢 [${topic}] 숫자 값:`, numValue);
+                } 
             }
+
+            // prcessMqttMessage 함수가 정의되어 있으면 호출
+            if (typeof prcessMqttMessage === 'function') {
+                prcessMqttMessage(topic, isNaN(numValue) ? messageStr : numValue);
+            }
+
         });
         
         // 연결 오류 (Mosquitto 전용 에러 처리)

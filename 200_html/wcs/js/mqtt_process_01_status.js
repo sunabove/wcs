@@ -58,7 +58,7 @@ function prcessMqttMessage(topic, value) {
         $('[id^="vehicle/surface/state/"]')
             .removeClass('border-primary border-3')
             .addClass('disabled')
-            .css({ 'opacity': '0.3', 'color': '#999' });
+            .css({ 'opacity': '0.6', 'color': '#999' });
         
         // 해당 노면 상태 요소에 테두리 추가 및 활성화
         const $currentStateElement = $(`[id="vehicle/surface/state/${state}"]`);

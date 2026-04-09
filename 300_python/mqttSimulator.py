@@ -2,6 +2,10 @@ import time
 import random
 import json
 import platform
+import os
+import sys
+import threading
+from pathlib import Path
 import paho.mqtt.client as mqtt
 from paho.mqtt.client import CallbackAPIVersion
 from enum import IntEnum 
@@ -41,6 +45,11 @@ class VehicleSimulator:
         self.current_command = OperationCommand.FORWARD
         self.publish_count = 0  # publish 카운터 추가
         
+        # 파일 감시 설정
+        self.script_path = Path(__file__).resolve()
+        self.last_modified = self.script_path.stat().st_mtime
+        self.should_restart = False
+        
         # MQTT 클라이언트 설정
         self.client = mqtt.Client(
             callback_api_version=CallbackAPIVersion.VERSION1,
@@ -52,6 +61,31 @@ class VehicleSimulator:
     def _on_connect(self, client, userdata, flags, rc):
         """MQTT 연결 콜백"""
         print("MQTT Connected:", rc)
+    pass
+    
+    def _check_file_changes(self):
+        """파일 변경 감지"""
+        try:
+            current_mtime = self.script_path.stat().st_mtime
+            if current_mtime > self.last_modified:
+                print(f"File {self.script_path.name} has been modified. Preparing to restart...")
+                self.should_restart = True
+                return True
+        except Exception as e:
+            print(f"Error checking file: {e}")
+        return False
+    pass
+    
+    def _start_file_watcher(self):
+        """파일 감시 스레드 시작"""
+        def watch_file():
+            while not self.should_restart:
+                self._check_file_changes()
+                time.sleep(2)  # 2초마다 체크
+        
+        watcher_thread = threading.Thread(target=watch_file, daemon=True)
+        watcher_thread.start()
+        print(f"Started file watcher for {self.script_path.name}")
     pass
     
     def _generate_data(self):
@@ -143,13 +177,31 @@ class VehicleSimulator:
     def run_simulation(self):
         """시뮬레이션 실행"""
         try:
-            print("Starting vehicle simulation...")
-            while True:
+            print("="*50)
+            print("Starting MQTT Vehicle Simulator")
+            print(f"Process ID: {os.getpid()}")
+            print(f"File monitoring: {self.script_path}")
+            print("="*50)
+            
+            # 파일 감시 시작
+            self._start_file_watcher()
+            
+            while not self.should_restart:
                 self._publish_data()
                 time.sleep(1)
-            pass
+                
+            if self.should_restart:
+                print("File change detected. Exiting for service restart...")
+                self.disconnect()
+                # systemd가 재시작하도록 프로그램 종료 (exit code 2 = 재시작 요청)
+                sys.exit(2)
+            
         except KeyboardInterrupt:
             print("\nSimulation stopped by user")
+            sys.exit(0)  # 사용자 중단으로 정상 종료
+        except Exception as e:
+            print(f"Error in simulation: {e}")
+            sys.exit(1)  # 에러로 인한 종료
         finally:
             self.disconnect()
         pass
@@ -157,27 +209,32 @@ class VehicleSimulator:
 
 def main():
     """메인 함수"""
-    # 설정값 - 운영체제별로 브로커 호스트 설정
-    BROKER_HOST = "localhost"
-    
-    if platform.system() == "Windows":
-        BROKER_HOST = "orangepi6plus"
-    pass
-    
-    PORT = 1883
-    
-    print(f"Operating System: {platform.system()}")
-    print(f"MQTT Broker Host: {BROKER_HOST}")
-    
-    # 시뮬레이터 생성 및 연결
-    simulator = VehicleSimulator(BROKER_HOST, PORT)
-    
-    # 재시도 로직으로 MQTT 연결 시도
-    if simulator.connect_with_retry(max_retries=10, delay=5):
-        simulator.run_simulation()
-    else:
-        print("Failed to establish MQTT connection. Exiting...")
-        exit(1)
+    try:
+        # 설정값 - 운영체제별로 브로커 호스트 설정
+        BROKER_HOST = "localhost"
+        
+        if platform.system() == "Windows":
+            BROKER_HOST = "orangepi6plus"
+        pass
+        
+        PORT = 1883
+        
+        print(f"Operating System: {platform.system()}")
+        print(f"MQTT Broker Host: {BROKER_HOST}")
+        
+        # 시뮬레이터 생성 및 연결
+        simulator = VehicleSimulator(BROKER_HOST, PORT)
+        
+        # 재시도 로직으로 MQTT 연결 시도
+        if simulator.connect_with_retry(max_retries=10, delay=5):
+            simulator.run_simulation()
+        else:
+            print("Failed to establish MQTT connection. Exiting...")
+            sys.exit(1)  # 연결 실패로 종료
+        
+    except Exception as e:
+        print(f"Unexpected error in main: {e}")
+        sys.exit(1)  # 예외 발생으로 종료
     pass
 pass
 

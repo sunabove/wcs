@@ -11,6 +11,9 @@ WorkingDirectory=/home/www/wcs/300_python
 ExecStart=/usr/bin/python3 /home/www/wcs/300_python/mqttSimulator.py
 
 Restart=always
+RestartSec=3
+# exit code 2는 파일 변경으로 인한 정상 재시작
+RestartForceExitStatus=2
 
 [Install]
 WantedBy=multi-user.target

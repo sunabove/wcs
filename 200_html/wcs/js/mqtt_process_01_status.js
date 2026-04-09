@@ -98,7 +98,7 @@ function prcessMqttMessage(topic, value) {
         setTimeout(() => {
             $targetElement.css({
                 'color': '',
-                'font-weight': ''
+                'font-weight': 'bold'
             });
         }, 500);
         

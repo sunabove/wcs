@@ -15,9 +15,9 @@ function setHeaderMenuCss() {
         
         // 현재 페이지와 일치하는지 확인하여 클래스 추가
         if (linkPage === currentPage) {
-            $link.addClass('text-secondary');
+           $link.addClass('text-white'); 
         } else {
-            $link.addClass('text-white');
+            $link.addClass('text-secondary');
         }
     });
 }

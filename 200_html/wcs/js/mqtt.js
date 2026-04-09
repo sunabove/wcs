@@ -61,7 +61,7 @@ function initMQTTClient() {
             const timestamp = new Date().toLocaleTimeString();
             
             // 모든 토픽에 대하여 로그 출력
-            console.log(`[MQTT] 📩 [${timestamp}] [${topic}] 메시지 수신:`, messageStr);
+            console.log(`[MQTT] 📩 [${timestamp}] topic: ${topic}, message: ${messageStr}`);
             
             // 토픽별 분류 및 상세 로깅
             if (topic.startsWith('vehicle/')) {

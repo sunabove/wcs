@@ -60,10 +60,9 @@ function initMQTTClient() {
             const messageStr = message.toString();
             const timestamp = new Date().toLocaleTimeString();
             
-            // UI에 최근 메시지 표시 (메시지가 길 경우 잘라서 표시)
-            const displayValue = messageStr.length > 30 ? messageStr.substring(0, 30) + '...' : messageStr;
+            // UI에 최근 메시지 표시 (Bootstrap text-truncate로 처리)
             $('#mqtt-topic').text(topic);
-            $('#mqtt-value').text(displayValue);
+            $('#mqtt-value').text(messageStr);
             
             // 토픽에 따른 배경색 변경
             let badgeColor = 'bg-info';

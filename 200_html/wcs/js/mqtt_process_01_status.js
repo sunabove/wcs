@@ -65,15 +65,24 @@ function prcessMqttMessage(topic, value) {
         // jQuery를 사용한 DOM 요소 업데이트
         $targetElement.text(formattedValue);
         
-        // jQuery를 사용한 업데이트 효과 (시각적 피드백)
+        // 전경색을 사용한 업데이트 효과 (2단계 색상 변화)
         $targetElement.css({
-            'transition': 'background-color 0.3s ease',
-            'background-color': '#e3f2fd'
+            'transition': 'color 0.15s ease',
+            'color': '#2196f3',  // 첫 번째 색상: 파란색
+            'font-weight': 'bold'
         });
         
-        // jQuery를 사용한 지연 효과
+        // 150ms 후 두 번째 색상으로 변경
         setTimeout(() => {
-            $targetElement.css('background-color', '');
+            $targetElement.css('color', '#4caf50');  // 두 번째 색상: 초록색
+        }, 150);
+        
+        // 500ms 후 원래 색상으로 복원
+        setTimeout(() => {
+            $targetElement.css({
+                'color': '',
+                'font-weight': ''
+            });
         }, 500);
         
         console.log(`[MQTT] ✅ DOM 업데이트 성공: ${topic} -> ${formattedValue}`);

@@ -61,7 +61,7 @@ function initMQTTClient() {
             const timestamp = new Date().toLocaleTimeString();
             
             // UI에 최근 메시지 표시 (Bootstrap text-truncate로 처리)
-            $('#mqtt-topic').text(topic + ':');
+            $('#mqtt-topic').text(topic + ' :');
             $('#mqtt-value').text(messageStr);
             
             // 토픽에 따른 배경색 변경

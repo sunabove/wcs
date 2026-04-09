@@ -68,8 +68,7 @@ function prcessMqttMessage(topic, value) {
         // 전경색을 사용한 업데이트 효과 (2단계 색상 변화)
         $targetElement.css({
             'transition': 'color 0.15s ease',
-            'color': '#2196f3',  // 첫 번째 색상: 파란색
-            'font-weight': ''
+            'color': '#2196f3',  // 첫 번째 색상: 파란색 
         });
         
         // 150ms 후 두 번째 색상으로 변경
@@ -80,8 +79,7 @@ function prcessMqttMessage(topic, value) {
         // 500ms 후 원래 색상으로 복원
         setTimeout(() => {
             $targetElement.css({
-                'color': '',
-                'font-weight': ''
+                'color': '', 
             });
         }, 500);
         

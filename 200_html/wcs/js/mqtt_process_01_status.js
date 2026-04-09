@@ -58,7 +58,11 @@ function prcessMqttMessage(topic, value) {
         $('[id^="vehicle/surface/state/"]')
             .removeClass('border-primary border-3')
             .addClass('disabled')
-            .css({ 'opacity': '0.6', 'color': '#999' });
+            .css({ 
+                'opacity': '0.6', 
+                'color': '#999',
+                'background-color': '#f8f9fa'  // 약간 어두운 배경색
+            });
         
         // 해당 노면 상태 요소에 테두리 추가 및 활성화
         const $currentStateElement = $(`[id="vehicle/surface/state/${state}"]`);
@@ -66,7 +70,12 @@ function prcessMqttMessage(topic, value) {
             $currentStateElement
                 .addClass('border-primary border-3')
                 .removeClass('disabled')
-                .css({ 'opacity': '1', 'color': '', 'font-weight': 'bold' });
+                .css({ 
+                    'opacity': '1', 
+                    'color': '', 
+                    'font-weight': 'bold',
+                    'background-color': ''  // 원본 배경색 복원
+                });
             
             const stateNames = ['ROAD', 'GRAVEL', 'ICE', 'POTHOLE'];
             const stateName = stateNames[state] || 'UNKNOWN';

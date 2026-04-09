@@ -106,6 +106,8 @@ function initMQTTClient() {
             // prcessMqttMessage 함수가 정의되어 있으면 호출
             if (typeof prcessMqttMessage === 'function') {
                 prcessMqttMessage(topic, isNaN(numValue) ? messageStr : numValue);
+            } else {
+                console.warn('[MQTT] ⚠️ prcessMqttMessage 함수가 정의되지 않았습니다. 메시지 처리 생략:', topic, messageStr);
             }
 
         });

@@ -131,6 +131,10 @@ function getFormattedTopicValue(topic, value) {
         } else {
             formattedValue = `${hours}:${minutes.toString().padStart(2, '0')}`;
         }
+    } else if (topic === 'vehicle/drive/total_distance') {
+        // 총 이동거리는 km 단위로 변환 표시 (m → km)
+        const kilometers = numValue / 1000;
+        formattedValue = `${kilometers.toFixed(3)} km`;
     } else if (topic === 'vehicle/battery/remain_amount') {
         formattedValue = `${numValue.toFixed(0)}%`;  // 배터리 잔량 퍼센트
     } else if (topic.includes('/linear/speed')) {
@@ -151,10 +155,6 @@ function getFormattedTopicValue(topic, value) {
         formattedValue = `${degrees.toFixed(1)}°`;
     } else if (topic.includes('/voltage')) {
         formattedValue = `${numValue.toFixed(2)} V`;  // SI: 볼트
-    } else if (topic === 'vehicle/drive/total_distance') {
-        // 총 이동거리는 km 단위로 변환 표시 (m → km)
-        const kilometers = numValue / 1000;
-        formattedValue = `${kilometers.toFixed(3)} km`;
     } else if (topic.includes('/distance') || topic.includes('/total_distance')) {
         formattedValue = `${numValue.toFixed(3)} m`;  // SI: 미터 (기타 거리)
     } else if (topic.includes('/acceleration')) {

@@ -21,11 +21,9 @@ class OperationCommand(IntEnum):
     TOF_CALIBRATION = 5
 
 
-class ExecState(IntEnum):
+class VehicleExecState(IntEnum):
     IDLE = 0
     RUNNING = 1
-    SUCCESS = 2
-    FAIL = 3
 
 
 class SurfaceState(IntEnum):
@@ -70,7 +68,7 @@ class MqttSimulator:
         self.current_session_distance = 0.0  # 현재 세션 거리
         self.battery_voltage = 48.0
         self.battery_max_voltage = 48.0  # 배터리 최대 전압 (100% 기준)
-        self.exec_state = ExecState.RUNNING
+        self.exec_state = VehicleExecState.RUNNING
         self.command = OperationCommand.FORWARD
         self.surface_state = SurfaceState.ROAD  # 초기 노면 상태
         
@@ -124,7 +122,7 @@ class MqttSimulator:
             "tof_distance": 0.0,
             "tof_calib": 0.0,
             "command": OperationCommand.STOP,
-            "state": ExecState.IDLE,
+            "state": VehicleExecState.IDLE,
         }
     pass  # _init_wheel
 
@@ -176,7 +174,7 @@ class MqttSimulator:
                 self.target_speed = random.uniform(8.3, 13.9)  # 30-50km/h → m/s
             elif self.driving_scenario == "traffic_light_stop":
                 self.target_speed = 0.0  # 완전 정지
-                self.exec_state = ExecState.IDLE
+                self.exec_state = VehicleExecState.IDLE
             elif self.driving_scenario == "slow_traffic":
                 self.target_speed = random.uniform(2.8, 8.3)  # 10-30km/h → m/s
             elif self.driving_scenario == "accelerating":
@@ -298,11 +296,11 @@ class MqttSimulator:
         if battery_percent < 25:
             self.target_speed *= 0.8  # 성능 저하
             if battery_percent < 15:
-                self.exec_state = ExecState.IDLE
+                self.exec_state = VehicleExecState.IDLE
                 print(f"[CITY] 배터리 부족으로 차량 정지 ({battery_percent:.1f}%)")
         
         # 상태 변경 (15초마다 노면 상태 변경 - 시내 도로 특성)
-        if self.elapsed_time % 15 == 0 and self.exec_state == ExecState.RUNNING:
+        if self.elapsed_time % 15 == 0 and self.exec_state == VehicleExecState.RUNNING:
             # 시내 도로 노면 상태 (포트홀과 자갈길 확률 증가)
             surface_weights = [65, 15, 5, 15]  # ROAD, GRAVEL, ICE, POTHOLE
             self.surface_state = random.choices(list(SurfaceState), weights=surface_weights)[0]
@@ -310,12 +308,37 @@ class MqttSimulator:
             surface_name = surface_names[self.surface_state.value]
             print(f"[CITY] 노면 변화: {surface_name} ({self.surface_state.value})")
         
-        # 실행 상태 관리
+        # 시내 주행 시나리오에 따른 실행 상태 관리 (IDLE/RUNNING만 사용)
         if self.driving_scenario == "traffic_light_stop":
             if self.current_speed < 0.1:
-                self.exec_state = ExecState.IDLE
+                self.exec_state = VehicleExecState.IDLE
+                print(f"[CITY] 신호등 대기로 IDLE 상태 ({self.current_speed:.1f} m/s)")
+            else:
+                self.exec_state = VehicleExecState.RUNNING
+        elif self.driving_scenario == "parking_maneuver":
+            if self.current_speed < 0.2:
+                self.exec_state = VehicleExecState.IDLE
+                print(f"[CITY] 주차 중 IDLE 상태 ({self.current_speed:.1f} m/s)")
+            else:
+                self.exec_state = VehicleExecState.RUNNING
+        elif self.driving_scenario == "pedestrian_caution":
+            if self.current_speed < 0.5:
+                self.exec_state = VehicleExecState.IDLE
+                print(f"[CITY] 보행자 주의로 IDLE 상태 ({self.current_speed:.1f} m/s)")
+            else:
+                self.exec_state = VehicleExecState.RUNNING
+        elif self.driving_scenario == "slow_traffic":
+            if self.current_speed < 1.0:
+                self.exec_state = VehicleExecState.IDLE
+                print(f"[CITY] 교통 정체로 IDLE 상태 ({self.current_speed:.1f} m/s)")
+            else:
+                self.exec_state = VehicleExecState.RUNNING
         else:
-            self.exec_state = ExecState.RUNNING
+            # 일반 주행: 속도 기반 상태 전환
+            if self.current_speed < 0.1:
+                self.exec_state = VehicleExecState.IDLE
+            else:
+                self.exec_state = VehicleExecState.RUNNING
     pass  # _update_vehicle
 
     def _update_wheels(self):
@@ -345,12 +368,12 @@ class MqttSimulator:
         scenario_effect = scenario_effects.get(self.driving_scenario, {"load_factor": 1.0, "steering_demand": 0.1})
         
         for wid, w in self.wheels.items():
-            # 차량의 제어 상태를 바퀴에 반영
-            if self.exec_state == ExecState.RUNNING:
-                w["state"] = ExecState.RUNNING
+            # 차량의 제어 상태를 바퀴에 정확히 반영
+            if self.exec_state == VehicleExecState.RUNNING:
+                w["state"] = VehicleExecState.RUNNING
                 w["command"] = self.command
-            else:
-                w["state"] = ExecState.IDLE  
+            elif self.exec_state == VehicleExecState.IDLE:
+                w["state"] = VehicleExecState.IDLE  
                 w["command"] = OperationCommand.STOP
             
             # 바퀴별 위치 차이 (전후좌우 배치 반영)
@@ -602,6 +625,7 @@ class MqttSimulator:
         print("[INFO]               turning_intersection, pedestrian_caution, parking_maneuver, highway_merge")
         print("[INFO] 노면 상태: ROAD(도로), GRAVEL(자갈), ICE(빙판), POTHOLE(포트홀)")
         print("[INFO] 주행 속도: 0-70 km/h (0-19.4 m/s) - 실제 시내 주행 범위")
+        print("[INFO] 실행 상태: IDLE(0)=정지, RUNNING(1)=주행")
         print("[INFO] 데이터: vehicle/ 및 wheel/ 토픽만 발행 (기존 토픽 구조 유지)")
         print("-" * 70)
         
@@ -618,11 +642,18 @@ class MqttSimulator:
                     kmh_speed = self.current_speed * 3.6  # km/h 변환
                     total_km = self.total_distance / 1000  # 총 주행거리(km)
                     
+                    # 상태별 아이콘과 설명
+                    state_icons = {
+                        VehicleExecState.IDLE: "🔴 정지",
+                        VehicleExecState.RUNNING: "🟢 주행중"
+                    }
+                    state_display = state_icons.get(self.exec_state, "❓ 알수없음")
+                    
                     print(f"\n[CITY STATUS] 경과: {self.elapsed_time}s | 시나리오: {self.driving_scenario}")
                     print(f"[CITY STATUS] 속도: {kmh_speed:.1f} km/h ({self.current_speed:.2f} m/s) | 목표: {self.target_speed*3.6:.0f} km/h")
                     print(f"[CITY STATUS] 배터리: {battery_percent:.1f}% ({self.battery_voltage:.1f}V) | 노면: {['ROAD','GRAVEL','ICE','POTHOLE'][self.surface_state.value]}")
                     print(f"[CITY STATUS] 위치: ({self.pos_x:.1f}m, {self.pos_y:.1f}m) | 주행거리: {total_km:.2f}km")
-                    print(f"[CITY STATUS] 발행 토픽: {self.publish_count}개 | 상태: {'🟢 주행중' if self.exec_state == ExecState.RUNNING else '🔴 정지'}")
+                    print(f"[CITY STATUS] 발행 토픽: {self.publish_count}개 | 상태: {state_display} ({self.exec_state.value})")
                     print("-" * 70)
                 
                 self._update_vehicle()

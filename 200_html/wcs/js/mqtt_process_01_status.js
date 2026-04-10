@@ -142,7 +142,10 @@ function getFormattedTopicValue(topic, value) {
     } else if (topic === 'vehicle/battery/remain_amount') {
         formattedValue = `${numValue.toFixed(0)}%`;  // 배터리 잔량 퍼센트
     } else if (topic.includes('/linear/speed')) {
-        formattedValue = `${numValue.toFixed(3)} m/s`;  // SI: 미터/초
+        // m/s를 km/h로 변환 (1 m/s = 3.6 km/h)
+        const kmPerHour = numValue * 3.6;
+        const roundedKmPerHour = Math.ceil(kmPerHour);  // 올림하여 정수로 만듦
+        formattedValue = `${roundedKmPerHour} km/h`;  // 소수점 없이 정수로 표시
     } else if (topic.includes('/power')) {
         formattedValue = `${Math.round(numValue)} W`;  // SI: 와트
     } else if (topic.includes('/pid/')) {

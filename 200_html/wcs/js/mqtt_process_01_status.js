@@ -123,21 +123,24 @@ function getFormattedTopicValue(topic, value) {
             formattedValue = `${hours}시 ${minutes.toString().padStart(2, '0')}분`;
         }
     } else if (topic === 'vehicle/drive/elapsed_time') {
-        // 총 주행 시간: 1분 이하면 초단위, 이상이면 분단위로 표시
+        // 총 주행 시간: 1분 이하면 초, 60분 이하면 분초, 이상이면 시간 단위로 표시
         if (isNaN(numValue) || numValue === null || numValue === undefined) {
             formattedValue = value;
         } else if (numValue >= 0 && numValue < 60) {
-            // 0초 이상 60초 미만
-            formattedValue = `${Math.floor(numValue)}초`;
+            // 0초 이상 60초 미만 - 초로 표시
+            const seconds = Math.floor(numValue);
+            formattedValue = `${seconds}초`;
+        } else if (numValue < 3600) {
+            // 60초 이상 3600초(60분) 미만 - 분초로 표시
+            const totalSeconds = Math.floor(numValue);
+            const minutes = Math.floor(totalSeconds / 60);
+            const seconds = totalSeconds % 60;
+            formattedValue = `${minutes}분 ${seconds}초`;
         } else {
-            // 60초 이상
+            // 3600초(60분) 이상 - 시간 단위로 표시
             const hours = Math.floor(numValue / 3600);
             const minutes = Math.floor((numValue % 3600) / 60);
-            if (hours === 0) {
-                formattedValue = `${minutes}분`;
-            } else {
-                formattedValue = `${hours}시 ${minutes.toString().padStart(2, '0')}분`;
-            }
+            formattedValue = `${hours}시 ${minutes.toString().padStart(2, '0')}분`;
         }
     } else if (topic === 'vehicle/drive/total_distance') {
         // 총 이동거리: 1km 미만은 m 단위, 1km 이상은 km 단위로 표시

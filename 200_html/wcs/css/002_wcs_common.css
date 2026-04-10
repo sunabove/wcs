@@ -4,6 +4,5 @@
     position: relative;
     max-width: 600px;
     height: 80vh;
-    max-height: 400px;
-    border: 1px solid lightgray;
+    max-height: 400px; 
 }

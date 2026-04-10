@@ -99,7 +99,10 @@ function prcessMqttMessage(topic, value) {
 } // prcessMqttMessage
 
 function getFormattedTopicValue(topic, value) {
-    const numValue = parseFloat(value);
+    // 숫자 변환을 더 안전하게
+    const numValue = Number(value);
+    
+    console.log(`[DEBUG] getFormattedTopicValue: topic=${topic}, value=${value}, numValue=${numValue}`);
 
     let formattedValue = value;
             
@@ -124,16 +127,31 @@ function getFormattedTopicValue(topic, value) {
         }
     } else if (topic === 'vehicle/drive/elapsed_time') {
         // 총 주행 시간: 1분 이하면 초단위, 이상이면 분단위로 표시
-        if (numValue < 60) {
-            formattedValue = `${Math.floor(numValue)}초`;  // 1분 미만은 초 단위 (소수점 없음)
+        console.log(`🕐 [ELAPSED_TIME] value="${value}", numValue=${numValue}, type=${typeof numValue}`);
+        
+        // 테스트를 위해 alert 추가 (차후 제거 예정)
+        if (numValue <= 10) {
+            alert(`elapsed_time 테스트: 값=${value}, 숫자=${numValue}, 60초 미만=${numValue < 60}`);
+        }
+        
+        // 숫자가 아니거나 유효하지 않은 경우 원본 값 사용
+        if (isNaN(numValue) || numValue === null || numValue === undefined) {
+            formattedValue = value;
+            console.log(`🚨 [ELAPSED_TIME] 유효하지 않은 값, 원본 사용: ${formattedValue}`);
+        } else if (numValue >= 0 && numValue < 60) {
+            // 0초 이상 60초 미만
+            formattedValue = `${Math.floor(numValue)}초`;
+            console.log(`⏰ [ELAPSED_TIME] 초 단위 표시: ${formattedValue}`);
         } else {
+            // 60초 이상
             const hours = Math.floor(numValue / 3600);
             const minutes = Math.floor((numValue % 3600) / 60);
             if (hours === 0) {
-                formattedValue = `${minutes}분`;  // 시간이 0이면 분만 표시
+                formattedValue = `${minutes}분`;
             } else {
                 formattedValue = `${hours}시 ${minutes.toString().padStart(2, '0')}분`;
             }
+            console.log(`🕓 [ELAPSED_TIME] 분/시간 단위 표시: ${formattedValue}`);
         }
     } else if (topic === 'vehicle/drive/total_distance') {
         // 총 이동거리: 1km 미만은 m 단위, 1km 이상은 km 단위로 표시

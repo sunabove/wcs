@@ -103,8 +103,8 @@ function getFormattedTopicValue(topic, value) {
 
     let formattedValue = value;
             
-    // SI 단위계 토픽별 단위 및 포맷팅
     if (topic === 'vehicle/drive/available_time') {
+        // 주행 가능 시간
         // 시분 변환 표시 (초 → 시:분)
         const hours = Math.floor(numValue / 3600);
         const minutes = Math.floor((numValue % 3600) / 60); 
@@ -123,13 +123,17 @@ function getFormattedTopicValue(topic, value) {
             formattedValue = `${hours}시 ${minutes.toString().padStart(2, '0')}분`;
         }
     } else if (topic === 'vehicle/drive/elapsed_time') {
-        // 경과 시간도 시:분으로 표시
-        const hours = Math.floor(numValue / 3600);
-        const minutes = Math.floor((numValue % 3600) / 60);
-        if (hours === 0) {
-            formattedValue = `${minutes}분`;  // 시간이 0이면 분만 표시
+        // 총 주행 시간: 1분 이하면 초단위, 이상이면 분단위로 표시
+        if (numValue < 60) {
+            formattedValue = `${Math.floor(numValue)}초`;  // 1분 미만은 초 단위 (소수점 없음)
         } else {
-            formattedValue = `${hours}시 ${minutes.toString().padStart(2, '0')}분`;
+            const hours = Math.floor(numValue / 3600);
+            const minutes = Math.floor((numValue % 3600) / 60);
+            if (hours === 0) {
+                formattedValue = `${minutes}분`;  // 시간이 0이면 분만 표시
+            } else {
+                formattedValue = `${hours}시 ${minutes.toString().padStart(2, '0')}분`;
+            }
         }
     } else if (topic === 'vehicle/drive/total_distance') {
         // 총 이동거리: 1km 미만은 m 단위, 1km 이상은 km 단위로 표시

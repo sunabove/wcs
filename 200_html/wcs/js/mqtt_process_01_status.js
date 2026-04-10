@@ -137,7 +137,7 @@ function getFormattedTopicValue(topic, value) {
             formattedValue = `${Math.round(numValue)} m`;  // 1km 미만은 미터 단위
         } else {
             const kilometers = numValue / 1000;
-            formattedValue = `${kilometers.toFixed(2)} km`;  // 1km 이상은 킬로미터 단위
+            formattedValue = `${kilometers.toFixed(0)} km`;  // 1km 이상은 킬로미터 단위
         }
     } else if (topic === 'vehicle/battery/remain_amount') {
         formattedValue = `${numValue.toFixed(0)}%`;  // 배터리 잔량 퍼센트

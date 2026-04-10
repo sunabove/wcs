@@ -22,8 +22,8 @@ class OperationCommand(IntEnum):
 
 
 class VehicleExecState(IntEnum):
-    IDLE = 0
-    RUNNING = 1
+    STOP = 0
+    RUN = 1
 
 
 class SurfaceState(IntEnum):
@@ -68,7 +68,7 @@ class MqttSimulator:
         self.current_session_distance = 0.0  # 현재 세션 거리
         self.battery_voltage = 48.0
         self.battery_max_voltage = 48.0  # 배터리 최대 전압 (100% 기준)
-        self.exec_state = VehicleExecState.RUNNING
+        self.exec_state = VehicleExecState.RUN
         self.command = OperationCommand.FORWARD
         self.surface_state = SurfaceState.ROAD  # 초기 노면 상태
         
@@ -122,7 +122,7 @@ class MqttSimulator:
             "tof_distance": 0.0,
             "tof_calib": 0.0,
             "command": OperationCommand.STOP,
-            "state": VehicleExecState.IDLE,
+            "state": VehicleExecState.STOP,
         }
     pass  # _init_wheel
 
@@ -174,7 +174,7 @@ class MqttSimulator:
                 self.target_speed = random.uniform(8.3, 13.9)  # 30-50km/h → m/s
             elif self.driving_scenario == "traffic_light_stop":
                 self.target_speed = 0.0  # 완전 정지
-                self.exec_state = VehicleExecState.IDLE
+                self.exec_state = VehicleExecState.STOP
             elif self.driving_scenario == "slow_traffic":
                 self.target_speed = random.uniform(2.8, 8.3)  # 10-30km/h → m/s
             elif self.driving_scenario == "accelerating":
@@ -296,11 +296,11 @@ class MqttSimulator:
         if battery_percent < 25:
             self.target_speed *= 0.8  # 성능 저하
             if battery_percent < 15:
-                self.exec_state = VehicleExecState.IDLE
+                self.exec_state = VehicleExecState.STOP
                 print(f"[CITY] 배터리 부족으로 차량 정지 ({battery_percent:.1f}%)")
         
         # 상태 변경 (15초마다 노면 상태 변경 - 시내 도로 특성)
-        if self.elapsed_time % 15 == 0 and self.exec_state == VehicleExecState.RUNNING:
+        if self.elapsed_time % 15 == 0 and self.exec_state == VehicleExecState.RUN:
             # 시내 도로 노면 상태 (포트홀과 자갈길 확률 증가)
             surface_weights = [65, 15, 5, 15]  # ROAD, GRAVEL, ICE, POTHOLE
             self.surface_state = random.choices(list(SurfaceState), weights=surface_weights)[0]
@@ -311,34 +311,34 @@ class MqttSimulator:
         # 시내 주행 시나리오에 따른 실행 상태 관리 (IDLE/RUNNING만 사용)
         if self.driving_scenario == "traffic_light_stop":
             if self.current_speed < 0.1:
-                self.exec_state = VehicleExecState.IDLE
+                self.exec_state = VehicleExecState.STOP
                 print(f"[CITY] 신호등 대기로 IDLE 상태 ({self.current_speed:.1f} m/s)")
             else:
-                self.exec_state = VehicleExecState.RUNNING
+                self.exec_state = VehicleExecState.RUN
         elif self.driving_scenario == "parking_maneuver":
             if self.current_speed < 0.2:
-                self.exec_state = VehicleExecState.IDLE
+                self.exec_state = VehicleExecState.STOP
                 print(f"[CITY] 주차 중 IDLE 상태 ({self.current_speed:.1f} m/s)")
             else:
-                self.exec_state = VehicleExecState.RUNNING
+                self.exec_state = VehicleExecState.RUN
         elif self.driving_scenario == "pedestrian_caution":
             if self.current_speed < 0.5:
-                self.exec_state = VehicleExecState.IDLE
+                self.exec_state = VehicleExecState.STOP
                 print(f"[CITY] 보행자 주의로 IDLE 상태 ({self.current_speed:.1f} m/s)")
             else:
-                self.exec_state = VehicleExecState.RUNNING
+                self.exec_state = VehicleExecState.RUN
         elif self.driving_scenario == "slow_traffic":
             if self.current_speed < 1.0:
-                self.exec_state = VehicleExecState.IDLE
+                self.exec_state = VehicleExecState.STOP
                 print(f"[CITY] 교통 정체로 IDLE 상태 ({self.current_speed:.1f} m/s)")
             else:
-                self.exec_state = VehicleExecState.RUNNING
+                self.exec_state = VehicleExecState.RUN
         else:
             # 일반 주행: 속도 기반 상태 전환
             if self.current_speed < 0.1:
-                self.exec_state = VehicleExecState.IDLE
+                self.exec_state = VehicleExecState.STOP
             else:
-                self.exec_state = VehicleExecState.RUNNING
+                self.exec_state = VehicleExecState.RUN
     pass  # _update_vehicle
 
     def _update_wheels(self):
@@ -369,11 +369,11 @@ class MqttSimulator:
         
         for wid, w in self.wheels.items():
             # 차량의 제어 상태를 바퀴에 정확히 반영
-            if self.exec_state == VehicleExecState.RUNNING:
-                w["state"] = VehicleExecState.RUNNING
+            if self.exec_state == VehicleExecState.RUN:
+                w["state"] = VehicleExecState.RUN
                 w["command"] = self.command
-            elif self.exec_state == VehicleExecState.IDLE:
-                w["state"] = VehicleExecState.IDLE  
+            elif self.exec_state == VehicleExecState.STOP:
+                w["state"] = VehicleExecState.STOP  
                 w["command"] = OperationCommand.STOP
             
             # 바퀴별 위치 차이 (전후좌우 배치 반영)
@@ -644,8 +644,8 @@ class MqttSimulator:
                     
                     # 상태별 아이콘과 설명
                     state_icons = {
-                        VehicleExecState.IDLE: "🔴 정지",
-                        VehicleExecState.RUNNING: "🟢 주행중"
+                        VehicleExecState.STOP: "🔴 정지",
+                        VehicleExecState.RUN: "🟢 주행중"
                     }
                     state_display = state_icons.get(self.exec_state, "❓ 알수없음")
                     

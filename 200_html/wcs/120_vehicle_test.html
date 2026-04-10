@@ -276,16 +276,16 @@
                                         
                                             <div class="btn-group-vertical h-100 w-100" role="group" aria-label="Wheel selection">
                                                 <input type="radio" class="btn-check" name="wheelTestPosition" id="wheel-test-fl" value="FL" checked>
-                                                <label class="btn btn-outline-secondary" for="wheel-test-fl">FL</label>
+                                                <label class="btn btn-outline-secondary fw-bold fs-5" for="wheel-test-fl">FL</label>
 
                                                 <input type="radio" class="btn-check" name="wheelTestPosition" id="wheel-test-fr" value="FR">
-                                                <label class="btn btn-outline-secondary" for="wheel-test-fr">FR</label>
+                                                <label class="btn btn-outline-secondary fw-bold fs-5" for="wheel-test-fr">FR</label>
 
                                                 <input type="radio" class="btn-check" name="wheelTestPosition" id="wheel-test-rl" value="RL">
-                                                <label class="btn btn-outline-secondary" for="wheel-test-rl">RL</label>
+                                                <label class="btn btn-outline-secondary fw-bold fs-5" for="wheel-test-rl">RL</label>
 
                                                 <input type="radio" class="btn-check" name="wheelTestPosition" id="wheel-test-rr" value="RR">
-                                                <label class="btn btn-outline-secondary" for="wheel-test-rr">RR</label>
+                                                <label class="btn btn-outline-secondary fw-bold fs-5" for="wheel-test-rr">RR</label>
                                             </div>
                                         </div>
 
@@ -294,14 +294,14 @@
                                             <label class="form-label fw-bold"><i class="bi bi-controller me-2"></i>동작 선택</label>
 
                                             <div class="d-grid gap-2 h-100">
-                                                <button type="button" class="btn btn-success" id="test-clockwise">
-                                                    <i class="bi bi-arrow-clockwise me-1"></i>정회전
+                                                <button type="button" class="btn btn-success text-black fw-bold fs-5" id="test-clockwise">
+                                                    <i class="bi bi-arrow-clockwise me-1 fs-4"></i>정회전
                                                 </button>
-                                                <button type="button" class="btn btn-warning" id="test-counterclockwise">
-                                                    <i class="bi bi-arrow-counterclockwise me-1"></i>역회전
+                                                <button type="button" class="btn btn-warning text-black fw-bold fs-5" id="test-counterclockwise">
+                                                    <i class="bi bi-arrow-counterclockwise me-1 fs-4"></i>역회전
                                                 </button>
-                                                <button type="button" class="btn btn-danger" id="test-stop">
-                                                    <i class="bi bi-stop-fill me-1"></i>정지
+                                                <button type="button" class="btn btn-danger text-black fw-bold fs-5" id="test-stop">
+                                                    <i class="bi bi-stop-fill me-1 fs-4"></i>정지
                                                 </button>
                                             </div>
                                         </div>
@@ -321,44 +321,58 @@
                             </div>
                             <div class="card-body">
                                 
-                                <!-- 바퀴 선택 -->
+                                <!-- 차량 이동 제어 -->
                                 <div class="mb-4">
-                                    <label class="form-label fw-bold"><i class="bi bi-bullseye me-2"></i>바퀴 선택</label>
-                                    <div class="btn-group w-100" role="group" aria-label="Vehicle wheel selection">
-                                        <input type="radio" class="btn-check" name="vehicleWheelPosition" id="vehicle-wheel-fl" value="FL" checked>
-                                        <label class="btn btn-outline-secondary" for="vehicle-wheel-fl">FL</label>
-
-                                        <input type="radio" class="btn-check" name="vehicleWheelPosition" id="vehicle-wheel-fr" value="FR">
-                                        <label class="btn btn-outline-secondary" for="vehicle-wheel-fr">FR</label>
-
-                                        <input type="radio" class="btn-check" name="vehicleWheelPosition" id="vehicle-wheel-rl" value="RL">
-                                        <label class="btn btn-outline-secondary" for="vehicle-wheel-rl">RL</label>
-
-                                        <input type="radio" class="btn-check" name="vehicleWheelPosition" id="vehicle-wheel-rr" value="RR">
-                                        <label class="btn btn-outline-secondary" for="vehicle-wheel-rr">RR</label>
+                                    <label class="form-label fw-bold"><i class="bi bi-arrow-up-circle me-2"></i>방향 제어</label>
+                                    
+                                    <!-- 전진/후진 -->
+                                    <div class="row mb-3">
+                                        <div class="col-6 pe-1">
+                                            <button type="button" class="btn btn-outline-secondary text-white w-100 py-3 fw-bold fs-5 active" id="vehicle-forward">
+                                                <i class="bi bi-arrow-up me-2 fs-4"></i>전진
+                                            </button>
+                                        </div>
+                                        <div class="col-6 ps-1">
+                                            <button type="button" class="btn btn-outline-secondary text-black w-100 py-3 fw-bold fs-5" id="vehicle-backward">
+                                                <i class="bi bi-arrow-down me-2 fs-4"></i>후진
+                                            </button>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- 좌회전/우회전 -->
+                                    <div class="row mb-3">
+                                        <div class="col-6 pe-1">
+                                            <button type="button" class="btn btn-outline-secondary text-black w-100 py-3 fw-bold fs-5" id="vehicle-turn-left">
+                                                <i class="bi bi-arrow-left me-2 fs-4"></i>좌회전
+                                            </button>
+                                        </div>
+                                        <div class="col-6 ps-1">
+                                            <button type="button" class="btn btn-outline-secondary text-black w-100 py-3 fw-bold fs-5" id="vehicle-turn-right">
+                                                <i class="bi bi-arrow-right me-2 fs-4"></i>우회전
+                                            </button>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- 정지 -->
+                                    <div class="d-grid">
+                                        <button type="button" class="btn btn-outline-secondary text-black py-3 fw-bold fs-5" id="vehicle-stop">
+                                            <i class="bi bi-stop-circle me-2 fs-4"></i> 정지
+                                        </button>
                                     </div>
                                 </div>
 
-                                <!-- 최고 속도 설정 -->
-                                <div class="mb-4">
-                                    <label for="maxSpeed" class="form-label fw-bold"><i class="bi bi-speedometer2 me-2"></i>최고 속도</label>
-                                    <div class="input-group">
-                                        <input type="number" class="form-control text-end" id="maxSpeed" value="4" step="0.1" min="0" max="10">
-                                        <span class="input-group-text text-center" style="width: 60px;">km/s</span>
-                                        <span type="button" class="input-group-text text-center" > 설정 </span>
-                                    </div>
-                                </div>
-
-                                <!-- ToF 캘리브레이션 -->
+                                <!-- 속도 제어 -->
                                 <div class="mb-3">
-                                    <label for="tofCalibration" class="form-label fw-bold"><i class="bi bi-radar me-2"></i>ToF 캘리브레이션</label>
+                                    <label for="vehicleSpeed" class="form-label fw-bold"><i class="bi bi-speedometer2 me-2"></i>속도 설정</label>
                                     <div class="input-group">
-                                        <input type="number" class="form-control text-end" id="tofCalibration" value="-0.2" step="0.1">
-                                        <span class="input-group-text text-center" style="width: 60px;">cm</span>
-                                        <span type="button" class="input-group-text text-center" > 실행 </span>
-                                    </button>
+                                        <div class="w-100 d-flex justify-content-center">
+                                            <span class="input-group-text bg-light justify-content-center" style="width: 60px;">
+                                                <span id="speed-value">50</span>%
+                                            </span>
+                                        </div>
+                                        <input type="range" class="form-range" id="vehicleSpeed" min="0" max="100" value="50"> 
                                     </div>
-                                </div> 
+                                </div>
 
                             </div>
                         </div>

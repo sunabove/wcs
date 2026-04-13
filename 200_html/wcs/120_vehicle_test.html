@@ -159,7 +159,7 @@
                                 <!-- 차량 이미지 -->
                                 <div class="row"> 
                                     <div class="col-md-12">
-                                        <img src="img/vehicle.png" alt="Vehicle Image" class="p-3 img-fluid" > 
+                                        <img id="vehicle-image" src="img/vehicle.png" alt="Vehicle Image" class="p-3 img-fluid" > 
                                     </div> 
                                 </div>
                                 <!-- // 차량 이미지 -->
@@ -349,6 +349,59 @@
     <script src="./js/mqtt.js"></script>
 
     <script src="./js/mqtt_process_01_status.js"></script>
+
+    <!-- Vehicle Test 페이지 전용 JavaScript -->
+    <script>
+        $(document).ready(function() {
+            // 바퀴 선택에 따른 차량 이미지 업데이트 함수
+            function updateVehicleImage() {
+                const selectedWheel = $('input[name="wheelTestPosition"]:checked').val().toLowerCase();
+                const newImageSrc = `img/vehicle_wheel_${selectedWheel}_selected.png`;
+                $('#vehicle-image').attr('src', newImageSrc);
+                console.log(`[Vehicle Test] 🖼️ 차량 이미지 업데이트: ${newImageSrc}`);
+            }
+
+            // 바퀴 선택 변경 이벤트
+            $('input[name="wheelTestPosition"]').change(function() {
+                const selectedWheel = $(this).val();
+                console.log(`[Vehicle Test] 🎯 바퀴 선택 변경: ${selectedWheel}`);
+                
+                // 차량 이미지 업데이트
+                updateVehicleImage();
+                
+                // 선택된 바퀴에 따른 시각적 피드백
+                $('#vehicle-image').parent()
+                    .css('border', '3px solid #007bff')
+                    .animate({opacity: 0.8}, 200)
+                    .animate({opacity: 1}, 200)
+                    .delay(1000)
+                    .queue(function(next) {
+                        $(this).css('border', '');
+                        next();
+                    });
+            });
+
+            // 페이지 로드시 초기 차량 이미지 설정
+            updateVehicleImage();
+
+            // 테스트 버튼 이벤트 (기존 기능 유지)
+            $('#test-clockwise').click(function() {
+                const selectedWheel = $('input[name="wheelTestPosition"]:checked').val();
+                console.log(`[Vehicle Test] ⏰ ${selectedWheel} 바퀴 정회전 테스트`);
+            });
+
+            $('#test-counterclockwise').click(function() {
+                const selectedWheel = $('input[name="wheelTestPosition"]:checked').val();
+                console.log(`[Vehicle Test] ⏰ ${selectedWheel} 바퀴 역회전 테스트`);
+            });
+
+            $('#test-stop').click(function() {
+                const selectedWheel = $('input[name="wheelTestPosition"]:checked').val();
+                console.log(`[Vehicle Test] ⏹️ ${selectedWheel} 바퀴 정지`);
+            });
+        });
+    </script>
+
 </body>
 
 </html>

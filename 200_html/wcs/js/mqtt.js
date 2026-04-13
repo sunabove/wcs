@@ -171,9 +171,7 @@ function sendMQTTMessage(topic, message, qos) {
             const timestamp = new Date().toLocaleTimeString();
             
             if (!err) {
-                console.log(`[MQTT] 📤 [${timestamp}] 메시지 전송성공 [QoS ${qos}]:`, topic, messageStr);
-                
-                alert(`[MQTT] 📤 [${timestamp}] 메시지 전송성공 [QoS ${qos}]:\n토픽: ${topic}\n메시지: ${messageStr}`);
+                console.log(`[MQTT] 📤 [${timestamp}] 메시지 전송성공 [QoS ${qos}]:`, topic, messageStr); 
             } else {
                 console.error(`[MQTT] ❌ [${timestamp}] 메시지 전송 실패:`, err);
                 console.error(`[MQTT]    - 토픽: ${topic}`);

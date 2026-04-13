@@ -412,12 +412,15 @@
             function sendVehicleCommand(command, buttonElement, actionName, icon) {
                 const topic = 'vehicle/operation/command';
                 
-                // 모든 차량 제어 버튼에서 active 클래스 제거
+                // 모든 차량 제어 버튼에서 active와 text-white 클래스 제거
                 $('#vehicle-forward, #vehicle-backward, #vehicle-turn-left, #vehicle-turn-right, #vehicle-stop')
-                    .removeClass('active');
+                    .removeClass('active text-white')
+                    .addClass('text-black');
                 
-                // 클릭된 버튼에만 active 클래스 추가
-                buttonElement.addClass('active');
+                // 클릭된 버튼에만 active와 text-white 클래스 추가
+                buttonElement
+                    .addClass('active text-white')
+                    .removeClass('text-black');
                 
                 sendMQTTMessage(topic, command, 1);
                 console.log(`[Vehicle Test] ${icon} 차량 ${actionName} 명령 전송: ${topic} = ${command}`);

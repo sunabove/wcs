@@ -359,23 +359,33 @@
             function updateWheelDataIds() {
                 const selectedWheel = $('input[name="wheelPosition"]:checked').val().toLowerCase();
                 
-                // wheelDataTable 내의 바퀴 속성 정보 데이터 셀 ID 업데이트
-                const dataElements = [
-                    { selector: '#wheelDataTable td[id*="/linear/speed"]', suffix: '/linear/speed' },
-                    { selector: '#wheelDataTable td[id*="/tof/distance"]', suffix: '/tof/distance' },
-                    { selector: '#wheelDataTable td[id*="/axis/angle"]', suffix: '/axis/angle' },
-                    { selector: '#wheelDataTable td[id*="/pid/p"]', suffix: '/pid/p' },
-                    { selector: '#wheelDataTable td[id*="/pid/i"]', suffix: '/pid/i' },
-                    { selector: '#wheelDataTable td[id*="/pid/d"]', suffix: '/pid/d' }
-                ];
-                
-                dataElements.forEach(element => {
-                    const $el = $(element.selector);
-                    if ($el.length > 0) {
-                        const newId = `wheel/${selectedWheel}${element.suffix}`;
-                        $el.attr('id', newId);
-                        console.log(`[Vehicle Setting] 🛞 바퀴 데이터 ID 업데이트: ${newId}`);
+                // wheelDataTable에서 동적으로 데이터 요소 추출
+                const dataElements = [];
+                $('#wheelDataTable tbody td[id]').each(function() {
+                    const currentId = $(this).attr('id');
+                    
+                    // 현재 ID에서 바퀴 부분을 제거하여 suffix 추출
+                    // 예: "wheel/fl/linear/speed" → "/linear/speed"
+                    const idParts = currentId.split('/');
+                    if (idParts.length >= 3) {
+                        const suffix = '/' + idParts.slice(2).join('/');
+                        const selector = `#wheelDataTable td[id*="${suffix}"]`;
+                        
+                        dataElements.push({
+                            selector: selector,
+                            suffix: suffix,
+                            element: $(this)
+                        });
                     }
+                });
+                
+                console.log('[Vehicle Setting] 🔍 동적으로 추출된 데이터 요소들:', dataElements);
+                
+                // 추출된 데이터 요소들의 ID 업데이트
+                dataElements.forEach(element => {
+                    const newId = `wheel/${selectedWheel}${element.suffix}`;
+                    element.element.attr('id', newId);
+                    console.log(`[Vehicle Setting] 🛞 바퀴 데이터 ID 업데이트: ${newId}`);
                 });
                 
                 // wheelDataTable 헤더도 선택된 바퀴에 따라 업데이트
@@ -454,8 +464,8 @@
                     const selectedWheel = $('input[name="wheelPosition"]:checked').val();
                     console.log('[Vehicle Setting] 🎯 선택된 바퀴:', selectedWheel);
                     
-                    // vehicle/tof_calibration 토픽으로 MQTT 메시지 발행
-                    const topic = 'vehicle/tof_calibration';
+                    // wheel/tof/calibration 토픽으로 MQTT 메시지 발행
+                    const topic = `wheel/${selectedWheel}/tof/calibration`;
                     const message = calibration ; 
                     
                     console.log('[Vehicle Setting] 📤 MQTT 전송 준비 - 토픽:', topic, '메시지:', message, '타입:', typeof message);

@@ -236,7 +236,7 @@
                             </div>
                             <div class="card-body">
                                 
-                                <!-- 바퀴 선택 -->
+                                <!-- 바퀴 선택 버튼 -->
                                 <div class="mb-4">
                                     <label class="form-label fw-bold"><i class="bi bi-bullseye me-2"></i>바퀴 선택</label>
                                     <div class="btn-group w-100" role="group" aria-label="Wheel selection">
@@ -288,7 +288,7 @@
                             </div>
 
                             <div class="card-body p-2">
-                                <table class="table table-bordered table-striped m-0 ">
+                                <table id="wheelDataTable" class="table table-bordered table-striped m-0 ">
                                     <colgroup>
                                         <col width="33%;">
                                         <col >
@@ -303,7 +303,7 @@
                                     <tbody>
                                         <tr>
                                             <th class="text-center" scope="row">Speed</th>
-                                            <td id="wheel/fs/linear/speed" class="text-end">10.5 cm</td>
+                                            <td id="wheel/fl/linear/speed" class="text-end">10.5 cm</td>
                                         </tr>
                                         <tr>
                                             <th class="text-center" scope="row">Tof</th>
@@ -353,8 +353,56 @@
 
     <!-- Vehicle Setting 페이지 전용 JavaScript -->
     <script>
-        
+
         $(document).ready(function() {
+
+            // 바퀴 속성 정보 ID 업데이트 함수
+            function updateWheelDataIds() {
+                const selectedWheel = $('input[name="wheelPosition"]:checked').val().toLowerCase();
+                
+                // wheelDataTable 내의 바퀴 속성 정보 데이터 셀 ID 업데이트
+                const dataElements = [
+                    { selector: '#wheelDataTable td[id*="/linear/speed"]', suffix: '/linear/speed' },
+                    { selector: '#wheelDataTable td[id*="/tof/distance"]', suffix: '/tof/distance' },
+                    { selector: '#wheelDataTable td[id*="/axis/angle"]', suffix: '/axis/angle' },
+                    { selector: '#wheelDataTable td[id*="/pid/p"]', suffix: '/pid/p' },
+                    { selector: '#wheelDataTable td[id*="/pid/i"]', suffix: '/pid/i' },
+                    { selector: '#wheelDataTable td[id*="/pid/d"]', suffix: '/pid/d' }
+                ];
+                
+                dataElements.forEach(element => {
+                    const $el = $(element.selector);
+                    if ($el.length > 0) {
+                        const newId = `wheel/${selectedWheel}${element.suffix}`;
+                        $el.attr('id', newId);
+                        console.log(`[Vehicle Setting] 🛞 바퀴 데이터 ID 업데이트: ${newId}`);
+                    }
+                });
+                
+                // wheelDataTable 헤더도 선택된 바퀴에 따라 업데이트
+                $('#wheelDataTable thead th[colspan="2"]').text(`${selectedWheel.toUpperCase()} Sensor`);
+                
+                console.log(`[Vehicle Setting] 📋 선택된 바퀴: ${selectedWheel.toUpperCase()}, wheelDataTable ID 업데이트 완료`);
+            }
+
+            // 바퀴 선택 변경 이벤트
+            $('input[name="wheelPosition"]').change(function() {
+                const selectedWheel = $(this).val();
+                console.log(`[Vehicle Setting] 🎯 바퀴 선택 변경: ${selectedWheel}`);
+                
+                // 바퀴 속성 정보 ID 업데이트
+                updateWheelDataIds();
+                
+                // 선택된 바퀴에 따른 시각적 피드백 (옵션)
+                $('.card-header h4:contains("Data")').parent().next('.card-body')
+                    .css('border-left', '4px solid #007bff')
+                    .animate({opacity: 0.8}, 200)
+                    .animate({opacity: 1}, 200);
+            });
+
+            // 페이지 로드시 초기 바퀴 데이터 ID 설정
+            updateWheelDataIds();
+
             // 최고 속도 설정 버튼 클릭 이벤트
             $('#max_speed_set_btn').click(function() {
                 const maxSpeed = $('#maxSpeed').val();

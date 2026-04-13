@@ -317,14 +317,14 @@
 
                                 <!-- 속도 제어 -->
                                 <div class="mb-3">
-                                    <label for="vehicleMaxSpeedBtn" class="form-label fw-bold"><i class="bi bi-speedometer2 me-2"></i>속도 설정</label>
+                                    <label for="vehicleMaxSpeedSlider" class="form-label fw-bold"><i class="bi bi-speedometer2 me-2"></i>속도 설정</label>
                                     <div class="input-group">
                                         <div class="w-100 d-flex justify-content-center">
                                             <span class="input-group-text bg-light justify-content-center" style="width: 100px;">
                                                 <span id="vehicle/max_speed">50 Km/h</span>
                                             </span>
                                         </div>
-                                        <input type="range"  id="vehicleMaxSpeedBtn" class="form-range"min="0" max="100" value="50"> 
+                                        <input type="range" id="vehicleMaxSpeedSlider" class="form-range"min="0" max="100" value="50"> 
                                     </div>
                                 </div>
 
@@ -482,7 +482,7 @@
             });
 
             // 속도 슬라이더 이벤트 핸들러 - 최고 속도 MQTT 발행
-            $('#vehicleMaxSpeedBtn').on('input change', function() {
+            $('#vehicleMaxSpeedSlider').on('input change', function() {
                 const speedKmh = $(this).val(); // 슬라이더 값 (km/h)
                 const speedMs = speedKmh / 3.6; // km/h를 m/s로 변환
                 

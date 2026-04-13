@@ -83,6 +83,25 @@ function prcessMqttMessage(topic, value) {
         }
     }
     
+    // vehicle/max_speed 특별 처리 (슬라이더와 텍스트 동시 업데이트)
+    if (topic === 'vehicle/max_speed') {
+        const speedMs = parseFloat(value); // m/s 단위 값
+        const speedKmh = Math.round(speedMs * 3.6); // km/h로 변환 후 반올림
+        
+        // 슬라이더 값 업데이트 (0-100 범위)
+        const sliderElement = $('#vehicleMaxSpeedSlider');
+        if (sliderElement.length > 0 && speedKmh !== parseInt(sliderElement.val())) {
+            sliderElement.val(speedKmh);
+            console.log(`[MQTT] 🎚️ 슬라이더 업데이트: ${speedKmh} km/h (${speedMs.toFixed(2)} m/s)`);
+        }
+        
+        // 텍스트 표시도 함께 업데이트
+        const textElement = $('[id="vehicle/max_speed"]');
+        if (textElement.length > 0) {
+            textElement.text(`${speedKmh} Km/h`);
+        }
+    }
+    
     if ($targetElement.length > 0) {
         // 숫자 값 포맷팅
         let formattedValue = getFormattedTopicValue(topic, value);

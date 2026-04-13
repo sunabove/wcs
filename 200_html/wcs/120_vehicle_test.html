@@ -370,15 +370,9 @@
                 updateVehicleImage();
                 
                 // 선택된 바퀴에 따른 시각적 피드백
-                $('#vehicle-image').parent()
-                    .css('border', '1px solid #007bff')
+                $('#vehicle-image')
                     .animate({opacity: 0.8}, 200)
-                    .animate({opacity: 1}, 200)
-                    .delay(1000)
-                    .queue(function(next) {
-                        $(this).css('border', '');
-                        next();
-                    });
+                    .animate({opacity: 1}, 200);
             });
 
             // 페이지 로드시 초기 차량 이미지 설정

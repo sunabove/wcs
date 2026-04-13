@@ -152,6 +152,11 @@ function getFormattedTopicValue(topic, value) {
         }
     } else if (topic === 'vehicle/battery/remain_amount') {
         formattedValue = `${numValue.toFixed(0)}%`;  // 배터리 잔량 퍼센트
+    } else if (topic === 'vehicle/max_speed') {
+        // 최고 속도: m/s를 km/h로 변환 (1 m/s = 3.6 km/h)
+        const kmPerHour = numValue * 3.6;
+        const roundedKmPerHour = Math.ceil(kmPerHour);  // 올림하여 정수로 만듦
+        formattedValue = `${roundedKmPerHour} Km/h`;  // 소수점 없이 정수로 표시
     } else if (topic === 'vehicle/operation/command') {
         // 동작 상태: 0~4 숫자를 문자로 변환
         const operationStates = ['정지', '전진', '후진', '좌회전', '우회전'];

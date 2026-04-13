@@ -317,14 +317,14 @@
 
                                 <!-- 속도 제어 -->
                                 <div class="mb-3">
-                                    <label for="vehicleSpeed" class="form-label fw-bold"><i class="bi bi-speedometer2 me-2"></i>속도 설정</label>
+                                    <label for="vehicleMaxSpeedBtn" class="form-label fw-bold"><i class="bi bi-speedometer2 me-2"></i>속도 설정</label>
                                     <div class="input-group">
                                         <div class="w-100 d-flex justify-content-center">
                                             <span class="input-group-text bg-light justify-content-center" style="width: 100px;">
                                                 <span id="speed-value">50 Km/h</span>
                                             </span>
                                         </div>
-                                        <input type="range" class="form-range" id="vehicleSpeed" min="0" max="100" value="50"> 
+                                        <input type="range"  id="vehicleMaxSpeedBtn" class="form-range"min="0" max="100" value="50"> 
                                     </div>
                                 </div>
 
@@ -479,6 +479,21 @@
 
             $('#vehicle-stop').click(function() {
                 sendVehicleCommand(0, $(this), '정지', '⏹️');
+            });
+
+            // 속도 슬라이더 이벤트 핸들러 - 최고 속도 MQTT 발행
+            $('#vehicleMaxSpeedBtn').on('input change', function() {
+                const speedKmh = $(this).val(); // 슬라이더 값 (km/h)
+                const speedMs = speedKmh / 3.6; // km/h를 m/s로 변환
+                
+                // 속도 표시 업데이트
+                $('#speed-value').text(`${speedKmh} Km/h`);
+                
+                // MQTT로 최고 속도 발행 (m/s 단위)
+                const topic = 'vehicle/max_speed';
+                sendMQTTMessage(topic, speedMs, 1);
+                
+                console.log(`[Vehicle Test] 🚀 최고 속도 설정 - ${speedKmh} Km/h (${speedMs.toFixed(2)} m/s): ${topic} = ${speedMs}`);
             });
         });
     </script>

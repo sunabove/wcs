@@ -182,7 +182,7 @@ function getFormattedTopicValue(topic, value) {
     } else if (topic.includes('_time')) {
         formattedValue = `${Math.round(numValue)} s`;  // SI: 초 (기타 시간 값들)
     } else if (topic.includes('/position/')) {
-        formattedValue = `${numValue.toFixed(3)} m`;  // SI: 미터 (위치)
+        formattedValue = `${numValue.toFixed(0)} m`;  // SI: 미터 (위치)
     } else if (topic.includes('/remain_amount')) {
         formattedValue = `${numValue.toFixed(1)} %`;  // 기타 퍼센트 값
     } else {

@@ -378,20 +378,37 @@
             // 페이지 로드시 초기 차량 이미지 설정
             updateVehicleImage();
 
-            // 테스트 버튼 이벤트 (기존 기능 유지)
+            // 바퀴 테스트 명령 전송 함수
+            function sendWheelCommand(command, buttonElement, actionName, icon) {
+                const selectedWheel = $('input[name="wheelTestPosition"]:checked').val().toLowerCase();
+                const topic = `wheel/${selectedWheel}/operation/command`;
+                
+                sendMQTTMessage(topic, command, 1);
+                console.log(`[Vehicle Test] ${icon} ${selectedWheel.toUpperCase()} 바퀴 ${actionName} 명령 전송: ${topic} = ${command}`);
+                
+                // 버튼 피드백
+                const originalClass = buttonElement.attr('class');
+                const activeClass = originalClass.replace(/btn-\w+/, function(match) {
+                    return match + '-active';
+                });
+                
+                buttonElement.attr('class', activeClass);
+                setTimeout(() => {
+                    buttonElement.attr('class', originalClass);
+                }, 1000);
+            }
+
+            // 테스트 버튼 이벤트 - 통합된 함수 사용
             $('#test-clockwise').click(function() {
-                const selectedWheel = $('input[name="wheelTestPosition"]:checked').val();
-                console.log(`[Vehicle Test] ⏰ ${selectedWheel} 바퀴 정회전 테스트`);
+                sendWheelCommand(1, $(this), '정회전', '⏰');
             });
 
             $('#test-counterclockwise').click(function() {
-                const selectedWheel = $('input[name="wheelTestPosition"]:checked').val();
-                console.log(`[Vehicle Test] ⏰ ${selectedWheel} 바퀴 역회전 테스트`);
+                sendWheelCommand(2, $(this), '역회전', '↩️');
             });
 
             $('#test-stop').click(function() {
-                const selectedWheel = $('input[name="wheelTestPosition"]:checked').val();
-                console.log(`[Vehicle Test] ⏹️ ${selectedWheel} 바퀴 정지`);
+                sendWheelCommand(0, $(this), '정지', '⏹️');
             });
         });
     </script>

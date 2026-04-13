@@ -282,7 +282,7 @@
                                     <!-- 전진/후진 -->
                                     <div class="row mb-3">
                                         <div class="col-6 pe-1">
-                                            <button type="button" class="btn btn-outline-secondary text-white w-100 py-3 fw-bold fs-5 active" id="vehicle-forward">
+                                            <button type="button" class="btn btn-outline-secondary text-white w-100 py-3 fw-bold fs-5" id="vehicle-forward">
                                                 <i class="bi bi-arrow-up me-2 fs-4"></i>전진
                                             </button>
                                         </div>
@@ -411,6 +411,13 @@
             // 차량 제어 명령 전송 함수
             function sendVehicleCommand(command, buttonElement, actionName, icon) {
                 const topic = 'vehicle/operation/command';
+                
+                // 모든 차량 제어 버튼에서 active 클래스 제거
+                $('#vehicle-forward, #vehicle-backward, #vehicle-turn-left, #vehicle-turn-right, #vehicle-stop')
+                    .removeClass('active');
+                
+                // 클릭된 버튼에만 active 클래스 추가
+                buttonElement.addClass('active');
                 
                 sendMQTTMessage(topic, command, 1);
                 console.log(`[Vehicle Test] ${icon} 차량 ${actionName} 명령 전송: ${topic} = ${command}`);

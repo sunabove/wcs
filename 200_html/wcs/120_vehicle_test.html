@@ -408,6 +408,35 @@
                 }, 1000);
             }
 
+            // 차량 제어 명령 전송 함수
+            function sendVehicleCommand(command, buttonElement, actionName, icon) {
+                const topic = 'vehicle/operation/command';
+                
+                sendMQTTMessage(topic, command, 1);
+                console.log(`[Vehicle Test] ${icon} 차량 ${actionName} 명령 전송: ${topic} = ${command}`);
+                
+                // 버튼 피드백 - 더 명확한 시각적 효과
+                const originalOpacity = buttonElement.css('opacity');
+                const originalTransform = buttonElement.css('transform');
+                
+                buttonElement
+                    .css({
+                        'opacity': '0.7',
+                        'transform': 'scale(0.95)',
+                        'transition': 'all 0.1s ease'
+                    })
+                    .addClass('shadow-lg');
+
+                setTimeout(() => {
+                    buttonElement
+                        .css({
+                            'opacity': originalOpacity,
+                            'transform': originalTransform
+                        })
+                        .removeClass('shadow-lg');
+                }, 1000);
+            }
+
             // 테스트 버튼 이벤트 - 통합된 함수 사용
             $('#test-clockwise').click(function() {
                 sendWheelCommand(1, $(this), '정회전', '⏰');
@@ -419,6 +448,27 @@
 
             $('#test-stop').click(function() {
                 sendWheelCommand(0, $(this), '정지', '⏹️');
+            });
+
+            // 차량 제어 버튼 이벤트
+            $('#vehicle-forward').click(function() {
+                sendVehicleCommand(1, $(this), '전진', '⬆️');
+            });
+
+            $('#vehicle-backward').click(function() {
+                sendVehicleCommand(2, $(this), '후진', '⬇️');
+            });
+
+            $('#vehicle-turn-left').click(function() {
+                sendVehicleCommand(3, $(this), '좌회전', '⬅️');
+            });
+
+            $('#vehicle-turn-right').click(function() {
+                sendVehicleCommand(4, $(this), '우회전', '➡️');
+            });
+
+            $('#vehicle-stop').click(function() {
+                sendVehicleCommand(0, $(this), '정지', '⏹️');
             });
         });
     </script>

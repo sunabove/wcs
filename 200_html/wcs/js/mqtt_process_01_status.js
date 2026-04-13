@@ -94,7 +94,7 @@ function prcessMqttMessage(topic, value) {
         
         console.log(`[MQTT] ✅ DOM 업데이트 성공: ${topic} -> ${formattedValue}`);
     } else {
-        console.log(`[MQTT] ❌ DOM 요소를 찾을 수 없음: ${topic}`);
+        // console.log(`[MQTT] ❌ DOM 요소를 찾을 수 없음: ${topic}`);
     }
 } // prcessMqttMessage
 

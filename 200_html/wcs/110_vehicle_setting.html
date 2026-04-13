@@ -260,7 +260,7 @@
                                     <div class="input-group">
                                         <input type="number" class="form-control text-end" id="maxSpeed" value="4" step="0.1" min="0" max="10">
                                         <span class="input-group-text text-center" style="width: 60px;">km/s</span>
-                                        <span type="button" class="input-group-text text-center" > 설정 </span>
+                                        <span id="max_speed_set_btn" type="button" class="input-group-text text-center" > 설정 </span>
                                     </div>
                                 </div>
 
@@ -270,7 +270,7 @@
                                     <div class="input-group">
                                         <input type="number" class="form-control text-end" id="tofCalibration" value="-0.2" step="0.1">
                                         <span class="input-group-text text-center" style="width: 60px;">cm</span>
-                                        <span type="button" class="input-group-text text-center" > 실행 </span>
+                                        <span id="tof_calibration_btn" type="button" class="input-group-text text-center" > 실행 </span>
                                     </button>
                                     </div>
                                 </div> 
@@ -302,8 +302,12 @@
 
                                     <tbody>
                                         <tr>
-                                            <th class="text-center" scope="row">Obstacle</th>
-                                            <td id="wheel/fl/linear/speed" class="text-end">10.5 cm</td>
+                                            <th class="text-center" scope="row">Speed</th>
+                                            <td id="wheel/fs/linear/speed" class="text-end">10.5 cm</td>
+                                        </tr>
+                                        <tr>
+                                            <th class="text-center" scope="row">Tof</th>
+                                            <td id="wheel/fl/tof/distance" class="text-end">10.5 cm</td>
                                         </tr>
                                         <tr>
                                             <th class="text-center" scope="row">Axis</th>
@@ -346,6 +350,89 @@
     <script src="./js/mqtt.js"></script>
 
     <script src="./js/mqtt_process_01_status.js"></script>
+
+    <!-- Vehicle Setting 페이지 전용 JavaScript -->
+    <script>
+        $(document).ready(function() {
+            // 최고 속도 설정 버튼 클릭 이벤트
+            $('#max_speed_set_btn').click(function() {
+                const maxSpeed = $('#maxSpeed').val();
+                
+                if (maxSpeed !== '' && !isNaN(maxSpeed)) {
+                    const speed = parseFloat(maxSpeed);
+                    
+                    // 바퀴 선택 상태 확인
+                    const selectedWheel = $('input[name="wheelPosition"]:checked').val();
+                    
+                    if (speed >= 0 && speed <= 10) {
+                        // vehicle/max_speed 토픽으로 MQTT 메시지 발행
+                        const topic = 'vehicle/max_speed';
+                        const message = {
+                            wheel: selectedWheel,
+                            speed: speed,
+                            timestamp: new Date().toISOString()
+                        };
+                        
+                        sendMQTTMessage(topic, message, 1);
+                        
+                        console.log(`[Vehicle Setting] 🚗 최고 속도 설정 - 바퀴: ${selectedWheel}, 속도: ${speed} km/s`);
+                        
+                        // 사용자 피드백 (버튼 색상 변경)
+                        $(this).removeClass('input-group-text').addClass('btn btn-success');
+                        $(this).text('설정완료');
+                        
+                        // 2초 후 원래 상태로 복원
+                        setTimeout(() => {
+                            $(this).removeClass('btn btn-success').addClass('input-group-text');
+                            $(this).text('설정');
+                        }, 2000);
+                        
+                    } else {
+                        alert('속도는 0~10 km/s 범위로 입력해주세요.');
+                    }
+                } else {
+                    alert('유효한 속도 값을 입력해주세요.');
+                }
+            });
+
+            // ToF 캘리브레이션 버튼 클릭 이벤트
+            $('#tof_calibration_btn').click(function() {
+                const tofValue = $('#tofCalibration').val();
+                
+                if (tofValue !== '' && !isNaN(tofValue)) {
+                    const calibration = parseFloat(tofValue);
+                    
+                    // 바퀴 선택 상태 확인
+                    const selectedWheel = $('input[name="wheelPosition"]:checked').val();
+                    
+                    // vehicle/tof_calibration 토픽으로 MQTT 메시지 발행
+                    const topic = 'vehicle/tof_calibration';
+                    const message = {
+                        wheel: selectedWheel,
+                        calibration: calibration,
+                        timestamp: new Date().toISOString()
+                    };
+                    
+                    sendMQTTMessage(topic, message, 1);
+                    
+                    console.log(`[Vehicle Setting] 📡 ToF 캘리브레이션 - 바퀴: ${selectedWheel}, 값: ${calibration} cm`);
+                    
+                    // 사용자 피드백 (버튼 색상 변경)
+                    $(this).removeClass('input-group-text').addClass('btn btn-primary');
+                    $(this).text('실행완료');
+                    
+                    // 2초 후 원래 상태로 복원
+                    setTimeout(() => {
+                        $(this).removeClass('btn btn-primary').addClass('input-group-text');
+                        $(this).text('실행');
+                    }, 2000);
+                    
+                } else {
+                    alert('유효한 캘리브레이션 값을 입력해주세요.');
+                }
+            });
+        });
+    </script>
 
 </body>
 

@@ -269,7 +269,7 @@
                                     <label for="tofCalibration" class="form-label fw-bold"><i class="bi bi-radar me-2"></i>ToF 캘리브레이션</label>
                                     <div class="input-group">
                                         <input type="number" class="form-control text-end" id="tofCalibration" value="-0.2" step="0.1">
-                                        <span class="input-group-text text-center" style="width: 60px;">m</span>
+                                        <span class="input-group-text text-center" style="width: 60px;">cm</span>
                                         <span id="tof_calibration_btn" type="button" class="input-group-text text-center" > 실행 </span> 
                                     </div>
                                 </div> 
@@ -445,21 +445,36 @@
 
             // ToF 캘리브레이션 버튼 클릭 이벤트
             $('#tof_calibration_btn').click(function() {
+                console.log('[Vehicle Setting] 🔍 ToF 캘리브레이션 버튼 클릭됨');
+                
                 const tofValue = $('#tofCalibration').val();
+                console.log('[Vehicle Setting] 📊 입력된 ToF 값:', tofValue);
                 
                 if (tofValue !== '' && !isNaN(tofValue)) {
                     const calibration = parseFloat(tofValue);
+                    console.log('[Vehicle Setting] 🔢 파싱된 캘리브레이션 값:', calibration);
                     
                     // 바퀴 선택 상태 확인
                     const selectedWheel = $('input[name="wheelPosition"]:checked').val();
+                    console.log('[Vehicle Setting] 🎯 선택된 바퀴:', selectedWheel);
                     
                     // vehicle/tof_calibration 토픽으로 MQTT 메시지 발행
                     const topic = 'vehicle/tof_calibration';
                     const message = calibration;
                     
-                    sendMQTTMessage(topic, message, 1);
+                    console.log('[Vehicle Setting] 📤 MQTT 전송 준비 - 토픽:', topic, '메시지:', message);
                     
-                    console.log(`[Vehicle Setting] 📡 ToF 캘리브레이션 - 바퀴: ${selectedWheel}, 값: ${calibration} m`);
+                    try {
+                        sendMQTTMessage(topic, message, 1);
+                        
+                        alert('[Vehicle Setting] ✅ sendMQTTMessage 호출 완료');
+                    } catch (error) {
+                        console.error('[Vehicle Setting] ❌ sendMQTTMessage 호출 에러:', error);
+                        alert(`ToF 캘리브레이션 전송 중 오류 발생: ${error.message}`);
+                        return;
+                    }
+                    
+                    console.log(`[Vehicle Setting] 📡 ToF 캘리브레이션 - 바퀴: ${selectedWheel}, 값: ${calibration} cm`);
                     
                     // 사용자 피드백 (버튼 색상 변경)
                     $(this).removeClass('input-group-text').addClass('btn btn-primary');
@@ -472,6 +487,7 @@
                     }, 2000);
                     
                 } else {
+                    console.warn('[Vehicle Setting] ⚠️ 유효하지 않은 ToF 값:', tofValue);
                     alert('유효한 캘리브레이션 값을 입력해주세요.');
                 }
             });

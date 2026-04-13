@@ -386,15 +386,25 @@
                 sendMQTTMessage(topic, command, 1);
                 console.log(`[Vehicle Test] ${icon} ${selectedWheel.toUpperCase()} 바퀴 ${actionName} 명령 전송: ${topic} = ${command}`);
                 
-                // 버튼 피드백
-                const originalClass = buttonElement.attr('class');
-                const activeClass = originalClass.replace(/btn-\w+/, function(match) {
-                    return match + '-active';
-                });
+                // 버튼 피드백 - 더 명확한 시각적 효과
+                const originalOpacity = buttonElement.css('opacity');
+                const originalTransform = buttonElement.css('transform');
                 
-                buttonElement.attr('class', activeClass);
+                buttonElement
+                    .css({
+                        'opacity': '0.7',
+                        'transform': 'scale(0.95)',
+                        'transition': 'all 0.1s ease'
+                    })
+                    .addClass('shadow-lg');
+
                 setTimeout(() => {
-                    buttonElement.attr('class', originalClass);
+                    buttonElement
+                        .css({
+                            'opacity': originalOpacity,
+                            'transform': originalTransform
+                        })
+                        .removeClass('shadow-lg');
                 }, 1000);
             }
 

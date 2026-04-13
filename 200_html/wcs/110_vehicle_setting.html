@@ -174,7 +174,7 @@
                                 <!-- 차량 이미지 -->
                                 <div class="row"> 
                                     <div class="col-md-12">
-                                        <img src="img/vehicle.png" alt="Vehicle Image" class="p-3 img-fluid" > 
+                                        <img id="vehicle-image" src="img/vehicle.png" alt="Vehicle Image" class="p-3 img-fluid" > 
                                     </div> 
                                 </div>
                                 <!-- // 차량 이미지 -->
@@ -402,6 +402,12 @@
                 // 바퀴 속성 정보 ID 업데이트
                 updateWheelDataIds();
                 
+                // 차량 이미지 업데이트 - 선택된 바퀴에 따라 이미지 변경
+                const wheelId = selectedWheel.toLowerCase();
+                const newImageSrc = `img/vehicle_wheel_${wheelId}_selected.png`;
+                $('#vehicle-image').attr('src', newImageSrc);
+                console.log(`[Vehicle Setting] 🖼️ 차량 이미지 업데이트: ${newImageSrc}`);
+                
                 // 선택된 바퀴에 따른 시각적 피드백 (옵션)
                 $('.card-header h4:contains("Data")').parent().next('.card-body')
                     .css('border-left', '4px solid #007bff')
@@ -411,6 +417,12 @@
 
             // 페이지 로드시 초기 바퀴 데이터 ID 설정
             updateWheelDataIds();
+            
+            // 페이지 로드시 초기 바퀴 이미지 설정
+            const initialWheel = $('input[name="wheelPosition"]:checked').val().toLowerCase();
+            const initialImageSrc = `img/vehicle_wheel_${initialWheel}_selected.png`;
+            $('#vehicle-image').attr('src', initialImageSrc);
+            console.log(`[Vehicle Setting] 🖼️ 초기 차량 이미지 설정: ${initialImageSrc}`);
 
             // 최고 속도 설정 버튼 클릭 이벤트
             $('#max_speed_set_btn').click(function() {

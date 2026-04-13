@@ -164,8 +164,13 @@ function sendMQTTMessage(topic, message, qos) {
     qos = qos || 1; // 기본 QoS 1 (Mosquitto 배송 보장)
     
     if (window.mqttClient && window.mqttClient.connected) {
-        // JSON 객체는 문자열로 변환
-        const messageStr = typeof message === 'object' ? JSON.stringify(message) : message;
+        // 모든 타입을 안전하게 문자열로 변환
+        let messageStr;
+        if (typeof message === 'object') {
+            messageStr = JSON.stringify(message);
+        } else {
+            messageStr = String(message); // 숫자, 불린 등 모든 타입을 문자열로 변환
+        }
         
         window.mqttClient.publish(topic, messageStr, { qos: qos }, function(err) {
             const timestamp = new Date().toLocaleTimeString();

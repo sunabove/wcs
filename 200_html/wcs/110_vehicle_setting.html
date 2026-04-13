@@ -460,14 +460,12 @@
                     
                     // vehicle/tof_calibration 토픽으로 MQTT 메시지 발행
                     const topic = 'vehicle/tof_calibration';
-                    const message = calibration;
+                    const message = calibration ; 
                     
-                    console.log('[Vehicle Setting] 📤 MQTT 전송 준비 - 토픽:', topic, '메시지:', message);
+                    console.log('[Vehicle Setting] 📤 MQTT 전송 준비 - 토픽:', topic, '메시지:', message, '타입:', typeof message);
                     
                     try {
-                        sendMQTTMessage(topic, message, 1);
-                        
-                        alert('[Vehicle Setting] ✅ sendMQTTMessage 호출 완료');
+                        sendMQTTMessage(topic, message, 1); 
                     } catch (error) {
                         console.error('[Vehicle Setting] ❌ sendMQTTMessage 호출 에러:', error);
                         alert(`ToF 캘리브레이션 전송 중 오류 발생: ${error.message}`);

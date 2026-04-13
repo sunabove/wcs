@@ -415,11 +415,7 @@
                     if (speed >= 0 && speed <= 10) {
                         // vehicle/max_speed 토픽으로 MQTT 메시지 발행
                         const topic = 'vehicle/max_speed';
-                        const message = {
-                            wheel: selectedWheel,
-                            speed: speed,
-                            timestamp: new Date().toISOString()
-                        };
+                        const message = speed ; // 숫자 타입 그대로 전송
                         
                         sendMQTTMessage(topic, message, 1);
                         

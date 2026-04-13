@@ -39,11 +39,30 @@ function initMQTTClient() {
                     $('#mqtt-topic').text('연결완료:');
                     $('#mqtt-value').text('모든 토픽 수신 대기중');
                     
-                    // 테스트 메시지 발송 (선택사항)
+                    // 클라이언트 접속 메시지 발송
                     setTimeout(() => {
-                        const testMessage = 'web_client';
-                        client.publish('web/status', testMessage, { qos: 1 });
-                        console.log('[MQTT] 📤 테스트 메시지 발송:', testMessage);
+                        // 현재 날짜와 시간 정보
+                        const now = new Date();
+                        const timestamp = now.toISOString();
+                        const connectTime = now.getTime();
+                        
+                        // 전역 변수로 접속 시간 저장 (종료 시 세션 시간 계산용)
+                        window.clientConnectTime = connectTime;
+                        
+                        const clientInfo = {
+                            type: 'client_connect',
+                            client_id: client.options.clientId,
+                            timestamp: timestamp,
+                            user_agent: navigator.userAgent,
+                            url: window.location.href,
+                            page: window.location.pathname.split('/').pop() || 'index.html',
+                            host: window.location.hostname,
+                            connection_time: connectTime
+                        };
+                        
+                        // 클라이언트 접속 정보를 JSON으로 발행
+                        client.publish('client/connect', JSON.stringify(clientInfo), { qos: 1 });
+                        console.log('[MQTT] 🌐 클라이언트 접속 메시지 발송:', clientInfo); 
                     }, 1000);
                     
                 } else {
@@ -202,6 +221,30 @@ $(document).ready(function() {
     
     // Mosquitto MQTT 클라이언트 초기화
     initMQTTClient();
+});
+
+// 페이지 종료 시 disconnect 메시지 발송
+$(window).on('beforeunload', function() {
+    if (window.mqttClient && window.mqttClient.connected) {
+        try {
+            const now = new Date();
+            const disconnectInfo = {
+                type: 'client_disconnect',
+                client_id: window.mqttClient.options.clientId,
+                timestamp: now.toISOString(),
+                page: window.location.pathname.split('/').pop() || 'index.html',
+                disconnect_time: now.getTime(),
+                session_duration: now.getTime() - (window.clientConnectTime || now.getTime())
+            };
+            
+            // 동기적으로 disconnect 메시지 발송 (페이지 종료 전)
+            window.mqttClient.publish('web/client/disconnect', JSON.stringify(disconnectInfo), { qos: 1 });
+            window.mqttClient.publish('web/status', 'disconnected', { qos: 1 });
+            console.log('[MQTT] 👋 클라이언트 종료 메시지 발송:', disconnectInfo);
+        } catch (error) {
+            console.error('[MQTT] ❌ 종료 메시지 발송 실패:', error);
+        }
+    }
 });
 
 // 전역 함수로 내보내기

@@ -83,6 +83,55 @@ function prcessMqttMessage(topic, value) {
         }
     }
     
+    // vehicle/operation/command 특별 처리 (차량 이동 제어 버튼 자동 선택)
+    if (topic === 'vehicle/operation/command') {
+        const commandValue = parseInt(value);
+        
+        // 모든 차량 제어 버튼에서 active와 text-white 클래스 제거
+        $('#vehicle-forward, #vehicle-backward, #vehicle-turn-left, #vehicle-turn-right, #vehicle-stop')
+            .removeClass('active text-white')
+            .addClass('text-black');
+        
+        // 명령값에 따라 해당 버튼 활성화
+        let activeButtonId = '';
+        let commandName = '';
+        
+        switch(commandValue) {
+            case 0: // 정지
+                activeButtonId = '#vehicle-stop';
+                commandName = '정지';
+                break;
+            case 1: // 전진
+                activeButtonId = '#vehicle-forward'; 
+                commandName = '전진';
+                break;
+            case 2: // 후진
+                activeButtonId = '#vehicle-backward';
+                commandName = '후진';
+                break;
+            case 3: // 좌회전
+                activeButtonId = '#vehicle-turn-left';
+                commandName = '좌회전';
+                break;
+            case 4: // 우회전
+                activeButtonId = '#vehicle-turn-right';
+                commandName = '우회전';
+                break;
+            default:
+                console.log(`[MQTT] ⚠️ 알 수 없는 차량 명령값: ${commandValue}`);
+                return;
+        }
+        
+        // 해당 버튼 활성화
+        if (activeButtonId) {
+            $(activeButtonId)
+                .addClass('active text-white')
+                .removeClass('text-black');
+            
+            console.log(`[MQTT] 🚗 차량 명령 버튼 선택: ${commandName} (${commandValue})`);
+        }
+    }
+    
     // vehicle/max_speed 특별 처리 (슬라이더와 텍스트 동시 업데이트)
     if (topic === 'vehicle/max_speed') {
         const speedMs = parseFloat(value); // m/s 단위 값

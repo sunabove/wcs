@@ -176,12 +176,18 @@ function sendMQTTMessage(topic, message, qos) {
                 console.error(`[MQTT] ❌ [${timestamp}] 메시지 전송 실패:`, err);
                 console.error(`[MQTT]    - 토픽: ${topic}`);
                 console.error(`[MQTT]    - 메시지: ${messageStr}`);
+                
+                // 에러 발생 시 alert 메시지 출력
+                alert(`MQTT 메시지 전송 실패!\n토픽: ${topic}\n에러: ${err.message || err}`);
             }
         });
     } else {
         const timestamp = new Date().toLocaleTimeString();
         console.error(`[MQTT] ❌ [${timestamp}] 클라이언트가 연결되지 않음`);
         console.warn('[MQTT] - MQTT 클라이언트 연결 상태를 확인하세요.');
+        
+        // 클라이언트 연결되지 않음 시 alert 메시지 출력
+        alert('MQTT 클라이언트가 연결되지 않았습니다.\n브로커 연결 상태를 확인해주세요.');
     }
 }
 

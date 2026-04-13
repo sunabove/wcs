@@ -298,12 +298,27 @@
                                 <!-- 차량 속도 정보 -->
                                 <div class="mt-3 p-2 bg-white rounded">
                                     <div class="row text-center">
-                                        <div class="col-12">
+                                        <div class="col-12"> 
+                                            <!-- 동작 상태 -->
                                             <div class="d-flex align-items-center justify-content-center">
+                                                <i class="bi bi-arrow-up-circle me-2 text-info fs-4"></i>
+                                                <small class="text-muted me-2">동작 상태:</small>
+                                                <span id="vehicle/operation/command" class="fs-6 fw-bold text-info">정지</span>
+                                            </div>
+                                            
+                                            <!-- 최고 속도 -->
+                                            <div class="d-flex align-items-center justify-content-center">
+                                                <small class="text-muted me-2">최고 속도:</small>
+                                                <span id="vehicle/max_speed" class="fs-5 fw-bold text-secondary">50 Km/h</span>
+                                            </div>
+                                            
+                                            <!-- 현재 속도 -->
+                                            <div class="d-flex align-items-center justify-content-center mb-2">
                                                 <i class="bi bi-speedometer2 me-2 text-primary fs-1"></i>
                                                 &nbsp;
                                                 <span id="vehicle/linear/speed" class="fs-2 fw-bold text-primary">0 Km/h</span>
-                                            </div>
+                                            </div> 
+                                            
                                         </div>
                                     </div>
                                 </div>

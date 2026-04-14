@@ -3,6 +3,7 @@
     background-color: white;
     position: relative;
     max-width_: 600px;
-    height: 80vh;
+    height_: 80vh;
     max-height: 400px; 
+    min-height: 200px;
 }

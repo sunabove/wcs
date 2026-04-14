@@ -436,6 +436,19 @@
                 $('#vehicle-image').attr('src', newImageSrc);
                 console.log(`[Vehicle Setting] 🖼️ 차량 이미지 업데이트: ${newImageSrc}`);
                 
+                // wheel/{id}/id_request 토픽 발행
+                const topic = `wheel/${wheelId}/id_request`;
+                const message = ""; // 빈 메시지로 ID 요청
+                
+                console.log('[Vehicle Setting] 📤 ID 요청 MQTT 전송 준비 - 토픽:', topic);
+                
+                try {
+                    sendMQTTMessage(topic, message, 1);
+                    console.log(`[Vehicle Setting] 🔍 바퀴 ID 요청 발행 - 바퀴: ${selectedWheel}, 토픽: ${topic}`);
+                } catch (error) {
+                    console.error('[Vehicle Setting] ❌ ID 요청 sendMQTTMessage 호출 에러:', error);
+                }
+                
                 // 선택된 바퀴에 따른 시각적 피드백 (테이블 크기 변화 + 투명도 효과)
                 const $dataTable = $('#wheelDataTable');
                 $dataTable.css('transform', 'scale(0.95)')

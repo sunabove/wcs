@@ -422,49 +422,6 @@
                 console.log(`[Vehicle Setting] 📋 선택된 바퀴: ${selectedWheel.toUpperCase()}, wheelDataTable ID 업데이트 완료`);
             }
 
-            // wheel/{id}/id 토픽 수신 시 바퀴 ID 라디오 버튼 업데이트
-            function updateWheelIdSelection(wheelPosition, wheelId) {
-                // 현재 선택된 바퀴와 일치하는지 확인
-                const currentSelectedWheel = $('input[name="wheelPosition"]:checked').val().toLowerCase();
-                
-                if (currentSelectedWheel === wheelPosition.toLowerCase()) {
-                    // 해당하는 wheelId 라디오 버튼 선택
-                    const wheelIdNum = parseInt(wheelId);
-                    if (wheelIdNum >= 1 && wheelIdNum <= 4) {
-                        $(`input[name="wheelId"][value="${wheelIdNum}"]`).prop('checked', true);
-                        console.log(`[Vehicle Setting] 🏷️ 바퀴 ID 자동 선택: ${wheelPosition.toUpperCase()} -> ID ${wheelIdNum}`);
-                        
-                        // 시각적 피드백 (버튼 하이라이트)
-                        const $selectedBtn = $(`label[for="wheel-id-${wheelIdNum}"]`);
-                        $selectedBtn.addClass('btn-primary').removeClass('btn-outline-secondary');
-                        
-                        // 다른 버튼들은 원래 상태로
-                        $('label[for^="wheel-id-"]').not($selectedBtn).removeClass('btn-primary').addClass('btn-outline-secondary');
-                        
-                        setTimeout(() => {
-                            $selectedBtn.removeClass('btn-primary').addClass('btn-outline-secondary');
-                        }, 1000);
-                    }
-                }
-            }
-
-            // MQTT 메시지 핸들러 추가 (전역 MQTT 클라이언트 이벤트 사용)
-            $(document).on('mqttMessage', function(event, topic, message) {
-                // wheel/{id}/id 토픽 패턴 확인
-                const wheelIdPattern = /^wheel\/([a-z]+)\/id$/;
-                const match = topic.match(wheelIdPattern);
-                
-                if (match) {
-                    const wheelPosition = match[1]; // fl, fr, rl, rr
-                    const wheelId = message.toString();
-                    
-                    console.log(`[Vehicle Setting] 📨 Wheel ID 토픽 수신: ${topic} -> ${wheelId}`);
-                    updateWheelIdSelection(wheelPosition, wheelId);
-                }
-            });
-            
-            console.log('[Vehicle Setting] 🔧 MQTT 메시지 핸들러 등록됨: wheel/{id}/id');
-
             // 바퀴 선택 변경 이벤트
             $('input[name="wheelPosition"]').change(function() {
                 const selectedWheel = $(this).val();

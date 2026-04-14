@@ -9,6 +9,42 @@ function prcessMqttMessage(topic, value) {
         console.log('[MQTT] 🚗 차량 데이터:', topic, value);
     } else if (topic.startsWith('wheel/')) {
         console.log('[MQTT] 🛞 바퀴 데이터:', topic, value);
+        
+        // wheel/{id}/id 토픽 특별 처리 - Vehicle Setting 페이지의 바퀴 ID 라디오 버튼 업데이트
+        const wheelIdPattern = /^wheel\/([a-z]+)\/id$/;
+        const match = topic.match(wheelIdPattern);
+        
+        if (match) {
+            const wheelPosition = match[1]; // fl, fr, rl, rr
+            const wheelId = parseInt(value);
+            
+            console.log(`[MQTT] 🏷️ Wheel ID 토픽 수신: ${topic} -> ${wheelId}`);
+            
+            // Vehicle Setting 페이지에만 적용
+            if (window.location.pathname.includes('110_vehicle_setting.html')) {
+                // 현재 선택된 바퀴와 일치하는지 확인
+                const currentSelectedWheel = $('input[name="wheelPosition"]:checked').val();
+                
+                if (currentSelectedWheel && currentSelectedWheel.toLowerCase() === wheelPosition.toLowerCase()) {
+                    // 해당하는 wheelId 라디오 버튼 선택
+                    if (wheelId >= 1 && wheelId <= 4) {
+                        $(`input[name="wheelId"][value="${wheelId}"]`).prop('checked', true);
+                        console.log(`[MQTT] ✅ 바퀴 ID 자동 선택: ${wheelPosition.toUpperCase()} -> ID ${wheelId}`);
+                        
+                        // 시각적 피드백 (버튼 하이라이트)
+                        const $selectedBtn = $(`label[for="wheel-id-${wheelId}"]`);
+                        $selectedBtn.addClass('btn-primary').removeClass('btn-outline-secondary');
+                        
+                        // 다른 버튼들은 원래 상태로
+                        $('label[for^="wheel-id-"]').not($selectedBtn).removeClass('btn-primary').addClass('btn-outline-secondary');
+                        
+                        setTimeout(() => {
+                            $selectedBtn.removeClass('btn-primary').addClass('btn-outline-secondary');
+                        }, 1500);
+                    }
+                }
+            }
+        }
     } else if (topic.startsWith('sensor/')) {
         console.log('[MQTT] 📡 센서 데이터:', topic, value);
     } else if (topic.startsWith('system/')) {

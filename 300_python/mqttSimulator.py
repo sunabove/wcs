@@ -206,11 +206,12 @@ class MqttSimulator:
                                 new_wheel_num_id = int(payload)
                                 if 1 <= new_wheel_num_id <= 4:  # 1~4 범위 제한
                                     old_id = WHEEL_ID_MAPPING[wheel_str_id]
-                                    WHEEL_ID_MAPPING[wheel_str_id] = new_wheel_num_id
-                                    print(f"[WHEEL_ID_SET] Wheel ID 변경: {wheel_str_id} {old_id} -> {new_wheel_num_id}")
-                                    
-                                    # 변경된 ID 값을 즐시 발행
-                                    self._publish(topic, new_wheel_num_id)
+                                    if old_id != new_wheel_num_id:  # 실제로 값이 변경된 경우만 처리
+                                        WHEEL_ID_MAPPING[wheel_str_id] = new_wheel_num_id
+                                        print(f"[WHEEL_ID_SET] Wheel ID 변경: {wheel_str_id} {old_id} -> {new_wheel_num_id}")
+                                        print(f"[WHEEL_ID_SET] 새로운 ID는 다음 정기 발행에서 반영됩니다.")
+                                    else:
+                                        print(f"[WHEEL_ID_SET] Wheel ID 동일함: {wheel_str_id} = {new_wheel_num_id} (변경 없음)")
                                 else:
                                     print(f"[WHEEL_ID_SET] 잘못된 ID 범위: {new_wheel_num_id} (허용: 1-4)")
                             except ValueError:
@@ -238,22 +239,28 @@ class MqttSimulator:
                     payload = str(value)
                     self._publish(topic, payload)
                     print(f"[VEHICLE] Published {topic} -> {payload}")
+            else:
+                print("[SETTINGS] No vehicle_data available to publish")
             
-            # Wheel ID 설정 정보 publish (fl=1, fr=2, rr=3, rl=4)
+            # Wheel 설정 정보 publish (1~4번 각각)
+            if hasattr(self, 'wheel_data') and self.wheel_data:
+                for wheel_id in range(1, 5):  # 1부터 4까지
+                    for key, value in self.wheel_data.items():
+                        topic = f"wheel/{wheel_id}/{key}"
+                        payload = str(value)
+                        self._publish(topic, payload)
+                        print(f"[WHEEL] Published {topic} -> {payload}")
+            else:
+                print("[SETTINGS] No wheel_data available to publish")
+            
+            # Wheel ID 설정 정보 우선 발행 (fl=1, fr=2, rr=3, rl=4)
+            print("[SETTINGS] Publishing wheel ID mappings...")
             for wheel_str_id, wheel_num_id in WHEEL_ID_MAPPING.items():
                 topic = f"wheel/{wheel_str_id}/id"
                 payload = str(wheel_num_id)
                 self._publish(topic, payload)
                 print(f"[WHEEL_ID] Published {topic} -> {payload}")
             
-            # Wheel 설정 정보 publish (1~4번 각각)
-            for wheel_id in range(1, 5):  # 1부터 4까지
-                if hasattr(self, 'wheel_data') and self.wheel_data:
-                    for key, value in self.wheel_data.items():
-                        topic = f"wheel/{wheel_id}/{key}"
-                        payload = str(value)
-                        self._publish(topic, payload)
-                        print(f"[WHEEL] Published {topic} -> {payload}")
             
             print("[SETTINGS] All settings published successfully")
             
@@ -713,9 +720,9 @@ class MqttSimulator:
         for wid, w in self.wheels.items():
             base = f"wheel/{wid}"
             
-            # 바퀴 ID 번호 발행 (fl=1, fr=2, rr=3, rl=4)
-            wheel_id_num = WHEEL_ID_MAPPING.get(wid, 0)
-            self._publish(f"{base}/id", wheel_id_num)
+            # 바퀴 ID 번호는 정기 발행에서 제외 (요청 시 또는 변경 시에만 발행)
+            # wheel_id_num = WHEEL_ID_MAPPING.get(wid, 0)
+            # self._publish(f"{base}/id", wheel_id_num)
 
             # 위치: 미터(m)
             self._publish(f"{base}/position/x", round(w["x"], 3))  # m

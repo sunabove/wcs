@@ -35,6 +35,14 @@ class SurfaceState(IntEnum):
 
 WHEEL_IDS = ["fl", "fr", "rr", "rl"]
 
+# 바퀴 ID 매핑 (문자열 -> 숫자)
+WHEEL_ID_MAPPING = {
+    "fl": 1,  # Front Left
+    "fr": 2,  # Front Right  
+    "rr": 3,  # Rear Right
+    "rl": 4   # Rear Left
+}
+
 # ===== 전역 변수 =====
 _shutdown_flag = False
 
@@ -78,6 +86,7 @@ class MqttSimulator:
         self.scenario_timer = 0
         self.target_speed = 1.5  # 목표 속도 (m/s)
         self.current_speed = 0.0  # 현재 실제 속도
+        self.max_speed = 2.0  # 최고 속도 제한 (m/s) - MQTT로 수신 가능
 
         # 위치 상태
         self.pos_x = 0.0
@@ -129,9 +138,16 @@ class MqttSimulator:
 
     def _on_connect(self, client, userdata, flags, reason_code, properties=None):
         print("MQTT Connected:", reason_code)
-        # client/connect 토픽 구독
+        # MQTT 토픽 구독
         client.subscribe("client/connect")
-        print("[MQTT] Subscribed to client/connect topic")
+        client.subscribe("vehicle/max_speed")
+        
+        # wheel ID 요청 및 설정 구독 (fl, fr, rr, rl 각각)
+        for wheel_id in WHEEL_IDS:
+            client.subscribe(f"wheel/{wheel_id}/id_request")  # ID 요청
+            client.subscribe(f"wheel/{wheel_id}/id")          # ID 설정
+            
+        print("[MQTT] Subscribed to client/connect, vehicle/max_speed, wheel/*/id_request, and wheel/*/id topics")
     
     def _on_message(self, client, userdata, msg):
         """MQTT 메시지 수신 처리"""
@@ -144,6 +160,67 @@ class MqttSimulator:
             if topic == "client/connect":
                 print("[CONNECT] Client connection detected - Publishing settings...")
                 self._publish_all_settings()
+            elif topic == "vehicle/max_speed":
+                try:
+                    new_max_speed = float(payload)
+                    if 0.5 <= new_max_speed <= 27.8:  # 1.8~100 km/h 범위 제한
+                        old_speed = self.max_speed
+                        self.max_speed = new_max_speed
+                        print(f"[SPEED] 최고 속도 변경: {old_speed:.1f} -> {new_max_speed:.1f} m/s ({new_max_speed*3.6:.0f} km/h)")
+                        
+                        # 현재 목표 속도가 새 최고 속도를 초과하면 조정
+                        if self.target_speed > self.max_speed:
+                            self.target_speed = self.max_speed * 0.9  # 최고 속도의 90%로 조정
+                            print(f"[SPEED] 목표 속도 조정: {self.target_speed:.1f} m/s")
+                    else:
+                        print(f"[SPEED] 잘못된 최고 속도 범위: {new_max_speed:.1f} m/s (허용: 0.5-27.8 m/s, 1.8-100 km/h)")
+                except ValueError:
+                    print(f"[SPEED] 잘못된 최고 속도 형식: {payload}")
+            elif topic.endswith("/id_request"):
+                # wheel/{id}/id_request 처리
+                try:
+                    # 토픽에서 wheel ID 추출 (wheel/fl/id_request -> fl)
+                    parts = topic.split("/")
+                    if len(parts) == 3 and parts[0] == "wheel" and parts[2] == "id_request":
+                        wheel_str_id = parts[1]
+                        if wheel_str_id in WHEEL_ID_MAPPING:
+                            wheel_num_id = WHEEL_ID_MAPPING[wheel_str_id]
+                            response_topic = f"wheel/{wheel_str_id}/id"
+                            self._publish(response_topic, wheel_num_id)
+                            print(f"[WHEEL_ID_REQ] Wheel ID 요청 응답: {topic} -> {response_topic} = {wheel_num_id}")
+                        else:
+                            print(f"[WHEEL_ID_REQ] 알 수 없는 wheel ID: {wheel_str_id}")
+                    else:
+                        print(f"[WHEEL_ID_REQ] 잘못된 토픽 형식: {topic}")
+                except Exception as e:
+                    print(f"[WHEEL_ID_REQ] Wheel ID 요청 처리 오류: {e}")
+            elif topic.split("/")[-1] == "id" and topic.startswith("wheel/"):
+                # wheel/{id}/id 처리 (수신)
+                try:
+                    # 토픽에서 wheel ID 추출 (wheel/fl/id -> fl)
+                    parts = topic.split("/")
+                    if len(parts) == 3 and parts[0] == "wheel" and parts[2] == "id":
+                        wheel_str_id = parts[1]
+                        if wheel_str_id in WHEEL_ID_MAPPING:
+                            try:
+                                new_wheel_num_id = int(payload)
+                                if 1 <= new_wheel_num_id <= 4:  # 1~4 범위 제한
+                                    old_id = WHEEL_ID_MAPPING[wheel_str_id]
+                                    WHEEL_ID_MAPPING[wheel_str_id] = new_wheel_num_id
+                                    print(f"[WHEEL_ID_SET] Wheel ID 변경: {wheel_str_id} {old_id} -> {new_wheel_num_id}")
+                                    
+                                    # 변경된 ID 값을 즐시 발행
+                                    self._publish(topic, new_wheel_num_id)
+                                else:
+                                    print(f"[WHEEL_ID_SET] 잘못된 ID 범위: {new_wheel_num_id} (허용: 1-4)")
+                            except ValueError:
+                                print(f"[WHEEL_ID_SET] 잘못된 ID 형식: {payload}")
+                        else:
+                            print(f"[WHEEL_ID_SET] 알 수 없는 wheel ID: {wheel_str_id}")
+                    else:
+                        print(f"[WHEEL_ID_SET] 잘못된 토픽 형식: {topic}")
+                except Exception as e:
+                    print(f"[WHEEL_ID_SET] Wheel ID 설정 처리 오류: {e}")
                 
         except Exception as e:
             print(f"[MQTT] Message processing error: {e}")
@@ -161,6 +238,13 @@ class MqttSimulator:
                     payload = str(value)
                     self._publish(topic, payload)
                     print(f"[VEHICLE] Published {topic} -> {payload}")
+            
+            # Wheel ID 설정 정보 publish (fl=1, fr=2, rr=3, rl=4)
+            for wheel_str_id, wheel_num_id in WHEEL_ID_MAPPING.items():
+                topic = f"wheel/{wheel_str_id}/id"
+                payload = str(wheel_num_id)
+                self._publish(topic, payload)
+                print(f"[WHEEL_ID] Published {topic} -> {payload}")
             
             # Wheel 설정 정보 publish (1~4번 각각)
             for wheel_id in range(1, 5):  # 1부터 4까지
@@ -217,24 +301,24 @@ class MqttSimulator:
             self.driving_scenario = random.choices(scenarios, weights=weights)[0]
             self.scenario_timer = 0
             
-            # 시내 주행별 목표 속도 설정 (km/h 기준으로 생각한 후 m/s로 변환)
+            # 시내 주행별 목표 속도 설정 (최고 속도 제한 적용)
             if self.driving_scenario == "city_normal":
-                self.target_speed = random.uniform(8.3, 13.9)  # 30-50km/h → m/s
+                self.target_speed = min(random.uniform(8.3, 13.9), self.max_speed)  # 30-50km/h → m/s
             elif self.driving_scenario == "traffic_light_stop":
                 self.target_speed = 0.0  # 완전 정지
                 self.exec_state = VehicleExecState.STOP
             elif self.driving_scenario == "slow_traffic":
-                self.target_speed = random.uniform(2.8, 8.3)  # 10-30km/h → m/s
+                self.target_speed = min(random.uniform(2.8, 8.3), self.max_speed)  # 10-30km/h → m/s
             elif self.driving_scenario == "accelerating":
-                self.target_speed = random.uniform(11.1, 16.7)  # 40-60km/h → m/s
+                self.target_speed = min(random.uniform(11.1, 16.7), self.max_speed)  # 40-60km/h → m/s
             elif self.driving_scenario == "turning_intersection":
-                self.target_speed = random.uniform(2.8, 8.3)  # 회전시 저속
+                self.target_speed = min(random.uniform(2.8, 8.3), self.max_speed)  # 회전시 저속
             elif self.driving_scenario == "pedestrian_caution":
-                self.target_speed = random.uniform(1.4, 5.6)  # 5-20km/h → m/s
+                self.target_speed = min(random.uniform(1.4, 5.6), self.max_speed)  # 5-20km/h → m/s
             elif self.driving_scenario == "parking_maneuver":
-                self.target_speed = random.uniform(0.3, 1.4)  # 주차시 극저속
+                self.target_speed = min(random.uniform(0.3, 1.4), self.max_speed)  # 주차시 극저속
             elif self.driving_scenario == "highway_merge":
-                self.target_speed = random.uniform(13.9, 19.4)  # 50-70km/h → m/s
+                self.target_speed = min(random.uniform(13.9, 19.4), self.max_speed)  # 50-70km/h → m/s
             
             print(f"[CITY] 시내 주행 시나리오: {self.driving_scenario} (목표: {self.target_speed:.1f} m/s = {self.target_speed*3.6:.0f} km/h)")
     
@@ -575,7 +659,7 @@ class MqttSimulator:
         self._publish("vehicle/surface/state", self.surface_state.value)
 
         # SI 단위계: 속도(m/s), 각속도(rad/s)
-        self._publish("vehicle/max_speed", 2.0)  # m/s
+        self._publish("vehicle/max_speed", round(self.max_speed, 2))  # m/s (동적 값)
         self._publish("vehicle/max_angular_speed", 1.0)  # rad/s
 
         # 동적 상태 정보
@@ -628,6 +712,10 @@ class MqttSimulator:
         # SI 단위계: 각 바퀴별 데이터 발행
         for wid, w in self.wheels.items():
             base = f"wheel/{wid}"
+            
+            # 바퀴 ID 번호 발행 (fl=1, fr=2, rr=3, rl=4)
+            wheel_id_num = WHEEL_ID_MAPPING.get(wid, 0)
+            self._publish(f"{base}/id", wheel_id_num)
 
             # 위치: 미터(m)
             self._publish(f"{base}/position/x", round(w["x"], 3))  # m

@@ -280,6 +280,28 @@
                                     </div>
                                 </div> 
 
+                                <!-- 바퀴 ID 설정 -->
+                                <div class="mb-3">
+                                    <label class="form-label fw-bold"><i class="bi bi-tag me-2"></i>바퀴 ID</label>
+                                    <div class="btn-group w-100 mb-2" role="group" aria-label="Wheel ID selection">
+                                        <input type="radio" class="btn-check" name="wheelId" id="wheel-id-1" value="1" checked>
+                                        <label class="btn btn-outline-secondary" for="wheel-id-1">1</label>
+
+                                        <input type="radio" class="btn-check" name="wheelId" id="wheel-id-2" value="2">
+                                        <label class="btn btn-outline-secondary" for="wheel-id-2">2</label>
+
+                                        <input type="radio" class="btn-check" name="wheelId" id="wheel-id-3" value="3">
+                                        <label class="btn btn-outline-secondary" for="wheel-id-3">3</label>
+
+                                        <input type="radio" class="btn-check" name="wheelId" id="wheel-id-4" value="4">
+                                        <label class="btn btn-outline-secondary" for="wheel-id-4">4</label>
+                                    </div>
+                                    <div class="form-text text-muted mt-1 ms-3">
+                                        <i class="bi bi-info-circle me-1"></i>
+                                        <small>바퀴 ID 변경 시 자동으로 설정됩니다.</small>
+                                    </div>
+                                </div>
+
                             </div>
                         </div>
                     </div>
@@ -516,6 +538,31 @@
                 } else {
                     console.warn('[Vehicle Setting] ⚠️ 유효하지 않은 ToF 값:', tofValue);
                     alert('유효한 캘리브레이션 값을 입력해주세요.');
+                }
+            });
+
+            // 바퀴 ID 선택 변경 이벤트
+            $('input[name="wheelId"]').change(function() {
+                const wheelIdValue = $(this).val();
+                const wheelId = parseInt(wheelIdValue);
+                
+                // 현재 선택된 바퀴 위치 확인
+                const selectedWheel = $('input[name="wheelPosition"]:checked').val();
+                
+                console.log(`[Vehicle Setting] 🏷️ 바퀴 ID 변경: ${wheelId}, 선택된 바퀴: ${selectedWheel}`);
+                
+                // wheel/{selectedWheel}/id 토픽으로 MQTT 메시지 발행
+                const topic = `wheel/${selectedWheel}/id`;
+                const message = wheelId;
+                
+                console.log('[Vehicle Setting] 📤 MQTT 전송 준비 - 토픽:', topic, '메시지:', message, '타입:', typeof message);
+                
+                try {
+                    sendMQTTMessage(topic, message, 1);
+                    console.log(`[Vehicle Setting] 🏷️ 바퀴 ID 자동 설정 - 바퀴: ${selectedWheel}, ID: ${wheelId}`);
+                } catch (error) {
+                    console.error('[Vehicle Setting] ❌ sendMQTTMessage 호출 에러:', error);
+                    alert(`바퀴 ID 설정 전송 중 오류 발생: ${error.message}`);
                 }
             });
         });

@@ -58,6 +58,7 @@ class MqttSimulator:
                 print("[MQTT] Using paho-mqtt legacy compatibility mode")
         
         self.client.on_connect = self._on_connect
+        self.client.on_message = self._on_message
 
         self.broker = broker
         self.port = port
@@ -128,6 +129,53 @@ class MqttSimulator:
 
     def _on_connect(self, client, userdata, flags, reason_code, properties=None):
         print("MQTT Connected:", reason_code)
+        # client/connect 토픽 구독
+        client.subscribe("client/connect")
+        print("[MQTT] Subscribed to client/connect topic")
+    
+    def _on_message(self, client, userdata, msg):
+        """MQTT 메시지 수신 처리"""
+        try:
+            topic = msg.topic
+            payload = msg.payload.decode('utf-8')
+            
+            print(f"[MQTT] Received: {topic} -> {payload}")
+            
+            if topic == "client/connect":
+                print("[CONNECT] Client connection detected - Publishing settings...")
+                self._publish_all_settings()
+                
+        except Exception as e:
+            print(f"[MQTT] Message processing error: {e}")
+    pass  # _on_message
+    
+    def _publish_all_settings(self):
+        """클라이언트 연결 시 모든 vehicle과 wheel 설정 정보를 publish"""
+        try:
+            print("[SETTINGS] Publishing all vehicle and wheel settings...")
+            
+            # Vehicle 설정 정보 publish
+            if hasattr(self, 'vehicle_data') and self.vehicle_data:
+                for key, value in self.vehicle_data.items():
+                    topic = f"vehicle/{key}"
+                    payload = str(value)
+                    self._publish(topic, payload)
+                    print(f"[VEHICLE] Published {topic} -> {payload}")
+            
+            # Wheel 설정 정보 publish (1~4번 각각)
+            for wheel_id in range(1, 5):  # 1부터 4까지
+                if hasattr(self, 'wheel_data') and self.wheel_data:
+                    for key, value in self.wheel_data.items():
+                        topic = f"wheel/{wheel_id}/{key}"
+                        payload = str(value)
+                        self._publish(topic, payload)
+                        print(f"[WHEEL] Published {topic} -> {payload}")
+            
+            print("[SETTINGS] All settings published successfully")
+            
+        except Exception as e:
+            print(f"[SETTINGS] Error publishing settings: {e}")
+    
     def _check_file_changes(self):
         """파일 변경 감지 및 서비스 재시작"""
         try:

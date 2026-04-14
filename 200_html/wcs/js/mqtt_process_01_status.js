@@ -242,7 +242,7 @@ function getFormattedTopicValue(topic, value) {
     } else if (topic.includes('/power')) {
         formattedValue = `${Math.round(numValue)} W`;  // SI: 와트
     } else if (topic.includes('/pid/')) {
-        formattedValue = numValue.toFixed(3);  // 무차원
+        formattedValue = numValue.toFixed(2);  // 무차원
     } else if (topic.includes('/tof/distance')) {
         formattedValue = `${numValue.toFixed(3)} m`;  // SI: 미터 (ToF 센서)
     } else if (topic.includes('/angle')) {

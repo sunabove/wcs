@@ -157,15 +157,15 @@
                                 </div>
 
                                 <div class="col-md-6">
-                                    <select class="form-select" id="road-condition">
-                                        <option value="road" selected>도로</option>
-                                        <option value="gravel">자갈길</option>
-                                        <option value="icy">빙판길</option>
-                                        <option value="pothole">포트홀</option>
+                                    <select class="form-select" id="surface-state">
+                                        <option value="0" selected>도로</option>
+                                        <option value="1">자갈길</option>
+                                        <option value="2">빙판길</option>
+                                        <option value="3">포트홀</option>
                                     </select>
                                 </div>
                                 <div class="col-md-3">
-                                    <button type="button" id="btn-road-apply" class="btn btn-primary w-100">
+                                    <button type="button" id="btn-surface-apply" class="btn btn-primary w-100">
                                         <i class="bi bi-check2-circle me-1"></i> 적용
                                     </button>
                                 </div>
@@ -199,6 +199,12 @@
             // 시뮬레이션 중지
             $('#btn-sim-stop').on('click', function () {
                 sendMQTTMessage('simulation/stop', 'stop');
+            });
+
+            // 노면 종류 적용
+            $('#btn-surface-apply').on('click', function () {
+                const surfaceValue = $('#surface-state').val();
+                sendMQTTMessage('vehicle/surface/state', surfaceValue);
             });
 
         });

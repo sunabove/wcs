@@ -272,6 +272,10 @@ class MqttSimulator:
                 self._publish(topic, payload)
                 print(f"[WHEEL_ID] Published {topic} -> {payload}")
             
+            # 현재 시뮬레이션 상태 발행
+            sim_state = "start" if self.simulation_running else "stop"
+            self._publish("simulation/state", sim_state)
+            print(f"[SIM] Published simulation/state -> {sim_state}")
             
             print("[SETTINGS] All settings published successfully")
             

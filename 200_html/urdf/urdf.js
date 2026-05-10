@@ -11,6 +11,7 @@ class URDFViewer {
         this.robotModel = null;
         this.goalTarget = new THREE.Vector3(0, 0, 0);
         this.targetMarker = null;
+        this.urdfPath = containerElement.getAttribute('urdf') || '/urdf/wheel_3/urdf/wheel.urdf';
         
         this.init();
     }
@@ -115,11 +116,11 @@ class URDFViewer {
     loadURDF() {
         const loader = new URDFLoader();
         
-        console.log(`${this.viewLabel} URDF 파일 로딩 중...`);
+        console.log(`${this.viewLabel} URDF 파일 로딩 중... (${this.urdfPath})`);
 
         loader.load(
-            "/urdf/wheel_3/urdf/wheel.urdf",
-            
+            this.urdfPath,
+
             robot => {
                 console.log(`[URDF] ✅ ${this.viewLabel} URDF 로드 성공`);
 
@@ -204,14 +205,14 @@ function initURDFViewers() {
     console.log("[URDF] 🚀 URDF Viewer 초기화 시작...");
     
     // robot-container 클래스를 가진 모든 요소들 찾기
-    const containers = document.querySelectorAll('.robot-container');
+    const containers = document.querySelectorAll('.urdf-container');
     
     if (containers.length === 0) {
-        console.error("[URDF] ❌ robot-container 클래스를 가진 요소를 찾을 수 없습니다.");
+        console.error("[URDF] ❌ urdf-container 클래스를 가진 요소를 찾을 수 없습니다.");
         return;
     }
     
-    console.log(`[URDF] 📦 ${containers.length}개의 robot-container 발견`);
+    console.log(`[URDF] 📦 ${containers.length}개의 urdf-container 발견`);
     
     // 각 컨테이너에 대해 URDFViewer 생성 (viewIndex는 1부터 시작)
     containers.forEach((container, index) => {

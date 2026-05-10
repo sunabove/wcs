@@ -177,7 +177,7 @@ class MqttSimulator:
                     if 0 <= new_surface_state <= 3:
                         self.surface_state = SurfaceState(new_surface_state)
                         self.surface_state_lock_time = 0
-                        self.surface_state_lock_duration = 10
+                        self.surface_state_lock_duration = 30
                         surface_names = ['ROAD', 'GRAVEL', 'ICE', 'POTHOLE']
                         surface_name = surface_names[new_surface_state]
                         print(f"[SURFACE] 노면 상태 설정: {surface_name} ({new_surface_state}) - {self.surface_state_lock_duration}초 유지")

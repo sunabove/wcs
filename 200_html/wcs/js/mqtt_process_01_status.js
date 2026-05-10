@@ -57,6 +57,13 @@ function prcessMqttMessage(topic, value) {
         console.log('[MQTT] 📝 일반 데이터:', topic, value);
     }
 
+    // 시뮬레이션 상태 토픽 특별 처리
+    if (topic === 'simulation/start' && value === 'start') {
+        $('#sim-status').removeClass('bg-secondary bg-danger').addClass('bg-success').text('상태: 실행 중');
+    } else if (topic === 'simulation/stop' && value === 'stop') {
+        $('#sim-status').removeClass('bg-secondary bg-success').addClass('bg-danger').text('상태: 중지됨');
+    }
+
     // jQuery를 사용한 DOM 업데이트: topic을 id로 사용해서 해당 요소 찾기 (속성 선택자 사용)
     const $targetElement = $(`[id="${topic}"]`);
 

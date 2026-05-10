@@ -186,16 +186,9 @@
     <!-- MQTT 클라이언트 모듈 -->
     <script src="./js/mqtt.js"></script>
 
-    <script>
-        // MQTT 메시지 수신 처리
-        function prcessMqttMessage(topic, value) {
-            if (topic === 'simulation/start' && value === 'start') {
-                $('#sim-status').removeClass('bg-secondary bg-danger').addClass('bg-success').text('상태: 실행 중');
-            } else if (topic === 'simulation/stop' && value === 'stop') {
-                $('#sim-status').removeClass('bg-secondary bg-success').addClass('bg-danger').text('상태: 중지됨');
-            }
-        }
+    <script src="./js/mqtt_process_01_status.js"></script>
 
+    <script> 
         $(document).ready(function () {
 
             // 시뮬레이션 시작

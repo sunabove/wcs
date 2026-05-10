@@ -187,18 +187,25 @@
     <script src="./js/mqtt.js"></script>
 
     <script>
+        // MQTT 메시지 수신 처리
+        function prcessMqttMessage(topic, value) {
+            if (topic === 'simulation/start' && value === 'start') {
+                $('#sim-status').removeClass('bg-secondary bg-danger').addClass('bg-success').text('상태: 실행 중');
+            } else if (topic === 'simulation/stop' && value === 'stop') {
+                $('#sim-status').removeClass('bg-secondary bg-success').addClass('bg-danger').text('상태: 중지됨');
+            }
+        }
+
         $(document).ready(function () {
 
             // 시뮬레이션 시작
             $('#btn-sim-start').on('click', function () {
                 sendMQTTMessage('simulation/start', 'start');
-                $('#sim-status').removeClass('bg-secondary bg-danger').addClass('bg-success').text('상태: 실행 중');
             });
 
             // 시뮬레이션 중지
             $('#btn-sim-stop').on('click', function () {
                 sendMQTTMessage('simulation/stop', 'stop');
-                $('#sim-status').removeClass('bg-secondary bg-success').addClass('bg-danger').text('상태: 중지됨');
             });
 
         });

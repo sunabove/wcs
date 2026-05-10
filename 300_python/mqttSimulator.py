@@ -108,6 +108,7 @@ class MqttSimulator:
         
         # 재시작 및 모니터링
         self.running = True
+        self.simulation_running = True  # 시뮬레이션 실행 여부
         self.start_time = time.time()
         self.script_path = os.path.abspath(__file__)
         self.last_modified = os.path.getmtime(self.script_path) if os.path.exists(self.script_path) else 0
@@ -141,13 +142,15 @@ class MqttSimulator:
         # MQTT 토픽 구독
         client.subscribe("client/connect")
         client.subscribe("vehicle/max_speed")
+        client.subscribe("simulation/start")
+        client.subscribe("simulation/stop")
         
         # wheel ID 요청 및 설정 구독 (fl, fr, rr, rl 각각)
         for wheel_id in WHEEL_IDS:
             client.subscribe(f"wheel/{wheel_id}/id_request")  # ID 요청
             client.subscribe(f"wheel/{wheel_id}/id")          # ID 설정
             
-        print("[MQTT] Subscribed to client/connect, vehicle/max_speed, wheel/*/id_request, and wheel/*/id topics")
+        print("[MQTT] Subscribed to client/connect, vehicle/max_speed, simulation/start, simulation/stop, wheel/*/id_request, and wheel/*/id topics")
     
     def _on_message(self, client, userdata, msg):
         """MQTT 메시지 수신 처리"""
@@ -157,7 +160,15 @@ class MqttSimulator:
             
             print(f"[MQTT] Received: {topic} -> {payload}")
             
-            if topic == "client/connect":
+            if topic == "simulation/start":
+                if not self.simulation_running:
+                    self.simulation_running = True
+                    print("[SIM] 시뮬레이션 시작")
+            elif topic == "simulation/stop":
+                if self.simulation_running:
+                    self.simulation_running = False
+                    print("[SIM] 시뮬레이션 중지")
+            elif topic == "client/connect":
                 print("[CONNECT] Client connection detected - Publishing settings...")
                 self._publish_all_settings()
             elif topic == "vehicle/max_speed":
@@ -799,12 +810,15 @@ class MqttSimulator:
                     print(f"[CITY STATUS] 발행 토픽: {self.publish_count}개 | 상태: {state_display} ({self.exec_state.value})")
                     print("-" * 70)
                 
-                self._update_vehicle()
-                self._update_wheels()
-    
-                self._publish_vehicle()
-                self._publish_position()
-                self._publish_wheels()
+                if self.simulation_running:
+                    self._update_vehicle()
+                    self._update_wheels()
+        
+                    self._publish_vehicle()
+                    self._publish_position()
+                    self._publish_wheels()
+                else:
+                    print("[SIM] 시뮬레이션 일시정지 중...")
     
                 loop_count += 1
                 time.sleep(1)

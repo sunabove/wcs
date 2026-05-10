@@ -119,6 +119,7 @@ class URDFViewer {
 
         loader.load(
             "/urdf/wheel_3/urdf/wheel.urdf",
+            
             robot => {
                 console.log(`[URDF] ✅ ${this.viewLabel} URDF 로드 성공`);
 

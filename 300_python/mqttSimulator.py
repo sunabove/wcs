@@ -80,6 +80,8 @@ class MqttSimulator:
         self.exec_state = VehicleExecState.RUN
         self.command = OperationCommand.FORWARD
         self.surface_state = SurfaceState.ROAD  # 초기 노면 상태
+        self.surface_state_lock_time = 0  # 노면 상태 락 유지 시간 (초)
+        self.surface_state_lock_duration = 0  # 노면 상태 락 지속 시간
         
         # 시뮬레이션 제어 변수
         self.driving_scenario = "normal"  # normal, accelerating, decelerating, turning
@@ -144,6 +146,7 @@ class MqttSimulator:
         client.subscribe("vehicle/max_speed")
         client.subscribe("simulation/start")
         client.subscribe("simulation/stop")
+        client.subscribe("vehicle/surface/state")
         
         # wheel ID 요청 및 설정 구독 (fl, fr, rr, rl 각각)
         for wheel_id in WHEEL_IDS:
@@ -168,6 +171,20 @@ class MqttSimulator:
                 if self.simulation_running:
                     self.simulation_running = False
                     print("[SIM] 시뮬레이션 중지")
+            elif topic == "vehicle/surface/state":
+                try:
+                    new_surface_state = int(payload)
+                    if 0 <= new_surface_state <= 3:
+                        self.surface_state = SurfaceState(new_surface_state)
+                        self.surface_state_lock_time = 0
+                        self.surface_state_lock_duration = 10
+                        surface_names = ['ROAD', 'GRAVEL', 'ICE', 'POTHOLE']
+                        surface_name = surface_names[new_surface_state]
+                        print(f"[SURFACE] 노면 상태 설정: {surface_name} ({new_surface_state}) - {self.surface_state_lock_duration}초 유지")
+                    else:
+                        print(f"[SURFACE] 잘못된 노면 상태 값: {new_surface_state} (허용: 0-3)")
+                except ValueError:
+                    print(f"[SURFACE] 잘못된 노면 상태 형식: {payload}")
             elif topic == "client/connect":
                 print("[CONNECT] Client connection detected - Publishing settings...")
                 self._publish_all_settings()
@@ -454,7 +471,14 @@ class MqttSimulator:
                 print(f"[CITY] 배터리 부족으로 차량 정지 ({battery_percent:.1f}%)")
         
         # 상태 변경 (15초마다 노면 상태 변경 - 시내 도로 특성)
-        if self.elapsed_time % 15 == 0 and self.exec_state == VehicleExecState.RUN:
+        # 노면 상태 락이 활성화되지 않았을 때만 자동 변경
+        if self.surface_state_lock_duration > 0:
+            # 노면 상태 락 시간 감소
+            self.surface_state_lock_time += 1
+            if self.surface_state_lock_time >= self.surface_state_lock_duration:
+                self.surface_state_lock_duration = 0  # 락 해제
+                print(f"[SURFACE] 노면 상태 락 해제")
+        elif self.elapsed_time % 15 == 0 and self.exec_state == VehicleExecState.RUN:
             # 시내 도로 노면 상태 (포트홀과 자갈길 확률 증가)
             surface_weights = [65, 15, 5, 15]  # ROAD, GRAVEL, ICE, POTHOLE
             self.surface_state = random.choices(list(SurfaceState), weights=surface_weights)[0]

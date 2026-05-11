@@ -458,14 +458,17 @@
 
             // 테스트 버튼 이벤트 - 통합된 함수 사용
             $('#test-clockwise').click(function() {
+                $('#vehicle-image').attr('src', 'img/vehicle_forward.gif');
                 sendWheelCommand(1, $(this), '정회전', '⏰');
             });
 
             $('#test-counterclockwise').click(function() {
+                $('#vehicle-image').attr('src', 'img/vehicle_backward.gif');
                 sendWheelCommand(2, $(this), '역회전', '↩️');
             });
 
             $('#test-stop').click(function() {
+                $('#vehicle-image').attr('src', 'img/vehicle.png');
                 sendWheelCommand(0, $(this), '정지', '⏹️');
             });
 
@@ -491,6 +494,7 @@
             });
 
             $('#vehicle-stop').click(function() {
+                $('#vehicle-image').attr('src', 'img/vehicle.png');
                 sendVehicleCommand(0, $(this), '정지', '⏹️');
             });
 

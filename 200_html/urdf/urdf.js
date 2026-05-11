@@ -58,9 +58,29 @@ class URDFViewer {
 
         // 바닥 그리드와 축 추가
         const gridHelper = new THREE.GridHelper(10, 20, 0x888888, 0xcccccc);
+        gridHelper.renderOrder = 999;
+        if (Array.isArray(gridHelper.material)) {
+            gridHelper.material.forEach(material => {
+                material.depthTest = false;
+                material.depthWrite = false;
+            });
+        } else if (gridHelper.material) {
+            gridHelper.material.depthTest = false;
+            gridHelper.material.depthWrite = false;
+        }
         this.scene.add(gridHelper);
 
         const axesHelper = new THREE.AxesHelper(1);
+        axesHelper.renderOrder = 999;
+        if (Array.isArray(axesHelper.material)) {
+            axesHelper.material.forEach(material => {
+                material.depthTest = false;
+                material.depthWrite = false;
+            });
+        } else if (axesHelper.material) {
+            axesHelper.material.depthTest = false;
+            axesHelper.material.depthWrite = false;
+        }
         this.scene.add(axesHelper);
 
         // 마우스 이벤트 설정

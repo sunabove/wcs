@@ -481,10 +481,12 @@
             });
 
             $('#vehicle-turn-left').click(function() {
+                $('#vehicle-image').attr('src', 'img/vehicle_left.gif');
                 sendVehicleCommand(3, $(this), '좌회전', '⬅️');
             });
 
             $('#vehicle-turn-right').click(function() {
+                $('#vehicle-image').attr('src', 'img/vehicle_right.gif');
                 sendVehicleCommand(4, $(this), '우회전', '➡️');
             });
 

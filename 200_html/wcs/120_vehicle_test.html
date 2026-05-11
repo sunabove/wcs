@@ -476,6 +476,7 @@
             });
 
             $('#vehicle-backward').click(function() {
+                $('#vehicle-image').attr('src', 'img/vehicle_backward.gif');
                 sendVehicleCommand(2, $(this), '후진', '⬇️');
             });
 

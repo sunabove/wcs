@@ -144,20 +144,25 @@ class URDFViewer {
                     const cameraDist = maxDim === 0 ? 2 : maxDim * 0.9;
                     
                     // 각 뷰에 따른 다른 초기 카메라 위치 설정
-                    let cameraPosition;
+                    setCameraPosition = false ;
 
-                    cameraPosition = {
-                                x: center.x + cameraDist * 0.0,
-                                y: center.y + cameraDist * 1.2,
-                                z: center.z - cameraDist * 0.8
-                            };
+                    if( setCameraPosition ){
+                        let cameraPosition;
 
-                    this.camera.position.set(
-                        cameraPosition.x,
-                        cameraPosition.y,
-                        cameraPosition.z
-                    );
-                    this.camera.lookAt(center);
+                        cameraPosition = {
+                                    x: center.x + cameraDist * 0.0,
+                                    y: center.y + cameraDist * 1.2,
+                                    z: center.z - cameraDist * 0.8
+                                };
+
+                        this.camera.position.set(
+                            cameraPosition.x,
+                            cameraPosition.y,
+                            cameraPosition.z
+                        );
+
+                        this.camera.lookAt(center);
+                    }
 
                     // 회전 중심 업데이트
                     this.goalTarget.copy(center);

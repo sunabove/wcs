@@ -13,6 +13,9 @@ class URDFViewer {
         this.targetMarker = null;
         this.urdfPath = containerElement.getAttribute('urdf') || '/urdf/wheel_3/urdf/wheel.urdf';
         this.urdfScale = parseFloat(containerElement.getAttribute('urdf-scale')) || (this.urdfPath.includes('/vehicle/') ? 1 : 1000);
+        this.urdfRotation = (containerElement.getAttribute('urdf-rotation') || (this.urdfPath.includes('/vehicle/') ? '90,0,0' : '0,0,0'))
+            .split(',')
+            .map(value => parseFloat(value) * Math.PI / 180);
         
         this.init();
     }
@@ -127,6 +130,7 @@ class URDFViewer {
 
                 // 스케일링 (단위 변환)
                 robot.scale.set(this.urdfScale, this.urdfScale, this.urdfScale);
+                robot.rotation.set(this.urdfRotation[0], this.urdfRotation[1], this.urdfRotation[2]);
 
                 this.scene.add(robot);
                 this.robotModel = robot;

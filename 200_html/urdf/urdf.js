@@ -139,39 +139,31 @@ class URDFViewer {
                 setTimeout(() => {
                     const bbox = new THREE.Box3().setFromObject(robot);
                     const center = bbox.getCenter(new THREE.Vector3());
-                    const size = bbox.getSize(new THREE.Vector3());
-                    const maxDim = Math.max(size.x, size.y, size.z);
+                    const sphere = bbox.getBoundingSphere(new THREE.Sphere());
+                    const radius = Math.max(sphere.radius, 0.001);
 
-                    console.log(`[URDF] 📏 ${this.viewLabel} 모델 크기:`, size);
+                    console.log(`[URDF] 📏 ${this.viewLabel} 모델 반경:`, radius);
                     console.log(`[URDF] 📍 ${this.viewLabel} 모델 중심:`, center);
 
-                    // 카메라 위치 자동 조정 - 각 뷰마다 다른 각도
-                    const cameraDist = maxDim === 0 ? 2 : maxDim * 0.9;
-                    
-                    // 각 뷰에 따른 다른 초기 카메라 위치 설정
-                    setCameraPosition = true; // 모든 뷰에서 카메라 위치 조정;
+                    // 카메라 위치 자동 조정 - 모델 전체가 프레임 안에 들어오도록 설정
+                    const fitOffset = 1.8;
+                    const cameraDist = radius / Math.sin(THREE.MathUtils.degToRad(this.camera.fov * 0.5)) * fitOffset;
 
-                    if( setCameraPosition ){
-                        let cameraPosition;
-
-                        cameraPosition = {
-                                    x: center.x + cameraDist * 0.0,
-                                    y: center.y + cameraDist * 1.2,
-                                    z: center.z - cameraDist * 0.8
-                                };
-
-                        this.camera.position.set(
-                            cameraPosition.x,
-                            cameraPosition.y,
-                            cameraPosition.z
-                        );
-
-                        this.camera.lookAt(center);
-                    }
+                    this.camera.position.set(
+                        center.x + cameraDist * 0.0,
+                        center.y + cameraDist * 0.9,
+                        center.z + cameraDist * 1.1
+                    );
+                    this.camera.near = Math.max(cameraDist / 100, 0.01);
+                    this.camera.far = cameraDist * 100;
+                    this.camera.updateProjectionMatrix();
+                    this.camera.lookAt(center);
 
                     // 회전 중심 업데이트
                     this.goalTarget.copy(center);
                     this.controls.target.copy(center);
+                    this.controls.minDistance = cameraDist * 0.2;
+                    this.controls.maxDistance = cameraDist * 8;
                     this.controls.update();
 
                     console.log(`[URDF] ✅ ${this.viewLabel} 자동 피팅 완료: 거리`, cameraDist.toFixed(4));

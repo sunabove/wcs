@@ -11,7 +11,7 @@ class URDFViewer {
         this.robotModel = null;
         this.goalTarget = new THREE.Vector3(0, 0, 0);
         this.targetMarker = null;
-        this.urdfPath = containerElement.getAttribute('urdf') || '/wcs/urdf/wheel_3/urdf/wheel.urdf';
+        this.urdfPath = containerElement.getAttribute('urdf') || '/urdf/wheel_3/urdf/wheel.urdf';
         
         this.init();
     }

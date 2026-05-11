@@ -484,13 +484,23 @@
             });
 
             $('#vehicle-turn-left').click(function() {
-                $('#vehicle-image').attr('src', 'img/vehicle_left.gif');
+                $('#vehicle-image').attr('src', 'img/vehicle_left.gif?t=' + Date.now());
                 sendVehicleCommand(3, $(this), '좌회전', '⬅️');
+                
+                // 3초 후 바퀴 이미지로 복원
+                setTimeout(function() {
+                    updateVehicleImage();
+                }, 3000);
             });
 
             $('#vehicle-turn-right').click(function() {
-                $('#vehicle-image').attr('src', 'img/vehicle_right.gif');
+                $('#vehicle-image').attr('src', 'img/vehicle_right.gif?t=' + Date.now());
                 sendVehicleCommand(4, $(this), '우회전', '➡️');
+                
+                // 3초 후 바퀴 이미지로 복원
+                setTimeout(function() {
+                    updateVehicleImage();
+                }, 3000);
             });
 
             $('#vehicle-stop').click(function() {

@@ -144,7 +144,7 @@ class URDFViewer {
                     const cameraDist = maxDim === 0 ? 2 : maxDim * 0.9;
                     
                     // 각 뷰에 따른 다른 초기 카메라 위치 설정
-                    setCameraPosition = false ;
+                    setCameraPosition = true; // 모든 뷰에서 카메라 위치 조정;
 
                     if( setCameraPosition ){
                         let cameraPosition;

@@ -10,7 +10,6 @@ class URDFViewer {
         this.viewIndex = viewIndex;
         this.robotModel = null;
         this.goalTarget = new THREE.Vector3(0, 0, 0);
-        this.targetMarker = null;
         this.urdfPath = containerElement.getAttribute('urdf') || '/urdf/wheel_3/urdf/wheel.urdf';
         this.urdfScale = parseFloat(containerElement.getAttribute('urdf-scale')) || 1;
         this.urdfRotation = (containerElement.getAttribute('urdf-rotation') || (this.urdfPath.includes('/vehicle/') ? '90,0,0' : '0,0,0'))
@@ -97,24 +96,9 @@ class URDFViewer {
                 if (intersects.length > 0) {
                     this.goalTarget.copy(intersects[0].point);
                     console.log(`[URDF] ${this.viewLabel} 목표 지점 설정:`, this.goalTarget);
-                    this.showTargetMarker(intersects[0].point);
                 }
             }
         });
-    }
-
-    showTargetMarker(position) {
-        // 기존 마커 제거
-        if (this.targetMarker) {
-            this.scene.remove(this.targetMarker);
-        }
-
-        // 새 마커 생성
-        const geometry = new THREE.SphereGeometry(0.05, 8, 8);
-        const material = new THREE.MeshBasicMaterial({ color: 0xff0000 });
-        this.targetMarker = new THREE.Mesh(geometry, material);
-        this.targetMarker.position.copy(position);
-        this.scene.add(this.targetMarker);
     }
 
     loadURDF() {

@@ -12,6 +12,7 @@ class URDFViewer {
         this.goalTarget = new THREE.Vector3(0, 0, 0);
         this.targetMarker = null;
         this.urdfPath = containerElement.getAttribute('urdf') || '/urdf/wheel_3/urdf/wheel.urdf';
+        this.urdfScale = parseFloat(containerElement.getAttribute('urdf-scale')) || (this.urdfPath.includes('/vehicle/') ? 1 : 1000);
         
         this.init();
     }
@@ -125,7 +126,7 @@ class URDFViewer {
                 console.log(`[URDF] ✅ ${this.viewLabel} URDF 로드 성공`);
 
                 // 스케일링 (단위 변환)
-                robot.scale.set(1000, 1000, 1000);
+                robot.scale.set(this.urdfScale, this.urdfScale, this.urdfScale);
 
                 this.scene.add(robot);
                 this.robotModel = robot;

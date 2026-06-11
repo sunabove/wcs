@@ -63,7 +63,7 @@ pass # PublishModel
 # -----------------------------
 # API - publish
 # -----------------------------
-@app.post("/mqtt/publish")
+@app.post("/fast/mqtt/publish")
 def publish(data: PublishModel):
     client = mqtt.Client()
     client.connect(MQTT_BROKER, MQTT_PORT, 60)
@@ -77,7 +77,7 @@ pass # publish
 # -----------------------------
 # API - 전체 데이터 조회
 # -----------------------------
-@app.get("/mqtt")
+@app.get("/fast/mqtt")
 def get_all():
     return mqtt_data_store
 pass # get_all
@@ -85,7 +85,7 @@ pass # get_all
 # -----------------------------
 # API - 최신 데이터 조회
 # -----------------------------
-@app.get("/mqtt/{topic:path}")
+@app.get("/fast/mqtt/{topic:path}")
 def get_topic(topic: str):
     if topic in mqtt_data_store:
         return {
@@ -96,7 +96,7 @@ def get_topic(topic: str):
     return { "error": "No data" }
 pass # get_topic
 
-@app.get("/hello")
+@app.get("/fast/hello")
 def hello():
     return "hello world"
-pass # get_all
+pass # hello

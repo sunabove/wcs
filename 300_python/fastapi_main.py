@@ -96,3 +96,7 @@ def get_topic(topic: str):
     return { "error": "No data" }
 pass # get_topic
 
+@app.get("/hello")
+def hello():
+    return "hello world"
+pass # get_all

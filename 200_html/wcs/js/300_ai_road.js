@@ -7,6 +7,7 @@ $(function () {
     const $detectedImageTab = $("#detected-image-tab");
     const $uploadingIndicator = $("#uploading-indicator");
     const $uploadStatusMessage = $("#upload-status-message");
+    const $detectingIndicator = $("#detecting-indicator");
     let uploadedFileName = "";
 
     if ($dropZone.length === 0 || $fileInput.length === 0 || $uploadedImagePreview.length === 0) {
@@ -215,6 +216,8 @@ $(function () {
         }
 
         showUploadStatusMessage("도로 검출 중...", true);
+        $detectedImagePreview.addClass("d-none");
+        $detectingIndicator.removeClass("d-none");
 
         $.ajax({
             url: "/fast/road_detect/" + encodeURIComponent(uploadedFileName),
@@ -230,6 +233,8 @@ $(function () {
         }).fail(function (jqXHR) {
             console.error("Detect road error:", jqXHR.status, jqXHR.responseText);
             showUploadStatusMessage("도로 검출에 실패했습니다.", false);
+        }).always(function () {
+            $detectingIndicator.addClass("d-none");
         });
     });
 });

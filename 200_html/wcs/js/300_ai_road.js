@@ -3,8 +3,11 @@ $(function () {
     const $fileInput = $("#road-image-input");
     const $selectedFileLabel = $("#selected-image-name");
     const $uploadedImagePreview = $("#original-image-preview");
+    const $detectedImagePreview = $("#detected-image-preview");
+    const $detectedImageTab = $("#detected-image-tab");
     const $uploadingIndicator = $("#uploading-indicator");
     const $uploadStatusMessage = $("#upload-status-message");
+    let uploadedFileName = "";
 
     if ($dropZone.length === 0 || $fileInput.length === 0 || $uploadedImagePreview.length === 0) {
         return;
@@ -57,6 +60,7 @@ $(function () {
             }).done(function (result) {
                 console.log(result.filename);
                 if (result && result.filename) {
+                    uploadedFileName = result.filename;
                     const imageUrl = "/fast/image/" + encodeURIComponent(result.filename) + "?t=" + Date.now();
                     $uploadedImagePreview.attr("src", imageUrl).removeClass("d-none");
                 }
@@ -194,5 +198,30 @@ $(function () {
         $fileInput[0].files = files;
         updateSelectedFile(file);
         uploadSelectedImage(file);
+    });
+
+    $detectedImageTab.on("click", function () {
+        if (!uploadedFileName) {
+            showUploadStatusMessage("먼저 이미지를 업로드해 주세요.", false);
+            return;
+        }
+
+        showUploadStatusMessage("도로 검출 중...", true);
+
+        $.ajax({
+            url: "/fast/detect_road/" + encodeURIComponent(uploadedFileName),
+            method: "GET"
+        }).done(function (result) {
+            if (result && result.image_url) {
+                const detectedImageUrl = result.image_url + "?t=" + Date.now();
+                $detectedImagePreview.attr("src", detectedImageUrl).removeClass("d-none");
+                showUploadStatusMessage("검출 이미지가 생성되었습니다.", true);
+            } else {
+                showUploadStatusMessage("검출 결과를 받지 못했습니다.", false);
+            }
+        }).fail(function (jqXHR) {
+            console.error("Detect road error:", jqXHR.status, jqXHR.responseText);
+            showUploadStatusMessage("도로 검출에 실패했습니다.", false);
+        });
     });
 });

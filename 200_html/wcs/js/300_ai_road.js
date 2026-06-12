@@ -38,10 +38,18 @@ $(function () {
             .text(message);
     }
 
+    function resetPreviewImages() {
+        uploadedFileName = "";
+        $uploadedImagePreview.attr("src", "").addClass("d-none");
+        $detectedImagePreview.attr("src", "").addClass("d-none");
+    }
+
     function uploadSelectedImage(file) {
         if (!file) {
             return;
         }
+
+        resetPreviewImages();
 
         prepareUploadFile(file).then(function (uploadFile) {
             const formData = new FormData();

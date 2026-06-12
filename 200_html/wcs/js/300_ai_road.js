@@ -4,6 +4,7 @@ $(function () {
     const $selectedFileLabel = $("#selected-image-name");
     const $uploadedImagePreview = $("#original-image-preview");
     const $uploadingIndicator = $("#uploading-indicator");
+    const $uploadStatusMessage = $("#upload-status-message");
 
     if ($dropZone.length === 0 || $fileInput.length === 0 || $uploadedImagePreview.length === 0) {
         return;
@@ -23,6 +24,17 @@ $(function () {
         $uploadingIndicator.toggleClass("d-none", !isUploading);
     }
 
+    function showUploadStatusMessage(message, isSuccess) {
+        if ($uploadStatusMessage.length === 0) {
+            return;
+        }
+
+        $uploadStatusMessage
+            .removeClass("d-none text-success text-danger")
+            .addClass(isSuccess ? "text-success" : "text-danger")
+            .text(message);
+    }
+
     function uploadSelectedImage(file) {
         if (!file) {
             return;
@@ -32,6 +44,8 @@ $(function () {
             const formData = new FormData();
             formData.append("file", uploadFile, uploadFile.name || file.name);
 
+            showUploadStatusMessage("", true);
+            $uploadStatusMessage.addClass("d-none");
             setUploadingState(true);
 
             $.ajax({
@@ -46,13 +60,16 @@ $(function () {
                     const imageUrl = "/fast/image/" + encodeURIComponent(result.filename) + "?t=" + Date.now();
                     $uploadedImagePreview.attr("src", imageUrl).removeClass("d-none");
                 }
+                showUploadStatusMessage("업로드가 완료되었습니다.", true);
             }).fail(function (jqXHR) {
                 console.error("Image upload error:", jqXHR.status, jqXHR.responseText);
+                showUploadStatusMessage("업로드에 실패했습니다.", false);
             }).always(function () {
                 setUploadingState(false);
             });
         }).catch(function (error) {
             console.error("Image preprocess error:", error);
+            showUploadStatusMessage("업로드 준비 중 오류가 발생했습니다.", false);
             setUploadingState(false);
         });
     }

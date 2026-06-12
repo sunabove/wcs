@@ -12,27 +12,6 @@ async def ai_road_service():
     return "hello ai road"
 pass
 
-@router.post("/upload_image")
-async def image_upload_service(file: UploadFile = File(...)):
-    from upload_image import save_uploaded_image
-
-    return save_uploaded_image(file)
-pass
-
-@router.get("/image")
-async def image_service_query(file_name: str):
-    from send_image import send_image_contents
-
-    return send_image_contents(file_name)
-pass
-
-@router.get("/image/{file_name:path}")
-async def image_service_path(file_name: str):
-    from send_image import send_image_contents
-
-    return send_image_contents(file_name)
-pass
-
 @router.get("/image_test")
 async def image_test():
     base_dir = Path(__file__).resolve().parent
@@ -45,4 +24,26 @@ async def image_test():
         str(image_path),
         media_type="image/jpeg"
     )
-pass 
+pass # image_test
+
+@router.post("/upload_image")
+async def image_upload_service(file: UploadFile = File(...)):
+    from upload_image import save_uploaded_image
+
+    return save_uploaded_image(file)
+pass # image_upload_service
+
+@router.get("/image")
+async def image_service_query(file_name: str):
+    from send_image import send_image_contents
+
+    return send_image_contents(file_name)
+pass # image_service_query
+
+@router.get("/image/{file_name:path}")
+async def image_service_path(file_name: str):
+    from send_image import send_image_contents
+
+    return send_image_contents(file_name)
+pass # image_service_path
+

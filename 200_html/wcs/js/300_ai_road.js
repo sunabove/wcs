@@ -74,6 +74,9 @@ $(function () {
                     $uploadedImagePreview.attr("src", imageUrl).removeClass("d-none");
                 }
                 showUploadStatusMessage("업로드가 완료되었습니다.", true);
+                if ($detectedImageTab.hasClass("active")) {
+                    runDetect();
+                }
             }).fail(function (jqXHR) {
                 console.error("Image upload error:", jqXHR.status, jqXHR.responseText);
                 showUploadStatusMessage("업로드에 실패했습니다.", false);
@@ -209,12 +212,7 @@ $(function () {
         uploadSelectedImage(file);
     });
 
-    $detectedImageTab.on("click", function () {
-        if (!uploadedFileName) {
-            showUploadStatusMessage("먼저 이미지를 업로드해 주세요.", false);
-            return;
-        }
-
+    function runDetect() {
         showUploadStatusMessage("도로 검출 중...", true);
         $detectedImagePreview.addClass("d-none");
         $detectingIndicator.removeClass("d-none");
@@ -236,5 +234,14 @@ $(function () {
         }).always(function () {
             $detectingIndicator.addClass("d-none");
         });
+    }
+
+    $detectedImageTab.on("click", function () {
+        if (!uploadedFileName) {
+            showUploadStatusMessage("먼저 이미지를 업로드해 주세요.", false);
+            return;
+        }
+
+        runDetect();
     });
 });

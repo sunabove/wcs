@@ -71,6 +71,7 @@ class RoadDetector:
                 overlay[binary_mask] = (0, 255, 0)
 
             detected = cv2.addWeighted(overlay, 0.35, detected, 0.65, 0)
+        pass
 
         if result.boxes is not None and result.boxes.xyxy is not None:
             boxes = result.boxes.xyxy.cpu().numpy().astype(int)

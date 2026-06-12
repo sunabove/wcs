@@ -4,8 +4,7 @@ from fastapi.responses import FileResponse
 import json
 import sys
 from pathlib import Path
-from pydantic import BaseModel
-import paho.mqtt.client as mqtt
+from pydantic import BaseModel 
 
 CURRENT_DIR = Path(__file__).resolve().parent
 if str(CURRENT_DIR) not in sys.path:

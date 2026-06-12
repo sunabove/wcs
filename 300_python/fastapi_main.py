@@ -17,7 +17,7 @@ def hello():
     return "hello world"
 pass # hello
 
-from ai_road_detect import router as ai_road_router
+#from ai_road_detect import router as ai_road_router
 
-app.include_router(ai_road_router)
+#app.include_router(ai_road_router)
 

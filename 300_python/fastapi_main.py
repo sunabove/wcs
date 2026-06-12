@@ -123,8 +123,8 @@ def get_image():
 pass
 
 @app.get("/fast/road")
-def road():
-    import road
+def road(url: str):
+    import ai_road_detect as road
     
-    return road.ai_road_service()
+    return road.ai_road_service(url)
 pass # road

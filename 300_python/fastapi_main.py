@@ -1,5 +1,6 @@
 import json
 from fastapi import FastAPI
+from fastapi.responses import FileResponse
 from pydantic import BaseModel
 import paho.mqtt.client as mqtt
 import threading
@@ -100,3 +101,16 @@ pass # get_topic
 def hello():
     return "hello world"
 pass # hello
+
+@app.get("/fast/image")
+async def get_image():
+    return FileResponse(
+        "test/test_image.jpg",
+        media_type="image/jpeg"
+    )
+pass
+
+@app.get("/fast/road")
+def road():
+    return "hello road"
+pass # road

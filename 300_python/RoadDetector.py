@@ -79,7 +79,10 @@ class RoadDetector:
             for (x1, y1, x2, y2), conf in zip(boxes, confs):
                 cv2.rectangle(detected, (x1, y1), (x2, y2), (0, 255, 255), 2)
                 label = f"{conf:.2f}"
-                cv2.putText(detected, label, (x1, max(y1 - 6, 20)), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 255), 2)
+                (tw, th), baseline = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 0.6, 2)
+                ty = max(y1 - 6, th + 4)
+                cv2.rectangle(detected, (x1, ty - th - 4), (x1 + tw + 4, ty + baseline), (0, 255, 255), cv2.FILLED)
+                cv2.putText(detected, label, (x1 + 2, ty - 2), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 0), 2)
             pass
         pass
 

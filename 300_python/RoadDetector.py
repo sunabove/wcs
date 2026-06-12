@@ -46,7 +46,7 @@ class RoadDetector:
         return overlay
     pass # detect_lane_overlay
 
-    def detect_road_image(self, file_name: str) -> dict:
+    def road_detect_service(self, file_name: str) -> dict:
         input_path = resolve_upload_image_path(file_name)
         if not input_path.exists() or not input_path.is_file():
             raise HTTPException(status_code=404, detail="Input file not found")
@@ -58,17 +58,18 @@ class RoadDetector:
         if suffix not in self.image_ext:
             raise HTTPException(status_code=400, detail="Only still-image files are supported")
 
-        image = cv2.imread(str(input_path))
-        if image is None:
+        input_image = cv2.imread(str(input_path))
+        if input_image is None:
             raise HTTPException(status_code=400, detail="Failed to read image file")
 
-        detected = self.detect_lane_overlay(image)
-        if not cv2.imwrite(str(output_path), detected):
+        detected_image = self.detect_lane_overlay(input_image)
+        
+        if not cv2.imwrite(str(output_path), detected_image):
             raise HTTPException(status_code=500, detail="Failed to write output image")
 
         return {
             "image_url": f"/fast/image/{output_path.name}"
         }
-    pass # detect_road_image
+    pass # road_detect_service
 
 pass # RoadDetector

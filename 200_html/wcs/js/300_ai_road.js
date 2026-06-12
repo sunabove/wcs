@@ -217,7 +217,7 @@ $(function () {
         showUploadStatusMessage("도로 검출 중...", true);
 
         $.ajax({
-            url: "/fast/detect_road/" + encodeURIComponent(uploadedFileName),
+            url: "/fast/road_detect/" + encodeURIComponent(uploadedFileName),
             method: "GET"
         }).done(function (result) {
             if (result && result.image_url) {

@@ -116,7 +116,7 @@ class RoadDetector:
             x1, y1_box = 10, 10
             x2, y2_box = 10 + header_w + 12, 10 + box_h
             overlay = detected.copy()
-            cv2.rectangle(overlay, (x1, y1_box), (x2, y2_box), (0, 0, 0), cv2.FILLED)
+            cv2.rectangle(overlay, (x1, y1_box), (x2, y2_box), (255, 0, 0), cv2.FILLED)
             cv2.addWeighted(overlay, 0.5, detected, 0.5, 0, detected)
             
             y1 = 10 + h1 + 2

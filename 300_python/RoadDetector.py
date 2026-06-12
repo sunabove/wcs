@@ -54,7 +54,8 @@ class RoadDetector:
         pass
     
         try:
-            result = RoadDetector._road_area_model.predict(source=frame, verbose=False)[0]
+            verbose = True
+            result = RoadDetector._road_area_model.predict(source=frame, verbose=verbose)[0]
         except Exception as ex:
             raise HTTPException(status_code=500, detail=f"YOLO inference failed: {ex}")
 

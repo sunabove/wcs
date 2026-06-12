@@ -3,6 +3,7 @@ $(function () {
     const $fileInput = $("#road-image-input");
     const $selectedFileLabel = $("#selected-image-name");
     const $uploadedImagePreview = $("#original-image-preview");
+    const $uploadingIndicator = $("#uploading-indicator");
 
     if ($dropZone.length === 0 || $fileInput.length === 0 || $uploadedImagePreview.length === 0) {
         return;
@@ -14,6 +15,14 @@ $(function () {
         }
     }
 
+    function setUploadingState(isUploading) {
+        if ($uploadingIndicator.length === 0) {
+            return;
+        }
+
+        $uploadingIndicator.toggleClass("d-none", !isUploading);
+    }
+
     function uploadSelectedImage(file) {
         if (!file) {
             return;
@@ -22,6 +31,8 @@ $(function () {
         prepareUploadFile(file).then(function (uploadFile) {
             const formData = new FormData();
             formData.append("file", uploadFile, uploadFile.name || file.name);
+
+            setUploadingState(true);
 
             $.ajax({
                 url: "/fast/upload_image",
@@ -37,9 +48,12 @@ $(function () {
                 }
             }).fail(function (jqXHR) {
                 console.error("Image upload error:", jqXHR.status, jqXHR.responseText);
+            }).always(function () {
+                setUploadingState(false);
             });
         }).catch(function (error) {
             console.error("Image preprocess error:", error);
+            setUploadingState(false);
         });
     }
 

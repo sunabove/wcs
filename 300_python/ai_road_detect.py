@@ -5,7 +5,7 @@ from fastapi.responses import FileResponse
 from pathlib import Path
 
 
-router = APIRouter(  prefix="/wcs" )
+router = APIRouter( prefix="/fast" )
 
 @router.get("/road")
 def ai_road_service(url: str):

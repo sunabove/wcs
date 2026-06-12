@@ -13,6 +13,8 @@ def save_uploaded_image(file: UploadFile) -> dict:
     UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
     suffix = Path(file.filename).suffix if file.filename else ""
+    suffix = suffix.lower() if suffix else ".png"
+    
     file_index = time.time_ns()
     saved_path = UPLOAD_DIR / f"{file_index}{suffix}"
 

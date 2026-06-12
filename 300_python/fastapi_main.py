@@ -119,6 +119,7 @@ pass
 
 @app.get("/fast/road")
 def road():
-    import road
-    return road.ai_road_service()
+    from road import ai_road_service
+    
+    return ai_road_service()
 pass # road

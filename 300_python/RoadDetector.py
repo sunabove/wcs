@@ -16,7 +16,7 @@ class RoadDetector:
         self.image_ext = {".jpg", ".jpeg", ".png", ".bmp", ".webp"} 
     pass # __init__
 
-    def road_detect_service(self, file_name: str, conf: float = 0.25) -> dict:
+    def road_detect_service(self, file_name: str, conf: float = 0.25, detect_type: str = "road") -> dict:
         input_path = resolve_upload_image_path(file_name)
         if not input_path.exists() or not input_path.is_file():
             raise HTTPException(status_code=404, detail="Input file not found")
@@ -32,7 +32,7 @@ class RoadDetector:
         if input_image is None:
             raise HTTPException(status_code=400, detail="Failed to read image file")
 
-        detected_image = self.detect_road(input_image, conf)
+        detected_image = self.detect_road(input_image, conf, detect_type)
         
         if not cv2.imwrite(str(output_path), detected_image):
             raise HTTPException(status_code=500, detail="Failed to write output image")
@@ -42,7 +42,7 @@ class RoadDetector:
         }
     pass # road_detect_service
 
-    def detect_road(self, frame, conf: float = 0.25):
+    def detect_road(self, frame, conf: float = 0.25, detect_type: str = "road"):
         
         if RoadDetector._road_area_model is None:
             if not RoadDetector._road_area_model_path.exists():
@@ -61,6 +61,9 @@ class RoadDetector:
         detected = frame.copy()
 
         if result.masks is not None and result.masks.data is not None:
+            # YOLOv11m 모델은 masks와 boxes가 동시에 존재할 수 있음. 
+            # 둘 다 존재하는 경우, 마스크는 영역을 강조하고 박스는 신뢰도와 함께 위치를 표시하는 용도로 활용.
+            
             masks = result.masks.data.cpu().numpy()
             height, width = detected.shape[:2]
 
@@ -74,19 +77,28 @@ class RoadDetector:
         pass
 
         if result.boxes is not None and result.boxes.xyxy is not None:
+            # YOLOv11m 모델은 masks와 boxes가 동시에 존재할 수 있음. 
+            # 둘 다 존재하는 경우, 마스크는 영역을 강조하고 박스는 신뢰도와 함께 위치를 표시하는 용도로 활용.
+            # 박스 좌표와 신뢰도 추출
             boxes = result.boxes.xyxy.cpu().numpy().astype(int) 
             confs = result.boxes.conf.cpu().numpy()
             
-            for (x1, y1, x2, y2), conf in zip(boxes, confs):
+            for (x1, y1, x2, y2), box_conf in zip(boxes, confs):
                 cv2.rectangle(detected, (x1, y1), (x2, y2), (0, 255, 255), 2)
                 
-                label = f"{conf:.2f}"
+                label = f"{box_conf:.2f}"
                 (tw, th), baseline = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 0.6, 2)
                 ty = max(y1 - 6, th + 4)
                 cv2.rectangle(detected, (x1, ty - th - 4), (x1 + tw + 4, ty + baseline), (0, 255, 255), cv2.FILLED)
                 cv2.putText(detected, label, (x1 + 2, ty - 2), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 0), 2)
             pass
         pass
+
+        # 헤더 텍스트 추가, 검출 타입과 신뢰도 표시
+        header_text = f"type: {detect_type}  conf: {conf * 100:.0f}%"
+        (htw, hth), hbase = cv2.getTextSize(header_text, cv2.FONT_HERSHEY_SIMPLEX, 0.8, 2)
+        cv2.rectangle(detected, (10, 10), (10 + htw + 12, 10 + hth + hbase + 10), (0, 0, 0), cv2.FILLED)
+        cv2.putText(detected, header_text, (16, 10 + hth + 2), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255, 255, 255), 2)
 
         return detected
     pass # detect_road

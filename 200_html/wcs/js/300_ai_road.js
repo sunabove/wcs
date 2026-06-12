@@ -55,6 +55,11 @@ $(function () {
         return clampedPercent / 100;
     }
 
+    function getSelectedDetectType() {
+        const selected = $("input[name='detect-type']:checked").val();
+        return selected || "road";
+    }
+
     function uploadSelectedImage(file) {
         if (!file) {
             return;
@@ -224,13 +229,14 @@ $(function () {
 
     function runDetect() {
         const confidence = getDetectConfidenceValue();
+        const detectType = getSelectedDetectType();
         showUploadStatusMessage("도로 검출 중...", true);
         $detectedImagePreview.addClass("d-none");
         $detectingIndicator.removeClass("d-none");
 
         $.ajax({
             url: "/fast/road_detect/" + encodeURIComponent(uploadedFileName),
-            data: { conf: confidence },
+            data: { conf: confidence, detect_type: detectType },
             method: "GET"
         }).done(function (result) {
             if (result && result.image_url) {

@@ -60,11 +60,15 @@ class RoadDetector:
 
         detected = frame.copy()
 
+        detected_count = 0
+        mask_count = 0
+
         if result.masks is not None and result.masks.data is not None:
             # YOLOv11m 모델은 masks와 boxes가 동시에 존재할 수 있음. 
             # 둘 다 존재하는 경우, 마스크는 영역을 강조하고 박스는 신뢰도와 함께 위치를 표시하는 용도로 활용.
             
             masks = result.masks.data.cpu().numpy()
+            mask_count = len(masks)
             height, width = detected.shape[:2]
 
             overlay = detected.copy()
@@ -82,6 +86,7 @@ class RoadDetector:
             # 박스 좌표와 신뢰도 추출
             boxes = result.boxes.xyxy.cpu().numpy().astype(int) 
             confs = result.boxes.conf.cpu().numpy()
+            detected_count = len(boxes)
             
             for (x1, y1, x2, y2), box_conf in zip(boxes, confs):
                 cv2.rectangle(detected, (x1, y1), (x2, y2), (0, 255, 255), 2)
@@ -94,11 +99,23 @@ class RoadDetector:
             pass
         pass
 
-        # 헤더 텍스트 추가, 검출 타입과 신뢰도 표시
+        if detected_count == 0:
+            detected_count = mask_count
+
+        # 헤더 텍스트 추가: 1줄은 타입/신뢰도, 2줄은 검출 도로 개수
         header_text = f"type: {detect_type}  conf: {conf * 100:.0f}%"
-        (htw, hth), hbase = cv2.getTextSize(header_text, cv2.FONT_HERSHEY_SIMPLEX, 0.8, 2)
-        cv2.rectangle(detected, (10, 10), (10 + htw + 12, 10 + hth + hbase + 10), (0, 0, 0), cv2.FILLED)
-        cv2.putText(detected, header_text, (16, 10 + hth + 2), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255, 255, 255), 2)
+        count_text = f"roads: {detected_count}"
+        (w1, h1), b1 = cv2.getTextSize(header_text, cv2.FONT_HERSHEY_SIMPLEX, 0.8, 2)
+        (w2, h2), b2 = cv2.getTextSize(count_text, cv2.FONT_HERSHEY_SIMPLEX, 0.8, 2)
+        header_w = max(w1, w2)
+        line_gap = 8
+        box_h = h1 + b1 + line_gap + h2 + b2 + 12
+
+        cv2.rectangle(detected, (10, 10), (10 + header_w + 12, 10 + box_h), (0, 0, 0), cv2.FILLED)
+        y1 = 10 + h1 + 2
+        y2 = y1 + line_gap + h2
+        cv2.putText(detected, header_text, (16, y1), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255, 255, 255), 2)
+        cv2.putText(detected, count_text, (16, y2), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255, 255, 255), 2)
 
         return detected
     pass # detect_road

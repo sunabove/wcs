@@ -102,20 +102,28 @@ class RoadDetector:
         if detected_count == 0:
             detected_count = mask_count
 
-        # 헤더 텍스트 추가: 1줄은 타입/신뢰도, 2줄은 검출 도로 개수
-        header_text = f"type: {detect_type}  conf: {conf * 100:.0f}%"
-        count_text = f"roads: {detected_count}"
-        (w1, h1), b1 = cv2.getTextSize(header_text, cv2.FONT_HERSHEY_SIMPLEX, 0.8, 2)
-        (w2, h2), b2 = cv2.getTextSize(count_text, cv2.FONT_HERSHEY_SIMPLEX, 0.8, 2)
-        header_w = max(w1, w2)
-        line_gap = 8
-        box_h = h1 + b1 + line_gap + h2 + b2 + 12
+        if True :
+            # 헤더 텍스트 추가: 1줄은 타입/신뢰도, 2줄은 검출 도로 개수
+            header_text = f"type: {detect_type}  conf: {conf * 100:.0f}%"
+            count_text = f"roads: {detected_count}"
+            (w1, h1), b1 = cv2.getTextSize(header_text, cv2.FONT_HERSHEY_SIMPLEX, 0.8, 2)
+            (w2, h2), b2 = cv2.getTextSize(count_text, cv2.FONT_HERSHEY_SIMPLEX, 0.8, 2)
+            header_w = max(w1, w2)
+            line_gap = 8
+            box_h = h1 + b1 + line_gap + h2 + b2 + 12
 
-        cv2.rectangle(detected, (10, 10), (10 + header_w + 12, 10 + box_h), (0, 0, 0), cv2.FILLED)
-        y1 = 10 + h1 + 2
-        y2 = y1 + line_gap + h2
-        cv2.putText(detected, header_text, (16, y1), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255, 255, 255), 2)
-        cv2.putText(detected, count_text, (16, y2), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255, 255, 255), 2)
+            # Draw a 50% alpha header background using overlay blending.
+            x1, y1_box = 10, 10
+            x2, y2_box = 10 + header_w + 12, 10 + box_h
+            overlay = detected.copy()
+            cv2.rectangle(overlay, (x1, y1_box), (x2, y2_box), (0, 0, 0), cv2.FILLED)
+            cv2.addWeighted(overlay, 0.5, detected, 0.5, 0, detected)
+            
+            y1 = 10 + h1 + 2
+            y2 = y1 + line_gap + h2
+            cv2.putText(detected, header_text, (16, y1), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255, 255, 255), 2)
+            cv2.putText(detected, count_text, (16, y2), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255, 255, 255), 2)
+        pass
 
         return detected
     pass # detect_road

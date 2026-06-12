@@ -50,9 +50,10 @@ pass # image_service_path
 
 @router.get("/detect_road/{file_name:path}")
 async def detect_road(file_name: str):
-    from detect_road import detect_road_image
+    from RoadDetector import RoadDetector 
 
-    return detect_road_image(file_name)
+    detector = RoadDetector()
     
+    return detector.detect_road_image(file_name)
 pass # detect_road
 

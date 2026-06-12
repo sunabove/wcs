@@ -124,16 +124,18 @@
 
                                 <div class="d-flex align-items-center gap-2 ms-2 text-nowrap">
                                     <label class="form-label mb-0" for="detect-confidence"> - 검출 신뢰도</label>
-                                    <input
-                                        class="form-control form-control-sm"
-                                        id="detect-confidence"
-                                        type="number"
-                                        min="0.05"
-                                        max="0.95"
-                                        step="0.05"
-                                        value="0.50"
-                                        style="width: 110px;"
-                                    >
+                                    <div class="input-group input-group-sm" style="width: 130px;">
+                                        <input
+                                            class="form-control text-end"
+                                            id="detect-confidence"
+                                            type="number"
+                                            min="5"
+                                            max="95"
+                                            step="5"
+                                            value="50"
+                                        >
+                                        <span class="input-group-text">%</span>
+                                    </div>
                                 </div>
                             </div>
                         </form>

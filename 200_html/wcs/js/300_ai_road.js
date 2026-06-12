@@ -49,9 +49,10 @@ $(function () {
     function getDetectConfidenceValue() {
         const parsed = parseFloat($detectConfidenceSpinner.val());
         if (Number.isNaN(parsed)) {
-            return 0.25;
+            return 0.5;
         }
-        return Math.min(0.95, Math.max(0.05, parsed));
+        const clampedPercent = Math.min(95, Math.max(5, parsed));
+        return clampedPercent / 100;
     }
 
     function uploadSelectedImage(file) {

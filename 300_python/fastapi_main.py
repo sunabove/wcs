@@ -119,7 +119,29 @@ pass
 
 @app.get("/fast/road")
 def road():
-    from road import ai_road_service
-    
-    return ai_road_service()
+    try:
+        from road import ai_road_service
+    except Exception:
+        import importlib.util
+
+        road_file = Path(__file__).resolve().parent / "road.py"
+        if not road_file.exists():
+            raise HTTPException(status_code=404, detail="road.py not found")
+
+        spec = importlib.util.spec_from_file_location("road_local", road_file)
+        if spec is None or spec.loader is None:
+            raise HTTPException(status_code=500, detail="Cannot load road service module")
+
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        ai_road_service = getattr(module, "ai_road_service", None)
+        if not callable(ai_road_service):
+            raise HTTPException(status_code=500, detail="ai_road_service not defined")
+
+    try:
+        return ai_road_service()
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"road service runtime error: {exc}")
 pass # road

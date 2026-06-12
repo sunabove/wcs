@@ -7,7 +7,7 @@ from pathlib import Path
 
 router = APIRouter(  prefix="/wcs" )
 
-@router.get("/ai_road")
+@router.get("/road")
 def ai_road_service(url: str):
     return {
         "message": "hello ai road",

@@ -10,11 +10,8 @@ import uuid
 router = APIRouter( prefix="/fast" )
 
 @router.get("/road")
-def ai_road_service(url: str):
-    return {
-        "message": "hello ai road",
-        "url": url
-    }
+def ai_road_service():
+    return  "hello ai road" 
 pass
 
 @router.post("/upload_image")

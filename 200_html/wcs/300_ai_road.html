@@ -143,7 +143,7 @@
                                     id="uploaded-image-preview"
                                     src=""
                                     alt="업로드된 이미지"
-                                    class="img-fluid border rounded"
+                                    class="img-fluid border rounded d-none"
                                 >
                             </div>
                         </form>
@@ -163,8 +163,9 @@
             const $dropZone = $("#image-drop-zone");
             const $fileInput = $("#road-image-input");
             const $selectedFileLabel = $("#selected-image-name");
+            const $uploadedImagePreview = $("#uploaded-image-preview");
 
-            if ($dropZone.length === 0 || $fileInput.length === 0 || $selectedFileLabel.length === 0) {
+            if ($dropZone.length === 0 || $fileInput.length === 0 || $selectedFileLabel.length === 0 || $uploadedImagePreview.length === 0) {
                 return;
             }
 
@@ -189,6 +190,10 @@
                         contentType: false
                     }).done(function (result) {
                         console.log(result.filename);
+                        if (result && result.filename) {
+                            const imageUrl = "/fast/image/" + encodeURIComponent(result.filename) + "?t=" + Date.now();
+                            $uploadedImagePreview.attr("src", imageUrl).removeClass("d-none");
+                        }
                     }).fail(function (jqXHR) {
                         console.error("Image upload error:", jqXHR.status, jqXHR.responseText);
                     });

@@ -1,3 +1,8 @@
 fastapi
 uvicorn
 paho-mqtt
+python-multipart
+torch
+torchvision
+opencv-python
+ultralytics

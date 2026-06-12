@@ -136,6 +136,16 @@
                                 <div class="small text-muted mt-1">또는 클릭하여 파일 선택</div>
                             </div>
                             <div id="selected-image-name" class="small text-muted mt-2">선택된 파일 없음</div>
+
+                            <div class="mt-3">
+                                <div class="small text-muted mb-2">업로드 이미지</div>
+                                <img
+                                    id="uploaded-image-preview"
+                                    src=""
+                                    alt="업로드된 이미지"
+                                    class="img-fluid border rounded"
+                                >
+                            </div>
                         </form>
                     </div>
                 </div>
@@ -149,58 +159,79 @@
     </footer>
 
     <script>
-        document.addEventListener("DOMContentLoaded", function () {
-            const dropZone = document.getElementById("image-drop-zone");
-            const fileInput = document.getElementById("road-image-input");
-            const selectedFileLabel = document.getElementById("selected-image-name");
+        $(function () {
+            const $dropZone = $("#image-drop-zone");
+            const $fileInput = $("#road-image-input");
+            const $selectedFileLabel = $("#selected-image-name");
 
-            if (!dropZone || !fileInput || !selectedFileLabel) {
+            if ($dropZone.length === 0 || $fileInput.length === 0 || $selectedFileLabel.length === 0) {
                 return;
             }
 
             function updateSelectedFile(file) {
-                selectedFileLabel.textContent = file ? "선택 파일: " + file.name : "선택된 파일 없음";
+                $selectedFileLabel.text(file ? "선택 파일: " + file.name : "선택된 파일 없음");
             }
 
-            dropZone.addEventListener("click", function () {
-                fileInput.click();
+            function uploadSelectedImage(file) {
+                if (!file) {
+                    return;
+                }
+
+                const formData = new FormData();
+                formData.append("file", file);
+
+                $.ajax({
+                    url: "/fast/upload_image",
+                    method: "POST",
+                    data: formData,
+                    processData: false,
+                    contentType: false
+                }).done(function (result) {
+                    console.log(result.filename);
+                }).fail(function (jqXHR) {
+                    console.error("Image upload error:", jqXHR.status, jqXHR.responseText);
+                });
+            }
+
+            $dropZone.on("click", function () {
+                $fileInput.trigger("click");
             });
 
-            fileInput.addEventListener("change", function () {
-                const file = fileInput.files && fileInput.files[0] ? fileInput.files[0] : null;
+            $fileInput.on("change", function () {
+                const files = this.files;
+                const file = files && files[0] ? files[0] : null;
                 updateSelectedFile(file);
+                uploadSelectedImage(file);
             });
 
-            ["dragenter", "dragover"].forEach(function (eventName) {
-                dropZone.addEventListener(eventName, function (event) {
-                    event.preventDefault();
-                    event.stopPropagation();
-                    dropZone.classList.add("drag-over");
-                });
+            $dropZone.on("dragenter dragover", function (event) {
+                event.preventDefault();
+                event.stopPropagation();
+                $dropZone.addClass("drag-over");
             });
 
-            ["dragleave", "drop"].forEach(function (eventName) {
-                dropZone.addEventListener(eventName, function (event) {
-                    event.preventDefault();
-                    event.stopPropagation();
-                    dropZone.classList.remove("drag-over");
-                });
+            $dropZone.on("dragleave drop", function (event) {
+                event.preventDefault();
+                event.stopPropagation();
+                $dropZone.removeClass("drag-over");
             });
 
-            dropZone.addEventListener("drop", function (event) {
-                const files = event.dataTransfer ? event.dataTransfer.files : null;
+            $dropZone.on("drop", function (event) {
+                const originalEvent = event.originalEvent;
+                const files = originalEvent && originalEvent.dataTransfer ? originalEvent.dataTransfer.files : null;
                 if (!files || files.length === 0) {
                     return;
                 }
 
                 const file = files[0];
                 if (!file.type.startsWith("image/")) {
-                    selectedFileLabel.textContent = "이미지 파일만 업로드할 수 있습니다.";
+                    $selectedFileLabel.text("이미지 파일만 업로드할 수 있습니다.");
                     return;
                 }
 
-                fileInput.files = files;
+                $fileInput[0].files = files;
                 updateSelectedFile(file);
+                uploadSelectedImage(file);
             });
         });
     </script>

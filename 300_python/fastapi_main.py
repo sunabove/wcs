@@ -1,5 +1,6 @@
 import json
-from fastapi import FastAPI
+from pathlib import Path
+from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 import paho.mqtt.client as mqtt
@@ -104,8 +105,14 @@ pass # hello
 
 @app.get("/fast/image")
 def get_image():
+    base_dir = Path(__file__).resolve().parent
+    image_path = base_dir / "test/test_image.jpg"
+
+    if not image_path.exists():
+        raise HTTPException(status_code=404, detail="Image not found")
+
     return FileResponse(
-        "test/test_image.jpg",
+        str(image_path),
         media_type="image/jpeg"
     )
 pass

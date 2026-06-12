@@ -2,7 +2,7 @@ from fastapi import HTTPException, UploadFile
 
 from pathlib import Path
 import shutil
-import uuid
+import time
 
 from config import * 
 
@@ -13,8 +13,14 @@ def save_uploaded_image(file: UploadFile) -> dict:
     UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
     suffix = Path(file.filename).suffix if file.filename else ""
-    saved_filename = f"{uuid.uuid4().hex}{suffix}"
-    saved_path = UPLOAD_DIR / saved_filename
+    file_index = time.time_ns()
+    saved_path = UPLOAD_DIR / f"{file_index}{suffix}"
+
+    while saved_path.exists():
+        file_index += 1
+        saved_path = UPLOAD_DIR / f"{file_index}{suffix}"
+
+    saved_filename = saved_path.name
 
     with saved_path.open("wb") as buffer:
         shutil.copyfileobj(file.file, buffer)

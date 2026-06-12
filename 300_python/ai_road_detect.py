@@ -3,29 +3,30 @@ from fastapi import HTTPException, UploadFile, File
 from fastapi.responses import FileResponse
 
 from pathlib import Path
-import shutil
-import uuid
 
 
 router = APIRouter( prefix="/fast" )
+BASE_DIR = Path(__file__).resolve().parent
+UPLOAD_DIR = BASE_DIR / "upload"
 
 @router.get("/road")
-def ai_road_service():
-    return  "hello ai road" 
+async def ai_road_service():
+    return "hello ai road"
 pass
 
 @router.post("/upload_image")
 def image_upload_service(file: UploadFile = File(...)):
+    import shutil
+    import uuid
+
     if not file.content_type or not file.content_type.startswith("image/"):
         raise HTTPException(status_code=400, detail="Only image files are allowed")
 
-    base_dir = Path(__file__).resolve().parent
-    upload_dir = base_dir / "upload"
-    upload_dir.mkdir(parents=True, exist_ok=True)
+    UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
     suffix = Path(file.filename).suffix if file.filename else ""
     saved_filename = f"{uuid.uuid4().hex}{suffix}"
-    saved_path = upload_dir / saved_filename
+    saved_path = UPLOAD_DIR / saved_filename
 
     with saved_path.open("wb") as buffer:
         shutil.copyfileobj(file.file, buffer)
@@ -41,8 +42,7 @@ def image_service(file_name: str):
     if safe_name != file_name:
         raise HTTPException(status_code=400, detail="Invalid file_name")
 
-    base_dir = Path(__file__).resolve().parent
-    image_path = base_dir / "upload" / safe_name
+    image_path = UPLOAD_DIR / safe_name
 
     if not image_path.exists() or not image_path.is_file():
         raise HTTPException(status_code=404, detail="Image not found")

@@ -54,8 +54,7 @@ class RoadDetector:
         pass
     
         try:
-            verbose = True
-            result = RoadDetector._road_area_model.predict(source=frame, verbose=verbose)[0]
+            result = RoadDetector._road_area_model.predict(source=frame, verbose=False)[0]
         except Exception as ex:
             raise HTTPException(status_code=500, detail=f"YOLO inference failed: {ex}")
 
@@ -75,8 +74,13 @@ class RoadDetector:
 
         if result.boxes is not None and result.boxes.xyxy is not None:
             boxes = result.boxes.xyxy.cpu().numpy().astype(int)
-            for x1, y1, x2, y2 in boxes:
+            confs = result.boxes.conf.cpu().numpy()
+            for (x1, y1, x2, y2), conf in zip(boxes, confs):
                 cv2.rectangle(detected, (x1, y1), (x2, y2), (0, 255, 255), 2)
+                label = f"{conf:.2f}"
+                cv2.putText(detected, label, (x1, y1 - 6), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 255), 2)
+            pass
+        pass
 
         return detected
     pass # detect_road

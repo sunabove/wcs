@@ -50,7 +50,7 @@ def detect_road_image(file_name: str) -> dict:
 
     stem = input_path.stem
     suffix = input_path.suffix.lower()
-    output_path = input_path.with_name(f"{stem}_road{suffix}")
+    output_path = input_path.with_name(f"{stem}_detected{suffix}")
 
     image_ext = {".jpg", ".jpeg", ".png", ".bmp", ".webp"}
     if suffix not in image_ext:

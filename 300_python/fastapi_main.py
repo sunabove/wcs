@@ -1,10 +1,15 @@
 import json
+import sys
 from pathlib import Path
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 import paho.mqtt.client as mqtt
 import threading
+
+CURRENT_DIR = Path(__file__).resolve().parent
+if str(CURRENT_DIR) not in sys.path:
+    sys.path.insert(0, str(CURRENT_DIR))
 
 app = FastAPI()
 
@@ -119,29 +124,7 @@ pass
 
 @app.get("/fast/road")
 def road():
-    try:
-        from road import ai_road_service
-    except Exception:
-        import importlib.util
-
-        road_file = Path(__file__).resolve().parent / "road.py"
-        if not road_file.exists():
-            raise HTTPException(status_code=404, detail="road.py not found")
-
-        spec = importlib.util.spec_from_file_location("road_local", road_file)
-        if spec is None or spec.loader is None:
-            raise HTTPException(status_code=500, detail="Cannot load road service module")
-
-        module = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(module)
-        ai_road_service = getattr(module, "ai_road_service", None)
-        if not callable(ai_road_service):
-            raise HTTPException(status_code=500, detail="ai_road_service not defined")
-
-    try:
-        return ai_road_service()
-    except HTTPException:
-        raise
-    except Exception as exc:
-        raise HTTPException(status_code=500, detail=f"road service runtime error: {exc}")
+    import road
+    
+    return road.ai_road_service()
 pass # road

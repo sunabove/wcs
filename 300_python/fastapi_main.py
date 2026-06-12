@@ -103,7 +103,7 @@ def hello():
 pass # hello
 
 @app.get("/fast/image")
-async def get_image():
+def get_image():
     return FileResponse(
         "test/test_image.jpg",
         media_type="image/jpeg"

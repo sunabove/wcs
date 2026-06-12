@@ -12,6 +12,13 @@ class RoadDetector:
     _road_area_model = None
     _road_area_model_path = Path(__file__).resolve().parent / "ai/road/model/01_yolo11m-road-sg.pt"
     
+    _model_paths = {
+        "road": Path(__file__).resolve().parent / "ai/road/model/01_yolo11m-road-sg.pt",
+        "road_type": Path(__file__).resolve().parent / "ai/road/model/02_yolo11m-road-type-sg.pt",
+        "pothole": Path(__file__).resolve().parent / "ai/road/model/03_yolo11m-pothole-sg.pt",
+    }
+    _models = {}
+    
     def __init__(self):
         self.image_ext = {".jpg", ".jpeg", ".png", ".bmp", ".webp"} 
     pass # __init__
@@ -44,17 +51,20 @@ class RoadDetector:
 
     def detect_road(self, frame, conf: float = 0.25, detect_type: str = "road"):
         
-        if RoadDetector._road_area_model is None:
-            if not RoadDetector._road_area_model_path.exists():
+        detect_key = detect_type if detect_type in RoadDetector._model_paths else "road"
+
+        if detect_key not in RoadDetector._models:
+            model_path = RoadDetector._model_paths[detect_key]
+            if not model_path.exists():
                 raise HTTPException(
                     status_code=500,
-                    detail=f"Model file not found: {RoadDetector._road_area_model_path}"
+                    detail=f"Model file not found: {model_path}"
                 )
-            RoadDetector._road_area_model = YOLO(str(RoadDetector._road_area_model_path))
+            RoadDetector._models[detect_key] = YOLO(str(model_path))
         pass
     
         try:
-            result = RoadDetector._road_area_model.predict(source=frame, conf=conf, verbose=False)[0]
+            result = RoadDetector._models[detect_key].predict(source=frame, conf=conf, verbose=False)[0]
         except Exception as ex:
             raise HTTPException(status_code=500, detail=f"YOLO inference failed: {ex}")
 
@@ -86,12 +96,17 @@ class RoadDetector:
             # 박스 좌표와 신뢰도 추출
             boxes = result.boxes.xyxy.cpu().numpy().astype(int) 
             confs = result.boxes.conf.cpu().numpy()
+            cls_ids = result.boxes.cls.cpu().numpy().astype(int) if result.boxes.cls is not None else None
+            names = result.names if isinstance(result.names, dict) else {}
             detected_count = len(boxes)
             
-            for (x1, y1, x2, y2), box_conf in zip(boxes, confs):
+            for idx, ((x1, y1, x2, y2), box_conf) in enumerate(zip(boxes, confs)):
                 cv2.rectangle(detected, (x1, y1), (x2, y2), (0, 255, 255), 2)
-                
-                label = f"{box_conf:.2f}"
+
+                cls_name = ""
+                if cls_ids is not None and idx < len(cls_ids):
+                    cls_name = str(names.get(int(cls_ids[idx]), int(cls_ids[idx])))
+                label = f"{cls_name} {box_conf:.2f}".strip()
                 (tw, th), baseline = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 0.6, 2)
                 ty = max(y1 - 6, th + 4)
                 cv2.rectangle(detected, (x1, ty - th - 4), (x1 + tw + 4, ty + baseline), (0, 255, 255), cv2.FILLED)
@@ -104,7 +119,7 @@ class RoadDetector:
 
         if True :
             # 헤더 텍스트 추가: 1줄은 타입/신뢰도, 2줄은 검출 도로 개수
-            header_text = f"type: {detect_type}  conf: {conf * 100:.0f}%"
+            header_text = f"type: {detect_key}  conf: {conf * 100:.0f}%"
             count_text = f"roads: {detected_count}"
             (w1, h1), b1 = cv2.getTextSize(header_text, cv2.FONT_HERSHEY_SIMPLEX, 0.8, 2)
             (w2, h2), b2 = cv2.getTextSize(count_text, cv2.FONT_HERSHEY_SIMPLEX, 0.8, 2)

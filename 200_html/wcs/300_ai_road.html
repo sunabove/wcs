@@ -41,6 +41,23 @@
         }
     </script>
 
+    <style>
+        .image-drop-zone {
+            border: 2px dashed #adb5bd;
+            border-radius: 0.5rem;
+            padding: 1.25rem;
+            text-align: center;
+            background-color: #f8f9fa;
+            cursor: pointer;
+            transition: border-color 0.2s ease, background-color 0.2s ease;
+        }
+
+        .image-drop-zone.drag-over {
+            border-color: #0d6efd;
+            background-color: #eaf3ff;
+        }
+    </style>
+
     <script src="./js/010_wcs_common.js" defer></script>
 </head>
 
@@ -80,12 +97,47 @@
         <div class="card">
             
             <div class="card-header text-center">
-                <h4 class="mb-0"> title </h4>
+                <h4 class="mb-0"> Road Detection </h4>
             </div>
 
             <div class="card-body p-2">
-
-                <div class="row">
+                <div class="row align-items-center g-2 mb-2">
+                    <div class="col-2 text-center">
+                        <span class="mb-0 fw-semibold text-nowrap">검출 종류</span>
+                    </div>
+                    <div class="col-10">
+                        <form id="detection-type-form" class="border rounded p-3">
+                            <div class="d-flex flex-nowrap gap-4 overflow-auto pe-1">
+                                <div class="form-check mb-0 text-nowrap">
+                                    <input class="form-check-input" type="checkbox" value="road" id="detect-road" checked>
+                                    <label class="form-check-label" for="detect-road">도로</label>
+                                </div>
+                                <div class="form-check mb-0 text-nowrap">
+                                    <input class="form-check-input" type="checkbox" value="road_type" id="detect-road-type">
+                                    <label class="form-check-label" for="detect-road-type">도로 타입</label>
+                                </div>
+                                <div class="form-check mb-0 text-nowrap">
+                                    <input class="form-check-input" type="checkbox" value="pothole" id="detect-pothole">
+                                    <label class="form-check-label" for="detect-pothole">포트홀</label>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+                <div class="row align-items-center g-2">
+                    <div class="col-2 text-center">
+                        <span class="mb-0 fw-semibold text-nowrap"> 이미지 </span>
+                    </div>
+                    <div class="col">
+                        <form id="image-upload-form" class="border rounded p-3">
+                            <input class="d-none" type="file" id="road-image-input" accept="image/*">
+                            <div id="image-drop-zone" class="image-drop-zone">
+                                <div class="fw-semibold">이미지를 드래그해서 놓으세요</div>
+                                <div class="small text-muted mt-1">또는 클릭하여 파일 선택</div>
+                            </div>
+                            <div id="selected-image-name" class="small text-muted mt-2">선택된 파일 없음</div>
+                        </form>
+                    </div>
                 </div>
             </div>
         </div>
@@ -95,6 +147,63 @@
     <footer class="text-center py-4">
         <p class="mb-0">&copy; 2024 Wheel Control System. All rights reserved.</p>
     </footer>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            const dropZone = document.getElementById("image-drop-zone");
+            const fileInput = document.getElementById("road-image-input");
+            const selectedFileLabel = document.getElementById("selected-image-name");
+
+            if (!dropZone || !fileInput || !selectedFileLabel) {
+                return;
+            }
+
+            function updateSelectedFile(file) {
+                selectedFileLabel.textContent = file ? "선택 파일: " + file.name : "선택된 파일 없음";
+            }
+
+            dropZone.addEventListener("click", function () {
+                fileInput.click();
+            });
+
+            fileInput.addEventListener("change", function () {
+                const file = fileInput.files && fileInput.files[0] ? fileInput.files[0] : null;
+                updateSelectedFile(file);
+            });
+
+            ["dragenter", "dragover"].forEach(function (eventName) {
+                dropZone.addEventListener(eventName, function (event) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    dropZone.classList.add("drag-over");
+                });
+            });
+
+            ["dragleave", "drop"].forEach(function (eventName) {
+                dropZone.addEventListener(eventName, function (event) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    dropZone.classList.remove("drag-over");
+                });
+            });
+
+            dropZone.addEventListener("drop", function (event) {
+                const files = event.dataTransfer ? event.dataTransfer.files : null;
+                if (!files || files.length === 0) {
+                    return;
+                }
+
+                const file = files[0];
+                if (!file.type.startsWith("image/")) {
+                    selectedFileLabel.textContent = "이미지 파일만 업로드할 수 있습니다.";
+                    return;
+                }
+
+                fileInput.files = files;
+                updateSelectedFile(file);
+            });
+        });
+    </script>
 
 </body>
 

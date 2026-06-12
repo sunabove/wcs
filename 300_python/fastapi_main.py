@@ -1,8 +1,9 @@
+from fastapi import FastAPI, HTTPException
+from fastapi.responses import FileResponse
+
 import json
 import sys
 from pathlib import Path
-from fastapi import FastAPI, HTTPException
-from fastapi.responses import FileResponse
 from pydantic import BaseModel
 import paho.mqtt.client as mqtt
 import threading
@@ -108,23 +109,6 @@ def hello():
     return "hello world"
 pass # hello
 
-@app.get("/fast/image")
-def get_image():
-    base_dir = Path(__file__).resolve().parent
-    image_path = base_dir / "test/test_image.jpg"
+from ai_road_detect import router as ai_road_router
+app.include_router(ai_road_router)
 
-    if not image_path.exists():
-        raise HTTPException(status_code=404, detail="Image not found")
-
-    return FileResponse(
-        str(image_path),
-        media_type="image/jpeg"
-    )
-pass
-
-@app.get("/fast/road")
-def road(url: str):
-    import ai_road_detect as road
-    
-    return road.ai_road_service(url)
-pass # road

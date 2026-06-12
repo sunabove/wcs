@@ -4,12 +4,14 @@ $(function () {
     const $selectedFileLabel = $("#selected-image-name");
     const $uploadedImagePreview = $("#uploaded-image-preview");
 
-    if ($dropZone.length === 0 || $fileInput.length === 0 || $selectedFileLabel.length === 0 || $uploadedImagePreview.length === 0) {
+    if ($dropZone.length === 0 || $fileInput.length === 0 || $uploadedImagePreview.length === 0) {
         return;
     }
 
     function updateSelectedFile(file) {
-        $selectedFileLabel.text(file ? "선택 파일: " + file.name : "선택된 파일 없음");
+        if ($selectedFileLabel.length > 0) {
+            $selectedFileLabel.text(file ? "선택 파일: " + file.name : "선택된 파일 없음");
+        }
     }
 
     function uploadSelectedImage(file) {
@@ -152,7 +154,9 @@ $(function () {
 
         const file = files[0];
         if (!file.type.startsWith("image/")) {
-            $selectedFileLabel.text("이미지 파일만 업로드할 수 있습니다.");
+            if ($selectedFileLabel.length > 0) {
+                $selectedFileLabel.text("이미지 파일만 업로드할 수 있습니다.");
+            }
             return;
         }
 

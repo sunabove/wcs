@@ -15,7 +15,7 @@ async def ai_road_service():
 pass
 
 @router.post("/upload_image")
-def image_upload_service(file: UploadFile = File(...)):
+async def image_upload_service(file: UploadFile = File(...)):
     import shutil
     import uuid
 
@@ -37,7 +37,7 @@ def image_upload_service(file: UploadFile = File(...)):
 pass
 
 @router.get("/image")
-def image_service(file_name: str):
+async def image_service(file_name: str):
     safe_name = Path(file_name).name
     if safe_name != file_name:
         raise HTTPException(status_code=400, detail="Invalid file_name")
@@ -64,7 +64,7 @@ def image_service(file_name: str):
 pass
 
 @router.get("/image_test")
-def image_test():
+async def image_test():
     base_dir = Path(__file__).resolve().parent
     image_path = base_dir / "test/test_image.jpg"
 

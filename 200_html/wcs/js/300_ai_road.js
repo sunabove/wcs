@@ -2,7 +2,7 @@ $(function () {
     const $dropZone = $("#image-drop-zone");
     const $fileInput = $("#road-image-input");
     const $selectedFileLabel = $("#selected-image-name");
-    const $uploadedImagePreview = $("#uploaded-image-preview");
+    const $uploadedImagePreview = $("#original-image-preview");
 
     if ($dropZone.length === 0 || $fileInput.length === 0 || $uploadedImagePreview.length === 0) {
         return;

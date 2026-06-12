@@ -1,4 +1,4 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Query
 from fastapi import HTTPException, UploadFile, File
 from fastapi.responses import FileResponse
 
@@ -49,11 +49,11 @@ pass # image_service_path
 
 
 @router.get("/road_detect/{file_name:path}")
-async def road_detect_service(file_name: str):
+async def road_detect_service(file_name: str, conf: float = Query(0.25, ge=0.05, le=0.95)):
     from RoadDetector import RoadDetector 
 
     detector = RoadDetector()
     
-    return detector.road_detect_service(file_name)
+    return detector.road_detect_service(file_name, conf)
 pass # road_detect_service
 

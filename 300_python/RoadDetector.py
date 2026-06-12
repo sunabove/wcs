@@ -16,7 +16,7 @@ class RoadDetector:
         self.image_ext = {".jpg", ".jpeg", ".png", ".bmp", ".webp"} 
     pass # __init__
 
-    def road_detect_service(self, file_name: str) -> dict:
+    def road_detect_service(self, file_name: str, conf: float = 0.25) -> dict:
         input_path = resolve_upload_image_path(file_name)
         if not input_path.exists() or not input_path.is_file():
             raise HTTPException(status_code=404, detail="Input file not found")
@@ -32,7 +32,7 @@ class RoadDetector:
         if input_image is None:
             raise HTTPException(status_code=400, detail="Failed to read image file")
 
-        detected_image = self.detect_road(input_image)
+        detected_image = self.detect_road(input_image, conf)
         
         if not cv2.imwrite(str(output_path), detected_image):
             raise HTTPException(status_code=500, detail="Failed to write output image")
@@ -42,7 +42,7 @@ class RoadDetector:
         }
     pass # road_detect_service
 
-    def detect_road(self, frame):
+    def detect_road(self, frame, conf: float = 0.25):
         
         if RoadDetector._road_area_model is None:
             if not RoadDetector._road_area_model_path.exists():
@@ -54,7 +54,7 @@ class RoadDetector:
         pass
     
         try:
-            result = RoadDetector._road_area_model.predict(source=frame, verbose=False)[0]
+            result = RoadDetector._road_area_model.predict(source=frame, conf=conf, verbose=False)[0]
         except Exception as ex:
             raise HTTPException(status_code=500, detail=f"YOLO inference failed: {ex}")
 
@@ -76,8 +76,10 @@ class RoadDetector:
         if result.boxes is not None and result.boxes.xyxy is not None:
             boxes = result.boxes.xyxy.cpu().numpy().astype(int) 
             confs = result.boxes.conf.cpu().numpy()
+            
             for (x1, y1, x2, y2), conf in zip(boxes, confs):
                 cv2.rectangle(detected, (x1, y1), (x2, y2), (0, 255, 255), 2)
+                
                 label = f"{conf:.2f}"
                 (tw, th), baseline = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 0.6, 2)
                 ty = max(y1 - 6, th + 4)

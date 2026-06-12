@@ -8,6 +8,7 @@ $(function () {
     const $uploadingIndicator = $("#uploading-indicator");
     const $uploadStatusMessage = $("#upload-status-message");
     const $detectingIndicator = $("#detecting-indicator");
+    const $detectConfidenceSpinner = $("#detect-confidence");
     let uploadedFileName = "";
 
     if ($dropZone.length === 0 || $fileInput.length === 0 || $uploadedImagePreview.length === 0) {
@@ -43,6 +44,14 @@ $(function () {
         uploadedFileName = "";
         $uploadedImagePreview.attr("src", "").addClass("d-none");
         $detectedImagePreview.attr("src", "").addClass("d-none");
+    }
+
+    function getDetectConfidenceValue() {
+        const parsed = parseFloat($detectConfidenceSpinner.val());
+        if (Number.isNaN(parsed)) {
+            return 0.25;
+        }
+        return Math.min(0.95, Math.max(0.05, parsed));
     }
 
     function uploadSelectedImage(file) {
@@ -213,12 +222,14 @@ $(function () {
     });
 
     function runDetect() {
+        const confidence = getDetectConfidenceValue();
         showUploadStatusMessage("도로 검출 중...", true);
         $detectedImagePreview.addClass("d-none");
         $detectingIndicator.removeClass("d-none");
 
         $.ajax({
             url: "/fast/road_detect/" + encodeURIComponent(uploadedFileName),
+            data: { conf: confidence },
             method: "GET"
         }).done(function (result) {
             if (result && result.image_url) {

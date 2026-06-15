@@ -131,10 +131,13 @@ class RoadDetector:
             # 헤더 텍스트 추가: 1줄은 타입/신뢰도, 2줄은 검출 도로 개수
             elapsed_ms = (time.perf_counter() - started_at) * 1000.0
             header_text = f"type: {detect_key}({detected_count}), conf: {conf * 100:.0f}%, time: {elapsed_ms:.0f}ms"
-            count_text = f""
-            if class_counts:
+            if detected_count == 0:
+                count_text = "not detected"
+            elif class_counts:
                 class_count_text = ", ".join([f"{key}({value})" for key, value in sorted(class_counts.items())])
                 count_text = f"{class_count_text}"
+            else:
+                count_text = ""
                 
             (w1, h1), b1 = cv2.getTextSize(header_text, cv2.FONT_HERSHEY_SIMPLEX, 0.8, 2)
             (w2, h2), b2 = cv2.getTextSize(count_text, cv2.FONT_HERSHEY_SIMPLEX, 0.8, 2)

@@ -69,6 +69,8 @@ class RoadDetector:
             raise HTTPException(status_code=500, detail=f"YOLO inference failed: {ex}")
 
         detected = frame.copy()
+        names = result.names if isinstance(result.names, dict) else {}
+        class_counts = {}
 
         detected_count = 0
         mask_count = 0
@@ -97,7 +99,6 @@ class RoadDetector:
             boxes = result.boxes.xyxy.cpu().numpy().astype(int) 
             confs = result.boxes.conf.cpu().numpy()
             cls_ids = result.boxes.cls.cpu().numpy().astype(int) if result.boxes.cls is not None else None
-            names = result.names if isinstance(result.names, dict) else {}
             detected_count = len(boxes)
             
             for idx, ((x1, y1, x2, y2), box_conf) in enumerate(zip(boxes, confs)):
@@ -106,6 +107,7 @@ class RoadDetector:
                 cls_name = ""
                 if cls_ids is not None and idx < len(cls_ids):
                     cls_name = str(names.get(int(cls_ids[idx]), int(cls_ids[idx])))
+                    class_counts[cls_name] = class_counts.get(cls_name, 0) + 1
                 label = f"{cls_name} {box_conf:.2f}".strip()
                 (tw, th), baseline = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 0.6, 2)
                 ty = max(y1 - 6, th + 4)
@@ -114,6 +116,12 @@ class RoadDetector:
             pass
         pass
 
+        if not class_counts and result.masks is not None and getattr(result.masks, "cls", None) is not None:
+            mask_cls_ids = result.masks.cls.cpu().numpy().astype(int)
+            for cls_id in mask_cls_ids:
+                cls_name = str(names.get(int(cls_id), int(cls_id)))
+                class_counts[cls_name] = class_counts.get(cls_name, 0) + 1
+
         if detected_count == 0:
             detected_count = mask_count
 
@@ -121,6 +129,10 @@ class RoadDetector:
             # 헤더 텍스트 추가: 1줄은 타입/신뢰도, 2줄은 검출 도로 개수
             header_text = f"type: {detect_key}  conf: {conf * 100:.0f}%"
             count_text = f"{detect_type}: {detected_count}"
+            if class_counts:
+                class_count_text = ", ".join([f"{key}:{value}" for key, value in sorted(class_counts.items())])
+                count_text = f"{count_text} ({class_count_text})"
+                
             (w1, h1), b1 = cv2.getTextSize(header_text, cv2.FONT_HERSHEY_SIMPLEX, 0.8, 2)
             (w2, h2), b2 = cv2.getTextSize(count_text, cv2.FONT_HERSHEY_SIMPLEX, 0.8, 2)
             header_w = max(w1, w2)

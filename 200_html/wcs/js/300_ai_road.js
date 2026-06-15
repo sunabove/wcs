@@ -5,8 +5,8 @@ $(function () {
     const $uploadedImagePreview = $("#original-image-preview");
     const $detectedImagePreview = $("#detected-image-preview");
     const $detectedImageTab = $("#detected-image-tab");
-    const $uploadingIndicator = $("#uploading-indicator");
-    const $uploadStatusMessage = $("#upload-status-message");
+    const $uploadingIndicator = $("#working-indicator");
+    const $uploadStatusMessage = $("#work-status-message");
     const $detectingIndicator = $("#detecting-indicator");
     const $detectConfidenceSpinner = $("#detect-confidence");
     const $detectTypeInputs = $("input[name='detect-type']");

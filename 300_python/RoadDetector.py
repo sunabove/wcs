@@ -18,37 +18,6 @@ class RoadDetector:
         "pothole": Path(__file__).resolve().parent / "ai/road/model/03_yolo11m-pothole-sg.pt",
     }
     _models = {}
-
-    @classmethod
-    def _get_model(cls, model_key: str):
-        if model_key not in cls._model_paths:
-            raise HTTPException(status_code=500, detail=f"Unknown model key: {model_key}")
-
-        if model_key not in cls._models:
-            model_path = cls._model_paths[model_key]
-            if not model_path.exists():
-                raise HTTPException(
-                    status_code=500,
-                    detail=f"Model file not found: {model_path}"
-                )
-            cls._models[model_key] = YOLO(str(model_path))
-
-        return cls._models[model_key]
-
-    @staticmethod
-    def _build_road_only_frame(frame, road_result):
-        height, width = frame.shape[:2]
-        road_mask = np.zeros((height, width), dtype=bool)
-
-        if road_result.masks is not None and road_result.masks.data is not None:
-            road_masks = road_result.masks.data.cpu().numpy()
-            for mask in road_masks:
-                mask_resized = cv2.resize(mask, (width, height), interpolation=cv2.INTER_NEAREST)
-                road_mask |= (mask_resized > 0.5)
-
-        road_only = np.full_like(frame, 255)
-        road_only[road_mask] = frame[road_mask]
-        return road_only
     
     def __init__(self):
         self.image_ext = {".jpg", ".jpeg", ".png", ".bmp", ".webp"} 
@@ -84,23 +53,22 @@ class RoadDetector:
         
         detect_key = detect_type if detect_type in RoadDetector._model_paths else "road"
 
-        infer_source = frame
-
-        # road_type/pothole 추론은 먼저 road 영역을 구하고, 비도로 영역은 white 처리한 영상에서 수행.
-        if detect_key in ("road_type", "pothole"):
-            try:
-                road_result = RoadDetector._get_model("road").predict(source=frame, conf=conf, verbose=False)[0]
-            except Exception as ex:
-                raise HTTPException(status_code=500, detail=f"YOLO road-area inference failed: {ex}")
-
-            infer_source = RoadDetector._build_road_only_frame(frame, road_result)
+        if detect_key not in RoadDetector._models:
+            model_path = RoadDetector._model_paths[detect_key]
+            if not model_path.exists():
+                raise HTTPException(
+                    status_code=500,
+                    detail=f"Model file not found: {model_path}"
+                )
+            RoadDetector._models[detect_key] = YOLO(str(model_path))
+        pass
     
         try:
-            result = RoadDetector._get_model(detect_key).predict(source=infer_source, conf=conf, verbose=False)[0]
+            result = RoadDetector._models[detect_key].predict(source=frame, conf=conf, verbose=False)[0]
         except Exception as ex:
             raise HTTPException(status_code=500, detail=f"YOLO inference failed: {ex}")
 
-        detected = infer_source.copy()
+        detected = frame.copy()
 
         detected_count = 0
         mask_count = 0
@@ -114,7 +82,6 @@ class RoadDetector:
             height, width = detected.shape[:2]
 
             overlay = detected.copy()
-            
             for mask in masks:
                 mask_resized = cv2.resize(mask, (width, height), interpolation=cv2.INTER_NEAREST)
                 binary_mask = mask_resized > 0.5

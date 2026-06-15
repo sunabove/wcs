@@ -92,6 +92,10 @@ $(function () {
                     uploadedFileName = result.filename;
                     const imageUrl = "/fast/image/" + encodeURIComponent(result.filename) + "?t=" + Date.now();
                     $uploadedImagePreview.attr("src", imageUrl).removeClass("d-none");
+
+                    if ($detectedImageTab.length > 0 && typeof bootstrap !== "undefined" && bootstrap.Tab) {
+                        bootstrap.Tab.getOrCreateInstance($detectedImageTab[0]).show();
+                    }
                 }
                 showUploadStatusMessage("업로드가 완료되었습니다.", true);
                 runDetect();

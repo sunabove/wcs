@@ -52,7 +52,7 @@ class RoadDetector:
 
     def detect_road(self, frame, detect_type: str = "road"):
         detect_key = detect_type if detect_type in RoadDetector._model_paths else "road"
-        conf = 0.20 if detect_key == "pothole" else 0.25
+        conf = 0.20 if detect_key == "pothole" else 0.20
 
         if detect_key not in RoadDetector._models:
             model_path = RoadDetector._model_paths[detect_key]

@@ -14,6 +14,7 @@ $(function () {
     const $defaultConfidenceOthers = $("#default-confidence-others");
     const FALLBACK_POTHOLE_CONFIDENCE_PERCENT = 20;
     const FALLBACK_DEFAULT_CONFIDENCE_PERCENT = 60;
+    const DETECT_AFTER_UPLOAD_DELAY_MS = 800;
     let uploadedFileName = "";
     let detectDebounceTimer = null;
     let isUploading = false;
@@ -139,7 +140,9 @@ $(function () {
                     }
                 }
                 showUploadStatusMessage("업로드가 완료되었습니다.", true);
-                runDetect();
+                setTimeout(function () {
+                    runDetect();
+                }, DETECT_AFTER_UPLOAD_DELAY_MS);
             }).fail(function (jqXHR) {
                 console.error("Image upload error:", jqXHR.status, jqXHR.responseText);
                 showUploadStatusMessage("업로드에 실패했습니다.", false);

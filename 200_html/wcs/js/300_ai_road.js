@@ -16,6 +16,8 @@ $(function () {
     const FALLBACK_DEFAULT_CONFIDENCE_PERCENT = 60;
     let uploadedFileName = "";
     let detectDebounceTimer = null;
+    let isUploading = false;
+    let isDetecting = false;
 
     if ($dropZone.length === 0 || $fileInput.length === 0 || $uploadedImagePreview.length === 0) {
         return;
@@ -27,12 +29,22 @@ $(function () {
         }
     }
 
-    function setUploadingState(isUploading) {
+    function setUploadingState(uploading) {
+        isUploading = Boolean(uploading);
+        updateWorkingIndicatorState();
+    }
+
+    function setDetectingState(detecting) {
+        isDetecting = Boolean(detecting);
+        updateWorkingIndicatorState();
+    }
+
+    function updateWorkingIndicatorState() {
         if ($uploadingIndicator.length === 0) {
             return;
         }
 
-        $uploadingIndicator.toggleClass("d-none", !isUploading);
+        $uploadingIndicator.toggleClass("d-none", !(isUploading || isDetecting));
     }
 
     function showUploadStatusMessage(message, isSuccess) {
@@ -269,6 +281,7 @@ $(function () {
         const detectType = getSelectedDetectType();
         showUploadStatusMessage("도로 검출 중...", true);
         $detectedImagePreview.addClass("d-none");
+        setDetectingState(true);
         $detectingIndicator.removeClass("d-none");
 
         $.ajax({
@@ -287,6 +300,7 @@ $(function () {
             console.error("Detect road error:", jqXHR.status, jqXHR.responseText);
             showUploadStatusMessage("도로 검출에 실패했습니다.", false);
         }).always(function () {
+            setDetectingState(false);
             $detectingIndicator.addClass("d-none");
         });
     }

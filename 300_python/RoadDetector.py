@@ -120,7 +120,7 @@ class RoadDetector:
         if True :
             # 헤더 텍스트 추가: 1줄은 타입/신뢰도, 2줄은 검출 도로 개수
             header_text = f"type: {detect_key}  conf: {conf * 100:.0f}%"
-            count_text = f"roads: {detected_count}"
+            count_text = f"{detect_type}: {detected_count}"
             (w1, h1), b1 = cv2.getTextSize(header_text, cv2.FONT_HERSHEY_SIMPLEX, 0.8, 2)
             (w2, h2), b2 = cv2.getTextSize(count_text, cv2.FONT_HERSHEY_SIMPLEX, 0.8, 2)
             header_w = max(w1, w2)

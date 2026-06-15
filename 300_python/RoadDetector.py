@@ -128,15 +128,16 @@ class RoadDetector:
             box_h = h1 + b1 + line_gap + h2 + b2 + 2
 
             # Draw a 50% alpha header background using overlay blending.
-            x1, y1_box = 10, 10
-            x2, y2_box = 10 + header_w + 12, 10 + box_h
+            y1_box = 10
+            text_right_x = detected.shape[1] - 10
+            x2, y2_box = text_right_x + 6, y1_box + box_h
+            x1 = x2 - (header_w + 12)
             
             overlay = detected.copy()
             cv2.rectangle(overlay, (x1, y1_box), (x2, y2_box), (255, 0, 0), cv2.FILLED)
             cv2.addWeighted(overlay, 0.5, detected, 0.5, 0, detected)
             
-            text_right_x = x2 - 6
-            y1 = 10 + h1 + 2
+            y1 = y1_box + h1 + 2
             y2 = y1 + line_gap + h2 + 2
             cv2.putText(detected, header_text, (text_right_x - w1, y1), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255, 255, 255), 2)
             cv2.putText(detected, count_text, (text_right_x - w2, y2), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255, 255, 255), 2)

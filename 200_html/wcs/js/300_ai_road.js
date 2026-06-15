@@ -31,6 +31,9 @@ $(function () {
 
     function setUploadingState(uploading) {
         isUploading = Boolean(uploading);
+        if (isUploading) {
+            showUploadStatusMessage("업로드 중...", true);
+        }
         updateWorkingIndicatorState();
     }
 

@@ -134,7 +134,7 @@ class RoadDetector:
             count_text = f""
             if class_counts:
                 class_count_text = ", ".join([f"{key}({value})" for key, value in sorted(class_counts.items())])
-                count_text = f"{count_text}, {class_count_text}"
+                count_text = f"{class_count_text}"
                 
             (w1, h1), b1 = cv2.getTextSize(header_text, cv2.FONT_HERSHEY_SIMPLEX, 0.8, 2)
             (w2, h2), b2 = cv2.getTextSize(count_text, cv2.FONT_HERSHEY_SIMPLEX, 0.8, 2)

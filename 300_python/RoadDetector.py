@@ -99,6 +99,11 @@ class RoadDetector:
         class_colors = RoadDetector._load_class_colors()
         names = result.names if isinstance(result.names, dict) else {}
         cls_ids = result.boxes.cls.cpu().numpy().astype(int) if (result.boxes is not None and result.boxes.cls is not None) else None
+        mask_cls_ids = None
+        if result.masks is not None and getattr(result.masks, "cls", None) is not None:
+            mask_cls_ids = result.masks.cls.cpu().numpy().astype(int)
+        elif cls_ids is not None:
+            mask_cls_ids = cls_ids
 
         detected_count = 0
         mask_count = 0
@@ -117,13 +122,21 @@ class RoadDetector:
                 binary_mask = mask_resized > 0.5
 
                 mask_color = (0, 255, 0)
-                if cls_ids is not None and idx < len(cls_ids):
-                    cls_name = str(names.get(int(cls_ids[idx]), int(cls_ids[idx])))
+                if mask_cls_ids is not None and idx < len(mask_cls_ids):
+                    cls_name = str(names.get(int(mask_cls_ids[idx]), int(mask_cls_ids[idx]))).lower()
                     mask_color = class_colors.get(cls_name, mask_color)
 
-                overlay[binary_mask] = mask_color
+                # Apply stronger per-mask blending so dark colormap colors remain visible.
+                src_pixels = detected[binary_mask].astype(np.float32)
+                color_vec = np.array(mask_color, dtype=np.float32)
+                overlay[binary_mask] = (src_pixels * 0.35 + color_vec * 0.65).astype(np.uint8)
 
-            detected = cv2.addWeighted(overlay, 0.35, detected, 0.65, 0)
+                # Draw mask contour for clear boundary visibility.
+                mask_u8 = (binary_mask.astype(np.uint8) * 255)
+                contours, _ = cv2.findContours(mask_u8, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+                cv2.drawContours(overlay, contours, -1, mask_color, 2)
+
+            detected = overlay
         pass
 
         if result.boxes is not None and result.boxes.xyxy is not None:

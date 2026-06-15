@@ -10,6 +10,10 @@ $(function () {
     const $detectingIndicator = $("#detecting-indicator");
     const $detectConfidenceSpinner = $("#detect-confidence");
     const $detectTypeInputs = $("input[name='detect-type']");
+    const $defaultConfidencePothole = $("#default-confidence-pothole");
+    const $defaultConfidenceOthers = $("#default-confidence-others");
+    const FALLBACK_POTHOLE_CONFIDENCE_PERCENT = 20;
+    const FALLBACK_DEFAULT_CONFIDENCE_PERCENT = 60;
     let uploadedFileName = "";
     let detectDebounceTimer = null;
 
@@ -63,6 +67,28 @@ $(function () {
     function getSelectedDetectType() {
         const selected = $("input[name='detect-type']:checked").val();
         return selected || "road";
+    }
+
+    function getValidPercent($input, fallbackValue) {
+        if (!$input || $input.length === 0) {
+            return fallbackValue;
+        }
+
+        const parsed = parseFloat($input.val());
+        const normalized = Number.isNaN(parsed) ? fallbackValue : parsed;
+        const clamped = Math.min(95, Math.max(5, normalized));
+        if (String(clamped) !== String($input.val())) {
+            $input.val(clamped);
+        }
+        return clamped;
+    }
+
+    function applyDefaultConfidenceByType() {
+        const detectType = getSelectedDetectType();
+        const confidencePercent = detectType === "pothole"
+            ? getValidPercent($defaultConfidencePothole, FALLBACK_POTHOLE_CONFIDENCE_PERCENT)
+            : getValidPercent($defaultConfidenceOthers, FALLBACK_DEFAULT_CONFIDENCE_PERCENT);
+        $detectConfidenceSpinner.val(confidencePercent);
     }
 
     function uploadSelectedImage(file) {
@@ -287,10 +313,27 @@ $(function () {
     });
 
     $detectTypeInputs.on("change", function () {
+        applyDefaultConfidenceByType();
         scheduleDetectUpdate();
     });
 
     $detectConfidenceSpinner.on("input change", function () {
         scheduleDetectUpdate();
     });
+
+    $defaultConfidencePothole.on("input change", function () {
+        if (getSelectedDetectType() === "pothole") {
+            applyDefaultConfidenceByType();
+            scheduleDetectUpdate();
+        }
+    });
+
+    $defaultConfidenceOthers.on("input change", function () {
+        if (getSelectedDetectType() !== "pothole") {
+            applyDefaultConfidenceByType();
+            scheduleDetectUpdate();
+        }
+    });
+
+    applyDefaultConfidenceByType();
 });

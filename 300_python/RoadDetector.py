@@ -135,10 +135,11 @@ class RoadDetector:
             cv2.rectangle(overlay, (x1, y1_box), (x2, y2_box), (255, 0, 0), cv2.FILLED)
             cv2.addWeighted(overlay, 0.5, detected, 0.5, 0, detected)
             
+            text_right_x = x2 - 6
             y1 = 10 + h1 + 2
-            y2 = y1 + line_gap + h2
-            cv2.putText(detected, header_text, (16, y1), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255, 255, 255), 2)
-            cv2.putText(detected, count_text, (16, y2), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255, 255, 255), 2)
+            y2 = y1 + line_gap + h2 + 2
+            cv2.putText(detected, header_text, (text_right_x - w1, y1), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255, 255, 255), 2)
+            cv2.putText(detected, count_text, (text_right_x - w2, y2), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255, 255, 255), 2)
         pass
 
         return detected

@@ -171,7 +171,14 @@
                                     <button class="nav-link" id="detected-image-tab" data-bs-toggle="tab" data-bs-target="#detected-image-pane" type="button" role="tab" aria-controls="detected-image-pane" aria-selected="false">검출 영상</button>
                                 </li>
                                 <li class="nav-item" role="presentation">
-                                    <button class="nav-link" id="work-status-tab" data-bs-toggle="tab" data-bs-target="#work-status-pane" type="button" role="tab" aria-controls="work-status-pane" aria-selected="false">작업 상태</button>
+                                    <button class="nav-link d-flex align-items-center gap-2" id="work-status-tab" data-bs-toggle="tab" data-bs-target="#work-status-pane" type="button" role="tab" aria-controls="work-status-pane" aria-selected="false">
+                                        <span>작업 상태</span>
+                                        <span id="working-indicator" class="d-none text-primary small d-flex align-items-center gap-1">
+                                            <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                                            <span>업로드 중...</span>
+                                        </span>
+                                        <span id="work-status-message" class="d-none small"></span>
+                                    </button>
                                 </li>
                             </ul>
 
@@ -196,13 +203,7 @@
                                         class="img-fluid border rounded d-none"
                                     >
                                 </div>
-                                <div class="tab-pane fade" id="work-status-pane" role="tabpanel" aria-labelledby="work-status-tab" tabindex="0">
-                                    <div id="working-indicator" class="d-none mt-2 text-primary small d-flex align-items-center gap-2">
-                                        <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
-                                        <span>업로드 중...</span>
-                                    </div>
-                                    <div id="work-status-message" class="small mt-2 d-none"></div>
-                                </div>
+                                <div class="tab-pane fade" id="work-status-pane" role="tabpanel" aria-labelledby="work-status-tab" tabindex="0"></div>
                             </div>
                         </div>
                     </div>

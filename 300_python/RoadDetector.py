@@ -18,33 +18,6 @@ class RoadDetector:
         "pothole": Path(__file__).resolve().parent / "ai/road/model/03_yolo11m-pothole-sg.pt",
     }
     _models = {}
-    _colormap_path = Path(__file__).resolve().parent / "colormap_road.txt"
-    _class_colors = None
-
-    @classmethod
-    def _load_class_colors(cls):
-        if cls._class_colors is not None:
-            return cls._class_colors
-
-        colors = {}
-        if cls._colormap_path.exists():
-            for raw in cls._colormap_path.read_text(encoding="utf-8").splitlines():
-                line = raw.strip()
-                if not line or line.startswith("#"):
-                    continue
-                parts = line.split()
-                if len(parts) != 4:
-                    continue
-                name = parts[0]
-                try:
-                    r, g, b = int(parts[1]), int(parts[2]), int(parts[3])
-                except ValueError:
-                    continue
-                # OpenCV uses BGR channel order.
-                colors[name] = (b, g, r)
-
-        cls._class_colors = colors
-        return cls._class_colors
     
     def __init__(self):
         self.image_ext = {".jpg", ".jpeg", ".png", ".bmp", ".webp"} 
@@ -96,14 +69,6 @@ class RoadDetector:
             raise HTTPException(status_code=500, detail=f"YOLO inference failed: {ex}")
 
         detected = frame.copy()
-        class_colors = RoadDetector._load_class_colors()
-        names = result.names if isinstance(result.names, dict) else {}
-        cls_ids = result.boxes.cls.cpu().numpy().astype(int) if (result.boxes is not None and result.boxes.cls is not None) else None
-        mask_cls_ids = None
-        if result.masks is not None and getattr(result.masks, "cls", None) is not None:
-            mask_cls_ids = result.masks.cls.cpu().numpy().astype(int)
-        elif cls_ids is not None:
-            mask_cls_ids = cls_ids
 
         detected_count = 0
         mask_count = 0
@@ -117,26 +82,13 @@ class RoadDetector:
             height, width = detected.shape[:2]
 
             overlay = detected.copy()
-            for idx, mask in enumerate(masks):
+            
+            for mask in masks:
                 mask_resized = cv2.resize(mask, (width, height), interpolation=cv2.INTER_NEAREST)
                 binary_mask = mask_resized > 0.5
+                overlay[binary_mask] = (0, 255, 0)
 
-                mask_color = (0, 255, 0)
-                if mask_cls_ids is not None and idx < len(mask_cls_ids):
-                    cls_name = str(names.get(int(mask_cls_ids[idx]), int(mask_cls_ids[idx]))).lower()
-                    mask_color = class_colors.get(cls_name, mask_color)
-
-                # Apply stronger per-mask blending so dark colormap colors remain visible.
-                src_pixels = detected[binary_mask].astype(np.float32)
-                color_vec = np.array(mask_color, dtype=np.float32)
-                overlay[binary_mask] = (src_pixels * 0.35 + color_vec * 0.65).astype(np.uint8)
-
-                # Draw mask contour for clear boundary visibility.
-                mask_u8 = (binary_mask.astype(np.uint8) * 255)
-                contours, _ = cv2.findContours(mask_u8, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-                cv2.drawContours(overlay, contours, -1, mask_color, 2)
-
-            detected = overlay
+            detected = cv2.addWeighted(overlay, 0.35, detected, 0.65, 0)
         pass
 
         if result.boxes is not None and result.boxes.xyxy is not None:
@@ -145,6 +97,8 @@ class RoadDetector:
             # 박스 좌표와 신뢰도 추출
             boxes = result.boxes.xyxy.cpu().numpy().astype(int) 
             confs = result.boxes.conf.cpu().numpy()
+            cls_ids = result.boxes.cls.cpu().numpy().astype(int) if result.boxes.cls is not None else None
+            names = result.names if isinstance(result.names, dict) else {}
             detected_count = len(boxes)
             
             for idx, ((x1, y1, x2, y2), box_conf) in enumerate(zip(boxes, confs)):

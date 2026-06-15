@@ -122,7 +122,7 @@ class RoadDetector:
                 binary_mask = mask_resized > 0.5
 
                 mask_color = (0, 255, 0)
-                if mask_cls_ids is not None and idx < len(mask_cls_ids):
+                if False and mask_cls_ids is not None and idx < len(mask_cls_ids):
                     cls_name = str(names.get(int(mask_cls_ids[idx]), int(mask_cls_ids[idx]))).lower()
                     mask_color = class_colors.get(cls_name, mask_color)
 

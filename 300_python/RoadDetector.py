@@ -128,7 +128,7 @@ class RoadDetector:
         if True :
             # 헤더 텍스트 추가: 1줄은 타입/신뢰도, 2줄은 검출 도로 개수
             header_text = f"type: {detect_key}  conf: {conf * 100:.0f}%"
-            count_text = f"detect_type: {detect_type}"
+            count_text = f"detect_type: {detect_type}({detected_count})"
             if class_counts:
                 class_count_text = ", ".join([f"{key}:{value}" for key, value in sorted(class_counts.items())])
                 count_text = f"{count_text}, {class_count_text}"

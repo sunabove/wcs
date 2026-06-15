@@ -9,7 +9,9 @@ $(function () {
     const $uploadStatusMessage = $("#upload-status-message");
     const $detectingIndicator = $("#detecting-indicator");
     const $detectConfidenceSpinner = $("#detect-confidence");
+    const $detectTypeInputs = $("input[name='detect-type']");
     let uploadedFileName = "";
+    let detectDebounceTimer = null;
 
     if ($dropZone.length === 0 || $fileInput.length === 0 || $uploadedImagePreview.length === 0) {
         return;
@@ -52,6 +54,9 @@ $(function () {
             return 0.5;
         }
         const clampedPercent = Math.min(95, Math.max(5, parsed));
+        if (String(clampedPercent) !== String($detectConfidenceSpinner.val())) {
+            $detectConfidenceSpinner.val(clampedPercent);
+        }
         return clampedPercent / 100;
     }
 
@@ -89,9 +94,7 @@ $(function () {
                     $uploadedImagePreview.attr("src", imageUrl).removeClass("d-none");
                 }
                 showUploadStatusMessage("업로드가 완료되었습니다.", true);
-                if ($detectedImageTab.hasClass("active")) {
-                    runDetect();
-                }
+                runDetect();
             }).fail(function (jqXHR) {
                 console.error("Image upload error:", jqXHR.status, jqXHR.responseText);
                 showUploadStatusMessage("업로드에 실패했습니다.", false);
@@ -228,6 +231,10 @@ $(function () {
     });
 
     function runDetect() {
+        if (!uploadedFileName) {
+            return;
+        }
+
         const confidence = getDetectConfidenceValue();
         const detectType = getSelectedDetectType();
         showUploadStatusMessage("도로 검출 중...", true);
@@ -254,6 +261,18 @@ $(function () {
         });
     }
 
+    function scheduleDetectUpdate() {
+        if (!uploadedFileName) {
+            return;
+        }
+        if (detectDebounceTimer) {
+            clearTimeout(detectDebounceTimer);
+        }
+        detectDebounceTimer = setTimeout(function () {
+            runDetect();
+        }, 250);
+    }
+
     $detectedImageTab.on("click", function () {
         if (!uploadedFileName) {
             showUploadStatusMessage("먼저 이미지를 업로드해 주세요.", false);
@@ -261,5 +280,13 @@ $(function () {
         }
 
         runDetect();
+    });
+
+    $detectTypeInputs.on("change", function () {
+        scheduleDetectUpdate();
+    });
+
+    $detectConfidenceSpinner.on("input change", function () {
+        scheduleDetectUpdate();
     });
 });

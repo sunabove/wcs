@@ -8,12 +8,7 @@ $(function () {
     const $uploadingIndicator = $("#working-indicator");
     const $uploadStatusMessage = $("#work-status-message");
     const $detectingIndicator = $("#detecting-indicator");
-    const $detectConfidenceSpinner = $("#detect-confidence");
     const $detectTypeInputs = $("input[name='detect-type']");
-    const $defaultConfidencePothole = $("#default-confidence-pothole");
-    const $defaultConfidenceOthers = $("#default-confidence-others");
-    const FALLBACK_POTHOLE_CONFIDENCE_PERCENT = 20;
-    const FALLBACK_DEFAULT_CONFIDENCE_PERCENT = 60;
     const DETECT_AFTER_UPLOAD_DELAY_MS = 800;
     let uploadedFileName = "";
     let detectDebounceTimer = null;
@@ -68,18 +63,6 @@ $(function () {
         $detectedImagePreview.attr("src", "").addClass("d-none");
     }
 
-    function getDetectConfidenceValue() {
-        const parsed = parseFloat($detectConfidenceSpinner.val());
-        if (Number.isNaN(parsed)) {
-            return 0.5;
-        }
-        const clampedPercent = Math.min(95, Math.max(5, parsed));
-        if (String(clampedPercent) !== String($detectConfidenceSpinner.val())) {
-            $detectConfidenceSpinner.val(clampedPercent);
-        }
-        return clampedPercent / 100;
-    }
-
     function getSelectedDetectType() {
         const selected = $("input[name='detect-type']:checked").val();
         return selected || "road";
@@ -99,12 +82,11 @@ $(function () {
         return clamped;
     }
 
-    function applyDefaultConfidenceByType() {
+    function getConfidenceValue() {
         const detectType = getSelectedDetectType();
-        const confidencePercent = detectType === "pothole"
-            ? getValidPercent($defaultConfidencePothole, FALLBACK_POTHOLE_CONFIDENCE_PERCENT)
-            : getValidPercent($defaultConfidenceOthers, FALLBACK_DEFAULT_CONFIDENCE_PERCENT);
-        $detectConfidenceSpinner.val(confidencePercent);
+        return detectType === "pothole"
+            ? getValidPercent($defaultConfidencePothole, FALLBACK_POTHOLE_CONFIDENCE_PERCENT) / 100
+            : getValidPercent($defaultConfidenceOthers, FALLBACK_DEFAULT_CONFIDENCE_PERCENT) / 100;
     }
 
     function uploadSelectedImage(file) {
@@ -283,7 +265,6 @@ $(function () {
             return;
         }
 
-        const confidence = getDetectConfidenceValue();
         const detectType = getSelectedDetectType();
         showUploadStatusMessage("도로 검출 중...", true);
         $detectedImagePreview.addClass("d-none");
@@ -292,7 +273,7 @@ $(function () {
 
         $.ajax({
             url: "/fast/road_detect/" + encodeURIComponent(uploadedFileName),
-            data: { conf: confidence, detect_type: detectType },
+            data: { detect_type: detectType },
             method: "GET"
         }).done(function (result) {
             if (result && result.image_url) {
@@ -333,27 +314,6 @@ $(function () {
     });
 
     $detectTypeInputs.on("change", function () {
-        applyDefaultConfidenceByType();
         scheduleDetectUpdate();
     });
-
-    $detectConfidenceSpinner.on("input change", function () {
-        scheduleDetectUpdate();
-    });
-
-    $defaultConfidencePothole.on("input change", function () {
-        if (getSelectedDetectType() === "pothole") {
-            applyDefaultConfidenceByType();
-            scheduleDetectUpdate();
-        }
-    });
-
-    $defaultConfidenceOthers.on("input change", function () {
-        if (getSelectedDetectType() !== "pothole") {
-            applyDefaultConfidenceByType();
-            scheduleDetectUpdate();
-        }
-    });
-
-    applyDefaultConfidenceByType();
 });

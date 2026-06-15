@@ -24,7 +24,7 @@ class RoadDetector:
         self.image_ext = {".jpg", ".jpeg", ".png", ".bmp", ".webp"} 
     pass # __init__
 
-    def road_detect_service(self, file_name: str, conf: float = 0.25, detect_type: str = "road") -> dict:
+    def road_detect_service(self, file_name: str, detect_type: str = "road") -> dict:
         input_path = resolve_upload_image_path(file_name)
         if not input_path.exists() or not input_path.is_file():
             raise HTTPException(status_code=404, detail="Input file not found")
@@ -40,7 +40,7 @@ class RoadDetector:
         if input_image is None:
             raise HTTPException(status_code=400, detail="Failed to read image file")
 
-        detected_image = self.detect_road(input_image, conf, detect_type)
+        detected_image = self.detect_road(input_image, detect_type)
         
         if not cv2.imwrite(str(output_path), detected_image):
             raise HTTPException(status_code=500, detail="Failed to write output image")
@@ -50,8 +50,9 @@ class RoadDetector:
         }
     pass # road_detect_service
 
-    def detect_road(self, frame, conf: float = 0.25, detect_type: str = "road"):
+    def detect_road(self, frame, detect_type: str = "road"):
         detect_key = detect_type if detect_type in RoadDetector._model_paths else "road"
+        conf = 0.20 if detect_key == "pothole" else 0.60
 
         if detect_key not in RoadDetector._models:
             model_path = RoadDetector._model_paths[detect_key]

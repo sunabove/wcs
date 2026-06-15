@@ -4,6 +4,7 @@ import cv2
 import numpy as np
 from ultralytics import YOLO
 from pathlib import Path
+import time
 
 from send_image import resolve_upload_image_path
 
@@ -50,7 +51,6 @@ class RoadDetector:
     pass # road_detect_service
 
     def detect_road(self, frame, conf: float = 0.25, detect_type: str = "road"):
-        
         detect_key = detect_type if detect_type in RoadDetector._model_paths else "road"
 
         if detect_key not in RoadDetector._models:
@@ -63,6 +63,8 @@ class RoadDetector:
             RoadDetector._models[detect_key] = YOLO(str(model_path))
         pass
     
+        started_at = time.perf_counter()
+        
         try:
             result = RoadDetector._models[detect_key].predict(source=frame, conf=conf, verbose=False)[0]
         except Exception as ex:
@@ -127,8 +129,9 @@ class RoadDetector:
 
         if True :
             # 헤더 텍스트 추가: 1줄은 타입/신뢰도, 2줄은 검출 도로 개수
-            header_text = f"type: {detect_key}  conf: {conf * 100:.0f}%"
-            count_text = f"detect_type: {detect_type}({detected_count})"
+            elapsed_ms = (time.perf_counter() - started_at) * 1000.0
+            header_text = f"type: {detect_key}  conf: {conf * 100:.0f}%  time: {elapsed_ms:.1f}ms"
+            count_text = f""
             if class_counts:
                 class_count_text = ", ".join([f"{key}({value})" for key, value in sorted(class_counts.items())])
                 count_text = f"{count_text}, {class_count_text}"

@@ -163,14 +163,23 @@
                     </div>
                     <div class="col d-flex align-items-center justify-content-center text-center">
                         <div class="border rounded p-3 w-100 h-100">
-                            <ul class="nav nav-tabs" id="image-preview-tabs" role="tablist">
-                                <li class="nav-item" role="presentation">
-                                    <button class="nav-link active" id="original-image-tab" data-bs-toggle="tab" data-bs-target="#original-image-pane" type="button" role="tab" aria-controls="original-image-pane" aria-selected="true">원본 영상</button>
-                                </li>
-                                <li class="nav-item" role="presentation">
-                                    <button class="nav-link" id="detected-image-tab" data-bs-toggle="tab" data-bs-target="#detected-image-pane" type="button" role="tab" aria-controls="detected-image-pane" aria-selected="false">검출 영상</button>
-                                </li>
-                            </ul>
+                            <div class="d-flex flex-wrap align-items-center justify-content-between gap-2">
+                                <ul class="nav nav-tabs flex-grow-1" id="image-preview-tabs" role="tablist">
+                                    <li class="nav-item" role="presentation">
+                                        <button class="nav-link active" id="original-image-tab" data-bs-toggle="tab" data-bs-target="#original-image-pane" type="button" role="tab" aria-controls="original-image-pane" aria-selected="true">원본 영상</button>
+                                    </li>
+                                    <li class="nav-item" role="presentation">
+                                        <button class="nav-link" id="detected-image-tab" data-bs-toggle="tab" data-bs-target="#detected-image-pane" type="button" role="tab" aria-controls="detected-image-pane" aria-selected="false">검출 영상</button>
+                                    </li>
+                                </ul>
+                                <div class="d-flex align-items-center gap-2 small ms-auto">
+                                    <div id="working-indicator" class="d-none text-primary d-flex align-items-center gap-2">
+                                        <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                                        <span>업로드 중...</span>
+                                    </div>
+                                    <div id="work-status-message" class="d-none"></div>
+                                </div>
+                            </div>
 
                             <div class="tab-content border border-top-0 rounded-bottom p-3">
                                 <div class="tab-pane fade show active" id="original-image-pane" role="tabpanel" aria-labelledby="original-image-tab" tabindex="0">
@@ -193,11 +202,6 @@
                                         class="img-fluid border rounded d-none"
                                     >
                                 </div>
-                                <div id="working-indicator" class="d-none mt-2 text-primary small d-flex align-items-center gap-2">
-                                    <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
-                                    <span>업로드 중...</span>
-                                </div>
-                                <div id="work-status-message" class="small mt-2 d-none"></div>
                             </div>
                         </div>
                     </div>

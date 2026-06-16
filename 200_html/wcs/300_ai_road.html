@@ -131,13 +131,36 @@
                         <span class="mb-0 fw-semibold text-nowrap"> 입력 </span>
                     </div>
                     <div class="col">
-                        <form id="image-upload-form" class="border rounded p-3">
-                            <input class="d-none" type="file" id="road-image-input" accept="image/*">
-                            <div id="image-drop-zone" class="image-drop-zone">
-                                <div class="fw-semibold">영상을 드래그해서 놓으세요</div>
-                                <div class="small text-muted mt-1">또는 클릭하여 파일 선택</div>
+                        <div class="border rounded p-3">
+                            <ul class="nav nav-tabs mb-3" id="input-tabs" role="tablist">
+                                <li class="nav-item" role="presentation">
+                                    <button class="nav-link active" id="input-file-tab" data-bs-toggle="tab" data-bs-target="#input-file-pane" type="button" role="tab">파일</button>
+                                </li>
+                                <li class="nav-item" role="presentation">
+                                    <button class="nav-link" id="input-sample-image-tab" data-bs-toggle="tab" data-bs-target="#input-sample-image-pane" type="button" role="tab">샘플 영상</button>
+                                </li>
+                                <li class="nav-item" role="presentation">
+                                    <button class="nav-link" id="input-sample-video-tab" data-bs-toggle="tab" data-bs-target="#input-sample-video-pane" type="button" role="tab">샘플 동영상</button>
+                                </li>
+                            </ul>
+                            <div class="tab-content">
+                                <div class="tab-pane fade show active" id="input-file-pane" role="tabpanel">
+                                    <form id="image-upload-form">
+                                        <input class="d-none" type="file" id="road-image-input" accept="image/*">
+                                        <div id="image-drop-zone" class="image-drop-zone">
+                                            <div class="fw-semibold">영상을 드래그해서 놓으세요</div>
+                                            <div class="small text-muted mt-1">또는 클릭하여 파일 선택</div>
+                                        </div>
+                                    </form>
+                                </div>
+                                <div class="tab-pane fade" id="input-sample-image-pane" role="tabpanel">
+                                    <div class="text-muted text-center py-3">샘플 영상 목록</div>
+                                </div>
+                                <div class="tab-pane fade" id="input-sample-video-pane" role="tabpanel">
+                                    <div class="text-muted text-center py-3">샘플 동영상 목록</div>
+                                </div>
                             </div>
-                        </form>
+                        </div>
                     </div>
                 </div>
 

@@ -1,8 +1,8 @@
 from fastapi import HTTPException, UploadFile
 
 from pathlib import Path
-import hashlib
 import shutil
+import time
 
 from config import * 
 
@@ -12,32 +12,22 @@ def save_uploaded_image(file: UploadFile) -> dict:
 
     UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
-    file.file.seek(0)
-    hasher = hashlib.sha256()
-    while True:
-        chunk = file.file.read(1024 * 1024)
-        if not chunk:
-            break
-        hasher.update(chunk)
-    file_hash = hasher.hexdigest()
-    file.file.seek(0)
-
     suffix = Path(file.filename).suffix if file.filename else ""
     suffix = suffix.lower() if suffix else ".png"
+    
+    file_index = time.time_ns()
+    saved_path = UPLOAD_DIR / f"{file_index}{suffix}"
 
-    target_path = UPLOAD_DIR / f"{file_hash}{suffix}"
+    while saved_path.exists():
+        file_index += 1
+        saved_path = UPLOAD_DIR / f"{file_index}{suffix}"
 
-    if target_path.exists() and not target_path.is_file():
-        if target_path.is_dir():
-            shutil.rmtree(target_path)
-        else:
-            target_path.unlink()
+    saved_filename = saved_path.name
 
-    if not target_path.is_file():
-        with target_path.open("wb") as buffer:
-            shutil.copyfileobj(file.file, buffer)
+    with saved_path.open("wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
 
     return {
-        "filename": target_path.name
+        "filename": saved_filename
     }
 pass # save_uploaded_image 

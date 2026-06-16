@@ -1,5 +1,5 @@
 fastapi
-uvicorn
+uvicorn==0.30.6
 paho-mqtt
 python-multipart
 torch

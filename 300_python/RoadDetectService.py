@@ -48,6 +48,13 @@ async def image_service_path(file_name: str):
 pass # image_service_path
 
 
+@router.get("/samples/{folder_name:path}")
+async def sample_data_file_name_list_service(folder_name: str):
+    from sample_data_file_name_list import sample_data_file_name_list
+
+    return sample_data_file_name_list(folder_name)
+pass # sample_data_file_name_list_service
+
 @router.get("/road_detect/{file_name:path}")
 async def road_detect_service(
     file_name: str,

@@ -100,8 +100,6 @@ class RoadDetector:
         try:
             skimage_feature = importlib.import_module("skimage.feature")
             local_binary_pattern = skimage_feature.local_binary_pattern
-            graycomatrix = skimage_feature.graycomatrix
-            graycoprops = skimage_feature.graycoprops
         except Exception:
             return "dirt"
 
@@ -115,73 +113,84 @@ class RoadDetector:
                 valid_mask = None
 
         if valid_mask is not None:
+            b_pixels = img_bgr[:, :, 0][valid_mask]
+            g_pixels = img_bgr[:, :, 1][valid_mask]
+            r_pixels = img_bgr[:, :, 2][valid_mask]
             v_pixels = hsv[:, :, 2][valid_mask]
             s_pixels = hsv[:, :, 1][valid_mask]
             gray_for_texture = gray.copy()
             fill_value = int(np.median(gray[valid_mask]))
             gray_for_texture[~valid_mask] = fill_value
         else:
+            b_pixels = img_bgr[:, :, 0].reshape(-1)
+            g_pixels = img_bgr[:, :, 1].reshape(-1)
+            r_pixels = img_bgr[:, :, 2].reshape(-1)
             v_pixels = hsv[:, :, 2].reshape(-1)
             s_pixels = hsv[:, :, 1].reshape(-1)
             gray_for_texture = gray
 
+        b_mean = float(np.mean(b_pixels))
+        g_mean = float(np.mean(g_pixels))
+        r_mean = float(np.mean(r_pixels))
         v_mean = float(np.mean(v_pixels))
         s_mean = float(np.mean(s_pixels))
-        v_std = float(np.std(v_pixels))
+        color_dispersion = float(np.std(v_pixels) + np.std(s_pixels))
+        gray_balance = float(np.std([b_mean, g_mean, r_mean]))
 
         lbp = local_binary_pattern(gray_for_texture, P=8, R=1, method="uniform")
-        _lbp_var = float(np.var(lbp))
+        lbp_bins = np.arange(0, 8 + 3)
+        lbp_hist, _ = np.histogram(lbp.ravel(), bins=lbp_bins, density=True)
+        lbp_hist = lbp_hist.astype(np.float64)
+        lbp_hist = lbp_hist / max(1e-12, float(np.sum(lbp_hist)))
 
-        glcm = graycomatrix(
-            gray_for_texture,
-            distances=[1],
-            angles=[0],
-            levels=256,
-            symmetric=True,
-            normed=True,
-        )
+        lbp_uniform_ratio = float(np.sum(lbp_hist[:-1]))
+        lbp_non_uniform_ratio = float(lbp_hist[-1])
+        lbp_entropy = float(-np.sum(lbp_hist * np.log2(lbp_hist + 1e-12)))
 
-        contrast = float(graycoprops(glcm, "contrast")[0, 0])
-        homogeneity = float(graycoprops(glcm, "homogeneity")[0, 0])
+        # Repetition score for block-like periodic texture.
+        row_profile = np.mean(gray_for_texture.astype(np.float32), axis=1)
+        col_profile = np.mean(gray_for_texture.astype(np.float32), axis=0)
 
-        edges = cv2.Canny(gray_for_texture, 100, 200)
-        if valid_mask is not None:
-            edge_density = float(np.count_nonzero(edges[valid_mask]) / max(1, np.count_nonzero(valid_mask)))
-        else:
-            edge_density = float(np.count_nonzero(edges) / max(1, edges.size))
+        def _periodicity_score(profile):
+            profile = profile - float(np.mean(profile))
+            energy = float(np.dot(profile, profile))
+            if energy < 1e-6:
+                return 0.0
+            ac = np.correlate(profile, profile, mode="full")
+            ac = ac[len(profile) - 1:]
+            lag_min = 2
+            lag_max = max(lag_min + 1, min(len(ac), 60))
+            if lag_max <= lag_min:
+                return 0.0
+            return float(np.max(ac[lag_min:lag_max]) / (ac[0] + 1e-9))
 
-        f = np.fft.fft2(gray_for_texture)
-        fshift = np.fft.fftshift(f)
+        periodicity_score = max(_periodicity_score(row_profile), _periodicity_score(col_profile))
 
-        h, w = gray_for_texture.shape
-        cy, cx = h // 2, w // 2
-        mask = np.ones((h, w), np.uint8)
-        y1 = max(0, cy - 20)
-        y2 = min(h, cy + 20)
-        x1 = max(0, cx - 20)
-        x2 = min(w, cx + 20)
-        mask[y1:y2, x1:x2] = 0
+        is_gray_color = s_mean < 60 and gray_balance < 20
+        is_brown_color = (r_mean > g_mean > b_mean) and (s_mean > 45)
 
-        high_freq_energy = float(np.mean(np.abs(fshift * mask)))
-
-        # Asphalt is usually darker than concrete. Let brightness override modest
-        # texture from lane markings or shadows so dark asphalt is not promoted to concrete.
-        if v_mean < 120 and s_mean < 70 and edge_density < 0.16:
+        # Rule set from color + LBP traits:
+        # - asphalt: dark gray + uniform
+        # - concrete: bright gray + fine pattern
+        # - block: repeated color pattern + periodic
+        # - gravel: high color dispersion + irregular
+        # - dirt: brown + rough
+        if is_gray_color and v_mean < 125 and lbp_uniform_ratio >= 0.83 and lbp_entropy < 1.9:
             return "asphalt"
-        elif v_mean < 145 and v_std < 55 and contrast < 1400 and edge_density < 0.14:
-            return "asphalt"
-        elif contrast < 300 and edge_density < 0.05:
-            return "asphalt"
-        elif v_mean >= 145 and contrast < 1000 and edge_density < 0.10:
+        elif is_gray_color and v_mean >= 125 and lbp_uniform_ratio >= 0.73 and lbp_entropy < 2.35:
             return "concrete"
-        elif contrast < 1000 and edge_density < 0.08:
-            return "concrete"
-        elif homogeneity > 0.35 and edge_density > 0.10:
+        elif periodicity_score > 0.30 and lbp_non_uniform_ratio < 0.28:
             return "block"
-        elif edge_density > 0.20 and high_freq_energy > 500:
+        elif color_dispersion > 70 and lbp_non_uniform_ratio > 0.30 and lbp_entropy > 2.0:
             return "gravel"
+        elif is_brown_color and lbp_non_uniform_ratio > 0.24 and lbp_entropy >= 1.9:
+            return "dirt"
         else:
-            return "dirt" 
+            if v_mean < 120 and is_gray_color:
+                return "asphalt"
+            if v_mean >= 145 and is_gray_color:
+                return "concrete"
+            return "dirt"
         pass
     pass # classify_road_surface
 

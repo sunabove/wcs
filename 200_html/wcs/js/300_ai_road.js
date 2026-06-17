@@ -168,6 +168,12 @@ $(function () {
         return "/fast/road_detect/" + encodePathForRoute(fileName);
     }
 
+    function buildRoadDetectStreamUrl(fileName, detectType) {
+        const base = "/fast/road_detect_stream/" + encodePathForRoute(fileName);
+        const query = $.param({ detect_type: detectType || "road", t: Date.now() });
+        return base + "?" + query;
+    }
+
     function showDetectedTabAndRunDetect(delayMs) {
         if (sampleDetectTimer) {
             clearTimeout(sampleDetectTimer);
@@ -369,6 +375,13 @@ $(function () {
             data: { detect_type: detectType },
             method: "GET"
         }).done(function (result) {
+            if (isVideoPath(uploadedFileName)) {
+                const streamUrl = buildRoadDetectStreamUrl(uploadedFileName, detectType);
+                showMediaPreview(streamUrl, false, $detectedImagePreview, $detectedVideoPreview);
+                showUploadStatusMessage("검출 스트리밍을 시작했습니다.", true);
+                return;
+            }
+
             if (result && result.image_url) {
                 const detectedMediaUrl = result.image_url + "?t=" + Date.now();
                 showMediaPreview(detectedMediaUrl, isVideoPath(result.image_url), $detectedImagePreview, $detectedVideoPreview);

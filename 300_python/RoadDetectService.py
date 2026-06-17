@@ -67,3 +67,15 @@ async def road_detect_service(
     return detector.road_detect_service(file_name, detect_type)
 pass # road_detect_service
 
+@router.get("/road_detect_stream/{file_name:path}")
+async def road_detect_stream_service(
+    file_name: str,
+    detect_type: str = Query("road")
+):
+    from RoadDetector import RoadDetector
+
+    detector = RoadDetector()
+
+    return detector.road_detect_stream(file_name, detect_type)
+pass # road_detect_stream_service
+

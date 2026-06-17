@@ -6,6 +6,7 @@ from ultralytics import YOLO
 from pathlib import Path
 import subprocess
 import time
+from fastapi.responses import StreamingResponse
 
 from send_image import resolve_upload_image_path
 from config import BASE_DIR, VIDEO_EXTENSIONS
@@ -120,6 +121,44 @@ class RoadDetector:
         if not output_path.exists() or output_path.stat().st_size == 0:
             raise HTTPException(status_code=500, detail="Failed to write output video")
     pass # detect_video
+
+    def road_detect_stream(self, file_name: str, detect_type: str = "road") -> StreamingResponse:
+        input_path = resolve_upload_image_path(file_name)
+        if not input_path.exists() or not input_path.is_file():
+            raise HTTPException(status_code=404, detail="Input file not found")
+
+        if input_path.suffix.lower() not in self.video_ext:
+            raise HTTPException(status_code=400, detail="Streaming is supported only for video files")
+
+        capture = cv2.VideoCapture(str(input_path))
+        if not capture.isOpened():
+            raise HTTPException(status_code=400, detail="Failed to read video file")
+
+        def generate():
+            try:
+                while True:
+                    ok, frame = capture.read()
+                    if not ok:
+                        break
+
+                    detected_frame = self.detect_road(frame, detect_type)
+                    encoded_ok, encoded = cv2.imencode(".jpg", detected_frame, [int(cv2.IMWRITE_JPEG_QUALITY), 80])
+                    if not encoded_ok:
+                        continue
+
+                    frame_bytes = encoded.tobytes()
+                    yield (
+                        b"--frame\r\n"
+                        b"Content-Type: image/jpeg\r\n"
+                        + f"Content-Length: {len(frame_bytes)}\r\n\r\n".encode("ascii")
+                        + frame_bytes
+                        + b"\r\n"
+                    )
+            finally:
+                capture.release()
+
+        return StreamingResponse(generate(), media_type="multipart/x-mixed-replace; boundary=frame")
+    pass # road_detect_stream
 
     def transcode_video_to_h264(self, input_path: Path, output_path: Path) -> None:
         command = [

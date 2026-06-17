@@ -332,86 +332,92 @@ $(function () {
         });
     }
 
-    $dropZone.on("click", function (event) {
-        event.preventDefault();
-        event.stopPropagation();
-        // jQuery trigger 대신 직접 click() 사용
-        const inputElement = $fileInput.length > 0 ? $fileInput[0] : document.getElementById("road-image-input");
-        if (inputElement) {
-            inputElement.click();
-        }
-    });
+    // 네이티브 이벤트 핸들러로 드래그 앤 드롭 처리
+    const dropZoneElement = document.getElementById("image-drop-zone");
+    const fileInputElement = document.getElementById("road-image-input");
 
-    // 직접 클릭으로도 작동하도록 추가 (대체 방식)
-    $dropZone.on("touchstart", function () {
-        const inputElement = $fileInput.length > 0 ? $fileInput[0] : document.getElementById("road-image-input");
-        if (inputElement) {
-            inputElement.click();
-        }
-    });
+    if (dropZoneElement && fileInputElement) {
+        // 1. Document 레벨: 브라우저 기본 동작 방지
+        document.addEventListener("dragenter", function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }, false);
 
-    $fileInput.on("change", function () {
-        const files = this.files;
-        const file = files && files[0] ? files[0] : null;
-        updateSelectedFile(file);
-        uploadSelectedImage(file);
-    });
+        document.addEventListener("dragover", function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }, false);
 
-    // Body 레벨에서 브라우저의 기본 드래그 동작 방지
-    $(document.body).on("dragover", function (event) {
-        event.preventDefault();
-        event.stopPropagation();
-    });
+        document.addEventListener("dragleave", function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }, false);
 
-    $(document.body).on("drop", function (event) {
-        event.preventDefault();
-        event.stopPropagation();
-    });
+        document.addEventListener("drop", function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }, false);
 
-    $dropZone.on("dragenter dragover", function (event) {
-        event.preventDefault();
-        event.stopPropagation();
-        $dropZone.addClass("drag-over");
-    });
+        // 2. DropZone: 시각적 효과
+        dropZoneElement.addEventListener("dragenter", function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+            this.classList.add("drag-over");
+        }, false);
 
-    $dropZone.on("dragleave", function (event) {
-        event.preventDefault();
-        event.stopPropagation();
-        // 자식 요소로 이동하는 경우 제외
-        if (event.target === this) {
-            $dropZone.removeClass("drag-over");
-        }
-    });
+        dropZoneElement.addEventListener("dragover", function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+            this.classList.add("drag-over");
+        }, false);
 
-    $dropZone.on("drop", function (event) {
-        event.preventDefault();
-        event.stopPropagation();
-        $dropZone.removeClass("drag-over");
+        dropZoneElement.addEventListener("dragleave", function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+            this.classList.remove("drag-over");
+        }, false);
 
-        const originalEvent = event.originalEvent;
-        const files = originalEvent && originalEvent.dataTransfer ? originalEvent.dataTransfer.files : null;
-        if (!files || files.length === 0) {
-            return;
-        }
+        dropZoneElement.addEventListener("drop", function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+            this.classList.remove("drag-over");
 
-        const file = files[0];
-        const fileName = file.name.toLowerCase();
-        const isImage = file.type.startsWith("image/") || /\.(jpg|jpeg|png|bmp|webp)$/i.test(fileName);
-        const isVideo = file.type.startsWith("video/") || /\.(mp4|m4v|mov|avi|mkv|webm|wmv)$/i.test(fileName);
-        
-        if (!isImage && !isVideo) {
-            if ($selectedFileLabel.length > 0) {
-                $selectedFileLabel.text("이미지/동영상 파일만 업로드할 수 있습니다.");
+            const files = e.dataTransfer.files;
+            if (!files || files.length === 0) {
+                return;
             }
-            return;
-        }
 
-        updateSelectedFile(file);
-        uploadSelectedImage(file);
-    });
+            const file = files[0];
+            const fileName = file.name.toLowerCase();
+            const isImage = file.type.startsWith("image/") || /\.(jpg|jpeg|png|bmp|webp)$/i.test(fileName);
+            const isVideo = file.type.startsWith("video/") || /\.(mp4|m4v|mov|avi|mkv|webm|wmv)$/i.test(fileName);
 
-    let frameStreamState = {};  // {fileName: {canvas, ctx, frameIndex, totalFrames, isPlaying}}
-    let frameTimerMap = {};     // {fileName: timerId}
+            if (!isImage && !isVideo) {
+                if ($selectedFileLabel.length > 0) {
+                    $selectedFileLabel.text("이미지/동영상 파일만 업로드할 수 있습니다.");
+                }
+                return;
+            }
+
+            updateSelectedFile(file);
+            uploadSelectedImage(file);
+        }, false);
+
+        // 3. DropZone: 클릭으로 파일 선택
+        dropZoneElement.addEventListener("click", function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+            fileInputElement.click();
+        }, false);
+
+        // 4. File Input: 변경 감지
+        fileInputElement.addEventListener("change", function (e) {
+            const files = this.files;
+            const file = files && files[0] ? files[0] : null;
+            updateSelectedFile(file);
+            uploadSelectedImage(file);
+        }, false);
+    }
 
     function initFrameStream(fileName, detectType) {
         $.ajax({

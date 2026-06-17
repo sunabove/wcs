@@ -12,6 +12,7 @@ $(function () {
     const $detectingIndicator = $("#detecting-indicator");
     const $detectTypeInputs = $("input[name='detect-type']");
     const $sampleImagePane = $("#input-sample-image-pane");
+    const $sampleImageTab = $("#input-sample-image-tab");
     const sampleImageItemTemplate = document.getElementById("sample-image-item-template");
     const DETECT_AFTER_UPLOAD_DELAY_MS = 800;
     let uploadedFileName = "";
@@ -19,6 +20,8 @@ $(function () {
     let sampleDetectTimer = null;
     let isUploading = false;
     let isDetecting = false;
+    let isSampleImagesLoaded = false;
+    let isSampleImagesLoading = false;
 
     if ($dropZone.length === 0 || $fileInput.length === 0 || $uploadedImagePreview.length === 0) {
         return;
@@ -430,6 +433,12 @@ $(function () {
             return;
         }
 
+        if (isSampleImagesLoading || isSampleImagesLoaded) {
+            return;
+        }
+
+        isSampleImagesLoading = true;
+
         $sampleImagePane.html('<div class="text-muted text-center py-3">샘플 영상을 불러오는 중...</div>');
 
         $.ajax({
@@ -440,10 +449,19 @@ $(function () {
                 ? result
                 : (result && Array.isArray(result.image_files) ? result.image_files : []);
             renderSampleImageThumbnails(fileNames);
+            isSampleImagesLoaded = true;
         }).fail(function (jqXHR) {
             console.error("Sample image list error:", jqXHR.status, jqXHR.responseText);
             $sampleImagePane.html('<div class="text-danger text-center py-3">샘플 영상을 불러오지 못했습니다.</div>');
+        }).always(function () {
+            isSampleImagesLoading = false;
         });
+    }
+
+    function ensureSampleImagesLoaded() {
+        if (!isSampleImagesLoaded) {
+            loadSampleImages();
+        }
     }
 
     function scheduleDetectUpdate() {
@@ -485,5 +503,11 @@ $(function () {
         showDetectedTabAndRunDetect(DETECT_AFTER_UPLOAD_DELAY_MS);
     });
 
-    loadSampleImages();
+    $sampleImageTab.on("click", function () {
+        ensureSampleImagesLoaded();
+    });
+
+    $sampleImageTab.on("shown.bs.tab", function () {
+        ensureSampleImagesLoaded();
+    });
 });

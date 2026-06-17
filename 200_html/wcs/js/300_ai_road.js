@@ -85,6 +85,18 @@ $(function () {
         }
     }
 
+    function clearSampleSelection() {
+        $sampleImagePane.find(".sample-image-item.selected-sample").removeClass("selected-sample");
+        $sampleVideoPane.find(".sample-video-item.selected-sample").removeClass("selected-sample");
+    }
+
+    function markSampleSelection($item) {
+        clearSampleSelection();
+        if ($item && $item.length > 0) {
+            $item.addClass("selected-sample");
+        }
+    }
+
     function setUploadingState(uploading) {
         isUploading = Boolean(uploading);
         if (isUploading) {
@@ -260,6 +272,9 @@ $(function () {
         if (!file) {
             return;
         }
+
+        // 파일 업로드를 시작하면 샘플 선택 하이라이트는 해제
+        clearSampleSelection();
 
         // 1단계: UI 즉시 초기화
         resetPreviewImages();
@@ -827,10 +842,13 @@ $(function () {
     });
 
     $sampleImagePane.on("click", ".sample-image-item", function () {
+        const $selectedItem = $(this);
         const selectedFileName = $(this).data("file-name");
         if (!selectedFileName) {
             return;
         }
+
+        markSampleSelection($selectedItem);
 
         if (sampleDetectTimer) {
             clearTimeout(sampleDetectTimer);
@@ -863,10 +881,13 @@ $(function () {
     });
 
     $sampleVideoPane.on("click", ".sample-video-item", function () {
+        const $selectedItem = $(this);
         const selectedFileName = $(this).data("file-name");
         if (!selectedFileName) {
             return;
         }
+
+        markSampleSelection($selectedItem);
 
         if (sampleDetectTimer) {
             clearTimeout(sampleDetectTimer);

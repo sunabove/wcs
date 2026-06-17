@@ -82,11 +82,34 @@
             min-height: 170px;
         }
 
+        .sample-thumbnail-item .sample-video-item {
+            min-height: 170px;
+        }
+
         .sample-thumbnail-item .sample-image-item .small {
             background-color: #0b5ed7;
             color: #ffffff;
             border-radius: 0.35rem;
             padding: 0.2rem 0.45rem;
+        }
+
+        .sample-thumbnail-item .sample-video-item .small {
+            background-color: #0b5ed7;
+            color: #ffffff;
+            border-radius: 0.35rem;
+            padding: 0.2rem 0.45rem;
+        }
+
+        .sample-thumbnail-item .sample-image-item.selected-sample,
+        .sample-thumbnail-item .sample-video-item.selected-sample {
+            border: 2px solid #198754;
+            box-shadow: 0 0 0 0.2rem rgba(25, 135, 84, 0.2);
+            transform: translateY(-1px);
+        }
+
+        .sample-thumbnail-item .sample-image-item.selected-sample .small,
+        .sample-thumbnail-item .sample-video-item.selected-sample .small {
+            background-color: #198754;
         }
 
         #road-detect-table {

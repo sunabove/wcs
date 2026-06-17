@@ -397,6 +397,8 @@ class RoadDetector:
     def detect_road(self, frame, detect_type: str = "road"):
         detect_key = detect_type if detect_type in RoadDetector._model_paths else "road"
         conf = 0.10 if detect_key == "road_type" else 0.20
+        frame_h, frame_w = frame.shape[:2]
+        infer_imgsz = (int(frame_h), int(frame_w))
         font_face = cv2.FONT_HERSHEY_SIMPLEX
         min_mask_area_ratio = 0.001  # Exclude masks smaller than 0.1% of frame area.
         min_mask_area_pixels = 64
@@ -407,14 +409,14 @@ class RoadDetector:
                 raise HTTPException(
                     status_code=500,
                     detail=f"Model file not found: {model_path}"
-                )
+                ) 
             RoadDetector._models[detect_key] = YOLO(str(model_path))
         pass
     
         started_at = time.perf_counter()
         
         try:
-            result = RoadDetector._models[detect_key].predict(source=frame, conf=conf, verbose=False)[0]
+            result = RoadDetector._models[detect_key].predict(source=frame, conf=conf, imgsz=infer_imgsz, verbose=False)[0]
         except Exception as ex:
             raise HTTPException(status_code=500, detail=f"YOLO inference failed: {ex}")
 

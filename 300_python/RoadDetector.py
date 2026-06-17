@@ -338,6 +338,8 @@ class RoadDetector:
         detect_key = detect_type if detect_type in RoadDetector._model_paths else "road"
         conf = 0.10 if detect_key == "road_type" else 0.20
         font_face = cv2.FONT_HERSHEY_SIMPLEX
+        min_mask_area_ratio = 0.001  # Exclude masks smaller than 0.1% of frame area.
+        min_mask_area_pixels = 64
 
         if detect_key not in RoadDetector._models:
             model_path = RoadDetector._model_paths[detect_key]
@@ -362,21 +364,31 @@ class RoadDetector:
 
         detected_count = 0
         mask_count = 0
+        total_mask_count = 0
 
+        kept_mask_indices = []
         if result.masks is not None and result.masks.data is not None:
             # YOLOv11m 모델은 masks와 boxes가 동시에 존재할 수 있음. 
             # 둘 다 존재하는 경우, 마스크는 영역을 강조하고 박스는 신뢰도와 함께 위치를 표시하는 용도로 활용.
             
             masks = result.masks.data.cpu().numpy()
-            mask_count = len(masks)
+            total_mask_count = len(masks)
             height, width = detected.shape[:2]
+            frame_area = max(1, height * width)
+            min_mask_area = max(min_mask_area_pixels, int(frame_area * min_mask_area_ratio))
 
             overlay = detected.copy()
-            for mask in masks:
+            for idx, mask in enumerate(masks):
                 mask_resized = cv2.resize(mask, (width, height), interpolation=cv2.INTER_NEAREST)
                 binary_mask = mask_resized > 0.5
+                mask_area = int(np.count_nonzero(binary_mask))
+                if mask_area < min_mask_area:
+                    continue
+
+                kept_mask_indices.append(idx)
                 overlay[binary_mask] = (0, 255, 0)
 
+            mask_count = len(kept_mask_indices)
             detected = cv2.addWeighted(overlay, 0.35, detected, 0.65, 0)
         pass
 
@@ -384,9 +396,26 @@ class RoadDetector:
             # YOLOv11m 모델은 masks와 boxes가 동시에 존재할 수 있음. 
             # 둘 다 존재하는 경우, 마스크는 영역을 강조하고 박스는 신뢰도와 함께 위치를 표시하는 용도로 활용.
             # 박스 좌표와 신뢰도 추출
-            boxes = result.boxes.xyxy.cpu().numpy().astype(int) 
+            boxes = result.boxes.xyxy.cpu().numpy().astype(int)
             confs = result.boxes.conf.cpu().numpy()
             cls_ids = result.boxes.cls.cpu().numpy().astype(int) if result.boxes.cls is not None else None
+
+            valid_box_indices = list(range(len(boxes)))
+            if total_mask_count > 0:
+                # 마스크가 존재하면 필터 통과한 마스크 인덱스 기준으로 박스를 재생성한다.
+                valid_box_indices = [idx for idx in kept_mask_indices if idx < len(boxes)]
+
+            if valid_box_indices:
+                boxes = boxes[valid_box_indices]
+                confs = confs[valid_box_indices]
+                if cls_ids is not None:
+                    cls_ids = cls_ids[valid_box_indices]
+            else:
+                boxes = np.empty((0, 4), dtype=int)
+                confs = np.empty((0,), dtype=float)
+                if cls_ids is not None:
+                    cls_ids = np.empty((0,), dtype=int)
+
             detected_count = len(boxes)
             
             for idx, ((x1, y1, x2, y2), box_conf) in enumerate(zip(boxes, confs)):
@@ -406,6 +435,9 @@ class RoadDetector:
 
         if not class_counts and result.masks is not None and getattr(result.masks, "cls", None) is not None:
             mask_cls_ids = result.masks.cls.cpu().numpy().astype(int)
+            if kept_mask_indices:
+                mask_cls_ids = mask_cls_ids[kept_mask_indices]
+
             for cls_id in mask_cls_ids:
                 cls_name = str(names.get(int(cls_id), int(cls_id)))
                 class_counts[cls_name] = class_counts.get(cls_name, 0) + 1

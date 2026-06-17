@@ -4,6 +4,7 @@ import cv2
 import numpy as np
 from ultralytics import YOLO
 from pathlib import Path
+import subprocess
 import time
 
 from send_image import resolve_upload_image_path
@@ -70,12 +71,14 @@ class RoadDetector:
         if fps <= 0:
             fps = 20.0
 
-        # Prefer H.264(avc1), but fall back to mp4v when encoder is unavailable.
-        fourcc_codes = ["avc1", "mp4v"]
+        temp_output_path = output_path.with_name(f"{output_path.stem}_tmp.avi")
+        if output_path.exists():
+            output_path.unlink()
+        if temp_output_path.exists():
+            temp_output_path.unlink()
 
         writer = None
         target_size = None
-
         try:
             while True:
                 ok, frame = capture.read()
@@ -87,19 +90,14 @@ class RoadDetector:
                 if writer is None:
                     h, w = detected_frame.shape[:2]
                     target_size = (w, h)
-
-                    for code in fourcc_codes:
-                        writer = cv2.VideoWriter(str(output_path), cv2.VideoWriter_fourcc(*code), fps, target_size)
-                        if writer.isOpened():
-                            break
-                        writer.release()
-                        writer = None
-
-                    if writer is None:
-                        raise HTTPException(
-                            status_code=500,
-                            detail="Failed to create output video (no supported encoder available)"
-                        )
+                    writer = cv2.VideoWriter(
+                        str(temp_output_path),
+                        cv2.VideoWriter_fourcc(*"MJPG"),
+                        fps,
+                        target_size
+                    )
+                    if not writer.isOpened():
+                        raise HTTPException(status_code=500, detail="Failed to create temporary AVI video")
 
                 if target_size is not None and (detected_frame.shape[1], detected_frame.shape[0]) != target_size:
                     detected_frame = cv2.resize(detected_frame, target_size, interpolation=cv2.INTER_LINEAR)
@@ -110,9 +108,54 @@ class RoadDetector:
             if writer is not None:
                 writer.release()
 
+        if not temp_output_path.exists() or temp_output_path.stat().st_size == 0:
+            raise HTTPException(status_code=500, detail="Failed to write temporary AVI video")
+
+        try:
+            self.transcode_video_to_h264(temp_output_path, output_path)
+        finally:
+            if temp_output_path.exists():
+                temp_output_path.unlink()
+
         if not output_path.exists() or output_path.stat().st_size == 0:
             raise HTTPException(status_code=500, detail="Failed to write output video")
     pass # detect_video
+
+    def transcode_video_to_h264(self, input_path: Path, output_path: Path) -> None:
+        command = [
+            "ffmpeg",
+            "-y",
+            "-i",
+            str(input_path),
+            "-c:v",
+            "libx264",
+            "-preset",
+            "veryfast",
+            "-crf",
+            "23",
+            "-pix_fmt",
+            "yuv420p",
+            "-movflags",
+            "+faststart",
+            str(output_path),
+        ]
+
+        try:
+            completed = subprocess.run(
+                command,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                check=False,
+            )
+        except FileNotFoundError:
+            raise HTTPException(status_code=500, detail="ffmpeg is not installed or not found in PATH")
+
+        if completed.returncode != 0:
+            error_tail = (completed.stderr or "").strip().splitlines()
+            error_summary = error_tail[-1] if error_tail else "ffmpeg transcoding failed"
+            raise HTTPException(status_code=500, detail=f"Failed to transcode video to H.264: {error_summary}")
+    pass # transcode_video_to_h264
 
     def detect_road(self, frame, detect_type: str = "road"):
         detect_key = detect_type if detect_type in RoadDetector._model_paths else "road"

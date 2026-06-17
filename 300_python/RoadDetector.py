@@ -428,6 +428,7 @@ class RoadDetector:
         regenerated_boxes = []
         regenerated_confs = []
         regenerated_cls_ids = []
+        regenerated_box_colors = []
 
         kept_mask_indices = []
         if result.masks is not None and result.masks.data is not None:
@@ -454,6 +455,14 @@ class RoadDetector:
 
                 kept_mask_indices.append(idx)
 
+                mask_color = (0, 255, 0)
+                cls_id = None
+                if mask_cls_ids is not None and idx < len(mask_cls_ids):
+                    cls_id = int(mask_cls_ids[idx])
+                    cls_name = str(names.get(cls_id, cls_id))
+                    mask_color = class_color_map.get(cls_name, class_color_map.get(cls_name.lower(), mask_color))
+                mask_color = RoadDetector._get_instance_mask_color(mask_color, idx, cls_id)
+
                 ys, xs = np.where(binary_mask)
                 if xs.size > 0 and ys.size > 0:
                     x1 = int(xs.min())
@@ -471,14 +480,8 @@ class RoadDetector:
                         regenerated_cls_ids.append(int(box_cls_ids[idx]))
                     else:
                         regenerated_cls_ids.append(-1)
+                    regenerated_box_colors.append(mask_color)
 
-                mask_color = (0, 255, 0)
-                cls_id = None
-                if mask_cls_ids is not None and idx < len(mask_cls_ids):
-                    cls_id = int(mask_cls_ids[idx])
-                    cls_name = str(names.get(cls_id, cls_id))
-                    mask_color = class_color_map.get(cls_name, class_color_map.get(cls_name.lower(), mask_color))
-                mask_color = RoadDetector._get_instance_mask_color(mask_color, idx, cls_id)
                 overlay[binary_mask] = mask_color
 
             mask_count = len(kept_mask_indices)
@@ -495,19 +498,23 @@ class RoadDetector:
                     boxes = np.array(regenerated_boxes, dtype=int)
                     confs = np.array(regenerated_confs, dtype=float)
                     cls_ids = np.array(regenerated_cls_ids, dtype=int)
+                    box_colors = list(regenerated_box_colors)
                 else:
                     boxes = np.empty((0, 4), dtype=int)
                     confs = np.empty((0,), dtype=float)
                     cls_ids = np.empty((0,), dtype=int)
+                    box_colors = []
             else:
                 boxes = result.boxes.xyxy.cpu().numpy().astype(int)
                 confs = result.boxes.conf.cpu().numpy()
                 cls_ids = result.boxes.cls.cpu().numpy().astype(int) if result.boxes.cls is not None else None
+                box_colors = [(0, 255, 255)] * len(boxes)
 
             detected_count = len(boxes)
             
             for idx, ((x1, y1, x2, y2), box_conf) in enumerate(zip(boxes, confs)):
-                cv2.rectangle(detected, (x1, y1), (x2, y2), (0, 255, 255), 2)
+                box_color = box_colors[idx] if idx < len(box_colors) else (0, 255, 255)
+                cv2.rectangle(detected, (x1, y1), (x2, y2), box_color, 2)
 
                 cls_name = ""
                 if cls_ids is not None and idx < len(cls_ids):
@@ -522,7 +529,7 @@ class RoadDetector:
                 label = f"{cls_name} {box_conf:.2f}".strip()
                 (tw, th), baseline = cv2.getTextSize(label, font_face, 0.6, 2)
                 ty = max(y1 - 6, th + 4)
-                cv2.rectangle(detected, (x1, ty - th - 4), (x1 + tw + 4, ty + baseline), (0, 255, 255), cv2.FILLED)
+                cv2.rectangle(detected, (x1, ty - th - 4), (x1 + tw + 4, ty + baseline), box_color, cv2.FILLED)
                 cv2.putText(detected, label, (x1 + 2, ty - 2), font_face, 0.6, (0, 0, 0), 2)
             pass
         pass

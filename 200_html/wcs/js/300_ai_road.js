@@ -356,6 +356,8 @@ $(function () {
     });
 
     $dropZone.on("drop", function (event) {
+        event.preventDefault();
+        event.stopPropagation();
         const originalEvent = event.originalEvent;
         const files = originalEvent && originalEvent.dataTransfer ? originalEvent.dataTransfer.files : null;
         if (!files || files.length === 0) {

@@ -6,5 +6,6 @@ gravel 255 128 0
 mulch 153 76 0
 rock-bed 102 102 0
 concrete 101 101 11
+block 178 84 58
 road 80 80 80
 pothole 40 20 20

@@ -79,3 +79,37 @@ async def road_detect_stream_service(
     return detector.road_detect_stream(file_name, detect_type)
 pass # road_detect_stream_service
 
+@router.post("/road_detect_stream_init/{file_name:path}")
+async def road_detect_stream_init_service(
+    file_name: str,
+    detect_type: str = Query("road")
+):
+    from RoadDetector import RoadDetector
+
+    detector = RoadDetector()
+
+    return detector.road_detect_stream_init(file_name, detect_type)
+pass # road_detect_stream_init_service
+
+@router.get("/road_detect_stream_next/{file_name:path}")
+async def road_detect_stream_next_service(
+    file_name: str
+):
+    from RoadDetector import RoadDetector
+
+    detector = RoadDetector()
+
+    return detector.road_detect_stream_next(file_name)
+pass # road_detect_stream_next_service
+
+@router.post("/road_detect_stream_cleanup/{file_name:path}")
+async def road_detect_stream_cleanup_service(
+    file_name: str
+):
+    from RoadDetector import RoadDetector
+
+    detector = RoadDetector()
+
+    return detector.road_detect_stream_cleanup(file_name)
+pass # road_detect_stream_cleanup_service
+

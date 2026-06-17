@@ -7,6 +7,8 @@ from pathlib import Path
 import subprocess
 import time
 from fastapi.responses import StreamingResponse
+import base64
+import json
 
 from send_image import resolve_upload_image_path
 from config import BASE_DIR, VIDEO_EXTENSIONS
@@ -22,6 +24,7 @@ class RoadDetector:
         "pothole": Path(__file__).resolve().parent / "ai/road/model/03_yolo11m-pothole-sg.pt",
     }
     _models = {}
+    _stream_sessions = {}  # {session_id: {capture, frame_count, fps, detect_type, file_name}}
     
     def __init__(self):
         self.image_ext = {".jpg", ".jpeg", ".png", ".bmp", ".webp"} 
@@ -122,7 +125,110 @@ class RoadDetector:
             raise HTTPException(status_code=500, detail="Failed to write output video")
     pass # detect_video
 
+    def road_detect_stream_init(self, file_name: str, detect_type: str = "road") -> dict:
+        """비디오 스트리밍 세션 초기화"""
+        input_path = resolve_upload_image_path(file_name)
+        if not input_path.exists() or not input_path.is_file():
+            raise HTTPException(status_code=404, detail="Input file not found")
+
+        if input_path.suffix.lower() not in self.video_ext:
+            raise HTTPException(status_code=400, detail="Streaming is supported only for video files")
+
+        capture = cv2.VideoCapture(str(input_path))
+        if not capture.isOpened():
+            raise HTTPException(status_code=400, detail="Failed to read video file")
+
+        # 총 프레임 수와 FPS 계산
+        frame_count = int(capture.get(cv2.CAP_PROP_FRAME_COUNT))
+        fps = capture.get(cv2.CAP_PROP_FPS)
+        if fps <= 0:
+            fps = 20.0
+
+        # 세션 저장
+        session_id = file_name
+        RoadDetector._stream_sessions[session_id] = {
+            'capture': capture,
+            'frame_index': 0,
+            'frame_count': frame_count,
+            'fps': fps,
+            'detect_type': detect_type,
+            'file_name': file_name
+        }
+
+        return {
+            'session_id': session_id,
+            'total_frames': frame_count,
+            'fps': fps,
+            'detect_type': detect_type
+        }
+    pass # road_detect_stream_init
+
+    def road_detect_stream_next(self, file_name: str) -> dict:
+        """다음 프레임 반환 (JSON 형식)"""
+        session_id = file_name
+        if session_id not in RoadDetector._stream_sessions:
+            raise HTTPException(status_code=404, detail="Stream session not found. Call init first.")
+
+        session = RoadDetector._stream_sessions[session_id]
+        capture = session['capture']
+        detect_type = session['detect_type']
+        frame_index = session['frame_index']
+        frame_count = session['frame_count']
+
+        ok, frame = capture.read()
+        if not ok:
+            # 마지막 프레임
+            return {
+                'has_next': False,
+                'frame_number': frame_index,
+                'total_frames': frame_count,
+                'frame': None
+            }
+
+        # 프레임 감지 처리
+        detected_frame = self.detect_road(frame, detect_type)
+
+        # JPEG로 인코딩
+        encoded_ok, encoded = cv2.imencode(".jpg", detected_frame, [int(cv2.IMWRITE_JPEG_QUALITY), 85])
+        if not encoded_ok:
+            raise HTTPException(status_code=500, detail="Failed to encode frame")
+
+        # Base64 인코딩
+        frame_bytes = encoded.tobytes()
+        frame_b64 = base64.b64encode(frame_bytes).decode('utf-8')
+
+        # 세션 업데이트
+        session['frame_index'] = frame_index + 1
+
+        return {
+            'has_next': session['frame_index'] < frame_count,
+            'frame_number': frame_index + 1,
+            'total_frames': frame_count,
+            'frame': frame_b64,
+            'detect_type': detect_type
+        }
+    pass # road_detect_stream_next
+
+    def road_detect_stream_cleanup(self, file_name: str) -> dict:
+        """스트리밍 세션 정리"""
+        session_id = file_name
+        if session_id not in RoadDetector._stream_sessions:
+            raise HTTPException(status_code=404, detail="Stream session not found")
+
+        session = RoadDetector._stream_sessions[session_id]
+        capture = session['capture']
+        capture.release()
+
+        del RoadDetector._stream_sessions[session_id]
+
+        return {
+            'message': 'Stream session cleaned up successfully',
+            'session_id': session_id
+        }
+    pass # road_detect_stream_cleanup
+
     def road_detect_stream(self, file_name: str, detect_type: str = "road") -> StreamingResponse:
+        """(레거시) 연속 MJPEG 스트리밍 - 하위호환성 유지"""
         input_path = resolve_upload_image_path(file_name)
         if not input_path.exists() or not input_path.is_file():
             raise HTTPException(status_code=404, detail="Input file not found")

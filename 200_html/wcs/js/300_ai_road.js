@@ -22,6 +22,8 @@ $(function () {
     let isDetecting = false;
     let isSampleImagesLoaded = false;
     let isSampleImagesLoading = false;
+    let frameStreamState = {};  // 프레임 스트리밍 상태
+    let frameTimerMap = {};     // 프레임 타이머 맵
 
     if ($dropZone.length === 0 || $fileInput.length === 0 || $uploadedImagePreview.length === 0) {
         return;
@@ -172,6 +174,20 @@ $(function () {
         const base = "/fast/road_detect_stream/" + encodePathForRoute(fileName);
         const query = $.param({ detect_type: detectType || "road", t: Date.now() });
         return base + "?" + query;
+    }
+
+    function buildRoadDetectStreamInitUrl(fileName, detectType) {
+        const base = "/fast/road_detect_stream_init/" + encodePathForRoute(fileName);
+        const query = $.param({ detect_type: detectType || "road" });
+        return base + "?" + query;
+    }
+
+    function buildRoadDetectStreamNextUrl(fileName) {
+        return "/fast/road_detect_stream_next/" + encodePathForRoute(fileName);
+    }
+
+    function buildRoadDetectStreamCleanupUrl(fileName) {
+        return "/fast/road_detect_stream_cleanup/" + encodePathForRoute(fileName);
     }
 
     function showDetectedTabAndRunDetect(delayMs) {
@@ -359,6 +375,107 @@ $(function () {
         uploadSelectedImage(file);
     });
 
+    let frameStreamState = {};  // {fileName: {canvas, ctx, frameIndex, totalFrames, isPlaying}}
+    let frameTimerMap = {};     // {fileName: timerId}
+
+    function initFrameStream(fileName, detectType) {
+        $.ajax({
+            url: buildRoadDetectStreamInitUrl(fileName, detectType),
+            method: "POST"
+        }).done(function (result) {
+            console.log("Stream initialized:", result);
+            frameStreamState[fileName] = {
+                sessionId: result.session_id,
+                totalFrames: result.total_frames,
+                fps: result.fps,
+                detectType: detectType,
+                frameIndex: 0,
+                isPlaying: true
+            };
+            playFrameStream(fileName);
+        }).fail(function (jqXHR) {
+            console.error("Stream init error:", jqXHR.status, jqXHR.responseText);
+            showUploadStatusMessage("프레임 스트림 초기화에 실패했습니다.", false);
+            setDetectingState(false);
+            $detectingIndicator.addClass("d-none");
+        });
+    }
+
+    function playFrameStream(fileName) {
+        const state = frameStreamState[fileName];
+        if (!state || !state.isPlaying) {
+            return;
+        }
+
+        $.ajax({
+            url: buildRoadDetectStreamNextUrl(fileName),
+            method: "GET"
+        }).done(function (result) {
+            if (!result.frame) {
+                // 마지막 프레임
+                showUploadStatusMessage(
+                    "프레임 스트리밍 완료 (" + state.frameIndex + "/" + state.totalFrames + ")",
+                    true
+                );
+                cleanupFrameStream(fileName);
+                return;
+            }
+
+            // 이미지 태그에 프레임 표시
+            $detectedVideoPreview.addClass("d-none");
+            $detectedImagePreview
+                .attr("src", "data:image/jpeg;base64," + result.frame)
+                .removeClass("d-none");
+
+            state.frameIndex = result.frame_number;
+            showUploadStatusMessage(
+                "프레임 처리 중... (" + result.frame_number + "/" + state.totalFrames + ")",
+                true
+            );
+
+            // 다음 프레임을 위한 타이머 설정
+            if (result.has_next) {
+                const frameDelay = state.fps > 0 ? 1000 / state.fps : 33;  // FPS에 따른 지연
+                if (frameTimerMap[fileName]) {
+                    clearTimeout(frameTimerMap[fileName]);
+                }
+                frameTimerMap[fileName] = setTimeout(function () {
+                    playFrameStream(fileName);
+                }, frameDelay);
+            } else {
+                // 마지막 프레임
+                showUploadStatusMessage(
+                    "프레임 스트리밍 완료 (" + state.frameIndex + "/" + state.totalFrames + ")",
+                    true
+                );
+                cleanupFrameStream(fileName);
+            }
+        }).fail(function (jqXHR) {
+            console.error("Stream next error:", jqXHR.status, jqXHR.responseText);
+            showUploadStatusMessage("프레임 수신에 실패했습니다.", false);
+            cleanupFrameStream(fileName);
+        });
+    }
+
+    function cleanupFrameStream(fileName) {
+        $.ajax({
+            url: buildRoadDetectStreamCleanupUrl(fileName),
+            method: "POST"
+        }).done(function (result) {
+            console.log("Stream cleaned up:", result);
+        }).fail(function (jqXHR) {
+            console.error("Stream cleanup error:", jqXHR.status, jqXHR.responseText);
+        }).always(function () {
+            delete frameStreamState[fileName];
+            if (frameTimerMap[fileName]) {
+                clearTimeout(frameTimerMap[fileName]);
+                delete frameTimerMap[fileName];
+            }
+            setDetectingState(false);
+            $detectingIndicator.addClass("d-none");
+        });
+    }
+
     function runDetect() {
         if (!uploadedFileName) {
             return;
@@ -370,18 +487,18 @@ $(function () {
         setDetectingState(true);
         $detectingIndicator.removeClass("d-none");
 
+        if (isVideoPath(uploadedFileName)) {
+            // 비디오: 프레임별 스트리밍 시작
+            initFrameStream(uploadedFileName, detectType);
+            return;
+        }
+
+        // 이미지: 기존 로직
         $.ajax({
             url: buildRoadDetectUrl(uploadedFileName),
             data: { detect_type: detectType },
             method: "GET"
         }).done(function (result) {
-            if (isVideoPath(uploadedFileName)) {
-                const streamUrl = buildRoadDetectStreamUrl(uploadedFileName, detectType);
-                showMediaPreview(streamUrl, false, $detectedImagePreview, $detectedVideoPreview);
-                showUploadStatusMessage("검출 스트리밍을 시작했습니다.", true);
-                return;
-            }
-
             if (result && result.image_url) {
                 const detectedMediaUrl = result.image_url + "?t=" + Date.now();
                 showMediaPreview(detectedMediaUrl, isVideoPath(result.image_url), $detectedImagePreview, $detectedVideoPreview);

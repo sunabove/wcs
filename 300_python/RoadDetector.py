@@ -336,7 +336,7 @@ class RoadDetector:
 
     def detect_road(self, frame, detect_type: str = "road"):
         detect_key = detect_type if detect_type in RoadDetector._model_paths else "road"
-        conf = 0.20 if detect_key == "pothole" else 0.10
+        conf = 0.10 if detect_key == "road_type" else 0.20
         font_face = cv2.FONT_HERSHEY_SIMPLEX
 
         if detect_key not in RoadDetector._models:

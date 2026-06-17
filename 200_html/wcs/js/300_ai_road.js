@@ -332,8 +332,22 @@ $(function () {
         });
     }
 
-    $dropZone.on("click", function () {
-        $fileInput.trigger("click");
+    $dropZone.on("click", function (event) {
+        event.preventDefault();
+        event.stopPropagation();
+        // jQuery trigger 대신 직접 click() 사용
+        const inputElement = $fileInput.length > 0 ? $fileInput[0] : document.getElementById("road-image-input");
+        if (inputElement) {
+            inputElement.click();
+        }
+    });
+
+    // 직접 클릭으로도 작동하도록 추가 (대체 방식)
+    $dropZone.on("touchstart", function () {
+        const inputElement = $fileInput.length > 0 ? $fileInput[0] : document.getElementById("road-image-input");
+        if (inputElement) {
+            inputElement.click();
+        }
     });
 
     $fileInput.on("change", function () {
@@ -343,8 +357,13 @@ $(function () {
         uploadSelectedImage(file);
     });
 
-    // Document 레벨에서 브라우저의 기본 드래그 동작 방지
-    $(document).on("dragenter dragover drop", function (event) {
+    // Body 레벨에서 브라우저의 기본 드래그 동작 방지
+    $(document.body).on("dragover", function (event) {
+        event.preventDefault();
+        event.stopPropagation();
+    });
+
+    $(document.body).on("drop", function (event) {
         event.preventDefault();
         event.stopPropagation();
     });

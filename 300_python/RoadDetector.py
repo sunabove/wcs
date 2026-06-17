@@ -7,7 +7,6 @@ from pathlib import Path
 import time
 
 from send_image import resolve_upload_image_path
-from config import BASE_DIR
 
 
 class RoadDetector:
@@ -46,20 +45,15 @@ class RoadDetector:
         if not cv2.imwrite(str(output_path), detected_image):
             raise HTTPException(status_code=500, detail="Failed to write output image")
 
-        base_dir = BASE_DIR.resolve()
-        try:
-            relative_output_path = output_path.resolve().relative_to(base_dir).as_posix()
-        except ValueError:
-            relative_output_path = output_path.name
-
         return {
-            "image_url": f"/fast/image/{relative_output_path}"
+            "image_url": f"/fast/image/{output_path.name}"
         }
     pass # road_detect_service
 
     def detect_road(self, frame, detect_type: str = "road"):
         detect_key = detect_type if detect_type in RoadDetector._model_paths else "road"
         conf = 0.20 if detect_key == "pothole" else 0.20
+        font_face = cv2.FONT_HERSHEY_SIMPLEX
 
         if detect_key not in RoadDetector._models:
             model_path = RoadDetector._model_paths[detect_key]
@@ -119,10 +113,10 @@ class RoadDetector:
                     cls_name = str(names.get(int(cls_ids[idx]), int(cls_ids[idx])))
                     class_counts[cls_name] = class_counts.get(cls_name, 0) + 1
                 label = f"{cls_name} {box_conf:.2f}".strip()
-                (tw, th), baseline = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 0.6, 2)
+                (tw, th), baseline = cv2.getTextSize(label, font_face, 0.6, 2)
                 ty = max(y1 - 6, th + 4)
                 cv2.rectangle(detected, (x1, ty - th - 4), (x1 + tw + 4, ty + baseline), (0, 255, 255), cv2.FILLED)
-                cv2.putText(detected, label, (x1 + 2, ty - 2), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 0), 2)
+                cv2.putText(detected, label, (x1 + 2, ty - 2), font_face, 0.6, (0, 0, 0), 2)
             pass
         pass
 
@@ -135,38 +129,55 @@ class RoadDetector:
         if detected_count == 0:
             detected_count = mask_count
 
-        if True :
+        showHeader = True
+        if showHeader:
             # 헤더 텍스트 추가: 1줄은 타입/신뢰도, 2줄은 검출 도로 개수
             elapsed_ms = (time.perf_counter() - started_at) * 1000.0
             header_text = f"type: {detect_key}({detected_count}), conf: {conf * 100:.0f}%, time: {elapsed_ms:.0f}ms"
             if detected_count == 0:
                 count_text = "not detected"
             elif class_counts:
-                class_count_text = ", ".join([f"{key}({value})" for key, value in sorted(class_counts.items())])
-                count_text = f"{class_count_text}"
+                count_text = ", ".join([f"{key}({value})" for key, value in sorted(class_counts.items())])
             else:
                 count_text = ""
-                
-            (w1, h1), b1 = cv2.getTextSize(header_text, cv2.FONT_HERSHEY_SIMPLEX, 0.8, 2)
-            (w2, h2), b2 = cv2.getTextSize(count_text, cv2.FONT_HERSHEY_SIMPLEX, 0.8, 2)
-            header_w = max(w1, w2)
+
+            font_scale = 0.8
+            font_thickness = 2
             line_gap = 8
+            right_margin = 10
+            box_padding = 12
+
+            (w1, h1), b1 = cv2.getTextSize(header_text, font_face, font_scale, font_thickness)
+            (w2, h2), b2 = cv2.getTextSize(count_text, font_face, font_scale, font_thickness)
+            header_w = max(w1, w2)
             box_h = h1 + b1 + line_gap + h2 + b2 + 2
+
+            # Resize detected image when width is smaller than header text area.
+            required_width = header_w + box_padding + right_margin
+            current_height, current_width = detected.shape[:2]
+            if current_width < required_width:
+                resize_ratio = required_width / float(current_width)
+                detected = cv2.resize(
+                    detected,
+                    (int(round(current_width * resize_ratio)), int(round(current_height * resize_ratio))),
+                    interpolation=cv2.INTER_LINEAR
+                )
 
             # Draw a 50% alpha header background using overlay blending.
             y1_box = 10
-            text_right_x = detected.shape[1] - 10
-            x2, y2_box = text_right_x + 6, y1_box + box_h
-            x1 = x2 - (header_w + 12)
-            
+            text_right_x = detected.shape[1] - right_margin
+            x2 = text_right_x + 6
+            x1 = x2 - (header_w + box_padding)
+            y2_box = y1_box + box_h
+
             overlay = detected.copy()
             cv2.rectangle(overlay, (x1, y1_box), (x2, y2_box), (255, 0, 0), cv2.FILLED)
             cv2.addWeighted(overlay, 0.5, detected, 0.5, 0, detected)
-            
+
             y1 = y1_box + h1 + 2
             y2 = y1 + line_gap + h2 + 2
-            cv2.putText(detected, header_text, (text_right_x - w1, y1), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255, 255, 255), 2)
-            cv2.putText(detected, count_text, (text_right_x - w2, y2), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255, 255, 255), 2)
+            cv2.putText(detected, header_text, (text_right_x - w1, y1), font_face, font_scale, (255, 255, 255), font_thickness)
+            cv2.putText(detected, count_text, (text_right_x - w2, y2), font_face, font_scale, (255, 255, 255), font_thickness)
         pass
 
         return detected

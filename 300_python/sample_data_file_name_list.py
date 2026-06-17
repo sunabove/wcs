@@ -14,16 +14,17 @@ def sample_data_file_name_list(folder_name: str) -> list[str]:
 
     file_names = []
     folder_prefix = folder_name.strip("/\\").replace("\\", "/")
+    if folder_prefix:
+        prefix = f"samples/{folder_prefix}"
+    else:
+        prefix = "samples"
     
     if target_path.exists() and target_path.is_dir():
         for file_path in target_path.rglob("*"):
             if file_path.is_file(): 
                 ext = file_path.suffix.lower()
                 if ext in IMAGE_EXTENSIONS or ext in VIDEO_EXTENSIONS:
-                    if folder_prefix:
-                        file_names.append(f"{folder_prefix}/{file_path.name}")
-                    else:
-                        file_names.append(file_path.name)
+                    file_names.append(f"{prefix}/{file_path.name}")
                 pass
             pass
         pass

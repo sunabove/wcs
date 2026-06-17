@@ -37,7 +37,9 @@ def save_uploaded_image(file: UploadFile) -> dict:
         with target_path.open("wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
 
+    upload_folder_name = UPLOAD_DIR.name
+
     return {
-        "filename": target_path.name
+        "filename": f"{upload_folder_name}/{target_path.name}"
     }
 pass # save_uploaded_image 

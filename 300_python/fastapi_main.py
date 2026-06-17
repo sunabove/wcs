@@ -7,6 +7,9 @@ import time
 from pathlib import Path
 from pydantic import BaseModel 
 
+# cd ~/wcs
+# python3 -m uvicorn 300_python.fastapi_main:app --host 0.0.0.0 --port 8000 --reload
+
 CURRENT_DIR = Path(__file__).resolve().parent
 if str(CURRENT_DIR) not in sys.path:
     sys.path.insert(0, str(CURRENT_DIR))

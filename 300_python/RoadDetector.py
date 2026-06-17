@@ -112,22 +112,21 @@ class RoadDetector:
             if valid_mask.shape != gray.shape or np.count_nonzero(valid_mask) < 16:
                 valid_mask = None
 
-        if valid_mask is not None:
-            b_pixels = img_bgr[:, :, 0][valid_mask]
-            g_pixels = img_bgr[:, :, 1][valid_mask]
-            r_pixels = img_bgr[:, :, 2][valid_mask]
-            v_pixels = hsv[:, :, 2][valid_mask]
-            s_pixels = hsv[:, :, 1][valid_mask]
-            gray_for_texture = gray.copy()
-            fill_value = int(np.median(gray[valid_mask]))
-            gray_for_texture[~valid_mask] = fill_value
-        else:
-            b_pixels = img_bgr[:, :, 0].reshape(-1)
-            g_pixels = img_bgr[:, :, 1].reshape(-1)
-            r_pixels = img_bgr[:, :, 2].reshape(-1)
-            v_pixels = hsv[:, :, 2].reshape(-1)
-            s_pixels = hsv[:, :, 1].reshape(-1)
-            gray_for_texture = gray
+        # Classify using masked area only.
+        if valid_mask is None:
+            return "dirt"
+
+        b_pixels = img_bgr[:, :, 0][valid_mask]
+        g_pixels = img_bgr[:, :, 1][valid_mask]
+        r_pixels = img_bgr[:, :, 2][valid_mask]
+        v_pixels = hsv[:, :, 2][valid_mask]
+        s_pixels = hsv[:, :, 1][valid_mask]
+
+        ys, xs = np.where(valid_mask)
+        y_min, y_max = int(ys.min()), int(ys.max())
+        x_min, x_max = int(xs.min()), int(xs.max())
+        gray_roi = gray[y_min:y_max + 1, x_min:x_max + 1]
+        mask_roi = valid_mask[y_min:y_max + 1, x_min:x_max + 1]
 
         b_mean = float(np.mean(b_pixels))
         g_mean = float(np.mean(g_pixels))
@@ -137,9 +136,9 @@ class RoadDetector:
         color_dispersion = float(np.std(v_pixels) + np.std(s_pixels))
         gray_balance = float(np.std([b_mean, g_mean, r_mean]))
 
-        lbp = local_binary_pattern(gray_for_texture, P=8, R=1, method="uniform")
+        lbp = local_binary_pattern(gray_roi, P=8, R=1, method="uniform")
         lbp_bins = np.arange(0, 8 + 3)
-        lbp_hist, _ = np.histogram(lbp.ravel(), bins=lbp_bins, density=True)
+        lbp_hist, _ = np.histogram(lbp[mask_roi], bins=lbp_bins, density=True)
         lbp_hist = lbp_hist.astype(np.float64)
         lbp_hist = lbp_hist / max(1e-12, float(np.sum(lbp_hist)))
 
@@ -148,8 +147,13 @@ class RoadDetector:
         lbp_entropy = float(-np.sum(lbp_hist * np.log2(lbp_hist + 1e-12)))
 
         # Repetition score for block-like periodic texture.
-        row_profile = np.mean(gray_for_texture.astype(np.float32), axis=1)
-        col_profile = np.mean(gray_for_texture.astype(np.float32), axis=0)
+        gray_roi_f = gray_roi.astype(np.float32)
+        row_weight = np.sum(mask_roi, axis=1).astype(np.float32)
+        col_weight = np.sum(mask_roi, axis=0).astype(np.float32)
+        row_sum = np.sum(gray_roi_f * mask_roi.astype(np.float32), axis=1)
+        col_sum = np.sum(gray_roi_f * mask_roi.astype(np.float32), axis=0)
+        row_profile = row_sum / np.maximum(row_weight, 1.0)
+        col_profile = col_sum / np.maximum(col_weight, 1.0)
 
         def _periodicity_score(profile):
             profile = profile - float(np.mean(profile))

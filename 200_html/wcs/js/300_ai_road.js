@@ -114,8 +114,26 @@ $(function () {
 
     function resetPreviewImages() {
         uploadedFileName = "";
+        previousFileName = "";
+        // 이미지 초기화
         hideImageAndVideo($uploadedImagePreview, $uploadedVideoPreview);
         hideImageAndVideo($detectedImagePreview, $detectedVideoPreview);
+        // src 속성 완전 제거
+        $uploadedImagePreview.removeAttr("src");
+        $uploadedVideoPreview.removeAttr("src");
+        $detectedImagePreview.removeAttr("src");
+        $detectedVideoPreview.removeAttr("src");
+        // 비디오 정지 및 리소스 해제
+        [$uploadedVideoPreview, $detectedVideoPreview].forEach(function ($v) {
+            if ($v.length > 0 && $v[0]) {
+                try { $v[0].pause(); } catch (e) {}
+                try { $v[0].removeAttribute("src"); } catch (e) {}
+                try { $v[0].load(); } catch (e) {}
+            }
+        });
+        // 검출 인디케이터 초기화
+        $detectingIndicator.addClass("d-none");
+        setDetectingState(false);
     }
 
     function getSelectedDetectType() {
@@ -206,23 +224,30 @@ $(function () {
     }
 
     function cleanupAllFrameStreams() {
-        // 모든 활성 스트리밍 세션 정리
+        // 모든 활성 스트리밍 세션 타이머 즉시 정리
+        Object.keys(frameTimerMap).forEach(function (fileName) {
+            clearTimeout(frameTimerMap[fileName]);
+            delete frameTimerMap[fileName];
+        });
+
+        // 모든 세션 isPlaying 중단 (진행 중인 루프 차단)
         Object.keys(frameStreamState).forEach(function (fileName) {
-            if (frameTimerMap[fileName]) {
-                clearTimeout(frameTimerMap[fileName]);
-                delete frameTimerMap[fileName];
+            if (frameStreamState[fileName]) {
+                frameStreamState[fileName].isPlaying = false;
             }
-            
-            // 서버에 정리 신호 전송
+        });
+
+        // 서버 세션 정리 (비동기, UI와 무관)
+        Object.keys(frameStreamState).forEach(function (fileName) {
             $.ajax({
                 url: buildRoadDetectStreamCleanupUrl(fileName),
                 method: "POST",
-                timeout: 2000,
-                async: false  // 동기 요청으로 순서 보장
+                timeout: 3000
             }).fail(function () {
                 console.warn("Failed to cleanup stream session:", fileName);
             });
         });
+
         frameStreamState = {};  // 로컬 상태 완전 초기화
     }
 
@@ -231,11 +256,15 @@ $(function () {
             return;
         }
 
-        // 모든 이전 스트리밍 세션 정리
+        // 1단계: UI 즉시 초기화
+        resetPreviewImages();
+        showUploadStatusMessage("", false);
+        $uploadStatusMessage.addClass("d-none");
+
+        // 2단계: 모든 이전 스트리밍 세션 정리 (서버 포함)
         cleanupAllFrameStreams();
 
-        resetPreviewImages();
-
+        // 3단계: 업로드 진행
         prepareUploadFile(file).then(function (uploadFile) {
             const formData = new FormData();
             formData.append("file", uploadFile, uploadFile.name || file.name);
@@ -487,10 +516,16 @@ $(function () {
             url: buildRoadDetectStreamNextUrl(fileName),
             method: "GET"
         }).done(function (result) {
+            // 응답 도착 시점에 세션이 이미 정리되었으면 중단
+            const currentState = frameStreamState[fileName];
+            if (!currentState || !currentState.isPlaying) {
+                return;
+            }
+
             if (!result.frame) {
                 // 마지막 프레임
                 showUploadStatusMessage(
-                    "프레임 스트리밍 완료 (" + state.frameIndex + "/" + state.totalFrames + ")",
+                    "프레임 스트리밍 완료 (" + currentState.frameIndex + "/" + currentState.totalFrames + ")",
                     true
                 );
                 cleanupFrameStream(fileName);
@@ -503,15 +538,15 @@ $(function () {
                 .attr("src", "data:image/jpeg;base64," + result.frame)
                 .removeClass("d-none");
 
-            state.frameIndex = result.frame_number;
+            currentState.frameIndex = result.frame_number;
             showUploadStatusMessage(
-                "프레임 처리 중... (" + result.frame_number + "/" + state.totalFrames + ")",
+                "프레임 처리 중... (" + result.frame_number + "/" + currentState.totalFrames + ")",
                 true
             );
 
             // 다음 프레임을 위한 타이머 설정
             if (result.has_next) {
-                const frameDelay = state.fps > 0 ? 1000 / state.fps : 33;  // FPS에 따른 지연
+                const frameDelay = currentState.fps > 0 ? 1000 / currentState.fps : 33;
                 if (frameTimerMap[fileName]) {
                     clearTimeout(frameTimerMap[fileName]);
                 }
@@ -521,7 +556,7 @@ $(function () {
             } else {
                 // 마지막 프레임
                 showUploadStatusMessage(
-                    "프레임 스트리밍 완료 (" + state.frameIndex + "/" + state.totalFrames + ")",
+                    "프레임 스트리밍 완료 (" + currentState.frameIndex + "/" + currentState.totalFrames + ")",
                     true
                 );
                 cleanupFrameStream(fileName);

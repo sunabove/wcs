@@ -16,6 +16,7 @@ $(function () {
     const sampleImageItemTemplate = document.getElementById("sample-image-item-template");
     const DETECT_AFTER_UPLOAD_DELAY_MS = 800;
     let uploadedFileName = "";
+    let previousFileName = "";  // 이전 파일명 추적
     let detectDebounceTimer = null;
     let sampleDetectTimer = null;
     let isUploading = false;
@@ -209,6 +210,11 @@ $(function () {
             return;
         }
 
+        // 이전 스트리밍 세션 정리
+        if (previousFileName && frameStreamState[previousFileName]) {
+            cleanupFrameStream(previousFileName);
+        }
+
         resetPreviewImages();
 
         prepareUploadFile(file).then(function (uploadFile) {
@@ -228,7 +234,8 @@ $(function () {
             }).done(function (result) {
                 console.log(result.filename);
                 if (result && result.filename) {
-                    uploadedFileName = result.filename;
+                    previousFileName = uploadedFileName;  // 이전 파일명 저장
+                    uploadedFileName = result.filename;    // 새 파일명 설정
                     const mediaUrl = buildImageUrl(result.filename);
                     showMediaPreview(mediaUrl, isVideoPath(result.filename), $uploadedImagePreview, $uploadedVideoPreview);
 
@@ -499,21 +506,26 @@ $(function () {
     }
 
     function cleanupFrameStream(fileName) {
+        // 로컬 정리 먼저 (AJAX 실패시도 정리)
+        if (frameTimerMap[fileName]) {
+            clearTimeout(frameTimerMap[fileName]);
+            delete frameTimerMap[fileName];
+        }
+        delete frameStreamState[fileName];
+        
+        // UI 상태 업데이트
+        setDetectingState(false);
+        $detectingIndicator.addClass("d-none");
+        
+        // 서버에 정리 신호
         $.ajax({
             url: buildRoadDetectStreamCleanupUrl(fileName),
-            method: "POST"
+            method: "POST",
+            timeout: 3000
         }).done(function (result) {
             console.log("Stream cleaned up:", result);
         }).fail(function (jqXHR) {
             console.error("Stream cleanup error:", jqXHR.status, jqXHR.responseText);
-        }).always(function () {
-            delete frameStreamState[fileName];
-            if (frameTimerMap[fileName]) {
-                clearTimeout(frameTimerMap[fileName]);
-                delete frameTimerMap[fileName];
-            }
-            setDetectingState(false);
-            $detectingIndicator.addClass("d-none");
         });
     }
 
@@ -529,6 +541,14 @@ $(function () {
         $detectingIndicator.removeClass("d-none");
 
         if (isVideoPath(uploadedFileName)) {
+            // 이전 스트리밍 세션 정리
+            if (previousFileName && previousFileName !== uploadedFileName && frameStreamState[previousFileName]) {
+                cleanupFrameStream(previousFileName);
+            }
+            // 현재 파일명의 기존 스트리밍도 정리
+            if (frameStreamState[uploadedFileName]) {
+                cleanupFrameStream(uploadedFileName);
+            }
             // 비디오: 프레임별 스트리밍 시작
             initFrameStream(uploadedFileName, detectType);
             return;

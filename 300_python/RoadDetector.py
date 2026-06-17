@@ -438,6 +438,7 @@ class RoadDetector:
             total_mask_count = len(masks)
             mask_cls_ids = result.masks.cls.cpu().numpy().astype(int) if getattr(result.masks, "cls", None) is not None else None
             box_confs = result.boxes.conf.cpu().numpy() if (result.boxes is not None and result.boxes.conf is not None) else None
+            box_cls_ids = result.boxes.cls.cpu().numpy().astype(int) if (result.boxes is not None and result.boxes.cls is not None) else None
             height, width = detected.shape[:2]
             frame_area = max(1, height * width)
             min_mask_area = max(min_mask_area_pixels, int(frame_area * min_mask_area_ratio))
@@ -466,6 +467,8 @@ class RoadDetector:
                         regenerated_confs.append(0.0)
                     if mask_cls_ids is not None and idx < len(mask_cls_ids):
                         regenerated_cls_ids.append(int(mask_cls_ids[idx]))
+                    elif box_cls_ids is not None and idx < len(box_cls_ids):
+                        regenerated_cls_ids.append(int(box_cls_ids[idx]))
                     else:
                         regenerated_cls_ids.append(-1)
 
@@ -508,7 +511,13 @@ class RoadDetector:
 
                 cls_name = ""
                 if cls_ids is not None and idx < len(cls_ids):
-                    cls_name = str(names.get(int(cls_ids[idx]), int(cls_ids[idx])))
+                    cls_id_value = int(cls_ids[idx])
+                    if cls_id_value >= 0:
+                        cls_name = str(names.get(cls_id_value, cls_id_value))
+                if not cls_name:
+                    cls_name = detect_key
+
+                if cls_name:
                     class_counts[cls_name] = class_counts.get(cls_name, 0) + 1
                 label = f"{cls_name} {box_conf:.2f}".strip()
                 (tw, th), baseline = cv2.getTextSize(label, font_face, 0.6, 2)

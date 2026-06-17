@@ -363,14 +363,17 @@ $(function () {
         }
 
         const file = files[0];
-        if (!file.type.startsWith("image/") && !file.type.startsWith("video/")) {
+        const fileName = file.name.toLowerCase();
+        const isImage = file.type.startsWith("image/") || /\.(jpg|jpeg|png|bmp|webp)$/i.test(fileName);
+        const isVideo = file.type.startsWith("video/") || /\.(mp4|m4v|mov|avi|mkv|webm|wmv)$/i.test(fileName);
+        
+        if (!isImage && !isVideo) {
             if ($selectedFileLabel.length > 0) {
                 $selectedFileLabel.text("이미지/동영상 파일만 업로드할 수 있습니다.");
             }
             return;
         }
 
-        $fileInput[0].files = files;
         updateSelectedFile(file);
         uploadSelectedImage(file);
     });

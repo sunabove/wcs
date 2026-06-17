@@ -9,6 +9,7 @@ import time
 from fastapi.responses import StreamingResponse
 import base64
 import json
+import importlib
 
 from send_image import resolve_upload_image_path
 from config import BASE_DIR, VIDEO_EXTENSIONS
@@ -90,6 +91,67 @@ class RoadDetector:
 
         varied_bgr = cv2.cvtColor(np.uint8([[[h2, s2, v2]]]), cv2.COLOR_HSV2BGR)[0, 0]
         return (int(varied_bgr[0]), int(varied_bgr[1]), int(varied_bgr[2]))
+
+    @staticmethod
+    def classify_road_surface(img_bgr):
+        if img_bgr is None or img_bgr.size == 0:
+            return "dirt"
+
+        try:
+            skimage_feature = importlib.import_module("skimage.feature")
+            local_binary_pattern = skimage_feature.local_binary_pattern
+            graycomatrix = skimage_feature.graycomatrix
+            graycoprops = skimage_feature.graycoprops
+        except Exception:
+            return "dirt"
+
+        gray = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2GRAY)
+        hsv = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2HSV)
+
+        _v_mean = float(np.mean(hsv[:, :, 2]))
+
+        lbp = local_binary_pattern(gray, P=8, R=1, method="uniform")
+        _lbp_var = float(np.var(lbp))
+
+        glcm = graycomatrix(
+            gray,
+            distances=[1],
+            angles=[0],
+            levels=256,
+            symmetric=True,
+            normed=True,
+        )
+
+        contrast = float(graycoprops(glcm, "contrast")[0, 0])
+        homogeneity = float(graycoprops(glcm, "homogeneity")[0, 0])
+
+        edges = cv2.Canny(gray, 100, 200)
+        edge_density = float(np.count_nonzero(edges) / max(1, edges.size))
+
+        f = np.fft.fft2(gray)
+        fshift = np.fft.fftshift(f)
+
+        h, w = gray.shape
+        cy, cx = h // 2, w // 2
+        mask = np.ones((h, w), np.uint8)
+        y1 = max(0, cy - 20)
+        y2 = min(h, cy + 20)
+        x1 = max(0, cx - 20)
+        x2 = min(w, cx + 20)
+        mask[y1:y2, x1:x2] = 0
+
+        high_freq_energy = float(np.mean(np.abs(fshift * mask)))
+
+        if contrast < 300 and edge_density < 0.05:
+            return "asphalt"
+        elif contrast < 1000 and edge_density < 0.10:
+            return "concrete"
+        elif homogeneity > 0.35 and edge_density > 0.10:
+            return "block"
+        elif edge_density > 0.20 and high_freq_energy > 500:
+            return "gravel"
+        else:
+            return "dirt"
 
     def road_detect_service(self, file_name: str, detect_type: str = "road") -> dict:
         input_path = resolve_upload_image_path(file_name)
@@ -397,24 +459,25 @@ class RoadDetector:
     def detect_road(self, frame, detect_type: str = "road"):
         detect_key = detect_type if detect_type in RoadDetector._model_paths else "road"
         conf = 0.10 if detect_key == "road_type" else 0.20
+        infer_key = "road" if detect_key == "road_type" else detect_key
         font_face = cv2.FONT_HERSHEY_SIMPLEX
         min_mask_area_ratio = 0.001  # Exclude masks smaller than 0.1% of frame area.
         min_mask_area_pixels = 64
 
-        if detect_key not in RoadDetector._models:
-            model_path = RoadDetector._model_paths[detect_key]
+        if infer_key not in RoadDetector._models:
+            model_path = RoadDetector._model_paths[infer_key]
             if not model_path.exists():
                 raise HTTPException(
                     status_code=500,
                     detail=f"Model file not found: {model_path}"
                 ) 
-            RoadDetector._models[detect_key] = YOLO(str(model_path))
+            RoadDetector._models[infer_key] = YOLO(str(model_path))
         pass
     
         started_at = time.perf_counter()
         
         try:
-            result = RoadDetector._models[detect_key].predict(source=frame, conf=conf, verbose=False)[0]
+            result = RoadDetector._models[infer_key].predict(source=frame, conf=conf, verbose=False)[0]
         except Exception as ex:
             raise HTTPException(status_code=500, detail=f"YOLO inference failed: {ex}")
 
@@ -428,6 +491,7 @@ class RoadDetector:
         regenerated_boxes = []
         regenerated_confs = []
         regenerated_cls_ids = []
+        regenerated_labels = []
         regenerated_box_colors = []
 
         kept_mask_indices = []
@@ -469,6 +533,27 @@ class RoadDetector:
                     y1 = int(ys.min())
                     x2 = int(xs.max())
                     y2 = int(ys.max())
+
+                    instance_label = ""
+                    color_lookup_label = ""
+                    if detect_key == "road_type":
+                        roi_bgr = frame[y1:y2 + 1, x1:x2 + 1]
+                        instance_label = RoadDetector.classify_road_surface(roi_bgr)
+                        color_lookup_label = instance_label
+                    elif mask_cls_ids is not None and idx < len(mask_cls_ids):
+                        instance_label = str(names.get(int(mask_cls_ids[idx]), int(mask_cls_ids[idx])))
+                        color_lookup_label = instance_label
+                    elif box_cls_ids is not None and idx < len(box_cls_ids):
+                        instance_label = str(names.get(int(box_cls_ids[idx]), int(box_cls_ids[idx])))
+                        color_lookup_label = instance_label
+
+                    if color_lookup_label:
+                        base_mask_color = class_color_map.get(
+                            color_lookup_label,
+                            class_color_map.get(color_lookup_label.lower(), mask_color)
+                        )
+                        mask_color = RoadDetector._get_instance_mask_color(base_mask_color, idx, cls_id)
+
                     regenerated_boxes.append([x1, y1, x2, y2])
                     if box_confs is not None and idx < len(box_confs):
                         regenerated_confs.append(float(box_confs[idx]))
@@ -480,6 +565,7 @@ class RoadDetector:
                         regenerated_cls_ids.append(int(box_cls_ids[idx]))
                     else:
                         regenerated_cls_ids.append(-1)
+                    regenerated_labels.append(instance_label)
                     regenerated_box_colors.append(mask_color)
 
                 overlay[binary_mask] = mask_color
@@ -498,16 +584,19 @@ class RoadDetector:
                     boxes = np.array(regenerated_boxes, dtype=int)
                     confs = np.array(regenerated_confs, dtype=float)
                     cls_ids = np.array(regenerated_cls_ids, dtype=int)
+                    box_labels = list(regenerated_labels)
                     box_colors = list(regenerated_box_colors)
                 else:
                     boxes = np.empty((0, 4), dtype=int)
                     confs = np.empty((0,), dtype=float)
                     cls_ids = np.empty((0,), dtype=int)
+                    box_labels = []
                     box_colors = []
             else:
                 boxes = result.boxes.xyxy.cpu().numpy().astype(int)
                 confs = result.boxes.conf.cpu().numpy()
                 cls_ids = result.boxes.cls.cpu().numpy().astype(int) if result.boxes.cls is not None else None
+                box_labels = []
                 box_colors = [(0, 255, 255)] * len(boxes)
 
             detected_count = len(boxes)
@@ -516,8 +605,8 @@ class RoadDetector:
                 box_color = box_colors[idx] if idx < len(box_colors) else (0, 255, 255)
                 cv2.rectangle(detected, (x1, y1), (x2, y2), box_color, 2)
 
-                cls_name = ""
-                if cls_ids is not None and idx < len(cls_ids):
+                cls_name = box_labels[idx] if idx < len(box_labels) and box_labels[idx] else ""
+                if not cls_name and cls_ids is not None and idx < len(cls_ids):
                     cls_id_value = int(cls_ids[idx])
                     if cls_id_value >= 0:
                         cls_name = str(names.get(cls_id_value, cls_id_value))

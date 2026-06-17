@@ -5,4 +5,5 @@ python-multipart
 torch
 torchvision
 opencv-python
+scikit-image
 ultralytics

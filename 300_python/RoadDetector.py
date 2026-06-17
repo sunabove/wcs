@@ -44,6 +44,8 @@ class RoadDetector:
             if not cv2.imwrite(str(output_path), detected_image):
                 raise HTTPException(status_code=500, detail="Failed to write output image")
         elif suffix in self.video_ext:
+            # Use MP4 container to ensure browser-compatible H.264 playback.
+            output_path = input_path.with_name(f"{stem}_detected.mp4")
             self.detect_video(input_path, output_path, detect_type)
         else:
             raise HTTPException(status_code=400, detail="Only image/video files are supported")
@@ -68,17 +70,8 @@ class RoadDetector:
         if fps <= 0:
             fps = 20.0
 
-        suffix = output_path.suffix.lower()
-        codec_candidates = {
-            ".mp4": ["avc1", "H264", "mp4v"],
-            ".m4v": ["avc1", "H264", "mp4v"],
-            ".mov": ["avc1", "H264", "mp4v"],
-            ".avi": ["XVID", "MJPG"],
-            ".mkv": ["XVID", "MJPG"],
-            ".webm": ["VP80", "VP90"],
-            ".wmv": ["WMV2", "MJPG"],
-        }
-        fourcc_codes = codec_candidates.get(suffix, ["mp4v"])
+        # Try only H.264-compatible FOURCC codes.
+        fourcc_codes = ["avc1", "H264", "X264"]
 
         writer = None
         target_size = None
@@ -103,7 +96,10 @@ class RoadDetector:
                         writer = None
 
                     if writer is None:
-                        raise HTTPException(status_code=500, detail="Failed to create output video")
+                        raise HTTPException(
+                            status_code=500,
+                            detail="Failed to create H.264 output video (H.264 encoder not available)"
+                        )
 
                 if target_size is not None and (detected_frame.shape[1], detected_frame.shape[0]) != target_size:
                     detected_frame = cv2.resize(detected_frame, target_size, interpolation=cv2.INTER_LINEAR)

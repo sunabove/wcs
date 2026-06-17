@@ -587,34 +587,6 @@ class RoadDetector:
         min_mask_area_ratio = 0.001  # Exclude masks smaller than 0.1% of frame area.
         min_mask_area_pixels = 64
 
-        # For "road_type" detection, first detect road area and mask non-road regions to white
-        frame_for_inference = frame.copy()
-        if detect_key == "road_type":
-            if "road" not in RoadDetector._models:
-                road_model_path = RoadDetector._model_paths["road"]
-                if road_model_path.exists():
-                    RoadDetector._models["road"] = YOLO(str(road_model_path))
-            
-            if "road" in RoadDetector._models:
-                try:
-                    road_result = RoadDetector._models["road"].predict(source=frame, conf=0.20, verbose=False)[0]
-                    if road_result.masks is not None and road_result.masks.data is not None:
-                        # Create combined road mask
-                        road_masks = road_result.masks.data.cpu().numpy()
-                        height, width = frame.shape[:2]
-                        road_mask = np.zeros((height, width), dtype=np.uint8)
-                        
-                        for mask in road_masks:
-                            mask_resized = cv2.resize(mask, (width, height), interpolation=cv2.INTER_NEAREST)
-                            binary_mask = mask_resized > 0.5
-                            road_mask[binary_mask] = 255
-                        
-                        # Mask non-road areas to white
-                        frame_for_inference = frame.copy()
-                        frame_for_inference[road_mask == 0] = [255, 255, 255]  # BGR: white
-                except Exception as e:
-                    print(f"Warning: Road area detection failed: {e}")
-
         if infer_key not in RoadDetector._models:
             model_path = RoadDetector._model_paths[infer_key]
             if not model_path.exists():
@@ -628,7 +600,7 @@ class RoadDetector:
         started_at = time.perf_counter()
         
         try:
-            result = RoadDetector._models[infer_key].predict(source=frame_for_inference, conf=conf, verbose=False)[0]
+            result = RoadDetector._models[infer_key].predict(source=frame, conf=conf, verbose=False)[0]
         except Exception as ex:
             raise HTTPException(status_code=500, detail=f"YOLO inference failed: {ex}")
 

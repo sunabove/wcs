@@ -90,6 +90,33 @@ $(function () {
             : getValidPercent($defaultConfidenceOthers, FALLBACK_DEFAULT_CONFIDENCE_PERCENT) / 100;
     }
 
+    function normalizePath(pathValue) {
+        return String(pathValue || "")
+            .trim()
+            .replace(/\\/g, "/")
+            .replace(/^\/+/, "");
+    }
+
+    function encodePathForRoute(pathValue) {
+        return normalizePath(pathValue)
+            .split("/")
+            .filter(function (segment) {
+                return segment.length > 0;
+            })
+            .map(function (segment) {
+                return encodeURIComponent(segment);
+            })
+            .join("/");
+    }
+
+    function buildImageUrl(fileName) {
+        return "/fast/image/" + encodePathForRoute(fileName) + "?t=" + Date.now();
+    }
+
+    function buildRoadDetectUrl(fileName) {
+        return "/fast/road_detect/" + encodePathForRoute(fileName);
+    }
+
     function uploadSelectedImage(file) {
         if (!file) {
             return;
@@ -115,7 +142,7 @@ $(function () {
                 console.log(result.filename);
                 if (result && result.filename) {
                     uploadedFileName = result.filename;
-                    const imageUrl = "/fast/image/" + encodeURIComponent(result.filename) + "?t=" + Date.now();
+                    const imageUrl = buildImageUrl(result.filename);
                     $uploadedImagePreview.attr("src", imageUrl).removeClass("d-none");
 
                     if ($detectedImageTab.length > 0 && typeof bootstrap !== "undefined" && bootstrap.Tab) {
@@ -273,7 +300,7 @@ $(function () {
         $detectingIndicator.removeClass("d-none");
 
         $.ajax({
-            url: "/fast/road_detect/" + encodeURIComponent(uploadedFileName),
+            url: buildRoadDetectUrl(uploadedFileName),
             data: { detect_type: detectType },
             method: "GET"
         }).done(function (result) {
@@ -304,8 +331,8 @@ $(function () {
         }
 
         const cards = fileNames.map(function (fileName) {
-            const safeFileName = String(fileName || "").trim();
-            const imageUrl = "/fast/image/" + encodeURIComponent(safeFileName) + "?t=" + Date.now();
+            const safeFileName = normalizePath(fileName);
+            const imageUrl = buildImageUrl(safeFileName);
             const label = safeFileName.split("/").pop() || safeFileName;
 
             return [
@@ -332,7 +359,10 @@ $(function () {
             url: "/fast/samples/image",
             method: "GET"
         }).done(function (result) {
-            renderSampleImageThumbnails(result);
+            const fileNames = Array.isArray(result)
+                ? result
+                : (result && Array.isArray(result.image_files) ? result.image_files : []);
+            renderSampleImageThumbnails(fileNames);
         }).fail(function (jqXHR) {
             console.error("Sample image list error:", jqXHR.status, jqXHR.responseText);
             $sampleImagePane.html('<div class="text-danger text-center py-3">샘플 영상을 불러오지 못했습니다.</div>');
@@ -370,11 +400,11 @@ $(function () {
             return;
         }
 
-        uploadedFileName = String(selectedFileName);
-        const imageUrl = "/fast/image/" + uploadedFileName + "?t=" + Date.now();
+        uploadedFileName = normalizePath(selectedFileName);
+        const imageUrl = buildImageUrl(uploadedFileName);
         $uploadedImagePreview.attr("src", imageUrl).removeClass("d-none");
         $detectedImagePreview.attr("src", "").addClass("d-none");
-        showUploadStatusMessage("샘플 영상을 선택했습니다.", true); 
+        showUploadStatusMessage("샘플 영상을 선택했습니다.", true);
     });
 
     loadSampleImages();

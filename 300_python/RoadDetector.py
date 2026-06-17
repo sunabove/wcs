@@ -7,7 +7,7 @@ from pathlib import Path
 import time
 
 from send_image import resolve_upload_image_path
-from config import BASE_DIR
+from config import BASE_DIR, VIDEO_EXTENSIONS
 
 
 class RoadDetector:
@@ -23,6 +23,7 @@ class RoadDetector:
     
     def __init__(self):
         self.image_ext = {".jpg", ".jpeg", ".png", ".bmp", ".webp"} 
+        self.video_ext = set(VIDEO_EXTENSIONS)
     pass # __init__
 
     def road_detect_service(self, file_name: str, detect_type: str = "road") -> dict:
@@ -34,17 +35,18 @@ class RoadDetector:
         suffix = input_path.suffix.lower()
         output_path = input_path.with_name(f"{stem}_detected{suffix}")
 
-        if suffix not in self.image_ext:
-            raise HTTPException(status_code=400, detail="Only still-image files are supported")
+        if suffix in self.image_ext:
+            input_image = cv2.imread(str(input_path))
+            if input_image is None:
+                raise HTTPException(status_code=400, detail="Failed to read image file")
 
-        input_image = cv2.imread(str(input_path))
-        if input_image is None:
-            raise HTTPException(status_code=400, detail="Failed to read image file")
-
-        detected_image = self.detect_road(input_image, detect_type)
-        
-        if not cv2.imwrite(str(output_path), detected_image):
-            raise HTTPException(status_code=500, detail="Failed to write output image")
+            detected_image = self.detect_road(input_image, detect_type)
+            if not cv2.imwrite(str(output_path), detected_image):
+                raise HTTPException(status_code=500, detail="Failed to write output image")
+        elif suffix in self.video_ext:
+            self.detect_video(input_path, output_path, detect_type)
+        else:
+            raise HTTPException(status_code=400, detail="Only image/video files are supported")
 
         base_dir = BASE_DIR.resolve()
         try:
@@ -56,6 +58,58 @@ class RoadDetector:
             "image_url": f"/fast/image/{relative_output_path}"
         }
     pass # road_detect_service
+
+    def detect_video(self, input_path: Path, output_path: Path, detect_type: str) -> None:
+        capture = cv2.VideoCapture(str(input_path))
+        if not capture.isOpened():
+            raise HTTPException(status_code=400, detail="Failed to read video file")
+
+        fps = capture.get(cv2.CAP_PROP_FPS)
+        if fps <= 0:
+            fps = 20.0
+
+        suffix = output_path.suffix.lower()
+        fourcc_map = {
+            ".mp4": "mp4v",
+            ".m4v": "mp4v",
+            ".mov": "mp4v",
+            ".avi": "XVID",
+            ".mkv": "XVID",
+            ".webm": "VP80",
+            ".wmv": "WMV2",
+        }
+        fourcc = cv2.VideoWriter_fourcc(*fourcc_map.get(suffix, "mp4v"))
+
+        writer = None
+        target_size = None
+
+        try:
+            while True:
+                ok, frame = capture.read()
+                if not ok:
+                    break
+
+                detected_frame = self.detect_road(frame, detect_type)
+
+                if writer is None:
+                    h, w = detected_frame.shape[:2]
+                    target_size = (w, h)
+                    writer = cv2.VideoWriter(str(output_path), fourcc, fps, target_size)
+                    if not writer.isOpened():
+                        raise HTTPException(status_code=500, detail="Failed to create output video")
+
+                if target_size is not None and (detected_frame.shape[1], detected_frame.shape[0]) != target_size:
+                    detected_frame = cv2.resize(detected_frame, target_size, interpolation=cv2.INTER_LINEAR)
+
+                writer.write(detected_frame)
+        finally:
+            capture.release()
+            if writer is not None:
+                writer.release()
+
+        if not output_path.exists() or output_path.stat().st_size == 0:
+            raise HTTPException(status_code=500, detail="Failed to write output video")
+    pass # detect_video
 
     def detect_road(self, frame, detect_type: str = "road"):
         detect_key = detect_type if detect_type in RoadDetector._model_paths else "road"

@@ -7,8 +7,10 @@ import shutil
 from config import * 
 
 def save_uploaded_image(file: UploadFile) -> dict:
-    if not file.content_type or not file.content_type.startswith("image/"):
-        raise HTTPException(status_code=400, detail="Only image files are allowed")
+    if not file.content_type or not (
+        file.content_type.startswith("image/") or file.content_type.startswith("video/")
+    ):
+        raise HTTPException(status_code=400, detail="Only image/video files are allowed")
 
     UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 

@@ -36,7 +36,14 @@ def send_image_contents(file_name: str):
         ".png": "image/png",
         ".gif": "image/gif",
         ".webp": "image/webp",
-        ".bmp": "image/bmp"
+        ".bmp": "image/bmp",
+        ".mp4": "video/mp4",
+        ".m4v": "video/mp4",
+        ".mov": "video/quicktime",
+        ".avi": "video/x-msvideo",
+        ".mkv": "video/x-matroska",
+        ".webm": "video/webm",
+        ".wmv": "video/x-ms-wmv"
     }.get(suffix, "application/octet-stream")
 
     return FileResponse(

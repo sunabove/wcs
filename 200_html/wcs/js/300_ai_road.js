@@ -3,7 +3,9 @@ $(function () {
     const $fileInput = $("#road-image-input");
     const $selectedFileLabel = $("#selected-image-name");
     const $uploadedImagePreview = $("#original-image-preview");
+    const $uploadedVideoPreview = $("#original-video-preview");
     const $detectedImagePreview = $("#detected-image-preview");
+    const $detectedVideoPreview = $("#detected-video-preview");
     const $detectedImageTab = $("#detected-image-tab");
     const $uploadingIndicator = $("#working-indicator");
     const $uploadStatusMessage = $("#work-status-message");
@@ -20,6 +22,47 @@ $(function () {
 
     if ($dropZone.length === 0 || $fileInput.length === 0 || $uploadedImagePreview.length === 0) {
         return;
+    }
+
+    function isVideoPath(pathValue) {
+        const lower = normalizePath(pathValue).toLowerCase();
+        return [".mp4", ".m4v", ".mov", ".avi", ".mkv", ".webm", ".wmv"].some(function (ext) {
+            return lower.endsWith(ext);
+        });
+    }
+
+    function hideImageAndVideo($img, $video) {
+        if ($img && $img.length > 0) {
+            $img.attr("src", "").addClass("d-none");
+        }
+        if ($video && $video.length > 0) {
+            $video.attr("src", "").addClass("d-none");
+            if ($video[0] && typeof $video[0].pause === "function") {
+                $video[0].pause();
+            }
+        }
+    }
+
+    function showMediaPreview(url, isVideo, $img, $video) {
+        if (isVideo) {
+            if ($img && $img.length > 0) {
+                $img.attr("src", "").addClass("d-none");
+            }
+            if ($video && $video.length > 0) {
+                $video.attr("src", url).removeClass("d-none");
+            }
+            return;
+        }
+
+        if ($video && $video.length > 0) {
+            $video.attr("src", "").addClass("d-none");
+            if ($video[0] && typeof $video[0].pause === "function") {
+                $video[0].pause();
+            }
+        }
+        if ($img && $img.length > 0) {
+            $img.attr("src", url).removeClass("d-none");
+        }
     }
 
     function updateSelectedFile(file) {
@@ -62,8 +105,8 @@ $(function () {
 
     function resetPreviewImages() {
         uploadedFileName = "";
-        $uploadedImagePreview.attr("src", "").addClass("d-none");
-        $detectedImagePreview.attr("src", "").addClass("d-none");
+        hideImageAndVideo($uploadedImagePreview, $uploadedVideoPreview);
+        hideImageAndVideo($detectedImagePreview, $detectedVideoPreview);
     }
 
     function getSelectedDetectType() {
@@ -158,8 +201,8 @@ $(function () {
                 console.log(result.filename);
                 if (result && result.filename) {
                     uploadedFileName = result.filename;
-                    const imageUrl = buildImageUrl(result.filename);
-                    $uploadedImagePreview.attr("src", imageUrl).removeClass("d-none");
+                    const mediaUrl = buildImageUrl(result.filename);
+                    showMediaPreview(mediaUrl, isVideoPath(result.filename), $uploadedImagePreview, $uploadedVideoPreview);
 
                     if ($detectedImageTab.length > 0 && typeof bootstrap !== "undefined" && bootstrap.Tab) {
                         bootstrap.Tab.getOrCreateInstance($detectedImageTab[0]).show();
@@ -292,9 +335,9 @@ $(function () {
         }
 
         const file = files[0];
-        if (!file.type.startsWith("image/")) {
+        if (!file.type.startsWith("image/") && !file.type.startsWith("video/")) {
             if ($selectedFileLabel.length > 0) {
-                $selectedFileLabel.text("이미지 파일만 업로드할 수 있습니다.");
+                $selectedFileLabel.text("이미지/동영상 파일만 업로드할 수 있습니다.");
             }
             return;
         }
@@ -311,7 +354,7 @@ $(function () {
 
         const detectType = getSelectedDetectType();
         showUploadStatusMessage("도로 검출 중...", true);
-        $detectedImagePreview.addClass("d-none");
+        hideImageAndVideo($detectedImagePreview, $detectedVideoPreview);
         setDetectingState(true);
         $detectingIndicator.removeClass("d-none");
 
@@ -321,8 +364,8 @@ $(function () {
             method: "GET"
         }).done(function (result) {
             if (result && result.image_url) {
-                const detectedImageUrl = result.image_url + "?t=" + Date.now();
-                $detectedImagePreview.attr("src", detectedImageUrl).removeClass("d-none");
+                const detectedMediaUrl = result.image_url + "?t=" + Date.now();
+                showMediaPreview(detectedMediaUrl, isVideoPath(result.image_url), $detectedImagePreview, $detectedVideoPreview);
                 showUploadStatusMessage("검출 이미지가 생성되었습니다.", true);
             } else {
                 showUploadStatusMessage("검출 결과를 받지 못했습니다.", false);
@@ -436,8 +479,8 @@ $(function () {
 
         uploadedFileName = normalizePath(selectedFileName);
         const imageUrl = buildImageUrl(uploadedFileName);
-        $uploadedImagePreview.attr("src", imageUrl).removeClass("d-none");
-        $detectedImagePreview.attr("src", "").addClass("d-none");
+        showMediaPreview(imageUrl, isVideoPath(uploadedFileName), $uploadedImagePreview, $uploadedVideoPreview);
+        hideImageAndVideo($detectedImagePreview, $detectedVideoPreview);
         showUploadStatusMessage("샘플 영상을 선택하였습니다. 잠시 후 검출합니다.", true);
         showDetectedTabAndRunDetect(DETECT_AFTER_UPLOAD_DELAY_MS);
     });

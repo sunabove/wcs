@@ -374,7 +374,7 @@ $(function () {
         const imageUrl = "/fast/image/" + uploadedFileName + "?t=" + Date.now();
         $uploadedImagePreview.attr("src", imageUrl).removeClass("d-none");
         $detectedImagePreview.attr("src", "").addClass("d-none");
-        showUploadStatusMessage("샘플 영상을 선택했습니다.", true);
+        showUploadStatusMessage("샘플 영상을 선택했습니다.", true); 
     });
 
     loadSampleImages();

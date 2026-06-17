@@ -9,6 +9,7 @@ $(function () {
     const $uploadStatusMessage = $("#work-status-message");
     const $detectingIndicator = $("#detecting-indicator");
     const $detectTypeInputs = $("input[name='detect-type']");
+    const $sampleImagePane = $("#input-sample-image-pane");
     const DETECT_AFTER_UPLOAD_DELAY_MS = 800;
     let uploadedFileName = "";
     let detectDebounceTimer = null;
@@ -292,6 +293,52 @@ $(function () {
         });
     }
 
+    function renderSampleImageThumbnails(fileNames) {
+        if ($sampleImagePane.length === 0) {
+            return;
+        }
+
+        if (!Array.isArray(fileNames) || fileNames.length === 0) {
+            $sampleImagePane.html('<div class="text-muted text-center py-3">샘플 영상이 없습니다.</div>');
+            return;
+        }
+
+        const cards = fileNames.map(function (fileName) {
+            const safeFileName = String(fileName || "").trim();
+            const imageUrl = "/fast/image/" + encodeURIComponent(safeFileName) + "?t=" + Date.now();
+            const label = safeFileName.split("/").pop() || safeFileName;
+
+            return [
+                '<div class="col-6 col-md-4 col-lg-3">',
+                    '<button type="button" class="btn btn-outline-secondary w-100 p-2 h-100 sample-image-item" data-file-name="' + safeFileName + '">',
+                        '<img src="' + imageUrl + '" alt="' + label + '" class="img-fluid rounded mb-2" style="height: 120px; width: 100%; object-fit: cover;">',
+                        '<div class="small text-truncate" title="' + safeFileName + '">' + label + '</div>',
+                    '</button>',
+                '</div>'
+            ].join("");
+        }).join("");
+
+        $sampleImagePane.html('<div class="row g-2">' + cards + '</div>');
+    }
+
+    function loadSampleImages() {
+        if ($sampleImagePane.length === 0) {
+            return;
+        }
+
+        $sampleImagePane.html('<div class="text-muted text-center py-3">샘플 영상을 불러오는 중...</div>');
+
+        $.ajax({
+            url: "/fast/samples/image",
+            method: "GET"
+        }).done(function (result) {
+            renderSampleImageThumbnails(result);
+        }).fail(function (jqXHR) {
+            console.error("Sample image list error:", jqXHR.status, jqXHR.responseText);
+            $sampleImagePane.html('<div class="text-danger text-center py-3">샘플 영상을 불러오지 못했습니다.</div>');
+        });
+    }
+
     function scheduleDetectUpdate() {
         if (!uploadedFileName) {
             return;
@@ -316,4 +363,19 @@ $(function () {
     $detectTypeInputs.on("change", function () {
         scheduleDetectUpdate();
     });
+
+    $sampleImagePane.on("click", ".sample-image-item", function () {
+        const selectedFileName = $(this).data("file-name");
+        if (!selectedFileName) {
+            return;
+        }
+
+        uploadedFileName = String(selectedFileName);
+        const imageUrl = "/fast/image/" + encodeURIComponent(uploadedFileName) + "?t=" + Date.now();
+        $uploadedImagePreview.attr("src", imageUrl).removeClass("d-none");
+        $detectedImagePreview.attr("src", "").addClass("d-none");
+        showUploadStatusMessage("샘플 영상을 선택했습니다.", true);
+    });
+
+    loadSampleImages();
 });

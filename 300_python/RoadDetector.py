@@ -425,6 +425,9 @@ class RoadDetector:
         detected_count = 0
         mask_count = 0
         total_mask_count = 0
+        regenerated_boxes = []
+        regenerated_confs = []
+        regenerated_cls_ids = []
 
         kept_mask_indices = []
         if result.masks is not None and result.masks.data is not None:
@@ -434,6 +437,7 @@ class RoadDetector:
             masks = result.masks.data.cpu().numpy()
             total_mask_count = len(masks)
             mask_cls_ids = result.masks.cls.cpu().numpy().astype(int) if getattr(result.masks, "cls", None) is not None else None
+            box_confs = result.boxes.conf.cpu().numpy() if (result.boxes is not None and result.boxes.conf is not None) else None
             height, width = detected.shape[:2]
             frame_area = max(1, height * width)
             min_mask_area = max(min_mask_area_pixels, int(frame_area * min_mask_area_ratio))
@@ -448,6 +452,23 @@ class RoadDetector:
                     continue
 
                 kept_mask_indices.append(idx)
+
+                ys, xs = np.where(binary_mask)
+                if xs.size > 0 and ys.size > 0:
+                    x1 = int(xs.min())
+                    y1 = int(ys.min())
+                    x2 = int(xs.max())
+                    y2 = int(ys.max())
+                    regenerated_boxes.append([x1, y1, x2, y2])
+                    if box_confs is not None and idx < len(box_confs):
+                        regenerated_confs.append(float(box_confs[idx]))
+                    else:
+                        regenerated_confs.append(0.0)
+                    if mask_cls_ids is not None and idx < len(mask_cls_ids):
+                        regenerated_cls_ids.append(int(mask_cls_ids[idx]))
+                    else:
+                        regenerated_cls_ids.append(-1)
+
                 mask_color = (0, 255, 0)
                 cls_id = None
                 if mask_cls_ids is not None and idx < len(mask_cls_ids):
@@ -465,25 +486,20 @@ class RoadDetector:
             # YOLOv11m 모델은 masks와 boxes가 동시에 존재할 수 있음. 
             # 둘 다 존재하는 경우, 마스크는 영역을 강조하고 박스는 신뢰도와 함께 위치를 표시하는 용도로 활용.
             # 박스 좌표와 신뢰도 추출
-            boxes = result.boxes.xyxy.cpu().numpy().astype(int)
-            confs = result.boxes.conf.cpu().numpy()
-            cls_ids = result.boxes.cls.cpu().numpy().astype(int) if result.boxes.cls is not None else None
-
-            valid_box_indices = list(range(len(boxes)))
             if total_mask_count > 0:
-                # 마스크가 존재하면 필터 통과한 마스크 인덱스 기준으로 박스를 재생성한다.
-                valid_box_indices = [idx for idx in kept_mask_indices if idx < len(boxes)]
-
-            if valid_box_indices:
-                boxes = boxes[valid_box_indices]
-                confs = confs[valid_box_indices]
-                if cls_ids is not None:
-                    cls_ids = cls_ids[valid_box_indices]
-            else:
-                boxes = np.empty((0, 4), dtype=int)
-                confs = np.empty((0,), dtype=float)
-                if cls_ids is not None:
+                # 작은 마스크 제외 후 남은 마스크의 실제 픽셀 영역에서 box 재생성.
+                if regenerated_boxes:
+                    boxes = np.array(regenerated_boxes, dtype=int)
+                    confs = np.array(regenerated_confs, dtype=float)
+                    cls_ids = np.array(regenerated_cls_ids, dtype=int)
+                else:
+                    boxes = np.empty((0, 4), dtype=int)
+                    confs = np.empty((0,), dtype=float)
                     cls_ids = np.empty((0,), dtype=int)
+            else:
+                boxes = result.boxes.xyxy.cpu().numpy().astype(int)
+                confs = result.boxes.conf.cpu().numpy()
+                cls_ids = result.boxes.cls.cpu().numpy().astype(int) if result.boxes.cls is not None else None
 
             detected_count = len(boxes)
             

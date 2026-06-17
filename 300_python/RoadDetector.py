@@ -70,6 +70,27 @@ class RoadDetector:
         cls._class_color_map = color_map
         return cls._class_color_map
 
+    @staticmethod
+    def _get_instance_mask_color(base_bgr, instance_index, cls_id=None):
+        # Keep deterministic but vary color per detected object.
+        b0, g0, r0 = [int(v) for v in base_bgr]
+        seed = (instance_index + 1) * 131 + (0 if cls_id is None else (int(cls_id) + 1) * 17)
+        rng = np.random.default_rng(seed)
+
+        hsv = cv2.cvtColor(np.uint8([[[b0, g0, r0]]]), cv2.COLOR_BGR2HSV)[0, 0].astype(int)
+        h, s, v = int(hsv[0]), int(hsv[1]), int(hsv[2])
+
+        hue_shift = int(rng.integers(12, 80))
+        sat_shift = int(rng.integers(-20, 35))
+        val_shift = int(rng.integers(-25, 30))
+
+        h2 = (h + hue_shift) % 180
+        s2 = max(80, min(255, s + sat_shift))
+        v2 = max(80, min(255, v + val_shift))
+
+        varied_bgr = cv2.cvtColor(np.uint8([[[h2, s2, v2]]]), cv2.COLOR_HSV2BGR)[0, 0]
+        return (int(varied_bgr[0]), int(varied_bgr[1]), int(varied_bgr[2]))
+
     def road_detect_service(self, file_name: str, detect_type: str = "road") -> dict:
         input_path = resolve_upload_image_path(file_name)
         if not input_path.exists() or not input_path.is_file():
@@ -428,10 +449,12 @@ class RoadDetector:
 
                 kept_mask_indices.append(idx)
                 mask_color = (0, 255, 0)
+                cls_id = None
                 if mask_cls_ids is not None and idx < len(mask_cls_ids):
                     cls_id = int(mask_cls_ids[idx])
                     cls_name = str(names.get(cls_id, cls_id))
                     mask_color = class_color_map.get(cls_name, class_color_map.get(cls_name.lower(), mask_color))
+                mask_color = RoadDetector._get_instance_mask_color(mask_color, idx, cls_id)
                 overlay[binary_mask] = mask_color
 
             mask_count = len(kept_mask_indices)

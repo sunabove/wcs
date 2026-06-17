@@ -134,6 +134,17 @@ class RoadDetector:
         if input_path.suffix.lower() not in self.video_ext:
             raise HTTPException(status_code=400, detail="Streaming is supported only for video files")
 
+        # 기존 세션이 있으면 정리
+        session_id = file_name
+        if session_id in RoadDetector._stream_sessions:
+            try:
+                old_capture = RoadDetector._stream_sessions[session_id].get('capture')
+                if old_capture is not None:
+                    old_capture.release()
+            except Exception as e:
+                print(f"Error cleaning up old session for {session_id}: {e}")
+            del RoadDetector._stream_sessions[session_id]
+
         capture = cv2.VideoCapture(str(input_path))
         if not capture.isOpened():
             raise HTTPException(status_code=400, detail="Failed to read video file")
@@ -145,7 +156,6 @@ class RoadDetector:
             fps = 20.0
 
         # 세션 저장
-        session_id = file_name
         RoadDetector._stream_sessions[session_id] = {
             'capture': capture,
             'frame_index': 0,
@@ -167,59 +177,81 @@ class RoadDetector:
         """다음 프레임 반환 (JSON 형식)"""
         session_id = file_name
         if session_id not in RoadDetector._stream_sessions:
-            raise HTTPException(status_code=404, detail="Stream session not found. Call init first.")
-
-        session = RoadDetector._stream_sessions[session_id]
-        capture = session['capture']
-        detect_type = session['detect_type']
-        frame_index = session['frame_index']
-        frame_count = session['frame_count']
-
-        ok, frame = capture.read()
-        if not ok:
-            # 마지막 프레임
+            # 세션이 없으면 종료 신호 반환
             return {
                 'has_next': False,
-                'frame_number': frame_index,
-                'total_frames': frame_count,
-                'frame': None
+                'frame_number': 0,
+                'total_frames': 0,
+                'frame': None,
+                'error': 'Session not found'
             }
 
-        # 프레임 감지 처리
-        detected_frame = self.detect_road(frame, detect_type)
+        try:
+            session = RoadDetector._stream_sessions[session_id]
+            capture = session['capture']
+            detect_type = session['detect_type']
+            frame_index = session['frame_index']
+            frame_count = session['frame_count']
 
-        # JPEG로 인코딩
-        encoded_ok, encoded = cv2.imencode(".jpg", detected_frame, [int(cv2.IMWRITE_JPEG_QUALITY), 85])
-        if not encoded_ok:
-            raise HTTPException(status_code=500, detail="Failed to encode frame")
+            ok, frame = capture.read()
+            if not ok:
+                # 마지막 프레임
+                return {
+                    'has_next': False,
+                    'frame_number': frame_index,
+                    'total_frames': frame_count,
+                    'frame': None
+                }
 
-        # Base64 인코딩
-        frame_bytes = encoded.tobytes()
-        frame_b64 = base64.b64encode(frame_bytes).decode('utf-8')
+            # 프레임 감지 처리
+            detected_frame = self.detect_road(frame, detect_type)
 
-        # 세션 업데이트
-        session['frame_index'] = frame_index + 1
+            # JPEG로 인코딩
+            encoded_ok, encoded = cv2.imencode(".jpg", detected_frame, [int(cv2.IMWRITE_JPEG_QUALITY), 85])
+            if not encoded_ok:
+                raise HTTPException(status_code=500, detail="Failed to encode frame")
 
-        return {
-            'has_next': session['frame_index'] < frame_count,
-            'frame_number': frame_index + 1,
-            'total_frames': frame_count,
-            'frame': frame_b64,
-            'detect_type': detect_type
-        }
+            # Base64 인코딩
+            frame_bytes = encoded.tobytes()
+            frame_b64 = base64.b64encode(frame_bytes).decode('utf-8')
+
+            # 세션 업데이트
+            session['frame_index'] = frame_index + 1
+
+            return {
+                'has_next': session['frame_index'] < frame_count,
+                'frame_number': frame_index + 1,
+                'total_frames': frame_count,
+                'frame': frame_b64,
+                'detect_type': detect_type
+            }
+        except Exception as e:
+            print(f"Error in road_detect_stream_next: {e}")
+            raise HTTPException(status_code=500, detail=f"Stream processing error: {e}")
     pass # road_detect_stream_next
 
     def road_detect_stream_cleanup(self, file_name: str) -> dict:
         """스트리밍 세션 정리"""
         session_id = file_name
+        
+        # 세션이 없으면 이미 정리된 것
         if session_id not in RoadDetector._stream_sessions:
-            raise HTTPException(status_code=404, detail="Stream session not found")
+            return {
+                'message': 'Stream session already cleaned or not found',
+                'session_id': session_id
+            }
 
-        session = RoadDetector._stream_sessions[session_id]
-        capture = session['capture']
-        capture.release()
-
-        del RoadDetector._stream_sessions[session_id]
+        try:
+            session = RoadDetector._stream_sessions[session_id]
+            if 'capture' in session and session['capture'] is not None:
+                session['capture'].release()
+        except Exception as e:
+            print(f"Error releasing capture for {session_id}: {e}")
+        
+        try:
+            del RoadDetector._stream_sessions[session_id]
+        except KeyError:
+            pass
 
         return {
             'message': 'Stream session cleaned up successfully',

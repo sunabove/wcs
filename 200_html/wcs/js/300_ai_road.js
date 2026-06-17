@@ -205,15 +205,34 @@ $(function () {
         }, delayMs);
     }
 
+    function cleanupAllFrameStreams() {
+        // 모든 활성 스트리밍 세션 정리
+        Object.keys(frameStreamState).forEach(function (fileName) {
+            if (frameTimerMap[fileName]) {
+                clearTimeout(frameTimerMap[fileName]);
+                delete frameTimerMap[fileName];
+            }
+            
+            // 서버에 정리 신호 전송
+            $.ajax({
+                url: buildRoadDetectStreamCleanupUrl(fileName),
+                method: "POST",
+                timeout: 2000,
+                async: false  // 동기 요청으로 순서 보장
+            }).fail(function () {
+                console.warn("Failed to cleanup stream session:", fileName);
+            });
+        });
+        frameStreamState = {};  // 로컬 상태 완전 초기화
+    }
+
     function uploadSelectedImage(file) {
         if (!file) {
             return;
         }
 
-        // 이전 스트리밍 세션 정리
-        if (previousFileName && frameStreamState[previousFileName]) {
-            cleanupFrameStream(previousFileName);
-        }
+        // 모든 이전 스트리밍 세션 정리
+        cleanupAllFrameStreams();
 
         resetPreviewImages();
 
@@ -427,6 +446,15 @@ $(function () {
     }
 
     function initFrameStream(fileName, detectType) {
+        // 이미 활성인 세션이 있으면 정리
+        if (frameStreamState[fileName]) {
+            if (frameTimerMap[fileName]) {
+                clearTimeout(frameTimerMap[fileName]);
+                delete frameTimerMap[fileName];
+            }
+            delete frameStreamState[fileName];
+        }
+
         $.ajax({
             url: buildRoadDetectStreamInitUrl(fileName, detectType),
             method: "POST"
@@ -541,14 +569,8 @@ $(function () {
         $detectingIndicator.removeClass("d-none");
 
         if (isVideoPath(uploadedFileName)) {
-            // 이전 스트리밍 세션 정리
-            if (previousFileName && previousFileName !== uploadedFileName && frameStreamState[previousFileName]) {
-                cleanupFrameStream(previousFileName);
-            }
-            // 현재 파일명의 기존 스트리밍도 정리
-            if (frameStreamState[uploadedFileName]) {
-                cleanupFrameStream(uploadedFileName);
-            }
+            // 모든 이전 스트리밍 세션 정리
+            cleanupAllFrameStreams();
             // 비디오: 프레임별 스트리밍 시작
             initFrameStream(uploadedFileName, detectType);
             return;

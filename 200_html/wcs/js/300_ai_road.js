@@ -332,6 +332,7 @@ $(function () {
         }
 
         const $scrollContainer = $('<div class="sample-thumbnail-scroll"></div>');
+        const $track = $('<div class="sample-thumbnail-track"></div>');
 
         fileNames.forEach(function (fileName) {
             const safeFileName = normalizePath(fileName);
@@ -359,9 +360,10 @@ $(function () {
                 caption.textContent = label;
             }
 
-            $scrollContainer.append(node);
+            $track.append(node);
         });
 
+        $scrollContainer.append($track);
         $sampleImagePane.empty().append($scrollContainer);
     }
 

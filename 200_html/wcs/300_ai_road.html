@@ -58,15 +58,19 @@
         }
 
         .sample-thumbnail-scroll {
+            width: 100%;
+            overflow-x: auto;
+            overflow-y: hidden;
+            padding-bottom: 0.25rem;
+        }
+
+        .sample-thumbnail-track {
             display: grid;
             grid-auto-flow: column;
             grid-template-rows: repeat(2, minmax(0, 1fr));
             grid-auto-columns: minmax(170px, 170px);
             gap: 0.5rem;
-            width: 100%;
-            overflow-x: auto;
-            overflow-y: hidden;
-            padding-bottom: 0.25rem;
+            width: max-content;
         }
 
         .sample-thumbnail-item {

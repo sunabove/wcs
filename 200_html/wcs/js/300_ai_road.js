@@ -10,6 +10,7 @@ $(function () {
     const $detectingIndicator = $("#detecting-indicator");
     const $detectTypeInputs = $("input[name='detect-type']");
     const $sampleImagePane = $("#input-sample-image-pane");
+    const sampleImageItemTemplate = document.getElementById("sample-image-item-template");
     const DETECT_AFTER_UPLOAD_DELAY_MS = 800;
     let uploadedFileName = "";
     let detectDebounceTimer = null;
@@ -330,22 +331,38 @@ $(function () {
             return;
         }
 
-        const cards = fileNames.map(function (fileName) {
+        const $scrollContainer = $('<div class="sample-thumbnail-scroll"></div>');
+
+        fileNames.forEach(function (fileName) {
             const safeFileName = normalizePath(fileName);
             const imageUrl = buildImageUrl(safeFileName);
             const label = safeFileName.split("/").pop() || safeFileName;
 
-            return [
-                '<div class="col-6 col-md-4 col-lg-3">',
-                    '<button type="button" class="btn btn-outline-secondary w-100 p-2 h-100 sample-image-item" data-file-name="' + safeFileName + '">',
-                        '<img src="' + imageUrl + '" alt="' + label + '" class="img-fluid rounded mb-2" style="height: 120px; width: 100%; object-fit: cover;">',
-                        '<div class="small text-truncate" title="' + safeFileName + '">' + label + '</div>',
-                    '</button>',
-                '</div>'
-            ].join("");
-        }).join("");
+            if (!sampleImageItemTemplate || !sampleImageItemTemplate.content) {
+                return;
+            }
 
-        $sampleImagePane.html('<div class="row g-2">' + cards + '</div>');
+            const node = sampleImageItemTemplate.content.firstElementChild.cloneNode(true);
+            const button = node.querySelector(".sample-image-item");
+            const image = node.querySelector("img");
+            const caption = node.querySelector(".small");
+
+            if (button) {
+                button.setAttribute("data-file-name", safeFileName);
+            }
+            if (image) {
+                image.setAttribute("src", imageUrl);
+                image.setAttribute("alt", label);
+            }
+            if (caption) {
+                caption.setAttribute("title", safeFileName);
+                caption.textContent = label;
+            }
+
+            $scrollContainer.append(node);
+        });
+
+        $sampleImagePane.empty().append($scrollContainer);
     }
 
     function loadSampleImages() {

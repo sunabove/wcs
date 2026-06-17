@@ -56,6 +56,25 @@
             border-color: #0d6efd;
             background-color: #eaf3ff;
         }
+
+        .sample-thumbnail-scroll {
+            display: grid;
+            grid-auto-flow: column;
+            grid-template-rows: repeat(2, minmax(0, 1fr));
+            grid-auto-columns: minmax(170px, 170px);
+            gap: 0.5rem;
+            overflow-x: auto;
+            overflow-y: hidden;
+            padding-bottom: 0.25rem;
+        }
+
+        .sample-thumbnail-item {
+            width: 170px;
+        }
+
+        .sample-thumbnail-item .sample-image-item {
+            min-height: 170px;
+        }
     </style>
 
     <script src="./js/010_wcs_common.js" defer></script>
@@ -158,6 +177,14 @@
                                             </div>
                                             <div class="tab-pane fade" id="input-sample-image-pane" role="tabpanel">
                                                 <div class="text-muted text-center py-3">샘플 영상 목록</div>
+                                                <template id="sample-image-item-template">
+                                                    <div class="sample-thumbnail-item">
+                                                        <button type="button" class="btn btn-outline-secondary w-100 p-2 h-100 sample-image-item" data-file-name="">
+                                                            <img src="" alt="" class="img-fluid rounded mb-2" style="height: 120px; width: 100%; object-fit: cover;">
+                                                            <div class="small text-truncate" title=""></div>
+                                                        </button>
+                                                    </div>
+                                                </template>
                                             </div>
                                             <div class="tab-pane fade" id="input-sample-video-pane" role="tabpanel">
                                                 <div class="text-muted text-center py-3">샘플 동영상 목록</div>

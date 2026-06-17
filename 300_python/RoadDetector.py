@@ -8,16 +8,12 @@ import subprocess
 import time
 from fastapi.responses import StreamingResponse
 import base64
-import json
 
 from send_image import resolve_upload_image_path
 from config import BASE_DIR, VIDEO_EXTENSIONS
-from RoadClassifier import RoadClassifier
 
 
 class RoadDetector:
-    _road_area_model = None
-    _road_area_model_path = Path(__file__).resolve().parent / "ai/road/model/01_yolo11m-road-sg.pt"
     _class_color_map_path = Path(__file__).resolve().parent / "colormap_road.txt"
     _class_color_map = None
     
@@ -28,7 +24,6 @@ class RoadDetector:
     }
     _models = {}
     _stream_sessions = {}  # {session_id: {capture, frame_count, fps, detect_type, file_name}}
-    _road_classifier = RoadClassifier()
     
     def __init__(self):
         self.image_ext = {".jpg", ".jpeg", ".png", ".bmp", ".webp"} 
@@ -92,12 +87,6 @@ class RoadDetector:
 
         varied_bgr = cv2.cvtColor(np.uint8([[[h2, s2, v2]]]), cv2.COLOR_HSV2BGR)[0, 0]
         return (int(varied_bgr[0]), int(varied_bgr[1]), int(varied_bgr[2]))
-
-    @staticmethod
-    def classify_road_surface(masked_img_bgr):
-        return RoadDetector._road_classifier.classify(masked_img_bgr)
-        pass
-    pass # classify_road_surface
 
     def road_detect_service(self, file_name: str, detect_type: str = "road") -> dict:
         input_path = resolve_upload_image_path(file_name)
@@ -402,10 +391,197 @@ class RoadDetector:
             raise HTTPException(status_code=500, detail=f"Failed to transcode video to H.264: {error_summary}")
     pass # transcode_video_to_h264
 
+    def _process_result_masks(
+        self,
+        detected,
+        result,
+        names,
+        min_mask_area_ratio,
+        min_mask_area_pixels,
+    ):
+        regenerated_boxes = []
+        regenerated_confs = []
+        regenerated_cls_ids = []
+        regenerated_labels = []
+        regenerated_box_colors = []
+        kept_mask_indices = []
+        mask_count = 0
+        total_mask_count = 0
+
+        if result.masks is None or result.masks.data is None:
+            return {
+                "detected": detected,
+                "mask_count": mask_count,
+                "total_mask_count": total_mask_count,
+                "kept_mask_indices": kept_mask_indices,
+                "regenerated_boxes": regenerated_boxes,
+                "regenerated_confs": regenerated_confs,
+                "regenerated_cls_ids": regenerated_cls_ids,
+                "regenerated_labels": regenerated_labels,
+                "regenerated_box_colors": regenerated_box_colors,
+            }
+
+        masks = result.masks.data.cpu().numpy()
+        total_mask_count = len(masks)
+        mask_cls_ids = result.masks.cls.cpu().numpy().astype(int) if getattr(result.masks, "cls", None) is not None else None
+        box_confs = result.boxes.conf.cpu().numpy() if (result.boxes is not None and result.boxes.conf is not None) else None
+        box_cls_ids = result.boxes.cls.cpu().numpy().astype(int) if (result.boxes is not None and result.boxes.cls is not None) else None
+        height, width = detected.shape[:2]
+        frame_area = max(1, height * width)
+        min_mask_area = max(min_mask_area_pixels, int(frame_area * min_mask_area_ratio))
+        class_color_map = RoadDetector._get_class_color_map()
+
+        overlay = detected.copy()
+        for idx, mask in enumerate(masks):
+            mask_resized = cv2.resize(mask, (width, height), interpolation=cv2.INTER_NEAREST)
+            binary_mask = mask_resized > 0.5
+            mask_area = int(np.count_nonzero(binary_mask))
+            if mask_area < min_mask_area:
+                continue
+
+            kept_mask_indices.append(idx)
+
+            mask_color = (0, 255, 0)
+            cls_id = None
+            if mask_cls_ids is not None and idx < len(mask_cls_ids):
+                cls_id = int(mask_cls_ids[idx])
+                cls_name = str(names.get(cls_id, cls_id))
+                mask_color = class_color_map.get(cls_name, class_color_map.get(cls_name.lower(), mask_color))
+            mask_color = RoadDetector._get_instance_mask_color(mask_color, idx, cls_id)
+
+            ys, xs = np.where(binary_mask)
+            if xs.size > 0 and ys.size > 0:
+                x1 = int(xs.min())
+                y1 = int(ys.min())
+                x2 = int(xs.max())
+                y2 = int(ys.max())
+
+                instance_label = ""
+                color_lookup_label = ""
+                if mask_cls_ids is not None and idx < len(mask_cls_ids):
+                    instance_label = str(names.get(int(mask_cls_ids[idx]), int(mask_cls_ids[idx])))
+                    color_lookup_label = instance_label
+                elif box_cls_ids is not None and idx < len(box_cls_ids):
+                    instance_label = str(names.get(int(box_cls_ids[idx]), int(box_cls_ids[idx])))
+                    color_lookup_label = instance_label
+
+                if color_lookup_label:
+                    base_mask_color = class_color_map.get(
+                        color_lookup_label,
+                        class_color_map.get(color_lookup_label.lower(), mask_color)
+                    )
+                    mask_color = RoadDetector._get_instance_mask_color(base_mask_color, idx, cls_id)
+
+                regenerated_boxes.append([x1, y1, x2, y2])
+                if box_confs is not None and idx < len(box_confs):
+                    regenerated_confs.append(float(box_confs[idx]))
+                else:
+                    regenerated_confs.append(0.0)
+                if mask_cls_ids is not None and idx < len(mask_cls_ids):
+                    regenerated_cls_ids.append(int(mask_cls_ids[idx]))
+                elif box_cls_ids is not None and idx < len(box_cls_ids):
+                    regenerated_cls_ids.append(int(box_cls_ids[idx]))
+                else:
+                    regenerated_cls_ids.append(-1)
+                regenerated_labels.append(instance_label)
+                regenerated_box_colors.append(mask_color)
+
+            overlay[binary_mask] = mask_color
+
+        mask_count = len(kept_mask_indices)
+        detected = cv2.addWeighted(overlay, 0.35, detected, 0.65, 0)
+
+        return {
+            "detected": detected,
+            "mask_count": mask_count,
+            "total_mask_count": total_mask_count,
+            "kept_mask_indices": kept_mask_indices,
+            "regenerated_boxes": regenerated_boxes,
+            "regenerated_confs": regenerated_confs,
+            "regenerated_cls_ids": regenerated_cls_ids,
+            "regenerated_labels": regenerated_labels,
+            "regenerated_box_colors": regenerated_box_colors,
+        }
+
+    @staticmethod
+    def _draw_boxes_and_collect_counts(detected, boxes, confs, cls_ids, box_labels, box_colors, names, detect_key, font_face):
+        class_counts = {}
+        detected_count = len(boxes)
+
+        for idx, ((x1, y1, x2, y2), box_conf) in enumerate(zip(boxes, confs)):
+            box_color = box_colors[idx] if idx < len(box_colors) else (0, 255, 255)
+            cv2.rectangle(detected, (x1, y1), (x2, y2), box_color, 2)
+
+            cls_name = box_labels[idx] if idx < len(box_labels) and box_labels[idx] else ""
+            if not cls_name and cls_ids is not None and idx < len(cls_ids):
+                cls_id_value = int(cls_ids[idx])
+                if cls_id_value >= 0:
+                    cls_name = str(names.get(cls_id_value, cls_id_value))
+            if not cls_name:
+                cls_name = detect_key
+
+            if cls_name:
+                class_counts[cls_name] = class_counts.get(cls_name, 0) + 1
+            label = f"{cls_name} {box_conf:.2f}".strip()
+            (tw, th), baseline = cv2.getTextSize(label, font_face, 0.6, 2)
+            ty = max(y1 - 6, th + 4)
+            cv2.rectangle(detected, (x1, ty - th - 4), (x1 + tw + 4, ty + baseline), box_color, cv2.FILLED)
+            cv2.putText(detected, label, (x1 + 2, ty - 2), font_face, 0.6, (0, 0, 0), 2)
+
+        return detected_count, class_counts
+
+    @staticmethod
+    def _render_header(detected, detect_key, detected_count, conf, class_counts, started_at, font_face):
+        elapsed_ms = (time.perf_counter() - started_at) * 1000.0
+        header_text = f"type: {detect_key}({detected_count}), conf: {conf * 100:.0f}%, time: {elapsed_ms:.0f}ms"
+        if detected_count == 0:
+            count_text = "not detected"
+        elif class_counts:
+            count_text = ", ".join([f"{key}({value})" for key, value in sorted(class_counts.items())])
+        else:
+            count_text = ""
+
+        font_scale = 0.8
+        font_thickness = 2
+        line_gap = 8
+        right_margin = 10
+        box_padding = 12
+
+        (w1, h1), b1 = cv2.getTextSize(header_text, font_face, font_scale, font_thickness)
+        (w2, h2), b2 = cv2.getTextSize(count_text, font_face, font_scale, font_thickness)
+        header_w = max(w1, w2)
+        box_h = h1 + b1 + line_gap + h2 + b2 + 2
+
+        required_width = header_w + box_padding + right_margin
+        current_height, current_width = detected.shape[:2]
+        if current_width < required_width:
+            resize_ratio = required_width / float(current_width)
+            detected = cv2.resize(
+                detected,
+                (int(round(current_width * resize_ratio)), int(round(current_height * resize_ratio))),
+                interpolation=cv2.INTER_LINEAR
+            )
+
+        y1_box = 10
+        text_right_x = detected.shape[1] - right_margin
+        x2 = text_right_x + 6
+        x1 = x2 - (header_w + box_padding)
+        y2_box = y1_box + box_h
+
+        overlay = detected.copy()
+        cv2.rectangle(overlay, (x1, y1_box), (x2, y2_box), (255, 0, 0), cv2.FILLED)
+        cv2.addWeighted(overlay, 0.5, detected, 0.5, 0, detected)
+
+        y1 = y1_box + h1 + 2
+        y2 = y1 + line_gap + h2 + 2
+        cv2.putText(detected, header_text, (text_right_x - w1, y1), font_face, font_scale, (255, 255, 255), font_thickness)
+        cv2.putText(detected, count_text, (text_right_x - w2, y2), font_face, font_scale, (255, 255, 255), font_thickness)
+        return detected
+
     def detect_road(self, frame, detect_type: str = "road"):
         detect_key = detect_type if detect_type in RoadDetector._model_paths else "road"
         conf = 0.10 if detect_key == "road_type" else 0.20
-        infer_key = "road" if detect_key == "road_type" else detect_key
+        infer_key = detect_key
         font_face = cv2.FONT_HERSHEY_SIMPLEX
         min_mask_area_ratio = 0.001  # Exclude masks smaller than 0.1% of frame area.
         min_mask_area_pixels = 64
@@ -429,99 +605,25 @@ class RoadDetector:
 
         detected = frame.copy()
         names = result.names if isinstance(result.names, dict) else {}
-        class_counts = {}
 
         detected_count = 0
-        mask_count = 0
-        total_mask_count = 0
-        regenerated_boxes = []
-        regenerated_confs = []
-        regenerated_cls_ids = []
-        regenerated_labels = []
-        regenerated_box_colors = []
-
-        kept_mask_indices = []
-        if result.masks is not None and result.masks.data is not None:
-            # YOLOv11m 모델은 masks와 boxes가 동시에 존재할 수 있음. 
-            # 둘 다 존재하는 경우, 마스크는 영역을 강조하고 박스는 신뢰도와 함께 위치를 표시하는 용도로 활용.
-            
-            masks = result.masks.data.cpu().numpy()
-            total_mask_count = len(masks)
-            mask_cls_ids = result.masks.cls.cpu().numpy().astype(int) if getattr(result.masks, "cls", None) is not None else None
-            box_confs = result.boxes.conf.cpu().numpy() if (result.boxes is not None and result.boxes.conf is not None) else None
-            box_cls_ids = result.boxes.cls.cpu().numpy().astype(int) if (result.boxes is not None and result.boxes.cls is not None) else None
-            height, width = detected.shape[:2]
-            frame_area = max(1, height * width)
-            min_mask_area = max(min_mask_area_pixels, int(frame_area * min_mask_area_ratio))
-            class_color_map = RoadDetector._get_class_color_map()
-
-            overlay = detected.copy()
-            for idx, mask in enumerate(masks):
-                mask_resized = cv2.resize(mask, (width, height), interpolation=cv2.INTER_NEAREST)
-                binary_mask = mask_resized > 0.5
-                mask_area = int(np.count_nonzero(binary_mask))
-                if mask_area < min_mask_area:
-                    continue
-
-                kept_mask_indices.append(idx)
-
-                mask_color = (0, 255, 0)
-                cls_id = None
-                if mask_cls_ids is not None and idx < len(mask_cls_ids):
-                    cls_id = int(mask_cls_ids[idx])
-                    cls_name = str(names.get(cls_id, cls_id))
-                    mask_color = class_color_map.get(cls_name, class_color_map.get(cls_name.lower(), mask_color))
-                mask_color = RoadDetector._get_instance_mask_color(mask_color, idx, cls_id)
-
-                ys, xs = np.where(binary_mask)
-                if xs.size > 0 and ys.size > 0:
-                    x1 = int(xs.min())
-                    y1 = int(ys.min())
-                    x2 = int(xs.max())
-                    y2 = int(ys.max())
-
-                    instance_label = ""
-                    color_lookup_label = ""
-                    if detect_key == "road_type":
-                        roi_bgr = frame[y1:y2 + 1, x1:x2 + 1]
-                        roi_mask = binary_mask[y1:y2 + 1, x1:x2 + 1]
-                        roi_masked_bgr = roi_bgr.copy()
-                        roi_masked_bgr[~roi_mask] = 0
-                        instance_label = RoadDetector.classify_road_surface(roi_masked_bgr)
-                        color_lookup_label = instance_label
-                    elif mask_cls_ids is not None and idx < len(mask_cls_ids):
-                        instance_label = str(names.get(int(mask_cls_ids[idx]), int(mask_cls_ids[idx])))
-                        color_lookup_label = instance_label
-                    elif box_cls_ids is not None and idx < len(box_cls_ids):
-                        instance_label = str(names.get(int(box_cls_ids[idx]), int(box_cls_ids[idx])))
-                        color_lookup_label = instance_label
-
-                    if color_lookup_label:
-                        base_mask_color = class_color_map.get(
-                            color_lookup_label,
-                            class_color_map.get(color_lookup_label.lower(), mask_color)
-                        )
-                        mask_color = RoadDetector._get_instance_mask_color(base_mask_color, idx, cls_id)
-
-                    regenerated_boxes.append([x1, y1, x2, y2])
-                    if box_confs is not None and idx < len(box_confs):
-                        regenerated_confs.append(float(box_confs[idx]))
-                    else:
-                        regenerated_confs.append(0.0)
-                    if mask_cls_ids is not None and idx < len(mask_cls_ids):
-                        regenerated_cls_ids.append(int(mask_cls_ids[idx]))
-                    elif box_cls_ids is not None and idx < len(box_cls_ids):
-                        regenerated_cls_ids.append(int(box_cls_ids[idx]))
-                    else:
-                        regenerated_cls_ids.append(-1)
-                    regenerated_labels.append(instance_label)
-                    regenerated_box_colors.append(mask_color)
-
-                overlay[binary_mask] = mask_color
-
-            mask_count = len(kept_mask_indices)
-            detected = cv2.addWeighted(overlay, 0.35, detected, 0.65, 0)
-        pass
+        class_counts = {}
+        mask_result = self._process_result_masks(
+            detected,
+            result,
+            names,
+            min_mask_area_ratio,
+            min_mask_area_pixels,
+        )
+        detected = mask_result["detected"]
+        mask_count = mask_result["mask_count"]
+        total_mask_count = mask_result["total_mask_count"]
+        kept_mask_indices = mask_result["kept_mask_indices"]
+        regenerated_boxes = mask_result["regenerated_boxes"]
+        regenerated_confs = mask_result["regenerated_confs"]
+        regenerated_cls_ids = mask_result["regenerated_cls_ids"]
+        regenerated_labels = mask_result["regenerated_labels"]
+        regenerated_box_colors = mask_result["regenerated_box_colors"]
 
         if result.boxes is not None and result.boxes.xyxy is not None:
             # YOLOv11m 모델은 masks와 boxes가 동시에 존재할 수 있음. 
@@ -548,27 +650,17 @@ class RoadDetector:
                 box_labels = []
                 box_colors = [(0, 255, 255)] * len(boxes)
 
-            detected_count = len(boxes)
-            
-            for idx, ((x1, y1, x2, y2), box_conf) in enumerate(zip(boxes, confs)):
-                box_color = box_colors[idx] if idx < len(box_colors) else (0, 255, 255)
-                cv2.rectangle(detected, (x1, y1), (x2, y2), box_color, 2)
-
-                cls_name = box_labels[idx] if idx < len(box_labels) and box_labels[idx] else ""
-                if not cls_name and cls_ids is not None and idx < len(cls_ids):
-                    cls_id_value = int(cls_ids[idx])
-                    if cls_id_value >= 0:
-                        cls_name = str(names.get(cls_id_value, cls_id_value))
-                if not cls_name:
-                    cls_name = detect_key
-
-                if cls_name:
-                    class_counts[cls_name] = class_counts.get(cls_name, 0) + 1
-                label = f"{cls_name} {box_conf:.2f}".strip()
-                (tw, th), baseline = cv2.getTextSize(label, font_face, 0.6, 2)
-                ty = max(y1 - 6, th + 4)
-                cv2.rectangle(detected, (x1, ty - th - 4), (x1 + tw + 4, ty + baseline), box_color, cv2.FILLED)
-                cv2.putText(detected, label, (x1 + 2, ty - 2), font_face, 0.6, (0, 0, 0), 2)
+            detected_count, class_counts = self._draw_boxes_and_collect_counts(
+                detected,
+                boxes,
+                confs,
+                cls_ids,
+                box_labels,
+                box_colors,
+                names,
+                detect_key,
+                font_face,
+            )
             pass
         pass
 
@@ -586,53 +678,7 @@ class RoadDetector:
 
         showHeader = True
         if showHeader:
-            # 헤더 텍스트 추가: 1줄은 타입/신뢰도, 2줄은 검출 도로 개수
-            elapsed_ms = (time.perf_counter() - started_at) * 1000.0
-            header_text = f"type: {detect_key}({detected_count}), conf: {conf * 100:.0f}%, time: {elapsed_ms:.0f}ms"
-            if detected_count == 0:
-                count_text = "not detected"
-            elif class_counts:
-                count_text = ", ".join([f"{key}({value})" for key, value in sorted(class_counts.items())])
-            else:
-                count_text = ""
-
-            font_scale = 0.8
-            font_thickness = 2
-            line_gap = 8
-            right_margin = 10
-            box_padding = 12
-
-            (w1, h1), b1 = cv2.getTextSize(header_text, font_face, font_scale, font_thickness)
-            (w2, h2), b2 = cv2.getTextSize(count_text, font_face, font_scale, font_thickness)
-            header_w = max(w1, w2)
-            box_h = h1 + b1 + line_gap + h2 + b2 + 2
-
-            # Resize detected image when width is smaller than header text area.
-            required_width = header_w + box_padding + right_margin
-            current_height, current_width = detected.shape[:2]
-            if current_width < required_width:
-                resize_ratio = required_width / float(current_width)
-                detected = cv2.resize(
-                    detected,
-                    (int(round(current_width * resize_ratio)), int(round(current_height * resize_ratio))),
-                    interpolation=cv2.INTER_LINEAR
-                )
-
-            # Draw a 50% alpha header background using overlay blending.
-            y1_box = 10
-            text_right_x = detected.shape[1] - right_margin
-            x2 = text_right_x + 6
-            x1 = x2 - (header_w + box_padding)
-            y2_box = y1_box + box_h
-
-            overlay = detected.copy()
-            cv2.rectangle(overlay, (x1, y1_box), (x2, y2_box), (255, 0, 0), cv2.FILLED)
-            cv2.addWeighted(overlay, 0.5, detected, 0.5, 0, detected)
-
-            y1 = y1_box + h1 + 2
-            y2 = y1 + line_gap + h2 + 2
-            cv2.putText(detected, header_text, (text_right_x - w1, y1), font_face, font_scale, (255, 255, 255), font_thickness)
-            cv2.putText(detected, count_text, (text_right_x - w2, y2), font_face, font_scale, (255, 255, 255), font_thickness)
+            detected = self._render_header(detected, detect_key, detected_count, conf, class_counts, started_at, font_face)
         pass
 
         return detected

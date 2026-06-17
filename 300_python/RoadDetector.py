@@ -104,7 +104,6 @@ class RoadDetector:
             return "dirt"
 
         gray = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2GRAY)
-        hsv = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2HSV)
 
         valid_mask = None
         if mask is not None:
@@ -116,25 +115,11 @@ class RoadDetector:
         if valid_mask is None:
             return "dirt"
 
-        b_pixels = img_bgr[:, :, 0][valid_mask]
-        g_pixels = img_bgr[:, :, 1][valid_mask]
-        r_pixels = img_bgr[:, :, 2][valid_mask]
-        v_pixels = hsv[:, :, 2][valid_mask]
-        s_pixels = hsv[:, :, 1][valid_mask]
-
         ys, xs = np.where(valid_mask)
         y_min, y_max = int(ys.min()), int(ys.max())
         x_min, x_max = int(xs.min()), int(xs.max())
         gray_roi = gray[y_min:y_max + 1, x_min:x_max + 1]
         mask_roi = valid_mask[y_min:y_max + 1, x_min:x_max + 1]
-
-        b_mean = float(np.mean(b_pixels))
-        g_mean = float(np.mean(g_pixels))
-        r_mean = float(np.mean(r_pixels))
-        v_mean = float(np.mean(v_pixels))
-        s_mean = float(np.mean(s_pixels))
-        color_dispersion = float(np.std(v_pixels) + np.std(s_pixels))
-        gray_balance = float(np.std([b_mean, g_mean, r_mean]))
 
         lbp = local_binary_pattern(gray_roi, P=8, R=1, method="uniform")
         lbp_bins = np.arange(0, 8 + 3)
@@ -145,13 +130,14 @@ class RoadDetector:
         lbp_uniform_ratio = float(np.sum(lbp_hist[:-1]))
         lbp_non_uniform_ratio = float(lbp_hist[-1])
         lbp_entropy = float(-np.sum(lbp_hist * np.log2(lbp_hist + 1e-12)))
+        lbp_std = float(np.std(lbp[mask_roi]))
 
-        # Repetition score for block-like periodic texture.
-        gray_roi_f = gray_roi.astype(np.float32)
+        # Repetition score from LBP map profile for block-like periodic texture.
+        lbp_roi_f = lbp.astype(np.float32)
         row_weight = np.sum(mask_roi, axis=1).astype(np.float32)
         col_weight = np.sum(mask_roi, axis=0).astype(np.float32)
-        row_sum = np.sum(gray_roi_f * mask_roi.astype(np.float32), axis=1)
-        col_sum = np.sum(gray_roi_f * mask_roi.astype(np.float32), axis=0)
+        row_sum = np.sum(lbp_roi_f * mask_roi.astype(np.float32), axis=1)
+        col_sum = np.sum(lbp_roi_f * mask_roi.astype(np.float32), axis=0)
         row_profile = row_sum / np.maximum(row_weight, 1.0)
         col_profile = col_sum / np.maximum(col_weight, 1.0)
 
@@ -170,30 +156,23 @@ class RoadDetector:
 
         periodicity_score = max(_periodicity_score(row_profile), _periodicity_score(col_profile))
 
-        is_gray_color = s_mean < 60 and gray_balance < 20
-        is_brown_color = (r_mean > g_mean > b_mean) and (s_mean > 45)
-
-        # Rule set from color + LBP traits:
-        # - asphalt: dark gray + uniform
-        # - concrete: bright gray + fine pattern
-        # - block: repeated color pattern + periodic
-        # - gravel: high color dispersion + irregular
-        # - dirt: brown + rough
-        if is_gray_color and v_mean < 125 and lbp_uniform_ratio >= 0.83 and lbp_entropy < 1.9:
+        # Rule set from LBP traits only:
+        # - asphalt: very uniform
+        # - concrete: fine pattern
+        # - block: periodic texture
+        # - gravel: irregular and highly dispersed
+        # - dirt: rough but less chaotic than gravel
+        if lbp_uniform_ratio >= 0.86 and lbp_entropy < 1.80 and lbp_std < 2.20:
             return "asphalt"
-        elif is_gray_color and v_mean >= 125 and lbp_uniform_ratio >= 0.73 and lbp_entropy < 2.35:
-            return "concrete"
-        elif periodicity_score > 0.30 and lbp_non_uniform_ratio < 0.28:
+        elif periodicity_score > 0.33 and lbp_non_uniform_ratio < 0.25:
             return "block"
-        elif color_dispersion > 70 and lbp_non_uniform_ratio > 0.30 and lbp_entropy > 2.0:
+        elif lbp_uniform_ratio >= 0.76 and lbp_entropy < 2.25 and lbp_std < 2.90:
+            return "concrete"
+        elif lbp_non_uniform_ratio > 0.34 and lbp_entropy > 2.35 and lbp_std > 3.10:
             return "gravel"
-        elif is_brown_color and lbp_non_uniform_ratio > 0.24 and lbp_entropy >= 1.9:
+        elif lbp_non_uniform_ratio > 0.24 and lbp_entropy > 2.00:
             return "dirt"
         else:
-            if v_mean < 120 and is_gray_color:
-                return "asphalt"
-            if v_mean >= 145 and is_gray_color:
-                return "concrete"
             return "dirt"
         pass
     pass # classify_road_surface

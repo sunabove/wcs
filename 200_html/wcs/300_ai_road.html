@@ -214,6 +214,21 @@
                                             </div>
                                             <div class="tab-pane fade" id="input-sample-video-pane" role="tabpanel">
                                                 <div class="text-muted text-center py-3">샘플 동영상 목록</div>
+                                                <template id="sample-video-item-template">
+                                                    <div class="sample-thumbnail-item">
+                                                        <button type="button" class="btn btn-outline-secondary w-100 p-2 h-100 sample-video-item" data-file-name="">
+                                                            <video
+                                                                src=""
+                                                                class="img-fluid rounded mb-1"
+                                                                style="height: 120px; width: 100%; object-fit: cover;"
+                                                                muted
+                                                                playsinline
+                                                                preload="metadata"
+                                                            ></video>
+                                                            <div class="small text-truncate" title=""></div>
+                                                        </button>
+                                                    </div>
+                                                </template>
                                             </div>
                                         </div>
                                     </div>

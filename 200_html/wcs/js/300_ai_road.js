@@ -13,7 +13,10 @@ $(function () {
     const $detectTypeInputs = $("input[name='detect-type']");
     const $sampleImagePane = $("#input-sample-image-pane");
     const $sampleImageTab = $("#input-sample-image-tab");
+    const $sampleVideoPane = $("#input-sample-video-pane");
+    const $sampleVideoTab = $("#input-sample-video-tab");
     const sampleImageItemTemplate = document.getElementById("sample-image-item-template");
+    const sampleVideoItemTemplate = document.getElementById("sample-video-item-template");
     const DETECT_AFTER_UPLOAD_DELAY_MS = 800;
     let uploadedFileName = "";
     let previousFileName = "";  // 이전 파일명 추적
@@ -23,6 +26,8 @@ $(function () {
     let isDetecting = false;
     let isSampleImagesLoaded = false;
     let isSampleImagesLoading = false;
+    let isSampleVideosLoaded = false;
+    let isSampleVideosLoading = false;
     let frameStreamState = {};  // 프레임 스트리밍 상태
     let frameTimerMap = {};     // 프레임 타이머 맵
 
@@ -715,6 +720,87 @@ $(function () {
         }
     }
 
+    function renderSampleVideoThumbnails(fileNames) {
+        if ($sampleVideoPane.length === 0) {
+            return;
+        }
+
+        if (!Array.isArray(fileNames) || fileNames.length === 0) {
+            $sampleVideoPane.html('<div class="text-muted text-center py-3">샘플 동영상이 없습니다.</div>');
+            return;
+        }
+
+        const $scrollContainer = $('<div class="sample-thumbnail-scroll"></div>');
+        const $track = $('<div class="sample-thumbnail-track"></div>');
+
+        fileNames.forEach(function (fileName) {
+            const safeFileName = normalizePath(fileName);
+            const videoUrl = buildImageUrl(safeFileName);
+            const label = safeFileName.split("/").pop() || safeFileName;
+
+            if (!sampleVideoItemTemplate || !sampleVideoItemTemplate.content) {
+                return;
+            }
+
+            const node = sampleVideoItemTemplate.content.firstElementChild.cloneNode(true);
+            const button = node.querySelector(".sample-video-item");
+            const video = node.querySelector("video");
+            const caption = node.querySelector(".small");
+
+            if (button) {
+                button.setAttribute("data-file-name", safeFileName);
+            }
+            if (video) {
+                video.setAttribute("src", videoUrl);
+            }
+            if (caption) {
+                caption.setAttribute("title", safeFileName);
+                caption.textContent = label;
+            }
+
+            $track.append(node);
+        });
+
+        $scrollContainer.append($track);
+        $sampleVideoPane.empty().append($scrollContainer);
+    }
+
+    function loadSampleVideos() {
+        if ($sampleVideoPane.length === 0) {
+            return;
+        }
+
+        if (isSampleVideosLoading || isSampleVideosLoaded) {
+            return;
+        }
+
+        isSampleVideosLoading = true;
+
+        $sampleVideoPane.html('<div class="text-muted text-center py-3">샘플 동영상을 불러오는 중...</div>');
+
+        $.ajax({
+            url: "/fast/samples/video",
+            method: "GET"
+        }).done(function (result) {
+            const fileNames = Array.isArray(result)
+                ? result
+                : (result && Array.isArray(result.image_files) ? result.image_files : []);
+            renderSampleVideoThumbnails(fileNames);
+            isSampleVideosLoaded = true;
+        }).fail(function (jqXHR) {
+            console.error("Sample video list error:", jqXHR.status, jqXHR.responseText);
+            $sampleVideoPane.html('<div class="text-danger text-center py-3">샘플 동영상을 불러오지 못했습니다.</div>');
+        }).always(function () {
+            isSampleVideosLoading = false;
+        });
+    }
+
+    function ensureSampleVideosLoaded() {
+        if (!isSampleVideosLoaded) {
+            loadSampleVideos();
+        }
+    }
+
     function scheduleDetectUpdate() {
         if (!uploadedFileName) {
             return;
@@ -776,11 +862,54 @@ $(function () {
         showDetectedTabAndRunDetect(DETECT_AFTER_UPLOAD_DELAY_MS);
     });
 
+    $sampleVideoPane.on("click", ".sample-video-item", function () {
+        const selectedFileName = $(this).data("file-name");
+        if (!selectedFileName) {
+            return;
+        }
+
+        if (sampleDetectTimer) {
+            clearTimeout(sampleDetectTimer);
+            sampleDetectTimer = null;
+        }
+        if (detectDebounceTimer) {
+            clearTimeout(detectDebounceTimer);
+            detectDebounceTimer = null;
+        }
+
+        cleanupAllFrameStreams();
+        hideImageAndVideo($detectedImagePreview, $detectedVideoPreview);
+        $detectedImagePreview.removeAttr("src");
+        $detectedVideoPreview.removeAttr("src");
+        if ($detectedVideoPreview.length > 0 && $detectedVideoPreview[0]) {
+            try { $detectedVideoPreview[0].pause(); } catch (e) {}
+            try { $detectedVideoPreview[0].removeAttribute("src"); } catch (e) {}
+            try { $detectedVideoPreview[0].load(); } catch (e) {}
+        }
+        setDetectingState(false);
+        $detectingIndicator.addClass("d-none");
+
+        previousFileName = uploadedFileName;
+        uploadedFileName = normalizePath(selectedFileName);
+        const mediaUrl = buildImageUrl(uploadedFileName);
+        showMediaPreview(mediaUrl, true, $uploadedImagePreview, $uploadedVideoPreview);
+        showUploadStatusMessage("샘플 동영상을 선택하였습니다. 잠시 후 검출합니다.", true);
+        showDetectedTabAndRunDetect(DETECT_AFTER_UPLOAD_DELAY_MS);
+    });
+
     $sampleImageTab.on("click", function () {
         ensureSampleImagesLoaded();
     });
 
     $sampleImageTab.on("shown.bs.tab", function () {
         ensureSampleImagesLoaded();
+    });
+
+    $sampleVideoTab.on("click", function () {
+        ensureSampleVideosLoaded();
+    });
+
+    $sampleVideoTab.on("shown.bs.tab", function () {
+        ensureSampleVideosLoaded();
     });
 });

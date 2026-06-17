@@ -70,8 +70,8 @@ class RoadDetector:
         if fps <= 0:
             fps = 20.0
 
-        # Use avc1 only for browser-friendly H.264 MP4 output.
-        fourcc_codes = ["avc1"]
+        # Prefer H.264(avc1), but fall back to mp4v when encoder is unavailable.
+        fourcc_codes = ["avc1", "mp4v"]
 
         writer = None
         target_size = None
@@ -98,7 +98,7 @@ class RoadDetector:
                     if writer is None:
                         raise HTTPException(
                             status_code=500,
-                            detail="Failed to create H.264 output video (H.264 encoder not available)"
+                            detail="Failed to create output video (no supported encoder available)"
                         )
 
                 if target_size is not None and (detected_frame.shape[1], detected_frame.shape[0]) != target_size:

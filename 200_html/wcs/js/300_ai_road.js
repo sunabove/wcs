@@ -53,6 +53,9 @@ $(function () {
             }
             if ($video && $video.length > 0) {
                 $video.attr("src", url).removeClass("d-none");
+                if ($video[0] && typeof $video[0].load === "function") {
+                    $video[0].load();
+                }
             }
             return;
         }

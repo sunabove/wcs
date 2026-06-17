@@ -69,16 +69,16 @@ class RoadDetector:
             fps = 20.0
 
         suffix = output_path.suffix.lower()
-        fourcc_map = {
-            ".mp4": "mp4v",
-            ".m4v": "mp4v",
-            ".mov": "mp4v",
-            ".avi": "XVID",
-            ".mkv": "XVID",
-            ".webm": "VP80",
-            ".wmv": "WMV2",
+        codec_candidates = {
+            ".mp4": ["avc1", "H264", "mp4v"],
+            ".m4v": ["avc1", "H264", "mp4v"],
+            ".mov": ["avc1", "H264", "mp4v"],
+            ".avi": ["XVID", "MJPG"],
+            ".mkv": ["XVID", "MJPG"],
+            ".webm": ["VP80", "VP90"],
+            ".wmv": ["WMV2", "MJPG"],
         }
-        fourcc = cv2.VideoWriter_fourcc(*fourcc_map.get(suffix, "mp4v"))
+        fourcc_codes = codec_candidates.get(suffix, ["mp4v"])
 
         writer = None
         target_size = None
@@ -94,8 +94,15 @@ class RoadDetector:
                 if writer is None:
                     h, w = detected_frame.shape[:2]
                     target_size = (w, h)
-                    writer = cv2.VideoWriter(str(output_path), fourcc, fps, target_size)
-                    if not writer.isOpened():
+
+                    for code in fourcc_codes:
+                        writer = cv2.VideoWriter(str(output_path), cv2.VideoWriter_fourcc(*code), fps, target_size)
+                        if writer.isOpened():
+                            break
+                        writer.release()
+                        writer = None
+
+                    if writer is None:
                         raise HTTPException(status_code=500, detail="Failed to create output video")
 
                 if target_size is not None and (detected_frame.shape[1], detected_frame.shape[0]) != target_size:

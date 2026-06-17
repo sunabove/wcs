@@ -93,7 +93,7 @@ class RoadDetector:
         return (int(varied_bgr[0]), int(varied_bgr[1]), int(varied_bgr[2]))
 
     @staticmethod
-    def classify_road_surface(img_bgr):
+    def classify_road_surface(img_bgr, mask=None):
         if img_bgr is None or img_bgr.size == 0:
             return "dirt"
 
@@ -108,13 +108,32 @@ class RoadDetector:
         gray = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2GRAY)
         hsv = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2HSV)
 
-        _v_mean = float(np.mean(hsv[:, :, 2]))
+        valid_mask = None
+        if mask is not None:
+            valid_mask = np.asarray(mask).astype(bool)
+            if valid_mask.shape != gray.shape or np.count_nonzero(valid_mask) < 16:
+                valid_mask = None
 
-        lbp = local_binary_pattern(gray, P=8, R=1, method="uniform")
+        if valid_mask is not None:
+            v_pixels = hsv[:, :, 2][valid_mask]
+            s_pixels = hsv[:, :, 1][valid_mask]
+            gray_for_texture = gray.copy()
+            fill_value = int(np.median(gray[valid_mask]))
+            gray_for_texture[~valid_mask] = fill_value
+        else:
+            v_pixels = hsv[:, :, 2].reshape(-1)
+            s_pixels = hsv[:, :, 1].reshape(-1)
+            gray_for_texture = gray
+
+        v_mean = float(np.mean(v_pixels))
+        s_mean = float(np.mean(s_pixels))
+        v_std = float(np.std(v_pixels))
+
+        lbp = local_binary_pattern(gray_for_texture, P=8, R=1, method="uniform")
         _lbp_var = float(np.var(lbp))
 
         glcm = graycomatrix(
-            gray,
+            gray_for_texture,
             distances=[1],
             angles=[0],
             levels=256,
@@ -125,13 +144,16 @@ class RoadDetector:
         contrast = float(graycoprops(glcm, "contrast")[0, 0])
         homogeneity = float(graycoprops(glcm, "homogeneity")[0, 0])
 
-        edges = cv2.Canny(gray, 100, 200)
-        edge_density = float(np.count_nonzero(edges) / max(1, edges.size))
+        edges = cv2.Canny(gray_for_texture, 100, 200)
+        if valid_mask is not None:
+            edge_density = float(np.count_nonzero(edges[valid_mask]) / max(1, np.count_nonzero(valid_mask)))
+        else:
+            edge_density = float(np.count_nonzero(edges) / max(1, edges.size))
 
-        f = np.fft.fft2(gray)
+        f = np.fft.fft2(gray_for_texture)
         fshift = np.fft.fftshift(f)
 
-        h, w = gray.shape
+        h, w = gray_for_texture.shape
         cy, cx = h // 2, w // 2
         mask = np.ones((h, w), np.uint8)
         y1 = max(0, cy - 20)
@@ -142,9 +164,17 @@ class RoadDetector:
 
         high_freq_energy = float(np.mean(np.abs(fshift * mask)))
 
-        if contrast < 300 and edge_density < 0.05:
+        # Asphalt is usually darker than concrete. Let brightness override modest
+        # texture from lane markings or shadows so dark asphalt is not promoted to concrete.
+        if v_mean < 120 and s_mean < 70 and edge_density < 0.16:
             return "asphalt"
-        elif contrast < 1000 and edge_density < 0.10:
+        elif v_mean < 145 and v_std < 55 and contrast < 1400 and edge_density < 0.14:
+            return "asphalt"
+        elif contrast < 300 and edge_density < 0.05:
+            return "asphalt"
+        elif v_mean >= 145 and contrast < 1000 and edge_density < 0.10:
+            return "concrete"
+        elif contrast < 1000 and edge_density < 0.08:
             return "concrete"
         elif homogeneity > 0.35 and edge_density > 0.10:
             return "block"
@@ -538,7 +568,8 @@ class RoadDetector:
                     color_lookup_label = ""
                     if detect_key == "road_type":
                         roi_bgr = frame[y1:y2 + 1, x1:x2 + 1]
-                        instance_label = RoadDetector.classify_road_surface(roi_bgr)
+                        roi_mask = binary_mask[y1:y2 + 1, x1:x2 + 1]
+                        instance_label = RoadDetector.classify_road_surface(roi_bgr, roi_mask)
                         color_lookup_label = instance_label
                     elif mask_cls_ids is not None and idx < len(mask_cls_ids):
                         instance_label = str(names.get(int(mask_cls_ids[idx]), int(mask_cls_ids[idx])))

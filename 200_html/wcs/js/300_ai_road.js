@@ -14,6 +14,7 @@ $(function () {
     const DETECT_AFTER_UPLOAD_DELAY_MS = 800;
     let uploadedFileName = "";
     let detectDebounceTimer = null;
+    let sampleDetectTimer = null;
     let isUploading = false;
     let isDetecting = false;
 
@@ -116,6 +117,20 @@ $(function () {
 
     function buildRoadDetectUrl(fileName) {
         return "/fast/road_detect/" + encodePathForRoute(fileName);
+    }
+
+    function showDetectedTabAndRunDetect(delayMs) {
+        if (sampleDetectTimer) {
+            clearTimeout(sampleDetectTimer);
+        }
+
+        sampleDetectTimer = setTimeout(function () {
+            if ($detectedImageTab.length > 0 && typeof bootstrap !== "undefined" && bootstrap.Tab) {
+                bootstrap.Tab.getOrCreateInstance($detectedImageTab[0]).show();
+            }
+            runDetect();
+            sampleDetectTimer = null;
+        }, delayMs);
     }
 
     function uploadSelectedImage(file) {
@@ -423,7 +438,8 @@ $(function () {
         const imageUrl = buildImageUrl(uploadedFileName);
         $uploadedImagePreview.attr("src", imageUrl).removeClass("d-none");
         $detectedImagePreview.attr("src", "").addClass("d-none");
-        showUploadStatusMessage("샘플 영상을 선택했습니다.", true);
+        showUploadStatusMessage("샘플 영상을 선택하였습니다. 잠시 후 검출합니다.", true);
+        showDetectedTabAndRunDetect(DETECT_AFTER_UPLOAD_DELAY_MS);
     });
 
     loadSampleImages();

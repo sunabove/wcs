@@ -181,7 +181,9 @@ class RoadDetector:
         elif edge_density > 0.20 and high_freq_energy > 500:
             return "gravel"
         else:
-            return "dirt"
+            return "dirt" 
+        pass
+    pass # classify_road_surface
 
     def road_detect_service(self, file_name: str, detect_type: str = "road") -> dict:
         input_path = resolve_upload_image_path(file_name)

@@ -17,6 +17,8 @@ from config import BASE_DIR, VIDEO_EXTENSIONS
 class RoadDetector:
     _road_area_model = None
     _road_area_model_path = Path(__file__).resolve().parent / "ai/road/model/01_yolo11m-road-sg.pt"
+    _class_color_map_path = Path(__file__).resolve().parent / "colormap_road.txt"
+    _class_color_map = None
     
     _model_paths = {
         "road": Path(__file__).resolve().parent / "ai/road/model/01_yolo11m-road-sg.pt",
@@ -30,6 +32,43 @@ class RoadDetector:
         self.image_ext = {".jpg", ".jpeg", ".png", ".bmp", ".webp"} 
         self.video_ext = set(VIDEO_EXTENSIONS)
     pass # __init__
+
+    @classmethod
+    def _get_class_color_map(cls):
+        if cls._class_color_map is not None:
+            return cls._class_color_map
+
+        color_map = {}
+        try:
+            with cls._class_color_map_path.open("r", encoding="utf-8") as f:
+                for raw_line in f:
+                    line = raw_line.strip()
+                    if not line or line.startswith("#"):
+                        continue
+
+                    parts = line.split()
+                    if len(parts) != 4:
+                        continue
+
+                    class_name = parts[0].strip()
+                    try:
+                        r = int(parts[1])
+                        g = int(parts[2])
+                        b = int(parts[3])
+                    except ValueError:
+                        continue
+
+                    r = max(0, min(255, r))
+                    g = max(0, min(255, g))
+                    b = max(0, min(255, b))
+                    # OpenCV uses BGR color order.
+                    color_map[class_name] = (b, g, r)
+                    color_map[class_name.lower()] = (b, g, r)
+        except FileNotFoundError:
+            color_map = {}
+
+        cls._class_color_map = color_map
+        return cls._class_color_map
 
     def road_detect_service(self, file_name: str, detect_type: str = "road") -> dict:
         input_path = resolve_upload_image_path(file_name)
@@ -373,9 +412,11 @@ class RoadDetector:
             
             masks = result.masks.data.cpu().numpy()
             total_mask_count = len(masks)
+            mask_cls_ids = result.masks.cls.cpu().numpy().astype(int) if getattr(result.masks, "cls", None) is not None else None
             height, width = detected.shape[:2]
             frame_area = max(1, height * width)
             min_mask_area = max(min_mask_area_pixels, int(frame_area * min_mask_area_ratio))
+            class_color_map = RoadDetector._get_class_color_map()
 
             overlay = detected.copy()
             for idx, mask in enumerate(masks):
@@ -386,7 +427,12 @@ class RoadDetector:
                     continue
 
                 kept_mask_indices.append(idx)
-                overlay[binary_mask] = (0, 255, 0)
+                mask_color = (0, 255, 0)
+                if mask_cls_ids is not None and idx < len(mask_cls_ids):
+                    cls_id = int(mask_cls_ids[idx])
+                    cls_name = str(names.get(cls_id, cls_id))
+                    mask_color = class_color_map.get(cls_name, class_color_map.get(cls_name.lower(), mask_color))
+                overlay[binary_mask] = mask_color
 
             mask_count = len(kept_mask_indices)
             detected = cv2.addWeighted(overlay, 0.35, detected, 0.65, 0)

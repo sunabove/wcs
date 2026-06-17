@@ -746,10 +746,32 @@ $(function () {
             return;
         }
 
+        if (sampleDetectTimer) {
+            clearTimeout(sampleDetectTimer);
+            sampleDetectTimer = null;
+        }
+        if (detectDebounceTimer) {
+            clearTimeout(detectDebounceTimer);
+            detectDebounceTimer = null;
+        }
+
+        // 샘플 선택 전 현재 검출 출력/세션을 완전히 초기화
+        cleanupAllFrameStreams();
+        hideImageAndVideo($detectedImagePreview, $detectedVideoPreview);
+        $detectedImagePreview.removeAttr("src");
+        $detectedVideoPreview.removeAttr("src");
+        if ($detectedVideoPreview.length > 0 && $detectedVideoPreview[0]) {
+            try { $detectedVideoPreview[0].pause(); } catch (e) {}
+            try { $detectedVideoPreview[0].removeAttribute("src"); } catch (e) {}
+            try { $detectedVideoPreview[0].load(); } catch (e) {}
+        }
+        setDetectingState(false);
+        $detectingIndicator.addClass("d-none");
+
+        previousFileName = uploadedFileName;
         uploadedFileName = normalizePath(selectedFileName);
         const imageUrl = buildImageUrl(uploadedFileName);
         showMediaPreview(imageUrl, isVideoPath(uploadedFileName), $uploadedImagePreview, $uploadedVideoPreview);
-        hideImageAndVideo($detectedImagePreview, $detectedVideoPreview);
         showUploadStatusMessage("샘플 영상을 선택하였습니다. 잠시 후 검출합니다.", true);
         showDetectedTabAndRunDetect(DETECT_AFTER_UPLOAD_DELAY_MS);
     });

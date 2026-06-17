@@ -70,8 +70,8 @@ class RoadDetector:
         if fps <= 0:
             fps = 20.0
 
-        # Try only H.264-compatible FOURCC codes.
-        fourcc_codes = ["avc1", "H264", "X264"]
+        # Use avc1 only for browser-friendly H.264 MP4 output.
+        fourcc_codes = ["avc1"]
 
         writer = None
         target_size = None

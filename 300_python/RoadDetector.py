@@ -502,6 +502,7 @@ class RoadDetector:
             "regenerated_labels": regenerated_labels,
             "regenerated_box_colors": regenerated_box_colors,
         }
+    pass # _process_result_masks
 
     @staticmethod
     def _draw_boxes_and_collect_counts(detected, boxes, confs, cls_ids, box_labels, box_colors, names, detect_key, font_face):
@@ -603,6 +604,17 @@ class RoadDetector:
         except Exception as ex:
             raise HTTPException(status_code=500, detail=f"YOLO inference failed: {ex}")
 
+        # For "road" detect type, keep only the highest confidence detection
+        if detect_key == "road" and result.boxes is not None and result.boxes.conf is not None:
+            confs = result.boxes.conf.cpu().numpy()
+            if len(confs) > 1:
+                max_conf_idx = int(np.argmax(confs))
+                result.boxes = result.boxes[max_conf_idx:max_conf_idx+1]
+                if result.masks is not None:
+                    result.masks.data = result.masks.data[max_conf_idx:max_conf_idx+1]
+                    if hasattr(result.masks, 'cls') and result.masks.cls is not None:
+                        result.masks.cls = result.masks.cls[max_conf_idx:max_conf_idx+1]
+
         detected = frame.copy()
         names = result.names if isinstance(result.names, dict) else {}
 
@@ -615,6 +627,7 @@ class RoadDetector:
             min_mask_area_ratio,
             min_mask_area_pixels,
         )
+        
         detected = mask_result["detected"]
         mask_count = mask_result["mask_count"]
         total_mask_count = mask_result["total_mask_count"]
@@ -683,41 +696,5 @@ class RoadDetector:
 
         return detected
     pass # detect_road
-
-    def detect_road_old(self, frame):
-        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-        blur = cv2.GaussianBlur(gray, (5, 5), 0)
-        edges = cv2.Canny(blur, 50, 150)
-
-        height, width = edges.shape
-        mask = np.zeros_like(edges)
-        roi = np.array([
-            [
-                (int(width * 0.1), height),
-                (int(width * 0.45), int(height * 0.6)),
-                (int(width * 0.55), int(height * 0.6)),
-                (int(width * 0.9), height)
-            ]
-        ], dtype=np.int32)
-        cv2.fillPoly(mask, roi, 255)
-        roi_edges = cv2.bitwise_and(edges, mask)
-
-        lines = cv2.HoughLinesP(
-            roi_edges,
-            rho=1,
-            theta=np.pi / 180,
-            threshold=30,
-            minLineLength=40,
-            maxLineGap=120
-        )
-
-        overlay = frame.copy()
-        if lines is not None:
-            for line in lines:
-                x1, y1, x2, y2 = line[0]
-                cv2.line(overlay, (x1, y1), (x2, y2), (0, 255, 0), 3)
-
-        return overlay
-    pass # detect_road_old
 
 pass # RoadDetector

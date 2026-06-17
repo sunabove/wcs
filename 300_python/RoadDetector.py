@@ -93,8 +93,8 @@ class RoadDetector:
         return (int(varied_bgr[0]), int(varied_bgr[1]), int(varied_bgr[2]))
 
     @staticmethod
-    def classify_road_surface(img_bgr, mask=None):
-        if img_bgr is None or img_bgr.size == 0:
+    def classify_road_surface(masked_img_bgr):
+        if masked_img_bgr is None or masked_img_bgr.size == 0:
             return "dirt"
 
         try:
@@ -103,16 +103,11 @@ class RoadDetector:
         except Exception:
             return "dirt"
 
-        gray = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2GRAY)
+        gray = cv2.cvtColor(masked_img_bgr, cv2.COLOR_BGR2GRAY)
 
-        valid_mask = None
-        if mask is not None:
-            valid_mask = np.asarray(mask).astype(bool)
-            if valid_mask.shape != gray.shape or np.count_nonzero(valid_mask) < 16:
-                valid_mask = None
-
-        # Classify using masked area only.
-        if valid_mask is None:
+        # Non-road area is expected to be zeroed out before calling this function.
+        valid_mask = gray > 0
+        if np.count_nonzero(valid_mask) < 16:
             return "dirt"
 
         ys, xs = np.where(valid_mask)
@@ -563,7 +558,9 @@ class RoadDetector:
                     if detect_key == "road_type":
                         roi_bgr = frame[y1:y2 + 1, x1:x2 + 1]
                         roi_mask = binary_mask[y1:y2 + 1, x1:x2 + 1]
-                        instance_label = RoadDetector.classify_road_surface(roi_bgr, roi_mask)
+                        roi_masked_bgr = roi_bgr.copy()
+                        roi_masked_bgr[~roi_mask] = 0
+                        instance_label = RoadDetector.classify_road_surface(roi_masked_bgr)
                         color_lookup_label = instance_label
                     elif mask_cls_ids is not None and idx < len(mask_cls_ids):
                         instance_label = str(names.get(int(mask_cls_ids[idx]), int(mask_cls_ids[idx])))

@@ -371,7 +371,7 @@ $(function () {
         }
 
         uploadedFileName = String(selectedFileName);
-        const imageUrl = "/fast/image/" + encodeURIComponent(uploadedFileName) + "?t=" + Date.now();
+        const imageUrl = "/fast/image/" + uploadedFileName + "?t=" + Date.now();
         $uploadedImagePreview.attr("src", imageUrl).removeClass("d-none");
         $detectedImagePreview.attr("src", "").addClass("d-none");
         showUploadStatusMessage("샘플 영상을 선택했습니다.", true);

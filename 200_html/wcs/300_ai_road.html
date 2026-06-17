@@ -62,6 +62,7 @@
             overflow-x: auto;
             overflow-y: hidden;
             padding-bottom: 0.25rem;
+            max-width: 100%;
         }
 
         .sample-thumbnail-track {
@@ -79,6 +80,19 @@
 
         .sample-thumbnail-item .sample-image-item {
             min-height: 170px;
+        }
+
+        #road-detect-table {
+            width: 100%;
+            table-layout: fixed;
+        }
+
+        #road-detect-table td {
+            overflow: hidden;
+        }
+
+        #input-sample-image-pane {
+            overflow-x: hidden;
         }
     </style>
 
@@ -127,7 +141,7 @@
 
             <div class="card-body p-2">
                 <div class="table-responsive">
-                    <table class="table table-bordered align-middle mb-0">
+                    <table id="road-detect-table" class="table table-bordered align-middle mb-0">
                         <colgroup>
                             <col style="width: 120px;">
                             <col>

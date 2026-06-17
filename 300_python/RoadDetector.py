@@ -15,6 +15,102 @@ from send_image import resolve_upload_image_path
 from config import BASE_DIR, VIDEO_EXTENSIONS
 
 
+class RoadClassifier:
+    def __init__(self):
+        self._local_binary_pattern = None
+        try:
+            skimage_feature = importlib.import_module("skimage.feature")
+            self._local_binary_pattern = skimage_feature.local_binary_pattern
+        except Exception:
+            self._local_binary_pattern = None
+
+    @staticmethod
+    def _extract_masked_gray_roi(masked_img_bgr):
+        if masked_img_bgr is None or masked_img_bgr.size == 0:
+            return None, None
+
+        gray = cv2.cvtColor(masked_img_bgr, cv2.COLOR_BGR2GRAY)
+        valid_mask = gray > 0
+        if int(np.count_nonzero(valid_mask)) < 16:
+            return None, None
+
+        ys, xs = np.where(valid_mask)
+        y_min, y_max = int(ys.min()), int(ys.max())
+        x_min, x_max = int(xs.min()), int(xs.max())
+
+        gray_roi = gray[y_min:y_max + 1, x_min:x_max + 1]
+        mask_roi = valid_mask[y_min:y_max + 1, x_min:x_max + 1]
+        return gray_roi, mask_roi
+
+    @staticmethod
+    def _calc_edge_density(gray_roi, mask_roi):
+        edges = cv2.Canny(gray_roi, 50, 150)
+        edges = np.where(mask_roi, edges, 0).astype(np.uint8)
+        edge_density = float(np.count_nonzero(edges) / max(1, np.count_nonzero(mask_roi)))
+        return edge_density, edges
+
+    @staticmethod
+    def _calc_hough_features(edges):
+        lines = cv2.HoughLinesP(
+            edges,
+            rho=1,
+            theta=np.pi / 180,
+            threshold=30,
+            minLineLength=20,
+            maxLineGap=5,
+        )
+
+        if lines is None:
+            return 0, 0.0
+
+        angles = []
+        for line in lines:
+            x1, y1, x2, y2 = line[0]
+            angle = float(np.degrees(np.arctan2(y2 - y1, x2 - x1)))
+            angle = abs(angle)
+            if angle > 90.0:
+                angle = 180.0 - angle
+            angles.append(angle)
+
+        line_count = int(len(lines))
+        if not angles:
+            return line_count, 0.0
+
+        hist, _ = np.histogram(angles, bins=18, range=(0, 90))
+        dominant_ratio = float(hist.max() / max(1, line_count))
+        return line_count, dominant_ratio
+
+    def _calc_lbp_variance(self, gray_roi, mask_roi):
+        if self._local_binary_pattern is None:
+            return None
+
+        lbp = self._local_binary_pattern(gray_roi, P=8, R=1, method="uniform")
+        return float(np.var(lbp[mask_roi]))
+
+    def classify(self, masked_img_bgr):
+        gray_roi, mask_roi = self._extract_masked_gray_roi(masked_img_bgr)
+        if gray_roi is None or mask_roi is None:
+            return "dirt"
+
+        lbp_var = self._calc_lbp_variance(gray_roi, mask_roi)
+        if lbp_var is None:
+            return "dirt"
+
+        edge_density, edges = self._calc_edge_density(gray_roi, mask_roi)
+        line_count, dominant_ratio = self._calc_hough_features(edges)
+
+        if line_count > 80 and dominant_ratio > 0.35:
+            return "block"
+        elif edge_density > 0.12 and lbp_var > 12.0:
+            return "gravel"
+        elif edge_density > 0.05 and lbp_var > 8.0:
+            return "dirt"
+        elif edge_density < 0.03 and lbp_var < 5.0:
+            return "asphalt"
+        else:
+            return "concrete"
+
+
 class RoadDetector:
     _road_area_model = None
     _road_area_model_path = Path(__file__).resolve().parent / "ai/road/model/01_yolo11m-road-sg.pt"
@@ -28,6 +124,7 @@ class RoadDetector:
     }
     _models = {}
     _stream_sessions = {}  # {session_id: {capture, frame_count, fps, detect_type, file_name}}
+    _road_classifier = RoadClassifier()
     
     def __init__(self):
         self.image_ext = {".jpg", ".jpeg", ".png", ".bmp", ".webp"} 
@@ -94,81 +191,7 @@ class RoadDetector:
 
     @staticmethod
     def classify_road_surface(masked_img_bgr):
-        if masked_img_bgr is None or masked_img_bgr.size == 0:
-            return "dirt"
-
-        try:
-            skimage_feature = importlib.import_module("skimage.feature")
-            local_binary_pattern = skimage_feature.local_binary_pattern
-        except Exception:
-            return "dirt"
-
-        gray = cv2.cvtColor(masked_img_bgr, cv2.COLOR_BGR2GRAY)
-
-        # Non-road area is expected to be zeroed out before calling this function.
-        valid_mask = gray > 0
-        if np.count_nonzero(valid_mask) < 16:
-            return "dirt"
-
-        ys, xs = np.where(valid_mask)
-        y_min, y_max = int(ys.min()), int(ys.max())
-        x_min, x_max = int(xs.min()), int(xs.max())
-        gray_roi = gray[y_min:y_max + 1, x_min:x_max + 1]
-        mask_roi = valid_mask[y_min:y_max + 1, x_min:x_max + 1]
-
-        lbp = local_binary_pattern(gray_roi, P=8, R=1, method="uniform")
-        lbp_bins = np.arange(0, 8 + 3)
-        lbp_hist, _ = np.histogram(lbp[mask_roi], bins=lbp_bins, density=True)
-        lbp_hist = lbp_hist.astype(np.float64)
-        lbp_hist = lbp_hist / max(1e-12, float(np.sum(lbp_hist)))
-
-        lbp_uniform_ratio = float(np.sum(lbp_hist[:-1]))
-        lbp_non_uniform_ratio = float(lbp_hist[-1])
-        lbp_entropy = float(-np.sum(lbp_hist * np.log2(lbp_hist + 1e-12)))
-        lbp_std = float(np.std(lbp[mask_roi]))
-
-        # Repetition score from LBP map profile for block-like periodic texture.
-        lbp_roi_f = lbp.astype(np.float32)
-        row_weight = np.sum(mask_roi, axis=1).astype(np.float32)
-        col_weight = np.sum(mask_roi, axis=0).astype(np.float32)
-        row_sum = np.sum(lbp_roi_f * mask_roi.astype(np.float32), axis=1)
-        col_sum = np.sum(lbp_roi_f * mask_roi.astype(np.float32), axis=0)
-        row_profile = row_sum / np.maximum(row_weight, 1.0)
-        col_profile = col_sum / np.maximum(col_weight, 1.0)
-
-        def _periodicity_score(profile):
-            profile = profile - float(np.mean(profile))
-            energy = float(np.dot(profile, profile))
-            if energy < 1e-6:
-                return 0.0
-            ac = np.correlate(profile, profile, mode="full")
-            ac = ac[len(profile) - 1:]
-            lag_min = 2
-            lag_max = max(lag_min + 1, min(len(ac), 60))
-            if lag_max <= lag_min:
-                return 0.0
-            return float(np.max(ac[lag_min:lag_max]) / (ac[0] + 1e-9))
-
-        periodicity_score = max(_periodicity_score(row_profile), _periodicity_score(col_profile))
-
-        # Rule set from LBP traits only:
-        # - asphalt: very uniform
-        # - concrete: fine pattern
-        # - block: periodic texture
-        # - gravel: irregular and highly dispersed
-        # - dirt: rough but less chaotic than gravel
-        if lbp_uniform_ratio >= 0.86 and lbp_entropy < 1.80 and lbp_std < 2.20:
-            return "asphalt"
-        elif periodicity_score > 0.33 and lbp_non_uniform_ratio < 0.25:
-            return "block"
-        elif lbp_uniform_ratio >= 0.76 and lbp_entropy < 2.25 and lbp_std < 2.90:
-            return "concrete"
-        elif lbp_non_uniform_ratio > 0.34 and lbp_entropy > 2.35 and lbp_std > 3.10:
-            return "gravel"
-        elif lbp_non_uniform_ratio > 0.24 and lbp_entropy > 2.00:
-            return "dirt"
-        else:
-            return "dirt"
+        return RoadDetector._road_classifier.classify(masked_img_bgr)
         pass
     pass # classify_road_surface
 

@@ -7,6 +7,7 @@ from pathlib import Path
 import time
 
 from send_image import resolve_upload_image_path
+from config import BASE_DIR
 
 
 class RoadDetector:
@@ -45,8 +46,14 @@ class RoadDetector:
         if not cv2.imwrite(str(output_path), detected_image):
             raise HTTPException(status_code=500, detail="Failed to write output image")
 
+        base_dir = BASE_DIR.resolve()
+        try:
+            relative_output_path = output_path.resolve().relative_to(base_dir).as_posix()
+        except ValueError:
+            relative_output_path = output_path.name
+
         return {
-            "image_url": f"/fast/image/{output_path.name}"
+            "image_url": f"/fast/image/{relative_output_path}"
         }
     pass # road_detect_service
 

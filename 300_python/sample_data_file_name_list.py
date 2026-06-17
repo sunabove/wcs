@@ -18,7 +18,7 @@ def sample_data_file_name_list(folder_name: str) -> list[str]:
         for file_path in target_path.rglob("*"):
             if file_path.is_file(): 
                 ext = file_path.suffix.lower()
-                if ext in IMAGE_EXTENSIONS or ext in VIDEO_EXTENSIONS:
+                if (ext in IMAGE_EXTENSIONS or ext in VIDEO_EXTENSIONS) and "_detected" not in file_path.stem.lower():
                     relative_path = file_path.relative_to(samples_path).as_posix()
                     file_names.append(f"samples/{relative_path}")
                 pass

@@ -343,21 +343,32 @@ $(function () {
         uploadSelectedImage(file);
     });
 
+    // Document 레벨에서 브라우저의 기본 드래그 동작 방지
+    $(document).on("dragenter dragover drop", function (event) {
+        event.preventDefault();
+        event.stopPropagation();
+    });
+
     $dropZone.on("dragenter dragover", function (event) {
         event.preventDefault();
         event.stopPropagation();
         $dropZone.addClass("drag-over");
     });
 
-    $dropZone.on("dragleave drop", function (event) {
+    $dropZone.on("dragleave", function (event) {
         event.preventDefault();
         event.stopPropagation();
-        $dropZone.removeClass("drag-over");
+        // 자식 요소로 이동하는 경우 제외
+        if (event.target === this) {
+            $dropZone.removeClass("drag-over");
+        }
     });
 
     $dropZone.on("drop", function (event) {
         event.preventDefault();
         event.stopPropagation();
+        $dropZone.removeClass("drag-over");
+
         const originalEvent = event.originalEvent;
         const files = originalEvent && originalEvent.dataTransfer ? originalEvent.dataTransfer.files : null;
         if (!files || files.length === 0) {

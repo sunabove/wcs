@@ -3,7 +3,7 @@ from gpiozero.tones import Tone
 
 buzzer = TonalBuzzer(4)
 
-tone = "A2"
+tone = "A3"
 print(f"Playing tone {tone}...")
 
 buzzer.play(Tone(tone))

@@ -8,7 +8,6 @@ $(function () {
     const $detectedVideoPreview = $("#detected-video-preview");
     const $roiOverlay = $("#roi-overlay");
     const $roiSelection = $("#roi-selection");
-    const $roiSaveButton = $("#roi-save-button");
     const $roiResetButton = $("#roi-reset-button");
     const $roiEditorStatus = $("#roi-editor-status");
     const $originalImageTab = $("#original-image-tab");
@@ -129,7 +128,6 @@ $(function () {
 
     function updateRoiEditorButtons() {
         const hasRoi = Boolean(currentRoiInfo && draftRoiInfo);
-        $roiSaveButton.prop("disabled", !hasRoi || sameRoi(currentRoiInfo.roi, draftRoiInfo));
         $roiResetButton.prop("disabled", !hasRoi);
     }
 
@@ -1277,10 +1275,6 @@ $(function () {
 
     $(document).on("pointerup.roiEditor pointercancel.roiEditor", function () {
         endRoiInteraction();
-    });
-
-    $roiSaveButton.on("click", function () {
-        saveRoiInfo();
     });
 
     $roiResetButton.on("click", function () {

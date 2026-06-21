@@ -14,7 +14,7 @@ class LEDDisplay:
     HEIGHT = 32
     MARGIN_X = 4
     MARGIN_Y = 3
-    LINE_GAP = 11
+    LINE_GAP = 13
     ADDR = 0x3C
 
     def __init__(self):

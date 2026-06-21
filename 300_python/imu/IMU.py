@@ -23,12 +23,18 @@ class KalmanAngle:
         self.p10 = 0.0
         self.p11 = 0.0
 
-    def update(self, angle, rate, dt):
+    def update(self, measured_angle, measured_rate, dt):
 
-        self.rate = rate - self.bias
+        self.rate = measured_rate - self.bias
         self.angle += dt * self.rate
 
-        self.p00 += dt * (dt * self.p11 - self.p01 - self.p10 + self.q_angle)
+        self.p00 += dt * (
+            dt * self.p11
+            - self.p01
+            - self.p10
+            + self.q_angle
+        )
+
         self.p01 -= dt * self.p11
         self.p10 -= dt * self.p11
         self.p11 += self.q_bias * dt
@@ -38,7 +44,7 @@ class KalmanAngle:
         k0 = self.p00 / s
         k1 = self.p10 / s
 
-        y = angle - self.angle
+        y = measured_angle - self.angle
 
         self.angle += k0 * y
         self.bias += k1 * y
@@ -56,12 +62,14 @@ class KalmanAngle:
 
 class IMU:
 
+    MPU_ADDR = 0x68
+
     def __init__(self):
 
         self.bus = SMBus(1)
 
         self.bus.write_byte_data(
-            0x68,
+            self.MPU_ADDR,
             0x6B,
             0
         )
@@ -78,34 +86,62 @@ class IMU:
     def read(self):
 
         d = self.bus.read_i2c_block_data(
-            0x68,
+            self.MPU_ADDR,
             0x3B,
             14
         )
 
-        ax = self._signed16((d[0] << 8) | d[1]) / 16384.0
-        ay = self._signed16((d[2] << 8) | d[3]) / 16384.0
-        az = self._signed16((d[4] << 8) | d[5]) / 16384.0
+        ax = self._signed16(
+            (d[0] << 8) | d[1]
+        ) / 16384.0
 
-        gx = self._signed16((d[8] << 8) | d[9]) / 131.0
-        gy = self._signed16((d[10] << 8) | d[11]) / 131.0
-        gz = self._signed16((d[12] << 8) | d[13]) / 131.0
+        ay = self._signed16(
+            (d[2] << 8) | d[3]
+        ) / 16384.0
+
+        az = self._signed16(
+            (d[4] << 8) | d[5]
+        ) / 16384.0
+
+        gx = self._signed16(
+            (d[8] << 8) | d[9]
+        ) / 131.0
+
+        gy = self._signed16(
+            (d[10] << 8) | d[11]
+        ) / 131.0
+
+        gz = self._signed16(
+            (d[12] << 8) | d[13]
+        ) / 131.0
 
         pitch = math.degrees(
             math.atan2(
-                ax,
-                math.sqrt(ay * ay + az * az)
+                -ax,
+                math.sqrt(
+                    ay * ay +
+                    az * az
+                )
             )
         )
 
         roll = math.degrees(
             math.atan2(
                 ay,
-                math.sqrt(ax * ax + az * az)
+                az
             )
         )
 
-        return pitch, roll, ax, ay, az, gx, gy, gz
+        return (
+            pitch,
+            roll,
+            ax,
+            ay,
+            az,
+            gx,
+            gy,
+            gz
+        )
 
     def close(self):
 
@@ -189,6 +225,10 @@ def main():
                     gz * 0.005
                 )
 
+            #
+            # Pitch / Roll Kalman
+            #
+
             pitch = pitch_filter.update(
                 p,
                 gx,
@@ -201,23 +241,39 @@ def main():
                 dt
             )
 
+            #
+            # Yaw Integration
+            #
+
             yaw += (
                 gz - gz_offset
             ) * dt
 
-            if yaw > 180:
+            while yaw > 180:
                 yaw -= 360
 
-            if yaw < -180:
+            while yaw < -180:
                 yaw += 360
 
             print(
-                f"R={roll:6.1f}° "
-                f"P={pitch:6.1f}° "
-                f"Y={yaw:7.1f}° "
-                f"ACC=({ax:5.2f},{ay:5.2f},{az:5.2f}) "
-                f"GYR=({gx:6.1f},{gy:6.1f},{gz:6.1f})"
+                f"R={roll:7.2f}° "
+                f"P={pitch:7.2f}° "
+                f"Y={yaw:7.2f}°"
             )
+
+            print(
+                f"ACC=({ax:6.3f},"
+                f"{ay:6.3f},"
+                f"{az:6.3f})"
+            )
+
+            print(
+                f"GYR=({gx:7.2f},"
+                f"{gy:7.2f},"
+                f"{gz:7.2f})"
+            )
+
+            print("-" * 60)
 
             time.sleep(0.02)
 

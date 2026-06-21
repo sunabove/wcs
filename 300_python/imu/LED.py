@@ -1,9 +1,12 @@
 import board, busio
 import paho.mqtt.client as mqtt
 import adafruit_ssd1306
+import datetime
+import time
 
 from PIL import Image, ImageDraw, ImageFont
 
+# mosquitto_pub -t led/text -m "Hello OLED/nWorld"
 # mosquitto_pub -t led/text -m "Hello OLED/nWorld"
 
 class LEDDisplay:
@@ -57,9 +60,7 @@ pass # LEDDisplay
 class MqttOledService:
     BROKER = "localhost"
     PORT = 1883
-    TOPICS = [
-        "led/text",
-    ]
+    TOPIC = "led/text"
 
     def __init__(self):
         self.display = LEDDisplay()
@@ -94,10 +95,30 @@ class MqttOledService:
 
     def _on_connect(self, client, userdata, flags, reason_code, properties=None):
         print("MQTT connected:", reason_code)
-        for topic in self.TOPICS:
-            client.subscribe(topic)
+        client.subscribe(self.TOPIC)
         self._render(["Waiting MQTT"])
+        self._publish_boot_time()
     pass  # _on_connect
+
+    @staticmethod
+    def _read_boot_epoch():
+        try:
+            with open("/proc/stat", "r", encoding="utf-8") as fp:
+                for line in fp:
+                    if line.startswith("btime "):
+                        return int(line.split()[1])
+        except Exception:
+            pass
+        return int(time.time())
+    pass  # _read_boot_epoch
+
+    def _publish_boot_time(self):
+        boot_epoch = self._read_boot_epoch()
+        boot_iso = datetime.datetime.fromtimestamp(boot_epoch).isoformat()
+        payload = str(boot_iso)
+        self.client.publish("led/text", payload, qos=0, retain=True)
+        print(f"MQTT pub: led/text -> {payload}")
+    pass  # _publish_boot_time
 
     def _on_message(self, client, userdata, msg):
         payload = msg.payload.decode("utf-8", errors="ignore").strip()

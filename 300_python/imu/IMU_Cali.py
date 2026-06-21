@@ -62,11 +62,26 @@ def main():
 			curr_gy_offset = -(gy_sum / sample_count)
 			curr_gz_offset = -(gz_sum / sample_count)
 
+			cal_ax = ax + curr_ax_offset
+			cal_ay = ay + curr_ay_offset
+			cal_az = az + curr_az_offset
+			cal_gx = gx + curr_gx_offset
+			cal_gy = gy + curr_gy_offset
+			cal_gz = gz + curr_gz_offset
+
 			remain = max(0.0, end_time - time.monotonic())
 			print(
 				f"remain={remain:4.1f}s "
 				f"curr_acc_off=({curr_ax_offset:+.4f},{curr_ay_offset:+.4f},{curr_az_offset:+.4f}) "
 				f"curr_gyr_off=({curr_gx_offset:+.4f},{curr_gy_offset:+.4f},{curr_gz_offset:+.4f})"
+			)
+			print(
+				f"raw_acc=({ax:+.4f},{ay:+.4f},{az:+.4f}) "
+				f"raw_gyr=({gx:+.4f},{gy:+.4f},{gz:+.4f})"
+			)
+			print(
+				f"cal_acc=({cal_ax:+.4f},{cal_ay:+.4f},{cal_az:+.4f}) "
+				f"cal_gyr=({cal_gx:+.4f},{cal_gy:+.4f},{cal_gz:+.4f})"
 			)
 			time.sleep(args.dt)
 	except KeyboardInterrupt:

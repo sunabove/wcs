@@ -15,7 +15,7 @@ class LEDDisplay:
     MARGIN_X = 6
     MARGIN_Y = 3
     LINE_GAP = 13
-    ADDR = 0x3C
+    I2C_ADDR = 0x3C
 
     def __init__(self):
         self.width = self.WIDTH
@@ -23,7 +23,7 @@ class LEDDisplay:
         self.margin_x = self.MARGIN_X
         self.margin_y = self.MARGIN_Y
         self.line_gap = self.LINE_GAP
-        self.addr = self.ADDR
+        self.addr = self.I2C_ADDR
 
         self.i2c = busio.I2C(board.SCL, board.SDA)
         self.oled = adafruit_ssd1306.SSD1306_I2C(

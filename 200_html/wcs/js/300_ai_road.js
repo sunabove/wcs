@@ -491,6 +491,10 @@ $(function () {
             return;
         }
 
+        if (currentRoiInfo && sameRoi(currentRoiInfo.roi, draftRoiInfo)) {
+            return;
+        }
+
         setRoiStatus("ROI 저장 중...", "muted");
 
         $.ajax({
@@ -583,8 +587,13 @@ $(function () {
             return;
         }
 
+        const changed = currentRoiInfo && !sameRoi(currentRoiInfo.roi, draftRoiInfo);
         roiInteraction = null;
         updateRoiEditorButtons();
+
+        if (changed) {
+            saveRoiInfo();
+        }
     }
 
     function uploadSelectedImage(file) {

@@ -1,0 +1,18 @@
+[Unit]
+Description=MQTT Data Simulator Service
+After=network.target mosquitto.service
+Wants=mosquitto.service
+Requires=mosquitto.service
+
+[Service]
+User=www
+WorkingDirectory=/home/www/wcs/300_python
+
+ExecStart=/usr/bin/python3 /home/www/wcs/300_python/imu/LED.py
+
+Restart=always
+RestartSec=3
+RestartForceExitStatus=2
+
+[Install]
+WantedBy=multi-user.target

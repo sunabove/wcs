@@ -1,11 +1,8 @@
-import board
-import busio
-
-from PIL import Image
-from PIL import ImageDraw
-from PIL import ImageFont
-
+import board, busio
+import paho.mqtt.client as mqtt
 import adafruit_ssd1306
+
+from PIL import Image, ImageDraw, ImageFont
 
 class LEDDisplay:
     WIDTH = 128
@@ -14,55 +11,111 @@ class LEDDisplay:
     MARGIN_Y = 3
     LINE_GAP = 11
     ADDR = 0x3C
-    
+
     def __init__(self):
         self.width = self.WIDTH
         self.height = self.HEIGHT
         self.margin_x = self.MARGIN_X
         self.margin_y = self.MARGIN_Y
-        self.line_gap = self.LINE_GAP 
+        self.line_gap = self.LINE_GAP
+        self.addr = self.ADDR
 
         self.i2c = busio.I2C(board.SCL, board.SDA)
         self.oled = adafruit_ssd1306.SSD1306_I2C(
             self.width,
             self.height,
             self.i2c,
-            addr=self.ADDR,
+            addr=self.addr,
         )
         self.font = ImageFont.load_default()
+    pass  # __init__
 
     def clear(self):
         self.oled.fill(0)
         self.oled.show()
+    pass  # clear
 
-    def render_text(self, line1, line2):
+    def render_lines(self, lines):
         image = Image.new("1", (self.width, self.height))
         draw = ImageDraw.Draw(image)
 
         # Draw a white outer border and keep text inside with margins.
         draw.rectangle((0, 0, self.width - 1, self.height - 1), outline=255, fill=0)
-        draw.text((self.margin_x, self.margin_y), line1, font=self.font, fill=255)
-        draw.text(
-            (self.margin_x, self.margin_y + self.line_gap),
-            line2,
-            font=self.font,
-            fill=255,
-        )
+
+        max_lines = max(1, (self.height - (2 * self.margin_y)) // self.line_gap)
+        for i, line in enumerate(lines[:max_lines]):
+            y = self.margin_y + (i * self.line_gap)
+            draw.text((self.margin_x, y), str(line)[:20], font=self.font, fill=255)
 
         self.oled.image(image)
         self.oled.show()
-    pass
+    pass  # render_lines
+pass # LEDDisplay
 
-pass
+class MqttOledService:
+    BROKER = "localhost"
+    PORT = 1883
+    TOPICS = [
+        "led/text",
+    ]
 
+    def __init__(self):
+        self.display = LEDDisplay()
+
+        # paho-mqtt version compatibility
+        try:
+            self.client = mqtt.Client(
+                callback_api_version=mqtt.CallbackAPIVersion.VERSION2,
+                client_id="oled_display_service",
+            )
+        except (TypeError, AttributeError):
+            self.client = mqtt.Client(client_id="oled_display_service")
+
+        self.client.on_connect = self._on_connect
+        self.client.on_message = self._on_message
+    pass  # __init__
+
+    def _render(self, lines):
+        self.display.render_lines(lines)
+    pass  # _render
+
+    def _on_connect(self, client, userdata, flags, reason_code, properties=None):
+        print("MQTT connected:", reason_code)
+        for topic in self.TOPICS:
+            client.subscribe(topic)
+        self._render(["Waiting MQTT"])
+    pass  # _on_connect
+
+    def _on_message(self, client, userdata, msg):
+        payload = msg.payload.decode("utf-8", errors="ignore").strip()
+        topic = msg.topic
+        print(f"MQTT recv: {topic} -> {payload}")
+
+        try:
+            if topic == "led/text":
+                split_lines = payload.splitlines()
+                lines = split_lines if split_lines else [""]
+                self._render(lines)
+
+        except Exception as exc:
+            print("MQTT message error:", exc)
+    pass  # _on_message
+
+    def run(self):
+        self.display.clear()
+        self.display.render_lines(["Connecting..."])
+        self.client.connect(self.BROKER, self.PORT, 60)
+        self.client.loop_forever()
+    pass  # run
+
+pass # MqttOledService
 
 def main():
-    display = LEDDisplay()
-    display.clear()
-    display.render_text("Raspberry Pi 5", "0.91 OLED Test")
-    input("Enter to quit! ")
-pass 
+    service = MqttOledService()
+    service.run()
+pass  # main
+
 
 if __name__ == "__main__":
     main()
-pass
+pass # __main__

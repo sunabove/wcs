@@ -108,7 +108,9 @@ def is_stationary(ax, ay, az, gx, gy, gz):
 def main():
     imu = IMU()
     print("Calibrating gyro offset...")
-    gz_offset = sum(imu.read()[7] for _ in range(100) and (time.sleep(0.01) or True)) / 100.0
+    gz_offset = 0.0
+    for _ in range(100): gz_offset += imu.read()[7]; time.sleep(0.01)
+    gz_offset /= 100.0
     p, r = imu.read()[:2]
     pitch_filter, roll_filter = KalmanAngle(), KalmanAngle()
     pitch_filter.angle, roll_filter.angle = p, r

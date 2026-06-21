@@ -100,7 +100,7 @@ class IMU:
 
     def _load_calibration(self):
         script_dir = os.path.dirname(os.path.abspath(__file__))
-        cali_path = os.path.join(script_dir, "IMU_cali.txt")
+        cali_path = os.path.join(script_dir, "IMU_Cali.txt")
 
         if not os.path.exists(cali_path):
             return

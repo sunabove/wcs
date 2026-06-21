@@ -106,7 +106,7 @@ except KeyboardInterrupt:
     print("------------------")
 
     if sample_count == 0:
-        print("No samples collected; IMU_cali.txt was not updated.")
+        print("No samples collected; IMU_Cali.txt was not updated.")
     else:
         print(f"sample_count = {sample_count}")
 
@@ -131,7 +131,7 @@ except KeyboardInterrupt:
         print(f"my_offset_ut={my_offset:.3f}")
         print(f"mz_offset_ut={mz_offset:.3f}")
 
-        cal_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "IMU_cali.txt")
+        cal_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "IMU_Cali.txt")
         cal_map = {}
 
         if os.path.exists(cal_path):

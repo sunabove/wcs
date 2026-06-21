@@ -116,6 +116,7 @@ class MqttOledService:
         boot_epoch = self._read_boot_epoch()
         boot_iso = datetime.datetime.fromtimestamp(boot_epoch).isoformat()
         payload = str(boot_iso)
+        payload = "Booting success!/n" + payload
         self.client.publish("led/text", payload, qos=0, retain=True)
         print(f"MQTT pub: led/text -> {payload}")
     pass  # _publish_boot_time

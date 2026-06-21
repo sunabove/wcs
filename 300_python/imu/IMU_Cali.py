@@ -38,7 +38,7 @@ def main():
 	parser.add_argument("--dt", type=float, default=0.02, help="Sample interval in seconds")
 	args = parser.parse_args()
 
-	imu = IMU()
+	imu = IMU(skip_calibration=True)
 	ax_list, ay_list, az_list = [], [], []
 	gx_list, gy_list, gz_list = [], [], []
 	pitch_list, roll_list = [], []
@@ -95,7 +95,7 @@ def main():
 
 			remain = max(0.0, end_time - time.monotonic())
 			print(
-				f"{remain:5.2f}s "
+				f"[{sample_count:3d}] {remain:5.2f}s "
 				f"raw_rpy=({roll:+.2f},{pitch:+.2f},{raw_yaw:+.2f}) "
 				f"cal_rpy=({cal_roll:+.2f},{cal_pitch:+.2f},{cal_yaw:+.2f}) "
 				f"acc_off=({curr_ax_offset:+.2f},{curr_ay_offset:+.2f},{curr_az_offset:+.2f}) "

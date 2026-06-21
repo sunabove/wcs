@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import math
+import os
 import time
 
 from smbus2 import SMBus
@@ -64,7 +65,7 @@ class IMU:
 
     MPU_ADDR = 0x68
 
-    def __init__(self):
+    def __init__(self, skip_calibration=False):
 
         self.bus = SMBus(1)
 
@@ -75,6 +76,53 @@ class IMU:
         )
 
         time.sleep(0.1)
+
+        self.ax_offset = 0.0
+        self.ay_offset = 0.0
+        self.az_offset = 0.0
+        self.gx_offset = 0.0
+        self.gy_offset = 0.0
+        self.gz_offset = 0.0
+
+        if not skip_calibration:
+            self._load_calibration()
+
+    def _load_calibration(self):
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        cali_path = os.path.join(script_dir, "imu_cali.txt")
+
+        if not os.path.exists(cali_path):
+            return
+
+        try:
+            with open(cali_path, "r", encoding="utf-8") as fp:
+                for line in fp:
+                    line = line.strip()
+                    if not line or line.startswith("#"):
+                        continue
+                    if "=" not in line:
+                        continue
+                    key, value = line.split("=", 1)
+                    key = key.strip()
+                    try:
+                        val = float(value)
+                        if key == "ax_offset_g":
+                            self.ax_offset = val
+                        elif key == "ay_offset_g":
+                            self.ay_offset = val
+                        elif key == "az_offset_g":
+                            self.az_offset = val
+                        elif key == "gx_offset_dps":
+                            self.gx_offset = val
+                        elif key == "gy_offset_dps":
+                            self.gy_offset = val
+                        elif key == "gz_offset_dps":
+                            self.gz_offset = val
+                    except ValueError:
+                        pass
+            print(f"[IMU] Calibration loaded from {cali_path}")
+        except Exception as e:
+            print(f"[IMU] Warning: Failed to load calibration: {e}")
 
     def _signed16(self, value):
 
@@ -135,12 +183,12 @@ class IMU:
         return (
             pitch,
             roll,
-            ax,
-            ay,
-            az,
-            gx,
-            gy,
-            gz
+            ax + self.ax_offset,
+            ay + self.ay_offset,
+            az + self.az_offset,
+            gx + self.gx_offset,
+            gy + self.gy_offset,
+            gz + self.gz_offset
         )
 
     def close(self):

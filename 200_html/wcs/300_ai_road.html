@@ -379,8 +379,12 @@
                                             </div>
                                             <div class="tab-pane fade" id="detected-image-pane" role="tabpanel" aria-labelledby="detected-image-tab" tabindex="0">
                                                 <div id="detected-stream-controls" class="d-none d-flex flex-wrap align-items-center gap-2 mb-3">
-                                                    <button type="button" id="detected-stream-pause" class="btn btn-sm btn-outline-secondary">멈춤</button>
-                                                    <button type="button" id="detected-stream-resume" class="btn btn-sm btn-outline-primary">다시 시작</button>
+                                                    <button type="button" id="detected-stream-pause" class="btn btn-sm btn-outline-secondary" title="멈춤" aria-label="멈춤">
+                                                        <i class="bi bi-pause-fill"></i>
+                                                    </button>
+                                                    <button type="button" id="detected-stream-resume" class="btn btn-sm btn-outline-primary" title="다시 시작" aria-label="다시 시작">
+                                                        <i class="bi bi-play-fill"></i>
+                                                    </button>
                                                     <div class="input-group input-group-sm" style="width: 220px;">
                                                         <span class="input-group-text">프레임</span>
                                                         <input type="number" id="detected-stream-frame-input" class="form-control" min="1" step="1" placeholder="1">

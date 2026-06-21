@@ -45,16 +45,31 @@ pass # IMU
 def main():
 
     imu = IMU()
+    yaw = 0.0
+    gz_offset = 0.0
+    prev_time = time.monotonic()
 
     try:
+        print("Calibrating yaw... keep IMU still")
+        for _ in range(20):
+            _, _, _, _, _, _, _, gz = imu.read()
+            gz_offset += gz
+            time.sleep(0.05)
+        gz_offset /= 20.0
+
         while True:
             p, r, ax, ay, az, gx, gy, gz = imu.read()
+            now = time.monotonic()
+            yaw = (yaw + (gz - gz_offset) * (now - prev_time)) % 360.0
+            prev_time = now
 
             print(
                 f"P={p:6.1f}° "
                 f"R={r:6.1f}° "
+                f"Y={yaw:7.1f}° "
                 f"ACC=({ax:5.2f},{ay:5.2f},{az:5.2f}) "
-                f"GYR=({gx:6.1f},{gy:6.1f},{gz:6.1f})"
+                f"GYRO=({gx:6.1f},{gy:6.1f},{gz:6.1f}) "
+                f"GZ0={gz_offset:6.2f}"
             )
 
             time.sleep(0.2)

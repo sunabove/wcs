@@ -28,6 +28,9 @@ def main():
 	ax_list, ay_list, az_list = [], [], []
 	gx_list, gy_list, gz_list = [], [], []
 	pitch_list, roll_list = [], []
+	ax_sum = ay_sum = az_sum = 0.0
+	gx_sum = gy_sum = gz_sum = 0.0
+	sample_count = 0
 
 	start = time.monotonic()
 	end_time = start + args.seconds
@@ -44,8 +47,27 @@ def main():
 			gx_list.append(gx)
 			gy_list.append(gy)
 			gz_list.append(gz)
+			ax_sum += ax
+			ay_sum += ay
+			az_sum += az
+			gx_sum += gx
+			gy_sum += gy
+			gz_sum += gz
+			sample_count += 1
+
+			curr_ax_offset = -(ax_sum / sample_count)
+			curr_ay_offset = -(ay_sum / sample_count)
+			curr_az_offset = 1.0 - (az_sum / sample_count)
+			curr_gx_offset = -(gx_sum / sample_count)
+			curr_gy_offset = -(gy_sum / sample_count)
+			curr_gz_offset = -(gz_sum / sample_count)
+
 			remain = max(0.0, end_time - time.monotonic())
-			print(f"remain={remain:4.1f}s  P={pitch:6.2f}  R={roll:6.2f}  GZ={gz:6.2f}")
+			print(
+				f"remain={remain:4.1f}s "
+				f"curr_acc_off=({curr_ax_offset:+.4f},{curr_ay_offset:+.4f},{curr_az_offset:+.4f}) "
+				f"curr_gyr_off=({curr_gx_offset:+.4f},{curr_gy_offset:+.4f},{curr_gz_offset:+.4f})"
+			)
 			time.sleep(args.dt)
 	except KeyboardInterrupt:
 		print("Calibration interrupted by user.")
@@ -101,6 +123,14 @@ def main():
 		fp.write("\n".join(lines) + "\n")
 
 	print(f"Calibration done. samples={n}")
+	print(
+		f"Final accel offset(g): "
+		f"ax={ax_offset:+.6f}, ay={ay_offset:+.6f}, az={az_offset:+.6f}"
+	)
+	print(
+		f"Final gyro offset(dps): "
+		f"gx={gx_offset:+.6f}, gy={gy_offset:+.6f}, gz={gz_offset:+.6f}"
+	)
 	print(f"Saved: {out_path}")
 
 

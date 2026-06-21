@@ -14,6 +14,7 @@ class IMU:
     pass #  
 
     def _s(self, v):
+        # to signed 16-bit integer
         return v - 65536 if v > 32767 else v
     pass #
 

@@ -170,8 +170,8 @@ class RoadDetector:
         x1, y1, x2, y2 = roi
         overlay = detected.copy()
         cv2.rectangle(overlay, (x1, y1), (x2, y2), (0, 0, 255), cv2.FILLED)
-        cv2.addWeighted(overlay, 0.10, detected, 0.90, 0, detected)
-        cv2.rectangle(detected, (x1, y1), (x2, y2), (0, 0, 255), 2)
+        cv2.addWeighted(overlay, 0.22, detected, 0.78, 0, detected)
+        cv2.rectangle(detected, (x1, y1), (x2, y2), (0, 0, 255), 3)
         return detected
 
     def road_detect_service(self, file_name: str, detect_type: str = "road") -> dict:
@@ -703,8 +703,8 @@ class RoadDetector:
             
             if "road" in RoadDetector._models:
                 try:
-                    road_result = RoadDetector._models["road"].predict(source=frame, conf=0.20, verbose=False)[0]
-                    if road_result.boxes is not None and road_result.boxes.conf is not None:
+                    road_result = RoadDetector._models["road"].predict(source=frame_for_inference, conf=0.20, verbose=False)[0]
+                    if roi is None and road_result.boxes is not None and road_result.boxes.conf is not None:
                         # Get highest confidence box
                         confs = road_result.boxes.conf.cpu().numpy()
                         if len(confs) > 0:

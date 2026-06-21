@@ -123,6 +123,18 @@ async def road_detect_stream_next_service(
     return detector.road_detect_stream_next(file_name)
 pass # road_detect_stream_next_service
 
+@router.post("/road_detect_stream_seek/{file_name:path}")
+async def road_detect_stream_seek_service(
+    file_name: str,
+    frame_number: int = Query(...)
+):
+    from RoadDetector import RoadDetector
+
+    detector = RoadDetector()
+
+    return detector.road_detect_stream_seek(file_name, frame_number)
+pass # road_detect_stream_seek_service
+
 @router.post("/road_detect_stream_cleanup/{file_name:path}")
 async def road_detect_stream_cleanup_service(
     file_name: str

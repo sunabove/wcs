@@ -6,6 +6,12 @@ $(function () {
     const $uploadedVideoPreview = $("#original-video-preview");
     const $detectedImagePreview = $("#detected-image-preview");
     const $detectedVideoPreview = $("#detected-video-preview");
+    const $detectedStreamControls = $("#detected-stream-controls");
+    const $detectedStreamPauseButton = $("#detected-stream-pause");
+    const $detectedStreamResumeButton = $("#detected-stream-resume");
+    const $detectedStreamFrameInput = $("#detected-stream-frame-input");
+    const $detectedStreamSeekButton = $("#detected-stream-seek");
+    const $detectedStreamFrameLabel = $("#detected-stream-frame-label");
     const $roiOverlay = $("#roi-overlay");
     const $roiSelection = $("#roi-selection");
     const $roiResetButton = $("#roi-reset-button");
@@ -192,10 +198,44 @@ $(function () {
             .text(message);
     }
 
+    function updateDetectedStreamControls() {
+        const isVideo = Boolean(uploadedFileName) && isVideoPath(uploadedFileName);
+        if (!isVideo) {
+            $detectedStreamControls.addClass("d-none");
+            $detectedStreamFrameLabel.text("");
+            return;
+        }
+
+        $detectedStreamControls.removeClass("d-none");
+
+        const state = frameStreamState[uploadedFileName] || null;
+        const totalFrames = state ? Number(state.totalFrames || 0) : 0;
+        const currentFrame = state ? Number(state.frameIndex || 0) : 0;
+        const isPlaying = Boolean(state && state.isPlaying);
+        const isPaused = Boolean(state && state.isPaused);
+        const hasSession = Boolean(state);
+
+        if (totalFrames > 0) {
+            $detectedStreamFrameInput.attr("max", totalFrames);
+            $detectedStreamFrameInput.attr("placeholder", String(Math.max(1, currentFrame || 1)));
+            $detectedStreamFrameLabel.text(currentFrame > 0 ? (currentFrame + " / " + totalFrames) : ("0 / " + totalFrames));
+        } else {
+            $detectedStreamFrameInput.removeAttr("max");
+            $detectedStreamFrameInput.attr("placeholder", "1");
+            $detectedStreamFrameLabel.text("");
+        }
+
+        $detectedStreamPauseButton.prop("disabled", !hasSession || !isPlaying);
+        $detectedStreamResumeButton.prop("disabled", !hasSession || (isPlaying && !isPaused));
+        $detectedStreamSeekButton.prop("disabled", !hasSession);
+        $detectedStreamFrameInput.prop("disabled", !hasSession);
+    }
+
     function resetPreviewImages() {
         uploadedFileName = "";
         previousFileName = "";
         clearRoiEditor();
+        updateDetectedStreamControls();
         // 이미지 초기화
         hideImageAndVideo($uploadedImagePreview, $uploadedVideoPreview);
         hideImageAndVideo($detectedImagePreview, $detectedVideoPreview);
@@ -288,6 +328,11 @@ $(function () {
 
     function buildRoadDetectStreamNextUrl(fileName) {
         return "/fast/road_detect_stream_next/" + encodePathForRoute(fileName);
+    }
+
+    function buildRoadDetectStreamSeekUrl(fileName, frameNumber) {
+        const base = "/fast/road_detect_stream_seek/" + encodePathForRoute(fileName);
+        return base + "?" + $.param({ frame_number: frameNumber });
     }
 
     function buildRoadDetectStreamCleanupUrl(fileName) {
@@ -423,6 +468,7 @@ $(function () {
         const normalizedFileName = normalizePath(fileName);
         const mediaUrl = buildImageUrl(normalizedFileName);
         showMediaPreview(mediaUrl, isVideoPath(normalizedFileName), $uploadedImagePreview, $uploadedVideoPreview);
+        updateDetectedStreamControls();
         loadRoiInfo(normalizedFileName);
     }
 
@@ -466,6 +512,7 @@ $(function () {
         });
 
         frameStreamState = {};  // 로컬 상태 완전 초기화
+        updateDetectedStreamControls();
     }
 
     function stopActiveFrameProcessing() {
@@ -482,6 +529,79 @@ $(function () {
         $detectingIndicator.addClass("d-none");
         showUploadStatusMessage("프레임 처리를 중지했습니다.", true);
         return true;
+    }
+
+    function pauseFrameStream(fileName) {
+        const state = frameStreamState[fileName];
+        if (!state) {
+            return;
+        }
+
+        state.isPlaying = false;
+        state.isPaused = true;
+        if (frameTimerMap[fileName]) {
+            clearTimeout(frameTimerMap[fileName]);
+            delete frameTimerMap[fileName];
+        }
+        updateDetectedStreamControls();
+        showUploadStatusMessage("프레임 출력을 멈췄습니다.", true);
+    }
+
+    function resumeFrameStream(fileName) {
+        const state = frameStreamState[fileName];
+        if (!state) {
+            return;
+        }
+
+        state.isPlaying = true;
+        state.isPaused = false;
+        setDetectingState(true);
+        $detectingIndicator.removeClass("d-none");
+        updateDetectedStreamControls();
+        playFrameStream(fileName);
+    }
+
+    function seekFrameStream(fileName, frameNumber) {
+        const state = frameStreamState[fileName];
+        if (!state) {
+            return;
+        }
+
+        const targetFrame = Math.max(1, Math.min(parseInt(frameNumber, 10) || 1, Number(state.totalFrames || 1)));
+        if (frameTimerMap[fileName]) {
+            clearTimeout(frameTimerMap[fileName]);
+            delete frameTimerMap[fileName];
+        }
+
+        const shouldResume = Boolean(state.isPlaying && !state.isPaused);
+        state.isPlaying = false;
+        state.isPaused = true;
+        updateDetectedStreamControls();
+        setDetectingState(true);
+        $detectingIndicator.removeClass("d-none");
+
+        $.ajax({
+            url: buildRoadDetectStreamSeekUrl(fileName, targetFrame),
+            method: "POST"
+        }).done(function (result) {
+            const currentState = frameStreamState[fileName];
+            if (!currentState) {
+                return;
+            }
+
+            currentState.frameIndex = Number(result.frame_number || targetFrame) - 1;
+            currentState.totalFrames = Number(result.total_frames || currentState.totalFrames || 0);
+            currentState.isPlaying = false;
+            currentState.isPaused = true;
+            updateDetectedStreamControls();
+            playFrameStream(fileName, { singleStep: true, autoResume: shouldResume });
+        }).fail(function (jqXHR) {
+            console.error("Stream seek error:", jqXHR.status, jqXHR.responseText);
+            showUploadStatusMessage("프레임 이동에 실패했습니다.", false);
+            setDetectingState(false);
+            $detectingIndicator.addClass("d-none");
+            updateDetectedStreamControls();
+        });
     }
 
     function saveRoiInfo() {
@@ -840,20 +960,28 @@ $(function () {
                 fps: result.fps,
                 detectType: detectType,
                 frameIndex: 0,
-                isPlaying: true
+                isPlaying: true,
+                isPaused: false
             };
+            updateDetectedStreamControls();
             playFrameStream(fileName);
         }).fail(function (jqXHR) {
             console.error("Stream init error:", jqXHR.status, jqXHR.responseText);
             showUploadStatusMessage("프레임 스트림 초기화에 실패했습니다.", false);
             setDetectingState(false);
             $detectingIndicator.addClass("d-none");
+            updateDetectedStreamControls();
         });
     }
 
-    function playFrameStream(fileName) {
+    function playFrameStream(fileName, options) {
+        const playbackOptions = options || {};
         const state = frameStreamState[fileName];
-        if (!state || !state.isPlaying) {
+        if (!state) {
+            return;
+        }
+
+        if (!state.isPlaying && !playbackOptions.singleStep) {
             return;
         }
 
@@ -863,7 +991,11 @@ $(function () {
         }).done(function (result) {
             // 응답 도착 시점에 세션이 이미 정리되었으면 중단
             const currentState = frameStreamState[fileName];
-            if (!currentState || !currentState.isPlaying) {
+            if (!currentState) {
+                return;
+            }
+
+            if (!currentState.isPlaying && !playbackOptions.singleStep) {
                 return;
             }
 
@@ -884,13 +1016,27 @@ $(function () {
                 .removeClass("d-none");
 
             currentState.frameIndex = result.frame_number;
+            currentState.totalFrames = result.total_frames;
             showUploadStatusMessage(
                 "프레임 처리 중... (" + result.frame_number + "/" + currentState.totalFrames + ")",
                 true
             );
+            updateDetectedStreamControls();
 
             // 다음 프레임을 위한 타이머 설정
-            if (result.has_next) {
+            if (playbackOptions.singleStep) {
+                currentState.isPlaying = false;
+                currentState.isPaused = true;
+                updateDetectedStreamControls();
+                setDetectingState(false);
+                $detectingIndicator.addClass("d-none");
+                if (playbackOptions.autoResume) {
+                    resumeFrameStream(fileName);
+                }
+                return;
+            }
+
+            if (result.has_next && currentState.isPlaying) {
                 const frameDelay = currentState.fps > 0 ? 1000 / currentState.fps : 33;
                 if (frameTimerMap[fileName]) {
                     clearTimeout(frameTimerMap[fileName]);
@@ -920,6 +1066,7 @@ $(function () {
             delete frameTimerMap[fileName];
         }
         delete frameStreamState[fileName];
+        updateDetectedStreamControls();
         
         // UI 상태 업데이트
         setDetectingState(false);
@@ -1162,6 +1309,10 @@ $(function () {
         runDetect();
     });
 
+    $detectedImageTab.on("shown.bs.tab", function () {
+        updateDetectedStreamControls();
+    });
+
     $detectTypeInputs.on("change", function () {
         scheduleDetectUpdate();
     });
@@ -1266,6 +1417,38 @@ $(function () {
             stopActiveFrameProcessing();
         }
         syncRoiOverlay();
+        updateDetectedStreamControls();
+    });
+
+    $detectedStreamPauseButton.on("click", function () {
+        if (!uploadedFileName) {
+            return;
+        }
+
+        pauseFrameStream(uploadedFileName);
+    });
+
+    $detectedStreamResumeButton.on("click", function () {
+        if (!uploadedFileName) {
+            return;
+        }
+
+        resumeFrameStream(uploadedFileName);
+    });
+
+    $detectedStreamSeekButton.on("click", function () {
+        if (!uploadedFileName) {
+            return;
+        }
+
+        seekFrameStream(uploadedFileName, $detectedStreamFrameInput.val());
+    });
+
+    $detectedStreamFrameInput.on("keydown", function (event) {
+        if (event.key === "Enter") {
+            event.preventDefault();
+            $detectedStreamSeekButton.trigger("click");
+        }
     });
 
     $roiOverlay.on("pointerdown", function (event) {

@@ -510,6 +510,34 @@ class RoadDetector:
             raise HTTPException(status_code=500, detail=f"Stream processing error: {e}")
     pass # road_detect_stream_next
 
+    def road_detect_stream_seek(self, file_name: str, frame_number: int) -> dict:
+        """특정 프레임으로 이동"""
+        session_id = file_name
+        if session_id not in RoadDetector._stream_sessions:
+            raise HTTPException(status_code=404, detail="Session not found")
+
+        session = RoadDetector._stream_sessions[session_id]
+        capture = session['capture']
+        frame_count = int(session.get('frame_count', 0))
+        if frame_count <= 0:
+            raise HTTPException(status_code=400, detail="Invalid frame count")
+
+        target_frame = max(1, min(int(frame_number), frame_count))
+        zero_based_index = target_frame - 1
+
+        if not capture.set(cv2.CAP_PROP_POS_FRAMES, zero_based_index):
+            raise HTTPException(status_code=500, detail="Failed to seek frame")
+
+        session['frame_index'] = zero_based_index
+
+        return {
+            'session_id': session_id,
+            'frame_number': target_frame,
+            'total_frames': frame_count,
+            'has_next': target_frame < frame_count,
+        }
+    pass # road_detect_stream_seek
+
     def road_detect_stream_cleanup(self, file_name: str) -> dict:
         """스트리밍 세션 정리"""
         session_id = file_name

@@ -71,15 +71,11 @@ def main():
 
 			remain = max(0.0, end_time - time.monotonic())
 			print(
-				f"remain={remain:4.1f}s "
-				f"curr_acc_off=({curr_ax_offset:+.4f},{curr_ay_offset:+.4f},{curr_az_offset:+.4f}) "
-				f"curr_gyr_off=({curr_gx_offset:+.4f},{curr_gy_offset:+.4f},{curr_gz_offset:+.4f})"
-			)
-			print(
+				f"{remain:4.1f}s "
+				f"acc_off=({curr_ax_offset:+.4f},{curr_ay_offset:+.4f},{curr_az_offset:+.4f}) "
+				f"gyr_off=({curr_gx_offset:+.4f},{curr_gy_offset:+.4f},{curr_gz_offset:+.4f}) " 
 				f"raw_acc=({ax:+.4f},{ay:+.4f},{az:+.4f}) "
-				f"raw_gyr=({gx:+.4f},{gy:+.4f},{gz:+.4f})"
-			)
-			print(
+				f"raw_gyr=({gx:+.4f},{gy:+.4f},{gz:+.4f}) " 
 				f"cal_acc=({cal_ax:+.4f},{cal_ay:+.4f},{cal_az:+.4f}) "
 				f"cal_gyr=({cal_gx:+.4f},{cal_gy:+.4f},{cal_gz:+.4f})"
 			)

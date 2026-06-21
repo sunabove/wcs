@@ -5,6 +5,51 @@ import time
 from smbus2 import SMBus
 
 
+class KalmanAngle:
+
+    def __init__(self, q_angle=0.003, q_bias=0.01, r_measure=0.03):
+        self.q_angle = q_angle
+        self.q_bias = q_bias
+        self.r_measure = r_measure
+        self.angle = 0.0
+        self.bias = 0.0
+        self.rate = 0.0
+        self.p00 = 0.0
+        self.p01 = 0.0
+        self.p10 = 0.0
+        self.p11 = 0.0
+    pass # __init__
+
+    def update(self, measured_angle, measured_rate, dt):
+        self.rate = measured_rate - self.bias
+        self.angle += dt * self.rate
+
+        self.p00 += dt * (dt * self.p11 - self.p01 - self.p10 + self.q_angle)
+        self.p01 -= dt * self.p11
+        self.p10 -= dt * self.p11
+        self.p11 += self.q_bias * dt
+
+        s = self.p00 + self.r_measure
+        k0 = self.p00 / s
+        k1 = self.p10 / s
+        y = measured_angle - self.angle
+
+        self.angle += k0 * y
+        self.bias += k1 * y
+
+        p00 = self.p00
+        p01 = self.p01
+        self.p00 -= k0 * p00
+        self.p01 -= k0 * p01
+        self.p10 -= k1 * p00
+        self.p11 -= k1 * p01
+
+        return self.angle
+    pass # update
+
+pass # KalmanAngle
+
+
 class IMU:
 
     def __init__(self):
@@ -42,9 +87,18 @@ class IMU:
 pass # IMU
 
 
+def is_stationary(ax, ay, az, gx, gy, gz):
+    accel_norm = math.sqrt(ax * ax + ay * ay + az * az)
+    return abs(accel_norm - 1.0) < 0.08 and abs(gx) < 2.0 and abs(gy) < 2.0 and abs(gz) < 2.0
+pass # is_stationary
+
+
 def main():
 
     imu = IMU()
+    pitch_filter = KalmanAngle(q_angle=0.003, q_bias=0.01, r_measure=0.05)
+    roll_filter = KalmanAngle(q_angle=0.003, q_bias=0.01, r_measure=0.05)
+    yaw_rate_filter = KalmanAngle(q_angle=0.02, q_bias=0.08, r_measure=0.2)
     yaw = 0.0
     gz_offset = 0.0
     prev_time = time.monotonic()
@@ -60,17 +114,25 @@ def main():
         while True:
             p, r, ax, ay, az, gx, gy, gz = imu.read()
             now = time.monotonic()
-            yaw = (yaw + (gz - gz_offset) * (now - prev_time)) % 360.0
+            dt = now - prev_time
+            stationary = is_stationary(ax, ay, az, gx, gy, gz - gz_offset)
+            if stationary:
+                gz_offset = gz_offset * 0.98 + gz * 0.02
+            filtered_p = pitch_filter.update(p, gy, dt)
+            filtered_r = roll_filter.update(r, gx, dt)
+            filtered_gz = yaw_rate_filter.update(gz - gz_offset, gz - gz_offset, dt)
+            if stationary:
+                filtered_gz = 0.0
+            yaw = (yaw + filtered_gz * dt) % 360.0
             yaw_display = yaw - 360.0 if yaw >= 275.0 else yaw
             prev_time = now
 
             print(
-                f"R={r:6.1f}° "
-                f"P={p:6.1f}° "
+                f"R={filtered_r:6.1f}°({r:6.1f}) "
+                f"P={filtered_p:6.1f}°({p:6.1f}) "
                 f"Y={yaw_display:7.1f}° "
                 f"ACC=({ax:5.2f},{ay:5.2f},{az:5.2f}) "
-                f"GYRO=({gx:6.1f},{gy:6.1f},{gz:6.1f}) "
-                f"GZ0={gz_offset:6.2f}"
+                f"GYRO=({gx:6.1f},{gy:6.1f},{gz:6.1f})"
             )
 
             time.sleep(0.2)

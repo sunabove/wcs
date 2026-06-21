@@ -470,6 +470,22 @@ $(function () {
         frameStreamState = {};  // 로컬 상태 완전 초기화
     }
 
+    function stopActiveFrameProcessing() {
+        const activeStreamFileNames = Object.keys(frameStreamState).filter(function (fileName) {
+            return frameStreamState[fileName] && frameStreamState[fileName].isPlaying;
+        });
+
+        if (activeStreamFileNames.length === 0) {
+            return false;
+        }
+
+        cleanupAllFrameStreams();
+        setDetectingState(false);
+        $detectingIndicator.addClass("d-none");
+        showUploadStatusMessage("프레임 처리를 중지했습니다.", true);
+        return true;
+    }
+
     function saveRoiInfo() {
         if (!uploadedFileName || !draftRoiInfo) {
             return;
@@ -1225,6 +1241,14 @@ $(function () {
 
     $uploadedVideoPreview.on("loadedmetadata loadeddata", function () {
         syncRoiOverlay();
+    });
+
+    $("#original-media-stage").on("click", function () {
+        if (!uploadedFileName || !isVideoPath(uploadedFileName)) {
+            return;
+        }
+
+        stopActiveFrameProcessing();
     });
 
     $(window).on("resize", function () {

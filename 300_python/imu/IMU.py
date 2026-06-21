@@ -258,19 +258,13 @@ def main():
             print(
                 f"R={roll:7.2f}° "
                 f"P={pitch:7.2f}° "
-                f"Y={yaw:7.2f}°"
-            )
-
-            print(
+                f"Y={yaw:7.2f}° "  
                 f"ACC=({ax:6.3f},"
-                f"{ay:6.3f},"
-                f"{az:6.3f})"
-            )
-
-            print(
-                f"GYR=({gx:7.2f},"
-                f"{gy:7.2f},"
-                f"{gz:7.2f})"
+                f"{ay:6.3f}, "
+                f"{az:6.3f}) "  
+                f"GYR=({gx:7.2f}, "
+                f"{gy:7.2f}, "
+                f"{gz:7.2f}) "
             )
 
             print("-" * 60)

@@ -794,16 +794,19 @@ class RoadDetector:
         except Exception as ex:
             raise HTTPException(status_code=500, detail=f"YOLO inference failed: {ex}")
 
-        # For "road" detect type, keep only the highest confidence detection
-        if detect_key == "road" and result.boxes is not None and result.boxes.conf is not None:
+        # For "road" detect type, keep only the highest confidence detection.
+        # For "pothole" detect type, keep top 4 detections by confidence.
+        if detect_key in ("road", "pothole") and result.boxes is not None and result.boxes.conf is not None:
             confs = result.boxes.conf.cpu().numpy()
-            if len(confs) > 1:
-                max_conf_idx = int(np.argmax(confs))
-                result.boxes = result.boxes[max_conf_idx:max_conf_idx+1]
+            max_detections = 1 if detect_key == "road" else 4
+            if len(confs) > max_detections:
+                keep_indices = np.argsort(confs)[::-1][:max_detections]
+                keep_indices = np.sort(keep_indices)
+                result.boxes = result.boxes[keep_indices]
                 if result.masks is not None:
-                    result.masks.data = result.masks.data[max_conf_idx:max_conf_idx+1]
+                    result.masks.data = result.masks.data[keep_indices]
                     if hasattr(result.masks, 'cls') and result.masks.cls is not None:
-                        result.masks.cls = result.masks.cls[max_conf_idx:max_conf_idx+1]
+                        result.masks.cls = result.masks.cls[keep_indices]
 
         detected = frame.copy()
         names = result.names if isinstance(result.names, dict) else {}

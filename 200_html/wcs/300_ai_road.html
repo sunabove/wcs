@@ -124,6 +124,76 @@
         #input-sample-image-pane {
             overflow-x: hidden;
         }
+
+        .roi-editor-toolbar {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 0.75rem;
+        }
+
+        .roi-media-stage {
+            position: relative;
+            display: inline-block;
+            max-width: 100%;
+            line-height: 0;
+        }
+
+        .roi-media-stage img,
+        .roi-media-stage video {
+            display: block;
+            max-width: 100%;
+        }
+
+        .roi-overlay {
+            position: absolute;
+            inset: 0;
+            z-index: 5;
+            user-select: none;
+            touch-action: none;
+        }
+
+        .roi-selection {
+            position: absolute;
+            border: 3px solid #dc3545;
+            background: rgba(220, 53, 69, 0.18);
+            box-shadow: 0 0 0 9999px rgba(15, 23, 42, 0.18);
+            cursor: move;
+        }
+
+        .roi-handle {
+            position: absolute;
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            background: #ffffff;
+            border: 2px solid #dc3545;
+        }
+
+        .roi-handle-nw {
+            top: -9px;
+            left: -9px;
+            cursor: nwse-resize;
+        }
+
+        .roi-handle-ne {
+            top: -9px;
+            right: -9px;
+            cursor: nesw-resize;
+        }
+
+        .roi-handle-sw {
+            bottom: -9px;
+            left: -9px;
+            cursor: nesw-resize;
+        }
+
+        .roi-handle-se {
+            right: -9px;
+            bottom: -9px;
+            cursor: nwse-resize;
+        }
     </style>
 
     <script src="./js/010_wcs_common.js" defer></script>
@@ -280,18 +350,33 @@
 
                                         <div class="tab-content border border-top-0 rounded-bottom p-3">
                                             <div class="tab-pane fade show active" id="original-image-pane" role="tabpanel" aria-labelledby="original-image-tab" tabindex="0">
-                                                <img
-                                                    id="original-image-preview"
-                                                    src=""
-                                                    alt="원본 영상"
-                                                    class="img-fluid border rounded d-none"
-                                                >
-                                                <video
-                                                    id="original-video-preview"
-                                                    class="img-fluid border rounded d-none"
-                                                    controls
-                                                    playsinline
-                                                ></video>
+                                                <div class="roi-editor-toolbar">
+                                                    <button type="button" id="roi-save-button" class="btn btn-sm btn-outline-danger" disabled>ROI 저장</button>
+                                                    <button type="button" id="roi-reset-button" class="btn btn-sm btn-outline-secondary" disabled>ROI 원복</button>
+                                                    <span id="roi-editor-status" class="small text-muted">원본 영상에서 ROI를 수정할 수 있습니다.</span>
+                                                </div>
+                                                <div id="original-media-stage" class="roi-media-stage">
+                                                    <img
+                                                        id="original-image-preview"
+                                                        src=""
+                                                        alt="원본 영상"
+                                                        class="img-fluid border rounded d-none"
+                                                    >
+                                                    <video
+                                                        id="original-video-preview"
+                                                        class="img-fluid border rounded d-none"
+                                                        controls
+                                                        playsinline
+                                                    ></video>
+                                                    <div id="roi-overlay" class="roi-overlay d-none">
+                                                        <div id="roi-selection" class="roi-selection">
+                                                            <span class="roi-handle roi-handle-nw" data-handle="nw"></span>
+                                                            <span class="roi-handle roi-handle-ne" data-handle="ne"></span>
+                                                            <span class="roi-handle roi-handle-sw" data-handle="sw"></span>
+                                                            <span class="roi-handle roi-handle-se" data-handle="se"></span>
+                                                        </div>
+                                                    </div>
+                                                </div>
                                             </div>
                                             <div class="tab-pane fade" id="detected-image-pane" role="tabpanel" aria-labelledby="detected-image-tab" tabindex="0">
                                                 <img

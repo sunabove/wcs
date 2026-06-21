@@ -200,6 +200,101 @@ class RoadDetector:
             return None
         return [x1, y1, x2, y2]
 
+    @staticmethod
+    def _roi_to_dict(roi):
+        if roi is None:
+            return None
+
+        x1, y1, x2, y2 = [int(v) for v in roi]
+        return {
+            "x1": x1,
+            "y1": y1,
+            "x2": x2,
+            "y2": y2,
+        }
+
+    def _get_media_dimensions(self, input_path: Path):
+        suffix = input_path.suffix.lower()
+
+        if suffix in self.image_ext:
+            image = cv2.imread(str(input_path))
+            if image is None:
+                raise HTTPException(status_code=400, detail="Failed to read image file")
+
+            height, width = image.shape[:2]
+            return (width, height)
+
+        if suffix in self.video_ext:
+            capture = cv2.VideoCapture(str(input_path))
+            try:
+                if not capture.isOpened():
+                    raise HTTPException(status_code=400, detail="Failed to read video file")
+
+                width = int(capture.get(cv2.CAP_PROP_FRAME_WIDTH))
+                height = int(capture.get(cv2.CAP_PROP_FRAME_HEIGHT))
+            finally:
+                capture.release()
+
+            if width <= 0 or height <= 0:
+                raise HTTPException(status_code=400, detail="Failed to get media size")
+
+            return (width, height)
+
+        raise HTTPException(status_code=400, detail="Only image/video files are supported")
+
+    def get_roi_info(self, file_name: str) -> dict:
+        input_path = resolve_upload_image_path(file_name)
+        if not input_path.exists() or not input_path.is_file():
+            raise HTTPException(status_code=404, detail="Input file not found")
+
+        width, height = self._get_media_dimensions(input_path)
+        roi = self._load_or_create_roi(input_path, width, height)
+
+        return {
+            "file_name": file_name,
+            "width": width,
+            "height": height,
+            "roi": self._roi_to_dict(roi),
+            "roi_file": self._get_roi_path(input_path).name,
+        }
+
+    def save_roi_info(self, file_name: str, payload: dict) -> dict:
+        input_path = resolve_upload_image_path(file_name)
+        if not input_path.exists() or not input_path.is_file():
+            raise HTTPException(status_code=404, detail="Input file not found")
+
+        width, height = self._get_media_dimensions(input_path)
+
+        roi_payload = payload.get("roi") if isinstance(payload, dict) and isinstance(payload.get("roi"), dict) else payload
+        if not isinstance(roi_payload, dict):
+            raise HTTPException(status_code=400, detail="roi payload is required")
+
+        try:
+            roi = (
+                int(float(roi_payload["x1"])),
+                int(float(roi_payload["y1"])),
+                int(float(roi_payload["x2"])),
+                int(float(roi_payload["y2"])),
+            )
+        except (KeyError, TypeError, ValueError):
+            raise HTTPException(status_code=400, detail="Invalid roi payload")
+
+        roi = self._clamp_roi(roi, width, height)
+        roi_path = self._get_roi_path(input_path)
+        try:
+            roi_path.write_text(f"{roi[0]},{roi[1]},{roi[2]},{roi[3]}\n", encoding="utf-8")
+        except OSError as ex:
+            raise HTTPException(status_code=500, detail=f"Failed to write ROI file: {ex}")
+
+        return {
+            "saved": True,
+            "file_name": file_name,
+            "width": width,
+            "height": height,
+            "roi": self._roi_to_dict(roi),
+            "roi_file": roi_path.name,
+        }
+
     def road_detect_service(self, file_name: str, detect_type: str = "road") -> dict:
         input_path = resolve_upload_image_path(file_name)
         if not input_path.exists() or not input_path.is_file():

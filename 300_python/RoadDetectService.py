@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Body, Query
 from fastapi import HTTPException, UploadFile, File
 from fastapi.responses import FileResponse
 
@@ -66,6 +66,27 @@ async def road_detect_service(
 
     return detector.road_detect_service(file_name, detect_type)
 pass # road_detect_service
+
+@router.get("/road_roi/{file_name:path}")
+async def road_roi_get_service(file_name: str):
+    from RoadDetector import RoadDetector
+
+    detector = RoadDetector()
+
+    return detector.get_roi_info(file_name)
+pass # road_roi_get_service
+
+@router.post("/road_roi/{file_name:path}")
+async def road_roi_save_service(
+    file_name: str,
+    payload: dict = Body(...)
+):
+    from RoadDetector import RoadDetector
+
+    detector = RoadDetector()
+
+    return detector.save_roi_info(file_name, payload)
+pass # road_roi_save_service
 
 @router.get("/road_detect_stream/{file_name:path}")
 async def road_detect_stream_service(

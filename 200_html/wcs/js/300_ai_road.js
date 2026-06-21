@@ -6,6 +6,12 @@ $(function () {
     const $uploadedVideoPreview = $("#original-video-preview");
     const $detectedImagePreview = $("#detected-image-preview");
     const $detectedVideoPreview = $("#detected-video-preview");
+    const $roiOverlay = $("#roi-overlay");
+    const $roiSelection = $("#roi-selection");
+    const $roiSaveButton = $("#roi-save-button");
+    const $roiResetButton = $("#roi-reset-button");
+    const $roiEditorStatus = $("#roi-editor-status");
+    const $originalImageTab = $("#original-image-tab");
     const $detectedImageTab = $("#detected-image-tab");
     const $uploadingIndicator = $("#working-indicator");
     const $uploadStatusMessage = $("#work-status-message");
@@ -30,6 +36,11 @@ $(function () {
     let isSampleVideosLoading = false;
     let frameStreamState = {};  // 프레임 스트리밍 상태
     let frameTimerMap = {};     // 프레임 타이머 맵
+    let currentRoiInfo = null;
+    let draftRoiInfo = null;
+    let roiInteraction = null;
+    let roiRequestToken = 0;
+    const MIN_ROI_SIZE = 20;
 
     if ($dropZone.length === 0 || $fileInput.length === 0 || $uploadedImagePreview.length === 0) {
         return;
@@ -77,6 +88,60 @@ $(function () {
         if ($img && $img.length > 0) {
             $img.attr("src", url).removeClass("d-none");
         }
+
+        requestAnimationFrame(syncRoiOverlay);
+    }
+
+    function cloneRoi(roi) {
+        if (!roi) {
+            return null;
+        }
+
+        return {
+            x1: Number(roi.x1) || 0,
+            y1: Number(roi.y1) || 0,
+            x2: Number(roi.x2) || 0,
+            y2: Number(roi.y2) || 0,
+        };
+    }
+
+    function sameRoi(left, right) {
+        if (!left || !right) {
+            return false;
+        }
+
+        return left.x1 === right.x1
+            && left.y1 === right.y1
+            && left.x2 === right.x2
+            && left.y2 === right.y2;
+    }
+
+    function setRoiStatus(message, tone) {
+        if ($roiEditorStatus.length === 0) {
+            return;
+        }
+
+        $roiEditorStatus
+            .removeClass("text-muted text-success text-danger")
+            .addClass(tone === "danger" ? "text-danger" : (tone === "success" ? "text-success" : "text-muted"))
+            .text(message || "");
+    }
+
+    function updateRoiEditorButtons() {
+        const hasRoi = Boolean(currentRoiInfo && draftRoiInfo);
+        $roiSaveButton.prop("disabled", !hasRoi || sameRoi(currentRoiInfo.roi, draftRoiInfo));
+        $roiResetButton.prop("disabled", !hasRoi);
+    }
+
+    function clearRoiEditor() {
+        roiRequestToken += 1;
+        currentRoiInfo = null;
+        draftRoiInfo = null;
+        roiInteraction = null;
+        $roiOverlay.addClass("d-none");
+        $roiSelection.css({ left: "", top: "", width: "", height: "" });
+        updateRoiEditorButtons();
+        setRoiStatus("원본 영상에서 ROI를 수정할 수 있습니다.", "muted");
     }
 
     function updateSelectedFile(file) {
@@ -132,6 +197,7 @@ $(function () {
     function resetPreviewImages() {
         uploadedFileName = "";
         previousFileName = "";
+        clearRoiEditor();
         // 이미지 초기화
         hideImageAndVideo($uploadedImagePreview, $uploadedVideoPreview);
         hideImageAndVideo($detectedImagePreview, $detectedVideoPreview);
@@ -206,6 +272,10 @@ $(function () {
         return "/fast/road_detect/" + encodePathForRoute(fileName);
     }
 
+    function buildRoadRoiUrl(fileName) {
+        return "/fast/road_roi/" + encodePathForRoute(fileName);
+    }
+
     function buildRoadDetectStreamUrl(fileName, detectType) {
         const base = "/fast/road_detect_stream/" + encodePathForRoute(fileName);
         const query = $.param({ detect_type: detectType || "road", t: Date.now() });
@@ -224,6 +294,138 @@ $(function () {
 
     function buildRoadDetectStreamCleanupUrl(fileName) {
         return "/fast/road_detect_stream_cleanup/" + encodePathForRoute(fileName);
+    }
+
+    function getActiveOriginalMediaElement() {
+        if ($uploadedVideoPreview.length > 0 && !$uploadedVideoPreview.hasClass("d-none") && $uploadedVideoPreview[0].src) {
+            return $uploadedVideoPreview[0];
+        }
+
+        if ($uploadedImagePreview.length > 0 && !$uploadedImagePreview.hasClass("d-none") && $uploadedImagePreview[0].src) {
+            return $uploadedImagePreview[0];
+        }
+
+        return null;
+    }
+
+    function getActiveOriginalMediaGeometry() {
+        const mediaElement = getActiveOriginalMediaElement();
+        if (!mediaElement || !currentRoiInfo || currentRoiInfo.width <= 0 || currentRoiInfo.height <= 0) {
+            return null;
+        }
+
+        const displayWidth = mediaElement.clientWidth;
+        const displayHeight = mediaElement.clientHeight;
+        if (displayWidth <= 0 || displayHeight <= 0) {
+            return null;
+        }
+
+        return {
+            ratioX: displayWidth / currentRoiInfo.width,
+            ratioY: displayHeight / currentRoiInfo.height,
+            scaleX: currentRoiInfo.width / displayWidth,
+            scaleY: currentRoiInfo.height / displayHeight,
+        };
+    }
+
+    function clampDraftRoi(roi) {
+        if (!currentRoiInfo) {
+            return cloneRoi(roi);
+        }
+
+        const width = currentRoiInfo.width;
+        const height = currentRoiInfo.height;
+        const minWidth = Math.min(MIN_ROI_SIZE, width);
+        const minHeight = Math.min(MIN_ROI_SIZE, height);
+
+        let x1 = Math.round(roi.x1);
+        let y1 = Math.round(roi.y1);
+        let x2 = Math.round(roi.x2);
+        let y2 = Math.round(roi.y2);
+
+        x1 = Math.max(0, Math.min(x1, width - 1));
+        y1 = Math.max(0, Math.min(y1, height - 1));
+        x2 = Math.max(x1 + minWidth, Math.min(x2, width));
+        y2 = Math.max(y1 + minHeight, Math.min(y2, height));
+
+        if (x2 > width) {
+            x2 = width;
+            x1 = Math.max(0, x2 - minWidth);
+        }
+        if (y2 > height) {
+            y2 = height;
+            y1 = Math.max(0, y2 - minHeight);
+        }
+
+        return { x1: x1, y1: y1, x2: x2, y2: y2 };
+    }
+
+    function syncRoiOverlay() {
+        if (!currentRoiInfo || !draftRoiInfo) {
+            $roiOverlay.addClass("d-none");
+            updateRoiEditorButtons();
+            return;
+        }
+
+        const geometry = getActiveOriginalMediaGeometry();
+        if (!geometry) {
+            $roiOverlay.addClass("d-none");
+            return;
+        }
+
+        $roiSelection.css({
+            left: (draftRoiInfo.x1 * geometry.ratioX) + "px",
+            top: (draftRoiInfo.y1 * geometry.ratioY) + "px",
+            width: (Math.max(1, draftRoiInfo.x2 - draftRoiInfo.x1) * geometry.ratioX) + "px",
+            height: (Math.max(1, draftRoiInfo.y2 - draftRoiInfo.y1) * geometry.ratioY) + "px",
+        });
+
+        $roiOverlay.removeClass("d-none");
+        updateRoiEditorButtons();
+    }
+
+    function loadRoiInfo(fileName) {
+        if (!fileName) {
+            clearRoiEditor();
+            return;
+        }
+
+        const requestToken = ++roiRequestToken;
+        setRoiStatus("ROI 정보를 불러오는 중...", "muted");
+
+        $.ajax({
+            url: buildRoadRoiUrl(fileName),
+            method: "GET"
+        }).done(function (result) {
+            if (requestToken !== roiRequestToken) {
+                return;
+            }
+
+            currentRoiInfo = {
+                width: Number(result.width) || 0,
+                height: Number(result.height) || 0,
+                roiFile: result.roi_file || "",
+                roi: cloneRoi(result.roi),
+            };
+            draftRoiInfo = cloneRoi(result.roi);
+            syncRoiOverlay();
+            setRoiStatus("ROI 파일: " + (currentRoiInfo.roiFile || "없음"), "muted");
+        }).fail(function (jqXHR) {
+            if (requestToken !== roiRequestToken) {
+                return;
+            }
+
+            console.error("ROI load error:", jqXHR.status, jqXHR.responseText);
+            clearRoiEditor();
+            setRoiStatus("ROI 정보를 불러오지 못했습니다.", "danger");
+        });
+    }
+
+    function displayOriginalMedia(fileName) {
+        const normalizedFileName = normalizePath(fileName);
+        const mediaUrl = buildImageUrl(normalizedFileName);
+        showMediaPreview(mediaUrl, isVideoPath(normalizedFileName), $uploadedImagePreview, $uploadedVideoPreview);
+        loadRoiInfo(normalizedFileName);
     }
 
     function showDetectedTabAndRunDetect(delayMs) {
@@ -268,6 +470,108 @@ $(function () {
         frameStreamState = {};  // 로컬 상태 완전 초기화
     }
 
+    function saveRoiInfo() {
+        if (!uploadedFileName || !draftRoiInfo) {
+            return;
+        }
+
+        setRoiStatus("ROI 저장 중...", "muted");
+
+        $.ajax({
+            url: buildRoadRoiUrl(uploadedFileName),
+            method: "POST",
+            data: JSON.stringify({ roi: draftRoiInfo }),
+            contentType: "application/json"
+        }).done(function (result) {
+            currentRoiInfo = {
+                width: Number(result.width) || 0,
+                height: Number(result.height) || 0,
+                roiFile: result.roi_file || "",
+                roi: cloneRoi(result.roi),
+            };
+            draftRoiInfo = cloneRoi(result.roi);
+            syncRoiOverlay();
+            setRoiStatus("ROI가 저장되었습니다.", "success");
+            runDetect();
+        }).fail(function (jqXHR) {
+            console.error("ROI save error:", jqXHR.status, jqXHR.responseText);
+            setRoiStatus("ROI 저장에 실패했습니다.", "danger");
+        });
+    }
+
+    function startRoiInteraction(event) {
+        if (!draftRoiInfo || !currentRoiInfo) {
+            return;
+        }
+
+        const handle = $(event.target).data("handle") || "move";
+        const isSelectionTarget = event.target === $roiSelection[0] || $.contains($roiSelection[0], event.target);
+        if (!isSelectionTarget) {
+            return;
+        }
+
+        roiInteraction = {
+            handle: handle,
+            startX: event.clientX,
+            startY: event.clientY,
+            startRoi: cloneRoi(draftRoiInfo),
+        };
+
+        event.preventDefault();
+    }
+
+    function updateRoiInteraction(event) {
+        if (!roiInteraction || !currentRoiInfo) {
+            return;
+        }
+
+        const geometry = getActiveOriginalMediaGeometry();
+        if (!geometry) {
+            return;
+        }
+
+        const deltaX = Math.round((event.clientX - roiInteraction.startX) * geometry.scaleX);
+        const deltaY = Math.round((event.clientY - roiInteraction.startY) * geometry.scaleY);
+        const startRoi = roiInteraction.startRoi;
+        const roiWidth = startRoi.x2 - startRoi.x1;
+        const roiHeight = startRoi.y2 - startRoi.y1;
+        let nextRoi = cloneRoi(startRoi);
+
+        if (roiInteraction.handle === "move") {
+            const maxX = Math.max(0, currentRoiInfo.width - roiWidth);
+            const maxY = Math.max(0, currentRoiInfo.height - roiHeight);
+            nextRoi.x1 = Math.max(0, Math.min(startRoi.x1 + deltaX, maxX));
+            nextRoi.y1 = Math.max(0, Math.min(startRoi.y1 + deltaY, maxY));
+            nextRoi.x2 = nextRoi.x1 + roiWidth;
+            nextRoi.y2 = nextRoi.y1 + roiHeight;
+        } else if (roiInteraction.handle === "nw") {
+            nextRoi.x1 = startRoi.x1 + deltaX;
+            nextRoi.y1 = startRoi.y1 + deltaY;
+        } else if (roiInteraction.handle === "ne") {
+            nextRoi.x2 = startRoi.x2 + deltaX;
+            nextRoi.y1 = startRoi.y1 + deltaY;
+        } else if (roiInteraction.handle === "sw") {
+            nextRoi.x1 = startRoi.x1 + deltaX;
+            nextRoi.y2 = startRoi.y2 + deltaY;
+        } else if (roiInteraction.handle === "se") {
+            nextRoi.x2 = startRoi.x2 + deltaX;
+            nextRoi.y2 = startRoi.y2 + deltaY;
+        }
+
+        draftRoiInfo = clampDraftRoi(nextRoi);
+        syncRoiOverlay();
+        setRoiStatus("ROI를 수정했습니다. 저장하면 검출에 반영됩니다.", "muted");
+    }
+
+    function endRoiInteraction() {
+        if (!roiInteraction) {
+            return;
+        }
+
+        roiInteraction = null;
+        updateRoiEditorButtons();
+    }
+
     function uploadSelectedImage(file) {
         if (!file) {
             return;
@@ -304,8 +608,7 @@ $(function () {
                 if (result && result.filename) {
                     previousFileName = uploadedFileName;  // 이전 파일명 저장
                     uploadedFileName = result.filename;    // 새 파일명 설정
-                    const mediaUrl = buildImageUrl(result.filename);
-                    showMediaPreview(mediaUrl, isVideoPath(result.filename), $uploadedImagePreview, $uploadedVideoPreview);
+                    displayOriginalMedia(result.filename);
 
                     if ($detectedImageTab.length > 0 && typeof bootstrap !== "undefined" && bootstrap.Tab) {
                         bootstrap.Tab.getOrCreateInstance($detectedImageTab[0]).show();
@@ -874,8 +1177,7 @@ $(function () {
 
         previousFileName = uploadedFileName;
         uploadedFileName = normalizePath(selectedFileName);
-        const imageUrl = buildImageUrl(uploadedFileName);
-        showMediaPreview(imageUrl, isVideoPath(uploadedFileName), $uploadedImagePreview, $uploadedVideoPreview);
+        displayOriginalMedia(uploadedFileName);
         showUploadStatusMessage("샘플 영상을 선택하였습니다. 잠시 후 검출합니다.", true);
         showDetectedTabAndRunDetect(DETECT_AFTER_UPLOAD_DELAY_MS);
     });
@@ -912,10 +1214,51 @@ $(function () {
 
         previousFileName = uploadedFileName;
         uploadedFileName = normalizePath(selectedFileName);
-        const mediaUrl = buildImageUrl(uploadedFileName);
-        showMediaPreview(mediaUrl, true, $uploadedImagePreview, $uploadedVideoPreview);
+        displayOriginalMedia(uploadedFileName);
         showUploadStatusMessage("샘플 동영상을 선택하였습니다. 잠시 후 검출합니다.", true);
         showDetectedTabAndRunDetect(DETECT_AFTER_UPLOAD_DELAY_MS);
+    });
+
+    $uploadedImagePreview.on("load", function () {
+        syncRoiOverlay();
+    });
+
+    $uploadedVideoPreview.on("loadedmetadata loadeddata", function () {
+        syncRoiOverlay();
+    });
+
+    $(window).on("resize", function () {
+        syncRoiOverlay();
+    });
+
+    $originalImageTab.on("shown.bs.tab", function () {
+        syncRoiOverlay();
+    });
+
+    $roiOverlay.on("pointerdown", function (event) {
+        startRoiInteraction(event);
+    });
+
+    $(document).on("pointermove.roiEditor", function (event) {
+        updateRoiInteraction(event);
+    });
+
+    $(document).on("pointerup.roiEditor pointercancel.roiEditor", function () {
+        endRoiInteraction();
+    });
+
+    $roiSaveButton.on("click", function () {
+        saveRoiInfo();
+    });
+
+    $roiResetButton.on("click", function () {
+        if (!currentRoiInfo || !currentRoiInfo.roi) {
+            return;
+        }
+
+        draftRoiInfo = cloneRoi(currentRoiInfo.roi);
+        syncRoiOverlay();
+        setRoiStatus("저장된 ROI로 되돌렸습니다.", "muted");
     });
 
     $sampleImageTab.on("click", function () {

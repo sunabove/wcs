@@ -4,6 +4,8 @@ import adafruit_ssd1306
 
 from PIL import Image, ImageDraw, ImageFont
 
+# mosquitto_pub -t led/text -m "Hello OLED/nWorld"
+
 class LEDDisplay:
     WIDTH = 128
     HEIGHT = 32
@@ -79,6 +81,17 @@ class MqttOledService:
         self.display.render_lines(lines)
     pass  # _render
 
+    @staticmethod
+    def _normalize_newlines(text):
+        normalized = str(text)
+        # Handle slash-style and escaped newline representations.
+        normalized = normalized.replace("/r/n", "\n")
+        normalized = normalized.replace("/n", "\n").replace("/r", "\r")
+        normalized = normalized.replace("\\r\\n", "\n")
+        normalized = normalized.replace("\\n", "\n").replace("\\r", "\r")
+        return normalized
+    pass  # _normalize_newlines
+
     def _on_connect(self, client, userdata, flags, reason_code, properties=None):
         print("MQTT connected:", reason_code)
         for topic in self.TOPICS:
@@ -93,6 +106,7 @@ class MqttOledService:
 
         try:
             if topic == "led/text":
+                payload = self._normalize_newlines(payload)
                 split_lines = payload.splitlines()
                 lines = split_lines if split_lines else [""]
                 self._render(lines)

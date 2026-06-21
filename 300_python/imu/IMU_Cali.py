@@ -52,8 +52,8 @@ def main():
 	start = time.monotonic()
 	end_time = start + args.seconds
 	prev_time = start
-	raw_yaw = 0.0
-	cal_yaw = 0.0
+	r_yaw = 0.0
+	c_yaw = 0.0
 	print(f"Start calibration: keep IMU level/still and slowly rotate for AK8963 for {args.seconds:.2f}s")
 
 	try:
@@ -98,37 +98,37 @@ def main():
 			curr_my_offset = -((my_min + my_max) * 0.5)
 			curr_mz_offset = -((mz_min + mz_max) * 0.5)
 
-			cal_ax = ax + curr_ax_offset
-			cal_ay = ay + curr_ay_offset
-			cal_az = az + curr_az_offset
-			cal_gx = gx + curr_gx_offset
-			cal_gy = gy + curr_gy_offset
-			cal_gz = gz + curr_gz_offset
-			cal_mx = mx + curr_mx_offset
-			cal_my = my + curr_my_offset
-			cal_mz = mz + curr_mz_offset
+			c_ax = ax + curr_ax_offset
+			c_ay = ay + curr_ay_offset
+			c_az = az + curr_az_offset
+			c_gx = gx + curr_gx_offset
+			c_gy = gy + curr_gy_offset
+			c_gz = gz + curr_gz_offset
+			c_mx = mx + curr_mx_offset
+			c_my = my + curr_my_offset
+			c_mz = mz + curr_mz_offset
 
-			cal_pitch, cal_roll = calc_pitch_roll(cal_ax, cal_ay, cal_az)
-			raw_yaw = normalize_yaw(raw_yaw + gz * dt)
-			cal_yaw = normalize_yaw(cal_yaw + cal_gz * dt)
-			raw_mag_yaw = normalize_yaw(math.degrees(math.atan2(my, mx)))
-			cal_mag_yaw = normalize_yaw(math.degrees(math.atan2(cal_my, cal_mx)))
+			c_pitch, c_roll = calc_pitch_roll(c_ax, c_ay, c_az)
+			r_yaw = normalize_yaw(r_yaw + gz * dt)
+			c_yaw = normalize_yaw(c_yaw + c_gz * dt)
+			r_mag_yaw = normalize_yaw(math.degrees(math.atan2(my, mx)))
+			c_mag_yaw = normalize_yaw(math.degrees(math.atan2(c_my, c_mx)))
 
 			remain = max(0.0, end_time - time.monotonic())
 			print(
 				f"[{sample_count:3d}] {remain:5.2f}s "
-				f"raw_rpy=({roll:+.2f},{pitch:+.2f},{raw_yaw:+.2f}) "
-				f"cal_rpy=({cal_roll:+.2f},{cal_pitch:+.2f},{cal_yaw:+.2f}) "
+				f"r_rpy=({roll:+.2f},{pitch:+.2f},{r_yaw:+.2f}) "
+				f"c_rpy=({c_roll:+.2f},{c_pitch:+.2f},{c_yaw:+.2f}) "
 				f"acc_off=({curr_ax_offset:+.2f},{curr_ay_offset:+.2f},{curr_az_offset:+.2f}) "
 				f"gyr_off=({curr_gx_offset:+.2f},{curr_gy_offset:+.2f},{curr_gz_offset:+.2f}) "
 				f"mag_off=({curr_mx_offset:+.2f},{curr_my_offset:+.2f},{curr_mz_offset:+.2f}) "
-				f"raw_acc=({ax:+.2f},{ay:+.2f},{az:+.2f}) "
-				f"cal_acc=({cal_ax:+.2f},{cal_ay:+.2f},{cal_az:+.2f}) "
-				f"raw_gyr=({gx:+.2f},{gy:+.2f},{gz:+.2f}) "
-				f"cal_gyr=({cal_gx:+.2f},{cal_gy:+.2f},{cal_gz:+.2f}) "
-				f"raw_mag=({mx:+.1f},{my:+.1f},{mz:+.1f}) "
-				f"cal_mag=({cal_mx:+.1f},{cal_my:+.1f},{cal_mz:+.1f}) "
-				f"mag_yaw=({raw_mag_yaw:+.1f}->{cal_mag_yaw:+.1f})"
+				f"r_acc=({ax:+.2f},{ay:+.2f},{az:+.2f}) "
+				f"c_acc=({c_ax:+.2f},{c_ay:+.2f},{c_az:+.2f}) "
+				f"r_gyr=({gx:+.2f},{gy:+.2f},{gz:+.2f}) "
+				f"c_gyr=({c_gx:+.2f},{c_gy:+.2f},{c_gz:+.2f}) "
+				f"r_mag=({mx:+.1f},{my:+.1f},{mz:+.1f}) "
+				f"c_mag=({c_mx:+.1f},{c_my:+.1f},{c_mz:+.1f}) "
+				f"mag_yaw=({r_mag_yaw:+.1f}->{c_mag_yaw:+.1f})"
 			)
 			time.sleep(args.dt)
 	except KeyboardInterrupt:

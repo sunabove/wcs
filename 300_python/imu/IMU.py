@@ -134,8 +134,8 @@ def main():
             count += 1
             p_raw = math.degrees(math.atan2(-ax_raw, math.sqrt(ay_raw*ay_raw+az_raw*az_raw)))
             r_raw = math.degrees(math.atan2(ay_raw, az_raw))
-            print(f"[{count:5d}] RAW: R={r_raw:7.2f}° P={p_raw:7.2f}° A=({ax_raw:6.3f},{ay_raw:6.3f},{az_raw:6.3f}) G=({gx_raw:7.2f},{gy_raw:7.2f},{gz_raw:7.2f})")
-            print(f"         CAL: R={roll:7.2f}° P={pitch:7.2f}° Y={yaw:7.2f}° A=({ax:6.3f},{ay:6.3f},{az:6.3f}) G=({gx:7.2f},{gy:7.2f},{gz:7.2f})")
+            print(f"[{count:5d}] RAW: R={r_raw:7.2f}° P={p_raw:7.2f}°              A=({ax_raw:6.3f},{ay_raw:6.3f},{az_raw:6.3f}) G=({gx_raw:7.2f},{gy_raw:7.2f},{gz_raw:7.2f})")
+            print(     f"        CAL: R={roll:7.2f}° P={pitch:7.2f}° Y={yaw:7.2f}° A=({ax:6.3f},{ay:6.3f},{az:6.3f}) G=({gx:7.2f},{gy:7.2f},{gz:7.2f})")
             time.sleep(0.02)
     except KeyboardInterrupt: pass
     finally: imu.close()

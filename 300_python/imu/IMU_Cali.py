@@ -1,220 +1,166 @@
 #!/usr/bin/env python3
 
-import argparse
-import math
 import os
 import time
+from smbus2 import SMBus
 
-from IMU import IMU
-
-
-def mean(values):
-	return sum(values) / len(values) if values else 0.0
+MPU_ADDR = 0x68
+AK8963_ADDR = 0x0C
 
 
-def stddev(values, avg):
-	if not values:
-		return 0.0
-	return math.sqrt(sum((v - avg) * (v - avg) for v in values) / len(values))
+def signed16(v):
+    return v - 65536 if v > 32767 else v
 
 
-def calc_pitch_roll(ax, ay, az):
-	pitch = math.degrees(math.atan2(-ax, math.sqrt(ay * ay + az * az)))
-	roll = math.degrees(math.atan2(ay, az))
-	return pitch, roll
+bus = SMBus(1)
 
+# MPU9250 Wakeup
+bus.write_byte_data(MPU_ADDR, 0x6B, 0x00)
+time.sleep(0.1)
 
-def normalize_yaw(yaw):
-	while yaw > 180.0:
-		yaw -= 360.0
-	while yaw < -180.0:
-		yaw += 360.0
-	return yaw
+# Bypass mode
+bus.write_byte_data(MPU_ADDR, 0x6A, 0x00)
+bus.write_byte_data(MPU_ADDR, 0x37, 0x02)
 
+# WHO_AM_I
+whoami = bus.read_byte_data(AK8963_ADDR, 0x00)
+print(f"AK8963 WHO_AM_I = 0x{whoami:02X}")
 
-def main():
-	parser = argparse.ArgumentParser(description="IMU 10-second level calibration")
-	parser.add_argument("--seconds", type=float, default=10.0, help="Calibration duration in seconds")
-	parser.add_argument("--dt", type=float, default=0.02, help="Sample interval in seconds")
-	args = parser.parse_args()
+# Fuse ROM
+bus.write_byte_data(AK8963_ADDR, 0x0A, 0x00)
+time.sleep(0.01)
 
-	imu = IMU(skip_calibration=True)
-	ax_list, ay_list, az_list = [], [], []
-	gx_list, gy_list, gz_list = [], [], []
-	mx_list, my_list, mz_list = [], [], []
-	pitch_list, roll_list = [], []
-	ax_sum = ay_sum = az_sum = 0.0
-	gx_sum = gy_sum = gz_sum = 0.0
-	mx_min = my_min = mz_min = float("inf")
-	mx_max = my_max = mz_max = float("-inf")
-	sample_count = 0
+bus.write_byte_data(AK8963_ADDR, 0x0A, 0x0F)
+time.sleep(0.01)
 
-	start = time.monotonic()
-	end_time = start + args.seconds
-	prev_time = start
-	r_yaw = 0.0
-	c_yaw = 0.0
-	print(f"Start calibration: keep IMU level/still and slowly rotate for AK8963 for {args.seconds:.2f}s")
+asa = bus.read_i2c_block_data(AK8963_ADDR, 0x10, 3)
 
-	try:
-		while time.monotonic() < end_time:
-			pitch, roll, ax, ay, az, gx, gy, gz = imu.read()
-			mx, my, mz = imu.read_mag()
-			now = time.monotonic()
-			dt = max(0.0, now - prev_time)
-			prev_time = now
-			pitch_list.append(pitch)
-			roll_list.append(roll)
-			ax_list.append(ax)
-			ay_list.append(ay)
-			az_list.append(az)
-			gx_list.append(gx)
-			gy_list.append(gy)
-			gz_list.append(gz)
-			mx_list.append(mx)
-			my_list.append(my)
-			mz_list.append(mz)
-			mx_min = min(mx_min, mx)
-			my_min = min(my_min, my)
-			mz_min = min(mz_min, mz)
-			mx_max = max(mx_max, mx)
-			my_max = max(my_max, my)
-			mz_max = max(mz_max, mz)
-			ax_sum += ax
-			ay_sum += ay
-			az_sum += az
-			gx_sum += gx
-			gy_sum += gy
-			gz_sum += gz
-			sample_count += 1
+adj_x = ((asa[0] - 128) / 256.0) + 1.0
+adj_y = ((asa[1] - 128) / 256.0) + 1.0
+adj_z = ((asa[2] - 128) / 256.0) + 1.0
 
-			curr_ax_offset = -(ax_sum / sample_count)
-			curr_ay_offset = -(ay_sum / sample_count)
-			curr_az_offset = 1.0 - (az_sum / sample_count)
-			curr_gx_offset = -(gx_sum / sample_count)
-			curr_gy_offset = -(gy_sum / sample_count)
-			curr_gz_offset = -(gz_sum / sample_count)
-			curr_mx_offset = -((mx_min + mx_max) * 0.5)
-			curr_my_offset = -((my_min + my_max) * 0.5)
-			curr_mz_offset = -((mz_min + mz_max) * 0.5)
+print(
+    f"ASA=({adj_x:.3f}, {adj_y:.3f}, {adj_z:.3f})"
+)
 
-			c_ax = ax + curr_ax_offset
-			c_ay = ay + curr_ay_offset
-			c_az = az + curr_az_offset
-			c_gx = gx + curr_gx_offset
-			c_gy = gy + curr_gy_offset
-			c_gz = gz + curr_gz_offset
-			c_mx = mx + curr_mx_offset
-			c_my = my + curr_my_offset
-			c_mz = mz + curr_mz_offset
+# Continuous mode 100Hz
+bus.write_byte_data(AK8963_ADDR, 0x0A, 0x00)
+time.sleep(0.01)
 
-			c_pitch, c_roll = calc_pitch_roll(c_ax, c_ay, c_az)
-			r_yaw = normalize_yaw(r_yaw + gz * dt)
-			c_yaw = normalize_yaw(c_yaw + c_gz * dt)
-			r_mag_yaw = normalize_yaw(math.degrees(math.atan2(my, mx)))
-			c_mag_yaw = normalize_yaw(math.degrees(math.atan2(c_my, c_mx)))
+bus.write_byte_data(AK8963_ADDR, 0x0A, 0x16)
+time.sleep(0.01)
 
-			remain = max(0.0, end_time - time.monotonic())
-			print(
-				f"[{sample_count:3d}] {remain:5.2f}s "
-				f"r_rpy=({roll:+.2f},{pitch:+.2f},{r_yaw:+.2f}) "
-				f"c_rpy=({c_roll:+.2f},{c_pitch:+.2f},{c_yaw:+.2f}) "
-				f"acc_off=({curr_ax_offset:+.2f},{curr_ay_offset:+.2f},{curr_az_offset:+.2f}) "
-				f"gyr_off=({curr_gx_offset:+.2f},{curr_gy_offset:+.2f},{curr_gz_offset:+.2f}) "
-				f"mag_off=({curr_mx_offset:+.2f},{curr_my_offset:+.2f},{curr_mz_offset:+.2f}) "
-				f"r_acc=({ax:+.2f},{ay:+.2f},{az:+.2f}) "
-				f"c_acc=({c_ax:+.2f},{c_ay:+.2f},{c_az:+.2f}) "
-				f"r_gyr=({gx:+.2f},{gy:+.2f},{gz:+.2f}) "
-				f"c_gyr=({c_gx:+.2f},{c_gy:+.2f},{c_gz:+.2f}) "
-				f"r_mag=({mx:+.1f},{my:+.1f},{mz:+.1f}) "
-				f"c_mag=({c_mx:+.1f},{c_my:+.1f},{c_mz:+.1f}) "
-				f"mag_yaw=({r_mag_yaw:+.1f}->{c_mag_yaw:+.1f})"
-			)
-			time.sleep(args.dt)
-	except KeyboardInterrupt:
-		print("Calibration interrupted by user.")
-	finally:
-		imu.close()
+mx_min = my_min = mz_min = 999999
+mx_max = my_max = mz_max = -999999
+sample_count = 0
 
-	n = len(ax_list)
-	if n == 0:
-		raise SystemExit("No samples collected; calibration file was not created.")
+print()
+print("Rotate sensor slowly in ALL directions.")
+print("Press Ctrl+C when finished.")
+print()
 
-	ax_avg, ay_avg, az_avg = mean(ax_list), mean(ay_list), mean(az_list)
-	gx_avg, gy_avg, gz_avg = mean(gx_list), mean(gy_list), mean(gz_list)
-	mx_avg, my_avg, mz_avg = mean(mx_list), mean(my_list), mean(mz_list)
-	pitch_avg, roll_avg = mean(pitch_list), mean(roll_list)
+try:
+    while True:
 
-	accel_norm_avg = mean([math.sqrt(ax * ax + ay * ay + az * az) for ax, ay, az in zip(ax_list, ay_list, az_list)])
+        st1 = bus.read_byte_data(AK8963_ADDR, 0x02)
 
-	# Level-still baseline offsets (target: ax=0g, ay=0g, az=+1g, gyro=0dps)
-	ax_offset = -ax_avg
-	ay_offset = -ay_avg
-	az_offset = 1.0 - az_avg
-	gx_offset = -gx_avg
-	gy_offset = -gy_avg
-	gz_offset = -gz_avg
-	mx_offset = -((mx_min + mx_max) * 0.5)
-	my_offset = -((my_min + my_max) * 0.5)
-	mz_offset = -((mz_min + mz_max) * 0.5)
+        if (st1 & 0x01) == 0:
+            continue
 
-	folder = os.path.dirname(os.path.abspath(__file__))
-	out_path = os.path.join(folder, "IMU_cali.txt")
+        data = bus.read_i2c_block_data(
+            AK8963_ADDR,
+            0x03,
+            7
+        )
 
-	lines = [
-		"# IMU calibration generated by IMU_Cali.py",
-		f"timestamp_unix={int(time.time())}",
-		f"duration_sec={args.seconds}",
-		f"sample_interval_sec={args.dt}",
-		f"sample_count={n}",
-		f"pitch_avg_deg={pitch_avg:.6f}",
-		f"roll_avg_deg={roll_avg:.6f}",
-		f"ax_avg_g={ax_avg:.6f}",
-		f"ay_avg_g={ay_avg:.6f}",
-		f"az_avg_g={az_avg:.6f}",
-		f"gx_avg_dps={gx_avg:.6f}",
-		f"gy_avg_dps={gy_avg:.6f}",
-		f"gz_avg_dps={gz_avg:.6f}",
-		f"mx_avg_ut={mx_avg:.6f}",
-		f"my_avg_ut={my_avg:.6f}",
-		f"mz_avg_ut={mz_avg:.6f}",
-		f"mx_min_ut={mx_min:.6f}",
-		f"my_min_ut={my_min:.6f}",
-		f"mz_min_ut={mz_min:.6f}",
-		f"mx_max_ut={mx_max:.6f}",
-		f"my_max_ut={my_max:.6f}",
-		f"mz_max_ut={mz_max:.6f}",
-		f"accel_norm_avg_g={accel_norm_avg:.6f}",
-		f"ax_offset_g={ax_offset:.6f}",
-		f"ay_offset_g={ay_offset:.6f}",
-		f"az_offset_g={az_offset:.6f}",
-		f"gx_offset_dps={gx_offset:.6f}",
-		f"gy_offset_dps={gy_offset:.6f}",
-		f"gz_offset_dps={gz_offset:.6f}",
-		f"mx_offset_ut={mx_offset:.6f}",
-		f"my_offset_ut={my_offset:.6f}",
-		f"mz_offset_ut={mz_offset:.6f}",
-		f"gz_stddev_dps={stddev(gz_list, gz_avg):.6f}",
-	]
+        mx = signed16((data[1] << 8) | data[0])
+        my = signed16((data[3] << 8) | data[2])
+        mz = signed16((data[5] << 8) | data[4])
 
-	with open(out_path, "w", encoding="utf-8") as fp:
-		fp.write("\n".join(lines) + "\n")
+        mx *= 0.15 * adj_x
+        my *= 0.15 * adj_y
+        mz *= 0.15 * adj_z
 
-	print(f"Calibration done. samples={n}")
-	print(
-		f"Final accel offset(g): "
-		f"ax={ax_offset:+.2f}, ay={ay_offset:+.2f}, az={az_offset:+.2f}"
-	)
-	print(
-		f"Final gyro offset(dps): "
-		f"gx={gx_offset:+.2f}, gy={gy_offset:+.2f}, gz={gz_offset:+.2f}"
-	)
-	print(
-		f"Final mag offset(uT): "
-		f"mx={mx_offset:+.2f}, my={my_offset:+.2f}, mz={mz_offset:+.2f}"
-	)
-	print(f"Saved: {out_path}")
+        mx_min = min(mx_min, mx)
+        my_min = min(my_min, my)
+        mz_min = min(mz_min, mz)
 
+        mx_max = max(mx_max, mx)
+        my_max = max(my_max, my)
+        mz_max = max(mz_max, mz)
+        sample_count += 1
 
-if __name__ == "__main__":
-	main()
+        print(
+            f"MX[{mx_min:7.1f},{mx_max:7.1f}] "
+            f"MY[{my_min:7.1f},{my_max:7.1f}] "
+            f"MZ[{mz_min:7.1f},{mz_max:7.1f}]",
+            end="\r"
+        )
+
+        time.sleep(0.02)
+
+except KeyboardInterrupt:
+
+    print("\n")
+    print("Calibration Result")
+    print("------------------")
+
+    if sample_count == 0:
+        print("No samples collected; IMU_cali.txt was not updated.")
+    else:
+        print(f"sample_count = {sample_count}")
+
+        print(f"mx_min = {mx_min:.3f}")
+        print(f"mx_max = {mx_max:.3f}")
+
+        print(f"my_min = {my_min:.3f}")
+        print(f"my_max = {my_max:.3f}")
+
+        print(f"mz_min = {mz_min:.3f}")
+        print(f"mz_max = {mz_max:.3f}")
+
+        mx_offset = -(mx_max + mx_min) / 2.0
+        my_offset = -(my_max + my_min) / 2.0
+        mz_offset = -(mz_max + mz_min) / 2.0
+
+        print()
+        print("Offsets")
+        print("-------")
+
+        print(f"mx_offset_ut={mx_offset:.3f}")
+        print(f"my_offset_ut={my_offset:.3f}")
+        print(f"mz_offset_ut={mz_offset:.3f}")
+
+        cal_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "IMU_cali.txt")
+        cal_map = {}
+
+        if os.path.exists(cal_path):
+            with open(cal_path, "r", encoding="utf-8") as fp:
+                for line in fp:
+                    line = line.strip()
+                    if not line or line.startswith("#") or "=" not in line:
+                        continue
+                    k, v = line.split("=", 1)
+                    cal_map[k.strip()] = v.strip()
+
+        cal_map["mx_min_ut"] = f"{mx_min:.6f}"
+        cal_map["mx_max_ut"] = f"{mx_max:.6f}"
+        cal_map["my_min_ut"] = f"{my_min:.6f}"
+        cal_map["my_max_ut"] = f"{my_max:.6f}"
+        cal_map["mz_min_ut"] = f"{mz_min:.6f}"
+        cal_map["mz_max_ut"] = f"{mz_max:.6f}"
+        cal_map["mx_offset_ut"] = f"{mx_offset:.6f}"
+        cal_map["my_offset_ut"] = f"{my_offset:.6f}"
+        cal_map["mz_offset_ut"] = f"{mz_offset:.6f}"
+        cal_map["mag_sample_count"] = str(sample_count)
+        cal_map["mag_cal_timestamp_unix"] = str(int(time.time()))
+
+        with open(cal_path, "w", encoding="utf-8") as fp:
+            fp.write("# IMU calibration values\n")
+            for key in sorted(cal_map.keys()):
+                fp.write(f"{key}={cal_map[key]}\n")
+
+        print(f"Saved: {cal_path}")
+
+finally:
+    bus.close()

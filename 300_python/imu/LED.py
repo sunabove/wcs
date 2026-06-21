@@ -61,6 +61,8 @@ class MqttOledService:
     BROKER = "localhost"
     PORT = 1883
     TOPIC = "led/text"
+    BLINK_ON_SEC = 0.08
+    BLINK_OFF_SEC = 0.08
 
     def __init__(self):
         self.display = LEDDisplay()
@@ -81,6 +83,15 @@ class MqttOledService:
     def _render(self, lines):
         self.display.render_lines(lines)
     pass  # _render
+
+    def _blink_and_render(self, lines):
+        # Briefly blink when a topic message is received.
+        self._render(lines)
+        time.sleep(self.BLINK_ON_SEC)
+        self.display.clear()
+        time.sleep(self.BLINK_OFF_SEC)
+        self._render(lines)
+    pass  # _blink_and_render
 
     @staticmethod
     def _normalize_newlines(text):
@@ -131,7 +142,7 @@ class MqttOledService:
                 payload = self._normalize_newlines(payload)
                 split_lines = payload.splitlines()
                 lines = split_lines if split_lines else [""]
-                self._render(lines)
+                self._blink_and_render(lines)
 
         except Exception as exc:
             print("MQTT message error:", exc)

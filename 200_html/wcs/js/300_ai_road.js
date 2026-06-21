@@ -231,6 +231,20 @@ $(function () {
         $detectedStreamResumeButton.prop("disabled", !canResume);
         $detectedStreamSeekButton.prop("disabled", !hasSession);
         $detectedStreamFrameInput.prop("disabled", !hasSession);
+
+        $detectedStreamPauseButton
+            .toggleClass("btn-outline-danger", canPause)
+            .toggleClass("btn-outline-secondary", !canPause);
+        $detectedStreamResumeButton
+            .toggleClass("btn-outline-primary", canResume)
+            .toggleClass("btn-outline-secondary", !canResume);
+
+        $detectedStreamPauseButton.find("i")
+            .toggleClass("text-danger", canPause)
+            .toggleClass("text-muted", !canPause);
+        $detectedStreamResumeButton.find("i")
+            .toggleClass("text-primary", canResume)
+            .toggleClass("text-muted", !canResume);
     }
 
     function resetPreviewImages() {
@@ -545,6 +559,8 @@ $(function () {
             clearTimeout(frameTimerMap[fileName]);
             delete frameTimerMap[fileName];
         }
+        setDetectingState(false);
+        $detectingIndicator.addClass("d-none");
         updateDetectedStreamControls();
         showUploadStatusMessage("프레임 출력을 멈췄습니다.", true);
     }

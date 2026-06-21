@@ -94,7 +94,7 @@ class IMU:
         gz = self._signed16((d[12] << 8) | d[13]) / 131.0
         pitch = math.degrees(math.atan2(-ax, math.sqrt(ay * ay + az * az)))
         roll = math.degrees(math.atan2(ay, az))
-        return pitch, roll, ax + self.ax_offset, ay + self.ay_offset, az + self.az_offset, gx + self.gx_offset, gy + self.gy_offset, gz + self.gz_offset
+        return pitch, roll, ax, ay, az, ax + self.ax_offset, ay + self.ay_offset, az + self.az_offset, gx, gy, gz, gx + self.gx_offset, gy + self.gy_offset, gz + self.gz_offset
 
     def close(self):
         self.bus.close()
@@ -109,7 +109,7 @@ def main():
     imu = IMU()
     print("Calibrating gyro offset...")
     gz_offset = 0.0
-    for _ in range(100): gz_offset += imu.read()[7]; time.sleep(0.01)
+    for _ in range(100): gz_offset += imu.read()[10]; time.sleep(0.01)
     gz_offset /= 100.0
     p, r = imu.read()[:2]
     pitch_filter, roll_filter = KalmanAngle(), KalmanAngle()
@@ -117,7 +117,7 @@ def main():
     yaw, prev_time, count = 0.0, time.monotonic(), 0
     try:
         while True:
-            p, r, ax, ay, az, gx, gy, gz = imu.read()
+            p, r, ax_raw, ay_raw, az_raw, ax, ay, az, gx_raw, gy_raw, gz_raw, gx, gy, gz = imu.read()
             now = time.monotonic()
             dt = min(now - prev_time, 0.1)
             prev_time = now
@@ -132,7 +132,10 @@ def main():
             while yaw < -180: 
                 yaw += 360
             count += 1
-            print(f"[{count:5d}] R={roll:7.2f}° P={pitch:7.2f}° Y={yaw:7.2f}° ACC=({ax:6.3f},{ay:6.3f},{az:6.3f}) GYR=({gx:7.2f},{gy:7.2f},{gz:7.2f})")
+            p_raw = math.degrees(math.atan2(-ax_raw, math.sqrt(ay_raw*ay_raw+az_raw*az_raw)))
+            r_raw = math.degrees(math.atan2(ay_raw, az_raw))
+            print(f"[{count:5d}] RAW: R={r_raw:7.2f}° P={p_raw:7.2f}° A=({ax_raw:6.3f},{ay_raw:6.3f},{az_raw:6.3f}) G=({gx_raw:7.2f},{gy_raw:7.2f},{gz_raw:7.2f})")
+            print(f"         CAL: R={roll:7.2f}° P={pitch:7.2f}° Y={yaw:7.2f}° A=({ax:6.3f},{ay:6.3f},{az:6.3f}) G=({gx:7.2f},{gy:7.2f},{gz:7.2f})")
             time.sleep(0.02)
     except KeyboardInterrupt: pass
     finally: imu.close()

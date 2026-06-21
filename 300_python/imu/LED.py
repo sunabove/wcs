@@ -61,6 +61,7 @@ class MqttOledService:
     BROKER = "localhost"
     PORT = 1883
     TOPIC = "led/text"
+    BLINK_COUNT = 3
     BLINK_ON_SEC = 0.08
     BLINK_OFF_SEC = 0.08
 
@@ -86,10 +87,11 @@ class MqttOledService:
 
     def _blink_and_render(self, lines):
         # Briefly blink when a topic message is received.
-        self._render(lines)
-        time.sleep(self.BLINK_ON_SEC)
-        self.display.clear()
-        time.sleep(self.BLINK_OFF_SEC)
+        for _ in range(self.BLINK_COUNT):
+            self._render(lines)
+            time.sleep(self.BLINK_ON_SEC)
+            self.display.clear()
+            time.sleep(self.BLINK_OFF_SEC)
         self._render(lines)
     pass  # _blink_and_render
 

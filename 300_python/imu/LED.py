@@ -62,8 +62,8 @@ class MqttOledService:
     PORT = 1883
     TOPIC = "led/text"
     BLINK_COUNT = 2
-    BLINK_ON_SEC = 0.08
-    BLINK_OFF_SEC = 0.08
+    BLINK_ON_SEC = 0.2
+    BLINK_OFF_SEC = 0.2
 
     def __init__(self):
         self.display = LEDDisplay()

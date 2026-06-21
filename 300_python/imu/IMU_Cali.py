@@ -34,7 +34,7 @@ def main():
 
 	start = time.monotonic()
 	end_time = start + args.seconds
-	print(f"Start calibration: keep IMU level and still for {args.seconds:.1f}s")
+	print(f"Start calibration: keep IMU level and still for {args.seconds:.2f}s")
 
 	try:
 		while time.monotonic() < end_time:
@@ -71,13 +71,13 @@ def main():
 
 			remain = max(0.0, end_time - time.monotonic())
 			print(
-				f"{remain:4.1f}s "
-				f"acc_off=({curr_ax_offset:+.4f},{curr_ay_offset:+.4f},{curr_az_offset:+.4f}) "
-				f"gyr_off=({curr_gx_offset:+.4f},{curr_gy_offset:+.4f},{curr_gz_offset:+.4f}) " 
-				f"raw_acc=({ax:+.4f},{ay:+.4f},{az:+.4f}) "
-				f"cal_acc=({cal_ax:+.4f},{cal_ay:+.4f},{cal_az:+.4f}) "
-				f"raw_gyr=({gx:+.4f},{gy:+.4f},{gz:+.4f}) " 
-				f"cal_gyr=({cal_gx:+.4f},{cal_gy:+.4f},{cal_gz:+.4f})"
+				f"{remain:5.2f}s "
+				f"acc_off=({curr_ax_offset:+.2f},{curr_ay_offset:+.2f},{curr_az_offset:+.2f}) "
+				f"gyr_off=({curr_gx_offset:+.2f},{curr_gy_offset:+.2f},{curr_gz_offset:+.2f}) "
+				f"raw_acc=({ax:+.2f},{ay:+.2f},{az:+.2f}) "
+				f"cal_acc=({cal_ax:+.2f},{cal_ay:+.2f},{cal_az:+.2f}) "
+				f"raw_gyr=({gx:+.2f},{gy:+.2f},{gz:+.2f}) "
+				f"cal_gyr=({cal_gx:+.2f},{cal_gy:+.2f},{cal_gz:+.2f})"
 			)
 			time.sleep(args.dt)
 	except KeyboardInterrupt:
@@ -136,11 +136,11 @@ def main():
 	print(f"Calibration done. samples={n}")
 	print(
 		f"Final accel offset(g): "
-		f"ax={ax_offset:+.6f}, ay={ay_offset:+.6f}, az={az_offset:+.6f}"
+		f"ax={ax_offset:+.2f}, ay={ay_offset:+.2f}, az={az_offset:+.2f}"
 	)
 	print(
 		f"Final gyro offset(dps): "
-		f"gx={gx_offset:+.6f}, gy={gy_offset:+.6f}, gz={gz_offset:+.6f}"
+		f"gx={gx_offset:+.2f}, gy={gy_offset:+.2f}, gz={gz_offset:+.2f}"
 	)
 	print(f"Saved: {out_path}")
 

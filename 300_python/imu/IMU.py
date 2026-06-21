@@ -5,15 +5,17 @@ import time
 from smbus2 import SMBus
 
 
-class GY91:
+class IMU:
 
     def __init__(self):
         self.bus = SMBus(1)
         self.bus.write_byte_data(0x68, 0x6B, 0)
         time.sleep(0.1)
+    pass #  
 
     def _s(self, v):
         return v - 65536 if v > 32767 else v
+    pass #
 
     def read(self):
         d = self.bus.read_i2c_block_data(0x68, 0x3B, 14)
@@ -30,19 +32,21 @@ class GY91:
         roll = math.degrees(math.atan2(ay, math.sqrt(ax * ax + az * az)))
 
         return pitch, roll, ax, ay, az, gx, gy, gz
+    pass # read
 
     def close(self):
         self.bus.close()
+    pass # close
+
+pass # IMU
 
 
 def main():
 
-    imu = GY91()
+    imu = IMU()
 
     try:
-
         while True:
-
             p, r, ax, ay, az, gx, gy, gz = imu.read()
 
             print(
@@ -53,13 +57,15 @@ def main():
             )
 
             time.sleep(0.2)
-
+        pass
     except KeyboardInterrupt:
         pass
-
     finally:
         imu.close()
+    pass
+pass # main
 
 
 if __name__ == "__main__":
     main()
+pass # __main__

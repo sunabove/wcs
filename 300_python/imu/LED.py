@@ -61,7 +61,7 @@ class MqttOledService:
     BROKER = "localhost"
     PORT = 1883
     TOPIC = "led/text"
-    BLINK_COUNT = 3
+    BLINK_COUNT = 2
     BLINK_ON_SEC = 0.08
     BLINK_OFF_SEC = 0.08
 

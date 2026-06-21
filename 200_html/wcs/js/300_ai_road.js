@@ -10,7 +10,7 @@ $(function () {
     const $detectedStreamPauseButton = $("#detected-stream-pause");
     const $detectedStreamResumeButton = $("#detected-stream-resume");
     const $detectedStreamFrameInput = $("#detected-stream-frame-input");
-    const $detectedStreamSeekButton = $("#detected-stream-seek");
+    const $detectedStreamFrameValue = $("#detected-stream-frame-value");
     const $detectedStreamFrameLabel = $("#detected-stream-frame-label");
     const $roiOverlay = $("#roi-overlay");
     const $roiSelection = $("#roi-selection");
@@ -202,6 +202,7 @@ $(function () {
         const isVideo = Boolean(uploadedFileName) && isVideoPath(uploadedFileName);
         if (!isVideo) {
             $detectedStreamControls.addClass("d-none");
+            $detectedStreamFrameValue.text("");
             $detectedStreamFrameLabel.text("");
             return;
         }
@@ -218,18 +219,22 @@ $(function () {
         const canResume = hasSession && isPaused && !isPlaying;
 
         if (totalFrames > 0) {
+            const normalizedFrame = Math.max(1, currentFrame || 1);
+            $detectedStreamFrameInput.attr("min", 1);
             $detectedStreamFrameInput.attr("max", totalFrames);
-            $detectedStreamFrameInput.attr("placeholder", String(Math.max(1, currentFrame || 1)));
+            $detectedStreamFrameInput.val(String(normalizedFrame));
+            $detectedStreamFrameValue.text(String(normalizedFrame));
             $detectedStreamFrameLabel.text(currentFrame > 0 ? (currentFrame + " / " + totalFrames) : ("0 / " + totalFrames));
         } else {
+            $detectedStreamFrameInput.attr("min", 1);
             $detectedStreamFrameInput.removeAttr("max");
-            $detectedStreamFrameInput.attr("placeholder", "1");
+            $detectedStreamFrameInput.val("1");
+            $detectedStreamFrameValue.text("1");
             $detectedStreamFrameLabel.text("");
         }
 
         $detectedStreamPauseButton.prop("disabled", !canPause);
         $detectedStreamResumeButton.prop("disabled", !canResume);
-        $detectedStreamSeekButton.prop("disabled", !hasSession);
         $detectedStreamFrameInput.prop("disabled", !hasSession);
 
         $detectedStreamPauseButton
@@ -1454,19 +1459,16 @@ $(function () {
         resumeFrameStream(uploadedFileName);
     });
 
-    $detectedStreamSeekButton.on("click", function () {
+    $detectedStreamFrameInput.on("input", function () {
+        $detectedStreamFrameValue.text(String($(this).val() || "1"));
+    });
+
+    $detectedStreamFrameInput.on("change", function () {
         if (!uploadedFileName) {
             return;
         }
 
-        seekFrameStream(uploadedFileName, $detectedStreamFrameInput.val());
-    });
-
-    $detectedStreamFrameInput.on("keydown", function (event) {
-        if (event.key === "Enter") {
-            event.preventDefault();
-            $detectedStreamSeekButton.trigger("click");
-        }
+        seekFrameStream(uploadedFileName, $(this).val());
     });
 
     $roiOverlay.on("pointerdown", function (event) {

@@ -507,8 +507,7 @@ $(function () {
             };
             draftRoiInfo = cloneRoi(result.roi);
             syncRoiOverlay();
-            setRoiStatus("ROI가 저장되었습니다.", "success");
-            runDetect();
+            setRoiStatus("ROI가 저장되었습니다. 검출 탭을 클릭하면 반영됩니다.", "success");
         }).fail(function (jqXHR) {
             console.error("ROI save error:", jqXHR.status, jqXHR.responseText);
             setRoiStatus("ROI 저장에 실패했습니다.", "danger");

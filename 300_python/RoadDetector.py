@@ -23,7 +23,7 @@ class RoadDetector:
         "pothole": Path(__file__).resolve().parent / "ai/road/model/03_yolo11m-pothole-sg.pt",
     }
     _models = {}
-    _stream_sessions = {}  # {session_id: {capture, frame_count, fps, detect_type, file_name}}
+    _stream_sessions = {}  # {session_id: {capture, frame_count, fps, detect_type, file_name, input_path, roi}}
     
     def __init__(self):
         self.image_ext = {".jpg", ".jpeg", ".png", ".bmp", ".webp"} 
@@ -88,6 +88,92 @@ class RoadDetector:
         varied_bgr = cv2.cvtColor(np.uint8([[[h2, s2, v2]]]), cv2.COLOR_HSV2BGR)[0, 0]
         return (int(varied_bgr[0]), int(varied_bgr[1]), int(varied_bgr[2]))
 
+    @staticmethod
+    def _get_roi_path(input_path: Path) -> Path:
+        return input_path.with_name(f"{input_path.stem}_roi.txt")
+
+    @staticmethod
+    def _parse_roi_values(raw_text: str):
+        values = []
+        for token in raw_text.replace(",", " ").split():
+            try:
+                values.append(int(float(token)))
+            except ValueError:
+                continue
+
+            if len(values) == 4:
+                break
+
+        if len(values) != 4:
+            return None
+        return tuple(values)
+
+    @staticmethod
+    def _clamp_roi(roi, width: int, height: int):
+        x1, y1, x2, y2 = [int(value) for value in roi]
+        x1 = max(0, min(x1, width - 1))
+        y1 = max(0, min(y1, height - 1))
+        x2 = max(x1 + 1, min(x2, width))
+        y2 = max(y1 + 1, min(y2, height))
+        return (x1, y1, x2, y2)
+
+    @classmethod
+    def _load_or_create_roi(cls, input_path: Path, width: int, height: int):
+        if width <= 0 or height <= 0:
+            return None
+
+        margin_x = int(width * 0.1)
+        margin_y = int(height * 0.1)
+        default_roi = cls._clamp_roi((margin_x, margin_y, width - margin_x, height - margin_y), width, height)
+        roi_path = cls._get_roi_path(input_path)
+
+        if not roi_path.exists():
+            roi_path.write_text(
+                f"{default_roi[0]},{default_roi[1]},{default_roi[2]},{default_roi[3]}\n",
+                encoding="utf-8",
+            )
+            return default_roi
+
+        try:
+            raw_text = roi_path.read_text(encoding="utf-8")
+        except OSError:
+            return default_roi
+
+        parsed_roi = cls._parse_roi_values(raw_text)
+        if parsed_roi is None:
+            try:
+                roi_path.write_text(
+                    f"{default_roi[0]},{default_roi[1]},{default_roi[2]},{default_roi[3]}\n",
+                    encoding="utf-8",
+                )
+            except OSError:
+                pass
+            return default_roi
+
+        return cls._clamp_roi(parsed_roi, width, height)
+
+    @staticmethod
+    def _apply_roi_mask(frame, roi):
+        if roi is None:
+            return frame.copy()
+
+        x1, y1, x2, y2 = roi
+        masked = np.zeros_like(frame)
+        masked[y1:y2, x1:x2] = frame[y1:y2, x1:x2]
+        return masked
+
+    @staticmethod
+    def _draw_roi_overlay(detected, roi):
+        if roi is None:
+            return detected
+
+        x1, y1, x2, y2 = roi
+        overlay = detected.copy()
+        cv2.rectangle(overlay, (x1, y1), (x2, y2), (0, 0, 255), cv2.FILLED)
+        cv2.addWeighted(overlay, 0.10, detected, 0.90, 0, detected)
+        cv2.rectangle(detected, (x1, y1), (x2, y2), (0, 0, 255), 2)
+        return detected
+
     def road_detect_service(self, file_name: str, detect_type: str = "road") -> dict:
         input_path = resolve_upload_image_path(file_name)
         if not input_path.exists() or not input_path.is_file():
@@ -102,7 +188,8 @@ class RoadDetector:
             if input_image is None:
                 raise HTTPException(status_code=400, detail="Failed to read image file")
 
-            detected_image = self.detect_road(input_image, detect_type)
+            roi = self._load_or_create_roi(input_path, input_image.shape[1], input_image.shape[0])
+            detected_image = self.detect_road(input_image, detect_type, roi=roi)
             if not cv2.imwrite(str(output_path), detected_image):
                 raise HTTPException(status_code=500, detail="Failed to write output image")
         elif suffix in self.video_ext:
@@ -140,13 +227,17 @@ class RoadDetector:
 
         writer = None
         target_size = None
+        roi = None
         try:
             while True:
                 ok, frame = capture.read()
                 if not ok:
                     break
 
-                detected_frame = self.detect_road(frame, detect_type)
+                if roi is None:
+                    roi = self._load_or_create_roi(input_path, frame.shape[1], frame.shape[0])
+
+                detected_frame = self.detect_road(frame, detect_type, roi=roi)
 
                 if writer is None:
                     h, w = detected_frame.shape[:2]
@@ -219,7 +310,13 @@ class RoadDetector:
             'frame_count': frame_count,
             'fps': fps,
             'detect_type': detect_type,
-            'file_name': file_name
+            'file_name': file_name,
+            'input_path': input_path,
+            'roi': self._load_or_create_roi(
+                input_path,
+                int(capture.get(cv2.CAP_PROP_FRAME_WIDTH)),
+                int(capture.get(cv2.CAP_PROP_FRAME_HEIGHT)),
+            )
         }
 
         return {
@@ -249,6 +346,7 @@ class RoadDetector:
             detect_type = session['detect_type']
             frame_index = session['frame_index']
             frame_count = session['frame_count']
+            roi = session.get('roi')
 
             ok, frame = capture.read()
             if not ok:
@@ -260,8 +358,12 @@ class RoadDetector:
                     'frame': None
                 }
 
+            if roi is None:
+                roi = self._load_or_create_roi(session['input_path'], frame.shape[1], frame.shape[0])
+                session['roi'] = roi
+
             # 프레임 감지 처리
-            detected_frame = self.detect_road(frame, detect_type)
+            detected_frame = self.detect_road(frame, detect_type, roi=roi)
 
             # JPEG로 인코딩
             encoded_ok, encoded = cv2.imencode(".jpg", detected_frame, [int(cv2.IMWRITE_JPEG_QUALITY), 85])
@@ -330,13 +432,17 @@ class RoadDetector:
             raise HTTPException(status_code=400, detail="Failed to read video file")
 
         def generate():
+            roi = None
             try:
                 while True:
                     ok, frame = capture.read()
                     if not ok:
                         break
 
-                    detected_frame = self.detect_road(frame, detect_type)
+                    if roi is None:
+                        roi = self._load_or_create_roi(input_path, frame.shape[1], frame.shape[0])
+
+                    detected_frame = self.detect_road(frame, detect_type, roi=roi)
                     encoded_ok, encoded = cv2.imencode(".jpg", detected_frame, [int(cv2.IMWRITE_JPEG_QUALITY), 80])
                     if not encoded_ok:
                         continue
@@ -579,7 +685,7 @@ class RoadDetector:
         cv2.putText(detected, count_text, (text_right_x - w2, y2), font_face, font_scale, (255, 255, 255), font_thickness)
         return detected
 
-    def detect_road(self, frame, detect_type: str = "road"):
+    def detect_road(self, frame, detect_type: str = "road", roi=None):
         detect_key = detect_type if detect_type in RoadDetector._model_paths else "road"
         conf = 0.10 if detect_key == "road_type" else 0.20
         infer_key = detect_key
@@ -588,7 +694,7 @@ class RoadDetector:
         min_mask_area_pixels = 64
 
         # For "road_type" detection, first detect road area and crop the highest confidence box
-        frame_for_inference = frame.copy()
+        frame_for_inference = self._apply_roi_mask(frame, roi)
         if detect_key == "road_type":
             if "road" not in RoadDetector._models:
                 road_model_path = RoadDetector._model_paths["road"]
@@ -719,6 +825,8 @@ class RoadDetector:
 
         if detected_count == 0:
             detected_count = mask_count
+
+        detected = self._draw_roi_overlay(detected, roi)
 
         showHeader = True
         if showHeader:

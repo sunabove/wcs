@@ -1262,6 +1262,9 @@ $(function () {
     });
 
     $originalImageTab.on("shown.bs.tab", function () {
+        if (uploadedFileName && isVideoPath(uploadedFileName)) {
+            stopActiveFrameProcessing();
+        }
         syncRoiOverlay();
     });
 

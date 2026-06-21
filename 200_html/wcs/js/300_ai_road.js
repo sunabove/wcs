@@ -473,7 +473,7 @@ $(function () {
             };
             draftRoiInfo = cloneRoi(result.roi);
             syncRoiOverlay();
-            setRoiStatus("원본 영상에서 ROI를 수정할 수 있습니다.", "muted");
+            setRoiStatus("ROI를 수정할 수 있습니다.", "muted");
         }).fail(function (jqXHR) {
             if (requestToken !== roiRequestToken) {
                 return;

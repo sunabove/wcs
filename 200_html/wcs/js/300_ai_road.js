@@ -615,6 +615,7 @@ $(function () {
             currentState.totalFrames = Number(result.total_frames || currentState.totalFrames || 0);
             currentState.isPlaying = false;
             currentState.isPaused = true;
+            showUploadStatusMessage(String(result.frame_number || targetFrame) + " 번째 프레임으로 이동하였습니다.", true);
             updateDetectedStreamControls();
             playFrameStream(fileName, { singleStep: true });
         }).fail(function (jqXHR) {

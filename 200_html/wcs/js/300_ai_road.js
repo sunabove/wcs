@@ -596,7 +596,6 @@ $(function () {
             delete frameTimerMap[fileName];
         }
 
-        const shouldResume = Boolean(state.isPlaying && !state.isPaused);
         state.isPlaying = false;
         state.isPaused = true;
         updateDetectedStreamControls();
@@ -617,7 +616,7 @@ $(function () {
             currentState.isPlaying = false;
             currentState.isPaused = true;
             updateDetectedStreamControls();
-            playFrameStream(fileName, { singleStep: true, autoResume: shouldResume });
+            playFrameStream(fileName, { singleStep: true });
         }).fail(function (jqXHR) {
             console.error("Stream seek error:", jqXHR.status, jqXHR.responseText);
             showUploadStatusMessage("프레임 이동에 실패했습니다.", false);
@@ -1461,6 +1460,17 @@ $(function () {
 
     $detectedStreamFrameInput.on("input", function () {
         $detectedStreamFrameValue.text(String($(this).val() || "1"));
+    });
+
+    $detectedStreamFrameInput.on("pointerdown mousedown touchstart", function () {
+        if (!uploadedFileName) {
+            return;
+        }
+
+        const state = frameStreamState[uploadedFileName];
+        if (state && state.isPlaying && !state.isPaused) {
+            pauseFrameStream(uploadedFileName);
+        }
     });
 
     $detectedStreamFrameInput.on("change", function () {

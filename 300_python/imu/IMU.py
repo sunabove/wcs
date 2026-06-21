@@ -61,12 +61,13 @@ def main():
             p, r, ax, ay, az, gx, gy, gz = imu.read()
             now = time.monotonic()
             yaw = (yaw + (gz - gz_offset) * (now - prev_time)) % 360.0
+            yaw_display = yaw - 360.0 if yaw >= 275.0 else yaw
             prev_time = now
 
             print(
-                f"P={p:6.1f}° "
                 f"R={r:6.1f}° "
-                f"Y={yaw:7.1f}° "
+                f"P={p:6.1f}° "
+                f"Y={yaw_display:7.1f}° "
                 f"ACC=({ax:5.2f},{ay:5.2f},{az:5.2f}) "
                 f"GYRO=({gx:6.1f},{gy:6.1f},{gz:6.1f}) "
                 f"GZ0={gz_offset:6.2f}"

@@ -43,7 +43,7 @@ while True:
 
     key = cv2.waitKey(1) & 0xFF
 
-    if key == 27:  # ESC
+    if key in (27, ord('q'), ord('Q')):  # ESC, q, Q
         break
 
 cap.release()

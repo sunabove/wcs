@@ -18,6 +18,20 @@ def stddev(values, avg):
 	return math.sqrt(sum((v - avg) * (v - avg) for v in values) / len(values))
 
 
+def calc_pitch_roll(ax, ay, az):
+	pitch = math.degrees(math.atan2(-ax, math.sqrt(ay * ay + az * az)))
+	roll = math.degrees(math.atan2(ay, az))
+	return pitch, roll
+
+
+def normalize_yaw(yaw):
+	while yaw > 180.0:
+		yaw -= 360.0
+	while yaw < -180.0:
+		yaw += 360.0
+	return yaw
+
+
 def main():
 	parser = argparse.ArgumentParser(description="IMU 10-second level calibration")
 	parser.add_argument("--seconds", type=float, default=10.0, help="Calibration duration in seconds")
@@ -34,11 +48,17 @@ def main():
 
 	start = time.monotonic()
 	end_time = start + args.seconds
+	prev_time = start
+	raw_yaw = 0.0
+	cal_yaw = 0.0
 	print(f"Start calibration: keep IMU level and still for {args.seconds:.2f}s")
 
 	try:
 		while time.monotonic() < end_time:
 			pitch, roll, ax, ay, az, gx, gy, gz = imu.read()
+			now = time.monotonic()
+			dt = max(0.0, now - prev_time)
+			prev_time = now
 			pitch_list.append(pitch)
 			roll_list.append(roll)
 			ax_list.append(ax)
@@ -69,9 +89,15 @@ def main():
 			cal_gy = gy + curr_gy_offset
 			cal_gz = gz + curr_gz_offset
 
+			cal_pitch, cal_roll = calc_pitch_roll(cal_ax, cal_ay, cal_az)
+			raw_yaw = normalize_yaw(raw_yaw + gz * dt)
+			cal_yaw = normalize_yaw(cal_yaw + cal_gz * dt)
+
 			remain = max(0.0, end_time - time.monotonic())
 			print(
 				f"{remain:5.2f}s "
+				f"raw_rpy=({roll:+.2f},{pitch:+.2f},{raw_yaw:+.2f}) "
+				f"cal_rpy=({cal_roll:+.2f},{cal_pitch:+.2f},{cal_yaw:+.2f}) "
 				f"acc_off=({curr_ax_offset:+.2f},{curr_ay_offset:+.2f},{curr_az_offset:+.2f}) "
 				f"gyr_off=({curr_gx_offset:+.2f},{curr_gy_offset:+.2f},{curr_gz_offset:+.2f}) "
 				f"raw_acc=({ax:+.2f},{ay:+.2f},{az:+.2f}) "

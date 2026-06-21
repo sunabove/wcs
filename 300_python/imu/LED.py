@@ -12,7 +12,7 @@ from PIL import Image, ImageDraw, ImageFont
 class LEDDisplay:
     WIDTH = 128
     HEIGHT = 32
-    MARGIN_X = 4
+    MARGIN_X = 6
     MARGIN_Y = 3
     LINE_GAP = 13
     ADDR = 0x3C

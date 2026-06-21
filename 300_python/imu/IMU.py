@@ -5,7 +5,6 @@ import time
 
 from smbus2 import SMBus
 
-
 class GY91:
 
     MPU_ADDR = 0x68

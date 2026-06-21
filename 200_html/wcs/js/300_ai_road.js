@@ -214,6 +214,8 @@ $(function () {
         const isPlaying = Boolean(state && state.isPlaying);
         const isPaused = Boolean(state && state.isPaused);
         const hasSession = Boolean(state);
+        const canPause = hasSession && isPlaying && !isPaused;
+        const canResume = hasSession && isPaused && !isPlaying;
 
         if (totalFrames > 0) {
             $detectedStreamFrameInput.attr("max", totalFrames);
@@ -225,8 +227,8 @@ $(function () {
             $detectedStreamFrameLabel.text("");
         }
 
-        $detectedStreamPauseButton.prop("disabled", !hasSession || !isPlaying);
-        $detectedStreamResumeButton.prop("disabled", !hasSession || (isPlaying && !isPaused));
+        $detectedStreamPauseButton.prop("disabled", !canPause);
+        $detectedStreamResumeButton.prop("disabled", !canResume);
         $detectedStreamSeekButton.prop("disabled", !hasSession);
         $detectedStreamFrameInput.prop("disabled", !hasSession);
     }

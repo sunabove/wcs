@@ -174,6 +174,32 @@ class RoadDetector:
         cv2.rectangle(detected, (x1, y1), (x2, y2), (0, 0, 255), 3)
         return detected
 
+    @staticmethod
+    def _box_intersects_roi(box, roi):
+        if roi is None:
+            return True
+
+        x1, y1, x2, y2 = [int(v) for v in box]
+        rx1, ry1, rx2, ry2 = roi
+        return (x1 < rx2 and x2 > rx1 and y1 < ry2 and y2 > ry1)
+
+    @staticmethod
+    def _clip_box_to_roi(box, roi):
+        if roi is None:
+            return [int(v) for v in box]
+
+        x1, y1, x2, y2 = [int(v) for v in box]
+        rx1, ry1, rx2, ry2 = roi
+
+        x1 = max(x1, rx1)
+        y1 = max(y1, ry1)
+        x2 = min(x2, rx2)
+        y2 = min(y2, ry2)
+
+        if x2 <= x1 or y2 <= y1:
+            return None
+        return [x1, y1, x2, y2]
+
     def road_detect_service(self, file_name: str, detect_type: str = "road") -> dict:
         input_path = resolve_upload_image_path(file_name)
         if not input_path.exists() or not input_path.is_file():
@@ -504,6 +530,8 @@ class RoadDetector:
         names,
         min_mask_area_ratio,
         min_mask_area_pixels,
+        roi=None,
+        inference_roi=None,
     ):
         regenerated_boxes = []
         regenerated_confs = []
@@ -539,8 +567,24 @@ class RoadDetector:
 
         overlay = detected.copy()
         for idx, mask in enumerate(masks):
-            mask_resized = cv2.resize(mask, (width, height), interpolation=cv2.INTER_NEAREST)
-            binary_mask = mask_resized > 0.5
+            if inference_roi is not None:
+                ix1, iy1, ix2, iy2 = inference_roi
+                iw = max(1, ix2 - ix1)
+                ih = max(1, iy2 - iy1)
+
+                mask_resized_local = cv2.resize(mask, (iw, ih), interpolation=cv2.INTER_NEAREST)
+                binary_mask_local = mask_resized_local > 0.5
+                binary_mask = np.zeros((height, width), dtype=bool)
+                binary_mask[iy1:iy2, ix1:ix2] = binary_mask_local[:(iy2 - iy1), :(ix2 - ix1)]
+            else:
+                mask_resized = cv2.resize(mask, (width, height), interpolation=cv2.INTER_NEAREST)
+                binary_mask = mask_resized > 0.5
+
+            if roi is not None:
+                rx1, ry1, rx2, ry2 = roi
+                roi_binary = np.zeros((height, width), dtype=bool)
+                roi_binary[ry1:ry2, rx1:rx2] = True
+                binary_mask = np.logical_and(binary_mask, roi_binary)
             mask_area = int(np.count_nonzero(binary_mask))
             if mask_area < min_mask_area:
                 continue
@@ -693,8 +737,17 @@ class RoadDetector:
         min_mask_area_ratio = 0.001  # Exclude masks smaller than 0.1% of frame area.
         min_mask_area_pixels = 64
 
-        # For "road_type" detection, first detect road area and crop the highest confidence box
-        frame_for_inference = self._apply_roi_mask(frame, roi)
+        # Build ROI image first and run detection on the ROI image itself.
+        inference_roi = None
+        if roi is not None:
+            x1, y1, x2, y2 = self._clamp_roi(roi, frame.shape[1], frame.shape[0])
+            frame_for_inference = frame[y1:y2, x1:x2].copy()
+            inference_roi = (x1, y1, x2, y2)
+        else:
+            frame_for_inference = frame.copy()
+
+        # For "road_type" detection, first detect road area and crop the highest confidence box.
+        # When ROI is provided, keep ROI crop as the final inference target.
         if detect_key == "road_type":
             if "road" not in RoadDetector._models:
                 road_model_path = RoadDetector._model_paths["road"]
@@ -763,6 +816,8 @@ class RoadDetector:
             names,
             min_mask_area_ratio,
             min_mask_area_pixels,
+            roi,
+            inference_roi,
         )
         
         detected = mask_result["detected"]
@@ -795,10 +850,47 @@ class RoadDetector:
                     box_colors = []
             else:
                 boxes = result.boxes.xyxy.cpu().numpy().astype(int)
+                if inference_roi is not None:
+                    ix1, iy1, _, _ = inference_roi
+                    boxes[:, 0] += ix1
+                    boxes[:, 2] += ix1
+                    boxes[:, 1] += iy1
+                    boxes[:, 3] += iy1
                 confs = result.boxes.conf.cpu().numpy()
                 cls_ids = result.boxes.cls.cpu().numpy().astype(int) if result.boxes.cls is not None else None
                 box_labels = []
                 box_colors = [(0, 255, 255)] * len(boxes)
+
+            if roi is not None and len(boxes) > 0:
+                filtered_boxes = []
+                filtered_confs = []
+                filtered_cls_ids = []
+                filtered_labels = []
+                filtered_colors = []
+
+                has_cls_ids = cls_ids is not None
+                for idx, box in enumerate(boxes):
+                    if not self._box_intersects_roi(box, roi):
+                        continue
+
+                    clipped_box = self._clip_box_to_roi(box, roi)
+                    if clipped_box is None:
+                        continue
+
+                    filtered_boxes.append(clipped_box)
+                    filtered_confs.append(float(confs[idx]))
+                    if has_cls_ids:
+                        filtered_cls_ids.append(int(cls_ids[idx]))
+                    if idx < len(box_labels):
+                        filtered_labels.append(box_labels[idx])
+                    if idx < len(box_colors):
+                        filtered_colors.append(box_colors[idx])
+
+                boxes = np.array(filtered_boxes, dtype=int) if filtered_boxes else np.empty((0, 4), dtype=int)
+                confs = np.array(filtered_confs, dtype=float) if filtered_confs else np.empty((0,), dtype=float)
+                cls_ids = np.array(filtered_cls_ids, dtype=int) if has_cls_ids and filtered_cls_ids else (np.empty((0,), dtype=int) if has_cls_ids else None)
+                box_labels = filtered_labels
+                box_colors = filtered_colors
 
             detected_count, class_counts = self._draw_boxes_and_collect_counts(
                 detected,

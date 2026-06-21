@@ -233,14 +233,14 @@ $(function () {
         $detectedStreamFrameInput.prop("disabled", !hasSession);
 
         $detectedStreamPauseButton
-            .toggleClass("btn-outline-danger", canPause)
+            .toggleClass("btn-outline-primary", canPause)
             .toggleClass("btn-outline-secondary", !canPause);
         $detectedStreamResumeButton
             .toggleClass("btn-outline-primary", canResume)
             .toggleClass("btn-outline-secondary", !canResume);
 
         $detectedStreamPauseButton.find("i")
-            .toggleClass("text-danger", canPause)
+            .toggleClass("text-primary", canPause)
             .toggleClass("text-muted", !canPause);
         $detectedStreamResumeButton.find("i")
             .toggleClass("text-primary", canResume)

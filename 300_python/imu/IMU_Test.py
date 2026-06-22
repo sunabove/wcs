@@ -34,17 +34,20 @@ class MPU9250:
     def close(self):
         self.bus.close()
 
-
 def main():
     imu = MPU9250()
     count = 0
+    prev_ts = None
     print("GY-91 MPU9250 Test")
     print()
     try:
         while True:
             count += 1
-            ax, ay, az = imu.read_accel(); gx, gy, gz = imu.read_gyro()
-            print(f"[{count:5d}] ACC[g] ({ax:7.3f}, {ay:7.3f}, {az:7.3f}) GYR[dps] ({gx:8.2f}, {gy:8.2f}, {gz:8.2f})")
+            now_ts = time.monotonic(); dt = 0.0 if prev_ts is None else (now_ts - prev_ts); prev_ts = now_ts
+            ax, ay, az = imu.read_accel()
+            gx, gy, gz = imu.read_gyro()
+            print(f"[{count:5d}] dt[s]={dt:6.3f} ACC[g] ({ax:7.3f}, {ay:7.3f}, {az:7.3f}), |ACC| ({abs(ax):7.3f}, {abs(ay):7.3f}, {abs(az):7.3f})")
+            print(f"          GYR[°/s] ({gx:8.2f}, {gy:8.2f}, {gz:8.2f}), |GYR| ({abs(gx):8.2f}, {abs(gy):8.2f}, {abs(gz):8.2f})")
             time.sleep(MEASURE_PERIOD_SEC)
     except KeyboardInterrupt:
         pass

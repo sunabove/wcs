@@ -1,7 +1,6 @@
 import time
 import board
 import busio
-import adafruit_bmp280
 from mpu9250_jmdev.registers import *
 from mpu9250_jmdev.mpu_9250 import MPU9250
 
@@ -10,18 +9,7 @@ def main():
     # Raspberry Pi hardware I2C uses Board pins SCL and SDA
     i2c_bus = busio.I2C(board.SCL, board.SDA)
 
-    # 2. Initialize the BMP280 Sensor (Pressure & Temperature)
-    # Default I2C address for BMP280 on the GY-91 is typically 0x76
-    try:
-        bmp_sensor = adafruit_bmp280.Adafruit_BMP280_I2C(i2c_bus, address=0x76)
-        # Set sea level pressure reference to calculate altitude (1013.25 hPa is standard)
-        bmp_sensor.sea_level_pressure = 1013.25
-        print("✅ BMP280 Barometer detected successfully.")
-    except Exception as e:
-        print(f"❌ Failed to initialize BMP280: {e}")
-        return
-
-    # 3. Initialize the MPU9250 Sensor (Gyro, Accel, Magnetometer)
+    # 2. Initialize the MPU9250 Sensor (Gyro, Accel, Magnetometer)
     # GY-91 usually maps the MPU9250 master address to 0x68
     try:
         mpu_sensor = MPU9250(
@@ -50,17 +38,8 @@ def main():
             gyro  = mpu_sensor.readGyroscopeMaster()     # Returns list [x, y, z]
             mag   = mpu_sensor.readMagnetometerMaster()   # Returns list [x, y, z]
 
-            # --- Fetch BMP280 Data ---
-            temp     = bmp_sensor.temperature
-            pressure = bmp_sensor.pressure
-            altitude = bmp_sensor.altitude
-
             # --- Scannable Terminal Output ---
             print("="*45)
-            print(f"🌡️  Temp:        {temp:.2f} °C")
-            print(f"💨 Pressure:    {pressure:.2f} hPa")
-            print(f"⛰️  Altitude:    {altitude:.2f} m")
-            print("-"*45)
             print(f"🚀 Accel (G):   X: {accel[0]:.3f} | Y: {accel[1]:.3f} | Z: {accel[2]:.3f}")
             print(f"🔄 Gyro (°/s):  X: {gyro[0]:.2f} | Y: {gyro[1]:.2f} | Z: {gyro[2]:.2f}")
             print(f"🧲 Mag (μT):    X: {mag[0]:.1f} | Y: {mag[1]:.1f} | Z: {mag[2]:.1f}")

@@ -16,6 +16,7 @@ $(function () {
     const $roiSelection = $("#roi-selection");
     const $roiResetButton = $("#roi-reset-button");
     const $roiEditorStatus = $("#roi-editor-status");
+    const $cameraOriginalMessage = $("#camera-original-message");
     const $originalImageTab = $("#original-image-tab");
     const $detectedImageTab = $("#detected-image-tab");
     const $originalLiveBadge = $("#original-live-badge");
@@ -203,6 +204,13 @@ $(function () {
         }
         if ($detectedLiveBadge.length > 0) {
             $detectedLiveBadge.toggleClass("d-none", !isLive);
+        }
+    }
+
+    function updateCameraOriginalMessage() {
+        const isLive = Boolean(cameraStreamState && cameraStreamState.isPlaying);
+        if ($cameraOriginalMessage.length > 0) {
+            $cameraOriginalMessage.toggleClass("d-none", !isLive);
         }
     }
 
@@ -586,6 +594,7 @@ $(function () {
 
         cameraStreamState = null;
         updateCameraLiveBadges();
+        updateCameraOriginalMessage();
 
         if (!previousSessionId) {
             return;
@@ -678,6 +687,7 @@ $(function () {
                 isPlaying: true,
             };
             updateCameraLiveBadges();
+            updateCameraOriginalMessage();
 
             showUploadStatusMessage(cameraStreamState.cameraName + " 실시간 검출을 시작합니다.", true);
             playCameraLiveStream();
@@ -1790,4 +1800,5 @@ $(function () {
     });
 
     updateCameraLiveBadges();
+    updateCameraOriginalMessage();
 });

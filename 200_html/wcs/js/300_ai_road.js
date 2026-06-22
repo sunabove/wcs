@@ -394,6 +394,12 @@ $(function () {
         return "/fast/camera_detect_stream_next/" + encodeURIComponent(sessionId);
     }
 
+    function buildCameraDetectStreamModeUrl(sessionId, detectEnabled) {
+        return "/fast/camera_detect_stream_mode/" + encodeURIComponent(sessionId) + "?" + $.param({
+            detect_enabled: Boolean(detectEnabled),
+        });
+    }
+
     function buildCameraDetectStreamCleanupUrl(sessionId) {
         return "/fast/camera_detect_stream_cleanup/" + encodeURIComponent(sessionId);
     }
@@ -618,7 +624,7 @@ $(function () {
                 return;
             }
 
-            if (!result || !result.frame_original || !result.frame_detected) {
+            if (!result || !result.frame_original) {
                 showUploadStatusMessage("카메라 프레임을 가져오지 못했습니다.", false);
                 setDetectingState(false);
                 $detectingIndicator.addClass("d-none");
@@ -631,12 +637,21 @@ $(function () {
                 .attr("src", "data:image/jpeg;base64," + result.frame_original)
                 .removeClass("d-none");
 
-            $detectedVideoPreview.addClass("d-none");
-            $detectedImagePreview
-                .attr("src", "data:image/jpeg;base64," + result.frame_detected)
-                .removeClass("d-none");
+            const isDetectEnabled = result.detect_enabled !== false;
+            cameraStreamState.detectEnabled = isDetectEnabled;
 
-            showUploadStatusMessage("카메라 실시간 검출 중... (" + String(result.frame_number || 0) + ")", true);
+            if (isDetectEnabled && result.frame_detected) {
+                $detectedVideoPreview.addClass("d-none");
+                $detectedImagePreview
+                    .attr("src", "data:image/jpeg;base64," + result.frame_detected)
+                    .removeClass("d-none");
+            }
+
+            if (isDetectEnabled) {
+                showUploadStatusMessage("카메라 실시간 검출 중... (" + String(result.frame_number || 0) + ")", true);
+            } else {
+                showUploadStatusMessage("실시간 원본 영상을 출력중입니다.", true);
+            }
 
             const fps = Number(result.fps || cameraStreamState.fps || 20);
             const frameDelay = fps > 0 ? (1000 / fps) : 50;
@@ -679,6 +694,7 @@ $(function () {
                 cameraName: String(cameraName || ("Camera " + cameraIndex)),
                 detectType: detectType,
                 fps: Number(result.fps || 20),
+                detectEnabled: result.detect_enabled !== false,
                 isPlaying: true,
             };
             updateCameraLiveBadges();
@@ -695,6 +711,40 @@ $(function () {
             setDetectingState(false);
             $detectingIndicator.addClass("d-none");
             stopCameraLiveStream();
+        });
+    }
+
+    function setCameraDetectMode(detectEnabled) {
+        if (!cameraStreamState || !cameraStreamState.sessionId || !cameraStreamState.isPlaying) {
+            return;
+        }
+
+        const targetEnabled = Boolean(detectEnabled);
+        if (cameraStreamState.detectEnabled === targetEnabled) {
+            return;
+        }
+
+        $.ajax({
+            url: buildCameraDetectStreamModeUrl(cameraStreamState.sessionId, targetEnabled),
+            method: "POST",
+        }).done(function (result) {
+            if (!cameraStreamState) {
+                return;
+            }
+
+            cameraStreamState.detectEnabled = result.detect_enabled !== false;
+            if (cameraStreamState.detectEnabled) {
+                setDetectingState(true);
+                $detectingIndicator.removeClass("d-none");
+                showUploadStatusMessage("카메라 실시간 검출을 다시 시작합니다.", true);
+            } else {
+                setDetectingState(false);
+                $detectingIndicator.addClass("d-none");
+                showUploadStatusMessage("실시간 원본 영상을 출력중입니다.", true);
+            }
+        }).fail(function (jqXHR) {
+            console.error("Camera detect mode change error:", jqXHR.status, jqXHR.responseText);
+            showUploadStatusMessage("카메라 검출 모드 변경에 실패했습니다.", false);
         });
     }
 
@@ -1564,6 +1614,7 @@ $(function () {
 
     $detectedImageTab.on("click", function () {
         if (cameraStreamState && cameraStreamState.isPlaying) {
+            setCameraDetectMode(true);
             return;
         }
 
@@ -1687,6 +1738,7 @@ $(function () {
             return;
         }
 
+        setCameraDetectMode(false);
         showUploadStatusMessage("실시간 원본 영상을 출력중입니다.", true);
     });
 

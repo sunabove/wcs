@@ -113,6 +113,19 @@ async def camera_detect_stream_next_service(
 pass # camera_detect_stream_next_service
 
 
+@router.post("/camera_detect_stream_mode/{session_id}")
+async def camera_detect_stream_mode_service(
+    session_id: str,
+    detect_enabled: bool = Query(True)
+):
+    from RoadDetector import RoadDetector
+
+    detector = RoadDetector()
+
+    return detector.camera_detect_stream_set_mode(session_id=session_id, detect_enabled=detect_enabled)
+pass # camera_detect_stream_mode_service
+
+
 @router.post("/camera_detect_stream_cleanup/{session_id}")
 async def camera_detect_stream_cleanup_service(
     session_id: str

@@ -383,10 +383,11 @@ $(function () {
         return "/fast/camera/devices";
     }
 
-    function buildCameraDetectStreamInitUrl(cameraIndex, detectType) {
+    function buildCameraDetectStreamInitUrl(cameraIndex, detectType, cameraName) {
         return "/fast/camera_detect_stream_init?" + $.param({
             camera_index: cameraIndex,
             detect_type: detectType || "road",
+            camera_name: String(cameraName || ""),
         });
     }
 
@@ -398,6 +399,10 @@ $(function () {
         return "/fast/camera_detect_stream_mode/" + encodeURIComponent(sessionId) + "?" + $.param({
             detect_enabled: Boolean(detectEnabled),
         });
+    }
+
+    function buildCameraRoiUrl(sessionId) {
+        return "/fast/camera_roi/" + encodeURIComponent(sessionId);
     }
 
     function buildCameraDetectStreamCleanupUrl(sessionId) {
@@ -530,6 +535,43 @@ $(function () {
             console.error("ROI load error:", jqXHR.status, jqXHR.responseText);
             clearRoiEditor();
             setRoiStatus("ROI 정보를 불러오지 못했습니다.", "danger");
+        });
+    }
+
+    function loadCameraRoiInfo(sessionId) {
+        if (!sessionId) {
+            clearRoiEditor();
+            return;
+        }
+
+        const requestToken = ++roiRequestToken;
+        setRoiStatus("ROI 정보를 불러오는 중...", "muted");
+
+        $.ajax({
+            url: buildCameraRoiUrl(sessionId),
+            method: "GET"
+        }).done(function (result) {
+            if (requestToken !== roiRequestToken) {
+                return;
+            }
+
+            currentRoiInfo = {
+                width: Number(result.width) || 0,
+                height: Number(result.height) || 0,
+                roiFile: "",
+                roi: cloneRoi(result.roi),
+            };
+            draftRoiInfo = cloneRoi(result.roi);
+            syncRoiOverlay();
+            setRoiStatus("ROI를 수정할 수 있습니다.", "muted");
+        }).fail(function (jqXHR) {
+            if (requestToken !== roiRequestToken) {
+                return;
+            }
+
+            console.error("Camera ROI load error:", jqXHR.status, jqXHR.responseText);
+            clearRoiEditor();
+            setRoiStatus("카메라 ROI 정보를 불러오지 못했습니다.", "danger");
         });
     }
 
@@ -685,7 +727,7 @@ $(function () {
 
         const detectType = getSelectedDetectType();
         $.ajax({
-            url: buildCameraDetectStreamInitUrl(cameraIndex, detectType),
+            url: buildCameraDetectStreamInitUrl(cameraIndex, detectType, cameraName),
             method: "POST",
         }).done(function (result) {
             cameraStreamState = {
@@ -698,6 +740,7 @@ $(function () {
                 isPlaying: true,
             };
             updateCameraLiveBadges();
+            loadCameraRoiInfo(cameraStreamState.sessionId);
 
             if ($detectedImageTab.length > 0 && typeof bootstrap !== "undefined" && bootstrap.Tab) {
                 bootstrap.Tab.getOrCreateInstance($detectedImageTab[0]).show();
@@ -840,7 +883,8 @@ $(function () {
     }
 
     function saveRoiInfo() {
-        if (!uploadedFileName || !draftRoiInfo) {
+        const isCameraMode = Boolean(cameraStreamState && cameraStreamState.sessionId && cameraStreamState.isPlaying);
+        if (!draftRoiInfo || (!uploadedFileName && !isCameraMode)) {
             return;
         }
 
@@ -850,8 +894,12 @@ $(function () {
 
         setRoiStatus("ROI 저장 중...", "muted");
 
+        const saveUrl = isCameraMode
+            ? buildCameraRoiUrl(cameraStreamState.sessionId)
+            : buildRoadRoiUrl(uploadedFileName);
+
         $.ajax({
-            url: buildRoadRoiUrl(uploadedFileName),
+            url: saveUrl,
             method: "POST",
             data: JSON.stringify({ roi: draftRoiInfo }),
             contentType: "application/json"

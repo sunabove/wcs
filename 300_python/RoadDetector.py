@@ -10,7 +10,7 @@ from fastapi.responses import StreamingResponse
 import base64
 
 from send_image import resolve_upload_image_path
-from config import BASE_DIR, VIDEO_EXTENSIONS
+from config import BASE_DIR, UPLOAD_DIR, VIDEO_EXTENSIONS
 
 
 class RoadDetector:
@@ -593,7 +593,78 @@ class RoadDetector:
 
         return None
 
-    def camera_detect_stream_init(self, camera_index: int, detect_type: str = "road") -> dict:
+    @staticmethod
+    def _sanitize_camera_name(camera_name: str) -> str:
+        raw = str(camera_name or "").strip()
+        if not raw:
+            return "unknown"
+
+        forbidden = '\\/:*?"<>|'
+        sanitized = []
+        for ch in raw:
+            if ch in forbidden:
+                sanitized.append("_")
+            elif ch.isspace():
+                sanitized.append("_")
+            else:
+                sanitized.append(ch)
+
+        name = "".join(sanitized).strip("._")
+        return name or "unknown"
+
+    @classmethod
+    def _get_camera_roi_path(cls, camera_name: str) -> Path:
+        safe_name = cls._sanitize_camera_name(camera_name)
+        roi_dir = UPLOAD_DIR / "camera_roi"
+        try:
+            roi_dir.mkdir(parents=True, exist_ok=True)
+        except OSError:
+            roi_dir = BASE_DIR
+        return roi_dir / f"cam_{safe_name}_roi.txt"
+
+    @classmethod
+    def _load_or_create_camera_roi(cls, roi_path: Path, width: int, height: int):
+        if width <= 0 or height <= 0:
+            return None
+
+        margin_x = int(width * 0.1)
+        margin_y = int(height * 0.1)
+        default_roi = cls._clamp_roi((margin_x, margin_y, width - margin_x, height - margin_y), width, height)
+
+        if not roi_path.exists():
+            try:
+                roi_path.write_text(
+                    f"{default_roi[0]},{default_roi[1]},{default_roi[2]},{default_roi[3]}\n",
+                    encoding="utf-8",
+                )
+            except OSError:
+                pass
+            return default_roi
+
+        try:
+            raw_text = roi_path.read_text(encoding="utf-8")
+        except OSError:
+            return default_roi
+
+        parsed_roi = cls._parse_roi_values(raw_text)
+        if parsed_roi is None:
+            try:
+                roi_path.write_text(
+                    f"{default_roi[0]},{default_roi[1]},{default_roi[2]},{default_roi[3]}\n",
+                    encoding="utf-8",
+                )
+            except OSError:
+                pass
+            return default_roi
+
+        return cls._clamp_roi(parsed_roi, width, height)
+
+    @staticmethod
+    def _save_camera_roi(roi_path: Path, roi) -> None:
+        x1, y1, x2, y2 = [int(v) for v in roi]
+        roi_path.write_text(f"{x1},{y1},{x2},{y2}\n", encoding="utf-8")
+
+    def camera_detect_stream_init(self, camera_index: int, detect_type: str = "road", camera_name: str = "") -> dict:
         session_id = f"camera_{camera_index}"
 
         if session_id in RoadDetector._camera_stream_sessions:
@@ -613,6 +684,12 @@ class RoadDetector:
         if fps <= 0:
             fps = 20.0
 
+        frame_width = int(capture.get(cv2.CAP_PROP_FRAME_WIDTH) or 0)
+        frame_height = int(capture.get(cv2.CAP_PROP_FRAME_HEIGHT) or 0)
+        resolved_camera_name = str(camera_name or f"camera_{camera_index}")
+        camera_roi_path = self._get_camera_roi_path(resolved_camera_name)
+        camera_roi = self._load_or_create_camera_roi(camera_roi_path, frame_width, frame_height)
+
         RoadDetector._camera_stream_sessions[session_id] = {
             "capture": capture,
             "frame_index": 0,
@@ -620,14 +697,25 @@ class RoadDetector:
             "detect_type": detect_type,
             "detect_enabled": True,
             "camera_index": int(camera_index),
+            "camera_name": resolved_camera_name,
+            "roi_file": camera_roi_path.name,
+            "roi_path": str(camera_roi_path),
+            "frame_width": frame_width,
+            "frame_height": frame_height,
+            "roi": camera_roi,
         }
 
         return {
             "session_id": session_id,
             "camera_index": int(camera_index),
+            "camera_name": resolved_camera_name,
             "fps": fps,
             "detect_type": detect_type,
             "detect_enabled": True,
+            "width": frame_width,
+            "height": frame_height,
+            "roi": self._roi_to_dict(camera_roi),
+            "roi_file": camera_roi_path.name,
         }
     pass # camera_detect_stream_init
 
@@ -655,7 +743,21 @@ class RoadDetector:
                 "frame_detected": None,
             }
 
-        detected_frame = self.detect_road(frame, detect_type, roi=None) if detect_enabled else None
+        frame_height, frame_width = frame.shape[:2]
+        session["frame_width"] = int(frame_width)
+        session["frame_height"] = int(frame_height)
+
+        roi = session.get("roi")
+        if roi is None:
+            margin_x = int(frame_width * 0.1)
+            margin_y = int(frame_height * 0.1)
+            roi = self._clamp_roi((margin_x, margin_y, frame_width - margin_x, frame_height - margin_y), frame_width, frame_height)
+            session["roi"] = roi
+        else:
+            session["roi"] = self._clamp_roi(roi, frame_width, frame_height)
+            roi = session["roi"]
+
+        detected_frame = self.detect_road(frame, detect_type, roi=roi) if detect_enabled else None
 
         original_ok, original_encoded = cv2.imencode(".jpg", frame, [int(cv2.IMWRITE_JPEG_QUALITY), 85])
         detected_ok = True
@@ -677,6 +779,91 @@ class RoadDetector:
             "frame_detected": (base64.b64encode(detected_encoded.tobytes()).decode("utf-8") if detected_encoded is not None else None),
         }
     pass # camera_detect_stream_next
+
+    def camera_get_roi_info(self, session_id: str) -> dict:
+        if session_id not in RoadDetector._camera_stream_sessions:
+            raise HTTPException(status_code=404, detail="Session not found")
+
+        session = RoadDetector._camera_stream_sessions[session_id]
+        width = int(session.get("frame_width") or 0)
+        height = int(session.get("frame_height") or 0)
+        roi = session.get("roi")
+
+        if (width <= 0 or height <= 0) and session.get("capture") is not None:
+            capture = session.get("capture")
+            width = int(capture.get(cv2.CAP_PROP_FRAME_WIDTH) or 0)
+            height = int(capture.get(cv2.CAP_PROP_FRAME_HEIGHT) or 0)
+            session["frame_width"] = width
+            session["frame_height"] = height
+
+        if width <= 0 or height <= 0:
+            raise HTTPException(status_code=400, detail="Camera frame size is not ready yet")
+
+        roi_path = Path(session.get("roi_path") or self._get_camera_roi_path(session.get("camera_name", session_id)))
+
+        if roi is None:
+            roi = self._load_or_create_camera_roi(roi_path, width, height)
+            session["roi"] = roi
+        else:
+            roi = self._clamp_roi(roi, width, height)
+            session["roi"] = roi
+
+        try:
+            self._save_camera_roi(roi_path, roi)
+        except OSError:
+            pass
+
+        return {
+            "session_id": session_id,
+            "width": width,
+            "height": height,
+            "roi": self._roi_to_dict(roi),
+            "roi_file": roi_path.name,
+        }
+    pass # camera_get_roi_info
+
+    def camera_save_roi_info(self, session_id: str, payload: dict) -> dict:
+        if session_id not in RoadDetector._camera_stream_sessions:
+            raise HTTPException(status_code=404, detail="Session not found")
+
+        session = RoadDetector._camera_stream_sessions[session_id]
+        width = int(session.get("frame_width") or 0)
+        height = int(session.get("frame_height") or 0)
+        if width <= 0 or height <= 0:
+            raise HTTPException(status_code=400, detail="Camera frame size is not ready yet")
+
+        roi_payload = payload.get("roi") if isinstance(payload, dict) and isinstance(payload.get("roi"), dict) else payload
+        if not isinstance(roi_payload, dict):
+            raise HTTPException(status_code=400, detail="roi payload is required")
+
+        try:
+            roi = (
+                int(float(roi_payload["x1"])),
+                int(float(roi_payload["y1"])),
+                int(float(roi_payload["x2"])),
+                int(float(roi_payload["y2"])),
+            )
+        except (KeyError, TypeError, ValueError):
+            raise HTTPException(status_code=400, detail="Invalid roi payload")
+
+        roi = self._clamp_roi(roi, width, height)
+        session["roi"] = roi
+
+        roi_path = Path(session.get("roi_path") or self._get_camera_roi_path(session.get("camera_name", session_id)))
+        try:
+            self._save_camera_roi(roi_path, roi)
+        except OSError as ex:
+            raise HTTPException(status_code=500, detail=f"Failed to write camera ROI file: {ex}")
+
+        return {
+            "saved": True,
+            "session_id": session_id,
+            "width": width,
+            "height": height,
+            "roi": self._roi_to_dict(roi),
+            "roi_file": roi_path.name,
+        }
+    pass # camera_save_roi_info
 
     def camera_detect_stream_set_mode(self, session_id: str, detect_enabled: bool) -> dict:
         if session_id not in RoadDetector._camera_stream_sessions:

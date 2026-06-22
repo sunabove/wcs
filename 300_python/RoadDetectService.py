@@ -91,13 +91,14 @@ pass # camera_devices_service
 @router.post("/camera_detect_stream_init")
 async def camera_detect_stream_init_service(
     camera_index: int = Query(..., ge=0, le=64),
-    detect_type: str = Query("road")
+    detect_type: str = Query("road"),
+    camera_name: str = Query("")
 ):
     from RoadDetector import RoadDetector
 
     detector = RoadDetector()
 
-    return detector.camera_detect_stream_init(camera_index=camera_index, detect_type=detect_type)
+    return detector.camera_detect_stream_init(camera_index=camera_index, detect_type=detect_type, camera_name=camera_name)
 pass # camera_detect_stream_init_service
 
 
@@ -124,6 +125,29 @@ async def camera_detect_stream_mode_service(
 
     return detector.camera_detect_stream_set_mode(session_id=session_id, detect_enabled=detect_enabled)
 pass # camera_detect_stream_mode_service
+
+
+@router.get("/camera_roi/{session_id}")
+async def camera_roi_get_service(session_id: str):
+    from RoadDetector import RoadDetector
+
+    detector = RoadDetector()
+
+    return detector.camera_get_roi_info(session_id=session_id)
+pass # camera_roi_get_service
+
+
+@router.post("/camera_roi/{session_id}")
+async def camera_roi_save_service(
+    session_id: str,
+    payload: dict = Body(...)
+):
+    from RoadDetector import RoadDetector
+
+    detector = RoadDetector()
+
+    return detector.camera_save_roi_info(session_id=session_id, payload=payload)
+pass # camera_roi_save_service
 
 
 @router.post("/camera_detect_stream_cleanup/{session_id}")

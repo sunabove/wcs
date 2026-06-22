@@ -86,6 +86,43 @@ async def camera_devices_service(
     }
 pass # camera_devices_service
 
+
+@router.post("/camera_detect_stream_init")
+async def camera_detect_stream_init_service(
+    camera_index: int = Query(..., ge=0, le=64),
+    detect_type: str = Query("road")
+):
+    from RoadDetector import RoadDetector
+
+    detector = RoadDetector()
+
+    return detector.camera_detect_stream_init(camera_index=camera_index, detect_type=detect_type)
+pass # camera_detect_stream_init_service
+
+
+@router.get("/camera_detect_stream_next/{session_id}")
+async def camera_detect_stream_next_service(
+    session_id: str
+):
+    from RoadDetector import RoadDetector
+
+    detector = RoadDetector()
+
+    return detector.camera_detect_stream_next(session_id=session_id)
+pass # camera_detect_stream_next_service
+
+
+@router.post("/camera_detect_stream_cleanup/{session_id}")
+async def camera_detect_stream_cleanup_service(
+    session_id: str
+):
+    from RoadDetector import RoadDetector
+
+    detector = RoadDetector()
+
+    return detector.camera_detect_stream_cleanup(session_id=session_id)
+pass # camera_detect_stream_cleanup_service
+
 @router.get("/road_detect/{file_name:path}")
 async def road_detect_service(
     file_name: str,

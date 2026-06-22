@@ -46,6 +46,8 @@ $(function () {
     let isSampleVideosLoading = false;
     let frameStreamState = {};  // 프레임 스트리밍 상태
     let frameTimerMap = {};     // 프레임 타이머 맵
+    let cameraStreamState = null;
+    let cameraStreamTimer = null;
     let currentRoiInfo = null;
     let draftRoiInfo = null;
     let roiInteraction = null;
@@ -369,6 +371,21 @@ $(function () {
         return "/fast/camera/devices";
     }
 
+    function buildCameraDetectStreamInitUrl(cameraIndex, detectType) {
+        return "/fast/camera_detect_stream_init?" + $.param({
+            camera_index: cameraIndex,
+            detect_type: detectType || "road",
+        });
+    }
+
+    function buildCameraDetectStreamNextUrl(sessionId) {
+        return "/fast/camera_detect_stream_next/" + encodeURIComponent(sessionId);
+    }
+
+    function buildCameraDetectStreamCleanupUrl(sessionId) {
+        return "/fast/camera_detect_stream_cleanup/" + encodeURIComponent(sessionId);
+    }
+
     function getActiveOriginalMediaElement() {
         if ($uploadedVideoPreview.length > 0 && !$uploadedVideoPreview.hasClass("d-none") && $uploadedVideoPreview[0].src) {
             return $uploadedVideoPreview[0];
@@ -543,6 +560,124 @@ $(function () {
 
         frameStreamState = {};  // 로컬 상태 완전 초기화
         updateDetectedStreamControls();
+    }
+
+    function stopCameraLiveStream() {
+        if (cameraStreamTimer) {
+            clearTimeout(cameraStreamTimer);
+            cameraStreamTimer = null;
+        }
+
+        const previousSessionId = cameraStreamState && cameraStreamState.sessionId
+            ? cameraStreamState.sessionId
+            : null;
+
+        cameraStreamState = null;
+
+        if (!previousSessionId) {
+            return;
+        }
+
+        $.ajax({
+            url: buildCameraDetectStreamCleanupUrl(previousSessionId),
+            method: "POST",
+            timeout: 3000,
+        }).fail(function () {
+            console.warn("Failed to cleanup camera stream session:", previousSessionId);
+        });
+    }
+
+    function playCameraLiveStream() {
+        if (!cameraStreamState || !cameraStreamState.sessionId || !cameraStreamState.isPlaying) {
+            return;
+        }
+
+        const sessionId = cameraStreamState.sessionId;
+        $.ajax({
+            url: buildCameraDetectStreamNextUrl(sessionId),
+            method: "GET",
+        }).done(function (result) {
+            if (!cameraStreamState || cameraStreamState.sessionId !== sessionId || !cameraStreamState.isPlaying) {
+                return;
+            }
+
+            if (!result || !result.frame_original || !result.frame_detected) {
+                showUploadStatusMessage("카메라 프레임을 가져오지 못했습니다.", false);
+                setDetectingState(false);
+                $detectingIndicator.addClass("d-none");
+                stopCameraLiveStream();
+                return;
+            }
+
+            $uploadedVideoPreview.addClass("d-none");
+            $uploadedImagePreview
+                .attr("src", "data:image/jpeg;base64," + result.frame_original)
+                .removeClass("d-none");
+
+            $detectedVideoPreview.addClass("d-none");
+            $detectedImagePreview
+                .attr("src", "data:image/jpeg;base64," + result.frame_detected)
+                .removeClass("d-none");
+
+            showUploadStatusMessage("카메라 실시간 검출 중... (" + String(result.frame_number || 0) + ")", true);
+
+            const fps = Number(result.fps || cameraStreamState.fps || 20);
+            const frameDelay = fps > 0 ? (1000 / fps) : 50;
+            cameraStreamTimer = setTimeout(function () {
+                playCameraLiveStream();
+            }, frameDelay);
+        }).fail(function (jqXHR) {
+            console.error("Camera stream next error:", jqXHR.status, jqXHR.responseText);
+            showUploadStatusMessage("카메라 프레임 수신에 실패했습니다.", false);
+            setDetectingState(false);
+            $detectingIndicator.addClass("d-none");
+            stopCameraLiveStream();
+        });
+    }
+
+    function startCameraLiveStream(cameraIndex, cameraName) {
+        stopCameraLiveStream();
+        cleanupAllFrameStreams();
+
+        uploadedFileName = "";
+        previousFileName = "";
+        clearRoiEditor();
+        updateDetectedStreamControls();
+
+        hideImageAndVideo($uploadedImagePreview, $uploadedVideoPreview);
+        hideImageAndVideo($detectedImagePreview, $detectedVideoPreview);
+
+        setDetectingState(true);
+        $detectingIndicator.removeClass("d-none");
+        showUploadStatusMessage("카메라 장치를 여는 중...", true);
+
+        const detectType = getSelectedDetectType();
+        $.ajax({
+            url: buildCameraDetectStreamInitUrl(cameraIndex, detectType),
+            method: "POST",
+        }).done(function (result) {
+            cameraStreamState = {
+                sessionId: String(result.session_id || ""),
+                cameraIndex: Number(result.camera_index || cameraIndex),
+                cameraName: String(cameraName || ("Camera " + cameraIndex)),
+                detectType: detectType,
+                fps: Number(result.fps || 20),
+                isPlaying: true,
+            };
+
+            if ($detectedImageTab.length > 0 && typeof bootstrap !== "undefined" && bootstrap.Tab) {
+                bootstrap.Tab.getOrCreateInstance($detectedImageTab[0]).show();
+            }
+
+            showUploadStatusMessage(cameraStreamState.cameraName + " 실시간 검출을 시작합니다.", true);
+            playCameraLiveStream();
+        }).fail(function (jqXHR) {
+            console.error("Camera stream init error:", jqXHR.status, jqXHR.responseText);
+            showUploadStatusMessage("카메라 스트림 초기화에 실패했습니다.", false);
+            setDetectingState(false);
+            $detectingIndicator.addClass("d-none");
+            stopCameraLiveStream();
+        });
     }
 
     function stopActiveFrameProcessing() {
@@ -1345,13 +1480,13 @@ $(function () {
             }
 
             const detail = detailParts.join(" / ") || "열림 확인";
-            return '<div class="border rounded px-3 py-2 bg-light flex-shrink-0">'
+            return '<button type="button" class="btn btn-light border rounded px-3 py-2 flex-shrink-0 camera-device-item" data-camera-index="' + index + '" data-camera-name="' + $("<div>").text(name).html() + '">'
                 + '<div class="d-flex align-items-center gap-2">'
                 + '<span class="badge text-bg-secondary rounded-pill">#' + index + '</span>'
                 + '<span class="fw-semibold">' + $("<div>").text(name).html() + '</span>'
                 + '<span class="small text-muted">' + detail + '</span>'
                 + '</div>'
-                + '</div>';
+                + '</button>';
         }).join("");
 
         const html = '<div class="d-flex flex-nowrap gap-2 overflow-auto py-1">' + itemHtml + '</div>';
@@ -1444,6 +1579,8 @@ $(function () {
             detectDebounceTimer = null;
         }
 
+        stopCameraLiveStream();
+
         // 샘플 선택 전 현재 검출 출력/세션을 완전히 초기화
         cleanupAllFrameStreams();
         hideImageAndVideo($detectedImagePreview, $detectedVideoPreview);
@@ -1481,6 +1618,8 @@ $(function () {
             clearTimeout(detectDebounceTimer);
             detectDebounceTimer = null;
         }
+
+        stopCameraLiveStream();
 
         cleanupAllFrameStreams();
         hideImageAndVideo($detectedImagePreview, $detectedVideoPreview);
@@ -1522,6 +1661,13 @@ $(function () {
     });
 
     $originalImageTab.on("shown.bs.tab", function () {
+        if (cameraStreamState && cameraStreamState.isPlaying) {
+            stopCameraLiveStream();
+            setDetectingState(false);
+            $detectingIndicator.addClass("d-none");
+            showUploadStatusMessage("카메라 프레임 처리를 중지했습니다.", true);
+        }
+
         if (uploadedFileName && isVideoPath(uploadedFileName)) {
             stopActiveFrameProcessing();
         }
@@ -1606,11 +1752,33 @@ $(function () {
         ensureSampleVideosLoaded();
     });
 
+    $cameraPane.on("click", ".camera-device-item", function () {
+        const $selectedItem = $(this);
+        const cameraIndex = Number($selectedItem.data("camera-index"));
+        const cameraName = String($selectedItem.data("camera-name") || ("Camera " + cameraIndex));
+        if (!Number.isFinite(cameraIndex) || cameraIndex < 0) {
+            showUploadStatusMessage("카메라 장치 정보가 올바르지 않습니다.", false);
+            return;
+        }
+
+        $cameraPane.find(".camera-device-item.active").removeClass("active");
+        $selectedItem.addClass("active");
+        startCameraLiveStream(cameraIndex, cameraName);
+    });
+
     $cameraTab.on("click", function () {
         ensureCameraDevicesLoaded();
     });
 
     $cameraTab.on("shown.bs.tab", function () {
         ensureCameraDevicesLoaded();
+    });
+
+    $detectTypeInputs.on("change.cameraLive", function () {
+        if (!cameraStreamState || !cameraStreamState.isPlaying) {
+            return;
+        }
+
+        startCameraLiveStream(cameraStreamState.cameraIndex, cameraStreamState.cameraName);
     });
 });

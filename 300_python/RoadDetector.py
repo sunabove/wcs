@@ -24,6 +24,7 @@ class RoadDetector:
     }
     _models = {}
     _stream_sessions = {}  # {session_id: {capture, frame_count, fps, detect_type, file_name, input_path, roi}}
+    _camera_stream_sessions = {}  # {session_id: {capture, frame_index, fps, detect_type, camera_index}}
     
     def __init__(self):
         self.image_ext = {".jpg", ".jpeg", ".png", ".bmp", ".webp"} 
@@ -566,6 +567,133 @@ class RoadDetector:
             'session_id': session_id
         }
     pass # road_detect_stream_cleanup
+
+    def _open_camera_capture(self, camera_index: int):
+        backends = [
+            getattr(cv2, "CAP_DSHOW", None),
+            getattr(cv2, "CAP_MSMF", None),
+            None,
+        ]
+
+        for backend in backends:
+            cap = None
+            try:
+                if backend is None:
+                    cap = cv2.VideoCapture(camera_index)
+                else:
+                    cap = cv2.VideoCapture(camera_index, backend)
+
+                if cap is not None and cap.isOpened():
+                    return cap
+            except Exception:
+                pass
+
+            if cap is not None:
+                cap.release()
+
+        return None
+
+    def camera_detect_stream_init(self, camera_index: int, detect_type: str = "road") -> dict:
+        session_id = f"camera_{camera_index}"
+
+        if session_id in RoadDetector._camera_stream_sessions:
+            try:
+                old_capture = RoadDetector._camera_stream_sessions[session_id].get("capture")
+                if old_capture is not None:
+                    old_capture.release()
+            except Exception:
+                pass
+            del RoadDetector._camera_stream_sessions[session_id]
+
+        capture = self._open_camera_capture(int(camera_index))
+        if capture is None:
+            raise HTTPException(status_code=400, detail="Failed to open camera device")
+
+        fps = float(capture.get(cv2.CAP_PROP_FPS) or 0.0)
+        if fps <= 0:
+            fps = 20.0
+
+        RoadDetector._camera_stream_sessions[session_id] = {
+            "capture": capture,
+            "frame_index": 0,
+            "fps": fps,
+            "detect_type": detect_type,
+            "camera_index": int(camera_index),
+        }
+
+        return {
+            "session_id": session_id,
+            "camera_index": int(camera_index),
+            "fps": fps,
+            "detect_type": detect_type,
+        }
+    pass # camera_detect_stream_init
+
+    def camera_detect_stream_next(self, session_id: str) -> dict:
+        if session_id not in RoadDetector._camera_stream_sessions:
+            return {
+                "has_next": False,
+                "frame_number": 0,
+                "frame_original": None,
+                "frame_detected": None,
+                "error": "Session not found",
+            }
+
+        session = RoadDetector._camera_stream_sessions[session_id]
+        capture = session["capture"]
+        detect_type = session.get("detect_type", "road")
+
+        ok, frame = capture.read()
+        if not ok or frame is None:
+            return {
+                "has_next": False,
+                "frame_number": int(session.get("frame_index", 0)),
+                "frame_original": None,
+                "frame_detected": None,
+            }
+
+        detected_frame = self.detect_road(frame, detect_type, roi=None)
+
+        original_ok, original_encoded = cv2.imencode(".jpg", frame, [int(cv2.IMWRITE_JPEG_QUALITY), 85])
+        detected_ok, detected_encoded = cv2.imencode(".jpg", detected_frame, [int(cv2.IMWRITE_JPEG_QUALITY), 85])
+        if not original_ok or not detected_ok:
+            raise HTTPException(status_code=500, detail="Failed to encode camera frame")
+
+        session["frame_index"] = int(session.get("frame_index", 0)) + 1
+
+        return {
+            "has_next": True,
+            "frame_number": session["frame_index"],
+            "fps": float(session.get("fps", 20.0)),
+            "frame_original": base64.b64encode(original_encoded.tobytes()).decode("utf-8"),
+            "frame_detected": base64.b64encode(detected_encoded.tobytes()).decode("utf-8"),
+        }
+    pass # camera_detect_stream_next
+
+    def camera_detect_stream_cleanup(self, session_id: str) -> dict:
+        if session_id not in RoadDetector._camera_stream_sessions:
+            return {
+                "message": "Camera stream session already cleaned or not found",
+                "session_id": session_id,
+            }
+
+        try:
+            session = RoadDetector._camera_stream_sessions[session_id]
+            if session.get("capture") is not None:
+                session["capture"].release()
+        except Exception:
+            pass
+
+        try:
+            del RoadDetector._camera_stream_sessions[session_id]
+        except KeyError:
+            pass
+
+        return {
+            "message": "Camera stream session cleaned up successfully",
+            "session_id": session_id,
+        }
+    pass # camera_detect_stream_cleanup
 
     def road_detect_stream(self, file_name: str, detect_type: str = "road") -> StreamingResponse:
         """(레거시) 연속 MJPEG 스트리밍 - 하위호환성 유지"""

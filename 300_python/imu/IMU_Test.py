@@ -15,9 +15,7 @@ def main():
         mpu_sensor = MPU9250(
             address_mpu_master=MPU9050_ADDRESS_68, # 0x68 (Master IMU)
             address_mpu_slave=None,
-            bus=1,                              # Uses /dev/i2c-1
-            gfs=GFS_250,                        # Gyro full scale range (±250 deg/s)
-            afs=AFS_2G                          # Accelerometer scale range (±2g)
+            bus=1 
         )
         mpu_sensor.configure()
         print("✅ MPU9250 IMU detected successfully.\n")
@@ -43,6 +41,7 @@ def main():
             # --- Scannable Terminal Output ---
             accel_mag = (accel[0]**2 + accel[1]**2 + accel[2]**2) ** 0.5
             gyro_mag  = (gyro[0]**2  + gyro[1]**2  + gyro[2]**2)  ** 0.5
+            
             print(line)
             print(f"[{count:4d}] {('Accel (G)'):<{label_width}} : X: {accel[0]:{value_width}.2f} | Y: {accel[1]:{value_width}.2f} | Z: {accel[2]:{value_width}.2f} | Mag: {accel_mag:{value_width}.2f}")
             print(f"[{count:4d}] {('Gyro (°/s)'):<{label_width}} : X: {gyro[0]:{value_width}.2f} | Y: {gyro[1]:{value_width}.2f} | Z: {gyro[2]:{value_width}.2f} | Mag: {gyro_mag:{value_width}.2f}")

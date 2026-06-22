@@ -124,6 +124,16 @@ async def camera_detect_stream_cleanup_service(
     return detector.camera_detect_stream_cleanup(session_id=session_id)
 pass # camera_detect_stream_cleanup_service
 
+
+@router.post("/camera_detect_stream_cleanup_all")
+async def camera_detect_stream_cleanup_all_service():
+    from RoadDetector import RoadDetector
+
+    detector = RoadDetector()
+
+    return detector.camera_detect_stream_cleanup_all()
+pass # camera_detect_stream_cleanup_all_service
+
 @router.get("/road_detect/{file_name:path}")
 async def road_detect_service(
     file_name: str,

@@ -695,6 +695,28 @@ class RoadDetector:
         }
     pass # camera_detect_stream_cleanup
 
+    def camera_detect_stream_cleanup_all(self) -> dict:
+        cleaned_session_ids = []
+
+        for session_id, session in list(RoadDetector._camera_stream_sessions.items()):
+            try:
+                capture = session.get("capture") if isinstance(session, dict) else None
+                if capture is not None:
+                    capture.release()
+            except Exception:
+                pass
+            finally:
+                cleaned_session_ids.append(session_id)
+
+        RoadDetector._camera_stream_sessions = {}
+
+        return {
+            "message": "All camera stream sessions cleaned up successfully",
+            "count": len(cleaned_session_ids),
+            "session_ids": cleaned_session_ids,
+        }
+    pass # camera_detect_stream_cleanup_all
+
     def road_detect_stream(self, file_name: str, detect_type: str = "road") -> StreamingResponse:
         """(레거시) 연속 MJPEG 스트리밍 - 하위호환성 유지"""
         input_path = resolve_upload_image_path(file_name)

@@ -398,6 +398,10 @@ $(function () {
         return "/fast/camera_detect_stream_cleanup/" + encodeURIComponent(sessionId);
     }
 
+    function buildCameraDetectStreamCleanupAllUrl() {
+        return "/fast/camera_detect_stream_cleanup_all";
+    }
+
     function getActiveOriginalMediaElement() {
         if ($uploadedVideoPreview.length > 0 && !$uploadedVideoPreview.hasClass("d-none") && $uploadedVideoPreview[0].src) {
             return $uploadedVideoPreview[0];
@@ -1789,6 +1793,17 @@ $(function () {
     });
 
     $cameraTab.on("click", function () {
+        if (!cameraStreamState || !cameraStreamState.sessionId) {
+            $.ajax({
+                url: buildCameraDetectStreamCleanupAllUrl(),
+                method: "POST",
+                timeout: 3000,
+            }).always(function () {
+                loadCameraDevices(true);
+            });
+            return;
+        }
+
         loadCameraDevices(true);
     });
 

@@ -1690,7 +1690,7 @@ $(function () {
         stopCameraLiveStream();
         setDetectingState(false);
         $detectingIndicator.addClass("d-none");
-        showUploadStatusMessage("카메라 실시간 검출을 중지했습니다.", true);
+        showUploadStatusMessage("실시간 원본 영상을 출력중입니다.", true);
     });
 
     $originalImageTab.on("shown.bs.tab", function () {

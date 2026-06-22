@@ -341,10 +341,16 @@
                                     <div class="border-0 rounded p-2">
                                         <ul class="nav nav-tabs" id="image-preview-tabs" role="tablist">
                                             <li class="nav-item" role="presentation">
-                                                <button class="nav-link active" id="original-image-tab" data-bs-toggle="tab" data-bs-target="#original-image-pane" type="button" role="tab" aria-controls="original-image-pane" aria-selected="true">원본 영상</button>
+                                                <button class="nav-link active d-flex align-items-center gap-2" id="original-image-tab" data-bs-toggle="tab" data-bs-target="#original-image-pane" type="button" role="tab" aria-controls="original-image-pane" aria-selected="true">
+                                                    <span>원본 영상</span>
+                                                    <span id="original-live-badge" class="badge text-bg-danger d-none">LIVE</span>
+                                                </button>
                                             </li>
                                             <li class="nav-item" role="presentation">
-                                                <button class="nav-link" id="detected-image-tab" data-bs-toggle="tab" data-bs-target="#detected-image-pane" type="button" role="tab" aria-controls="detected-image-pane" aria-selected="false">검출 영상</button>
+                                                <button class="nav-link d-flex align-items-center gap-2" id="detected-image-tab" data-bs-toggle="tab" data-bs-target="#detected-image-pane" type="button" role="tab" aria-controls="detected-image-pane" aria-selected="false">
+                                                    <span>검출 영상</span>
+                                                    <span id="detected-live-badge" class="badge text-bg-danger d-none">LIVE</span>
+                                                </button>
                                             </li>
                                             <li class="nav-item" role="presentation">
                                                 <button class="nav-link d-flex align-items-center gap-2" id="work-status-tab" data-bs-toggle="tab" data-bs-target="#work-status-pane" type="button" role="tab" aria-controls="work-status-pane" aria-selected="false" disabled>

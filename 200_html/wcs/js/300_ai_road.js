@@ -665,10 +665,6 @@ $(function () {
                 isPlaying: true,
             };
 
-            if ($detectedImageTab.length > 0 && typeof bootstrap !== "undefined" && bootstrap.Tab) {
-                bootstrap.Tab.getOrCreateInstance($detectedImageTab[0]).show();
-            }
-
             showUploadStatusMessage(cameraStreamState.cameraName + " 실시간 검출을 시작합니다.", true);
             playCameraLiveStream();
         }).fail(function (jqXHR) {
@@ -1545,6 +1541,10 @@ $(function () {
     }
 
     $detectedImageTab.on("click", function () {
+        if (cameraStreamState && cameraStreamState.isPlaying) {
+            return;
+        }
+
         if (!uploadedFileName) {
             showUploadStatusMessage("먼저 이미지를 업로드해 주세요.", false);
             return;
@@ -1661,13 +1661,6 @@ $(function () {
     });
 
     $originalImageTab.on("shown.bs.tab", function () {
-        if (cameraStreamState && cameraStreamState.isPlaying) {
-            stopCameraLiveStream();
-            setDetectingState(false);
-            $detectingIndicator.addClass("d-none");
-            showUploadStatusMessage("카메라 프레임 처리를 중지했습니다.", true);
-        }
-
         if (uploadedFileName && isVideoPath(uploadedFileName)) {
             stopActiveFrameProcessing();
         }

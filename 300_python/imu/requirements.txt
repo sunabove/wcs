@@ -4,3 +4,4 @@ adafruit-circuitpython-ssd1306
 Pillow
 paho-mqtt
 smbus2
+mpu9250-jmdev

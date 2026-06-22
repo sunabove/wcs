@@ -7,6 +7,46 @@ from config import *
 
 router = APIRouter( prefix="/fast" )
 
+
+def _list_opencv_camera_devices(max_devices: int = 10):
+    import cv2
+
+    # On Windows, DirectShow can provide friendly device names via pygrabber if available.
+    index_to_name = {}
+    try:
+        from pygrabber.dshow_graph import FilterGraph  # type: ignore
+        names = FilterGraph().get_input_devices()
+        index_to_name = {idx: name for idx, name in enumerate(names)}
+    except Exception:
+        index_to_name = {}
+
+    devices = []
+    for index in range(max_devices):
+        try:
+            cap = cv2.VideoCapture(index, cv2.CAP_DSHOW)
+        except Exception:
+            cap = cv2.VideoCapture(index)
+
+        if not cap or not cap.isOpened():
+            if cap:
+                cap.release()
+            continue
+
+        width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH) or 0)
+        height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT) or 0)
+        fps = float(cap.get(cv2.CAP_PROP_FPS) or 0.0)
+        cap.release()
+
+        devices.append({
+            "index": index,
+            "name": index_to_name.get(index, f"Camera {index}"),
+            "width": width,
+            "height": height,
+            "fps": fps,
+        })
+
+    return devices
+
 @router.get("/road")
 async def ai_road_service():
     return "hello ai road"
@@ -54,6 +94,18 @@ async def sample_data_file_name_list_service(folder_name: str):
 
     return sample_data_file_name_list(folder_name)
 pass # sample_data_file_name_list_service
+
+
+@router.get("/camera/devices")
+async def camera_devices_service(
+    max_devices: int = Query(10, ge=1, le=32)
+):
+    devices = _list_opencv_camera_devices(max_devices=max_devices)
+    return {
+        "devices": devices,
+        "count": len(devices),
+    }
+pass # camera_devices_service
 
 @router.get("/road_detect/{file_name:path}")
 async def road_detect_service(

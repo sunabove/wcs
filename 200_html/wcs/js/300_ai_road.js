@@ -22,6 +22,10 @@ $(function () {
     const $uploadStatusMessage = $("#work-status-message");
     const $detectingIndicator = $("#detecting-indicator");
     const $detectTypeInputs = $("input[name='detect-type']");
+    const $cameraPane = $("#input-camera-pane");
+    const $cameraTab = $("#input-camera-tab");
+    const $cameraDeviceList = $("#camera-device-list");
+    const $cameraDeviceRefresh = $("#camera-device-refresh");
     const $sampleImagePane = $("#input-sample-image-pane");
     const $sampleImageTab = $("#input-sample-image-tab");
     const $sampleVideoPane = $("#input-sample-video-pane");
@@ -35,6 +39,8 @@ $(function () {
     let sampleDetectTimer = null;
     let isUploading = false;
     let isDetecting = false;
+    let isCameraDevicesLoaded = false;
+    let isCameraDevicesLoading = false;
     let isSampleImagesLoaded = false;
     let isSampleImagesLoading = false;
     let isSampleVideosLoaded = false;
@@ -358,6 +364,10 @@ $(function () {
 
     function buildRoadDetectStreamCleanupUrl(fileName) {
         return "/fast/road_detect_stream_cleanup/" + encodePathForRoute(fileName);
+    }
+
+    function buildCameraDevicesUrl() {
+        return "/fast/camera/devices";
     }
 
     function getActiveOriginalMediaElement() {
@@ -1311,6 +1321,82 @@ $(function () {
         }
     }
 
+    function renderCameraDevices(devices) {
+        if ($cameraDeviceList.length === 0) {
+            return;
+        }
+
+        if (!Array.isArray(devices) || devices.length === 0) {
+            $cameraDeviceList.html('<div class="text-muted text-center py-3">열 수 있는 카메라 장치가 없습니다.</div>');
+            return;
+        }
+
+        const html = devices.map(function (device) {
+            const index = Number(device.index);
+            const name = String(device.name || ("Camera " + index));
+            const width = Number(device.width || 0);
+            const height = Number(device.height || 0);
+            const fps = Number(device.fps || 0);
+            const detailParts = [];
+            if (width > 0 && height > 0) {
+                detailParts.push(width + "x" + height);
+            }
+            if (fps > 0) {
+                detailParts.push(fps.toFixed(1) + " fps");
+            }
+
+            const detail = detailParts.join(" / ") || "열림 확인";
+            return '<div class="list-group-item d-flex justify-content-between align-items-start">'
+                + '<div class="ms-2 me-auto">'
+                + '<div class="fw-semibold">' + $("<div>").text(name).html() + '</div>'
+                + '<div class="small text-muted">' + detail + '</div>'
+                + '</div>'
+                + '<span class="badge text-bg-secondary rounded-pill">#' + index + '</span>'
+                + '</div>';
+        }).join("");
+
+        $cameraDeviceList.html(html);
+    }
+
+    function loadCameraDevices(forceReload) {
+        if ($cameraDeviceList.length === 0) {
+            return;
+        }
+
+        if (isCameraDevicesLoading) {
+            return;
+        }
+
+        if (!forceReload && isCameraDevicesLoaded) {
+            return;
+        }
+
+        isCameraDevicesLoading = true;
+        $cameraDeviceList.html('<div class="text-muted text-center py-3">카메라 장치를 확인하는 중...</div>');
+
+        $.ajax({
+            url: buildCameraDevicesUrl(),
+            method: "GET"
+        }).done(function (result) {
+            const devices = Array.isArray(result)
+                ? result
+                : (result && Array.isArray(result.devices) ? result.devices : []);
+            renderCameraDevices(devices);
+            isCameraDevicesLoaded = true;
+        }).fail(function (jqXHR) {
+            console.error("Camera device list error:", jqXHR.status, jqXHR.responseText);
+            $cameraDeviceList.html('<div class="text-danger text-center py-3">카메라 장치 목록을 불러오지 못했습니다.</div>');
+        }).always(function () {
+            isCameraDevicesLoading = false;
+        });
+    }
+
+    function ensureCameraDevicesLoaded() {
+        if (!isCameraDevicesLoaded) {
+            loadCameraDevices(false);
+        }
+    }
+
     function scheduleDetectUpdate() {
         if (!uploadedFileName) {
             return;
@@ -1518,5 +1604,17 @@ $(function () {
 
     $sampleVideoTab.on("shown.bs.tab", function () {
         ensureSampleVideosLoaded();
+    });
+
+    $cameraTab.on("click", function () {
+        ensureCameraDevicesLoaded();
+    });
+
+    $cameraTab.on("shown.bs.tab", function () {
+        ensureCameraDevicesLoaded();
+    });
+
+    $cameraDeviceRefresh.on("click", function () {
+        loadCameraDevices(true);
     });
 });

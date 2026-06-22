@@ -28,8 +28,8 @@ def main():
     print("Reading data... Press Ctrl+C to stop.\n")
     time.sleep(1)
 
-    line = "="*50
-    label_width = 9
+    line = "="*60
+    label_width = 10
     value_width = 7
     count = 0
     

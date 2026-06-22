@@ -9,18 +9,15 @@ def main():
     # Raspberry Pi hardware I2C uses Board pins SCL and SDA
     i2c_bus = busio.I2C(board.SCL, board.SDA)
 
-    # 2. Initialize the MPU9250 Sensor (Gyro, Accel, Magnetometer)
+    # 2. Initialize the MPU9250 Sensor (Gyro, Accel)
     # GY-91 usually maps the MPU9250 master address to 0x68
     try:
         mpu_sensor = MPU9250(
-            address_ak=AK8963_ADDRESS,          # 0x0C (Internal Magnetometer)
             address_mpu_master=MPU9050_ADDRESS_68, # 0x68 (Master IMU)
             address_mpu_slave=None,
             bus=1,                              # Uses /dev/i2c-1
             gfs=GFS_250,                        # Gyro full scale range (±250 deg/s)
-            afs=AFS_2G,                         # Accelerometer scale range (±2g)
-            mfs=AK8963_BIT_16,                  # Magnetometer resolution (16-bit)
-            mode=AK8963_MODE_C100HZ             # Continuous 100Hz mag sampling
+            afs=AFS_2G                          # Accelerometer scale range (±2g)
         )
         mpu_sensor.configure()
         print("✅ MPU9250 IMU detected successfully.\n")
@@ -31,19 +28,23 @@ def main():
     print("Reading data... Press Ctrl+C to stop.\n")
     time.sleep(1)
 
+    line = "="*50
+    label_width = 9
+    value_width = 7
+    count = 0
+    
     while True:
         try:
+            count += 1
             # --- Fetch MPU9250 Data ---
             accel = mpu_sensor.readAccelerometerMaster() # Returns list [x, y, z]
             gyro  = mpu_sensor.readGyroscopeMaster()     # Returns list [x, y, z]
-            mag   = mpu_sensor.readMagnetometerMaster()   # Returns list [x, y, z]
 
             # --- Scannable Terminal Output ---
-            print("="*45)
-            print(f"🚀 Accel (G):   X: {accel[0]:.3f} | Y: {accel[1]:.3f} | Z: {accel[2]:.3f}")
-            print(f"🔄 Gyro (°/s):  X: {gyro[0]:.2f} | Y: {gyro[1]:.2f} | Z: {gyro[2]:.2f}")
-            print(f"🧲 Mag (μT):    X: {mag[0]:.1f} | Y: {mag[1]:.1f} | Z: {mag[2]:.1f}")
-            print("="*45)
+            print(line)
+            print(f"[{count:4d}] {('Accel (G)'):<{label_width}} : X: {accel[0]:{value_width}.2f} | Y: {accel[1]:{value_width}.2f} | Z: {accel[2]:{value_width}.2f}")
+            print(f"[{count:4d}] {('Gyro (°/s)'):<{label_width}} : X: {gyro[0]:{value_width}.2f} | Y: {gyro[1]:{value_width}.2f} | Z: {gyro[2]:{value_width}.2f}")
+            print(line)
 
             time.sleep(0.5) # Refresh rate delay
 

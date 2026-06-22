@@ -9,43 +9,22 @@ router = APIRouter( prefix="/fast" )
 
 
 def _list_opencv_camera_devices(max_devices: int = 10):
-    import cv2
+    from camera.CameraDevList import CameraDevList
 
-    # On Windows, DirectShow can provide friendly device names via pygrabber if available.
-    index_to_name = {}
-    try:
-        from pygrabber.dshow_graph import FilterGraph  # type: ignore
-        names = FilterGraph().get_input_devices()
-        index_to_name = {idx: name for idx, name in enumerate(names)}
-    except Exception:
-        index_to_name = {}
+    camera_dev_list = CameraDevList(max_devices=max_devices)
+    items = camera_dev_list.list_camera_devices()
 
-    devices = []
-    for index in range(max_devices):
-        try:
-            cap = cv2.VideoCapture(index, cv2.CAP_DSHOW)
-        except Exception:
-            cap = cv2.VideoCapture(index)
-
-        if not cap or not cap.isOpened():
-            if cap:
-                cap.release()
-            continue
-
-        width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH) or 0)
-        height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT) or 0)
-        fps = float(cap.get(cv2.CAP_PROP_FPS) or 0.0)
-        cap.release()
-
-        devices.append({
-            "index": index,
-            "name": index_to_name.get(index, f"Camera {index}"),
-            "width": width,
-            "height": height,
-            "fps": fps,
-        })
-
-    return devices
+    # Keep response schema compatible with existing frontend.
+    return [
+        {
+            "index": item.index,
+            "name": item.name,
+            "width": item.width,
+            "height": item.height,
+            "fps": item.fps,
+        }
+        for item in items
+    ]
 
 @router.get("/road")
 async def ai_road_service():

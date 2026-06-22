@@ -1678,6 +1678,17 @@ $(function () {
         syncRoiOverlay();
     });
 
+    $originalImageTab.on("click", function () {
+        if (!cameraStreamState || !cameraStreamState.isPlaying) {
+            return;
+        }
+
+        stopCameraLiveStream();
+        setDetectingState(false);
+        $detectingIndicator.addClass("d-none");
+        showUploadStatusMessage("카메라 실시간 검출을 중지했습니다.", true);
+    });
+
     $originalImageTab.on("shown.bs.tab", function () {
         if (uploadedFileName && isVideoPath(uploadedFileName)) {
             stopActiveFrameProcessing();

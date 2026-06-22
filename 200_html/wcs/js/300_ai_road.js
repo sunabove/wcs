@@ -25,7 +25,6 @@ $(function () {
     const $cameraPane = $("#input-camera-pane");
     const $cameraTab = $("#input-camera-tab");
     const $cameraDeviceList = $("#camera-device-list");
-    const $cameraDeviceRefresh = $("#camera-device-refresh");
     const $sampleImagePane = $("#input-sample-image-pane");
     const $sampleImageTab = $("#input-sample-image-tab");
     const $sampleVideoPane = $("#input-sample-video-pane");
@@ -1613,9 +1612,5 @@ $(function () {
 
     $cameraTab.on("shown.bs.tab", function () {
         ensureCameraDevicesLoaded();
-    });
-
-    $cameraDeviceRefresh.on("click", function () {
-        loadCameraDevices(true);
     });
 });

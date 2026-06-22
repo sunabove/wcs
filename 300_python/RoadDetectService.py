@@ -25,6 +25,7 @@ def _list_opencv_camera_devices(max_devices: int = 10):
         }
         for item in items
     ]
+pass # _list_opencv_camera_devices
 
 @router.get("/road")
 async def ai_road_service():

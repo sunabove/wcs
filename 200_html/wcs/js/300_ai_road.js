@@ -1778,11 +1778,7 @@ $(function () {
     });
 
     $cameraTab.on("click", function () {
-        ensureCameraDevicesLoaded();
-    });
-
-    $cameraTab.on("shown.bs.tab", function () {
-        ensureCameraDevicesLoaded();
+        loadCameraDevices(true);
     });
 
     $detectTypeInputs.on("change.cameraLive", function () {

@@ -15,7 +15,9 @@ def main():
         mpu_sensor = MPU9250(
             address_mpu_master=MPU9050_ADDRESS_68, # 0x68 (Master IMU)
             address_mpu_slave=None,
-            bus=1 
+            bus=1,                              # Uses /dev/i2c-1
+            gfs=GFS_250,                        # Gyro full scale range (±250 deg/s)
+            afs=AFS_2G                          # Accelerometer scale range (±2g)
         )
         mpu_sensor.configure()
         print("✅ MPU9250 IMU detected successfully.\n")

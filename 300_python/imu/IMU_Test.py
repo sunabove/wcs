@@ -41,9 +41,11 @@ def main():
             gyro  = mpu_sensor.readGyroscopeMaster()     # Returns list [x, y, z]
 
             # --- Scannable Terminal Output ---
+            accel_abs = (abs(accel[0]) + abs(accel[1]) + abs(accel[2])) / 3
+            gyro_abs  = (abs(gyro[0])  + abs(gyro[1])  + abs(gyro[2]))  / 3
             print(line)
-            print(f"[{count:4d}] {('Accel (G)'):<{label_width}} : X: {accel[0]:{value_width}.2f} | Y: {accel[1]:{value_width}.2f} | Z: {accel[2]:{value_width}.2f}")
-            print(f"[{count:4d}] {('Gyro (°/s)'):<{label_width}} : X: {gyro[0]:{value_width}.2f} | Y: {gyro[1]:{value_width}.2f} | Z: {gyro[2]:{value_width}.2f}")
+            print(f"[{count:4d}] {('Accel (G)'):<{label_width}} : X: {accel[0]:{value_width}.2f} | Y: {accel[1]:{value_width}.2f} | Z: {accel[2]:{value_width}.2f} | Abs: {accel_abs:{value_width}.2f}")
+            print(f"[{count:4d}] {('Gyro (°/s)'):<{label_width}} : X: {gyro[0]:{value_width}.2f} | Y: {gyro[1]:{value_width}.2f} | Z: {gyro[2]:{value_width}.2f} | Abs: {gyro_abs:{value_width}.2f}")
             print(line)
 
             time.sleep(0.5) # Refresh rate delay

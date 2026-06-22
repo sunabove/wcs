@@ -1331,7 +1331,7 @@ $(function () {
             return;
         }
 
-        const html = devices.map(function (device) {
+        const itemHtml = devices.map(function (device) {
             const index = Number(device.index);
             const name = String(device.name || ("Camera " + index));
             const width = Number(device.width || 0);
@@ -1346,15 +1346,16 @@ $(function () {
             }
 
             const detail = detailParts.join(" / ") || "열림 확인";
-            return '<div class="list-group-item d-flex justify-content-between align-items-start">'
-                + '<div class="ms-2 me-auto">'
-                + '<div class="fw-semibold">' + $("<div>").text(name).html() + '</div>'
-                + '<div class="small text-muted">' + detail + '</div>'
-                + '</div>'
+            return '<div class="border rounded px-3 py-2 bg-light flex-shrink-0">'
+                + '<div class="d-flex align-items-center gap-2">'
                 + '<span class="badge text-bg-secondary rounded-pill">#' + index + '</span>'
+                + '<span class="fw-semibold">' + $("<div>").text(name).html() + '</span>'
+                + '<span class="small text-muted">' + detail + '</span>'
+                + '</div>'
                 + '</div>';
         }).join("");
 
+        const html = '<div class="d-flex flex-nowrap gap-2 overflow-auto py-1">' + itemHtml + '</div>';
         $cameraDeviceList.html(html);
     }
 

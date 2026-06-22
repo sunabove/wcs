@@ -1687,9 +1687,6 @@ $(function () {
             return;
         }
 
-        stopCameraLiveStream();
-        setDetectingState(false);
-        $detectingIndicator.addClass("d-none");
         showUploadStatusMessage("실시간 원본 영상을 출력중입니다.", true);
     });
 

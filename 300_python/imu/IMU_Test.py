@@ -4,6 +4,70 @@ import busio
 from mpu9250_jmdev.registers import *
 from mpu9250_jmdev.mpu_9250 import MPU9250
 
+
+def vec_norm(v):
+    return (v[0]**2 + v[1]**2 + v[2]**2) ** 0.5
+
+
+def vec_dot(a, b):
+    return a[0]*b[0] + a[1]*b[1] + a[2]*b[2]
+
+
+def vec_cross(a, b):
+    return [
+        a[1]*b[2] - a[2]*b[1],
+        a[2]*b[0] - a[0]*b[2],
+        a[0]*b[1] - a[1]*b[0],
+    ]
+
+
+def vec_normalize(v):
+    n = vec_norm(v)
+    if n < 1e-9:
+        return [0.0, 0.0, 0.0]
+    return [v[0] / n, v[1] / n, v[2] / n]
+
+
+def mat_vec_mul(m, v):
+    return [
+        m[0][0]*v[0] + m[0][1]*v[1] + m[0][2]*v[2],
+        m[1][0]*v[0] + m[1][1]*v[1] + m[1][2]*v[2],
+        m[2][0]*v[0] + m[2][1]*v[1] + m[2][2]*v[2],
+    ]
+
+
+def rotation_align_to_z(from_vec):
+    # Build rotation matrix that aligns from_vec direction to +Z.
+    u = vec_normalize(from_vec)
+    z = [0.0, 0.0, 1.0]
+    c = vec_dot(u, z)
+
+    if c > 1.0 - 1e-9:
+        return [
+            [1.0, 0.0, 0.0],
+            [0.0, 1.0, 0.0],
+            [0.0, 0.0, 1.0],
+        ]
+
+    if c < -1.0 + 1e-9:
+        return [
+            [1.0, 0.0, 0.0],
+            [0.0, -1.0, 0.0],
+            [0.0, 0.0, -1.0],
+        ]
+
+    axis = vec_cross(u, z)
+    s = vec_norm(axis)
+    k = [axis[0] / s, axis[1] / s, axis[2] / s]
+    kx, ky, kz = k[0], k[1], k[2]
+    one_minus_c = 1.0 - c
+
+    return [
+        [c + kx*kx*one_minus_c, kx*ky*one_minus_c - kz*s, kx*kz*one_minus_c + ky*s],
+        [ky*kx*one_minus_c + kz*s, c + ky*ky*one_minus_c, ky*kz*one_minus_c - kx*s],
+        [kz*kx*one_minus_c - ky*s, kz*ky*one_minus_c + kx*s, c + kz*kz*one_minus_c],
+    ]
+
 def main():
     # 1. Initialize the Shared I2C Bus using CircuitPython
     # Raspberry Pi hardware I2C uses Board pins SCL and SDA
@@ -75,6 +139,7 @@ def main():
         accel_baseline[1] / accel_baseline_mag,
         accel_baseline[2] / accel_baseline_mag,
     ]
+    rot_to_z = rotation_align_to_z(accel_ref_1g)
     print(
         f"Accel baseline vector: X={accel_baseline[0]:.3f}, "
         f"Y={accel_baseline[1]:.3f}, Z={accel_baseline[2]:.3f} "
@@ -112,11 +177,13 @@ def main():
             gyro_c_mag = (
                 gyro_c[0]**2 + gyro_c[1]**2 + gyro_c[2]**2
             ) ** 0.5
+            accel_c_axis = mat_vec_mul(rot_to_z, accel_c)
+            gyro_c_axis = mat_vec_mul(rot_to_z, gyro_c)
             
             print(line)
-            print(f"[{count:4d}] {('Accel-C'):<{label_width}} : X: {accel_c[0]:{value_width}.2f} | Y: {accel_c[1]:{value_width}.2f} | Z: {accel_c[2]:{value_width}.2f} | CMag: {accel_c_mag:{value_width}.2f}")
+            print(f"[{count:4d}] {('Accel-C'):<{label_width}} : X: {accel_c_axis[0]:{value_width}.2f} | Y: {accel_c_axis[1]:{value_width}.2f} | Z: {accel_c_axis[2]:{value_width}.2f} | CMag: {accel_c_mag:{value_width}.2f}")
             print(f"[{count:4d}] {('Accel Raw'):<{label_width}} : X: {accel[0]:{value_width}.2f} | Y: {accel[1]:{value_width}.2f} | Z: {accel[2]:{value_width}.2f} | RawMag: {accel_mag:{value_width}.2f}")
-            print(f"[{count:4d}] {('Gyro-C'):<{label_width}} : X: {gyro_c[0]:{value_width}.2f} | Y: {gyro_c[1]:{value_width}.2f} | Z: {gyro_c[2]:{value_width}.2f} | CMag: {gyro_c_mag:{value_width}.2f}")
+            print(f"[{count:4d}] {('Gyro-C'):<{label_width}} : X: {gyro_c_axis[0]:{value_width}.2f} | Y: {gyro_c_axis[1]:{value_width}.2f} | Z: {gyro_c_axis[2]:{value_width}.2f} | CMag: {gyro_c_mag:{value_width}.2f}")
             print(f"[{count:4d}] {('Gyro Raw'):<{label_width}} : X: {gyro[0]:{value_width}.2f} | Y: {gyro[1]:{value_width}.2f} | Z: {gyro[2]:{value_width}.2f} | RawMag: {gyro_mag:{value_width}.2f}")
             print(line)
 

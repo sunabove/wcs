@@ -6,6 +6,7 @@ Run this file directly to see which camera indices are openable in OpenCV.
 from __future__ import annotations
 
 from dataclasses import dataclass, asdict
+from pathlib import Path
 from typing import Dict, List, Optional
 
 import cv2
@@ -45,6 +46,18 @@ class CameraDevList:
 		except Exception:
 			return {}
 
+	def _is_ubuntu(self) -> bool:
+		"""Return True when running on Ubuntu Linux."""
+		try:
+			os_release = Path("/etc/os-release")
+			if not os_release.exists():
+				return False
+
+			text = os_release.read_text(encoding="utf-8", errors="ignore").lower()
+			return "id=ubuntu" in text or "id_like=ubuntu" in text
+		except Exception:
+			return False
+
 	def _try_open_capture(self, index: int, backend_flag: Optional[int], backend_name: str):
 		"""Try opening camera at index with the selected backend."""
 		cap = None
@@ -77,9 +90,13 @@ class CameraDevList:
 		"""List camera devices that OpenCV can open."""
 		scan_count = self.max_devices if max_devices is None else max(1, int(max_devices))
 		name_map = self._get_windows_device_names()
+		is_ubuntu = self._is_ubuntu()
 
 		devices: List[CameraDeviceInfo] = []
 		for index in range(scan_count):
+			if is_ubuntu and (index % 2 == 1):
+				continue
+
 			opened_info = None
 			for backend_flag, backend_name in self.backends:
 				opened_info = self._try_open_capture(index, backend_flag, backend_name)

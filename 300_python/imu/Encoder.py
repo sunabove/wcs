@@ -5,7 +5,9 @@ from signal import pause
 
 from GpioNo import GpioNo
 
-class Encoder: 
+class Encoder:
+	WHEEL_COUNTS = 40
+	DEGREES_PER_COUNT = 360 / WHEEL_COUNTS
     
 	def __init__(self, gpio_no, name="Encoder"):
 		self.name = name
@@ -22,15 +24,21 @@ class Encoder:
 
 	def _when_activated(self):
 		self.count += 1
-		print(f"{self.name} encoder detected (count={self.count})")
+		angle = self.count * self.DEGREES_PER_COUNT
+  
+		print(f"{self.name} encoder detected (count={self.count}, angle={angle:.1f}°)")
 	pass # _when_activated
 
 	def _when_deactivated(self):
-		print(f"{self.name} encoder released")
+		self.count += 1
+		angle = self.count * self.DEGREES_PER_COUNT
+  
+		print(f"{self.name} encoder released (count={self.count}, angle={angle:.1f}°)")
 	pass # _when_deactivated
 
 	def print_status(self):
-		print(f"{self.name} encoder: {'ACTIVE' if self.inputDevice.is_active else 'INACTIVE'}")
+		angle = self.count * self.DEGREES_PER_COUNT
+		print(f"{self.name} encoder: {'ACTIVE' if self.inputDevice.is_active else 'INACTIVE'} (count={self.count}, angle={angle:.1f}°)")
 	pass # print_status
 
 	def close(self):

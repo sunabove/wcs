@@ -24,21 +24,24 @@ class Encoder:
 
 	def _when_activated(self):
 		self.count += 1
-		angle = self.count * self.DEGREES_PER_COUNT
+		angle_total = self.count * self.DEGREES_PER_COUNT
+		angle = angle_total % 360
   
-		print(f"{self.name} encoder detected (count={self.count}, angle={angle:.1f}°)")
+		print(f"{self.name} encoder detected (count={self.count:4d}, angle_total={angle_total:6.1f}°, angle={angle:4.1f}°)")
 	pass # _when_activated
 
 	def _when_deactivated(self):
 		self.count += 1
-		angle = self.count * self.DEGREES_PER_COUNT
+		angle_total = self.count * self.DEGREES_PER_COUNT
+		angle = angle_total % 360
   
-		print(f"{self.name} encoder released (count={self.count}, angle={angle:.1f}°)")
+		print(f"{self.name} encoder released (count={self.count:4d}, angle_total={angle_total:6.1f}°, angle={angle:4.1f}°)")
 	pass # _when_deactivated
 
 	def print_status(self):
-		angle = self.count * self.DEGREES_PER_COUNT
-		print(f"{self.name} encoder: {'ACTIVE' if self.inputDevice.is_active else 'INACTIVE'} (count={self.count}, angle={angle:.1f}°)")
+		angle_total = self.count * self.DEGREES_PER_COUNT
+		angle = angle_total % 360
+		print(f"{self.name} encoder: {'ACTIVE' if self.inputDevice.is_active else 'INACTIVE'} (count={self.count:4d}, angle_total={angle_total:6.1f}°, angle={angle:4.1f}°)")
 	pass # print_status
 
 	def close(self):

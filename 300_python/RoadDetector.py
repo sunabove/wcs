@@ -165,14 +165,22 @@ class RoadDetector:
 
     @staticmethod
     def _draw_roi_overlay(detected, roi):
-        if roi is None:
-            return detected
+        should_draw = roi is not None
 
-        x1, y1, x2, y2 = roi
-        overlay = detected.copy()
-        cv2.rectangle(overlay, (x1, y1), (x2, y2), (0, 0, 255), cv2.FILLED)
-        cv2.addWeighted(overlay, 0.22, detected, 0.78, 0, detected)
-        cv2.rectangle(detected, (x1, y1), (x2, y2), (0, 0, 255), 3)
+        if should_draw:
+            x1, y1, x2, y2 = roi
+            height, width = detected.shape[:2]
+
+            # Do not draw ROI overlay when ROI is equivalent to full image area.
+            if x1 <= 0 and y1 <= 0 and x2 >= width and y2 >= height:
+                should_draw = False
+
+        if should_draw:
+            overlay = detected.copy()
+            cv2.rectangle(overlay, (x1, y1), (x2, y2), (0, 0, 255), cv2.FILLED)
+            cv2.addWeighted(overlay, 0.22, detected, 0.78, 0, detected)
+            cv2.rectangle(detected, (x1, y1), (x2, y2), (0, 0, 255), 3)
+
         return detected
 
     @staticmethod
@@ -1290,6 +1298,7 @@ class RoadDetector:
                         result.masks.cls = result.masks.cls[keep_indices]
 
         detected = frame.copy()
+        detected = self._draw_roi_overlay(detected, roi)
         names = result.names if isinstance(result.names, dict) else {}
 
         detected_count = 0
@@ -1401,8 +1410,6 @@ class RoadDetector:
 
         if detected_count == 0:
             detected_count = mask_count
-
-        detected = self._draw_roi_overlay(detected, roi)
 
         showHeader = True
         if showHeader:

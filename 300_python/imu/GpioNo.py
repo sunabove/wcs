@@ -10,7 +10,7 @@ class GpioNo(IntEnum):
 
     # Encoder
     ENCODER_FR = 23
-    ENCODER_FL = 24
+    ENCODER_FL = 26
     ENCODER_RR = 25
     ENCODER_RL = 12
 

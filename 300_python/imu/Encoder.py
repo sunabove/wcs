@@ -74,7 +74,7 @@ def main():
 			return
 		pass
 
-		input("Enter to quit! ")
+		input("Enter to quit!\n")
 	except KeyboardInterrupt:
 		pass
 	finally:

@@ -44,7 +44,7 @@ def main():
 
 	try:
 		encoderFR = Encoder(GpioNo.ENCODER_FR, "FR")
-		encoderFL = Encoder(GpioNo.ENCODER_FL, "FL")
+		#encoderFL = Encoder(GpioNo.ENCODER_FL, "FL")
 		#encoderRR = Encoder(GpioNo.ENCODER_RR, "RR")
 		#encoderRL = Encoder(GpioNo.ENCODER_RL, "RL") 
 	
@@ -53,7 +53,7 @@ def main():
 		pass
 	finally:
 		encoderFR.close()
-		encoderFL.close()
+		#encoderFL.close()
 		#encoderRR.close()
 		#encoderRL.close()
 	pass 

@@ -1578,7 +1578,26 @@ $(function () {
             return;
         }
 
-        if (!Array.isArray(devices) || devices.length === 0) {
+        const normalizedDevices = Array.isArray(devices) ? devices.slice() : [];
+
+        if (cameraStreamState && cameraStreamState.sessionId && Number.isFinite(Number(cameraStreamState.cameraIndex))) {
+            const activeCameraIndex = Number(cameraStreamState.cameraIndex);
+            const hasActiveCamera = normalizedDevices.some(function (device) {
+                return Number(device.index) === activeCameraIndex;
+            });
+
+            if (!hasActiveCamera) {
+                normalizedDevices.unshift({
+                    index: activeCameraIndex,
+                    name: String(cameraStreamState.cameraName || ("Camera " + activeCameraIndex)),
+                    width: 0,
+                    height: 0,
+                    fps: Number(cameraStreamState.fps || 0),
+                });
+            }
+        }
+
+        if (normalizedDevices.length === 0) {
             $cameraDeviceList.html('<div class="text-muted text-center py-3">열 수 있는 카메라 장치가 없습니다.</div>');
             return;
         }
@@ -1596,12 +1615,17 @@ $(function () {
         const containerNode = cameraDeviceListContainerTemplate.content.firstElementChild.cloneNode(true);
         const $container = $(containerNode);
 
-        devices.forEach(function (device) {
+        normalizedDevices.forEach(function (device) {
             const index = Number(device.index);
             const name = String(device.name || ("Camera " + index));
             const width = Number(device.width || 0);
             const height = Number(device.height || 0);
             const fps = Number(device.fps || 0);
+            const isActiveCamera = Boolean(
+                cameraStreamState
+                && cameraStreamState.sessionId
+                && Number(cameraStreamState.cameraIndex) === index
+            );
             const detailParts = [];
             if (width > 0 && height > 0) {
                 detailParts.push(width + "x" + height);
@@ -1616,16 +1640,21 @@ $(function () {
             const button = node;
             const nameLabel = node.querySelector(".camera-device-name");
             const detailLabel = node.querySelector(".camera-device-detail");
+            const liveBadge = node.querySelector(".camera-device-live-badge");
 
             if (button) {
                 button.setAttribute("data-camera-index", String(index));
                 button.setAttribute("data-camera-name", name);
+                button.classList.toggle("active", isActiveCamera);
             }
             if (nameLabel) {
                 nameLabel.textContent = name;
             }
             if (detailLabel) {
                 detailLabel.textContent = detail;
+            }
+            if (liveBadge) {
+                liveBadge.classList.toggle("d-none", !isActiveCamera);
             }
 
             $container.append(node);

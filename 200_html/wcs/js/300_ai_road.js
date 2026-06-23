@@ -1614,16 +1614,12 @@ $(function () {
 
             const node = cameraDeviceItemTemplate.content.firstElementChild.cloneNode(true);
             const button = node;
-            const indexLabel = node.querySelector(".camera-device-index");
             const nameLabel = node.querySelector(".camera-device-name");
             const detailLabel = node.querySelector(".camera-device-detail");
 
             if (button) {
                 button.setAttribute("data-camera-index", String(index));
                 button.setAttribute("data-camera-name", name);
-            }
-            if (indexLabel) {
-                indexLabel.textContent = "#" + index;
             }
             if (nameLabel) {
                 nameLabel.textContent = name;

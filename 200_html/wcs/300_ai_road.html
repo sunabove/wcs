@@ -338,17 +338,16 @@
                                                 <div id="camera-device-list" class="list-group">
                                                     <div class="text-muted text-center py-3">카메라 장치 목록</div>
                                                 </div>
+                                                <template id="camera-device-list-container-template">
+                                                    <div class="d-flex flex-nowrap gap-2 overflow-auto py-1"></div>
+                                                </template>
                                                 <template id="camera-device-item-template">
                                                     <button type="button" class="btn btn-light border rounded px-3 py-2 flex-shrink-0 camera-device-item" data-camera-index="" data-camera-name="">
                                                         <div class="d-flex align-items-center gap-2">
-                                                            <span class="badge text-bg-secondary rounded-pill camera-device-index"></span>
-                                                            <span class="fw-semibold camera-device-name"></span>
+                                                            <span class="badge text-bg-secondary rounded-pill camera-device-name"></span>
                                                             <span class="small text-muted camera-device-detail"></span>
                                                         </div>
                                                     </button>
-                                                </template>
-                                                <template id="camera-device-list-container-template">
-                                                    <div class="d-flex flex-nowrap gap-2 overflow-auto py-1"></div>
                                                 </template>
                                             </div> 
                                         </div>

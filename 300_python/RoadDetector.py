@@ -178,7 +178,8 @@ class RoadDetector:
         if should_draw:
             overlay = detected.copy()
             cv2.rectangle(overlay, (x1, y1), (x2, y2), (0, 0, 255), cv2.FILLED)
-            cv2.addWeighted(overlay, 0.1, detected, 0.9, 0, detected)
+            alpha = 0.1
+            cv2.addWeighted(overlay, alpha, detected, 1 - alpha, 0, detected)
             cv2.rectangle(detected, (x1, y1), (x2, y2), (0, 0, 255), 2)
 
         return detected

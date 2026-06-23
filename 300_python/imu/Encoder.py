@@ -1,13 +1,12 @@
 #!/usr/bin/env python3
 
 from gpiozero import DigitalInputDevice
-from signal import pause
-
-from GpioNo import GpioNo
 
 class Encoder:
 	WHEEL_COUNTS = 40
 	DEGREES_PER_COUNT = 360 / WHEEL_COUNTS
+ 
+	PRINT_COUNT = 0 
     
 	def __init__(self, gpio_no, name="Encoder"):
 		self.name = name
@@ -46,45 +45,14 @@ class Encoder:
 
 	def close(self):
 		self.inputDevice.close()
-	pass # close
+	pass # close 
 
 pass # Encoder
 
-
 def main():
-	encoders = []
-	device_specs = [
-		(GpioNo.ENCODER_FR, "FR"),
-		(GpioNo.ENCODER_FL, "FL"),
-		(GpioNo.ENCODER_RR, "RR"),
-		(GpioNo.ENCODER_RL, "RL"),
-	]
-
-	try:
-		for gpio_no, name in device_specs:
-			try:
-				encoders.append(Encoder(gpio_no, name))
-			except Exception as error:
-				print(f"{name} (gpio = {gpio_no}) initialization failed: {error}")
-			pass
-		pass
-
-		if len(encoders) == 0:
-			print("No encoder initialized. Check GPIO conflicts or permissions.")
-			return
-		pass
-
-		input("Enter to quit!\n")
-	except KeyboardInterrupt:
-		pass
-	finally:
-		for encoder in encoders:
-			try:
-				encoder.close()
-			except Exception as close_error:
-				print(f"Close failed for {encoder.name}: {close_error}")
-	pass # main
-
+	from EncoderMonitor import main as monitor_main
+	monitor_main() 
+pass # main
 
 if __name__ == "__main__":
 	main()

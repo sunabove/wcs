@@ -9,7 +9,7 @@ class GpioNo(IntEnum):
     BUZZER = 4
 
     # Encoder
-    ENCODER_FR = 23
+    ENCODER_FR = 5
     ENCODER_FL = 26
     ENCODER_RR = 19
     ENCODER_RL = 12

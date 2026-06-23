@@ -958,6 +958,13 @@ $(function () {
             return;
         }
 
+        const totalFrames = Number(state.totalFrames || 0);
+        const currentFrame = Number(state.frameIndex || 0);
+        if (totalFrames > 0 && currentFrame >= totalFrames) {
+            seekFrameStream(fileName, 1, { autoResume: true });
+            return;
+        }
+
         state.isPlaying = true;
         state.isPaused = false;
         setDetectingState(true);
@@ -966,11 +973,13 @@ $(function () {
         playFrameStream(fileName);
     }
 
-    function seekFrameStream(fileName, frameNumber) {
+    function seekFrameStream(fileName, frameNumber, options) {
         const state = frameStreamState[fileName];
         if (!state) {
             return;
         }
+
+        const seekOptions = options || {};
 
         const targetFrame = Math.max(1, Math.min(parseInt(frameNumber, 10) || 1, Number(state.totalFrames || 1)));
         if (frameTimerMap[fileName]) {
@@ -999,7 +1008,7 @@ $(function () {
             currentState.isPaused = true;
             showUploadStatusMessage(String(result.frame_number || targetFrame) + " 번째 프레임으로 이동하였습니다.", true);
             updateDetectedStreamControls();
-            playFrameStream(fileName, { singleStep: true });
+            playFrameStream(fileName, { singleStep: true, autoResume: Boolean(seekOptions.autoResume) });
         }).fail(function (jqXHR) {
             console.error("Stream seek error:", jqXHR.status, jqXHR.responseText);
             showUploadStatusMessage("프레임 이동에 실패했습니다.", false);
@@ -1007,6 +1016,27 @@ $(function () {
             $detectingIndicator.addClass("d-none");
             updateDetectedStreamControls();
         });
+    }
+
+    function completeFrameStreamPlayback(fileName, state) {
+        if (!state) {
+            return;
+        }
+
+        state.isPlaying = false;
+        state.isPaused = true;
+        if (Number(state.totalFrames || 0) > 0) {
+            state.frameIndex = Number(state.totalFrames);
+        }
+
+        if (frameTimerMap[fileName]) {
+            clearTimeout(frameTimerMap[fileName]);
+            delete frameTimerMap[fileName];
+        }
+
+        setDetectingState(false);
+        $detectingIndicator.addClass("d-none");
+        updateDetectedStreamControls();
     }
 
     function saveRoiInfo() {
@@ -1415,7 +1445,7 @@ $(function () {
                     "프레임 스트리밍 완료 (" + currentState.frameIndex + "/" + currentState.totalFrames + ")",
                     true
                 );
-                cleanupFrameStream(fileName);
+                completeFrameStreamPlayback(fileName, currentState);
                 return;
             }
 
@@ -1460,7 +1490,7 @@ $(function () {
                     "프레임 스트리밍 완료 (" + currentState.frameIndex + "/" + currentState.totalFrames + ")",
                     true
                 );
-                cleanupFrameStream(fileName);
+                completeFrameStreamPlayback(fileName, currentState);
             }
         }).fail(function (jqXHR) {
             console.error("Stream next error:", jqXHR.status, jqXHR.responseText);

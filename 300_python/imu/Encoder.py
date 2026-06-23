@@ -15,7 +15,7 @@ class Encoder:
 		self.inputDevice.when_activated = self._when_activated
 		self.inputDevice.when_deactivated = self._when_deactivated
   
-		print(f"{self.name} encoder started")
+		print(f"{self.name} (gpio = {gpio_no}) encoder started")
   
 		self.print_status()
 	pass # __init__

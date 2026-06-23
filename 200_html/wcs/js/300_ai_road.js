@@ -14,6 +14,7 @@ $(function () {
     const $detectedStreamFrameLabel = $("#detected-stream-frame-label");
     const $roiOverlay = $("#roi-overlay");
     const $roiSelection = $("#roi-selection");
+    const $roiFullButton = $("#roi-full-button");
     const $roiResetButton = $("#roi-reset-button");
     const $roiEditorStatus = $("#roi-editor-status");
     const $originalImageTab = $("#original-image-tab");
@@ -145,6 +146,7 @@ $(function () {
 
     function updateRoiEditorButtons() {
         const hasRoi = Boolean(currentRoiInfo && draftRoiInfo);
+        $roiFullButton.prop("disabled", !hasRoi);
         $roiResetButton.prop("disabled", !hasRoi);
     }
 
@@ -1911,6 +1913,23 @@ $(function () {
         draftRoiInfo = cloneRoi(currentRoiInfo.roi);
         syncRoiOverlay();
         setRoiStatus("저장된 ROI로 되돌렸습니다.", "muted");
+    });
+
+    $roiFullButton.on("click", function () {
+        if (!currentRoiInfo || currentRoiInfo.width <= 0 || currentRoiInfo.height <= 0) {
+            return;
+        }
+
+        draftRoiInfo = {
+            x1: 0,
+            y1: 0,
+            x2: Number(currentRoiInfo.width),
+            y2: Number(currentRoiInfo.height),
+        };
+
+        syncRoiOverlay();
+        setRoiStatus("ROI를 전체 크기로 설정했습니다. 저장 중...", "muted");
+        saveRoiInfo();
     });
 
     $sampleImageTab.on("click", function () {

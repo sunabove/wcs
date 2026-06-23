@@ -46,27 +46,16 @@ class EncoderMonitor:
 				print(f"Close failed for {encoder.name}: {close_error}")
 			pass
 		pass
-	pass # close_all
-
-	def run(self):
-		try:
-			if self.initialize() == False:
-				return
-			pass 
-		except KeyboardInterrupt:
-			pass
-		finally:
-			self.close_all()
-		pass
-	pass # run
+	pass # close_all 
 
 pass # EncoderMonitor
 
 
 def main():
 	monitor = EncoderMonitor()
-	monitor.run()
+	monitor.initialize()
 	monitor.wait_for_quit()
+	monitor.close_all()
 pass # main
 
 

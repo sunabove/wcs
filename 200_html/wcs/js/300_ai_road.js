@@ -9,6 +9,9 @@ $(function () {
     const $detectedStreamControls = $("#detected-stream-controls");
     const $detectedStreamPauseButton = $("#detected-stream-pause");
     const $detectedStreamResumeButton = $("#detected-stream-resume");
+    const $detectedVideoDownloadButton = $("#detected-video-download");
+    const $detectedImageDownloadWrap = $("#detected-image-download-wrap");
+    const $detectedImageDownloadButton = $("#detected-image-download");
     const $detectedStreamFrameInput = $("#detected-stream-frame-input");
     const $detectedStreamFrameValue = $("#detected-stream-frame-value");
     const $detectedStreamFrameLabel = $("#detected-stream-frame-label");
@@ -223,6 +226,11 @@ $(function () {
 
     function updateDetectedStreamControls() {
         const isVideo = Boolean(uploadedFileName) && isVideoPath(uploadedFileName);
+        const isImage = Boolean(uploadedFileName) && !isVideo;
+
+        $detectedImageDownloadWrap.toggleClass("d-none", !isImage);
+        $detectedImageDownloadButton.prop("disabled", !isImage || isDetecting);
+
         if (!isVideo) {
             $detectedStreamControls.addClass("d-none");
             $detectedStreamFrameValue.text("");
@@ -259,6 +267,7 @@ $(function () {
         $detectedStreamPauseButton.prop("disabled", !canPause);
         $detectedStreamResumeButton.prop("disabled", !canResume);
         $detectedStreamFrameInput.prop("disabled", !hasSession);
+        $detectedVideoDownloadButton.prop("disabled", !isVideo || !uploadedFileName || isDetecting);
 
         $detectedStreamPauseButton
             .toggleClass("btn-outline-primary", canPause)
@@ -273,6 +282,119 @@ $(function () {
         $detectedStreamResumeButton.find("i")
             .toggleClass("text-primary", canResume)
             .toggleClass("text-muted", !canResume);
+    }
+
+    function buildDetectedDownloadFileName(fileName) {
+        const normalized = normalizePath(fileName);
+        const baseName = normalized.split("/").pop() || "detected_video";
+        const dotIndex = baseName.lastIndexOf(".");
+        const stem = dotIndex > 0 ? baseName.slice(0, dotIndex) : baseName;
+        return stem + "_detected.mp4";
+    }
+
+    function buildDetectedImageDownloadFileName(fileName, resultUrl) {
+        const normalized = normalizePath(fileName);
+        const baseName = normalized.split("/").pop() || "detected_image";
+        const dotIndex = baseName.lastIndexOf(".");
+        const stem = dotIndex > 0 ? baseName.slice(0, dotIndex) : baseName;
+
+        const resultPath = normalizePath(String(resultUrl || "").split("?")[0]);
+        const resultBase = resultPath.split("/").pop() || "";
+        const resultDot = resultBase.lastIndexOf(".");
+        const resultExt = resultDot > 0 ? resultBase.slice(resultDot) : "";
+        const fallbackExt = dotIndex > 0 ? baseName.slice(dotIndex) : ".jpg";
+        const ext = resultExt || fallbackExt;
+
+        return stem + "_detected" + ext;
+    }
+
+    function triggerDetectedVideoDownload(fileName) {
+        if (!fileName || !isVideoPath(fileName)) {
+            showUploadStatusMessage("다운로드할 동영상을 먼저 선택해 주세요.", false);
+            return;
+        }
+
+        const detectType = getSelectedDetectType();
+        showUploadStatusMessage("전체 동영상 검출 파일 생성 중...", true);
+        setDetectingState(true);
+        $detectingIndicator.removeClass("d-none");
+        updateDetectedStreamControls();
+
+        // 전체 파일 검출은 별도 처리이므로 기존 프레임 스트림은 정리합니다.
+        cleanupAllFrameStreams();
+
+        $.ajax({
+            url: buildRoadDetectUrl(fileName),
+            data: { detect_type: detectType },
+            method: "GET"
+        }).done(function (result) {
+            if (!result || !result.image_url) {
+                showUploadStatusMessage("검출 동영상 생성에 실패했습니다.", false);
+                return;
+            }
+
+            const downloadUrl = result.image_url + "?t=" + Date.now();
+            const anchor = document.createElement("a");
+            anchor.href = downloadUrl;
+            anchor.download = buildDetectedDownloadFileName(fileName);
+            anchor.style.display = "none";
+            document.body.appendChild(anchor);
+            anchor.click();
+            document.body.removeChild(anchor);
+
+            showUploadStatusMessage("검출 동영상 다운로드를 시작했습니다.", true);
+        }).fail(function (jqXHR) {
+            console.error("Detected video download error:", jqXHR.status, jqXHR.responseText);
+            showUploadStatusMessage("검출 동영상 생성/다운로드에 실패했습니다.", false);
+        }).always(function () {
+            setDetectingState(false);
+            $detectingIndicator.addClass("d-none");
+            updateDetectedStreamControls();
+        });
+    }
+
+    function triggerDetectedImageDownload(fileName) {
+        if (!fileName || isVideoPath(fileName)) {
+            showUploadStatusMessage("다운로드할 이미지를 먼저 선택해 주세요.", false);
+            return;
+        }
+
+        const detectType = getSelectedDetectType();
+        showUploadStatusMessage("검출 이미지 생성 중...", true);
+        setDetectingState(true);
+        $detectingIndicator.removeClass("d-none");
+        updateDetectedStreamControls();
+
+        $.ajax({
+            url: buildRoadDetectUrl(fileName),
+            data: { detect_type: detectType },
+            method: "GET"
+        }).done(function (result) {
+            if (!result || !result.image_url) {
+                showUploadStatusMessage("검출 이미지 생성에 실패했습니다.", false);
+                return;
+            }
+
+            const downloadUrl = result.image_url + "?t=" + Date.now();
+            showMediaPreview(downloadUrl, false, $detectedImagePreview, $detectedVideoPreview);
+
+            const anchor = document.createElement("a");
+            anchor.href = downloadUrl;
+            anchor.download = buildDetectedImageDownloadFileName(fileName, result.image_url);
+            anchor.style.display = "none";
+            document.body.appendChild(anchor);
+            anchor.click();
+            document.body.removeChild(anchor);
+
+            showUploadStatusMessage("검출 이미지 다운로드를 시작했습니다.", true);
+        }).fail(function (jqXHR) {
+            console.error("Detected image download error:", jqXHR.status, jqXHR.responseText);
+            showUploadStatusMessage("검출 이미지 생성/다운로드에 실패했습니다.", false);
+        }).always(function () {
+            setDetectingState(false);
+            $detectingIndicator.addClass("d-none");
+            updateDetectedStreamControls();
+        });
     }
 
     function resetPreviewImages() {
@@ -1868,6 +1990,14 @@ $(function () {
         }
 
         resumeFrameStream(uploadedFileName);
+    });
+
+    $detectedVideoDownloadButton.on("click", function () {
+        triggerDetectedVideoDownload(uploadedFileName);
+    });
+
+    $detectedImageDownloadButton.on("click", function () {
+        triggerDetectedImageDownload(uploadedFileName);
     });
 
     $detectedStreamFrameInput.on("input", function () {

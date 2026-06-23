@@ -1906,13 +1906,27 @@ $(function () {
     });
 
     $roiResetButton.on("click", function () {
-        if (!currentRoiInfo || !currentRoiInfo.roi) {
+        if (!currentRoiInfo || currentRoiInfo.width <= 0 || currentRoiInfo.height <= 0) {
             return;
         }
 
-        draftRoiInfo = cloneRoi(currentRoiInfo.roi);
+        const fullWidth = Number(currentRoiInfo.width);
+        const fullHeight = Number(currentRoiInfo.height);
+        const roiWidth = Math.max(1, Math.round(fullWidth * 0.8));
+        const roiHeight = Math.max(1, Math.round(fullHeight * 0.8));
+        const offsetX = Math.max(0, Math.floor((fullWidth - roiWidth) / 2));
+        const offsetY = Math.max(0, Math.floor((fullHeight - roiHeight) / 2));
+
+        draftRoiInfo = {
+            x1: offsetX,
+            y1: offsetY,
+            x2: offsetX + roiWidth,
+            y2: offsetY + roiHeight,
+        };
+
         syncRoiOverlay();
-        setRoiStatus("저장된 ROI로 되돌렸습니다.", "muted");
+        setRoiStatus("ROI를 전체 대비 80% 영역으로 설정했습니다. 저장 중...", "muted");
+        saveRoiInfo();
     });
 
     $roiFullButton.on("click", function () {

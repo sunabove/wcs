@@ -267,7 +267,7 @@ $(function () {
         $detectedStreamPauseButton.prop("disabled", !canPause);
         $detectedStreamResumeButton.prop("disabled", !canResume);
         $detectedStreamFrameInput.prop("disabled", !hasSession);
-        $detectedVideoDownloadButton.prop("disabled", !isVideo || !uploadedFileName || isDetecting);
+        $detectedVideoDownloadButton.prop("disabled", !isVideo || !uploadedFileName);
 
         $detectedStreamPauseButton
             .toggleClass("btn-outline-primary", canPause)
@@ -314,14 +314,15 @@ $(function () {
             return;
         }
 
+        // 전체 파일 다운로드 전, 현재 프레임 검출 출력은 먼저 중지합니다.
+        stopActiveFrameProcessing();
+        cleanupAllFrameStreams();
+
         const detectType = getSelectedDetectType();
         showUploadStatusMessage("전체 동영상 검출 파일 생성 중...", true);
         setDetectingState(true);
         $detectingIndicator.removeClass("d-none");
         updateDetectedStreamControls();
-
-        // 전체 파일 검출은 별도 처리이므로 기존 프레임 스트림은 정리합니다.
-        cleanupAllFrameStreams();
 
         $.ajax({
             url: buildRoadDetectUrl(fileName),

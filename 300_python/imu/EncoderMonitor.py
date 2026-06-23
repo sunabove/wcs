@@ -27,6 +27,8 @@ class EncoderMonitor:
 		if len(self.encoders) == 0:
 			print("No encoder initialized. Check GPIO conflicts or permissions.")
 			return False
+		else:
+			print(f"{len(self.encoders)} encoders initialized successfully.")
 		pass
 
 		return True

@@ -11,7 +11,7 @@ class GpioNo(IntEnum):
     # Encoder
     ENCODER_FR = 23
     ENCODER_FL = 26
-    ENCODER_RR = 25
+    ENCODER_RR = 19
     ENCODER_RL = 12
 
     # Motor 1

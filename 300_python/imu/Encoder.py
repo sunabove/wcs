@@ -47,6 +47,7 @@ class Encoder:
 	pass # print_status
 
 	def close(self):
+		print(f"Closing {self.name} encoder..." )
 		self.inputDevice.close()
 		print( f"{self.name} encoder closed" )
 	pass # close

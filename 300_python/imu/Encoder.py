@@ -43,10 +43,10 @@ pass # Encoder
 def main():
 	encoders = []
 	device_specs = [
-		#(GpioNo.ENCODER_FR, "FR"),
+		(GpioNo.ENCODER_FR, "FR"),
 		(GpioNo.ENCODER_FL, "FL"),
-		# (GpioNo.ENCODER_RR, "RR"),
-		# (GpioNo.ENCODER_RL, "RL"),
+		(GpioNo.ENCODER_RR, "RR"),
+		(GpioNo.ENCODER_RL, "RL"),
 	]
 
 	try:

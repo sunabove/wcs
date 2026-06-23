@@ -48,6 +48,7 @@ class Encoder:
 
 	def close(self):
 		self.inputDevice.close()
+		print( f"{self.name} encoder closed" )
 	pass # close
 
 pass # Encoder

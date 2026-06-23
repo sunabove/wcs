@@ -9,14 +9,16 @@ class GpioNo(IntEnum):
     BUZZER = 4
 
     # Encoder
-    ENCODER_FR = 20
-    ENCODER_FL = 21
-    ENCODER_RR = 14
-    ENCODER_RL = 15
+    ENCODER_FR = 25
+    ENCODER_FL = 8
+    ENCODER_RR = 7
+    ENCODER_RL = 1
 
     # Motor
-    MOTOR_FR = 12
-    MOTOR_FL = 16
-    MOTOR_RR = 23
-    MOTOR_RL = 24
+    STBY1 = 19
+    MOTOR_FR = 10,9,11
+    MOTOR_FL = 14,15,16
+    STBY2 = 26
+    MOTOR_RR = 17,27,22
+    MOTOR_RL = 16,20,21
 pass

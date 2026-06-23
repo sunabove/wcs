@@ -33,6 +33,8 @@ $(function () {
     const $sampleVideoTab = $("#input-sample-video-tab");
     const sampleImageItemTemplate = document.getElementById("sample-image-item-template");
     const sampleVideoItemTemplate = document.getElementById("sample-video-item-template");
+    const cameraDeviceItemTemplate = document.getElementById("camera-device-item-template");
+    const cameraDeviceListContainerTemplate = document.getElementById("camera-device-list-container-template");
     const DETECT_AFTER_UPLOAD_DELAY_MS = 800;
     let uploadedFileName = "";
     let previousFileName = "";  // 이전 파일명 추적
@@ -1581,7 +1583,20 @@ $(function () {
             return;
         }
 
-        const itemHtml = devices.map(function (device) {
+        if (!cameraDeviceItemTemplate || !cameraDeviceItemTemplate.content) {
+            $cameraDeviceList.html('<div class="text-danger text-center py-3">카메라 템플릿을 찾지 못했습니다.</div>');
+            return;
+        }
+
+        if (!cameraDeviceListContainerTemplate || !cameraDeviceListContainerTemplate.content) {
+            $cameraDeviceList.html('<div class="text-danger text-center py-3">카메라 목록 템플릿을 찾지 못했습니다.</div>');
+            return;
+        }
+
+        const containerNode = cameraDeviceListContainerTemplate.content.firstElementChild.cloneNode(true);
+        const $container = $(containerNode);
+
+        devices.forEach(function (device) {
             const index = Number(device.index);
             const name = String(device.name || ("Camera " + index));
             const width = Number(device.width || 0);
@@ -1596,17 +1611,31 @@ $(function () {
             }
 
             const detail = detailParts.join(" / ") || "열림 확인";
-            return '<button type="button" class="btn btn-light border rounded px-3 py-2 flex-shrink-0 camera-device-item" data-camera-index="' + index + '" data-camera-name="' + $("<div>").text(name).html() + '">'
-                + '<div class="d-flex align-items-center gap-2">'
-                + '<span class="badge text-bg-secondary rounded-pill">#' + index + '</span>'
-                + '<span class="fw-semibold">' + $("<div>").text(name).html() + '</span>'
-                + '<span class="small text-muted">' + detail + '</span>'
-                + '</div>'
-                + '</button>';
-        }).join("");
 
-        const html = '<div class="d-flex flex-nowrap gap-2 overflow-auto py-1">' + itemHtml + '</div>';
-        $cameraDeviceList.html(html);
+            const node = cameraDeviceItemTemplate.content.firstElementChild.cloneNode(true);
+            const button = node;
+            const indexLabel = node.querySelector(".camera-device-index");
+            const nameLabel = node.querySelector(".camera-device-name");
+            const detailLabel = node.querySelector(".camera-device-detail");
+
+            if (button) {
+                button.setAttribute("data-camera-index", String(index));
+                button.setAttribute("data-camera-name", name);
+            }
+            if (indexLabel) {
+                indexLabel.textContent = "#" + index;
+            }
+            if (nameLabel) {
+                nameLabel.textContent = name;
+            }
+            if (detailLabel) {
+                detailLabel.textContent = detail;
+            }
+
+            $container.append(node);
+        });
+
+        $cameraDeviceList.empty().append($container);
     }
 
     function loadCameraDevices(forceReload) {

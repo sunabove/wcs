@@ -14,11 +14,25 @@ class GpioNo(IntEnum):
     ENCODER_RR = 7
     ENCODER_RL = 1
 
-    # Motor
+    # Motor 1
     STBY1 = 19
-    MOTOR_FR = 10,9,11
-    MOTOR_FL = 14,15,16
+    
+    MOTOR_FR_IN1 = 10
+    MOTOR_FR_IN2 = 9
+    MOTOR_FR_PWM = 11
+    
+    MOTOR_FL_IN1 = 14
+    MOTOR_FL_IN2 = 15
+    MOTOR_FL_PWM = 18
+    
+    # Motor 2
     STBY2 = 26
-    MOTOR_RR = 17,27,22
-    MOTOR_RL = 16,20,21
+    
+    MOTOR_RR_IN1 = 17
+    MOTOR_RR_IN2 = 27
+    MOTOR_RR_PWM = 22
+    
+    MOTOR_RL_IN1 = 16
+    MOTOR_RL_IN2 = 20
+    MOTOR_RL_PWM = 21
 pass

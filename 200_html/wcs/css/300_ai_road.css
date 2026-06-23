@@ -114,7 +114,7 @@
     position: absolute;
     border: 3px solid #dc3545;
     background: rgba(220, 53, 69, 0.18);
-    box-shadow: 0 0 0 9999px rgba(15, 23, 42, 0.18);
+    box-shadow: none;
     cursor: move;
 }
 

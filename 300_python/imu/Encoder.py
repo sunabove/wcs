@@ -45,8 +45,8 @@ def main():
 	try:
 		encoderFR = Encoder(GpioNo.ENCODER_FR, "FR")
 		encoderFL = Encoder(GpioNo.ENCODER_FL, "FL")
-		encoderRR = Encoder(GpioNo.ENCODER_RR, "RR")
-		encoderRL = Encoder(GpioNo.ENCODER_RL, "RL") 
+		#encoderRR = Encoder(GpioNo.ENCODER_RR, "RR")
+		#encoderRL = Encoder(GpioNo.ENCODER_RL, "RL") 
 	
 		input("Enter to quit! ")
 	except KeyboardInterrupt:
@@ -54,8 +54,8 @@ def main():
 	finally:
 		encoderFR.close()
 		encoderFL.close()
-		encoderRR.close()
-		encoderRL.close()
+		#encoderRR.close()
+		#encoderRL.close()
 	pass 
 
 pass # main

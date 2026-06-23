@@ -41,24 +41,35 @@ pass # Encoder
 
 
 def main():
+	encoders = []
+	device_specs = [
+		(GpioNo.ENCODER_FR, "FR"),
+		(GpioNo.ENCODER_FL, "FL"),
+		# (GpioNo.ENCODER_RR, "RR"),
+		# (GpioNo.ENCODER_RL, "RL"),
+	]
 
 	try:
-		encoderFR = Encoder(GpioNo.ENCODER_FR, "FR")
-		encoderFL = Encoder(GpioNo.ENCODER_FL, "FL")
-		#encoderRR = Encoder(GpioNo.ENCODER_RR, "RR")
-		#encoderRL = Encoder(GpioNo.ENCODER_RL, "RL") 
-	
+		for gpio_no, name in device_specs:
+			try:
+				encoders.append(Encoder(gpio_no, name))
+			except Exception as error:
+				print(f"{name} (gpio = {gpio_no}) initialization failed: {error}")
+
+		if len(encoders) == 0:
+			print("No encoder initialized. Check GPIO conflicts or permissions.")
+			return
+
 		input("Enter to quit! ")
 	except KeyboardInterrupt:
 		pass
 	finally:
-		encoderFR.close()
-		encoderFL.close()
-		#encoderRR.close()
-		#encoderRL.close()
-	pass 
-
-pass # main
+		for encoder in encoders:
+			try:
+				encoder.close()
+			except Exception as close_error:
+				print(f"Close failed for {encoder.name}: {close_error}")
+	pass # main
 
 
 if __name__ == "__main__":

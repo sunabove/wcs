@@ -55,10 +55,13 @@ def main():
 				encoders.append(Encoder(gpio_no, name))
 			except Exception as error:
 				print(f"{name} (gpio = {gpio_no}) initialization failed: {error}")
+			pass
+		pass
 
 		if len(encoders) == 0:
 			print("No encoder initialized. Check GPIO conflicts or permissions.")
 			return
+		pass
 
 		input("Enter to quit! ")
 	except KeyboardInterrupt:

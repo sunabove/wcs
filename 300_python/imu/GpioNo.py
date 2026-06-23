@@ -9,10 +9,10 @@ class GpioNo(IntEnum):
     BUZZER = 4
 
     # Encoder
-    ENCODER_FR = 25
-    ENCODER_FL = 8
-    ENCODER_RR = 7
-    ENCODER_RL = 1
+    ENCODER_FR = 23
+    ENCODER_FL = 24
+    ENCODER_RR = 25
+    ENCODER_RL = 12
 
     # Motor 1
     STBY1 = 19

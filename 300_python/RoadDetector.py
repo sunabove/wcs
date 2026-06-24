@@ -1017,6 +1017,7 @@ class RoadDetector:
         regenerated_labels = []
         regenerated_box_colors = []
         kept_mask_indices = []
+        noisy_mask_contours = []
         mask_count = 0
         total_mask_count = 0
 
@@ -1113,11 +1114,18 @@ class RoadDetector:
                     regenerated_box_colors.append(mask_color)
 
                 overlay[binary_mask] = mask_color
+            else:
+                contour_input = (binary_mask.astype(np.uint8) * 255)
+                contours, _ = cv2.findContours(contour_input, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+                if contours:
+                    noisy_mask_contours.extend(contours)
             pass
         pass
 
         mask_count = len(kept_mask_indices)
         detected = cv2.addWeighted(overlay, 0.35, detected, 0.65, 0)
+        if noisy_mask_contours:
+            cv2.drawContours(detected, noisy_mask_contours, -1, (0, 0, 255), 1)
 
         return {
             "detected": detected,

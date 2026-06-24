@@ -115,6 +115,54 @@ $(function () {
         requestAnimationFrame(syncRoiOverlay);
     }
 
+    function setupSampleVideoThumbnail(video) {
+        if (!video || video.dataset.thumbnailReady === "1") {
+            return;
+        }
+
+        video.dataset.thumbnailReady = "1";
+        video.muted = true;
+        video.playsInline = true;
+
+        let didSeekPreview = false;
+
+        function resolvePreviewTime(duration) {
+            if (!Number.isFinite(duration) || duration <= 0) {
+                return 0;
+            }
+
+            const preferred = Math.max(0.15, duration * 0.03);
+            const upperBound = Math.max(0, duration - 0.05);
+            return Math.min(preferred, upperBound, 1.5);
+        }
+
+        function seekForPreview() {
+            if (didSeekPreview) {
+                return;
+            }
+
+            const previewTime = resolvePreviewTime(Number(video.duration));
+            if (previewTime <= 0) {
+                return;
+            }
+
+            try {
+                video.currentTime = previewTime;
+                didSeekPreview = true;
+            } catch (error) {
+                // Ignore seek timing errors; browser will keep default preview frame.
+            }
+        }
+
+        video.addEventListener("loadedmetadata", seekForPreview, { once: true });
+        video.addEventListener("loadeddata", seekForPreview, { once: true });
+        video.addEventListener("seeked", function () {
+            if (typeof video.pause === "function") {
+                video.pause();
+            }
+        }, { once: true });
+    }
+
     function cloneRoi(roi) {
         if (!roi) {
             return null;
@@ -1739,6 +1787,7 @@ $(function () {
             }
             if (video) {
                 video.setAttribute("src", videoUrl);
+                setupSampleVideoThumbnail(video);
             }
             if (caption) {
                 caption.setAttribute("title", safeFileName);

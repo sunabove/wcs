@@ -68,6 +68,14 @@ async def image_service_path(file_name: str):
 pass # image_service_path
 
 
+@router.get("/video_thumbnail/{file_name:path}")
+async def video_thumbnail_service(file_name: str):
+    from send_image import send_video_thumbnail_contents
+
+    return send_video_thumbnail_contents(file_name)
+pass # video_thumbnail_service
+
+
 @router.get("/samples/{folder_name:path}")
 async def sample_data_file_name_list_service(folder_name: str):
     from sample_data_file_name_list import sample_data_file_name_list

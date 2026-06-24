@@ -1017,7 +1017,7 @@ class RoadDetector:
         regenerated_labels = []
         regenerated_box_colors = []
         kept_mask_indices = []
-        noisy_mask_contours = []
+        noisy_mask_polygons = []
         mask_count = 0
         total_mask_count = 0
 
@@ -1069,12 +1069,15 @@ class RoadDetector:
         for binary_mask in prepared_masks:
             global_binary_mask = np.logical_or(global_binary_mask, binary_mask)
 
-        noisy_component_mask = self._build_noisy_component_mask(global_binary_mask, 0.10) if remove_noisy_masks else np.zeros((height, width), dtype=bool)
+        noisy_component_mask = self._build_noisy_component_mask(global_binary_mask, 0.10)
 
         overlay = detected.copy()
         for idx, binary_mask in enumerate(prepared_masks):
             noisy_binary_mask = np.logical_and(binary_mask, noisy_component_mask)
-            active_binary_mask = np.logical_and(binary_mask, np.logical_not(noisy_binary_mask))
+            if remove_noisy_masks:
+                active_binary_mask = np.logical_and(binary_mask, np.logical_not(noisy_binary_mask))
+            else:
+                active_binary_mask = binary_mask
 
             mask_area = int(np.count_nonzero(active_binary_mask))
             if mask_area > 0:
@@ -1127,18 +1130,22 @@ class RoadDetector:
 
                 overlay[active_binary_mask] = mask_color
 
-            if np.any(noisy_binary_mask):
+            if (not remove_noisy_masks) and np.any(noisy_binary_mask):
                 contour_input = (noisy_binary_mask.astype(np.uint8) * 255)
                 contours, _ = cv2.findContours(contour_input, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
                 if contours:
-                    noisy_mask_contours.extend(contours)
+                    for contour in contours:
+                        epsilon = 0.01 * cv2.arcLength(contour, True)
+                        polygon = cv2.approxPolyDP(contour, epsilon, True)
+                        if polygon is not None and len(polygon) >= 3:
+                            noisy_mask_polygons.append(polygon)
             pass
         pass
 
         mask_count = len(kept_mask_indices)
         detected = cv2.addWeighted(overlay, 0.35, detected, 0.65, 0)
-        if noisy_mask_contours:
-            cv2.drawContours(detected, noisy_mask_contours, -1, (0, 0, 255), 1)
+        if (not remove_noisy_masks) and noisy_mask_polygons:
+            cv2.polylines(detected, noisy_mask_polygons, True, (0, 0, 255), 1)
 
         return {
             "detected": detected,

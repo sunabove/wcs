@@ -373,6 +373,9 @@ $(function () {
             return;
         }
 
+        const normalizedTargetFile = normalizePath(fileName);
+        const hadVideoStreamSession = Boolean(frameStreamState[normalizedTargetFile]);
+
         // 전체 파일 다운로드 전, 현재 프레임 검출 출력은 먼저 중지합니다.
         stopActiveFrameProcessing();
         cleanupAllFrameStreams();
@@ -415,6 +418,17 @@ $(function () {
         }).always(function () {
             setDetectingState(false);
             $detectingIndicator.addClass("d-none");
+
+            // 다운로드 생성 과정에서 스트림 세션을 정리했으므로,
+            // 동일 파일이 계속 선택된 경우 자동으로 재초기화하여 재생 버튼을 복구합니다.
+            if (
+                hadVideoStreamSession
+                && normalizePath(uploadedFileName) === normalizedTargetFile
+                && isVideoPath(uploadedFileName)
+            ) {
+                initFrameStream(uploadedFileName, detectType, removeNoisyMasks);
+            }
+
             updateDetectedStreamControls();
         });
     }

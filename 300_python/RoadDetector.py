@@ -1145,6 +1145,123 @@ class RoadDetector:
     pass # _process_result_masks
 
     @staticmethod
+    def _select_top_detections(result, detect_key):
+        # For "road" detect type, keep only the highest confidence detection.
+        # For "pothole" detect type, keep top 4 detections by confidence.
+        if detect_key not in ("road", "pothole"):
+            return
+
+        if result.boxes is None or result.boxes.conf is None:
+            return
+
+        confs = result.boxes.conf.cpu().numpy()
+        max_detections = 1 if detect_key == "road" else 4
+        if len(confs) <= max_detections:
+            return
+
+        keep_indices = np.argsort(confs)[::-1][:max_detections]
+        keep_indices = np.sort(keep_indices)
+        result.boxes = result.boxes[keep_indices]
+
+        if result.masks is not None:
+            result.masks.data = result.masks.data[keep_indices]
+            if hasattr(result.masks, "cls") and result.masks.cls is not None:
+                result.masks.cls = result.masks.cls[keep_indices]
+    pass # _select_top_detections
+
+    @staticmethod
+    def _build_boxes_payload_from_result(
+        result,
+        total_mask_count,
+        regenerated_boxes,
+        regenerated_confs,
+        regenerated_cls_ids,
+        regenerated_labels,
+        regenerated_box_colors,
+        inference_roi,
+    ):
+        # YOLOv11m 모델은 masks와 boxes가 동시에 존재할 수 있음.
+        # 둘 다 존재하는 경우, 마스크는 영역을 강조하고 박스는 신뢰도와 함께 위치를 표시하는 용도로 활용.
+        if total_mask_count > 0:
+            # 작은 마스크 제외 후 남은 마스크의 실제 픽셀 영역에서 box 재생성.
+            if regenerated_boxes:
+                boxes = np.array(regenerated_boxes, dtype=int)
+                confs = np.array(regenerated_confs, dtype=float)
+                cls_ids = np.array(regenerated_cls_ids, dtype=int)
+                box_labels = list(regenerated_labels)
+                box_colors = list(regenerated_box_colors)
+            else:
+                boxes = np.empty((0, 4), dtype=int)
+                confs = np.empty((0,), dtype=float)
+                cls_ids = np.empty((0,), dtype=int)
+                box_labels = []
+                box_colors = []
+        else:
+            boxes = result.boxes.xyxy.cpu().numpy().astype(int)
+            if inference_roi is not None:
+                ix1, iy1, _, _ = inference_roi
+                boxes[:, 0] += ix1
+                boxes[:, 2] += ix1
+                boxes[:, 1] += iy1
+                boxes[:, 3] += iy1
+            confs = result.boxes.conf.cpu().numpy()
+            cls_ids = result.boxes.cls.cpu().numpy().astype(int) if result.boxes.cls is not None else None
+            box_labels = []
+            box_colors = [(0, 255, 255)] * len(boxes)
+
+        return {
+            "boxes": boxes,
+            "confs": confs,
+            "cls_ids": cls_ids,
+            "box_labels": box_labels,
+            "box_colors": box_colors,
+        }
+    pass # _build_boxes_payload_from_result
+
+    @staticmethod
+    def _filter_boxes_payload_by_roi(payload, roi):
+        boxes = payload["boxes"]
+        confs = payload["confs"]
+        cls_ids = payload["cls_ids"]
+        box_labels = payload["box_labels"]
+        box_colors = payload["box_colors"]
+
+        if roi is None or len(boxes) == 0:
+            return payload
+
+        filtered_boxes = []
+        filtered_confs = []
+        filtered_cls_ids = []
+        filtered_labels = []
+        filtered_colors = []
+
+        has_cls_ids = cls_ids is not None
+        for idx, box in enumerate(boxes):
+            if not RoadDetector._box_intersects_roi(box, roi):
+                continue
+
+            clipped_box = RoadDetector._clip_box_to_roi(box, roi)
+            if clipped_box is None:
+                continue
+
+            filtered_boxes.append(clipped_box)
+            filtered_confs.append(float(confs[idx]))
+            if has_cls_ids:
+                filtered_cls_ids.append(int(cls_ids[idx]))
+            if idx < len(box_labels):
+                filtered_labels.append(box_labels[idx])
+            if idx < len(box_colors):
+                filtered_colors.append(box_colors[idx])
+
+        payload["boxes"] = np.array(filtered_boxes, dtype=int) if filtered_boxes else np.empty((0, 4), dtype=int)
+        payload["confs"] = np.array(filtered_confs, dtype=float) if filtered_confs else np.empty((0,), dtype=float)
+        payload["cls_ids"] = np.array(filtered_cls_ids, dtype=int) if has_cls_ids and filtered_cls_ids else (np.empty((0,), dtype=int) if has_cls_ids else None)
+        payload["box_labels"] = filtered_labels
+        payload["box_colors"] = filtered_colors
+        return payload
+    pass # _filter_boxes_payload_by_roi
+
+    @staticmethod
     def _draw_boxes_and_collect_counts(detected, boxes, confs, cls_ids, box_labels, box_colors, names, detect_key, font_face):
         class_counts = {}
         detected_count = len(boxes)
@@ -1284,19 +1401,7 @@ class RoadDetector:
         except Exception as ex:
             raise HTTPException(status_code=500, detail=f"YOLO inference failed: {ex}")
 
-        # For "road" detect type, keep only the highest confidence detection.
-        # For "pothole" detect type, keep top 4 detections by confidence.
-        if detect_key in ("road", "pothole") and result.boxes is not None and result.boxes.conf is not None:
-            confs = result.boxes.conf.cpu().numpy()
-            max_detections = 1 if detect_key == "road" else 4
-            if len(confs) > max_detections:
-                keep_indices = np.argsort(confs)[::-1][:max_detections]
-                keep_indices = np.sort(keep_indices)
-                result.boxes = result.boxes[keep_indices]
-                if result.masks is not None:
-                    result.masks.data = result.masks.data[keep_indices]
-                    if hasattr(result.masks, 'cls') and result.masks.cls is not None:
-                        result.masks.cls = result.masks.cls[keep_indices]
+        self._select_top_detections(result, detect_key)
 
         detected = frame.copy()
         detected = self._draw_roi_overlay(detected, roi)
@@ -1325,66 +1430,23 @@ class RoadDetector:
         regenerated_box_colors = mask_result["regenerated_box_colors"]
 
         if result.boxes is not None and result.boxes.xyxy is not None:
-            # YOLOv11m 모델은 masks와 boxes가 동시에 존재할 수 있음. 
-            # 둘 다 존재하는 경우, 마스크는 영역을 강조하고 박스는 신뢰도와 함께 위치를 표시하는 용도로 활용.
-            # 박스 좌표와 신뢰도 추출
-            if total_mask_count > 0:
-                # 작은 마스크 제외 후 남은 마스크의 실제 픽셀 영역에서 box 재생성.
-                if regenerated_boxes:
-                    boxes = np.array(regenerated_boxes, dtype=int)
-                    confs = np.array(regenerated_confs, dtype=float)
-                    cls_ids = np.array(regenerated_cls_ids, dtype=int)
-                    box_labels = list(regenerated_labels)
-                    box_colors = list(regenerated_box_colors)
-                else:
-                    boxes = np.empty((0, 4), dtype=int)
-                    confs = np.empty((0,), dtype=float)
-                    cls_ids = np.empty((0,), dtype=int)
-                    box_labels = []
-                    box_colors = []
-            else:
-                boxes = result.boxes.xyxy.cpu().numpy().astype(int)
-                if inference_roi is not None:
-                    ix1, iy1, _, _ = inference_roi
-                    boxes[:, 0] += ix1
-                    boxes[:, 2] += ix1
-                    boxes[:, 1] += iy1
-                    boxes[:, 3] += iy1
-                confs = result.boxes.conf.cpu().numpy()
-                cls_ids = result.boxes.cls.cpu().numpy().astype(int) if result.boxes.cls is not None else None
-                box_labels = []
-                box_colors = [(0, 255, 255)] * len(boxes)
+            boxes_payload = self._build_boxes_payload_from_result(
+                result,
+                total_mask_count,
+                regenerated_boxes,
+                regenerated_confs,
+                regenerated_cls_ids,
+                regenerated_labels,
+                regenerated_box_colors,
+                inference_roi,
+            )
+            boxes_payload = self._filter_boxes_payload_by_roi(boxes_payload, roi)
 
-            if roi is not None and len(boxes) > 0:
-                filtered_boxes = []
-                filtered_confs = []
-                filtered_cls_ids = []
-                filtered_labels = []
-                filtered_colors = []
-
-                has_cls_ids = cls_ids is not None
-                for idx, box in enumerate(boxes):
-                    if not self._box_intersects_roi(box, roi):
-                        continue
-
-                    clipped_box = self._clip_box_to_roi(box, roi)
-                    if clipped_box is None:
-                        continue
-
-                    filtered_boxes.append(clipped_box)
-                    filtered_confs.append(float(confs[idx]))
-                    if has_cls_ids:
-                        filtered_cls_ids.append(int(cls_ids[idx]))
-                    if idx < len(box_labels):
-                        filtered_labels.append(box_labels[idx])
-                    if idx < len(box_colors):
-                        filtered_colors.append(box_colors[idx])
-
-                boxes = np.array(filtered_boxes, dtype=int) if filtered_boxes else np.empty((0, 4), dtype=int)
-                confs = np.array(filtered_confs, dtype=float) if filtered_confs else np.empty((0,), dtype=float)
-                cls_ids = np.array(filtered_cls_ids, dtype=int) if has_cls_ids and filtered_cls_ids else (np.empty((0,), dtype=int) if has_cls_ids else None)
-                box_labels = filtered_labels
-                box_colors = filtered_colors
+            boxes = boxes_payload["boxes"]
+            confs = boxes_payload["confs"]
+            cls_ids = boxes_payload["cls_ids"]
+            box_labels = boxes_payload["box_labels"]
+            box_colors = boxes_payload["box_colors"]
 
             detected_count, class_counts = self._draw_boxes_and_collect_counts(
                 detected,

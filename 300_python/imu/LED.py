@@ -9,7 +9,7 @@ from PIL import Image, ImageDraw, ImageFont
 # mosquitto_pub -t led/text -m "Hello OLED/nWorld"
 # mosquitto_pub -t led/text -m "Hello OLED/nWorld"
 
-class LEDDisplay:
+class LED :
     WIDTH = 128
     HEIGHT = 32
     MARGIN_X = 6
@@ -55,9 +55,9 @@ class LEDDisplay:
         self.oled.image(image)
         self.oled.show()
     pass  # render_lines
-pass # LEDDisplay
+pass # LED
 
-class MqttOledService:
+class LedMqttService:
     BROKER = "localhost"
     PORT = 1883
     TOPIC = "led/text"
@@ -66,7 +66,7 @@ class MqttOledService:
     BLINK_OFF_SEC = 0.2
 
     def __init__(self):
-        self.display = LEDDisplay()
+        self.display = LED()
 
         # paho-mqtt version compatibility
         try:
@@ -157,10 +157,10 @@ class MqttOledService:
         self.client.loop_forever()
     pass  # run
 
-pass # MqttOledService
+pass # LedMqttService
 
 def main():
-    service = MqttOledService()
+    service = LedMqttService()
     service.run()
 pass  # main
 

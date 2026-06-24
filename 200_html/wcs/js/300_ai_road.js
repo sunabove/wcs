@@ -7,6 +7,7 @@ $(function () {
     const $detectedImagePreview = $("#detected-image-preview");
     const $detectedVideoPreview = $("#detected-video-preview");
     const $detectedStreamControls = $("#detected-stream-controls");
+    const $detectedStreamRestartButton = $("#detected-stream-restart");
     const $detectedStreamPauseButton = $("#detected-stream-pause");
     const $detectedStreamResumeButton = $("#detected-stream-resume");
     const $detectedVideoDownloadButton = $("#detected-video-download");
@@ -246,6 +247,7 @@ $(function () {
         const isPlaying = Boolean(state && state.isPlaying);
         const isPaused = Boolean(state && state.isPaused);
         const hasSession = Boolean(state);
+        const canRestart = hasSession && totalFrames > 0;
         const canPause = hasSession && isPlaying && !isPaused;
         const canResume = hasSession && isPaused && !isPlaying;
 
@@ -264,11 +266,15 @@ $(function () {
             $detectedStreamFrameLabel.text("");
         }
 
+        $detectedStreamRestartButton.prop("disabled", !canRestart);
         $detectedStreamPauseButton.prop("disabled", !canPause);
         $detectedStreamResumeButton.prop("disabled", !canResume);
         $detectedStreamFrameInput.prop("disabled", !hasSession);
         $detectedVideoDownloadButton.prop("disabled", !isVideo || !uploadedFileName);
 
+        $detectedStreamRestartButton
+            .toggleClass("btn-outline-primary", canRestart)
+            .toggleClass("btn-outline-secondary", !canRestart);
         $detectedStreamPauseButton
             .toggleClass("btn-outline-primary", canPause)
             .toggleClass("btn-outline-secondary", !canPause);
@@ -276,6 +282,9 @@ $(function () {
             .toggleClass("btn-outline-primary", canResume)
             .toggleClass("btn-outline-secondary", !canResume);
 
+        $detectedStreamRestartButton.find("i")
+            .toggleClass("text-primary", canRestart)
+            .toggleClass("text-muted", !canRestart);
         $detectedStreamPauseButton.find("i")
             .toggleClass("text-primary", canPause)
             .toggleClass("text-muted", !canPause);
@@ -2037,6 +2046,20 @@ $(function () {
         }
 
         pauseFrameStream(uploadedFileName);
+    });
+
+    $detectedStreamRestartButton.on("click", function () {
+        if (!uploadedFileName || !isVideoPath(uploadedFileName)) {
+            return;
+        }
+
+        const state = frameStreamState[uploadedFileName];
+        if (!state) {
+            return;
+        }
+
+        seekFrameStream(uploadedFileName, 1, { autoResume: true });
+        showUploadStatusMessage("처음부터 다시 재생합니다.", true);
     });
 
     $detectedStreamResumeButton.on("click", function () {

@@ -485,7 +485,14 @@ class RoadDetector:
             session['roi'] = roi
 
             # 프레임 감지 처리
-            detected_frame = self.detect_road(frame, detect_type, roi=roi, remove_noisy_masks=remove_noisy_masks)
+            detected_result = self.detect_road(
+                frame,
+                detect_type,
+                roi=roi,
+                remove_noisy_masks=remove_noisy_masks,
+                return_info=True,
+            )
+            detected_frame = detected_result["frame"]
 
             # JPEG로 인코딩
             encoded_ok, encoded = cv2.imencode(".jpg", detected_frame, [int(cv2.IMWRITE_JPEG_QUALITY), 85])
@@ -504,7 +511,8 @@ class RoadDetector:
                 'frame_number': frame_index + 1,
                 'total_frames': frame_count,
                 'frame': frame_b64,
-                'detect_type': detect_type
+                'detect_type': detect_type,
+                'stats': detected_result["stats"],
             }
         except Exception as e:
             print(f"Error in road_detect_stream_next: {e}")
@@ -755,7 +763,23 @@ class RoadDetector:
             session["roi"] = self._clamp_roi(roi, frame_width, frame_height)
             roi = session["roi"]
 
-        detected_frame = self.detect_road(frame, detect_type, roi=roi, remove_noisy_masks=remove_noisy_masks) if detect_enabled else None
+        detect_stats = {
+            "detected_count": 0,
+            "mask_count": 0,
+            "total_mask_count": 0,
+            "class_counts": {},
+        }
+        detected_frame = None
+        if detect_enabled:
+            detected_result = self.detect_road(
+                frame,
+                detect_type,
+                roi=roi,
+                remove_noisy_masks=remove_noisy_masks,
+                return_info=True,
+            )
+            detected_frame = detected_result["frame"]
+            detect_stats = detected_result["stats"]
 
         original_ok, original_encoded = cv2.imencode(".jpg", frame, [int(cv2.IMWRITE_JPEG_QUALITY), 85])
         detected_ok = True
@@ -775,6 +799,7 @@ class RoadDetector:
             "detect_enabled": detect_enabled,
             "frame_original": base64.b64encode(original_encoded.tobytes()).decode("utf-8"),
             "frame_detected": (base64.b64encode(detected_encoded.tobytes()).decode("utf-8") if detected_encoded is not None else None),
+            "stats": detect_stats,
         }
     pass # camera_detect_stream_next
 
@@ -947,7 +972,14 @@ class RoadDetector:
                     if roi is None:
                         roi = self._load_or_create_roi(input_path, frame.shape[1], frame.shape[0])
 
-                    detected_frame = self.detect_road(frame, detect_type, roi=roi, remove_noisy_masks=remove_noisy_masks)
+                    detected_result = self.detect_road(
+                        frame,
+                        detect_type,
+                        roi=roi,
+                        remove_noisy_masks=remove_noisy_masks,
+                        return_info=True,
+                    )
+                    detected_frame = detected_result["frame"]
                     encoded_ok, encoded = cv2.imencode(".jpg", detected_frame, [int(cv2.IMWRITE_JPEG_QUALITY), 80])
                     if not encoded_ok:
                         continue
@@ -1378,7 +1410,7 @@ class RoadDetector:
         return detected
     pass # _render_header
 
-    def detect_road(self, frame, detect_type: str = "road", roi=None, remove_noisy_masks: bool = True):
+    def detect_road(self, frame, detect_type: str = "road", roi=None, remove_noisy_masks: bool = True, return_info: bool = False):
         detect_key = detect_type if detect_type in RoadDetector._model_paths else "road"
         conf = 0.10 if detect_key == "road_type" else 0.20
         infer_key = detect_key
@@ -1517,6 +1549,20 @@ class RoadDetector:
         if showHeader:
             detected = self._render_header(detected, detect_key, detected_count, conf, class_counts, started_at, font_face)
         pass
+
+        stats = {
+            "detect_type": detect_key,
+            "detected_count": int(detected_count),
+            "mask_count": int(mask_count),
+            "total_mask_count": int(total_mask_count),
+            "class_counts": {str(key): int(value) for key, value in class_counts.items()},
+        }
+
+        if return_info:
+            return {
+                "frame": detected,
+                "stats": stats,
+            }
 
         return detected
     pass # detect_road

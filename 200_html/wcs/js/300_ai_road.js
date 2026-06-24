@@ -30,6 +30,9 @@ $(function () {
     const $detectingIndicator = $("#detecting-indicator");
     const $detectTypeInputs = $("input[name='detect-type']");
     const $removeNoisyMasks = $("#remove-noisy-masks");
+    const $showDetectStatsChart = $("#show-detect-stats-chart");
+    const $detectedStatsChartSection = $("#detected-stats-chart-section");
+    const $detectedStatsSummary = $("#detected-stats-summary");
     const $cameraPane = $("#input-camera-pane");
     const $cameraTab = $("#input-camera-tab");
     const $cameraDeviceList = $("#camera-device-list");
@@ -62,6 +65,9 @@ $(function () {
     let draftRoiInfo = null;
     let roiInteraction = null;
     let roiRequestToken = 0;
+    let detectedStatsChart = null;
+    let detectedStatsMode = "video";
+    const CAMERA_STATS_MAX_POINTS = 180;
     const MIN_ROI_SIZE = 20;
 
     if ($dropZone.length === 0 || $fileInput.length === 0 || $uploadedImagePreview.length === 0) {
@@ -292,6 +298,160 @@ $(function () {
         $detectedStreamResumeButton.find("i")
             .toggleClass("text-primary", canResume)
             .toggleClass("text-muted", !canResume);
+
+        updateDetectedStatsChartVisibility();
+    }
+
+    function isDetectStatsChartEnabled() {
+        if ($showDetectStatsChart.length === 0) {
+            return false;
+        }
+        return $showDetectStatsChart.is(":checked");
+    }
+
+    function isDetectedStatsChartTargetActive() {
+        if (cameraStreamState && cameraStreamState.isPlaying) {
+            return true;
+        }
+        return Boolean(uploadedFileName) && isVideoPath(uploadedFileName);
+    }
+
+    function updateDetectedStatsChartVisibility() {
+        if ($detectedStatsChartSection.length === 0) {
+            return;
+        }
+
+        const shouldShow = isDetectStatsChartEnabled() && isDetectedStatsChartTargetActive();
+        $detectedStatsChartSection.toggleClass("d-none", !shouldShow);
+    }
+
+    function ensureDetectedStatsChart() {
+        const canvas = document.getElementById("detected-stats-chart");
+        if (!canvas || typeof Chart === "undefined") {
+            return null;
+        }
+
+        if (detectedStatsChart) {
+            return detectedStatsChart;
+        }
+
+        const chartContext = canvas.getContext("2d");
+        if (!chartContext) {
+            return null;
+        }
+
+        detectedStatsChart = new Chart(chartContext, {
+            type: "line",
+            data: {
+                labels: [],
+                datasets: [
+                    {
+                        label: "검출 개수",
+                        data: [],
+                        borderColor: "#0d6efd",
+                        backgroundColor: "rgba(13, 110, 253, 0.15)",
+                        fill: true,
+                        pointRadius: 0,
+                        tension: 0.18,
+                        borderWidth: 2,
+                    },
+                ],
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: true,
+                        position: "top",
+                    },
+                },
+                scales: {
+                    x: {
+                        title: {
+                            display: true,
+                            text: "프레임",
+                        },
+                    },
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            precision: 0,
+                        },
+                        title: {
+                            display: true,
+                            text: "검출 수",
+                        },
+                    },
+                },
+            },
+        });
+
+        return detectedStatsChart;
+    }
+
+    function resetDetectedStatsChart(mode) {
+        detectedStatsMode = mode === "camera" ? "camera" : "video";
+        const chart = ensureDetectedStatsChart();
+        if (chart) {
+            chart.data.labels = [];
+            chart.data.datasets[0].data = [];
+            chart.update("none");
+        }
+        if ($detectedStatsSummary.length > 0) {
+            $detectedStatsSummary.text("");
+        }
+        updateDetectedStatsChartVisibility();
+    }
+
+    function formatClassCounts(classCounts) {
+        if (!classCounts || typeof classCounts !== "object") {
+            return "";
+        }
+
+        const parts = Object.keys(classCounts).sort().map(function (key) {
+            return key + "(" + String(classCounts[key]) + ")";
+        });
+        return parts.join(", ");
+    }
+
+    function appendDetectedStats(frameNumber, stats) {
+        if (!isDetectStatsChartEnabled()) {
+            return;
+        }
+
+        const chart = ensureDetectedStatsChart();
+        if (!chart) {
+            return;
+        }
+
+        const frameNo = Number(frameNumber || 0);
+        const detectedCount = Number(stats && stats.detected_count ? stats.detected_count : 0);
+        const classCounts = stats && stats.class_counts ? stats.class_counts : {};
+        const maskCount = Number(stats && stats.mask_count ? stats.mask_count : 0);
+        const totalMaskCount = Number(stats && stats.total_mask_count ? stats.total_mask_count : 0);
+
+        chart.data.labels.push(String(frameNo));
+        chart.data.datasets[0].data.push(detectedCount);
+
+        if (detectedStatsMode === "camera" && chart.data.labels.length > CAMERA_STATS_MAX_POINTS) {
+            chart.data.labels.shift();
+            chart.data.datasets[0].data.shift();
+        }
+
+        chart.update("none");
+
+        if ($detectedStatsSummary.length > 0) {
+            const classSummary = formatClassCounts(classCounts);
+            const classText = classSummary ? (" / 클래스: " + classSummary) : "";
+            $detectedStatsSummary.text(
+                "프레임 " + String(frameNo)
+                + " | 검출 " + String(detectedCount)
+                + "개"
+                + " | 마스크 " + String(maskCount) + "/" + String(totalMaskCount)
+                + classText
+            );
+        }
     }
 
     function buildDetectedDownloadFileName(fileName) {
@@ -419,6 +579,7 @@ $(function () {
     function resetPreviewImages() {
         uploadedFileName = "";
         previousFileName = "";
+        resetDetectedStatsChart("video");
         clearRoiEditor();
         updateDetectedStreamControls();
         // 이미지 초기화
@@ -783,6 +944,7 @@ $(function () {
         });
 
         frameStreamState = {};  // 로컬 상태 완전 초기화
+        resetDetectedStatsChart("video");
         updateDetectedStreamControls();
     }
 
@@ -797,6 +959,7 @@ $(function () {
             : null;
 
         cameraStreamState = null;
+        resetDetectedStatsChart("video");
         updateCameraLiveBadges();
 
         if (!previousSessionId) {
@@ -847,6 +1010,8 @@ $(function () {
                 $detectedImagePreview
                     .attr("src", "data:image/jpeg;base64," + result.frame_detected)
                     .removeClass("d-none");
+
+                appendDetectedStats(result.frame_number, result.stats || {});
             }
 
             if (isDetectEnabled) {
@@ -884,6 +1049,7 @@ $(function () {
         setDetectingState(true);
         $detectingIndicator.removeClass("d-none");
         showUploadStatusMessage("카메라 장치를 여는 중...", true);
+        resetDetectedStatsChart("camera");
 
         const detectType = getSelectedDetectType();
         const removeNoisyMasks = getRemoveNoisyMasks();
@@ -1429,6 +1595,7 @@ $(function () {
             method: "POST"
         }).done(function (result) {
             console.log("Stream initialized:", result);
+            resetDetectedStatsChart("video");
             frameStreamState[fileName] = {
                 sessionId: result.session_id,
                 totalFrames: result.total_frames,
@@ -1493,6 +1660,7 @@ $(function () {
 
             currentState.frameIndex = result.frame_number;
             currentState.totalFrames = result.total_frames;
+            appendDetectedStats(result.frame_number, result.stats || {});
             showUploadStatusMessage(
                 "프레임 처리 중... (" + result.frame_number + "/" + currentState.totalFrames + ")",
                 true
@@ -1579,6 +1747,8 @@ $(function () {
             initFrameStream(uploadedFileName, detectType, removeNoisyMasks);
             return;
         }
+
+        resetDetectedStatsChart("video");
 
         // 이미지: 기존 로직
         $.ajax({
@@ -1953,6 +2123,10 @@ $(function () {
         scheduleDetectUpdate();
     });
 
+    $showDetectStatsChart.on("change", function () {
+        updateDetectedStatsChartVisibility();
+    });
+
     $sampleImagePane.on("click", ".sample-image-item", function () {
         const $selectedItem = $(this);
         const selectedFileName = $(this).data("file-name");
@@ -2094,6 +2268,7 @@ $(function () {
         }
 
         seekFrameStream(uploadedFileName, 1, { autoResume: true });
+        resetDetectedStatsChart("video");
         showUploadStatusMessage("처음부터 다시 재생합니다.", true);
     });
 
@@ -2251,4 +2426,5 @@ $(function () {
     });
 
     updateCameraLiveBadges();
+    updateDetectedStatsChartVisibility();
 });

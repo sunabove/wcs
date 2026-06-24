@@ -115,6 +115,10 @@
                                                 <input class="form-check-input" type="checkbox" id="remove-noisy-masks" checked>
                                                 <label class="form-check-label" for="remove-noisy-masks">군더더기 삭제</label>
                                             </div>
+                                            <div class="form-check mb-0 text-nowrap">
+                                                <input class="form-check-input" type="checkbox" id="show-detect-stats-chart" checked>
+                                                <label class="form-check-label" for="show-detect-stats-chart">동영상 검출 통계 차트</label>
+                                            </div>
                                         </div>
                                     </form>
                                 </td>
@@ -302,6 +306,12 @@
                                                             <i class="bi bi-download me-1"></i>다운로드
                                                         </button>
                                                     </div>
+                                                </div>
+                                                <div id="detected-stats-chart-section" class="d-none mt-3">
+                                                    <div class="detected-stats-chart-wrap border rounded p-2">
+                                                        <canvas id="detected-stats-chart" height="140" aria-label="동영상 검출 통계 차트"></canvas>
+                                                    </div>
+                                                    <div id="detected-stats-summary" class="small text-muted mt-2"></div>
                                                 </div>
                                             </div>
                                             <div class="tab-pane fade" id="work-status-pane" role="tabpanel" aria-labelledby="work-status-tab" tabindex="0"></div>

@@ -1,8 +1,7 @@
 import board, busio
 import adafruit_ssd1306
 
-from PIL import Image, ImageDraw, ImageFont
-from LEDService import LEDService
+from PIL import Image, ImageDraw, ImageFont 
 
 # mosquitto_pub -t led/text -m "Hello OLED/nWorld"
 # mosquitto_pub -t led/text -m "Hello OLED/nWorld"
@@ -55,13 +54,8 @@ class LED :
     pass  # render_lines
 pass # LED
 
-def main():
-    display = LED()
-    service = LEDService(display)
-    service.run()
-pass  # main
-
-
 if __name__ == "__main__":
-    main()
-pass # __main__
+    from LEDService import main as led_service_main
+    
+    led_service_main()
+pass

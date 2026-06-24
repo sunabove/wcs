@@ -5,6 +5,7 @@ import threading
 import socket
 import ipaddress
 
+from .LED import LED
 
 class LEDService:
     BROKER = "localhost"
@@ -15,8 +16,8 @@ class LEDService:
     BLINK_OFF_SEC = 0.2
     IP_PUBLISH_DELAY_SEC = 3
 
-    def __init__(self, display):
-        self.display = display
+    def __init__(self, display: LED=None):
+        self.display = display if display is not None else LED()
 
         # paho-mqtt version compatibility
         try:
@@ -154,3 +155,13 @@ class LEDService:
     pass  # run
 
 pass  # LEDService
+
+def main():
+    service = LEDService()
+    service.run()
+pass  # main
+
+
+if __name__ == "__main__":
+    main()
+pass # __main__

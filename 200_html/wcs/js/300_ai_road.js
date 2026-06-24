@@ -1880,10 +1880,26 @@ $(function () {
             return;
         }
 
+        if (isVideoPath(uploadedFileName)) {
+            const state = frameStreamState[uploadedFileName];
+            if (state && state.isPaused) {
+                resumeFrameStream(uploadedFileName);
+                showUploadStatusMessage("프레임 출력을 이어서 재생합니다.", true);
+                return;
+            }
+        }
+
         runDetect();
     });
 
     $detectedImageTab.on("shown.bs.tab", function () {
+        if (uploadedFileName && isVideoPath(uploadedFileName)) {
+            const state = frameStreamState[uploadedFileName];
+            if (state && state.isPaused && !state.isPlaying) {
+                resumeFrameStream(uploadedFileName);
+                showUploadStatusMessage("프레임 출력을 이어서 재생합니다.", true);
+            }
+        }
         updateDetectedStreamControls();
     });
 
@@ -2001,7 +2017,10 @@ $(function () {
 
     $originalImageTab.on("shown.bs.tab", function () {
         if (uploadedFileName && isVideoPath(uploadedFileName)) {
-            stopActiveFrameProcessing();
+            const state = frameStreamState[uploadedFileName];
+            if (state && state.isPlaying && !state.isPaused) {
+                pauseFrameStream(uploadedFileName);
+            }
         }
         syncRoiOverlay();
         updateDetectedStreamControls();

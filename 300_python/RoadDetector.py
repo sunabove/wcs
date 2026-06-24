@@ -1597,7 +1597,7 @@ class RoadDetector:
             if point_items:
                 cur_x = point_items[-1][0][0]
                 bar_color = (0, 230, 255)
-                cv2.rectangle(detected, (cur_x - 1, gy1), (cur_x + 1, gy2), bar_color, cv2.FILLED)
+                cv2.rectangle(detected, (cur_x - 1, gy1 + 1), (cur_x + 1, gy2 -1), bar_color, cv2.FILLED)
 
             y_label = f"Count: {max_detected_count}"
             (_, yth), _ = cv2.getTextSize(y_label, font_face, label_font, label_thickness)

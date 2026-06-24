@@ -1555,10 +1555,12 @@ class RoadDetector:
                 bar_color = (255, 210, 0) if is_detected else (40, 40, 220)
                 cv2.rectangle(detected, (x_left, y), (x_right, gy2), bar_color, cv2.FILLED)
 
-            cv2.putText(detected, f"Ymax:{max_detected_count}", (gx1 + 2, gy1 + 10), font_face, label_font, (220, 220, 220), label_thickness)
+            y_label = f"Ymax:{max_detected_count}"
+            (_, yth), _ = cv2.getTextSize(y_label, font_face, label_font, label_thickness)
+            cv2.putText(detected, y_label, (gx1 + 2, gy1 + yth + 1), font_face, label_font, (220, 220, 220), label_thickness)
             x_label = f"Xmax:{total_frames}"
-            (xtw, xth), _ = cv2.getTextSize(x_label, font_face, label_font, label_thickness)
-            cv2.putText(detected, x_label, (max(gx1 + 2, gx2 - xtw - 2), gy1 + xth + 2), font_face, label_font, (220, 220, 220), label_thickness)
+            (xtw, _), _ = cv2.getTextSize(x_label, font_face, label_font, label_thickness)
+            cv2.putText(detected, x_label, (max(gx1 + 2, gx2 - xtw - 2), gy2 - 2), font_face, label_font, (220, 220, 220), label_thickness)
         else:
             points = stats_history.get("points") if isinstance(stats_history.get("points"), list) else []
             if len(points) <= 1:
@@ -1580,10 +1582,12 @@ class RoadDetector:
                 bar_color = (255, 210, 0) if is_detected else (40, 40, 220)
                 cv2.rectangle(detected, (bx1, y), (bx2, gy2), bar_color, cv2.FILLED)
 
-            cv2.putText(detected, f"Ymax:{max_detected_count}", (gx1 + 2, gy1 + 10), font_face, label_font, (220, 220, 220), label_thickness)
+            y_label = f"Ymax:{max_detected_count}"
+            (_, yth), _ = cv2.getTextSize(y_label, font_face, label_font, label_thickness)
+            cv2.putText(detected, y_label, (gx1 + 2, gy1 + yth + 1), font_face, label_font, (220, 220, 220), label_thickness)
             x_label = f"Xmax:{point_count}"
-            (xtw, xth), _ = cv2.getTextSize(x_label, font_face, label_font, label_thickness)
-            cv2.putText(detected, x_label, (max(gx1 + 2, gx2 - xtw - 2), gy1 + xth + 2), font_face, label_font, (220, 220, 220), label_thickness)
+            (xtw, _), _ = cv2.getTextSize(x_label, font_face, label_font, label_thickness)
+            cv2.putText(detected, x_label, (max(gx1 + 2, gx2 - xtw - 2), gy2 - 2), font_face, label_font, (220, 220, 220), label_thickness)
 
         return detected
     pass # _render_bottom_stats_overlay

@@ -1531,6 +1531,8 @@ class RoadDetector:
             def value_to_y(value):
                 return int(round(gy2 - (max(0, int(value)) / float(scale_max)) * y_span))
 
+            non_detect_top_y = value_to_y(max_detected_count)
+
             slot_step = 2
             slot_count = max(1, (gx2 - gx1 + 1) // slot_step)
             values = np.zeros((slot_count,), dtype=np.int32)
@@ -1552,10 +1554,10 @@ class RoadDetector:
                 x = gx1 + slot_idx * slot_step
                 value_int = int(slot_value)
                 if value_int <= 0:
-                    # Non-detected regions are drawn as max-height red bars.
+                    # Non-detected regions are drawn as red bars up to detected max level.
                     cv2.rectangle(
                         detected,
-                        (max(gx1, x - bar_half), gy1),
+                        (max(gx1, x - bar_half), non_detect_top_y),
                         (min(gx2, x + bar_half), gy2),
                         (0, 0, 255),
                         cv2.FILLED,
@@ -1592,6 +1594,7 @@ class RoadDetector:
             total_series = [int(item.get("detected_count", 0)) for item in points]
             max_detected_count = max([0] + total_series)
             scale_max = max(1, int(np.ceil(max_detected_count * 1.2)))
+            non_detect_top_y = int(round(gy2 - (max(0, max_detected_count) / float(scale_max)) * y_span))
             point_count = len(total_series)
 
             slot_step = max(2, int((gx2 - gx1 + 1) / max(1, point_count)))
@@ -1605,10 +1608,10 @@ class RoadDetector:
 
                 value_int = int(value)
                 if value_int <= 0:
-                    # Non-detected regions are drawn as max-height red bars.
+                    # Non-detected regions are drawn as red bars up to detected max level.
                     cv2.rectangle(
                         detected,
-                        (max(gx1, x - bar_half), gy1),
+                        (max(gx1, x - bar_half), non_detect_top_y),
                         (min(gx2, x + bar_half), gy2),
                         (0, 0, 255),
                         cv2.FILLED,

@@ -1760,10 +1760,7 @@ class RoadDetector:
         if detected_count == 0:
             detected_count = mask_count
 
-        showHeader = not bool(show_detect_stats)
-        if showHeader:
-            detected = self._render_header(detected, detect_key, detected_count, conf, class_counts, started_at, font_face)
-        pass
+        detected = self._render_header(detected, detect_key, detected_count, conf, class_counts, started_at, font_face)
 
         stats = {
             "detect_type": detect_key,

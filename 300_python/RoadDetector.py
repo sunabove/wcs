@@ -1544,18 +1544,24 @@ class RoadDetector:
                 values[slot_idx] = max(values[slot_idx], int(value))
 
             point_items = []
+            bar_half = max(1, int(round(slot_step / 2.0)) - 1)
             for slot_idx, slot_value in enumerate(values.tolist()):
                 if not bool(attempted[slot_idx]):
                     continue
-                x = gx1 + slot_idx * slot_step
-                y = value_to_y(slot_value)
-                point_items.append(((x, y), int(slot_value)))
 
-            for idx in range(1, len(point_items)):
-                cv2.line(detected, point_items[idx - 1][0], point_items[idx][0], (255, 210, 0), 1)
-            for point, value in point_items:
-                if value > 0:
-                    cv2.circle(detected, point, 1, (255, 210, 0), cv2.FILLED)
+                x = gx1 + slot_idx * slot_step
+                value_int = int(slot_value)
+                # Non-detected regions are drawn as max-height bars.
+                bar_top = gy1 if value_int <= 0 else value_to_y(value_int)
+                bar_color = (0, 0, 255) if value_int <= 0 else (255, 210, 0)
+                cv2.rectangle(
+                    detected,
+                    (max(gx1, x - bar_half), bar_top),
+                    (min(gx2, x + bar_half), gy2),
+                    bar_color,
+                    cv2.FILLED,
+                )
+                point_items.append(((x, bar_top), value_int))
 
             # Highlight current frame as a full-height bar.
             if frame_number is not None and total_frames > 1:
@@ -1581,17 +1587,26 @@ class RoadDetector:
             point_count = len(total_series)
 
             slot_step = max(2, int((gx2 - gx1 + 1) / max(1, point_count)))
+            bar_half = max(1, int(round(slot_step / 2.0)) - 1)
             point_items = []
             for idx, value in enumerate(total_series):
-                x = int(round(gx1 + (idx / float(point_count - 1)) * x_span))
-                y = int(round(gy2 - (max(0, value) / float(scale_max)) * y_span))
-                point_items.append(((x, y), int(value)))
+                if point_count <= 1:
+                    x = gx1
+                else:
+                    x = int(round(gx1 + (idx / float(point_count - 1)) * x_span))
 
-            for idx in range(1, len(point_items)):                
-                cv2.line(detected, point_items[idx - 1][0], point_items[idx][0], (255, 210, 0), 1)
-            for point, value in point_items:
-                if value > 0:
-                    cv2.circle(detected, point, 1, (255, 210, 0), cv2.FILLED)
+                value_int = int(value)
+                # Non-detected regions are drawn as max-height bars.
+                bar_top = gy1 if value_int <= 0 else int(round(gy2 - (max(0, value_int) / float(scale_max)) * y_span))
+                bar_color = (0, 0, 255) if value_int <= 0 else (255, 210, 0)
+                cv2.rectangle(
+                    detected,
+                    (max(gx1, x - bar_half), bar_top),
+                    (min(gx2, x + bar_half), gy2),
+                    bar_color,
+                    cv2.FILLED,
+                )
+                point_items.append(((x, bar_top), value_int))
 
             # Highlight current (last) frame as a full-height bar.
             if point_items:

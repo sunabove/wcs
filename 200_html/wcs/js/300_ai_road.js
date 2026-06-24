@@ -1882,9 +1882,11 @@ $(function () {
 
         if (isVideoPath(uploadedFileName)) {
             const state = frameStreamState[uploadedFileName];
-            if (state && state.isPaused) {
-                resumeFrameStream(uploadedFileName);
-                showUploadStatusMessage("프레임 출력을 이어서 재생합니다.", true);
+            if (state) {
+                if (state.isPaused) {
+                    resumeFrameStream(uploadedFileName);
+                    showUploadStatusMessage("프레임 출력을 이어서 재생합니다.", true);
+                }
                 return;
             }
         }
@@ -1999,7 +2001,10 @@ $(function () {
             return;
         }
 
-        stopActiveFrameProcessing();
+        const state = frameStreamState[uploadedFileName];
+        if (state && state.isPlaying && !state.isPaused) {
+            pauseFrameStream(uploadedFileName);
+        }
     });
 
     $(window).on("resize", function () {

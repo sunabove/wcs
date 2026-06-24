@@ -3,6 +3,9 @@ import paho.mqtt.client as mqtt
 import adafruit_ssd1306
 import datetime
 import time
+import threading
+import socket
+import ipaddress
 
 from PIL import Image, ImageDraw, ImageFont
 
@@ -64,6 +67,7 @@ class LedMqttService:
     BLINK_COUNT = 2
     BLINK_ON_SEC = 0.2
     BLINK_OFF_SEC = 0.2
+    IP_PUBLISH_DELAY_SEC = 3
 
     def __init__(self):
         self.display = LED()
@@ -95,8 +99,7 @@ class LedMqttService:
         self._render(lines)
     pass  # _blink_and_render
 
-    @staticmethod
-    def _normalize_newlines(text):
+    def _normalize_newlines(self, text):
         normalized = str(text)
         # Handle slash-style and escaped newline representations.
         normalized = normalized.replace("/r/n", "\n")
@@ -111,10 +114,12 @@ class LedMqttService:
         client.subscribe(self.TOPIC)
         self._render(["Waiting MQTT"])
         self._publish_boot_time()
+        timer = threading.Timer(self.IP_PUBLISH_DELAY_SEC, self._publish_ip_if_ready)
+        timer.daemon = True
+        timer.start()
     pass  # _on_connect
 
-    @staticmethod
-    def _read_boot_epoch():
+    def _read_boot_epoch(self):
         try:
             with open("/proc/stat", "r", encoding="utf-8") as fp:
                 for line in fp:
@@ -133,6 +138,51 @@ class LedMqttService:
         self.client.publish("led/text", payload, qos=0, retain=True)
         print(f"MQTT pub: led/text -> {payload}")
     pass  # _publish_boot_time
+
+    def _get_primary_ipv4(self):
+        candidates = []
+
+        try:
+            hostname = socket.gethostname()
+            for info in socket.getaddrinfo(hostname, None, socket.AF_INET):
+                ip = info[4][0]
+                candidates.append(ip)
+        except Exception:
+            pass
+
+        try:
+            with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
+                sock.connect(("8.8.8.8", 80))
+                candidates.append(sock.getsockname()[0])
+        except Exception:
+            pass
+
+        for ip in candidates:
+            try:
+                ip_obj = ipaddress.ip_address(ip)
+                if (
+                    ip_obj.version == 4
+                    and not ip_obj.is_loopback
+                    and not ip_obj.is_link_local
+                    and not ip_obj.is_unspecified
+                ):
+                    return str(ip_obj)
+            except ValueError:
+                continue
+
+        return None
+    pass  # _get_primary_ipv4
+
+    def _publish_ip_if_ready(self):
+        ip_addr = self._get_primary_ipv4()
+        if not ip_addr:
+            print("MQTT pub skip: IP address is not ready")
+            return
+
+        payload = f"IP Address:/n{ip_addr}"
+        self.client.publish("led/text", payload, qos=0, retain=True)
+        print(f"MQTT pub: led/text -> {payload}")
+    pass  # _publish_ip_if_ready
 
     def _on_message(self, client, userdata, msg):
         payload = msg.payload.decode("utf-8", errors="ignore").strip()

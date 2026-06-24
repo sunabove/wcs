@@ -92,13 +92,19 @@ pass # camera_devices_service
 async def camera_detect_stream_init_service(
     camera_index: int = Query(..., ge=0, le=64),
     detect_type: str = Query("road"),
-    camera_name: str = Query("")
+    camera_name: str = Query(""),
+    remove_noisy_masks: bool = Query(True),
 ):
     from RoadDetector import RoadDetector
 
     detector = RoadDetector()
 
-    return detector.camera_detect_stream_init(camera_index=camera_index, detect_type=detect_type, camera_name=camera_name)
+    return detector.camera_detect_stream_init(
+        camera_index=camera_index,
+        detect_type=detect_type,
+        camera_name=camera_name,
+        remove_noisy_masks=remove_noisy_masks,
+    )
 pass # camera_detect_stream_init_service
 
 
@@ -174,13 +180,14 @@ pass # camera_detect_stream_cleanup_all_service
 @router.get("/road_detect/{file_name:path}")
 async def road_detect_service(
     file_name: str,
-    detect_type: str = Query("road")
+    detect_type: str = Query("road"),
+    remove_noisy_masks: bool = Query(True),
 ):
     from RoadDetector import RoadDetector
 
     detector = RoadDetector()
 
-    return detector.road_detect_service(file_name, detect_type)
+    return detector.road_detect_service(file_name, detect_type, remove_noisy_masks)
 pass # road_detect_service
 
 @router.get("/road_roi/{file_name:path}")
@@ -207,25 +214,27 @@ pass # road_roi_save_service
 @router.get("/road_detect_stream/{file_name:path}")
 async def road_detect_stream_service(
     file_name: str,
-    detect_type: str = Query("road")
+    detect_type: str = Query("road"),
+    remove_noisy_masks: bool = Query(True),
 ):
     from RoadDetector import RoadDetector
 
     detector = RoadDetector()
 
-    return detector.road_detect_stream(file_name, detect_type)
+    return detector.road_detect_stream(file_name, detect_type, remove_noisy_masks)
 pass # road_detect_stream_service
 
 @router.post("/road_detect_stream_init/{file_name:path}")
 async def road_detect_stream_init_service(
     file_name: str,
-    detect_type: str = Query("road")
+    detect_type: str = Query("road"),
+    remove_noisy_masks: bool = Query(True),
 ):
     from RoadDetector import RoadDetector
 
     detector = RoadDetector()
 
-    return detector.road_detect_stream_init(file_name, detect_type)
+    return detector.road_detect_stream_init(file_name, detect_type, remove_noisy_masks)
 pass # road_detect_stream_init_service
 
 @router.get("/road_detect_stream_next/{file_name:path}")

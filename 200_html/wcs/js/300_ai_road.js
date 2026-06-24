@@ -29,6 +29,7 @@ $(function () {
     const $uploadStatusMessage = $("#work-status-message");
     const $detectingIndicator = $("#detecting-indicator");
     const $detectTypeInputs = $("input[name='detect-type']");
+    const $removeNoisyMasks = $("#remove-noisy-masks");
     const $cameraPane = $("#input-camera-pane");
     const $cameraTab = $("#input-camera-tab");
     const $cameraDeviceList = $("#camera-device-list");
@@ -328,6 +329,7 @@ $(function () {
         cleanupAllFrameStreams();
 
         const detectType = getSelectedDetectType();
+        const removeNoisyMasks = getRemoveNoisyMasks();
         showUploadStatusMessage("전체 동영상 검출 파일 생성 중...", true);
         setDetectingState(true);
         $detectingIndicator.removeClass("d-none");
@@ -335,7 +337,10 @@ $(function () {
 
         $.ajax({
             url: buildRoadDetectUrl(fileName),
-            data: { detect_type: detectType },
+            data: {
+                detect_type: detectType,
+                remove_noisy_masks: removeNoisyMasks,
+            },
             method: "GET"
         }).done(function (result) {
             if (!result || !result.image_url) {
@@ -370,6 +375,7 @@ $(function () {
         }
 
         const detectType = getSelectedDetectType();
+        const removeNoisyMasks = getRemoveNoisyMasks();
         showUploadStatusMessage("검출 이미지 생성 중...", true);
         setDetectingState(true);
         $detectingIndicator.removeClass("d-none");
@@ -377,7 +383,10 @@ $(function () {
 
         $.ajax({
             url: buildRoadDetectUrl(fileName),
-            data: { detect_type: detectType },
+            data: {
+                detect_type: detectType,
+                remove_noisy_masks: removeNoisyMasks,
+            },
             method: "GET"
         }).done(function (result) {
             if (!result || !result.image_url) {
@@ -438,6 +447,13 @@ $(function () {
         return selected || "road";
     }
 
+    function getRemoveNoisyMasks() {
+        if ($removeNoisyMasks.length === 0) {
+            return true;
+        }
+        return $removeNoisyMasks.is(":checked");
+    }
+
     function getValidPercent($input, fallbackValue) {
         if (!$input || $input.length === 0) {
             return fallbackValue;
@@ -490,15 +506,22 @@ $(function () {
         return "/fast/road_roi/" + encodePathForRoute(fileName);
     }
 
-    function buildRoadDetectStreamUrl(fileName, detectType) {
+    function buildRoadDetectStreamUrl(fileName, detectType, removeNoisyMasks) {
         const base = "/fast/road_detect_stream/" + encodePathForRoute(fileName);
-        const query = $.param({ detect_type: detectType || "road", t: Date.now() });
+        const query = $.param({
+            detect_type: detectType || "road",
+            remove_noisy_masks: removeNoisyMasks !== false,
+            t: Date.now(),
+        });
         return base + "?" + query;
     }
 
-    function buildRoadDetectStreamInitUrl(fileName, detectType) {
+    function buildRoadDetectStreamInitUrl(fileName, detectType, removeNoisyMasks) {
         const base = "/fast/road_detect_stream_init/" + encodePathForRoute(fileName);
-        const query = $.param({ detect_type: detectType || "road" });
+        const query = $.param({
+            detect_type: detectType || "road",
+            remove_noisy_masks: removeNoisyMasks !== false,
+        });
         return base + "?" + query;
     }
 
@@ -519,11 +542,12 @@ $(function () {
         return "/fast/camera/devices";
     }
 
-    function buildCameraDetectStreamInitUrl(cameraIndex, detectType, cameraName) {
+    function buildCameraDetectStreamInitUrl(cameraIndex, detectType, cameraName, removeNoisyMasks) {
         return "/fast/camera_detect_stream_init?" + $.param({
             camera_index: cameraIndex,
             detect_type: detectType || "road",
             camera_name: String(cameraName || ""),
+            remove_noisy_masks: removeNoisyMasks !== false,
         });
     }
 
@@ -862,8 +886,9 @@ $(function () {
         showUploadStatusMessage("카메라 장치를 여는 중...", true);
 
         const detectType = getSelectedDetectType();
+        const removeNoisyMasks = getRemoveNoisyMasks();
         $.ajax({
-            url: buildCameraDetectStreamInitUrl(cameraIndex, detectType, cameraName),
+            url: buildCameraDetectStreamInitUrl(cameraIndex, detectType, cameraName, removeNoisyMasks),
             method: "POST",
         }).done(function (result) {
             cameraStreamState = {
@@ -871,6 +896,7 @@ $(function () {
                 cameraIndex: Number(result.camera_index || cameraIndex),
                 cameraName: String(cameraName || ("Camera " + cameraIndex)),
                 detectType: detectType,
+                removeNoisyMasks: removeNoisyMasks,
                 fps: Number(result.fps || 20),
                 detectEnabled: result.detect_enabled !== false,
                 isPlaying: true,
@@ -1388,7 +1414,7 @@ $(function () {
         }, false);
     }
 
-    function initFrameStream(fileName, detectType) {
+    function initFrameStream(fileName, detectType, removeNoisyMasks) {
         // 이미 활성인 세션이 있으면 정리
         if (frameStreamState[fileName]) {
             if (frameTimerMap[fileName]) {
@@ -1399,7 +1425,7 @@ $(function () {
         }
 
         $.ajax({
-            url: buildRoadDetectStreamInitUrl(fileName, detectType),
+            url: buildRoadDetectStreamInitUrl(fileName, detectType, removeNoisyMasks),
             method: "POST"
         }).done(function (result) {
             console.log("Stream initialized:", result);
@@ -1408,6 +1434,7 @@ $(function () {
                 totalFrames: result.total_frames,
                 fps: result.fps,
                 detectType: detectType,
+                removeNoisyMasks: removeNoisyMasks,
                 frameIndex: 0,
                 isPlaying: true,
                 isPaused: false
@@ -1539,6 +1566,7 @@ $(function () {
         }
 
         const detectType = getSelectedDetectType();
+        const removeNoisyMasks = getRemoveNoisyMasks();
         showUploadStatusMessage("도로 검출 중...", true);
         hideImageAndVideo($detectedImagePreview, $detectedVideoPreview);
         setDetectingState(true);
@@ -1548,14 +1576,17 @@ $(function () {
             // 모든 이전 스트리밍 세션 정리
             cleanupAllFrameStreams();
             // 비디오: 프레임별 스트리밍 시작
-            initFrameStream(uploadedFileName, detectType);
+            initFrameStream(uploadedFileName, detectType, removeNoisyMasks);
             return;
         }
 
         // 이미지: 기존 로직
         $.ajax({
             url: buildRoadDetectUrl(uploadedFileName),
-            data: { detect_type: detectType },
+            data: {
+                detect_type: detectType,
+                remove_noisy_masks: removeNoisyMasks,
+            },
             method: "GET"
         }).done(function (result) {
             if (result && result.image_url) {
@@ -1918,6 +1949,10 @@ $(function () {
         scheduleDetectUpdate();
     });
 
+    $removeNoisyMasks.on("change", function () {
+        scheduleDetectUpdate();
+    });
+
     $sampleImagePane.on("click", ".sample-image-item", function () {
         const $selectedItem = $(this);
         const selectedFileName = $(this).data("file-name");
@@ -2200,6 +2235,14 @@ $(function () {
     });
 
     $detectTypeInputs.on("change.cameraLive", function () {
+        if (!cameraStreamState || !cameraStreamState.isPlaying) {
+            return;
+        }
+
+        startCameraLiveStream(cameraStreamState.cameraIndex, cameraStreamState.cameraName);
+    });
+
+    $removeNoisyMasks.on("change.cameraLive", function () {
         if (!cameraStreamState || !cameraStreamState.isPlaying) {
             return;
         }

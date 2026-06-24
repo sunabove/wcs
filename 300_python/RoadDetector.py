@@ -294,7 +294,7 @@ class RoadDetector:
             "roi_file": roi_path.name,
         }
 
-    def road_detect_service(self, file_name: str, detect_type: str = "road") -> dict:
+    def road_detect_service(self, file_name: str, detect_type: str = "road", remove_noisy_masks: bool = True) -> dict:
         input_path = resolve_upload_image_path(file_name)
         if not input_path.exists() or not input_path.is_file():
             raise HTTPException(status_code=404, detail="Input file not found")
@@ -309,13 +309,13 @@ class RoadDetector:
                 raise HTTPException(status_code=400, detail="Failed to read image file")
 
             roi = self._load_or_create_roi(input_path, input_image.shape[1], input_image.shape[0])
-            detected_image = self.detect_road(input_image, detect_type, roi=roi)
+            detected_image = self.detect_road(input_image, detect_type, roi=roi, remove_noisy_masks=remove_noisy_masks)
             if not cv2.imwrite(str(output_path), detected_image):
                 raise HTTPException(status_code=500, detail="Failed to write output image")
         elif suffix in self.video_ext:
             # Use MP4 container to ensure browser-compatible H.264 playback.
             output_path = input_path.with_name(f"{stem}_detected.mp4")
-            self.detect_video(input_path, output_path, detect_type)
+            self.detect_video(input_path, output_path, detect_type, remove_noisy_masks)
         else:
             raise HTTPException(status_code=400, detail="Only image/video files are supported")
 
@@ -330,7 +330,7 @@ class RoadDetector:
         }
     pass # road_detect_service
 
-    def detect_video(self, input_path: Path, output_path: Path, detect_type: str) -> None:
+    def detect_video(self, input_path: Path, output_path: Path, detect_type: str, remove_noisy_masks: bool = True) -> None:
         capture = cv2.VideoCapture(str(input_path))
         if not capture.isOpened():
             raise HTTPException(status_code=400, detail="Failed to read video file")
@@ -357,7 +357,7 @@ class RoadDetector:
                 if roi is None:
                     roi = self._load_or_create_roi(input_path, frame.shape[1], frame.shape[0])
 
-                detected_frame = self.detect_road(frame, detect_type, roi=roi)
+                detected_frame = self.detect_road(frame, detect_type, roi=roi, remove_noisy_masks=remove_noisy_masks)
 
                 if writer is None:
                     h, w = detected_frame.shape[:2]
@@ -393,7 +393,7 @@ class RoadDetector:
             raise HTTPException(status_code=500, detail="Failed to write output video")
     pass # detect_video
 
-    def road_detect_stream_init(self, file_name: str, detect_type: str = "road") -> dict:
+    def road_detect_stream_init(self, file_name: str, detect_type: str = "road", remove_noisy_masks: bool = True) -> dict:
         """비디오 스트리밍 세션 초기화"""
         input_path = resolve_upload_image_path(file_name)
         if not input_path.exists() or not input_path.is_file():
@@ -430,6 +430,7 @@ class RoadDetector:
             'frame_count': frame_count,
             'fps': fps,
             'detect_type': detect_type,
+            'remove_noisy_masks': bool(remove_noisy_masks),
             'file_name': file_name,
             'input_path': input_path,
             'roi': self._load_or_create_roi(
@@ -464,6 +465,7 @@ class RoadDetector:
             session = RoadDetector._stream_sessions[session_id]
             capture = session['capture']
             detect_type = session['detect_type']
+            remove_noisy_masks = bool(session.get('remove_noisy_masks', True))
             frame_index = session['frame_index']
             frame_count = session['frame_count']
             roi = session.get('roi')
@@ -483,7 +485,7 @@ class RoadDetector:
                 session['roi'] = roi
 
             # 프레임 감지 처리
-            detected_frame = self.detect_road(frame, detect_type, roi=roi)
+            detected_frame = self.detect_road(frame, detect_type, roi=roi, remove_noisy_masks=remove_noisy_masks)
 
             # JPEG로 인코딩
             encoded_ok, encoded = cv2.imencode(".jpg", detected_frame, [int(cv2.IMWRITE_JPEG_QUALITY), 85])
@@ -658,7 +660,7 @@ class RoadDetector:
         x1, y1, x2, y2 = [int(v) for v in roi]
         roi_path.write_text(f"{x1},{y1},{x2},{y2}\n", encoding="utf-8")
 
-    def camera_detect_stream_init(self, camera_index: int, detect_type: str = "road", camera_name: str = "") -> dict:
+    def camera_detect_stream_init(self, camera_index: int, detect_type: str = "road", camera_name: str = "", remove_noisy_masks: bool = True) -> dict:
         session_id = f"camera_{camera_index}"
 
         if session_id in RoadDetector._camera_stream_sessions:
@@ -689,6 +691,7 @@ class RoadDetector:
             "frame_index": 0,
             "fps": fps,
             "detect_type": detect_type,
+            "remove_noisy_masks": bool(remove_noisy_masks),
             "detect_enabled": True,
             "camera_index": int(camera_index),
             "camera_name": resolved_camera_name,
@@ -726,6 +729,7 @@ class RoadDetector:
         session = RoadDetector._camera_stream_sessions[session_id]
         capture = session["capture"]
         detect_type = session.get("detect_type", "road")
+        remove_noisy_masks = bool(session.get("remove_noisy_masks", True))
         detect_enabled = bool(session.get("detect_enabled", True))
 
         ok, frame = capture.read()
@@ -751,7 +755,7 @@ class RoadDetector:
             session["roi"] = self._clamp_roi(roi, frame_width, frame_height)
             roi = session["roi"]
 
-        detected_frame = self.detect_road(frame, detect_type, roi=roi) if detect_enabled else None
+        detected_frame = self.detect_road(frame, detect_type, roi=roi, remove_noisy_masks=remove_noisy_masks) if detect_enabled else None
 
         original_ok, original_encoded = cv2.imencode(".jpg", frame, [int(cv2.IMWRITE_JPEG_QUALITY), 85])
         detected_ok = True
@@ -919,7 +923,7 @@ class RoadDetector:
         }
     pass # camera_detect_stream_cleanup_all
 
-    def road_detect_stream(self, file_name: str, detect_type: str = "road") -> StreamingResponse:
+    def road_detect_stream(self, file_name: str, detect_type: str = "road", remove_noisy_masks: bool = True) -> StreamingResponse:
         """(레거시) 연속 MJPEG 스트리밍 - 하위호환성 유지"""
         input_path = resolve_upload_image_path(file_name)
         if not input_path.exists() or not input_path.is_file():
@@ -943,7 +947,7 @@ class RoadDetector:
                     if roi is None:
                         roi = self._load_or_create_roi(input_path, frame.shape[1], frame.shape[0])
 
-                    detected_frame = self.detect_road(frame, detect_type, roi=roi)
+                    detected_frame = self.detect_road(frame, detect_type, roi=roi, remove_noisy_masks=remove_noisy_masks)
                     encoded_ok, encoded = cv2.imencode(".jpg", detected_frame, [int(cv2.IMWRITE_JPEG_QUALITY), 80])
                     if not encoded_ok:
                         continue
@@ -1319,13 +1323,17 @@ class RoadDetector:
         return detected
     pass # _render_header
 
-    def detect_road(self, frame, detect_type: str = "road", roi=None):
+    def detect_road(self, frame, detect_type: str = "road", roi=None, remove_noisy_masks: bool = True):
         detect_key = detect_type if detect_type in RoadDetector._model_paths else "road"
         conf = 0.10 if detect_key == "road_type" else 0.20
         infer_key = detect_key
         font_face = cv2.FONT_HERSHEY_SIMPLEX
-        min_mask_area_ratio = 0.001  # Exclude masks smaller than 0.1% of frame area.
-        min_mask_area_pixels = 64
+        if remove_noisy_masks:
+            min_mask_area_ratio = 0.001  # Exclude masks smaller than 0.1% of frame area.
+            min_mask_area_pixels = 64
+        else:
+            min_mask_area_ratio = 0.0
+            min_mask_area_pixels = 0
 
         # Build ROI image first and run detection on the ROI image itself.
         inference_roi = None

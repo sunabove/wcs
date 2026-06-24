@@ -20,7 +20,7 @@ class RoadDetector:
     _model_paths = {
         "road": Path(__file__).resolve().parent / "ai/road/model/01_yolo11m-road-sg.pt",
         "road_type": Path(__file__).resolve().parent / "ai/road/model/02_yolo11m-road-type-sg.pt",
-        "pothole": Path(__file__).resolve().parent / "ai/road/model/03_yolo11m-pothole-sg.pt",
+        "pothole": Path(__file__).resolve().parent / "ai/road/model/04_yolo11m-pothole-sg.pt",
     }
     _models = {}
     _stream_sessions = {}  # {session_id: {capture, frame_count, fps, detect_type, file_name, input_path, roi}}

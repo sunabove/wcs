@@ -49,16 +49,24 @@ class LED :
 
         line_boxes = [draw.textbbox((0, 0), line, font=self.font) for line in visible_lines]
         line_heights = [box[3] - box[1] for box in line_boxes]
+        line_count = len(visible_lines)
+        usable_height = self.height - (2 * self.margin_y)
+        if line_count > 1:
+            available_gap = usable_height - sum(line_heights)
+            line_spacing = min(self.line_gap, max(0, available_gap // (line_count - 1)))
+        else:
+            line_spacing = 0
+
         total_text_height = sum(line_heights)
-        if len(visible_lines) > 1:
-            total_text_height += (len(visible_lines) - 1) * self.line_gap
+        if line_count > 1:
+            total_text_height += (line_count - 1) * line_spacing
 
         start_y = max(self.margin_y, (self.height - total_text_height) // 2)
 
         y = start_y
         for line, box, line_height in zip(visible_lines, line_boxes, line_heights):
             draw.text((self.margin_x, y - box[1]), line, font=self.font, fill=255)
-            y += line_height + self.line_gap
+            y += line_height + line_spacing
 
         self.oled.image(image)
         self.oled.show()

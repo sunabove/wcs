@@ -354,12 +354,15 @@ class RoadDetector:
         writer = None
         target_size = None
         roi = None
-        stats_history = []
+        stats_history = {}
+        frame_count = int(capture.get(cv2.CAP_PROP_FRAME_COUNT) or 0)
+        current_frame_no = 0
         try:
             while True:
                 ok, frame = capture.read()
                 if not ok:
                     break
+                current_frame_no += 1
 
                 if roi is None:
                     roi = self._load_or_create_roi(input_path, frame.shape[1], frame.shape[0])
@@ -371,6 +374,8 @@ class RoadDetector:
                     remove_noisy_masks=remove_noisy_masks,
                     show_detect_stats=show_detect_stats,
                     stats_history=stats_history,
+                    frame_number=current_frame_no,
+                    total_frames=frame_count,
                     return_info=True,
                 )
                 detected_frame = detected_result["frame"]
@@ -450,7 +455,7 @@ class RoadDetector:
             'show_detect_stats': bool(show_detect_stats),
             'file_name': file_name,
             'input_path': input_path,
-            'stats_history': [],
+            'stats_history': {},
             'roi': self._load_or_create_roi(
                 input_path,
                 int(capture.get(cv2.CAP_PROP_FRAME_WIDTH)),
@@ -512,6 +517,8 @@ class RoadDetector:
                 remove_noisy_masks=remove_noisy_masks,
                 show_detect_stats=show_detect_stats,
                 stats_history=stats_history,
+                frame_number=frame_index + 1,
+                total_frames=frame_count,
                 return_info=True,
             )
             detected_frame = detected_result["frame"]
@@ -726,7 +733,7 @@ class RoadDetector:
             "detect_enabled": True,
             "camera_index": int(camera_index),
             "camera_name": resolved_camera_name,
-            "stats_history": [],
+            "stats_history": {},
             "roi_file": camera_roi_path.name,
             "roi_path": str(camera_roi_path),
             "frame_width": frame_width,
@@ -798,6 +805,7 @@ class RoadDetector:
                 remove_noisy_masks=remove_noisy_masks,
                 show_detect_stats=show_detect_stats,
                 stats_history=stats_history,
+                frame_number=int(session.get("frame_index", 0)) + 1,
                 return_info=True,
             )
             detected_frame = detected_result["frame"]
@@ -983,12 +991,15 @@ class RoadDetector:
 
         def generate():
             roi = None
-            stats_history = []
+            stats_history = {}
+            total_frames = int(capture.get(cv2.CAP_PROP_FRAME_COUNT) or 0)
+            frame_number = 0
             try:
                 while True:
                     ok, frame = capture.read()
                     if not ok:
                         break
+                    frame_number += 1
 
                     if roi is None:
                         roi = self._load_or_create_roi(input_path, frame.shape[1], frame.shape[0])
@@ -1000,6 +1011,8 @@ class RoadDetector:
                         remove_noisy_masks=remove_noisy_masks,
                         show_detect_stats=show_detect_stats,
                         stats_history=stats_history,
+                        frame_number=frame_number,
+                        total_frames=total_frames,
                         return_info=True,
                     )
                     detected_frame = detected_result["frame"]
@@ -1433,17 +1446,43 @@ class RoadDetector:
         return detected
     pass # _render_header
 
-    def _append_stats_history(self, stats_history, stats, max_points: int = 120):
+    def _append_stats_history(self, stats_history, stats, frame_number=None, total_frames=None, max_points: int = 120):
         if stats_history is None:
-            return []
+            return {
+                "mode": "rolling",
+                "points": [],
+            }
 
         item = {
             "detected_count": int(stats.get("detected_count", 0)),
             "class_counts": {str(k): int(v) for k, v in (stats.get("class_counts") or {}).items()},
         }
-        stats_history.append(item)
-        if len(stats_history) > int(max_points):
-            del stats_history[: len(stats_history) - int(max_points)]
+
+        if not isinstance(stats_history, dict):
+            stats_history = {}
+
+        use_timeline = total_frames is not None and int(total_frames) > 0 and frame_number is not None
+        if use_timeline:
+            stats_history.setdefault("mode", "timeline")
+            stats_history["mode"] = "timeline"
+            stats_history["total_frames"] = int(total_frames)
+            stats_history.setdefault("detected", {})
+            stats_history.setdefault("classes", {})
+
+            frame_idx = int(frame_number)
+            stats_history["detected"][frame_idx] = int(item["detected_count"])
+
+            for class_name, class_value in item["class_counts"].items():
+                class_map = stats_history["classes"].setdefault(str(class_name), {})
+                class_map[frame_idx] = int(class_value)
+        else:
+            stats_history.setdefault("mode", "rolling")
+            stats_history["mode"] = "rolling"
+            stats_history.setdefault("points", [])
+            stats_history["points"].append(item)
+            if len(stats_history["points"]) > int(max_points):
+                del stats_history["points"][: len(stats_history["points"]) - int(max_points)]
+
         return stats_history
 
     def _render_bottom_stats_overlay(self, detected, stats, stats_history, font_face):
@@ -1454,95 +1493,94 @@ class RoadDetector:
         if height <= 0 or width <= 0:
             return detected
 
-        panel_h = max(86, min(int(height * 0.26), 180))
+        panel_h = max(24, int(round(height * 0.10)))
         y1 = height - panel_h
         overlay = detected.copy()
         cv2.rectangle(overlay, (0, y1), (width, height), (18, 18, 18), cv2.FILLED)
         cv2.addWeighted(overlay, 0.58, detected, 0.42, 0, detected)
 
-        detected_count = int(stats.get("detected_count", 0))
-        mask_count = int(stats.get("mask_count", 0))
-        total_mask_count = int(stats.get("total_mask_count", 0))
-        class_counts = {str(k): int(v) for k, v in (stats.get("class_counts") or {}).items()}
-        class_summary = ", ".join([f"{k}({v})" for k, v in sorted(class_counts.items())]) or "none"
-
-        title = f"Detect: {detected_count} | Mask: {mask_count}/{total_mask_count}"
-        cv2.putText(detected, title, (10, y1 + 24), font_face, 0.60, (255, 255, 255), 2)
-        cv2.putText(detected, f"Class: {class_summary}", (10, y1 + 50), font_face, 0.50, (225, 225, 225), 1)
-
-        history = stats_history if isinstance(stats_history, list) and len(stats_history) > 0 else [
-            {"detected_count": detected_count, "class_counts": class_counts}
-        ]
-        plot_history = history[-80:]
-
-        gx1 = max(10, int(width * 0.48))
-        gx2 = width - 10
-        gy1 = y1 + 10
-        gy2 = height - 10
-        if gx2 - gx1 < 60 or gy2 - gy1 < 30:
+        gx1 = 8
+        gx2 = width - 8
+        gy1 = y1 + 4
+        gy2 = height - 4
+        if gx2 - gx1 < 40 or gy2 - gy1 < 12:
             return detected
 
         cv2.rectangle(detected, (gx1, gy1), (gx2, gy2), (110, 110, 110), 1)
 
-        total_series = [int(item.get("detected_count", 0)) for item in plot_history]
-        class_names = set()
-        for item in plot_history:
-            item_counts = item.get("class_counts") or {}
-            for class_name in item_counts.keys():
-                class_names.add(str(class_name))
-        class_names = sorted(class_names)[:4]
+        if not isinstance(stats_history, dict):
+            return detected
 
-        max_value = max([1] + total_series)
-        class_series = {}
-        for class_name in class_names:
-            values = []
-            for item in plot_history:
-                values.append(int((item.get("class_counts") or {}).get(class_name, 0)))
-            class_series[class_name] = values
-            max_value = max(max_value, max(values) if values else 0)
+        mode = str(stats_history.get("mode", "rolling"))
+        x_span = max(1, gx2 - gx1)
+        y_span = max(1, gy2 - gy1)
 
-        def to_points(series):
-            point_count = len(series)
-            if point_count <= 1:
-                return [(gx1, gy2)]
-            points = []
-            x_span = gx2 - gx1
-            y_span = gy2 - gy1
-            for idx, value in enumerate(series):
-                x = int(gx1 + (idx * x_span) / float(point_count - 1))
-                y = int(gy2 - (max(0, value) / float(max_value)) * y_span)
-                points.append((x, y))
-            return points
+        if mode == "timeline":
+            total_frames = int(stats_history.get("total_frames") or 0)
+            if total_frames <= 1:
+                return detected
 
-        total_points = to_points(total_series)
-        if len(total_points) >= 2:
-            cv2.polylines(detected, [np.array(total_points, dtype=np.int32)], False, (255, 210, 0), 2)
+            detected_map = stats_history.get("detected") if isinstance(stats_history.get("detected"), dict) else {}
+            max_value = 1
+            for value in detected_map.values():
+                max_value = max(max_value, int(value))
 
-        class_colors = [(255, 120, 120), (120, 255, 120), (120, 180, 255), (255, 160, 80)]
-        for idx, class_name in enumerate(class_names):
-            points = to_points(class_series.get(class_name, []))
-            if len(points) >= 2:
-                cv2.polylines(detected, [np.array(points, dtype=np.int32)], False, class_colors[idx % len(class_colors)], 1)
+            def frame_to_x(frame_no):
+                frame_idx = max(1, min(int(frame_no), total_frames))
+                return int(round(gx1 + ((frame_idx - 1) / float(total_frames - 1)) * x_span))
 
-        legend_x = gx1 + 6
-        legend_y = gy1 + 14
-        cv2.putText(detected, "Total", (legend_x, legend_y), font_face, 0.45, (255, 210, 0), 1)
-        for idx, class_name in enumerate(class_names):
-            ly = legend_y + (idx + 1) * 14
-            cv2.putText(
-                detected,
-                class_name,
-                (legend_x, ly),
-                font_face,
-                0.42,
-                class_colors[idx % len(class_colors)],
-                1,
-            )
+            def value_to_y(value):
+                return int(round(gy2 - (max(0, int(value)) / float(max_value)) * y_span))
+
+            if total_frames > 0:
+                bar_half = max(1, int(round((gx2 - gx1 + 1) / float(total_frames))) // 2)
+            else:
+                bar_half = 1
+
+            # Aggregate by x-position to keep drawing stable even for long videos.
+            x_value_map = {}
+            for frame_no, value in detected_map.items():
+                x = frame_to_x(frame_no)
+                x_value_map[x] = max(int(value), int(x_value_map.get(x, 0)))
+
+            for x in sorted(x_value_map.keys()):
+                y = value_to_y(x_value_map[x])
+                bx1 = max(gx1, x - bar_half)
+                bx2 = min(gx2, x + bar_half)
+                cv2.rectangle(detected, (bx1, y), (bx2, gy2), (255, 210, 0), cv2.FILLED)
+        else:
+            points = stats_history.get("points") if isinstance(stats_history.get("points"), list) else []
+            if len(points) <= 1:
+                return detected
+
+            total_series = [int(item.get("detected_count", 0)) for item in points]
+            max_value = max([1] + total_series)
+            point_count = len(total_series)
+
+            bar_half = max(1, int(round((gx2 - gx1 + 1) / float(point_count))) // 2)
+
+            for idx, value in enumerate(total_series):
+                x = int(round(gx1 + (idx / float(point_count - 1)) * x_span))
+                y = int(round(gy2 - (max(0, value) / float(max_value)) * y_span))
+                bx1 = max(gx1, x - bar_half)
+                bx2 = min(gx2, x + bar_half)
+                cv2.rectangle(detected, (bx1, y), (bx2, gy2), (255, 210, 0), cv2.FILLED)
 
         return detected
     pass # _render_bottom_stats_overlay
 
-    def detect_road(self, frame, detect_type: str = "road", roi=None, remove_noisy_masks: bool = True, return_info: bool = False, show_detect_stats: bool = False, stats_history=None):
+    def detect_road(
+        self,
+        frame,
+        detect_type: str = "road",
+        roi=None,
+        remove_noisy_masks: bool = True,
+        return_info: bool = False,
+        show_detect_stats: bool = False,
+        stats_history=None,
+        frame_number=None,
+        total_frames=None,
+    ):
         detect_key = detect_type if detect_type in RoadDetector._model_paths else "road"
         conf = 0.10 if detect_key == "road_type" else 0.20
         infer_key = detect_key
@@ -1677,7 +1715,7 @@ class RoadDetector:
         if detected_count == 0:
             detected_count = mask_count
 
-        showHeader = True
+        showHeader = not bool(show_detect_stats)
         if showHeader:
             detected = self._render_header(detected, detect_key, detected_count, conf, class_counts, started_at, font_face)
         pass
@@ -1691,7 +1729,7 @@ class RoadDetector:
         }
 
         if show_detect_stats:
-            history = self._append_stats_history(stats_history, stats)
+            history = self._append_stats_history(stats_history, stats, frame_number=frame_number, total_frames=total_frames)
             detected = self._render_bottom_stats_overlay(detected, stats, history, font_face)
 
         if return_info:

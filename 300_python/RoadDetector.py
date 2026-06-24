@@ -1040,12 +1040,10 @@ class RoadDetector:
         box_confs = result.boxes.conf.cpu().numpy() if (result.boxes is not None and result.boxes.conf is not None) else None
         box_cls_ids = result.boxes.cls.cpu().numpy().astype(int) if (result.boxes is not None and result.boxes.cls is not None) else None
         height, width = detected.shape[:2]
-        frame_area = max(1, height * width)
-        min_mask_area = self._get_min_mask_area_for_noise_filter(frame_area, remove_noisy_masks)
         class_color_map = self._get_class_color_map()
 
-        overlay = detected.copy()
-        for idx, mask in enumerate(masks):
+        prepared_masks = []
+        for mask in masks:
             if inference_roi is not None:
                 ix1, iy1, ix2, iy2 = inference_roi
                 iw = max(1, ix2 - ix1)
@@ -1064,8 +1062,22 @@ class RoadDetector:
                 roi_binary = np.zeros((height, width), dtype=bool)
                 roi_binary[ry1:ry2, rx1:rx2] = True
                 binary_mask = np.logical_and(binary_mask, roi_binary)
-            mask_area = int(np.count_nonzero(binary_mask))
-            if not self._is_noisy_mask(mask_area, min_mask_area):
+
+            prepared_masks.append(binary_mask)
+
+        global_binary_mask = np.zeros((height, width), dtype=bool)
+        for binary_mask in prepared_masks:
+            global_binary_mask = np.logical_or(global_binary_mask, binary_mask)
+
+        noisy_component_mask = self._build_noisy_component_mask(global_binary_mask, 0.10) if remove_noisy_masks else np.zeros((height, width), dtype=bool)
+
+        overlay = detected.copy()
+        for idx, binary_mask in enumerate(prepared_masks):
+            noisy_binary_mask = np.logical_and(binary_mask, noisy_component_mask)
+            active_binary_mask = np.logical_and(binary_mask, np.logical_not(noisy_binary_mask))
+
+            mask_area = int(np.count_nonzero(active_binary_mask))
+            if mask_area > 0:
                 kept_mask_indices.append(idx)
 
                 mask_color = (0, 255, 0)
@@ -1076,7 +1088,7 @@ class RoadDetector:
                     mask_color = class_color_map.get(cls_name, class_color_map.get(cls_name.lower(), mask_color))
                 mask_color = self._get_instance_mask_color(mask_color, idx, cls_id)
 
-                ys, xs = np.where(binary_mask)
+                ys, xs = np.where(active_binary_mask)
                 if xs.size > 0 and ys.size > 0:
                     x1 = int(xs.min())
                     y1 = int(ys.min())
@@ -1113,9 +1125,10 @@ class RoadDetector:
                     regenerated_labels.append(instance_label)
                     regenerated_box_colors.append(mask_color)
 
-                overlay[binary_mask] = mask_color
-            else:
-                contour_input = (binary_mask.astype(np.uint8) * 255)
+                overlay[active_binary_mask] = mask_color
+
+            if np.any(noisy_binary_mask):
+                contour_input = (noisy_binary_mask.astype(np.uint8) * 255)
                 contours, _ = cv2.findContours(contour_input, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
                 if contours:
                     noisy_mask_contours.extend(contours)
@@ -1140,18 +1153,33 @@ class RoadDetector:
         }
     pass # _process_result_masks
 
-    def _get_min_mask_area_for_noise_filter(self, frame_area: int, remove_noisy_masks: bool) -> int:
-        if not remove_noisy_masks:
-            return 0
+    def _build_noisy_component_mask(self, binary_mask, noisy_ratio: float = 0.10):
+        if binary_mask is None:
+            return None
 
-        min_mask_area_ratio = 0.001  # Exclude masks smaller than 0.1% of frame area.
-        min_mask_area_pixels = 64
-        return max(min_mask_area_pixels, int(frame_area * min_mask_area_ratio))
-    pass # _get_min_mask_area_for_noise_filter
+        binary_mask = np.asarray(binary_mask, dtype=bool)
+        if binary_mask.size == 0:
+            return np.zeros_like(binary_mask, dtype=bool)
 
-    def _is_noisy_mask(self, mask_area: int, min_mask_area: int) -> bool:
-        return int(mask_area) < int(min_mask_area)
-    pass # _is_noisy_mask
+        input_mask = (binary_mask.astype(np.uint8) * 255)
+        num_labels, labels, stats, _ = cv2.connectedComponentsWithStats(input_mask, connectivity=8)
+        if num_labels <= 1:
+            return np.zeros_like(binary_mask, dtype=bool)
+
+        total_detected_area = int(np.sum(stats[1:, cv2.CC_STAT_AREA]))
+        if total_detected_area <= 0:
+            return np.zeros_like(binary_mask, dtype=bool)
+
+        noisy_threshold = int(total_detected_area * float(noisy_ratio))
+        noisy_component_mask = np.zeros_like(binary_mask, dtype=bool)
+
+        for label_idx in range(1, num_labels):
+            component_area = int(stats[label_idx, cv2.CC_STAT_AREA])
+            if component_area <= noisy_threshold:
+                noisy_component_mask = np.logical_or(noisy_component_mask, labels == label_idx)
+
+        return noisy_component_mask
+    pass # _build_noisy_component_mask
 
     def _select_top_detections(self, result, detect_key):
         # For "road" detect type, keep only the highest confidence detection.

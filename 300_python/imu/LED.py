@@ -47,26 +47,24 @@ class LED :
         max_lines = max(1, (self.height - (2 * self.margin_y)) // self.line_gap)
         visible_lines = [str(line)[:20] for line in lines[:max_lines]]
 
+        line_count = len(visible_lines)
         line_boxes = [draw.textbbox((0, 0), line, font=self.font) for line in visible_lines]
         line_heights = [box[3] - box[1] for box in line_boxes]
-        line_count = len(visible_lines)
-        usable_height = self.height - (2 * self.margin_y)
+        usable_height = max(1, self.height - (2 * self.margin_y))
+
         if line_count > 1:
-            available_gap = usable_height - sum(line_heights)
-            line_spacing = min(self.line_gap, max(0, available_gap // (line_count - 1)))
+            max_gap = max(0, (usable_height - sum(line_heights)) // (line_count - 1))
+            effective_gap = min(self.line_gap, max_gap)
         else:
-            line_spacing = 0
+            effective_gap = 0
 
-        total_text_height = sum(line_heights)
-        if line_count > 1:
-            total_text_height += (line_count - 1) * line_spacing
-
-        start_y = max(self.margin_y, (self.height - total_text_height) // 2)
+        total_text_height = sum(line_heights) + ((line_count - 1) * effective_gap)
+        start_y = self.margin_y + max(0, (usable_height - total_text_height) // 2)
 
         y = start_y
         for line, box, line_height in zip(visible_lines, line_boxes, line_heights):
             draw.text((self.margin_x, y - box[1]), line, font=self.font, fill=255)
-            y += line_height + line_spacing
+            y += line_height + effective_gap
 
         self.oled.image(image)
         self.oled.show()

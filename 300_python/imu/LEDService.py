@@ -14,7 +14,7 @@ class LEDService:
     BLINK_COUNT = 2
     BLINK_ON_SEC = 0.2
     BLINK_OFF_SEC = 0.2
-    IP_PUBLISH_DELAY_SEC = 3
+    IP_PUBLISH_DELAY_SEC = 5
 
     def __init__(self, display: LED=None):
         self.display = display if display is not None else LED()

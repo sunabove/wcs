@@ -9,8 +9,8 @@ from PIL import Image, ImageDraw, ImageFont
 class LED :
     WIDTH = 128
     HEIGHT = 32
-    MARGIN_X = 0
-    MARGIN_Y = 3
+    MARGIN_X = 6
+    MARGIN_Y = 1
     LINE_GAP = 4 
     
 

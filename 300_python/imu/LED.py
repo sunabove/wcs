@@ -9,25 +9,24 @@ from PIL import Image, ImageDraw, ImageFont
 class LED :
     WIDTH = 128
     HEIGHT = 32
-    MARGIN_X = 6
+    MARGIN_X = 0
     MARGIN_Y = 3
-    LINE_GAP = 13
-    I2C_ADDR = 0x3C
+    LINE_GAP = 4 
+    
 
     def __init__(self):
         self.width = self.WIDTH
         self.height = self.HEIGHT
         self.margin_x = self.MARGIN_X
         self.margin_y = self.MARGIN_Y
-        self.line_gap = self.LINE_GAP
-        self.addr = self.I2C_ADDR
+        self.line_gap = self.LINE_GAP 
 
         self.i2c = busio.I2C(board.SCL, board.SDA)
         self.oled = adafruit_ssd1306.SSD1306_I2C(
             self.width,
             self.height,
             self.i2c,
-            addr=self.addr,
+            addr=0x3C,
         )
         self.font = ImageFont.load_default()
     pass  # __init__

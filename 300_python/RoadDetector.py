@@ -480,9 +480,9 @@ class RoadDetector:
                     'frame': None
                 }
 
-            if roi is None:
-                roi = self._load_or_create_roi(session['input_path'], frame.shape[1], frame.shape[0])
-                session['roi'] = roi
+            # Reflect edited ROI immediately during streaming.
+            roi = self._load_or_create_roi(session['input_path'], frame.shape[1], frame.shape[0])
+            session['roi'] = roi
 
             # 프레임 감지 처리
             detected_frame = self.detect_road(frame, detect_type, roi=roi, remove_noisy_masks=remove_noisy_masks)

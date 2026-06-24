@@ -1597,7 +1597,7 @@ class RoadDetector:
             if point_items:
                 cur_x = point_items[-1][0][0]
                 bar_color = (0, 230, 255)
-                my = 1
+                my = 3
                 cv2.rectangle(detected, (cur_x - 1, gy1 + my), (cur_x + 1, gy2 -2*my), bar_color, cv2.FILLED)
 
             y_label = f"Count: {max_detected_count}"

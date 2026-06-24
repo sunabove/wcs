@@ -122,13 +122,14 @@ class LEDService:
 
     def _publish_ip_if_ready(self):
         ip_addr = self._get_primary_ipv4()
+        
         if not ip_addr:
             print("MQTT pub skip: IP address is not ready")
-            return
-
-        payload = f"IP Address:/n{ip_addr}"
-        self.client.publish("led/text", payload, qos=0, retain=True)
-        print(f"MQTT pub: led/text -> {payload}")
+        else :
+            payload = f"{ip_addr}"
+            self.client.publish("led/text", payload, qos=0, retain=True)
+            print(f"MQTT pub: led/text -> {payload}")
+        pass
     pass  # _publish_ip_if_ready
 
     def _on_message(self, client, userdata, msg):

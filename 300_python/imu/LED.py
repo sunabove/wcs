@@ -45,8 +45,12 @@ class LED :
         draw.rectangle((0, 0, self.width - 1, self.height - 1), outline=255, fill=0)
 
         max_lines = max(1, (self.height - (2 * self.margin_y)) // self.line_gap)
-        for i, line in enumerate(lines[:max_lines]):
-            y = self.margin_y + (i * self.line_gap)
+        visible_lines = list(lines[:max_lines])
+        text_height = (len(visible_lines) - 1) * self.line_gap
+        start_y = max(self.margin_y, (self.height - text_height) // 2)
+
+        for i, line in enumerate(visible_lines):
+            y = start_y + (i * self.line_gap)
             draw.text((self.margin_x, y), str(line)[:20], font=self.font, fill=255)
 
         self.oled.image(image)

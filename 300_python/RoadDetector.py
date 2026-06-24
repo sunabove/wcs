@@ -31,14 +31,13 @@ class RoadDetector:
         self.video_ext = set(VIDEO_EXTENSIONS)
     pass # __init__
 
-    @classmethod
-    def _get_class_color_map(cls):
-        if cls._class_color_map is not None:
-            return cls._class_color_map
+    def _get_class_color_map(self):
+        if self.__class__._class_color_map is not None:
+            return self.__class__._class_color_map
 
         color_map = {}
         try:
-            with cls._class_color_map_path.open("r", encoding="utf-8") as f:
+            with self.__class__._class_color_map_path.open("r", encoding="utf-8") as f:
                 for raw_line in f:
                     line = raw_line.strip()
                     if not line or line.startswith("#"):
@@ -65,11 +64,10 @@ class RoadDetector:
         except FileNotFoundError:
             color_map = {}
 
-        cls._class_color_map = color_map
-        return cls._class_color_map
+        self.__class__._class_color_map = color_map
+        return self.__class__._class_color_map
 
-    @staticmethod
-    def _get_instance_mask_color(base_bgr, instance_index, cls_id=None):
+    def _get_instance_mask_color(self, base_bgr, instance_index, cls_id=None):
         # Keep deterministic but vary color per detected object.
         b0, g0, r0 = [int(v) for v in base_bgr]
         seed = (instance_index + 1) * 131 + (0 if cls_id is None else (int(cls_id) + 1) * 17)
@@ -89,12 +87,10 @@ class RoadDetector:
         varied_bgr = cv2.cvtColor(np.uint8([[[h2, s2, v2]]]), cv2.COLOR_HSV2BGR)[0, 0]
         return (int(varied_bgr[0]), int(varied_bgr[1]), int(varied_bgr[2]))
 
-    @staticmethod
-    def _get_roi_path(input_path: Path) -> Path:
+    def _get_roi_path(self, input_path: Path) -> Path:
         return input_path.with_name(f"{input_path.stem}_roi.txt")
 
-    @staticmethod
-    def _parse_roi_values(raw_text: str):
+    def _parse_roi_values(self, raw_text: str):
         values = []
         for token in raw_text.replace(",", " ").split():
             try:
@@ -109,8 +105,7 @@ class RoadDetector:
             return None
         return tuple(values)
 
-    @staticmethod
-    def _clamp_roi(roi, width: int, height: int):
+    def _clamp_roi(self, roi, width: int, height: int):
         x1, y1, x2, y2 = [int(value) for value in roi]
         x1 = max(0, min(x1, width - 1))
         y1 = max(0, min(y1, height - 1))
@@ -118,15 +113,14 @@ class RoadDetector:
         y2 = max(y1 + 1, min(y2, height))
         return (x1, y1, x2, y2)
 
-    @classmethod
-    def _load_or_create_roi(cls, input_path: Path, width: int, height: int):
+    def _load_or_create_roi(self, input_path: Path, width: int, height: int):
         if width <= 0 or height <= 0:
             return None
 
         margin_x = int(width * 0.1)
         margin_y = int(height * 0.1)
-        default_roi = cls._clamp_roi((margin_x, margin_y, width - margin_x, height - margin_y), width, height)
-        roi_path = cls._get_roi_path(input_path)
+        default_roi = self._clamp_roi((margin_x, margin_y, width - margin_x, height - margin_y), width, height)
+        roi_path = self._get_roi_path(input_path)
 
         if not roi_path.exists():
             roi_path.write_text(
@@ -140,7 +134,7 @@ class RoadDetector:
         except OSError:
             return default_roi
 
-        parsed_roi = cls._parse_roi_values(raw_text)
+        parsed_roi = self._parse_roi_values(raw_text)
         if parsed_roi is None:
             try:
                 roi_path.write_text(
@@ -151,10 +145,9 @@ class RoadDetector:
                 pass
             return default_roi
 
-        return cls._clamp_roi(parsed_roi, width, height)
+        return self._clamp_roi(parsed_roi, width, height)
 
-    @staticmethod
-    def _apply_roi_mask(frame, roi):
+    def _apply_roi_mask(self, frame, roi):
         if roi is None:
             return frame.copy()
 
@@ -163,8 +156,7 @@ class RoadDetector:
         masked[y1:y2, x1:x2] = frame[y1:y2, x1:x2]
         return masked
 
-    @staticmethod
-    def _draw_roi_overlay(detected, roi):
+    def _draw_roi_overlay(self, detected, roi):
         should_draw = roi is not None
 
         if should_draw:
@@ -184,8 +176,7 @@ class RoadDetector:
 
         return detected
 
-    @staticmethod
-    def _box_intersects_roi(box, roi):
+    def _box_intersects_roi(self, box, roi):
         if roi is None:
             return True
 
@@ -193,8 +184,7 @@ class RoadDetector:
         rx1, ry1, rx2, ry2 = roi
         return (x1 < rx2 and x2 > rx1 and y1 < ry2 and y2 > ry1)
 
-    @staticmethod
-    def _clip_box_to_roi(box, roi):
+    def _clip_box_to_roi(self, box, roi):
         if roi is None:
             return [int(v) for v in box]
 
@@ -210,8 +200,7 @@ class RoadDetector:
             return None
         return [x1, y1, x2, y2]
 
-    @staticmethod
-    def _roi_to_dict(roi):
+    def _roi_to_dict(self, roi):
         if roi is None:
             return None
 
@@ -602,8 +591,7 @@ class RoadDetector:
 
         return None
 
-    @staticmethod
-    def _sanitize_camera_name(camera_name: str) -> str:
+    def _sanitize_camera_name(self, camera_name: str) -> str:
         raw = str(camera_name or "").strip()
         if not raw:
             return "unknown"
@@ -621,9 +609,8 @@ class RoadDetector:
         name = "".join(sanitized).strip("._")
         return name or "unknown"
 
-    @classmethod
-    def _get_camera_roi_path(cls, camera_name: str) -> Path:
-        safe_name = cls._sanitize_camera_name(camera_name)
+    def _get_camera_roi_path(self, camera_name: str) -> Path:
+        safe_name = self._sanitize_camera_name(camera_name)
         roi_dir = UPLOAD_DIR / "camera_roi"
         try:
             roi_dir.mkdir(parents=True, exist_ok=True)
@@ -631,14 +618,13 @@ class RoadDetector:
             roi_dir = BASE_DIR
         return roi_dir / f"cam_{safe_name}_roi.txt"
 
-    @classmethod
-    def _load_or_create_camera_roi(cls, roi_path: Path, width: int, height: int):
+    def _load_or_create_camera_roi(self, roi_path: Path, width: int, height: int):
         if width <= 0 or height <= 0:
             return None
 
         margin_x = int(width * 0.1)
         margin_y = int(height * 0.1)
-        default_roi = cls._clamp_roi((margin_x, margin_y, width - margin_x, height - margin_y), width, height)
+        default_roi = self._clamp_roi((margin_x, margin_y, width - margin_x, height - margin_y), width, height)
 
         if not roi_path.exists():
             try:
@@ -655,7 +641,7 @@ class RoadDetector:
         except OSError:
             return default_roi
 
-        parsed_roi = cls._parse_roi_values(raw_text)
+        parsed_roi = self._parse_roi_values(raw_text)
         if parsed_roi is None:
             try:
                 roi_path.write_text(
@@ -666,10 +652,9 @@ class RoadDetector:
                 pass
             return default_roi
 
-        return cls._clamp_roi(parsed_roi, width, height)
+        return self._clamp_roi(parsed_roi, width, height)
 
-    @staticmethod
-    def _save_camera_roi(roi_path: Path, roi) -> None:
+    def _save_camera_roi(self, roi_path: Path, roi) -> None:
         x1, y1, x2, y2 = [int(v) for v in roi]
         roi_path.write_text(f"{x1},{y1},{x2},{y2}\n", encoding="utf-8")
 
@@ -1053,7 +1038,7 @@ class RoadDetector:
         height, width = detected.shape[:2]
         frame_area = max(1, height * width)
         min_mask_area = max(min_mask_area_pixels, int(frame_area * min_mask_area_ratio))
-        class_color_map = RoadDetector._get_class_color_map()
+        class_color_map = self._get_class_color_map()
 
         overlay = detected.copy()
         for idx, mask in enumerate(masks):
@@ -1087,7 +1072,7 @@ class RoadDetector:
                 cls_id = int(mask_cls_ids[idx])
                 cls_name = str(names.get(cls_id, cls_id))
                 mask_color = class_color_map.get(cls_name, class_color_map.get(cls_name.lower(), mask_color))
-            mask_color = RoadDetector._get_instance_mask_color(mask_color, idx, cls_id)
+            mask_color = self._get_instance_mask_color(mask_color, idx, cls_id)
 
             ys, xs = np.where(binary_mask)
             if xs.size > 0 and ys.size > 0:
@@ -1110,7 +1095,7 @@ class RoadDetector:
                         color_lookup_label,
                         class_color_map.get(color_lookup_label.lower(), mask_color)
                     )
-                    mask_color = RoadDetector._get_instance_mask_color(base_mask_color, idx, cls_id)
+                    mask_color = self._get_instance_mask_color(base_mask_color, idx, cls_id)
 
                 regenerated_boxes.append([x1, y1, x2, y2])
                 if box_confs is not None and idx < len(box_confs):
@@ -1144,8 +1129,7 @@ class RoadDetector:
         }
     pass # _process_result_masks
 
-    @staticmethod
-    def _select_top_detections(result, detect_key):
+    def _select_top_detections(self, result, detect_key):
         # For "road" detect type, keep only the highest confidence detection.
         # For "pothole" detect type, keep top 4 detections by confidence.
         if detect_key not in ("road", "pothole"):
@@ -1169,8 +1153,8 @@ class RoadDetector:
                 result.masks.cls = result.masks.cls[keep_indices]
     pass # _select_top_detections
 
-    @staticmethod
     def _build_boxes_payload_from_result(
+        self,
         result,
         total_mask_count,
         regenerated_boxes,
@@ -1218,8 +1202,7 @@ class RoadDetector:
         }
     pass # _build_boxes_payload_from_result
 
-    @staticmethod
-    def _filter_boxes_payload_by_roi(payload, roi):
+    def _filter_boxes_payload_by_roi(self, payload, roi):
         boxes = payload["boxes"]
         confs = payload["confs"]
         cls_ids = payload["cls_ids"]
@@ -1237,10 +1220,10 @@ class RoadDetector:
 
         has_cls_ids = cls_ids is not None
         for idx, box in enumerate(boxes):
-            if not RoadDetector._box_intersects_roi(box, roi):
+            if not self._box_intersects_roi(box, roi):
                 continue
 
-            clipped_box = RoadDetector._clip_box_to_roi(box, roi)
+            clipped_box = self._clip_box_to_roi(box, roi)
             if clipped_box is None:
                 continue
 
@@ -1261,8 +1244,7 @@ class RoadDetector:
         return payload
     pass # _filter_boxes_payload_by_roi
 
-    @staticmethod
-    def _draw_boxes_and_collect_counts(detected, boxes, confs, cls_ids, box_labels, box_colors, names, detect_key, font_face):
+    def _draw_boxes_and_collect_counts(self, detected, boxes, confs, cls_ids, box_labels, box_colors, names, detect_key, font_face):
         class_counts = {}
         detected_count = len(boxes)
 
@@ -1288,8 +1270,7 @@ class RoadDetector:
 
         return detected_count, class_counts
 
-    @staticmethod
-    def _render_header(detected, detect_key, detected_count, conf, class_counts, started_at, font_face):
+    def _render_header(self, detected, detect_key, detected_count, conf, class_counts, started_at, font_face):
         elapsed_ms = (time.perf_counter() - started_at) * 1000.0
         header_text = f"type: {detect_key}({detected_count}), conf: {conf * 100:.0f}%, time: {elapsed_ms:.0f}ms"
         if detected_count == 0:

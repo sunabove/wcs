@@ -1485,7 +1485,7 @@ class RoadDetector:
 
         return stats_history
 
-    def _render_bottom_stats_overlay(self, detected, stats, stats_history, font_face):
+    def _render_bottom_stats_overlay(self, detected, stats, stats_history, font_face, frame_number=None, total_frames=None):
         if detected is None:
             return detected
 
@@ -1551,20 +1551,20 @@ class RoadDetector:
                 y = value_to_y(slot_value)
                 point_items.append(((x, y), int(slot_value)))
 
-            # Draw detected graph first.
             for idx in range(1, len(point_items)):
                 cv2.line(detected, point_items[idx - 1][0], point_items[idx][0], (255, 210, 0), 1)
             for point, value in point_items:
                 if value > 0:
                     cv2.circle(detected, point, 1, (255, 210, 0), cv2.FILLED)
 
-            # Draw undetected graph (0-count) after detected graph in red.
-            for idx in range(1, len(point_items)):
-                if point_items[idx - 1][1] == 0 and point_items[idx][1] == 0:
-                    cv2.line(detected, point_items[idx - 1][0], point_items[idx][0], (40, 40, 220), 1)
-            for point, value in point_items:
-                if value == 0:
-                    cv2.circle(detected, point, 1, (40, 40, 220), cv2.FILLED)
+            # Highlight current frame as a bar.
+            if frame_number is not None and total_frames > 1:
+                cur_ratio = (max(1, min(int(frame_number), total_frames)) - 1) / float(total_frames - 1)
+                cur_x = int(round(gx1 + cur_ratio * x_span))
+                cur_count = int(stats.get("detected_count", 0))
+                cur_y = value_to_y(cur_count)
+                bar_color = (0, 230, 255)
+                cv2.rectangle(detected, (cur_x - 1, cur_y), (cur_x + 1, gy2), bar_color, cv2.FILLED)
 
             y_label = f"Ymax:{max_detected_count}"
             (_, yth), _ = cv2.getTextSize(y_label, font_face, label_font, label_thickness)
@@ -1589,20 +1589,19 @@ class RoadDetector:
                 y = int(round(gy2 - (max(0, value) / float(scale_max)) * y_span))
                 point_items.append(((x, y), int(value)))
 
-            # Draw detected graph first.
-            for idx in range(1, len(point_items)):
+            for idx in range(1, len(point_items)):                
                 cv2.line(detected, point_items[idx - 1][0], point_items[idx][0], (255, 210, 0), 1)
             for point, value in point_items:
                 if value > 0:
                     cv2.circle(detected, point, 1, (255, 210, 0), cv2.FILLED)
 
-            # Draw undetected graph (0-count) after detected graph in red.
-            for idx in range(1, len(point_items)):
-                if point_items[idx - 1][1] == 0 and point_items[idx][1] == 0:
-                    cv2.line(detected, point_items[idx - 1][0], point_items[idx][0], (40, 40, 220), 1)
-            for point, value in point_items:
-                if value == 0:
-                    cv2.circle(detected, point, 1, (40, 40, 220), cv2.FILLED)
+            # Highlight current (last) frame as a bar.
+            if point_items:
+                cur_point, cur_count = point_items[-1]
+                cur_x = cur_point[0]
+                cur_y = int(round(gy2 - (max(0, cur_count) / float(scale_max)) * y_span))
+                bar_color = (0, 230, 255)
+                cv2.rectangle(detected, (cur_x - 1, cur_y), (cur_x + 1, gy2), bar_color, cv2.FILLED)
 
             y_label = f"Count: {max_detected_count}"
             (_, yth), _ = cv2.getTextSize(y_label, font_face, label_font, label_thickness)
@@ -1772,7 +1771,7 @@ class RoadDetector:
 
         if show_detect_stats:
             history = self._append_stats_history(stats_history, stats, frame_number=frame_number, total_frames=total_frames)
-            detected = self._render_bottom_stats_overlay(detected, stats, history, font_face)
+            detected = self._render_bottom_stats_overlay(detected, stats, history, font_face, frame_number=frame_number, total_frames=total_frames)
 
         if return_info:
             return {

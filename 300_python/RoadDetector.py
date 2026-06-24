@@ -1557,14 +1557,12 @@ class RoadDetector:
                 if value > 0:
                     cv2.circle(detected, point, 1, (255, 210, 0), cv2.FILLED)
 
-            # Highlight current frame as a bar.
+            # Highlight current frame as a full-height bar.
             if frame_number is not None and total_frames > 1:
                 cur_ratio = (max(1, min(int(frame_number), total_frames)) - 1) / float(total_frames - 1)
                 cur_x = int(round(gx1 + cur_ratio * x_span))
-                cur_count = int(stats.get("detected_count", 0))
-                cur_y = value_to_y(cur_count)
                 bar_color = (0, 230, 255)
-                cv2.rectangle(detected, (cur_x - 1, cur_y), (cur_x + 1, gy2), bar_color, cv2.FILLED)
+                cv2.rectangle(detected, (cur_x - 1, gy1), (cur_x + 1, gy2), bar_color, cv2.FILLED)
 
             y_label = f"Ymax:{max_detected_count}"
             (_, yth), _ = cv2.getTextSize(y_label, font_face, label_font, label_thickness)
@@ -1595,13 +1593,11 @@ class RoadDetector:
                 if value > 0:
                     cv2.circle(detected, point, 1, (255, 210, 0), cv2.FILLED)
 
-            # Highlight current (last) frame as a bar.
+            # Highlight current (last) frame as a full-height bar.
             if point_items:
-                cur_point, cur_count = point_items[-1]
-                cur_x = cur_point[0]
-                cur_y = int(round(gy2 - (max(0, cur_count) / float(scale_max)) * y_span))
+                cur_x = point_items[-1][0][0]
                 bar_color = (0, 230, 255)
-                cv2.rectangle(detected, (cur_x - 1, cur_y), (cur_x + 1, gy2), bar_color, cv2.FILLED)
+                cv2.rectangle(detected, (cur_x - 1, gy1), (cur_x + 1, gy2), bar_color, cv2.FILLED)
 
             y_label = f"Count: {max_detected_count}"
             (_, yth), _ = cv2.getTextSize(y_label, font_face, label_font, label_thickness)

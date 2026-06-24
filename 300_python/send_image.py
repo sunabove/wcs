@@ -3,6 +3,7 @@ from fastapi.responses import FileResponse
 from fastapi.responses import Response
 
 import cv2
+import numpy as np
 
 from pathlib import Path
 from config import *
@@ -56,6 +57,28 @@ def send_image_contents(file_name: str):
 pass # send_image_contents
 
 
+def _is_blank_or_white_frame(frame: np.ndarray) -> bool:
+    if frame is None or frame.size == 0:
+        return True
+
+    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+    mean_val = float(np.mean(gray))
+    std_val = float(np.std(gray))
+    white_ratio = float(np.mean(gray > 245))
+
+    # Typical white placeholder frames are very bright and low-texture.
+    return (white_ratio > 0.92 and std_val < 14.0) or (mean_val > 245.0 and std_val < 10.0)
+
+
+def _read_frame_at_index(capture: cv2.VideoCapture, frame_index: int):
+    if frame_index < 0:
+        frame_index = 0
+
+    capture.set(cv2.CAP_PROP_POS_FRAMES, frame_index)
+    ok, frame = capture.read()
+    return ok, frame
+
+
 def send_video_thumbnail_contents(file_name: str, frame_seconds: float = 0.1):
     video_path = resolve_upload_image_path(file_name)
 
@@ -74,19 +97,63 @@ def send_video_thumbnail_contents(file_name: str, frame_seconds: float = 0.1):
         total_frames = int(capture.get(cv2.CAP_PROP_FRAME_COUNT) or 0)
         fps = float(capture.get(cv2.CAP_PROP_FPS) or 0.0)
 
-        seek_index = 0
-        if total_frames > 0 and fps > 0:
-            seek_index = int(max(0, min(total_frames - 1, round(frame_seconds * fps))))
+        candidate_indices = [0]
+        if total_frames > 1:
+            candidate_indices.extend([
+                int(total_frames * 0.01),
+                int(total_frames * 0.03),
+                int(total_frames * 0.05),
+            ])
+        if fps > 0:
+            candidate_indices.extend([
+                int(round(frame_seconds * fps)),
+                int(round(0.30 * fps)),
+                int(round(0.60 * fps)),
+            ])
 
-        if seek_index > 0:
-            capture.set(cv2.CAP_PROP_POS_FRAMES, seek_index)
+        # Remove duplicates while preserving order.
+        normalized_indices = []
+        seen = set()
+        for index in candidate_indices:
+            if total_frames > 0:
+                index = max(0, min(total_frames - 1, int(index)))
+            else:
+                index = max(0, int(index))
 
-        ok, frame = capture.read()
-        if not ok or frame is None:
+            if index not in seen:
+                seen.add(index)
+                normalized_indices.append(index)
+
+        best_fallback = None
+        for index in normalized_indices:
+            ok, candidate = _read_frame_at_index(capture, index)
+            if not ok or candidate is None:
+                continue
+
+            if best_fallback is None:
+                best_fallback = candidate
+
+            if not _is_blank_or_white_frame(candidate):
+                frame = candidate
+                break
+
+        if frame is None:
+            # Sequentially probe a few more frames from the start as a final attempt.
             capture.set(cv2.CAP_PROP_POS_FRAMES, 0)
-            ok, frame = capture.read()
+            for _ in range(20):
+                ok, candidate = capture.read()
+                if not ok or candidate is None:
+                    break
+                if best_fallback is None:
+                    best_fallback = candidate
+                if not _is_blank_or_white_frame(candidate):
+                    frame = candidate
+                    break
 
-        if not ok or frame is None:
+        if frame is None and best_fallback is not None:
+            frame = best_fallback
+
+        if frame is None:
             raise HTTPException(status_code=500, detail="Unable to extract video frame")
 
         encoded_ok, encoded = cv2.imencode(".jpg", frame, [int(cv2.IMWRITE_JPEG_QUALITY), 85])

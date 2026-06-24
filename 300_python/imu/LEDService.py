@@ -5,7 +5,7 @@ import threading
 import socket
 import ipaddress
 
-from .LED import LED
+from LED import LED
 
 class LEDService:
     BROKER = "localhost"

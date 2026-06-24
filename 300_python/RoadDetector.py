@@ -294,7 +294,7 @@ class RoadDetector:
             "roi_file": roi_path.name,
         }
 
-    def road_detect_service(self, file_name: str, detect_type: str = "road", remove_noisy_masks: bool = True) -> dict:
+    def road_detect_service(self, file_name: str, detect_type: str = "road", remove_noisy_masks: bool = True, show_detect_stats: bool = True) -> dict:
         input_path = resolve_upload_image_path(file_name)
         if not input_path.exists() or not input_path.is_file():
             raise HTTPException(status_code=404, detail="Input file not found")
@@ -309,13 +309,19 @@ class RoadDetector:
                 raise HTTPException(status_code=400, detail="Failed to read image file")
 
             roi = self._load_or_create_roi(input_path, input_image.shape[1], input_image.shape[0])
-            detected_image = self.detect_road(input_image, detect_type, roi=roi, remove_noisy_masks=remove_noisy_masks)
+            detected_image = self.detect_road(
+                input_image,
+                detect_type,
+                roi=roi,
+                remove_noisy_masks=remove_noisy_masks,
+                show_detect_stats=False,
+            )
             if not cv2.imwrite(str(output_path), detected_image):
                 raise HTTPException(status_code=500, detail="Failed to write output image")
         elif suffix in self.video_ext:
             # Use MP4 container to ensure browser-compatible H.264 playback.
             output_path = input_path.with_name(f"{stem}_detected.mp4")
-            self.detect_video(input_path, output_path, detect_type, remove_noisy_masks)
+            self.detect_video(input_path, output_path, detect_type, remove_noisy_masks, show_detect_stats)
         else:
             raise HTTPException(status_code=400, detail="Only image/video files are supported")
 
@@ -330,7 +336,7 @@ class RoadDetector:
         }
     pass # road_detect_service
 
-    def detect_video(self, input_path: Path, output_path: Path, detect_type: str, remove_noisy_masks: bool = True) -> None:
+    def detect_video(self, input_path: Path, output_path: Path, detect_type: str, remove_noisy_masks: bool = True, show_detect_stats: bool = True) -> None:
         capture = cv2.VideoCapture(str(input_path))
         if not capture.isOpened():
             raise HTTPException(status_code=400, detail="Failed to read video file")
@@ -348,6 +354,7 @@ class RoadDetector:
         writer = None
         target_size = None
         roi = None
+        stats_history = []
         try:
             while True:
                 ok, frame = capture.read()
@@ -357,7 +364,16 @@ class RoadDetector:
                 if roi is None:
                     roi = self._load_or_create_roi(input_path, frame.shape[1], frame.shape[0])
 
-                detected_frame = self.detect_road(frame, detect_type, roi=roi, remove_noisy_masks=remove_noisy_masks)
+                detected_result = self.detect_road(
+                    frame,
+                    detect_type,
+                    roi=roi,
+                    remove_noisy_masks=remove_noisy_masks,
+                    show_detect_stats=show_detect_stats,
+                    stats_history=stats_history,
+                    return_info=True,
+                )
+                detected_frame = detected_result["frame"]
 
                 if writer is None:
                     h, w = detected_frame.shape[:2]
@@ -393,7 +409,7 @@ class RoadDetector:
             raise HTTPException(status_code=500, detail="Failed to write output video")
     pass # detect_video
 
-    def road_detect_stream_init(self, file_name: str, detect_type: str = "road", remove_noisy_masks: bool = True) -> dict:
+    def road_detect_stream_init(self, file_name: str, detect_type: str = "road", remove_noisy_masks: bool = True, show_detect_stats: bool = True) -> dict:
         """비디오 스트리밍 세션 초기화"""
         input_path = resolve_upload_image_path(file_name)
         if not input_path.exists() or not input_path.is_file():
@@ -431,8 +447,10 @@ class RoadDetector:
             'fps': fps,
             'detect_type': detect_type,
             'remove_noisy_masks': bool(remove_noisy_masks),
+            'show_detect_stats': bool(show_detect_stats),
             'file_name': file_name,
             'input_path': input_path,
+            'stats_history': [],
             'roi': self._load_or_create_roi(
                 input_path,
                 int(capture.get(cv2.CAP_PROP_FRAME_WIDTH)),
@@ -466,9 +484,11 @@ class RoadDetector:
             capture = session['capture']
             detect_type = session['detect_type']
             remove_noisy_masks = bool(session.get('remove_noisy_masks', True))
+            show_detect_stats = bool(session.get('show_detect_stats', True))
             frame_index = session['frame_index']
             frame_count = session['frame_count']
             roi = session.get('roi')
+            stats_history = session.get('stats_history')
 
             ok, frame = capture.read()
             if not ok:
@@ -490,6 +510,8 @@ class RoadDetector:
                 detect_type,
                 roi=roi,
                 remove_noisy_masks=remove_noisy_masks,
+                show_detect_stats=show_detect_stats,
+                stats_history=stats_history,
                 return_info=True,
             )
             detected_frame = detected_result["frame"]
@@ -512,7 +534,6 @@ class RoadDetector:
                 'total_frames': frame_count,
                 'frame': frame_b64,
                 'detect_type': detect_type,
-                'stats': detected_result["stats"],
             }
         except Exception as e:
             print(f"Error in road_detect_stream_next: {e}")
@@ -538,6 +559,7 @@ class RoadDetector:
             raise HTTPException(status_code=500, detail="Failed to seek frame")
 
         session['frame_index'] = zero_based_index
+        session['stats_history'] = []
 
         return {
             'session_id': session_id,
@@ -668,7 +690,7 @@ class RoadDetector:
         x1, y1, x2, y2 = [int(v) for v in roi]
         roi_path.write_text(f"{x1},{y1},{x2},{y2}\n", encoding="utf-8")
 
-    def camera_detect_stream_init(self, camera_index: int, detect_type: str = "road", camera_name: str = "", remove_noisy_masks: bool = True) -> dict:
+    def camera_detect_stream_init(self, camera_index: int, detect_type: str = "road", camera_name: str = "", remove_noisy_masks: bool = True, show_detect_stats: bool = True) -> dict:
         session_id = f"camera_{camera_index}"
 
         if session_id in RoadDetector._camera_stream_sessions:
@@ -700,9 +722,11 @@ class RoadDetector:
             "fps": fps,
             "detect_type": detect_type,
             "remove_noisy_masks": bool(remove_noisy_masks),
+            "show_detect_stats": bool(show_detect_stats),
             "detect_enabled": True,
             "camera_index": int(camera_index),
             "camera_name": resolved_camera_name,
+            "stats_history": [],
             "roi_file": camera_roi_path.name,
             "roi_path": str(camera_roi_path),
             "frame_width": frame_width,
@@ -738,7 +762,9 @@ class RoadDetector:
         capture = session["capture"]
         detect_type = session.get("detect_type", "road")
         remove_noisy_masks = bool(session.get("remove_noisy_masks", True))
+        show_detect_stats = bool(session.get("show_detect_stats", True))
         detect_enabled = bool(session.get("detect_enabled", True))
+        stats_history = session.get("stats_history")
 
         ok, frame = capture.read()
         if not ok or frame is None:
@@ -763,12 +789,6 @@ class RoadDetector:
             session["roi"] = self._clamp_roi(roi, frame_width, frame_height)
             roi = session["roi"]
 
-        detect_stats = {
-            "detected_count": 0,
-            "mask_count": 0,
-            "total_mask_count": 0,
-            "class_counts": {},
-        }
         detected_frame = None
         if detect_enabled:
             detected_result = self.detect_road(
@@ -776,10 +796,11 @@ class RoadDetector:
                 detect_type,
                 roi=roi,
                 remove_noisy_masks=remove_noisy_masks,
+                show_detect_stats=show_detect_stats,
+                stats_history=stats_history,
                 return_info=True,
             )
             detected_frame = detected_result["frame"]
-            detect_stats = detected_result["stats"]
 
         original_ok, original_encoded = cv2.imencode(".jpg", frame, [int(cv2.IMWRITE_JPEG_QUALITY), 85])
         detected_ok = True
@@ -799,7 +820,6 @@ class RoadDetector:
             "detect_enabled": detect_enabled,
             "frame_original": base64.b64encode(original_encoded.tobytes()).decode("utf-8"),
             "frame_detected": (base64.b64encode(detected_encoded.tobytes()).decode("utf-8") if detected_encoded is not None else None),
-            "stats": detect_stats,
         }
     pass # camera_detect_stream_next
 
@@ -948,7 +968,7 @@ class RoadDetector:
         }
     pass # camera_detect_stream_cleanup_all
 
-    def road_detect_stream(self, file_name: str, detect_type: str = "road", remove_noisy_masks: bool = True) -> StreamingResponse:
+    def road_detect_stream(self, file_name: str, detect_type: str = "road", remove_noisy_masks: bool = True, show_detect_stats: bool = True) -> StreamingResponse:
         """(레거시) 연속 MJPEG 스트리밍 - 하위호환성 유지"""
         input_path = resolve_upload_image_path(file_name)
         if not input_path.exists() or not input_path.is_file():
@@ -963,6 +983,7 @@ class RoadDetector:
 
         def generate():
             roi = None
+            stats_history = []
             try:
                 while True:
                     ok, frame = capture.read()
@@ -977,6 +998,8 @@ class RoadDetector:
                         detect_type,
                         roi=roi,
                         remove_noisy_masks=remove_noisy_masks,
+                        show_detect_stats=show_detect_stats,
+                        stats_history=stats_history,
                         return_info=True,
                     )
                     detected_frame = detected_result["frame"]
@@ -1410,7 +1433,116 @@ class RoadDetector:
         return detected
     pass # _render_header
 
-    def detect_road(self, frame, detect_type: str = "road", roi=None, remove_noisy_masks: bool = True, return_info: bool = False):
+    def _append_stats_history(self, stats_history, stats, max_points: int = 120):
+        if stats_history is None:
+            return []
+
+        item = {
+            "detected_count": int(stats.get("detected_count", 0)),
+            "class_counts": {str(k): int(v) for k, v in (stats.get("class_counts") or {}).items()},
+        }
+        stats_history.append(item)
+        if len(stats_history) > int(max_points):
+            del stats_history[: len(stats_history) - int(max_points)]
+        return stats_history
+
+    def _render_bottom_stats_overlay(self, detected, stats, stats_history, font_face):
+        if detected is None:
+            return detected
+
+        height, width = detected.shape[:2]
+        if height <= 0 or width <= 0:
+            return detected
+
+        panel_h = max(86, min(int(height * 0.26), 180))
+        y1 = height - panel_h
+        overlay = detected.copy()
+        cv2.rectangle(overlay, (0, y1), (width, height), (18, 18, 18), cv2.FILLED)
+        cv2.addWeighted(overlay, 0.58, detected, 0.42, 0, detected)
+
+        detected_count = int(stats.get("detected_count", 0))
+        mask_count = int(stats.get("mask_count", 0))
+        total_mask_count = int(stats.get("total_mask_count", 0))
+        class_counts = {str(k): int(v) for k, v in (stats.get("class_counts") or {}).items()}
+        class_summary = ", ".join([f"{k}({v})" for k, v in sorted(class_counts.items())]) or "none"
+
+        title = f"Detect: {detected_count} | Mask: {mask_count}/{total_mask_count}"
+        cv2.putText(detected, title, (10, y1 + 24), font_face, 0.60, (255, 255, 255), 2)
+        cv2.putText(detected, f"Class: {class_summary}", (10, y1 + 50), font_face, 0.50, (225, 225, 225), 1)
+
+        history = stats_history if isinstance(stats_history, list) and len(stats_history) > 0 else [
+            {"detected_count": detected_count, "class_counts": class_counts}
+        ]
+        plot_history = history[-80:]
+
+        gx1 = max(10, int(width * 0.48))
+        gx2 = width - 10
+        gy1 = y1 + 10
+        gy2 = height - 10
+        if gx2 - gx1 < 60 or gy2 - gy1 < 30:
+            return detected
+
+        cv2.rectangle(detected, (gx1, gy1), (gx2, gy2), (110, 110, 110), 1)
+
+        total_series = [int(item.get("detected_count", 0)) for item in plot_history]
+        class_names = set()
+        for item in plot_history:
+            item_counts = item.get("class_counts") or {}
+            for class_name in item_counts.keys():
+                class_names.add(str(class_name))
+        class_names = sorted(class_names)[:4]
+
+        max_value = max([1] + total_series)
+        class_series = {}
+        for class_name in class_names:
+            values = []
+            for item in plot_history:
+                values.append(int((item.get("class_counts") or {}).get(class_name, 0)))
+            class_series[class_name] = values
+            max_value = max(max_value, max(values) if values else 0)
+
+        def to_points(series):
+            point_count = len(series)
+            if point_count <= 1:
+                return [(gx1, gy2)]
+            points = []
+            x_span = gx2 - gx1
+            y_span = gy2 - gy1
+            for idx, value in enumerate(series):
+                x = int(gx1 + (idx * x_span) / float(point_count - 1))
+                y = int(gy2 - (max(0, value) / float(max_value)) * y_span)
+                points.append((x, y))
+            return points
+
+        total_points = to_points(total_series)
+        if len(total_points) >= 2:
+            cv2.polylines(detected, [np.array(total_points, dtype=np.int32)], False, (255, 210, 0), 2)
+
+        class_colors = [(255, 120, 120), (120, 255, 120), (120, 180, 255), (255, 160, 80)]
+        for idx, class_name in enumerate(class_names):
+            points = to_points(class_series.get(class_name, []))
+            if len(points) >= 2:
+                cv2.polylines(detected, [np.array(points, dtype=np.int32)], False, class_colors[idx % len(class_colors)], 1)
+
+        legend_x = gx1 + 6
+        legend_y = gy1 + 14
+        cv2.putText(detected, "Total", (legend_x, legend_y), font_face, 0.45, (255, 210, 0), 1)
+        for idx, class_name in enumerate(class_names):
+            ly = legend_y + (idx + 1) * 14
+            cv2.putText(
+                detected,
+                class_name,
+                (legend_x, ly),
+                font_face,
+                0.42,
+                class_colors[idx % len(class_colors)],
+                1,
+            )
+
+        return detected
+    pass # _render_bottom_stats_overlay
+
+    def detect_road(self, frame, detect_type: str = "road", roi=None, remove_noisy_masks: bool = True, return_info: bool = False, show_detect_stats: bool = False, stats_history=None):
         detect_key = detect_type if detect_type in RoadDetector._model_paths else "road"
         conf = 0.10 if detect_key == "road_type" else 0.20
         infer_key = detect_key
@@ -1557,6 +1689,10 @@ class RoadDetector:
             "total_mask_count": int(total_mask_count),
             "class_counts": {str(key): int(value) for key, value in class_counts.items()},
         }
+
+        if show_detect_stats:
+            history = self._append_stats_history(stats_history, stats)
+            detected = self._render_bottom_stats_overlay(detected, stats, history, font_face)
 
         if return_info:
             return {

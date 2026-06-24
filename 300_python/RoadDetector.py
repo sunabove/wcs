@@ -1272,7 +1272,7 @@ class RoadDetector:
 
     def _render_header(self, detected, detect_key, detected_count, conf, class_counts, started_at, font_face):
         elapsed_ms = (time.perf_counter() - started_at) * 1000.0
-        header_text = f"type: {detect_key}({detected_count}), conf: {conf * 100:.0f}%, time: {elapsed_ms:.0f}ms"
+        header_text = f"type: {detect_key}, conf: {conf * 100:.0f}%, time: {elapsed_ms:.0f}ms"
         if detected_count == 0:
             count_text = "not detected"
         elif class_counts:
@@ -1301,7 +1301,7 @@ class RoadDetector:
                 interpolation=cv2.INTER_LINEAR
             )
 
-        y1_box = 10
+        y1_box = 0
         text_right_x = detected.shape[1] - right_margin
         x2 = text_right_x + 6
         x1 = x2 - (header_w + box_padding)
@@ -1311,11 +1311,13 @@ class RoadDetector:
         cv2.rectangle(overlay, (x1, y1_box), (x2, y2_box), (255, 0, 0), cv2.FILLED)
         cv2.addWeighted(overlay, 0.5, detected, 0.5, 0, detected)
 
-        y1 = y1_box + h1 + 2
-        y2 = y1 + line_gap + h2 + 2
+        my = 4
+        y1 = y1_box + h1 + my
+        y2 = y1 + line_gap + h2 + my
         cv2.putText(detected, header_text, (text_right_x - w1, y1), font_face, font_scale, (255, 255, 255), font_thickness)
         cv2.putText(detected, count_text, (text_right_x - w2, y2), font_face, font_scale, (255, 255, 255), font_thickness)
         return detected
+    pass # _render_header
 
     def detect_road(self, frame, detect_type: str = "road", roi=None):
         detect_key = detect_type if detect_type in RoadDetector._model_paths else "road"

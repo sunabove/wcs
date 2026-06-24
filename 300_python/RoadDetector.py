@@ -1604,10 +1604,10 @@ class RoadDetector:
                 if value == 0:
                     cv2.circle(detected, point, 1, (40, 40, 220), cv2.FILLED)
 
-            y_label = f"Ymax:{max_detected_count}"
+            y_label = f"Count: {max_detected_count}"
             (_, yth), _ = cv2.getTextSize(y_label, font_face, label_font, label_thickness)
             cv2.putText(detected, y_label, (gx1 + 2, gy1 + yth + 1), font_face, label_font, (220, 220, 220), label_thickness)
-            x_label = f"Xmax:{point_count}"
+            x_label = f"Frame: {point_count}"
             (xtw, _), _ = cv2.getTextSize(x_label, font_face, label_font, label_thickness)
             cv2.putText(detected, x_label, (max(gx1 + 2, gx2 - xtw - 2), gy2 - 2), font_face, label_font, (220, 220, 220), label_thickness)
 

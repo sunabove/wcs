@@ -1526,7 +1526,7 @@ class RoadDetector:
             max_detected_count = 0
             for value in detected_map.values():
                 max_detected_count = max(max_detected_count, int(value))
-            scale_max = max(1, max_detected_count)
+            scale_max = max(1, int(np.ceil(max_detected_count * 1.2)))
 
             def value_to_y(value):
                 return int(round(gy2 - (max(0, int(value)) / float(scale_max)) * y_span))
@@ -1543,22 +1543,28 @@ class RoadDetector:
                 attempted[slot_idx] = True
                 values[slot_idx] = max(values[slot_idx], int(value))
 
-            prev_point = None
-            prev_value = None
+            point_items = []
             for slot_idx, slot_value in enumerate(values.tolist()):
                 if not bool(attempted[slot_idx]):
-                    prev_point = None
-                    prev_value = None
                     continue
                 x = gx1 + slot_idx * slot_step
                 y = value_to_y(slot_value)
-                point_color = (255, 210, 0) if int(slot_value) > 0 else (40, 40, 220)
-                if prev_point is not None and prev_value is not None:
-                    segment_color = (40, 40, 220) if (int(prev_value) == 0 and int(slot_value) == 0) else (255, 210, 0)
-                    cv2.line(detected, prev_point, (x, y), segment_color, 1)
-                cv2.circle(detected, (x, y), 1, point_color, cv2.FILLED)
-                prev_point = (x, y)
-                prev_value = int(slot_value)
+                point_items.append(((x, y), int(slot_value)))
+
+            # Draw detected graph first.
+            for idx in range(1, len(point_items)):
+                cv2.line(detected, point_items[idx - 1][0], point_items[idx][0], (255, 210, 0), 1)
+            for point, value in point_items:
+                if value > 0:
+                    cv2.circle(detected, point, 1, (255, 210, 0), cv2.FILLED)
+
+            # Draw undetected graph (0-count) after detected graph in red.
+            for idx in range(1, len(point_items)):
+                if point_items[idx - 1][1] == 0 and point_items[idx][1] == 0:
+                    cv2.line(detected, point_items[idx - 1][0], point_items[idx][0], (40, 40, 220), 1)
+            for point, value in point_items:
+                if value == 0:
+                    cv2.circle(detected, point, 1, (40, 40, 220), cv2.FILLED)
 
             y_label = f"Ymax:{max_detected_count}"
             (_, yth), _ = cv2.getTextSize(y_label, font_face, label_font, label_thickness)
@@ -1573,22 +1579,30 @@ class RoadDetector:
 
             total_series = [int(item.get("detected_count", 0)) for item in points]
             max_detected_count = max([0] + total_series)
-            scale_max = max(1, max_detected_count)
+            scale_max = max(1, int(np.ceil(max_detected_count * 1.2)))
             point_count = len(total_series)
 
             slot_step = max(2, int((gx2 - gx1 + 1) / max(1, point_count)))
-            prev_point = None
-            prev_value = None
+            point_items = []
             for idx, value in enumerate(total_series):
                 x = int(round(gx1 + (idx / float(point_count - 1)) * x_span))
                 y = int(round(gy2 - (max(0, value) / float(scale_max)) * y_span))
-                point_color = (255, 210, 0) if int(value) > 0 else (40, 40, 220)
-                if prev_point is not None and prev_value is not None:
-                    segment_color = (40, 40, 220) if (int(prev_value) == 0 and int(value) == 0) else (255, 210, 0)
-                    cv2.line(detected, prev_point, (x, y), segment_color, 1)
-                cv2.circle(detected, (x, y), 1, point_color, cv2.FILLED)
-                prev_point = (x, y)
-                prev_value = int(value)
+                point_items.append(((x, y), int(value)))
+
+            # Draw detected graph first.
+            for idx in range(1, len(point_items)):
+                cv2.line(detected, point_items[idx - 1][0], point_items[idx][0], (255, 210, 0), 1)
+            for point, value in point_items:
+                if value > 0:
+                    cv2.circle(detected, point, 1, (255, 210, 0), cv2.FILLED)
+
+            # Draw undetected graph (0-count) after detected graph in red.
+            for idx in range(1, len(point_items)):
+                if point_items[idx - 1][1] == 0 and point_items[idx][1] == 0:
+                    cv2.line(detected, point_items[idx - 1][0], point_items[idx][0], (40, 40, 220), 1)
+            for point, value in point_items:
+                if value == 0:
+                    cv2.circle(detected, point, 1, (40, 40, 220), cv2.FILLED)
 
             y_label = f"Ymax:{max_detected_count}"
             (_, yth), _ = cv2.getTextSize(y_label, font_face, label_font, label_thickness)

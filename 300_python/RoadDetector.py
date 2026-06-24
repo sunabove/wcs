@@ -1514,8 +1514,8 @@ class RoadDetector:
         mode = str(stats_history.get("mode", "rolling"))
         x_span = max(1, gx2 - gx1)
         y_span = max(1, gy2 - gy1)
-        label_font = 0.35
-        label_thickness = 1
+        label_font = max(0.30, min(0.90, panel_h / 144.0))
+        label_thickness = max(1, int(round(panel_h / 60.0)))
 
         if mode == "timeline":
             total_frames = int(stats_history.get("total_frames") or 0)

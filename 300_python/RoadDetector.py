@@ -1064,57 +1064,57 @@ class RoadDetector:
                 roi_binary[ry1:ry2, rx1:rx2] = True
                 binary_mask = np.logical_and(binary_mask, roi_binary)
             mask_area = int(np.count_nonzero(binary_mask))
-            if self._is_noisy_mask(mask_area, min_mask_area):
-                continue
+            if not self._is_noisy_mask(mask_area, min_mask_area):
+                kept_mask_indices.append(idx)
 
-            kept_mask_indices.append(idx)
-
-            mask_color = (0, 255, 0)
-            cls_id = None
-            if mask_cls_ids is not None and idx < len(mask_cls_ids):
-                cls_id = int(mask_cls_ids[idx])
-                cls_name = str(names.get(cls_id, cls_id))
-                mask_color = class_color_map.get(cls_name, class_color_map.get(cls_name.lower(), mask_color))
-            mask_color = self._get_instance_mask_color(mask_color, idx, cls_id)
-
-            ys, xs = np.where(binary_mask)
-            if xs.size > 0 and ys.size > 0:
-                x1 = int(xs.min())
-                y1 = int(ys.min())
-                x2 = int(xs.max())
-                y2 = int(ys.max())
-
-                instance_label = ""
-                color_lookup_label = ""
+                mask_color = (0, 255, 0)
+                cls_id = None
                 if mask_cls_ids is not None and idx < len(mask_cls_ids):
-                    instance_label = str(names.get(int(mask_cls_ids[idx]), int(mask_cls_ids[idx])))
-                    color_lookup_label = instance_label
-                elif box_cls_ids is not None and idx < len(box_cls_ids):
-                    instance_label = str(names.get(int(box_cls_ids[idx]), int(box_cls_ids[idx])))
-                    color_lookup_label = instance_label
+                    cls_id = int(mask_cls_ids[idx])
+                    cls_name = str(names.get(cls_id, cls_id))
+                    mask_color = class_color_map.get(cls_name, class_color_map.get(cls_name.lower(), mask_color))
+                mask_color = self._get_instance_mask_color(mask_color, idx, cls_id)
 
-                if color_lookup_label:
-                    base_mask_color = class_color_map.get(
-                        color_lookup_label,
-                        class_color_map.get(color_lookup_label.lower(), mask_color)
-                    )
-                    mask_color = self._get_instance_mask_color(base_mask_color, idx, cls_id)
+                ys, xs = np.where(binary_mask)
+                if xs.size > 0 and ys.size > 0:
+                    x1 = int(xs.min())
+                    y1 = int(ys.min())
+                    x2 = int(xs.max())
+                    y2 = int(ys.max())
 
-                regenerated_boxes.append([x1, y1, x2, y2])
-                if box_confs is not None and idx < len(box_confs):
-                    regenerated_confs.append(float(box_confs[idx]))
-                else:
-                    regenerated_confs.append(0.0)
-                if mask_cls_ids is not None and idx < len(mask_cls_ids):
-                    regenerated_cls_ids.append(int(mask_cls_ids[idx]))
-                elif box_cls_ids is not None and idx < len(box_cls_ids):
-                    regenerated_cls_ids.append(int(box_cls_ids[idx]))
-                else:
-                    regenerated_cls_ids.append(-1)
-                regenerated_labels.append(instance_label)
-                regenerated_box_colors.append(mask_color)
+                    instance_label = ""
+                    color_lookup_label = ""
+                    if mask_cls_ids is not None and idx < len(mask_cls_ids):
+                        instance_label = str(names.get(int(mask_cls_ids[idx]), int(mask_cls_ids[idx])))
+                        color_lookup_label = instance_label
+                    elif box_cls_ids is not None and idx < len(box_cls_ids):
+                        instance_label = str(names.get(int(box_cls_ids[idx]), int(box_cls_ids[idx])))
+                        color_lookup_label = instance_label
 
-            overlay[binary_mask] = mask_color
+                    if color_lookup_label:
+                        base_mask_color = class_color_map.get(
+                            color_lookup_label,
+                            class_color_map.get(color_lookup_label.lower(), mask_color)
+                        )
+                        mask_color = self._get_instance_mask_color(base_mask_color, idx, cls_id)
+
+                    regenerated_boxes.append([x1, y1, x2, y2])
+                    if box_confs is not None and idx < len(box_confs):
+                        regenerated_confs.append(float(box_confs[idx]))
+                    else:
+                        regenerated_confs.append(0.0)
+                    if mask_cls_ids is not None and idx < len(mask_cls_ids):
+                        regenerated_cls_ids.append(int(mask_cls_ids[idx]))
+                    elif box_cls_ids is not None and idx < len(box_cls_ids):
+                        regenerated_cls_ids.append(int(box_cls_ids[idx]))
+                    else:
+                        regenerated_cls_ids.append(-1)
+                    regenerated_labels.append(instance_label)
+                    regenerated_box_colors.append(mask_color)
+
+                overlay[binary_mask] = mask_color
+            pass
+        pass
 
         mask_count = len(kept_mask_indices)
         detected = cv2.addWeighted(overlay, 0.35, detected, 0.65, 0)

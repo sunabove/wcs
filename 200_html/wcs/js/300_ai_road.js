@@ -426,7 +426,7 @@ $(function () {
                 && normalizePath(uploadedFileName) === normalizedTargetFile
                 && isVideoPath(uploadedFileName)
             ) {
-                initFrameStream(uploadedFileName, detectType, removeNoisyMasks);
+                initFrameStream(uploadedFileName, detectType, removeNoisyMasks, { startPaused: true });
             }
 
             updateDetectedStreamControls();
@@ -1496,7 +1496,8 @@ $(function () {
         }, false);
     }
 
-    function initFrameStream(fileName, detectType, removeNoisyMasks) {
+    function initFrameStream(fileName, detectType, removeNoisyMasks, options) {
+        const initOptions = options || {};
         const showDetectStats = getShowDetectStatsOverlay();
         // 이미 활성인 세션이 있으면 정리
         if (frameStreamState[fileName]) {
@@ -1523,7 +1524,22 @@ $(function () {
                 isPlaying: true,
                 isPaused: false
             };
+
+            if (initOptions.startPaused) {
+                frameStreamState[fileName].isPlaying = false;
+                frameStreamState[fileName].isPaused = true;
+            }
+
             updateDetectedStreamControls();
+
+            if (initOptions.startPaused) {
+                setDetectingState(false);
+                $detectingIndicator.addClass("d-none");
+                playFrameStream(fileName, { singleStep: true, autoResume: false });
+                showUploadStatusMessage("다운로드 후 일시정지 상태로 복구되었습니다. 재생 버튼을 눌러 계속 진행하세요.", true);
+                return;
+            }
+
             playFrameStream(fileName);
         }).fail(function (jqXHR) {
             console.error("Stream init error:", jqXHR.status, jqXHR.responseText);

@@ -1493,7 +1493,7 @@ class RoadDetector:
         if height <= 0 or width <= 0:
             return detected
 
-        panel_h = max(24, int(round(height * 0.10)))
+        panel_h = max(20, int(round(height * 0.05)))
         y1 = height - panel_h
         overlay = detected.copy()
         cv2.rectangle(overlay, (0, y1), (width, height), (18, 18, 18), cv2.FILLED)
@@ -1514,6 +1514,8 @@ class RoadDetector:
         mode = str(stats_history.get("mode", "rolling"))
         x_span = max(1, gx2 - gx1)
         y_span = max(1, gy2 - gy1)
+        label_font = 0.35
+        label_thickness = 1
 
         if mode == "timeline":
             total_frames = int(stats_history.get("total_frames") or 0)
@@ -1525,29 +1527,33 @@ class RoadDetector:
             for value in detected_map.values():
                 max_value = max(max_value, int(value))
 
-            def frame_to_x(frame_no):
-                frame_idx = max(1, min(int(frame_no), total_frames))
-                return int(round(gx1 + ((frame_idx - 1) / float(total_frames - 1)) * x_span))
-
             def value_to_y(value):
                 return int(round(gy2 - (max(0, int(value)) / float(max_value)) * y_span))
 
-            if total_frames > 0:
-                bar_half = max(1, int(round((gx2 - gx1 + 1) / float(total_frames))) // 2)
-            else:
-                bar_half = 1
+            # Bucket bars to keep a visual gap between neighboring values.
+            slot_step = 2
+            slot_count = max(1, (gx2 - gx1 + 1) // slot_step)
+            bars = np.zeros((slot_count,), dtype=np.int32)
 
-            # Aggregate by x-position to keep drawing stable even for long videos.
-            x_value_map = {}
             for frame_no, value in detected_map.items():
-                x = frame_to_x(frame_no)
-                x_value_map[x] = max(int(value), int(x_value_map.get(x, 0)))
+                frame_idx = max(1, min(int(frame_no), total_frames))
+                ratio = (frame_idx - 1) / float(total_frames - 1)
+                slot_idx = int(round(ratio * (slot_count - 1)))
+                bars[slot_idx] = max(bars[slot_idx], int(value))
 
-            for x in sorted(x_value_map.keys()):
-                y = value_to_y(x_value_map[x])
-                bx1 = max(gx1, x - bar_half)
-                bx2 = min(gx2, x + bar_half)
-                cv2.rectangle(detected, (bx1, y), (bx2, gy2), (255, 210, 0), cv2.FILLED)
+            bar_width = 1
+            for slot_idx, bar_value in enumerate(bars.tolist()):
+                x_left = gx1 + slot_idx * slot_step
+                x_right = min(gx2, x_left + bar_width)
+                is_detected = int(bar_value) > 0
+                y = value_to_y(bar_value) if is_detected else gy1
+                bar_color = (255, 210, 0) if is_detected else (40, 40, 220)
+                cv2.rectangle(detected, (x_left, y), (x_right, gy2), bar_color, cv2.FILLED)
+
+            cv2.putText(detected, f"Ymax:{max_value}", (gx1 + 2, gy1 + 10), font_face, label_font, (220, 220, 220), label_thickness)
+            x_label = f"Xmax:{total_frames}"
+            (xtw, xth), _ = cv2.getTextSize(x_label, font_face, label_font, label_thickness)
+            cv2.putText(detected, x_label, (max(gx1 + 2, gx2 - xtw - 2), gy1 + xth + 2), font_face, label_font, (220, 220, 220), label_thickness)
         else:
             points = stats_history.get("points") if isinstance(stats_history.get("points"), list) else []
             if len(points) <= 1:
@@ -1557,14 +1563,21 @@ class RoadDetector:
             max_value = max([1] + total_series)
             point_count = len(total_series)
 
-            bar_half = max(1, int(round((gx2 - gx1 + 1) / float(point_count))) // 2)
-
+            slot_step = max(2, int((gx2 - gx1 + 1) / max(1, point_count)))
+            bar_width = max(1, slot_step - 1)
             for idx, value in enumerate(total_series):
                 x = int(round(gx1 + (idx / float(point_count - 1)) * x_span))
-                y = int(round(gy2 - (max(0, value) / float(max_value)) * y_span))
-                bx1 = max(gx1, x - bar_half)
-                bx2 = min(gx2, x + bar_half)
-                cv2.rectangle(detected, (bx1, y), (bx2, gy2), (255, 210, 0), cv2.FILLED)
+                is_detected = int(value) > 0
+                y = int(round(gy2 - (max(0, value) / float(max_value)) * y_span)) if is_detected else gy1
+                bx1 = max(gx1, x - (bar_width // 2))
+                bx2 = min(gx2, bx1 + bar_width)
+                bar_color = (255, 210, 0) if is_detected else (40, 40, 220)
+                cv2.rectangle(detected, (bx1, y), (bx2, gy2), bar_color, cv2.FILLED)
+
+            cv2.putText(detected, f"Ymax:{max_value}", (gx1 + 2, gy1 + 10), font_face, label_font, (220, 220, 220), label_thickness)
+            x_label = f"Xmax:{point_count}"
+            (xtw, xth), _ = cv2.getTextSize(x_label, font_face, label_font, label_thickness)
+            cv2.putText(detected, x_label, (max(gx1 + 2, gx2 - xtw - 2), gy1 + xth + 2), font_face, label_font, (220, 220, 220), label_thickness)
 
         return detected
     pass # _render_bottom_stats_overlay

@@ -1007,8 +1007,7 @@ class RoadDetector:
         detected,
         result,
         names,
-        min_mask_area_ratio,
-        min_mask_area_pixels,
+        remove_noisy_masks,
         roi=None,
         inference_roi=None,
     ):
@@ -1041,7 +1040,7 @@ class RoadDetector:
         box_cls_ids = result.boxes.cls.cpu().numpy().astype(int) if (result.boxes is not None and result.boxes.cls is not None) else None
         height, width = detected.shape[:2]
         frame_area = max(1, height * width)
-        min_mask_area = max(min_mask_area_pixels, int(frame_area * min_mask_area_ratio))
+        min_mask_area = self._get_min_mask_area_for_noise_filter(frame_area, remove_noisy_masks)
         class_color_map = self._get_class_color_map()
 
         overlay = detected.copy()
@@ -1065,7 +1064,7 @@ class RoadDetector:
                 roi_binary[ry1:ry2, rx1:rx2] = True
                 binary_mask = np.logical_and(binary_mask, roi_binary)
             mask_area = int(np.count_nonzero(binary_mask))
-            if mask_area < min_mask_area:
+            if self._is_noisy_mask(mask_area, min_mask_area):
                 continue
 
             kept_mask_indices.append(idx)
@@ -1132,6 +1131,19 @@ class RoadDetector:
             "regenerated_box_colors": regenerated_box_colors,
         }
     pass # _process_result_masks
+
+    def _get_min_mask_area_for_noise_filter(self, frame_area: int, remove_noisy_masks: bool) -> int:
+        if not remove_noisy_masks:
+            return 0
+
+        min_mask_area_ratio = 0.001  # Exclude masks smaller than 0.1% of frame area.
+        min_mask_area_pixels = 64
+        return max(min_mask_area_pixels, int(frame_area * min_mask_area_ratio))
+    pass # _get_min_mask_area_for_noise_filter
+
+    def _is_noisy_mask(self, mask_area: int, min_mask_area: int) -> bool:
+        return int(mask_area) < int(min_mask_area)
+    pass # _is_noisy_mask
 
     def _select_top_detections(self, result, detect_key):
         # For "road" detect type, keep only the highest confidence detection.
@@ -1328,12 +1340,6 @@ class RoadDetector:
         conf = 0.10 if detect_key == "road_type" else 0.20
         infer_key = detect_key
         font_face = cv2.FONT_HERSHEY_SIMPLEX
-        if remove_noisy_masks:
-            min_mask_area_ratio = 0.001  # Exclude masks smaller than 0.1% of frame area.
-            min_mask_area_pixels = 64
-        else:
-            min_mask_area_ratio = 0.0
-            min_mask_area_pixels = 0
 
         # Build ROI image first and run detection on the ROI image itself.
         inference_roi = None
@@ -1404,8 +1410,7 @@ class RoadDetector:
             detected,
             result,
             names,
-            min_mask_area_ratio,
-            min_mask_area_pixels,
+            remove_noisy_masks,
             roi,
             inference_roi,
         )

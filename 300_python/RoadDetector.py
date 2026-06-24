@@ -1493,7 +1493,7 @@ class RoadDetector:
         if height <= 0 or width <= 0:
             return detected
 
-        panel_h = max(20, int(round(height * 0.05)))
+        panel_h = max(24, int(round(height * 0.10)))
         y1 = height - panel_h
         overlay = detected.copy()
         cv2.rectangle(overlay, (0, y1), (width, height), (18, 18, 18), cv2.FILLED)
@@ -1523,26 +1523,31 @@ class RoadDetector:
                 return detected
 
             detected_map = stats_history.get("detected") if isinstance(stats_history.get("detected"), dict) else {}
-            max_value = 1
+            max_detected_count = 0
             for value in detected_map.values():
-                max_value = max(max_value, int(value))
+                max_detected_count = max(max_detected_count, int(value))
+            scale_max = max(1, max_detected_count)
 
             def value_to_y(value):
-                return int(round(gy2 - (max(0, int(value)) / float(max_value)) * y_span))
+                return int(round(gy2 - (max(0, int(value)) / float(scale_max)) * y_span))
 
             # Bucket bars to keep a visual gap between neighboring values.
             slot_step = 2
             slot_count = max(1, (gx2 - gx1 + 1) // slot_step)
             bars = np.zeros((slot_count,), dtype=np.int32)
+            attempted = np.zeros((slot_count,), dtype=bool)
 
             for frame_no, value in detected_map.items():
                 frame_idx = max(1, min(int(frame_no), total_frames))
                 ratio = (frame_idx - 1) / float(total_frames - 1)
                 slot_idx = int(round(ratio * (slot_count - 1)))
+                attempted[slot_idx] = True
                 bars[slot_idx] = max(bars[slot_idx], int(value))
 
             bar_width = 1
             for slot_idx, bar_value in enumerate(bars.tolist()):
+                if not bool(attempted[slot_idx]):
+                    continue
                 x_left = gx1 + slot_idx * slot_step
                 x_right = min(gx2, x_left + bar_width)
                 is_detected = int(bar_value) > 0
@@ -1550,7 +1555,7 @@ class RoadDetector:
                 bar_color = (255, 210, 0) if is_detected else (40, 40, 220)
                 cv2.rectangle(detected, (x_left, y), (x_right, gy2), bar_color, cv2.FILLED)
 
-            cv2.putText(detected, f"Ymax:{max_value}", (gx1 + 2, gy1 + 10), font_face, label_font, (220, 220, 220), label_thickness)
+            cv2.putText(detected, f"Ymax:{max_detected_count}", (gx1 + 2, gy1 + 10), font_face, label_font, (220, 220, 220), label_thickness)
             x_label = f"Xmax:{total_frames}"
             (xtw, xth), _ = cv2.getTextSize(x_label, font_face, label_font, label_thickness)
             cv2.putText(detected, x_label, (max(gx1 + 2, gx2 - xtw - 2), gy1 + xth + 2), font_face, label_font, (220, 220, 220), label_thickness)
@@ -1560,7 +1565,8 @@ class RoadDetector:
                 return detected
 
             total_series = [int(item.get("detected_count", 0)) for item in points]
-            max_value = max([1] + total_series)
+            max_detected_count = max([0] + total_series)
+            scale_max = max(1, max_detected_count)
             point_count = len(total_series)
 
             slot_step = max(2, int((gx2 - gx1 + 1) / max(1, point_count)))
@@ -1568,13 +1574,13 @@ class RoadDetector:
             for idx, value in enumerate(total_series):
                 x = int(round(gx1 + (idx / float(point_count - 1)) * x_span))
                 is_detected = int(value) > 0
-                y = int(round(gy2 - (max(0, value) / float(max_value)) * y_span)) if is_detected else gy1
+                y = int(round(gy2 - (max(0, value) / float(scale_max)) * y_span)) if is_detected else gy1
                 bx1 = max(gx1, x - (bar_width // 2))
                 bx2 = min(gx2, bx1 + bar_width)
                 bar_color = (255, 210, 0) if is_detected else (40, 40, 220)
                 cv2.rectangle(detected, (bx1, y), (bx2, gy2), bar_color, cv2.FILLED)
 
-            cv2.putText(detected, f"Ymax:{max_value}", (gx1 + 2, gy1 + 10), font_face, label_font, (220, 220, 220), label_thickness)
+            cv2.putText(detected, f"Ymax:{max_detected_count}", (gx1 + 2, gy1 + 10), font_face, label_font, (220, 220, 220), label_thickness)
             x_label = f"Xmax:{point_count}"
             (xtw, xth), _ = cv2.getTextSize(x_label, font_face, label_font, label_thickness)
             cv2.putText(detected, x_label, (max(gx1 + 2, gx2 - xtw - 2), gy1 + xth + 2), font_face, label_font, (220, 220, 220), label_thickness)

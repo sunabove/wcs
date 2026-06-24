@@ -45,13 +45,20 @@ class LED :
         draw.rectangle((0, 0, self.width - 1, self.height - 1), outline=255, fill=0)
 
         max_lines = max(1, (self.height - (2 * self.margin_y)) // self.line_gap)
-        visible_lines = list(lines[:max_lines])
-        text_height = (len(visible_lines) - 1) * self.line_gap
-        start_y = max(self.margin_y, (self.height - text_height) // 2)
+        visible_lines = [str(line)[:20] for line in lines[:max_lines]]
 
-        for i, line in enumerate(visible_lines):
-            y = start_y + (i * self.line_gap)
-            draw.text((self.margin_x, y), str(line)[:20], font=self.font, fill=255)
+        line_boxes = [draw.textbbox((0, 0), line, font=self.font) for line in visible_lines]
+        line_heights = [box[3] - box[1] for box in line_boxes]
+        total_text_height = sum(line_heights)
+        if len(visible_lines) > 1:
+            total_text_height += (len(visible_lines) - 1) * self.line_gap
+
+        start_y = max(self.margin_y, (self.height - total_text_height) // 2)
+
+        y = start_y
+        for line, box, line_height in zip(visible_lines, line_boxes, line_heights):
+            draw.text((self.margin_x, y - box[1]), line, font=self.font, fill=255)
+            y += line_height + self.line_gap
 
         self.oled.image(image)
         self.oled.show()

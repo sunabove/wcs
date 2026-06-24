@@ -1564,10 +1564,10 @@ class RoadDetector:
                 bar_color = (0, 230, 255)
                 cv2.rectangle(detected, (cur_x - 1, gy1), (cur_x + 1, gy2), bar_color, cv2.FILLED)
 
-            y_label = f"Ymax:{max_detected_count}"
+            y_label = f"Count:{max_detected_count}"
             (_, yth), _ = cv2.getTextSize(y_label, font_face, label_font, label_thickness)
             cv2.putText(detected, y_label, (gx1 + 2, gy1 + yth + 1), font_face, label_font, (220, 220, 220), label_thickness)
-            x_label = f"Xmax:{total_frames}"
+            x_label = f"Frame:{total_frames}"
             (xtw, _), _ = cv2.getTextSize(x_label, font_face, label_font, label_thickness)
             cv2.putText(detected, x_label, (max(gx1 + 2, gx2 - xtw - 2), gy2 - 2), font_face, label_font, (220, 220, 220), label_thickness)
         else:

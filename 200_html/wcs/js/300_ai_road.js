@@ -558,6 +558,10 @@ $(function () {
         return "/fast/image/" + encodePathForRoute(fileName) + "?t=" + Date.now();
     }
 
+    function buildVideoThumbnailUrl(fileName) {
+        return "/fast/video_thumbnail/" + encodePathForRoute(fileName) + "?t=" + Date.now();
+    }
+
     function buildRoadDetectUrl(fileName) {
         return "/fast/road_detect/" + encodePathForRoute(fileName);
     }
@@ -1770,7 +1774,7 @@ $(function () {
 
         fileNames.forEach(function (fileName) {
             const safeFileName = normalizePath(fileName);
-            const videoUrl = buildImageUrl(safeFileName);
+            const thumbnailUrl = buildVideoThumbnailUrl(safeFileName);
             const label = safeFileName.split("/").pop() || safeFileName;
 
             if (!sampleVideoItemTemplate || !sampleVideoItemTemplate.content) {
@@ -1779,15 +1783,24 @@ $(function () {
 
             const node = sampleVideoItemTemplate.content.firstElementChild.cloneNode(true);
             const button = node.querySelector(".sample-video-item");
+            const thumbnailImage = node.querySelector(".sample-video-thumbnail");
             const video = node.querySelector("video");
             const caption = node.querySelector(".small");
 
             if (button) {
                 button.setAttribute("data-file-name", safeFileName);
             }
-            if (video) {
-                video.setAttribute("src", videoUrl);
-                setupSampleVideoThumbnail(video);
+            if (thumbnailImage) {
+                thumbnailImage.setAttribute("src", thumbnailUrl);
+                thumbnailImage.setAttribute("alt", label);
+            } else if (video) {
+                // Backward compatibility for old template shape.
+                video.removeAttribute("src");
+                video.setAttribute("poster", thumbnailUrl);
+                video.setAttribute("preload", "none");
+                if (typeof video.load === "function") {
+                    video.load();
+                }
             }
             if (caption) {
                 caption.setAttribute("title", safeFileName);

@@ -345,16 +345,7 @@ $(function () {
             data: {
                 labels: [],
                 datasets: [
-                    {
-                        label: "검출 개수",
-                        data: [],
-                        borderColor: "#0d6efd",
-                        backgroundColor: "rgba(13, 110, 253, 0.15)",
-                        fill: true,
-                        pointRadius: 0,
-                        tension: 0.18,
-                        borderWidth: 2,
-                    },
+                    buildDetectedTotalDataset(),
                 ],
             },
             options: {
@@ -390,12 +381,62 @@ $(function () {
         return detectedStatsChart;
     }
 
+    function buildDetectedTotalDataset() {
+        return {
+            label: "검출 개수(전체)",
+            data: [],
+            borderColor: "#0d6efd",
+            backgroundColor: "rgba(13, 110, 253, 0.15)",
+            fill: true,
+            pointRadius: 0,
+            tension: 0.18,
+            borderWidth: 2,
+        };
+    }
+
+    function hashStringToNumber(value) {
+        const text = String(value || "");
+        let hash = 0;
+        for (let i = 0; i < text.length; i += 1) {
+            hash = ((hash << 5) - hash) + text.charCodeAt(i);
+            hash |= 0;
+        }
+        return Math.abs(hash);
+    }
+
+    function buildClassDataset(className, currentLength) {
+        const palette = [
+            "#dc3545", "#198754", "#fd7e14", "#6f42c1", "#20c997", "#6610f2", "#d63384", "#0dcaf0",
+        ];
+        const color = palette[hashStringToNumber(className) % palette.length];
+        const seriesLength = Math.max(0, Number(currentLength || 0));
+
+        return {
+            label: "클래스: " + String(className),
+            className: String(className),
+            data: new Array(seriesLength).fill(0),
+            borderColor: color,
+            backgroundColor: "transparent",
+            fill: false,
+            pointRadius: 0,
+            tension: 0.18,
+            borderWidth: 2,
+        };
+    }
+
+    function findClassDataset(chart, className) {
+        const target = String(className);
+        return chart.data.datasets.find(function (dataset) {
+            return dataset && dataset.className === target;
+        }) || null;
+    }
+
     function resetDetectedStatsChart(mode) {
         detectedStatsMode = mode === "camera" ? "camera" : "video";
         const chart = ensureDetectedStatsChart();
         if (chart) {
             chart.data.labels = [];
-            chart.data.datasets[0].data = [];
+            chart.data.datasets = [buildDetectedTotalDataset()];
             chart.update("none");
         }
         if ($detectedStatsSummary.length > 0) {
@@ -432,11 +473,30 @@ $(function () {
         const totalMaskCount = Number(stats && stats.total_mask_count ? stats.total_mask_count : 0);
 
         chart.data.labels.push(String(frameNo));
-        chart.data.datasets[0].data.push(detectedCount);
+        chart.data.datasets.forEach(function (dataset) {
+            dataset.data.push(0);
+        });
+
+        if (chart.data.datasets.length > 0) {
+            chart.data.datasets[0].data[chart.data.datasets[0].data.length - 1] = detectedCount;
+        }
+
+        Object.keys(classCounts).forEach(function (className) {
+            let classDataset = findClassDataset(chart, className);
+            if (!classDataset) {
+                classDataset = buildClassDataset(className, chart.data.labels.length);
+                chart.data.datasets.push(classDataset);
+            }
+            classDataset.data[classDataset.data.length - 1] = Number(classCounts[className] || 0);
+        });
 
         if (detectedStatsMode === "camera" && chart.data.labels.length > CAMERA_STATS_MAX_POINTS) {
             chart.data.labels.shift();
-            chart.data.datasets[0].data.shift();
+            chart.data.datasets.forEach(function (dataset) {
+                if (dataset.data.length > 0) {
+                    dataset.data.shift();
+                }
+            });
         }
 
         chart.update("none");

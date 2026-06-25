@@ -393,85 +393,143 @@ $(function () {
         $downloadProgressContainer.removeClass("d-none");
         updateDetectedStreamControls();
 
-        $.ajax({
-            url: buildRoadDetectUrl(fileName),
-            data: {
-                detect_type: detectType,
-                remove_noisy_masks: removeNoisyMasks,
-                show_detect_stats: showDetectStats,
-            },
-            method: "GET",
-            timeout: 600000,  // 10분 타임아웃
-            xhr: function() {
-                const xhr = new window.XMLHttpRequest();
-                xhr.addEventListener("progress", function(e) {
-                    if (e.lengthComputable) {
-                        const percentComplete = (e.loaded / e.total) * 100;
-                        $downloadProgressBar.css("width", String(percentComplete) + "%");
-                        $downloadProgressBar.attr("aria-valuenow", String(Math.round(percentComplete)));
-                        $downloadProgressText.text(Math.round(percentComplete) + "%");
-                        
-                        // 다운로드 속도 및 예상 남은 시간 계산
-                        const loadedMB = (e.loaded / (1024 * 1024)).toFixed(2);
-                        const totalMB = (e.total / (1024 * 1024)).toFixed(2);
-                        $downloadProgressInfo.text(`다운로드 중: ${loadedMB} MB / ${totalMB} MB`);
+        // 생성 진행률 폴링 시작
+        let pollInterval = null;
+        let generationStarted = false;
+
+        const pollGenerationProgress = function() {
+            $.ajax({
+                url: `/fast/road_detect_progress/${encodeURIComponent(fileName)}`,
+                method: "GET",
+                timeout: 5000
+            }).done(function(progress) {
+                if (progress.status === 'not_started' && !generationStarted) {
+                    return; // 아직 시작 안 됨
+                }
+
+                generationStarted = true;
+
+                if (progress.total_frames > 0) {
+                    const percent = progress.percentage || 0;
+                    $downloadProgressBar.css("width", String(percent) + "%");
+                    $downloadProgressBar.attr("aria-valuenow", String(Math.round(percent)));
+                    $downloadProgressText.text(Math.round(percent) + "%");
+                    
+                    const stage = progress.stage || 'frame_processing';
+                    const stageLabel = stage === 'video_encoding' ? '인코딩 중' : '프레임 처리 중';
+                    $downloadProgressInfo.text(`${stageLabel}: ${progress.current_frame} / ${progress.total_frames} 프레임 (${Math.round(percent)}%)`);
+                }
+
+                // 생성 완료 또는 에러
+                if (progress.status === 'completed' || progress.status === 'error') {
+                    if (pollInterval) {
+                        clearInterval(pollInterval);
                     }
-                }, false);
-                return xhr;
-            }
-        }).done(function (result) {
-            if (!result || !result.image_url) {
-                showUploadStatusMessage("검출 동영상 생성에 실패했습니다.", false);
+
+                    if (progress.status === 'error') {
+                        showUploadStatusMessage(`검출 생성 실패: ${progress.error}`, false);
+                        $downloadProgressContainer.addClass("d-none");
+                        setDetectingState(false);
+                        $detectingIndicator.addClass("d-none");
+                        return;
+                    }
+
+                    // 생성 완료 후 실제 파일 다운로드 시작
+                    performVideoDownload();
+                }
+            }).fail(function(jqXHR) {
+                // 폴링 실패는 무시하고 계속 진행
+                console.log("Progress poll failed:", jqXHR.status);
+            });
+        };
+
+        const performVideoDownload = function() {
+            $.ajax({
+                url: buildRoadDetectUrl(fileName),
+                data: {
+                    detect_type: detectType,
+                    remove_noisy_masks: removeNoisyMasks,
+                    show_detect_stats: showDetectStats,
+                },
+                method: "GET",
+                timeout: 600000,  // 10분 타임아웃
+                xhr: function() {
+                    const xhr = new window.XMLHttpRequest();
+                    xhr.addEventListener("progress", function(e) {
+                        if (e.lengthComputable) {
+                            const percentComplete = 90 + (e.loaded / e.total) * 10; // 90-100% 범위
+                            $downloadProgressBar.css("width", String(percentComplete) + "%");
+                            $downloadProgressBar.attr("aria-valuenow", String(Math.round(percentComplete)));
+                            $downloadProgressText.text(Math.round(percentComplete) + "%");
+                            
+                            const loadedMB = (e.loaded / (1024 * 1024)).toFixed(2);
+                            const totalMB = (e.total / (1024 * 1024)).toFixed(2);
+                            $downloadProgressInfo.text(`다운로드 중: ${loadedMB} MB / ${totalMB} MB`);
+                        }
+                    }, false);
+                    return xhr;
+                }
+            }).done(function (result) {
+                if (!result || !result.image_url) {
+                    showUploadStatusMessage("검출 동영상 생성에 실패했습니다.", false);
+                    $downloadProgressContainer.addClass("d-none");
+                    return;
+                }
+
+                $downloadProgressBar.css("width", "100%");
+                $downloadProgressBar.attr("aria-valuenow", "100");
+                $downloadProgressText.text("100%");
+                $downloadProgressInfo.text("다운로드 완료. 파일을 저장하는 중...");
+
+                const downloadUrl = result.image_url + "?t=" + Date.now();
+                const anchor = document.createElement("a");
+                anchor.href = downloadUrl;
+                anchor.download = buildDetectedDownloadFileName(fileName);
+                anchor.style.display = "none";
+                document.body.appendChild(anchor);
+                anchor.click();
+                document.body.removeChild(anchor);
+
+                showUploadStatusMessage("검출 동영상 다운로드를 시작했습니다.", true);
+                setTimeout(() => {
+                    $downloadProgressContainer.addClass("d-none");
+                    $downloadProgressBar.css("width", "0%");
+                    $downloadProgressBar.attr("aria-valuenow", "0");
+                    $downloadProgressText.text("0%");
+                    $downloadProgressInfo.text("");
+                }, 2000);
+            }).fail(function (jqXHR) {
                 $downloadProgressContainer.addClass("d-none");
-                return;
-            }
+                if (jqXHR.statusText === "timeout") {
+                    showUploadStatusMessage("요청 시간이 초과했습니다. 작은 파일로 나누어 시도하거나 나중에 다시 시도해 주세요.", false);
+                } else {
+                    console.error("Detected video download error:", jqXHR.status, jqXHR.responseText);
+                    showUploadStatusMessage("검출 동영상 생성/다운로드에 실패했습니다.", false);
+                }
+            }).always(function () {
+                setDetectingState(false);
+                $detectingIndicator.addClass("d-none");
 
-            $downloadProgressBar.css("width", "100%");
-            $downloadProgressBar.attr("aria-valuenow", "100");
-            $downloadProgressText.text("100%");
-            $downloadProgressInfo.text("다운로드 완료. 파일을 저장하는 중...");
+                // 다운로드 생성 과정에서 스트림 세션을 정리했으므로,
+                // 동일 파일이 계속 선택된 경우 자동으로 재초기화하여 재생 버튼을 복구합니다.
+                if (
+                    hadVideoStreamSession
+                    && normalizePath(uploadedFileName) === normalizedTargetFile
+                    && isVideoPath(uploadedFileName)
+                ) {
+                    initFrameStream(uploadedFileName, detectType, removeNoisyMasks, { startPaused: true });
+                }
 
-            const downloadUrl = result.image_url + "?t=" + Date.now();
-            const anchor = document.createElement("a");
-            anchor.href = downloadUrl;
-            anchor.download = buildDetectedDownloadFileName(fileName);
-            anchor.style.display = "none";
-            document.body.appendChild(anchor);
-            anchor.click();
-            document.body.removeChild(anchor);
+                updateDetectedStreamControls();
+            });
+        };
 
-            showUploadStatusMessage("검출 동영상 다운로드를 시작했습니다.", true);
-            setTimeout(() => {
-                $downloadProgressContainer.addClass("d-none");
-                $downloadProgressBar.css("width", "0%");
-                $downloadProgressBar.attr("aria-valuenow", "0");
-                $downloadProgressText.text("0%");
-                $downloadProgressInfo.text("");
-            }, 2000);
-        }).fail(function (jqXHR) {
-            $downloadProgressContainer.addClass("d-none");
-            if (jqXHR.statusText === "timeout") {
-                showUploadStatusMessage("요청 시간이 초과했습니다. 작은 파일로 나누어 시도하거나 나중에 다시 시도해 주세요.", false);
-            } else {
-                console.error("Detected video download error:", jqXHR.status, jqXHR.responseText);
-                showUploadStatusMessage("검출 동영상 생성/다운로드에 실패했습니다.", false);
-            }
-        }).always(function () {
-            setDetectingState(false);
-            $detectingIndicator.addClass("d-none");
-
-            // 다운로드 생성 과정에서 스트림 세션을 정리했으므로,
-            // 동일 파일이 계속 선택된 경우 자동으로 재초기화하여 재생 버튼을 복구합니다.
-            if (
-                hadVideoStreamSession
-                && normalizePath(uploadedFileName) === normalizedTargetFile
-                && isVideoPath(uploadedFileName)
-            ) {
-                initFrameStream(uploadedFileName, detectType, removeNoisyMasks, { startPaused: true });
-            }
-
-            updateDetectedStreamControls();
-        });
+        // 생성 진행률 폴링 시작 (0.5초마다)
+        pollInterval = setInterval(pollGenerationProgress, 500);
+        
+        // 첫 번째 폴링 즉시 실행
+        pollGenerationProgress();
+    }
     }
 
     function triggerDetectedImageDownload(fileName) {

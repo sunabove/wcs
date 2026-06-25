@@ -813,6 +813,14 @@ $(function () {
         return "/fast/video_thumbnail/" + encodePathForRoute(fileName) + "?t=" + Date.now();
     }
 
+    function buildVideoPlayableUrl(fileName, forceTranscode) {
+        const base = "/fast/video_playable/" + encodePathForRoute(fileName);
+        const query = $.param({
+            force_transcode: Boolean(forceTranscode),
+        });
+        return base + "?" + query;
+    }
+
     function buildRoadDetectUrl(fileName) {
         return "/fast/road_detect/" + encodePathForRoute(fileName);
     }
@@ -1097,8 +1105,50 @@ $(function () {
 
     function displayOriginalMedia(fileName) {
         const normalizedFileName = normalizePath(fileName);
-        const mediaUrl = buildImageUrl(normalizedFileName);
-        showMediaPreview(mediaUrl, isVideoPath(normalizedFileName), $uploadedImagePreview, $uploadedVideoPreview);
+        if (isVideoPath(normalizedFileName)) {
+            const directUrl = buildImageUrl(normalizedFileName);
+            $uploadedVideoPreview.off(".originalVideoFallback");
+            $uploadedVideoPreview.data("fallbackTried", false);
+
+            $uploadedVideoPreview.on("loadedmetadata.originalVideoFallback loadeddata.originalVideoFallback", function () {
+                $uploadedVideoPreview.off("error.originalVideoFallback");
+            });
+
+            $uploadedVideoPreview.on("error.originalVideoFallback", function () {
+                const alreadyTried = Boolean($uploadedVideoPreview.data("fallbackTried"));
+                if (alreadyTried) {
+                    showUploadStatusMessage("브라우저에서 재생할 수 없는 동영상 형식입니다.", false);
+                    return;
+                }
+
+                $uploadedVideoPreview.data("fallbackTried", true);
+                showUploadStatusMessage("브라우저 재생용 형식으로 변환 중입니다...", true);
+
+                $.ajax({
+                    url: buildVideoPlayableUrl(normalizedFileName, true),
+                    method: "GET",
+                    timeout: 600000,
+                }).done(function (result) {
+                    if (!result || !result.video_url) {
+                        showUploadStatusMessage("브라우저 재생용 동영상 변환에 실패했습니다.", false);
+                        return;
+                    }
+
+                    const playableUrl = result.video_url + (String(result.video_url).indexOf("?") >= 0 ? "&" : "?") + $.param({ t: Date.now() });
+                    showMediaPreview(playableUrl, true, $uploadedImagePreview, $uploadedVideoPreview);
+                    showUploadStatusMessage("브라우저 재생용으로 변환한 영상을 표시합니다.", true);
+                }).fail(function (jqXHR) {
+                    console.error("Playable video fallback error:", jqXHR.status, jqXHR.responseText);
+                    showUploadStatusMessage("브라우저 재생용 동영상 변환에 실패했습니다.", false);
+                });
+            });
+
+            showMediaPreview(directUrl, true, $uploadedImagePreview, $uploadedVideoPreview);
+        } else {
+            const mediaUrl = buildImageUrl(normalizedFileName);
+            showMediaPreview(mediaUrl, false, $uploadedImagePreview, $uploadedVideoPreview);
+        }
+
         updateDetectedStreamControls();
         loadRoiInfo(normalizedFileName);
     }

@@ -84,6 +84,17 @@ async def video_thumbnail_service(file_name: str):
 pass # video_thumbnail_service
 
 
+@router.get("/video_playable/{file_name:path}")
+async def video_playable_service(
+    file_name: str,
+    force_transcode: bool = Query(False),
+):
+    from send_image import get_browser_playable_video_url
+
+    return get_browser_playable_video_url(file_name, force_transcode=force_transcode)
+pass # video_playable_service
+
+
 @router.get("/samples/{folder_name:path}")
 async def sample_data_file_name_list_service(folder_name: str):
     from sample_data_file_name_list import sample_data_file_name_list

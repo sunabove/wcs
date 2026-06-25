@@ -8,6 +8,15 @@ import numpy as np
 from pathlib import Path
 from config import *
 
+
+def _to_image_route_url(file_path: Path) -> str:
+    base_dir = BASE_DIR.resolve()
+    try:
+        relative = file_path.resolve().relative_to(base_dir).as_posix()
+    except ValueError:
+        relative = file_path.name
+    return f"/fast/image/{relative}"
+
 def resolve_upload_image_path(file_name: str) -> Path:
     if not file_name or not file_name.strip():
         raise HTTPException(status_code=400, detail="file_name is required")
@@ -64,6 +73,95 @@ def send_image_contents(file_name: str, download: bool = False, download_name: s
         media_type=media_type
     )
 pass # send_image_contents
+
+
+def get_browser_playable_video_url(file_name: str, force_transcode: bool = False) -> dict:
+    video_path = resolve_upload_image_path(file_name)
+
+    if not video_path.exists() or not video_path.is_file():
+        raise HTTPException(status_code=404, detail="Video not found")
+
+    suffix = video_path.suffix.lower()
+    if suffix not in VIDEO_EXTENSIONS:
+        raise HTTPException(status_code=400, detail="file_name is not a video")
+
+    # Most browsers handle these containers directly.
+    if not force_transcode and suffix in {".mp4", ".m4v", ".webm"}:
+        return {
+            "video_url": _to_image_route_url(video_path),
+            "source": "original",
+        }
+
+    playable_path = video_path.with_name(f"{video_path.stem}_browser.mp4")
+    needs_transcode = True
+    if playable_path.exists() and playable_path.is_file() and playable_path.stat().st_size > 0:
+        try:
+            needs_transcode = playable_path.stat().st_mtime < video_path.stat().st_mtime
+        except OSError:
+            needs_transcode = True
+
+    if needs_transcode:
+        capture = cv2.VideoCapture(str(video_path))
+        if not capture.isOpened():
+            raise HTTPException(status_code=400, detail="Unable to open source video")
+
+        temp_path = playable_path.with_name(f"{playable_path.stem}.tmp.mp4")
+        writer = None
+        written = 0
+        try:
+            fps = float(capture.get(cv2.CAP_PROP_FPS) or 0.0)
+            if fps <= 0:
+                fps = 20.0
+
+            width = int(capture.get(cv2.CAP_PROP_FRAME_WIDTH) or 0)
+            height = int(capture.get(cv2.CAP_PROP_FRAME_HEIGHT) or 0)
+            if width <= 0 or height <= 0:
+                raise HTTPException(status_code=500, detail="Invalid video size")
+
+            fourcc = cv2.VideoWriter_fourcc(*"mp4v")
+            writer = cv2.VideoWriter(str(temp_path), fourcc, fps, (width, height))
+            if not writer.isOpened():
+                raise HTTPException(status_code=500, detail="Failed to create browser-playable video")
+
+            while True:
+                ok, frame = capture.read()
+                if not ok:
+                    break
+
+                if frame is None:
+                    continue
+
+                if frame.shape[1] != width or frame.shape[0] != height:
+                    frame = cv2.resize(frame, (width, height), interpolation=cv2.INTER_AREA)
+
+                writer.write(frame)
+                written += 1
+        finally:
+            capture.release()
+            if writer is not None:
+                writer.release()
+
+        if written <= 0 or not temp_path.exists() or temp_path.stat().st_size <= 0:
+            try:
+                temp_path.unlink(missing_ok=True)
+            except OSError:
+                pass
+            raise HTTPException(status_code=500, detail="Failed to transcode video")
+
+        try:
+            temp_path.replace(playable_path)
+        except OSError as ex:
+            try:
+                temp_path.unlink(missing_ok=True)
+            except OSError:
+                pass
+            raise HTTPException(status_code=500, detail=f"Failed to finalize transcoded video: {ex}")
+
+    return {
+        "video_url": _to_image_route_url(playable_path),
+        "source": "transcoded",
+    }
+pass # get_browser_playable_video_url
 
 
 def _is_blank_or_white_frame(frame: np.ndarray) -> bool:

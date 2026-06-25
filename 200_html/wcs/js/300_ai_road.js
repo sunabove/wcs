@@ -119,6 +119,24 @@ $(function () {
         requestAnimationFrame(syncRoiOverlay);
     }
 
+    function triggerBrowserDownload(url) {
+        if (!url) {
+            return;
+        }
+
+        const iframe = document.createElement("iframe");
+        iframe.style.display = "none";
+        iframe.setAttribute("aria-hidden", "true");
+        iframe.src = url;
+        document.body.appendChild(iframe);
+
+        window.setTimeout(function () {
+            if (iframe.parentNode) {
+                iframe.parentNode.removeChild(iframe);
+            }
+        }, 120000);
+    }
+
     function setupSampleVideoThumbnail(video) {
         if (!video || video.dataset.thumbnailReady === "1") {
             return;
@@ -503,12 +521,7 @@ $(function () {
                         download: true,
                         download_name: downloadFileName,
                     });
-                const anchor = document.createElement("a");
-                anchor.href = downloadUrl;
-                anchor.style.display = "none";
-                document.body.appendChild(anchor);
-                anchor.click();
-                document.body.removeChild(anchor);
+                triggerBrowserDownload(downloadUrl);
 
                 showUploadStatusMessage("검출 동영상 다운로드를 시작했습니다.", true);
                 setTimeout(() => {

@@ -671,6 +671,45 @@ $(function () {
             return null;
         }
 
+        // 동영상의 경우 메타데이터(videoWidth/videoHeight)가 아직 로드되지 않았으면
+        // clientHeight가 브라우저 기본값(예: 150px)이 되어 ROI 비율이 틀릴 수 있으므로
+        // 메타데이터 로드 후 syncRoiOverlay()가 다시 호출될 때까지 null 반환.
+        if (mediaElement.tagName === "VIDEO") {
+            const vw = mediaElement.videoWidth;
+            const vh = mediaElement.videoHeight;
+            if (vw <= 0 || vh <= 0) {
+                return null;
+            }
+            // clientHeight가 네이티브 컨트롤 영역을 포함하거나 아직 재계산 전일 수 있으므로
+            // 실제 영상 프레임 크기를 videoWidth/videoHeight 비율로 재산출.
+            const clientWidth = mediaElement.clientWidth;
+            const clientHeight = mediaElement.clientHeight;
+            if (clientWidth <= 0 || clientHeight <= 0) {
+                return null;
+            }
+            const videoAspect = vw / vh;
+            const elementAspect = clientWidth / clientHeight;
+            let displayWidth, displayHeight;
+            if (videoAspect > elementAspect) {
+                // 영상이 요소보다 넓은 경우 — 너비 기준으로 축소
+                displayWidth = clientWidth;
+                displayHeight = Math.round(clientWidth / videoAspect);
+            } else {
+                // 영상이 요소보다 높은 경우 — 높이 기준으로 축소
+                displayHeight = clientHeight;
+                displayWidth = Math.round(clientHeight * videoAspect);
+            }
+            if (displayWidth <= 0 || displayHeight <= 0) {
+                return null;
+            }
+            return {
+                ratioX: displayWidth / currentRoiInfo.width,
+                ratioY: displayHeight / currentRoiInfo.height,
+                scaleX: currentRoiInfo.width / displayWidth,
+                scaleY: currentRoiInfo.height / displayHeight,
+            };
+        }
+
         const displayWidth = mediaElement.clientWidth;
         const displayHeight = mediaElement.clientHeight;
         if (displayWidth <= 0 || displayHeight <= 0) {

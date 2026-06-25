@@ -81,7 +81,7 @@ $(function () {
             $img.attr("src", "").addClass("d-none");
         }
         if ($video && $video.length > 0) {
-            $video.attr("src", "").addClass("d-none");
+            $video.attr("src", "").addClass("d-none").css("aspect-ratio", "");
             if ($video[0] && typeof $video[0].pause === "function") {
                 $video[0].pause();
             }
@@ -94,7 +94,7 @@ $(function () {
                 $img.attr("src", "").addClass("d-none");
             }
             if ($video && $video.length > 0) {
-                $video.attr("src", url).removeClass("d-none");
+                $video.css("aspect-ratio", "").attr("src", url).removeClass("d-none");
                 if ($video[0] && typeof $video[0].load === "function") {
                     $video[0].load();
                 }
@@ -103,7 +103,7 @@ $(function () {
         }
 
         if ($video && $video.length > 0) {
-            $video.attr("src", "").addClass("d-none");
+            $video.attr("src", "").addClass("d-none").css("aspect-ratio", "");
             if ($video[0] && typeof $video[0].pause === "function") {
                 $video[0].pause();
             }
@@ -2195,6 +2195,11 @@ $(function () {
     });
 
     $uploadedVideoPreview.on("loadedmetadata loadeddata", function () {
+        const videoElement = $uploadedVideoPreview[0];
+        if (videoElement && videoElement.videoWidth > 0 && videoElement.videoHeight > 0) {
+            const aspectRatio = videoElement.videoWidth / videoElement.videoHeight;
+            $uploadedVideoPreview.css("aspect-ratio", String(aspectRatio));
+        }
         syncRoiOverlay();
     });
 

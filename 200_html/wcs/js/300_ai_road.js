@@ -49,6 +49,7 @@ $(function () {
     const cameraDeviceItemTemplate = document.getElementById("camera-device-item-template");
     const cameraDeviceListContainerTemplate = document.getElementById("camera-device-list-container-template");
     const DETECT_AFTER_UPLOAD_DELAY_MS = 800;
+    const DETECT_OPTIONS_STORAGE_KEY = "wcs.ai_road.detect_options.v1";
     let uploadedFileName = "";
     let previousFileName = "";  // 이전 파일명 추적
     let detectDebounceTimer = null;
@@ -707,6 +708,61 @@ $(function () {
             return true;
         }
         return $showDetectStatsChart.is(":checked");
+    }
+
+    function saveDetectOptionsToStorage() {
+        if (typeof window.localStorage === "undefined") {
+            return;
+        }
+
+        const payload = {
+            detectType: getSelectedDetectType(),
+            removeNoisyMasks: getRemoveNoisyMasks(),
+            showDetectStats: getShowDetectStatsOverlay(),
+        };
+
+        try {
+            window.localStorage.setItem(DETECT_OPTIONS_STORAGE_KEY, JSON.stringify(payload));
+        } catch (error) {
+            // Ignore storage write errors (private mode, quota exceeded, etc.).
+        }
+    }
+
+    function restoreDetectOptionsFromStorage() {
+        if (typeof window.localStorage === "undefined") {
+            return;
+        }
+
+        let parsed = null;
+        try {
+            const raw = window.localStorage.getItem(DETECT_OPTIONS_STORAGE_KEY);
+            if (!raw) {
+                return;
+            }
+            parsed = JSON.parse(raw);
+        } catch (error) {
+            return;
+        }
+
+        if (!parsed || typeof parsed !== "object") {
+            return;
+        }
+
+        const detectType = String(parsed.detectType || "").trim();
+        if (detectType) {
+            const $target = $detectTypeInputs.filter("[value='" + detectType + "']");
+            if ($target.length > 0) {
+                $target.prop("checked", true);
+            }
+        }
+
+        if (typeof parsed.removeNoisyMasks === "boolean" && $removeNoisyMasks.length > 0) {
+            $removeNoisyMasks.prop("checked", parsed.removeNoisyMasks);
+        }
+
+        if (typeof parsed.showDetectStats === "boolean" && $showDetectStatsChart.length > 0) {
+            $showDetectStatsChart.prop("checked", parsed.showDetectStats);
+        }
     }
 
     function getValidPercent($input, fallbackValue) {
@@ -2245,6 +2301,8 @@ $(function () {
         }, 250);
     }
 
+    restoreDetectOptionsFromStorage();
+
     $detectedImageTab.on("click", function () {
         if (cameraStreamState && cameraStreamState.isPlaying) {
             setCameraDetectMode(true);
@@ -2282,14 +2340,17 @@ $(function () {
     });
 
     $detectTypeInputs.on("change", function () {
+        saveDetectOptionsToStorage();
         scheduleDetectUpdate();
     });
 
     $removeNoisyMasks.on("change", function () {
+        saveDetectOptionsToStorage();
         scheduleDetectUpdate();
     });
 
     $showDetectStatsChart.on("change", function () {
+        saveDetectOptionsToStorage();
         scheduleDetectUpdate();
         if (cameraStreamState && cameraStreamState.isPlaying) {
             startCameraLiveStream(cameraStreamState.cameraIndex, cameraStreamState.cameraName);

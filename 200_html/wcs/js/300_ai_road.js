@@ -65,7 +65,6 @@ $(function () {
     let frameTimerMap = {};     // 프레임 타이머 맵
     let cameraStreamState = null;
     let cameraStreamTimer = null;
-    let pendingDownloadWindow = null;
     let currentRoiInfo = null;
     let draftRoiInfo = null;
     let roiInteraction = null;
@@ -127,17 +126,6 @@ $(function () {
             return;
         }
 
-        if (pendingDownloadWindow && !pendingDownloadWindow.closed) {
-            try {
-                pendingDownloadWindow.location.href = url;
-                pendingDownloadWindow.focus();
-                pendingDownloadWindow = null;
-                return;
-            } catch (error) {
-                // Fallback to iframe download when popup window navigation is blocked.
-            }
-        }
-
         const iframe = document.createElement("iframe");
         iframe.style.display = "none";
         iframe.setAttribute("aria-hidden", "true");
@@ -150,31 +138,6 @@ $(function () {
                 iframe.parentNode.removeChild(iframe);
             }
         }, 3600000);
-    }
-
-    function reserveDownloadWindow() {
-        try {
-            const popup = window.open("about:blank", "_blank");
-            if (popup && !popup.closed) {
-                pendingDownloadWindow = popup;
-            }
-        } catch (error) {
-            pendingDownloadWindow = null;
-        }
-    }
-
-    function closePendingDownloadWindow() {
-        if (!pendingDownloadWindow || pendingDownloadWindow.closed) {
-            pendingDownloadWindow = null;
-            return;
-        }
-
-        try {
-            pendingDownloadWindow.close();
-        } catch (error) {
-            // Ignore close errors.
-        }
-        pendingDownloadWindow = null;
     }
 
     function setupSampleVideoThumbnail(video) {
@@ -553,7 +516,6 @@ $(function () {
                 }
             }).done(function (result) {
                 if (!result || !result.image_url) {
-                    closePendingDownloadWindow();
                     showUploadStatusMessage("검출 동영상 생성에 실패했습니다.", false);
                     $downloadProgressContainer.addClass("d-none");
                     return;
@@ -585,11 +547,9 @@ $(function () {
                 }, 2000);
             }).fail(function (jqXHR) {
                 if (jqXHR.statusText === "abort") {
-                    closePendingDownloadWindow();
                     return;
                 }
 
-                closePendingDownloadWindow();
                 $downloadProgressContainer.addClass("d-none");
                 if (jqXHR.statusText === "timeout") {
                     showUploadStatusMessage("요청 시간이 초과했습니다. 작은 파일로 나누어 시도하거나 나중에 다시 시도해 주세요.", false);
@@ -2536,7 +2496,6 @@ $(function () {
     });
 
     $detectedVideoDownloadButton.on("click", function () {
-        reserveDownloadWindow();
         triggerDetectedVideoDownload(uploadedFileName);
     });
 

@@ -383,7 +383,7 @@ $(function () {
         const detectType = getSelectedDetectType();
         const removeNoisyMasks = getRemoveNoisyMasks();
         const showDetectStats = getShowDetectStatsOverlay();
-        showUploadStatusMessage("전체 동영상 검출 파일 생성 중...", true);
+        showUploadStatusMessage("전체 동영상 검출 파일 생성 중... (큰 파일의 경우 수 분이 소요될 수 있습니다)", true);
         setDetectingState(true);
         $detectingIndicator.removeClass("d-none");
         updateDetectedStreamControls();
@@ -395,7 +395,8 @@ $(function () {
                 remove_noisy_masks: removeNoisyMasks,
                 show_detect_stats: showDetectStats,
             },
-            method: "GET"
+            method: "GET",
+            timeout: 600000  // 10분 타임아웃
         }).done(function (result) {
             if (!result || !result.image_url) {
                 showUploadStatusMessage("검출 동영상 생성에 실패했습니다.", false);
@@ -413,8 +414,12 @@ $(function () {
 
             showUploadStatusMessage("검출 동영상 다운로드를 시작했습니다.", true);
         }).fail(function (jqXHR) {
-            console.error("Detected video download error:", jqXHR.status, jqXHR.responseText);
-            showUploadStatusMessage("검출 동영상 생성/다운로드에 실패했습니다.", false);
+            if (jqXHR.statusText === "timeout") {
+                showUploadStatusMessage("요청 시간이 초과했습니다. 작은 파일로 나누어 시도하거나 나중에 다시 시도해 주세요.", false);
+            } else {
+                console.error("Detected video download error:", jqXHR.status, jqXHR.responseText);
+                showUploadStatusMessage("검출 동영상 생성/다운로드에 실패했습니다.", false);
+            }
         }).always(function () {
             setDetectingState(false);
             $detectingIndicator.addClass("d-none");
@@ -454,7 +459,8 @@ $(function () {
                 remove_noisy_masks: removeNoisyMasks,
                 show_detect_stats: showDetectStats,
             },
-            method: "GET"
+            method: "GET",
+            timeout: 600000  // 10분 타임아웃
         }).done(function (result) {
             if (!result || !result.image_url) {
                 showUploadStatusMessage("검출 이미지 생성에 실패했습니다.", false);
@@ -474,8 +480,12 @@ $(function () {
 
             showUploadStatusMessage("검출 이미지 다운로드를 시작했습니다.", true);
         }).fail(function (jqXHR) {
-            console.error("Detected image download error:", jqXHR.status, jqXHR.responseText);
-            showUploadStatusMessage("검출 이미지 생성/다운로드에 실패했습니다.", false);
+            if (jqXHR.statusText === "timeout") {
+                showUploadStatusMessage("요청 시간이 초과했습니다. 나중에 다시 시도해 주세요.", false);
+            } else {
+                console.error("Detected image download error:", jqXHR.status, jqXHR.responseText);
+                showUploadStatusMessage("검출 이미지 생성/다운로드에 실패했습니다.", false);
+            }
         }).always(function () {
             setDetectingState(false);
             $detectingIndicator.addClass("d-none");

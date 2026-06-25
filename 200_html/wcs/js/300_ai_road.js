@@ -2191,6 +2191,25 @@ $(function () {
     });
 
     $uploadedImagePreview.on("load", function () {
+        const imgElement = $uploadedImagePreview[0];
+        if (imgElement && imgElement.naturalWidth > 0 && imgElement.naturalHeight > 0) {
+            // ROI 정보가 없거나 불완전하면 이미지 크기 기반으로 기본 ROI 설정
+            if (!currentRoiInfo || currentRoiInfo.width <= 0 || currentRoiInfo.height <= 0) {
+                currentRoiInfo = {
+                    width: imgElement.naturalWidth,
+                    height: imgElement.naturalHeight,
+                    roiFile: "",
+                    roi: {
+                        x1: 0,
+                        y1: 0,
+                        x2: imgElement.naturalWidth,
+                        y2: imgElement.naturalHeight,
+                    }
+                };
+                draftRoiInfo = cloneRoi(currentRoiInfo.roi);
+                updateRoiEditorButtons();
+            }
+        }
         syncRoiOverlay();
     });
 
@@ -2199,6 +2218,23 @@ $(function () {
         if (videoElement && videoElement.videoWidth > 0 && videoElement.videoHeight > 0) {
             const aspectRatio = videoElement.videoWidth / videoElement.videoHeight;
             $uploadedVideoPreview.css("aspect-ratio", String(aspectRatio));
+            
+            // ROI 정보가 없거나 불완전하면 동영상 크기 기반으로 기본 ROI 설정
+            if (!currentRoiInfo || currentRoiInfo.width <= 0 || currentRoiInfo.height <= 0) {
+                currentRoiInfo = {
+                    width: videoElement.videoWidth,
+                    height: videoElement.videoHeight,
+                    roiFile: "",
+                    roi: {
+                        x1: 0,
+                        y1: 0,
+                        x2: videoElement.videoWidth,
+                        y2: videoElement.videoHeight,
+                    }
+                };
+                draftRoiInfo = cloneRoi(currentRoiInfo.roi);
+                updateRoiEditorButtons();
+            }
         }
         syncRoiOverlay();
     });

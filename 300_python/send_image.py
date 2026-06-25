@@ -27,7 +27,7 @@ def resolve_upload_image_path(file_name: str) -> Path:
     return resolved_path
 pass # resolve_upload_image_path
 
-def send_image_contents(file_name: str):
+def send_image_contents(file_name: str, download: bool = False, download_name: str = ""):
     image_path = resolve_upload_image_path(file_name)
 
     if not image_path.exists() or not image_path.is_file():
@@ -49,6 +49,15 @@ def send_image_contents(file_name: str):
         ".webm": "video/webm",
         ".wmv": "video/x-ms-wmv"
     }.get(suffix, "application/octet-stream")
+
+    if download:
+        final_name = str(download_name or image_path.name).strip() or image_path.name
+        return FileResponse(
+            str(image_path),
+            media_type=media_type,
+            filename=final_name,
+            content_disposition_type="attachment",
+        )
 
     return FileResponse(
         str(image_path),

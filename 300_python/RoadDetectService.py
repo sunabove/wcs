@@ -54,17 +54,25 @@ async def image_upload_service(file: UploadFile = File(...)):
 pass # image_upload_service
 
 @router.get("/image")
-async def image_service_query(file_name: str):
+async def image_service_query(
+    file_name: str,
+    download: bool = Query(False),
+    download_name: str = Query(""),
+):
     from send_image import send_image_contents
 
-    return send_image_contents(file_name)
+    return send_image_contents(file_name, download=download, download_name=download_name)
 pass # image_service_query
 
 @router.get("/image/{file_name:path}")
-async def image_service_path(file_name: str):
+async def image_service_path(
+    file_name: str,
+    download: bool = Query(False),
+    download_name: str = Query(""),
+):
     from send_image import send_image_contents
 
-    return send_image_contents(file_name)
+    return send_image_contents(file_name, download=download, download_name=download_name)
 pass # image_service_path
 
 

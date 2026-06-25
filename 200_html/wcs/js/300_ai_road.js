@@ -494,10 +494,17 @@ $(function () {
                 $downloadProgressText.text("100%");
                 $downloadProgressInfo.text("다운로드 완료. 파일을 저장하는 중...");
 
-                const downloadUrl = result.image_url + "?t=" + Date.now();
+                const downloadFileName = buildDetectedDownloadFileName(fileName);
+                const separator = result.image_url.indexOf("?") >= 0 ? "&" : "?";
+                const downloadUrl = result.image_url
+                    + separator
+                    + $.param({
+                        t: Date.now(),
+                        download: true,
+                        download_name: downloadFileName,
+                    });
                 const anchor = document.createElement("a");
                 anchor.href = downloadUrl;
-                anchor.download = buildDetectedDownloadFileName(fileName);
                 anchor.style.display = "none";
                 document.body.appendChild(anchor);
                 anchor.click();

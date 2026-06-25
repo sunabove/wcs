@@ -126,18 +126,9 @@ $(function () {
             return;
         }
 
-        const iframe = document.createElement("iframe");
-        iframe.style.display = "none";
-        iframe.setAttribute("aria-hidden", "true");
-        iframe.src = url;
-        document.body.appendChild(iframe);
-
-        // Keep the iframe long enough for large downloads to start reliably.
-        window.setTimeout(function () {
-            if (iframe.parentNode) {
-                iframe.parentNode.removeChild(iframe);
-            }
-        }, 3600000);
+        // Use top-level navigation to make browser download handling more reliable
+        // for large files than hidden iframe auto-download.
+        window.location.assign(url);
     }
 
     function setupSampleVideoThumbnail(video) {

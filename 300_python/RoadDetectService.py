@@ -188,7 +188,7 @@ async def camera_detect_stream_cleanup_all_service():
 pass # camera_detect_stream_cleanup_all_service
 
 @router.get("/road_detect/{file_name:path}")
-async def road_detect_service(
+def road_detect_service(
     file_name: str,
     detect_type: str = Query("road"),
     remove_noisy_masks: bool = Query(True),

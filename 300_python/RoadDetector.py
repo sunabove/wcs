@@ -387,7 +387,8 @@ class RoadDetector:
                 
                 # 진행 상태 업데이트
                 if session_id:
-                    percentage = int((current_frame_no / frame_count * 100)) if frame_count > 0 else 0
+                    # Keep frame-processing progress below encoding stage to avoid backward jumps.
+                    percentage = int((current_frame_no / frame_count * 89)) if frame_count > 0 else 0
                     with RoadDetector._detect_lock:
                         RoadDetector._detect_progress[session_id] = {
                             'status': 'generating',

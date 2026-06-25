@@ -432,6 +432,17 @@ $(function () {
         // 생성 진행률 폴링 시작
         let pollInterval = null;
         let downloadRequest = null;
+        let lastProgressPercent = 0;
+
+        const renderDownloadProgress = function (percent) {
+            const numeric = Number(percent);
+            const bounded = Number.isFinite(numeric) ? Math.max(0, Math.min(100, numeric)) : 0;
+            const stable = Math.max(lastProgressPercent, bounded);
+            lastProgressPercent = stable;
+            $downloadProgressBar.css("width", String(stable) + "%");
+            $downloadProgressBar.attr("aria-valuenow", String(Math.round(stable)));
+            $downloadProgressText.text(Math.round(stable) + "%");
+        };
 
         const stopProgressPolling = function () {
             if (pollInterval) {
@@ -453,9 +464,7 @@ $(function () {
 
                 if (progress.total_frames > 0) {
                     const percent = progress.percentage || 0;
-                    $downloadProgressBar.css("width", String(percent) + "%");
-                    $downloadProgressBar.attr("aria-valuenow", String(Math.round(percent)));
-                    $downloadProgressText.text(Math.round(percent) + "%");
+                    renderDownloadProgress(percent);
                     
                     const stage = progress.stage || "frame_processing";
                     const stageLabel = stage === "video_encoding" ? "인코딩 중" : "프레임 처리 중";
@@ -477,9 +486,7 @@ $(function () {
 
                 if (progress.status === "completed") {
                     stopProgressPolling();
-                    $downloadProgressBar.css("width", "90%");
-                    $downloadProgressBar.attr("aria-valuenow", "90");
-                    $downloadProgressText.text("90%");
+                    renderDownloadProgress(90);
                     $downloadProgressInfo.text("검출 완료. 다운로드 준비 중...");
                 }
             }).fail(function(jqXHR) {
@@ -503,9 +510,7 @@ $(function () {
                     xhr.addEventListener("progress", function(e) {
                         if (e.lengthComputable) {
                             const percentComplete = 90 + (e.loaded / e.total) * 10; // 90-100% 범위
-                            $downloadProgressBar.css("width", String(percentComplete) + "%");
-                            $downloadProgressBar.attr("aria-valuenow", String(Math.round(percentComplete)));
-                            $downloadProgressText.text(Math.round(percentComplete) + "%");
+                            renderDownloadProgress(percentComplete);
                             
                             const loadedMB = (e.loaded / (1024 * 1024)).toFixed(2);
                             const totalMB = (e.total / (1024 * 1024)).toFixed(2);
@@ -521,9 +526,7 @@ $(function () {
                     return;
                 }
 
-                $downloadProgressBar.css("width", "100%");
-                $downloadProgressBar.attr("aria-valuenow", "100");
-                $downloadProgressText.text("100%");
+                renderDownloadProgress(100);
                 $downloadProgressInfo.text("다운로드 완료. 파일을 저장하는 중...");
 
                 const downloadFileName = buildDetectedDownloadFileName(fileName);

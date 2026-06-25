@@ -289,8 +289,18 @@ async def road_detect_progress_service(file_name: str):
     """비디오 감지 진행 상황 조회"""
     from RoadDetector import RoadDetector
 
-    # file_name을 session_id로 사용
-    if file_name not in RoadDetector._detect_progress:
+    requested_key = str(file_name or "")
+    normalized_key = requested_key.replace("\\", "/").lstrip("/")
+    key_candidates = [requested_key, normalized_key]
+
+    with RoadDetector._detect_lock:
+        progress = None
+        for key in key_candidates:
+            if key in RoadDetector._detect_progress:
+                progress = RoadDetector._detect_progress.get(key, {}).copy()
+                break
+
+    if progress is None:
         return {
             'status': 'not_started',
             'current_frame': 0,
@@ -299,9 +309,6 @@ async def road_detect_progress_service(file_name: str):
             'error': None,
             'stage': 'idle'
         }
-    
-    with RoadDetector._detect_lock:
-        progress = RoadDetector._detect_progress.get(file_name, {}).copy()
     
     return progress
 pass # road_detect_progress_service

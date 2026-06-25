@@ -391,23 +391,33 @@ $(function () {
         setDetectingState(true);
         $detectingIndicator.removeClass("d-none");
         $downloadProgressContainer.removeClass("d-none");
+        $downloadProgressBar.css("width", "0%");
+        $downloadProgressBar.attr("aria-valuenow", "0");
+        $downloadProgressText.text("0%");
+        $downloadProgressInfo.text("검출 시작 대기 중...");
         updateDetectedStreamControls();
 
         // 생성 진행률 폴링 시작
         let pollInterval = null;
-        let generationStarted = false;
+        let downloadRequest = null;
+
+        const stopProgressPolling = function () {
+            if (pollInterval) {
+                clearInterval(pollInterval);
+                pollInterval = null;
+            }
+        };
 
         const pollGenerationProgress = function() {
             $.ajax({
-                url: `/fast/road_detect_progress/${encodeURIComponent(fileName)}`,
+                url: buildRoadDetectProgressUrl(fileName),
                 method: "GET",
                 timeout: 5000
             }).done(function(progress) {
-                if (progress.status === 'not_started' && !generationStarted) {
-                    return; // 아직 시작 안 됨
+                if (progress.status === "not_started") {
+                    $downloadProgressInfo.text("검출 시작 대기 중...");
+                    return;
                 }
-
-                generationStarted = true;
 
                 if (progress.total_frames > 0) {
                     const percent = progress.percentage || 0;
@@ -415,27 +425,30 @@ $(function () {
                     $downloadProgressBar.attr("aria-valuenow", String(Math.round(percent)));
                     $downloadProgressText.text(Math.round(percent) + "%");
                     
-                    const stage = progress.stage || 'frame_processing';
-                    const stageLabel = stage === 'video_encoding' ? '인코딩 중' : '프레임 처리 중';
+                    const stage = progress.stage || "frame_processing";
+                    const stageLabel = stage === "video_encoding" ? "인코딩 중" : "프레임 처리 중";
                     $downloadProgressInfo.text(`${stageLabel}: ${progress.current_frame} / ${progress.total_frames} 프레임 (${Math.round(percent)}%)`);
                 }
 
                 // 생성 완료 또는 에러
-                if (progress.status === 'completed' || progress.status === 'error') {
-                    if (pollInterval) {
-                        clearInterval(pollInterval);
+                if (progress.status === "error") {
+                    stopProgressPolling();
+                    if (downloadRequest && typeof downloadRequest.abort === "function") {
+                        downloadRequest.abort();
                     }
+                    showUploadStatusMessage(`검출 생성 실패: ${progress.error}`, false);
+                    $downloadProgressContainer.addClass("d-none");
+                    setDetectingState(false);
+                    $detectingIndicator.addClass("d-none");
+                    return;
+                }
 
-                    if (progress.status === 'error') {
-                        showUploadStatusMessage(`검출 생성 실패: ${progress.error}`, false);
-                        $downloadProgressContainer.addClass("d-none");
-                        setDetectingState(false);
-                        $detectingIndicator.addClass("d-none");
-                        return;
-                    }
-
-                    // 생성 완료 후 실제 파일 다운로드 시작
-                    performVideoDownload();
+                if (progress.status === "completed") {
+                    stopProgressPolling();
+                    $downloadProgressBar.css("width", "90%");
+                    $downloadProgressBar.attr("aria-valuenow", "90");
+                    $downloadProgressText.text("90%");
+                    $downloadProgressInfo.text("검출 완료. 다운로드 준비 중...");
                 }
             }).fail(function(jqXHR) {
                 // 폴링 실패는 무시하고 계속 진행
@@ -444,7 +457,7 @@ $(function () {
         };
 
         const performVideoDownload = function() {
-            $.ajax({
+            downloadRequest = $.ajax({
                 url: buildRoadDetectUrl(fileName),
                 data: {
                     detect_type: detectType,
@@ -499,6 +512,10 @@ $(function () {
                     $downloadProgressInfo.text("");
                 }, 2000);
             }).fail(function (jqXHR) {
+                if (jqXHR.statusText === "abort") {
+                    return;
+                }
+
                 $downloadProgressContainer.addClass("d-none");
                 if (jqXHR.statusText === "timeout") {
                     showUploadStatusMessage("요청 시간이 초과했습니다. 작은 파일로 나누어 시도하거나 나중에 다시 시도해 주세요.", false);
@@ -507,6 +524,7 @@ $(function () {
                     showUploadStatusMessage("검출 동영상 생성/다운로드에 실패했습니다.", false);
                 }
             }).always(function () {
+                stopProgressPolling();
                 setDetectingState(false);
                 $detectingIndicator.addClass("d-none");
 
@@ -527,8 +545,9 @@ $(function () {
         // 생성 진행률 폴링 시작 (0.5초마다)
         pollInterval = setInterval(pollGenerationProgress, 500);
         
-        // 첫 번째 폴링 즉시 실행
+        // 첫 번째 폴링 즉시 실행 + 실제 생성 요청 시작
         pollGenerationProgress();
+        performVideoDownload();
     }
 
     function triggerDetectedImageDownload(fileName) {
@@ -712,6 +731,10 @@ $(function () {
 
     function buildRoadDetectUrl(fileName) {
         return "/fast/road_detect/" + encodePathForRoute(fileName);
+    }
+
+    function buildRoadDetectProgressUrl(fileName) {
+        return "/fast/road_detect_progress/" + encodePathForRoute(fileName);
     }
 
     function buildRoadRoiUrl(fileName) {

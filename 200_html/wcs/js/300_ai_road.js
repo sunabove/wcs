@@ -27,6 +27,7 @@ $(function () {
     const $roiEditorStatus = $("#roi-editor-status");
     const $originalImageTab = $("#original-image-tab");
     const $detectedImageTab = $("#detected-image-tab");
+    const $workStatusTab = $("#work-status-tab");
     const $originalLiveBadge = $("#original-live-badge");
     const $detectedLiveBadge = $("#detected-live-badge");
     const $uploadingIndicator = $("#working-indicator");
@@ -291,6 +292,10 @@ $(function () {
             return;
         }
 
+        if ($workStatusTab.length > 0) {
+            $workStatusTab.prop("disabled", false);
+        }
+
         $uploadStatusMessage
             .removeClass("d-none text-success text-danger")
             .addClass(isSuccess ? "text-success" : "text-danger")
@@ -523,7 +528,7 @@ $(function () {
                     });
                 triggerBrowserDownload(downloadUrl);
 
-                showUploadStatusMessage("검출 동영상 다운로드를 시작했습니다.", true);
+                showUploadStatusMessage("검출 동영상 생성이 완료되어 다운로드를 요청했습니다. 브라우저 다운로드 목록을 확인해 주세요.", true);
                 setTimeout(() => {
                     $downloadProgressContainer.addClass("d-none");
                     $downloadProgressBar.css("width", "0%");

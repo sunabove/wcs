@@ -30,6 +30,8 @@ class RoadDetector:
     _models = {}
     _stream_sessions = {}  # {session_id: {capture, frame_count, fps, detect_type, file_name, input_path, roi}}
     _camera_stream_sessions = {}  # {session_id: {capture, frame_index, fps, detect_type, camera_index}}
+    _detect_progress = {}  # {session_id: {status, current_frame, total_frames, percentage, error}}
+    _detect_lock = threading.Lock()  # Lock for thread-safe access to _detect_progress
     
     def __init__(self):
         self.image_ext = {".jpg", ".jpeg", ".png", ".bmp", ".webp"} 

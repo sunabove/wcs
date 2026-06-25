@@ -27,8 +27,6 @@ $(function () {
     const $roiEditorStatus = $("#roi-editor-status");
     const $originalImageTab = $("#original-image-tab");
     const $detectedImageTab = $("#detected-image-tab");
-    const $workStatusTab = $("#work-status-tab");
-    const $workStatusPaneMessage = $("#work-status-pane-message");
     const $originalLiveBadge = $("#original-live-badge");
     const $detectedLiveBadge = $("#detected-live-badge");
     const $uploadingIndicator = $("#working-indicator");
@@ -258,19 +256,6 @@ $(function () {
         }
 
         $uploadingIndicator.toggleClass("d-none", !(isUploading || isDetecting));
-        if ($workStatusTab.length > 0) {
-            $workStatusTab.prop("disabled", false);
-        }
-    }
-
-    function openWorkStatusTab() {
-        if ($workStatusTab.length === 0) {
-            return;
-        }
-
-        if (typeof bootstrap !== "undefined" && bootstrap.Tab) {
-            bootstrap.Tab.getOrCreateInstance($workStatusTab[0]).show();
-        }
     }
 
     function updateCameraLiveBadges() {
@@ -292,13 +277,6 @@ $(function () {
             .removeClass("d-none text-success text-danger")
             .addClass(isSuccess ? "text-success" : "text-danger")
             .text(message);
-
-        if ($workStatusPaneMessage.length > 0) {
-            $workStatusPaneMessage
-                .removeClass("text-success text-danger text-muted")
-                .addClass(isSuccess ? "text-success" : "text-danger")
-                .text(message || "대기 중...");
-        }
     }
 
     function updateDetectedStreamControls() {
@@ -413,7 +391,6 @@ $(function () {
         setDetectingState(true);
         $detectingIndicator.removeClass("d-none");
         $downloadProgressContainer.removeClass("d-none");
-        openWorkStatusTab();
         $downloadProgressBar.css("width", "0%");
         $downloadProgressBar.attr("aria-valuenow", "0");
         $downloadProgressText.text("0%");
@@ -593,7 +570,6 @@ $(function () {
         setDetectingState(true);
         $detectingIndicator.removeClass("d-none");
         $downloadProgressContainer.removeClass("d-none");
-        openWorkStatusTab();
         updateDetectedStreamControls();
 
         $.ajax({

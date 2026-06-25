@@ -66,6 +66,7 @@ $(function () {
     let frameTimerMap = {};     // 프레임 타이머 맵
     let cameraStreamState = null;
     let cameraStreamTimer = null;
+    let originalVideoPreviewWatchdogTimer = null;
     let currentRoiInfo = null;
     let draftRoiInfo = null;
     let roiInteraction = null;
@@ -666,6 +667,10 @@ $(function () {
     }
 
     function resetPreviewImages() {
+        if (originalVideoPreviewWatchdogTimer) {
+            clearTimeout(originalVideoPreviewWatchdogTimer);
+            originalVideoPreviewWatchdogTimer = null;
+        }
         uploadedFileName = "";
         previousFileName = "";
         clearRoiEditor();
@@ -1105,19 +1110,21 @@ $(function () {
 
     function displayOriginalMedia(fileName) {
         const normalizedFileName = normalizePath(fileName);
+        if (originalVideoPreviewWatchdogTimer) {
+            clearTimeout(originalVideoPreviewWatchdogTimer);
+            originalVideoPreviewWatchdogTimer = null;
+        }
+
         if (isVideoPath(normalizedFileName)) {
             const directUrl = buildImageUrl(normalizedFileName);
             $uploadedVideoPreview.off(".originalVideoFallback");
             $uploadedVideoPreview.data("fallbackTried", false);
+            $uploadedVideoPreview.data("sourceFileName", normalizedFileName);
 
-            $uploadedVideoPreview.on("loadedmetadata.originalVideoFallback loadeddata.originalVideoFallback", function () {
-                $uploadedVideoPreview.off("error.originalVideoFallback");
-            });
-
-            $uploadedVideoPreview.on("error.originalVideoFallback", function () {
+            const triggerVideoFallback = function (reason) {
                 const alreadyTried = Boolean($uploadedVideoPreview.data("fallbackTried"));
-                if (alreadyTried) {
-                    showUploadStatusMessage("브라우저에서 재생할 수 없는 동영상 형식입니다.", false);
+                const currentSource = normalizePath(String($uploadedVideoPreview.data("sourceFileName") || ""));
+                if (alreadyTried || currentSource !== normalizedFileName || normalizePath(uploadedFileName) !== normalizedFileName) {
                     return;
                 }
 
@@ -1129,6 +1136,10 @@ $(function () {
                     method: "GET",
                     timeout: 600000,
                 }).done(function (result) {
+                    if (normalizePath(uploadedFileName) !== normalizedFileName) {
+                        return;
+                    }
+
                     if (!result || !result.video_url) {
                         showUploadStatusMessage("브라우저 재생용 동영상 변환에 실패했습니다.", false);
                         return;
@@ -1138,13 +1149,36 @@ $(function () {
                     showMediaPreview(playableUrl, true, $uploadedImagePreview, $uploadedVideoPreview);
                     showUploadStatusMessage("브라우저 재생용으로 변환한 영상을 표시합니다.", true);
                 }).fail(function (jqXHR) {
-                    console.error("Playable video fallback error:", jqXHR.status, jqXHR.responseText);
-                    showUploadStatusMessage("브라우저 재생용 동영상 변환에 실패했습니다.", false);
+                    console.error("Playable video fallback error:", jqXHR.status, jqXHR.responseText, reason || "error");
+                    if (normalizePath(uploadedFileName) === normalizedFileName) {
+                        showUploadStatusMessage("브라우저 재생용 동영상 변환에 실패했습니다.", false);
+                    }
                 });
+            };
+
+            $uploadedVideoPreview.on("loadedmetadata.originalVideoFallback loadeddata.originalVideoFallback canplay.originalVideoFallback", function () {
+                if (originalVideoPreviewWatchdogTimer) {
+                    clearTimeout(originalVideoPreviewWatchdogTimer);
+                    originalVideoPreviewWatchdogTimer = null;
+                }
+                $uploadedVideoPreview.off("error.originalVideoFallback");
+            });
+
+            $uploadedVideoPreview.on("error.originalVideoFallback", function () {
+                triggerVideoFallback("error");
             });
 
             showMediaPreview(directUrl, true, $uploadedImagePreview, $uploadedVideoPreview);
+            originalVideoPreviewWatchdogTimer = setTimeout(function () {
+                originalVideoPreviewWatchdogTimer = null;
+                const videoElement = $uploadedVideoPreview[0];
+                const readyState = videoElement ? Number(videoElement.readyState || 0) : 0;
+                if (readyState <= 0) {
+                    triggerVideoFallback("watchdog_timeout");
+                }
+            }, 3500);
         } else {
+            $uploadedVideoPreview.off(".originalVideoFallback");
             const mediaUrl = buildImageUrl(normalizedFileName);
             showMediaPreview(mediaUrl, false, $uploadedImagePreview, $uploadedVideoPreview);
         }

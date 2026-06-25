@@ -1119,16 +1119,30 @@ $(function () {
             const directUrl = buildImageUrl(normalizedFileName);
             $uploadedVideoPreview.off(".originalVideoFallback");
             $uploadedVideoPreview.data("fallbackTried", false);
+            $uploadedVideoPreview.data("fallbackInFlight", false);
             $uploadedVideoPreview.data("sourceFileName", normalizedFileName);
+
+            const showThumbnailFallback = function (reason) {
+                if (normalizePath(uploadedFileName) !== normalizedFileName) {
+                    return;
+                }
+
+                const thumbUrl = buildVideoThumbnailUrl(normalizedFileName);
+                showMediaPreview(thumbUrl, false, $uploadedImagePreview, $uploadedVideoPreview);
+                showUploadStatusMessage("원본 영상 재생에 실패하여 썸네일 이미지를 표시합니다.", false);
+                console.warn("Original video preview fallback to thumbnail:", reason || "unknown");
+            };
 
             const triggerVideoFallback = function (reason) {
                 const alreadyTried = Boolean($uploadedVideoPreview.data("fallbackTried"));
+                const inFlight = Boolean($uploadedVideoPreview.data("fallbackInFlight"));
                 const currentSource = normalizePath(String($uploadedVideoPreview.data("sourceFileName") || ""));
-                if (alreadyTried || currentSource !== normalizedFileName || normalizePath(uploadedFileName) !== normalizedFileName) {
+                if (alreadyTried || inFlight || currentSource !== normalizedFileName || normalizePath(uploadedFileName) !== normalizedFileName) {
                     return;
                 }
 
                 $uploadedVideoPreview.data("fallbackTried", true);
+                $uploadedVideoPreview.data("fallbackInFlight", true);
                 showUploadStatusMessage("브라우저 재생용 형식으로 변환 중입니다...", true);
 
                 $.ajax({
@@ -1141,7 +1155,7 @@ $(function () {
                     }
 
                     if (!result || !result.video_url) {
-                        showUploadStatusMessage("브라우저 재생용 동영상 변환에 실패했습니다.", false);
+                        showThumbnailFallback("empty playable response");
                         return;
                     }
 
@@ -1151,8 +1165,10 @@ $(function () {
                 }).fail(function (jqXHR) {
                     console.error("Playable video fallback error:", jqXHR.status, jqXHR.responseText, reason || "error");
                     if (normalizePath(uploadedFileName) === normalizedFileName) {
-                        showUploadStatusMessage("브라우저 재생용 동영상 변환에 실패했습니다.", false);
+                        showThumbnailFallback("forced transcode failed");
                     }
+                }).always(function () {
+                    $uploadedVideoPreview.data("fallbackInFlight", false);
                 });
             };
 
@@ -1168,7 +1184,26 @@ $(function () {
                 triggerVideoFallback("error");
             });
 
-            showMediaPreview(directUrl, true, $uploadedImagePreview, $uploadedVideoPreview);
+            // Prefer backend-recommended playable URL first.
+            $.ajax({
+                url: buildVideoPlayableUrl(normalizedFileName, false),
+                method: "GET",
+                timeout: 15000,
+            }).done(function (result) {
+                if (normalizePath(uploadedFileName) !== normalizedFileName) {
+                    return;
+                }
+
+                const baseUrl = (result && result.video_url) ? String(result.video_url) : directUrl;
+                const playableUrl = baseUrl + (baseUrl.indexOf("?") >= 0 ? "&" : "?") + $.param({ t: Date.now() });
+                showMediaPreview(playableUrl, true, $uploadedImagePreview, $uploadedVideoPreview);
+            }).fail(function () {
+                if (normalizePath(uploadedFileName) !== normalizedFileName) {
+                    return;
+                }
+                showMediaPreview(directUrl, true, $uploadedImagePreview, $uploadedVideoPreview);
+            });
+
             originalVideoPreviewWatchdogTimer = setTimeout(function () {
                 originalVideoPreviewWatchdogTimer = null;
                 const videoElement = $uploadedVideoPreview[0];

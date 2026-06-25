@@ -328,7 +328,8 @@ class RoadDetector:
         elif suffix in self.video_ext:
             # Use MP4 container to ensure browser-compatible H.264 playback.
             output_path = input_path.with_name(f"{stem}_detected.mp4")
-            self.detect_video(input_path, output_path, detect_type, remove_noisy_masks, show_detect_stats)
+            # Use file_name as session_id for progress tracking
+            self.detect_video(input_path, output_path, detect_type, remove_noisy_masks, show_detect_stats, session_id=file_name)
         else:
             raise HTTPException(status_code=400, detail="Only image/video files are supported")
 
@@ -343,7 +344,7 @@ class RoadDetector:
         }
     pass # road_detect_service
 
-    def detect_video(self, input_path: Path, output_path: Path, detect_type: str, remove_noisy_masks: bool = True, show_detect_stats: bool = True) -> None:
+    def detect_video(self, input_path: Path, output_path: Path, detect_type: str, remove_noisy_masks: bool = True, show_detect_stats: bool = True, session_id: str = None) -> None:
         capture = cv2.VideoCapture(str(input_path))
         if not capture.isOpened():
             raise HTTPException(status_code=400, detail="Failed to read video file")
@@ -364,12 +365,38 @@ class RoadDetector:
         stats_history = {}
         frame_count = int(capture.get(cv2.CAP_PROP_FRAME_COUNT) or 0)
         current_frame_no = 0
+        
+        # 진행 상태 초기화
+        if session_id:
+            with RoadDetector._detect_lock:
+                RoadDetector._detect_progress[session_id] = {
+                    'status': 'generating',
+                    'current_frame': 0,
+                    'total_frames': frame_count,
+                    'percentage': 0,
+                    'error': None,
+                    'stage': 'frame_processing'
+                }
+        
         try:
             while True:
                 ok, frame = capture.read()
                 if not ok:
                     break
                 current_frame_no += 1
+                
+                # 진행 상태 업데이트
+                if session_id:
+                    percentage = int((current_frame_no / frame_count * 100)) if frame_count > 0 else 0
+                    with RoadDetector._detect_lock:
+                        RoadDetector._detect_progress[session_id] = {
+                            'status': 'generating',
+                            'current_frame': current_frame_no,
+                            'total_frames': frame_count,
+                            'percentage': percentage,
+                            'error': None,
+                            'stage': 'frame_processing'
+                        }
 
                 if roi is None:
                     roi = self._load_or_create_roi(input_path, frame.shape[1], frame.shape[0])
@@ -403,6 +430,18 @@ class RoadDetector:
                     detected_frame = cv2.resize(detected_frame, target_size, interpolation=cv2.INTER_LINEAR)
 
                 writer.write(detected_frame)
+        except Exception as e:
+            if session_id:
+                with RoadDetector._detect_lock:
+                    RoadDetector._detect_progress[session_id] = {
+                        'status': 'error',
+                        'current_frame': current_frame_no,
+                        'total_frames': frame_count,
+                        'percentage': 0,
+                        'error': str(e),
+                        'stage': 'frame_processing'
+                    }
+            raise
         finally:
             capture.release()
             if writer is not None:
@@ -410,6 +449,18 @@ class RoadDetector:
 
         if not temp_output_path.exists() or temp_output_path.stat().st_size == 0:
             raise HTTPException(status_code=500, detail="Failed to write temporary AVI video")
+
+        # 인코딩 단계 진행
+        if session_id:
+            with RoadDetector._detect_lock:
+                RoadDetector._detect_progress[session_id] = {
+                    'status': 'encoding',
+                    'current_frame': frame_count,
+                    'total_frames': frame_count,
+                    'percentage': 90,
+                    'error': None,
+                    'stage': 'video_encoding'
+                }
 
         try:
             self.transcode_video_to_h264(temp_output_path, output_path)
@@ -419,6 +470,18 @@ class RoadDetector:
 
         if not output_path.exists() or output_path.stat().st_size == 0:
             raise HTTPException(status_code=500, detail="Failed to write output video")
+        
+        # 완료
+        if session_id:
+            with RoadDetector._detect_lock:
+                RoadDetector._detect_progress[session_id] = {
+                    'status': 'completed',
+                    'current_frame': frame_count,
+                    'total_frames': frame_count,
+                    'percentage': 100,
+                    'error': None,
+                    'stage': 'completed'
+                }
     pass # detect_video
 
     def road_detect_stream_init(self, file_name: str, detect_type: str = "road", remove_noisy_masks: bool = True, show_detect_stats: bool = True) -> dict:

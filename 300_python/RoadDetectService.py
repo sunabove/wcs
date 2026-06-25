@@ -284,3 +284,25 @@ async def road_detect_stream_cleanup_service(
     return detector.road_detect_stream_cleanup(file_name)
 pass # road_detect_stream_cleanup_service
 
+@router.get("/road_detect_progress/{file_name:path}")
+async def road_detect_progress_service(file_name: str):
+    """비디오 감지 진행 상황 조회"""
+    from RoadDetector import RoadDetector
+
+    # file_name을 session_id로 사용
+    if file_name not in RoadDetector._detect_progress:
+        return {
+            'status': 'not_started',
+            'current_frame': 0,
+            'total_frames': 0,
+            'percentage': 0,
+            'error': None,
+            'stage': 'idle'
+        }
+    
+    with RoadDetector._detect_lock:
+        progress = RoadDetector._detect_progress.get(file_name, {}).copy()
+    
+    return progress
+pass # road_detect_progress_service
+

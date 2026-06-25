@@ -28,6 +28,7 @@ $(function () {
     const $originalImageTab = $("#original-image-tab");
     const $detectedImageTab = $("#detected-image-tab");
     const $workStatusTab = $("#work-status-tab");
+    const $workStatusPaneMessage = $("#work-status-pane-message");
     const $originalLiveBadge = $("#original-live-badge");
     const $detectedLiveBadge = $("#detected-live-badge");
     const $uploadingIndicator = $("#working-indicator");
@@ -300,6 +301,13 @@ $(function () {
             .removeClass("d-none text-success text-danger")
             .addClass(isSuccess ? "text-success" : "text-danger")
             .text(message);
+
+        if ($workStatusPaneMessage.length > 0) {
+            $workStatusPaneMessage
+                .removeClass("text-muted text-success text-danger")
+                .addClass(isSuccess ? "text-success" : "text-danger")
+                .text(message || "대기 중...");
+        }
     }
 
     function updateDetectedStreamControls() {

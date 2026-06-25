@@ -16,6 +16,10 @@ $(function () {
     const $detectedStreamFrameInput = $("#detected-stream-frame-input");
     const $detectedStreamFrameValue = $("#detected-stream-frame-value");
     const $detectedStreamFrameLabel = $("#detected-stream-frame-label");
+    const $downloadProgressContainer = $("#download-progress-container");
+    const $downloadProgressBar = $("#download-progress-bar");
+    const $downloadProgressText = $("#download-progress-text");
+    const $downloadProgressInfo = $("#download-progress-info");
     const $roiOverlay = $("#roi-overlay");
     const $roiSelection = $("#roi-selection");
     const $roiFullButton = $("#roi-full-button");
@@ -386,6 +390,7 @@ $(function () {
         showUploadStatusMessage("전체 동영상 검출 파일 생성 중... (큰 파일의 경우 수 분이 소요될 수 있습니다)", true);
         setDetectingState(true);
         $detectingIndicator.removeClass("d-none");
+        $downloadProgressContainer.removeClass("d-none");
         updateDetectedStreamControls();
 
         $.ajax({
@@ -396,12 +401,35 @@ $(function () {
                 show_detect_stats: showDetectStats,
             },
             method: "GET",
-            timeout: 600000  // 10분 타임아웃
+            timeout: 600000,  // 10분 타임아웃
+            xhr: function() {
+                const xhr = new window.XMLHttpRequest();
+                xhr.addEventListener("progress", function(e) {
+                    if (e.lengthComputable) {
+                        const percentComplete = (e.loaded / e.total) * 100;
+                        $downloadProgressBar.css("width", String(percentComplete) + "%");
+                        $downloadProgressBar.attr("aria-valuenow", String(Math.round(percentComplete)));
+                        $downloadProgressText.text(Math.round(percentComplete) + "%");
+                        
+                        // 다운로드 속도 및 예상 남은 시간 계산
+                        const loadedMB = (e.loaded / (1024 * 1024)).toFixed(2);
+                        const totalMB = (e.total / (1024 * 1024)).toFixed(2);
+                        $downloadProgressInfo.text(`다운로드 중: ${loadedMB} MB / ${totalMB} MB`);
+                    }
+                }, false);
+                return xhr;
+            }
         }).done(function (result) {
             if (!result || !result.image_url) {
                 showUploadStatusMessage("검출 동영상 생성에 실패했습니다.", false);
+                $downloadProgressContainer.addClass("d-none");
                 return;
             }
+
+            $downloadProgressBar.css("width", "100%");
+            $downloadProgressBar.attr("aria-valuenow", "100");
+            $downloadProgressText.text("100%");
+            $downloadProgressInfo.text("다운로드 완료. 파일을 저장하는 중...");
 
             const downloadUrl = result.image_url + "?t=" + Date.now();
             const anchor = document.createElement("a");
@@ -413,7 +441,15 @@ $(function () {
             document.body.removeChild(anchor);
 
             showUploadStatusMessage("검출 동영상 다운로드를 시작했습니다.", true);
+            setTimeout(() => {
+                $downloadProgressContainer.addClass("d-none");
+                $downloadProgressBar.css("width", "0%");
+                $downloadProgressBar.attr("aria-valuenow", "0");
+                $downloadProgressText.text("0%");
+                $downloadProgressInfo.text("");
+            }, 2000);
         }).fail(function (jqXHR) {
+            $downloadProgressContainer.addClass("d-none");
             if (jqXHR.statusText === "timeout") {
                 showUploadStatusMessage("요청 시간이 초과했습니다. 작은 파일로 나누어 시도하거나 나중에 다시 시도해 주세요.", false);
             } else {
@@ -450,6 +486,7 @@ $(function () {
         showUploadStatusMessage("검출 이미지 생성 중...", true);
         setDetectingState(true);
         $detectingIndicator.removeClass("d-none");
+        $downloadProgressContainer.removeClass("d-none");
         updateDetectedStreamControls();
 
         $.ajax({
@@ -460,12 +497,34 @@ $(function () {
                 show_detect_stats: showDetectStats,
             },
             method: "GET",
-            timeout: 600000  // 10분 타임아웃
+            timeout: 600000,  // 10분 타임아웃
+            xhr: function() {
+                const xhr = new window.XMLHttpRequest();
+                xhr.addEventListener("progress", function(e) {
+                    if (e.lengthComputable) {
+                        const percentComplete = (e.loaded / e.total) * 100;
+                        $downloadProgressBar.css("width", String(percentComplete) + "%");
+                        $downloadProgressBar.attr("aria-valuenow", String(Math.round(percentComplete)));
+                        $downloadProgressText.text(Math.round(percentComplete) + "%");
+                        
+                        const loadedMB = (e.loaded / (1024 * 1024)).toFixed(2);
+                        const totalMB = (e.total / (1024 * 1024)).toFixed(2);
+                        $downloadProgressInfo.text(`다운로드 중: ${loadedMB} MB / ${totalMB} MB`);
+                    }
+                }, false);
+                return xhr;
+            }
         }).done(function (result) {
             if (!result || !result.image_url) {
                 showUploadStatusMessage("검출 이미지 생성에 실패했습니다.", false);
+                $downloadProgressContainer.addClass("d-none");
                 return;
             }
+
+            $downloadProgressBar.css("width", "100%");
+            $downloadProgressBar.attr("aria-valuenow", "100");
+            $downloadProgressText.text("100%");
+            $downloadProgressInfo.text("다운로드 완료. 파일을 저장하는 중...");
 
             const downloadUrl = result.image_url + "?t=" + Date.now();
             showMediaPreview(downloadUrl, false, $detectedImagePreview, $detectedVideoPreview);
@@ -479,7 +538,15 @@ $(function () {
             document.body.removeChild(anchor);
 
             showUploadStatusMessage("검출 이미지 다운로드를 시작했습니다.", true);
+            setTimeout(() => {
+                $downloadProgressContainer.addClass("d-none");
+                $downloadProgressBar.css("width", "0%");
+                $downloadProgressBar.attr("aria-valuenow", "0");
+                $downloadProgressText.text("0%");
+                $downloadProgressInfo.text("");
+            }, 2000);
         }).fail(function (jqXHR) {
+            $downloadProgressContainer.addClass("d-none");
             if (jqXHR.statusText === "timeout") {
                 showUploadStatusMessage("요청 시간이 초과했습니다. 나중에 다시 시도해 주세요.", false);
             } else {

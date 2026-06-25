@@ -530,7 +530,6 @@ $(function () {
         // 첫 번째 폴링 즉시 실행
         pollGenerationProgress();
     }
-    }
 
     function triggerDetectedImageDownload(fileName) {
         if (!fileName || isVideoPath(fileName)) {

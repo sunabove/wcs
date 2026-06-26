@@ -218,7 +218,12 @@ class ChartRenderer:
                 item_width = 12 + 6 + text_w + item_padding
                 item_metrics.append((item_name, text_w, text_h, baseline, item_width))
 
-        legend_x = chart_x1 + 4
+        total_legend_width = 0
+        for _, _, _, _, item_width in item_metrics:
+            total_legend_width += item_width
+        total_legend_width += max(0, len(legend_items) - 1) * min_item_gap
+
+        legend_x = max(chart_x1 + 4, chart_x2 - total_legend_width)
         for idx, ((item_name, item_color), (_, text_w, text_h, baseline, item_width)) in enumerate(zip(legend_items, item_metrics)):
             if legend_x + item_width > chart_x2:
                 break

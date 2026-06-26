@@ -2210,7 +2210,7 @@ $(function () {
             .prop("checked", Boolean(showAllFiles));
         const $allFilesToggleLabel = $('<label class="form-check-label small" style="cursor:pointer;"></label>')
             .attr("for", toggleId)
-            .text("전체 파일");
+            .text("모든 파일");
         $allFilesToggleWrap.append($allFilesToggle).append($allFilesToggleLabel);
 
         const parentPath = normalizedCurrent.indexOf(baseFolder + "/") === 0
@@ -2223,7 +2223,7 @@ $(function () {
             .prop("disabled", !hasParent);
 
         const labelText = showAllFiles
-            ? ("samples/" + baseFolder + " (전체 파일)")
+            ? ("samples/" + baseFolder + " (모든 파일)")
             : (normalizedCurrent === baseFolder ? "samples/" + baseFolder : "samples/" + normalizedCurrent);
         const $pathLabel = $('<span class="small text-muted"></span>').text("현재: " + labelText);
 

@@ -154,12 +154,10 @@ class ChartRenderer:
         for x_tick in x_ticks:
             tick_x = self._map_chart_x(x_tick, x_min, x_max, chart_x1, chart_w)
             cv2.line(canvas, (tick_x, chart_y2), (tick_x, chart_y2 + 3), (120, 120, 120), 1, cv2.LINE_AA)
-            cv2.putText(canvas, str(int(x_tick)), (tick_x - 10, chart_y2 + 14), font_face, 0.33, (180, 180, 180), 1, cv2.LINE_AA)
 
         if int(x_max) not in x_ticks:
             end_tick_x = self._map_chart_x(int(x_max), x_min, x_max, chart_x1, chart_w)
             cv2.line(canvas, (end_tick_x, chart_y2), (end_tick_x, chart_y2 + 3), (120, 120, 120), 1, cv2.LINE_AA)
-            cv2.putText(canvas, str(int(x_max)), (end_tick_x - 10, chart_y2 + 14), font_face, 0.33, (180, 180, 180), 1, cv2.LINE_AA)
 
         current_x_px = self._map_chart_x(current_x, x_min, x_max, chart_x1, chart_w)
         cv2.line(canvas, (current_x_px, chart_y1), (current_x_px, chart_y2), (255, 230, 0), 1, cv2.LINE_AA)

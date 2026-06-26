@@ -1597,19 +1597,43 @@ class RoadDetector:
 
             detected_map = stats_history.get("detected") if isinstance(stats_history.get("detected"), dict) else {}
             conf_map = stats_history.get("max_confidence") if isinstance(stats_history.get("max_confidence"), dict) else {}
-            if not detected_map and not conf_map:
+            classes_map = stats_history.get("classes") if isinstance(stats_history.get("classes"), dict) else {}
+            if not detected_map and not conf_map and not classes_map:
                 return None
 
-            keys = sorted({int(k) for k in list(detected_map.keys()) + list(conf_map.keys()) if int(k) > 0})
+            timeline_keys = set()
+            for k in list(detected_map.keys()) + list(conf_map.keys()):
+                ik = int(k)
+                if ik > 0:
+                    timeline_keys.add(ik)
+            for cls_frame_map in classes_map.values():
+                if not isinstance(cls_frame_map, dict):
+                    continue
+                for k in cls_frame_map.keys():
+                    ik = int(k)
+                    if ik > 0:
+                        timeline_keys.add(ik)
+
+            keys = sorted(timeline_keys)
             if len(keys) <= 1:
                 return None
 
             x_vals = np.array(keys, dtype=np.float32)
             detected_vals = np.array([int(detected_map.get(int(k), 0)) for k in keys], dtype=np.float32)
             conf_vals = np.array([max(0.0, min(1.0, float(conf_map.get(int(k), 0.0)))) for k in keys], dtype=np.float32)
+
+            class_series = {}
+            for class_name, class_frame_map in classes_map.items():
+                if not isinstance(class_frame_map, dict):
+                    continue
+                class_series[str(class_name)] = np.array(
+                    [int(class_frame_map.get(int(k), 0)) for k in keys],
+                    dtype=np.float32,
+                )
+
             current_x = float(max(1, min(int(frame_number or keys[-1]), total_frames)))
             frame_label = int(total_frames)
-            return x_vals, detected_vals, conf_vals, current_x, frame_label
+            return x_vals, detected_vals, conf_vals, class_series, current_x, frame_label
 
         points = stats_history.get("points") if isinstance(stats_history.get("points"), list) else []
         if len(points) <= 1:
@@ -1618,9 +1642,23 @@ class RoadDetector:
         x_vals = np.arange(1, len(points) + 1, dtype=np.float32)
         detected_vals = np.array([int(item.get("detected_count", 0)) for item in points], dtype=np.float32)
         conf_vals = np.array([max(0.0, min(1.0, float(item.get("max_confidence", 0.0)))) for item in points], dtype=np.float32)
+
+        class_names = sorted({
+            str(cls_name)
+            for item in points
+            for cls_name in ((item.get("class_counts") or {}).keys())
+        })
+        class_series = {
+            class_name: np.array(
+                [int((item.get("class_counts") or {}).get(class_name, 0)) for item in points],
+                dtype=np.float32,
+            )
+            for class_name in class_names
+        }
+
         current_x = float(len(points))
         frame_label = int(len(points))
-        return x_vals, detected_vals, conf_vals, current_x, frame_label
+        return x_vals, detected_vals, conf_vals, class_series, current_x, frame_label
 
     def _render_bottom_stats_overlay_pyqtgraph(self, detected, stats, stats_history, frame_number=None):
         if detected is None:
@@ -1630,7 +1668,7 @@ class RoadDetector:
         if chart_data is None:
             return detected
 
-        x_vals, detected_vals, conf_vals, current_x, frame_label = chart_data
+        x_vals, detected_vals, conf_vals, class_series, current_x, frame_label = chart_data
 
         height, width = detected.shape[:2]
         panel_h = max(24, int(round(height * 0.10)))
@@ -1665,6 +1703,27 @@ class RoadDetector:
 
         plot_item.plot(x_vals, detected_vals, pen=pg.mkPen((255, 210, 0), width=1.2), antialias=False)
         plot_item.plot(x_vals, conf_scaled, pen=pg.mkPen((80, 255, 80), width=1.2), antialias=False)
+
+        class_color_map = self._get_class_color_map()
+        for idx, class_name in enumerate(sorted(class_series.keys())):
+            class_vals = class_series[class_name]
+            if class_vals is None or len(class_vals) == 0:
+                continue
+
+            bgr = class_color_map.get(class_name, class_color_map.get(class_name.lower()))
+            if bgr is not None:
+                class_rgb = (int(bgr[2]), int(bgr[1]), int(bgr[0]))
+            else:
+                qcolor = pg.intColor(idx, hues=12, values=2, maxValue=255, minValue=140)
+                class_rgb = (int(qcolor.red()), int(qcolor.green()), int(qcolor.blue()))
+
+            plot_item.plot(
+                x_vals,
+                class_vals,
+                pen=pg.mkPen(class_rgb, width=1.1),
+                antialias=False,
+            )
+
         plot_item.addLine(x=current_x, pen=pg.mkPen((0, 230, 255), width=1))
 
         x_min = float(np.min(x_vals))

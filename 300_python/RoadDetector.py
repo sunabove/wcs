@@ -1700,8 +1700,12 @@ class RoadDetector:
 
         overlay = detected.copy()
         cv2.rectangle(overlay, (0, y1), (width, height), (18, 18, 18), cv2.FILLED)
-        cv2.addWeighted(overlay, 0.58, detected, 0.42, 0, detected)
-        detected[gy1:gy2 + 1, gx1:gx2 + 1] = panel_bgr
+        cv2.addWeighted(overlay, 0.48, detected, 0.52, 0, detected)
+
+        panel_region = detected[gy1:gy2 + 1, gx1:gx2 + 1].copy()
+        panel_alpha = 0.82
+        blended_panel = cv2.addWeighted(panel_bgr, panel_alpha, panel_region, 1.0 - panel_alpha, 0)
+        detected[gy1:gy2 + 1, gx1:gx2 + 1] = blended_panel
         cv2.rectangle(detected, (gx1, gy1), (gx2, gy2), (110, 110, 110), 1)
 
         label_font = max(0.30, min(0.90, panel_h / 144.0))

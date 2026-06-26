@@ -188,7 +188,7 @@ class ChartRenderer:
             if class_name in class_line_colors
         ]
 
-        legend_items = [("max_conf", (80, 255, 80))] + class_legend_items
+        legend_items = [("Conf", (80, 255, 80))] + class_legend_items
         legend_items = legend_items[: max(1, len(legend_items))]
 
         legend_y = gy1 + 10

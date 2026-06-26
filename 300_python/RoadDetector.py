@@ -1621,11 +1621,11 @@ class RoadDetector:
 
     def _render_bottom_stats_overlay_pyqtgraph(self, detected, stats, stats_history, frame_number=None):
         if detected is None:
-            return None
+            return detected
 
         chart_data = self._build_chart_series(stats_history, frame_number=frame_number)
         if chart_data is None:
-            return None
+            return detected
 
         x_vals, detected_vals, conf_vals, current_x, frame_label = chart_data
 
@@ -1639,292 +1639,87 @@ class RoadDetector:
         plot_w = gx2 - gx1 + 1
         plot_h = gy2 - gy1 + 1
         if plot_w < 40 or plot_h < 12:
-            return None
-
-        try:
-            app = self.__class__._pg_app
-            if app is None:
-                app = QtWidgets.QApplication.instance()
-                if app is None:
-                    app = QtWidgets.QApplication([])
-                self.__class__._pg_app = app
-
-            plot_widget = pg.PlotWidget(background=(18, 18, 18))
-            plot_widget.resize(plot_w, plot_h)
-            plot_item = plot_widget.getPlotItem()
-            plot_item.hideAxis("left")
-            plot_item.hideAxis("bottom")
-            plot_item.showGrid(x=False, y=True, alpha=0.18)
-
-            max_detected = float(np.max(detected_vals)) if len(detected_vals) > 0 else 0.0
-            y_max = max(1.0, float(np.ceil(max_detected * 1.2)))
-            conf_scaled = conf_vals * y_max
-
-            plot_item.plot(x_vals, detected_vals, pen=pg.mkPen((255, 210, 0), width=1.2), antialias=False)
-            plot_item.plot(x_vals, conf_scaled, pen=pg.mkPen((80, 255, 80), width=1.2), antialias=False)
-            plot_item.addLine(x=current_x, pen=pg.mkPen((0, 230, 255), width=1))
-
-            x_min = float(np.min(x_vals))
-            x_max = float(np.max(x_vals))
-            if abs(x_max - x_min) < 1e-6:
-                x_max = x_min + 1.0
-            plot_item.setXRange(x_min, x_max, padding=0.0)
-            plot_item.setYRange(0.0, y_max, padding=0.04)
-
-            app.processEvents()
-
-            qimg = QtGui.QImage(plot_w, plot_h, QtGui.QImage.Format_RGB888)
-            qimg.fill(QtGui.QColor(18, 18, 18))
-            painter = QtGui.QPainter(qimg)
-            plot_widget.render(painter)
-            painter.end()
-            plot_widget.close()
-
-            ptr = qimg.bits()
-            byte_count = int(plot_w * plot_h * 3)
-            if hasattr(ptr, "setsize"):
-                ptr.setsize(byte_count)
-                raw = bytes(ptr)
-            else:
-                raw = ptr.asstring(byte_count)
-
-            panel_rgb = np.frombuffer(raw, dtype=np.uint8).reshape((plot_h, plot_w, 3))
-            panel_bgr = cv2.cvtColor(panel_rgb, cv2.COLOR_RGB2BGR)
-
-            overlay = detected.copy()
-            cv2.rectangle(overlay, (0, y1), (width, height), (18, 18, 18), cv2.FILLED)
-            cv2.addWeighted(overlay, 0.58, detected, 0.42, 0, detected)
-            detected[gy1:gy2 + 1, gx1:gx2 + 1] = panel_bgr
-            cv2.rectangle(detected, (gx1, gy1), (gx2, gy2), (110, 110, 110), 1)
-
-            label_font = max(0.30, min(0.90, panel_h / 144.0))
-            label_thickness = max(1, int(round(panel_h / 60.0)))
-            y_label = f"Count: {int(max_detected)}"
-            (_, yth), _ = cv2.getTextSize(y_label, cv2.FONT_HERSHEY_SIMPLEX, label_font, label_thickness)
-            cv2.putText(detected, y_label, (gx1 + 2, gy1 + yth + 1), cv2.FONT_HERSHEY_SIMPLEX, label_font, (220, 220, 220), label_thickness)
-
-            conf_now = max(0.0, min(1.0, float(stats.get("max_confidence", 0.0))))
-            conf_label = f"MaxConf: {conf_now:.2f}"
-            (ctw, _), _ = cv2.getTextSize(conf_label, cv2.FONT_HERSHEY_SIMPLEX, label_font, label_thickness)
-            cv2.putText(detected, conf_label, (max(gx1 + 2, gx2 - ctw - 2), gy1 + yth + 1), cv2.FONT_HERSHEY_SIMPLEX, label_font, (80, 255, 80), label_thickness)
-
-            x_label = f"Frame: {int(frame_label)}"
-            (xtw, _), _ = cv2.getTextSize(x_label, cv2.FONT_HERSHEY_SIMPLEX, label_font, label_thickness)
-            cv2.putText(detected, x_label, (max(gx1 + 2, gx2 - xtw - 2), gy2 - 2), cv2.FONT_HERSHEY_SIMPLEX, label_font, (220, 220, 220), label_thickness)
-
             return detected
-        except Exception:
-            return None
+
+        app = self.__class__._pg_app
+        if app is None:
+            app = QtWidgets.QApplication.instance()
+            if app is None:
+                app = QtWidgets.QApplication([])
+            self.__class__._pg_app = app
+
+        plot_widget = pg.PlotWidget(background=(18, 18, 18))
+        plot_widget.resize(plot_w, plot_h)
+        plot_item = plot_widget.getPlotItem()
+        plot_item.hideAxis("left")
+        plot_item.hideAxis("bottom")
+        plot_item.showGrid(x=False, y=True, alpha=0.18)
+
+        max_detected = float(np.max(detected_vals)) if len(detected_vals) > 0 else 0.0
+        y_max = max(1.0, float(np.ceil(max_detected * 1.2)))
+        conf_scaled = conf_vals * y_max
+
+        plot_item.plot(x_vals, detected_vals, pen=pg.mkPen((255, 210, 0), width=1.2), antialias=False)
+        plot_item.plot(x_vals, conf_scaled, pen=pg.mkPen((80, 255, 80), width=1.2), antialias=False)
+        plot_item.addLine(x=current_x, pen=pg.mkPen((0, 230, 255), width=1))
+
+        x_min = float(np.min(x_vals))
+        x_max = float(np.max(x_vals))
+        if abs(x_max - x_min) < 1e-6:
+            x_max = x_min + 1.0
+        plot_item.setXRange(x_min, x_max, padding=0.0)
+        plot_item.setYRange(0.0, y_max, padding=0.04)
+
+        app.processEvents()
+
+        qimg = QtGui.QImage(plot_w, plot_h, QtGui.QImage.Format_RGB888)
+        qimg.fill(QtGui.QColor(18, 18, 18))
+        painter = QtGui.QPainter(qimg)
+        plot_widget.render(painter)
+        painter.end()
+        plot_widget.close()
+
+        ptr = qimg.bits()
+        byte_count = int(plot_w * plot_h * 3)
+        if hasattr(ptr, "setsize"):
+            ptr.setsize(byte_count)
+            raw = bytes(ptr)
+        else:
+            raw = ptr.asstring(byte_count)
+
+        panel_rgb = np.frombuffer(raw, dtype=np.uint8).reshape((plot_h, plot_w, 3))
+        panel_bgr = cv2.cvtColor(panel_rgb, cv2.COLOR_RGB2BGR)
+
+        overlay = detected.copy()
+        cv2.rectangle(overlay, (0, y1), (width, height), (18, 18, 18), cv2.FILLED)
+        cv2.addWeighted(overlay, 0.58, detected, 0.42, 0, detected)
+        detected[gy1:gy2 + 1, gx1:gx2 + 1] = panel_bgr
+        cv2.rectangle(detected, (gx1, gy1), (gx2, gy2), (110, 110, 110), 1)
+
+        label_font = max(0.30, min(0.90, panel_h / 144.0))
+        label_thickness = max(1, int(round(panel_h / 60.0)))
+        y_label = f"Count: {int(max_detected)}"
+        (_, yth), _ = cv2.getTextSize(y_label, cv2.FONT_HERSHEY_SIMPLEX, label_font, label_thickness)
+        cv2.putText(detected, y_label, (gx1 + 2, gy1 + yth + 1), cv2.FONT_HERSHEY_SIMPLEX, label_font, (220, 220, 220), label_thickness)
+
+        conf_now = max(0.0, min(1.0, float(stats.get("max_confidence", 0.0))))
+        conf_label = f"MaxConf: {conf_now:.2f}"
+        (ctw, _), _ = cv2.getTextSize(conf_label, cv2.FONT_HERSHEY_SIMPLEX, label_font, label_thickness)
+        cv2.putText(detected, conf_label, (max(gx1 + 2, gx2 - ctw - 2), gy1 + yth + 1), cv2.FONT_HERSHEY_SIMPLEX, label_font, (80, 255, 80), label_thickness)
+
+        x_label = f"Frame: {int(frame_label)}"
+        (xtw, _), _ = cv2.getTextSize(x_label, cv2.FONT_HERSHEY_SIMPLEX, label_font, label_thickness)
+        cv2.putText(detected, x_label, (max(gx1 + 2, gx2 - xtw - 2), gy2 - 2), cv2.FONT_HERSHEY_SIMPLEX, label_font, (220, 220, 220), label_thickness)
+
+        return detected
 
     def _render_bottom_stats_overlay(self, detected, stats, stats_history, font_face, frame_number=None, total_frames=None):
-        pyqt_rendered = self._render_bottom_stats_overlay_pyqtgraph(
+        return self._render_bottom_stats_overlay_pyqtgraph(
             detected,
             stats,
             stats_history,
             frame_number=frame_number,
         )
-        if pyqt_rendered is not None:
-            return pyqt_rendered
-
-        if detected is None:
-            return detected
-
-        height, width = detected.shape[:2]
-        if height <= 0 or width <= 0:
-            return detected
-
-        panel_h = max(24, int(round(height * 0.10)))
-        y1 = height - panel_h
-        overlay = detected.copy()
-        cv2.rectangle(overlay, (0, y1), (width, height), (18, 18, 18), cv2.FILLED)
-        cv2.addWeighted(overlay, 0.58, detected, 0.42, 0, detected)
-
-        gx1 = 8
-        gx2 = width - 8
-        gy1 = y1 + 4
-        gy2 = height - 4
-        if gx2 - gx1 < 40 or gy2 - gy1 < 12:
-            return detected
-
-        cv2.rectangle(detected, (gx1, gy1), (gx2, gy2), (110, 110, 110), 1)
-
-        if not isinstance(stats_history, dict):
-            return detected
-
-        mode = str(stats_history.get("mode", "rolling"))
-        x_span = max(1, gx2 - gx1)
-        y_span = max(1, gy2 - gy1)
-        label_font = max(0.30, min(0.90, panel_h / 144.0))
-        label_thickness = max(1, int(round(panel_h / 60.0)))
-
-        if mode == "timeline":
-            total_frames = int(stats_history.get("total_frames") or 0)
-            if total_frames <= 1:
-                return detected
-
-            detected_map = stats_history.get("detected") if isinstance(stats_history.get("detected"), dict) else {}
-            conf_map = stats_history.get("max_confidence") if isinstance(stats_history.get("max_confidence"), dict) else {}
-            max_detected_count = 0
-            for value in detected_map.values():
-                max_detected_count = max(max_detected_count, int(value))
-            scale_max = max(1, int(np.ceil(max_detected_count * 1.2)))
-
-            def value_to_y(value):
-                return int(round(gy2 - (max(0, int(value)) / float(scale_max)) * y_span))
-
-            non_detect_top_y = value_to_y(max_detected_count)
-
-            slot_step = 2
-            slot_count = max(1, (gx2 - gx1 + 1) // slot_step)
-            values = np.zeros((slot_count,), dtype=np.int32)
-            conf_values = np.zeros((slot_count,), dtype=np.float32)
-            attempted = np.zeros((slot_count,), dtype=bool)
-
-            for frame_no, value in detected_map.items():
-                frame_idx = max(1, min(int(frame_no), total_frames))
-                ratio = (frame_idx - 1) / float(total_frames - 1)
-                slot_idx = int(round(ratio * (slot_count - 1)))
-                attempted[slot_idx] = True
-                values[slot_idx] = max(values[slot_idx], int(value))
-
-            for frame_no, value in conf_map.items():
-                frame_idx = max(1, min(int(frame_no), total_frames))
-                ratio = (frame_idx - 1) / float(total_frames - 1)
-                slot_idx = int(round(ratio * (slot_count - 1)))
-                conf_values[slot_idx] = max(conf_values[slot_idx], float(value))
-
-            point_items = []
-            bar_half = max(1, int(round(slot_step / 2.0)) - 1)
-            for slot_idx, slot_value in enumerate(values.tolist()):
-                if not bool(attempted[slot_idx]):
-                    continue
-
-                x = gx1 + slot_idx * slot_step
-                value_int = int(slot_value)
-                if value_int <= 0:
-                    # Non-detected regions are drawn as red bars up to detected max level.
-                    cv2.rectangle(
-                        detected,
-                        (max(gx1, x - bar_half), non_detect_top_y),
-                        (min(gx2, x + bar_half), gy2),
-                        (0, 0, 255),
-                        cv2.FILLED,
-                    )
-                    continue
-
-                y = value_to_y(value_int)
-                point_items.append(((x, y), value_int))
-
-            for idx in range(1, len(point_items)):
-                cv2.line(detected, point_items[idx - 1][0], point_items[idx][0], (255, 210, 0), 1)
-            for point, value in point_items:
-                if value > 0:
-                    cv2.circle(detected, point, 1, (255, 210, 0), cv2.FILLED)
-
-            conf_points = []
-            for slot_idx, conf_value in enumerate(conf_values.tolist()):
-                if not bool(attempted[slot_idx]):
-                    continue
-                x = gx1 + slot_idx * slot_step
-                conf_clamped = max(0.0, min(1.0, float(conf_value)))
-                y = int(round(gy2 - conf_clamped * y_span))
-                conf_points.append((x, y))
-
-            for idx in range(1, len(conf_points)):
-                cv2.line(detected, conf_points[idx - 1], conf_points[idx], (80, 255, 80), 1)
-            for point in conf_points:
-                cv2.circle(detected, point, 1, (80, 255, 80), cv2.FILLED)
-
-            # Highlight current frame as a full-height bar.
-            if frame_number is not None and total_frames > 1:
-                cur_ratio = (max(1, min(int(frame_number), total_frames)) - 1) / float(total_frames - 1)
-                cur_x = int(round(gx1 + cur_ratio * x_span))
-                bar_color = (0, 230, 255)
-                cv2.rectangle(detected, (cur_x - 1, gy1), (cur_x + 1, gy2), bar_color, cv2.FILLED)
-
-            y_label = f"Count max: {max_detected_count}"
-            (_, yth), _ = cv2.getTextSize(y_label, font_face, label_font, label_thickness)
-            cv2.putText(detected, y_label, (gx1 + 2, gy1 + yth + 1), font_face, label_font, (220, 220, 220), label_thickness)
-            conf_label = f"MaxConf: {max(0.0, min(1.0, float(stats.get('max_confidence', 0.0)))):.2f}"
-            (ctw, _), _ = cv2.getTextSize(conf_label, font_face, label_font, label_thickness)
-            cv2.putText(detected, conf_label, (max(gx1 + 2, gx2 - ctw - 2), gy1 + yth + 1), font_face, label_font, (80, 255, 80), label_thickness)
-            x_label = f"Frame: {total_frames}"
-            (xtw, _), _ = cv2.getTextSize(x_label, font_face, label_font, label_thickness)
-            cv2.putText(detected, x_label, (max(gx1 + 2, gx2 - xtw - 2), gy2 - 2), font_face, label_font, (220, 220, 220), label_thickness)
-        else:
-            points = stats_history.get("points") if isinstance(stats_history.get("points"), list) else []
-            if len(points) <= 1:
-                return detected
-
-            total_series = [int(item.get("detected_count", 0)) for item in points]
-            conf_series = [max(0.0, min(1.0, float(item.get("max_confidence", 0.0)))) for item in points]
-            max_detected_count = max([0] + total_series)
-            scale_max = max(1, int(np.ceil(max_detected_count * 1.2)))
-            non_detect_top_y = int(round(gy2 - (max(0, max_detected_count) / float(scale_max)) * y_span))
-            point_count = len(total_series)
-
-            slot_step = max(2, int((gx2 - gx1 + 1) / max(1, point_count)))
-            bar_half = max(1, int(round(slot_step / 2.0)) - 1)
-            point_items = []
-            for idx, value in enumerate(total_series):
-                if point_count <= 1:
-                    x = gx1
-                else:
-                    x = int(round(gx1 + (idx / float(point_count - 1)) * x_span))
-
-                value_int = int(value)
-                if value_int <= 0:
-                    # Non-detected regions are drawn as red bars up to detected max level.
-                    cv2.rectangle(
-                        detected,
-                        (max(gx1, x - bar_half), non_detect_top_y),
-                        (min(gx2, x + bar_half), gy2),
-                        (0, 0, 255),
-                        cv2.FILLED,
-                    )
-                    continue
-
-                y = int(round(gy2 - (max(0, value_int) / float(scale_max)) * y_span))
-                point_items.append(((x, y), value_int))
-
-            for idx in range(1, len(point_items)):
-                cv2.line(detected, point_items[idx - 1][0], point_items[idx][0], (255, 210, 0), 1)
-            for point, value in point_items:
-                if value > 0:
-                    cv2.circle(detected, point, 1, (255, 210, 0), cv2.FILLED)
-
-            conf_points = []
-            for idx, conf_value in enumerate(conf_series):
-                if point_count <= 1:
-                    x = gx1
-                else:
-                    x = int(round(gx1 + (idx / float(point_count - 1)) * x_span))
-                y = int(round(gy2 - max(0.0, min(1.0, float(conf_value))) * y_span))
-                conf_points.append((x, y))
-
-            for idx in range(1, len(conf_points)):
-                cv2.line(detected, conf_points[idx - 1], conf_points[idx], (80, 255, 80), 1)
-            for point in conf_points:
-                cv2.circle(detected, point, 1, (80, 255, 80), cv2.FILLED)
-
-            # Highlight current (last) frame as a full-height bar.
-            if point_items:
-                cur_x = point_items[-1][0][0]
-                bar_color = (0, 230, 255)
-                my = 3
-                cv2.rectangle(detected, (cur_x - 1, gy1 + my), (cur_x + 1, gy2 -2*my), bar_color, cv2.FILLED)
-
-            y_label = f"Count max {max_detected_count}"
-            (_, yth), _ = cv2.getTextSize(y_label, font_face, label_font, label_thickness)
-            cv2.putText(detected, y_label, (gx1 + 2, gy1 + yth + 1), font_face, label_font, (220, 220, 220), label_thickness)
-            conf_label = f"MaxConf: {max(0.0, min(1.0, float(stats.get('max_confidence', 0.0)))):.2f}"
-            (ctw, _), _ = cv2.getTextSize(conf_label, font_face, label_font, label_thickness)
-            cv2.putText(detected, conf_label, (max(gx1 + 2, gx2 - ctw - 2), gy1 + yth + 1), font_face, label_font, (80, 255, 80), label_thickness)
-            x_label = f"Frame: {point_count}"
-            (xtw, _), _ = cv2.getTextSize(x_label, font_face, label_font, label_thickness)
-            cv2.putText(detected, x_label, (max(gx1 + 2, gx2 - xtw - 2), gy2 - 2), font_face, label_font, (220, 220, 220), label_thickness)
-
-        return detected
     pass # _render_bottom_stats_overlay
 
     def detect_road(

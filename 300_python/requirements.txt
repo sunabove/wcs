@@ -7,3 +7,4 @@ torchvision
 opencv-python
 scikit-image
 ultralytics
+pyqtgraph

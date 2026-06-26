@@ -1,5 +1,6 @@
 from fastapi import HTTPException
 
+import os
 import cv2
 import numpy as np
 from ultralytics import YOLO
@@ -10,10 +11,15 @@ from fastapi.responses import StreamingResponse
 import base64
 import threading
 from datetime import datetime
+import pyqtgraph as pg
+from pyqtgraph.Qt import QtGui, QtWidgets
 
 from send_image import resolve_upload_image_path
 from config import BASE_DIR, UPLOAD_DIR, VIDEO_EXTENSIONS
 
+os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+
+_PYQTGRAPH_AVAILABLE = True
 
 class RoadDetector:
     _class_color_map_path = Path(__file__).resolve().parent / "colormap_road.txt"
@@ -32,6 +38,7 @@ class RoadDetector:
     _camera_stream_sessions = {}  # {session_id: {capture, frame_index, fps, detect_type, camera_index}}
     _detect_progress = {}  # {session_id: {status, current_frame, total_frames, percentage, error}}
     _detect_lock = threading.Lock()  # Lock for thread-safe access to _detect_progress
+    _pg_app = None
     
     def __init__(self):
         self.image_ext = {".jpg", ".jpeg", ".png", ".bmp", ".webp"} 
@@ -1577,7 +1584,150 @@ class RoadDetector:
 
         return stats_history
 
+    def _build_chart_series(self, stats_history, frame_number=None):
+        if not isinstance(stats_history, dict):
+            return None
+
+        mode = str(stats_history.get("mode", "rolling"))
+        if mode == "timeline":
+            total_frames = int(stats_history.get("total_frames") or 0)
+            if total_frames <= 1:
+                return None
+
+            detected_map = stats_history.get("detected") if isinstance(stats_history.get("detected"), dict) else {}
+            conf_map = stats_history.get("max_confidence") if isinstance(stats_history.get("max_confidence"), dict) else {}
+            if not detected_map and not conf_map:
+                return None
+
+            keys = sorted({int(k) for k in list(detected_map.keys()) + list(conf_map.keys()) if int(k) > 0})
+            if len(keys) <= 1:
+                return None
+
+            x_vals = np.array(keys, dtype=np.float32)
+            detected_vals = np.array([int(detected_map.get(int(k), 0)) for k in keys], dtype=np.float32)
+            conf_vals = np.array([max(0.0, min(1.0, float(conf_map.get(int(k), 0.0)))) for k in keys], dtype=np.float32)
+            current_x = float(max(1, min(int(frame_number or keys[-1]), total_frames)))
+            frame_label = int(total_frames)
+            return x_vals, detected_vals, conf_vals, current_x, frame_label
+
+        points = stats_history.get("points") if isinstance(stats_history.get("points"), list) else []
+        if len(points) <= 1:
+            return None
+
+        x_vals = np.arange(1, len(points) + 1, dtype=np.float32)
+        detected_vals = np.array([int(item.get("detected_count", 0)) for item in points], dtype=np.float32)
+        conf_vals = np.array([max(0.0, min(1.0, float(item.get("max_confidence", 0.0)))) for item in points], dtype=np.float32)
+        current_x = float(len(points))
+        frame_label = int(len(points))
+        return x_vals, detected_vals, conf_vals, current_x, frame_label
+
+    def _render_bottom_stats_overlay_pyqtgraph(self, detected, stats, stats_history, frame_number=None):
+        if not _PYQTGRAPH_AVAILABLE or detected is None:
+            return None
+
+        chart_data = self._build_chart_series(stats_history, frame_number=frame_number)
+        if chart_data is None:
+            return None
+
+        x_vals, detected_vals, conf_vals, current_x, frame_label = chart_data
+
+        height, width = detected.shape[:2]
+        panel_h = max(24, int(round(height * 0.10)))
+        y1 = height - panel_h
+        gx1 = 8
+        gx2 = width - 8
+        gy1 = y1 + 4
+        gy2 = height - 4
+        plot_w = gx2 - gx1 + 1
+        plot_h = gy2 - gy1 + 1
+        if plot_w < 40 or plot_h < 12:
+            return None
+
+        try:
+            app = self.__class__._pg_app
+            if app is None:
+                app = QtWidgets.QApplication.instance()
+                if app is None:
+                    app = QtWidgets.QApplication([])
+                self.__class__._pg_app = app
+
+            plot_widget = pg.PlotWidget(background=(18, 18, 18))
+            plot_widget.resize(plot_w, plot_h)
+            plot_item = plot_widget.getPlotItem()
+            plot_item.hideAxis("left")
+            plot_item.hideAxis("bottom")
+            plot_item.showGrid(x=False, y=True, alpha=0.18)
+
+            max_detected = float(np.max(detected_vals)) if len(detected_vals) > 0 else 0.0
+            y_max = max(1.0, float(np.ceil(max_detected * 1.2)))
+            conf_scaled = conf_vals * y_max
+
+            plot_item.plot(x_vals, detected_vals, pen=pg.mkPen((255, 210, 0), width=1.2), antialias=False)
+            plot_item.plot(x_vals, conf_scaled, pen=pg.mkPen((80, 255, 80), width=1.2), antialias=False)
+            plot_item.addLine(x=current_x, pen=pg.mkPen((0, 230, 255), width=1))
+
+            x_min = float(np.min(x_vals))
+            x_max = float(np.max(x_vals))
+            if abs(x_max - x_min) < 1e-6:
+                x_max = x_min + 1.0
+            plot_item.setXRange(x_min, x_max, padding=0.0)
+            plot_item.setYRange(0.0, y_max, padding=0.04)
+
+            app.processEvents()
+
+            qimg = QtGui.QImage(plot_w, plot_h, QtGui.QImage.Format_RGB888)
+            qimg.fill(QtGui.QColor(18, 18, 18))
+            painter = QtGui.QPainter(qimg)
+            plot_widget.render(painter)
+            painter.end()
+            plot_widget.close()
+
+            ptr = qimg.bits()
+            byte_count = int(plot_w * plot_h * 3)
+            if hasattr(ptr, "setsize"):
+                ptr.setsize(byte_count)
+                raw = bytes(ptr)
+            else:
+                raw = ptr.asstring(byte_count)
+
+            panel_rgb = np.frombuffer(raw, dtype=np.uint8).reshape((plot_h, plot_w, 3))
+            panel_bgr = cv2.cvtColor(panel_rgb, cv2.COLOR_RGB2BGR)
+
+            overlay = detected.copy()
+            cv2.rectangle(overlay, (0, y1), (width, height), (18, 18, 18), cv2.FILLED)
+            cv2.addWeighted(overlay, 0.58, detected, 0.42, 0, detected)
+            detected[gy1:gy2 + 1, gx1:gx2 + 1] = panel_bgr
+            cv2.rectangle(detected, (gx1, gy1), (gx2, gy2), (110, 110, 110), 1)
+
+            label_font = max(0.30, min(0.90, panel_h / 144.0))
+            label_thickness = max(1, int(round(panel_h / 60.0)))
+            y_label = f"Count: {int(max_detected)}"
+            (_, yth), _ = cv2.getTextSize(y_label, cv2.FONT_HERSHEY_SIMPLEX, label_font, label_thickness)
+            cv2.putText(detected, y_label, (gx1 + 2, gy1 + yth + 1), cv2.FONT_HERSHEY_SIMPLEX, label_font, (220, 220, 220), label_thickness)
+
+            conf_now = max(0.0, min(1.0, float(stats.get("max_confidence", 0.0))))
+            conf_label = f"MaxConf: {conf_now:.2f}"
+            (ctw, _), _ = cv2.getTextSize(conf_label, cv2.FONT_HERSHEY_SIMPLEX, label_font, label_thickness)
+            cv2.putText(detected, conf_label, (max(gx1 + 2, gx2 - ctw - 2), gy1 + yth + 1), cv2.FONT_HERSHEY_SIMPLEX, label_font, (80, 255, 80), label_thickness)
+
+            x_label = f"Frame: {int(frame_label)}"
+            (xtw, _), _ = cv2.getTextSize(x_label, cv2.FONT_HERSHEY_SIMPLEX, label_font, label_thickness)
+            cv2.putText(detected, x_label, (max(gx1 + 2, gx2 - xtw - 2), gy2 - 2), cv2.FONT_HERSHEY_SIMPLEX, label_font, (220, 220, 220), label_thickness)
+
+            return detected
+        except Exception:
+            return None
+
     def _render_bottom_stats_overlay(self, detected, stats, stats_history, font_face, frame_number=None, total_frames=None):
+        pyqt_rendered = self._render_bottom_stats_overlay_pyqtgraph(
+            detected,
+            stats,
+            stats_history,
+            frame_number=frame_number,
+        )
+        if pyqt_rendered is not None:
+            return pyqt_rendered
+
         if detected is None:
             return detected
 
@@ -1694,7 +1844,7 @@ class RoadDetector:
                 bar_color = (0, 230, 255)
                 cv2.rectangle(detected, (cur_x - 1, gy1), (cur_x + 1, gy2), bar_color, cv2.FILLED)
 
-            y_label = f"Count: {max_detected_count}"
+            y_label = f"Count max: {max_detected_count}"
             (_, yth), _ = cv2.getTextSize(y_label, font_face, label_font, label_thickness)
             cv2.putText(detected, y_label, (gx1 + 2, gy1 + yth + 1), font_face, label_font, (220, 220, 220), label_thickness)
             conf_label = f"MaxConf: {max(0.0, min(1.0, float(stats.get('max_confidence', 0.0)))):.2f}"
@@ -1766,7 +1916,7 @@ class RoadDetector:
                 my = 3
                 cv2.rectangle(detected, (cur_x - 1, gy1 + my), (cur_x + 1, gy2 -2*my), bar_color, cv2.FILLED)
 
-            y_label = f"Count: {max_detected_count}"
+            y_label = f"Count max {max_detected_count}"
             (_, yth), _ = cv2.getTextSize(y_label, font_face, label_font, label_thickness)
             cv2.putText(detected, y_label, (gx1 + 2, gy1 + yth + 1), font_face, label_font, (220, 220, 220), label_thickness)
             conf_label = f"MaxConf: {max(0.0, min(1.0, float(stats.get('max_confidence', 0.0)))):.2f}"

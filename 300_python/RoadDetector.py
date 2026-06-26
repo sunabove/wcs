@@ -1585,7 +1585,7 @@ class RoadDetector:
 
         return stats_history
 
-    def _build_chart_series(self, stats_history, frame_number=None):
+    def _build_chart_series(self, stats_history, frame_number=None, total_frames=None):
         if not isinstance(stats_history, dict):
             return None
 
@@ -1639,7 +1639,16 @@ class RoadDetector:
         if len(points) <= 1:
             return None
 
-        x_vals = np.arange(1, len(points) + 1, dtype=np.float32)
+        resolved_total_frames = int(total_frames or stats_history.get("total_frames") or 0)
+        if resolved_total_frames > 1:
+            frame_now = int(frame_number or len(points))
+            frame_now = max(1, min(frame_now, resolved_total_frames))
+            window_len = len(points)
+            window_start = max(1, frame_now - window_len + 1)
+            window_end = window_start + window_len - 1
+            x_vals = np.linspace(float(window_start), float(window_end), num=window_len, dtype=np.float32)
+        else:
+            x_vals = np.arange(1, len(points) + 1, dtype=np.float32)
         detected_vals = np.array([int(item.get("detected_count", 0)) for item in points], dtype=np.float32)
         conf_vals = np.array([max(0.0, min(1.0, float(item.get("max_confidence", 0.0)))) for item in points], dtype=np.float32)
 
@@ -1656,15 +1665,19 @@ class RoadDetector:
             for class_name in class_names
         }
 
-        current_x = float(len(points))
-        frame_label = int(len(points))
+        current_x = float(int(frame_number or len(points)))
+        frame_label = int(resolved_total_frames if resolved_total_frames > 0 else len(points))
         return x_vals, detected_vals, conf_vals, class_series, current_x, frame_label
 
-    def _render_bottom_stats_overlay_pyqtgraph(self, detected, stats, stats_history, frame_number=None):
+    def _render_bottom_stats_overlay_pyqtgraph(self, detected, stats, stats_history, frame_number=None, total_frames=None):
         if detected is None:
             return detected
 
-        chart_data = self._build_chart_series(stats_history, frame_number=frame_number)
+        chart_data = self._build_chart_series(
+            stats_history,
+            frame_number=frame_number,
+            total_frames=total_frames,
+        )
         if chart_data is None:
             return detected
 
@@ -1693,16 +1706,21 @@ class RoadDetector:
         plot_widget.resize(plot_w, plot_h)
         plot_widget.setBackground((0, 0, 0, 0))
         plot_item = plot_widget.getPlotItem()
-        plot_item.hideAxis("left")
-        plot_item.hideAxis("bottom")
+        plot_item.showAxis("left")
+        plot_item.showAxis("bottom")
+        plot_item.setLabel("left", "Count")
+        plot_item.setLabel("bottom", "Frame")
+        plot_item.getAxis("left").setStyle(showValues=True)
+        plot_item.getAxis("bottom").setStyle(showValues=True)
+        legend = plot_item.addLegend(offset=(4, 4))
         plot_item.showGrid(x=False, y=True, alpha=0.18)
 
         max_detected = float(np.max(detected_vals)) if len(detected_vals) > 0 else 0.0
         y_max = max(1.0, float(np.ceil(max_detected * 1.2)))
         conf_scaled = conf_vals * y_max
 
-        plot_item.plot(x_vals, detected_vals, pen=pg.mkPen((255, 210, 0), width=1.2), antialias=False)
-        plot_item.plot(x_vals, conf_scaled, pen=pg.mkPen((80, 255, 80), width=1.2), antialias=False)
+        plot_item.plot(x_vals, detected_vals, pen=pg.mkPen((255, 210, 0), width=1.2), antialias=False, name="total")
+        plot_item.plot(x_vals, conf_scaled, pen=pg.mkPen((80, 255, 80), width=1.2), antialias=False, name="max_conf")
 
         class_color_map = self._get_class_color_map()
         for idx, class_name in enumerate(sorted(class_series.keys())):
@@ -1722,13 +1740,14 @@ class RoadDetector:
                 class_vals,
                 pen=pg.mkPen(class_rgb, width=1.1),
                 antialias=False,
+                name=class_name,
             )
 
         plot_item.addLine(x=current_x, pen=pg.mkPen((0, 230, 255), width=1))
 
-        x_min = float(np.min(x_vals))
-        x_max = float(np.max(x_vals))
-        if abs(x_max - x_min) < 1e-6:
+        x_min = 1.0
+        x_max = float(max(1, int(total_frames or frame_label)))
+        if x_max <= x_min:
             x_max = x_min + 1.0
         plot_item.setXRange(x_min, x_max, padding=0.0)
         plot_item.setYRange(0.0, y_max, padding=0.04)
@@ -1821,6 +1840,7 @@ class RoadDetector:
             stats,
             stats_history,
             frame_number=frame_number,
+            total_frames=total_frames,
         )
     pass # _render_bottom_stats_overlay
 

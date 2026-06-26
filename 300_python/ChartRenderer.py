@@ -93,7 +93,7 @@ class ChartRenderer:
         x_vals, detected_vals, conf_vals, class_series, current_x, frame_label = chart_data
 
         height, width = detected.shape[:2]
-        panel_h = max(56, min(150, int(round(height * 0.15))))
+        panel_h = max(84, min(225, int(round(height * 0.225))))
         canvas_h = height + panel_h
 
         gx1 = 8

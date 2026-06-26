@@ -1464,6 +1464,7 @@ class RoadDetector:
 
     def _draw_boxes_and_collect_counts(self, detected, boxes, confs, cls_ids, box_labels, box_colors, names, detect_key, font_face):
         class_counts = {}
+        class_colors = {}
         detected_count = len(boxes)
 
         for idx, ((x1, y1, x2, y2), box_conf) in enumerate(zip(boxes, confs)):
@@ -1480,13 +1481,15 @@ class RoadDetector:
 
             if cls_name:
                 class_counts[cls_name] = class_counts.get(cls_name, 0) + 1
+                if cls_name not in class_colors:
+                    class_colors[cls_name] = (int(box_color[0]), int(box_color[1]), int(box_color[2]))
             label = f"{cls_name} {box_conf:.2f}".strip()
             (tw, th), baseline = cv2.getTextSize(label, font_face, 0.6, 2)
             ty = max(y1 - 6, th + 4)
             cv2.rectangle(detected, (x1, ty - th - 4), (x1 + tw + 4, ty + baseline), box_color, cv2.FILLED)
             cv2.putText(detected, label, (x1 + 2, ty - 2), font_face, 0.6, (0, 0, 0), 2)
 
-        return detected_count, class_counts
+        return detected_count, class_counts, class_colors
 
     def _render_header(self, detected, detect_key, detected_count, conf, class_counts, started_at, font_face):
         elapsed_ms = (time.perf_counter() - started_at) * 1000.0
@@ -1674,7 +1677,16 @@ class RoadDetector:
         )
         if chart_data is None:
             return detected
-        class_color_map = self._get_class_color_map()
+        class_color_map = dict(self._get_class_color_map())
+        stats_class_colors = stats.get("class_colors") if isinstance(stats, dict) else None
+        if isinstance(stats_class_colors, dict):
+            for class_name, bgr in stats_class_colors.items():
+                if bgr is None or len(bgr) < 3:
+                    continue
+                mapped = (int(bgr[0]), int(bgr[1]), int(bgr[2]))
+                class_color_map[str(class_name)] = mapped
+                class_color_map[str(class_name).lower()] = mapped
+
         return self.__class__._chart_renderer.render_bottom_stats_overlay(
             detected,
             stats,
@@ -1767,6 +1779,7 @@ class RoadDetector:
 
         detected_count = 0
         class_counts = {}
+        class_chart_colors = {}
         mask_result = self._process_result_masks(
             detected,
             result,
@@ -1805,7 +1818,7 @@ class RoadDetector:
             box_labels = boxes_payload["box_labels"]
             box_colors = boxes_payload["box_colors"]
 
-            detected_count, class_counts = self._draw_boxes_and_collect_counts(
+            detected_count, class_counts, class_chart_colors = self._draw_boxes_and_collect_counts(
                 detected,
                 boxes,
                 confs,
@@ -1833,6 +1846,14 @@ class RoadDetector:
 
         max_confidence = float(np.max(confs)) if confs is not None and len(confs) > 0 else 0.0
 
+        fallback_class_color_map = self._get_class_color_map()
+        for class_name in class_counts.keys():
+            if class_name in class_chart_colors:
+                continue
+            mapped = fallback_class_color_map.get(class_name, fallback_class_color_map.get(str(class_name).lower()))
+            if mapped is not None:
+                class_chart_colors[class_name] = (int(mapped[0]), int(mapped[1]), int(mapped[2]))
+
         detected = self._render_header(detected, detect_key, detected_count, conf, class_counts, started_at, font_face)
 
         stats = {
@@ -1842,6 +1863,7 @@ class RoadDetector:
             "mask_count": int(mask_count),
             "total_mask_count": int(total_mask_count),
             "class_counts": {str(key): int(value) for key, value in class_counts.items()},
+            "class_colors": {str(key): (int(value[0]), int(value[1]), int(value[2])) for key, value in class_chart_colors.items()},
         }
 
         if show_detect_stats:

@@ -2224,7 +2224,7 @@ $(function () {
         const folders = Array.isArray(childFolders) ? childFolders : [];
 
         if (folders.length === 0) {
-            return $('<div class="small text-muted mb-3">하위 폴더가 없습니다.</div>');
+            return $wrapper;
         }
 
         folders.forEach(function (folderPath) {

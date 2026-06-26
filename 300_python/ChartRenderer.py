@@ -154,10 +154,20 @@ class ChartRenderer:
         for x_tick in x_ticks:
             tick_x = self._map_chart_x(x_tick, x_min, x_max, chart_x1, chart_w)
             cv2.line(canvas, (tick_x, chart_y2), (tick_x, chart_y2 + 3), (120, 120, 120), 1, cv2.LINE_AA)
+            label = str(int(x_tick))
+            (text_w, text_h), baseline = cv2.getTextSize(label, font_face, 0.28, 1)
+            label_x = max(chart_x1, min(chart_x2 - text_w, tick_x - (text_w // 2)))
+            label_y = min(canvas_h - 2, chart_y2 + text_h + 10)
+            cv2.putText(canvas, label, (label_x, label_y), font_face, 0.28, (190, 190, 190), 1, cv2.LINE_AA)
 
         if int(x_max) not in x_ticks:
             end_tick_x = self._map_chart_x(int(x_max), x_min, x_max, chart_x1, chart_w)
             cv2.line(canvas, (end_tick_x, chart_y2), (end_tick_x, chart_y2 + 3), (120, 120, 120), 1, cv2.LINE_AA)
+            label = str(int(x_max))
+            (text_w, text_h), baseline = cv2.getTextSize(label, font_face, 0.28, 1)
+            label_x = max(chart_x1, min(chart_x2 - text_w, end_tick_x - (text_w // 2)))
+            label_y = min(canvas_h - 2, chart_y2 + text_h + 10)
+            cv2.putText(canvas, label, (label_x, label_y), font_face, 0.28, (190, 190, 190), 1, cv2.LINE_AA)
 
         current_x_px = self._map_chart_x(current_x, x_min, x_max, chart_x1, chart_w)
         cv2.line(canvas, (current_x_px, chart_y1), (current_x_px, chart_y2), (255, 230, 0), 1, cv2.LINE_AA)

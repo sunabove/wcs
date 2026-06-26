@@ -90,15 +90,15 @@ class ChartRenderer:
         height, width = detected.shape[:2]
         panel_h = max(56, min(150, int(round(height * 0.15))))
         canvas_h = height + panel_h
-        y1 = height
+
         gx1 = 8
         gx2 = width - 8
-        gy1 = y1 + 6
+        gy1 = height + 6
         gy2 = canvas_h - 6
         plot_w = gx2 - gx1 + 1
         plot_h = gy2 - gy1 + 1
         if plot_w < 120 or plot_h < 36:
-            return detected
+            return np.vstack([detected, np.zeros((panel_h, width, 3), dtype=detected.dtype)])
 
         canvas = np.zeros((canvas_h, width, 3), dtype=detected.dtype)
         canvas[:height, :width] = detected
@@ -154,37 +154,19 @@ class ChartRenderer:
         for x_tick in x_ticks:
             tick_x = self._map_chart_x(x_tick, x_min, x_max, chart_x1, chart_w)
             cv2.line(canvas, (tick_x, chart_y2), (tick_x, chart_y2 + 3), (120, 120, 120), 1, cv2.LINE_AA)
-            cv2.putText(
-                canvas,
-                str(int(x_tick)),
-                (tick_x - 10, chart_y2 + 14),
-                font_face,
-                0.33,
-                (180, 180, 180),
-                1,
-                cv2.LINE_AA,
-            )
+            cv2.putText(canvas, str(int(x_tick)), (tick_x - 10, chart_y2 + 14), font_face, 0.33, (180, 180, 180), 1, cv2.LINE_AA)
 
         if int(x_max) not in x_ticks:
             end_tick_x = self._map_chart_x(int(x_max), x_min, x_max, chart_x1, chart_w)
             cv2.line(canvas, (end_tick_x, chart_y2), (end_tick_x, chart_y2 + 3), (120, 120, 120), 1, cv2.LINE_AA)
-            cv2.putText(
-                canvas,
-                str(int(x_max)),
-                (end_tick_x - 10, chart_y2 + 14),
-                font_face,
-                0.33,
-                (180, 180, 180),
-                1,
-                cv2.LINE_AA,
-            )
+            cv2.putText(canvas, str(int(x_max)), (end_tick_x - 10, chart_y2 + 14), font_face, 0.33, (180, 180, 180), 1, cv2.LINE_AA)
 
         current_x_px = self._map_chart_x(current_x, x_min, x_max, chart_x1, chart_w)
-    cv2.line(canvas, (current_x_px, chart_y1), (current_x_px, chart_y2), (255, 230, 0), 1, cv2.LINE_AA)
+        cv2.line(canvas, (current_x_px, chart_y1), (current_x_px, chart_y2), (255, 230, 0), 1, cv2.LINE_AA)
 
         conf_now = max(0.0, min(1.0, float(stats.get("max_confidence", 0.0))))
         info_y = gy1 + 12
-    cv2.putText(canvas, f"Count:{int(max_detected)} MaxConf:{conf_now:.2f}", (chart_x1 + 4, info_y), font_face, 0.35, (210, 210, 210), 1, cv2.LINE_AA)
+        cv2.putText(canvas, f"Count:{int(max_detected)} MaxConf:{conf_now:.2f}", (chart_x1 + 4, info_y), font_face, 0.35, (210, 210, 210), 1, cv2.LINE_AA)
 
         class_legend_items = [
             (class_name, class_line_colors[class_name])
@@ -227,23 +209,14 @@ class ChartRenderer:
         total_legend_width += max(0, len(legend_items) - 1) * min_item_gap
 
         legend_x = max(chart_x1 + 4, chart_x2 - total_legend_width)
-        for idx, ((item_name, item_color), (_, text_w, text_h, baseline, item_width)) in enumerate(zip(legend_items, item_metrics)):
+        for _, ((item_name, item_color), (_, text_w, text_h, baseline, item_width)) in enumerate(zip(legend_items, item_metrics)):
             if legend_x + item_width > chart_x2:
                 break
 
             swatch_x1 = legend_x
             swatch_x2 = legend_x + 12
             cv2.line(canvas, (swatch_x1, legend_y), (swatch_x2, legend_y), item_color, 2, cv2.LINE_AA)
-            cv2.putText(
-                canvas,
-                item_name,
-                (swatch_x2 + 6, legend_y + 3),
-                font_face,
-                legend_font_scale,
-                (190, 190, 190),
-                legend_thickness,
-                cv2.LINE_AA,
-            )
+            cv2.putText(canvas, item_name, (swatch_x2 + 6, legend_y + 3), font_face, legend_font_scale, (190, 190, 190), legend_thickness, cv2.LINE_AA)
             legend_x += item_width + min_item_gap
 
         cv2.rectangle(canvas, (gx1, gy1), (gx2, gy2), (110, 110, 110), 1)

@@ -65,6 +65,8 @@ $(function () {
     let isSampleVideosLoading = false;
     let sampleImageBrowserPath = "image";
     let sampleVideoBrowserPath = "video";
+    let sampleImageShowAllFiles = false;
+    let sampleVideoShowAllFiles = false;
     let frameStreamState = {};  // 프레임 스트리밍 상태
     let frameTimerMap = {};     // 프레임 타이머 맵
     let cameraStreamState = null;
@@ -2195,10 +2197,12 @@ $(function () {
         return normalized.replace(new RegExp("^" + baseFolder + "/?"), "");
     }
 
-    function buildSampleBrowserHeader(baseFolder, currentFolderPath) {
+    function buildSampleBrowserHeader(baseFolder, currentFolderPath, showAllFiles) {
         const normalizedCurrent = normalizeSampleFolderPath(currentFolderPath, baseFolder);
         const $header = $('<div class="d-flex flex-wrap align-items-center gap-2 mb-2"></div>');
         const $homeButton = $('<button type="button" class="btn btn-sm btn-outline-secondary sample-folder-home"><i class="bi bi-house-door me-1"></i>루트</button>')
+            .attr("data-base-folder", baseFolder);
+        const $allFilesButton = $('<button type="button" class="btn btn-sm btn-outline-primary sample-folder-all"><i class="bi bi-collection-play me-1"></i>전체 파일</button>')
             .attr("data-base-folder", baseFolder);
 
         const parentPath = normalizedCurrent.indexOf(baseFolder + "/") === 0
@@ -2210,12 +2214,12 @@ $(function () {
             .attr("data-parent-folder", hasParent ? parentPath : baseFolder)
             .prop("disabled", !hasParent);
 
-        const labelText = normalizedCurrent === baseFolder
-            ? "samples/" + baseFolder
-            : "samples/" + normalizedCurrent;
+        const labelText = showAllFiles
+            ? ("samples/" + baseFolder + " (전체 파일)")
+            : (normalizedCurrent === baseFolder ? "samples/" + baseFolder : "samples/" + normalizedCurrent);
         const $pathLabel = $('<span class="small text-muted"></span>').text("현재: " + labelText);
 
-        $header.append($homeButton).append($upButton).append($pathLabel);
+        $header.append($homeButton).append($upButton).append($allFilesButton).append($pathLabel);
         return $header;
     }
 
@@ -2241,7 +2245,7 @@ $(function () {
         return $wrapper;
     }
 
-    function renderSampleImageThumbnails(browserData) {
+    function renderSampleImageThumbnails(browserData, showAllFiles) {
         if ($sampleImagePane.length === 0) {
             return;
         }
@@ -2250,8 +2254,10 @@ $(function () {
         const childFolders = browserData && Array.isArray(browserData.folders) ? browserData.folders : [];
         const fileNames = browserData && Array.isArray(browserData.files) ? browserData.files : [];
 
-        $sampleImagePane.empty().append(buildSampleBrowserHeader("image", currentFolder));
-        $sampleImagePane.append(renderSampleFolderTiles("image", currentFolder, childFolders, "image"));
+        $sampleImagePane.empty().append(buildSampleBrowserHeader("image", currentFolder, Boolean(showAllFiles)));
+        if (!showAllFiles) {
+            $sampleImagePane.append(renderSampleFolderTiles("image", currentFolder, childFolders, "image"));
+        }
 
         if (!Array.isArray(fileNames) || fileNames.length === 0) {
             return;
@@ -2293,7 +2299,7 @@ $(function () {
         $sampleImagePane.append($scrollContainer);
     }
 
-    function loadSampleImages(folderPath) {
+    function loadSampleImages(folderPath, showAllFiles) {
         if ($sampleImagePane.length === 0) {
             return;
         }
@@ -2304,13 +2310,38 @@ $(function () {
 
         isSampleImagesLoading = true;
         sampleImageBrowserPath = normalizeSampleFolderPath(folderPath || sampleImageBrowserPath, "image");
+        sampleImageShowAllFiles = Boolean(showAllFiles);
 
         $sampleImagePane.html('<div class="text-muted text-center py-3">샘플 영상을 불러오는 중...</div>');
+
+        if (sampleImageShowAllFiles) {
+            $.ajax({
+                url: buildSamplesUrl("image"),
+                method: "GET"
+            }).done(function (result) {
+                const allFileNames = Array.isArray(result)
+                    ? result
+                    : (result && Array.isArray(result.image_files) ? result.image_files : []);
+                renderSampleImageThumbnails({
+                    current_folder: "samples/image",
+                    folders: [],
+                    files: allFileNames,
+                }, true);
+                isSampleImagesLoaded = true;
+            }).fail(function (jqXHR) {
+                console.error("Sample image all-files error:", jqXHR.status, jqXHR.responseText);
+                $sampleImagePane.html('<div class="text-danger text-center py-3">샘플 영상 목록을 불러오지 못했습니다.</div>');
+            }).always(function () {
+                isSampleImagesLoading = false;
+            });
+            return;
+        }
+
         $.ajax({
             url: buildSampleBrowserUrl(sampleImageBrowserPath),
             method: "GET"
         }).done(function (result) {
-            renderSampleImageThumbnails(result || {});
+            renderSampleImageThumbnails(result || {}, false);
             isSampleImagesLoaded = true;
         }).fail(function (jqXHR) {
             console.error("Sample image browser error:", jqXHR.status, jqXHR.responseText);
@@ -2327,7 +2358,7 @@ $(function () {
         }
     }
 
-    function renderSampleVideoThumbnails(browserData) {
+    function renderSampleVideoThumbnails(browserData, showAllFiles) {
         if ($sampleVideoPane.length === 0) {
             return;
         }
@@ -2336,8 +2367,10 @@ $(function () {
         const childFolders = browserData && Array.isArray(browserData.folders) ? browserData.folders : [];
         const fileNames = browserData && Array.isArray(browserData.files) ? browserData.files : [];
 
-        $sampleVideoPane.empty().append(buildSampleBrowserHeader("video", currentFolder));
-        $sampleVideoPane.append(renderSampleFolderTiles("video", currentFolder, childFolders, "video"));
+        $sampleVideoPane.empty().append(buildSampleBrowserHeader("video", currentFolder, Boolean(showAllFiles)));
+        if (!showAllFiles) {
+            $sampleVideoPane.append(renderSampleFolderTiles("video", currentFolder, childFolders, "video"));
+        }
 
         if (!Array.isArray(fileNames) || fileNames.length === 0) {
             $sampleVideoPane.append('<div class="text-muted text-center py-3">현재 폴더에 샘플 동영상이 없습니다.</div>');
@@ -2389,7 +2422,7 @@ $(function () {
         $sampleVideoPane.append($scrollContainer);
     }
 
-    function loadSampleVideos(folderPath) {
+    function loadSampleVideos(folderPath, showAllFiles) {
         if ($sampleVideoPane.length === 0) {
             return;
         }
@@ -2400,13 +2433,38 @@ $(function () {
 
         isSampleVideosLoading = true;
         sampleVideoBrowserPath = normalizeSampleFolderPath(folderPath || sampleVideoBrowserPath, "video");
+        sampleVideoShowAllFiles = Boolean(showAllFiles);
 
         $sampleVideoPane.html('<div class="text-muted text-center py-3">샘플 동영상을 불러오는 중...</div>');
+
+        if (sampleVideoShowAllFiles) {
+            $.ajax({
+                url: buildSamplesUrl("video"),
+                method: "GET"
+            }).done(function (result) {
+                const allFileNames = Array.isArray(result)
+                    ? result
+                    : (result && Array.isArray(result.image_files) ? result.image_files : []);
+                renderSampleVideoThumbnails({
+                    current_folder: "samples/video",
+                    folders: [],
+                    files: allFileNames,
+                }, true);
+                isSampleVideosLoaded = true;
+            }).fail(function (jqXHR) {
+                console.error("Sample video all-files error:", jqXHR.status, jqXHR.responseText);
+                $sampleVideoPane.html('<div class="text-danger text-center py-3">샘플 동영상 목록을 불러오지 못했습니다.</div>');
+            }).always(function () {
+                isSampleVideosLoading = false;
+            });
+            return;
+        }
+
         $.ajax({
             url: buildSampleBrowserUrl(sampleVideoBrowserPath),
             method: "GET"
         }).done(function (result) {
-            renderSampleVideoThumbnails(result || {});
+            renderSampleVideoThumbnails(result || {}, false);
             isSampleVideosLoaded = true;
         }).fail(function (jqXHR) {
             console.error("Sample video browser error:", jqXHR.status, jqXHR.responseText);
@@ -2922,7 +2980,7 @@ $(function () {
         if (paneType !== "image") {
             return;
         }
-        loadSampleImages(nextFolder);
+        loadSampleImages(nextFolder, false);
     });
 
     $sampleVideoPane.on("click", ".sample-folder-item", function () {
@@ -2931,27 +2989,37 @@ $(function () {
         if (paneType !== "video") {
             return;
         }
-        loadSampleVideos(nextFolder);
+        loadSampleVideos(nextFolder, false);
     });
 
     $sampleImagePane.on("click", ".sample-folder-home", function () {
         const baseFolder = normalizeSampleFolderPath($(this).data("base-folder"), "image");
-        loadSampleImages(baseFolder);
+        loadSampleImages(baseFolder, false);
     });
 
     $sampleVideoPane.on("click", ".sample-folder-home", function () {
         const baseFolder = normalizeSampleFolderPath($(this).data("base-folder"), "video");
-        loadSampleVideos(baseFolder);
+        loadSampleVideos(baseFolder, false);
     });
 
     $sampleImagePane.on("click", ".sample-folder-up", function () {
         const parentFolder = normalizeSampleFolderPath($(this).data("parent-folder"), "image");
-        loadSampleImages(parentFolder);
+        loadSampleImages(parentFolder, false);
     });
 
     $sampleVideoPane.on("click", ".sample-folder-up", function () {
         const parentFolder = normalizeSampleFolderPath($(this).data("parent-folder"), "video");
-        loadSampleVideos(parentFolder);
+        loadSampleVideos(parentFolder, false);
+    });
+
+    $sampleImagePane.on("click", ".sample-folder-all", function () {
+        const baseFolder = normalizeSampleFolderPath($(this).data("base-folder"), "image");
+        loadSampleImages(baseFolder, true);
+    });
+
+    $sampleVideoPane.on("click", ".sample-folder-all", function () {
+        const baseFolder = normalizeSampleFolderPath($(this).data("base-folder"), "video");
+        loadSampleVideos(baseFolder, true);
     });
 
     $inputTabs.on("shown.bs.tab", "button[data-bs-toggle='tab']", function (event) {

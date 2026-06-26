@@ -124,6 +124,30 @@ $(function () {
         requestAnimationFrame(syncRoiOverlay);
     }
 
+    function pauseVideoElement($video) {
+        if (!$video || $video.length === 0 || !$video[0]) {
+            return false;
+        }
+
+        const videoElement = $video[0];
+        if (typeof videoElement.pause !== "function" || videoElement.paused) {
+            return false;
+        }
+
+        try {
+            videoElement.pause();
+            return true;
+        } catch (error) {
+            return false;
+        }
+    }
+
+    function pauseOutputVideoPlayback() {
+        const pausedDetected = pauseVideoElement($detectedVideoPreview);
+        const pausedOriginal = pauseVideoElement($uploadedVideoPreview);
+        return pausedDetected || pausedOriginal;
+    }
+
     function triggerBrowserDownload(url) {
         if (!url) {
             return;
@@ -1491,7 +1515,7 @@ $(function () {
     function pauseFrameStream(fileName) {
         const state = frameStreamState[fileName];
         if (!state) {
-            return;
+            return false;
         }
 
         state.isPlaying = false;
@@ -1504,6 +1528,7 @@ $(function () {
         $detectingIndicator.addClass("d-none");
         updateDetectedStreamControls();
         showUploadStatusMessage("프레임 출력을 멈췄습니다.", true);
+        return true;
     }
 
     function resumeFrameStream(fileName) {
@@ -2682,7 +2707,11 @@ $(function () {
             return;
         }
 
-        pauseFrameStream(uploadedFileName);
+        const pausedStream = pauseFrameStream(uploadedFileName);
+        const pausedVideo = pauseOutputVideoPlayback();
+        if (!pausedStream && pausedVideo) {
+            showUploadStatusMessage("동영상 재생을 멈췄습니다.", true);
+        }
     });
 
     $detectedStreamRestartButton.on("click", function () {

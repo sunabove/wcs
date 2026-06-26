@@ -9,3 +9,4 @@ torchvision
 opencv-python
 scikit-image
 ultralytics
+tensorboard

@@ -41,8 +41,99 @@ class IMU:
         time.sleep(0.1)
         self.ax_offset = self.ay_offset = self.az_offset = 0.0
         self.gx_offset = self.gy_offset = self.gz_offset = 0.0
+        self.level_accel_baseline = None
+        self.level_accel_ref_1g = None
+        self.level_gyro_baseline = None
+        self.level_rotation = None
         if not skip_calibration:
             self._load_calibration()
+
+    @staticmethod
+    def vec_norm(v):
+        return math.sqrt((v[0] * v[0]) + (v[1] * v[1]) + (v[2] * v[2]))
+
+    @staticmethod
+    def vec_dot(a, b):
+        return (a[0] * b[0]) + (a[1] * b[1]) + (a[2] * b[2])
+
+    @staticmethod
+    def vec_cross(a, b):
+        return [
+            (a[1] * b[2]) - (a[2] * b[1]),
+            (a[2] * b[0]) - (a[0] * b[2]),
+            (a[0] * b[1]) - (a[1] * b[0]),
+        ]
+
+    @classmethod
+    def vec_normalize(cls, v):
+        n = cls.vec_norm(v)
+        if n < 1e-9:
+            return [0.0, 0.0, 0.0]
+        return [v[0] / n, v[1] / n, v[2] / n]
+
+    @staticmethod
+    def mat_vec_mul(m, v):
+        return [
+            (m[0][0] * v[0]) + (m[0][1] * v[1]) + (m[0][2] * v[2]),
+            (m[1][0] * v[0]) + (m[1][1] * v[1]) + (m[1][2] * v[2]),
+            (m[2][0] * v[0]) + (m[2][1] * v[1]) + (m[2][2] * v[2]),
+        ]
+
+    @classmethod
+    def rotation_align_to_z(cls, from_vec):
+        u = cls.vec_normalize(from_vec)
+        z = [0.0, 0.0, 1.0]
+        c = cls.vec_dot(u, z)
+
+        if c > 1.0 - 1e-9:
+            return [
+                [1.0, 0.0, 0.0],
+                [0.0, 1.0, 0.0],
+                [0.0, 0.0, 1.0],
+            ]
+
+        if c < -1.0 + 1e-9:
+            return [
+                [1.0, 0.0, 0.0],
+                [0.0, -1.0, 0.0],
+                [0.0, 0.0, -1.0],
+            ]
+
+        axis = cls.vec_cross(u, z)
+        s = cls.vec_norm(axis)
+        if s < 1e-9:
+            return [
+                [1.0, 0.0, 0.0],
+                [0.0, 1.0, 0.0],
+                [0.0, 0.0, 1.0],
+            ]
+
+        kx, ky, kz = axis[0] / s, axis[1] / s, axis[2] / s
+        one_minus_c = 1.0 - c
+
+        return [
+            [c + (kx * kx * one_minus_c), (kx * ky * one_minus_c) - (kz * s), (kx * kz * one_minus_c) + (ky * s)],
+            [(ky * kx * one_minus_c) + (kz * s), c + (ky * ky * one_minus_c), (ky * kz * one_minus_c) - (kx * s)],
+            [(kz * kx * one_minus_c) - (ky * s), (kz * ky * one_minus_c) + (kx * s), c + (kz * kz * one_minus_c)],
+        ]
+
+    @staticmethod
+    def is_stationary(ax, ay, az, gx, gy, gz):
+        accel_norm = math.sqrt(ax * ax + ay * ay + az * az)
+        return abs(accel_norm - 1.0) < 0.08 and abs(gx) < 2.0 and abs(gy) < 2.0 and abs(gz) < 2.0
+
+    @staticmethod
+    def normalize_angle(angle):
+        while angle > 180.0:
+            angle -= 360.0
+        while angle < -180.0:
+            angle += 360.0
+        return angle
+
+    @classmethod
+    def blend_angle(cls, current, target, alpha):
+        diff = cls.normalize_angle(target - current)
+        return cls.normalize_angle(current + alpha * diff)
 
     def _load_calibration(self):
         script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -102,26 +193,69 @@ class IMU:
         roll = math.degrees(math.atan2(ay, az))
         return pitch, roll, ax, ay, az, gx, gy, gz
 
+    def calibrate_level(self, samples=40, delay=0.02):
+        samples = max(1, int(samples))
+        accel_sum = [0.0, 0.0, 0.0]
+        gyro_sum = [0.0, 0.0, 0.0]
+
+        for _ in range(samples):
+            _, _, ax, ay, az, gx, gy, gz = self.read()
+            accel_sum[0] += ax
+            accel_sum[1] += ay
+            accel_sum[2] += az
+            gyro_sum[0] += gx
+            gyro_sum[1] += gy
+            gyro_sum[2] += gz
+            time.sleep(max(0.0, float(delay)))
+
+        accel_baseline = [component / samples for component in accel_sum]
+        gyro_baseline = [component / samples for component in gyro_sum]
+        accel_baseline_mag = self.vec_norm(accel_baseline)
+        if accel_baseline_mag < 1e-6:
+            raise ValueError("Invalid accel baseline magnitude. Retry level calibration.")
+
+        accel_ref_1g = [component / accel_baseline_mag for component in accel_baseline]
+        self.level_accel_baseline = accel_baseline
+        self.level_accel_ref_1g = accel_ref_1g
+        self.level_gyro_baseline = gyro_baseline
+        self.level_rotation = self.rotation_align_to_z(accel_ref_1g)
+
+        return {
+            "accel_baseline": tuple(accel_baseline),
+            "accel_ref_1g": tuple(accel_ref_1g),
+            "gyro_baseline": tuple(gyro_baseline),
+        }
+
+    def apply_leveling(self, ax, ay, az, gx, gy, gz):
+        if self.level_rotation is None or self.level_accel_baseline is None or self.level_accel_ref_1g is None:
+            return ax, ay, az, gx, gy, gz
+
+        accel_c = [
+            float(ax) - self.level_accel_baseline[0] + self.level_accel_ref_1g[0],
+            float(ay) - self.level_accel_baseline[1] + self.level_accel_ref_1g[1],
+            float(az) - self.level_accel_baseline[2] + self.level_accel_ref_1g[2],
+        ]
+
+        gyro_baseline = self.level_gyro_baseline or [0.0, 0.0, 0.0]
+        gyro_c = [
+            float(gx) - gyro_baseline[0],
+            float(gy) - gyro_baseline[1],
+            float(gz) - gyro_baseline[2],
+        ]
+
+        accel_axis = self.mat_vec_mul(self.level_rotation, accel_c)
+        gyro_axis = self.mat_vec_mul(self.level_rotation, gyro_c)
+        return accel_axis[0], accel_axis[1], accel_axis[2], gyro_axis[0], gyro_axis[1], gyro_axis[2]
+
+    def read_leveled(self):
+        _, _, ax, ay, az, gx, gy, gz = self.read()
+        ax_l, ay_l, az_l, gx_l, gy_l, gz_l = self.apply_leveling(ax, ay, az, gx, gy, gz)
+        pitch = math.degrees(math.atan2(-ax_l, math.sqrt((ay_l * ay_l) + (az_l * az_l))))
+        roll = math.degrees(math.atan2(ay_l, az_l))
+        return pitch, roll, ax_l, ay_l, az_l, gx_l, gy_l, gz_l
+
     def close(self):
         self.bus.close()
-
-
-def is_stationary(ax, ay, az, gx, gy, gz):
-    accel_norm = math.sqrt(ax * ax + ay * ay + az * az)
-    return abs(accel_norm - 1.0) < 0.08 and abs(gx) < 2.0 and abs(gy) < 2.0 and abs(gz) < 2.0
-
-
-def normalize_angle(angle):
-    while angle > 180.0:
-        angle -= 360.0
-    while angle < -180.0:
-        angle += 360.0
-    return angle
-
-
-def blend_angle(current, target, alpha):
-    diff = normalize_angle(target - current)
-    return normalize_angle(current + alpha * diff)
 
 
 def main():
@@ -140,12 +274,12 @@ def main():
             now = time.monotonic()
             dt = min(now - prev_time, 0.1)
             prev_time = now
-            stationary = is_stationary(ax, ay, az, gx, gy, gz - gz_offset)
+            stationary = imu.is_stationary(ax, ay, az, gx, gy, gz - gz_offset)
             if stationary:
                 gz_offset = gz_offset * 0.995 + gz * 0.005
             pitch = pitch_filter.update(p, gx, dt)
             roll = roll_filter.update(r, gy, dt)
-            yaw = normalize_angle(yaw + (gz - gz_offset) * dt)
+            yaw = imu.normalize_angle(yaw + (gz - gz_offset) * dt)
             count += 1
             print(f"[{count:5d}] R={roll:7.2f}° P={pitch:7.2f}° Y={yaw:7.2f}° A=({ax:6.3f},{ay:6.3f},{az:6.3f}) G=({gx:7.2f},{gy:7.2f},{gz:7.2f})")
             time.sleep(0.02)

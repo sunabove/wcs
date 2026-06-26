@@ -39,7 +39,7 @@ class ChartRenderer:
         if x_max <= x_min:
             x_max = x_min + 1.0
 
-        margin_left = 48
+        margin_left = 12
         margin_right = 8
         margin_top = 16
         margin_bottom = 18
@@ -144,13 +144,6 @@ class ChartRenderer:
             class_bgr = resolve_class_color(class_name, idx)
             class_line_colors[class_name] = class_bgr
             draw_series(class_vals, class_bgr, 1)
-
-        y_step = nice_step(y_max, 4)
-        y_tick = 0.0
-        while y_tick <= y_max + (y_step * 0.5):
-            tick_y = map_y(y_tick)
-            cv2.line(detected, (chart_x1 - 3, tick_y), (chart_x1, tick_y), (120, 120, 120), 1, cv2.LINE_AA)
-            y_tick += y_step
 
         x_ticks = power_ticks(x_max)
         for x_tick in x_ticks:

@@ -117,6 +117,21 @@ class ChartRenderer:
                 nice_frac = 10.0
             return nice_frac * exp
 
+        def power_ticks(max_value):
+            if max_value <= 0:
+                return []
+
+            ticks = []
+            max_int = max(1, int(max_value))
+            exponent = 0
+            while (10 ** exponent) <= max_int:
+                ticks.append(10 ** exponent)
+                exponent += 1
+
+            if not ticks:
+                ticks = [1]
+            return ticks
+
         draw_series(detected_vals, (0, 210, 255), 2)
         draw_series(conf_scaled, (80, 255, 80), 1)
 
@@ -135,37 +150,24 @@ class ChartRenderer:
         while y_tick <= y_max + (y_step * 0.5):
             tick_y = map_y(y_tick)
             cv2.line(detected, (chart_x1 - 3, tick_y), (chart_x1, tick_y), (120, 120, 120), 1, cv2.LINE_AA)
-            cv2.putText(
-                detected,
-                str(int(round(y_tick))),
-                (chart_x1 - 38, tick_y + 4),
-                font_face,
-                0.33,
-                (180, 180, 180),
-                1,
-                cv2.LINE_AA,
-            )
             y_tick += y_step
 
-        x_tick_count = 4
-        x_step = max(1, int(round((x_max - x_min) / max(1, x_tick_count))))
-        x_tick = int(x_min)
-        while x_tick <= int(x_max):
+        x_ticks = power_ticks(x_max)
+        for x_tick in x_ticks:
             tick_x = map_x(x_tick)
             cv2.line(detected, (tick_x, chart_y2), (tick_x, chart_y2 + 3), (120, 120, 120), 1, cv2.LINE_AA)
             cv2.putText(
                 detected,
                 str(int(x_tick)),
-                (tick_x - 8, chart_y2 + 14),
+                (tick_x - 10, chart_y2 + 14),
                 font_face,
                 0.33,
                 (180, 180, 180),
                 1,
                 cv2.LINE_AA,
             )
-            x_tick += x_step
 
-        if int(x_max) % x_step != 0:
+        if int(x_max) not in x_ticks:
             end_tick_x = map_x(int(x_max))
             cv2.line(detected, (end_tick_x, chart_y2), (end_tick_x, chart_y2 + 3), (120, 120, 120), 1, cv2.LINE_AA)
             cv2.putText(

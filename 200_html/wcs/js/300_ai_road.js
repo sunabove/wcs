@@ -51,6 +51,7 @@ $(function () {
     const DETECT_AFTER_UPLOAD_DELAY_MS = 800;
     const DETECT_OPTIONS_STORAGE_KEY = "wcs.ai_road.detect_options.v1";
     const INPUT_TAB_STORAGE_KEY = "wcs.ai_road.input_tab.v1";
+    const SAMPLE_BROWSER_STORAGE_KEY = "wcs.ai_road.sample_browser.v1";
     let uploadedFileName = "";
     let previousFileName = "";  // 이전 파일명 추적
     let detectDebounceTimer = null;
@@ -834,6 +835,60 @@ $(function () {
         }
 
         $tabButton.trigger("click");
+    }
+
+    function saveSampleBrowserStateToStorage() {
+        if (typeof window.localStorage === "undefined") {
+            return;
+        }
+
+        const payload = {
+            image: {
+                folder: normalizeSampleFolderPath(sampleImageBrowserPath, "image"),
+                showAll: Boolean(sampleImageShowAllFiles),
+            },
+            video: {
+                folder: normalizeSampleFolderPath(sampleVideoBrowserPath, "video"),
+                showAll: Boolean(sampleVideoShowAllFiles),
+            },
+        };
+
+        try {
+            window.localStorage.setItem(SAMPLE_BROWSER_STORAGE_KEY, JSON.stringify(payload));
+        } catch (error) {
+            // Ignore storage write errors (private mode, quota exceeded, etc.).
+        }
+    }
+
+    function restoreSampleBrowserStateFromStorage() {
+        if (typeof window.localStorage === "undefined") {
+            return;
+        }
+
+        let parsed = null;
+        try {
+            const raw = window.localStorage.getItem(SAMPLE_BROWSER_STORAGE_KEY);
+            if (!raw) {
+                return;
+            }
+            parsed = JSON.parse(raw);
+        } catch (error) {
+            return;
+        }
+
+        if (!parsed || typeof parsed !== "object") {
+            return;
+        }
+
+        if (parsed.image && typeof parsed.image === "object") {
+            sampleImageBrowserPath = normalizeSampleFolderPath(parsed.image.folder, "image");
+            sampleImageShowAllFiles = Boolean(parsed.image.showAll);
+        }
+
+        if (parsed.video && typeof parsed.video === "object") {
+            sampleVideoBrowserPath = normalizeSampleFolderPath(parsed.video.folder, "video");
+            sampleVideoShowAllFiles = Boolean(parsed.video.showAll);
+        }
     }
 
     function getValidPercent($input, fallbackValue) {
@@ -2319,6 +2374,7 @@ $(function () {
         isSampleImagesLoading = true;
         sampleImageBrowserPath = normalizeSampleFolderPath(folderPath || sampleImageBrowserPath, "image");
         sampleImageShowAllFiles = Boolean(showAllFiles);
+        saveSampleBrowserStateToStorage();
 
         $sampleImagePane.html('<div class="text-muted text-center py-3">샘플 영상을 불러오는 중...</div>');
 
@@ -2362,7 +2418,7 @@ $(function () {
 
     function ensureSampleImagesLoaded() {
         if (!isSampleImagesLoaded) {
-            loadSampleImages();
+            loadSampleImages(sampleImageBrowserPath, sampleImageShowAllFiles);
         }
     }
 
@@ -2442,6 +2498,7 @@ $(function () {
         isSampleVideosLoading = true;
         sampleVideoBrowserPath = normalizeSampleFolderPath(folderPath || sampleVideoBrowserPath, "video");
         sampleVideoShowAllFiles = Boolean(showAllFiles);
+        saveSampleBrowserStateToStorage();
 
         $sampleVideoPane.html('<div class="text-muted text-center py-3">샘플 동영상을 불러오는 중...</div>');
 
@@ -2485,7 +2542,7 @@ $(function () {
 
     function ensureSampleVideosLoaded() {
         if (!isSampleVideosLoaded) {
-            loadSampleVideos();
+            loadSampleVideos(sampleVideoBrowserPath, sampleVideoShowAllFiles);
         }
     }
 
@@ -2631,6 +2688,7 @@ $(function () {
     }
 
     restoreDetectOptionsFromStorage();
+    restoreSampleBrowserStateFromStorage();
 
     $detectedImageTab.on("click", function () {
         if (cameraStreamState && cameraStreamState.isPlaying) {
@@ -3021,15 +3079,15 @@ $(function () {
     });
 
     $sampleImagePane.on("change", ".sample-folder-all-toggle", function () {
-        const baseFolder = normalizeSampleFolderPath($(this).data("base-folder"), "image");
         const showAll = Boolean($(this).is(":checked"));
-        loadSampleImages(baseFolder, showAll);
+        const targetFolder = normalizeSampleFolderPath(sampleImageBrowserPath, "image");
+        loadSampleImages(targetFolder, showAll);
     });
 
     $sampleVideoPane.on("change", ".sample-folder-all-toggle", function () {
-        const baseFolder = normalizeSampleFolderPath($(this).data("base-folder"), "video");
         const showAll = Boolean($(this).is(":checked"));
-        loadSampleVideos(baseFolder, showAll);
+        const targetFolder = normalizeSampleFolderPath(sampleVideoBrowserPath, "video");
+        loadSampleVideos(targetFolder, showAll);
     });
 
     $inputTabs.on("shown.bs.tab", "button[data-bs-toggle='tab']", function (event) {

@@ -85,6 +85,17 @@ def get_browser_playable_video_url(file_name: str, force_transcode: bool = False
     if suffix not in VIDEO_EXTENSIONS:
         raise HTTPException(status_code=400, detail="file_name is not a video")
 
+    # Path for the backup of the original file
+    backup_path = video_path.with_name(f"_{video_path.name}")
+
+    # If backup exists and we're NOT forcing transcode, return the backup (original format)
+    # This ensures that "원본 영상" (original video) tab shows the actual original
+    if backup_path.exists() and backup_path.is_file() and backup_path.stat().st_size > 0 and not force_transcode:
+        return {
+            "video_url": _to_image_route_url(backup_path),
+            "source": "backup_original",
+        }
+
     # Most browsers handle these containers directly.
     if not force_transcode and suffix in {".mp4", ".m4v", ".webm"}:
         return {
@@ -92,8 +103,6 @@ def get_browser_playable_video_url(file_name: str, force_transcode: bool = False
             "source": "original",
         }
 
-    # Path for the backup of the original file
-    backup_path = video_path.with_name(f"_{video_path.name}")
     # Temporary path for transcoding
     temp_path = video_path.with_name(f"{video_path.stem}.tmp.mp4")
     

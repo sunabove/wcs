@@ -2287,7 +2287,7 @@ $(function () {
     }
 
     function renderSampleFolderTiles(baseFolder, currentFolderPath, childFolders, paneSelector) {
-        const $wrapper = $('<div class="d-flex flex-wrap gap-2 mb-3"></div>');
+        const $wrapper = $('<div class="d-flex flex-wrap gap-2 mb-2"></div>');
         const folders = Array.isArray(childFolders) ? childFolders : [];
 
         if (folders.length === 0) {

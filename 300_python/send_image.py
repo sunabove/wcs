@@ -92,11 +92,16 @@ def get_browser_playable_video_url(file_name: str, force_transcode: bool = False
             "source": "original",
         }
 
-    playable_path = video_path.with_name(f"{video_path.stem}_browser.mp4")
+    # Path for the backup of the original file
+    backup_path = video_path.with_name(f"_{video_path.name}")
+    # Temporary path for transcoding
+    temp_path = video_path.with_name(f"{video_path.stem}.tmp.mp4")
+    
     needs_transcode = True
-    if playable_path.exists() and playable_path.is_file() and playable_path.stat().st_size > 0:
+    # Check if backup already exists and is newer than original
+    if backup_path.exists() and backup_path.is_file() and backup_path.stat().st_size > 0:
         try:
-            needs_transcode = playable_path.stat().st_mtime < video_path.stat().st_mtime
+            needs_transcode = backup_path.stat().st_mtime < video_path.stat().st_mtime
         except OSError:
             needs_transcode = True
 
@@ -105,7 +110,6 @@ def get_browser_playable_video_url(file_name: str, force_transcode: bool = False
         if not capture.isOpened():
             raise HTTPException(status_code=400, detail="Unable to open source video")
 
-        temp_path = playable_path.with_name(f"{playable_path.stem}.tmp.mp4")
         writer = None
         written = 0
         try:
@@ -149,7 +153,12 @@ def get_browser_playable_video_url(file_name: str, force_transcode: bool = False
             raise HTTPException(status_code=500, detail="Failed to transcode video")
 
         try:
-            temp_path.replace(playable_path)
+            # Backup the original file if not already backed up
+            if not backup_path.exists():
+                video_path.rename(backup_path)
+            
+            # Replace the original with the transcoded version
+            temp_path.replace(video_path)
         except OSError as ex:
             try:
                 temp_path.unlink(missing_ok=True)
@@ -158,7 +167,7 @@ def get_browser_playable_video_url(file_name: str, force_transcode: bool = False
             raise HTTPException(status_code=500, detail=f"Failed to finalize transcoded video: {ex}")
 
     return {
-        "video_url": _to_image_route_url(playable_path),
+        "video_url": _to_image_route_url(video_path),
         "source": "transcoded",
     }
 pass # get_browser_playable_video_url

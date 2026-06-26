@@ -1336,20 +1336,29 @@ class RoadDetector:
     pass # _build_noisy_component_mask
 
     def _select_top_detections(self, result, detect_key):
-        # For "road" detect type, keep only the highest confidence detection.
-        # For "pothole" detect type, keep top 4 detections by confidence.
-        if detect_key not in ("road", "pothole"):
-            return
-
+        # Filter detections: if 2 or more detections found,
+        # keep only those with confidence >= (mean - 1*std)
         if result.boxes is None or result.boxes.conf is None:
             return
 
         confs = result.boxes.conf.cpu().numpy()
-        max_detections = 1 if detect_key == "road" else 4
-        if len(confs) <= max_detections:
+        
+        # Only apply filtering if 2 or more detections
+        if len(confs) < 2:
             return
 
-        keep_indices = np.argsort(confs)[::-1][:max_detections]
+        # Calculate mean and standard deviation
+        mean_conf = np.mean(confs)
+        std_conf = np.std(confs)
+        threshold = mean_conf - std_conf
+        
+        # Keep indices where confidence >= threshold
+        keep_indices = np.where(confs >= threshold)[0]
+        
+        # If no detections pass the threshold, keep at least the top 1
+        if len(keep_indices) == 0:
+            keep_indices = np.array([np.argmax(confs)])
+        
         keep_indices = np.sort(keep_indices)
         result.boxes = result.boxes[keep_indices]
 

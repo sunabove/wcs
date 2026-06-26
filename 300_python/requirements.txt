@@ -1,10 +1,11 @@
 fastapi
 uvicorn==0.30.6
 paho-mqtt
+PySide6
+pyqtgraph
 python-multipart
 torch
 torchvision
 opencv-python
 scikit-image
 ultralytics
-pyqtgraph

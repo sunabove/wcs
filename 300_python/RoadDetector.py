@@ -1544,6 +1544,7 @@ class RoadDetector:
 
         item = {
             "detected_count": int(stats.get("detected_count", 0)),
+            "max_confidence": float(stats.get("max_confidence", 0.0)),
             "class_counts": {str(k): int(v) for k, v in (stats.get("class_counts") or {}).items()},
         }
 
@@ -1556,10 +1557,12 @@ class RoadDetector:
             stats_history["mode"] = "timeline"
             stats_history["total_frames"] = int(total_frames)
             stats_history.setdefault("detected", {})
+            stats_history.setdefault("max_confidence", {})
             stats_history.setdefault("classes", {})
 
             frame_idx = int(frame_number)
             stats_history["detected"][frame_idx] = int(item["detected_count"])
+            stats_history["max_confidence"][frame_idx] = float(item["max_confidence"])
 
             for class_name, class_value in item["class_counts"].items():
                 class_map = stats_history["classes"].setdefault(str(class_name), {})

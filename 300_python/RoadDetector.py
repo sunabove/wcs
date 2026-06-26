@@ -1615,6 +1615,7 @@ class RoadDetector:
                 return detected
 
             detected_map = stats_history.get("detected") if isinstance(stats_history.get("detected"), dict) else {}
+            conf_map = stats_history.get("max_confidence") if isinstance(stats_history.get("max_confidence"), dict) else {}
             max_detected_count = 0
             for value in detected_map.values():
                 max_detected_count = max(max_detected_count, int(value))
@@ -1628,6 +1629,7 @@ class RoadDetector:
             slot_step = 2
             slot_count = max(1, (gx2 - gx1 + 1) // slot_step)
             values = np.zeros((slot_count,), dtype=np.int32)
+            conf_values = np.zeros((slot_count,), dtype=np.float32)
             attempted = np.zeros((slot_count,), dtype=bool)
 
             for frame_no, value in detected_map.items():
@@ -1636,6 +1638,12 @@ class RoadDetector:
                 slot_idx = int(round(ratio * (slot_count - 1)))
                 attempted[slot_idx] = True
                 values[slot_idx] = max(values[slot_idx], int(value))
+
+            for frame_no, value in conf_map.items():
+                frame_idx = max(1, min(int(frame_no), total_frames))
+                ratio = (frame_idx - 1) / float(total_frames - 1)
+                slot_idx = int(round(ratio * (slot_count - 1)))
+                conf_values[slot_idx] = max(conf_values[slot_idx], float(value))
 
             point_items = []
             bar_half = max(1, int(round(slot_step / 2.0)) - 1)
@@ -1665,6 +1673,20 @@ class RoadDetector:
                 if value > 0:
                     cv2.circle(detected, point, 1, (255, 210, 0), cv2.FILLED)
 
+            conf_points = []
+            for slot_idx, conf_value in enumerate(conf_values.tolist()):
+                if not bool(attempted[slot_idx]):
+                    continue
+                x = gx1 + slot_idx * slot_step
+                conf_clamped = max(0.0, min(1.0, float(conf_value)))
+                y = int(round(gy2 - conf_clamped * y_span))
+                conf_points.append((x, y))
+
+            for idx in range(1, len(conf_points)):
+                cv2.line(detected, conf_points[idx - 1], conf_points[idx], (80, 255, 80), 1)
+            for point in conf_points:
+                cv2.circle(detected, point, 1, (80, 255, 80), cv2.FILLED)
+
             # Highlight current frame as a full-height bar.
             if frame_number is not None and total_frames > 1:
                 cur_ratio = (max(1, min(int(frame_number), total_frames)) - 1) / float(total_frames - 1)
@@ -1675,6 +1697,9 @@ class RoadDetector:
             y_label = f"Count: {max_detected_count}"
             (_, yth), _ = cv2.getTextSize(y_label, font_face, label_font, label_thickness)
             cv2.putText(detected, y_label, (gx1 + 2, gy1 + yth + 1), font_face, label_font, (220, 220, 220), label_thickness)
+            conf_label = f"MaxConf: {max(0.0, min(1.0, float(stats.get('max_confidence', 0.0)))):.2f}"
+            (ctw, _), _ = cv2.getTextSize(conf_label, font_face, label_font, label_thickness)
+            cv2.putText(detected, conf_label, (max(gx1 + 2, gx2 - ctw - 2), gy1 + yth + 1), font_face, label_font, (80, 255, 80), label_thickness)
             x_label = f"Frame: {total_frames}"
             (xtw, _), _ = cv2.getTextSize(x_label, font_face, label_font, label_thickness)
             cv2.putText(detected, x_label, (max(gx1 + 2, gx2 - xtw - 2), gy2 - 2), font_face, label_font, (220, 220, 220), label_thickness)
@@ -1684,6 +1709,7 @@ class RoadDetector:
                 return detected
 
             total_series = [int(item.get("detected_count", 0)) for item in points]
+            conf_series = [max(0.0, min(1.0, float(item.get("max_confidence", 0.0)))) for item in points]
             max_detected_count = max([0] + total_series)
             scale_max = max(1, int(np.ceil(max_detected_count * 1.2)))
             non_detect_top_y = int(round(gy2 - (max(0, max_detected_count) / float(scale_max)) * y_span))
@@ -1719,6 +1745,20 @@ class RoadDetector:
                 if value > 0:
                     cv2.circle(detected, point, 1, (255, 210, 0), cv2.FILLED)
 
+            conf_points = []
+            for idx, conf_value in enumerate(conf_series):
+                if point_count <= 1:
+                    x = gx1
+                else:
+                    x = int(round(gx1 + (idx / float(point_count - 1)) * x_span))
+                y = int(round(gy2 - max(0.0, min(1.0, float(conf_value))) * y_span))
+                conf_points.append((x, y))
+
+            for idx in range(1, len(conf_points)):
+                cv2.line(detected, conf_points[idx - 1], conf_points[idx], (80, 255, 80), 1)
+            for point in conf_points:
+                cv2.circle(detected, point, 1, (80, 255, 80), cv2.FILLED)
+
             # Highlight current (last) frame as a full-height bar.
             if point_items:
                 cur_x = point_items[-1][0][0]
@@ -1729,6 +1769,9 @@ class RoadDetector:
             y_label = f"Count: {max_detected_count}"
             (_, yth), _ = cv2.getTextSize(y_label, font_face, label_font, label_thickness)
             cv2.putText(detected, y_label, (gx1 + 2, gy1 + yth + 1), font_face, label_font, (220, 220, 220), label_thickness)
+            conf_label = f"MaxConf: {max(0.0, min(1.0, float(stats.get('max_confidence', 0.0)))):.2f}"
+            (ctw, _), _ = cv2.getTextSize(conf_label, font_face, label_font, label_thickness)
+            cv2.putText(detected, conf_label, (max(gx1 + 2, gx2 - ctw - 2), gy1 + yth + 1), font_face, label_font, (80, 255, 80), label_thickness)
             x_label = f"Frame: {point_count}"
             (xtw, _), _ = cv2.getTextSize(x_label, font_face, label_font, label_thickness)
             cv2.putText(detected, x_label, (max(gx1 + 2, gx2 - xtw - 2), gy2 - 2), font_face, label_font, (220, 220, 220), label_thickness)
@@ -1815,6 +1858,7 @@ class RoadDetector:
         detected = frame.copy()
         detected = self._draw_roi_overlay(detected, roi)
         names = result.names if isinstance(result.names, dict) else {}
+        confs = np.empty((0,), dtype=float)
 
         detected_count = 0
         class_counts = {}
@@ -1882,11 +1926,14 @@ class RoadDetector:
         if detected_count == 0:
             detected_count = mask_count
 
+        max_confidence = float(np.max(confs)) if confs is not None and len(confs) > 0 else 0.0
+
         detected = self._render_header(detected, detect_key, detected_count, conf, class_counts, started_at, font_face)
 
         stats = {
             "detect_type": detect_key,
             "detected_count": int(detected_count),
+            "max_confidence": max_confidence,
             "mask_count": int(mask_count),
             "total_mask_count": int(total_mask_count),
             "class_counts": {str(key): int(value) for key, value in class_counts.items()},

@@ -66,19 +66,24 @@ class ChartRenderer:
             nice_frac = 10.0
         return nice_frac * exp
 
-    def _power_ticks(self, max_value):
-        if max_value <= 0:
+    def _uniform_ticks(self, x_min, x_max, target_ticks=4):
+        if x_max <= x_min:
             return []
 
+        tick_step = self._nice_step(x_max - x_min, target_ticks)
+        tick_step = max(1.0, float(tick_step))
+
+        start_tick = int(np.ceil(x_min / tick_step) * tick_step)
+        end_tick = int(np.floor(x_max / tick_step) * tick_step)
+
         ticks = []
-        max_int = max(1, int(max_value))
-        exponent = 0
-        while (10 ** exponent) <= max_int:
-            ticks.append(10 ** exponent)
-            exponent += 1
+        tick_value = start_tick
+        while tick_value <= end_tick:
+            ticks.append(int(tick_value))
+            tick_value += tick_step
 
         if not ticks:
-            ticks = [1]
+            ticks = [int(x_min), int(x_max)] if int(x_min) != int(x_max) else [int(x_min)]
         return ticks
 
     def render_bottom_stats_overlay(self, detected, stats, chart_data, class_color_map, font_face):
@@ -150,7 +155,7 @@ class ChartRenderer:
             class_line_colors[class_name] = class_bgr
             self._draw_chart_series(canvas, x_vals, class_vals, class_bgr, x_min, x_max, chart_x1, chart_w, y_max, chart_y2, chart_h, 1)
 
-        x_ticks = self._power_ticks(x_max)
+        x_ticks = self._uniform_ticks(x_min, x_max, target_ticks=4)
         for x_tick in x_ticks:
             tick_x = self._map_chart_x(x_tick, x_min, x_max, chart_x1, chart_w)
             cv2.line(canvas, (tick_x, chart_y2), (tick_x, chart_y2 + 3), (120, 120, 120), 1, cv2.LINE_AA)

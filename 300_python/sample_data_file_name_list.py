@@ -69,3 +69,48 @@ def sample_data_folder_name_list(folder_name: str) -> list[str]:
     folder_names = [f"samples/{name}" for name in sorted(folder_set)]
     return folder_names
 pass # sample_data_folder_name_list
+
+
+def _contains_valid_sample_file(folder_path):
+    if not folder_path.exists() or not folder_path.is_dir():
+        return False
+
+    for child in folder_path.rglob("*"):
+        if _is_valid_sample_file(child):
+            return True
+    return False
+
+
+def sample_data_browser_list(folder_name: str) -> dict:
+    samples_path, target_path = _resolve_target_path(folder_name)
+
+    current_relative = target_path.relative_to(samples_path).as_posix() if target_path.exists() else folder_name
+    current_folder = f"samples/{current_relative.strip('/')}".rstrip("/")
+
+    if not target_path.exists() or not target_path.is_dir():
+        return {
+            "current_folder": current_folder,
+            "folders": [],
+            "files": [],
+        }
+
+    folders = []
+    files = []
+
+    for child in sorted(target_path.iterdir(), key=lambda p: p.name.lower()):
+        if child.is_dir():
+            if _contains_valid_sample_file(child):
+                rel = child.relative_to(samples_path).as_posix()
+                folders.append(f"samples/{rel}")
+            continue
+
+        if _is_valid_sample_file(child):
+            rel = child.relative_to(samples_path).as_posix()
+            files.append(f"samples/{rel}")
+
+    return {
+        "current_folder": current_folder,
+        "folders": folders,
+        "files": files,
+    }
+pass # sample_data_browser_list

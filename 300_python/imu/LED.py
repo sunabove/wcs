@@ -62,7 +62,13 @@ class LED :
 
         y = start_y
         for line, box, line_height in zip(visible_lines, line_boxes, line_heights):
-            draw.text((self.margin_x, y - box[1]), line, font=self.font, fill=255)
+            if line_count == 1:
+                line_width = box[2] - box[0]
+                x = max(self.margin_x, (self.width - line_width) // 2)
+            else:
+                x = self.margin_x
+
+            draw.text((x, y - box[1]), line, font=self.font, fill=255)
             y += line_height + effective_gap
 
         self.oled.image(image)

@@ -2202,8 +2202,16 @@ $(function () {
         const $header = $('<div class="d-flex flex-wrap align-items-center gap-2 mb-2"></div>');
         const $homeButton = $('<button type="button" class="btn btn-sm btn-outline-secondary sample-folder-home"><i class="bi bi-house-door me-1"></i>루트</button>')
             .attr("data-base-folder", baseFolder);
-        const $allFilesButton = $('<button type="button" class="btn btn-sm btn-outline-primary sample-folder-all"><i class="bi bi-collection-play me-1"></i>전체 파일</button>')
-            .attr("data-base-folder", baseFolder);
+        const $allFilesToggleWrap = $('<div class="form-check form-check-inline mb-0"></div>');
+        const toggleId = "sample-folder-all-" + baseFolder;
+        const $allFilesToggle = $('<input class="form-check-input sample-folder-all-toggle" type="checkbox">')
+            .attr("id", toggleId)
+            .attr("data-base-folder", baseFolder)
+            .prop("checked", Boolean(showAllFiles));
+        const $allFilesToggleLabel = $('<label class="form-check-label small" style="cursor:pointer;"></label>')
+            .attr("for", toggleId)
+            .text("전체 파일");
+        $allFilesToggleWrap.append($allFilesToggle).append($allFilesToggleLabel);
 
         const parentPath = normalizedCurrent.indexOf(baseFolder + "/") === 0
             ? normalizedCurrent.split("/").slice(0, -1).join("/")
@@ -2219,7 +2227,7 @@ $(function () {
             : (normalizedCurrent === baseFolder ? "samples/" + baseFolder : "samples/" + normalizedCurrent);
         const $pathLabel = $('<span class="small text-muted"></span>').text("현재: " + labelText);
 
-        $header.append($homeButton).append($upButton).append($allFilesButton).append($pathLabel);
+        $header.append($homeButton).append($upButton).append($allFilesToggleWrap).append($pathLabel);
         return $header;
     }
 
@@ -3012,14 +3020,16 @@ $(function () {
         loadSampleVideos(parentFolder, false);
     });
 
-    $sampleImagePane.on("click", ".sample-folder-all", function () {
+    $sampleImagePane.on("change", ".sample-folder-all-toggle", function () {
         const baseFolder = normalizeSampleFolderPath($(this).data("base-folder"), "image");
-        loadSampleImages(baseFolder, true);
+        const showAll = Boolean($(this).is(":checked"));
+        loadSampleImages(baseFolder, showAll);
     });
 
-    $sampleVideoPane.on("click", ".sample-folder-all", function () {
+    $sampleVideoPane.on("change", ".sample-folder-all-toggle", function () {
         const baseFolder = normalizeSampleFolderPath($(this).data("base-folder"), "video");
-        loadSampleVideos(baseFolder, true);
+        const showAll = Boolean($(this).is(":checked"));
+        loadSampleVideos(baseFolder, showAll);
     });
 
     $inputTabs.on("shown.bs.tab", "button[data-bs-toggle='tab']", function (event) {

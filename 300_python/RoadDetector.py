@@ -7,6 +7,7 @@ from ultralytics import YOLO
 from pathlib import Path
 import subprocess
 import time
+import tempfile
 from fastapi.responses import StreamingResponse
 import base64
 import threading
@@ -16,6 +17,7 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 import pyqtgraph as pg
 from pyqtgraph.Qt import QtGui, QtWidgets
+from pyqtgraph.exporters import ImageExporter
 
 from send_image import resolve_upload_image_path
 from config import BASE_DIR, UPLOAD_DIR, VIDEO_EXTENSIONS
@@ -1651,7 +1653,6 @@ class RoadDetector:
 
         plot_widget = pg.PlotWidget(background=(18, 18, 18))
         plot_widget.resize(plot_w, plot_h)
-        plot_widget.show()
         plot_item = plot_widget.getPlotItem()
         plot_item.hideAxis("left")
         plot_item.hideAxis("bottom")
@@ -1672,27 +1673,30 @@ class RoadDetector:
         plot_item.setXRange(x_min, x_max, padding=0.0)
         plot_item.setYRange(0.0, y_max, padding=0.04)
 
-        app.processEvents()
-        plot_widget.repaint()
-        app.processEvents()
+        exporter = ImageExporter(plot_item)
+        exporter.parameters()["width"] = plot_w
+        exporter.parameters()["height"] = plot_h
 
-        qimg = QtGui.QImage(plot_w, plot_h, QtGui.QImage.Format_RGB888)
-        qimg.fill(QtGui.QColor(18, 18, 18))
-        painter = QtGui.QPainter(qimg)
-        plot_widget.render(painter)
-        painter.end()
+        temp_png = tempfile.NamedTemporaryFile(suffix=".png", delete=False)
+        temp_png_path = temp_png.name
+        temp_png.close()
+
+        try:
+            exporter.export(temp_png_path)
+            panel_bgr = cv2.imread(temp_png_path, cv2.IMREAD_COLOR)
+        finally:
+            try:
+                os.unlink(temp_png_path)
+            except OSError:
+                pass
+
         plot_widget.close()
 
-        ptr = qimg.bits()
-        byte_count = int(plot_w * plot_h * 3)
-        if hasattr(ptr, "setsize"):
-            ptr.setsize(byte_count)
-            raw = bytes(ptr)
-        else:
-            raw = ptr.asstring(byte_count)
+        if panel_bgr is None or panel_bgr.size == 0:
+            raise RuntimeError("Failed to export pyqtgraph chart image")
 
-        panel_rgb = np.frombuffer(raw, dtype=np.uint8).reshape((plot_h, plot_w, 3))
-        panel_bgr = cv2.cvtColor(panel_rgb, cv2.COLOR_RGB2BGR)
+        if panel_bgr.shape[1] != plot_w or panel_bgr.shape[0] != plot_h:
+            panel_bgr = cv2.resize(panel_bgr, (plot_w, plot_h), interpolation=cv2.INTER_AREA)
 
         overlay = detected.copy()
         cv2.rectangle(overlay, (0, y1), (width, height), (18, 18, 18), cv2.FILLED)

@@ -216,9 +216,8 @@ $(function () {
     }
 
     function updateRoiEditorButtons() {
-        const hasRoi = Boolean(currentRoiInfo && draftRoiInfo);
-        $roiFullButton.prop("disabled", !hasRoi);
-        $roiResetButton.prop("disabled", !hasRoi);
+        $roiFullButton.prop("disabled", false);
+        $roiResetButton.prop("disabled", false);
     }
 
     function clearRoiEditor() {

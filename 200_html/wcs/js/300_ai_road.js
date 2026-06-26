@@ -43,12 +43,14 @@ $(function () {
     const $sampleImageTab = $("#input-sample-image-tab");
     const $sampleVideoPane = $("#input-sample-video-pane");
     const $sampleVideoTab = $("#input-sample-video-tab");
+    const $inputTabs = $("#input-tabs");
     const sampleImageItemTemplate = document.getElementById("sample-image-item-template");
     const sampleVideoItemTemplate = document.getElementById("sample-video-item-template");
     const cameraDeviceItemTemplate = document.getElementById("camera-device-item-template");
     const cameraDeviceListContainerTemplate = document.getElementById("camera-device-list-container-template");
     const DETECT_AFTER_UPLOAD_DELAY_MS = 800;
     const DETECT_OPTIONS_STORAGE_KEY = "wcs.ai_road.detect_options.v1";
+    const INPUT_TAB_STORAGE_KEY = "wcs.ai_road.input_tab.v1";
     let uploadedFileName = "";
     let previousFileName = "";  // 이전 파일명 추적
     let detectDebounceTimer = null;
@@ -763,6 +765,47 @@ $(function () {
         if (typeof parsed.showDetectStats === "boolean" && $showDetectStatsChart.length > 0) {
             $showDetectStatsChart.prop("checked", parsed.showDetectStats);
         }
+    }
+
+    function saveSelectedInputTabToStorage(tabId) {
+        if (!tabId || typeof window.localStorage === "undefined") {
+            return;
+        }
+
+        try {
+            window.localStorage.setItem(INPUT_TAB_STORAGE_KEY, String(tabId));
+        } catch (error) {
+            // Ignore storage write errors (private mode, quota exceeded, etc.).
+        }
+    }
+
+    function restoreSelectedInputTabFromStorage() {
+        if ($inputTabs.length === 0 || typeof window.localStorage === "undefined") {
+            return;
+        }
+
+        let tabId = "";
+        try {
+            tabId = String(window.localStorage.getItem(INPUT_TAB_STORAGE_KEY) || "").trim();
+        } catch (error) {
+            return;
+        }
+
+        if (!tabId) {
+            return;
+        }
+
+        const $tabButton = $("#" + tabId);
+        if ($tabButton.length === 0 || !$inputTabs.has($tabButton).length) {
+            return;
+        }
+
+        if (window.bootstrap && window.bootstrap.Tab && typeof window.bootstrap.Tab.getOrCreateInstance === "function") {
+            window.bootstrap.Tab.getOrCreateInstance($tabButton[0]).show();
+            return;
+        }
+
+        $tabButton.trigger("click");
     }
 
     function getValidPercent($input, fallbackValue) {
@@ -2763,6 +2806,11 @@ $(function () {
         ensureSampleVideosLoaded();
     });
 
+    $inputTabs.on("shown.bs.tab", "button[data-bs-toggle='tab']", function (event) {
+        const tabId = $(event.target).attr("id");
+        saveSelectedInputTabToStorage(tabId);
+    });
+
     $cameraPane.on("click", ".camera-device-item", function () {
         const $selectedItem = $(this);
         const cameraIndex = Number($selectedItem.data("camera-index"));
@@ -2807,6 +2855,8 @@ $(function () {
 
         startCameraLiveStream(cameraStreamState.cameraIndex, cameraStreamState.cameraName);
     });
+
+    restoreSelectedInputTabFromStorage();
 
     updateCameraLiveBadges();
 });

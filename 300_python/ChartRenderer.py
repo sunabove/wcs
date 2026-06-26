@@ -86,6 +86,25 @@ class ChartRenderer:
             ticks = [int(x_min), int(x_max)] if int(x_min) != int(x_max) else [int(x_min)]
         return ticks
 
+    def _y_helper_ticks(self, y_max, chart_h, min_pixels_per_step=8):
+        if y_max <= 0:
+            return []
+
+        max_int = int(np.ceil(y_max))
+        if max_int <= 0:
+            return []
+
+        if max_int <= 25 and (chart_h / float(max_int)) >= float(min_pixels_per_step):
+            return list(range(1, max_int + 1))
+
+        step = max(1.0, float(self._nice_step(y_max, 6)))
+        ticks = []
+        tick_value = step
+        while tick_value <= y_max + 1e-6:
+            ticks.append(float(tick_value))
+            tick_value += step
+        return ticks
+
     def render_bottom_stats_overlay(self, detected, stats, chart_data, class_color_map, font_face):
         if detected is None or chart_data is None:
             return detected
@@ -140,8 +159,8 @@ class ChartRenderer:
         cv2.rectangle(canvas, (chart_x1, chart_y1), (chart_x2, chart_y2), (44, 44, 44), cv2.FILLED)
         cv2.rectangle(canvas, (chart_x1, chart_y1), (chart_x2, chart_y2), (90, 90, 90), 1)
 
-        for grid_ratio in (0.25, 0.50, 0.75):
-            gy = int(round(chart_y2 - (grid_ratio * chart_h)))
+        for y_tick in self._y_helper_ticks(y_max, chart_h):
+            gy = self._map_chart_y(y_tick, y_max, chart_y2, chart_h)
             cv2.line(canvas, (chart_x1, gy), (chart_x2, gy), (56, 56, 56), 1, cv2.LINE_AA)
 
         self._draw_chart_series(canvas, x_vals, conf_scaled, (80, 255, 80), x_min, x_max, chart_x1, chart_w, y_max, chart_y2, chart_h, 1)
@@ -162,7 +181,7 @@ class ChartRenderer:
             cv2.line(canvas, (tick_x, chart_y2), (tick_x, chart_y2 + 3), (120, 120, 120), 1, cv2.LINE_AA)
             label = str(int(x_tick))
             (text_w, text_h), baseline = cv2.getTextSize(label, font_face, 0.28, 1)
-            label_x = max(chart_x1, min(chart_x2 - text_w, tick_x - (text_w // 2)))
+            label_x = max(chart_x1, min(chart_x2 - text_w, int(round(tick_x - (text_w / 2.0)))))
             label_y = min(canvas_h - 2, chart_y2 + text_h + 10)
             cv2.putText(canvas, label, (label_x, label_y), font_face, 0.28, (190, 190, 190), 1, cv2.LINE_AA)
 
@@ -171,7 +190,7 @@ class ChartRenderer:
             cv2.line(canvas, (end_tick_x, chart_y2), (end_tick_x, chart_y2 + 3), (120, 120, 120), 1, cv2.LINE_AA)
             label = str(int(x_max))
             (text_w, text_h), baseline = cv2.getTextSize(label, font_face, 0.28, 1)
-            label_x = max(chart_x1, min(chart_x2 - text_w, end_tick_x - (text_w // 2)))
+            label_x = max(chart_x1, min(chart_x2 - text_w, int(round(end_tick_x - (text_w / 2.0)))))
             label_y = min(canvas_h - 2, chart_y2 + text_h + 10)
             cv2.putText(canvas, label, (label_x, label_y), font_face, 0.28, (190, 190, 190), 1, cv2.LINE_AA)
 

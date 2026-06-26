@@ -177,9 +177,6 @@ class ChartRenderer:
         current_x_px = map_x(current_x)
         cv2.line(detected, (current_x_px, chart_y1), (current_x_px, chart_y2), (255, 230, 0), 1, cv2.LINE_AA)
 
-        #3cv2.putText(detected, "Count", (gx1 + 4, chart_y1 - 2), font_face, 0.35, (190, 190, 190), 1, cv2.LINE_AA)
-        #cv2.putText(detected, "Frame", (chart_x2 - 32, gy2 - 2), font_face, 0.35, (190, 190, 190), 1, cv2.LINE_AA)
-
         conf_now = max(0.0, min(1.0, float(stats.get("max_confidence", 0.0))))
         info_text = f"Count:{int(max_detected)}  MaxConf:{conf_now:.2f}  Frame:{int(frame_label)}"
         cv2.putText(detected, info_text, (chart_x1 + 4, gy1 + 12), font_face, 0.35, (210, 210, 210), 1, cv2.LINE_AA)

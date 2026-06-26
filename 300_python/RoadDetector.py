@@ -1337,35 +1337,36 @@ class RoadDetector:
 
     def _select_top_detections(self, result, detect_key):
         # Filter detections: if 2 or more detections found,
-        # keep only those with confidence >= (mean - 1*std)
+        # keep only those with confidence >= mean 
         if result.boxes is None or result.boxes.conf is None:
             return
 
         confs = result.boxes.conf.cpu().numpy()
         
         # Only apply filtering if 2 or more detections
-        if len(confs) < 2:
-            return
+        if len(confs) > 1 : 
 
-        # Calculate mean and standard deviation
-        mean_conf = np.mean(confs)
-        std_conf = np.std(confs)
-        threshold = mean_conf - std_conf
-        
-        # Keep indices where confidence >= threshold
-        keep_indices = np.where(confs >= threshold)[0]
-        
-        # If no detections pass the threshold, keep at least the top 1
-        if len(keep_indices) == 0:
-            keep_indices = np.array([np.argmax(confs)])
-        
-        keep_indices = np.sort(keep_indices)
-        result.boxes = result.boxes[keep_indices]
+            # Calculate mean and standard deviation
+            mean_conf = np.mean(confs)
+            threshold = mean_conf
+            
+            # Keep indices where confidence >= threshold
+            keep_indices = np.where(confs >= threshold)[0]
+            
+            # If no detections pass the threshold, keep at least the top 1
+            if len(keep_indices) == 0:
+                keep_indices = np.array([np.argmax(confs)])
+            
+            keep_indices = np.sort(keep_indices)
+            result.boxes = result.boxes[keep_indices]
 
-        if result.masks is not None:
-            result.masks.data = result.masks.data[keep_indices]
-            if hasattr(result.masks, "cls") and result.masks.cls is not None:
-                result.masks.cls = result.masks.cls[keep_indices]
+            if result.masks is not None:
+                result.masks.data = result.masks.data[keep_indices]
+                if hasattr(result.masks, "cls") and result.masks.cls is not None:
+                    result.masks.cls = result.masks.cls[keep_indices]
+                pass
+            pass
+        pass
     pass # _select_top_detections
 
     def _build_boxes_payload_from_result(

@@ -14,7 +14,7 @@ from datetime import datetime
 
 from send_image import resolve_upload_image_path
 from config import BASE_DIR, UPLOAD_DIR, VIDEO_EXTENSIONS
-from Chart import render_bottom_stats_overlay
+from ChartRenderer import ChartRenderer
 
 class RoadDetector:
     _class_color_map_path = Path(__file__).resolve().parent / "colormap_road.txt"
@@ -33,6 +33,7 @@ class RoadDetector:
     _camera_stream_sessions = {}  # {session_id: {capture, frame_index, fps, detect_type, camera_index}}
     _detect_progress = {}  # {session_id: {status, current_frame, total_frames, percentage, error}}
     _detect_lock = threading.Lock()  # Lock for thread-safe access to _detect_progress
+    _chart_renderer = ChartRenderer()
     
     def __init__(self):
         self.image_ext = {".jpg", ".jpeg", ".png", ".bmp", ".webp"} 
@@ -1674,7 +1675,7 @@ class RoadDetector:
         if chart_data is None:
             return detected
         class_color_map = self._get_class_color_map()
-        return render_bottom_stats_overlay(
+        return self.__class__._chart_renderer.render_bottom_stats_overlay(
             detected,
             stats,
             chart_data,

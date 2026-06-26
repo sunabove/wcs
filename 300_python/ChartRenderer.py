@@ -183,18 +183,60 @@ class ChartRenderer:
         cv2.putText(detected, f"MaxConf:{conf_now:.2f}", (chart_x1 + 120, info_y), font_face, 0.35, (80, 255, 80), 1, cv2.LINE_AA)
         cv2.putText(detected, f"Frame:{int(frame_label)}", (chart_x2 - 96, info_y), font_face, 0.35, (210, 210, 210), 1, cv2.LINE_AA)
 
-        legend_items = [("total", (0, 210, 255)), ("max_conf", (80, 255, 80))]
-        for class_name in sorted(class_series.keys()):
-            if class_name not in class_line_colors:
-                continue
-            legend_items.append((class_name, class_line_colors[class_name]))
+        class_legend_items = [
+            (class_name, class_line_colors[class_name])
+            for class_name in sorted(class_series.keys())
+            if class_name in class_line_colors
+        ]
 
-        legend_x = chart_x2 - 140
-        legend_y = gy1 + 6
-        for item_name, item_color in legend_items[:7]:
-            cv2.line(detected, (legend_x, legend_y), (legend_x + 12, legend_y), item_color, 2, cv2.LINE_AA)
-            cv2.putText(detected, item_name, (legend_x + 16, legend_y + 3), font_face, 0.32, (190, 190, 190), 1, cv2.LINE_AA)
-            legend_y += 10
+        legend_items = [("total", (0, 210, 255)), ("max_conf", (80, 255, 80))] + class_legend_items
+        legend_items = legend_items[: max(1, len(legend_items))]
+
+        legend_y = gy1 + 10
+        available_width = chart_x2 - chart_x1 - 8
+        legend_font_scale = 0.32
+        legend_thickness = 1
+        min_item_gap = 10
+        item_padding = 6
+
+        for scale_candidate in (0.32, 0.30, 0.28, 0.26, 0.24):
+            total_width = 0
+            item_metrics = []
+            for item_name, _ in legend_items:
+                (text_w, text_h), baseline = cv2.getTextSize(item_name, font_face, scale_candidate, legend_thickness)
+                item_width = 12 + 6 + text_w + item_padding
+                item_metrics.append((item_name, text_w, text_h, baseline, item_width))
+                total_width += item_width
+            total_width += max(0, len(legend_items) - 1) * min_item_gap
+            if total_width <= available_width:
+                legend_font_scale = scale_candidate
+                break
+        else:
+            item_metrics = []
+            for item_name, _ in legend_items:
+                (text_w, text_h), baseline = cv2.getTextSize(item_name, font_face, legend_font_scale, legend_thickness)
+                item_width = 12 + 6 + text_w + item_padding
+                item_metrics.append((item_name, text_w, text_h, baseline, item_width))
+
+        legend_x = chart_x1 + 4
+        for idx, ((item_name, item_color), (_, text_w, text_h, baseline, item_width)) in enumerate(zip(legend_items, item_metrics)):
+            if legend_x + item_width > chart_x2:
+                break
+
+            swatch_x1 = legend_x
+            swatch_x2 = legend_x + 12
+            cv2.line(detected, (swatch_x1, legend_y), (swatch_x2, legend_y), item_color, 2, cv2.LINE_AA)
+            cv2.putText(
+                detected,
+                item_name,
+                (swatch_x2 + 6, legend_y + 3),
+                font_face,
+                legend_font_scale,
+                (190, 190, 190),
+                legend_thickness,
+                cv2.LINE_AA,
+            )
+            legend_x += item_width + min_item_gap
 
         cv2.rectangle(detected, (gx1, gy1), (gx2, gy2), (110, 110, 110), 1)
         return detected

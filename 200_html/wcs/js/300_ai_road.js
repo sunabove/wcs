@@ -14,7 +14,6 @@ $(function () {
     const $detectedImageDownloadWrap = $("#detected-image-download-wrap");
     const $detectedImageDownloadButton = $("#detected-image-download");
     const $detectedStreamFrameInput = $("#detected-stream-frame-input");
-    const $detectedStreamFrameValue = $("#detected-stream-frame-value");
     const $detectedStreamFrameLabel = $("#detected-stream-frame-label");
     const $downloadProgressContainer = $("#download-progress-container");
     const $downloadProgressBar = $("#download-progress-bar");
@@ -313,7 +312,6 @@ $(function () {
 
         if (!isVideo) {
             $detectedStreamControls.addClass("d-none");
-            $detectedStreamFrameValue.text("");
             $detectedStreamFrameLabel.text("");
             return;
         }
@@ -335,13 +333,11 @@ $(function () {
             $detectedStreamFrameInput.attr("min", 1);
             $detectedStreamFrameInput.attr("max", totalFrames);
             $detectedStreamFrameInput.val(String(normalizedFrame));
-            $detectedStreamFrameValue.text(String(normalizedFrame));
             $detectedStreamFrameLabel.text(currentFrame > 0 ? (currentFrame + " / " + totalFrames) : ("0 / " + totalFrames));
         } else {
             $detectedStreamFrameInput.attr("min", 1);
             $detectedStreamFrameInput.removeAttr("max");
             $detectedStreamFrameInput.val("1");
-            $detectedStreamFrameValue.text("1");
             $detectedStreamFrameLabel.text("");
         }
 
@@ -2678,7 +2674,6 @@ $(function () {
     });
 
     $detectedStreamFrameInput.on("input", function () {
-        $detectedStreamFrameValue.text(String($(this).val() || "1"));
     });
 
     $detectedStreamFrameInput.on("pointerdown mousedown touchstart", function () {

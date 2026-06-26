@@ -132,7 +132,6 @@ class ChartRenderer:
                 ticks = [1]
             return ticks
 
-        draw_series(detected_vals, (0, 210, 255), 2)
         draw_series(conf_scaled, (80, 255, 80), 1)
 
         class_line_colors = {}
@@ -187,7 +186,7 @@ class ChartRenderer:
             if class_name in class_line_colors
         ]
 
-        legend_items = [("total", (0, 210, 255)), ("max_conf", (80, 255, 80))] + class_legend_items
+        legend_items = [("max_conf", (80, 255, 80))] + class_legend_items
         legend_items = legend_items[: max(1, len(legend_items))]
 
         legend_y = gy1 + 10

@@ -11,13 +11,14 @@ from fastapi.responses import StreamingResponse
 import base64
 import threading
 from datetime import datetime
+
+os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+
 import pyqtgraph as pg
 from pyqtgraph.Qt import QtGui, QtWidgets
 
 from send_image import resolve_upload_image_path
 from config import BASE_DIR, UPLOAD_DIR, VIDEO_EXTENSIONS
-
-os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 class RoadDetector:
     _class_color_map_path = Path(__file__).resolve().parent / "colormap_road.txt"
@@ -1650,6 +1651,7 @@ class RoadDetector:
 
         plot_widget = pg.PlotWidget(background=(18, 18, 18))
         plot_widget.resize(plot_w, plot_h)
+        plot_widget.show()
         plot_item = plot_widget.getPlotItem()
         plot_item.hideAxis("left")
         plot_item.hideAxis("bottom")
@@ -1670,6 +1672,8 @@ class RoadDetector:
         plot_item.setXRange(x_min, x_max, padding=0.0)
         plot_item.setYRange(0.0, y_max, padding=0.04)
 
+        app.processEvents()
+        plot_widget.repaint()
         app.processEvents()
 
         qimg = QtGui.QImage(plot_w, plot_h, QtGui.QImage.Format_RGB888)

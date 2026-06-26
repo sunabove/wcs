@@ -199,7 +199,7 @@ class ChartRenderer:
 
         conf_now = max(0.0, min(1.0, float(stats.get("max_confidence", 0.0))))
         info_y = gy1 + 12
-        cv2.putText(canvas, f"Count:{int(max_detected)} MaxConf:{conf_now:.2f}", (chart_x1 + 4, info_y), font_face, 0.35, (210, 210, 210), 1, cv2.LINE_AA)
+        cv2.putText(canvas, f"Count:{int(max_detected)} Conf:{conf_now:.2f}", (chart_x1 + 4, info_y), font_face, 0.35, (210, 210, 210), 1, cv2.LINE_AA)
 
         class_legend_items = [
             (class_name, class_line_colors[class_name])

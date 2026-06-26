@@ -2254,7 +2254,6 @@ $(function () {
         $sampleImagePane.append(renderSampleFolderTiles("image", currentFolder, childFolders, "image"));
 
         if (!Array.isArray(fileNames) || fileNames.length === 0) {
-            $sampleImagePane.append('<div class="text-muted text-center py-3">현재 폴더에 샘플 영상이 없습니다.</div>');
             return;
         }
 

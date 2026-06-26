@@ -14,8 +14,6 @@ __pycache__/
 *.mjpg
 *.webm
 
-ai/
-
 # Distribution / packaging
 .Python
 build/

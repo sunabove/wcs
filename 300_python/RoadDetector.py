@@ -1653,6 +1653,7 @@ class RoadDetector:
 
         plot_widget = pg.PlotWidget(background=(18, 18, 18))
         plot_widget.resize(plot_w, plot_h)
+        plot_widget.setBackground((0, 0, 0, 0))
         plot_item = plot_widget.getPlotItem()
         plot_item.hideAxis("left")
         plot_item.hideAxis("bottom")
@@ -1673,9 +1674,47 @@ class RoadDetector:
         plot_item.setXRange(x_min, x_max, padding=0.0)
         plot_item.setYRange(0.0, y_max, padding=0.04)
 
+        label_fill = pg.mkBrush(18, 18, 18, 140)
+        label_border = pg.mkPen(110, 110, 110, 180)
+
+        count_label = pg.TextItem(
+            f"Count: {int(max_detected)}",
+            color=(220, 220, 220),
+            anchor=(0, 0),
+            fill=label_fill,
+            border=label_border,
+        )
+        count_label.setPos(x_min, y_max)
+        plot_item.addItem(count_label)
+
+        conf_now = max(0.0, min(1.0, float(stats.get("max_confidence", 0.0))))
+        conf_label = pg.TextItem(
+            f"MaxConf: {conf_now:.2f}",
+            color=(80, 255, 80),
+            anchor=(1, 0),
+            fill=label_fill,
+            border=label_border,
+        )
+        conf_label.setPos(x_max, y_max)
+        plot_item.addItem(conf_label)
+
+        frame_label_item = pg.TextItem(
+            f"Frame: {int(frame_label)}",
+            color=(220, 220, 220),
+            anchor=(1, 1),
+            fill=label_fill,
+            border=label_border,
+        )
+        frame_label_item.setPos(x_max, 0.0)
+        plot_item.addItem(frame_label_item)
+
         exporter = ImageExporter(plot_item)
         exporter.parameters()["width"] = plot_w
         exporter.parameters()["height"] = plot_h
+        try:
+            exporter.parameters()["background"] = (0, 0, 0, 0)
+        except Exception:
+            pass
 
         temp_png = tempfile.NamedTemporaryFile(suffix=".png", delete=False)
         temp_png_path = temp_png.name
@@ -1683,7 +1722,7 @@ class RoadDetector:
 
         try:
             exporter.export(temp_png_path)
-            panel_bgr = cv2.imread(temp_png_path, cv2.IMREAD_COLOR)
+            panel_bgra = cv2.imread(temp_png_path, cv2.IMREAD_UNCHANGED)
         finally:
             try:
                 os.unlink(temp_png_path)
@@ -1692,36 +1731,28 @@ class RoadDetector:
 
         plot_widget.close()
 
-        if panel_bgr is None or panel_bgr.size == 0:
+        if panel_bgra is None or panel_bgra.size == 0:
             raise RuntimeError("Failed to export pyqtgraph chart image")
 
-        if panel_bgr.shape[1] != plot_w or panel_bgr.shape[0] != plot_h:
-            panel_bgr = cv2.resize(panel_bgr, (plot_w, plot_h), interpolation=cv2.INTER_AREA)
+        if panel_bgra.shape[1] != plot_w or panel_bgra.shape[0] != plot_h:
+            panel_bgra = cv2.resize(panel_bgra, (plot_w, plot_h), interpolation=cv2.INTER_AREA)
+
+        if panel_bgra.ndim == 2:
+            panel_bgra = cv2.cvtColor(panel_bgra, cv2.COLOR_GRAY2BGRA)
+        elif panel_bgra.shape[2] == 3:
+            alpha = np.full((panel_bgra.shape[0], panel_bgra.shape[1], 1), 255, dtype=np.uint8)
+            panel_bgra = np.concatenate([panel_bgra, alpha], axis=2)
 
         overlay = detected.copy()
         cv2.rectangle(overlay, (0, y1), (width, height), (18, 18, 18), cv2.FILLED)
         cv2.addWeighted(overlay, 0.48, detected, 0.52, 0, detected)
 
-        panel_region = detected[gy1:gy2 + 1, gx1:gx2 + 1].copy()
-        panel_alpha = 0.82
-        blended_panel = cv2.addWeighted(panel_bgr, panel_alpha, panel_region, 1.0 - panel_alpha, 0)
+        panel_region = detected[gy1:gy2 + 1, gx1:gx2 + 1].copy().astype(np.float32)
+        panel_rgb = panel_bgra[:, :, :3].astype(np.float32)
+        panel_alpha = (panel_bgra[:, :, 3:4].astype(np.float32) / 255.0) * 0.90
+        blended_panel = (panel_rgb * panel_alpha + panel_region * (1.0 - panel_alpha)).astype(np.uint8)
         detected[gy1:gy2 + 1, gx1:gx2 + 1] = blended_panel
         cv2.rectangle(detected, (gx1, gy1), (gx2, gy2), (110, 110, 110), 1)
-
-        label_font = max(0.30, min(0.90, panel_h / 144.0))
-        label_thickness = max(1, int(round(panel_h / 60.0)))
-        y_label = f"Count: {int(max_detected)}"
-        (_, yth), _ = cv2.getTextSize(y_label, cv2.FONT_HERSHEY_SIMPLEX, label_font, label_thickness)
-        cv2.putText(detected, y_label, (gx1 + 2, gy1 + yth + 1), cv2.FONT_HERSHEY_SIMPLEX, label_font, (220, 220, 220), label_thickness)
-
-        conf_now = max(0.0, min(1.0, float(stats.get("max_confidence", 0.0))))
-        conf_label = f"MaxConf: {conf_now:.2f}"
-        (ctw, _), _ = cv2.getTextSize(conf_label, cv2.FONT_HERSHEY_SIMPLEX, label_font, label_thickness)
-        cv2.putText(detected, conf_label, (max(gx1 + 2, gx2 - ctw - 2), gy1 + yth + 1), cv2.FONT_HERSHEY_SIMPLEX, label_font, (80, 255, 80), label_thickness)
-
-        x_label = f"Frame: {int(frame_label)}"
-        (xtw, _), _ = cv2.getTextSize(x_label, cv2.FONT_HERSHEY_SIMPLEX, label_font, label_thickness)
-        cv2.putText(detected, x_label, (max(gx1 + 2, gx2 - xtw - 2), gy2 - 2), cv2.FONT_HERSHEY_SIMPLEX, label_font, (220, 220, 220), label_thickness)
 
         return detected
 

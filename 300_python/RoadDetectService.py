@@ -103,6 +103,14 @@ async def sample_data_file_name_list_service(folder_name: str):
 pass # sample_data_file_name_list_service
 
 
+@router.get("/sample_folders/{folder_name:path}")
+async def sample_data_folder_name_list_service(folder_name: str):
+    from sample_data_file_name_list import sample_data_folder_name_list
+
+    return sample_data_folder_name_list(folder_name)
+pass # sample_data_folder_name_list_service
+
+
 @router.get("/camera/devices")
 async def camera_devices_service(
     max_devices: int = Query(10, ge=1, le=32)

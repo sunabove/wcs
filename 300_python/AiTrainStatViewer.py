@@ -19,9 +19,9 @@ class AiTrainStatViewer:
 
 	def candidate_run_roots(self) -> list[Path]:
 		candidates = [
-			self.script_dir / "runs" / "segment",
-			self.script_dir / "road" / "runs",
-			self.script_dir / "runs" / "segment" / "road" / "runs",
+			self.script_dir / "ai" / "road" / "runs" / "segment",
+			self.script_dir / "ai" / "road" / "road" / "runs",
+			self.script_dir / "ai" / "road" / "runs" / "segment" / "road" / "runs",
 		]
 
 		unique_candidates = []

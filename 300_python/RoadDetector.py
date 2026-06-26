@@ -19,8 +19,6 @@ from config import BASE_DIR, UPLOAD_DIR, VIDEO_EXTENSIONS
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
-_PYQTGRAPH_AVAILABLE = True
-
 class RoadDetector:
     _class_color_map_path = Path(__file__).resolve().parent / "colormap_road.txt"
     _class_color_map = None
@@ -1622,7 +1620,7 @@ class RoadDetector:
         return x_vals, detected_vals, conf_vals, current_x, frame_label
 
     def _render_bottom_stats_overlay_pyqtgraph(self, detected, stats, stats_history, frame_number=None):
-        if not _PYQTGRAPH_AVAILABLE or detected is None:
+        if detected is None:
             return None
 
         chart_data = self._build_chart_series(stats_history, frame_number=frame_number)

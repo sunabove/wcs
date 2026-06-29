@@ -92,7 +92,7 @@ def main():
     print("Reading data... Press Ctrl+C to stop.\n")
     time.sleep(1)
 
-    line = "="*80
+    line = "="*90
     label_width = 10 
     count = 0
 

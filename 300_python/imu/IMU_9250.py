@@ -1,5 +1,5 @@
 import json
-import math
+import os
 import time
 from mpu9250_jmdev.registers import *
 from mpu9250_jmdev.mpu_9250 import MPU9250
@@ -18,32 +18,61 @@ imu = MPU9250(
 
 imu.configure()
 
-print("IMU를 움직이지 말고 평평한 곳에 놓으세요.")
-input("Enter를 누르면 캘리브레이션을 시작합니다...")
-
-imu.calibrateMPU6500()
-
-print("\n=== Calibration Result ===")
-print("Accel Bias :", imu.abias)
-print("Gyro Bias  :", imu.gbias)
-
-data = {
-    "accel_bias": imu.abias,
-    "gyro_bias": imu.gbias
-}
-
 imu_calibration_file = "IMU_Cali.json"
 
-with open(imu_calibration_file, "w") as f:
-    json.dump(data, f, indent=4)
 
-print("저장 완료")
+def is_valid_bias(values):
+    if not isinstance(values, list) or len(values) != 3:
+        return False
+    return all(isinstance(v, (int, float)) for v in values)
 
-with open(imu_calibration_file) as f:
-    data = json.load(f)
 
-imu.abias = data["accel_bias"]
-imu.gbias = data["gyro_bias"]
+def load_calibration(file_path):
+    if not os.path.exists(file_path):
+        return None
+    try:
+        with open(file_path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+    except (OSError, json.JSONDecodeError):
+        return None
+
+    if not isinstance(data, dict):
+        return None
+
+    accel_bias = data.get("accel_bias")
+    gyro_bias = data.get("gyro_bias")
+    if not is_valid_bias(accel_bias) or not is_valid_bias(gyro_bias):
+        return None
+    return data
+
+
+def save_calibration(file_path, accel_bias, gyro_bias):
+    data = {
+        "accel_bias": list(accel_bias),
+        "gyro_bias": list(gyro_bias),
+    }
+    with open(file_path, "w", encoding="utf-8") as f:
+        json.dump(data, f, indent=4)
+
+
+data = load_calibration(imu_calibration_file)
+if data is None:
+    print("IMU_Cali.json 파일이 없거나 JSON 포맷이 올바르지 않습니다.")
+    print("IMU를 움직이지 말고 평평한 곳에 놓으세요.")
+    input("Enter를 누르면 캘리브레이션을 시작합니다...")
+
+    imu.calibrateMPU6500()
+
+    print("\n=== Calibration Result ===")
+    print("Accel Bias :", imu.abias)
+    print("Gyro Bias  :", imu.gbias)
+
+    save_calibration(imu_calibration_file, imu.abias, imu.gbias)
+    print("캘리브레이션 저장 완료")
+else:
+    imu.abias = data["accel_bias"]
+    imu.gbias = data["gyro_bias"]
+    print("기존 캘리브레이션 로드 완료")
 
 print("\n실시간 출력 시작 (Ctrl+C 종료)")
 try:

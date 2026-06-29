@@ -46,126 +46,157 @@ class IMU_MPU9250:
             return [0.0, 0.0, 0.0]
         return [v[0] / n, v[1] / n, v[2] / n]
 
-    def mat_vec_mul(self, m, v):
-        return [
-            m[0][0]*v[0] + m[0][1]*v[1] + m[0][2]*v[2],
-            m[1][0]*v[0] + m[1][1]*v[1] + m[1][2]*v[2],
-            m[2][0]*v[0] + m[2][1]*v[1] + m[2][2]*v[2],
-        ]
+        def collect_plane_pose(plane_name):
+            accel_sum_x = 0.0
+            accel_sum_y = 0.0
+            accel_sum_z = 0.0
+            gyro_sum_x = 0.0
+            gyro_sum_y = 0.0
+            gyro_sum_z = 0.0
+            sample_count = 0
+            start_time = time.monotonic()
+            end_time = start_time + max(0.0, self.calib_duration_sec)
+            progress_interval = 0.2
+            last_progress_print = -progress_interval
 
-    def rotation_align_to_z(self, from_vec):
-        # Build rotation matrix that aligns from_vec direction to +Z.
-        u = self.vec_normalize(from_vec)
-        z = [0.0, 0.0, 1.0]
-        c = self.vec_dot(u, z)
+            print(self.line)
+            print(f"[{plane_name}] plane calibration start ({self.calib_duration_sec:.1f} sec)")
+            print(f"Keep {plane_name} plane still and press Enter to start.")
+            input()
 
-        if c > 1.0 - 1e-9:
-            return [
-                [1.0, 0.0, 0.0],
-                [0.0, 1.0, 0.0],
-                [0.0, 0.0, 1.0],
+            while True:
+                now = time.monotonic()
+                if sample_count > 0 and now >= end_time:
+                    break
+                accel_s = self.sensor.readAccelerometerMaster()
+                gyro_s = self.sensor.readGyroscopeMaster()
+                accel_sum_x += accel_s[0]
+                accel_sum_y += accel_s[1]
+                accel_sum_z += accel_s[2]
+                gyro_sum_x += gyro_s[0]
+                gyro_sum_y += gyro_s[1]
+                gyro_sum_z += gyro_s[2]
+                sample_count += 1
+
+                elapsed = now - start_time
+                should_print_progress = (
+                    elapsed - last_progress_print >= progress_interval
+                    or sample_count == 1
+                    or now >= end_time
+                )
+                if should_print_progress:
+                    accel_baseline_now = [
+                        accel_sum_x / sample_count,
+                        accel_sum_y / sample_count,
+                        accel_sum_z / sample_count,
+                    ]
+                    gyro_baseline_now = [
+                        gyro_sum_x / sample_count,
+                        gyro_sum_y / sample_count,
+                        gyro_sum_z / sample_count,
+                    ]
+                    accel_baseline_mag_now = self.vec_norm(accel_baseline_now)
+
+                    if accel_baseline_mag_now >= 1e-9:
+                        accel_ref_1g_now = [
+                            accel_baseline_now[0] / accel_baseline_mag_now,
+                            accel_baseline_now[1] / accel_baseline_mag_now,
+                            accel_baseline_now[2] / accel_baseline_mag_now,
+                        ]
+                        rot_to_z_now = self.rotation_align_to_z(accel_ref_1g_now)
+                        accel_c_now = [
+                            accel_s[0] - accel_baseline_now[0] + accel_ref_1g_now[0],
+                            accel_s[1] - accel_baseline_now[1] + accel_ref_1g_now[1],
+                            accel_s[2] - accel_baseline_now[2] + accel_ref_1g_now[2],
+                        ]
+                        gyro_c_now = [
+                            gyro_s[0] - gyro_baseline_now[0],
+                            gyro_s[1] - gyro_baseline_now[1],
+                            gyro_s[2] - gyro_baseline_now[2],
+                        ]
+                        accel_c_axis_now = self.mat_vec_mul(rot_to_z_now, accel_c_now)
+                        gyro_c_axis_now = self.mat_vec_mul(rot_to_z_now, gyro_c_now)
+                        accel_r_mag_now = self.vec_norm(accel_s)
+                        gyro_r_mag_now = self.vec_norm(gyro_s)
+                        accel_c_mag_now = self.vec_norm(accel_c_axis_now)
+                        gyro_c_mag_now = self.vec_norm(gyro_c_axis_now)
+
+                        print(
+                            f"[{plane_name} {elapsed:5.2f}s] {('Acce-R'):<{self.label_width}} : "
+                            f"X: {accel_s[0]:6.2f}   g | Y: {accel_s[1]:6.2f}   g | Z: {accel_s[2]:6.2f}   g | "
+                            f"Mag-R: {accel_r_mag_now:6.2f}   g"
+                        )
+                        print(
+                            f"[{plane_name} {elapsed:5.2f}s] {('Acce-C'):<{self.label_width}} : "
+                            f"X: {accel_c_axis_now[0]:6.2f}   g | Y: {accel_c_axis_now[1]:6.2f}   g | "
+                            f"Z: {accel_c_axis_now[2]:6.2f}   g | Mag-C: {accel_c_mag_now:6.2f}   g"
+                        )
+                        print(
+                            f"[{plane_name} {elapsed:5.2f}s] {('Gyro-R'):<{self.label_width}} : "
+                            f"X: {gyro_s[0]:6.2f} °/s | Y: {gyro_s[1]:6.2f} °/s | Z: {gyro_s[2]:6.2f} °/s | "
+                            f"Mag-R: {gyro_r_mag_now:6.2f} °/s"
+                        )
+                        print(
+                            f"[{plane_name} {elapsed:5.2f}s] {('Gyro-C'):<{self.label_width}} : "
+                            f"X: {gyro_c_axis_now[0]:6.2f} °/s | Y: {gyro_c_axis_now[1]:6.2f} °/s | "
+                            f"Z: {gyro_c_axis_now[2]:6.2f} °/s | Mag-C: {gyro_c_mag_now:6.2f} °/s"
+                        )
+                        last_progress_print = elapsed
+
+                if self.calib_delay > 0.0:
+                    remaining = end_time - time.monotonic()
+                    if remaining <= 0.0:
+                        break
+                    time.sleep(min(self.calib_delay, remaining))
+
+            if sample_count < 1:
+                raise ValueError(f"No samples collected during {plane_name} calibration.")
+
+            accel_mean = [
+                accel_sum_x / sample_count,
+                accel_sum_y / sample_count,
+                accel_sum_z / sample_count,
             ]
-
-        if c < -1.0 + 1e-9:
-            return [
-                [1.0, 0.0, 0.0],
-                [0.0, -1.0, 0.0],
-                [0.0, 0.0, -1.0],
+            gyro_mean = [
+                gyro_sum_x / sample_count,
+                gyro_sum_y / sample_count,
+                gyro_sum_z / sample_count,
             ]
-
-        axis = self.vec_cross(u, z)
-        s = self.vec_norm(axis)
-        k = [axis[0] / s, axis[1] / s, axis[2] / s]
-        kx, ky, kz = k[0], k[1], k[2]
-        one_minus_c = 1.0 - c
-
-        return [
-            [c + kx*kx*one_minus_c, kx*ky*one_minus_c - kz*s, kx*kz*one_minus_c + ky*s],
-            [ky*kx*one_minus_c + kz*s, c + ky*ky*one_minus_c, ky*kz*one_minus_c - kx*s],
-            [kz*kx*one_minus_c - ky*s, kz*ky*one_minus_c + kx*s, c + kz*kz*one_minus_c],
-        ]
-
-    def initialize_sensor(self):
-        # Initialize the shared I2C bus and MPU9250 sensor.
-        self._i2c_bus = busio.I2C(board.SCL, board.SDA)
-        self.sensor = MPU9250(
-            address_mpu_master=0x68,
-            address_mpu_slave=None,
-            bus=1,
-            gfs=GFS_250,
-            afs=AFS_2G,
-        )
-        self.sensor.configure()
-        print("✅ MPU9250 IMU detected successfully.\n")
-
-    def calibrate(self):
-        accel_sum_x = 0.0
-        accel_sum_y = 0.0
-        accel_sum_z = 0.0
-        gyro_sum_x = 0.0
-        gyro_sum_y = 0.0
-        gyro_sum_z = 0.0
-        sample_count = 0
-        start_time = time.monotonic()
-        end_time = start_time + max(0.0, self.calib_duration_sec)
-        progress_interval = 0.2
-        last_progress_print = -progress_interval
-
-        print(f"Calibrating accel/gyro baseline... keep sensor still ({self.calib_duration_sec:.1f} sec)")
-        while True:
-            now = time.monotonic()
-            if sample_count > 0 and now >= end_time:
-                break
-            accel_s = self.sensor.readAccelerometerMaster()
-            gyro_s = self.sensor.readGyroscopeMaster()
-            accel_sum_x += accel_s[0]
-            accel_sum_y += accel_s[1]
-            accel_sum_z += accel_s[2]
-            gyro_sum_x += gyro_s[0]
-            gyro_sum_y += gyro_s[1]
-            gyro_sum_z += gyro_s[2]
-            sample_count += 1
-
-            elapsed = now - start_time
-            should_print_progress = (
-                elapsed - last_progress_print >= progress_interval
-                or sample_count == 1
-                or now >= end_time
+            print(self.line)
+            print(
+                f"[{plane_name}] mean accel: X={accel_mean[0]:.3f} g, "
+                f"Y={accel_mean[1]:.3f} g, Z={accel_mean[2]:.3f} g"
             )
-            if should_print_progress:
-                accel_baseline_now = [
-                    accel_sum_x / sample_count,
-                    accel_sum_y / sample_count,
-                    accel_sum_z / sample_count,
-                ]
-                gyro_baseline_now = [
-                    gyro_sum_x / sample_count,
-                    gyro_sum_y / sample_count,
-                    gyro_sum_z / sample_count,
-                ]
-                accel_baseline_mag_now = self.vec_norm(accel_baseline_now)
+            print(
+                f"[{plane_name}] mean gyro : X={gyro_mean[0]:.3f} °/s, "
+                f"Y={gyro_mean[1]:.3f} °/s, Z={gyro_mean[2]:.3f} °/s"
+            )
+            return accel_mean, gyro_mean
 
-                if accel_baseline_mag_now >= 1e-9:
-                    accel_ref_1g_now = [
-                        accel_baseline_now[0] / accel_baseline_mag_now,
-                        accel_baseline_now[1] / accel_baseline_mag_now,
-                        accel_baseline_now[2] / accel_baseline_mag_now,
-                    ]
-                    rot_to_z_now = self.rotation_align_to_z(accel_ref_1g_now)
-                    accel_c_now = [
-                        accel_s[0] - accel_baseline_now[0] + accel_ref_1g_now[0],
-                        accel_s[1] - accel_baseline_now[1] + accel_ref_1g_now[1],
-                        accel_s[2] - accel_baseline_now[2] + accel_ref_1g_now[2],
-                    ]
-                    gyro_c_now = [
+        z_accel, z_gyro = collect_plane_pose("Z-PLANE")
+        x_accel, x_gyro = collect_plane_pose("X-PLANE")
+        y_accel, y_gyro = collect_plane_pose("Y-PLANE")
+
+        self.accel_baseline = [
+            (z_accel[0] + x_accel[0] + y_accel[0]) / 3.0,
+            (z_accel[1] + x_accel[1] + y_accel[1]) / 3.0,
+            (z_accel[2] + x_accel[2] + y_accel[2]) / 3.0,
+        ]
+        self.gyro_baseline = [
+            (z_gyro[0] + x_gyro[0] + y_gyro[0]) / 3.0,
+            (z_gyro[1] + x_gyro[1] + y_gyro[1]) / 3.0,
+            (z_gyro[2] + x_gyro[2] + y_gyro[2]) / 3.0,
+        ]
+
+        accel_baseline_mag = self.vec_norm(z_accel)
                         gyro_s[0] - gyro_baseline_now[0],
                         gyro_s[1] - gyro_baseline_now[1],
-                        gyro_s[2] - gyro_baseline_now[2],
+            raise ValueError("Invalid Z-plane accel magnitude. Retry calibration.")
                     ]
                     accel_c_axis_now = self.mat_vec_mul(rot_to_z_now, accel_c_now)
-                    gyro_c_axis_now = self.mat_vec_mul(rot_to_z_now, gyro_c_now)
-                    accel_r_mag_now = self.vec_norm(accel_s)
-                    gyro_r_mag_now = self.vec_norm(gyro_s)
+            z_accel[0] / accel_baseline_mag,
+            z_accel[1] / accel_baseline_mag,
+            z_accel[2] / accel_baseline_mag,
                     accel_c_mag_now = self.vec_norm(accel_c_axis_now)
                     gyro_c_mag_now = self.vec_norm(gyro_c_axis_now)
 

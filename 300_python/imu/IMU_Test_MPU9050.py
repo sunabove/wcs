@@ -141,13 +141,13 @@ def main():
     ]
     rot_to_z = rotation_align_to_z(accel_ref_1g)
     print(
-        f"Accel baseline vector: X={accel_baseline[0]:.3f}, "
-        f"Y={accel_baseline[1]:.3f}, Z={accel_baseline[2]:.3f} "
-        f"(Mag={accel_baseline_mag:.3f})\n"
+        f"Accel baseline vector: X={accel_baseline[0]:.3f} g, "
+        f"Y={accel_baseline[1]:.3f} g, Z={accel_baseline[2]:.3f} g "
+        f"(Mag={accel_baseline_mag:.3f} g)\n"
     )
     print(
-        f"Gyro baseline vector : X={gyro_baseline[0]:.3f}, "
-        f"Y={gyro_baseline[1]:.3f}, Z={gyro_baseline[2]:.3f}\n"
+        f"Gyro baseline vector : X={gyro_baseline[0]:.3f} dps, "
+        f"Y={gyro_baseline[1]:.3f} dps, Z={gyro_baseline[2]:.3f} dps\n"
     )
     
     while True:
@@ -181,10 +181,10 @@ def main():
             gyro_c_axis = mat_vec_mul(rot_to_z, gyro_c)
             
             print(line)
-            print(f"[{count:4d}] {('Accel-C'):<{label_width}} : X: {accel_c_axis[0]:{value_width}.2f} | Y: {accel_c_axis[1]:{value_width}.2f} | Z: {accel_c_axis[2]:{value_width}.2f} | CMag: {accel_c_mag:{value_width}.2f}")
-            print(f"[{count:4d}] {('Accel Raw'):<{label_width}} : X: {accel[0]:{value_width}.2f} | Y: {accel[1]:{value_width}.2f} | Z: {accel[2]:{value_width}.2f} | RawMag: {accel_mag:{value_width}.2f}")
-            print(f"[{count:4d}] {('Gyro-C'):<{label_width}} : X: {gyro_c_axis[0]:{value_width}.2f} | Y: {gyro_c_axis[1]:{value_width}.2f} | Z: {gyro_c_axis[2]:{value_width}.2f} | CMag: {gyro_c_mag:{value_width}.2f}")
-            print(f"[{count:4d}] {('Gyro Raw'):<{label_width}} : X: {gyro[0]:{value_width}.2f} | Y: {gyro[1]:{value_width}.2f} | Z: {gyro[2]:{value_width}.2f} | RawMag: {gyro_mag:{value_width}.2f}")
+            print(f"[{count:4d}] {('Accel-C'):<{label_width}} : X: {accel_c_axis[0]:{value_width}.2f} g | Y: {accel_c_axis[1]:{value_width}.2f} g | Z: {accel_c_axis[2]:{value_width}.2f} g | CMag: {accel_c_mag:{value_width}.2f} g")
+            print(f"[{count:4d}] {('Accel-R'):<{label_width}} : X: {accel[0]:{value_width}.2f} g | Y: {accel[1]:{value_width}.2f} g | Z: {accel[2]:{value_width}.2f} g | RawMag: {accel_mag:{value_width}.2f} g")
+            print(f"[{count:4d}] {('Gyro-C'):<{label_width}} : X: {gyro_c_axis[0]:{value_width}.2f} dps | Y: {gyro_c_axis[1]:{value_width}.2f} dps | Z: {gyro_c_axis[2]:{value_width}.2f} dps | CMag: {gyro_c_mag:{value_width}.2f} dps")
+            print(f"[{count:4d}] {('Gyro-R'):<{label_width}} : X: {gyro[0]:{value_width}.2f} dps | Y: {gyro[1]:{value_width}.2f} dps | Z: {gyro[2]:{value_width}.2f} dps | RawMag: {gyro_mag:{value_width}.2f} dps")
             print(line)
 
             time.sleep(0.5) # Refresh rate delay

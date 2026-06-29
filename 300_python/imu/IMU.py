@@ -399,9 +399,6 @@ class IMU_MPU9250:
         accel = self.sensor.readAccelerometerMaster()
         gyro = self.sensor.readGyroscopeMaster()
 
-        accel_mag = self.vec_norm(accel)
-        gyro_mag = self.vec_norm(gyro)
-
         accel_c = [
             accel[0] - self.accel_baseline[0] + self.accel_ref_1g[0],
             accel[1] - self.accel_baseline[1] + self.accel_ref_1g[1],
@@ -424,44 +421,28 @@ class IMU_MPU9250:
         accel_c_axis_mag = self.vec_norm(accel_c_axis)
         if accel_c_axis_mag > 1e-9:
             z_ratio = max(-1.0, min(1.0, accel_c_axis[2] / accel_c_axis_mag))
-            tilt_deg = math.degrees(math.acos(z_ratio))
+            yaw_deg = math.degrees(math.acos(z_ratio))
         else:
-            tilt_deg = 0.0
+            yaw_deg = 0.0
 
         return {
-            "accel": accel,
-            "gyro": gyro,
-            "accel_mag": accel_mag,
-            "gyro_mag": gyro_mag,
             "accel_c_axis": accel_c_axis,
             "gyro_c_axis": gyro_c_axis,
             "accel_c_mag": self.vec_norm(accel_c_axis),
             "gyro_c_mag": self.vec_norm(gyro_c_axis),
             "roll_deg": roll_deg,
             "pitch_deg": pitch_deg,
-            "tilt_deg": tilt_deg,
+            "yaw_deg": yaw_deg,
         }
 
     def print_reading(self, reading):
         self.count += 1
-        accel = reading["accel"]
-        gyro = reading["gyro"]
 
         print(self.line)
-        print(
-            f"[{self.count:4d}] {('Acce-R'):<{self.label_width}} : "
-            f"X: {accel[0]:6.2f}   g | Y: {accel[1]:6.2f}   g | Z: {accel[2]:6.2f}   g | "
-            f"Mag-R: {reading['accel_mag']:6.2f}   g"
-        )
         print(
             f"[{self.count:4d}] {('Acce-C'):<{self.label_width}} : "
             f"X: {reading['accel_c_axis'][0]:6.2f}   g | Y: {reading['accel_c_axis'][1]:6.2f}   g | "
             f"Z: {reading['accel_c_axis'][2]:6.2f}   g | Mag-C: {reading['accel_c_mag']:6.2f}   g"
-        )
-        print(
-            f"[{self.count:4d}] {('Gyro-R'):<{self.label_width}} : "
-            f"X: {gyro[0]:6.2f} d/s | Y: {gyro[1]:6.2f} d/s | Z: {gyro[2]:6.2f} d/s | "
-            f"Mag-R: {reading['gyro_mag']:6.2f} d/s"
         )
         print(
             f"[{self.count:4d}] {('Gyro-C'):<{self.label_width}} : "
@@ -470,8 +451,8 @@ class IMU_MPU9250:
         )
         print(
             f"[{self.count:4d}] {('Ang-C'):<{self.label_width}} : "
-            f"Roll: {reading['roll_deg']:7.2f} deg | Pitch: {reading['pitch_deg']:7.2f} deg | "
-            f"Tilt: {reading['tilt_deg']:7.2f} deg"
+            f"Roll: {reading['roll_deg']:7.2f} d | Pitch: {reading['pitch_deg']:7.2f} d | "
+            f"Yaw: {reading['yaw_deg']:7.2f} d"
         )
         print(self.line)
 

@@ -105,7 +105,10 @@ class IMU_MPU9050:
         gyro_sum_y = 0.0
         gyro_sum_z = 0.0
         sample_count = 0
-        end_time = time.monotonic() + max(0.0, self.calib_duration_sec)
+        start_time = time.monotonic()
+        end_time = start_time + max(0.0, self.calib_duration_sec)
+        progress_interval = 0.2
+        last_progress_print = -progress_interval
 
         print(f"Calibrating accel/gyro baseline... keep sensor still ({self.calib_duration_sec:.1f} sec)")
         while True:
@@ -121,6 +124,68 @@ class IMU_MPU9050:
             gyro_sum_y += gyro_s[1]
             gyro_sum_z += gyro_s[2]
             sample_count += 1
+
+            elapsed = now - start_time
+            should_print_progress = (
+                elapsed - last_progress_print >= progress_interval
+                or sample_count == 1
+                or now >= end_time
+            )
+            if should_print_progress:
+                accel_baseline_now = [
+                    accel_sum_x / sample_count,
+                    accel_sum_y / sample_count,
+                    accel_sum_z / sample_count,
+                ]
+                gyro_baseline_now = [
+                    gyro_sum_x / sample_count,
+                    gyro_sum_y / sample_count,
+                    gyro_sum_z / sample_count,
+                ]
+                accel_baseline_mag_now = self.vec_norm(accel_baseline_now)
+
+                if accel_baseline_mag_now >= 1e-9:
+                    accel_ref_1g_now = [
+                        accel_baseline_now[0] / accel_baseline_mag_now,
+                        accel_baseline_now[1] / accel_baseline_mag_now,
+                        accel_baseline_now[2] / accel_baseline_mag_now,
+                    ]
+                    rot_to_z_now = self.rotation_align_to_z(accel_ref_1g_now)
+                    accel_c_now = [
+                        accel_s[0] - accel_baseline_now[0] + accel_ref_1g_now[0],
+                        accel_s[1] - accel_baseline_now[1] + accel_ref_1g_now[1],
+                        accel_s[2] - accel_baseline_now[2] + accel_ref_1g_now[2],
+                    ]
+                    gyro_c_now = [
+                        gyro_s[0] - gyro_baseline_now[0],
+                        gyro_s[1] - gyro_baseline_now[1],
+                        gyro_s[2] - gyro_baseline_now[2],
+                    ]
+                    accel_c_axis_now = self.mat_vec_mul(rot_to_z_now, accel_c_now)
+                    gyro_c_axis_now = self.mat_vec_mul(rot_to_z_now, gyro_c_now)
+                    accel_c_mag_now = self.vec_norm(accel_c_axis_now)
+                    gyro_c_mag_now = self.vec_norm(gyro_c_axis_now)
+
+                    print(
+                        f"[CALI {elapsed:5.2f}s] {('Acce-R'):<{self.label_width}} : "
+                        f"X: {accel_s[0]:6.2f}   g | Y: {accel_s[1]:6.2f}   g | Z: {accel_s[2]:6.2f}   g"
+                    )
+                    print(
+                        f"[CALI {elapsed:5.2f}s] {('Acce-C'):<{self.label_width}} : "
+                        f"X: {accel_c_axis_now[0]:6.2f}   g | Y: {accel_c_axis_now[1]:6.2f}   g | "
+                        f"Z: {accel_c_axis_now[2]:6.2f}   g | Mag-C: {accel_c_mag_now:6.2f}   g"
+                    )
+                    print(
+                        f"[CALI {elapsed:5.2f}s] {('Gyro-R'):<{self.label_width}} : "
+                        f"X: {gyro_s[0]:6.2f} °/s | Y: {gyro_s[1]:6.2f} °/s | Z: {gyro_s[2]:6.2f} °/s"
+                    )
+                    print(
+                        f"[CALI {elapsed:5.2f}s] {('Gyro-C'):<{self.label_width}} : "
+                        f"X: {gyro_c_axis_now[0]:6.2f} °/s | Y: {gyro_c_axis_now[1]:6.2f} °/s | "
+                        f"Z: {gyro_c_axis_now[2]:6.2f} °/s | Mag-C: {gyro_c_mag_now:6.2f} °/s"
+                    )
+                    print(self.line)
+                    last_progress_print = elapsed
 
             if self.calib_delay > 0.0:
                 remaining = end_time - time.monotonic()

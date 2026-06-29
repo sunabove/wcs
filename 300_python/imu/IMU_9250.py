@@ -23,6 +23,8 @@ class IMU9250App:
         self.force_calibration = bool(force_calibration)
         self.imu = None
         self.accel_ref_1g = [0.0, 0.0, 1.0]
+        self.accel_bias = [0.0, 0.0, 0.0]
+        self.gyro_bias = [0.0, 0.0, 0.0]
 
     def initialize_sensor(self):
         self.imu = MPU9250(
@@ -72,8 +74,8 @@ class IMU9250App:
 
     def save_calibration(self):
         data = {
-            "accel_bias": list(self.imu.abias),
-            "gyro_bias": list(self.imu.gbias),
+            "accel_bias": list(self.accel_bias),
+            "gyro_bias": list(self.gyro_bias),
             "accel_ref_1g": list(self.accel_ref_1g),
         }
         with open(self.calibration_file, "w", encoding="utf-8") as f:
@@ -124,12 +126,12 @@ class IMU9250App:
             raise RuntimeError("캘리브레이션 평균 가속도 벡터의 크기가 너무 작습니다.")
 
         self.accel_ref_1g = [value / accel_avg_mag for value in accel_avg]
-        self.imu.abias = [accel_avg[i] - self.accel_ref_1g[i] for i in range(3)]
-        self.imu.gbias = list(gyro_avg)
+        self.accel_bias = [accel_avg[i] - self.accel_ref_1g[i] for i in range(3)]
+        self.gyro_bias = list(gyro_avg)
 
         print("\n=== Calibration Result ===")
-        print("Accel Bias :", self.imu.abias)
-        print("Gyro Bias  :", self.imu.gbias)
+        print("Accel Bias :", self.accel_bias)
+        print("Gyro Bias  :", self.gyro_bias)
 
         self.save_calibration()
         print("캘리브레이션 저장 완료")
@@ -145,8 +147,8 @@ class IMU9250App:
             print("IMU_Cali.json 파일이 없거나 JSON 포맷이 올바르지 않습니다.")
             self.run_calibration()
         else:
-            self.imu.abias = data["accel_bias"]
-            self.imu.gbias = data["gyro_bias"]
+            self.accel_bias = data["accel_bias"]
+            self.gyro_bias = data["gyro_bias"]
             self.accel_ref_1g = data.get("accel_ref_1g", self.accel_ref_1g)
             print("기존 캘리브레이션 로드 완료")
 
@@ -159,8 +161,8 @@ class IMU9250App:
             while True:
                 accel_raw = self.imu.readAccelerometerMaster()
                 gyro_raw = self.imu.readGyroscopeMaster()
-                accel_c = [accel_raw[i] - self.imu.abias[i] for i in range(3)]
-                gyro_c = [gyro_raw[i] - self.imu.gbias[i] for i in range(3)]
+                accel_c = [accel_raw[i] - self.accel_bias[i] for i in range(3)]
+                gyro_c = [gyro_raw[i] - self.gyro_bias[i] for i in range(3)]
 
                 roll_deg = math.degrees(math.atan2(accel_c[1], accel_c[2]))
                 pitch_deg = math.degrees(

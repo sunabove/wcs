@@ -164,13 +164,16 @@ class IMU_MPU9050:
                     ]
                     accel_c_axis_now = self.mat_vec_mul(rot_to_z_now, accel_c_now)
                     gyro_c_axis_now = self.mat_vec_mul(rot_to_z_now, gyro_c_now)
+                    accel_r_mag_now = self.vec_norm(accel_s)
+                    gyro_r_mag_now = self.vec_norm(gyro_s)
                     accel_c_mag_now = self.vec_norm(accel_c_axis_now)
                     gyro_c_mag_now = self.vec_norm(gyro_c_axis_now)
 
                     print(self.line)
                     print(
                         f"[CALI {elapsed:5.2f}s] {('Acce-R'):<{self.label_width}} : "
-                        f"X: {accel_s[0]:6.2f}   g | Y: {accel_s[1]:6.2f}   g | Z: {accel_s[2]:6.2f}   g"
+                        f"X: {accel_s[0]:6.2f}   g | Y: {accel_s[1]:6.2f}   g | Z: {accel_s[2]:6.2f}   g | "
+                        f"Mag-R: {accel_r_mag_now:6.2f}   g"
                     )
                     print(
                         f"[CALI {elapsed:5.2f}s] {('Acce-C'):<{self.label_width}} : "
@@ -179,7 +182,8 @@ class IMU_MPU9050:
                     )
                     print(
                         f"[CALI {elapsed:5.2f}s] {('Gyro-R'):<{self.label_width}} : "
-                        f"X: {gyro_s[0]:6.2f} °/s | Y: {gyro_s[1]:6.2f} °/s | Z: {gyro_s[2]:6.2f} °/s"
+                        f"X: {gyro_s[0]:6.2f} °/s | Y: {gyro_s[1]:6.2f} °/s | Z: {gyro_s[2]:6.2f} °/s | "
+                        f"Mag-R: {gyro_r_mag_now:6.2f} °/s"
                     )
                     print(
                         f"[CALI {elapsed:5.2f}s] {('Gyro-C'):<{self.label_width}} : "
@@ -221,6 +225,7 @@ class IMU_MPU9050:
         ]
         self.rot_to_z = self.rotation_align_to_z(self.accel_ref_1g)
 
+        print( self.line )
         cali_path = self.save_calibration()
         print(f"Calibration saved: {cali_path}")
         

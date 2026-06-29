@@ -5,6 +5,7 @@ import os
 import time
 from mpu9250_jmdev.registers import *
 from mpu9250_jmdev.mpu_9250 import MPU9250
+from mpu9250_jmdev.registers import WHO_AM_I
 
 class IMU9250App:
     def __init__(
@@ -30,7 +31,7 @@ class IMU9250App:
             mode=AK8963_MODE_C100HZ,
         )
         
-        who = self.imu.readMaster(WHO_AM_I)
+        who = self.imu.readMaster(WHO_AM_I, 1)
         print(hex(who))
         
         input( "Enter를 누르면 IMU 센서를 초기화합니다...")

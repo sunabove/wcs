@@ -29,6 +29,9 @@ class IMU_MPU9250:
             [0.0, 1.0, 0.0],
             [0.0, 0.0, 1.0],
         ]
+        self.current_roll_deg = 0.0
+        self.current_pitch_deg = 0.0
+        self.current_yaw_deg = 0.0
 
     def vec_norm(self, v):
         return (v[0] ** 2 + v[1] ** 2 + v[2] ** 2) ** 0.5
@@ -414,16 +417,34 @@ class IMU_MPU9250:
         gyro_c_axis = self.mat_vec_mul(self.rot_to_z, gyro_c)
 
         # Current attitude angles from compensated acceleration.
-        roll_deg = math.degrees(math.atan2(accel_c_axis[1], accel_c_axis[2]))
-        pitch_deg = math.degrees(
-            math.atan2(-accel_c_axis[0], (accel_c_axis[1] ** 2 + accel_c_axis[2] ** 2) ** 0.5)
-        )
+        eps = 1e-9
         accel_c_axis_mag = self.vec_norm(accel_c_axis)
-        if accel_c_axis_mag > 1e-9:
-            z_ratio = max(-1.0, min(1.0, accel_c_axis[2] / accel_c_axis_mag))
-            yaw_deg = math.degrees(math.acos(z_ratio))
+        accel_xy_mag = (accel_c_axis[0] ** 2 + accel_c_axis[1] ** 2) ** 0.5
+
+        if accel_c_axis_mag > eps and accel_xy_mag <= eps:
+            # Z-axis only: treat as leveled around X/Y and update yaw by Z direction.
+            roll_deg = 0.0
+            pitch_deg = 0.0
+            yaw_deg = 0.0 if accel_c_axis[2] >= 0.0 else 180.0
         else:
-            yaw_deg = 0.0
+            roll_deg = math.degrees(math.atan2(accel_c_axis[1], accel_c_axis[2]))
+            pitch_deg = math.degrees(
+                math.atan2(-accel_c_axis[0], (accel_c_axis[1] ** 2 + accel_c_axis[2] ** 2) ** 0.5)
+            )
+
+        if accel_c_axis_mag > eps:
+            z_ratio = max(-1.0, min(1.0, accel_c_axis[2] / accel_c_axis_mag))
+            yaw_from_accel_deg = math.degrees(math.acos(z_ratio))
+            if accel_xy_mag > eps:
+                yaw_deg = yaw_from_accel_deg
+        else:
+            roll_deg = self.current_roll_deg
+            pitch_deg = self.current_pitch_deg
+            yaw_deg = self.current_yaw_deg
+
+        self.current_roll_deg = roll_deg
+        self.current_pitch_deg = pitch_deg
+        self.current_yaw_deg = yaw_deg
 
         return {
             "accel_c_axis": accel_c_axis,

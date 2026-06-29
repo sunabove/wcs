@@ -16,14 +16,13 @@ def build_arg_parser():
     )
     parser.add_argument("--samples", type=int, default=50, help="캘리브레이션 샘플 수")
     parser.add_argument("--delay", type=float, default=0.02, help="샘플 간 지연 시간(초)")
-    parser.add_argument("--monitor", action="store_true", help="캘리브레이션 후 leveled 데이터를 계속 출력")
-    
     return parser
 
 
 def main():
     args = build_arg_parser().parse_args()
     imu = IMU(skip_calibration=False)
+    monitor = True
 
     print("수평 캘리브레이션을 시작합니다.")
     print("센서를 가능한 한 수평으로 놓고 움직이지 마세요.")
@@ -40,7 +39,7 @@ def main():
         print(format_vec("Gyro baseline", result["gyro_baseline"], " dps"))
         print(f"저장 파일: {cali_path}")
 
-        if args.monitor:
+        if monitor:
             print()
             print("leveled 데이터 출력 중입니다. Ctrl+C로 종료하세요.")
             while True:
@@ -51,16 +50,11 @@ def main():
                     f"GYR=({gx:7.3f}, {gy:7.3f}, {gz:7.3f}) dps"
                 )
                 time.sleep(0.2)
-            pass
-        pass
     except KeyboardInterrupt:
         print("\n중단되었습니다.")
     finally:
         imu.close()
-    pass
-pass # main
 
 
 if __name__ == "__main__":
     main()
-pass # __main__

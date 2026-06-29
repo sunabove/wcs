@@ -27,6 +27,23 @@ def print_raw_and_cali_sample(imu, title):
     print(f"CALI pitch={pitch_cali:7.2f} deg, roll={roll_cali:7.2f} deg | ACC=({ax_c:7.3f}, {ay_c:7.3f}, {az_c:7.3f}) g | GYR=({gx_c:7.3f}, {gy_c:7.3f}, {gz_c:7.3f}) dps")
 
 
+def make_progress_printer(imu, interval_sec=0.2):
+    last_print_time = [0.0]
+
+    def progress_callback(sample_count, elapsed_sec, raw_values, cali_values):
+        if elapsed_sec - last_print_time[0] < interval_sec and sample_count != 1:
+            return
+        last_print_time[0] = elapsed_sec
+        ax_raw, ay_raw, az_raw, gx_raw, gy_raw, gz_raw = raw_values
+        ax_c, ay_c, az_c, gx_c, gy_c, gz_c = cali_values
+        pitch_raw, roll_raw = calc_pitch_roll(ax_raw, ay_raw, az_raw)
+        pitch_cali, roll_cali = calc_pitch_roll(ax_c, ay_c, az_c)
+        print(f"[{elapsed_sec:5.1f}s] RAW  pitch={pitch_raw:7.2f} deg, roll={roll_raw:7.2f} deg | ACC=({ax_raw:7.3f}, {ay_raw:7.3f}, {az_raw:7.3f}) g | GYR=({gx_raw:7.3f}, {gy_raw:7.3f}, {gz_raw:7.3f}) dps")
+        print(f"[{elapsed_sec:5.1f}s] CALI pitch={pitch_cali:7.2f} deg, roll={roll_cali:7.2f} deg | ACC=({ax_c:7.3f}, {ay_c:7.3f}, {az_c:7.3f}) g | GYR=({gx_c:7.3f}, {gy_c:7.3f}, {gz_c:7.3f}) dps")
+
+    return progress_callback
+
+
 def build_arg_parser():
     parser = argparse.ArgumentParser(
         description="IMU.py를 사용한 수평 캘리브레이션 도구"
@@ -45,7 +62,8 @@ def main():
     print(f"캘리브레이션 시간: 10.000s, 샘플 간 지연: {args.delay:.3f}s")
 
     try:
-        result = imu.calibrate_level(duration_sec=10.0, delay=args.delay)
+        print("캘리브레이션 중 출력은 RAW와 CALI를 함께 표시합니다.")
+        result = imu.calibrate_level(duration_sec=10.0, delay=args.delay, progress_callback=make_progress_printer(imu))
         cali_path = imu.save_calibration()
 
         print()

@@ -135,6 +135,29 @@ class IMU:
         diff = cls.normalize_angle(target - current)
         return cls.normalize_angle(current + alpha * diff)
 
+    @staticmethod
+    def _calc_pitch_roll(ax, ay, az):
+        pitch = math.degrees(math.atan2(-ax, math.sqrt((ay * ay) + (az * az))))
+        roll = math.degrees(math.atan2(ay, az))
+        return pitch, roll
+
+    def _apply_leveling_state(self, ax, ay, az, gx, gy, gz, accel_baseline, accel_ref_1g, gyro_baseline, rotation):
+        accel_c = [
+            float(ax) - accel_baseline[0] + accel_ref_1g[0],
+            float(ay) - accel_baseline[1] + accel_ref_1g[1],
+            float(az) - accel_baseline[2] + accel_ref_1g[2],
+        ]
+
+        gyro_c = [
+            float(gx) - gyro_baseline[0],
+            float(gy) - gyro_baseline[1],
+            float(gz) - gyro_baseline[2],
+        ]
+
+        accel_axis = self.mat_vec_mul(rotation, accel_c)
+        gyro_axis = self.mat_vec_mul(rotation, gyro_c)
+        return accel_axis[0], accel_axis[1], accel_axis[2], gyro_axis[0], gyro_axis[1], gyro_axis[2]
+
     def _load_calibration(self):
         script_dir = os.path.dirname(os.path.abspath(__file__))
         cali_path = os.path.join(script_dir, "IMU_Cali.txt")
@@ -290,7 +313,7 @@ class IMU:
         roll = math.degrees(math.atan2(ay, az))
         return pitch, roll, ax, ay, az, gx, gy, gz
 
-    def calibrate_level(self, duration_sec=10.0, delay=0.02):
+    def calibrate_level(self, duration_sec=10.0, delay=0.02, progress_callback=None):
         duration_sec = max(0.0, float(duration_sec))
         delay = max(0.0, float(delay))
         end_time = time.monotonic() + duration_sec
@@ -310,6 +333,33 @@ class IMU:
             gyro_sum[1] += gy
             gyro_sum[2] += gz
             sample_count += 1
+
+            if progress_callback is not None:
+                accel_baseline_now = [component / sample_count for component in accel_sum]
+                gyro_baseline_now = [component / sample_count for component in gyro_sum]
+                accel_baseline_mag_now = self.vec_norm(accel_baseline_now)
+                if accel_baseline_mag_now >= 1e-6:
+                    accel_ref_1g_now = [component / accel_baseline_mag_now for component in accel_baseline_now]
+                    rotation_now = self.rotation_align_to_z(accel_ref_1g_now)
+                    cali_values = self._apply_leveling_state(
+                        ax,
+                        ay,
+                        az,
+                        gx,
+                        gy,
+                        gz,
+                        accel_baseline_now,
+                        accel_ref_1g_now,
+                        gyro_baseline_now,
+                        rotation_now,
+                    )
+                    progress_callback(
+                        sample_count,
+                        duration_sec - max(0.0, end_time - time.monotonic()),
+                        (ax, ay, az, gx, gy, gz),
+                        cali_values,
+                    )
+
             if delay > 0.0:
                 remaining = end_time - time.monotonic()
                 if remaining <= 0.0:

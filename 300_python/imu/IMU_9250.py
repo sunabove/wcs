@@ -82,6 +82,7 @@ class IMU9250App:
         sample_count = 0
         start_time = time.monotonic()
         end_time = start_time + self.calibration_duration_sec
+        last_print_time = -1.0
 
         print("IMU를 움직이지 말고 평평한 곳에 놓으세요.")
         print(f"캘리브레이션 수집 시간: {self.calibration_duration_sec:.1f}초")
@@ -99,6 +100,27 @@ class IMU9250App:
                 accel_sum[index] += accel_raw[index]
                 gyro_sum[index] += gyro_raw[index]
             sample_count += 1
+
+            current_accel_avg = [value / sample_count for value in accel_sum]
+            current_gyro_avg = [value / sample_count for value in gyro_sum]
+            current_accel_avg_mag = math.sqrt(sum(value * value for value in current_accel_avg))
+            if current_accel_avg_mag >= 1e-9:
+                current_accel_ref_1g = [value / current_accel_avg_mag for value in current_accel_avg]
+            else:
+                current_accel_ref_1g = [0.0, 0.0, 1.0]
+
+            current_accel_bias = [current_accel_avg[i] - current_accel_ref_1g[i] for i in range(3)]
+            current_gyro_bias = list(current_gyro_avg)
+            accel_c_now = [accel_raw[i] - current_accel_bias[i] for i in range(3)]
+            gyro_c_now = [gyro_raw[i] - current_gyro_bias[i] for i in range(3)]
+
+            now = time.monotonic()
+            if last_print_time < 0.0 or now - last_print_time >= 0.2 or now >= end_time:
+                print(
+                    f"[CAL] Cali Acce[g] X:{accel_c_now[0]:7.3f} Y:{accel_c_now[1]:7.3f} Z:{accel_c_now[2]:7.3f} | "
+                    f"Gyro[d/s] X:{gyro_c_now[0]:7.3f} Y:{gyro_c_now[1]:7.3f} Z:{gyro_c_now[2]:7.3f}"
+                )
+                last_print_time = now
 
             if self.calibration_delay_sec > 0.0:
                 remaining = end_time - time.monotonic()

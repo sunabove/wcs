@@ -13,7 +13,7 @@ class IMU_MPU9050:
 
         self._i2c_bus = None
         self.sensor = None
-        self.line = "=" * 90
+        self.line = "=" * 100
         self.label_width = 10
 
         self.accel_baseline = [0.0, 0.0, 0.0]

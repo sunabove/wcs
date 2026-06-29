@@ -38,7 +38,7 @@ def default_model_source() -> str:
 def default_output_model_path() -> Path:
 	base_path = prefer_primary_path("road/model/02_yolo11m-cobot-road-type-sg.pt")
 	date_suffix = datetime.now().strftime("%y%m%d")
-	return base_path.with_name(f"{base_path.stem}_{date_suffix}{base_path.suffix}")
+	return base_path.with_name(f"{base_path.stem}-{date_suffix}{base_path.suffix}")
 
 
 def parse_args() -> argparse.Namespace:

@@ -1,6 +1,6 @@
 import argparse
 
-from IMU import IMU_MPU9050
+from IMU import IMU_MPU9250
 
 
 def build_arg_parser():
@@ -15,7 +15,7 @@ def build_arg_parser():
 def main():
 	args = build_arg_parser().parse_args()
 
-	imu = IMU_MPU9050(
+	imu = IMU_MPU9250(
 		calib_duration_sec=args.duration,
 		calib_delay=args.sample_delay,
 	)

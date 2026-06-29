@@ -6,7 +6,7 @@ from mpu9250_jmdev.registers import *
 from mpu9250_jmdev.mpu_9250 import MPU9250
 
 
-class IMU_MPU9050:
+class IMU_MPU9250:
     def __init__(self, calib_duration_sec=10.0, calib_delay=0.02, loop_delay=0.5):
         self.calib_duration_sec = float(calib_duration_sec)
         self.calib_delay = float(calib_delay)
@@ -89,7 +89,7 @@ class IMU_MPU9050:
         # Initialize the shared I2C bus and MPU9250 sensor.
         self._i2c_bus = busio.I2C(board.SCL, board.SDA)
         self.sensor = MPU9250(
-            address_mpu_master=MPU9050_ADDRESS_68,
+            address_mpu_master=MPU9250_ADDRESS_68,
             address_mpu_slave=None,
             bus=1,
             gfs=GFS_250,
@@ -423,7 +423,7 @@ class IMU_MPU9050:
 
 def main():
     try:
-        monitor = IMU_MPU9050()
+        monitor = IMU_MPU9250()
         monitor.run()
     except Exception as e:
         print(f"❌ Failed to initialize MPU9250: {e}")

@@ -1,4 +1,5 @@
 import json
+import math
 import os
 import time
 from mpu9250_jmdev.registers import *
@@ -83,10 +84,18 @@ class IMU9250App:
             while True:
                 accel_raw = self.imu.readAccelerometerMaster()
                 gyro_raw = self.imu.readGyroscopeMaster()
+                accel_c = [accel_raw[i] - self.imu.abias[i] for i in range(3)]
+                gyro_c = [gyro_raw[i] - self.imu.gbias[i] for i in range(3)]
+
+                roll_deg = math.degrees(math.atan2(accel_c[1], accel_c[2]))
+                pitch_deg = math.degrees(
+                    math.atan2(-accel_c[0], (accel_c[1] ** 2 + accel_c[2] ** 2) ** 0.5)
+                )
 
                 print(
-                    f"Acce-C[g] X:{accel_raw[0]:7.3f} Y:{accel_raw[1]:7.3f} Z:{accel_raw[2]:7.3f} | "
-                    f"Gyro-C[d/s] X:{gyro_raw[0]:7.3f} Y:{gyro_raw[1]:7.3f} Z:{gyro_raw[2]:7.3f} | "
+                    f"Acce-C[g] X:{accel_c[0]:7.3f} Y:{accel_c[1]:7.3f} Z:{accel_c[2]:7.3f} | "
+                    f"Gyro-C[d/s] X:{gyro_c[0]:7.3f} Y:{gyro_c[1]:7.3f} Z:{gyro_c[2]:7.3f} | "
+                    f"Ang-C[d] Roll:{roll_deg:7.2f} Pitch:{pitch_deg:7.2f}"
                 )
                 time.sleep(self.interval_sec)
         except KeyboardInterrupt:

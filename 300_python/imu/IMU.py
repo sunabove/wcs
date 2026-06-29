@@ -290,12 +290,18 @@ class IMU:
         roll = math.degrees(math.atan2(ay, az))
         return pitch, roll, ax, ay, az, gx, gy, gz
 
-    def calibrate_level(self, samples=40, delay=0.02):
-        samples = max(1, int(samples))
+    def calibrate_level(self, duration_sec=10.0, delay=0.02):
+        duration_sec = max(0.0, float(duration_sec))
+        delay = max(0.0, float(delay))
+        end_time = time.monotonic() + duration_sec
         accel_sum = [0.0, 0.0, 0.0]
         gyro_sum = [0.0, 0.0, 0.0]
+        sample_count = 0
 
-        for _ in range(samples):
+        while True:
+            now = time.monotonic()
+            if sample_count > 0 and now >= end_time:
+                break
             _, _, ax, ay, az, gx, gy, gz = self.read()
             accel_sum[0] += ax
             accel_sum[1] += ay
@@ -303,10 +309,18 @@ class IMU:
             gyro_sum[0] += gx
             gyro_sum[1] += gy
             gyro_sum[2] += gz
-            time.sleep(max(0.0, float(delay)))
+            sample_count += 1
+            if delay > 0.0:
+                remaining = end_time - time.monotonic()
+                if remaining <= 0.0:
+                    break
+                time.sleep(min(delay, remaining))
 
-        accel_baseline = [component / samples for component in accel_sum]
-        gyro_baseline = [component / samples for component in gyro_sum]
+        if sample_count < 1:
+            sample_count = 1
+
+        accel_baseline = [component / sample_count for component in accel_sum]
+        gyro_baseline = [component / sample_count for component in gyro_sum]
         accel_baseline_mag = self.vec_norm(accel_baseline)
         if accel_baseline_mag < 1e-6:
             raise ValueError("Invalid accel baseline magnitude. Retry level calibration.")
@@ -318,6 +332,8 @@ class IMU:
         self.level_rotation = self.rotation_align_to_z(accel_ref_1g)
 
         return {
+            "sample_count": sample_count,
+            "duration_sec": duration_sec,
             "accel_baseline": tuple(accel_baseline),
             "accel_ref_1g": tuple(accel_ref_1g),
             "gyro_baseline": tuple(gyro_baseline),

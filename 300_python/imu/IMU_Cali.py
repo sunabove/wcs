@@ -10,6 +10,17 @@ def format_vec(name, values, unit):
     return f"{name}: X={values[0]: .4f}{unit}, Y={values[1]: .4f}{unit}, Z={values[2]: .4f}{unit}"
 
 
+def print_leveled_sample(imu, title):
+    pitch, roll, ax, ay, az, gx, gy, gz = imu.read_leveled()
+    if title:
+        print(title)
+    print(
+        f"pitch={pitch:7.2f} deg, roll={roll:7.2f} deg | "
+        f"ACC=({ax:7.3f}, {ay:7.3f}, {az:7.3f}) g | "
+        f"GYR=({gx:7.3f}, {gy:7.3f}, {gz:7.3f}) dps"
+    )
+
+
 def build_arg_parser():
     parser = argparse.ArgumentParser(
         description="IMU.py를 사용한 수평 캘리브레이션 도구"
@@ -38,17 +49,14 @@ def main():
         print(format_vec("Accel ref 1g", result["accel_ref_1g"], " g"))
         print(format_vec("Gyro baseline", result["gyro_baseline"], " dps"))
         print(f"저장 파일: {cali_path}")
+        print()
+        print_leveled_sample(imu, "캘리브레이션된 현재 값")
 
         if monitor:
             print()
-            print("leveled 데이터 출력 중입니다. Ctrl+C로 종료하세요.")
+            print("캘리브레이션된 데이터 출력 중입니다. Ctrl+C로 종료하세요.")
             while True:
-                pitch, roll, ax, ay, az, gx, gy, gz = imu.read_leveled()
-                print(
-                    f"pitch={pitch:7.2f} deg, roll={roll:7.2f} deg | "
-                    f"ACC=({ax:7.3f}, {ay:7.3f}, {az:7.3f}) g | "
-                    f"GYR=({gx:7.3f}, {gy:7.3f}, {gz:7.3f}) dps"
-                )
+                print_leveled_sample(imu, "")
                 time.sleep(0.2)
     except KeyboardInterrupt:
         print("\n중단되었습니다.")

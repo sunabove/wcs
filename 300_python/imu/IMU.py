@@ -167,6 +167,7 @@ class IMU_MPU9050:
                     accel_c_mag_now = self.vec_norm(accel_c_axis_now)
                     gyro_c_mag_now = self.vec_norm(gyro_c_axis_now)
 
+                    print(self.line)
                     print(
                         f"[CALI {elapsed:5.2f}s] {('Acce-R'):<{self.label_width}} : "
                         f"X: {accel_s[0]:6.2f}   g | Y: {accel_s[1]:6.2f}   g | Z: {accel_s[2]:6.2f}   g"
@@ -185,7 +186,6 @@ class IMU_MPU9050:
                         f"X: {gyro_c_axis_now[0]:6.2f} °/s | Y: {gyro_c_axis_now[1]:6.2f} °/s | "
                         f"Z: {gyro_c_axis_now[2]:6.2f} °/s | Mag-C: {gyro_c_mag_now:6.2f} °/s"
                     )
-                    print(self.line)
                     last_progress_print = elapsed
 
             if self.calib_delay > 0.0:

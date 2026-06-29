@@ -1,89 +1,62 @@
-#!/usr/bin/env python3
-
-import math
-import os
 import time
-
-from smbus2 import SMBus
-
-
-class KalmanAngle:
-    def __init__(self, q_angle=0.003, q_bias=0.01, r_measure=0.05):
-        self.q_angle, self.q_bias, self.r_measure = q_angle, q_bias, r_measure
-        self.angle = self.bias = self.rate = 0.0
-        self.p00 = self.p01 = self.p10 = self.p11 = 0.0
-
-    def update(self, measured_angle, measured_rate, dt):
-        self.rate = measured_rate - self.bias
-        self.angle += dt * self.rate
-        self.p00 += dt * (dt * self.p11 - self.p01 - self.p10 + self.q_angle)
-        self.p01 -= dt * self.p11
-        self.p10 -= dt * self.p11
-        self.p11 += self.q_bias * dt
-        s = self.p00 + self.r_measure
-        k0, k1 = self.p00 / s, self.p10 / s
-        y = measured_angle - self.angle
-        self.angle += k0 * y
-        self.bias += k1 * y
-        p00, p01 = self.p00, self.p01
-        self.p00 -= k0 * p00
-        self.p01 -= k0 * p01
-        self.p10 -= k1 * p00
-        self.p11 -= k1 * p01
-        return self.angle
+import board
+import busio
+from mpu9250_jmdev.registers import *
+from mpu9250_jmdev.mpu_9250 import MPU9250
 
 
-class IMU:
-    MPU_ADDR = 0x68
-    def __init__(self, skip_calibration=False):
-        self.bus = SMBus(1)
-        self.bus.write_byte_data(self.MPU_ADDR, 0x6B, 0)
-        time.sleep(0.1)
-        self.ax_offset = self.ay_offset = self.az_offset = 0.0
-        self.gx_offset = self.gy_offset = self.gz_offset = 0.0
-        self.level_accel_baseline = None
-        self.level_accel_ref_1g = None
-        self.level_gyro_baseline = None
-        self.level_rotation = None
-        if not skip_calibration:
-            self._load_calibration()
+class IMU_MPU9050:
+    def __init__(self, calib_duration_sec=10.0, calib_delay=0.02, loop_delay=0.5):
+        self.calib_duration_sec = float(calib_duration_sec)
+        self.calib_delay = float(calib_delay)
+        self.loop_delay = float(loop_delay)
 
-    @staticmethod
-    def vec_norm(v):
-        return math.sqrt((v[0] * v[0]) + (v[1] * v[1]) + (v[2] * v[2]))
+        self._i2c_bus = None
+        self.sensor = None
+        self.line = "=" * 100
+        self.label_width = 10
 
-    @staticmethod
-    def vec_dot(a, b):
-        return (a[0] * b[0]) + (a[1] * b[1]) + (a[2] * b[2])
+        self.accel_baseline = [0.0, 0.0, 0.0]
+        self.gyro_baseline = [0.0, 0.0, 0.0]
+        self.accel_ref_1g = [0.0, 0.0, 1.0]
+        self.rot_to_z = [
+            [1.0, 0.0, 0.0],
+            [0.0, 1.0, 0.0],
+            [0.0, 0.0, 1.0],
+        ]
+        self.count = 0
 
-    @staticmethod
-    def vec_cross(a, b):
+    def vec_norm(self, v):
+        return (v[0]**2 + v[1]**2 + v[2]**2) ** 0.5
+
+    def vec_dot(self, a, b):
+        return a[0]*b[0] + a[1]*b[1] + a[2]*b[2]
+
+    def vec_cross(self, a, b):
         return [
-            (a[1] * b[2]) - (a[2] * b[1]),
-            (a[2] * b[0]) - (a[0] * b[2]),
-            (a[0] * b[1]) - (a[1] * b[0]),
+            a[1]*b[2] - a[2]*b[1],
+            a[2]*b[0] - a[0]*b[2],
+            a[0]*b[1] - a[1]*b[0],
         ]
 
-    @classmethod
-    def vec_normalize(cls, v):
-        n = cls.vec_norm(v)
+    def vec_normalize(self, v):
+        n = self.vec_norm(v)
         if n < 1e-9:
             return [0.0, 0.0, 0.0]
         return [v[0] / n, v[1] / n, v[2] / n]
 
-    @staticmethod
-    def mat_vec_mul(m, v):
+    def mat_vec_mul(self, m, v):
         return [
-            (m[0][0] * v[0]) + (m[0][1] * v[1]) + (m[0][2] * v[2]),
-            (m[1][0] * v[0]) + (m[1][1] * v[1]) + (m[1][2] * v[2]),
-            (m[2][0] * v[0]) + (m[2][1] * v[1]) + (m[2][2] * v[2]),
+            m[0][0]*v[0] + m[0][1]*v[1] + m[0][2]*v[2],
+            m[1][0]*v[0] + m[1][1]*v[1] + m[1][2]*v[2],
+            m[2][0]*v[0] + m[2][1]*v[1] + m[2][2]*v[2],
         ]
 
-    @classmethod
-    def rotation_align_to_z(cls, from_vec):
-        u = cls.vec_normalize(from_vec)
+    def rotation_align_to_z(self, from_vec):
+        # Build rotation matrix that aligns from_vec direction to +Z.
+        u = self.vec_normalize(from_vec)
         z = [0.0, 0.0, 1.0]
-        c = cls.vec_dot(u, z)
+        c = self.vec_dot(u, z)
 
         if c > 1.0 - 1e-9:
             return [
@@ -99,364 +72,236 @@ class IMU:
                 [0.0, 0.0, -1.0],
             ]
 
-        axis = cls.vec_cross(u, z)
-        s = cls.vec_norm(axis)
-        if s < 1e-9:
-            return [
-                [1.0, 0.0, 0.0],
-                [0.0, 1.0, 0.0],
-                [0.0, 0.0, 1.0],
-            ]
-
-        kx, ky, kz = axis[0] / s, axis[1] / s, axis[2] / s
+        axis = self.vec_cross(u, z)
+        s = self.vec_norm(axis)
+        k = [axis[0] / s, axis[1] / s, axis[2] / s]
+        kx, ky, kz = k[0], k[1], k[2]
         one_minus_c = 1.0 - c
 
         return [
-            [c + (kx * kx * one_minus_c), (kx * ky * one_minus_c) - (kz * s), (kx * kz * one_minus_c) + (ky * s)],
-            [(ky * kx * one_minus_c) + (kz * s), c + (ky * ky * one_minus_c), (ky * kz * one_minus_c) - (kx * s)],
-            [(kz * kx * one_minus_c) - (ky * s), (kz * ky * one_minus_c) + (kx * s), c + (kz * kz * one_minus_c)],
+            [c + kx*kx*one_minus_c, kx*ky*one_minus_c - kz*s, kx*kz*one_minus_c + ky*s],
+            [ky*kx*one_minus_c + kz*s, c + ky*ky*one_minus_c, ky*kz*one_minus_c - kx*s],
+            [kz*kx*one_minus_c - ky*s, kz*ky*one_minus_c + kx*s, c + kz*kz*one_minus_c],
         ]
 
-    @staticmethod
-    def is_stationary(ax, ay, az, gx, gy, gz):
-        accel_norm = math.sqrt(ax * ax + ay * ay + az * az)
-        return abs(accel_norm - 1.0) < 0.08 and abs(gx) < 2.0 and abs(gy) < 2.0 and abs(gz) < 2.0
+    def initialize_sensor(self):
+        # Initialize the shared I2C bus and MPU9250 sensor.
+        self._i2c_bus = busio.I2C(board.SCL, board.SDA)
+        self.sensor = MPU9250(
+            address_mpu_master=MPU9050_ADDRESS_68,
+            address_mpu_slave=None,
+            bus=1,
+            gfs=GFS_250,
+            afs=AFS_2G,
+        )
+        self.sensor.configure()
+        print("✅ MPU9250 IMU detected successfully.\n")
 
-    @staticmethod
-    def normalize_angle(angle):
-        while angle > 180.0:
-            angle -= 360.0
-        while angle < -180.0:
-            angle += 360.0
-        return angle
-
-    @classmethod
-    def blend_angle(cls, current, target, alpha):
-        diff = cls.normalize_angle(target - current)
-        return cls.normalize_angle(current + alpha * diff)
-
-    @staticmethod
-    def _calc_pitch_roll(ax, ay, az):
-        pitch = math.degrees(math.atan2(-ax, math.sqrt((ay * ay) + (az * az))))
-        roll = math.degrees(math.atan2(ay, az))
-        return pitch, roll
-
-    def _apply_leveling_state(self, ax, ay, az, gx, gy, gz, accel_baseline, accel_ref_1g, gyro_baseline, rotation):
-        accel_c = [
-            float(ax) - accel_baseline[0] + accel_ref_1g[0],
-            float(ay) - accel_baseline[1] + accel_ref_1g[1],
-            float(az) - accel_baseline[2] + accel_ref_1g[2],
-        ]
-
-        gyro_c = [
-            float(gx) - gyro_baseline[0],
-            float(gy) - gyro_baseline[1],
-            float(gz) - gyro_baseline[2],
-        ]
-
-        accel_axis = self.mat_vec_mul(rotation, accel_c)
-        gyro_axis = self.mat_vec_mul(rotation, gyro_c)
-        return accel_axis[0], accel_axis[1], accel_axis[2], gyro_axis[0], gyro_axis[1], gyro_axis[2]
-
-    def _load_calibration(self):
-        script_dir = os.path.dirname(os.path.abspath(__file__))
-        cali_path = os.path.join(script_dir, "IMU_Cali.txt")
-
-        if not os.path.exists(cali_path):
-            return
-
-        try:
-            with open(cali_path, "r", encoding="utf-8") as fp:
-                for line in fp:
-                    line = line.strip()
-                    if not line or line.startswith("#"):
-                        continue
-                    if "=" not in line:
-                        continue
-                    key, value = line.split("=", 1)
-                    key = key.strip()
-                    try:
-                        val = float(value)
-                        if key == "ax_offset_g":
-                            self.ax_offset = val
-                        elif key == "ay_offset_g":
-                            self.ay_offset = val
-                        elif key == "az_offset_g":
-                            self.az_offset = val
-                        elif key == "gx_offset_dps":
-                            self.gx_offset = val
-                        elif key == "gy_offset_dps":
-                            self.gy_offset = val
-                        elif key == "gz_offset_dps":
-                            self.gz_offset = val
-                        elif key == "level_accel_baseline_x_g":
-                            self.level_accel_baseline = self.level_accel_baseline or [0.0, 0.0, 0.0]
-                            self.level_accel_baseline[0] = val
-                        elif key == "level_accel_baseline_y_g":
-                            self.level_accel_baseline = self.level_accel_baseline or [0.0, 0.0, 0.0]
-                            self.level_accel_baseline[1] = val
-                        elif key == "level_accel_baseline_z_g":
-                            self.level_accel_baseline = self.level_accel_baseline or [0.0, 0.0, 0.0]
-                            self.level_accel_baseline[2] = val
-                        elif key == "level_accel_ref_1g_x":
-                            self.level_accel_ref_1g = self.level_accel_ref_1g or [0.0, 0.0, 0.0]
-                            self.level_accel_ref_1g[0] = val
-                        elif key == "level_accel_ref_1g_y":
-                            self.level_accel_ref_1g = self.level_accel_ref_1g or [0.0, 0.0, 0.0]
-                            self.level_accel_ref_1g[1] = val
-                        elif key == "level_accel_ref_1g_z":
-                            self.level_accel_ref_1g = self.level_accel_ref_1g or [0.0, 0.0, 0.0]
-                            self.level_accel_ref_1g[2] = val
-                        elif key == "level_gyro_baseline_x_dps":
-                            self.level_gyro_baseline = self.level_gyro_baseline or [0.0, 0.0, 0.0]
-                            self.level_gyro_baseline[0] = val
-                        elif key == "level_gyro_baseline_y_dps":
-                            self.level_gyro_baseline = self.level_gyro_baseline or [0.0, 0.0, 0.0]
-                            self.level_gyro_baseline[1] = val
-                        elif key == "level_gyro_baseline_z_dps":
-                            self.level_gyro_baseline = self.level_gyro_baseline or [0.0, 0.0, 0.0]
-                            self.level_gyro_baseline[2] = val
-                        elif key == "level_rotation_r00":
-                            self.level_rotation = self.level_rotation or [[0.0, 0.0, 0.0] for _ in range(3)]
-                            self.level_rotation[0][0] = val
-                        elif key == "level_rotation_r01":
-                            self.level_rotation = self.level_rotation or [[0.0, 0.0, 0.0] for _ in range(3)]
-                            self.level_rotation[0][1] = val
-                        elif key == "level_rotation_r02":
-                            self.level_rotation = self.level_rotation or [[0.0, 0.0, 0.0] for _ in range(3)]
-                            self.level_rotation[0][2] = val
-                        elif key == "level_rotation_r10":
-                            self.level_rotation = self.level_rotation or [[0.0, 0.0, 0.0] for _ in range(3)]
-                            self.level_rotation[1][0] = val
-                        elif key == "level_rotation_r11":
-                            self.level_rotation = self.level_rotation or [[0.0, 0.0, 0.0] for _ in range(3)]
-                            self.level_rotation[1][1] = val
-                        elif key == "level_rotation_r12":
-                            self.level_rotation = self.level_rotation or [[0.0, 0.0, 0.0] for _ in range(3)]
-                            self.level_rotation[1][2] = val
-                        elif key == "level_rotation_r20":
-                            self.level_rotation = self.level_rotation or [[0.0, 0.0, 0.0] for _ in range(3)]
-                            self.level_rotation[2][0] = val
-                        elif key == "level_rotation_r21":
-                            self.level_rotation = self.level_rotation or [[0.0, 0.0, 0.0] for _ in range(3)]
-                            self.level_rotation[2][1] = val
-                        elif key == "level_rotation_r22":
-                            self.level_rotation = self.level_rotation or [[0.0, 0.0, 0.0] for _ in range(3)]
-                            self.level_rotation[2][2] = val
-                    except ValueError:
-                        pass
-            if self.level_rotation is None and self.level_accel_ref_1g is not None:
-                self.level_rotation = self.rotation_align_to_z(self.level_accel_ref_1g)
-            print(f"[IMU] Calibration loaded from {cali_path}")
-        except Exception as e:
-            print(f"[IMU] Warning: Failed to load calibration: {e}")
-
-    def save_calibration(self):
-        script_dir = os.path.dirname(os.path.abspath(__file__))
-        cali_path = os.path.join(script_dir, "IMU_Cali.txt")
-
-        if self.level_rotation is None or self.level_accel_baseline is None or self.level_accel_ref_1g is None or self.level_gyro_baseline is None:
-            raise ValueError("Level calibration is not available. Run calibrate_level() first.")
-
-        lines = [
-            "# IMU calibration generated by IMU.py",
-            f"ax_offset_g={self.ax_offset:.10f}",
-            f"ay_offset_g={self.ay_offset:.10f}",
-            f"az_offset_g={self.az_offset:.10f}",
-            f"gx_offset_dps={self.gx_offset:.10f}",
-            f"gy_offset_dps={self.gy_offset:.10f}",
-            f"gz_offset_dps={self.gz_offset:.10f}",
-            f"level_accel_baseline_x_g={self.level_accel_baseline[0]:.10f}",
-            f"level_accel_baseline_y_g={self.level_accel_baseline[1]:.10f}",
-            f"level_accel_baseline_z_g={self.level_accel_baseline[2]:.10f}",
-            f"level_accel_ref_1g_x={self.level_accel_ref_1g[0]:.10f}",
-            f"level_accel_ref_1g_y={self.level_accel_ref_1g[1]:.10f}",
-            f"level_accel_ref_1g_z={self.level_accel_ref_1g[2]:.10f}",
-            f"level_gyro_baseline_x_dps={self.level_gyro_baseline[0]:.10f}",
-            f"level_gyro_baseline_y_dps={self.level_gyro_baseline[1]:.10f}",
-            f"level_gyro_baseline_z_dps={self.level_gyro_baseline[2]:.10f}",
-            f"level_rotation_r00={self.level_rotation[0][0]:.10f}",
-            f"level_rotation_r01={self.level_rotation[0][1]:.10f}",
-            f"level_rotation_r02={self.level_rotation[0][2]:.10f}",
-            f"level_rotation_r10={self.level_rotation[1][0]:.10f}",
-            f"level_rotation_r11={self.level_rotation[1][1]:.10f}",
-            f"level_rotation_r12={self.level_rotation[1][2]:.10f}",
-            f"level_rotation_r20={self.level_rotation[2][0]:.10f}",
-            f"level_rotation_r21={self.level_rotation[2][1]:.10f}",
-            f"level_rotation_r22={self.level_rotation[2][2]:.10f}",
-            "",
-        ]
-
-        with open(cali_path, "w", encoding="utf-8") as fp:
-            fp.write("\n".join(lines))
-
-        return cali_path
-
-    def _signed16(self, value):
-        return value - 65536 if value > 32767 else value
-
-    def read(self):
-        d = self.bus.read_i2c_block_data(self.MPU_ADDR, 0x3B, 14)
-        ax = self._signed16((d[0] << 8) | d[1]) / 16384.0
-        ay = self._signed16((d[2] << 8) | d[3]) / 16384.0
-        az = self._signed16((d[4] << 8) | d[5]) / 16384.0
-        gx = self._signed16((d[8] << 8) | d[9]) / 131.0
-        gy = self._signed16((d[10] << 8) | d[11]) / 131.0
-        gz = self._signed16((d[12] << 8) | d[13]) / 131.0
-        ax += self.ax_offset
-        ay += self.ay_offset
-        az += self.az_offset
-        gx += self.gx_offset
-        gy += self.gy_offset
-        gz += self.gz_offset
-        pitch = math.degrees(math.atan2(-ax, math.sqrt(ay * ay + az * az)))
-        roll = math.degrees(math.atan2(ay, az))
-        return pitch, roll, ax, ay, az, gx, gy, gz
-
-    def calibrate_level(self, duration_sec=10.0, delay=0.02, progress_callback=None):
-        duration_sec = max(0.0, float(duration_sec))
-        delay = max(0.0, float(delay))
-        end_time = time.monotonic() + duration_sec
-        accel_sum = [0.0, 0.0, 0.0]
-        gyro_sum = [0.0, 0.0, 0.0]
+    def calibrate(self):
+        accel_sum_x = 0.0
+        accel_sum_y = 0.0
+        accel_sum_z = 0.0
+        gyro_sum_x = 0.0
+        gyro_sum_y = 0.0
+        gyro_sum_z = 0.0
         sample_count = 0
+        start_time = time.monotonic()
+        end_time = start_time + max(0.0, self.calib_duration_sec)
+        progress_interval = 0.2
+        last_progress_print = -progress_interval
 
+        print(f"Calibrating accel/gyro baseline... keep sensor still ({self.calib_duration_sec:.1f} sec)")
         while True:
             now = time.monotonic()
             if sample_count > 0 and now >= end_time:
                 break
-            _, _, ax, ay, az, gx, gy, gz = self.read()
-            accel_sum[0] += ax
-            accel_sum[1] += ay
-            accel_sum[2] += az
-            gyro_sum[0] += gx
-            gyro_sum[1] += gy
-            gyro_sum[2] += gz
+            accel_s = self.sensor.readAccelerometerMaster()
+            gyro_s = self.sensor.readGyroscopeMaster()
+            accel_sum_x += accel_s[0]
+            accel_sum_y += accel_s[1]
+            accel_sum_z += accel_s[2]
+            gyro_sum_x += gyro_s[0]
+            gyro_sum_y += gyro_s[1]
+            gyro_sum_z += gyro_s[2]
             sample_count += 1
 
-            if progress_callback is not None:
-                accel_baseline_now = [component / sample_count for component in accel_sum]
-                gyro_baseline_now = [component / sample_count for component in gyro_sum]
+            elapsed = now - start_time
+            should_print_progress = (
+                elapsed - last_progress_print >= progress_interval
+                or sample_count == 1
+                or now >= end_time
+            )
+            if should_print_progress:
+                accel_baseline_now = [
+                    accel_sum_x / sample_count,
+                    accel_sum_y / sample_count,
+                    accel_sum_z / sample_count,
+                ]
+                gyro_baseline_now = [
+                    gyro_sum_x / sample_count,
+                    gyro_sum_y / sample_count,
+                    gyro_sum_z / sample_count,
+                ]
                 accel_baseline_mag_now = self.vec_norm(accel_baseline_now)
-                if accel_baseline_mag_now >= 1e-6:
-                    accel_ref_1g_now = [component / accel_baseline_mag_now for component in accel_baseline_now]
-                    rotation_now = self.rotation_align_to_z(accel_ref_1g_now)
-                    cali_values = self._apply_leveling_state(
-                        ax,
-                        ay,
-                        az,
-                        gx,
-                        gy,
-                        gz,
-                        accel_baseline_now,
-                        accel_ref_1g_now,
-                        gyro_baseline_now,
-                        rotation_now,
-                    )
-                    progress_callback(
-                        sample_count,
-                        duration_sec - max(0.0, end_time - time.monotonic()),
-                        (ax, ay, az, gx, gy, gz),
-                        cali_values,
-                    )
 
-            if delay > 0.0:
+                if accel_baseline_mag_now >= 1e-9:
+                    accel_ref_1g_now = [
+                        accel_baseline_now[0] / accel_baseline_mag_now,
+                        accel_baseline_now[1] / accel_baseline_mag_now,
+                        accel_baseline_now[2] / accel_baseline_mag_now,
+                    ]
+                    rot_to_z_now = self.rotation_align_to_z(accel_ref_1g_now)
+                    accel_c_now = [
+                        accel_s[0] - accel_baseline_now[0] + accel_ref_1g_now[0],
+                        accel_s[1] - accel_baseline_now[1] + accel_ref_1g_now[1],
+                        accel_s[2] - accel_baseline_now[2] + accel_ref_1g_now[2],
+                    ]
+                    gyro_c_now = [
+                        gyro_s[0] - gyro_baseline_now[0],
+                        gyro_s[1] - gyro_baseline_now[1],
+                        gyro_s[2] - gyro_baseline_now[2],
+                    ]
+                    accel_c_axis_now = self.mat_vec_mul(rot_to_z_now, accel_c_now)
+                    gyro_c_axis_now = self.mat_vec_mul(rot_to_z_now, gyro_c_now)
+                    accel_c_mag_now = self.vec_norm(accel_c_axis_now)
+                    gyro_c_mag_now = self.vec_norm(gyro_c_axis_now)
+
+                    print(
+                        f"[CALI {elapsed:5.2f}s] {('Acce-R'):<{self.label_width}} : "
+                        f"X: {accel_s[0]:6.2f}   g | Y: {accel_s[1]:6.2f}   g | Z: {accel_s[2]:6.2f}   g"
+                    )
+                    print(
+                        f"[CALI {elapsed:5.2f}s] {('Acce-C'):<{self.label_width}} : "
+                        f"X: {accel_c_axis_now[0]:6.2f}   g | Y: {accel_c_axis_now[1]:6.2f}   g | "
+                        f"Z: {accel_c_axis_now[2]:6.2f}   g | Mag-C: {accel_c_mag_now:6.2f}   g"
+                    )
+                    print(
+                        f"[CALI {elapsed:5.2f}s] {('Gyro-R'):<{self.label_width}} : "
+                        f"X: {gyro_s[0]:6.2f} °/s | Y: {gyro_s[1]:6.2f} °/s | Z: {gyro_s[2]:6.2f} °/s"
+                    )
+                    print(
+                        f"[CALI {elapsed:5.2f}s] {('Gyro-C'):<{self.label_width}} : "
+                        f"X: {gyro_c_axis_now[0]:6.2f} °/s | Y: {gyro_c_axis_now[1]:6.2f} °/s | "
+                        f"Z: {gyro_c_axis_now[2]:6.2f} °/s | Mag-C: {gyro_c_mag_now:6.2f} °/s"
+                    )
+                    print(self.line)
+                    last_progress_print = elapsed
+
+            if self.calib_delay > 0.0:
                 remaining = end_time - time.monotonic()
                 if remaining <= 0.0:
                     break
-                time.sleep(min(delay, remaining))
+                time.sleep(min(self.calib_delay, remaining))
 
         if sample_count < 1:
-            sample_count = 1
+            raise ValueError("No samples collected during calibration.")
 
-        accel_baseline = [component / sample_count for component in accel_sum]
-        gyro_baseline = [component / sample_count for component in gyro_sum]
-        accel_baseline_mag = self.vec_norm(accel_baseline)
+        self.accel_baseline = [
+            accel_sum_x / sample_count,
+            accel_sum_y / sample_count,
+            accel_sum_z / sample_count,
+        ]
+        self.gyro_baseline = [
+            gyro_sum_x / sample_count,
+            gyro_sum_y / sample_count,
+            gyro_sum_z / sample_count,
+        ]
+        accel_baseline_mag = (
+            self.accel_baseline[0]**2 + self.accel_baseline[1]**2 + self.accel_baseline[2]**2
+        ) ** 0.5
+
         if accel_baseline_mag < 1e-6:
-            raise ValueError("Invalid accel baseline magnitude. Retry level calibration.")
+            raise ValueError("Invalid accel baseline magnitude. Retry calibration.")
 
-        accel_ref_1g = [component / accel_baseline_mag for component in accel_baseline]
-        self.level_accel_baseline = accel_baseline
-        self.level_accel_ref_1g = accel_ref_1g
-        self.level_gyro_baseline = gyro_baseline
-        self.level_rotation = self.rotation_align_to_z(accel_ref_1g)
+        self.accel_ref_1g = [
+            self.accel_baseline[0] / accel_baseline_mag,
+            self.accel_baseline[1] / accel_baseline_mag,
+            self.accel_baseline[2] / accel_baseline_mag,
+        ]
+        self.rot_to_z = self.rotation_align_to_z(self.accel_ref_1g)
 
-        return {
-            "sample_count": sample_count,
-            "duration_sec": duration_sec,
-            "accel_baseline": tuple(accel_baseline),
-            "accel_ref_1g": tuple(accel_ref_1g),
-            "gyro_baseline": tuple(gyro_baseline),
-        }
+        print(
+            f"Accel baseline vector: X={self.accel_baseline[0]:.3f} g, "
+            f"Y={self.accel_baseline[1]:.3f} g, Z={self.accel_baseline[2]:.3f} g "
+            f"(Mag={accel_baseline_mag:.3f} g)\n"
+        )
+        print(
+            f"Gyro baseline vector : X={self.gyro_baseline[0]:.3f} °/s, "
+            f"Y={self.gyro_baseline[1]:.3f} °/s, Z={self.gyro_baseline[2]:.3f} °/s\n"
+        )
 
-    def get_level_calibration(self):
-        return {
-            "accel_baseline": tuple(self.level_accel_baseline) if self.level_accel_baseline is not None else None,
-            "accel_ref_1g": tuple(self.level_accel_ref_1g) if self.level_accel_ref_1g is not None else None,
-            "gyro_baseline": tuple(self.level_gyro_baseline) if self.level_gyro_baseline is not None else None,
-            "rotation": tuple(tuple(row) for row in self.level_rotation) if self.level_rotation is not None else None,
-        }
+    def read_compensated(self):
+        accel = self.sensor.readAccelerometerMaster()
+        gyro = self.sensor.readGyroscopeMaster()
 
-    def apply_leveling(self, ax, ay, az, gx, gy, gz):
-        if self.level_rotation is None or self.level_accel_baseline is None or self.level_accel_ref_1g is None:
-            return ax, ay, az, gx, gy, gz
+        accel_mag = (accel[0]**2 + accel[1]**2 + accel[2]**2) ** 0.5
+        gyro_mag = (gyro[0]**2 + gyro[1]**2 + gyro[2]**2) ** 0.5
 
         accel_c = [
-            float(ax) - self.level_accel_baseline[0] + self.level_accel_ref_1g[0],
-            float(ay) - self.level_accel_baseline[1] + self.level_accel_ref_1g[1],
-            float(az) - self.level_accel_baseline[2] + self.level_accel_ref_1g[2],
+            accel[0] - self.accel_baseline[0] + self.accel_ref_1g[0],
+            accel[1] - self.accel_baseline[1] + self.accel_ref_1g[1],
+            accel[2] - self.accel_baseline[2] + self.accel_ref_1g[2],
         ]
+        accel_c_mag = (accel_c[0]**2 + accel_c[1]**2 + accel_c[2]**2) ** 0.5
 
-        gyro_baseline = self.level_gyro_baseline or [0.0, 0.0, 0.0]
         gyro_c = [
-            float(gx) - gyro_baseline[0],
-            float(gy) - gyro_baseline[1],
-            float(gz) - gyro_baseline[2],
+            gyro[0] - self.gyro_baseline[0],
+            gyro[1] - self.gyro_baseline[1],
+            gyro[2] - self.gyro_baseline[2],
         ]
+        gyro_c_mag = (gyro_c[0]**2 + gyro_c[1]**2 + gyro_c[2]**2) ** 0.5
 
-        accel_axis = self.mat_vec_mul(self.level_rotation, accel_c)
-        gyro_axis = self.mat_vec_mul(self.level_rotation, gyro_c)
-        return accel_axis[0], accel_axis[1], accel_axis[2], gyro_axis[0], gyro_axis[1], gyro_axis[2]
+        accel_c_axis = self.mat_vec_mul(self.rot_to_z, accel_c)
+        gyro_c_axis = self.mat_vec_mul(self.rot_to_z, gyro_c)
 
-    def read_leveled(self):
-        _, _, ax, ay, az, gx, gy, gz = self.read()
-        ax_l, ay_l, az_l, gx_l, gy_l, gz_l = self.apply_leveling(ax, ay, az, gx, gy, gz)
-        pitch = math.degrees(math.atan2(-ax_l, math.sqrt((ay_l * ay_l) + (az_l * az_l))))
-        roll = math.degrees(math.atan2(ay_l, az_l))
-        return pitch, roll, ax_l, ay_l, az_l, gx_l, gy_l, gz_l
+        return {
+            "accel": accel,
+            "gyro": gyro,
+            "accel_mag": accel_mag,
+            "gyro_mag": gyro_mag,
+            "accel_c_axis": accel_c_axis,
+            "gyro_c_axis": gyro_c_axis,
+            "accel_c_mag": accel_c_mag,
+            "gyro_c_mag": gyro_c_mag,
+        }
 
-    def close(self):
-        self.bus.close()
+    def print_reading(self, reading):
+        self.count += 1
+        accel = reading["accel"]
+        gyro = reading["gyro"]
+
+        print(self.line)
+        print(f"[{self.count:4d}] {('Acce-R'):<{self.label_width}} : X: {accel[0]:6.2f}   g | Y: {accel[1]:6.2f}   g | Z: {accel[2]:6.2f}   g | Mag-R: {reading['accel_mag']:6.2f}   g")
+        print(f"[{self.count:4d}] {('Acce-C'):<{self.label_width}} : X: {reading['accel_c_axis'][0]:6.2f}   g | Y: {reading['accel_c_axis'][1]:6.2f}   g | Z: {reading['accel_c_axis'][2]:6.2f}   g | Mag-C: {reading['accel_c_mag']:6.2f}   g")
+        print(f"[{self.count:4d}] {('Gyro-R'):<{self.label_width}} : X: {gyro[0]:6.2f} °/s | Y: {gyro[1]:6.2f} °/s | Z: {gyro[2]:6.2f} °/s | Mag-R: {reading['gyro_mag']:6.2f} °/s")
+        print(f"[{self.count:4d}] {('Gyro-C'):<{self.label_width}} : X: {reading['gyro_c_axis'][0]:6.2f} °/s | Y: {reading['gyro_c_axis'][1]:6.2f} °/s | Z: {reading['gyro_c_axis'][2]:6.2f} °/s | Mag-C: {reading['gyro_c_mag']:6.2f} °/s")
+        print(self.line)
+
+    def run(self):
+        self.initialize_sensor()
+        print("Reading data... Press Ctrl+C to stop.\n")
+        time.sleep(1)
+        self.calibrate()
+
+        while True:
+            try:
+                reading = self.read_compensated()
+                self.print_reading(reading)
+                time.sleep(self.loop_delay)
+            except KeyboardInterrupt:
+                print("\nExiting program gracefully.")
+                break
+            except Exception as e:
+                print(f"Error reading sensor data: {e}")
+                time.sleep(1)
 
 
 def main():
-    imu = IMU()
-    print("Calibrating gyro offset...")
-    gz_offset = 0.0
-    for _ in range(100): gz_offset += imu.read()[7]; time.sleep(0.01)
-    gz_offset /= 100.0
-    p, r = imu.read()[:2]
-    pitch_filter, roll_filter = KalmanAngle(), KalmanAngle()
-    pitch_filter.angle, roll_filter.angle = p, r
-    yaw, prev_time, count = 0.0, time.monotonic(), 0
     try:
-        while True:
-            p, r, ax, ay, az, gx, gy, gz = imu.read()
-            now = time.monotonic()
-            dt = min(now - prev_time, 0.1)
-            prev_time = now
-            stationary = imu.is_stationary(ax, ay, az, gx, gy, gz - gz_offset)
-            if stationary:
-                gz_offset = gz_offset * 0.995 + gz * 0.005
-            pitch = pitch_filter.update(p, gx, dt)
-            roll = roll_filter.update(r, gy, dt)
-            yaw = imu.normalize_angle(yaw + (gz - gz_offset) * dt)
-            count += 1
-            print(f"[{count:5d}] R={roll:7.2f}° P={pitch:7.2f}° Y={yaw:7.2f}° A=({ax:6.3f},{ay:6.3f},{az:6.3f}) G=({gx:7.2f},{gy:7.2f},{gz:7.2f})")
-            time.sleep(0.02)
-    except KeyboardInterrupt: pass
-    finally: imu.close()
-
+        monitor = IMU_MPU9050()
+        monitor.run()
+    except Exception as e:
+        print(f"❌ Failed to initialize MPU9250: {e}")
 
 if __name__ == "__main__":
     main()

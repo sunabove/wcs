@@ -242,30 +242,28 @@ class IMU_MPU9250:
         return accel_mean, gyro_mean
 
     def calibrate(self):
-        z_accel, z_gyro = self.collect_plane_pose("Z-PLANE")
-        x_accel, x_gyro = self.collect_plane_pose("X-PLANE")
-        y_accel, y_gyro = self.collect_plane_pose("Y-PLANE")
+        plane_accel, plane_gyro = self.collect_plane_pose("LEVEL-PLANE")
 
         self.accel_baseline = [
-            (z_accel[0] + x_accel[0] + y_accel[0]) / 3.0,
-            (z_accel[1] + x_accel[1] + y_accel[1]) / 3.0,
-            (z_accel[2] + x_accel[2] + y_accel[2]) / 3.0,
+            plane_accel[0],
+            plane_accel[1],
+            plane_accel[2],
         ]
         self.gyro_baseline = [
-            (z_gyro[0] + x_gyro[0] + y_gyro[0]) / 3.0,
-            (z_gyro[1] + x_gyro[1] + y_gyro[1]) / 3.0,
-            (z_gyro[2] + x_gyro[2] + y_gyro[2]) / 3.0,
+            plane_gyro[0],
+            plane_gyro[1],
+            plane_gyro[2],
         ]
 
-        accel_baseline_mag = self.vec_norm(z_accel)
+        accel_baseline_mag = self.vec_norm(plane_accel)
         if accel_baseline_mag < 1e-6:
-            raise ValueError("Invalid Z-plane accel magnitude. Retry calibration.")
+            raise ValueError("Invalid plane accel magnitude. Retry calibration.")
 
-        # Use Z-plane gravity direction as the 1g reference for axis alignment.
+        # Use single-plane gravity direction as the 1g reference for axis alignment.
         self.accel_ref_1g = [
-            z_accel[0] / accel_baseline_mag,
-            z_accel[1] / accel_baseline_mag,
-            z_accel[2] / accel_baseline_mag,
+            plane_accel[0] / accel_baseline_mag,
+            plane_accel[1] / accel_baseline_mag,
+            plane_accel[2] / accel_baseline_mag,
         ]
         self.rot_to_z = self.rotation_align_to_z(self.accel_ref_1g)
 

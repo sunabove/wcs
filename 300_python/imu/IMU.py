@@ -89,7 +89,7 @@ class IMU_MPU9250:
         # Initialize the shared I2C bus and MPU9250 sensor.
         self._i2c_bus = busio.I2C(board.SCL, board.SDA)
         self.sensor = MPU9250(
-            address_mpu_master=MPU9250_ADDRESS_68,
+            address_mpu_master=0x68,
             address_mpu_slave=None,
             bus=1,
             gfs=GFS_250,

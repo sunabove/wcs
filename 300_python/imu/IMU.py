@@ -396,7 +396,7 @@ class IMU_MPU9050:
             print("[WARN] IMU_Cali.txt not found. Calibration is required.")
 
         self.initialize_sensor()
-        print("Reading data... Press Ctrl+C to stop.\n")
+        print("Reading data... Press Ctrl+C to stop.")
         print( self.line )
         time.sleep(1)
         if has_cali_file:

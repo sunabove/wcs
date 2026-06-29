@@ -1,5 +1,6 @@
 import os
 import time
+import math
 
 import board
 import busio
@@ -415,6 +416,18 @@ class IMU_MPU9250:
         accel_c_axis = self.mat_vec_mul(self.rot_to_z, accel_c)
         gyro_c_axis = self.mat_vec_mul(self.rot_to_z, gyro_c)
 
+        # Current attitude angles from compensated acceleration.
+        roll_deg = math.degrees(math.atan2(accel_c_axis[1], accel_c_axis[2]))
+        pitch_deg = math.degrees(
+            math.atan2(-accel_c_axis[0], (accel_c_axis[1] ** 2 + accel_c_axis[2] ** 2) ** 0.5)
+        )
+        accel_c_axis_mag = self.vec_norm(accel_c_axis)
+        if accel_c_axis_mag > 1e-9:
+            z_ratio = max(-1.0, min(1.0, accel_c_axis[2] / accel_c_axis_mag))
+            tilt_deg = math.degrees(math.acos(z_ratio))
+        else:
+            tilt_deg = 0.0
+
         return {
             "accel": accel,
             "gyro": gyro,
@@ -424,6 +437,9 @@ class IMU_MPU9250:
             "gyro_c_axis": gyro_c_axis,
             "accel_c_mag": self.vec_norm(accel_c_axis),
             "gyro_c_mag": self.vec_norm(gyro_c_axis),
+            "roll_deg": roll_deg,
+            "pitch_deg": pitch_deg,
+            "tilt_deg": tilt_deg,
         }
 
     def print_reading(self, reading):
@@ -451,6 +467,11 @@ class IMU_MPU9250:
             f"[{self.count:4d}] {('Gyro-C'):<{self.label_width}} : "
             f"X: {reading['gyro_c_axis'][0]:6.2f} d/s | Y: {reading['gyro_c_axis'][1]:6.2f} d/s | "
             f"Z: {reading['gyro_c_axis'][2]:6.2f} d/s | Mag-C: {reading['gyro_c_mag']:6.2f} d/s"
+        )
+        print(
+            f"[{self.count:4d}] {('Ang-C'):<{self.label_width}} : "
+            f"Roll: {reading['roll_deg']:7.2f} deg | Pitch: {reading['pitch_deg']:7.2f} deg | "
+            f"Tilt: {reading['tilt_deg']:7.2f} deg"
         )
         print(self.line)
 

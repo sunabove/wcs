@@ -53,9 +53,7 @@ try:
 
         print(
             f"Acce-C[g] X:{accel_raw[0]:7.3f} Y:{accel_raw[1]:7.3f} Z:{accel_raw[2]:7.3f} | "
-            f"Gyro-C[d/s] X:{gyro_raw[0]:7.3f} Y:{gyro_raw[1]:7.3f} Z:{gyro_raw[2]:7.3f} | " 
-            end="\r",
-            flush=True,
+            f"Gyro-C[d/s] X:{gyro_raw[0]:7.3f} Y:{gyro_raw[1]:7.3f} Z:{gyro_raw[2]:7.3f} | "  
         )
         time.sleep(0.2)
 except KeyboardInterrupt:

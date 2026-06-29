@@ -166,11 +166,108 @@ class IMU:
                             self.gy_offset = val
                         elif key == "gz_offset_dps":
                             self.gz_offset = val
+                        elif key == "level_accel_baseline_x_g":
+                            self.level_accel_baseline = self.level_accel_baseline or [0.0, 0.0, 0.0]
+                            self.level_accel_baseline[0] = val
+                        elif key == "level_accel_baseline_y_g":
+                            self.level_accel_baseline = self.level_accel_baseline or [0.0, 0.0, 0.0]
+                            self.level_accel_baseline[1] = val
+                        elif key == "level_accel_baseline_z_g":
+                            self.level_accel_baseline = self.level_accel_baseline or [0.0, 0.0, 0.0]
+                            self.level_accel_baseline[2] = val
+                        elif key == "level_accel_ref_1g_x":
+                            self.level_accel_ref_1g = self.level_accel_ref_1g or [0.0, 0.0, 0.0]
+                            self.level_accel_ref_1g[0] = val
+                        elif key == "level_accel_ref_1g_y":
+                            self.level_accel_ref_1g = self.level_accel_ref_1g or [0.0, 0.0, 0.0]
+                            self.level_accel_ref_1g[1] = val
+                        elif key == "level_accel_ref_1g_z":
+                            self.level_accel_ref_1g = self.level_accel_ref_1g or [0.0, 0.0, 0.0]
+                            self.level_accel_ref_1g[2] = val
+                        elif key == "level_gyro_baseline_x_dps":
+                            self.level_gyro_baseline = self.level_gyro_baseline or [0.0, 0.0, 0.0]
+                            self.level_gyro_baseline[0] = val
+                        elif key == "level_gyro_baseline_y_dps":
+                            self.level_gyro_baseline = self.level_gyro_baseline or [0.0, 0.0, 0.0]
+                            self.level_gyro_baseline[1] = val
+                        elif key == "level_gyro_baseline_z_dps":
+                            self.level_gyro_baseline = self.level_gyro_baseline or [0.0, 0.0, 0.0]
+                            self.level_gyro_baseline[2] = val
+                        elif key == "level_rotation_r00":
+                            self.level_rotation = self.level_rotation or [[0.0, 0.0, 0.0] for _ in range(3)]
+                            self.level_rotation[0][0] = val
+                        elif key == "level_rotation_r01":
+                            self.level_rotation = self.level_rotation or [[0.0, 0.0, 0.0] for _ in range(3)]
+                            self.level_rotation[0][1] = val
+                        elif key == "level_rotation_r02":
+                            self.level_rotation = self.level_rotation or [[0.0, 0.0, 0.0] for _ in range(3)]
+                            self.level_rotation[0][2] = val
+                        elif key == "level_rotation_r10":
+                            self.level_rotation = self.level_rotation or [[0.0, 0.0, 0.0] for _ in range(3)]
+                            self.level_rotation[1][0] = val
+                        elif key == "level_rotation_r11":
+                            self.level_rotation = self.level_rotation or [[0.0, 0.0, 0.0] for _ in range(3)]
+                            self.level_rotation[1][1] = val
+                        elif key == "level_rotation_r12":
+                            self.level_rotation = self.level_rotation or [[0.0, 0.0, 0.0] for _ in range(3)]
+                            self.level_rotation[1][2] = val
+                        elif key == "level_rotation_r20":
+                            self.level_rotation = self.level_rotation or [[0.0, 0.0, 0.0] for _ in range(3)]
+                            self.level_rotation[2][0] = val
+                        elif key == "level_rotation_r21":
+                            self.level_rotation = self.level_rotation or [[0.0, 0.0, 0.0] for _ in range(3)]
+                            self.level_rotation[2][1] = val
+                        elif key == "level_rotation_r22":
+                            self.level_rotation = self.level_rotation or [[0.0, 0.0, 0.0] for _ in range(3)]
+                            self.level_rotation[2][2] = val
                     except ValueError:
                         pass
+            if self.level_rotation is None and self.level_accel_ref_1g is not None:
+                self.level_rotation = self.rotation_align_to_z(self.level_accel_ref_1g)
             print(f"[IMU] Calibration loaded from {cali_path}")
         except Exception as e:
             print(f"[IMU] Warning: Failed to load calibration: {e}")
+
+    def save_calibration(self):
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        cali_path = os.path.join(script_dir, "IMU_Cali.txt")
+
+        if self.level_rotation is None or self.level_accel_baseline is None or self.level_accel_ref_1g is None or self.level_gyro_baseline is None:
+            raise ValueError("Level calibration is not available. Run calibrate_level() first.")
+
+        lines = [
+            "# IMU calibration generated by IMU.py",
+            f"ax_offset_g={self.ax_offset:.10f}",
+            f"ay_offset_g={self.ay_offset:.10f}",
+            f"az_offset_g={self.az_offset:.10f}",
+            f"gx_offset_dps={self.gx_offset:.10f}",
+            f"gy_offset_dps={self.gy_offset:.10f}",
+            f"gz_offset_dps={self.gz_offset:.10f}",
+            f"level_accel_baseline_x_g={self.level_accel_baseline[0]:.10f}",
+            f"level_accel_baseline_y_g={self.level_accel_baseline[1]:.10f}",
+            f"level_accel_baseline_z_g={self.level_accel_baseline[2]:.10f}",
+            f"level_accel_ref_1g_x={self.level_accel_ref_1g[0]:.10f}",
+            f"level_accel_ref_1g_y={self.level_accel_ref_1g[1]:.10f}",
+            f"level_accel_ref_1g_z={self.level_accel_ref_1g[2]:.10f}",
+            f"level_gyro_baseline_x_dps={self.level_gyro_baseline[0]:.10f}",
+            f"level_gyro_baseline_y_dps={self.level_gyro_baseline[1]:.10f}",
+            f"level_gyro_baseline_z_dps={self.level_gyro_baseline[2]:.10f}",
+            f"level_rotation_r00={self.level_rotation[0][0]:.10f}",
+            f"level_rotation_r01={self.level_rotation[0][1]:.10f}",
+            f"level_rotation_r02={self.level_rotation[0][2]:.10f}",
+            f"level_rotation_r10={self.level_rotation[1][0]:.10f}",
+            f"level_rotation_r11={self.level_rotation[1][1]:.10f}",
+            f"level_rotation_r12={self.level_rotation[1][2]:.10f}",
+            f"level_rotation_r20={self.level_rotation[2][0]:.10f}",
+            f"level_rotation_r21={self.level_rotation[2][1]:.10f}",
+            f"level_rotation_r22={self.level_rotation[2][2]:.10f}",
+            "",
+        ]
+
+        with open(cali_path, "w", encoding="utf-8") as fp:
+            fp.write("\n".join(lines))
+
+        return cali_path
 
     def _signed16(self, value):
         return value - 65536 if value > 32767 else value
@@ -224,6 +321,14 @@ class IMU:
             "accel_baseline": tuple(accel_baseline),
             "accel_ref_1g": tuple(accel_ref_1g),
             "gyro_baseline": tuple(gyro_baseline),
+        }
+
+    def get_level_calibration(self):
+        return {
+            "accel_baseline": tuple(self.level_accel_baseline) if self.level_accel_baseline is not None else None,
+            "accel_ref_1g": tuple(self.level_accel_ref_1g) if self.level_accel_ref_1g is not None else None,
+            "gyro_baseline": tuple(self.level_gyro_baseline) if self.level_gyro_baseline is not None else None,
+            "rotation": tuple(tuple(row) for row in self.level_rotation) if self.level_rotation is not None else None,
         }
 
     def apply_leveling(self, ax, ay, az, gx, gy, gz):

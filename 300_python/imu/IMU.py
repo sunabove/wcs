@@ -221,18 +221,11 @@ class IMU_MPU9050:
         ]
         self.rot_to_z = self.rotation_align_to_z(self.accel_ref_1g)
 
-        print(
-            f"Accel baseline vector: X={self.accel_baseline[0]:.3f} g, "
-            f"Y={self.accel_baseline[1]:.3f} g, Z={self.accel_baseline[2]:.3f} g "
-            f"(Mag={accel_baseline_mag:.3f} g)\n"
-        )
-        print(
-            f"Gyro baseline vector : X={self.gyro_baseline[0]:.3f} °/s, "
-            f"Y={self.gyro_baseline[1]:.3f} °/s, Z={self.gyro_baseline[2]:.3f} °/s\n"
-        )
-
         cali_path = self.save_calibration()
         print(f"Calibration saved: {cali_path}")
+        
+        self.print_calibration_values()
+        
         return cali_path
 
     def save_calibration(self, file_name="IMU_Cali.txt"):

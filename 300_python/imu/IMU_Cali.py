@@ -22,9 +22,7 @@ def main():
 
 	try:
 		imu.initialize_sensor()
-		imu.calibrate()
-		print("\nCalibration result values:")
-		imu.print_calibration_values()
+		imu.calibrate() 
 	except KeyboardInterrupt:
 		print("\nCalibration canceled by user.")
 	except Exception as e:

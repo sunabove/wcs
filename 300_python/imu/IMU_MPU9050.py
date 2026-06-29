@@ -180,8 +180,8 @@ def main():
             gyro_c_axis = mat_vec_mul(rot_to_z, gyro_c)
             
             print(line)
-            print(f"[{count:4d}] {('Acce-R'):<{label_width}} : X: {accel[0]:6.2f} g | Y: {accel[1]:6.2f} g | Z: {accel[2]:6.2f} g | Mag-R: {accel_mag:6.2f} g")
-            print(f"[{count:4d}] {('Acce-C'):<{label_width}} : X: {accel_c_axis[0]:6.2f} g | Y: {accel_c_axis[1]:6.2f} g | Z: {accel_c_axis[2]:6.2f} g | Mag-C: {accel_c_mag:6.2f} g")
+            print(f"[{count:4d}] {('Acce-R'):<{label_width}} : X: {accel[0]:6.2f}   g | Y: {accel[1]:6.2f}   g | Z: {accel[2]:6.2f}   g | Mag-R: {accel_mag:6.2f}   g")
+            print(f"[{count:4d}] {('Acce-C'):<{label_width}} : X: {accel_c_axis[0]:6.2f}   g | Y: {accel_c_axis[1]:6.2f}   g | Z: {accel_c_axis[2]:6.2f}   g | Mag-C: {accel_c_mag:6.2f}   g")
             print(f"[{count:4d}] {('Gyro-R'):<{label_width}} : X: {gyro[0]:6.2f} °/s | Y: {gyro[1]:6.2f} °/s | Z: {gyro[2]:6.2f} °/s | Mag-R: {gyro_mag:6.2f} °/s")
             print(f"[{count:4d}] {('Gyro-C'):<{label_width}} : X: {gyro_c_axis[0]:6.2f} °/s | Y: {gyro_c_axis[1]:6.2f} °/s | Z: {gyro_c_axis[2]:6.2f} °/s | Mag-C: {gyro_c_mag:6.2f} °/s")
             print(line)

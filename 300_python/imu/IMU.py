@@ -405,8 +405,8 @@ class IMU_MPU9050:
             self.print_calibration_values()
         else:
             self.calibrate()
-        
-        input("Press Enter to continue to monitoring the calibrated data...")
+            input("Press Enter to continue to monitoring the calibrated data...")
+        pass
 
         while True:
             try:

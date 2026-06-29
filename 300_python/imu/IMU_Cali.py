@@ -73,6 +73,9 @@ def main():
         print(format_vec("Accel ref 1g", result["accel_ref_1g"], " g"))
         print(format_vec("Gyro baseline", result["gyro_baseline"], " dps"))
         print(f"저장 파일: {cali_path}")
+        
+        input("Enter를 눌러 캘리브레이션된 데이터 모니터링을 계속합니다...")
+        
         print()
         print_raw_and_cali_sample(imu, "캘리브레이션된 현재 값")
 

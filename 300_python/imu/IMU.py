@@ -186,6 +186,8 @@ class IMU_MPU9250:
                     gyro_r_mag_now = self.vec_norm(gyro_s)
                     accel_c_mag_now = self.vec_norm(accel_c_axis_now)
                     gyro_c_mag_now = self.vec_norm(gyro_c_axis_now)
+                    
+                    print( self.line)
 
                     print(
                         f"[{plane_name} {elapsed:5.2f}s] {('Acce-R'):<{self.label_width}} : "

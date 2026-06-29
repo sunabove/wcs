@@ -1,3 +1,4 @@
+import argparse
 import json
 import math
 import os
@@ -6,9 +7,15 @@ from mpu9250_jmdev.registers import *
 from mpu9250_jmdev.mpu_9250 import MPU9250
 
 class IMU9250App:
-    def __init__(self, calibration_file="IMU_Cali.json", interval_sec=0.2):
+    def __init__(
+        self,
+        calibration_file="IMU_Cali.json",
+        interval_sec=0.2,
+        force_calibration=False,
+    ):
         self.calibration_file = calibration_file
         self.interval_sec = float(interval_sec)
+        self.force_calibration = bool(force_calibration)
         self.imu = None
 
     def initialize_sensor(self):
@@ -55,21 +62,29 @@ class IMU9250App:
         with open(self.calibration_file, "w", encoding="utf-8") as f:
             json.dump(data, f, indent=4)
 
+    def run_calibration(self):
+        print("IMU를 움직이지 말고 평평한 곳에 놓으세요.")
+        input("Enter를 누르면 캘리브레이션을 시작합니다...")
+
+        self.imu.calibrateMPU6500()
+
+        print("\n=== Calibration Result ===")
+        print("Accel Bias :", self.imu.abias)
+        print("Gyro Bias  :", self.imu.gbias)
+
+        self.save_calibration()
+        print("캘리브레이션 저장 완료")
+
     def ensure_calibration(self):
+        if self.force_calibration:
+            print("강제 캘리브레이션 옵션이 활성화되었습니다.")
+            self.run_calibration()
+            return
+
         data = self.load_calibration()
         if data is None:
             print("IMU_Cali.json 파일이 없거나 JSON 포맷이 올바르지 않습니다.")
-            print("IMU를 움직이지 말고 평평한 곳에 놓으세요.")
-            input("Enter를 누르면 캘리브레이션을 시작합니다...")
-
-            self.imu.calibrateMPU6500()
-
-            print("\n=== Calibration Result ===")
-            print("Accel Bias :", self.imu.abias)
-            print("Gyro Bias  :", self.imu.gbias)
-
-            self.save_calibration()
-            print("캘리브레이션 저장 완료")
+            self.run_calibration()
         else:
             self.imu.abias = data["accel_bias"]
             self.imu.gbias = data["gyro_bias"]
@@ -103,7 +118,15 @@ class IMU9250App:
 
 
 def main():
-    app = IMU9250App()
+    parser = argparse.ArgumentParser(description="MPU9250 calibration and monitor")
+    parser.add_argument(
+        "--calibration",
+        action="store_true",
+        help="캘리브레이션 수행",
+    )
+    args = parser.parse_args()
+
+    app = IMU9250App(force_calibration=args.calibration)
     app.run()
 
 

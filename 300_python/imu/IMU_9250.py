@@ -166,11 +166,18 @@ class IMU9250App:
                 accel_c = [accel_raw[i] - self.accel_bias[i] for i in range(3)]
                 gyro_c = [gyro_raw[i] - self.gyro_bias[i] for i in range(3)]
 
-                target_z = self.accel_target_g[2] if self.accel_target_g[2] != 0.0 else -1.0
-                roll_deg = math.degrees(math.atan2(accel_c[1], accel_c[2] * target_z))
-                pitch_deg = math.degrees(
-                    math.atan2(-accel_c[0], (accel_c[1] ** 2 + accel_c[2] ** 2) ** 0.5)
+                target_error = math.sqrt(
+                    sum((accel_c[i] - self.accel_target_g[i]) ** 2 for i in range(3))
                 )
+                if target_error <= 0.15:
+                    roll_deg = 0.0
+                    pitch_deg = 0.0
+                else:
+                    target_z = self.accel_target_g[2] if self.accel_target_g[2] != 0.0 else -1.0
+                    roll_deg = math.degrees(math.atan2(accel_c[1], accel_c[2] * target_z))
+                    pitch_deg = math.degrees(
+                        math.atan2(-accel_c[0], (accel_c[1] ** 2 + accel_c[2] ** 2) ** 0.5)
+                    )
 
                 print(
                     f"Acce-C[g] X:{accel_c[0]:7.3f} Y:{accel_c[1]:7.3f} Z:{accel_c[2]:7.3f} | "

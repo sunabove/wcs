@@ -38,11 +38,6 @@ class IMU9250App:
             mode=AK8963_MODE_C100HZ,
         )
         
-        who = self.imu.readMaster(WHO_AM_I, 1)[0]
-        print(hex(who))
-        
-        input( "Enter를 누르면 IMU 센서를 초기화합니다...")
-
         self.imu.configure()
 
     def is_valid_bias(self, values):

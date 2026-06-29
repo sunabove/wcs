@@ -8,7 +8,7 @@ from mpu9250_jmdev.mpu_9250 import MPU9250
 from mpu9250_jmdev.registers import WHO_AM_I
 from mpu9250_jmdev.registers import AK8963_CNTL1 
 
-class IMU9250App:
+class IMU_9250:
     def __init__(
         self,
         calibration_file="IMU_Cali.json",
@@ -198,7 +198,7 @@ def main():
     )
     args = parser.parse_args()
 
-    app = IMU9250App(force_calibration=args.calibration)
+    app = IMU_9250(force_calibration=args.calibration)
     app.run()
 
 

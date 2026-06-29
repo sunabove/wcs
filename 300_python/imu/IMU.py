@@ -280,8 +280,11 @@ class IMU_MPU9050:
     def run(self):
         self.initialize_sensor()
         print("Reading data... Press Ctrl+C to stop.\n")
+        print( self.line )
         time.sleep(1)
         self.calibrate()
+        
+        input("Press Enter to continue to monitoring the calibrated data...")
 
         while True:
             try:

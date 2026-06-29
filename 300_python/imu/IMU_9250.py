@@ -166,7 +166,8 @@ class IMU9250App:
                 accel_c = [accel_raw[i] - self.accel_bias[i] for i in range(3)]
                 gyro_c = [gyro_raw[i] - self.gyro_bias[i] for i in range(3)]
 
-                roll_deg = math.degrees(math.atan2(accel_c[1], accel_c[2]))
+                target_z = self.accel_target_g[2] if self.accel_target_g[2] != 0.0 else -1.0
+                roll_deg = math.degrees(math.atan2(accel_c[1], accel_c[2] * target_z))
                 pitch_deg = math.degrees(
                     math.atan2(-accel_c[0], (accel_c[1] ** 2 + accel_c[2] ** 2) ** 0.5)
                 )

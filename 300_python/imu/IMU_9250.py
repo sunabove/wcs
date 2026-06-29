@@ -38,7 +38,7 @@ class IMU9250App:
         
         self.imu.writeAK(AK8963_CNTL1, 0x00)
         
-        self.imu.configure()
+        #self.imu.configure()
 
     def is_valid_bias(self, values):
         if not isinstance(values, list) or len(values) != 3:

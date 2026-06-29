@@ -199,13 +199,13 @@ class IMU_MPU9250:
                     )
                     print(
                         f"[{plane_name} {elapsed:5.2f}s] {('Gyro-R'):<{self.label_width}} : "
-                        f"X: {gyro_s[0]:6.2f} deg/s | Y: {gyro_s[1]:6.2f} deg/s | Z: {gyro_s[2]:6.2f} deg/s | "
-                        f"Mag-R: {gyro_r_mag_now:6.2f} deg/s"
+                        f"X: {gyro_s[0]:6.2f} d/s | Y: {gyro_s[1]:6.2f} d/s | Z: {gyro_s[2]:6.2f} d/s | "
+                        f"Mag-R: {gyro_r_mag_now:6.2f} d/s"
                     )
                     print(
                         f"[{plane_name} {elapsed:5.2f}s] {('Gyro-C'):<{self.label_width}} : "
-                        f"X: {gyro_c_axis_now[0]:6.2f} deg/s | Y: {gyro_c_axis_now[1]:6.2f} deg/s | "
-                        f"Z: {gyro_c_axis_now[2]:6.2f} deg/s | Mag-C: {gyro_c_mag_now:6.2f} deg/s"
+                        f"X: {gyro_c_axis_now[0]:6.2f} d/s | Y: {gyro_c_axis_now[1]:6.2f} d/s | "
+                        f"Z: {gyro_c_axis_now[2]:6.2f} d/s | Mag-C: {gyro_c_mag_now:6.2f} d/s"
                     )
                     last_progress_print = elapsed
 
@@ -234,8 +234,8 @@ class IMU_MPU9250:
             f"Y={accel_mean[1]:.3f} g, Z={accel_mean[2]:.3f} g"
         )
         print(
-            f"[{plane_name}] mean gyro : X={gyro_mean[0]:.3f} deg/s, "
-            f"Y={gyro_mean[1]:.3f} deg/s, Z={gyro_mean[2]:.3f} deg/s"
+            f"[{plane_name}] mean gyro : X={gyro_mean[0]:.3f} d/s, "
+            f"Y={gyro_mean[1]:.3f} d/s, Z={gyro_mean[2]:.3f} d/s"
         )
         return accel_mean, gyro_mean
 
@@ -380,8 +380,8 @@ class IMU_MPU9250:
             f"Y={self.accel_baseline[1]:.3f} g, Z={self.accel_baseline[2]:.3f} g"
         )
         print(
-            f"Gyro baseline vector : X={self.gyro_baseline[0]:.3f} deg/s, "
-            f"Y={self.gyro_baseline[1]:.3f} deg/s, Z={self.gyro_baseline[2]:.3f} deg/s"
+            f"Gyro baseline vector : X={self.gyro_baseline[0]:.3f} d/s, "
+            f"Y={self.gyro_baseline[1]:.3f} d/s, Z={self.gyro_baseline[2]:.3f} d/s"
         )
         print(
             f"Accel ref 1g vector  : X={self.accel_ref_1g[0]:.3f}, "
@@ -444,13 +444,13 @@ class IMU_MPU9250:
         )
         print(
             f"[{self.count:4d}] {('Gyro-R'):<{self.label_width}} : "
-            f"X: {gyro[0]:6.2f} deg/s | Y: {gyro[1]:6.2f} deg/s | Z: {gyro[2]:6.2f} deg/s | "
-            f"Mag-R: {reading['gyro_mag']:6.2f} deg/s"
+            f"X: {gyro[0]:6.2f} d/s | Y: {gyro[1]:6.2f} d/s | Z: {gyro[2]:6.2f} d/s | "
+            f"Mag-R: {reading['gyro_mag']:6.2f} d/s"
         )
         print(
             f"[{self.count:4d}] {('Gyro-C'):<{self.label_width}} : "
-            f"X: {reading['gyro_c_axis'][0]:6.2f} deg/s | Y: {reading['gyro_c_axis'][1]:6.2f} deg/s | "
-            f"Z: {reading['gyro_c_axis'][2]:6.2f} deg/s | Mag-C: {reading['gyro_c_mag']:6.2f} deg/s"
+            f"X: {reading['gyro_c_axis'][0]:6.2f} d/s | Y: {reading['gyro_c_axis'][1]:6.2f} d/s | "
+            f"Z: {reading['gyro_c_axis'][2]:6.2f} d/s | Mag-C: {reading['gyro_c_mag']:6.2f} d/s"
         )
         print(self.line)
 

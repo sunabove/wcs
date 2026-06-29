@@ -20,7 +20,7 @@ class RoadDetector:
     _class_color_map_path = Path(__file__).resolve().parent / "colormap_road.txt"
     _class_color_map = None
     
-    road_type_model_name = "ai/road/model/02_yolo11m-cobot-road-type-sg-260625.pt"
+    road_type_model_name = "ai/road/model/02_yolo11m-cobot-road-type-sg-260626.pt"
     #road_type_model_name = "ai/road/model/03_yolo11m-road-type-sg.pt"
     
     _model_paths = {

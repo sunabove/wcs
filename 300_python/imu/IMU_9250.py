@@ -23,7 +23,7 @@ class IMU9250App:
         self.calibration_delay_sec = float(calibration_delay_sec)
         self.force_calibration = bool(force_calibration)
         self.imu = None
-        self.accel_ref_1g = [0.0, 0.0, 1.0]
+        self.accel_target_g = [0.0, 0.0, -1.0]
         self.accel_bias = [0.0, 0.0, 0.0]
         self.gyro_bias = [0.0, 0.0, 0.0]
 
@@ -61,17 +61,13 @@ class IMU9250App:
         gyro_bias = data.get("gyro_bias")
         if not self.is_valid_bias(accel_bias) or not self.is_valid_bias(gyro_bias):
             return None
-
-        accel_ref_1g = data.get("accel_ref_1g")
-        if accel_ref_1g is not None and not self.is_valid_bias(accel_ref_1g):
-            return None
         return data
 
     def save_calibration(self):
         data = {
             "accel_bias": list(self.accel_bias),
             "gyro_bias": list(self.gyro_bias),
-            "accel_ref_1g": list(self.accel_ref_1g),
+            "accel_target_g": list(self.accel_target_g),
         }
         with open(self.calibration_file, "w", encoding="utf-8") as f:
             json.dump(data, f, indent=4)
@@ -103,13 +99,7 @@ class IMU9250App:
 
             current_accel_avg = [value / sample_count for value in accel_sum]
             current_gyro_avg = [value / sample_count for value in gyro_sum]
-            current_accel_avg_mag = math.sqrt(sum(value * value for value in current_accel_avg))
-            if current_accel_avg_mag >= 1e-9:
-                current_accel_ref_1g = [value / current_accel_avg_mag for value in current_accel_avg]
-            else:
-                current_accel_ref_1g = [0.0, 0.0, 1.0]
-
-            current_accel_bias = [current_accel_avg[i] - current_accel_ref_1g[i] for i in range(3)]
+            current_accel_bias = [current_accel_avg[i] - self.accel_target_g[i] for i in range(3)]
             current_gyro_bias = list(current_gyro_avg)
             accel_c_now = [accel_raw[i] - current_accel_bias[i] for i in range(3)]
             gyro_c_now = [gyro_raw[i] - current_gyro_bias[i] for i in range(3)]
@@ -138,12 +128,7 @@ class IMU9250App:
     def run_calibration(self):
         accel_avg, gyro_avg = self.collect_stationary_average()
 
-        accel_avg_mag = math.sqrt(sum(value * value for value in accel_avg))
-        if accel_avg_mag < 1e-9:
-            raise RuntimeError("캘리브레이션 평균 가속도 벡터의 크기가 너무 작습니다.")
-
-        self.accel_ref_1g = [value / accel_avg_mag for value in accel_avg]
-        self.accel_bias = [accel_avg[i] - self.accel_ref_1g[i] for i in range(3)]
+        self.accel_bias = [accel_avg[i] - self.accel_target_g[i] for i in range(3)]
         self.gyro_bias = list(gyro_avg)
 
         print("\n=== Calibration Result ===")
@@ -166,7 +151,7 @@ class IMU9250App:
         else:
             self.accel_bias = data["accel_bias"]
             self.gyro_bias = data["gyro_bias"]
-            self.accel_ref_1g = data.get("accel_ref_1g", self.accel_ref_1g)
+            self.accel_target_g = data.get("accel_target_g", self.accel_target_g)
             print("기존 캘리브레이션 로드 완료")
 
     def run(self):

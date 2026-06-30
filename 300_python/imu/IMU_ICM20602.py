@@ -2,7 +2,7 @@ from icm20602 import ICM20602
 from time import sleep
 import sys
 
-IMU_DURATION = 0.01
+IMU_DURATION = 0.25
 ACC_UNIT = "g"
 GYRO_UNIT = "°/s"
 ANGLE_UNIT = "°"

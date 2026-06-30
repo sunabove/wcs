@@ -1,9 +1,22 @@
 from icm20602 import ICM20602
 from time import sleep
 import sys
+from smbus2 import SMBus
 
-IMU_DURATION = 0.10
+def makeICM20602_WakeUp():
+    bus = SMBus(1)
+    
+    # Wake up
+    print("Waking up the ICM20602...")
+    bus.write_byte_data(0x69, 0x6B, 0x00)
+    sleep(0.1)
 
+    # Clock source = PLL
+    bus.write_byte_data(0x69, 0x6B, 0x01)
+    sleep(0.1)
+    
+    bus.close()
+pass # makeICM20602_WakeUp
 
 def is_sensor_available(status):
     if isinstance(status, bool):
@@ -12,6 +25,8 @@ def is_sensor_available(status):
     status_text = str(status).lower()
     return "no sensor" not in status_text
 pass
+
+makeICM20602_WakeUp()
 
 mpu = ICM20602()
 availability = mpu.check_availability(verbose=True)
@@ -63,7 +78,7 @@ try:
         )
         prev_accel_g = accel_g
         prev_gyro_g = gyro_g
-        sleep(IMU_DURATION)
+        sleep( 0.10 )
         cnt += 1
 except KeyboardInterrupt:
     print("Stopped by user")

@@ -15,9 +15,14 @@ class LEDService:
     BLINK_ON_SEC = 0.2
     BLINK_OFF_SEC = 0.2
     IP_PUBLISH_DELAY_SEC = 5
+    FRAME_INTERVAL_SEC = 0.05
 
     def __init__(self, display: LED=None):
         self.display = display if display is not None else LED()
+        self.current_lines = [""]
+        self.lines_lock = threading.Lock()
+        self.blinking = False
+        self.render_thread = None
 
         # paho-mqtt version compatibility
         try:
@@ -32,18 +37,42 @@ class LEDService:
         self.client.on_message = self._on_message
     pass  # __init__
 
+    def _set_lines(self, lines):
+        with self.lines_lock:
+            self.current_lines = list(lines)
+    pass  # _set_lines
+
+    def _get_lines(self):
+        with self.lines_lock:
+            return list(self.current_lines)
+    pass  # _get_lines
+
+    def _render_loop(self):
+        while True:
+            if self.blinking:
+                time.sleep(self.FRAME_INTERVAL_SEC)
+                continue
+
+            self._render(self._get_lines())
+            time.sleep(self.FRAME_INTERVAL_SEC)
+    pass  # _render_loop
+
     def _render(self, lines):
         self.display.render_lines(lines)
     pass  # _render
 
     def _blink_and_render(self, lines):
         # Briefly blink when a topic message is received.
-        for _ in range(self.BLINK_COUNT):
+        self.blinking = True
+        try:
+            for _ in range(self.BLINK_COUNT):
+                self._render(lines)
+                time.sleep(self.BLINK_ON_SEC)
+                self.display.clear()
+                time.sleep(self.BLINK_OFF_SEC)
             self._render(lines)
-            time.sleep(self.BLINK_ON_SEC)
-            self.display.clear()
-            time.sleep(self.BLINK_OFF_SEC)
-        self._render(lines)
+        finally:
+            self.blinking = False
     pass  # _blink_and_render
 
     def _normalize_newlines(self, text):
@@ -59,6 +88,7 @@ class LEDService:
     def _on_connect(self, client, userdata, flags, reason_code, properties=None):
         print("MQTT connected:", reason_code)
         client.subscribe(self.TOPIC)
+        self._set_lines(["Waiting MQTT"])
         self._render(["Waiting MQTT"])
         self._publish_boot_time()
         timer = threading.Timer(self.IP_PUBLISH_DELAY_SEC, self._publish_ip_if_ready)
@@ -142,6 +172,7 @@ class LEDService:
                 payload = self._normalize_newlines(payload)
                 split_lines = payload.splitlines()
                 lines = split_lines if split_lines else [""]
+                self._set_lines(lines)
                 self._blink_and_render(lines)
 
         except Exception as exc:
@@ -150,6 +181,9 @@ class LEDService:
 
     def run(self):
         self.display.clear()
+        if self.render_thread is None:
+            self.render_thread = threading.Thread(target=self._render_loop, daemon=True)
+            self.render_thread.start()
         #self.display.render_lines(["Connecting..."])
         self.client.connect(self.BROKER, self.PORT, 60)
         self.client.loop_forever()

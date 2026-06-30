@@ -18,7 +18,6 @@ def is_sensor_available(status):
     return "no sensor" not in status_text
 pass
 
-# smoothing + low pass filter
 mpu = ICM20602()
 availability = mpu.check_availability(verbose=True)
 print("Availability:", availability)

@@ -45,15 +45,13 @@ mpu.enable_smoothing(smoothing_window=7)
 mpu.enable_dlpf(bandwidth=mpu.DLPFBandwidth.BW_20HZ)
 
 print("Continous reading, break to stop")
-cnt = 1
-prev_accel_g = None
-prev_gyro_g = None
-stale_count = 0
 try:
+    cnt = 1
     while True:
         accel_g = mpu.read_accel_data()
         gyro_g = mpu.read_gyro_data()
         roll, pitch = mpu.calculate_inclination(accel_g)
+        
         acc_x = accel_g.get("x", 0.0)
         acc_y = accel_g.get("y", 0.0)
         acc_z = accel_g.get("z", 0.0)
@@ -61,14 +59,6 @@ try:
         gyro_y = gyro_g.get("y", 0.0)
         gyro_z = gyro_g.get("z", 0.0)
         
-        if prev_accel_g == accel_g and prev_gyro_g == gyro_g:
-            stale_count += 1
-        else:
-            stale_count = 0
-
-        if stale_count == 20:
-            print("Warning: accel/gyro unchanged for 20 samples (possible stale I2C/sample stream)")
-
         print(
             f"[{cnt:5d}] Accel: "
             f"({acc_x:5.2f}, {acc_y:5.2f}, {acc_z:5.2f}) g, "
@@ -76,10 +66,9 @@ try:
             f"({gyro_x:6.2f}, {gyro_y:6.2f}, {gyro_z:6.2f}) °/s, "
             f"roll: {roll:6.2f} °, pitch: {pitch:6.2f} °"
         )
-        prev_accel_g = accel_g
-        prev_gyro_g = gyro_g
         sleep( 0.10 )
         cnt += 1
+    pass
 except KeyboardInterrupt:
     print("Stopped by user")
 finally:

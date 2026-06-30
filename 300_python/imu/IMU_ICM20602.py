@@ -87,10 +87,12 @@ mpu = None
 # continious reading
 mpu = ICM20602()
 print("Continous reading, break to stop")
+cnt = 1
 while True:
     accel_g = mpu.read_accel_data()
     roll, pitch = mpu.calculate_inclination(accel_g)
-    print(f"roll: {roll:.2f}, pitch: {pitch:.2f}")
+    print(f"[{cnt:5d}] roll: {roll:.2f}, pitch: {pitch:.2f}")
     sleep(0.25)
+    cnt += 1
 mpu.close()
 mpu = None

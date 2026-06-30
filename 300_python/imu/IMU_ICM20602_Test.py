@@ -9,8 +9,6 @@ print(mpu.check_availability(verbose=True))
 mpu.close()
 mpu=None
 
-input("Press Enter to continue...")
-
 print("---")
 
 print("Raw example")
@@ -74,6 +72,17 @@ mpu.close()
 mpu = None
 
 print("---")
+
+# un-threaded, inclination example
+mpu = ICM20602()
+print("UnThreaded example")
+for _ in range(5):
+    accel_g = mpu.read_accel_data()
+    roll, pitch = mpu.calculate_inclination(accel_g)
+    print(f"roll: {roll:.2f}, pitch: {pitch:.2f}")
+    sleep(0.1)
+mpu.close()
+mpu = None
 
 # continious reading
 mpu = ICM20602()

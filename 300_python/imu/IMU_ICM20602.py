@@ -3,9 +3,6 @@ from time import sleep
 import sys
 
 IMU_DURATION = 0.10
-ACC_UNIT = "g"
-GYRO_UNIT = "°/s"
-ANGLE_UNIT = "°"
 
 
 def is_sensor_available(status):
@@ -59,10 +56,10 @@ try:
 
         print(
             f"[{cnt:5d}] Accel: "
-            f"({acc_x:5.2f}, {acc_y:5.2f}, {acc_z:5.2f}){ACC_UNIT}, "
+            f"({acc_x:5.2f}, {acc_y:5.2f}, {acc_z:5.2f}) g, "
             f"Gyro: "
-            f"({gyro_x:6.2f}, {gyro_y:6.2f}, {gyro_z:6.2f}){GYRO_UNIT}, "
-            f"roll: {roll:6.2f} {ANGLE_UNIT}, pitch: {pitch:6.2f} {ANGLE_UNIT}"
+            f"({gyro_x:6.2f}, {gyro_y:6.2f}, {gyro_z:6.2f}) °/s, "
+            f"roll: {roll:6.2f} °, pitch: {pitch:6.2f} °"
         )
         prev_accel_g = accel_g
         prev_gyro_g = gyro_g

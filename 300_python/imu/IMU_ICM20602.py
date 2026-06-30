@@ -44,15 +44,13 @@ if not is_sensor_available(availability):
 
 input("Press Enter to continue...")
 
-# continious reading
-mpu = ICM20602()
-# If calibration is done while moving, offsets can become invalid.
-# Run calibration only when the device is fully still.
-availability = mpu.check_availability(verbose=True)
-print("Availability:", availability)
+print("calibrating sensor...")
 mpu.calibrate_sensor()
+print("Calibration done. Now reading data...")
+
 mpu.enable_smoothing(smoothing_window=7)
 mpu.enable_dlpf(bandwidth=mpu.DLPFBandwidth.BW_20HZ)
+
 print("Continous reading, break to stop")
 cnt = 1
 prev_accel_g = None
@@ -63,6 +61,7 @@ try:
         accel_g = mpu.read_accel_data()
         gyro_g = mpu.read_gyro_data()
         roll, pitch = mpu.calculate_inclination(accel_g)
+        
         if prev_accel_g == accel_g and prev_gyro_g == gyro_g:
             stale_count += 1
         else:
@@ -71,9 +70,7 @@ try:
         if stale_count == 20:
             print("Warning: accel/gyro unchanged for 20 samples (possible stale I2C/sample stream)")
 
-        print( f"[{cnt:5d}] Accel: {fmt_vec3(accel_g)}, Gyro: {fmt_vec3(gyro_g)}" 
-               f", roll: {roll:.2f}, pitch: {pitch:.2f}"
-              )
+        print(f"[{cnt:5d}] Accel: {fmt_vec3(accel_g)}, Gyro: {fmt_vec3(gyro_g)}, roll: {roll:.2f} °, pitch: {pitch:.2f} °")
         prev_accel_g = accel_g
         prev_gyro_g = gyro_g
         sleep(0.25)

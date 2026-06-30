@@ -52,12 +52,12 @@ try:
         gyro_g = mpu.read_gyro_data()
         roll, pitch = mpu.calculate_inclination(accel_g)
         
-        acc_x = accel_g.get("x", 0.0)
-        acc_y = accel_g.get("y", 0.0)
-        acc_z = accel_g.get("z", 0.0)
-        gyro_x = gyro_g.get("x", 0.0)
-        gyro_y = gyro_g.get("y", 0.0)
-        gyro_z = gyro_g.get("z", 0.0)
+        acc_x = accel_g.accel_x
+        acc_y = accel_g.accel_y
+        acc_z = accel_g.accel_z
+        gyro_x = gyro_g.gyro_x
+        gyro_y = gyro_g.gyro_y
+        gyro_z = gyro_g.gyro_z
         
         print(
             f"[{cnt:5d}] Accel: "
@@ -66,6 +66,7 @@ try:
             f"({gyro_x:6.2f}, {gyro_y:6.2f}, {gyro_z:6.2f}) °/s, "
             f"Roll: {roll:6.2f} °, Pitch: {pitch:6.2f} °"
         )
+        
         sleep( 0.10 )
         cnt += 1
     pass

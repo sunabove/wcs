@@ -1,1 +1,1 @@
-from .icm20602 import ICM20602
+from .icm20602 import ICM20602, AccelData, GyroData

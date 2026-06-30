@@ -5,9 +5,45 @@ from enum import Enum
 import math
 from collections import deque
 import threading
+from dataclasses import dataclass
+
+
+@dataclass
+class AccelData:
+    accel_x: float
+    accel_y: float
+    accel_z: float
+    raw_accel_x: int
+    raw_accel_y: int
+    raw_accel_z: int
+    measured_time: float
+
+    def __getitem__(self, key):
+        return getattr(self, key)
+
+    def get(self, key, default=None):
+        return getattr(self, key, default)
+
+
+@dataclass
+class GyroData:
+    gyro_x: float
+    gyro_y: float
+    gyro_z: float
+    raw_gyro_x: int
+    raw_gyro_y: int
+    raw_gyro_z: int
+    measured_time: float
+
+    def __getitem__(self, key):
+        return getattr(self, key)
+
+    def get(self, key, default=None):
+        return getattr(self, key, default)
 
 
 class ICM20602:
+    
     class AccelSensitivity(Enum):
         SENS_2G = (0x00, 16384.0)  # 16384 LSB/g
         SENS_4G = (0x08, 8192.0)  # 8192 LSB/g
@@ -36,7 +72,7 @@ class ICM20602:
         self.device = device
         self.max_speed_hz = max_speed_hz
         self.smoothing = False
-        self.accel_data_buffer = {'x': deque(), 'y': deque(), 'z': deque()}
+        self.accel_data_buffer = {'accel_x': deque(), 'accel_y': deque(), 'accel_z': deque()}
         self.dlpf_bandwidth = dlpf_bandwidth
         self.smoothing_window = 0
         self.i2c = None
@@ -47,8 +83,8 @@ class ICM20602:
         self.latest_data = {'accel': None, 'gyro': None, 'inclination': None}
 
         # Calibration offsets
-        self.accel_offsets = {'x': 0.0, 'y': 0.0, 'z': 0.0}
-        self.gyro_offsets = {'x': 0.0, 'y': 0.0, 'z': 0.0}
+        self.accel_offsets = {'accel_x': 0.0, 'accel_y': 0.0, 'accel_z': 0.0}
+        self.gyro_offsets = {'gyro_x': 0.0, 'gyro_y': 0.0, 'gyro_z': 0.0}
 
         # ICM-20602 registers
         self.PWR_MGMT_1 = 0x6B
@@ -219,45 +255,70 @@ class ICM20602:
 
 
     def read_accel_data(self):
+        measured_time = time.time()
         accel_data = self.read_register(self.ACCEL_XOUT_H, 6)
-        accel_x = (self.convert_to_signed(accel_data[0] << 8 | accel_data[1])) / self.accel_sensitivity.value[1]
-        accel_y = (self.convert_to_signed(accel_data[2] << 8 | accel_data[3])) / self.accel_sensitivity.value[1]
-        accel_z = (self.convert_to_signed(accel_data[4] << 8 | accel_data[5])) / self.accel_sensitivity.value[1]
+        raw_accel_x = self.convert_to_signed(accel_data[0] << 8 | accel_data[1])
+        raw_accel_y = self.convert_to_signed(accel_data[2] << 8 | accel_data[3])
+        raw_accel_z = self.convert_to_signed(accel_data[4] << 8 | accel_data[5])
+        
+        accel_x = raw_accel_x / self.accel_sensitivity.value[1]
+        accel_y = raw_accel_y / self.accel_sensitivity.value[1]
+        accel_z = raw_accel_z / self.accel_sensitivity.value[1]
 
         # Apply calibration offsets
-        accel_x -= self.accel_offsets['x']
-        accel_y -= self.accel_offsets['y']
-        accel_z -= self.accel_offsets['z']
+        accel_x -= self.accel_offsets['accel_x']
+        accel_y -= self.accel_offsets['accel_y']
+        accel_z -= self.accel_offsets['accel_z']
 
         if self.smoothing:
             accel_x, accel_y, accel_z = self.smooth_accel_data(accel_x, accel_y, accel_z)
 
-        return {'x': accel_x, 'y': accel_y, 'z': accel_z}
+        return AccelData(
+            accel_x=accel_x,
+            accel_y=accel_y,
+            accel_z=accel_z,
+            raw_accel_x=raw_accel_x,
+            raw_accel_y=raw_accel_y,
+            raw_accel_z=raw_accel_z,
+            measured_time=measured_time,
+        )
 
     def read_gyro_data(self):
+        measured_time = time.time()
         gyro_data = self.read_register(self.GYRO_XOUT_H, 6)
-        gyro_x = (self.convert_to_signed(gyro_data[0] << 8 | gyro_data[1])) / self.gyro_sensitivity.value[1]
-        gyro_y = (self.convert_to_signed(gyro_data[2] << 8 | gyro_data[3])) / self.gyro_sensitivity.value[1]
-        gyro_z = (self.convert_to_signed(gyro_data[4] << 8 | gyro_data[5])) / self.gyro_sensitivity.value[1]
+        raw_gyro_x = self.convert_to_signed(gyro_data[0] << 8 | gyro_data[1])
+        raw_gyro_y = self.convert_to_signed(gyro_data[2] << 8 | gyro_data[3])
+        raw_gyro_z = self.convert_to_signed(gyro_data[4] << 8 | gyro_data[5])
+        gyro_x = raw_gyro_x / self.gyro_sensitivity.value[1]
+        gyro_y = raw_gyro_y / self.gyro_sensitivity.value[1]
+        gyro_z = raw_gyro_z / self.gyro_sensitivity.value[1]
 
         # Apply calibration offsets
-        gyro_x -= self.gyro_offsets['x']
-        gyro_y -= self.gyro_offsets['y']
-        gyro_z -= self.gyro_offsets['z']
+        gyro_x -= self.gyro_offsets['gyro_x']
+        gyro_y -= self.gyro_offsets['gyro_y']
+        gyro_z -= self.gyro_offsets['gyro_z']
 
-        return {'x': gyro_x, 'y': gyro_y, 'z': gyro_z}
+        return GyroData(
+            gyro_x=gyro_x,
+            gyro_y=gyro_y,
+            gyro_z=gyro_z,
+            raw_gyro_x=raw_gyro_x,
+            raw_gyro_y=raw_gyro_y,
+            raw_gyro_z=raw_gyro_z,
+            measured_time=measured_time,
+        )
 
     def smooth_accel_data(self, accel_x, accel_y, accel_z):
         """
         Apply moving average smoothing to accelerometer data.
         """
-        self.accel_data_buffer['x'].append(accel_x)
-        self.accel_data_buffer['y'].append(accel_y)
-        self.accel_data_buffer['z'].append(accel_z)
+        self.accel_data_buffer['accel_x'].append(accel_x)
+        self.accel_data_buffer['accel_y'].append(accel_y)
+        self.accel_data_buffer['accel_z'].append(accel_z)
 
-        smoothed_x = sum(self.accel_data_buffer['x']) / len(self.accel_data_buffer['x'])
-        smoothed_y = sum(self.accel_data_buffer['y']) / len(self.accel_data_buffer['y'])
-        smoothed_z = sum(self.accel_data_buffer['z']) / len(self.accel_data_buffer['z'])
+        smoothed_x = sum(self.accel_data_buffer['accel_x']) / len(self.accel_data_buffer['accel_x'])
+        smoothed_y = sum(self.accel_data_buffer['accel_y']) / len(self.accel_data_buffer['accel_y'])
+        smoothed_z = sum(self.accel_data_buffer['accel_z']) / len(self.accel_data_buffer['accel_z'])
 
         return smoothed_x, smoothed_y, smoothed_z
 
@@ -267,15 +328,18 @@ class ICM20602:
         """
         self.smoothing = True
         self.smoothing_window = smoothing_window
-        self.accel_data_buffer = {'x': deque(maxlen=smoothing_window), 'y': deque(maxlen=smoothing_window),
-                                  'z': deque(maxlen=smoothing_window)}
+        self.accel_data_buffer = {
+            'accel_x': deque(maxlen=smoothing_window),
+            'accel_y': deque(maxlen=smoothing_window),
+            'accel_z': deque(maxlen=smoothing_window)
+        }
 
     def disable_smoothing(self):
         """
         Disable moving average smoothing for accelerometer data.
         """
         self.smoothing = False
-        self.accel_data_buffer = {'x': deque(), 'y': deque(), 'z': deque()}
+        self.accel_data_buffer = {'accel_x': deque(), 'accel_y': deque(), 'accel_z': deque()}
 
     def _calibrate_accelerometer(self, samples=100):
         """
@@ -288,14 +352,14 @@ class ICM20602:
 
         for _ in range(samples):
             accel_data = self.read_accel_data()
-            x_sum += accel_data['x']
-            y_sum += accel_data['y']
-            z_sum += accel_data['z']
+            x_sum += accel_data['accel_x']
+            y_sum += accel_data['accel_y']
+            z_sum += accel_data['accel_z']
             time.sleep(0.01)  # 10ms delay between samples
 
-        self.accel_offsets['x'] = x_sum / samples
-        self.accel_offsets['y'] = y_sum / samples
-        self.accel_offsets['z'] = (z_sum / samples) - 1.0  # Subtract 1g for Z axis
+        self.accel_offsets['accel_x'] = x_sum / samples
+        self.accel_offsets['accel_y'] = y_sum / samples
+        self.accel_offsets['accel_z'] = (z_sum / samples) - 1.0  # Subtract 1g for Z axis
 
         #print(f"Accelerometer calibration complete. Offsets: {self.accel_offsets}")
 
@@ -310,14 +374,14 @@ class ICM20602:
 
         for _ in range(samples):
             gyro_data = self.read_gyro_data()
-            x_sum += gyro_data['x']
-            y_sum += gyro_data['y']
-            z_sum += gyro_data['z']
+            x_sum += gyro_data['gyro_x']
+            y_sum += gyro_data['gyro_y']
+            z_sum += gyro_data['gyro_z']
             time.sleep(0.01)  # 10ms delay between samples
 
-        self.gyro_offsets['x'] = x_sum / samples
-        self.gyro_offsets['y'] = y_sum / samples
-        self.gyro_offsets['z'] = z_sum / samples
+        self.gyro_offsets['gyro_x'] = x_sum / samples
+        self.gyro_offsets['gyro_y'] = y_sum / samples
+        self.gyro_offsets['gyro_z'] = z_sum / samples
 
         # print(f"Gyroscope calibration complete. Offsets: {self.gyro_offsets}")
 
@@ -326,8 +390,8 @@ class ICM20602:
         self._calibrate_accelerometer(samples)
 
     def uncalibrate_sensors(self):
-        self.accel_offsets = {'x': 0.0, 'y': 0.0, 'z': 0.0}
-        self.gyro_offsets = {'x': 0.0, 'y': 0.0, 'z': 0.0}
+        self.accel_offsets = {'accel_x': 0.0, 'accel_y': 0.0, 'accel_z': 0.0}
+        self.gyro_offsets = {'gyro_x': 0.0, 'gyro_y': 0.0, 'gyro_z': 0.0}
 
 
     @staticmethod
@@ -342,9 +406,9 @@ class ICM20602:
         """
         if accel_data is None:
             accel_data = self.read_accel_data()
-        accel_x = accel_data['x']
-        accel_y = accel_data['y']
-        accel_z = accel_data['z']
+        accel_x = accel_data['accel_x']
+        accel_y = accel_data['accel_y']
+        accel_z = accel_data['accel_z']
 
         # Calculate pitch and roll
         pitch = math.atan2(accel_y, math.sqrt(accel_x ** 2 + accel_z ** 2)) * 180 / math.pi

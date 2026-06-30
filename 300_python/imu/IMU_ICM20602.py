@@ -2,7 +2,7 @@ from icm20602 import ICM20602
 from time import sleep
 import sys
 
-VALUE_WIDTH = 8
+VALUE_WIDTH = 9
 VALUE_PRECISION = 4
 ACC_UNIT = "g"
 GYRO_UNIT = "°/s"
@@ -62,15 +62,15 @@ try:
             print("Warning: accel/gyro unchanged for 20 samples (possible stale I2C/sample stream)")
 
         print(
-            f"[{cnt:5d}] Accel[{ACC_UNIT}]: "
-            f"({acc_x:{VALUE_WIDTH}.{VALUE_PRECISION}f}, {acc_y:{VALUE_WIDTH}.{VALUE_PRECISION}f}, {acc_z:{VALUE_WIDTH}.{VALUE_PRECISION}f}), "
-            f"Gyro[{GYRO_UNIT}]: "
-            f"({gyro_x:{VALUE_WIDTH}.{VALUE_PRECISION}f}, {gyro_y:{VALUE_WIDTH}.{VALUE_PRECISION}f}, {gyro_z:{VALUE_WIDTH}.{VALUE_PRECISION}f}), "
+            f"[{cnt:5d}] Accel: "
+            f"({acc_x:{VALUE_WIDTH}.{VALUE_PRECISION}f}, {acc_y:{VALUE_WIDTH}.{VALUE_PRECISION}f}, {acc_z:{VALUE_WIDTH}.{VALUE_PRECISION}f}){ACC_UNIT}, "
+            f"Gyro: "
+            f"({gyro_x:{VALUE_WIDTH}.{VALUE_PRECISION}f}, {gyro_y:{VALUE_WIDTH}.{VALUE_PRECISION}f}, {gyro_z:{VALUE_WIDTH}.{VALUE_PRECISION}f}){GYRO_UNIT}, "
             f"roll: {roll:.2f} {ANGLE_UNIT}, pitch: {pitch:.2f} {ANGLE_UNIT}"
         )
         prev_accel_g = accel_g
         prev_gyro_g = gyro_g
-        sleep(0.25)
+        sleep(0.01)
         cnt += 1
 except KeyboardInterrupt:
     print("Stopped by user")

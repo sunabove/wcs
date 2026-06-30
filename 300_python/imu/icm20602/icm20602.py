@@ -50,14 +50,6 @@ class ICM20602:
         self.accel_offsets = {'x': 0.0, 'y': 0.0, 'z': 0.0}
         self.gyro_offsets = {'x': 0.0, 'y': 0.0, 'z': 0.0}
 
-        try:
-            self.i2c = SMBus(self.bus)
-            # I2C does not use SPI clock/mode settings. `device` is used as the I2C address.
-            self.i2c.read_byte_data(self.device, 0x69)
-        except IOError as e:
-            print(f"Error opening I2C bus/address: {e}")
-            raise
-
         # ICM-20602 registers
         self.PWR_MGMT_1 = 0x6B
         self.WHO_AM_I = 0x75
@@ -68,11 +60,40 @@ class ICM20602:
         self.ACCEL_CONFIG2 = 0x1D
         self.GYRO_CONFIG = 0x1B
 
+        try:
+            self.i2c = SMBus(self.bus)
+            self.device = self._probe_i2c_device(self.device)
+        except IOError as e:
+            print(f"Error opening I2C bus/address: {e}")
+            raise
+
         # Initialize ICM-20602
         self.accel_sensitivity = self.AccelSensitivity.SENS_2G
         self.gyro_sensitivity = self.GyroSensitivity.SENS_250DPS
         self.initialize()
         self.enable_dlpf(self.dlpf_bandwidth)
+
+    def _probe_i2c_device(self, preferred_addr):
+        """
+        Probe I2C addresses and return the first address that responds with a valid WHO_AM_I.
+        """
+        probe_candidates = [preferred_addr]
+        for candidate in (0x68, 0x69):
+            if candidate not in probe_candidates:
+                probe_candidates.append(candidate)
+
+        last_error = None
+        for addr in probe_candidates:
+            try:
+                who_am_i = self.i2c.read_byte_data(addr, self.WHO_AM_I)
+                if who_am_i in (0x12, 0xA9, 0x75, 0x70):
+                    return addr
+            except OSError as err:
+                last_error = err
+
+        if last_error is not None:
+            raise IOError(last_error)
+        raise IOError("No supported IMU found at I2C addresses 0x68 or 0x69")
 
     def initialize(self):
         """

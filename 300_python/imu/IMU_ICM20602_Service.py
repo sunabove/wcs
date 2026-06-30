@@ -4,6 +4,7 @@ import sys
 from smbus2 import SMBus
 
 class IMU_ICM20602_Service:
+    
     def __init__(self, bus_num=1, wakeup_addr=0x69):
         self.bus_num = bus_num
         self.wakeup_addr = wakeup_addr

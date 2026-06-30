@@ -1,7 +1,4 @@
-try:
-    from smbus2 import SMBus  # type: ignore[import-not-found]
-except ImportError:
-    from smbus import SMBus  # type: ignore[import-not-found]
+from smbus2 import SMBus  # type: ignore[import-not-found]
 import time
 import logging
 from enum import Enum

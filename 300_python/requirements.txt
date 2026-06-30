@@ -10,5 +10,4 @@ torchvision
 opencv-python
 scikit-image
 ultralytics
-tensorboard
-icm20602 # imu sensor
+tensorboard 

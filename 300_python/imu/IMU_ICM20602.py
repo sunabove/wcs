@@ -3,8 +3,6 @@ from time import sleep
 import sys
 
 IMU_DURATION = 0.01
-VALUE_WIDTH = 9
-VALUE_PRECISION = 4
 ACC_UNIT = "g"
 GYRO_UNIT = "°/s"
 ANGLE_UNIT = "°"
@@ -63,10 +61,10 @@ try:
 
         print(
             f"[{cnt:5d}] Accel: "
-            f"({acc_x:{VALUE_WIDTH}.{VALUE_PRECISION}f}, {acc_y:{VALUE_WIDTH}.{VALUE_PRECISION}f}, {acc_z:{VALUE_WIDTH}.{VALUE_PRECISION}f}){ACC_UNIT}, "
+            f"({acc_x:4.2f}, {acc_y:4.2f}, {acc_z:4.2f}){ACC_UNIT}, "
             f"Gyro: "
-            f"({gyro_x:{VALUE_WIDTH}.{VALUE_PRECISION}f}, {gyro_y:{VALUE_WIDTH}.{VALUE_PRECISION}f}, {gyro_z:{VALUE_WIDTH}.{VALUE_PRECISION}f}){GYRO_UNIT}, "
-            f"roll: {roll:.2f} {ANGLE_UNIT}, pitch: {pitch:.2f} {ANGLE_UNIT}"
+            f"({gyro_x:5.2f}, {gyro_y:5.2f}, {gyro_z:5.2f}){GYRO_UNIT}, "
+            f"roll: {roll:6.2f} {ANGLE_UNIT}, pitch: {pitch:6.2f} {ANGLE_UNIT}"
         )
         prev_accel_g = accel_g
         prev_gyro_g = gyro_g

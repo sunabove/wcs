@@ -3,7 +3,7 @@ fastapi
 uvicorn==0.30.6
 paho-mqtt
 PySide6
-pyqtgraph
+pyqtgraph # chart, graph
 python-multipart
 torch
 torchvision

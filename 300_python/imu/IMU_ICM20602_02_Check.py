@@ -4,14 +4,19 @@ import time
 bus = SMBus(1)
 addr = 0x69
 
-# Wake up
-print("Waking up the ICM20602...")
-bus.write_byte_data(addr, 0x6B, 0x00)
-time.sleep(0.1)
+wakeUp = False
+if wakeUp:
+    # Wake up
+    print("Waking up the ICM20602...")
+    bus.write_byte_data(addr, 0x6B, 0x00)
+    time.sleep(0.1)
 
-# Clock source = PLL
-bus.write_byte_data(addr, 0x6B, 0x01)
-time.sleep(0.1)
+    # Clock source = PLL
+    bus.write_byte_data(addr, 0x6B, 0x01)
+    time.sleep(0.1)
+else :
+    print("ICM20602 is in sleep mode. To wake up, set wakeUp=True.")
+pass
 
 print("WHO_AM_I =", hex(bus.read_byte_data(addr, 0x75)))
 print("PWR_MGMT_1 =", hex(bus.read_byte_data(addr, 0x6B)))

@@ -56,7 +56,7 @@ class ICM20602:
         try:
             self.i2c = SMBus(self.bus)
             # I2C does not use SPI clock/mode settings. `device` is used as the I2C address.
-            self.i2c.read_byte_data(self.device, 0x75)
+            self.i2c.read_byte_data(self.device, 0x69)
         except IOError as e:
             print(f"Error opening I2C bus/address: {e}")
             raise

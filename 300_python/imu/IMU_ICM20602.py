@@ -2,26 +2,11 @@ from icm20602 import ICM20602
 from time import sleep
 import sys
 
-
-def fmt_vec3(v):
-    if isinstance(v, dict):
-        for keys in (("x", "y", "z"), ("ax", "ay", "az"), ("gx", "gy", "gz")):
-            if all(k in v for k in keys):
-                x, y, z = v[keys[0]], v[keys[1]], v[keys[2]]
-                return f"({x: .4f}, {y: .4f}, {z: .4f})"
-
-        numeric_values = [value for value in v.values() if isinstance(value, (int, float))]
-        if len(numeric_values) >= 3:
-            x, y, z = numeric_values[:3]
-            return f"({x: .4f}, {y: .4f}, {z: .4f})"
-
-        return str(v)
-
-    if isinstance(v, (list, tuple)) and len(v) >= 3:
-        return f"({v[0]: .4f}, {v[1]: .4f}, {v[2]: .4f})"
-
-    return str(v)
-pass
+VALUE_WIDTH = 8
+VALUE_PRECISION = 4
+ACC_UNIT = "g"
+GYRO_UNIT = "°/s"
+ANGLE_UNIT = "°"
 
 
 def is_sensor_available(status):
@@ -61,6 +46,12 @@ try:
         accel_g = mpu.read_accel_data()
         gyro_g = mpu.read_gyro_data()
         roll, pitch = mpu.calculate_inclination(accel_g)
+        acc_x = accel_g.get("x", 0.0)
+        acc_y = accel_g.get("y", 0.0)
+        acc_z = accel_g.get("z", 0.0)
+        gyro_x = gyro_g.get("x", 0.0)
+        gyro_y = gyro_g.get("y", 0.0)
+        gyro_z = gyro_g.get("z", 0.0)
         
         if prev_accel_g == accel_g and prev_gyro_g == gyro_g:
             stale_count += 1
@@ -70,7 +61,13 @@ try:
         if stale_count == 20:
             print("Warning: accel/gyro unchanged for 20 samples (possible stale I2C/sample stream)")
 
-        print(f"[{cnt:5d}] Accel: {fmt_vec3(accel_g)}, Gyro: {fmt_vec3(gyro_g)}, roll: {roll:.2f} °, pitch: {pitch:.2f} °")
+        print(
+            f"[{cnt:5d}] Accel[{ACC_UNIT}]: "
+            f"({acc_x:{VALUE_WIDTH}.{VALUE_PRECISION}f}, {acc_y:{VALUE_WIDTH}.{VALUE_PRECISION}f}, {acc_z:{VALUE_WIDTH}.{VALUE_PRECISION}f}), "
+            f"Gyro[{GYRO_UNIT}]: "
+            f"({gyro_x:{VALUE_WIDTH}.{VALUE_PRECISION}f}, {gyro_y:{VALUE_WIDTH}.{VALUE_PRECISION}f}, {gyro_z:{VALUE_WIDTH}.{VALUE_PRECISION}f}), "
+            f"roll: {roll:.2f} {ANGLE_UNIT}, pitch: {pitch:.2f} {ANGLE_UNIT}"
+        )
         prev_accel_g = accel_g
         prev_gyro_g = gyro_g
         sleep(0.25)

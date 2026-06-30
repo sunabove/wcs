@@ -2,10 +2,9 @@ from icm20602 import ICM20602
 from time import sleep
 import sys
 import time
+import argparse
 from collections import deque
 from smbus2 import SMBus
-import pyqtgraph as pg
-from pyqtgraph.Qt import QtCore, QtWidgets
 
 class IMU_ICM20602_Service:
     
@@ -27,6 +26,9 @@ class IMU_ICM20602_Service:
         self.gyro_z_data = deque(maxlen=self.history_len)
         self.accel_curves = {}
         self.gyro_curves = {}
+        self.pg = None
+        self.QtCore = None
+        self.QtWidgets = None
 
     def is_sensor_available(self, status):
         if isinstance(status, bool):
@@ -67,41 +69,68 @@ class IMU_ICM20602_Service:
         self.mpu.enable_smoothing(smoothing_window=7)
         self.mpu.enable_dlpf(bandwidth=self.mpu.DLPFBandwidth.BW_20HZ)
 
-    def run_loop(self):
-        self.setup_chart()
-        self.start_time = time.time()
+    def run_loop(self, chart=False):
+        if chart:
+            self.setup_chart()
+            self.start_time = time.time()
 
-        self.timer = QtCore.QTimer()
-        self.timer.timeout.connect(self.update_chart)
-        self.timer.start(100)
+            self.timer = self.QtCore.QTimer()
+            self.timer.timeout.connect(self.update_chart)
+            self.timer.start(100)
 
-        print("Starting real-time chart. Close the chart window to stop.")
-        self.qt_app.exec()
+            print("Starting real-time chart. Close the chart window to stop.")
+            self.qt_app.exec()
+            return
+
+        print("Continous reading, break to stop")
+        cnt = 1
+        while True:
+            accel_g = self.mpu.read_accel_data()
+            gyro_g = self.mpu.read_gyro_data()
+            roll, pitch = self.mpu.calculate_inclination(accel_g)
+
+            print(
+                f"[{cnt:5d}] Accel: "
+                f"({accel_g.accel_x:5.2f}, {accel_g.accel_y:5.2f}, {accel_g.accel_z:5.2f}) g, "
+                f"Gyro: "
+                f"({gyro_g.gyro_x:6.2f}, {gyro_g.gyro_y:6.2f}, {gyro_g.gyro_z:6.2f}) °/s, "
+                f"Roll: {roll:6.2f} °, Pitch: {pitch:6.2f} °"
+            )
+
+            sleep(0.10)
+            cnt += 1
 
     def setup_chart(self):
-        self.qt_app = QtWidgets.QApplication.instance() or QtWidgets.QApplication(sys.argv)
-        pg.setConfigOption("background", "w")
-        pg.setConfigOption("foreground", "k")
+        import pyqtgraph as pg
+        from pyqtgraph.Qt import QtCore, QtWidgets
 
-        self.win = pg.GraphicsLayoutWidget(title="ICM20602 Real-Time Monitor")
+        self.pg = pg
+        self.QtCore = QtCore
+        self.QtWidgets = QtWidgets
+
+        self.qt_app = self.QtWidgets.QApplication.instance() or self.QtWidgets.QApplication(sys.argv)
+        self.pg.setConfigOption("background", "w")
+        self.pg.setConfigOption("foreground", "k")
+
+        self.win = self.pg.GraphicsLayoutWidget(title="ICM20602 Real-Time Monitor")
         self.win.resize(1200, 800)
 
         accel_plot = self.win.addPlot(title="Accelerometer (g)")
         accel_plot.showGrid(x=True, y=True)
         accel_plot.setLabel("left", "g")
         accel_plot.setLabel("bottom", "Time", units="s")
-        self.accel_curves["x"] = accel_plot.plot(pen=pg.mkPen("r", width=2), name="ax")
-        self.accel_curves["y"] = accel_plot.plot(pen=pg.mkPen("g", width=2), name="ay")
-        self.accel_curves["z"] = accel_plot.plot(pen=pg.mkPen("b", width=2), name="az")
+        self.accel_curves["x"] = accel_plot.plot(pen=self.pg.mkPen("r", width=2), name="ax")
+        self.accel_curves["y"] = accel_plot.plot(pen=self.pg.mkPen("g", width=2), name="ay")
+        self.accel_curves["z"] = accel_plot.plot(pen=self.pg.mkPen("b", width=2), name="az")
 
         self.win.nextRow()
         gyro_plot = self.win.addPlot(title="Gyroscope (deg/s)")
         gyro_plot.showGrid(x=True, y=True)
         gyro_plot.setLabel("left", "deg/s")
         gyro_plot.setLabel("bottom", "Time", units="s")
-        self.gyro_curves["x"] = gyro_plot.plot(pen=pg.mkPen("r", width=2), name="gx")
-        self.gyro_curves["y"] = gyro_plot.plot(pen=pg.mkPen("g", width=2), name="gy")
-        self.gyro_curves["z"] = gyro_plot.plot(pen=pg.mkPen("b", width=2), name="gz")
+        self.gyro_curves["x"] = gyro_plot.plot(pen=self.pg.mkPen("r", width=2), name="gx")
+        self.gyro_curves["y"] = gyro_plot.plot(pen=self.pg.mkPen("g", width=2), name="gy")
+        self.gyro_curves["z"] = gyro_plot.plot(pen=self.pg.mkPen("b", width=2), name="gz")
 
         self.win.show()
 
@@ -135,10 +164,10 @@ class IMU_ICM20602_Service:
             self.mpu.close()
             self.mpu = None
 
-    def run(self):
+    def run(self, chart=False):
         try:
             self.setup_sensor()
-            self.run_loop()
+            self.run_loop(chart=chart)
         except KeyboardInterrupt:
             print("Stopped by user")
         finally:
@@ -147,8 +176,12 @@ class IMU_ICM20602_Service:
 
 
 def main():
+    parser = argparse.ArgumentParser(description="IMU ICM20602 service")
+    parser.add_argument("--chart", action="store_true", help="Show real-time pyqtgraph chart")
+    args = parser.parse_args()
+
     app = IMU_ICM20602_Service()
-    app.run()
+    app.run(chart=args.chart)
 
 
 if __name__ == "__main__":

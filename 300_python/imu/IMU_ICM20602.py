@@ -9,11 +9,13 @@ mpu.enable_smoothing(smoothing_window=7)
 mpu.enable_dlpf(bandwidth=mpu.DLPFBandwidth.BW_20HZ)
 print("Smoothing + DLPF example")
 try:
+    cnt = 1
     while True:
         accel_g = mpu.read_accel_data()
         gyro_g = mpu.read_gyro_data()
-        print(f"Accel: {accel_g}, Gyro: {gyro_g}")
+        print(f"[{cnt:5d}] Accel: {accel_g}, Gyro: {gyro_g}")
         sleep(0.1)
+        cnt += 1
 except KeyboardInterrupt:
     print("Stopped by user")
 mpu.close()

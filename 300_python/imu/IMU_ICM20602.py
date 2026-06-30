@@ -42,8 +42,8 @@ print("---")
 # continious reading
 mpu = ICM20602()
 mpu.calibrate_sensor()
-mpu.enable_smoothing(smoothing_window=7)
-mpu.enable_dlpf(bandwidth=mpu.DLPFBandwidth.BW_20HZ)
+#mpu.enable_smoothing(smoothing_window=7)
+#mpu.enable_dlpf(bandwidth=mpu.DLPFBandwidth.BW_20HZ)
 print("Continous reading, break to stop")
 cnt = 1
 try:
@@ -51,12 +51,15 @@ try:
         accel_g = mpu.read_accel_data()
         gyro_g = mpu.read_gyro_data()
         roll, pitch = mpu.calculate_inclination(accel_g)
-        print(f"[{cnt:5d}] Accel: {accel_g}, Gyro: {gyro_g}")
-        print(f"[{cnt:5d}] roll: {roll:.2f}, pitch: {pitch:.2f}")
+        print( f"[{cnt:5d}] Accel: {accel_g}, Gyro: {gyro_g} " 
+               f"[{cnt:5d}] roll: {roll:.2f}, pitch: {pitch:.2f}"
+              )
         sleep(0.25)
         cnt += 1
 except KeyboardInterrupt:
-    print("\nStopped by Ctrl-C")
+    print("Stopped by user")
 finally:
     mpu.close()
     mpu = None
+    print("Done")
+pass

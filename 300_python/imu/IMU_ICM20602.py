@@ -25,8 +25,6 @@ if not is_sensor_available(availability):
     print("Sensor not detected. Check power, GND, SDA/SCL wiring, and I2C address.")
     sys.exit(1)
 
-input("Press Enter to continue...")
-
 print("calibrating sensor...")
 mpu.calibrate_sensor()
 print("Calibration done. Now reading data...")

@@ -35,7 +35,6 @@ class LED :
         self.scroll_speed_px_per_sec = self.width / 2
         self.scroll_text = ""
         self.scroll_offset = 0.0
-        self.scroll_done = False
         self.last_scroll_time = time.monotonic()
     pass  # __init__
 
@@ -93,22 +92,19 @@ class LED :
                 if self.scroll_text != line:
                     self.scroll_text = line
                     self.scroll_offset = 0.0
-                    self.scroll_done = False
                     self.last_scroll_time = now
 
                 elapsed = max(0.0, now - self.last_scroll_time)
                 self.last_scroll_time = now
-                if not self.scroll_done:
-                    self.scroll_offset += elapsed * self.scroll_speed_px_per_sec
+                self.scroll_offset += elapsed * self.scroll_speed_px_per_sec
 
-                max_offset = max(0, line_width - max_text_width)
-                if self.scroll_offset >= max_offset:
-                    self.scroll_offset = float(max_offset)
-                    self.scroll_done = True
+                cycle_width = line_width + self.scroll_gap
+                offset = int(self.scroll_offset % cycle_width)
+                x1 = self.margin_x - offset
+                x2 = x1 + cycle_width
 
-                offset = int(self.scroll_offset)
-                x = self.margin_x - offset
-                draw.text((x, y - box[1]), line, font=self.large_font, fill=255)
+                draw.text((x1, y - box[1]), line, font=self.large_font, fill=255)
+                draw.text((x2, y - box[1]), line, font=self.large_font, fill=255)
 
             self.oled.image(image)
             self.oled.show()

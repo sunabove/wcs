@@ -88,8 +88,6 @@ class LEDService:
     def _on_connect(self, client, userdata, flags, reason_code, properties=None):
         print("MQTT connected:", reason_code)
         client.subscribe(self.TOPIC)
-        self._set_lines(["Waiting MQTT"])
-        self._render(["Waiting MQTT"])
         self._publish_boot_time()
         timer = threading.Timer(self.IP_PUBLISH_DELAY_SEC, self._publish_ip_if_ready)
         timer.daemon = True
@@ -184,7 +182,6 @@ class LEDService:
         if self.render_thread is None:
             self.render_thread = threading.Thread(target=self._render_loop, daemon=True)
             self.render_thread.start()
-        #self.display.render_lines(["Connecting..."])
         self.client.connect(self.BROKER, self.PORT, 60)
         self.client.loop_forever()
     pass  # run

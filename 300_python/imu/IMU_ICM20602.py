@@ -2,6 +2,7 @@ from icm20602 import ICM20602
 from time import sleep
 import sys
 
+IMU_DURATION = 0.01
 VALUE_WIDTH = 9
 VALUE_PRECISION = 4
 ACC_UNIT = "g"
@@ -70,7 +71,7 @@ try:
         )
         prev_accel_g = accel_g
         prev_gyro_g = gyro_g
-        sleep(0.01)
+        sleep(IMU_DURATION)
         cnt += 1
 except KeyboardInterrupt:
     print("Stopped by user")

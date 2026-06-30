@@ -32,7 +32,8 @@ class LED :
         self.font = ImageFont.load_default()
         self.large_font = self._load_large_font(18)
         self.scroll_gap = 24
-        self.scroll_speed_px_per_sec = 40
+        self.scroll_step_interval_sec = 0.2
+        self.scroll_step_px = max(1, self.width // 10)
         self.scroll_text = ""
         self.scroll_offset = 0.0
         self.last_scroll_time = time.monotonic()
@@ -95,8 +96,10 @@ class LED :
                     self.last_scroll_time = now
 
                 elapsed = max(0.0, now - self.last_scroll_time)
-                self.last_scroll_time = now
-                self.scroll_offset += elapsed * self.scroll_speed_px_per_sec
+                step_count = int(elapsed // self.scroll_step_interval_sec)
+                if step_count > 0:
+                    self.scroll_offset += step_count * self.scroll_step_px
+                    self.last_scroll_time += step_count * self.scroll_step_interval_sec
 
                 cycle_width = line_width + self.scroll_gap
                 offset = int(self.scroll_offset % cycle_width)

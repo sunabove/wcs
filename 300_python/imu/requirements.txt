@@ -5,3 +5,5 @@ Pillow
 paho-mqtt
 smbus2
 mpu9250-jmdev
+pyqtgraph
+PyQt5

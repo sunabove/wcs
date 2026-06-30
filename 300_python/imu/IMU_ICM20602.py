@@ -23,6 +23,7 @@ for _ in range(5):
 mpu.close()
 mpu=None
 
+input("Press Enter to continue...")
 print("---")
 
 # smoothing + low pass filter
@@ -38,6 +39,7 @@ for _ in range(5):
 mpu.close()
 mpu=None
 
+input("Press Enter to continue...")
 print("---")
 
 # calibration example
@@ -57,22 +59,7 @@ for _ in range(5):
 mpu.close()
 mpu=None
 
-print("---")
-
-# threaded
-mpu = ICM20602()
-mpu.start_data_thread()
-sleep(0.5)
-print("Threaded example")
-for _ in range(5):
-    accel_g = mpu.get_latest_data()['accel']
-    roll, pitch = mpu.calculate_inclination(accel_g)
-    print(f"roll: {roll:.2f}, pitch: {pitch:.2f}")
-    sleep(0.1)
-mpu.stop_data_thread()
-mpu.close()
-mpu = None
-
+input("Press Enter to continue...")
 print("---")
 
 # continious reading

@@ -59,7 +59,7 @@ try:
 
         print(
             f"[{cnt:5d}] Accel: "
-            f"({acc_x:4.2f}, {acc_y:4.2f}, {acc_z:4.2f}){ACC_UNIT}, "
+            f"({acc_x:5.2f}, {acc_y:5.2f}, {acc_z:5.2f}){ACC_UNIT}, "
             f"Gyro: "
             f"({gyro_x:5.2f}, {gyro_y:5.2f}, {gyro_z:5.2f}){GYRO_UNIT}, "
             f"roll: {roll:6.2f} {ANGLE_UNIT}, pitch: {pitch:6.2f} {ANGLE_UNIT}"

@@ -3,77 +3,97 @@ from time import sleep
 import sys
 from smbus2 import SMBus
 
-def makeICM20602_WakeUp():
-    bus = SMBus(1)
-    
-    # Wake up
-    print("Waking up the ICM20602...")
-    bus.write_byte_data(0x69, 0x6B, 0x00)
-    sleep(0.1)
+class IMUICM20602App:
+    def __init__(self, bus_num=1, wakeup_addr=0x69):
+        self.bus_num = bus_num
+        self.wakeup_addr = wakeup_addr
+        self.mpu = None
 
-    # Clock source = PLL
-    bus.write_byte_data(0x69, 0x6B, 0x01)
-    sleep(0.1)
-    
-    bus.close()
-pass # makeICM20602_WakeUp
+    def is_sensor_available(self, status):
+        if isinstance(status, bool):
+            return status
 
-def is_sensor_available(status):
-    if isinstance(status, bool):
-        return status
+        status_text = str(status).lower()
+        return "no sensor" not in status_text
 
-    status_text = str(status).lower()
-    return "no sensor" not in status_text
-pass
+    def make_icm20602_wakeup(self):
+        bus = SMBus(self.bus_num)
 
-makeICM20602_WakeUp()
+        # Wake up
+        print("Waking up the ICM20602...")
+        bus.write_byte_data(self.wakeup_addr, 0x6B, 0x00)
+        sleep(0.1)
 
-mpu = ICM20602()
-availability = mpu.check_availability(verbose=True)
-print("Availability:", availability)
-if not is_sensor_available(availability):
-    mpu.close()
-    mpu = None
-    print("Sensor not detected. Check power, GND, SDA/SCL wiring, and I2C address.")
-    sys.exit(1)
+        # Clock source = PLL
+        bus.write_byte_data(self.wakeup_addr, 0x6B, 0x01)
+        sleep(0.1)
 
-print("Calibrating sensor...")
-mpu.calibrate_sensor()
-print("Calibration done. Now reading data...")
+        bus.close()
 
-mpu.enable_smoothing(smoothing_window=7)
-mpu.enable_dlpf(bandwidth=mpu.DLPFBandwidth.BW_20HZ)
+    def setup_sensor(self):
+        self.make_icm20602_wakeup()
 
-print("Continous reading, break to stop")
-try:
-    cnt = 1
-    while True:
-        accel_g = mpu.read_accel_data()
-        gyro_g = mpu.read_gyro_data()
-        roll, pitch = mpu.calculate_inclination(accel_g)
-        
-        acc_x = accel_g.accel_x
-        acc_y = accel_g.accel_y
-        acc_z = accel_g.accel_z
-        gyro_x = gyro_g.gyro_x
-        gyro_y = gyro_g.gyro_y
-        gyro_z = gyro_g.gyro_z
-        
-        print(
-            f"[{cnt:5d}] Accel: "
-            f"({acc_x:5.2f}, {acc_y:5.2f}, {acc_z:5.2f}) g, "
-            f"Gyro: "
-            f"({gyro_x:6.2f}, {gyro_y:6.2f}, {gyro_z:6.2f}) °/s, "
-            f"Roll: {roll:6.2f} °, Pitch: {pitch:6.2f} °"
-        )
-        
-        sleep( 0.10 )
-        cnt += 1
-    pass
-except KeyboardInterrupt:
-    print("Stopped by user")
-finally:
-    mpu.close()
-    mpu = None
-    print("Done")
-pass
+        self.mpu = ICM20602()
+        availability = self.mpu.check_availability(verbose=True)
+        print("Availability:", availability)
+        if not self.is_sensor_available(availability):
+            self.close()
+            print("Sensor not detected. Check power, GND, SDA/SCL wiring, and I2C address.")
+            sys.exit(1)
+
+        print("Calibrating sensor...")
+        self.mpu.calibrate_sensor()
+        print("Calibration done. Now reading data...")
+
+        self.mpu.enable_smoothing(smoothing_window=7)
+        self.mpu.enable_dlpf(bandwidth=self.mpu.DLPFBandwidth.BW_20HZ)
+
+    def run_loop(self):
+        print("Continous reading, break to stop")
+        cnt = 1
+        while True:
+            accel_g = self.mpu.read_accel_data()
+            gyro_g = self.mpu.read_gyro_data()
+            roll, pitch = self.mpu.calculate_inclination(accel_g)
+
+            acc_x = accel_g.accel_x
+            acc_y = accel_g.accel_y
+            acc_z = accel_g.accel_z
+            gyro_x = gyro_g.gyro_x
+            gyro_y = gyro_g.gyro_y
+            gyro_z = gyro_g.gyro_z
+
+            print(
+                f"[{cnt:5d}] Accel: "
+                f"({acc_x:5.2f}, {acc_y:5.2f}, {acc_z:5.2f}) g, "
+                f"Gyro: "
+                f"({gyro_x:6.2f}, {gyro_y:6.2f}, {gyro_z:6.2f}) °/s, "
+                f"Roll: {roll:6.2f} °, Pitch: {pitch:6.2f} °"
+            )
+
+            sleep(0.10)
+            cnt += 1
+
+    def close(self):
+        if self.mpu is not None:
+            self.mpu.close()
+            self.mpu = None
+
+    def run(self):
+        try:
+            self.setup_sensor()
+            self.run_loop()
+        except KeyboardInterrupt:
+            print("Stopped by user")
+        finally:
+            self.close()
+            print("Done")
+
+
+def main():
+    app = IMUICM20602App()
+    app.run()
+
+
+if __name__ == "__main__":
+    main()

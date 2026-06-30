@@ -42,24 +42,7 @@ if not is_sensor_available(availability):
     print("Sensor not detected. Check power, GND, SDA/SCL wiring, and I2C address.")
     sys.exit(1)
 
-mpu.enable_smoothing(smoothing_window=7)
-mpu.enable_dlpf(bandwidth=mpu.DLPFBandwidth.BW_20HZ)
-print("Smoothing + DLPF example")
-try:
-    cnt = 1
-    while True:
-        accel_g = mpu.read_accel_data()
-        gyro_g = mpu.read_gyro_data()
-        print(f"[{cnt:5d}] Accel: {fmt_vec3(accel_g)}, Gyro: {fmt_vec3(gyro_g)}")
-        sleep(0.1)
-        cnt += 1
-except KeyboardInterrupt:
-    print("Stopped by user")
-mpu.close()
-mpu=None
-
 input("Press Enter to continue...")
-print("---")
 
 # continious reading
 mpu = ICM20602()
@@ -67,15 +50,9 @@ mpu = ICM20602()
 # Run calibration only when the device is fully still.
 availability = mpu.check_availability(verbose=True)
 print("Availability:", availability)
-if not is_sensor_available(availability):
-    mpu.close()
-    mpu = None
-    print("Sensor not detected. Check power, GND, SDA/SCL wiring, and I2C address.")
-    sys.exit(1)
-
-# mpu.calibrate_sensor()
-#mpu.enable_smoothing(smoothing_window=7)
-#mpu.enable_dlpf(bandwidth=mpu.DLPFBandwidth.BW_20HZ)
+mpu.calibrate_sensor()
+mpu.enable_smoothing(smoothing_window=7)
+mpu.enable_dlpf(bandwidth=mpu.DLPFBandwidth.BW_20HZ)
 print("Continous reading, break to stop")
 cnt = 1
 prev_accel_g = None

@@ -1,5 +1,6 @@
 import board, busio
 import adafruit_ssd1306
+import time
 
 from PIL import Image, ImageDraw, ImageFont 
 
@@ -30,6 +31,11 @@ class LED :
         )
         self.font = ImageFont.load_default()
         self.large_font = self._load_large_font(18)
+        self.scroll_gap = 24
+        self.scroll_speed_px_per_sec = 40
+        self.scroll_text = ""
+        self.scroll_offset = 0.0
+        self.last_scroll_time = time.monotonic()
     pass  # __init__
 
     def _load_large_font(self, size):
@@ -61,7 +67,7 @@ class LED :
         draw.rectangle((0, 0, self.width - 1, self.height - 1), outline=255, fill=0)
 
         max_lines = max(1, (self.height - (2 * self.margin_y)) // self.line_gap)
-        visible_lines = [str(line)[:20] for line in lines[:max_lines]]
+        visible_lines = [str(line) for line in lines[:max_lines]]
 
         line_count = len(visible_lines)
 
@@ -70,18 +76,36 @@ class LED :
             box = draw.textbbox((0, 0), line, font=self.large_font)
             line_width = box[2] - box[0]
             max_text_width = max(1, self.width - (2 * self.margin_x))
-
-            while len(line) > 1 and line_width > max_text_width:
-                line = line[:-1]
-                box = draw.textbbox((0, 0), line, font=self.large_font)
-                line_width = box[2] - box[0]
-
             line_height = box[3] - box[1]
             usable_height = max(1, self.height - (2 * self.margin_y))
-            x = max(self.margin_x, (self.width - line_width) // 2)
             y = self.margin_y + max(0, (usable_height - line_height) // 2)
 
-            draw.text((x, y - box[1]), line, font=self.large_font, fill=255)
+            if line_width <= max_text_width:
+                self.scroll_text = ""
+                self.scroll_offset = 0.0
+                self.last_scroll_time = time.monotonic()
+
+                x = max(self.margin_x, (self.width - line_width) // 2)
+                draw.text((x, y - box[1]), line, font=self.large_font, fill=255)
+            else:
+                now = time.monotonic()
+                if self.scroll_text != line:
+                    self.scroll_text = line
+                    self.scroll_offset = 0.0
+                    self.last_scroll_time = now
+
+                elapsed = max(0.0, now - self.last_scroll_time)
+                self.last_scroll_time = now
+                self.scroll_offset += elapsed * self.scroll_speed_px_per_sec
+
+                cycle_width = line_width + self.scroll_gap
+                offset = int(self.scroll_offset % cycle_width)
+                x1 = self.margin_x - offset
+                x2 = x1 + cycle_width
+
+                draw.text((x1, y - box[1]), line, font=self.large_font, fill=255)
+                draw.text((x2, y - box[1]), line, font=self.large_font, fill=255)
+
             self.oled.image(image)
             self.oled.show()
             return

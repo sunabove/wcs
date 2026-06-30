@@ -1,4 +1,7 @@
-import spidev
+try:
+    from smbus2 import SMBus  # type: ignore[import-not-found]
+except ImportError:
+    from smbus import SMBus  # type: ignore[import-not-found]
 import time
 import logging
 from enum import Enum
@@ -30,7 +33,7 @@ class ICM20602:
         BW_10HZ = 0x05
         BW_5HZ = 0x06
 
-    def __init__(self, bus=0, device=0, max_speed_hz=1000000, dlpf_bandwidth=DLPFBandwidth.BW_250HZ):
+    def __init__(self, bus=1, device=0x68, max_speed_hz=1000000, dlpf_bandwidth=DLPFBandwidth.BW_250HZ):
 
         self.bus = bus
         self.device = device
@@ -39,7 +42,7 @@ class ICM20602:
         self.accel_data_buffer = {'x': deque(), 'y': deque(), 'z': deque()}
         self.dlpf_bandwidth = dlpf_bandwidth
         self.smoothing_window = 0
-        self.spi = spidev.SpiDev()
+        self.i2c = None
 
         # Threading variables
         self.running = False
@@ -51,11 +54,11 @@ class ICM20602:
         self.gyro_offsets = {'x': 0.0, 'y': 0.0, 'z': 0.0}
 
         try:
-            self.spi.open(self.bus, self.device)
-            self.spi.max_speed_hz = self.max_speed_hz
-            self.spi.mode = 0b11  # Set SPI mode 3
+            self.i2c = SMBus(self.bus)
+            # I2C does not use SPI clock/mode settings. `device` is used as the I2C address.
+            self.i2c.read_byte_data(self.device, 0x75)
         except IOError as e:
-            print(f"Error opening SPI bus: {e}")
+            print(f"Error opening I2C bus/address: {e}")
             raise
 
         # ICM-20602 registers
@@ -91,7 +94,7 @@ class ICM20602:
         Write data to a specific register on the ICM-20602 sensor.
         """
         try:
-            self.spi.xfer2([reg & 0x7F, data])
+            self.i2c.write_byte_data(self.device, reg, data)
         except Exception as e:
             print(f"Error writing to register {reg}: {e}")
             raise
@@ -101,8 +104,7 @@ class ICM20602:
         Read data from a specific register on the ICM-20602 sensor.
         """
         try:
-            result = self.spi.xfer2([reg | 0x80] + [0x00] * length)[1:]
-            return result
+            return self.i2c.read_i2c_block_data(self.device, reg, length)
         except Exception as e:
             print(f"Error reading from register {reg}: {e}")
             raise
@@ -374,7 +376,8 @@ class ICM20602:
 
     def close(self):
         """
-        Close the SPI connection and stop the data thread.
+        Close the I2C connection and stop the data thread.
         """
         self.stop_data_thread()
-        self.spi.close()
+        if self.i2c is not None:
+            self.i2c.close()

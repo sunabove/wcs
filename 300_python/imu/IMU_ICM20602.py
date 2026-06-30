@@ -64,7 +64,7 @@ try:
             f"({acc_x:5.2f}, {acc_y:5.2f}, {acc_z:5.2f}) g, "
             f"Gyro: "
             f"({gyro_x:6.2f}, {gyro_y:6.2f}, {gyro_z:6.2f}) °/s, "
-            f"roll: {roll:6.2f} °, pitch: {pitch:6.2f} °"
+            f"Roll: {roll:6.2f} °, Pitch: {pitch:6.2f} °"
         )
         sleep( 0.10 )
         cnt += 1

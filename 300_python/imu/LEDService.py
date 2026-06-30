@@ -150,7 +150,7 @@ class LEDService:
 
     def run(self):
         self.display.clear()
-        self.display.render_lines(["Connecting..."])
+        #self.display.render_lines(["Connecting..."])
         self.client.connect(self.BROKER, self.PORT, 60)
         self.client.loop_forever()
     pass  # run

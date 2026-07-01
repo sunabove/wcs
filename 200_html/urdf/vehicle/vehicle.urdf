@@ -18,6 +18,10 @@
     <color rgba="0.80 0.82 0.85 1.0"/>
   </material>
 
+  <material name="arrow_mark">
+    <color rgba="0.95 0.95 0.20 1.0"/>
+  </material>
+
   <!-- Root link kept for compatibility -->
   <link name="base_link">
     <inertial>
@@ -45,20 +49,29 @@
       <material name="body_dark"/>
     </visual>
 
+    <!-- Top arrow mark to indicate forward (+x) direction -->
     <visual>
-      <origin xyz="0.45 0 0.10" rpy="0 0 0"/>
+      <origin xyz="0.02 0 0.295" rpy="0 0 0"/>
       <geometry>
-        <box size="0.08 0.56 0.08"/>
+        <box size="0.24 0.03 0.004"/>
       </geometry>
-      <material name="body_dark"/>
+      <material name="arrow_mark"/>
     </visual>
 
     <visual>
-      <origin xyz="-0.45 0 0.10" rpy="0 0 0"/>
+      <origin xyz="0.15 0.03 0.295" rpy="0 0 0.785398"/>
       <geometry>
-        <box size="0.08 0.56 0.08"/>
+        <box size="0.10 0.03 0.004"/>
       </geometry>
-      <material name="body_dark"/>
+      <material name="arrow_mark"/>
+    </visual>
+
+    <visual>
+      <origin xyz="0.15 -0.03 0.295" rpy="0 0 -0.785398"/>
+      <geometry>
+        <box size="0.10 0.03 0.004"/>
+      </geometry>
+      <material name="arrow_mark"/>
     </visual>
 
     <collision>

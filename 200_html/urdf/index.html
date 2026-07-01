@@ -37,11 +37,16 @@
                     <span id="camera-angle-text">azimuth: --°, polar: --° | distance: --</span>
                 </div>
 
-                <div class="d-flex justify-content-center gap-2 mt-3 mb-0" id="wheel-animation-panel">
+                <div class="d-flex justify-content-center align-items-center flex-wrap gap-2 mt-3 mb-0" id="wheel-animation-panel">
                     <button type="button" class="btn btn-outline-primary btn-sm" id="wheel-btn-fl">FL Wheel: OFF</button>
                     <button type="button" class="btn btn-outline-primary btn-sm" id="wheel-btn-fr">FR Wheel: OFF</button>
                     <button type="button" class="btn btn-outline-primary btn-sm" id="wheel-btn-rl">RL Wheel: OFF</button>
                     <button type="button" class="btn btn-outline-primary btn-sm" id="wheel-btn-rr">RR Wheel: OFF</button>
+                    <div class="input-group input-group-sm" style="width: 170px;">
+                        <span class="input-group-text">Wheel Speed</span>
+                        <input type="number" class="form-control" id="wheel-speed-rpm" min="0" max="3000" step="10" value="38">
+                        <span class="input-group-text">rpm</span>
+                    </div>
                 </div>
             </div>
         </div>

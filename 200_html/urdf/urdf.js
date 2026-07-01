@@ -17,7 +17,9 @@ class URDFViewer {
         this.initialAzimuthDeg = 0.7;
         this.initialPolarDeg = 145.4;
         this.lastFrameTimeMs = performance.now();
-        this.wheelAngularSpeedRad = 4.0;
+        this.wheelSpeedInputElement = null;
+        this.wheelSpeedRpm = 38;
+        this.wheelAngularSpeedRad = this.convertRpmToRadPerSec(this.wheelSpeedRpm);
         this.wheelJointNameByKey = {
             fl: 'joint_fl',
             fr: 'joint_fr',
@@ -163,6 +165,15 @@ class URDFViewer {
             rl: 'wheel-btn-rl',
             rr: 'wheel-btn-rr'
         };
+        this.wheelSpeedInputElement = document.getElementById('wheel-speed-rpm');
+
+        if (this.wheelSpeedInputElement) {
+            this.wheelSpeedInputElement.value = String(this.wheelSpeedRpm);
+            this.wheelSpeedInputElement.addEventListener('input', () => {
+                this.updateWheelSpeedFromInput();
+            });
+            this.updateWheelSpeedFromInput();
+        }
 
         Object.keys(buttonIdByKey).forEach(key => {
             const button = document.getElementById(buttonIdByKey[key]);
@@ -176,6 +187,23 @@ class URDFViewer {
             });
             this.updateWheelButtonState(key);
         });
+    }
+
+    convertRpmToRadPerSec(rpm) {
+        return (rpm * Math.PI * 2) / 60;
+    }
+
+    updateWheelSpeedFromInput() {
+        if (!this.wheelSpeedInputElement) {
+            return;
+        }
+
+        const inputRpm = Number.parseFloat(this.wheelSpeedInputElement.value);
+        const normalizedRpm = Number.isFinite(inputRpm) ? Math.max(inputRpm, 0) : this.wheelSpeedRpm;
+
+        this.wheelSpeedRpm = normalizedRpm;
+        this.wheelAngularSpeedRad = this.convertRpmToRadPerSec(normalizedRpm);
+        this.wheelSpeedInputElement.value = String(normalizedRpm);
     }
 
     toggleWheelAnimation(key) {

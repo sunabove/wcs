@@ -201,7 +201,7 @@ class URDFViewer {
         }
 
         const inputRpm = Number.parseFloat(inputElement.val());
-        const normalizedRpm = Number.isFinite(inputRpm) ? Math.max(inputRpm, 0) : this.wheelSpeedRpmByKey[key];
+        const normalizedRpm = Number.isFinite(inputRpm) ? Math.max(Math.round(inputRpm), 0) : this.wheelSpeedRpmByKey[key];
 
         this.wheelSpeedRpmByKey[key] = normalizedRpm;
         this.wheelAngularSpeedRadByKey[key] = this.convertRpmToRadPerSec(normalizedRpm);
@@ -215,7 +215,7 @@ class URDFViewer {
 
     setWheelSpeedRpm(key, rpm) {
         const numericRpm = Number.parseFloat(rpm);
-        const normalizedRpm = Number.isFinite(numericRpm) ? Math.max(numericRpm, 0) : this.wheelSpeedRpmByKey[key];
+        const normalizedRpm = Number.isFinite(numericRpm) ? Math.max(Math.round(numericRpm), 0) : this.wheelSpeedRpmByKey[key];
 
         this.wheelSpeedRpmByKey[key] = normalizedRpm;
         this.wheelAngularSpeedRadByKey[key] = this.convertRpmToRadPerSec(normalizedRpm);
@@ -292,6 +292,18 @@ class URDFViewer {
             this.setWheelSpeedRpm('fr', baseRpm * rightTurnRatio);
             this.setWheelSpeedRpm('rl', baseRpm);
             this.setWheelSpeedRpm('rr', baseRpm * rightTurnRatio);
+            return;
+        }
+
+        if (mode === 'stop') {
+            this.setWheelDirectionSign('fl', 1);
+            this.setWheelDirectionSign('fr', 1);
+            this.setWheelDirectionSign('rl', 1);
+            this.setWheelDirectionSign('rr', 1);
+            this.setWheelSpeedRpm('fl', 0);
+            this.setWheelSpeedRpm('fr', 0);
+            this.setWheelSpeedRpm('rl', 0);
+            this.setWheelSpeedRpm('rr', 0);
         }
     }
 
@@ -598,7 +610,7 @@ function setDriveSpeedKmh(kmh) {
 }
 
 function updateDriveModeButtons(activeMode) {
-    const modes = ['forward', 'backward', 'left', 'right'];
+    const modes = ['forward', 'backward', 'left', 'right', 'stop'];
     modes.forEach(mode => {
         const button = $(`#drive-btn-${mode}`);
         if (button.length === 0) {
@@ -609,9 +621,11 @@ function updateDriveModeButtons(activeMode) {
         button.toggleClass('btn-success', isActive && mode === 'forward');
         button.toggleClass('btn-secondary', isActive && mode === 'backward');
         button.toggleClass('btn-primary', isActive && (mode === 'left' || mode === 'right'));
+        button.toggleClass('btn-danger', isActive && mode === 'stop');
         button.toggleClass('btn-outline-success', !isActive && mode === 'forward');
         button.toggleClass('btn-outline-secondary', !isActive && mode === 'backward');
         button.toggleClass('btn-outline-primary', !isActive && (mode === 'left' || mode === 'right'));
+        button.toggleClass('btn-outline-danger', !isActive && mode === 'stop');
     });
 }
 

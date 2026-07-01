@@ -14,6 +14,8 @@ class URDFViewer {
         this.lastAngleLogAt = 0;
         this.angleLogIntervalMs = 120;
         this.cameraAngleTextElement = null;
+        this.initialAzimuthDeg = -1.6;
+        this.initialPolarDeg = 144.8;
         this.urdfPath = containerElement.getAttribute('urdf') || '/urdf/vehicle/vehicle.urdf';
         this.urdfScale = parseFloat(containerElement.getAttribute('urdf-scale')) || 1;
         this.urdfRotation = (containerElement.getAttribute('urdf-rotation') || '0,0,0')
@@ -140,6 +142,19 @@ class URDFViewer {
         }
     }
 
+    setCameraFromAngles(center, distance, azimuthDeg, polarDeg) {
+        const azimuth = THREE.MathUtils.degToRad(azimuthDeg);
+        const polar = THREE.MathUtils.degToRad(polarDeg);
+
+        const sinPolar = Math.sin(polar);
+        const x = center.x + distance * sinPolar * Math.sin(azimuth);
+        const y = center.y + distance * Math.cos(polar);
+        const z = center.z + distance * sinPolar * Math.cos(azimuth);
+
+        this.camera.position.set(x, y, z);
+        this.camera.lookAt(center);
+    }
+
     createAxisLabel(text, colorHex, position) {
         const canvas = document.createElement('canvas');
         canvas.width = 128;
@@ -239,15 +254,10 @@ class URDFViewer {
                     const fitOffset = 1.8;
                     const cameraDist = radius / Math.sin(THREE.MathUtils.degToRad(this.camera.fov * 0.5)) * fitOffset;
 
-                    this.camera.position.set(
-                        center.x + cameraDist * 0.55,
-                        center.y + cameraDist * 0.55,
-                        center.z + cameraDist * 1.15
-                    );
+                    this.setCameraFromAngles(center, cameraDist, this.initialAzimuthDeg, this.initialPolarDeg);
                     this.camera.near = Math.max(cameraDist / 100, 0.01);
                     this.camera.far = cameraDist * 100;
                     this.camera.updateProjectionMatrix();
-                    this.camera.lookAt(center);
 
                     // 회전 중심 업데이트
                     this.goalTarget.copy(center);

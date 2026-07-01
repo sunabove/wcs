@@ -3,6 +3,7 @@ from time import sleep
 import sys
 import time
 import argparse
+import signal
 from collections import deque
 from smbus2 import SMBus
 
@@ -15,6 +16,7 @@ class IMU_ICM20602_Service:
         self.qt_app = None
         self.win = None
         self.timer = None
+        self.signal_timer = None
         self.start_time = 0.0
         self.x_window_sec = 20.0
         self.history_len = 300
@@ -32,6 +34,7 @@ class IMU_ICM20602_Service:
         self.QtWidgets = None
         self.accel_plot = None
         self.gyro_plot = None
+        self._prev_sigint_handler = None
 
     def is_sensor_available(self, status):
         if isinstance(status, bool):
@@ -81,8 +84,22 @@ class IMU_ICM20602_Service:
             self.timer.timeout.connect(self.on_chart_timer)
             self.timer.start(100)
 
+            self._prev_sigint_handler = signal.getsignal(signal.SIGINT)
+            signal.signal(signal.SIGINT, self.on_sigint)
+            self.signal_timer = self.QtCore.QTimer()
+            self.signal_timer.timeout.connect(lambda: None)
+            self.signal_timer.start(100)
+
             print("Starting real-time chart. Close the chart window to stop.")
-            self.qt_app.exec() 
+            try:
+                self.qt_app.exec()
+            finally:
+                if self.signal_timer is not None:
+                    self.signal_timer.stop()
+                    self.signal_timer = None
+                if self._prev_sigint_handler is not None:
+                    signal.signal(signal.SIGINT, self._prev_sigint_handler)
+                    self._prev_sigint_handler = None
         else :
             print("Continous reading, break to stop")
             cnt = 1
@@ -125,6 +142,13 @@ class IMU_ICM20602_Service:
     def on_chart_timer(self):
         self.collect_sensor_data(collect_chart_data=True)
         self.update_chart()
+
+    def on_sigint(self, signum, frame):
+        print("Ctrl+C received. Closing chart...")
+        if self.timer is not None:
+            self.timer.stop()
+        if self.qt_app is not None:
+            self.qt_app.quit()
 
     def setup_chart(self):
         import pyqtgraph as pg
@@ -188,9 +212,17 @@ class IMU_ICM20602_Service:
     pass # update_chart
 
     def close(self):
+        if self.signal_timer is not None:
+            self.signal_timer.stop()
+            self.signal_timer = None
+
         if self.timer is not None:
             self.timer.stop()
             self.timer = None
+
+        if self.win is not None:
+            self.win.close()
+            self.win = None
 
         if self.mpu is not None:
             self.mpu.close()

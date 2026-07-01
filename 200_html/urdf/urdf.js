@@ -33,7 +33,7 @@ class URDFViewer {
 
         // Camera 생성
         this.camera = new THREE.PerspectiveCamera(50, width / height, 0.01, 1000);
-        this.camera.position.set(3*2, 3*2, 3*2);
+        this.camera.position.set(0, 0, 8);
 
         // Renderer 생성
         this.renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -199,9 +199,9 @@ class URDFViewer {
                     const cameraDist = radius / Math.sin(THREE.MathUtils.degToRad(this.camera.fov * 0.5)) * fitOffset;
 
                     this.camera.position.set(
-                        center.x + cameraDist * 0.0,
-                        center.y + cameraDist * 0.9,
-                        center.z + cameraDist * 1.1
+                        center.x + cameraDist * 0.15,
+                        center.y + cameraDist * 0.15,
+                        center.z + cameraDist * 1.2
                     );
                     this.camera.near = Math.max(cameraDist / 100, 0.01);
                     this.camera.far = cameraDist * 100;

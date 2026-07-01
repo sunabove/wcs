@@ -14,8 +14,8 @@
     <color rgba="0.12 0.12 0.12 1.0"/>
   </material>
 
-  <material name="tire_groove">
-    <color rgba="0.03 0.03 0.03 1.0"/>
+  <material name="tread_mark">
+    <color rgba="0.18 0.18 0.18 1.0"/>
   </material>
 
   <material name="rim">
@@ -196,31 +196,63 @@
     <visual>
       <origin xyz="0 0 0" rpy="1.5707963 0 0"/>
       <geometry>
-        <cylinder radius="0.17" length="0.14"/>
+        <cylinder radius="0.16" length="0.10"/>
       </geometry>
       <material name="tire"/>
     </visual>
 
     <visual>
-      <origin xyz="0.108 0 0.108" rpy="0 0.785398 0"/>
+      <origin xyz="0.146 0 0.000" rpy="0 0 0"/>
       <geometry>
-        <box size="0.010 0.145 0.024"/>
+        <box size="0.006 0.098 0.022"/>
       </geometry>
-      <material name="tire_groove"/>
+      <material name="tread_mark"/>
     </visual>
 
     <visual>
-      <origin xyz="-0.108 0 0.108" rpy="0 -0.785398 0"/>
+      <origin xyz="0.073 0 0.126" rpy="0 1.0471976 0"/>
       <geometry>
-        <box size="0.010 0.145 0.024"/>
+        <box size="0.006 0.098 0.022"/>
       </geometry>
-      <material name="tire_groove"/>
+      <material name="tread_mark"/>
+    </visual>
+
+    <visual>
+      <origin xyz="-0.073 0 0.126" rpy="0 2.0943951 0"/>
+      <geometry>
+        <box size="0.006 0.098 0.022"/>
+      </geometry>
+      <material name="tread_mark"/>
+    </visual>
+
+    <visual>
+      <origin xyz="-0.146 0 0.000" rpy="0 3.1415927 0"/>
+      <geometry>
+        <box size="0.006 0.098 0.022"/>
+      </geometry>
+      <material name="tread_mark"/>
+    </visual>
+
+    <visual>
+      <origin xyz="-0.073 0 -0.126" rpy="0 -2.0943951 0"/>
+      <geometry>
+        <box size="0.006 0.098 0.022"/>
+      </geometry>
+      <material name="tread_mark"/>
+    </visual>
+
+    <visual>
+      <origin xyz="0.073 0 -0.126" rpy="0 -1.0471976 0"/>
+      <geometry>
+        <box size="0.006 0.098 0.022"/>
+      </geometry>
+      <material name="tread_mark"/>
     </visual>
 
     <visual>
       <origin xyz="0 0 0" rpy="1.5707963 0 0"/>
       <geometry>
-        <cylinder radius="0.075" length="0.06"/>
+        <cylinder radius="0.09" length="0.11"/>
       </geometry>
       <material name="rim"/>
     </visual>
@@ -252,31 +284,63 @@
     <visual>
       <origin xyz="0 0 0" rpy="1.5707963 0 0"/>
       <geometry>
-        <cylinder radius="0.17" length="0.14"/>
+        <cylinder radius="0.16" length="0.10"/>
       </geometry>
       <material name="tire"/>
     </visual>
 
     <visual>
-      <origin xyz="0.108 0 0.108" rpy="0 0.785398 0"/>
+      <origin xyz="0.146 0 0.000" rpy="0 0 0"/>
       <geometry>
-        <box size="0.010 0.145 0.024"/>
+        <box size="0.006 0.098 0.022"/>
       </geometry>
-      <material name="tire_groove"/>
+      <material name="tread_mark"/>
     </visual>
 
     <visual>
-      <origin xyz="-0.108 0 0.108" rpy="0 -0.785398 0"/>
+      <origin xyz="0.073 0 0.126" rpy="0 1.0471976 0"/>
       <geometry>
-        <box size="0.010 0.145 0.024"/>
+        <box size="0.006 0.098 0.022"/>
       </geometry>
-      <material name="tire_groove"/>
+      <material name="tread_mark"/>
+    </visual>
+
+    <visual>
+      <origin xyz="-0.073 0 0.126" rpy="0 2.0943951 0"/>
+      <geometry>
+        <box size="0.006 0.098 0.022"/>
+      </geometry>
+      <material name="tread_mark"/>
+    </visual>
+
+    <visual>
+      <origin xyz="-0.146 0 0.000" rpy="0 3.1415927 0"/>
+      <geometry>
+        <box size="0.006 0.098 0.022"/>
+      </geometry>
+      <material name="tread_mark"/>
+    </visual>
+
+    <visual>
+      <origin xyz="-0.073 0 -0.126" rpy="0 -2.0943951 0"/>
+      <geometry>
+        <box size="0.006 0.098 0.022"/>
+      </geometry>
+      <material name="tread_mark"/>
+    </visual>
+
+    <visual>
+      <origin xyz="0.073 0 -0.126" rpy="0 -1.0471976 0"/>
+      <geometry>
+        <box size="0.006 0.098 0.022"/>
+      </geometry>
+      <material name="tread_mark"/>
     </visual>
 
     <visual>
       <origin xyz="0 0 0" rpy="1.5707963 0 0"/>
       <geometry>
-        <cylinder radius="0.075" length="0.06"/>
+        <cylinder radius="0.09" length="0.11"/>
       </geometry>
       <material name="rim"/>
     </visual>
@@ -308,31 +372,63 @@
     <visual>
       <origin xyz="0 0 0" rpy="1.5707963 0 0"/>
       <geometry>
-        <cylinder radius="0.17" length="0.14"/>
+        <cylinder radius="0.16" length="0.10"/>
       </geometry>
       <material name="tire"/>
     </visual>
 
     <visual>
-      <origin xyz="0.108 0 0.108" rpy="0 0.785398 0"/>
+      <origin xyz="0.146 0 0.000" rpy="0 0 0"/>
       <geometry>
-        <box size="0.010 0.145 0.024"/>
+        <box size="0.006 0.098 0.022"/>
       </geometry>
-      <material name="tire_groove"/>
+      <material name="tread_mark"/>
     </visual>
 
     <visual>
-      <origin xyz="-0.108 0 0.108" rpy="0 -0.785398 0"/>
+      <origin xyz="0.073 0 0.126" rpy="0 1.0471976 0"/>
       <geometry>
-        <box size="0.010 0.145 0.024"/>
+        <box size="0.006 0.098 0.022"/>
       </geometry>
-      <material name="tire_groove"/>
+      <material name="tread_mark"/>
+    </visual>
+
+    <visual>
+      <origin xyz="-0.073 0 0.126" rpy="0 2.0943951 0"/>
+      <geometry>
+        <box size="0.006 0.098 0.022"/>
+      </geometry>
+      <material name="tread_mark"/>
+    </visual>
+
+    <visual>
+      <origin xyz="-0.146 0 0.000" rpy="0 3.1415927 0"/>
+      <geometry>
+        <box size="0.006 0.098 0.022"/>
+      </geometry>
+      <material name="tread_mark"/>
+    </visual>
+
+    <visual>
+      <origin xyz="-0.073 0 -0.126" rpy="0 -2.0943951 0"/>
+      <geometry>
+        <box size="0.006 0.098 0.022"/>
+      </geometry>
+      <material name="tread_mark"/>
+    </visual>
+
+    <visual>
+      <origin xyz="0.073 0 -0.126" rpy="0 -1.0471976 0"/>
+      <geometry>
+        <box size="0.006 0.098 0.022"/>
+      </geometry>
+      <material name="tread_mark"/>
     </visual>
 
     <visual>
       <origin xyz="0 0 0" rpy="1.5707963 0 0"/>
       <geometry>
-        <cylinder radius="0.075" length="0.06"/>
+        <cylinder radius="0.09" length="0.11"/>
       </geometry>
       <material name="rim"/>
     </visual>
@@ -364,31 +460,63 @@
     <visual>
       <origin xyz="0 0 0" rpy="1.5707963 0 0"/>
       <geometry>
-        <cylinder radius="0.17" length="0.14"/>
+        <cylinder radius="0.16" length="0.10"/>
       </geometry>
       <material name="tire"/>
     </visual>
 
     <visual>
-      <origin xyz="0.108 0 0.108" rpy="0 0.785398 0"/>
+      <origin xyz="0.146 0 0.000" rpy="0 0 0"/>
       <geometry>
-        <box size="0.010 0.145 0.024"/>
+        <box size="0.006 0.098 0.022"/>
       </geometry>
-      <material name="tire_groove"/>
+      <material name="tread_mark"/>
     </visual>
 
     <visual>
-      <origin xyz="-0.108 0 0.108" rpy="0 -0.785398 0"/>
+      <origin xyz="0.073 0 0.126" rpy="0 1.0471976 0"/>
       <geometry>
-        <box size="0.010 0.145 0.024"/>
+        <box size="0.006 0.098 0.022"/>
       </geometry>
-      <material name="tire_groove"/>
+      <material name="tread_mark"/>
+    </visual>
+
+    <visual>
+      <origin xyz="-0.073 0 0.126" rpy="0 2.0943951 0"/>
+      <geometry>
+        <box size="0.006 0.098 0.022"/>
+      </geometry>
+      <material name="tread_mark"/>
+    </visual>
+
+    <visual>
+      <origin xyz="-0.146 0 0.000" rpy="0 3.1415927 0"/>
+      <geometry>
+        <box size="0.006 0.098 0.022"/>
+      </geometry>
+      <material name="tread_mark"/>
+    </visual>
+
+    <visual>
+      <origin xyz="-0.073 0 -0.126" rpy="0 -2.0943951 0"/>
+      <geometry>
+        <box size="0.006 0.098 0.022"/>
+      </geometry>
+      <material name="tread_mark"/>
+    </visual>
+
+    <visual>
+      <origin xyz="0.073 0 -0.126" rpy="0 -1.0471976 0"/>
+      <geometry>
+        <box size="0.006 0.098 0.022"/>
+      </geometry>
+      <material name="tread_mark"/>
     </visual>
 
     <visual>
       <origin xyz="0 0 0" rpy="1.5707963 0 0"/>
       <geometry>
-        <cylinder radius="0.075" length="0.06"/>
+        <cylinder radius="0.09" length="0.11"/>
       </geometry>
       <material name="rim"/>
     </visual>

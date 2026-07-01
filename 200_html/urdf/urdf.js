@@ -18,6 +18,7 @@ class URDFViewer {
         this.initialPolarDeg = 145.4;
         this.lastFrameTimeMs = performance.now();
         this.wheelSpeedInputElement = null;
+        this.wheelSpeedValueElement = null;
         this.wheelSpeedRpm = 38;
         this.wheelAngularSpeedRad = this.convertRpmToRadPerSec(this.wheelSpeedRpm);
         this.wheelJointNameByKey = {
@@ -166,6 +167,7 @@ class URDFViewer {
             rr: 'wheel-btn-rr'
         };
         this.wheelSpeedInputElement = document.getElementById('wheel-speed-rpm');
+        this.wheelSpeedValueElement = document.getElementById('wheel-speed-rpm-value');
 
         if (this.wheelSpeedInputElement) {
             this.wheelSpeedInputElement.value = String(this.wheelSpeedRpm);
@@ -204,6 +206,10 @@ class URDFViewer {
         this.wheelSpeedRpm = normalizedRpm;
         this.wheelAngularSpeedRad = this.convertRpmToRadPerSec(normalizedRpm);
         this.wheelSpeedInputElement.value = String(normalizedRpm);
+
+        if (this.wheelSpeedValueElement) {
+            this.wheelSpeedValueElement.textContent = `${normalizedRpm} rpm`;
+        }
     }
 
     toggleWheelAnimation(key) {

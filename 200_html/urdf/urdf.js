@@ -58,6 +58,7 @@ class URDFViewer {
 
         // 바닥 그리드와 축 추가
         const gridHelper = new THREE.GridHelper(10, 20, 0x888888, 0xcccccc);
+        gridHelper.rotation.x = Math.PI / 2;
         gridHelper.renderOrder = 999;
         if (Array.isArray(gridHelper.material)) {
             gridHelper.material.forEach(material => {

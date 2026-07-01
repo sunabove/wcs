@@ -674,7 +674,7 @@ function initURDFViewers() {
     });
 
     setDriveSpeedKmh($('#drive-speed-kmh').val());
-    updateDriveModeButtons('forward');
+    updateDriveModeButtons(null);
 
     console.log("[URDF] 🚀 모든 URDF Viewer 초기화 완료");
 }

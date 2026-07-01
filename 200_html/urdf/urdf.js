@@ -24,6 +24,12 @@ class URDFViewer {
             rl: 'joint_rl',
             rr: 'joint_rr'
         };
+        this.wheelLinkNameByKey = {
+            fl: 'wheel_fl',
+            fr: 'wheel_fr',
+            rl: 'wheel_rl',
+            rr: 'wheel_rr'
+        };
         this.wheelAngles = {
             fl: 0,
             fr: 0,
@@ -35,6 +41,12 @@ class URDFViewer {
             fr: false,
             rl: false,
             rr: false
+        };
+        this.wheelRuntimeTargetByKey = {
+            fl: null,
+            fr: null,
+            rl: null,
+            rr: null
         };
         this.wheelButtonByKey = {};
         this.urdfPath = containerElement.getAttribute('urdf') || '/urdf/vehicle/vehicle.urdf';
@@ -189,7 +201,7 @@ class URDFViewer {
     }
 
     applyWheelAnimation(deltaSec) {
-        if (!this.robotModel || !this.robotModel.joints) {
+        if (!this.robotModel) {
             return;
         }
 
@@ -198,14 +210,68 @@ class URDFViewer {
                 return;
             }
 
-            const jointName = this.wheelJointNameByKey[key];
-            const joint = this.robotModel.joints[jointName];
-            if (!joint || typeof joint.setJointValue !== 'function') {
+            const runtimeTarget = this.wheelRuntimeTargetByKey[key];
+            if (!runtimeTarget) {
                 return;
             }
 
             this.wheelAngles[key] += this.wheelAngularSpeedRad * deltaSec;
-            joint.setJointValue(this.wheelAngles[key]);
+
+            if (runtimeTarget.type === 'joint') {
+                runtimeTarget.ref.setJointValue(this.wheelAngles[key]);
+                return;
+            }
+
+            if (runtimeTarget.type === 'link') {
+                runtimeTarget.ref.rotation.y = this.wheelAngles[key];
+            }
+        });
+    }
+
+    resolveWheelAnimationTargets() {
+        const jointMap = this.robotModel?.joints || {};
+        const linkMap = this.robotModel?.links || {};
+        const jointNames = Object.keys(jointMap);
+
+        Object.keys(this.wheelJointNameByKey).forEach(key => {
+            const expectedJointName = this.wheelJointNameByKey[key];
+            let joint = jointMap[expectedJointName] || null;
+
+            if (!joint) {
+                const keySuffix = `_${key}`;
+                const candidateJointName = jointNames.find(name => (
+                    name === expectedJointName ||
+                    name.endsWith(expectedJointName) ||
+                    name.endsWith(keySuffix)
+                ));
+
+                if (candidateJointName) {
+                    joint = jointMap[candidateJointName];
+                }
+            }
+
+            if (joint && typeof joint.setJointValue === 'function') {
+                this.wheelRuntimeTargetByKey[key] = {
+                    type: 'joint',
+                    ref: joint
+                };
+                console.log(`[URDF] ${this.viewLabel} ${key.toUpperCase()} 휠 조인트 연결:`, joint.name || expectedJointName);
+                return;
+            }
+
+            const expectedLinkName = this.wheelLinkNameByKey[key];
+            const link = linkMap[expectedLinkName] || null;
+            if (link) {
+                this.wheelRuntimeTargetByKey[key] = {
+                    type: 'link',
+                    ref: link
+                };
+                console.warn(`[URDF] ${this.viewLabel} ${key.toUpperCase()} 조인트 미발견. 링크 회전 폴백 사용:`, expectedLinkName);
+                return;
+            }
+
+            this.wheelRuntimeTargetByKey[key] = null;
+            console.warn(`[URDF] ${this.viewLabel} ${key.toUpperCase()} 휠 대상(조인트/링크)을 찾지 못했습니다.`);
         });
     }
 
@@ -328,6 +394,7 @@ class URDFViewer {
 
                 this.scene.add(robot);
                 this.robotModel = robot;
+                this.resolveWheelAnimationTargets();
 
                 // 자동 피팅 로직
                 setTimeout(() => {

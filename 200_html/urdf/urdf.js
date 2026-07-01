@@ -48,6 +48,12 @@ class URDFViewer {
             rl: null,
             rr: null
         };
+        this.wheelLinkByKey = {
+            fl: null,
+            fr: null,
+            rl: null,
+            rr: null
+        };
         this.wheelButtonByKey = {};
         this.urdfPath = containerElement.getAttribute('urdf') || '/urdf/vehicle/vehicle.urdf';
         this.urdfScale = parseFloat(containerElement.getAttribute('urdf-scale')) || 1;
@@ -262,6 +268,10 @@ class URDFViewer {
             const expectedLinkName = this.wheelLinkNameByKey[key];
             const link = linkMap[expectedLinkName] || null;
             if (link) {
+                this.wheelLinkByKey[key] = link;
+            }
+
+            if (link) {
                 this.wheelRuntimeTargetByKey[key] = {
                     type: 'link',
                     ref: link
@@ -272,6 +282,30 @@ class URDFViewer {
 
             this.wheelRuntimeTargetByKey[key] = null;
             console.warn(`[URDF] ${this.viewLabel} ${key.toUpperCase()} 휠 대상(조인트/링크)을 찾지 못했습니다.`);
+        });
+    }
+
+    addWheelSpinMarkers() {
+        const markerGeometry = new THREE.BoxGeometry(0.03, 0.03, 0.12);
+        const markerMaterial = new THREE.MeshStandardMaterial({
+            color: 0xffb703,
+            emissive: 0x6f4a00,
+            roughness: 0.35,
+            metalness: 0.1
+        });
+
+        Object.keys(this.wheelLinkByKey).forEach(key => {
+            const wheelLink = this.wheelLinkByKey[key];
+            if (!wheelLink) {
+                return;
+            }
+
+            const marker = new THREE.Mesh(markerGeometry, markerMaterial);
+            marker.name = `wheel_spin_marker_${key}`;
+            marker.position.set(0.0, 0.0, 0.14);
+            marker.castShadow = true;
+            marker.receiveShadow = false;
+            wheelLink.add(marker);
         });
     }
 
@@ -287,10 +321,6 @@ class URDFViewer {
         const distance = this.camera.position.distanceTo(this.controls.target);
         const angleText = `azimuth: ${azimuthDeg.toFixed(1)}°, polar: ${polarDeg.toFixed(1)}°`;
         const distanceText = `distance: ${distance.toFixed(3)}`;
-
-        console.log(
-            `[URDF] ${this.viewLabel} 카메라 정보 - ${angleText}, ${distanceText}`
-        );
 
         if (this.cameraAngleTextElement) {
             this.cameraAngleTextElement.textContent = `${this.viewLabel}: ${angleText} | ${distanceText}`;
@@ -395,6 +425,7 @@ class URDFViewer {
                 this.scene.add(robot);
                 this.robotModel = robot;
                 this.resolveWheelAnimationTargets();
+                this.addWheelSpinMarkers();
 
                 // 자동 피팅 로직
                 setTimeout(() => {

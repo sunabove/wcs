@@ -211,10 +211,10 @@ function initURDFViewers() {
     console.log("[URDF] 🚀 URDF Viewer 초기화 시작...");
     
     // robot-container 클래스를 가진 모든 요소들 찾기
-    const containers = document.querySelectorAll('.urdf-container');
+    const containers = document.querySelectorAll('.urdf-container, .robot-container');
     
     if (containers.length === 0) {
-        console.error("[URDF] ❌ urdf-container 클래스를 가진 요소를 찾을 수 없습니다.");
+        console.error("[URDF] ❌ urdf-container 또는 robot-container 클래스를 가진 요소를 찾을 수 없습니다.");
         return;
     }
     

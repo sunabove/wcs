@@ -16,9 +16,7 @@
 
         #robot-grid {
             display: grid;
-            grid-template-columns: 1fr 1fr;
-            grid-template-rows: 1fr 1fr;
-            gap: 15px;
+            place-items: center;
             width: 90vw;
             max-width: 1200px;
             height: 80vh;
@@ -28,6 +26,8 @@
         }
 
         .robot-container {
+            width: min(70vw, 900px);
+            height: min(65vh, 650px);
             border: 2px solid #333;
             border-radius: 8px;
             overflow: hidden;
@@ -63,7 +63,7 @@
 
 <body>
     <div class="controls">
-        <h1>URDF Viewer - 4 Panel View</h1>
+        <h1>URDF Viewer</h1>
     </div>
 
     <div id="robot-grid">

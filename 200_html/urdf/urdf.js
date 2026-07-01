@@ -83,6 +83,8 @@ class URDFViewer {
         }
         this.scene.add(axesHelper);
 
+        this.addAxisLabels(1);
+
         // 마우스 이벤트 설정
         this.setupMouseEvents();
 
@@ -94,6 +96,48 @@ class URDFViewer {
 
         // 리사이즈 이벤트 설정
         this.setupResizeHandler();
+    }
+
+    createAxisLabel(text, colorHex, position) {
+        const canvas = document.createElement('canvas');
+        canvas.width = 128;
+        canvas.height = 128;
+
+        const context = canvas.getContext('2d');
+        context.clearRect(0, 0, canvas.width, canvas.height);
+        context.font = 'bold 76px Arial';
+        context.fillStyle = colorHex;
+        context.textAlign = 'center';
+        context.textBaseline = 'middle';
+        context.fillText(text, 64, 64);
+
+        const texture = new THREE.CanvasTexture(canvas);
+        texture.needsUpdate = true;
+
+        const material = new THREE.SpriteMaterial({
+            map: texture,
+            transparent: true,
+            depthTest: false,
+            depthWrite: false
+        });
+
+        const sprite = new THREE.Sprite(material);
+        sprite.position.copy(position);
+        sprite.scale.set(0.2, 0.2, 0.2);
+        sprite.renderOrder = 1000;
+
+        return sprite;
+    }
+
+    addAxisLabels(axisLength) {
+        const margin = 0.14;
+        const xLabel = this.createAxisLabel('X', '#ff3333', new THREE.Vector3(axisLength + margin, 0, 0));
+        const yLabel = this.createAxisLabel('Y', '#22aa22', new THREE.Vector3(0, axisLength + margin, 0));
+        const zLabel = this.createAxisLabel('Z', '#3366ff', new THREE.Vector3(0, 0, axisLength + margin));
+
+        this.scene.add(xLabel);
+        this.scene.add(yLabel);
+        this.scene.add(zLabel);
     }
 
     setupMouseEvents() {

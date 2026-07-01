@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Web Speech API TTS 예제</title>
+	<style>
+		body {
+			font-family: Arial, sans-serif;
+			margin: 40px;
+		}
+
+		textarea {
+			width: 100%;
+			max-width: 700px;
+			height: 150px;
+			font-size: 16px;
+		}
+
+		button {
+			margin-top: 10px;
+			margin-right: 10px;
+			padding: 10px 20px;
+			font-size: 16px;
+		}
+	</style>
+</head>
+
+<body>
+
+	<h2>HTML TTS 예제</h2>
+
+	<textarea id="text">안녕하세요. Web Speech API를 이용한 TTS 테스트입니다.</textarea>
+	<br>
+
+	<button onclick="speak()">읽기</button>
+	<button onclick="stopSpeak()">정지</button>
+
+	<script>
+		let voices = [];
+
+		function loadVoices() {
+			voices = speechSynthesis.getVoices();
+		}
+
+		speechSynthesis.onvoiceschanged = loadVoices;
+		loadVoices();
+
+		function speak() {
+
+			speechSynthesis.cancel();
+
+			const utter = new SpeechSynthesisUtterance(
+				document.getElementById("text").value
+			);
+
+			utter.lang = "ko-KR";
+			utter.rate = 1.0;
+			utter.pitch = 1.0;
+			utter.volume = 1.0;
+
+			const koreanVoice = voices.find(v => v.lang === "ko-KR");
+			if (koreanVoice) {
+				utter.voice = koreanVoice;
+			}
+
+			utter.onstart = () => console.log("TTS 시작");
+			utter.onend = () => console.log("TTS 종료");
+			utter.onerror = e => console.log(e);
+
+			speechSynthesis.speak(utter);
+		}
+
+		function stopSpeak() {
+			speechSynthesis.cancel();
+		}
+	</script>
+
+</body>
+
+</html>

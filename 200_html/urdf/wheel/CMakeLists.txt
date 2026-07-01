@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 2.8.3)
 
-project(wheel_3.SLDASM)
+project(wheel)
 
 find_package(catkin REQUIRED)
 

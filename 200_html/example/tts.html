@@ -45,6 +45,13 @@
 		.example-item:hover {
 			background: #e9ecef;
 		}
+
+		.example-item.active {
+			background: #dbeafe;
+			border-color: #93c5fd;
+			color: #1d4ed8;
+			font-weight: 700;
+		}
 	</style>
 </head>
 
@@ -60,22 +67,14 @@
 	<button onclick="speakRoadExamples()">음성 예제 전체 출력</button>
 
 	<div id="example-list" class="example-list">
-		<span class="example-item" onclick="speakRoadMessage(0)">아스팔트입니다.</span>
-		<span class="example-item" onclick="speakRoadMessage(1)">보도블록입니다.</span>
-		<span class="example-item" onclick="speakRoadMessage(2)">자갈길입니다.</span>
-		<span class="example-item" onclick="speakRoadMessage(3)">흙길입니다.</span>
+		<span class="example-item" onclick="speakRoadMessage(this)">아스팔트입니다.</span>
+		<span class="example-item" onclick="speakRoadMessage(this)">보도블록입니다.</span>
+		<span class="example-item" onclick="speakRoadMessage(this)">자갈길입니다.</span>
+		<span class="example-item" onclick="speakRoadMessage(this)">흙길입니다.</span>
 	</div>
-
-	<div id="example-output" style="margin-top: 14px; max-width: 700px; line-height: 1.7;"></div>
 
 	<script>
 		let voices = [];
-		const roadMessages = [
-			"아스팔트입니다.",
-			"보도블록입니다.",
-			"자갈길입니다.",
-			"흙길입니다."
-		];
 
 		function loadVoices() {
 			voices = speechSynthesis.getVoices();
@@ -131,46 +130,49 @@
 			speechSynthesis.speak(utter);
 		}
 
-		function speakRoadMessage(index) {
-			const message = roadMessages[index];
+		function speakRoadMessage(exampleElement) {
+			if (!exampleElement) {
+				return;
+			}
+
+			const message = exampleElement.textContent.trim();
 			if (!message) {
 				return;
 			}
 
+			const items = Array.from(document.querySelectorAll("#example-list .example-item"));
+			const activeIndex = items.indexOf(exampleElement);
+			setActiveExampleItem(activeIndex);
+
 			document.getElementById("text").value = message;
-			const output = document.getElementById("example-output");
-			if (output) {
-				output.textContent = `선택된 예제: ${message}`;
-			}
 
 			speakMessage(message);
 		}
 
-		globalThis.speakRoadMessage = speakRoadMessage;
-
-		function updateExampleOutput() {
-			const output = document.getElementById("example-output");
-			if (!output) {
-				return;
-			}
-
-			output.innerHTML = roadMessages
-				.map((msg, index) => `${index + 1}. ${msg}`)
-				.join("<br>");
+		function setActiveExampleItem(activeIndex) {
+			const items = document.querySelectorAll("#example-list .example-item");
+			items.forEach((item, index) => {
+				item.classList.toggle("active", index === activeIndex);
+			});
 		}
 
 		function speakRoadExamples() {
 			speechSynthesis.cancel();
-			updateExampleOutput();
+			const messages = Array.from(document.querySelectorAll("#example-list .example-item"))
+				.map(item => item.textContent.trim())
+				.filter(message => message.length > 0);
 
 			let index = 0;
 
 			const speakNext = () => {
-				if (index >= roadMessages.length) {
+				if (index >= messages.length) {
+					setActiveExampleItem(-1);
 					return;
 				}
 
-				const utter = new SpeechSynthesisUtterance(roadMessages[index]);
+				setActiveExampleItem(index);
+
+				const utter = new SpeechSynthesisUtterance(messages[index]);
 				utter.lang = "ko-KR";
 				utter.rate = 1.0;
 				utter.pitch = 1.0;

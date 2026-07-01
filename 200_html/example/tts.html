@@ -59,7 +59,12 @@
 	<button onclick="stopSpeak()">정지</button>
 	<button onclick="speakRoadExamples()">음성 예제 전체 출력</button>
 
-	<div id="example-list" class="example-list"></div>
+	<div id="example-list" class="example-list">
+		<span class="example-item" onclick="speakRoadMessage(0)">아스팔트입니다.</span>
+		<span class="example-item" onclick="speakRoadMessage(1)">보도블록입니다.</span>
+		<span class="example-item" onclick="speakRoadMessage(2)">자갈길입니다.</span>
+		<span class="example-item" onclick="speakRoadMessage(3)">흙길입니다.</span>
+	</div>
 
 	<div id="example-output" style="margin-top: 14px; max-width: 700px; line-height: 1.7;"></div>
 
@@ -78,7 +83,6 @@
 
 		speechSynthesis.onvoiceschanged = loadVoices;
 		loadVoices();
-		renderExampleList();
 
 		function speak() {
 
@@ -125,17 +129,6 @@
 
 			utter.onerror = e => console.log(e);
 			speechSynthesis.speak(utter);
-		}
-
-		function renderExampleList() {
-			const listElement = document.getElementById("example-list");
-			if (!listElement) {
-				return;
-			}
-
-			listElement.innerHTML = roadMessages
-				.map((msg, index) => `<span class="example-item" onclick="speakRoadMessage(${index})">${msg}</span>`)
-				.join("");
 		}
 
 		function speakRoadMessage(index) {

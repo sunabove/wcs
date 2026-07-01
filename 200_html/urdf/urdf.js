@@ -14,8 +14,8 @@ class URDFViewer {
         this.lastAngleLogAt = 0;
         this.angleLogIntervalMs = 120;
         this.cameraAngleTextElement = null;
-        this.initialAzimuthDeg = -1.6;
-        this.initialPolarDeg = 144.8;
+        this.initialAzimuthDeg = 0.7;
+        this.initialPolarDeg = 145.4;
         this.urdfPath = containerElement.getAttribute('urdf') || '/urdf/vehicle/vehicle.urdf';
         this.urdfScale = parseFloat(containerElement.getAttribute('urdf-scale')) || 1;
         this.urdfRotation = (containerElement.getAttribute('urdf-rotation') || '0,0,0')

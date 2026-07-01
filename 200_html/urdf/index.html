@@ -5,8 +5,77 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>URDF Viewer</title>
-    <link rel="icon" href="/favicon.ico" type="image/x-icon" />
-    <style> 
+    <link rel="icon" href="../favicon.ico" type="image/x-icon" />
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            font-family: Arial, sans-serif;
+            background-color: #f0f0f0;
+        }
+
+        #robot-grid {
+            display: grid;
+            place-items: center;
+            width: 90vw;
+            max-width: 1200px;
+            height: 80vh;
+            max-height: 800px;
+            margin: 0 auto;
+            padding: 10px;
+        }
+
+        .robot-container {
+            width: min(70vw, 900px);
+            height: min(65vh, 650px);
+            border: 2px solid #333;
+            border-radius: 8px;
+            overflow: hidden;
+            background-color: white;
+            position: relative;
+        }
+
+        .robot-container .label {
+            position: absolute;
+            top: 5px;
+            left: 10px;
+            background: rgba(0,0,0,0.7);
+            color: white;
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            z-index: 100;
+        }
+
+        .controls {
+            text-align: center;
+            margin: 20px 0;
+        }
+
+        .info {
+            text-align: center;
+            color: #666;
+            margin-top: 10px;
+        }
+
+        .camera-angle-panel {
+            width: fit-content;
+            margin: 12px auto 0;
+            background: rgba(0, 0, 0, 0.75);
+            color: #fff;
+            padding: 10px 12px;
+            border-radius: 8px;
+            font-size: 13px;
+            line-height: 1.5;
+            min-width: 210px;
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
+            pointer-events: none;
+        }
+
+        .camera-angle-panel .title {
+            font-weight: bold;
+            margin-bottom: 4px;
+        }
     </style>
     
 </head>

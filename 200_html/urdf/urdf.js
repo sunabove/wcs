@@ -177,9 +177,6 @@ class URDFViewer {
             }
 
             inputElement.val(String(this.wheelSpeedRpmByKey[key]));
-            inputElement.on('input', () => {
-                this.updateWheelSpeedFromInput(key);
-            });
             this.updateWheelSpeedFromInput(key);
         });
     }
@@ -488,6 +485,16 @@ class URDFViewer {
         this.renderer.render(this.scene, this.camera);
     }
 }
+
+function setWheelAnimationByKey(key, rpm) {
+    if (!window.activeURDFViewer) {
+        return;
+    }
+
+    window.activeURDFViewer.setWheelSpeedRpm(key, rpm);
+}
+
+globalThis.setWheelAnimationByKey = setWheelAnimationByKey;
 
 // 초기화 함수
 function initURDFViewers() {

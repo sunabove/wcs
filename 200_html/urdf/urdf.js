@@ -2,6 +2,8 @@ import * as THREE from 'three';
 import URDFLoader from 'urdf-loader';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 
+const $ = window.jQuery;
+
 // 각 뷰어를 위한 클래스
 class URDFViewer {
     constructor(containerElement, viewLabel, viewIndex) {
@@ -88,7 +90,7 @@ class URDFViewer {
         this.controls = new OrbitControls(this.camera, this.renderer.domElement);
         this.controls.enableDamping = true;
         this.controls.dampingFactor = 0.05;
-        this.cameraAngleTextElement = document.getElementById('camera-angle-text');
+        this.cameraAngleTextElement = $('#camera-angle-text');
         this.setupCameraAngleLogging();
         this.setupWheelControls();
 
@@ -166,25 +168,27 @@ class URDFViewer {
             rl: 'wheel-btn-rl',
             rr: 'wheel-btn-rr'
         };
-        this.wheelSpeedInputElement = document.getElementById('wheel-speed-rpm');
-        this.wheelSpeedValueElement = document.getElementById('wheel-speed-rpm-value');
+        this.wheelSpeedInputElement = $('#wheel-speed-rpm');
+        this.wheelSpeedValueElement = $('#wheel-speed-rpm-value');
 
-        if (this.wheelSpeedInputElement) {
-            this.wheelSpeedInputElement.value = String(this.wheelSpeedRpm);
-            this.wheelSpeedInputElement.addEventListener('input', () => {
+        if (this.wheelSpeedInputElement.length > 0) {
+            this.wheelSpeedInputElement.val(String(this.wheelSpeedRpm));
+            this.wheelSpeedInputElement.on('input', () => {
                 this.updateWheelSpeedFromInput();
             });
             this.updateWheelSpeedFromInput();
         }
 
         Object.keys(buttonIdByKey).forEach(key => {
-            const button = document.getElementById(buttonIdByKey[key]);
-            if (!button) {
+            const button = $(`#${buttonIdByKey[key]}`);
+            if (button.length === 0) {
                 return;
             }
 
             this.wheelButtonByKey[key] = button;
-            button.addEventListener('click', () => {
+            button.on('click', () => {
+                const currentRpm = this.wheelSpeedInputElement.length > 0 ? this.wheelSpeedInputElement.val() : this.wheelSpeedRpm;
+                this.setWheelSpeedRpm(currentRpm);
                 this.toggleWheelAnimation(key);
             });
             this.updateWheelButtonState(key);
@@ -196,11 +200,11 @@ class URDFViewer {
     }
 
     updateWheelSpeedFromInput() {
-        if (!this.wheelSpeedInputElement) {
+        if (!this.wheelSpeedInputElement || this.wheelSpeedInputElement.length === 0) {
             return;
         }
 
-        const inputRpm = Number.parseFloat(this.wheelSpeedInputElement.value);
+        const inputRpm = Number.parseFloat(this.wheelSpeedInputElement.val());
         const normalizedRpm = Number.isFinite(inputRpm) ? Math.max(inputRpm, 0) : this.wheelSpeedRpm;
 
         this.wheelSpeedRpm = normalizedRpm;
@@ -209,6 +213,22 @@ class URDFViewer {
 
         if (this.wheelSpeedValueElement) {
             this.wheelSpeedValueElement.textContent = `${normalizedRpm} rpm`;
+        }
+    }
+
+    setWheelSpeedRpm(rpm) {
+        const numericRpm = Number.parseFloat(rpm);
+        const normalizedRpm = Number.isFinite(numericRpm) ? Math.max(numericRpm, 0) : this.wheelSpeedRpm;
+
+        this.wheelSpeedRpm = normalizedRpm;
+        this.wheelAngularSpeedRad = this.convertRpmToRadPerSec(normalizedRpm);
+
+        if (this.wheelSpeedInputElement && this.wheelSpeedInputElement.length > 0) {
+            this.wheelSpeedInputElement.val(String(normalizedRpm));
+        }
+
+        if (this.wheelSpeedValueElement && this.wheelSpeedValueElement.length > 0) {
+            this.wheelSpeedValueElement.text(`${normalizedRpm} rpm`);
         }
     }
 
@@ -223,15 +243,15 @@ class URDFViewer {
 
     updateWheelButtonState(key) {
         const button = this.wheelButtonByKey[key];
-        if (!button) {
+        if (!button || button.length === 0) {
             return;
         }
 
         const wheelLabel = key.toUpperCase();
         const isEnabled = this.wheelAnimationEnabled[key];
-        button.textContent = `${wheelLabel} Wheel: ${isEnabled ? 'ON' : 'OFF'}`;
-        button.classList.toggle('btn-outline-primary', !isEnabled);
-        button.classList.toggle('btn-primary', isEnabled);
+        button.text(`${wheelLabel} Wheel: ${isEnabled ? 'ON' : 'OFF'}`);
+        button.toggleClass('btn-outline-primary', !isEnabled);
+        button.toggleClass('btn-primary', isEnabled);
     }
 
     applyWheelAnimation(deltaSec) {
@@ -322,8 +342,8 @@ class URDFViewer {
         const angleText = `azimuth: ${azimuthDeg.toFixed(1)}°, polar: ${polarDeg.toFixed(1)}°`;
         const distanceText = `distance: ${distance.toFixed(3)}`;
 
-        if (this.cameraAngleTextElement) {
-            this.cameraAngleTextElement.textContent = `${this.viewLabel}: ${angleText} | ${distanceText}`;
+        if (this.cameraAngleTextElement && this.cameraAngleTextElement.length > 0) {
+            this.cameraAngleTextElement.text(`${this.viewLabel}: ${angleText} | ${distanceText}`);
         }
     }
 
@@ -497,12 +517,24 @@ class URDFViewer {
     }
 }
 
+function toggleWheelAnimationByKey(key, rpm) {
+    if (!window.activeURDFViewer) {
+        return;
+    }
+
+    window.activeURDFViewer.setWheelSpeedRpm(rpm);
+    window.activeURDFViewer.toggleWheelAnimation(key);
+}
+
+globalThis.toggleWheelAnimationByKey = toggleWheelAnimationByKey;
+
 // 초기화 함수
 function initURDFViewers() {
     console.log("[URDF] 🚀 URDF Viewer 초기화 시작...");
+    window.activeURDFViewer = null;
     
     // robot-container 클래스를 가진 모든 요소들 찾기
-    const containers = document.querySelectorAll('.urdf-container, .robot-container');
+    const containers = $('.urdf-container, .robot-container').toArray();
     
     if (containers.length === 0) {
         console.error("[URDF] ❌ urdf-container 또는 robot-container 클래스를 가진 요소를 찾을 수 없습니다.");
@@ -523,11 +555,11 @@ function initURDFViewers() {
         
         console.log(`[URDF] 🔧 ${containerClass} 요소 초기화 중... (ViewIndex: ${viewIndex})`);
         
-        const viewer = new URDFViewer(container, viewLabel, viewIndex);
+        window.activeURDFViewer = new URDFViewer(container, viewLabel, viewIndex);
     });
 
     console.log("[URDF] 🚀 모든 URDF Viewer 초기화 완료");
 }
 
 // DOM 준비 후 초기화
-document.addEventListener('DOMContentLoaded', initURDFViewers);
+$(initURDFViewers);

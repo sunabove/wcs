@@ -57,6 +57,27 @@
             color: #666;
             margin-top: 10px;
         }
+
+        .camera-angle-panel {
+            position: fixed;
+            right: 16px;
+            bottom: 16px;
+            z-index: 1000;
+            background: rgba(0, 0, 0, 0.75);
+            color: #fff;
+            padding: 10px 12px;
+            border-radius: 8px;
+            font-size: 13px;
+            line-height: 1.5;
+            min-width: 210px;
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
+            pointer-events: none;
+        }
+
+        .camera-angle-panel .title {
+            font-weight: bold;
+            margin-bottom: 4px;
+        }
     </style>
     
 </head>
@@ -73,6 +94,11 @@
     
     <div class="info">
         <p>Robot model will appear in each panel above. Check console for loading status.</p>
+    </div>
+
+    <div class="camera-angle-panel" id="camera-angle-panel">
+        <div class="title">Camera Angle</div>
+        <div id="camera-angle-text">azimuth: --°, polar: --°</div>
     </div>
 
     <!-- Import map for module resolution -->

@@ -13,6 +13,7 @@ class URDFViewer {
         this.isDragging = false;
         this.lastAngleLogAt = 0;
         this.angleLogIntervalMs = 120;
+        this.cameraAngleTextElement = null;
         this.urdfPath = containerElement.getAttribute('urdf') || '/urdf/vehicle/vehicle.urdf';
         this.urdfScale = parseFloat(containerElement.getAttribute('urdf-scale')) || 1;
         this.urdfRotation = (containerElement.getAttribute('urdf-rotation') || '0,0,0')
@@ -49,6 +50,7 @@ class URDFViewer {
         this.controls = new OrbitControls(this.camera, this.renderer.domElement);
         this.controls.enableDamping = true;
         this.controls.dampingFactor = 0.05;
+        this.cameraAngleTextElement = document.getElementById('camera-angle-text');
         this.setupCameraAngleLogging();
 
         // 조명 설정
@@ -114,9 +116,7 @@ class URDFViewer {
         });
 
         this.controls.addEventListener('change', () => {
-            if (this.isDragging) {
-                this.logCameraAngles(false);
-            }
+            this.logCameraAngles(false);
         });
     }
 
@@ -129,10 +129,15 @@ class URDFViewer {
 
         const azimuthDeg = THREE.MathUtils.radToDeg(this.controls.getAzimuthalAngle());
         const polarDeg = THREE.MathUtils.radToDeg(this.controls.getPolarAngle());
+        const angleText = `azimuth: ${azimuthDeg.toFixed(1)}°, polar: ${polarDeg.toFixed(1)}°`;
 
         console.log(
-            `[URDF] ${this.viewLabel} 카메라 각도 - azimuth: ${azimuthDeg.toFixed(1)}°, polar: ${polarDeg.toFixed(1)}°`
+            `[URDF] ${this.viewLabel} 카메라 각도 - ${angleText}`
         );
+
+        if (this.cameraAngleTextElement) {
+            this.cameraAngleTextElement.textContent = `${this.viewLabel}: ${angleText}`;
+        }
     }
 
     createAxisLabel(text, colorHex, position) {
@@ -250,6 +255,7 @@ class URDFViewer {
                     this.controls.minDistance = cameraDist * 0.2;
                     this.controls.maxDistance = cameraDist * 8;
                     this.controls.update();
+                    this.logCameraAngles(true);
 
                     console.log(`[URDF] ✅ ${this.viewLabel} 자동 피팅 완료: 거리`, cameraDist.toFixed(4));
                 }, 200);

@@ -18,8 +18,10 @@ class IMU_ICM20602_Service:
         self.timer = None
         self.signal_timer = None
         self.start_time = 0.0
+        self.sampling_hz = 100.0
+        self.sample_interval_sec = 1.0 / self.sampling_hz
         self.x_window_sec = 20.0
-        self.history_len = 300
+        self.history_len = int(self.x_window_sec * self.sampling_hz)
         self.time_data = deque(maxlen=self.history_len)
         self.accel_x_data = deque(maxlen=self.history_len)
         self.accel_y_data = deque(maxlen=self.history_len)
@@ -82,7 +84,7 @@ class IMU_ICM20602_Service:
 
             self.timer = self.QtCore.QTimer()
             self.timer.timeout.connect(self.on_chart_timer)
-            self.timer.start(100)
+            self.timer.start(int(self.sample_interval_sec * 1000))
 
             self._prev_sigint_handler = signal.getsignal(signal.SIGINT)
             signal.signal(signal.SIGINT, self.on_sigint)
@@ -90,7 +92,7 @@ class IMU_ICM20602_Service:
             self.signal_timer.timeout.connect(lambda: None)
             self.signal_timer.start(100)
 
-            print("Starting real-time chart. Close the chart window to stop.")
+            print(f"Starting real-time chart at {self.sampling_hz:.0f} Hz. Close the chart window to stop.")
             try:
                 self.qt_app.exec()
             finally:
@@ -101,7 +103,7 @@ class IMU_ICM20602_Service:
                     signal.signal(signal.SIGINT, self._prev_sigint_handler)
                     self._prev_sigint_handler = None
         else :
-            print("Continous reading, break to stop")
+            print(f"Continous reading at {self.sampling_hz:.0f} Hz, break to stop")
             cnt = 1
             while True:
                 accel_g, gyro_g, roll, pitch = self.collect_sensor_data(collect_chart_data=False)
@@ -114,7 +116,7 @@ class IMU_ICM20602_Service:
                     f"Roll: {roll:6.2f} °, Pitch: {pitch:6.2f} °"
                 )
 
-                sleep(0.10)
+                sleep(self.sample_interval_sec)
                 cnt += 1
             pass
         pass
@@ -165,7 +167,7 @@ class IMU_ICM20602_Service:
         self.win = self.pg.GraphicsLayoutWidget(title="ICM20602 Real-Time Monitor")
         self.win.resize(1200, 800)
 
-        self.accel_plot = self.win.addPlot(title="Accelerometer (g)")
+        self.accel_plot = self.win.addPlot(title="Accelerometer")
         self.accel_plot.showGrid(x=True, y=True)
         self.accel_plot.setLabel("left", "g")
         self.accel_plot.setLabel("bottom", "Time", units="s")
@@ -176,7 +178,7 @@ class IMU_ICM20602_Service:
         self.accel_curves["z"] = self.accel_plot.plot(pen=self.pg.mkPen("b", width=2), name="az")
 
         self.win.nextRow()
-        self.gyro_plot = self.win.addPlot(title="Gyroscope (deg/s)")
+        self.gyro_plot = self.win.addPlot(title="Gyroscope")
         self.gyro_plot.showGrid(x=True, y=True)
         self.gyro_plot.setLabel("left", "deg/s")
         self.gyro_plot.setLabel("bottom", "Time", units="s")

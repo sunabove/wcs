@@ -10,6 +10,9 @@ class URDFViewer {
         this.viewIndex = viewIndex;
         this.robotModel = null;
         this.goalTarget = new THREE.Vector3(0, 0, 0);
+        this.isDragging = false;
+        this.lastAngleLogAt = 0;
+        this.angleLogIntervalMs = 120;
         this.urdfPath = containerElement.getAttribute('urdf') || '/urdf/vehicle/vehicle.urdf';
         this.urdfScale = parseFloat(containerElement.getAttribute('urdf-scale')) || 1;
         this.urdfRotation = (containerElement.getAttribute('urdf-rotation') || '0,0,0')
@@ -46,6 +49,7 @@ class URDFViewer {
         this.controls = new OrbitControls(this.camera, this.renderer.domElement);
         this.controls.enableDamping = true;
         this.controls.dampingFactor = 0.05;
+        this.setupCameraAngleLogging();
 
         // 조명 설정
         const directionalLight = new THREE.DirectionalLight(0xffffff, 1.5);
@@ -97,6 +101,38 @@ class URDFViewer {
 
         // 리사이즈 이벤트 설정
         this.setupResizeHandler();
+    }
+
+    setupCameraAngleLogging() {
+        this.controls.addEventListener('start', () => {
+            this.isDragging = true;
+        });
+
+        this.controls.addEventListener('end', () => {
+            this.isDragging = false;
+            this.logCameraAngles(true);
+        });
+
+        this.controls.addEventListener('change', () => {
+            if (this.isDragging) {
+                this.logCameraAngles(false);
+            }
+        });
+    }
+
+    logCameraAngles(force) {
+        const now = performance.now();
+        if (!force && now - this.lastAngleLogAt < this.angleLogIntervalMs) {
+            return;
+        }
+        this.lastAngleLogAt = now;
+
+        const azimuthDeg = THREE.MathUtils.radToDeg(this.controls.getAzimuthalAngle());
+        const polarDeg = THREE.MathUtils.radToDeg(this.controls.getPolarAngle());
+
+        console.log(
+            `[URDF] ${this.viewLabel} 카메라 각도 - azimuth: ${azimuthDeg.toFixed(1)}°, polar: ${polarDeg.toFixed(1)}°`
+        );
     }
 
     createAxisLabel(text, colorHex, position) {

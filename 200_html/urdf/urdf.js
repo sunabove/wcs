@@ -22,16 +22,16 @@ class URDFViewer {
         this.wheelSpeedInputByKey = {};
         this.wheelSpeedValueByKey = {};
         this.wheelSpeedRpmByKey = {
-            fl: 38,
-            fr: 38,
-            rl: 38,
-            rr: 38
+            fl: 0,
+            fr: 0,
+            rl: 0,
+            rr: 0
         };
         this.wheelAngularSpeedRadByKey = {
-            fl: this.convertRpmToRadPerSec(38),
-            fr: this.convertRpmToRadPerSec(38),
-            rl: this.convertRpmToRadPerSec(38),
-            rr: this.convertRpmToRadPerSec(38)
+            fl: this.convertRpmToRadPerSec(0),
+            fr: this.convertRpmToRadPerSec(0),
+            rl: this.convertRpmToRadPerSec(0),
+            rr: this.convertRpmToRadPerSec(0)
         };
         this.wheelJointNameByKey = {
             fl: 'joint_fl',

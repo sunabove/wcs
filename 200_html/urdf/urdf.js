@@ -12,7 +12,7 @@ class URDFViewer {
         this.goalTarget = new THREE.Vector3(0, 0, 0);
         this.urdfPath = containerElement.getAttribute('urdf') || '/urdf/vehicle/vehicle.urdf';
         this.urdfScale = parseFloat(containerElement.getAttribute('urdf-scale')) || 1;
-        this.urdfRotation = (containerElement.getAttribute('urdf-rotation') || (this.urdfPath.includes('/vehicle/') ? '90,0,0' : '0,0,0'))
+        this.urdfRotation = (containerElement.getAttribute('urdf-rotation') || '0,0,0')
             .split(',')
             .map(value => parseFloat(value) * Math.PI / 180);
         

@@ -186,11 +186,6 @@ class URDFViewer {
             }
 
             this.wheelButtonByKey[key] = button;
-            button.on('click', () => {
-                const currentRpm = this.wheelSpeedInputElement.length > 0 ? this.wheelSpeedInputElement.val() : this.wheelSpeedRpm;
-                this.setWheelSpeedRpm(currentRpm);
-                this.toggleWheelAnimation(key);
-            });
             this.updateWheelButtonState(key);
         });
     }
@@ -209,10 +204,10 @@ class URDFViewer {
 
         this.wheelSpeedRpm = normalizedRpm;
         this.wheelAngularSpeedRad = this.convertRpmToRadPerSec(normalizedRpm);
-        this.wheelSpeedInputElement.value = String(normalizedRpm);
+        this.wheelSpeedInputElement.val(String(normalizedRpm));
 
-        if (this.wheelSpeedValueElement) {
-            this.wheelSpeedValueElement.textContent = `${normalizedRpm} rpm`;
+        if (this.wheelSpeedValueElement && this.wheelSpeedValueElement.length > 0) {
+            this.wheelSpeedValueElement.text(`${normalizedRpm} rpm`);
         }
     }
 

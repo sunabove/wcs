@@ -14,6 +14,10 @@
     <color rgba="0.12 0.12 0.12 1.0"/>
   </material>
 
+  <material name="tire_groove">
+    <color rgba="0.03 0.03 0.03 1.0"/>
+  </material>
+
   <material name="rim">
     <color rgba="0.80 0.82 0.85 1.0"/>
   </material>
@@ -198,6 +202,22 @@
     </visual>
 
     <visual>
+      <origin xyz="0.108 0 0.108" rpy="0 0.785398 0"/>
+      <geometry>
+        <box size="0.010 0.145 0.024"/>
+      </geometry>
+      <material name="tire_groove"/>
+    </visual>
+
+    <visual>
+      <origin xyz="-0.108 0 0.108" rpy="0 -0.785398 0"/>
+      <geometry>
+        <box size="0.010 0.145 0.024"/>
+      </geometry>
+      <material name="tire_groove"/>
+    </visual>
+
+    <visual>
       <origin xyz="0 0 0" rpy="1.5707963 0 0"/>
       <geometry>
         <cylinder radius="0.075" length="0.06"/>
@@ -235,6 +255,22 @@
         <cylinder radius="0.17" length="0.14"/>
       </geometry>
       <material name="tire"/>
+    </visual>
+
+    <visual>
+      <origin xyz="0.108 0 0.108" rpy="0 0.785398 0"/>
+      <geometry>
+        <box size="0.010 0.145 0.024"/>
+      </geometry>
+      <material name="tire_groove"/>
+    </visual>
+
+    <visual>
+      <origin xyz="-0.108 0 0.108" rpy="0 -0.785398 0"/>
+      <geometry>
+        <box size="0.010 0.145 0.024"/>
+      </geometry>
+      <material name="tire_groove"/>
     </visual>
 
     <visual>
@@ -278,6 +314,22 @@
     </visual>
 
     <visual>
+      <origin xyz="0.108 0 0.108" rpy="0 0.785398 0"/>
+      <geometry>
+        <box size="0.010 0.145 0.024"/>
+      </geometry>
+      <material name="tire_groove"/>
+    </visual>
+
+    <visual>
+      <origin xyz="-0.108 0 0.108" rpy="0 -0.785398 0"/>
+      <geometry>
+        <box size="0.010 0.145 0.024"/>
+      </geometry>
+      <material name="tire_groove"/>
+    </visual>
+
+    <visual>
       <origin xyz="0 0 0" rpy="1.5707963 0 0"/>
       <geometry>
         <cylinder radius="0.075" length="0.06"/>
@@ -315,6 +367,22 @@
         <cylinder radius="0.17" length="0.14"/>
       </geometry>
       <material name="tire"/>
+    </visual>
+
+    <visual>
+      <origin xyz="0.108 0 0.108" rpy="0 0.785398 0"/>
+      <geometry>
+        <box size="0.010 0.145 0.024"/>
+      </geometry>
+      <material name="tire_groove"/>
+    </visual>
+
+    <visual>
+      <origin xyz="-0.108 0 0.108" rpy="0 -0.785398 0"/>
+      <geometry>
+        <box size="0.010 0.145 0.024"/>
+      </geometry>
+      <material name="tire_groove"/>
     </visual>
 
     <visual>

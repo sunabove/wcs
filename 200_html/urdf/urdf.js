@@ -252,9 +252,12 @@ class URDFViewer {
                     console.log(`[URDF] 📏 ${this.viewLabel} 모델 반경:`, radius);
                     console.log(`[URDF] 📍 ${this.viewLabel} 모델 중심:`, center);
 
-                    // 카메라 위치 자동 조정 - 모델 전체가 프레임 안에 들어오도록 설정
-                    const fitOffset = 1.8;
-                    const cameraDist = radius / Math.sin(THREE.MathUtils.degToRad(this.camera.fov * 0.5)) * fitOffset;
+                    // 카메라 위치 자동 조정 - 모델의 50% 이상이 화면에 보이도록 설정
+                    const verticalHalfFov = THREE.MathUtils.degToRad(this.camera.fov * 0.5);
+                    const horizontalHalfFov = Math.atan(Math.tan(verticalHalfFov) * this.camera.aspect);
+                    const limitingHalfFov = Math.min(verticalHalfFov, horizontalHalfFov);
+                    const minVisibleRatio = 0.5;
+                    const cameraDist = (radius * minVisibleRatio) / Math.tan(limitingHalfFov) * 1.1;
 
                     this.setCameraFromAngles(center, cameraDist, this.initialAzimuthDeg, this.initialPolarDeg);
                     this.camera.near = Math.max(cameraDist / 100, 0.01);

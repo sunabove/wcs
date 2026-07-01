@@ -584,7 +584,10 @@ function setDriveMode(mode) {
 function setDriveSpeedKmh(kmh) {
     const numericKmh = Number.parseFloat(kmh);
     const normalizedKmh = Number.isFinite(numericKmh) ? Math.max(numericKmh, 0) : 0;
-    $('#drive-speed-kmh-value').text(`${normalizedKmh} km/h`);
+    const speedValueElement = document.getElementById('drive-speed-kmh-value');
+    if (speedValueElement) {
+        speedValueElement.textContent = `${normalizedKmh} km/h`;
+    }
 
     if (!window.activeURDFViewer) {
         return;

@@ -131,14 +131,18 @@ class URDFViewer {
 
         const azimuthDeg = THREE.MathUtils.radToDeg(this.controls.getAzimuthalAngle());
         const polarDeg = THREE.MathUtils.radToDeg(this.controls.getPolarAngle());
+        const distance = this.camera.position.distanceTo(this.controls.target);
+        const position = this.camera.position;
         const angleText = `azimuth: ${azimuthDeg.toFixed(1)}°, polar: ${polarDeg.toFixed(1)}°`;
+        const distanceText = `distance: ${distance.toFixed(3)}`;
+        const positionText = `pos: (${position.x.toFixed(3)}, ${position.y.toFixed(3)}, ${position.z.toFixed(3)})`;
 
         console.log(
-            `[URDF] ${this.viewLabel} 카메라 각도 - ${angleText}`
+            `[URDF] ${this.viewLabel} 카메라 정보 - ${angleText}, ${distanceText}, ${positionText}`
         );
 
         if (this.cameraAngleTextElement) {
-            this.cameraAngleTextElement.textContent = `${this.viewLabel}: ${angleText}`;
+            this.cameraAngleTextElement.textContent = `${this.viewLabel}: ${angleText} | ${distanceText} | ${positionText}`;
         }
     }
 

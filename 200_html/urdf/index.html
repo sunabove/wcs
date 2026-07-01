@@ -59,10 +59,8 @@
         }
 
         .camera-angle-panel {
-            position: fixed;
-            right: 16px;
-            bottom: 16px;
-            z-index: 1000;
+            width: fit-content;
+            margin: 12px auto 0;
             background: rgba(0, 0, 0, 0.75);
             color: #fff;
             padding: 10px 12px;
@@ -90,11 +88,11 @@
     <div id="robot-grid">
         <div class="robot-container urdf-container" id="robot-container-1"> 
         </div> 
+    </div>
 
-        <div class="camera-angle-panel" id="camera-angle-panel">
-            <div class="title">Camera Angle</div>
-            <div id="camera-angle-text">azimuth: --°, polar: --°</div>
-        </div>
+    <div class="camera-angle-panel" id="camera-angle-panel">
+        <div class="title">Camera Angle</div>
+        <div id="camera-angle-text">azimuth: --°, polar: --°</div>
     </div>
 
     <!-- Import map for module resolution -->

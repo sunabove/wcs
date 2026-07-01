@@ -190,9 +190,25 @@
   <!-- Front-left wheel -->
   <link name="wheel_fl">
     <visual>
+      <origin xyz="0 -0.030 0" rpy="1.5707963 0 0"/>
+      <geometry>
+        <cylinder radius="0.16" length="0.030"/>
+      </geometry>
+      <material name="tire"/>
+    </visual>
+
+    <visual>
+      <origin xyz="0 0.030 0" rpy="1.5707963 0 0"/>
+      <geometry>
+        <cylinder radius="0.16" length="0.030"/>
+      </geometry>
+      <material name="tire"/>
+    </visual>
+
+    <visual>
       <origin xyz="0 0 0" rpy="1.5707963 0 0"/>
       <geometry>
-        <cylinder radius="0.16" length="0.10"/>
+        <cylinder radius="0.145" length="0.040"/>
       </geometry>
       <material name="tire"/>
     </visual>
@@ -230,9 +246,25 @@
   <!-- Front-right wheel -->
   <link name="wheel_fr">
     <visual>
+      <origin xyz="0 -0.030 0" rpy="1.5707963 0 0"/>
+      <geometry>
+        <cylinder radius="0.16" length="0.030"/>
+      </geometry>
+      <material name="tire"/>
+    </visual>
+
+    <visual>
+      <origin xyz="0 0.030 0" rpy="1.5707963 0 0"/>
+      <geometry>
+        <cylinder radius="0.16" length="0.030"/>
+      </geometry>
+      <material name="tire"/>
+    </visual>
+
+    <visual>
       <origin xyz="0 0 0" rpy="1.5707963 0 0"/>
       <geometry>
-        <cylinder radius="0.16" length="0.10"/>
+        <cylinder radius="0.145" length="0.040"/>
       </geometry>
       <material name="tire"/>
     </visual>
@@ -270,9 +302,25 @@
   <!-- Rear-left wheel -->
   <link name="wheel_rl">
     <visual>
+      <origin xyz="0 -0.030 0" rpy="1.5707963 0 0"/>
+      <geometry>
+        <cylinder radius="0.16" length="0.030"/>
+      </geometry>
+      <material name="tire"/>
+    </visual>
+
+    <visual>
+      <origin xyz="0 0.030 0" rpy="1.5707963 0 0"/>
+      <geometry>
+        <cylinder radius="0.16" length="0.030"/>
+      </geometry>
+      <material name="tire"/>
+    </visual>
+
+    <visual>
       <origin xyz="0 0 0" rpy="1.5707963 0 0"/>
       <geometry>
-        <cylinder radius="0.16" length="0.10"/>
+        <cylinder radius="0.145" length="0.040"/>
       </geometry>
       <material name="tire"/>
     </visual>
@@ -310,9 +358,25 @@
   <!-- Rear-right wheel -->
   <link name="wheel_rr">
     <visual>
+      <origin xyz="0 -0.030 0" rpy="1.5707963 0 0"/>
+      <geometry>
+        <cylinder radius="0.16" length="0.030"/>
+      </geometry>
+      <material name="tire"/>
+    </visual>
+
+    <visual>
+      <origin xyz="0 0.030 0" rpy="1.5707963 0 0"/>
+      <geometry>
+        <cylinder radius="0.16" length="0.030"/>
+      </geometry>
+      <material name="tire"/>
+    </visual>
+
+    <visual>
       <origin xyz="0 0 0" rpy="1.5707963 0 0"/>
       <geometry>
-        <cylinder radius="0.16" length="0.10"/>
+        <cylinder radius="0.145" length="0.040"/>
       </geometry>
       <material name="tire"/>
     </visual>

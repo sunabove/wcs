@@ -16,6 +16,27 @@ class URDFViewer {
         this.cameraAngleTextElement = null;
         this.initialAzimuthDeg = 0.7;
         this.initialPolarDeg = 145.4;
+        this.lastFrameTimeMs = performance.now();
+        this.wheelAngularSpeedRad = 4.0;
+        this.wheelJointNameByKey = {
+            fl: 'joint_fl',
+            fr: 'joint_fr',
+            rl: 'joint_rl',
+            rr: 'joint_rr'
+        };
+        this.wheelAngles = {
+            fl: 0,
+            fr: 0,
+            rl: 0,
+            rr: 0
+        };
+        this.wheelAnimationEnabled = {
+            fl: false,
+            fr: false,
+            rl: false,
+            rr: false
+        };
+        this.wheelButtonByKey = {};
         this.urdfPath = containerElement.getAttribute('urdf') || '/urdf/vehicle/vehicle.urdf';
         this.urdfScale = parseFloat(containerElement.getAttribute('urdf-scale')) || 1;
         this.urdfRotation = (containerElement.getAttribute('urdf-rotation') || '0,0,0')
@@ -54,6 +75,7 @@ class URDFViewer {
         this.controls.dampingFactor = 0.05;
         this.cameraAngleTextElement = document.getElementById('camera-angle-text');
         this.setupCameraAngleLogging();
+        this.setupWheelControls();
 
         // 조명 설정
         const directionalLight = new THREE.DirectionalLight(0xffffff, 1.5);
@@ -119,6 +141,71 @@ class URDFViewer {
 
         this.controls.addEventListener('change', () => {
             this.logCameraAngles(false);
+        });
+    }
+
+    setupWheelControls() {
+        const buttonIdByKey = {
+            fl: 'wheel-btn-fl',
+            fr: 'wheel-btn-fr',
+            rl: 'wheel-btn-rl',
+            rr: 'wheel-btn-rr'
+        };
+
+        Object.keys(buttonIdByKey).forEach(key => {
+            const button = document.getElementById(buttonIdByKey[key]);
+            if (!button) {
+                return;
+            }
+
+            this.wheelButtonByKey[key] = button;
+            button.addEventListener('click', () => {
+                this.toggleWheelAnimation(key);
+            });
+            this.updateWheelButtonState(key);
+        });
+    }
+
+    toggleWheelAnimation(key) {
+        if (!(key in this.wheelAnimationEnabled)) {
+            return;
+        }
+
+        this.wheelAnimationEnabled[key] = !this.wheelAnimationEnabled[key];
+        this.updateWheelButtonState(key);
+    }
+
+    updateWheelButtonState(key) {
+        const button = this.wheelButtonByKey[key];
+        if (!button) {
+            return;
+        }
+
+        const wheelLabel = key.toUpperCase();
+        const isEnabled = this.wheelAnimationEnabled[key];
+        button.textContent = `${wheelLabel} Wheel: ${isEnabled ? 'ON' : 'OFF'}`;
+        button.classList.toggle('btn-outline-primary', !isEnabled);
+        button.classList.toggle('btn-primary', isEnabled);
+    }
+
+    applyWheelAnimation(deltaSec) {
+        if (!this.robotModel || !this.robotModel.joints) {
+            return;
+        }
+
+        Object.keys(this.wheelAnimationEnabled).forEach(key => {
+            if (!this.wheelAnimationEnabled[key]) {
+                return;
+            }
+
+            const jointName = this.wheelJointNameByKey[key];
+            const joint = this.robotModel.joints[jointName];
+            if (!joint || typeof joint.setJointValue !== 'function') {
+                return;
+            }
+
+            this.wheelAngles[key] += this.wheelAngularSpeedRad * deltaSec;
+            joint.setJointValue(this.wheelAngles[key]);
         });
     }
 
@@ -302,6 +389,11 @@ class URDFViewer {
     }
 
     animate() {
+        const now = performance.now();
+        const deltaSec = Math.min((now - this.lastFrameTimeMs) / 1000, 0.1);
+        this.lastFrameTimeMs = now;
+
+        this.applyWheelAnimation(deltaSec);
         requestAnimationFrame(() => this.animate());
         this.controls.update();
         this.renderer.render(this.scene, this.camera);

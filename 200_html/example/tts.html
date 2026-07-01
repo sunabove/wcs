@@ -36,9 +36,18 @@
 
 	<button onclick="speak()">읽기</button>
 	<button onclick="stopSpeak()">정지</button>
+	<button onclick="speakRoadExamples()">노면 예제 출력</button>
+
+	<div id="example-output" style="margin-top: 14px; max-width: 700px; line-height: 1.7;"></div>
 
 	<script>
 		let voices = [];
+		const roadMessages = [
+			"아스팔트입니다.",
+			"보도블록입니다.",
+			"자갈길입니다.",
+			"흙길입니다."
+		];
 
 		function loadVoices() {
 			voices = speechSynthesis.getVoices();
@@ -74,6 +83,51 @@
 
 		function stopSpeak() {
 			speechSynthesis.cancel();
+		}
+
+		function updateExampleOutput() {
+			const output = document.getElementById("example-output");
+			if (!output) {
+				return;
+			}
+
+			output.innerHTML = roadMessages
+				.map((msg, index) => `${index + 1}. ${msg}`)
+				.join("<br>");
+		}
+
+		function speakRoadExamples() {
+			speechSynthesis.cancel();
+			updateExampleOutput();
+
+			let index = 0;
+
+			const speakNext = () => {
+				if (index >= roadMessages.length) {
+					return;
+				}
+
+				const utter = new SpeechSynthesisUtterance(roadMessages[index]);
+				utter.lang = "ko-KR";
+				utter.rate = 1.0;
+				utter.pitch = 1.0;
+				utter.volume = 1.0;
+
+				const koreanVoice = voices.find(v => v.lang === "ko-KR");
+				if (koreanVoice) {
+					utter.voice = koreanVoice;
+				}
+
+				utter.onend = () => {
+					index += 1;
+					speakNext();
+				};
+
+				utter.onerror = e => console.log(e);
+				speechSynthesis.speak(utter);
+			};
+
+			speakNext();
 		}
 	</script>
 

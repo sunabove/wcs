@@ -24,6 +24,27 @@
 			padding: 10px 20px;
 			font-size: 16px;
 		}
+
+		.example-list {
+			max-width: 700px;
+			margin-top: 14px;
+			display: flex;
+			flex-wrap: wrap;
+			gap: 8px;
+		}
+
+		.example-item {
+			padding: 8px 12px;
+			border: 1px solid #ced4da;
+			border-radius: 6px;
+			background: #f8f9fa;
+			cursor: pointer;
+			user-select: none;
+		}
+
+		.example-item:hover {
+			background: #e9ecef;
+		}
 	</style>
 </head>
 
@@ -36,7 +57,9 @@
 
 	<button onclick="speak()">읽기</button>
 	<button onclick="stopSpeak()">정지</button>
-	<button onclick="speakRoadExamples()">노면 예제 출력</button>
+	<button onclick="speakRoadExamples()">음성 예제 전체 출력</button>
+
+	<div id="example-list" class="example-list"></div>
 
 	<div id="example-output" style="margin-top: 14px; max-width: 700px; line-height: 1.7;"></div>
 
@@ -55,6 +78,7 @@
 
 		speechSynthesis.onvoiceschanged = loadVoices;
 		loadVoices();
+		renderExampleList();
 
 		function speak() {
 
@@ -84,6 +108,52 @@
 		function stopSpeak() {
 			speechSynthesis.cancel();
 		}
+
+		function speakMessage(message) {
+			speechSynthesis.cancel();
+
+			const utter = new SpeechSynthesisUtterance(message);
+			utter.lang = "ko-KR";
+			utter.rate = 1.0;
+			utter.pitch = 1.0;
+			utter.volume = 1.0;
+
+			const koreanVoice = voices.find(v => v.lang === "ko-KR");
+			if (koreanVoice) {
+				utter.voice = koreanVoice;
+			}
+
+			utter.onerror = e => console.log(e);
+			speechSynthesis.speak(utter);
+		}
+
+		function renderExampleList() {
+			const listElement = document.getElementById("example-list");
+			if (!listElement) {
+				return;
+			}
+
+			listElement.innerHTML = roadMessages
+				.map((msg, index) => `<span class="example-item" onclick="speakRoadMessage(${index})">${msg}</span>`)
+				.join("");
+		}
+
+		function speakRoadMessage(index) {
+			const message = roadMessages[index];
+			if (!message) {
+				return;
+			}
+
+			document.getElementById("text").value = message;
+			const output = document.getElementById("example-output");
+			if (output) {
+				output.textContent = `선택된 예제: ${message}`;
+			}
+
+			speakMessage(message);
+		}
+
+		globalThis.speakRoadMessage = speakRoadMessage;
 
 		function updateExampleOutput() {
 			const output = document.getElementById("example-output");

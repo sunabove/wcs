@@ -17,7 +17,7 @@ class IMU_ICM20602_Service:
         self.timer = None
         self.start_time = 0.0
         self.history_len = 300
-        self.t_data = deque(maxlen=self.history_len)
+        self.time_data = deque(maxlen=self.history_len)
         self.accel_x_data = deque(maxlen=self.history_len)
         self.accel_y_data = deque(maxlen=self.history_len)
         self.accel_z_data = deque(maxlen=self.history_len)
@@ -69,36 +69,59 @@ class IMU_ICM20602_Service:
         self.mpu.enable_smoothing(smoothing_window=7)
         self.mpu.enable_dlpf(bandwidth=self.mpu.DLPFBandwidth.BW_20HZ)
 
-    def run_loop(self, chart=False):
-        if chart:
+    def run_loop(self, show_chart=False):
+        if show_chart:
             self.setup_chart()
             self.start_time = time.time()
 
             self.timer = self.QtCore.QTimer()
-            self.timer.timeout.connect(self.update_chart)
+            self.timer.timeout.connect(self.on_chart_timer)
             self.timer.start(100)
 
             print("Starting real-time chart. Close the chart window to stop.")
-            self.qt_app.exec()
-            return
+            self.qt_app.exec() 
+        else :
+            print("Continous reading, break to stop")
+            cnt = 1
+            while True:
+                accel_g, gyro_g, roll, pitch = self.collect_sensor_data(collect_chart_data=False)
 
-        print("Continous reading, break to stop")
-        cnt = 1
-        while True:
-            accel_g = self.mpu.read_accel_data()
-            gyro_g = self.mpu.read_gyro_data()
-            roll, pitch = self.mpu.calculate_inclination(accel_g)
+                print(
+                    f"[{cnt:5d}] Accel: "
+                    f"({accel_g.accel_x:5.2f}, {accel_g.accel_y:5.2f}, {accel_g.accel_z:5.2f}) g, "
+                    f"Gyro: "
+                    f"({gyro_g.gyro_x:6.2f}, {gyro_g.gyro_y:6.2f}, {gyro_g.gyro_z:6.2f}) °/s, "
+                    f"Roll: {roll:6.2f} °, Pitch: {pitch:6.2f} °"
+                )
 
-            print(
-                f"[{cnt:5d}] Accel: "
-                f"({accel_g.accel_x:5.2f}, {accel_g.accel_y:5.2f}, {accel_g.accel_z:5.2f}) g, "
-                f"Gyro: "
-                f"({gyro_g.gyro_x:6.2f}, {gyro_g.gyro_y:6.2f}, {gyro_g.gyro_z:6.2f}) °/s, "
-                f"Roll: {roll:6.2f} °, Pitch: {pitch:6.2f} °"
-            )
+                sleep(0.10)
+                cnt += 1
+            pass
+        pass
+    pass # run_loop
 
-            sleep(0.10)
-            cnt += 1
+    def collect_sensor_data(self, collect_chart_data=False):
+        accel_g = self.mpu.read_accel_data()
+        gyro_g = self.mpu.read_gyro_data()
+        roll, pitch = self.mpu.calculate_inclination(accel_g)
+
+        if collect_chart_data:
+            t = time.time() - self.start_time
+            self.time_data.append(t)
+            self.accel_x_data.append(accel_g.accel_x)
+            self.accel_y_data.append(accel_g.accel_y)
+            self.accel_z_data.append(accel_g.accel_z)
+            self.gyro_x_data.append(gyro_g.gyro_x)
+            self.gyro_y_data.append(gyro_g.gyro_y)
+            self.gyro_z_data.append(gyro_g.gyro_z)
+        pass
+
+        return accel_g, gyro_g, roll, pitch
+    pass
+
+    def on_chart_timer(self):
+        self.collect_sensor_data(collect_chart_data=True)
+        self.update_chart()
 
     def setup_chart(self):
         import pyqtgraph as pg
@@ -135,25 +158,17 @@ class IMU_ICM20602_Service:
         self.win.show()
 
     def update_chart(self):
-        accel_g = self.mpu.read_accel_data()
-        gyro_g = self.mpu.read_gyro_data()
+        if self.time_data:
 
-        t = time.time() - self.start_time
-        self.t_data.append(t)
-        self.accel_x_data.append(accel_g.accel_x)
-        self.accel_y_data.append(accel_g.accel_y)
-        self.accel_z_data.append(accel_g.accel_z)
-        self.gyro_x_data.append(gyro_g.gyro_x)
-        self.gyro_y_data.append(gyro_g.gyro_y)
-        self.gyro_z_data.append(gyro_g.gyro_z)
-
-        x = list(self.t_data)
-        self.accel_curves["x"].setData(x, list(self.accel_x_data))
-        self.accel_curves["y"].setData(x, list(self.accel_y_data))
-        self.accel_curves["z"].setData(x, list(self.accel_z_data))
-        self.gyro_curves["x"].setData(x, list(self.gyro_x_data))
-        self.gyro_curves["y"].setData(x, list(self.gyro_y_data))
-        self.gyro_curves["z"].setData(x, list(self.gyro_z_data))
+            x = list(self.time_data)
+            self.accel_curves["x"].setData(x, list(self.accel_x_data))
+            self.accel_curves["y"].setData(x, list(self.accel_y_data))
+            self.accel_curves["z"].setData(x, list(self.accel_z_data))
+            self.gyro_curves["x"].setData(x, list(self.gyro_x_data))
+            self.gyro_curves["y"].setData(x, list(self.gyro_y_data))
+            self.gyro_curves["z"].setData(x, list(self.gyro_z_data))
+        pass
+    pass # update_chart
 
     def close(self):
         if self.timer is not None:
@@ -164,25 +179,30 @@ class IMU_ICM20602_Service:
             self.mpu.close()
             self.mpu = None
 
-    def run(self, chart=False):
+    def run(self, show_chart=False):
         try:
             self.setup_sensor()
-            self.run_loop(chart=chart)
+            self.run_loop(show_chart=show_chart)
         except KeyboardInterrupt:
             print("Stopped by user")
         finally:
             self.close()
             print("Done")
+        pass
+    pass # run
+
+pass # IMU_ICM20602_Service
 
 
 def main():
     parser = argparse.ArgumentParser(description="IMU ICM20602 service")
-    parser.add_argument("--chart", action="store_true", help="Show real-time pyqtgraph chart")
+    parser.add_argument("--show-chart", action="store_true", help="Show real-time pyqtgraph chart")
     args = parser.parse_args()
 
     app = IMU_ICM20602_Service()
-    app.run(chart=args.chart)
-
+    app.run(show_chart=args.show_chart)
+pass # main
 
 if __name__ == "__main__":
     main()
+pass # __main__

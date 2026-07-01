@@ -33,6 +33,15 @@ class URDFViewer {
             rl: this.convertRpmToRadPerSec(0),
             rr: this.convertRpmToRadPerSec(0)
         };
+        this.wheelDirectionSignByKey = {
+            fl: 1,
+            fr: 1,
+            rl: 1,
+            rr: 1
+        };
+        this.driveMode = 'forward';
+        this.driveSpeedKmh = 0;
+        this.kmhToRpmFactor = 4;
         this.wheelJointNameByKey = {
             fl: 'joint_fl',
             fr: 'joint_fr',
@@ -222,6 +231,70 @@ class URDFViewer {
         }
     }
 
+    setWheelDirectionSign(key, sign) {
+        this.wheelDirectionSignByKey[key] = sign >= 0 ? 1 : -1;
+    }
+
+    convertKmhToRpm(kmh) {
+        return Math.max(kmh, 0) * this.kmhToRpmFactor;
+    }
+
+    applyDriveMode(mode, speedKmh) {
+        this.driveMode = mode;
+        this.driveSpeedKmh = Number.isFinite(Number(speedKmh)) ? Math.max(Number(speedKmh), 0) : this.driveSpeedKmh;
+
+        const baseRpm = this.convertKmhToRpm(this.driveSpeedKmh);
+        const leftTurnRatio = 0.45;
+        const rightTurnRatio = 0.45;
+
+        if (mode === 'forward') {
+            this.setWheelDirectionSign('fl', 1);
+            this.setWheelDirectionSign('fr', 1);
+            this.setWheelDirectionSign('rl', 1);
+            this.setWheelDirectionSign('rr', 1);
+            this.setWheelSpeedRpm('fl', baseRpm);
+            this.setWheelSpeedRpm('fr', baseRpm);
+            this.setWheelSpeedRpm('rl', baseRpm);
+            this.setWheelSpeedRpm('rr', baseRpm);
+            return;
+        }
+
+        if (mode === 'backward') {
+            this.setWheelDirectionSign('fl', -1);
+            this.setWheelDirectionSign('fr', -1);
+            this.setWheelDirectionSign('rl', -1);
+            this.setWheelDirectionSign('rr', -1);
+            this.setWheelSpeedRpm('fl', baseRpm);
+            this.setWheelSpeedRpm('fr', baseRpm);
+            this.setWheelSpeedRpm('rl', baseRpm);
+            this.setWheelSpeedRpm('rr', baseRpm);
+            return;
+        }
+
+        if (mode === 'left') {
+            this.setWheelDirectionSign('fl', 1);
+            this.setWheelDirectionSign('fr', 1);
+            this.setWheelDirectionSign('rl', 1);
+            this.setWheelDirectionSign('rr', 1);
+            this.setWheelSpeedRpm('fl', baseRpm * leftTurnRatio);
+            this.setWheelSpeedRpm('fr', baseRpm);
+            this.setWheelSpeedRpm('rl', baseRpm * leftTurnRatio);
+            this.setWheelSpeedRpm('rr', baseRpm);
+            return;
+        }
+
+        if (mode === 'right') {
+            this.setWheelDirectionSign('fl', 1);
+            this.setWheelDirectionSign('fr', 1);
+            this.setWheelDirectionSign('rl', 1);
+            this.setWheelDirectionSign('rr', 1);
+            this.setWheelSpeedRpm('fl', baseRpm);
+            this.setWheelSpeedRpm('fr', baseRpm * rightTurnRatio);
+            this.setWheelSpeedRpm('rl', baseRpm);
+            this.setWheelSpeedRpm('rr', baseRpm * rightTurnRatio);
+        }
+    }
+
     applyWheelAnimation(deltaSec) {
         if (!this.robotModel) {
             return;
@@ -234,11 +307,12 @@ class URDFViewer {
             }
 
             const wheelAngularSpeedRad = this.wheelAngularSpeedRadByKey[key] || 0;
-            if (wheelAngularSpeedRad <= 0) {
+            if (Math.abs(wheelAngularSpeedRad) <= 0) {
                 return;
             }
 
-            this.wheelAngles[key] += wheelAngularSpeedRad * deltaSec;
+            const wheelDirection = this.wheelDirectionSignByKey[key] || 1;
+            this.wheelAngles[key] += wheelDirection * wheelAngularSpeedRad * deltaSec;
 
             if (runtimeTarget.type === 'joint') {
                 runtimeTarget.ref.setJointValue(this.wheelAngles[key]);
@@ -496,6 +570,51 @@ function setWheelAnimationByKey(key, rpm) {
 
 globalThis.setWheelAnimationByKey = setWheelAnimationByKey;
 
+function setDriveMode(mode) {
+    if (!window.activeURDFViewer) {
+        return;
+    }
+
+    const speedInput = $('#drive-speed-kmh');
+    const speedKmh = speedInput.length > 0 ? speedInput.val() : 0;
+    window.activeURDFViewer.applyDriveMode(mode, speedKmh);
+    updateDriveModeButtons(mode);
+}
+
+function setDriveSpeedKmh(kmh) {
+    const numericKmh = Number.parseFloat(kmh);
+    const normalizedKmh = Number.isFinite(numericKmh) ? Math.max(numericKmh, 0) : 0;
+    $('#drive-speed-kmh-value').text(`${normalizedKmh} km/h`);
+
+    if (!window.activeURDFViewer) {
+        return;
+    }
+
+    const mode = window.activeURDFViewer.driveMode || 'forward';
+    window.activeURDFViewer.applyDriveMode(mode, normalizedKmh);
+}
+
+function updateDriveModeButtons(activeMode) {
+    const modes = ['forward', 'backward', 'left', 'right'];
+    modes.forEach(mode => {
+        const button = $(`#drive-btn-${mode}`);
+        if (button.length === 0) {
+            return;
+        }
+
+        const isActive = mode === activeMode;
+        button.toggleClass('btn-success', isActive && mode === 'forward');
+        button.toggleClass('btn-secondary', isActive && mode === 'backward');
+        button.toggleClass('btn-primary', isActive && (mode === 'left' || mode === 'right'));
+        button.toggleClass('btn-outline-success', !isActive && mode === 'forward');
+        button.toggleClass('btn-outline-secondary', !isActive && mode === 'backward');
+        button.toggleClass('btn-outline-primary', !isActive && (mode === 'left' || mode === 'right'));
+    });
+}
+
+globalThis.setDriveMode = setDriveMode;
+globalThis.setDriveSpeedKmh = setDriveSpeedKmh;
+
 // 초기화 함수
 function initURDFViewers() {
     console.log("[URDF] 🚀 URDF Viewer 초기화 시작...");
@@ -525,6 +644,9 @@ function initURDFViewers() {
         
         window.activeURDFViewer = new URDFViewer(container, viewLabel, viewIndex);
     });
+
+    setDriveSpeedKmh($('#drive-speed-kmh').val());
+    updateDriveModeButtons('forward');
 
     console.log("[URDF] 🚀 모든 URDF Viewer 초기화 완료");
 }

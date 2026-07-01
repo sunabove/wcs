@@ -16,6 +16,7 @@ class IMU_ICM20602_Service:
         self.win = None
         self.timer = None
         self.start_time = 0.0
+        self.x_window_sec = 20.0
         self.history_len = 300
         self.time_data = deque(maxlen=self.history_len)
         self.accel_x_data = deque(maxlen=self.history_len)
@@ -29,6 +30,8 @@ class IMU_ICM20602_Service:
         self.pg = None
         self.QtCore = None
         self.QtWidgets = None
+        self.accel_plot = None
+        self.gyro_plot = None
 
     def is_sensor_available(self, status):
         if isinstance(status, bool):
@@ -138,24 +141,26 @@ class IMU_ICM20602_Service:
         self.win = self.pg.GraphicsLayoutWidget(title="ICM20602 Real-Time Monitor")
         self.win.resize(1200, 800)
 
-        accel_plot = self.win.addPlot(title="Accelerometer (g)")
-        accel_plot.showGrid(x=True, y=True)
-        accel_plot.setLabel("left", "g")
-        accel_plot.setLabel("bottom", "Time", units="s")
-        accel_plot.addLegend()
-        self.accel_curves["x"] = accel_plot.plot(pen=self.pg.mkPen("r", width=2), name="ax")
-        self.accel_curves["y"] = accel_plot.plot(pen=self.pg.mkPen("g", width=2), name="ay")
-        self.accel_curves["z"] = accel_plot.plot(pen=self.pg.mkPen("b", width=2), name="az")
+        self.accel_plot = self.win.addPlot(title="Accelerometer (g)")
+        self.accel_plot.showGrid(x=True, y=True)
+        self.accel_plot.setLabel("left", "g")
+        self.accel_plot.setLabel("bottom", "Time", units="s")
+        self.accel_plot.addLegend()
+        self.accel_plot.setXRange(0.0, self.x_window_sec, padding=0)
+        self.accel_curves["x"] = self.accel_plot.plot(pen=self.pg.mkPen("r", width=2), name="ax")
+        self.accel_curves["y"] = self.accel_plot.plot(pen=self.pg.mkPen("g", width=2), name="ay")
+        self.accel_curves["z"] = self.accel_plot.plot(pen=self.pg.mkPen("b", width=2), name="az")
 
         self.win.nextRow()
-        gyro_plot = self.win.addPlot(title="Gyroscope (deg/s)")
-        gyro_plot.showGrid(x=True, y=True)
-        gyro_plot.setLabel("left", "deg/s")
-        gyro_plot.setLabel("bottom", "Time", units="s")
-        gyro_plot.addLegend()
-        self.gyro_curves["x"] = gyro_plot.plot(pen=self.pg.mkPen("r", width=2), name="gx")
-        self.gyro_curves["y"] = gyro_plot.plot(pen=self.pg.mkPen("g", width=2), name="gy")
-        self.gyro_curves["z"] = gyro_plot.plot(pen=self.pg.mkPen("b", width=2), name="gz")
+        self.gyro_plot = self.win.addPlot(title="Gyroscope (deg/s)")
+        self.gyro_plot.showGrid(x=True, y=True)
+        self.gyro_plot.setLabel("left", "deg/s")
+        self.gyro_plot.setLabel("bottom", "Time", units="s")
+        self.gyro_plot.addLegend()
+        self.gyro_plot.setXRange(0.0, self.x_window_sec, padding=0)
+        self.gyro_curves["x"] = self.gyro_plot.plot(pen=self.pg.mkPen("r", width=2), name="gx")
+        self.gyro_curves["y"] = self.gyro_plot.plot(pen=self.pg.mkPen("g", width=2), name="gy")
+        self.gyro_curves["z"] = self.gyro_plot.plot(pen=self.pg.mkPen("b", width=2), name="gz")
 
         self.win.show()
 
@@ -169,6 +174,16 @@ class IMU_ICM20602_Service:
             self.gyro_curves["x"].setData(x, list(self.gyro_x_data))
             self.gyro_curves["y"].setData(x, list(self.gyro_y_data))
             self.gyro_curves["z"].setData(x, list(self.gyro_z_data))
+
+            x_end = x[-1]
+            x_start = max(0.0, x_end - self.x_window_sec)
+            if x_end < self.x_window_sec:
+                x_end = self.x_window_sec
+
+            if self.accel_plot is not None:
+                self.accel_plot.setXRange(x_start, x_end, padding=0)
+            if self.gyro_plot is not None:
+                self.gyro_plot.setXRange(x_start, x_end, padding=0)
         pass
     pass # update_chart
 

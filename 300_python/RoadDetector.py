@@ -293,7 +293,7 @@ class RoadDetector:
             "roi_file": roi_path.name,
         }
 
-    def road_detect_service(self, file_name: str, detect_type: str = "road", remove_noisy_masks: bool = True, show_detect_stats: bool = True) -> dict:
+    def road_detect_service(self, file_name: str, detect_type: str = "road", remove_noisy_masks: bool = True, show_detect_stats: bool = True, include_pothole: bool = False) -> dict:
         input_path = resolve_upload_image_path(file_name)
         if not input_path.exists() or not input_path.is_file():
             raise HTTPException(status_code=404, detail="Input file not found")
@@ -314,6 +314,7 @@ class RoadDetector:
                 roi=roi,
                 remove_noisy_masks=remove_noisy_masks,
                 show_detect_stats=False,
+                include_pothole=include_pothole,
             )
             if not cv2.imwrite(str(output_path), detected_image):
                 raise HTTPException(status_code=500, detail="Failed to write output image")
@@ -321,7 +322,7 @@ class RoadDetector:
             # Use MP4 container to ensure browser-compatible H.264 playback.
             output_path = input_path.with_name(f"{stem}_detected.mp4")
             # Use file_name as session_id for progress tracking
-            self.detect_video(input_path, output_path, detect_type, remove_noisy_masks, show_detect_stats, session_id=file_name)
+            self.detect_video(input_path, output_path, detect_type, remove_noisy_masks, show_detect_stats, session_id=file_name, include_pothole=include_pothole)
         else:
             raise HTTPException(status_code=400, detail="Only image/video files are supported")
 
@@ -336,7 +337,7 @@ class RoadDetector:
         }
     pass # road_detect_service
 
-    def detect_video(self, input_path: Path, output_path: Path, detect_type: str, remove_noisy_masks: bool = True, show_detect_stats: bool = True, session_id: str = None) -> None:
+    def detect_video(self, input_path: Path, output_path: Path, detect_type: str, remove_noisy_masks: bool = True, show_detect_stats: bool = True, session_id: str = None, include_pothole: bool = False) -> None:
         capture = cv2.VideoCapture(str(input_path))
         if not capture.isOpened():
             raise HTTPException(status_code=400, detail="Failed to read video file")
@@ -404,6 +405,7 @@ class RoadDetector:
                     frame_number=current_frame_no,
                     total_frames=frame_count,
                     return_info=True,
+                    include_pothole=include_pothole,
                 )
                 detected_frame = detected_result["frame"]
 
@@ -477,7 +479,7 @@ class RoadDetector:
                 }
     pass # detect_video
 
-    def road_detect_stream_init(self, file_name: str, detect_type: str = "road", remove_noisy_masks: bool = True, show_detect_stats: bool = True) -> dict:
+    def road_detect_stream_init(self, file_name: str, detect_type: str = "road", remove_noisy_masks: bool = True, show_detect_stats: bool = True, include_pothole: bool = False) -> dict:
         """비디오 스트리밍 세션 초기화"""
         input_path = resolve_upload_image_path(file_name)
         if not input_path.exists() or not input_path.is_file():
@@ -514,6 +516,7 @@ class RoadDetector:
             'frame_count': frame_count,
             'fps': fps,
             'detect_type': detect_type,
+            'include_pothole': bool(include_pothole),
             'remove_noisy_masks': bool(remove_noisy_masks),
             'show_detect_stats': bool(show_detect_stats),
             'file_name': file_name,
@@ -551,6 +554,7 @@ class RoadDetector:
             session = RoadDetector._stream_sessions[session_id]
             capture = session['capture']
             detect_type = session['detect_type']
+            include_pothole = bool(session.get('include_pothole', False))
             remove_noisy_masks = bool(session.get('remove_noisy_masks', True))
             show_detect_stats = bool(session.get('show_detect_stats', True))
             frame_index = session['frame_index']
@@ -583,6 +587,7 @@ class RoadDetector:
                 frame_number=frame_index + 1,
                 total_frames=frame_count,
                 return_info=True,
+                include_pothole=include_pothole,
             )
             detected_frame = detected_result["frame"]
 
@@ -760,7 +765,7 @@ class RoadDetector:
         x1, y1, x2, y2 = [int(v) for v in roi]
         roi_path.write_text(f"{x1},{y1},{x2},{y2}\n", encoding="utf-8")
 
-    def camera_detect_stream_init(self, camera_index: int, detect_type: str = "road", camera_name: str = "", remove_noisy_masks: bool = True, show_detect_stats: bool = True) -> dict:
+    def camera_detect_stream_init(self, camera_index: int, detect_type: str = "road", camera_name: str = "", remove_noisy_masks: bool = True, show_detect_stats: bool = True, include_pothole: bool = False) -> dict:
         session_id = f"camera_{camera_index}"
 
         if session_id in RoadDetector._camera_stream_sessions:
@@ -791,6 +796,7 @@ class RoadDetector:
             "frame_index": 0,
             "fps": fps,
             "detect_type": detect_type,
+            "include_pothole": bool(include_pothole),
             "remove_noisy_masks": bool(remove_noisy_masks),
             "show_detect_stats": bool(show_detect_stats),
             "detect_enabled": True,
@@ -810,6 +816,7 @@ class RoadDetector:
             "camera_name": resolved_camera_name,
             "fps": fps,
             "detect_type": detect_type,
+            "include_pothole": bool(include_pothole),
             "detect_enabled": True,
             "width": frame_width,
             "height": frame_height,
@@ -831,6 +838,7 @@ class RoadDetector:
         session = RoadDetector._camera_stream_sessions[session_id]
         capture = session["capture"]
         detect_type = session.get("detect_type", "road")
+        include_pothole = bool(session.get("include_pothole", False))
         remove_noisy_masks = bool(session.get("remove_noisy_masks", True))
         show_detect_stats = bool(session.get("show_detect_stats", True))
         detect_enabled = bool(session.get("detect_enabled", True))
@@ -870,6 +878,7 @@ class RoadDetector:
                 stats_history=stats_history,
                 frame_number=int(session.get("frame_index", 0)) + 1,
                 return_info=True,
+                include_pothole=include_pothole,
             )
             detected_frame = detected_result["frame"]
 
@@ -1039,7 +1048,7 @@ class RoadDetector:
         }
     pass # camera_detect_stream_cleanup_all
 
-    def road_detect_stream(self, file_name: str, detect_type: str = "road", remove_noisy_masks: bool = True, show_detect_stats: bool = True) -> StreamingResponse:
+    def road_detect_stream(self, file_name: str, detect_type: str = "road", remove_noisy_masks: bool = True, show_detect_stats: bool = True, include_pothole: bool = False) -> StreamingResponse:
         """(레거시) 연속 MJPEG 스트리밍 - 하위호환성 유지"""
         input_path = resolve_upload_image_path(file_name)
         if not input_path.exists() or not input_path.is_file():
@@ -1077,6 +1086,7 @@ class RoadDetector:
                         frame_number=frame_number,
                         total_frames=total_frames,
                         return_info=True,
+                        include_pothole=include_pothole,
                     )
                     detected_frame = detected_result["frame"]
                     encoded_ok, encoded = cv2.imencode(".jpg", detected_frame, [int(cv2.IMWRITE_JPEG_QUALITY), 80])
@@ -1949,6 +1959,8 @@ class RoadDetector:
         stats_history=None,
         frame_number=None,
         total_frames=None,
+        include_pothole: bool = False,
+        suppress_header: bool = False,
     ):
         detect_key = detect_type if detect_type in RoadDetector._model_paths else "road"
         conf = RoadDetector.MIN_CONF
@@ -2087,7 +2099,26 @@ class RoadDetector:
             if mapped is not None:
                 class_chart_colors[class_name] = (int(mapped[0]), int(mapped[1]), int(mapped[2]))
 
-        detected = self._render_header(detected, detect_key, detected_count, conf, class_counts, started_at, font_face)
+        # Optional extra pothole overlay on top of road/road_type detection.
+        if include_pothole and detect_key in ("road", "road_type"):
+            pothole_result = self.detect_road(
+                frame,
+                detect_type="pothole",
+                roi=roi,
+                remove_noisy_masks=remove_noisy_masks,
+                return_info=True,
+                show_detect_stats=False,
+                include_pothole=False,
+                suppress_header=True,
+            )
+            pothole_frame = pothole_result.get("frame") if isinstance(pothole_result, dict) else None
+            if isinstance(pothole_frame, np.ndarray) and pothole_frame.shape == detected.shape:
+                pothole_overlay_mask = np.any(pothole_frame != frame, axis=2)
+                if np.any(pothole_overlay_mask):
+                    detected[pothole_overlay_mask] = pothole_frame[pothole_overlay_mask]
+
+        if not suppress_header:
+            detected = self._render_header(detected, detect_key, detected_count, conf, class_counts, started_at, font_face)
 
         stats = {
             "detect_type": detect_key,
@@ -2099,7 +2130,7 @@ class RoadDetector:
             "class_colors": {str(key): (int(value[0]), int(value[1]), int(value[2])) for key, value in class_chart_colors.items()},
         }
 
-        if show_detect_stats:
+        if show_detect_stats and not suppress_header:
             history = self._append_stats_history(stats_history, stats, frame_number=frame_number, total_frames=total_frames)
             detected = self._render_bottom_stats_overlay(detected, stats, history, font_face, frame_number=frame_number, total_frames=total_frames)
 

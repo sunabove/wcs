@@ -138,6 +138,7 @@ async def camera_detect_stream_init_service(
     camera_name: str = Query(""),
     remove_noisy_masks: bool = Query(True),
     show_detect_stats: bool = Query(True),
+    include_pothole: bool = Query(False),
 ):
     from RoadDetector import RoadDetector
 
@@ -149,6 +150,7 @@ async def camera_detect_stream_init_service(
         camera_name=camera_name,
         remove_noisy_masks=remove_noisy_masks,
         show_detect_stats=show_detect_stats,
+        include_pothole=include_pothole,
     )
 pass # camera_detect_stream_init_service
 
@@ -228,12 +230,13 @@ def road_detect_service(
     detect_type: str = Query("road"),
     remove_noisy_masks: bool = Query(True),
     show_detect_stats: bool = Query(True),
+    include_pothole: bool = Query(False),
 ):
     from RoadDetector import RoadDetector
 
     detector = RoadDetector()
 
-    return detector.road_detect_service(file_name, detect_type, remove_noisy_masks, show_detect_stats)
+    return detector.road_detect_service(file_name, detect_type, remove_noisy_masks, show_detect_stats, include_pothole)
 pass # road_detect_service
 
 @router.get("/road_roi/{file_name:path}")
@@ -263,12 +266,13 @@ async def road_detect_stream_service(
     detect_type: str = Query("road"),
     remove_noisy_masks: bool = Query(True),
     show_detect_stats: bool = Query(True),
+    include_pothole: bool = Query(False),
 ):
     from RoadDetector import RoadDetector
 
     detector = RoadDetector()
 
-    return detector.road_detect_stream(file_name, detect_type, remove_noisy_masks, show_detect_stats)
+    return detector.road_detect_stream(file_name, detect_type, remove_noisy_masks, show_detect_stats, include_pothole)
 pass # road_detect_stream_service
 
 @router.post("/road_detect_stream_init/{file_name:path}")
@@ -277,12 +281,13 @@ async def road_detect_stream_init_service(
     detect_type: str = Query("road"),
     remove_noisy_masks: bool = Query(True),
     show_detect_stats: bool = Query(True),
+    include_pothole: bool = Query(False),
 ):
     from RoadDetector import RoadDetector
 
     detector = RoadDetector()
 
-    return detector.road_detect_stream_init(file_name, detect_type, remove_noisy_masks, show_detect_stats)
+    return detector.road_detect_stream_init(file_name, detect_type, remove_noisy_masks, show_detect_stats, include_pothole)
 pass # road_detect_stream_init_service
 
 @router.get("/road_detect_stream_next/{file_name:path}")

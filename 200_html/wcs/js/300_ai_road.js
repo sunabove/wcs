@@ -34,6 +34,8 @@ $(function () {
     const $uploadStatusMessage = $("#work-status-message");
     const $detectingIndicator = $("#detecting-indicator");
     const $detectTypeInputs = $("input[name='detect-type']");
+    const $detectPotholeInput = $("#detect-pothole");
+    const $enablePotholeDetect = $("#enable-pothole-detect");
     const $removeNoisyMasks = $("#remove-noisy-masks");
     const $showDetectStatsChart = $("#show-detect-stats-chart");
     const $cameraPane = $("#input-camera-pane");
@@ -436,6 +438,7 @@ $(function () {
         cleanupAllFrameStreams();
 
         const detectType = getSelectedDetectType();
+        const includePothole = shouldIncludePotholeOverlay();
         const removeNoisyMasks = getRemoveNoisyMasks();
         const showDetectStats = getShowDetectStatsOverlay();
         showUploadStatusMessage("전체 동영상 검출 파일 생성 중... (큰 파일의 경우 수 분이 소요될 수 있습니다)", true);
@@ -519,6 +522,7 @@ $(function () {
                 url: buildRoadDetectUrl(fileName),
                 data: {
                     detect_type: detectType,
+                    include_pothole: includePothole,
                     remove_noisy_masks: removeNoisyMasks,
                     show_detect_stats: showDetectStats,
                 },
@@ -613,6 +617,7 @@ $(function () {
         }
 
         const detectType = getSelectedDetectType();
+        const includePothole = shouldIncludePotholeOverlay();
         const removeNoisyMasks = getRemoveNoisyMasks();
         const showDetectStats = getShowDetectStatsOverlay();
         showUploadStatusMessage("검출 이미지 생성 중...", true);
@@ -625,6 +630,7 @@ $(function () {
             url: buildRoadDetectUrl(fileName),
             data: {
                 detect_type: detectType,
+                include_pothole: includePothole,
                 remove_noisy_masks: removeNoisyMasks,
                 show_detect_stats: showDetectStats,
             },
@@ -727,6 +733,37 @@ $(function () {
         return selected || "road";
     }
 
+    function isPotholeDetectEnabled() {
+        if ($enablePotholeDetect.length === 0) {
+            return true;
+        }
+        return $enablePotholeDetect.is(":checked");
+    }
+
+    function syncPotholeDetectOption() {
+        if ($detectPotholeInput.length === 0) {
+            return;
+        }
+
+        const enabled = isPotholeDetectEnabled();
+        $detectPotholeInput.prop("disabled", !enabled);
+
+        if (!enabled && $detectPotholeInput.is(":checked")) {
+            const $fallback = $detectTypeInputs.filter("[value='road']");
+            if ($fallback.length > 0) {
+                $fallback.prop("checked", true);
+            }
+        }
+    }
+
+    function shouldIncludePotholeOverlay() {
+        const detectType = getSelectedDetectType();
+        if (!isPotholeDetectEnabled()) {
+            return false;
+        }
+        return detectType === "road" || detectType === "road_type";
+    }
+
     function getRemoveNoisyMasks() {
         if ($removeNoisyMasks.length === 0) {
             return true;
@@ -748,6 +785,7 @@ $(function () {
 
         const payload = {
             detectType: getSelectedDetectType(),
+            enablePotholeDetect: isPotholeDetectEnabled(),
             removeNoisyMasks: getRemoveNoisyMasks(),
             showDetectStats: getShowDetectStatsOverlay(),
         };
@@ -779,10 +817,15 @@ $(function () {
             return;
         }
 
+        if (typeof parsed.enablePotholeDetect === "boolean" && $enablePotholeDetect.length > 0) {
+            $enablePotholeDetect.prop("checked", parsed.enablePotholeDetect);
+        }
+        syncPotholeDetectOption();
+
         const detectType = String(parsed.detectType || "").trim();
         if (detectType) {
             const $target = $detectTypeInputs.filter("[value='" + detectType + "']");
-            if ($target.length > 0) {
+            if ($target.length > 0 && !$target.prop("disabled")) {
                 $target.prop("checked", true);
             }
         }
@@ -964,6 +1007,7 @@ $(function () {
         const query = $.param({
             detect_type: detectType || "road",
             remove_noisy_masks: removeNoisyMasks !== false,
+            include_pothole: shouldIncludePotholeOverlay(),
             t: Date.now(),
         });
         return base + "?" + query;
@@ -975,6 +1019,7 @@ $(function () {
             detect_type: detectType || "road",
             remove_noisy_masks: removeNoisyMasks !== false,
             show_detect_stats: showDetectStats !== false,
+            include_pothole: shouldIncludePotholeOverlay(),
         });
         return base + "?" + query;
     }
@@ -1011,6 +1056,7 @@ $(function () {
             camera_name: String(cameraName || ""),
             remove_noisy_masks: removeNoisyMasks !== false,
             show_detect_stats: showDetectStats !== false,
+            include_pothole: shouldIncludePotholeOverlay(),
         });
     }
 
@@ -1494,6 +1540,7 @@ $(function () {
         showUploadStatusMessage("카메라 장치를 여는 중...", true);
 
         const detectType = getSelectedDetectType();
+        const includePothole = shouldIncludePotholeOverlay();
         const removeNoisyMasks = getRemoveNoisyMasks();
         const showDetectStats = getShowDetectStatsOverlay();
         $.ajax({
@@ -2215,6 +2262,7 @@ $(function () {
             url: buildRoadDetectUrl(uploadedFileName),
             data: {
                 detect_type: detectType,
+                include_pothole: includePothole,
                 remove_noisy_masks: removeNoisyMasks,
                 show_detect_stats: showDetectStats,
             },
@@ -2688,6 +2736,7 @@ $(function () {
     }
 
     restoreDetectOptionsFromStorage();
+    syncPotholeDetectOption();
     restoreSampleBrowserStateFromStorage();
 
     $detectedImageTab.on("click", function () {
@@ -2727,6 +2776,12 @@ $(function () {
     });
 
     $detectTypeInputs.on("change", function () {
+        saveDetectOptionsToStorage();
+        scheduleDetectUpdate();
+    });
+
+    $enablePotholeDetect.on("change", function () {
+        syncPotholeDetectOption();
         saveDetectOptionsToStorage();
         scheduleDetectUpdate();
     });

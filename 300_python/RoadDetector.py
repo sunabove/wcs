@@ -1760,13 +1760,16 @@ class RoadDetector:
     pass # _render_bottom_stats_overlay
 
     def _prepare_inference_frame_with_road_crop(self, frame, frame_for_inference, conf, roi, detect_key):
+        prepared_inference_roi = None
+        road_allowed_mask = None
+
         if "road" not in RoadDetector._models:
             road_model_path = RoadDetector._model_paths["road"]
             if road_model_path.exists():
                 RoadDetector._models["road"] = YOLO(str(road_model_path))
 
         if "road" not in RoadDetector._models:
-            return frame_for_inference
+            return frame_for_inference, prepared_inference_roi, road_allowed_mask
 
         try:
             road_result = RoadDetector._models["road"].predict(source=frame_for_inference, conf=conf, verbose=False)[0]
@@ -1792,11 +1795,36 @@ class RoadDetector:
                     x2 = max(x1 + 1, min(x2, w))
                     y2 = max(y1 + 1, min(y2, h))
 
-                    return frame[y1:y2, x1:x2].copy()
+                    prepared_inference_roi = (x1, y1, x2, y2)
+
+                    if detect_key == "pothole":
+                        road_allowed_mask = np.zeros((h, w), dtype=bool)
+                        if road_result.masks is not None and road_result.masks.data is not None:
+                            road_masks = road_result.masks.data.cpu().numpy()
+                            for idx in keep_indices:
+                                if idx >= len(road_masks):
+                                    continue
+                                road_mask_resized = cv2.resize(road_masks[int(idx)], (w, h), interpolation=cv2.INTER_NEAREST) > 0.5
+                                road_allowed_mask = np.logical_or(road_allowed_mask, road_mask_resized)
+                        else:
+                            for sel_box in selected_boxes:
+                                bx1, by1, bx2, by2 = [int(v) for v in sel_box]
+                                bx1 = max(0, min(bx1, w - 1))
+                                by1 = max(0, min(by1, h - 1))
+                                bx2 = max(bx1 + 1, min(bx2, w))
+                                by2 = max(by1 + 1, min(by2, h))
+                                road_allowed_mask[by1:by2, bx1:bx2] = True
+
+                    if detect_key == "pothole" and road_allowed_mask is not None:
+                        masked_source = frame.copy()
+                        masked_source[~road_allowed_mask] = 255
+                        return masked_source[y1:y2, x1:x2].copy(), prepared_inference_roi, road_allowed_mask
+
+                    return frame[y1:y2, x1:x2].copy(), prepared_inference_roi, road_allowed_mask
         except Exception as e:
             logger.warning("Road area preprocessing for %s failed: %s", detect_key, e)
 
-        return frame_for_inference
+        return frame_for_inference, prepared_inference_roi, road_allowed_mask
     pass # _prepare_inference_frame_with_road_crop
 
     def detect_road(
@@ -1827,13 +1855,15 @@ class RoadDetector:
 
         # For road_type and pothole, use the same road-area preprocessing.
         if detect_key in ("road_type", "pothole"):
-            frame_for_inference = self._prepare_inference_frame_with_road_crop(
+            frame_for_inference, prepared_inference_roi, road_allowed_mask = self._prepare_inference_frame_with_road_crop(
                 frame,
                 frame_for_inference,
                 conf,
                 roi,
                 detect_key,
             )
+            if prepared_inference_roi is not None:
+                inference_roi = prepared_inference_roi
 
         if infer_key not in RoadDetector._models:
             model_path = RoadDetector._model_paths[infer_key]

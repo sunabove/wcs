@@ -1183,15 +1183,17 @@ class RoadDetector:
         total_mask_count = len(masks)
         mask_cls_ids = result.masks.cls.cpu().numpy().astype(int) if getattr(result.masks, "cls", None) is not None else None
         box_confs = result.boxes.conf.cpu().numpy() if (result.boxes is not None and result.boxes.conf is not None) else None
+        box_xyxy = result.boxes.xyxy.cpu().numpy().astype(int) if (result.boxes is not None and result.boxes.xyxy is not None) else None
         box_cls_ids = result.boxes.cls.cpu().numpy().astype(int) if (result.boxes is not None and result.boxes.cls is not None) else None
         height, width = detected.shape[:2]
         class_color_map = self._get_class_color_map()
 
-        conf_keep_flags = None
-        # Overlay only masks whose confidence is >= mean when multiple detections exist.
-        if box_confs is not None and len(box_confs) == total_mask_count and total_mask_count > 1:
-            mean_conf = float(np.mean(box_confs))
-            conf_keep_flags = box_confs >= mean_conf
+        if box_xyxy is not None and inference_roi is not None and len(box_xyxy) > 0:
+            ix1, iy1, _, _ = inference_roi
+            box_xyxy[:, 0] += ix1
+            box_xyxy[:, 2] += ix1
+            box_xyxy[:, 1] += iy1
+            box_xyxy[:, 3] += iy1
 
         roi_binary = None
         if roi is not None:
@@ -1223,6 +1225,50 @@ class RoadDetector:
             global_binary_mask = np.any(np.stack(prepared_masks, axis=0), axis=0)
         else:
             global_binary_mask = np.zeros((height, width), dtype=bool)
+
+        mask_conf_values = None
+        conf_keep_flags = None
+        if box_confs is not None and len(box_confs) > 0 and total_mask_count > 1:
+            if len(box_confs) == total_mask_count:
+                mask_conf_values = box_confs.astype(float)
+            elif box_xyxy is not None and len(box_xyxy) > 0:
+                mask_conf_values = np.zeros((total_mask_count,), dtype=float)
+                box_x1 = box_xyxy[:, 0]
+                box_y1 = box_xyxy[:, 1]
+                box_x2 = box_xyxy[:, 2]
+                box_y2 = box_xyxy[:, 3]
+                box_area = np.maximum(1.0, (box_x2 - box_x1) * (box_y2 - box_y1)).astype(float)
+
+                for m_idx, binary_mask in enumerate(prepared_masks):
+                    ys, xs = np.where(binary_mask)
+                    if xs.size == 0 or ys.size == 0:
+                        continue
+
+                    mx1 = float(xs.min())
+                    my1 = float(ys.min())
+                    mx2 = float(xs.max())
+                    my2 = float(ys.max())
+                    mask_area = max(1.0, (mx2 - mx1) * (my2 - my1))
+
+                    inter_x1 = np.maximum(mx1, box_x1)
+                    inter_y1 = np.maximum(my1, box_y1)
+                    inter_x2 = np.minimum(mx2, box_x2)
+                    inter_y2 = np.minimum(my2, box_y2)
+                    inter_w = np.maximum(0.0, inter_x2 - inter_x1)
+                    inter_h = np.maximum(0.0, inter_y2 - inter_y1)
+                    inter_area = inter_w * inter_h
+
+                    union_area = mask_area + box_area - inter_area
+                    iou = inter_area / np.maximum(union_area, 1e-6)
+                    best_idx = int(np.argmax(iou))
+                    if float(iou[best_idx]) > 0.0:
+                        mask_conf_values[m_idx] = float(box_confs[best_idx])
+
+            if mask_conf_values is not None:
+                mean_conf = float(np.mean(box_confs))
+                conf_keep_flags = mask_conf_values >= mean_conf
+                if not bool(np.any(conf_keep_flags)):
+                    conf_keep_flags[int(np.argmax(mask_conf_values))] = True
 
         noisy_component_mask = self._build_noisy_component_mask(global_binary_mask, 0.10)
 
@@ -1273,7 +1319,9 @@ class RoadDetector:
                         mask_color = self._get_instance_mask_color(base_mask_color, idx, cls_id)
 
                     regenerated_boxes.append([x1, y1, x2, y2])
-                    if box_confs is not None and idx < len(box_confs):
+                    if mask_conf_values is not None and idx < len(mask_conf_values):
+                        regenerated_confs.append(float(mask_conf_values[idx]))
+                    elif box_confs is not None and idx < len(box_confs):
                         regenerated_confs.append(float(box_confs[idx]))
                     else:
                         regenerated_confs.append(0.0)

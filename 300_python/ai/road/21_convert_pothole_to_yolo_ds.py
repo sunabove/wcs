@@ -449,6 +449,7 @@ def parse_args() -> argparse.Namespace:
 	parser.add_argument(
 		"--save-original",
 		action="store_true",
+		default=False,
 		help="Also save original image/label pairs (default: transformed-only when perspective copies are used).",
 	)
 	parser.add_argument(

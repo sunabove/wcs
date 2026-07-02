@@ -23,6 +23,7 @@ class RoadDetector:
     MIN_CONF = 0.10
     MAX_CONF_GAP_RATIO = 0.10
     DEFAULT_POTHOLE_CONF = 0.50
+    MIN_OVERLAY_COMPONENT_AREA_RATIO = 0.0002
     
     POTHOLE_SCORE_CONF_WEIGHT = 0.7 
     
@@ -1265,12 +1266,12 @@ class RoadDetector:
                 iw = max(1, ix2 - ix1)
                 ih = max(1, iy2 - iy1)
 
-                mask_resized_local = cv2.resize(mask, (iw, ih), interpolation=cv2.INTER_NEAREST)
+                mask_resized_local = cv2.resize(mask, (iw, ih), interpolation=cv2.INTER_LINEAR)
                 binary_mask_local = mask_resized_local > 0.5
                 binary_mask = np.zeros((height, width), dtype=bool)
                 binary_mask[iy1:iy2, ix1:ix2] = binary_mask_local[:(iy2 - iy1), :(ix2 - ix1)]
             else:
-                mask_resized = cv2.resize(mask, (width, height), interpolation=cv2.INTER_NEAREST)
+                mask_resized = cv2.resize(mask, (width, height), interpolation=cv2.INTER_LINEAR)
                 binary_mask = mask_resized > 0.5
 
             if roi_binary is not None:
@@ -1381,6 +1382,9 @@ class RoadDetector:
                 active_binary_mask = np.logical_and(binary_mask, np.logical_not(noisy_binary_mask))
             else:
                 active_binary_mask = binary_mask
+
+            min_overlay_area = int(height * width * float(self.MIN_OVERLAY_COMPONENT_AREA_RATIO))
+            active_binary_mask = self._remove_small_connected_components(active_binary_mask, min_overlay_area)
 
             mask_area = int(np.count_nonzero(active_binary_mask))
             if mask_area > 0:
@@ -1506,6 +1510,29 @@ class RoadDetector:
 
         return noisy_component_mask
     pass # _build_noisy_component_mask
+
+    def _remove_small_connected_components(self, binary_mask, min_area: int):
+        if binary_mask is None:
+            return None
+
+        mask = np.asarray(binary_mask, dtype=bool)
+        if mask.size == 0:
+            return mask
+
+        min_area = int(max(1, min_area))
+        input_mask = (mask.astype(np.uint8) * 255)
+        num_labels, labels, stats, _ = cv2.connectedComponentsWithStats(input_mask, connectivity=8)
+        if num_labels <= 1:
+            return np.zeros_like(mask, dtype=bool)
+
+        cleaned = np.zeros_like(mask, dtype=bool)
+        for label_idx in range(1, num_labels):
+            component_area = int(stats[label_idx, cv2.CC_STAT_AREA])
+            if component_area >= min_area:
+                cleaned = np.logical_or(cleaned, labels == label_idx)
+
+        return cleaned
+    pass # _remove_small_connected_components
 
     def _build_boxes_payload_from_result(
         self,

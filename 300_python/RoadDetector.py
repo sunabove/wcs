@@ -1812,7 +1812,7 @@ class RoadDetector:
 
     def _render_header(self, detected, conf_text, detected_count, class_counts, started_at, font_face):
         elapsed_ms = (time.perf_counter() - started_at) * 1000.0
-        header_text = f"conf: {conf_text}, time: {elapsed_ms:.0f}ms"
+        header_text = f"Detect: {conf_text}, time: {elapsed_ms:.0f}ms"
         if detected_count == 0:
             count_text = "not detected"
         elif class_counts:

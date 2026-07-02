@@ -1455,6 +1455,37 @@ class RoadDetector:
         return payload
     pass # _filter_boxes_payload_by_roi
 
+    def _filter_boxes_payload_by_mean_conf(self, payload):
+        boxes = payload.get("boxes")
+        confs = payload.get("confs")
+        cls_ids = payload.get("cls_ids")
+        box_labels = payload.get("box_labels")
+        box_colors = payload.get("box_colors")
+
+        if boxes is None or confs is None:
+            return payload
+
+        if len(confs) <= 1:
+            return payload
+
+        mean_conf = float(np.mean(confs))
+        keep_indices = np.where(confs >= mean_conf)[0]
+        if len(keep_indices) == 0:
+            keep_indices = np.array([int(np.argmax(confs))])
+
+        payload["boxes"] = boxes[keep_indices]
+        payload["confs"] = confs[keep_indices]
+        if cls_ids is not None:
+            payload["cls_ids"] = cls_ids[keep_indices]
+
+        if isinstance(box_labels, list):
+            payload["box_labels"] = [box_labels[i] for i in keep_indices if i < len(box_labels)]
+        if isinstance(box_colors, list):
+            payload["box_colors"] = [box_colors[i] for i in keep_indices if i < len(box_colors)]
+
+        return payload
+    pass # _filter_boxes_payload_by_mean_conf
+
     def _draw_boxes_and_collect_counts(self, detected, boxes, confs, cls_ids, box_labels, box_colors, names, detect_key, font_face):
         class_counts = {}
         class_colors = {}
@@ -1804,6 +1835,7 @@ class RoadDetector:
                 inference_roi,
             )
             boxes_payload = self._filter_boxes_payload_by_roi(boxes_payload, roi)
+            boxes_payload = self._filter_boxes_payload_by_mean_conf(boxes_payload)
 
             boxes = boxes_payload["boxes"]
             confs = boxes_payload["confs"]

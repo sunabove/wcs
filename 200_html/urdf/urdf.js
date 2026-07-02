@@ -64,12 +64,20 @@ class URDFViewer {
             rr: null
         };
         this.urdfPath = containerElement.getAttribute('urdf') || '/urdf/vehicle/vehicle.urdf';
-        this.urdfScale = parseFloat(containerElement.getAttribute('urdf-scale')) || 1;
-        this.urdfRotation = (containerElement.getAttribute('urdf-rotation') || '0,0,0')
-            .split(',')
-            .map(value => parseFloat(value) * Math.PI / 180);
+        this.cameraPosition = this.parseCameraPosition(
+            containerElement.getAttribute('cameraPosition') || '4,4,8'
+        );
         
         this.init();
+    }
+
+    parseCameraPosition(rawValue) {
+        const fallback = new THREE.Vector3(4, 4, 8);
+        const tokens = String(rawValue || '').split(',').map(value => Number.parseFloat(value.trim()));
+        if (tokens.length < 3 || !Number.isFinite(tokens[0]) || !Number.isFinite(tokens[1]) || !Number.isFinite(tokens[2])) {
+            return fallback;
+        }
+        return new THREE.Vector3(tokens[0], tokens[1], tokens[2]);
     }
 
     init() {
@@ -86,7 +94,7 @@ class URDFViewer {
 
         // Camera 생성
         this.camera = new THREE.PerspectiveCamera(50, width / height, 0.01, 1000);
-        this.camera.position.set(4, 4, 8);
+        this.camera.position.copy(this.cameraPosition);
 
         // Renderer 생성
         this.renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -521,10 +529,6 @@ class URDFViewer {
 
             robot => {
                 console.log('[URDF] ✅ URDF 로드 성공');
-
-                // 스케일링 (단위 변환)
-                robot.scale.set(this.urdfScale, this.urdfScale, this.urdfScale);
-                robot.rotation.set(this.urdfRotation[0], this.urdfRotation[1], this.urdfRotation[2]);
 
                 this.scene.add(robot);
                 this.robotModel = robot;

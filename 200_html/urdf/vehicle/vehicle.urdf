@@ -200,7 +200,7 @@
     <visual>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <box size="2.00 1.80 0.005"/>
+        <box size="4.00 1.80 0.005"/>
       </geometry>
       <material name="ground_surface"/>
     </visual>

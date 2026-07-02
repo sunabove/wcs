@@ -1283,13 +1283,12 @@ class RoadDetector:
 
             if mask_conf_values is not None:
                 # For pothole, derive threshold from candidates that are inside
-                # the clipped/allowed road area only.
+                # the clipped/allowed road area only, using mean confidence.
                 if detect_key == "pothole" and len(mask_has_area_flags) == len(mask_conf_values):
                     valid_indices = np.where(mask_has_area_flags)[0]
                     if len(valid_indices) > 0:
                         valid_confs = mask_conf_values[valid_indices]
-                        max_conf = float(np.max(valid_confs))
-                        min_keep_conf = max_conf * (1.0 - float(self.MAX_CONF_GAP_RATIO))
+                        min_keep_conf = float(np.mean(valid_confs))
                         conf_keep_flags = np.zeros((total_mask_count,), dtype=bool)
                         conf_keep_flags[valid_indices] = valid_confs >= min_keep_conf
                         if not bool(np.any(conf_keep_flags)):
@@ -1585,6 +1584,37 @@ class RoadDetector:
         payload["box_colors"] = filtered_colors
         return payload
     pass # _filter_boxes_payload_by_area_mask
+
+    def _filter_boxes_payload_by_mean_conf(self, payload):
+        boxes = payload.get("boxes")
+        confs = payload.get("confs")
+        cls_ids = payload.get("cls_ids")
+        box_labels = payload.get("box_labels")
+        box_colors = payload.get("box_colors")
+
+        if boxes is None or confs is None:
+            return payload
+
+        if len(confs) <= 1:
+            return payload
+
+        min_keep_conf = float(np.mean(confs))
+        keep_indices = np.where(confs >= min_keep_conf)[0]
+        if len(keep_indices) == 0:
+            keep_indices = np.array([int(np.argmax(confs))])
+
+        payload["boxes"] = boxes[keep_indices]
+        payload["confs"] = confs[keep_indices]
+        if cls_ids is not None:
+            payload["cls_ids"] = cls_ids[keep_indices]
+
+        if isinstance(box_labels, list):
+            payload["box_labels"] = [box_labels[i] for i in keep_indices if i < len(box_labels)]
+        if isinstance(box_colors, list):
+            payload["box_colors"] = [box_colors[i] for i in keep_indices if i < len(box_colors)]
+
+        return payload
+    pass # _filter_boxes_payload_by_mean_conf
 
     def _filter_boxes_payload_by_max_conf_gap(self, payload):
         boxes = payload.get("boxes")
@@ -2066,7 +2096,10 @@ class RoadDetector:
             # _process_result_masks. Applying box-only filtering again can cause
             # mask/box mismatch (overlay outside shown boxes).
             if total_mask_count <= 0:
-                boxes_payload = self._filter_boxes_payload_by_max_conf_gap(boxes_payload)
+                if detect_key == "pothole":
+                    boxes_payload = self._filter_boxes_payload_by_mean_conf(boxes_payload)
+                else:
+                    boxes_payload = self._filter_boxes_payload_by_max_conf_gap(boxes_payload)
 
             boxes = boxes_payload["boxes"]
             confs = boxes_payload["confs"]

@@ -63,6 +63,8 @@ class URDFViewer {
             rl: null,
             rr: null
         };
+        this.rampAngleDeg = 0;
+        this.rampLinkName = 'ground_patch';
         this.urdfPath = containerElement.getAttribute('urdf') || '/urdf/vehicle/vehicle.urdf';
         this.cameraPosition = this.parseCameraPosition(
             containerElement.getAttribute('cameraPosition') || '4,4,8'
@@ -343,6 +345,27 @@ class URDFViewer {
         });
     }
 
+    applyRampAngleDeg(angleDeg) {
+        const numericAngleDeg = Number.parseFloat(angleDeg);
+        const normalizedAngleDeg = Number.isFinite(numericAngleDeg)
+            ? THREE.MathUtils.clamp(numericAngleDeg, -30, 30)
+            : this.rampAngleDeg;
+
+        this.rampAngleDeg = normalizedAngleDeg;
+
+        if (!this.robotModel || !this.robotModel.links) {
+            return;
+        }
+
+        const groundLink = this.robotModel.links[this.rampLinkName] || null;
+        if (!groundLink) {
+            return;
+        }
+
+        // 길이 방향(x축)을 기준으로 경사를 표현하기 위해 y축 회전을 사용
+        groundLink.rotation.set(0, THREE.MathUtils.degToRad(normalizedAngleDeg), 0);
+    }
+
     resolveWheelAnimationTargets() {
         const jointMap = this.robotModel?.joints || {};
         const linkMap = this.robotModel?.links || {};
@@ -533,6 +556,7 @@ class URDFViewer {
                 this.scene.add(robot);
                 this.robotModel = robot;
                 this.resolveWheelAnimationTargets();
+                this.applyRampAngleDeg(this.rampAngleDeg);
 
                 // 자동 피팅 로직
                 setTimeout(() => {
@@ -650,6 +674,29 @@ function setDriveSpeedKmh(kmh) {
     window.activeURDFViewer.applyDriveMode(mode, normalizedKmh);
 }
 
+function setRampAngleDeg(angleDeg) {
+    const numericAngleDeg = Number.parseFloat(angleDeg);
+    const normalizedAngleDeg = Number.isFinite(numericAngleDeg)
+        ? Math.min(30, Math.max(-30, numericAngleDeg))
+        : 0;
+
+    const spinner = document.getElementById('ramp-angle-deg');
+    if (spinner) {
+        spinner.value = String(normalizedAngleDeg);
+    }
+
+    const valueElement = document.getElementById('ramp-angle-deg-value');
+    if (valueElement) {
+        valueElement.textContent = `${normalizedAngleDeg}\u00b0`;
+    }
+
+    if (!window.activeURDFViewer) {
+        return;
+    }
+
+    window.activeURDFViewer.applyRampAngleDeg(normalizedAngleDeg);
+}
+
 function updateDriveModeButtons(activeMode) {
     const modes = ['forward', 'backward', 'left', 'right', 'stop'];
     modes.forEach(mode => {
@@ -672,6 +719,7 @@ function updateDriveModeButtons(activeMode) {
 
 globalThis.setDriveMode = setDriveMode;
 globalThis.setDriveSpeedKmh = setDriveSpeedKmh;
+globalThis.setRampAngleDeg = setRampAngleDeg;
 
 // 초기화 함수
 function initURDFViewers() {
@@ -702,6 +750,7 @@ function initURDFViewers() {
     });
 
     setDriveSpeedKmh($('#drive-speed-kmh').val());
+    setRampAngleDeg($('#ramp-angle-deg').val());
     updateDriveModeButtons(null);
 
     console.log("[URDF] 🚀 모든 URDF Viewer 초기화 완료");

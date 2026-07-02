@@ -1810,9 +1810,9 @@ class RoadDetector:
 
         return detected_count, class_counts, class_colors, label_regions
 
-    def _render_header(self, detected, detect_key, detected_count, conf, class_counts, started_at, font_face):
+    def _render_header(self, detected, conf_text, detected_count, class_counts, started_at, font_face):
         elapsed_ms = (time.perf_counter() - started_at) * 1000.0
-        header_text = f"Detect: {detect_key}, conf: {conf * 100:.0f}%, time: {elapsed_ms:.0f}ms"
+        header_text = f"conf: {conf_text}, time: {elapsed_ms:.0f}ms"
         if detected_count == 0:
             count_text = "not detected"
         elif class_counts:
@@ -2344,12 +2344,13 @@ class RoadDetector:
                     if np.any(pothole_overlay_mask):
                         detected[pothole_overlay_mask] = pothole_frame[pothole_overlay_mask]
 
-        header_detect_key = detect_key
         if include_pothole and detect_key in ("road", "road_type"):
-            header_detect_key = f"{detect_key},pothole"
+            header_conf_text = f"{detect_key}({conf * 100:.0f}%), pothole({float(np.clip(float(pothole_conf), 0.0, 1.0)) * 100:.0f}%)"
+        else:
+            header_conf_text = f"{detect_key}({conf * 100:.0f}%)"
 
         if not suppress_header:
-            detected = self._render_header(detected, header_detect_key, detected_count, conf, class_counts, started_at, font_face)
+            detected = self._render_header(detected, header_conf_text, detected_count, class_counts, started_at, font_face)
 
         chart_class_counts = {str(key): int(value) for key, value in class_counts.items()}
         chart_class_colors = {str(key): (int(value[0]), int(value[1]), int(value[2])) for key, value in class_chart_colors.items()}

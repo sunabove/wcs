@@ -2103,6 +2103,15 @@ class RoadDetector:
             history = self._append_stats_history(stats_history, stats, frame_number=frame_number, total_frames=total_frames)
             detected = self._render_bottom_stats_overlay(detected, stats, history, font_face, frame_number=frame_number, total_frames=total_frames)
 
+        # Final safety gate: for pothole, ensure nothing is rendered outside
+        # confidence-filtered road area.
+        if detect_key == "pothole" and pothole_allowed_area_mask is not None:
+            if np.any(pothole_allowed_area_mask):
+                detected = np.where(pothole_allowed_area_mask[:, :, None], detected, frame)
+            else:
+                detected = frame.copy()
+                detected = self._draw_roi_overlay(detected, roi)
+
         if return_info:
             return {
                 "frame": detected,

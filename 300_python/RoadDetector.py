@@ -203,6 +203,31 @@ class RoadDetector:
             return None
         return [x1, y1, x2, y2]
 
+    def _select_best_box_index_by_weighted_score(self, boxes, confs):
+        if boxes is None or confs is None:
+            return None
+
+        if len(boxes) == 0 or len(confs) == 0:
+            return None
+
+        count = min(len(boxes), len(confs))
+        if count <= 0:
+            return None
+
+        boxes_eval = boxes[:count].astype(float)
+        confs_eval = confs[:count].astype(float)
+
+        widths = np.maximum(1.0, boxes_eval[:, 2] - boxes_eval[:, 0])
+        heights = np.maximum(1.0, boxes_eval[:, 3] - boxes_eval[:, 1])
+        areas = widths * heights
+        max_area = float(np.max(areas)) if len(areas) > 0 else 0.0
+        area_ratio = (areas / max_area) if max_area > 0.0 else np.ones_like(areas)
+
+        conf_weight = float(np.clip(float(self.POTHOLE_SCORE_CONF_WEIGHT), 0.0, 1.0))
+        area_weight = float(1.0 - conf_weight)
+        scores = (conf_weight * confs_eval) + (area_weight * area_ratio)
+        return int(np.argmax(scores))
+
     def _roi_to_dict(self, roi):
         if roi is None:
             return None
@@ -2033,18 +2058,13 @@ class RoadDetector:
                 road_confs = road_result.boxes.conf.cpu().numpy()
                 if len(road_confs) > 0:
                     road_boxes = road_result.boxes.xyxy.cpu().numpy().astype(int)
-                    max_conf = float(np.max(road_confs))
-                    min_keep_conf = max_conf * (1.0 - float(self.MAX_CONF_GAP_RATIO))
-                    keep_indices = np.where(road_confs >= min_keep_conf)[0]
-                    if len(keep_indices) == 0:
-                        keep_indices = np.array([int(np.argmax(road_confs))])
+                    best_idx = self._select_best_box_index_by_weighted_score(road_boxes, road_confs)
+                    if best_idx is None:
+                        return frame_for_inference, prepared_inference_roi, road_allowed_mask
 
-                    selected_boxes = road_boxes[keep_indices]
+                    selected_box = road_boxes[int(best_idx)]
                     src_h, src_w = frame_for_inference.shape[:2]
-                    lx1 = int(np.min(selected_boxes[:, 0]))
-                    ly1 = int(np.min(selected_boxes[:, 1]))
-                    lx2 = int(np.max(selected_boxes[:, 2]))
-                    ly2 = int(np.max(selected_boxes[:, 3]))
+                    lx1, ly1, lx2, ly2 = [int(v) for v in selected_box]
 
                     lx1 = max(0, min(lx1, src_w - 1))
                     ly1 = max(0, min(ly1, src_h - 1))
@@ -2067,11 +2087,9 @@ class RoadDetector:
                         road_allowed_mask = np.zeros((h, w), dtype=bool)
                         if road_result.masks is not None and road_result.masks.data is not None:
                             road_masks = road_result.masks.data.cpu().numpy()
-                            for idx in keep_indices:
-                                if idx >= len(road_masks):
-                                    continue
+                            if int(best_idx) < len(road_masks):
                                 road_mask_local = cv2.resize(
-                                    road_masks[int(idx)],
+                                    road_masks[int(best_idx)],
                                     (src_w, src_h),
                                     interpolation=cv2.INTER_NEAREST,
                                 ) > 0.5
@@ -2087,22 +2105,16 @@ class RoadDetector:
                                         road_mask_local[:local_h, :local_w],
                                     )
                         else:
-                            for sel_box in selected_boxes:
-                                bx1, by1, bx2, by2 = [int(v) for v in sel_box]
-                                bx1 += offset_x
-                                by1 += offset_y
-                                bx2 += offset_x
-                                by2 += offset_y
-                                bx1 = max(0, min(bx1, w - 1))
-                                by1 = max(0, min(by1, h - 1))
-                                bx2 = max(bx1 + 1, min(bx2, w))
-                                by2 = max(by1 + 1, min(by2, h))
-                                road_allowed_mask[by1:by2, bx1:bx2] = True
-
-                    if detect_key == "pothole" and road_allowed_mask is not None:
-                        masked_source = frame.copy()
-                        masked_source[~road_allowed_mask] = 255
-                        return masked_source[y1:y2, x1:x2].copy(), prepared_inference_roi, road_allowed_mask
+                            bx1, by1, bx2, by2 = [int(v) for v in selected_box]
+                            bx1 += offset_x
+                            by1 += offset_y
+                            bx2 += offset_x
+                            by2 += offset_y
+                            bx1 = max(0, min(bx1, w - 1))
+                            by1 = max(0, min(by1, h - 1))
+                            bx2 = max(bx1 + 1, min(bx2, w))
+                            by2 = max(by1 + 1, min(by2, h))
+                            road_allowed_mask[by1:by2, bx1:bx2] = True
 
                     return frame[y1:y2, x1:x2].copy(), prepared_inference_roi, road_allowed_mask
         except Exception as e:
@@ -2306,11 +2318,17 @@ class RoadDetector:
                 pothole_input_mask = np.logical_and(pothole_input_mask, roi_mask)
 
             if np.any(pothole_input_mask):
-                pothole_source_frame[~pothole_input_mask] = 255
+                ys, xs = np.where(pothole_input_mask)
+                px1 = int(xs.min())
+                py1 = int(ys.min())
+                px2 = int(xs.max() + 1)
+                py2 = int(ys.max() + 1)
+                pothole_roi = self._clamp_roi((px1, py1, px2, py2), frame.shape[1], frame.shape[0])
+
                 pothole_result = self.detect_road(
                     pothole_source_frame,
                     detect_type="pothole",
-                    roi=roi,
+                    roi=pothole_roi,
                     remove_noisy_masks=remove_noisy_masks,
                     return_info=True,
                     show_detect_stats=False,

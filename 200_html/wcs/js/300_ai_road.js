@@ -2242,6 +2242,7 @@ $(function () {
         }
 
         const detectType = getSelectedDetectType();
+        const includePothole = shouldIncludePotholeOverlay();
         const removeNoisyMasks = getRemoveNoisyMasks();
         const showDetectStats = getShowDetectStatsOverlay();
         showUploadStatusMessage("도로 검출 중...", true);

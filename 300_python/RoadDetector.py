@@ -1303,6 +1303,16 @@ class RoadDetector:
                     if not bool(np.any(conf_keep_flags)):
                         conf_keep_flags[int(np.argmax(mask_conf_values))] = True
 
+            # For pothole, cap overlays to top-2 by confidence.
+            if detect_key == "pothole" and conf_keep_flags is not None and mask_conf_values is not None:
+                kept_indices = np.where(conf_keep_flags)[0]
+                if len(kept_indices) > 2:
+                    order = np.argsort(mask_conf_values[kept_indices])[::-1]
+                    top_indices = kept_indices[order[:2]]
+                    limited_flags = np.zeros_like(conf_keep_flags, dtype=bool)
+                    limited_flags[top_indices] = True
+                    conf_keep_flags = limited_flags
+
         noisy_component_mask = self._build_noisy_component_mask(global_binary_mask, 0.10)
 
         overlay = detected.copy()
@@ -1647,6 +1657,36 @@ class RoadDetector:
 
         return payload
     pass # _filter_boxes_payload_by_max_conf_gap
+
+    def _filter_boxes_payload_by_top_k_conf(self, payload, top_k: int):
+        boxes = payload.get("boxes")
+        confs = payload.get("confs")
+        cls_ids = payload.get("cls_ids")
+        box_labels = payload.get("box_labels")
+        box_colors = payload.get("box_colors")
+
+        if boxes is None or confs is None:
+            return payload
+
+        k = int(top_k)
+        if k <= 0 or len(confs) <= k:
+            return payload
+
+        order = np.argsort(confs)[::-1]
+        keep_indices = order[:k]
+
+        payload["boxes"] = boxes[keep_indices]
+        payload["confs"] = confs[keep_indices]
+        if cls_ids is not None:
+            payload["cls_ids"] = cls_ids[keep_indices]
+
+        if isinstance(box_labels, list):
+            payload["box_labels"] = [box_labels[i] for i in keep_indices if i < len(box_labels)]
+        if isinstance(box_colors, list):
+            payload["box_colors"] = [box_colors[i] for i in keep_indices if i < len(box_colors)]
+
+        return payload
+    pass # _filter_boxes_payload_by_top_k_conf
 
     def _draw_boxes_and_collect_counts(self, detected, boxes, confs, cls_ids, box_labels, box_colors, names, detect_key, font_face, avoid_label_regions=None):
         class_counts = {}
@@ -2128,6 +2168,9 @@ class RoadDetector:
                     boxes_payload = self._filter_boxes_payload_by_mean_conf(boxes_payload)
                 else:
                     boxes_payload = self._filter_boxes_payload_by_max_conf_gap(boxes_payload)
+
+            if detect_key == "pothole":
+                boxes_payload = self._filter_boxes_payload_by_top_k_conf(boxes_payload, top_k=2)
 
             boxes = boxes_payload["boxes"]
             confs = boxes_payload["confs"]

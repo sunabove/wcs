@@ -1225,6 +1225,12 @@ class RoadDetector:
         else:
             global_binary_mask = np.zeros((height, width), dtype=bool)
 
+        # Track masks that still have pixels after ROI/allowed-area clipping.
+        mask_has_area_flags = np.array(
+            [bool(np.any(binary_mask)) for binary_mask in prepared_masks],
+            dtype=bool,
+        ) if prepared_masks else np.empty((0,), dtype=bool)
+
         mask_conf_values = None
         conf_keep_flags = None
         if box_confs is not None and len(box_confs) > 0 and total_mask_count > 1:
@@ -1264,11 +1270,27 @@ class RoadDetector:
                         mask_conf_values[m_idx] = float(box_confs[best_idx])
 
             if mask_conf_values is not None:
-                max_conf = float(np.max(box_confs))
-                min_keep_conf = max_conf * (1.0 - float(self.MAX_CONF_GAP_RATIO))
-                conf_keep_flags = mask_conf_values >= min_keep_conf
-                if not bool(np.any(conf_keep_flags)):
-                    conf_keep_flags[int(np.argmax(mask_conf_values))] = True
+                # For pothole, derive threshold from candidates that are inside
+                # the clipped/allowed road area only.
+                if detect_key == "pothole" and len(mask_has_area_flags) == len(mask_conf_values):
+                    valid_indices = np.where(mask_has_area_flags)[0]
+                    if len(valid_indices) > 0:
+                        valid_confs = mask_conf_values[valid_indices]
+                        max_conf = float(np.max(valid_confs))
+                        min_keep_conf = max_conf * (1.0 - float(self.MAX_CONF_GAP_RATIO))
+                        conf_keep_flags = np.zeros((total_mask_count,), dtype=bool)
+                        conf_keep_flags[valid_indices] = valid_confs >= min_keep_conf
+                        if not bool(np.any(conf_keep_flags)):
+                            best_local_idx = int(np.argmax(valid_confs))
+                            conf_keep_flags[int(valid_indices[best_local_idx])] = True
+                    else:
+                        conf_keep_flags = np.zeros((total_mask_count,), dtype=bool)
+                else:
+                    max_conf = float(np.max(box_confs))
+                    min_keep_conf = max_conf * (1.0 - float(self.MAX_CONF_GAP_RATIO))
+                    conf_keep_flags = mask_conf_values >= min_keep_conf
+                    if not bool(np.any(conf_keep_flags)):
+                        conf_keep_flags[int(np.argmax(mask_conf_values))] = True
 
         noisy_component_mask = self._build_noisy_component_mask(global_binary_mask, 0.10)
 
@@ -1518,10 +1540,22 @@ class RoadDetector:
             x2 = max(x1 + 1, min(x2, mask_w))
             y2 = max(y1 + 1, min(y2, mask_h))
 
-            if not np.any(area_mask[y1:y2, x1:x2]):
+            overlap = area_mask[y1:y2, x1:x2]
+            if overlap.size == 0 or not np.any(overlap):
                 continue
 
-            filtered_boxes.append([x1, y1, x2, y2])
+            ys, xs = np.where(overlap)
+            if xs.size == 0 or ys.size == 0:
+                continue
+
+            # Clip the output box to the actual allowed-area overlap so
+            # pothole boxes do not extend outside road regions.
+            cx1 = int(x1 + xs.min())
+            cy1 = int(y1 + ys.min())
+            cx2 = int(x1 + xs.max() + 1)
+            cy2 = int(y1 + ys.max() + 1)
+
+            filtered_boxes.append([cx1, cy1, cx2, cy2])
             filtered_confs.append(float(confs[idx]))
             if has_cls_ids:
                 filtered_cls_ids.append(int(cls_ids[idx]))
@@ -1822,7 +1856,7 @@ class RoadDetector:
 
         try:
             road_result = RoadDetector._models["road"].predict(source=frame_for_inference, conf=conf, verbose=False)[0]
-            if roi is None and road_result.boxes is not None and road_result.boxes.conf is not None:
+            if road_result.boxes is not None and road_result.boxes.conf is not None:
                 road_confs = road_result.boxes.conf.cpu().numpy()
                 if len(road_confs) > 0:
                     road_boxes = road_result.boxes.xyxy.cpu().numpy().astype(int)
@@ -1833,16 +1867,26 @@ class RoadDetector:
                         keep_indices = np.array([int(np.argmax(road_confs))])
 
                     selected_boxes = road_boxes[keep_indices]
-                    x1 = int(np.min(selected_boxes[:, 0]))
-                    y1 = int(np.min(selected_boxes[:, 1]))
-                    x2 = int(np.max(selected_boxes[:, 2]))
-                    y2 = int(np.max(selected_boxes[:, 3]))
+                    src_h, src_w = frame_for_inference.shape[:2]
+                    lx1 = int(np.min(selected_boxes[:, 0]))
+                    ly1 = int(np.min(selected_boxes[:, 1]))
+                    lx2 = int(np.max(selected_boxes[:, 2]))
+                    ly2 = int(np.max(selected_boxes[:, 3]))
+
+                    lx1 = max(0, min(lx1, src_w - 1))
+                    ly1 = max(0, min(ly1, src_h - 1))
+                    lx2 = max(lx1 + 1, min(lx2, src_w))
+                    ly2 = max(ly1 + 1, min(ly2, src_h))
+
+                    offset_x, offset_y = (0, 0)
+                    if roi is not None:
+                        offset_x, offset_y = int(roi[0]), int(roi[1])
 
                     h, w = frame.shape[:2]
-                    x1 = max(0, min(x1, w - 1))
-                    y1 = max(0, min(y1, h - 1))
-                    x2 = max(x1 + 1, min(x2, w))
-                    y2 = max(y1 + 1, min(y2, h))
+                    x1 = max(0, min(offset_x + lx1, w - 1))
+                    y1 = max(0, min(offset_y + ly1, h - 1))
+                    x2 = max(x1 + 1, min(offset_x + lx2, w))
+                    y2 = max(y1 + 1, min(offset_y + ly2, h))
 
                     prepared_inference_roi = (x1, y1, x2, y2)
 
@@ -1853,11 +1897,29 @@ class RoadDetector:
                             for idx in keep_indices:
                                 if idx >= len(road_masks):
                                     continue
-                                road_mask_resized = cv2.resize(road_masks[int(idx)], (w, h), interpolation=cv2.INTER_NEAREST) > 0.5
-                                road_allowed_mask = np.logical_or(road_allowed_mask, road_mask_resized)
+                                road_mask_local = cv2.resize(
+                                    road_masks[int(idx)],
+                                    (src_w, src_h),
+                                    interpolation=cv2.INTER_NEAREST,
+                                ) > 0.5
+                                gy1 = max(0, min(offset_y, h))
+                                gx1 = max(0, min(offset_x, w))
+                                gy2 = max(gy1, min(offset_y + src_h, h))
+                                gx2 = max(gx1, min(offset_x + src_w, w))
+                                if gy2 > gy1 and gx2 > gx1:
+                                    local_h = gy2 - gy1
+                                    local_w = gx2 - gx1
+                                    road_allowed_mask[gy1:gy2, gx1:gx2] = np.logical_or(
+                                        road_allowed_mask[gy1:gy2, gx1:gx2],
+                                        road_mask_local[:local_h, :local_w],
+                                    )
                         else:
                             for sel_box in selected_boxes:
                                 bx1, by1, bx2, by2 = [int(v) for v in sel_box]
+                                bx1 += offset_x
+                                by1 += offset_y
+                                bx2 += offset_x
+                                by2 += offset_y
                                 bx1 = max(0, min(bx1, w - 1))
                                 by1 = max(0, min(by1, h - 1))
                                 bx2 = max(bx1 + 1, min(bx2, w))

@@ -1187,6 +1187,12 @@ class RoadDetector:
         height, width = detected.shape[:2]
         class_color_map = self._get_class_color_map()
 
+        conf_keep_flags = None
+        # Overlay only masks whose confidence is >= mean when multiple detections exist.
+        if box_confs is not None and len(box_confs) == total_mask_count and total_mask_count > 1:
+            mean_conf = float(np.mean(box_confs))
+            conf_keep_flags = box_confs >= mean_conf
+
         roi_binary = None
         if roi is not None:
             rx1, ry1, rx2, ry2 = roi
@@ -1222,6 +1228,9 @@ class RoadDetector:
 
         overlay = detected.copy()
         for idx, binary_mask in enumerate(prepared_masks):
+            if conf_keep_flags is not None and not bool(conf_keep_flags[idx]):
+                continue
+
             noisy_binary_mask = np.logical_and(binary_mask, noisy_component_mask)
             if remove_noisy_masks:
                 active_binary_mask = np.logical_and(binary_mask, np.logical_not(noisy_binary_mask))

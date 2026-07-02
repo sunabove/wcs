@@ -15,8 +15,6 @@ class URDFViewer {
         this.lastAngleLogAt = 0;
         this.angleLogIntervalMs = 120;
         this.cameraPosTextElement = null;
-        this.initialAzimuthDeg = 0.7;
-        this.initialPolarDeg = 145.4;
         this.lastFrameTimeMs = performance.now();
         this.wheelSpeedInputByKey = {};
         this.wheelSpeedValueByKey = {};
@@ -409,16 +407,14 @@ class URDFViewer {
         }
     }
 
-    setCameraFromAngles(center, distance, azimuthDeg, polarDeg) {
-        const azimuth = THREE.MathUtils.degToRad(azimuthDeg);
-        const polar = THREE.MathUtils.degToRad(polarDeg);
+    setCameraFromPosition(center, distance) {
+        const direction = this.camera.position.clone().sub(center);
+        if (direction.lengthSq() < 1e-8) {
+            direction.set(1, 1, 2);
+        }
 
-        const sinPolar = Math.sin(polar);
-        const x = center.x + distance * sinPolar * Math.sin(azimuth);
-        const y = center.y + distance * Math.cos(polar);
-        const z = center.z + distance * sinPolar * Math.cos(azimuth);
-
-        this.camera.position.set(x, y, z);
+        direction.normalize().multiplyScalar(distance);
+        this.camera.position.copy(center).add(direction);
         this.camera.lookAt(center);
     }
 
@@ -553,7 +549,7 @@ class URDFViewer {
                     const fitOffset = 1.05;
                     const cameraDist = (radius / Math.sin(limitingHalfFov)) * fitOffset;
 
-                    this.setCameraFromAngles(center, cameraDist, this.initialAzimuthDeg, this.initialPolarDeg);
+                    this.setCameraFromPosition(center, cameraDist);
                     this.camera.near = Math.max(cameraDist / 100, 0.01);
                     this.camera.far = cameraDist * 100;
                     this.camera.updateProjectionMatrix();

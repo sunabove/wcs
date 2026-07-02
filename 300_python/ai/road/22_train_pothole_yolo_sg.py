@@ -5,17 +5,38 @@ import shutil
 from pathlib import Path
 from ultralytics import YOLO 
 
+
+SOURCE_DIR = Path(__file__).resolve().parent
+
 def prefer_primary_path(primary: str) -> Path:
-	base_dir = Path(__file__).resolve().parent
+	base_dir = SOURCE_DIR
 	primary_path = base_dir / primary
 	if primary_path.exists():
 		return primary_path
 
 	parts = Path(primary).parts
-	if len(parts) >= 2:
+	if len(parts) >= 2 and parts[0].lower() == "road":
 		return base_dir / Path(*parts[1:])
 
 	return primary_path
+
+
+def resolve_source_relative_path(path: Path) -> Path:
+	if path.is_absolute():
+		return path
+	return prefer_primary_path(path.as_posix())
+
+
+def resolve_model_source(model_source: str) -> str:
+	model_path = Path(model_source)
+	if model_path.is_absolute():
+		return str(model_path)
+
+	# Keep ultralytics built-in model names (e.g., yolo11m-seg.yaml) untouched.
+	if len(model_path.parts) == 1 and not model_path.exists():
+		return model_source
+
+	return str(resolve_source_relative_path(model_path))
 
 
 def default_dataset_yaml() -> Path:
@@ -27,7 +48,11 @@ def default_model_source() -> str:
 
 
 def default_output_model_path() -> Path:
-	return Path("road/model/04_yolo11m-pothole-sg.pt")
+	return prefer_primary_path("dataset/model/04_yolo11m-pothole-sg.pt")
+
+
+def default_project_root() -> Path:
+	return prefer_primary_path("dataset/runs")
 
 
 def parse_args() -> argparse.Namespace:
@@ -58,7 +83,7 @@ def parse_args() -> argparse.Namespace:
 	parser.add_argument("--workers", type=int, default=8, help="Number of dataloader workers.")
 	parser.add_argument("--patience", type=int, default=30, help="Early stopping patience.")
 	parser.add_argument("--device", type=str, default="0", help="CUDA device index or 'cpu'.")
-	parser.add_argument("--project", type=Path, default=Path("road/runs"), help="Run root dir.")
+	parser.add_argument("--project", type=Path, default=default_project_root(), help="Run root dir.")
 	parser.add_argument("--name", type=str, default="pothole600-seg", help="Run name.")
 	parser.add_argument("--seed", type=int, default=42, help="Random seed.")
 	parser.add_argument(
@@ -84,6 +109,10 @@ def validate_paths(data_yaml: Path, model_source: str) -> None:
 
 def main() -> None:
 	args = parse_args()
+	args.data = resolve_source_relative_path(args.data)
+	args.output_model = resolve_source_relative_path(args.output_model)
+	args.project = resolve_source_relative_path(args.project)
+	args.model = resolve_model_source(args.model)
 	validate_paths(args.data, args.model)
 
 	print("Starting YOLO segmentation training...")

@@ -6,10 +6,8 @@ const $ = window.jQuery;
 
 // 각 뷰어를 위한 클래스
 class URDFViewer {
-    constructor(containerElement, viewLabel, viewIndex) {
+    constructor(containerElement) {
         this.container = containerElement;
-        this.viewLabel = viewLabel;
-        this.viewIndex = viewIndex;
         this.robotModel = null;
         this.goalTarget = new THREE.Vector3(0, 0, 0);
         this.isDragging = false;
@@ -81,7 +79,7 @@ class URDFViewer {
         const width = containerRect.width;
         const height = containerRect.height;
         
-        console.log(`${this.viewLabel} 컨테이너 크기: ${width}x${height}`);
+        console.log(`[URDF] 컨테이너 크기: ${width}x${height}`);
 
         // Scene 생성
         this.scene = new THREE.Scene();
@@ -364,7 +362,7 @@ class URDFViewer {
                     type: 'joint',
                     ref: joint
                 };
-                console.log(`[URDF] ${this.viewLabel} ${key.toUpperCase()} 휠 조인트 연결:`, joint.name || expectedJointName);
+                console.log(`[URDF] ${key.toUpperCase()} 휠 조인트 연결:`, joint.name || expectedJointName);
                 return;
             }
 
@@ -375,12 +373,12 @@ class URDFViewer {
                     type: 'link',
                     ref: link
                 };
-                console.warn(`[URDF] ${this.viewLabel} ${key.toUpperCase()} 조인트 미발견. 링크 회전 폴백 사용:`, expectedLinkName);
+                console.warn(`[URDF] ${key.toUpperCase()} 조인트 미발견. 링크 회전 폴백 사용:`, expectedLinkName);
                 return;
             }
 
             this.wheelRuntimeTargetByKey[key] = null;
-            console.warn(`[URDF] ${this.viewLabel} ${key.toUpperCase()} 휠 대상(조인트/링크)을 찾지 못했습니다.`);
+            console.warn(`[URDF] ${key.toUpperCase()} 휠 대상(조인트/링크)을 찾지 못했습니다.`);
         });
     }
 
@@ -398,7 +396,7 @@ class URDFViewer {
         const distanceText = `distance: ${distance.toFixed(3)}`;
 
         if (this.cameraAngleTextElement && this.cameraAngleTextElement.length > 0) {
-            this.cameraAngleTextElement.text(`${this.viewLabel}: ${angleText} | ${distanceText}`);
+            this.cameraAngleTextElement.text(`${angleText} | ${distanceText}`);
         }
     }
 
@@ -476,7 +474,7 @@ class URDFViewer {
 
                 if (intersects.length > 0) {
                     this.goalTarget.copy(intersects[0].point);
-                    console.log(`[URDF] ${this.viewLabel} 목표 지점 설정:`, this.goalTarget);
+                    console.log('[URDF] 목표 지점 설정:', this.goalTarget);
                 }
             }
         });
@@ -485,13 +483,13 @@ class URDFViewer {
     loadURDF() {
         const loader = new URDFLoader();
         
-        console.log(`${this.viewLabel} URDF 파일 로딩 중... (${this.urdfPath})`);
+        console.log(`[URDF] URDF 파일 로딩 중... (${this.urdfPath})`);
 
         loader.load(
             this.urdfPath,
 
             robot => {
-                console.log(`[URDF] ✅ ${this.viewLabel} URDF 로드 성공`);
+                console.log('[URDF] ✅ URDF 로드 성공');
 
                 // 스케일링 (단위 변환)
                 robot.scale.set(this.urdfScale, this.urdfScale, this.urdfScale);
@@ -508,8 +506,8 @@ class URDFViewer {
                     const sphere = bbox.getBoundingSphere(new THREE.Sphere());
                     const radius = Math.max(sphere.radius, 0.001);
 
-                    console.log(`[URDF] 📏 ${this.viewLabel} 모델 반경:`, radius);
-                    console.log(`[URDF] 📍 ${this.viewLabel} 모델 중심:`, center);
+                    console.log('[URDF] 📏 모델 반경:', radius);
+                    console.log('[URDF] 📍 모델 중심:', center);
 
                     // 카메라 위치 자동 조정 - 모델 전체가 화면에 보이도록 설정
                     const verticalHalfFov = THREE.MathUtils.degToRad(this.camera.fov * 0.5);
@@ -531,17 +529,17 @@ class URDFViewer {
                     this.controls.update();
                     this.logCameraAngles(true);
 
-                    console.log(`[URDF] ✅ ${this.viewLabel} 자동 피팅 완료: 거리`, cameraDist.toFixed(4));
+                    console.log('[URDF] ✅ 자동 피팅 완료: 거리', cameraDist.toFixed(4));
                 }, 200);
             },
             progress => {
                 if (progress?.total) {
                     const percent = ((progress.loaded / progress.total) * 100).toFixed(1);
-                    console.log(`[URDF] ${this.viewLabel} URDF 로딩 진행률: ${percent}%`);
+                    console.log(`[URDF] URDF 로딩 진행률: ${percent}%`);
                 }
             },
             error => {
-                console.error(`[URDF] ❌ ${this.viewLabel} URDF 로드 실패:`, error);
+                console.error('[URDF] ❌ URDF 로드 실패:', error);
             }
         );
     }
@@ -556,7 +554,7 @@ class URDFViewer {
             this.camera.updateProjectionMatrix();
             this.renderer.setSize(newWidth, newHeight);
             
-            console.log(`[URDF] ${this.viewLabel} 리사이즈: ${newWidth}x${newHeight}`);
+            console.log(`[URDF] 리사이즈: ${newWidth}x${newHeight}`);
         });
     }
 
@@ -658,19 +656,17 @@ function initURDFViewers() {
     
     console.log(`[URDF] 📦 ${containers.length}개의 urdf-container 발견`);
     
-    // 각 컨테이너에 대해 URDFViewer 생성 (viewIndex는 1부터 시작)
+    // 각 컨테이너에 대해 URDFViewer 생성
     containers.forEach((container, index) => {
-        var viewIndex = index + 1; // 1부터 시작
-        viewIndex = 3 ; 
+        const viewIndex = index + 1;
         const containerClass = container.className;
-        const viewLabel = `View ${viewIndex}`;
         
         // 컨테이너 내부의 기존 HTML 요소들 모두 삭제
         container.innerHTML = '';
         
         console.log(`[URDF] 🔧 ${containerClass} 요소 초기화 중... (ViewIndex: ${viewIndex})`);
         
-        window.activeURDFViewer = new URDFViewer(container, viewLabel, viewIndex);
+        window.activeURDFViewer = new URDFViewer(container);
     });
 
     setDriveSpeedKmh($('#drive-speed-kmh').val());

@@ -52,6 +52,7 @@ $(function () {
     const cameraDeviceListContainerTemplate = document.getElementById("camera-device-list-container-template");
     const DETECT_AFTER_UPLOAD_DELAY_MS = 800;
     const DETECT_OPTIONS_STORAGE_KEY = "wcs.ai_road.detect_options.v1";
+    const POTHOLE_OPTION_STORAGE_KEY = "wcs.ai_road.enable_pothole_detect.v1";
     const INPUT_TAB_STORAGE_KEY = "wcs.ai_road.input_tab.v1";
     const SAMPLE_BROWSER_STORAGE_KEY = "wcs.ai_road.sample_browser.v1";
     let uploadedFileName = "";
@@ -792,6 +793,7 @@ $(function () {
 
         try {
             window.localStorage.setItem(DETECT_OPTIONS_STORAGE_KEY, JSON.stringify(payload));
+            window.localStorage.setItem(POTHOLE_OPTION_STORAGE_KEY, String(isPotholeDetectEnabled()));
         } catch (error) {
             // Ignore storage write errors (private mode, quota exceeded, etc.).
         }
@@ -817,8 +819,26 @@ $(function () {
             return;
         }
 
-        if (typeof parsed.enablePotholeDetect === "boolean" && $enablePotholeDetect.length > 0) {
-            $enablePotholeDetect.prop("checked", parsed.enablePotholeDetect);
+        if ($enablePotholeDetect.length > 0) {
+            let restoredPotholeEnabled = null;
+            if (parsed && typeof parsed.enablePotholeDetect === "boolean") {
+                restoredPotholeEnabled = parsed.enablePotholeDetect;
+            } else {
+                try {
+                    const rawPothole = String(window.localStorage.getItem(POTHOLE_OPTION_STORAGE_KEY) || "").trim().toLowerCase();
+                    if (rawPothole === "true") {
+                        restoredPotholeEnabled = true;
+                    } else if (rawPothole === "false") {
+                        restoredPotholeEnabled = false;
+                    }
+                } catch (error) {
+                    // Ignore storage read errors.
+                }
+            }
+
+            if (typeof restoredPotholeEnabled === "boolean") {
+                $enablePotholeDetect.prop("checked", restoredPotholeEnabled);
+            }
         }
         syncPotholeDetectOption();
 

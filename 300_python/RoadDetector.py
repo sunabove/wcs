@@ -22,8 +22,9 @@ logger = logging.getLogger(__name__)
 class RoadDetector:
     MIN_CONF = 0.10
     MAX_CONF_GAP_RATIO = 0.10
-    POTHOLE_SCORE_CONF_WEIGHT = 0.8
-    POTHOLE_SCORE_AREA_WEIGHT = 0.2
+    
+    POTHOLE_SCORE_CONF_WEIGHT = 0.7 
+    
     _class_color_map_path = Path(__file__).resolve().parent / "colormap_road.txt"
     _class_color_map = None
     
@@ -1299,7 +1300,7 @@ class RoadDetector:
                         area_ratio = (valid_areas / max_area) if max_area > 0.0 else np.ones_like(valid_confs)
                         combined_scores = (
                             (float(self.POTHOLE_SCORE_CONF_WEIGHT) * valid_confs)
-                            + (float(self.POTHOLE_SCORE_AREA_WEIGHT) * area_ratio)
+                            + (float(1 - self.POTHOLE_SCORE_CONF_WEIGHT) * area_ratio)
                         )
                         best_local_idx = int(np.argmax(combined_scores))
                         conf_keep_flags = np.zeros((total_mask_count,), dtype=bool)

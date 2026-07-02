@@ -245,23 +245,6 @@ def load_image_and_mask(image_path: Path, label_path: Path) -> tuple[np.ndarray,
 
 	return image, mask
 
-	h, w = mask.shape[:2]
-	if nonzero_mask:
-		binary = np.where(mask > 0, 255, 0).astype(np.uint8)
-	else:
-		binary = np.where(mask == mask_value, 255, 0).astype(np.uint8)
-
-	if not np.any(binary):
-		return []
-
-	polygons = polygon_from_binary_mask(binary, min_area, epsilon_ratio, w, h)
-	lines: list[str] = []
-	for poly in polygons:
-		coord_text = " ".join(f"{x:.6f}" for x in poly)
-		lines.append(f"0 {coord_text}")
-
-	return lines
-
 
 def copy_image(src: Path, dst: Path) -> None:
 	dst.parent.mkdir(parents=True, exist_ok=True)

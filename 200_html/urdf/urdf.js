@@ -396,7 +396,7 @@ class URDFViewer {
         const distanceText = `distance: ${distance.toFixed(3)}`;
 
         if (this.cameraAngleTextElement && this.cameraAngleTextElement.length > 0) {
-            this.cameraAngleTextElement.text(`${angleText} | ${distanceText}`);
+            this.cameraAngleTextElement.text(`${angleText}, ${distanceText}`);
         }
     }
 

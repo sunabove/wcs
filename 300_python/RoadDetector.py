@@ -17,6 +17,7 @@ from config import BASE_DIR, UPLOAD_DIR, VIDEO_EXTENSIONS
 from ChartRenderer import ChartRenderer
 
 class RoadDetector:
+    MIN_CONF = 0.10
     _class_color_map_path = Path(__file__).resolve().parent / "colormap_road.txt"
     _class_color_map = None
     
@@ -1709,7 +1710,7 @@ class RoadDetector:
         total_frames=None,
     ):
         detect_key = detect_type if detect_type in RoadDetector._model_paths else "road"
-        conf = 0.10 if detect_key == "road_type" else 0.20
+        conf = RoadDetector.MIN_CONF
         infer_key = detect_key
         font_face = cv2.FONT_HERSHEY_SIMPLEX
 
@@ -1732,7 +1733,7 @@ class RoadDetector:
             
             if "road" in RoadDetector._models:
                 try:
-                    road_result = RoadDetector._models["road"].predict(source=frame_for_inference, conf=0.20, verbose=False)[0]
+                    road_result = RoadDetector._models["road"].predict(source=frame_for_inference, conf=conf, verbose=False)[0]
                     if roi is None and road_result.boxes is not None and road_result.boxes.conf is not None:
                         # Get highest confidence box
                         confs = road_result.boxes.conf.cpu().numpy()

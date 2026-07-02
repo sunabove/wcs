@@ -1546,7 +1546,11 @@ class RoadDetector:
             (tw, th), baseline = cv2.getTextSize(label, font_face, 0.6, 2)
             ty = max(y1 - 6, th + 4)
             cv2.rectangle(detected, (x1, ty - th - 4), (x1 + tw + 4, ty + baseline), box_color, cv2.FILLED)
-            cv2.putText(detected, label, (x1 + 2, ty - 2), font_face, 0.6, (0, 0, 0), 2)
+            # Use white text on dark box colors for readability.
+            b, g, r = int(box_color[0]), int(box_color[1]), int(box_color[2])
+            luminance = (0.114 * b) + (0.587 * g) + (0.299 * r)
+            text_color = (255, 255, 255) if luminance < 120 else (0, 0, 0)
+            cv2.putText(detected, label, (x1 + 2, ty - 2), font_face, 0.6, text_color, 2)
 
         return detected_count, class_counts, class_colors
 

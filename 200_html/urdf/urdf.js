@@ -396,7 +396,7 @@ class URDFViewer {
         const formatFixedIntegerWidth = (value, fractionDigits, integerDigits) => {
             const normalized = Math.abs(value).toFixed(fractionDigits);
             const [integerPart, fractionPart] = normalized.split('.');
-            const signText = value < 0 ? '-' : '';
+            const signText = value < 0 ? '-' : '+';
             const paddedIntegerPart = integerPart.padStart(integerDigits, '0');
             return `${signText}${paddedIntegerPart}.${fractionPart}`;
         };

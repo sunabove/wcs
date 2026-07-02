@@ -2152,6 +2152,7 @@ class RoadDetector:
         pothole_conf: float = DEFAULT_POTHOLE_CONF,
         suppress_header: bool = False,
         avoid_label_regions=None,
+        draw_boxes_labels: bool = True,
     ):
         detect_key = detect_type if detect_type in RoadDetector._model_paths else "road"
         conf = RoadDetector.MIN_CONF
@@ -2273,18 +2274,34 @@ class RoadDetector:
             box_labels = boxes_payload["box_labels"]
             box_colors = boxes_payload["box_colors"]
 
-            detected_count, class_counts, class_chart_colors, label_regions = self._draw_boxes_and_collect_counts(
-                detected,
-                boxes,
-                confs,
-                cls_ids,
-                box_labels,
-                box_colors,
-                names,
-                detect_key,
-                font_face,
-                avoid_label_regions=avoid_label_regions,
-            )
+            if draw_boxes_labels:
+                detected_count, class_counts, class_chart_colors, label_regions = self._draw_boxes_and_collect_counts(
+                    detected,
+                    boxes,
+                    confs,
+                    cls_ids,
+                    box_labels,
+                    box_colors,
+                    names,
+                    detect_key,
+                    font_face,
+                    avoid_label_regions=avoid_label_regions,
+                )
+            else:
+                detected_count = len(boxes)
+                for idx, box_conf in enumerate(confs):
+                    cls_name = box_labels[idx] if idx < len(box_labels) and box_labels[idx] else ""
+                    if not cls_name and cls_ids is not None and idx < len(cls_ids):
+                        cls_id_value = int(cls_ids[idx])
+                        if cls_id_value >= 0:
+                            cls_name = str(names.get(cls_id_value, cls_id_value))
+                    if not cls_name:
+                        cls_name = detect_key
+
+                    class_counts[cls_name] = class_counts.get(cls_name, 0) + 1
+                    if cls_name not in class_chart_colors:
+                        color = box_colors[idx] if idx < len(box_colors) else (0, 255, 255)
+                        class_chart_colors[cls_name] = (int(color[0]), int(color[1]), int(color[2]))
             pass
         pass
 
@@ -2355,6 +2372,7 @@ class RoadDetector:
                     pothole_conf=pothole_conf,
                     suppress_header=True,
                     avoid_label_regions=label_regions,
+                    draw_boxes_labels=False,
                 )
 
                 # Keep pothole stats separate from base road/road_type counts,
@@ -2384,6 +2402,27 @@ class RoadDetector:
                         pothole_overlay_mask = np.zeros(detected.shape[:2], dtype=bool)
                     if np.any(pothole_overlay_mask):
                         detected[pothole_overlay_mask] = pothole_frame[pothole_overlay_mask]
+
+                pothole_boxes = pothole_result.get("boxes") if isinstance(pothole_result, dict) else None
+                pothole_confs = pothole_result.get("confs") if isinstance(pothole_result, dict) else None
+                pothole_cls_ids = pothole_result.get("cls_ids") if isinstance(pothole_result, dict) else None
+                pothole_box_labels = pothole_result.get("box_labels") if isinstance(pothole_result, dict) else None
+                pothole_box_colors = pothole_result.get("box_colors") if isinstance(pothole_result, dict) else None
+                pothole_names = pothole_result.get("names") if isinstance(pothole_result, dict) else None
+
+                if isinstance(pothole_boxes, np.ndarray) and isinstance(pothole_confs, np.ndarray) and len(pothole_boxes) > 0:
+                    _, _, _, label_regions = self._draw_boxes_and_collect_counts(
+                        detected,
+                        pothole_boxes,
+                        pothole_confs,
+                        pothole_cls_ids if isinstance(pothole_cls_ids, np.ndarray) else np.empty((0,), dtype=int),
+                        pothole_box_labels if isinstance(pothole_box_labels, list) else [],
+                        pothole_box_colors if isinstance(pothole_box_colors, list) else [(255, 255, 0)] * len(pothole_boxes),
+                        pothole_names if isinstance(pothole_names, dict) else {},
+                        "pothole",
+                        font_face,
+                        avoid_label_regions=label_regions,
+                    )
 
         if include_pothole and detect_key in ("road", "road_type"):
             header_conf_text = f"{detect_key}({conf * 100:.0f}%), pothole({float(np.clip(float(pothole_conf), 0.0, 1.0)) * 100:.0f}%)"
@@ -2441,6 +2480,12 @@ class RoadDetector:
                 "frame": detected,
                 "stats": stats,
                 "overlay_mask": filtered_object_mask,
+                "boxes": boxes,
+                "confs": confs,
+                "cls_ids": cls_ids,
+                "box_labels": box_labels,
+                "box_colors": box_colors,
+                "names": names,
             }
 
         return detected

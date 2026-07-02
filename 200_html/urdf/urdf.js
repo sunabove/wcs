@@ -393,17 +393,18 @@ class URDFViewer {
         const polarDeg = THREE.MathUtils.radToDeg(this.controls.getPolarAngle());
         const distance = this.camera.position.distanceTo(this.controls.target);
 
-        const formatFixedIntegerWidth = (value, fractionDigits, integerDigits) => {
+        const formatFixedIntegerWidth = (value, totalDigits, fractionDigits) => {
             const normalized = Math.abs(value).toFixed(fractionDigits);
             const [integerPart, fractionPart] = normalized.split('.');
             const signText = value < 0 ? '-' : ' ';
+            const integerDigits = Math.max(totalDigits - fractionDigits - 2, 1);
             const paddedIntegerPart = integerPart.padStart(integerDigits, '0');
             return `${signText}${paddedIntegerPart}.${fractionPart}`;
         };
 
-        const azimuthText = formatFixedIntegerWidth(azimuthDeg, 1, 3);
-        const polarText = formatFixedIntegerWidth(polarDeg, 1, 3);
-        const distanceValueText = formatFixedIntegerWidth(distance, 3, 2);
+        const azimuthText = formatFixedIntegerWidth(azimuthDeg, 6, 1);
+        const polarText = formatFixedIntegerWidth(polarDeg, 6, 1);
+        const distanceValueText = formatFixedIntegerWidth(distance, 5, 1);
 
         const angleText = `azimuth: ${azimuthText}°, polar: ${polarText}°`;
         const distanceText = `distance: ${distanceValueText}`;

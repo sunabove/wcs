@@ -3,7 +3,7 @@ dirt 108 64 20
 asphalt 0 255 0
 concrete 101 101 11
 block 178 84 58
-road 255 0 0 
+road 255 255 0 
 pothole 255 0 255
 sand 255 229 204
 gravel 255 128 0

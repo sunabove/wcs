@@ -2117,8 +2117,12 @@ class RoadDetector:
                 if np.any(pothole_overlay_mask):
                     detected[pothole_overlay_mask] = pothole_frame[pothole_overlay_mask]
 
+        header_detect_key = detect_key
+        if include_pothole and detect_key in ("road", "road_type"):
+            header_detect_key = f"{detect_key},pothole"
+
         if not suppress_header:
-            detected = self._render_header(detected, detect_key, detected_count, conf, class_counts, started_at, font_face)
+            detected = self._render_header(detected, header_detect_key, detected_count, conf, class_counts, started_at, font_face)
 
         stats = {
             "detect_type": detect_key,

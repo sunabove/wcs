@@ -22,6 +22,8 @@ logger = logging.getLogger(__name__)
 class RoadDetector:
     MIN_CONF = 0.10
     MAX_CONF_GAP_RATIO = 0.10
+    POTHOLE_SCORE_CONF_WEIGHT = 0.8
+    POTHOLE_SCORE_AREA_WEIGHT = 0.2
     _class_color_map_path = Path(__file__).resolve().parent / "colormap_road.txt"
     _class_color_map = None
     
@@ -1287,7 +1289,7 @@ class RoadDetector:
 
             if mask_conf_values is not None:
                 # For pothole, select only one instance by combined
-                # (normalized mask area * confidence) score.
+                # weighted-sum score (confidence-dominant).
                 if detect_key == "pothole" and len(mask_has_area_flags) == len(mask_conf_values):
                     valid_indices = np.where(mask_has_area_flags)[0]
                     if len(valid_indices) > 0:
@@ -1295,7 +1297,10 @@ class RoadDetector:
                         valid_areas = mask_area_values[valid_indices] if len(mask_area_values) == len(mask_conf_values) else np.ones_like(valid_confs)
                         max_area = float(np.max(valid_areas)) if len(valid_areas) > 0 else 0.0
                         area_ratio = (valid_areas / max_area) if max_area > 0.0 else np.ones_like(valid_confs)
-                        combined_scores = valid_confs * area_ratio
+                        combined_scores = (
+                            (float(self.POTHOLE_SCORE_CONF_WEIGHT) * valid_confs)
+                            + (float(self.POTHOLE_SCORE_AREA_WEIGHT) * area_ratio)
+                        )
                         best_local_idx = int(np.argmax(combined_scores))
                         conf_keep_flags = np.zeros((total_mask_count,), dtype=bool)
                         conf_keep_flags[int(valid_indices[best_local_idx])] = True
@@ -1705,7 +1710,10 @@ class RoadDetector:
         box_area = box_w * box_h
         max_area = float(np.max(box_area)) if len(box_area) > 0 else 0.0
         area_ratio = (box_area / max_area) if max_area > 0.0 else np.ones_like(box_area)
-        scores = confs.astype(float) * area_ratio
+        scores = (
+            (float(self.POTHOLE_SCORE_CONF_WEIGHT) * confs.astype(float))
+            + (float(self.POTHOLE_SCORE_AREA_WEIGHT) * area_ratio)
+        )
 
         keep_indices = np.argsort(scores)[::-1][:k]
 

@@ -403,7 +403,7 @@ class URDFViewer {
 
         const azimuthText = formatFixedIntegerWidth(azimuthDeg, 1, 3);
         const polarText = formatFixedIntegerWidth(polarDeg, 1, 3);
-        const distanceValueText = formatFixedIntegerWidth(distance, 3, 3);
+        const distanceValueText = formatFixedIntegerWidth(distance, 3, 2);
 
         const angleText = `azimuth: ${azimuthText}°, polar: ${polarText}°`;
         const distanceText = `distance: ${distanceValueText}`;

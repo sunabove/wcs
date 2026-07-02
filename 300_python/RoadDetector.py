@@ -2143,6 +2143,10 @@ class RoadDetector:
             if mapped is not None:
                 class_chart_colors[class_name] = (int(mapped[0]), int(mapped[1]), int(mapped[2]))
 
+        # Extra class series used only for chart/legend (not header/base counts).
+        extra_chart_class_counts = {}
+        extra_chart_class_colors = {}
+
         # Optional extra pothole overlay on top of road/road_type detection.
         if include_pothole and detect_key in ("road", "road_type"):
             pothole_source_frame = frame.copy()
@@ -2177,6 +2181,25 @@ class RoadDetector:
                     include_pothole=False,
                     suppress_header=True,
                 )
+
+                # Keep pothole stats separate from base road/road_type counts,
+                # but expose them as extra chart series.
+                pothole_stats = pothole_result.get("stats") if isinstance(pothole_result, dict) else None
+                if isinstance(pothole_stats, dict):
+                    pothole_counts = pothole_stats.get("class_counts")
+                    if isinstance(pothole_counts, dict):
+                        for cls_name, cls_count in pothole_counts.items():
+                            key = str(cls_name)
+                            extra_chart_class_counts[key] = extra_chart_class_counts.get(key, 0) + int(cls_count)
+
+                    pothole_colors = pothole_stats.get("class_colors")
+                    if isinstance(pothole_colors, dict):
+                        for cls_name, bgr in pothole_colors.items():
+                            if bgr is None or len(bgr) < 3:
+                                continue
+                            key = str(cls_name)
+                            extra_chart_class_colors[key] = (int(bgr[0]), int(bgr[1]), int(bgr[2]))
+
                 pothole_frame = pothole_result.get("frame") if isinstance(pothole_result, dict) else None
                 if isinstance(pothole_frame, np.ndarray) and pothole_frame.shape == detected.shape:
                     pothole_overlay_mask = np.any(pothole_frame != pothole_source_frame, axis=2)
@@ -2190,14 +2213,32 @@ class RoadDetector:
         if not suppress_header:
             detected = self._render_header(detected, header_detect_key, detected_count, conf, class_counts, started_at, font_face)
 
+        chart_class_counts = {str(key): int(value) for key, value in class_counts.items()}
+        chart_class_colors = {str(key): (int(value[0]), int(value[1]), int(value[2])) for key, value in class_chart_colors.items()}
+        for key, value in extra_chart_class_counts.items():
+            key = str(key)
+            chart_class_counts[key] = chart_class_counts.get(key, 0) + int(value)
+
+        for key, bgr in extra_chart_class_colors.items():
+            key = str(key)
+            chart_class_colors[key] = (int(bgr[0]), int(bgr[1]), int(bgr[2]))
+
+        # Resolve missing colors for extra chart classes from colormap.
+        for key in chart_class_counts.keys():
+            if key in chart_class_colors:
+                continue
+            mapped = fallback_class_color_map.get(key, fallback_class_color_map.get(str(key).lower()))
+            if mapped is not None:
+                chart_class_colors[key] = (int(mapped[0]), int(mapped[1]), int(mapped[2]))
+
         stats = {
             "detect_type": detect_key,
             "detected_count": int(detected_count),
             "max_confidence": max_confidence,
             "mask_count": int(mask_count),
             "total_mask_count": int(total_mask_count),
-            "class_counts": {str(key): int(value) for key, value in class_counts.items()},
-            "class_colors": {str(key): (int(value[0]), int(value[1]), int(value[2])) for key, value in class_chart_colors.items()},
+            "class_counts": chart_class_counts,
+            "class_colors": chart_class_colors,
         }
 
         if show_detect_stats and not suppress_header:

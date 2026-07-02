@@ -1866,7 +1866,11 @@ class RoadDetector:
                 inference_roi,
             )
             boxes_payload = self._filter_boxes_payload_by_roi(boxes_payload, roi)
-            boxes_payload = self._filter_boxes_payload_by_mean_conf(boxes_payload)
+            # When masks are present, confidence filtering is already applied in
+            # _process_result_masks. Applying box-only filtering again can cause
+            # mask/box mismatch (overlay outside shown boxes).
+            if total_mask_count <= 0:
+                boxes_payload = self._filter_boxes_payload_by_mean_conf(boxes_payload)
 
             boxes = boxes_payload["boxes"]
             confs = boxes_payload["confs"]

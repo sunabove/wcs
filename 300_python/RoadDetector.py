@@ -1648,10 +1648,17 @@ class RoadDetector:
         return payload
     pass # _filter_boxes_payload_by_max_conf_gap
 
-    def _draw_boxes_and_collect_counts(self, detected, boxes, confs, cls_ids, box_labels, box_colors, names, detect_key, font_face):
+    def _draw_boxes_and_collect_counts(self, detected, boxes, confs, cls_ids, box_labels, box_colors, names, detect_key, font_face, avoid_label_regions=None):
         class_counts = {}
         class_colors = {}
         detected_count = len(boxes)
+        label_regions = []
+
+        if isinstance(avoid_label_regions, list):
+            for region in avoid_label_regions:
+                if region is None or len(region) < 4:
+                    continue
+                label_regions.append((int(region[0]), int(region[1]), int(region[2]), int(region[3])))
 
         for idx, ((x1, y1, x2, y2), box_conf) in enumerate(zip(boxes, confs)):
             box_color = box_colors[idx] if idx < len(box_colors) else (0, 255, 255)
@@ -1672,14 +1679,33 @@ class RoadDetector:
             label = f"{cls_name} {box_conf:.2f}".strip()
             (tw, th), baseline = cv2.getTextSize(label, font_face, 0.6, 2)
             ty = max(y1 - 6, th + 4)
-            cv2.rectangle(detected, (x1, ty - th - 4), (x1 + tw + 4, ty + baseline), box_color, cv2.FILLED)
+            label_x1 = int(x1)
+            label_y1 = int(ty - th - 4)
+            label_x2 = int(x1 + tw + 4)
+            label_y2 = int(ty + baseline)
+
+            # If pothole label area overlaps existing labels (road/road_type),
+            # align pothole label to the right side of its bbox.
+            if detect_key == "pothole" and label_regions:
+                is_overlapping = False
+                for ox1, oy1, ox2, oy2 in label_regions:
+                    if label_x1 < ox2 and label_x2 > ox1 and label_y1 < oy2 and label_y2 > oy1:
+                        is_overlapping = True
+                        break
+
+                if is_overlapping:
+                    label_x2 = min(int(detected.shape[1] - 1), int(x2))
+                    label_x1 = max(0, int(label_x2 - (tw + 4)))
+
+            cv2.rectangle(detected, (label_x1, label_y1), (label_x2, label_y2), box_color, cv2.FILLED)
             # Use white text on dark box colors for readability.
             b, g, r = int(box_color[0]), int(box_color[1]), int(box_color[2])
             luminance = (0.114 * b) + (0.587 * g) + (0.299 * r)
             text_color = (255, 255, 255) if luminance < 120 else (0, 0, 0)
-            cv2.putText(detected, label, (x1 + 2, ty - 2), font_face, 0.6, text_color, 2)
+            cv2.putText(detected, label, (label_x1 + 2, ty - 2), font_face, 0.6, text_color, 2)
+            label_regions.append((label_x1, label_y1, label_x2, label_y2))
 
-        return detected_count, class_counts, class_colors
+        return detected_count, class_counts, class_colors, label_regions
 
     def _render_header(self, detected, detect_key, detected_count, conf, class_counts, started_at, font_face):
         elapsed_ms = (time.perf_counter() - started_at) * 1000.0
@@ -1995,6 +2021,7 @@ class RoadDetector:
         total_frames=None,
         include_pothole: bool = False,
         suppress_header: bool = False,
+        avoid_label_regions=None,
     ):
         detect_key = detect_type if detect_type in RoadDetector._model_paths else "road"
         conf = RoadDetector.MIN_CONF
@@ -2077,6 +2104,7 @@ class RoadDetector:
         cls_ids = np.empty((0,), dtype=int)
         box_labels = []
         box_colors = []
+        label_regions = []
 
         if result.boxes is not None and result.boxes.xyxy is not None:
             boxes_payload = self._build_boxes_payload_from_result(
@@ -2107,7 +2135,7 @@ class RoadDetector:
             box_labels = boxes_payload["box_labels"]
             box_colors = boxes_payload["box_colors"]
 
-            detected_count, class_counts, class_chart_colors = self._draw_boxes_and_collect_counts(
+            detected_count, class_counts, class_chart_colors, label_regions = self._draw_boxes_and_collect_counts(
                 detected,
                 boxes,
                 confs,
@@ -2117,6 +2145,7 @@ class RoadDetector:
                 names,
                 detect_key,
                 font_face,
+                avoid_label_regions=avoid_label_regions,
             )
             pass
         pass
@@ -2180,6 +2209,7 @@ class RoadDetector:
                     show_detect_stats=False,
                     include_pothole=False,
                     suppress_header=True,
+                    avoid_label_regions=label_regions,
                 )
 
                 # Keep pothole stats separate from base road/road_type counts,

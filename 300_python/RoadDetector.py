@@ -1242,6 +1242,10 @@ class RoadDetector:
             [bool(np.any(binary_mask)) for binary_mask in prepared_masks],
             dtype=bool,
         ) if prepared_masks else np.empty((0,), dtype=bool)
+        mask_area_values = np.array(
+            [float(np.count_nonzero(binary_mask)) for binary_mask in prepared_masks],
+            dtype=float,
+        ) if prepared_masks else np.empty((0,), dtype=float)
 
         mask_conf_values = None
         conf_keep_flags = None
@@ -1282,18 +1286,19 @@ class RoadDetector:
                         mask_conf_values[m_idx] = float(box_confs[best_idx])
 
             if mask_conf_values is not None:
-                # For pothole, derive threshold from candidates that are inside
-                # the clipped/allowed road area only, using mean confidence.
+                # For pothole, select only one instance by combined
+                # (normalized mask area * confidence) score.
                 if detect_key == "pothole" and len(mask_has_area_flags) == len(mask_conf_values):
                     valid_indices = np.where(mask_has_area_flags)[0]
                     if len(valid_indices) > 0:
                         valid_confs = mask_conf_values[valid_indices]
-                        min_keep_conf = float(np.mean(valid_confs))
+                        valid_areas = mask_area_values[valid_indices] if len(mask_area_values) == len(mask_conf_values) else np.ones_like(valid_confs)
+                        max_area = float(np.max(valid_areas)) if len(valid_areas) > 0 else 0.0
+                        area_ratio = (valid_areas / max_area) if max_area > 0.0 else np.ones_like(valid_confs)
+                        combined_scores = valid_confs * area_ratio
+                        best_local_idx = int(np.argmax(combined_scores))
                         conf_keep_flags = np.zeros((total_mask_count,), dtype=bool)
-                        conf_keep_flags[valid_indices] = valid_confs >= min_keep_conf
-                        if not bool(np.any(conf_keep_flags)):
-                            best_local_idx = int(np.argmax(valid_confs))
-                            conf_keep_flags[int(valid_indices[best_local_idx])] = True
+                        conf_keep_flags[int(valid_indices[best_local_idx])] = True
                     else:
                         conf_keep_flags = np.zeros((total_mask_count,), dtype=bool)
                 else:
@@ -1302,16 +1307,6 @@ class RoadDetector:
                     conf_keep_flags = mask_conf_values >= min_keep_conf
                     if not bool(np.any(conf_keep_flags)):
                         conf_keep_flags[int(np.argmax(mask_conf_values))] = True
-
-            # For pothole, cap overlays to top-2 by confidence.
-            if detect_key == "pothole" and conf_keep_flags is not None and mask_conf_values is not None:
-                kept_indices = np.where(conf_keep_flags)[0]
-                if len(kept_indices) > 2:
-                    order = np.argsort(mask_conf_values[kept_indices])[::-1]
-                    top_indices = kept_indices[order[:2]]
-                    limited_flags = np.zeros_like(conf_keep_flags, dtype=bool)
-                    limited_flags[top_indices] = True
-                    conf_keep_flags = limited_flags
 
         noisy_component_mask = self._build_noisy_component_mask(global_binary_mask, 0.10)
 
@@ -1687,6 +1682,45 @@ class RoadDetector:
 
         return payload
     pass # _filter_boxes_payload_by_top_k_conf
+
+    def _filter_boxes_payload_by_area_conf_score(self, payload, top_k: int = 1):
+        boxes = payload.get("boxes")
+        confs = payload.get("confs")
+        cls_ids = payload.get("cls_ids")
+        box_labels = payload.get("box_labels")
+        box_colors = payload.get("box_colors")
+
+        if boxes is None or confs is None:
+            return payload
+
+        if len(confs) == 0:
+            return payload
+
+        k = max(1, int(top_k))
+        if len(confs) <= k:
+            return payload
+
+        box_w = np.maximum(1.0, boxes[:, 2].astype(float) - boxes[:, 0].astype(float))
+        box_h = np.maximum(1.0, boxes[:, 3].astype(float) - boxes[:, 1].astype(float))
+        box_area = box_w * box_h
+        max_area = float(np.max(box_area)) if len(box_area) > 0 else 0.0
+        area_ratio = (box_area / max_area) if max_area > 0.0 else np.ones_like(box_area)
+        scores = confs.astype(float) * area_ratio
+
+        keep_indices = np.argsort(scores)[::-1][:k]
+
+        payload["boxes"] = boxes[keep_indices]
+        payload["confs"] = confs[keep_indices]
+        if cls_ids is not None:
+            payload["cls_ids"] = cls_ids[keep_indices]
+
+        if isinstance(box_labels, list):
+            payload["box_labels"] = [box_labels[i] for i in keep_indices if i < len(box_labels)]
+        if isinstance(box_colors, list):
+            payload["box_colors"] = [box_colors[i] for i in keep_indices if i < len(box_colors)]
+
+        return payload
+    pass # _filter_boxes_payload_by_area_conf_score
 
     def _draw_boxes_and_collect_counts(self, detected, boxes, confs, cls_ids, box_labels, box_colors, names, detect_key, font_face, avoid_label_regions=None):
         class_counts = {}
@@ -2164,13 +2198,11 @@ class RoadDetector:
             # _process_result_masks. Applying box-only filtering again can cause
             # mask/box mismatch (overlay outside shown boxes).
             if total_mask_count <= 0:
-                if detect_key == "pothole":
-                    boxes_payload = self._filter_boxes_payload_by_mean_conf(boxes_payload)
-                else:
+                if detect_key != "pothole":
                     boxes_payload = self._filter_boxes_payload_by_max_conf_gap(boxes_payload)
 
             if detect_key == "pothole":
-                boxes_payload = self._filter_boxes_payload_by_top_k_conf(boxes_payload, top_k=2)
+                boxes_payload = self._filter_boxes_payload_by_area_conf_score(boxes_payload, top_k=1)
 
             boxes = boxes_payload["boxes"]
             confs = boxes_payload["confs"]

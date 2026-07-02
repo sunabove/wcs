@@ -455,7 +455,7 @@ def parse_args() -> argparse.Namespace:
 	parser.add_argument(
 		"--perspective-copies",
 		type=int,
-		default=0,
+		default=1,
 		help="Number of driving-view perspective variants to generate per source image.",
 	)
 	parser.add_argument(

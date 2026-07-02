@@ -178,7 +178,7 @@ def build_perspective_matrix(
 	top_width_ratio: float,
 	horizon_ratio: float,
 	center_shift_ratio: float,
-) -> np.ndarray:
+) -> tuple[np.ndarray, int]:
 	if width < 2 or height < 2:
 		raise ValueError("Image size must be at least 2x2 for perspective transform.")
 
@@ -199,7 +199,9 @@ def build_perspective_matrix(
 	src = np.array([[0.0, 0.0], [w, 0.0], [w, h], [0.0, h]], dtype=np.float32)
 	dst = np.array([[x_left, y_top], [x_right, y_top], [w, h], [0.0, h]], dtype=np.float32)
 
-	return cv2.getPerspectiveTransform(src, dst)
+	matrix = cv2.getPerspectiveTransform(src, dst)
+	crop_top = int(round(y_top))
+	return matrix, crop_top
 
 
 def apply_perspective_transform(
@@ -210,7 +212,7 @@ def apply_perspective_transform(
 	center_shift_ratio: float,
 ) -> tuple[np.ndarray, np.ndarray]:
 	h, w = image.shape[:2]
-	matrix = build_perspective_matrix(
+	matrix, crop_top = build_perspective_matrix(
 		width=w,
 		height=h,
 		top_width_ratio=top_width_ratio,
@@ -233,6 +235,14 @@ def apply_perspective_transform(
 		borderMode=cv2.BORDER_CONSTANT,
 		borderValue=0,
 	)
+
+	# Remove the artificial top black band and resize back to keep output size stable.
+	if 0 < crop_top < h - 1:
+		warped_image = warped_image[crop_top:h, :]
+		warped_mask = warped_mask[crop_top:h, :]
+		warped_image = cv2.resize(warped_image, (w, h), interpolation=cv2.INTER_LINEAR)
+		warped_mask = cv2.resize(warped_mask, (w, h), interpolation=cv2.INTER_NEAREST)
+
 	return warped_image, warped_mask
 
 
@@ -283,6 +293,7 @@ def convert(
 	epsilon_ratio: float,
 	mask_value: int,
 	nonzero_mask: bool,
+	save_original: bool,
 	perspective_copies: int,
 	perspective_top_width_min: float,
 	perspective_top_width_max: float,
@@ -296,6 +307,9 @@ def convert(
 		split: collect_pairs(path) for split, path in splits.items()
 	}
 	rng = np.random.default_rng(seed)
+	output_per_item = (1 if save_original else 0) + max(0, perspective_copies)
+	if output_per_item <= 0:
+		raise ValueError("No outputs configured. Enable --save-original or set --perspective-copies >= 1.")
 
 	clear_output_root(output_root)
 	ensure_dirs(output_root, split_map.keys())
@@ -305,25 +319,25 @@ def convert(
 
 	for split, items in split_map.items():
 		split_total = len(items)
-		output_per_item = 1 + max(0, perspective_copies)
 		print(
 			f"Starting split '{split}' ({split_total} files, {output_per_item} outputs/file)..."
 		)
 		split_processed = 0
 
 		for image_path, label_path in items:
-			img_dst = output_root / "images" / split / image_path.name
-			lbl_dst = output_root / "labels" / split / f"{label_path.stem}.txt"
+			if save_original:
+				img_dst = output_root / "images" / split / image_path.name
+				lbl_dst = output_root / "labels" / split / f"{label_path.stem}.txt"
 
-			copy_image(image_path, img_dst)
-			label_lines = build_label_lines(
-				label_path=label_path,
-				min_area=min_area,
-				epsilon_ratio=epsilon_ratio,
-				mask_value=mask_value,
-				nonzero_mask=nonzero_mask,
-			)
-			lbl_dst.write_text("\n".join(label_lines), encoding="utf-8")
+				copy_image(image_path, img_dst)
+				label_lines = build_label_lines(
+					label_path=label_path,
+					min_area=min_area,
+					epsilon_ratio=epsilon_ratio,
+					mask_value=mask_value,
+					nonzero_mask=nonzero_mask,
+				)
+				lbl_dst.write_text("\n".join(label_lines), encoding="utf-8")
 
 			if perspective_copies > 0:
 				image, mask = load_image_and_mask(image_path, label_path)
@@ -390,6 +404,7 @@ def convert(
 			"Driving-view augmentation enabled: "
 			f"{perspective_copies} perspective copies per source image."
 		)
+	print(f"Save original samples: {save_original}")
 
 
 def parse_args() -> argparse.Namespace:
@@ -432,6 +447,11 @@ def parse_args() -> argparse.Namespace:
 		help="Treat any non-zero pixel value as pothole mask.",
 	)
 	parser.add_argument(
+		"--save-original",
+		action="store_true",
+		help="Also save original image/label pairs (default: transformed-only when perspective copies are used).",
+	)
+	parser.add_argument(
 		"--perspective-copies",
 		type=int,
 		default=0,
@@ -440,25 +460,25 @@ def parse_args() -> argparse.Namespace:
 	parser.add_argument(
 		"--perspective-top-width-min",
 		type=float,
-		default=0.45,
+		default=0.18,
 		help="Minimum top-edge width ratio for perspective trapezoid (0~1).",
 	)
 	parser.add_argument(
 		"--perspective-top-width-max",
 		type=float,
-		default=0.70,
+		default=0.42,
 		help="Maximum top-edge width ratio for perspective trapezoid (0~1).",
 	)
 	parser.add_argument(
 		"--perspective-horizon-min",
 		type=float,
-		default=0.25,
+		default=0.06,
 		help="Minimum vertical ratio of top edge (horizon position, 0~1).",
 	)
 	parser.add_argument(
 		"--perspective-horizon-max",
 		type=float,
-		default=0.45,
+		default=0.18,
 		help="Maximum vertical ratio of top edge (horizon position, 0~1).",
 	)
 	parser.add_argument(
@@ -487,6 +507,7 @@ if __name__ == "__main__":
 		epsilon_ratio=args.epsilon_ratio,
 		mask_value=args.mask_value,
 		nonzero_mask=args.nonzero_mask,
+		save_original=args.save_original,
 		perspective_copies=max(0, args.perspective_copies),
 		perspective_top_width_min=min(args.perspective_top_width_min, args.perspective_top_width_max),
 		perspective_top_width_max=max(args.perspective_top_width_min, args.perspective_top_width_max),

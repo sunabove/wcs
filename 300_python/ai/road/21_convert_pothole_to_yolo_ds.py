@@ -9,21 +9,34 @@ import cv2
 import numpy as np
 
 
+SOURCE_DIR = Path(__file__).resolve().parent
+
+
 def prefer_primary_path(primary: str) -> Path:
-	base_dir = Path(__file__).resolve().parent
+	base_dir = SOURCE_DIR
 	primary_path = base_dir / primary
 	if primary_path.exists():
 		return primary_path
 
 	parts = Path(primary).parts
-	if len(parts) >= 2:
+	if len(parts) >= 2 and parts[0].lower() == "road":
 		return base_dir / Path(*parts[1:])
 
 	return primary_path
 
 
+def resolve_source_relative_path(path: Path) -> Path:
+	if path.is_absolute():
+		return path
+	return prefer_primary_path(path.as_posix())
+
+
 def default_pothole_root() -> Path:
-	return prefer_primary_path("road/dataset/pothole600")
+	return prefer_primary_path("dataset/pothole600")
+
+
+def default_output_root() -> Path:
+	return prefer_primary_path("dataset/pothole600_yolo_seg")
 
 
 def clear_output_root(output_root: Path) -> None:
@@ -392,7 +405,7 @@ def parse_args() -> argparse.Namespace:
 	parser.add_argument(
 		"--output-root",
 		type=Path,
-		default=Path("road/dataset/pothole600_yolo_seg"),
+		default=default_output_root(),
 		help="Output folder for YOLO segmentation dataset.",
 	)
 	parser.add_argument(
@@ -465,9 +478,11 @@ def parse_args() -> argparse.Namespace:
 
 if __name__ == "__main__":
 	args = parse_args()
+	pothole_root = resolve_source_relative_path(args.pothole_root)
+	output_root = resolve_source_relative_path(args.output_root)
 	convert(
-		pothole_root=args.pothole_root,
-		output_root=args.output_root,
+		pothole_root=pothole_root,
+		output_root=output_root,
 		min_area=args.min_area,
 		epsilon_ratio=args.epsilon_ratio,
 		mask_value=args.mask_value,

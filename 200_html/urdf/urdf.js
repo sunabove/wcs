@@ -9,6 +9,7 @@ class URDFViewer {
     constructor(containerElement) {
         this.container = containerElement;
         this.robotModel = null;
+        this.directionalLight = null;
         this.goalTarget = new THREE.Vector3(0, 0, 0);
         this.isDragging = false;
         this.lastAngleLogAt = 0;
@@ -105,10 +106,11 @@ class URDFViewer {
         this.setupWheelControls();
 
         // 조명 설정
-        const directionalLight = new THREE.DirectionalLight(0xffffff, 1.5);
-        directionalLight.position.set(5, 5, 5);
-        directionalLight.castShadow = true;
-        this.scene.add(directionalLight);
+        this.directionalLight = new THREE.DirectionalLight(0xffffff, 1.5);
+        this.directionalLight.castShadow = true;
+        this.scene.add(this.directionalLight);
+        this.scene.add(this.directionalLight.target);
+        this.resetDirectionalLight(new THREE.Vector3(0, 0, 0), 1);
 
         const ambientLight = new THREE.AmbientLight(0x404040, 0.6);
         this.scene.add(ambientLight);
@@ -427,6 +429,32 @@ class URDFViewer {
         this.camera.lookAt(center);
     }
 
+    resetDirectionalLight(center, radius) {
+        if (!this.directionalLight) {
+            return;
+        }
+
+        const safeRadius = Math.max(radius, 0.001);
+        this.directionalLight.position.set(
+            center.x + safeRadius * 1.6,
+            center.y + safeRadius * 1.2,
+            center.z + safeRadius * 2.0
+        );
+        this.directionalLight.target.position.copy(center);
+
+        const shadowRange = safeRadius * 3.0;
+        this.directionalLight.shadow.camera.left = -shadowRange;
+        this.directionalLight.shadow.camera.right = shadowRange;
+        this.directionalLight.shadow.camera.top = shadowRange;
+        this.directionalLight.shadow.camera.bottom = -shadowRange;
+        this.directionalLight.shadow.camera.near = 0.01;
+        this.directionalLight.shadow.camera.far = safeRadius * 12.0;
+        this.directionalLight.shadow.mapSize.set(1024, 1024);
+
+        this.directionalLight.target.updateMatrixWorld();
+        this.directionalLight.shadow.camera.updateProjectionMatrix();
+    }
+
     createAxisLabel(text, colorHex, position) {
         const canvas = document.createElement('canvas');
         canvas.width = 128;
@@ -522,6 +550,8 @@ class URDFViewer {
 
                     console.log('[URDF] 📏 모델 반경:', radius);
                     console.log('[URDF] 📍 모델 중심:', center);
+
+                    this.resetDirectionalLight(center, radius);
 
                     // 카메라 위치 자동 조정 - 모델 전체가 화면에 보이도록 설정
                     const verticalHalfFov = THREE.MathUtils.degToRad(this.camera.fov * 0.5);

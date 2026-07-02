@@ -81,24 +81,9 @@ class RoadDetector:
         return self.__class__._class_color_map
 
     def _get_instance_mask_color(self, base_bgr, instance_index, cls_id=None):
-        # Keep deterministic but vary color per detected object.
+        # Keep the class base color to avoid confusing cross-class-like hues.
         b0, g0, r0 = [int(v) for v in base_bgr]
-        seed = (instance_index + 1) * 131 + (0 if cls_id is None else (int(cls_id) + 1) * 17)
-        rng = np.random.default_rng(seed)
-
-        hsv = cv2.cvtColor(np.uint8([[[b0, g0, r0]]]), cv2.COLOR_BGR2HSV)[0, 0].astype(int)
-        h, s, v = int(hsv[0]), int(hsv[1]), int(hsv[2])
-
-        hue_shift = int(rng.integers(12, 80))
-        sat_shift = int(rng.integers(-20, 35))
-        val_shift = int(rng.integers(-25, 30))
-
-        h2 = (h + hue_shift) % 180
-        s2 = max(80, min(255, s + sat_shift))
-        v2 = max(80, min(255, v + val_shift))
-
-        varied_bgr = cv2.cvtColor(np.uint8([[[h2, s2, v2]]]), cv2.COLOR_HSV2BGR)[0, 0]
-        return (int(varied_bgr[0]), int(varied_bgr[1]), int(varied_bgr[2]))
+        return (b0, g0, r0)
 
     def _get_roi_path(self, input_path: Path) -> Path:
         return input_path.with_name(f"{input_path.stem}_roi.txt")
@@ -1152,6 +1137,7 @@ class RoadDetector:
         detected,
         result,
         names,
+        detect_key,
         remove_noisy_masks,
         roi=None,
         inference_roi=None,
@@ -1187,6 +1173,14 @@ class RoadDetector:
         box_cls_ids = result.boxes.cls.cpu().numpy().astype(int) if (result.boxes is not None and result.boxes.cls is not None) else None
         height, width = detected.shape[:2]
         class_color_map = self._get_class_color_map()
+
+        target_class_ids = set()
+        if detect_key:
+            detect_key_norm = str(detect_key).strip().lower().replace("-", "_").replace(" ", "_")
+            for class_id, class_name in names.items():
+                class_name_norm = str(class_name).strip().lower().replace("-", "_").replace(" ", "_")
+                if class_name_norm == detect_key_norm:
+                    target_class_ids.add(int(class_id))
 
         if box_xyxy is not None and inference_roi is not None and len(box_xyxy) > 0:
             ix1, iy1, _, _ = inference_roi
@@ -1274,6 +1268,15 @@ class RoadDetector:
 
         overlay = detected.copy()
         for idx, binary_mask in enumerate(prepared_masks):
+            cls_id = None
+            if mask_cls_ids is not None and idx < len(mask_cls_ids):
+                cls_id = int(mask_cls_ids[idx])
+            elif box_cls_ids is not None and idx < len(box_cls_ids):
+                cls_id = int(box_cls_ids[idx])
+
+            if target_class_ids and cls_id is not None and cls_id not in target_class_ids:
+                continue
+
             if conf_keep_flags is not None and not bool(conf_keep_flags[idx]):
                 continue
 
@@ -1288,7 +1291,6 @@ class RoadDetector:
                 kept_mask_indices.append(idx)
 
                 mask_color = (0, 255, 0)
-                cls_id = None
                 if mask_cls_ids is not None and idx < len(mask_cls_ids):
                     cls_id = int(mask_cls_ids[idx])
                     cls_name = str(names.get(cls_id, cls_id))
@@ -1836,6 +1838,7 @@ class RoadDetector:
             detected,
             result,
             names,
+            detect_key,
             remove_noisy_masks,
             roi,
             inference_roi,

@@ -1159,6 +1159,7 @@ class RoadDetector:
         regenerated_cls_ids = []
         regenerated_labels = []
         regenerated_box_colors = []
+        kept_binary_masks = []
         kept_mask_indices = []
         noisy_mask_polygons = []
         mask_count = 0
@@ -1169,6 +1170,7 @@ class RoadDetector:
                 "detected": detected,
                 "mask_count": mask_count,
                 "total_mask_count": total_mask_count,
+                "kept_binary_masks": kept_binary_masks,
                 "kept_mask_indices": kept_mask_indices,
                 "regenerated_boxes": regenerated_boxes,
                 "regenerated_confs": regenerated_confs,
@@ -1327,6 +1329,7 @@ class RoadDetector:
             mask_area = int(np.count_nonzero(active_binary_mask))
             if mask_area > 0:
                 kept_mask_indices.append(idx)
+                kept_binary_masks.append(active_binary_mask)
 
                 mask_color = (0, 255, 0)
                 if mask_cls_ids is not None and idx < len(mask_cls_ids):
@@ -1397,6 +1400,7 @@ class RoadDetector:
             "detected": detected,
             "mask_count": mask_count,
             "total_mask_count": total_mask_count,
+            "kept_binary_masks": kept_binary_masks,
             "kept_mask_indices": kept_mask_indices,
             "regenerated_boxes": regenerated_boxes,
             "regenerated_confs": regenerated_confs,
@@ -2036,6 +2040,13 @@ class RoadDetector:
         regenerated_cls_ids = mask_result["regenerated_cls_ids"]
         regenerated_labels = mask_result["regenerated_labels"]
         regenerated_box_colors = mask_result["regenerated_box_colors"]
+        kept_binary_masks = mask_result.get("kept_binary_masks") or []
+
+        boxes = np.empty((0, 4), dtype=int)
+        confs = np.empty((0,), dtype=float)
+        cls_ids = np.empty((0,), dtype=int)
+        box_labels = []
+        box_colors = []
 
         if result.boxes is not None and result.boxes.xyxy is not None:
             boxes_payload = self._build_boxes_payload_from_result(
@@ -2101,21 +2112,43 @@ class RoadDetector:
 
         # Optional extra pothole overlay on top of road/road_type detection.
         if include_pothole and detect_key in ("road", "road_type"):
-            pothole_result = self.detect_road(
-                frame,
-                detect_type="pothole",
-                roi=roi,
-                remove_noisy_masks=remove_noisy_masks,
-                return_info=True,
-                show_detect_stats=False,
-                include_pothole=False,
-                suppress_header=True,
-            )
-            pothole_frame = pothole_result.get("frame") if isinstance(pothole_result, dict) else None
-            if isinstance(pothole_frame, np.ndarray) and pothole_frame.shape == detected.shape:
-                pothole_overlay_mask = np.any(pothole_frame != frame, axis=2)
-                if np.any(pothole_overlay_mask):
-                    detected[pothole_overlay_mask] = pothole_frame[pothole_overlay_mask]
+            pothole_source_frame = frame.copy()
+            pothole_input_mask = np.zeros(frame.shape[:2], dtype=bool)
+
+            if kept_binary_masks:
+                pothole_input_mask = np.any(np.stack(kept_binary_masks, axis=0), axis=0)
+            elif len(boxes) > 0:
+                for box in boxes:
+                    x1, y1, x2, y2 = [int(v) for v in box]
+                    x1 = max(0, min(x1, frame.shape[1] - 1))
+                    y1 = max(0, min(y1, frame.shape[0] - 1))
+                    x2 = max(x1 + 1, min(x2, frame.shape[1]))
+                    y2 = max(y1 + 1, min(y2, frame.shape[0]))
+                    pothole_input_mask[y1:y2, x1:x2] = True
+
+            if roi is not None:
+                rx1, ry1, rx2, ry2 = self._clamp_roi(roi, frame.shape[1], frame.shape[0])
+                roi_mask = np.zeros(frame.shape[:2], dtype=bool)
+                roi_mask[ry1:ry2, rx1:rx2] = True
+                pothole_input_mask = np.logical_and(pothole_input_mask, roi_mask)
+
+            if np.any(pothole_input_mask):
+                pothole_source_frame[~pothole_input_mask] = 255
+                pothole_result = self.detect_road(
+                    pothole_source_frame,
+                    detect_type="pothole",
+                    roi=roi,
+                    remove_noisy_masks=remove_noisy_masks,
+                    return_info=True,
+                    show_detect_stats=False,
+                    include_pothole=False,
+                    suppress_header=True,
+                )
+                pothole_frame = pothole_result.get("frame") if isinstance(pothole_result, dict) else None
+                if isinstance(pothole_frame, np.ndarray) and pothole_frame.shape == detected.shape:
+                    pothole_overlay_mask = np.any(pothole_frame != pothole_source_frame, axis=2)
+                    if np.any(pothole_overlay_mask):
+                        detected[pothole_overlay_mask] = pothole_frame[pothole_overlay_mask]
 
         header_detect_key = detect_key
         if include_pothole and detect_key in ("road", "road_type"):

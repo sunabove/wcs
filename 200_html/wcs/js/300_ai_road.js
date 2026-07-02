@@ -36,6 +36,7 @@ $(function () {
     const $detectTypeInputs = $("input[name='detect-type']");
     const $detectPotholeInput = $("#detect-pothole");
     const $enablePotholeDetect = $("#enable-pothole-detect");
+    const $potholeConfidence = $("#pothole-confidence");
     const $removeNoisyMasks = $("#remove-noisy-masks");
     const $showDetectStatsChart = $("#show-detect-stats-chart");
     const $cameraPane = $("#input-camera-pane");
@@ -53,6 +54,7 @@ $(function () {
     const DETECT_AFTER_UPLOAD_DELAY_MS = 800;
     const DETECT_OPTIONS_STORAGE_KEY = "wcs.ai_road.detect_options.v1";
     const POTHOLE_OPTION_STORAGE_KEY = "wcs.ai_road.enable_pothole_detect.v1";
+    const DEFAULT_POTHOLE_CONFIDENCE = 0.5;
     const INPUT_TAB_STORAGE_KEY = "wcs.ai_road.input_tab.v1";
     const SAMPLE_BROWSER_STORAGE_KEY = "wcs.ai_road.sample_browser.v1";
     let uploadedFileName = "";
@@ -524,6 +526,7 @@ $(function () {
                 data: {
                     detect_type: detectType,
                     include_pothole: includePothole,
+                    pothole_conf: getPotholeConfidenceValue(),
                     remove_noisy_masks: removeNoisyMasks,
                     show_detect_stats: showDetectStats,
                 },
@@ -632,6 +635,7 @@ $(function () {
             data: {
                 detect_type: detectType,
                 include_pothole: includePothole,
+                pothole_conf: getPotholeConfidenceValue(),
                 remove_noisy_masks: removeNoisyMasks,
                 show_detect_stats: showDetectStats,
             },
@@ -779,6 +783,20 @@ $(function () {
         return $showDetectStatsChart.is(":checked");
     }
 
+    function getPotholeConfidenceValue() {
+        if ($potholeConfidence.length === 0) {
+            return DEFAULT_POTHOLE_CONFIDENCE;
+        }
+
+        const parsed = parseFloat($potholeConfidence.val());
+        const value = Number.isFinite(parsed) ? parsed : DEFAULT_POTHOLE_CONFIDENCE;
+        const clamped = Math.min(1, Math.max(0, value));
+        if (String(clamped) !== String($potholeConfidence.val())) {
+            $potholeConfidence.val(clamped);
+        }
+        return clamped;
+    }
+
     function saveDetectOptionsToStorage() {
         if (typeof window.localStorage === "undefined") {
             return;
@@ -787,6 +805,7 @@ $(function () {
         const payload = {
             detectType: getSelectedDetectType(),
             enablePotholeDetect: isPotholeDetectEnabled(),
+            potholeConfidence: getPotholeConfidenceValue(),
             removeNoisyMasks: getRemoveNoisyMasks(),
             showDetectStats: getShowDetectStatsOverlay(),
         };
@@ -852,6 +871,15 @@ $(function () {
 
         if (typeof parsed.removeNoisyMasks === "boolean" && $removeNoisyMasks.length > 0) {
             $removeNoisyMasks.prop("checked", parsed.removeNoisyMasks);
+        }
+
+        if ($potholeConfidence.length > 0) {
+            const restoredPotholeConf = Number(parsed.potholeConfidence);
+            if (Number.isFinite(restoredPotholeConf)) {
+                $potholeConfidence.val(String(Math.min(1, Math.max(0, restoredPotholeConf))));
+            } else {
+                $potholeConfidence.val(String(DEFAULT_POTHOLE_CONFIDENCE));
+            }
         }
 
         if (typeof parsed.showDetectStats === "boolean" && $showDetectStatsChart.length > 0) {
@@ -1028,6 +1056,7 @@ $(function () {
             detect_type: detectType || "road",
             remove_noisy_masks: removeNoisyMasks !== false,
             include_pothole: shouldIncludePotholeOverlay(),
+            pothole_conf: getPotholeConfidenceValue(),
             t: Date.now(),
         });
         return base + "?" + query;
@@ -1040,6 +1069,7 @@ $(function () {
             remove_noisy_masks: removeNoisyMasks !== false,
             show_detect_stats: showDetectStats !== false,
             include_pothole: shouldIncludePotholeOverlay(),
+            pothole_conf: getPotholeConfidenceValue(),
         });
         return base + "?" + query;
     }
@@ -1077,6 +1107,7 @@ $(function () {
             remove_noisy_masks: removeNoisyMasks !== false,
             show_detect_stats: showDetectStats !== false,
             include_pothole: shouldIncludePotholeOverlay(),
+            pothole_conf: getPotholeConfidenceValue(),
         });
     }
 
@@ -2284,6 +2315,7 @@ $(function () {
             data: {
                 detect_type: detectType,
                 include_pothole: includePothole,
+                pothole_conf: getPotholeConfidenceValue(),
                 remove_noisy_masks: removeNoisyMasks,
                 show_detect_stats: showDetectStats,
             },
@@ -2813,6 +2845,15 @@ $(function () {
     });
 
     $showDetectStatsChart.on("change", function () {
+        saveDetectOptionsToStorage();
+        scheduleDetectUpdate();
+        if (cameraStreamState && cameraStreamState.isPlaying) {
+            startCameraLiveStream(cameraStreamState.cameraIndex, cameraStreamState.cameraName);
+        }
+    });
+
+    $potholeConfidence.on("change", function () {
+        getPotholeConfidenceValue();
         saveDetectOptionsToStorage();
         scheduleDetectUpdate();
         if (cameraStreamState && cameraStreamState.isPlaying) {

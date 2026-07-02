@@ -2237,6 +2237,10 @@ class RoadDetector:
         box_labels = []
         box_colors = []
         label_regions = []
+        filtered_object_mask = np.zeros(frame.shape[:2], dtype=bool)
+
+        if kept_binary_masks:
+            filtered_object_mask = np.any(np.stack(kept_binary_masks, axis=0), axis=0)
 
         if result.boxes is not None and result.boxes.xyxy is not None:
             boxes_payload = self._build_boxes_payload_from_result(
@@ -2267,6 +2271,15 @@ class RoadDetector:
             cls_ids = boxes_payload["cls_ids"]
             box_labels = boxes_payload["box_labels"]
             box_colors = boxes_payload["box_colors"]
+
+            if len(boxes) > 0:
+                h_mask, w_mask = filtered_object_mask.shape[:2]
+                for x1, y1, x2, y2 in boxes:
+                    bx1 = max(0, min(int(x1), w_mask - 1))
+                    by1 = max(0, min(int(y1), h_mask - 1))
+                    bx2 = max(bx1 + 1, min(int(x2), w_mask))
+                    by2 = max(by1 + 1, min(int(y2), h_mask))
+                    filtered_object_mask[by1:by2, bx1:bx2] = True
 
             detected_count, class_counts, class_chart_colors, label_regions = self._draw_boxes_and_collect_counts(
                 detected,
@@ -2372,7 +2385,11 @@ class RoadDetector:
 
                 pothole_frame = pothole_result.get("frame") if isinstance(pothole_result, dict) else None
                 if isinstance(pothole_frame, np.ndarray) and pothole_frame.shape == detected.shape:
-                    pothole_overlay_mask = np.any(pothole_frame != pothole_source_frame, axis=2)
+                    pothole_overlay_mask = pothole_result.get("overlay_mask") if isinstance(pothole_result, dict) else None
+                    if isinstance(pothole_overlay_mask, np.ndarray) and pothole_overlay_mask.shape[:2] == detected.shape[:2]:
+                        pothole_overlay_mask = pothole_overlay_mask.astype(bool)
+                    else:
+                        pothole_overlay_mask = np.any(pothole_frame != pothole_source_frame, axis=2)
                     if np.any(pothole_overlay_mask):
                         detected[pothole_overlay_mask] = pothole_frame[pothole_overlay_mask]
 
@@ -2420,8 +2437,10 @@ class RoadDetector:
         # confidence-filtered road area.
         if detect_key == "pothole" and pothole_allowed_area_mask is not None:
             if np.any(pothole_allowed_area_mask):
+                filtered_object_mask = np.logical_and(filtered_object_mask, pothole_allowed_area_mask)
                 detected = np.where(pothole_allowed_area_mask[:, :, None], detected, frame)
             else:
+                filtered_object_mask = np.zeros_like(filtered_object_mask, dtype=bool)
                 detected = frame.copy()
                 detected = self._draw_roi_overlay(detected, roi)
 
@@ -2429,6 +2448,7 @@ class RoadDetector:
             return {
                 "frame": detected,
                 "stats": stats,
+                "overlay_mask": filtered_object_mask,
             }
 
         return detected

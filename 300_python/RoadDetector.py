@@ -1210,6 +1210,7 @@ class RoadDetector:
         kept_binary_masks = []
         kept_mask_indices = []
         noisy_mask_polygons = []
+        mask_outline_polygons = []
         mask_count = 0
         total_mask_count = 0
 
@@ -1386,6 +1387,16 @@ class RoadDetector:
                 kept_mask_indices.append(idx)
                 kept_binary_masks.append(active_binary_mask)
 
+                if detect_key in ("road", "road_type", "pothole"):
+                    contour_input_active = (active_binary_mask.astype(np.uint8) * 255)
+                    contours_active, _ = cv2.findContours(
+                        contour_input_active,
+                        cv2.RETR_EXTERNAL,
+                        cv2.CHAIN_APPROX_SIMPLE,
+                    )
+                    if contours_active:
+                        mask_outline_polygons.extend(contours_active)
+
                 mask_color = (0, 255, 0)
                 if mask_cls_ids is not None and idx < len(mask_cls_ids):
                     cls_id = int(mask_cls_ids[idx])
@@ -1448,6 +1459,9 @@ class RoadDetector:
 
         mask_count = len(kept_mask_indices)
         detected = cv2.addWeighted(overlay, 0.35, detected, 0.65, 0)
+        if mask_outline_polygons:
+            outline_color = (255, 255, 0) if detect_key == "pothole" else (0, 0, 255)
+            cv2.polylines(detected, mask_outline_polygons, True, outline_color, 1)
         if (not remove_noisy_masks) and noisy_mask_polygons:
             cv2.polylines(detected, noisy_mask_polygons, True, (0, 0, 255), 1)
 

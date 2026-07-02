@@ -18,6 +18,10 @@
     <color rgba="0.32 0.33 0.36 1.0"/>
   </material>
 
+  <material name="ground_surface">
+    <color rgba="0.00 0.70 0.00 1.0"/>
+  </material>
+
   <material name="rim">
     <color rgba="0.80 0.82 0.85 1.0"/>
   </material>
@@ -189,6 +193,23 @@
     <parent link="base_link"/>
     <child link="car_frame"/>
     <origin xyz="0 0 0.10" rpy="0 0 1.5707963"/>
+  </joint>
+
+  <!-- Ground patch under the vehicle (about 2x body footprint area) -->
+  <link name="ground_patch">
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <box size="2.00 1.80 0.005"/>
+      </geometry>
+      <material name="ground_surface"/>
+    </visual>
+  </link>
+
+  <joint name="car_frame_to_ground_patch" type="fixed">
+    <parent link="car_frame"/>
+    <child link="ground_patch"/>
+    <origin xyz="0.0566667 0 -0.1025" rpy="0 0 0"/>
   </joint>
 
   <!-- Front-left wheel -->

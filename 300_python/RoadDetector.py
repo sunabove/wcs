@@ -1142,6 +1142,7 @@ class RoadDetector:
         remove_noisy_masks,
         roi=None,
         inference_roi=None,
+        allowed_area_mask=None,
     ):
         regenerated_boxes = []
         regenerated_confs = []
@@ -1213,6 +1214,9 @@ class RoadDetector:
 
             if roi_binary is not None:
                 binary_mask = np.logical_and(binary_mask, roi_binary)
+
+            if allowed_area_mask is not None:
+                binary_mask = np.logical_and(binary_mask, allowed_area_mask)
 
             prepared_masks.append(binary_mask)
 
@@ -1488,6 +1492,51 @@ class RoadDetector:
         payload["box_colors"] = filtered_colors
         return payload
     pass # _filter_boxes_payload_by_roi
+
+    def _filter_boxes_payload_by_area_mask(self, payload, area_mask):
+        boxes = payload["boxes"]
+        confs = payload["confs"]
+        cls_ids = payload["cls_ids"]
+        box_labels = payload["box_labels"]
+        box_colors = payload["box_colors"]
+
+        if area_mask is None or len(boxes) == 0:
+            return payload
+
+        mask_h, mask_w = area_mask.shape[:2]
+        filtered_boxes = []
+        filtered_confs = []
+        filtered_cls_ids = []
+        filtered_labels = []
+        filtered_colors = []
+
+        has_cls_ids = cls_ids is not None
+        for idx, box in enumerate(boxes):
+            x1, y1, x2, y2 = [int(v) for v in box]
+            x1 = max(0, min(x1, mask_w - 1))
+            y1 = max(0, min(y1, mask_h - 1))
+            x2 = max(x1 + 1, min(x2, mask_w))
+            y2 = max(y1 + 1, min(y2, mask_h))
+
+            if not np.any(area_mask[y1:y2, x1:x2]):
+                continue
+
+            filtered_boxes.append([x1, y1, x2, y2])
+            filtered_confs.append(float(confs[idx]))
+            if has_cls_ids:
+                filtered_cls_ids.append(int(cls_ids[idx]))
+            if idx < len(box_labels):
+                filtered_labels.append(box_labels[idx])
+            if idx < len(box_colors):
+                filtered_colors.append(box_colors[idx])
+
+        payload["boxes"] = np.array(filtered_boxes, dtype=int) if filtered_boxes else np.empty((0, 4), dtype=int)
+        payload["confs"] = np.array(filtered_confs, dtype=float) if filtered_confs else np.empty((0,), dtype=float)
+        payload["cls_ids"] = np.array(filtered_cls_ids, dtype=int) if has_cls_ids and filtered_cls_ids else (np.empty((0,), dtype=int) if has_cls_ids else None)
+        payload["box_labels"] = filtered_labels
+        payload["box_colors"] = filtered_colors
+        return payload
+    pass # _filter_boxes_payload_by_area_mask
 
     def _filter_boxes_payload_by_max_conf_gap(self, payload):
         boxes = payload.get("boxes")
@@ -1854,6 +1903,7 @@ class RoadDetector:
             frame_for_inference = frame.copy()
 
         # For road_type and pothole, use the same road-area preprocessing.
+        pothole_allowed_area_mask = None
         if detect_key in ("road_type", "pothole"):
             frame_for_inference, prepared_inference_roi, road_allowed_mask = self._prepare_inference_frame_with_road_crop(
                 frame,
@@ -1864,6 +1914,8 @@ class RoadDetector:
             )
             if prepared_inference_roi is not None:
                 inference_roi = prepared_inference_roi
+            if detect_key == "pothole":
+                pothole_allowed_area_mask = road_allowed_mask
 
         if infer_key not in RoadDetector._models:
             model_path = RoadDetector._model_paths[infer_key]
@@ -1898,6 +1950,7 @@ class RoadDetector:
             remove_noisy_masks,
             roi,
             inference_roi,
+            allowed_area_mask=pothole_allowed_area_mask,
         )
         
         detected = mask_result["detected"]
@@ -1922,6 +1975,8 @@ class RoadDetector:
                 inference_roi,
             )
             boxes_payload = self._filter_boxes_payload_by_roi(boxes_payload, roi)
+            if detect_key == "pothole":
+                boxes_payload = self._filter_boxes_payload_by_area_mask(boxes_payload, pothole_allowed_area_mask)
             # When masks are present, confidence filtering is already applied in
             # _process_result_masks. Applying box-only filtering again can cause
             # mask/box mismatch (overlay outside shown boxes).

@@ -1759,6 +1759,37 @@ class RoadDetector:
         )
     pass # _render_bottom_stats_overlay
 
+    def _prepare_inference_frame_with_road_crop(self, frame, frame_for_inference, conf, roi, detect_key):
+        if "road" not in RoadDetector._models:
+            road_model_path = RoadDetector._model_paths["road"]
+            if road_model_path.exists():
+                RoadDetector._models["road"] = YOLO(str(road_model_path))
+
+        if "road" not in RoadDetector._models:
+            return frame_for_inference
+
+        try:
+            road_result = RoadDetector._models["road"].predict(source=frame_for_inference, conf=conf, verbose=False)[0]
+            if roi is None and road_result.boxes is not None and road_result.boxes.conf is not None:
+                road_confs = road_result.boxes.conf.cpu().numpy()
+                if len(road_confs) > 0:
+                    max_conf_idx = int(np.argmax(road_confs))
+                    road_boxes = road_result.boxes.xyxy.cpu().numpy().astype(int)
+                    x1, y1, x2, y2 = road_boxes[max_conf_idx]
+
+                    h, w = frame.shape[:2]
+                    x1 = max(0, min(x1, w - 1))
+                    y1 = max(0, min(y1, h - 1))
+                    x2 = max(x1 + 1, min(x2, w))
+                    y2 = max(y1 + 1, min(y2, h))
+
+                    return frame[y1:y2, x1:x2].copy()
+        except Exception as e:
+            logger.warning("Road area preprocessing for %s failed: %s", detect_key, e)
+
+        return frame_for_inference
+    pass # _prepare_inference_frame_with_road_crop
+
     def detect_road(
         self,
         frame,
@@ -1785,36 +1816,15 @@ class RoadDetector:
         else:
             frame_for_inference = frame.copy()
 
-        # For "road_type" detection, first detect road area and crop the highest confidence box.
-        # When ROI is provided, keep ROI crop as the final inference target.
-        if detect_key == "road_type":
-            if "road" not in RoadDetector._models:
-                road_model_path = RoadDetector._model_paths["road"]
-                if road_model_path.exists():
-                    RoadDetector._models["road"] = YOLO(str(road_model_path))
-            
-            if "road" in RoadDetector._models:
-                try:
-                    road_result = RoadDetector._models["road"].predict(source=frame_for_inference, conf=conf, verbose=False)[0]
-                    if roi is None and road_result.boxes is not None and road_result.boxes.conf is not None:
-                        # Get highest confidence box
-                        confs = road_result.boxes.conf.cpu().numpy()
-                        if len(confs) > 0:
-                            max_conf_idx = int(np.argmax(confs))
-                            boxes = road_result.boxes.xyxy.cpu().numpy().astype(int)
-                            x1, y1, x2, y2 = boxes[max_conf_idx]
-                            
-                            # Ensure coordinates are within frame bounds
-                            h, w = frame.shape[:2]
-                            x1 = max(0, min(x1, w - 1))
-                            y1 = max(0, min(y1, h - 1))
-                            x2 = max(x1 + 1, min(x2, w))
-                            y2 = max(y1 + 1, min(y2, h))
-                            
-                            # Crop the box region
-                            frame_for_inference = frame[y1:y2, x1:x2].copy()
-                except Exception as e:
-                    logger.warning("Road area detection failed: %s", e)
+        # For road_type and pothole, use the same road-area preprocessing.
+        if detect_key in ("road_type", "pothole"):
+            frame_for_inference = self._prepare_inference_frame_with_road_crop(
+                frame,
+                frame_for_inference,
+                conf,
+                roi,
+                detect_key,
+            )
 
         if infer_key not in RoadDetector._models:
             model_path = RoadDetector._model_paths[infer_key]

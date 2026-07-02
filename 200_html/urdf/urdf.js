@@ -546,27 +546,22 @@ class URDFViewer {
 
                     this.resetDirectionalLight(center, radius);
 
-                    // 카메라 위치 자동 조정 - 모델 전체가 화면에 보이도록 설정
-                    const verticalHalfFov = THREE.MathUtils.degToRad(this.camera.fov * 0.5);
-                    const horizontalHalfFov = Math.atan(Math.tan(verticalHalfFov) * this.camera.aspect);
-                    const limitingHalfFov = Math.min(verticalHalfFov, horizontalHalfFov);
-                    const fitOffset = 1.05;
-                    const cameraDist = (radius / Math.sin(limitingHalfFov)) * fitOffset;
-
-                    this.setCameraFromPosition(center, cameraDist);
-                    this.camera.near = Math.max(cameraDist / 100, 0.01);
-                    this.camera.far = cameraDist * 100;
+                    // cameraPosition으로 설정된 초기 카메라 위치를 유지하고
+                    // 클리핑 범위만 현재 카메라-모델 중심 거리 기준으로 업데이트
+                    const currentCameraDist = Math.max(this.camera.position.distanceTo(center), 0.01);
+                    this.camera.near = Math.max(currentCameraDist / 100, 0.01);
+                    this.camera.far = Math.max(currentCameraDist * 100, 10);
                     this.camera.updateProjectionMatrix();
 
                     // 회전 중심 업데이트
                     this.goalTarget.copy(center);
                     this.controls.target.copy(center);
-                    this.controls.minDistance = cameraDist * 0.2;
-                    this.controls.maxDistance = cameraDist * 8;
+                    this.controls.minDistance = currentCameraDist * 0.2;
+                    this.controls.maxDistance = currentCameraDist * 8;
                     this.controls.update();
                     this.logCameraInfos(true);
 
-                    console.log('[URDF] ✅ 자동 피팅 완료: 거리', cameraDist.toFixed(4));
+                    console.log('[URDF] ✅ 카메라 위치 유지(cameraPosition) 및 컨트롤 범위 갱신 완료');
                 }, 200);
             },
             progress => {

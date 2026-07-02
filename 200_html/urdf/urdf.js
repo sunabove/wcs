@@ -392,8 +392,21 @@ class URDFViewer {
         const azimuthDeg = THREE.MathUtils.radToDeg(this.controls.getAzimuthalAngle());
         const polarDeg = THREE.MathUtils.radToDeg(this.controls.getPolarAngle());
         const distance = this.camera.position.distanceTo(this.controls.target);
-        const angleText = `azimuth: ${azimuthDeg.toFixed(1)}°, polar: ${polarDeg.toFixed(1)}°`;
-        const distanceText = `distance: ${distance.toFixed(3)}`;
+
+        const formatFixedIntegerWidth = (value, fractionDigits, integerDigits) => {
+            const normalized = Math.abs(value).toFixed(fractionDigits);
+            const [integerPart, fractionPart] = normalized.split('.');
+            const signText = value < 0 ? '-' : '';
+            const paddedIntegerPart = integerPart.padStart(integerDigits, '0');
+            return `${signText}${paddedIntegerPart}.${fractionPart}`;
+        };
+
+        const azimuthText = formatFixedIntegerWidth(azimuthDeg, 1, 3);
+        const polarText = formatFixedIntegerWidth(polarDeg, 1, 3);
+        const distanceValueText = formatFixedIntegerWidth(distance, 3, 3);
+
+        const angleText = `azimuth: ${azimuthText}°, polar: ${polarText}°`;
+        const distanceText = `distance: ${distanceValueText}`;
 
         if (this.cameraAngleTextElement && this.cameraAngleTextElement.length > 0) {
             this.cameraAngleTextElement.text(`${angleText}, ${distanceText}`);

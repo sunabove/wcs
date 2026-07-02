@@ -21,6 +21,7 @@ logger = logging.getLogger(__name__)
 
 class RoadDetector:
     MIN_CONF = 0.10
+    MAX_CONF_GAP_RATIO = 0.10
     _class_color_map_path = Path(__file__).resolve().parent / "colormap_road.txt"
     _class_color_map = None
     
@@ -1259,8 +1260,9 @@ class RoadDetector:
                         mask_conf_values[m_idx] = float(box_confs[best_idx])
 
             if mask_conf_values is not None:
-                mean_conf = float(np.mean(box_confs))
-                conf_keep_flags = mask_conf_values >= mean_conf
+                max_conf = float(np.max(box_confs))
+                min_keep_conf = max_conf * (1.0 - float(self.MAX_CONF_GAP_RATIO))
+                conf_keep_flags = mask_conf_values >= min_keep_conf
                 if not bool(np.any(conf_keep_flags)):
                     conf_keep_flags[int(np.argmax(mask_conf_values))] = True
 
@@ -1487,7 +1489,7 @@ class RoadDetector:
         return payload
     pass # _filter_boxes_payload_by_roi
 
-    def _filter_boxes_payload_by_mean_conf(self, payload):
+    def _filter_boxes_payload_by_max_conf_gap(self, payload):
         boxes = payload.get("boxes")
         confs = payload.get("confs")
         cls_ids = payload.get("cls_ids")
@@ -1500,8 +1502,9 @@ class RoadDetector:
         if len(confs) <= 1:
             return payload
 
-        mean_conf = float(np.mean(confs))
-        keep_indices = np.where(confs >= mean_conf)[0]
+        max_conf = float(np.max(confs))
+        min_keep_conf = max_conf * (1.0 - float(self.MAX_CONF_GAP_RATIO))
+        keep_indices = np.where(confs >= min_keep_conf)[0]
         if len(keep_indices) == 0:
             keep_indices = np.array([int(np.argmax(confs))])
 
@@ -1516,7 +1519,7 @@ class RoadDetector:
             payload["box_colors"] = [box_colors[i] for i in keep_indices if i < len(box_colors)]
 
         return payload
-    pass # _filter_boxes_payload_by_mean_conf
+    pass # _filter_boxes_payload_by_max_conf_gap
 
     def _draw_boxes_and_collect_counts(self, detected, boxes, confs, cls_ids, box_labels, box_colors, names, detect_key, font_face):
         class_counts = {}
@@ -1870,7 +1873,7 @@ class RoadDetector:
             # _process_result_masks. Applying box-only filtering again can cause
             # mask/box mismatch (overlay outside shown boxes).
             if total_mask_count <= 0:
-                boxes_payload = self._filter_boxes_payload_by_mean_conf(boxes_payload)
+                boxes_payload = self._filter_boxes_payload_by_max_conf_gap(boxes_payload)
 
             boxes = boxes_payload["boxes"]
             confs = boxes_payload["confs"]

@@ -14,7 +14,7 @@ class URDFViewer {
         this.isDragging = false;
         this.lastAngleLogAt = 0;
         this.angleLogIntervalMs = 120;
-        this.cameraAngleTextElement = null;
+        this.cameraPosTextElement = null;
         this.initialAzimuthDeg = 0.7;
         this.initialPolarDeg = 145.4;
         this.lastFrameTimeMs = performance.now();
@@ -101,7 +101,7 @@ class URDFViewer {
         this.controls = new OrbitControls(this.camera, this.renderer.domElement);
         this.controls.enableDamping = true;
         this.controls.dampingFactor = 0.05;
-        this.cameraAngleTextElement = $('#camera-angle-text');
+        this.cameraPosTextElement = $('#camera-pos-text');
         this.setupCameraAngleLogging();
         this.setupWheelControls();
 
@@ -391,28 +391,21 @@ class URDFViewer {
         }
         this.lastAngleLogAt = now;
 
-        const azimuthDeg = THREE.MathUtils.radToDeg(this.controls.getAzimuthalAngle());
-        const polarDeg = THREE.MathUtils.radToDeg(this.controls.getPolarAngle());
-        const distance = this.camera.position.distanceTo(this.controls.target);
-
-        const formatFixedIntegerWidth = (value, totalDigits, fractionDigits) => {
-            const normalized = Math.abs(value).toFixed(fractionDigits);
-            const [integerPart, fractionPart] = normalized.split('.');
-            const signText = value < 0 ? '-' : ' ';
-            const integerDigits = Math.max(totalDigits - fractionDigits - 2, 1);
-            const paddedIntegerPart = integerPart.padStart(integerDigits, '0');
-            return `${signText}${paddedIntegerPart}.${fractionPart}`;
+        const formatPositionValue = (value) => {
+            const numberValue = Number(value);
+            if (!Number.isFinite(numberValue)) {
+                return "0.000";
+            }
+            return numberValue.toFixed(3);
         };
 
-        const azimuthText = formatFixedIntegerWidth(azimuthDeg, 6, 1);
-        const polarText = formatFixedIntegerWidth(polarDeg, 6, 1);
-        const distanceValueText = formatFixedIntegerWidth(distance, 5, 1);
+        const px = formatPositionValue(this.camera.position.x);
+        const py = formatPositionValue(this.camera.position.y);
+        const pz = formatPositionValue(this.camera.position.z);
+        const positionText = `x: ${px}, y: ${py}, z: ${pz}`;
 
-        const angleText = `azimuth: ${azimuthText}°, polar: ${polarText}°`;
-        const distanceText = `distance: ${distanceValueText}`;
-
-        if (this.cameraAngleTextElement && this.cameraAngleTextElement.length > 0) {
-            this.cameraAngleTextElement.text(`${angleText}, ${distanceText}`);
+        if (this.cameraPosTextElement && this.cameraPosTextElement.length > 0) {
+            this.cameraPosTextElement.text(positionText);
         }
     }
 

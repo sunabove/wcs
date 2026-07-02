@@ -165,11 +165,11 @@ class URDFViewer {
 
         this.controls.addEventListener('end', () => {
             this.isDragging = false;
-            this.logCameraAngles(true);
+            this.logCameraInfos(true);
         });
 
         this.controls.addEventListener('change', () => {
-            this.logCameraAngles(false);
+            this.logCameraInfos(false);
         });
     }
 
@@ -384,7 +384,7 @@ class URDFViewer {
         });
     }
 
-    logCameraAngles(force) {
+    logCameraInfos(force) {
         const now = performance.now();
         if (!force && now - this.lastAngleLogAt < this.angleLogIntervalMs) {
             return;
@@ -564,7 +564,7 @@ class URDFViewer {
                     this.controls.minDistance = cameraDist * 0.2;
                     this.controls.maxDistance = cameraDist * 8;
                     this.controls.update();
-                    this.logCameraAngles(true);
+                    this.logCameraInfos(true);
 
                     console.log('[URDF] ✅ 자동 피팅 완료: 거리', cameraDist.toFixed(4));
                 }, 200);

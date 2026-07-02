@@ -3,6 +3,7 @@ from fastapi import HTTPException
 import os
 import cv2
 import numpy as np
+import logging
 from ultralytics import YOLO
 from pathlib import Path
 import subprocess
@@ -15,6 +16,8 @@ from datetime import datetime
 from send_image import resolve_upload_image_path
 from config import BASE_DIR, UPLOAD_DIR, VIDEO_EXTENSIONS
 from ChartRenderer import ChartRenderer
+
+logger = logging.getLogger(__name__)
 
 class RoadDetector:
     MIN_CONF = 0.10
@@ -505,7 +508,7 @@ class RoadDetector:
                 if old_capture is not None:
                     old_capture.release()
             except Exception as e:
-                print(f"Error cleaning up old session for {session_id}: {e}")
+                logger.warning("Error cleaning up old session for %s: %s", session_id, e)
             del RoadDetector._stream_sessions[session_id]
 
         capture = cv2.VideoCapture(str(input_path))
@@ -617,7 +620,7 @@ class RoadDetector:
                 'detect_type': detect_type,
             }
         except Exception as e:
-            print(f"Error in road_detect_stream_next: {e}")
+            logger.exception("Error in road_detect_stream_next: %s", e)
             raise HTTPException(status_code=500, detail=f"Stream processing error: {e}")
     pass # road_detect_stream_next
 
@@ -666,7 +669,7 @@ class RoadDetector:
             if 'capture' in session and session['capture'] is not None:
                 session['capture'].release()
         except Exception as e:
-            print(f"Error releasing capture for {session_id}: {e}")
+            logger.warning("Error releasing capture for %s: %s", session_id, e)
         
         try:
             del RoadDetector._stream_sessions[session_id]
@@ -1184,6 +1187,12 @@ class RoadDetector:
         height, width = detected.shape[:2]
         class_color_map = self._get_class_color_map()
 
+        roi_binary = None
+        if roi is not None:
+            rx1, ry1, rx2, ry2 = roi
+            roi_binary = np.zeros((height, width), dtype=bool)
+            roi_binary[ry1:ry2, rx1:rx2] = True
+
         prepared_masks = []
         for mask in masks:
             if inference_roi is not None:
@@ -1199,17 +1208,15 @@ class RoadDetector:
                 mask_resized = cv2.resize(mask, (width, height), interpolation=cv2.INTER_NEAREST)
                 binary_mask = mask_resized > 0.5
 
-            if roi is not None:
-                rx1, ry1, rx2, ry2 = roi
-                roi_binary = np.zeros((height, width), dtype=bool)
-                roi_binary[ry1:ry2, rx1:rx2] = True
+            if roi_binary is not None:
                 binary_mask = np.logical_and(binary_mask, roi_binary)
 
             prepared_masks.append(binary_mask)
 
-        global_binary_mask = np.zeros((height, width), dtype=bool)
-        for binary_mask in prepared_masks:
-            global_binary_mask = np.logical_or(global_binary_mask, binary_mask)
+        if prepared_masks:
+            global_binary_mask = np.any(np.stack(prepared_masks, axis=0), axis=0)
+        else:
+            global_binary_mask = np.zeros((height, width), dtype=bool)
 
         noisy_component_mask = self._build_noisy_component_mask(global_binary_mask, 0.10)
 
@@ -1329,40 +1336,6 @@ class RoadDetector:
 
         return noisy_component_mask
     pass # _build_noisy_component_mask
-
-    def _select_top_detections(self, result, detect_key):
-        # Filter detections: if 2 or more detections found,
-        # keep only those with confidence >= mean 
-        if result.boxes is None or result.boxes.conf is None:
-            return
-
-        confs = result.boxes.conf.cpu().numpy()
-        
-        # Only apply filtering if 2 or more detections
-        if len(confs) > 1 : 
-
-            # Calculate mean and standard deviation
-            mean_conf = np.mean(confs)
-            threshold = mean_conf
-            
-            # Keep indices where confidence >= threshold
-            keep_indices = np.where(confs >= threshold)[0]
-            
-            # If no detections pass the threshold, keep at least the top 1
-            if len(keep_indices) == 0:
-                keep_indices = np.array([np.argmax(confs)])
-            
-            keep_indices = np.sort(keep_indices)
-            result.boxes = result.boxes[keep_indices]
-
-            if result.masks is not None:
-                result.masks.data = result.masks.data[keep_indices]
-                if hasattr(result.masks, "cls") and result.masks.cls is not None:
-                    result.masks.cls = result.masks.cls[keep_indices]
-                pass
-            pass
-        pass
-    pass # _select_top_detections
 
     def _build_boxes_payload_from_result(
         self,
@@ -1775,7 +1748,7 @@ class RoadDetector:
                             # Crop the box region
                             frame_for_inference = frame[y1:y2, x1:x2].copy()
                 except Exception as e:
-                    print(f"Warning: Road area detection failed: {e}")
+                    logger.warning("Road area detection failed: %s", e)
 
         if infer_key not in RoadDetector._models:
             model_path = RoadDetector._model_paths[infer_key]
@@ -1793,8 +1766,6 @@ class RoadDetector:
             result = RoadDetector._models[infer_key].predict(source=frame_for_inference, conf=conf, verbose=False)[0]
         except Exception as ex:
             raise HTTPException(status_code=500, detail=f"YOLO inference failed: {ex}")
-
-        self._select_top_detections(result, detect_key)
 
         detected = frame.copy()
         detected = self._draw_roi_overlay(detected, roi)

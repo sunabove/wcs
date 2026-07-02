@@ -1773,9 +1773,18 @@ class RoadDetector:
             if roi is None and road_result.boxes is not None and road_result.boxes.conf is not None:
                 road_confs = road_result.boxes.conf.cpu().numpy()
                 if len(road_confs) > 0:
-                    max_conf_idx = int(np.argmax(road_confs))
                     road_boxes = road_result.boxes.xyxy.cpu().numpy().astype(int)
-                    x1, y1, x2, y2 = road_boxes[max_conf_idx]
+                    max_conf = float(np.max(road_confs))
+                    min_keep_conf = max_conf * (1.0 - float(self.MAX_CONF_GAP_RATIO))
+                    keep_indices = np.where(road_confs >= min_keep_conf)[0]
+                    if len(keep_indices) == 0:
+                        keep_indices = np.array([int(np.argmax(road_confs))])
+
+                    selected_boxes = road_boxes[keep_indices]
+                    x1 = int(np.min(selected_boxes[:, 0]))
+                    y1 = int(np.min(selected_boxes[:, 1]))
+                    x2 = int(np.max(selected_boxes[:, 2]))
+                    y2 = int(np.max(selected_boxes[:, 3]))
 
                     h, w = frame.shape[:2]
                     x1 = max(0, min(x1, w - 1))

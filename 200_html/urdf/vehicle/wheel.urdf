@@ -6,7 +6,7 @@
 	</material>
 
 	<material name="tire_rib">
-		<color rgba="0.18 0.19 0.21 1.0"/>
+		<color rgba="0.03 0.03 0.03 1.0"/>
 	</material>
 
 	<material name="rim">
@@ -17,47 +17,103 @@
 		<visual>
 			<origin xyz="0 0 0" rpy="0 1.5707963 0"/>
 			<geometry>
-				<cylinder radius="0.152" length="0.10"/>
+				<cylinder radius="0.160" length="0.10"/>
 			</geometry>
 			<material name="tire"/>
 		</visual>
 
 		<visual>
-			<origin xyz="-0.036 0 0" rpy="0 1.5707963 0"/>
+			<origin xyz="0 0.15700 0.00000" rpy="0 0 0"/>
 			<geometry>
-				<cylinder radius="0.160" length="0.012"/>
+				<box size="0.100 0.006 0.024"/>
 			</geometry>
 			<material name="tire_rib"/>
 		</visual>
 
 		<visual>
-			<origin xyz="-0.018 0 0" rpy="0 1.5707963 0"/>
+			<origin xyz="0 0.13597 0.07850" rpy="0.5235988 0 0"/>
 			<geometry>
-				<cylinder radius="0.160" length="0.012"/>
+				<box size="0.100 0.006 0.024"/>
 			</geometry>
 			<material name="tire_rib"/>
 		</visual>
 
 		<visual>
-			<origin xyz="0.000 0 0" rpy="0 1.5707963 0"/>
+			<origin xyz="0 0.07850 0.13597" rpy="1.0471976 0 0"/>
 			<geometry>
-				<cylinder radius="0.160" length="0.012"/>
+				<box size="0.100 0.006 0.024"/>
 			</geometry>
 			<material name="tire_rib"/>
 		</visual>
 
 		<visual>
-			<origin xyz="0.018 0 0" rpy="0 1.5707963 0"/>
+			<origin xyz="0 0.00000 0.15700" rpy="1.5707963 0 0"/>
 			<geometry>
-				<cylinder radius="0.160" length="0.012"/>
+				<box size="0.100 0.006 0.024"/>
 			</geometry>
 			<material name="tire_rib"/>
 		</visual>
 
 		<visual>
-			<origin xyz="0.036 0 0" rpy="0 1.5707963 0"/>
+			<origin xyz="0 -0.07850 0.13597" rpy="2.0943951 0 0"/>
 			<geometry>
-				<cylinder radius="0.160" length="0.012"/>
+				<box size="0.100 0.006 0.024"/>
+			</geometry>
+			<material name="tire_rib"/>
+		</visual>
+
+		<visual>
+			<origin xyz="0 -0.13597 0.07850" rpy="2.6179939 0 0"/>
+			<geometry>
+				<box size="0.100 0.006 0.024"/>
+			</geometry>
+			<material name="tire_rib"/>
+		</visual>
+
+		<visual>
+			<origin xyz="0 -0.15700 0.00000" rpy="3.1415927 0 0"/>
+			<geometry>
+				<box size="0.100 0.006 0.024"/>
+			</geometry>
+			<material name="tire_rib"/>
+		</visual>
+
+		<visual>
+			<origin xyz="0 -0.13597 -0.07850" rpy="-2.6179939 0 0"/>
+			<geometry>
+				<box size="0.100 0.006 0.024"/>
+			</geometry>
+			<material name="tire_rib"/>
+		</visual>
+
+		<visual>
+			<origin xyz="0 -0.07850 -0.13597" rpy="-2.0943951 0 0"/>
+			<geometry>
+				<box size="0.100 0.006 0.024"/>
+			</geometry>
+			<material name="tire_rib"/>
+		</visual>
+
+		<visual>
+			<origin xyz="0 0.00000 -0.15700" rpy="-1.5707963 0 0"/>
+			<geometry>
+				<box size="0.100 0.006 0.024"/>
+			</geometry>
+			<material name="tire_rib"/>
+		</visual>
+
+		<visual>
+			<origin xyz="0 0.07850 -0.13597" rpy="-1.0471976 0 0"/>
+			<geometry>
+				<box size="0.100 0.006 0.024"/>
+			</geometry>
+			<material name="tire_rib"/>
+		</visual>
+
+		<visual>
+			<origin xyz="0 0.13597 -0.07850" rpy="-0.5235988 0 0"/>
+			<geometry>
+				<box size="0.100 0.006 0.024"/>
 			</geometry>
 			<material name="tire_rib"/>
 		</visual>

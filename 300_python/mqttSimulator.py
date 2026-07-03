@@ -182,6 +182,11 @@ class MqttSimulator:
             print(f"[MQTT] Received: {topic} -> {payload}")
             
             if topic == "simulation/start":
+                if self.manual_wheel_test_active and self.manual_wheel_test_command != OperationCommand.STOP:
+                    print("[SIM] 수동 바퀴 테스트 중이므로 simulation/start 무시")
+                    self._publish("simulation/state", "stop")
+                    return
+
                 if not self.simulation_running:
                     self.simulation_running = True
                     self.manual_wheel_test_active = False

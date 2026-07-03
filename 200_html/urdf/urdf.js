@@ -10,6 +10,7 @@ class URDFViewer {
         this.container = containerElement;
         this.robotModel = null;
         this.directionalLight = null;
+        this.directionalLightRadius = 1;
         this.goalTarget = new THREE.Vector3(0, 0, 0);
         this.isDragging = false;
         this.lastAngleLogAt = 0;
@@ -333,6 +334,7 @@ class URDFViewer {
         });
 
         this.controls.addEventListener('change', () => {
+            this.resetDirectionalLight(this.controls.target, this.directionalLightRadius);
             if (this.isDragging) {
                 this.updateCameraToastOverlay();
                 this.showCameraToastOverlay();
@@ -776,10 +778,32 @@ class URDFViewer {
         }
 
         const safeRadius = Math.max(radius, 0.001);
-        this.directionalLight.position.set(
-            center.x + safeRadius * 1.6,
-            center.y + safeRadius * 1.2,
-            center.z + safeRadius * 2.0
+        this.directionalLightRadius = safeRadius;
+
+        const lightDirection = this.camera.position.clone().sub(center);
+        if (lightDirection.lengthSq() < 1e-8) {
+            lightDirection.set(1, 1, 2);
+        }
+
+        lightDirection.normalize();
+
+        const worldUp = new THREE.Vector3(0, 0, 1);
+        const sideDirection = new THREE.Vector3().crossVectors(lightDirection, worldUp);
+        if (sideDirection.lengthSq() < 1e-8) {
+            sideDirection.set(0, 1, 0);
+        } else {
+            sideDirection.normalize();
+        }
+
+        const elevatedDirection = lightDirection
+            .clone()
+            .multiplyScalar(2.0)
+            .add(sideDirection.multiplyScalar(0.7))
+            .add(worldUp.clone().multiplyScalar(1.2))
+            .normalize();
+
+        this.directionalLight.position.copy(
+            center.clone().add(elevatedDirection.multiplyScalar(safeRadius * 2.6))
         );
         this.directionalLight.target.position.copy(center);
 
@@ -890,8 +914,6 @@ class URDFViewer {
                     console.log('[URDF] 📏 모델 반경:', radius);
                     console.log('[URDF] 📍 모델 중심:', center);
 
-                    this.resetDirectionalLight(center, radius);
-
                     if (this.hasCustomCameraPosition) {
                         // cameraPosition이 주어진 경우에는 위치를 유지
                         console.log('[URDF] cameraPosition 지정됨: 사용자 카메라 위치 유지');
@@ -912,6 +934,7 @@ class URDFViewer {
                     this.controls.target.copy(center);
                     this.controls.minDistance = currentCameraDist * 0.2;
                     this.controls.maxDistance = currentCameraDist * 8;
+                    this.resetDirectionalLight(center, radius);
                     this.controls.update();
                     this.logCameraInfos(true);
 

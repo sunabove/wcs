@@ -396,12 +396,17 @@
                 let attemptCount = 0;
                 const maxAttempts = 20;
                 const retryIntervalMs = 250;
+                const wheelIds = ['fl', 'fr', 'rl', 'rr'];
 
                 const tryPublish = () => {
                     const isConnected = Boolean(window.mqttClient && window.mqttClient.connected);
                     if (isConnected) {
                         sendMQTTMessage('simulation/stop', '1', 1);
+                        wheelIds.forEach(wheelId => {
+                            sendMQTTMessage(`wheel/${wheelId}/operation/command`, '0', 1);
+                        });
                         console.log('[Vehicle Test] ⏸️ 페이지 로드시 simulation/stop 발행 완료');
+                        console.log('[Vehicle Test] 🛑 페이지 로드시 모든 wheel operation/command=0 발행 완료');
                         return;
                     }
 

@@ -12,6 +12,7 @@ class URDFViewer {
         this.xyGridHelper = null;
         this.axesHelper = null;
         this.axisLabelSprites = [];
+        this.referenceToggleStep = 0;
         this.directionalLight = null;
         this.directionalLightRadius = 1;
         this.goalTarget = new THREE.Vector3(0, 0, 0);
@@ -892,15 +893,48 @@ class URDFViewer {
         });
     }
 
+    setAxesAndLabelsVisible(isVisible) {
+        if (this.axesHelper) {
+            this.axesHelper.visible = isVisible;
+        }
+
+        this.axisLabelSprites.forEach(sprite => {
+            if (sprite) {
+                sprite.visible = isVisible;
+            }
+        });
+    }
+
+    toggleAxesAndLabels() {
+        const currentVisible = this.axesHelper ? this.axesHelper.visible : false;
+        const nextVisible = !currentVisible;
+        this.setAxesAndLabelsVisible(nextVisible);
+        console.log(`[URDF] axes+labels ${nextVisible ? 'ON' : 'OFF'}`);
+    }
+
+    toggleXYGrid() {
+        if (!this.xyGridHelper) {
+            return;
+        }
+
+        const nextVisible = !this.xyGridHelper.visible;
+        this.xyGridHelper.visible = nextVisible;
+        console.log(`[URDF] XY grid ${nextVisible ? 'ON' : 'OFF'}`);
+    }
+
     setupMouseEvents() {
         const raycaster = new THREE.Raycaster();
         const mouse = new THREE.Vector2();
 
         this.container.addEventListener('mousedown', (event) => {
-            if (event.ctrlKey && this.xyGridHelper) {
-                const nextVisible = !this.xyGridHelper.visible;
-                this.setReferenceGuidesVisible(nextVisible);
-                console.log(`[URDF] guides ${nextVisible ? 'ON' : 'OFF'} (grid/axes/labels)`);
+            if (event.ctrlKey) {
+                if (this.referenceToggleStep === 0) {
+                    this.toggleAxesAndLabels();
+                } else {
+                    this.toggleXYGrid();
+                }
+
+                this.referenceToggleStep = (this.referenceToggleStep + 1) % 2;
                 return;
             }
 

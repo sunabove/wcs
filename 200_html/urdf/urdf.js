@@ -65,6 +65,10 @@ class URDFViewer {
         };
         this.roadRollAngleDeg = 0;
         this.roadPitchAngleDeg = 0;
+        this.attitudeOverlayElement = null;
+        this.attitudeTextElement = null;
+        this.rollNeedleElement = null;
+        this.pitchNeedleElement = null;
         this.urdfPath = containerElement.getAttribute('urdf') || '/urdf/vehicle/vehicle.urdf';
         this.cameraPosition = this.parseCameraPosition(
             containerElement.getAttribute('cameraPosition') || '4,4,8'
@@ -112,6 +116,7 @@ class URDFViewer {
         this.cameraPosTextElement = $('#camera-pos-text');
         this.setupCameraAngleLogging();
         this.setupWheelControls();
+        this.setupAttitudeOverlay();
 
         // 조명 설정
         this.directionalLight = new THREE.DirectionalLight(0xffffff, 1.5);
@@ -164,6 +169,125 @@ class URDFViewer {
 
         // 리사이즈 이벤트 설정
         this.setupResizeHandler();
+    }
+
+    setupAttitudeOverlay() {
+        const panelElement = document.createElement('div');
+        panelElement.style.position = 'absolute';
+        panelElement.style.top = '12px';
+        panelElement.style.right = '12px';
+        panelElement.style.zIndex = '12';
+        panelElement.style.padding = '8px 10px';
+        panelElement.style.background = 'rgba(255, 255, 255, 0.88)';
+        panelElement.style.border = '1px solid rgba(30, 30, 30, 0.2)';
+        panelElement.style.borderRadius = '10px';
+        panelElement.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.12)';
+        panelElement.style.pointerEvents = 'none';
+        panelElement.style.minWidth = '154px';
+
+        const titleElement = document.createElement('div');
+        titleElement.textContent = 'Attitude';
+        titleElement.style.fontSize = '11px';
+        titleElement.style.fontWeight = '700';
+        titleElement.style.color = '#222';
+
+        const textElement = document.createElement('div');
+        textElement.style.fontSize = '11px';
+        textElement.style.marginTop = '2px';
+        textElement.style.color = '#333';
+
+        const dialElement = document.createElement('div');
+        dialElement.style.position = 'relative';
+        dialElement.style.width = '56px';
+        dialElement.style.height = '56px';
+        dialElement.style.margin = '8px auto 2px';
+        dialElement.style.border = '1px solid rgba(34, 34, 34, 0.28)';
+        dialElement.style.borderRadius = '999px';
+        dialElement.style.background = 'rgba(245, 247, 250, 0.9)';
+
+        const crossXElement = document.createElement('div');
+        crossXElement.style.position = 'absolute';
+        crossXElement.style.left = '50%';
+        crossXElement.style.top = '8px';
+        crossXElement.style.width = '1px';
+        crossXElement.style.height = '40px';
+        crossXElement.style.transform = 'translateX(-50%)';
+        crossXElement.style.background = 'rgba(50, 50, 50, 0.16)';
+
+        const crossYElement = document.createElement('div');
+        crossYElement.style.position = 'absolute';
+        crossYElement.style.left = '8px';
+        crossYElement.style.top = '50%';
+        crossYElement.style.width = '40px';
+        crossYElement.style.height = '1px';
+        crossYElement.style.transform = 'translateY(-50%)';
+        crossYElement.style.background = 'rgba(50, 50, 50, 0.16)';
+
+        const rollNeedleElement = document.createElement('div');
+        rollNeedleElement.style.position = 'absolute';
+        rollNeedleElement.style.left = '50%';
+        rollNeedleElement.style.top = '50%';
+        rollNeedleElement.style.width = '2px';
+        rollNeedleElement.style.height = '22px';
+        rollNeedleElement.style.background = '#d33';
+        rollNeedleElement.style.transformOrigin = '50% calc(100% - 2px)';
+        rollNeedleElement.style.transform = 'translate(-50%, -100%) rotate(0deg)';
+        rollNeedleElement.style.borderRadius = '2px';
+
+        const pitchNeedleElement = document.createElement('div');
+        pitchNeedleElement.style.position = 'absolute';
+        pitchNeedleElement.style.left = '50%';
+        pitchNeedleElement.style.top = '50%';
+        pitchNeedleElement.style.width = '2px';
+        pitchNeedleElement.style.height = '18px';
+        pitchNeedleElement.style.background = '#2f6bdf';
+        pitchNeedleElement.style.transformOrigin = '50% calc(100% - 2px)';
+        pitchNeedleElement.style.transform = 'translate(-50%, -100%) rotate(90deg)';
+        pitchNeedleElement.style.borderRadius = '2px';
+
+        const centerDotElement = document.createElement('div');
+        centerDotElement.style.position = 'absolute';
+        centerDotElement.style.left = '50%';
+        centerDotElement.style.top = '50%';
+        centerDotElement.style.width = '6px';
+        centerDotElement.style.height = '6px';
+        centerDotElement.style.transform = 'translate(-50%, -50%)';
+        centerDotElement.style.background = '#222';
+        centerDotElement.style.borderRadius = '999px';
+
+        dialElement.appendChild(crossXElement);
+        dialElement.appendChild(crossYElement);
+        dialElement.appendChild(rollNeedleElement);
+        dialElement.appendChild(pitchNeedleElement);
+        dialElement.appendChild(centerDotElement);
+
+        panelElement.appendChild(titleElement);
+        panelElement.appendChild(textElement);
+        panelElement.appendChild(dialElement);
+        this.container.appendChild(panelElement);
+
+        this.attitudeOverlayElement = panelElement;
+        this.attitudeTextElement = textElement;
+        this.rollNeedleElement = rollNeedleElement;
+        this.pitchNeedleElement = pitchNeedleElement;
+        this.updateAttitudeOverlay();
+    }
+
+    updateAttitudeOverlay() {
+        const rollDeg = Number.isFinite(this.roadRollAngleDeg) ? this.roadRollAngleDeg : 0;
+        const pitchDeg = Number.isFinite(this.roadPitchAngleDeg) ? this.roadPitchAngleDeg : 0;
+
+        if (this.attitudeTextElement) {
+            this.attitudeTextElement.textContent = `Roll ${rollDeg.toFixed(1)}\u00b0 / Pitch ${pitchDeg.toFixed(1)}\u00b0`;
+        }
+
+        if (this.rollNeedleElement) {
+            this.rollNeedleElement.style.transform = `translate(-50%, -100%) rotate(${rollDeg}deg)`;
+        }
+
+        if (this.pitchNeedleElement) {
+            this.pitchNeedleElement.style.transform = `translate(-50%, -100%) rotate(${90 + pitchDeg}deg)`;
+        }
     }
 
     setupCameraAngleLogging() {
@@ -346,6 +470,8 @@ class URDFViewer {
     }
 
     applyRoadAttitudeAngles() {
+        this.updateAttitudeOverlay();
+
         if (!this.robotModel) {
             return;
         }

@@ -342,6 +342,10 @@ function getFormattedTopicValue(topic, value) {
         formattedValue = numValue.toFixed(2);  // 무차원
     } else if (topic.includes('/tof/distance')) {
         formattedValue = `${numValue.toFixed(3)} m`;  // SI: 미터 (ToF 센서)
+    } else if (topic.includes('/angle/speed')) {
+        // rad/s -> rpm
+        const rpm = (numValue * 60) / (2 * Math.PI);
+        formattedValue = `${rpm.toFixed(1)} rpm`;
     } else if (topic.includes('/angle')) {
         // radian을 도(degree)로 변환 표시
         const degrees = (numValue * 180 / Math.PI);

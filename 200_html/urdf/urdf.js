@@ -65,7 +65,6 @@ class URDFViewer {
         };
         this.roadRollAngleDeg = 0;
         this.roadPitchAngleDeg = 0;
-        this.roadPatchLinkName = 'ground_patch';
         this.urdfPath = containerElement.getAttribute('urdf') || '/urdf/vehicle/vehicle.urdf';
         this.cameraPosition = this.parseCameraPosition(
             containerElement.getAttribute('cameraPosition') || '4,4,8'
@@ -347,17 +346,12 @@ class URDFViewer {
     }
 
     applyRoadAttitudeAngles() {
-        if (!this.robotModel || !this.robotModel.links) {
+        if (!this.robotModel) {
             return;
         }
 
-        const groundLink = this.robotModel.links[this.roadPatchLinkName] || null;
-        if (!groundLink) {
-            return;
-        }
-
-        // 차량의 roll/pitch를 함께 표현하기 위해 x/y축 회전을 사용
-        groundLink.rotation.set(
+        // 차량과 노면이 같은 자세를 가지도록 URDF 루트 전체를 기울인다.
+        this.robotModel.rotation.set(
             THREE.MathUtils.degToRad(this.roadRollAngleDeg),
             THREE.MathUtils.degToRad(this.roadPitchAngleDeg),
             0

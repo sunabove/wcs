@@ -353,7 +353,7 @@
 
                                     <thead class="table-dark">
                                         <tr>
-                                            <th class="text-center" scope="col" colspan="2">Sensor</th> 
+                                            <th class="text-center" scope="col" colspan="2">Wheel</th> 
                                         </tr>
                                     </thead>
 
@@ -361,6 +361,10 @@
                                         <tr>
                                             <th class="text-center" scope="row">Speed</th>
                                             <td id="wheel/fl/linear/speed" class="text-end">10.5 km/h</td>
+                                        </tr>
+                                        <tr>
+                                            <th class="text-center" scope="row">RPM</th>
+                                            <td id="wheel/fl/angle/speed" class="text-end">0 rpm</td>
                                         </tr>
                                         <tr>
                                             <th class="text-center" scope="row">Tof</th>
@@ -447,7 +451,7 @@
                 });
                 
                 // wheelDataTable 헤더도 선택된 바퀴에 따라 업데이트
-                $('#wheelDataTable thead th[colspan="2"]').text(`${selectedWheel.toUpperCase()} Sensor`);
+                $('#wheelDataTable thead th[colspan="2"]').text(`${selectedWheel.toUpperCase()} Wheel`);
                 
                 console.log(`[Vehicle Setting] 📋 선택된 바퀴: ${selectedWheel.toUpperCase()}, wheelDataTable ID 업데이트 완료`);
             }

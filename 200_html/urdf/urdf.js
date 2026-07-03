@@ -69,6 +69,10 @@ class URDFViewer {
         this.attitudeTextElement = null;
         this.rollNeedleElement = null;
         this.pitchNeedleElement = null;
+        this.showAttitude = this.parseBooleanAttribute(
+            containerElement.getAttribute('showAttitude'),
+            true
+        );
         this.urdfPath = containerElement.getAttribute('urdf') || '/urdf/vehicle/vehicle.urdf';
         this.cameraPosition = this.parseCameraPosition(
             containerElement.getAttribute('cameraPosition') || '4,4,8'
@@ -84,6 +88,23 @@ class URDFViewer {
             return fallback;
         }
         return new THREE.Vector3(tokens[0], tokens[1], tokens[2]);
+    }
+
+    parseBooleanAttribute(rawValue, fallbackValue) {
+        if (rawValue == null) {
+            return fallbackValue;
+        }
+
+        const normalized = String(rawValue).trim().toLowerCase();
+        if (normalized === '' || normalized === 'true' || normalized === '1' || normalized === 'yes' || normalized === 'on') {
+            return true;
+        }
+
+        if (normalized === 'false' || normalized === '0' || normalized === 'no' || normalized === 'off') {
+            return false;
+        }
+
+        return fallbackValue;
     }
 
     init() {
@@ -116,7 +137,9 @@ class URDFViewer {
         this.cameraPosTextElement = $('#camera-pos-text');
         this.setupCameraAngleLogging();
         this.setupWheelControls();
-        this.setupAttitudeOverlay();
+        if (this.showAttitude) {
+            this.setupAttitudeOverlay();
+        }
 
         // 조명 설정
         this.directionalLight = new THREE.DirectionalLight(0xffffff, 1.5);

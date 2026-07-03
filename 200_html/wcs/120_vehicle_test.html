@@ -404,9 +404,11 @@
                         sendMQTTMessage('simulation/stop', '1', 1);
                         wheelIds.forEach(wheelId => {
                             sendMQTTMessage(`wheel/${wheelId}/operation/command`, '0', 1);
+                            sendMQTTMessage(`wheel/${wheelId}/angle/speed`, '0', 1);
+                            sendMQTTMessage(`wheel/${wheelId}/linear/speed`, '0', 1);
                         });
                         console.log('[Vehicle Test] ⏸️ 페이지 로드시 simulation/stop 발행 완료');
-                        console.log('[Vehicle Test] 🛑 페이지 로드시 모든 wheel operation/command=0 발행 완료');
+                        console.log('[Vehicle Test] 🛑 페이지 로드시 모든 wheel 속도(각속도/선속도)와 operation/command=0 발행 완료');
                         return;
                     }
 

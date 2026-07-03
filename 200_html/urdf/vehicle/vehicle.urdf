@@ -19,11 +19,11 @@
   </material>
 
   <material name="ground_surface">
-    <color rgba="0.90 0.90 0.90 1.0"/>
+    <color rgba="0.96 0.96 0.96 1.0"/>
   </material>
 
   <material name="ellipsoid_surface">
-    <color rgba="0.72 0.72 0.72 0.55"/>
+    <color rgba="0.90 0.90 0.90 0.55"/>
   </material>
 
   <material name="rim">

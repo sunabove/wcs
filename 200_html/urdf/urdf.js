@@ -1025,9 +1025,11 @@ class URDFViewer {
         const sizeX = Number.isFinite(modelSizeVec3.x) ? modelSizeVec3.x : 0;
         const sizeY = Number.isFinite(modelSizeVec3.y) ? modelSizeVec3.y : 0;
         const sizeZ = Number.isFinite(modelSizeVec3.z) ? modelSizeVec3.z : 0;
-        const diagonalSize = Math.max(Math.sqrt((sizeX * sizeX) + (sizeY * sizeY) + (sizeZ * sizeZ)), 0.001);
-        const labelScale = diagonalSize * this.axisLabelScaleRatio;
-        const fontPx = Math.max(48, Math.min(220, Math.round(diagonalSize * 42)));
+        // Use the largest model dimension as the baseline so "10%" remains consistent
+        // regardless of the model's aspect ratio.
+        const maxDimension = Math.max(sizeX, sizeY, sizeZ, 0.001);
+        const labelScale = maxDimension * this.axisLabelScaleRatio;
+        const fontPx = Math.max(96, Math.min(240, Math.round(220 * (this.axisLabelScaleRatio / 0.10))));
 
         this.axisLabelSprites.forEach(sprite => {
             if (sprite) {

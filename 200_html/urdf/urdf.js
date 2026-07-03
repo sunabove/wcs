@@ -71,7 +71,7 @@ class URDFViewer {
         this.pitchNeedleElement = null;
         this.showAttitude = this.parseBooleanAttribute(
             containerElement.getAttribute('showAttitude'),
-            true
+            false
         );
         this.urdfPath = containerElement.getAttribute('urdf') || '/urdf/vehicle/vehicle.urdf';
         this.cameraPosition = this.parseCameraPosition(

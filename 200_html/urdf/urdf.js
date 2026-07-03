@@ -17,7 +17,7 @@ class URDFViewer {
         this.cameraPosTextElement = null;
         this.cameraToastElement = null;
         this.cameraToastHideTimer = null;
-        this.cameraToastHideDelayMs = 1200;
+        this.cameraToastHideDelayMs = 3000;
         this.lastFrameTimeMs = performance.now();
         this.wheelSpeedInputByKey = {};
         this.wheelSpeedValueByKey = {};
@@ -362,8 +362,8 @@ class URDFViewer {
         toastElement.style.letterSpacing = '0.02em';
         toastElement.style.pointerEvents = 'none';
         toastElement.style.display = 'none';
-        toastElement.style.whiteSpace = 'pre';
-        toastElement.textContent = 'x 0.000\ny 0.000\nz 0.000';
+        toastElement.style.whiteSpace = 'nowrap';
+        toastElement.textContent = '(0.000, 0.000, 0.000)';
 
         this.container.appendChild(toastElement);
         this.cameraToastElement = toastElement;
@@ -385,7 +385,7 @@ class URDFViewer {
         const px = formatPositionValue(this.camera.position.x);
         const py = formatPositionValue(this.camera.position.y);
         const pz = formatPositionValue(this.camera.position.z);
-        this.cameraToastElement.textContent = `x ${px}\ny ${py}\nz ${pz}`;
+        this.cameraToastElement.textContent = `(${px}, ${py}, ${pz})`;
     }
 
     showCameraToastOverlay() {

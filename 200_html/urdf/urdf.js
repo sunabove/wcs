@@ -10,6 +10,8 @@ class URDFViewer {
         this.container = containerElement;
         this.robotModel = null;
         this.xyGridHelper = null;
+        this.axesHelper = null;
+        this.axisLabelSprites = [];
         this.directionalLight = null;
         this.directionalLightRadius = 1;
         this.goalTarget = new THREE.Vector3(0, 0, 0);
@@ -178,6 +180,7 @@ class URDFViewer {
         this.xyGridHelper = gridHelper;
 
         const axesHelper = new THREE.AxesHelper(1);
+        axesHelper.visible = false;
         axesHelper.renderOrder = 999;
         if (Array.isArray(axesHelper.material)) {
             axesHelper.material.forEach(material => {
@@ -189,6 +192,7 @@ class URDFViewer {
             axesHelper.material.depthWrite = false;
         }
         this.scene.add(axesHelper);
+        this.axesHelper = axesHelper;
 
         this.addAxisLabels(1);
 
@@ -861,9 +865,31 @@ class URDFViewer {
         const yLabel = this.createAxisLabel('Y', '#22aa22', new THREE.Vector3(0, axisLength + margin, 0));
         const zLabel = this.createAxisLabel('Z', '#3366ff', new THREE.Vector3(0, 0, axisLength + margin));
 
+        xLabel.visible = false;
+        yLabel.visible = false;
+        zLabel.visible = false;
+
         this.scene.add(xLabel);
         this.scene.add(yLabel);
         this.scene.add(zLabel);
+
+        this.axisLabelSprites = [xLabel, yLabel, zLabel];
+    }
+
+    setReferenceGuidesVisible(isVisible) {
+        if (this.xyGridHelper) {
+            this.xyGridHelper.visible = isVisible;
+        }
+
+        if (this.axesHelper) {
+            this.axesHelper.visible = isVisible;
+        }
+
+        this.axisLabelSprites.forEach(sprite => {
+            if (sprite) {
+                sprite.visible = isVisible;
+            }
+        });
     }
 
     setupMouseEvents() {
@@ -872,8 +898,9 @@ class URDFViewer {
 
         this.container.addEventListener('mousedown', (event) => {
             if (event.ctrlKey && this.xyGridHelper) {
-                this.xyGridHelper.visible = !this.xyGridHelper.visible;
-                console.log(`[URDF] XY grid ${this.xyGridHelper.visible ? 'ON' : 'OFF'}`);
+                const nextVisible = !this.xyGridHelper.visible;
+                this.setReferenceGuidesVisible(nextVisible);
+                console.log(`[URDF] guides ${nextVisible ? 'ON' : 'OFF'} (grid/axes/labels)`);
                 return;
             }
 

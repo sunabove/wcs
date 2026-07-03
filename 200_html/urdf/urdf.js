@@ -350,8 +350,13 @@ class URDFViewer {
             return;
         }
 
-        // 차량과 노면이 같은 자세를 가지도록 URDF 루트 전체를 기울인다.
-        this.robotModel.rotation.set(
+        const carFrame = this.robotModel.links?.car_frame || null;
+        if (!carFrame) {
+            return;
+        }
+
+        // 차량 차체와 노면만 함께 기울이고, 지표면은 고정한다.
+        carFrame.rotation.set(
             THREE.MathUtils.degToRad(this.roadRollAngleDeg),
             THREE.MathUtils.degToRad(this.roadPitchAngleDeg),
             0

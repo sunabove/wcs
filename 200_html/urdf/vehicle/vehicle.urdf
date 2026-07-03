@@ -22,6 +22,10 @@
     <color rgba="0.00 0.70 0.00 1.0"/>
   </material>
 
+  <material name="ellipsoid_surface">
+    <color rgba="0.20 0.50 0.95 0.55"/>
+  </material>
+
   <material name="rim">
     <color rgba="0.80 0.82 0.85 1.0"/>
   </material>
@@ -206,10 +210,26 @@
     </visual>
   </link>
 
+  <link name="ellipsoid_surface_patch">
+    <visual>
+      <origin xyz="0 0 -0.002" rpy="0 0 0"/>
+      <geometry>
+        <box size="2.42 2.3958 0.005"/>
+      </geometry>
+      <material name="ellipsoid_surface"/>
+    </visual>
+  </link>
+
   <joint name="car_frame_to_ground_patch" type="fixed">
     <parent link="car_frame"/>
     <child link="ground_patch"/>
     <origin xyz="0.0566667 0 -0.1025" rpy="0 0 0"/>
+  </joint>
+
+  <joint name="base_to_ellipsoid_surface_patch" type="fixed">
+    <parent link="base_link"/>
+    <child link="ellipsoid_surface_patch"/>
+    <origin xyz="0 0.0566667 -0.0025" rpy="0 0 0"/>
   </joint>
 
   <!-- Front-left wheel -->

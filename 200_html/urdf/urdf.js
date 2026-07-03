@@ -89,7 +89,9 @@ class URDFViewer {
         this.wheelHighlightDimColor = new THREE.Color(0x4f4f4f);
         this.wheelHighlightEmissiveColor = new THREE.Color(0x3a1f00);
         this.highlightedWheelKey = null;
-        this.viewerWheelKey = this.parseViewerWheelKey(containerElement.id);
+        this.viewerWheelKey = this.parseViewerWheelKey(containerElement.id)
+            || String(window.pendingWheelViewerKey || '').trim().toLowerCase()
+            || this.getSelectedWheelKeyFromDom();
         this.roadRollAngleDeg = 0;
         this.roadPitchAngleDeg = 0;
         this.attitudeOverlayElement = null;
@@ -145,6 +147,17 @@ class URDFViewer {
         }
 
         const wheelKey = matched[1];
+        if (!Object.prototype.hasOwnProperty.call(this.wheelSpeedRpmByKey, wheelKey)) {
+            return null;
+        }
+
+        return wheelKey;
+    }
+
+    getSelectedWheelKeyFromDom() {
+        const selectedWheel = document.querySelector('input[name="wheelPosition"]:checked');
+        const wheelKey = String(selectedWheel?.value || '').trim().toLowerCase();
+
         if (!Object.prototype.hasOwnProperty.call(this.wheelSpeedRpmByKey, wheelKey)) {
             return null;
         }
@@ -1419,6 +1432,8 @@ function getWheelAnimationTargetViewer() {
 globalThis.setWheelAnimationByKey = setWheelAnimationByKey;
 
 globalThis.setWheelViewerKey = function(key) {
+    window.pendingWheelViewerKey = String(key || '').trim().toLowerCase();
+
     const viewer = window.urdfViewersById?.['wheel-urdf-viewer'] || null;
     if (!viewer || typeof viewer.setViewerWheelKey !== 'function') {
         return;

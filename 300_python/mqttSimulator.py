@@ -209,18 +209,25 @@ class MqttSimulator:
                             if command_value not in [OperationCommand.STOP.value, OperationCommand.FORWARD.value, OperationCommand.REVERSE.value]:
                                 print(f"[WHEEL_TEST] 지원하지 않는 바퀴 테스트 명령: {command_value}")
                             else:
+                                command = OperationCommand(command_value)
                                 self.simulation_running = False
-                                self.manual_wheel_test_active = True
-                                self.manual_wheel_test_wheel = wheel_id
-                                self.manual_wheel_test_command = OperationCommand(command_value)
                                 self._publish("simulation/state", "stop")
 
-                                command_name = {
-                                    OperationCommand.STOP: "정지",
-                                    OperationCommand.FORWARD: "정회전",
-                                    OperationCommand.REVERSE: "역회전"
-                                }[self.manual_wheel_test_command]
-                                print(f"[WHEEL_TEST] 수동 바퀴 테스트 모드: {wheel_id.upper()} {command_name}")
+                                if command == OperationCommand.STOP:
+                                    self.manual_wheel_test_active = False
+                                    self.manual_wheel_test_wheel = None
+                                    self.manual_wheel_test_command = OperationCommand.STOP
+                                    print(f"[WHEEL_TEST] 수동 바퀴 테스트 정지: {wheel_id.upper()}")
+                                else:
+                                    self.manual_wheel_test_active = True
+                                    self.manual_wheel_test_wheel = wheel_id
+                                    self.manual_wheel_test_command = command
+
+                                    command_name = {
+                                        OperationCommand.FORWARD: "정회전",
+                                        OperationCommand.REVERSE: "역회전"
+                                    }[self.manual_wheel_test_command]
+                                    print(f"[WHEEL_TEST] 수동 바퀴 테스트 모드: {wheel_id.upper()} {command_name}")
                     else:
                         print(f"[WHEEL_TEST] 잘못된 토픽 형식: {topic}")
                 except ValueError:
@@ -873,7 +880,11 @@ class MqttSimulator:
                     print(f"[ROUTE STATUS] 발행 토픽: {self.publish_count}개 | 상태: {state_display} ({self.exec_state.value})")
                     print("-" * 70)
                 
-                if self.simulation_running:
+                if self.manual_wheel_test_active and self.manual_wheel_test_command != OperationCommand.STOP:
+                    self.simulation_running = False
+                    self._publish("simulation/state", "stop")
+                    self._publish_manual_wheel_simulation()
+                elif self.simulation_running:
                     self._update_vehicle()
                     self._update_wheels()
         
@@ -881,10 +892,7 @@ class MqttSimulator:
                     self._publish_position()
                     self._publish_wheels()
                 else:
-                    if self.manual_wheel_test_active:
-                        self._publish_manual_wheel_simulation()
-                    else:
-                        print("[SIM] 시뮬레이션 일시정지 중...")
+                    print("[SIM] 시뮬레이션 일시정지 중...")
     
                 loop_count += 1
                 time.sleep(1)

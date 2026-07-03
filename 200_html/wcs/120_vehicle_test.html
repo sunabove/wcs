@@ -423,47 +423,11 @@
             })();
 
             // 바퀴 테스트 명령 전송 함수
-            let wheelHoldCommand = null;
-            let wheelHoldTimerId = null;
-            const wheelHoldIntervalMs = 1000;
-
-            function publishWheelOperationCommand(command, shouldLog = true) {
-                const selectedWheel = $('input[name="wheelTestPosition"]:checked').val().toLowerCase();
-                const topic = `wheel/${selectedWheel}/operation/command`;
-                sendMQTTMessage(topic, command, 1);
-
-                if (shouldLog) {
-                    console.log(`[Vehicle Test] 🛞 wheel command 유지 발행: ${topic} = ${command}`);
-                }
-            }
-
-            function stopWheelHoldLoop() {
-                if (wheelHoldTimerId) {
-                    clearInterval(wheelHoldTimerId);
-                    wheelHoldTimerId = null;
-                }
-                wheelHoldCommand = null;
-            }
-
-            function startWheelHoldLoop(command) {
-                stopWheelHoldLoop();
-                wheelHoldCommand = command;
-
-                wheelHoldTimerId = setInterval(() => {
-                    if (wheelHoldCommand === null || wheelHoldCommand === 0) {
-                        return;
-                    }
-
-                    sendMQTTMessage('simulation/stop', '1', 1);
-                    publishWheelOperationCommand(wheelHoldCommand, false);
-                }, wheelHoldIntervalMs);
-            }
-
             function sendWheelCommand(command, buttonElement, actionName, icon) {
                 const selectedWheel = $('input[name="wheelTestPosition"]:checked').val().toLowerCase();
                 const topic = `wheel/${selectedWheel}/operation/command`;
 
-                publishWheelOperationCommand(command, false);
+                sendMQTTMessage(topic, command, 1);
                 console.log(`[Vehicle Test] ${icon} ${selectedWheel.toUpperCase()} 바퀴 ${actionName} 명령 전송: ${topic} = ${command}`);
                 
                 // 버튼 피드백 - 더 명확한 시각적 효과
@@ -531,17 +495,14 @@
             $('#test-clockwise').click(function() {
                 sendMQTTMessage('simulation/stop', '1', 1);
                 sendWheelCommand(1, $(this), '정회전', '⏰');
-                startWheelHoldLoop(1);
             });
 
             $('#test-counterclockwise').click(function() {
                 sendMQTTMessage('simulation/stop', '1', 1);
                 sendWheelCommand(2, $(this), '역회전', '↩️');
-                startWheelHoldLoop(2);
             });
 
             $('#test-stop').click(function() {
-                stopWheelHoldLoop();
                 sendWheelCommand(0, $(this), '정지', '⏹️');
             });
 

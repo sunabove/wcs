@@ -87,9 +87,19 @@ class MqttSimulator:
         self.surface_state_lock_duration = 0  # 노면 상태 락 지속 시간
         
         # 시뮬레이션 제어 변수
-        self.driving_scenario = "normal"  # normal, accelerating, decelerating, turning
+        self.driving_scenario = "circular_hill_loop"  # 원형 고저차 도로 주행
         self.scenario_timer = 0
-        self.target_speed = 1.5  # 목표 속도 (m/s)
+        self.route_center_x = 0.0
+        self.route_center_y = 0.0
+        self.route_radius_m = 45.0
+        self.route_wobble_m = 8.0
+        self.route_hill_amplitude_m = 6.0
+        self.route_loop_length_m = 2.0 * math.pi * self.route_radius_m
+        self.route_distance_m = 0.0
+        self.route_base_speed_mps = 8.0
+        self.route_min_speed_mps = 4.0
+        self.route_max_speed_mps = 10.0
+        self.target_speed = self.route_base_speed_mps  # 목표 속도 (m/s)
         self.current_speed = 0.0  # 현재 실제 속도
         self.max_speed = 2.0  # 최고 속도 제한 (m/s) - MQTT로 수신 가능
 
@@ -329,138 +339,96 @@ class MqttSimulator:
             print(f"[CLEANUP] 정리 중 오류: {e}")
     pass  # _cleanup
 
+    def _wrap_angle_delta(self, delta):
+        return (delta + math.pi) % (2 * math.pi) - math.pi
+
+    def _get_circular_hill_route_pose(self, distance_m):
+        route_distance = distance_m % self.route_loop_length_m
+        theta = (route_distance / self.route_loop_length_m) * (2 * math.pi)
+
+        wobble = self.route_wobble_m * math.sin(3 * theta)
+        radius = self.route_radius_m + wobble
+        x = self.route_center_x + radius * math.cos(theta)
+        y = self.route_center_y + radius * math.sin(theta)
+        z = self.route_hill_amplitude_m * math.sin(2 * theta)
+
+        wobble_derivative = 3 * self.route_wobble_m * math.cos(3 * theta)
+        dx_dtheta = (-radius * math.sin(theta)) + (wobble_derivative * math.cos(theta))
+        dy_dtheta = (radius * math.cos(theta)) + (wobble_derivative * math.sin(theta))
+        heading = math.atan2(dy_dtheta, dx_dtheta)
+
+        sector = int(theta / (math.pi / 2)) % 4
+        slope = (2 * self.route_hill_amplitude_m * math.cos(2 * theta)) / max(self.route_radius_m, 0.001)
+
+        return x, y, z, heading, sector, slope
+
     # ===== 시내 도로 주행 시뮬레이션 =====
     def _update_driving_scenario(self):
-        """시내 도로 주행 시나리오 업데이트 (신호등, 교차로, 정체 등)"""
+        """원형 고저차 루프 주행 시나리오 고정"""
         self.scenario_timer += 1
-        
-        # 시나리오 변경 (8~25초마다 - 도시 주행 특성)
-        if self.scenario_timer >= random.randint(8, 25):
-            # 시내 주행 특화 시나리오
-            scenarios = ["city_normal", "traffic_light_stop", "slow_traffic", "accelerating", 
-                        "turning_intersection", "pedestrian_caution", "parking_maneuver", "highway_merge"]
-            weights = [35, 15, 20, 10, 8, 7, 3, 2]  # 일반 주행이 높고, 주차는 낮은 확률
-            self.driving_scenario = random.choices(scenarios, weights=weights)[0]
-            self.scenario_timer = 0
-            
-            # 시내 주행별 목표 속도 설정 (최고 속도 제한 적용)
-            if self.driving_scenario == "city_normal":
-                self.target_speed = min(random.uniform(8.3, 13.9), self.max_speed)  # 30-50km/h → m/s
-            elif self.driving_scenario == "traffic_light_stop":
-                self.target_speed = 0.0  # 완전 정지
-                self.exec_state = VehicleExecState.STOP
-            elif self.driving_scenario == "slow_traffic":
-                self.target_speed = min(random.uniform(2.8, 8.3), self.max_speed)  # 10-30km/h → m/s
-            elif self.driving_scenario == "accelerating":
-                self.target_speed = min(random.uniform(11.1, 16.7), self.max_speed)  # 40-60km/h → m/s
-            elif self.driving_scenario == "turning_intersection":
-                self.target_speed = min(random.uniform(2.8, 8.3), self.max_speed)  # 회전시 저속
-            elif self.driving_scenario == "pedestrian_caution":
-                self.target_speed = min(random.uniform(1.4, 5.6), self.max_speed)  # 5-20km/h → m/s
-            elif self.driving_scenario == "parking_maneuver":
-                self.target_speed = min(random.uniform(0.3, 1.4), self.max_speed)  # 주차시 극저속
-            elif self.driving_scenario == "highway_merge":
-                self.target_speed = min(random.uniform(13.9, 19.4), self.max_speed)  # 50-70km/h → m/s
-            
-            print(f"[CITY] 시내 주행 시나리오: {self.driving_scenario} (목표: {self.target_speed:.1f} m/s = {self.target_speed*3.6:.0f} km/h)")
+        self.driving_scenario = "circular_hill_loop"
+        base_target_speed = min(self.route_base_speed_mps, self.max_speed, self.route_max_speed_mps)
+
+        if self.exec_state == VehicleExecState.STOP:
+            self.target_speed = 0.0
+        else:
+            self.target_speed = base_target_speed
+            if self.scenario_timer == 1:
+                print(
+                    f"[ROUTE] 원형 고저차 도로 주행 시작: "
+                    f"반지름 {self.route_radius_m:.0f}m, "
+                    f"고저차 ±{self.route_hill_amplitude_m:.0f}m, "
+                    f"목표 속도 {self.target_speed:.1f} m/s = {self.target_speed * 3.6:.0f} km/h"
+                )
     
     def _update_vehicle(self):
-        """시내 도로 주행에 특화된 현실적인 차량 데이터 생성"""
+        """원형 고저차 경로를 따라 움직이는 차량 데이터 생성"""
         self.elapsed_time += 1  # 초(s)
         
         # 주행 시나리오 업데이트
         self._update_driving_scenario()
-        
-        # 노면 상태에 따른 성능 변화 (도시 도로 특성 반영)
-        surface_factors = {
-            SurfaceState.ROAD: {"speed_factor": 1.0, "power_factor": 1.0, "efficiency": 0.95},
-            SurfaceState.GRAVEL: {"speed_factor": 0.7, "power_factor": 1.4, "efficiency": 0.80},
-            SurfaceState.ICE: {"speed_factor": 0.4, "power_factor": 1.2, "efficiency": 0.85},
-            SurfaceState.POTHOLE: {"speed_factor": 0.5, "power_factor": 2.0, "efficiency": 0.70}
-        }
-        
-        factor = surface_factors[self.surface_state]
-        adjusted_target = self.target_speed * factor["speed_factor"]
-        
-        # 시내 주행 특성: 급가속/급감속이 빈번함
-        speed_diff = adjusted_target - self.current_speed
-        
-        # 가속도를 시나리오별로 차별화
-        if self.driving_scenario == "traffic_light_stop":
-            max_acceleration = 1.2  # 신호등 급제동
-        elif self.driving_scenario == "accelerating" or self.driving_scenario == "highway_merge":
-            max_acceleration = 0.8  # 가속 구간
-        elif self.driving_scenario == "pedestrian_caution" or self.driving_scenario == "parking_maneuver":
-            max_acceleration = 0.3  # 조심스러운 주행
-        elif self.driving_scenario == "slow_traffic":
-            max_acceleration = 0.4  # 정체 구간
-        else:
-            max_acceleration = 0.6  # 일반 주행
-        
-        if abs(speed_diff) > 0.02:  # 속도 차이가 있을 때만 변경
-            acceleration = min(max_acceleration, abs(speed_diff)) * (1 if speed_diff > 0 else -1)
-            
-            # 시내 주행 특성: 약간의 불규칙성 추가
-            acceleration += random.uniform(-0.05, 0.05)
-            
-            self.current_speed += acceleration
-            self.current_speed = max(0, self.current_speed)  # 음수 방지
-        
-        # 거리 계산: 실제 이동 거리
-        distance_increment = self.current_speed * 1.0  # 1초 간격
-        self.current_session_distance += distance_increment
-        self.total_distance += distance_increment  # 실제 주행 거리로 변경
-        
-        # 위치 업데이트 (시내 도로 주행 패턴)
-        if self.current_speed > 0:
-            if self.driving_scenario in ["turning_intersection", "parking_maneuver"]:
-                # 교차로 회전이나 주차시 곡선 이동
-                turn_rate = 0.15 if self.driving_scenario == "parking_maneuver" else 0.08
-                self.angle += random.uniform(-turn_rate, turn_rate)
-                self.pos_x += self.current_speed * 0.9 * math.cos(self.angle)
-                self.pos_y += self.current_speed * 0.9 * math.sin(self.angle)
-            elif self.driving_scenario == "highway_merge":
-                # 고속도로 합류시 약간의 사선 이동
-                self.pos_x += self.current_speed * math.cos(self.angle + 0.1) + random.uniform(-0.05, 0.05)
-                self.pos_y += self.current_speed * math.sin(self.angle + 0.1) + random.uniform(-0.05, 0.05)
-            else:
-                # 일반 직진 (도시 도로의 미세한 조향)
-                lane_keeping_noise = random.uniform(-0.08, 0.08)  # 차선 유지 노이즈
-                self.pos_x += self.current_speed * math.cos(self.angle) + lane_keeping_noise
-                self.pos_y += self.current_speed * math.sin(self.angle) + lane_keeping_noise
-        
-        # 속도와 가속도 (시내 주행 노이즈 반영)
-        city_noise = random.uniform(-0.1, 0.1)  # 도시 주행 노이즈 (엔진 진동, 노면 등)
-        self.linear_speed = self.current_speed + city_noise
-        self.linear_acc = (adjusted_target - self.current_speed) * 1.5  # 더 민감한 가속도 반응
-        
-        # 각속도 (시내 주행 특성)
-        if self.driving_scenario in ["turning_intersection", "parking_maneuver"]:
-            self.angle_speed = self.current_speed * 0.8 + random.uniform(-0.15, 0.15)
-            self.angle_acc = random.uniform(-0.3, 0.3)
-        elif self.driving_scenario == "highway_merge":
-            self.angle_speed = self.current_speed * 0.2 + random.uniform(-0.08, 0.08)
-            self.angle_acc = random.uniform(-0.1, 0.1)
-        else:
-            # 일반 주행시 미세한 조향
-            self.angle_speed = random.uniform(-0.05, 0.05)
-            self.angle_acc = random.uniform(-0.02, 0.02)
-        
-        # 배터리 소모 (시내 주행 특성: 잦은 정지-출발로 더 많은 소모)
-        base_consumption = 0.003  # 기본 소모량 (도시 주행으로 증가)
-        speed_consumption = self.current_speed * 0.0012  # 속도 비례
-        accel_consumption = abs(self.linear_acc) * 0.002  # 가속/감속 소모
-        surface_consumption = base_consumption * (2.2 - factor["efficiency"])
-        
-        # 시나리오별 추가 소모
-        scenario_factor = {
-            "traffic_light_stop": 1.5,  # 정지 상태에서도 소모
-            "slow_traffic": 1.3,        # 정체시 에어컨 등 사용
-            "parking_maneuver": 1.4,    # 주차시 정밀 조작
-            "highway_merge": 0.9        # 고속 주행시 효율적
-        }.get(self.driving_scenario, 1.0)
-        
-        total_consumption = (base_consumption + speed_consumption + accel_consumption + surface_consumption) * factor["power_factor"] * scenario_factor
+        previous_speed = self.current_speed
+        previous_angle_speed = self.angle_speed
+        previous_heading = self.angle
+
+        route_target_speed = self.target_speed
+        if self.exec_state == VehicleExecState.STOP:
+            route_target_speed = 0.0
+
+        route_distance = self.route_distance_m % self.route_loop_length_m
+        _, _, _, _, _, slope = self._get_circular_hill_route_pose(route_distance)
+        uphill_penalty = max(0.0, slope) * 1.2
+        downhill_bonus = max(0.0, -slope) * 0.6
+        route_target_speed = route_target_speed * (1.0 - min(uphill_penalty, 0.28) + min(downhill_bonus, 0.12))
+        route_target_speed = max(self.route_min_speed_mps, min(route_target_speed, self.route_max_speed_mps))
+
+        speed_diff = route_target_speed - self.current_speed
+        max_acceleration = 0.50 if speed_diff > 0 else 0.70
+        acceleration = max(-max_acceleration, min(max_acceleration, speed_diff))
+        acceleration += random.uniform(-0.04, 0.04)
+        acceleration += -slope * 0.12  # 오르막 감속, 내리막 가속
+
+        self.current_speed = max(0.0, self.current_speed + acceleration)
+        self.current_speed = min(self.current_speed, max(route_target_speed, 0.0))
+        self.current_session_distance += self.current_speed
+        self.total_distance += self.current_speed
+
+        self.route_distance_m = (self.route_distance_m + self.current_speed) % self.route_loop_length_m
+        self.pos_x, self.pos_y, self.pos_z, self.angle, route_sector_index, slope = self._get_circular_hill_route_pose(self.route_distance_m)
+        heading_delta = self._wrap_angle_delta(self.angle - previous_heading)
+
+        self.linear_speed = self.current_speed + random.uniform(-0.05, 0.05)
+        self.linear_acc = self.current_speed - previous_speed
+        self.angle_speed = heading_delta
+        self.angle_acc = self.angle_speed - previous_angle_speed
+
+        # 배터리 소모 (원형 경사로 주행 특성)
+        base_consumption = 0.0025
+        speed_consumption = self.current_speed * 0.0010
+        accel_consumption = abs(self.linear_acc) * 0.0015
+        turn_consumption = abs(heading_delta) / math.pi * 0.0012
+        slope_consumption = abs(slope) * 0.0015
+        total_consumption = base_consumption + speed_consumption + accel_consumption + turn_consumption + slope_consumption
         
         self.battery_voltage -= total_consumption
         self.battery_voltage = max(30.0, self.battery_voltage)  # 최소 전압 제한
@@ -473,53 +441,18 @@ class MqttSimulator:
                 self.exec_state = VehicleExecState.STOP
                 print(f"[CITY] 배터리 부족으로 차량 정지 ({battery_percent:.1f}%)")
         
-        # 상태 변경 (15초마다 노면 상태 변경 - 시내 도로 특성)
-        # 노면 상태 락이 활성화되지 않았을 때만 자동 변경
-        if self.surface_state_lock_duration > 0:
-            # 노면 상태 락 시간 감소
-            self.surface_state_lock_time += 1
-            if self.surface_state_lock_time >= self.surface_state_lock_duration:
-                self.surface_state_lock_duration = 0  # 락 해제
-                print(f"[SURFACE] 노면 상태 락 해제")
-        elif self.elapsed_time % 15 == 0 and self.exec_state == VehicleExecState.RUN:
-            # 시내 도로 노면 상태 (포트홀과 자갈길 확률 증가)
-            surface_weights = [65, 15, 5, 15]  # ROAD, GRAVEL, ICE, POTHOLE
-            self.surface_state = random.choices(list(SurfaceState), weights=surface_weights)[0]
-            surface_names = ['ROAD', 'GRAVEL', 'ICE', 'POTHOLE']
-            surface_name = surface_names[self.surface_state.value]
-            print(f"[CITY] 노면 변화: {surface_name} ({self.surface_state.value})")
+        # 노면은 기본적으로 ROAD를 유지한다.
+        self.surface_state = SurfaceState.ROAD
         
-        # 시내 주행 시나리오에 따른 실행 상태 관리 (IDLE/RUNNING만 사용)
-        if self.driving_scenario == "traffic_light_stop":
-            if self.current_speed < 0.1:
-                self.exec_state = VehicleExecState.STOP
-                print(f"[CITY] 신호등 대기로 IDLE 상태 ({self.current_speed:.1f} m/s)")
-            else:
-                self.exec_state = VehicleExecState.RUN
-        elif self.driving_scenario == "parking_maneuver":
-            if self.current_speed < 0.2:
-                self.exec_state = VehicleExecState.STOP
-                print(f"[CITY] 주차 중 IDLE 상태 ({self.current_speed:.1f} m/s)")
-            else:
-                self.exec_state = VehicleExecState.RUN
-        elif self.driving_scenario == "pedestrian_caution":
-            if self.current_speed < 0.5:
-                self.exec_state = VehicleExecState.STOP
-                print(f"[CITY] 보행자 주의로 IDLE 상태 ({self.current_speed:.1f} m/s)")
-            else:
-                self.exec_state = VehicleExecState.RUN
-        elif self.driving_scenario == "slow_traffic":
-            if self.current_speed < 1.0:
-                self.exec_state = VehicleExecState.STOP
-                print(f"[CITY] 교통 정체로 IDLE 상태 ({self.current_speed:.1f} m/s)")
-            else:
-                self.exec_state = VehicleExecState.RUN
+        if self.current_speed < 0.05:
+            self.exec_state = VehicleExecState.STOP
         else:
-            # 일반 주행: 속도 기반 상태 전환
-            if self.current_speed < 0.1:
-                self.exec_state = VehicleExecState.STOP
-            else:
-                self.exec_state = VehicleExecState.RUN
+            self.exec_state = VehicleExecState.RUN
+
+        if self.exec_state == VehicleExecState.STOP:
+            self.command = OperationCommand.STOP
+        else:
+            self.command = OperationCommand.FORWARD
     pass  # _update_vehicle
 
     def _update_wheels(self):
@@ -538,6 +471,7 @@ class MqttSimulator:
         
         # 시내 주행 시나리오별 바퀴 부하 특성
         scenario_effects = {
+            "circular_hill_loop": {"load_factor": 1.0, "steering_demand": 0.0},
             "city_normal": {"load_factor": 1.0, "steering_demand": 0.1},
             "traffic_light_stop": {"load_factor": 0.3, "steering_demand": 0.0},
             "slow_traffic": {"load_factor": 0.7, "steering_demand": 0.05},
@@ -588,6 +522,8 @@ class MqttSimulator:
                     turn_factor = 0.85 if self.angle_speed > 0 else 1.15  # 좌회전시 좌바퀴 느리게
                 else:
                     turn_factor = 1.15 if self.angle_speed > 0 else 0.85  # 좌회전시 우바퀴 빠르게
+            elif self.driving_scenario == "circular_hill_loop" and abs(self.angle_speed) > 0.001:
+                turn_factor = 0.88 if self.angle_speed > 0 else 1.12
             else:
                 turn_factor = 1.0
                 
@@ -615,7 +551,10 @@ class MqttSimulator:
             if is_front_wheel:
                 base_steering = scenario_effect["steering_demand"]
                 
-                if self.driving_scenario == "turning_intersection":
+                if self.driving_scenario == "circular_hill_loop":
+                    turn_ratio = min(abs(self.angle_speed) / math.pi, 1.0)
+                    w["axis_angle"] = (math.pi / 4) * turn_ratio * (1 if self.angle_speed >= 0 else -1)
+                elif self.driving_scenario == "turning_intersection":
                     # 교차로 회전: -45° ~ +45°
                     w["axis_angle"] = random.uniform(-math.pi/4, math.pi/4) * base_steering
                 elif self.driving_scenario == "parking_maneuver":
@@ -806,11 +745,14 @@ class MqttSimulator:
         
         print(f"[SIMULATOR] 시작 - PID: {os.getpid()}")
         print(f"[MONITOR] 파일 모니터링: {self.script_path}")
-        print("[CITY] 🚗🏙️  시내 도로 주행 시뮬레이션 시작")
-        print("[INFO] 시내 시나리오: city_normal, traffic_light_stop, slow_traffic, accelerating")
-        print("[INFO]               turning_intersection, pedestrian_caution, parking_maneuver, highway_merge")
-        print("[INFO] 노면 상태: ROAD(도로), GRAVEL(자갈), ICE(빙판), POTHOLE(포트홀)")
-        print("[INFO] 주행 속도: 0-70 km/h (0-19.4 m/s) - 실제 시내 주행 범위")
+        print("[ROUTE] 🛣️  원형 고저차 도로 주행 시뮬레이션 시작")
+        print(f"[INFO] 중심 반경: {self.route_radius_m:.0f}m")
+        print(f"[INFO] 좌우 굴곡: ±{self.route_wobble_m:.0f}m")
+        print(f"[INFO] 오르막/내리막: ±{self.route_hill_amplitude_m:.0f}m")
+        print(f"[INFO] 경로 길이(근사): {self.route_loop_length_m:.0f}m")
+        print("[INFO] 경로: 원형 루프를 따라 좌회전/우회전이 반복되고, 고저차가 함께 변함")
+        print("[INFO] 노면 상태: ROAD(도로) 고정")
+        print("[INFO] 주행 속도: 0-70 km/h (0-19.4 m/s)")
         print("[INFO] 실행 상태: IDLE(0)=정지, RUNNING(1)=주행")
         print("[INFO] 데이터: vehicle/ 및 wheel/ 토픽만 발행 (기존 토픽 구조 유지)")
         print("-" * 70)
@@ -835,11 +777,11 @@ class MqttSimulator:
                     }
                     state_display = state_icons.get(self.exec_state, "❓ 알수없음")
                     
-                    print(f"\n[CITY STATUS] 경과: {self.elapsed_time}s | 시나리오: {self.driving_scenario}")
-                    print(f"[CITY STATUS] 속도: {kmh_speed:.1f} km/h ({self.current_speed:.2f} m/s) | 목표: {self.target_speed*3.6:.0f} km/h")
-                    print(f"[CITY STATUS] 배터리: {battery_percent:.1f}% ({self.battery_voltage:.1f}V) | 노면: {['ROAD','GRAVEL','ICE','POTHOLE'][self.surface_state.value]}")
-                    print(f"[CITY STATUS] 위치: ({self.pos_x:.1f}m, {self.pos_y:.1f}m) | 주행거리: {total_km:.2f}km")
-                    print(f"[CITY STATUS] 발행 토픽: {self.publish_count}개 | 상태: {state_display} ({self.exec_state.value})")
+                    print(f"\n[ROUTE STATUS] 경과: {self.elapsed_time}s | 경로: {self.driving_scenario}")
+                    print(f"[ROUTE STATUS] 속도: {kmh_speed:.1f} km/h ({self.current_speed:.2f} m/s) | 목표: {self.target_speed*3.6:.0f} km/h")
+                    print(f"[ROUTE STATUS] 배터리: {battery_percent:.1f}% ({self.battery_voltage:.1f}V) | 노면: ROAD")
+                    print(f"[ROUTE STATUS] 위치: ({self.pos_x:.1f}m, {self.pos_y:.1f}m, {self.pos_z:.1f}m) | 주행거리: {total_km:.2f}km")
+                    print(f"[ROUTE STATUS] 발행 토픽: {self.publish_count}개 | 상태: {state_display} ({self.exec_state.value})")
                     print("-" * 70)
                 
                 if self.simulation_running:

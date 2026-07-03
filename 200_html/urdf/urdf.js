@@ -92,6 +92,7 @@ class URDFViewer {
         this.viewerWheelKey = this.parseViewerWheelKey(containerElement.id)
             || String(window.pendingWheelViewerKey || '').trim().toLowerCase()
             || this.getSelectedWheelKeyFromDom();
+        this.wheelFlashTimeoutId = null;
         this.roadRollAngleDeg = 0;
         this.roadPitchAngleDeg = 0;
         this.attitudeOverlayElement = null;
@@ -176,6 +177,46 @@ class URDFViewer {
         if (this.robotModel) {
             this.resolveWheelAnimationTargets();
         }
+    }
+
+    flashViewerWheel() {
+        if (!this.viewerWheelKey || !this.robotModel) {
+            return;
+        }
+
+        const runtimeTarget = this.wheelRuntimeTargetByKey[this.viewerWheelKey] || null;
+        const wheelObject = runtimeTarget?.ref || null;
+        if (!wheelObject) {
+            return;
+        }
+
+        if (this.wheelFlashTimeoutId) {
+            clearTimeout(this.wheelFlashTimeoutId);
+            this.wheelFlashTimeoutId = null;
+        }
+
+        const nodes = [];
+        wheelObject.traverse(node => {
+            if (node && node.isMesh) {
+                nodes.push(node);
+            }
+        });
+
+        if (nodes.length === 0) {
+            return;
+        }
+
+        const originalVisibility = nodes.map(node => node.visible);
+        nodes.forEach(node => {
+            node.visible = false;
+        });
+
+        this.wheelFlashTimeoutId = setTimeout(() => {
+            nodes.forEach((node, index) => {
+                node.visible = originalVisibility[index];
+            });
+            this.wheelFlashTimeoutId = null;
+        }, 120);
     }
 
     init() {
@@ -1440,6 +1481,15 @@ globalThis.setWheelViewerKey = function(key) {
     }
 
     viewer.setViewerWheelKey(key);
+};
+
+globalThis.flashWheelViewer = function() {
+    const viewer = window.urdfViewersById?.['wheel-urdf-viewer'] || null;
+    if (!viewer || typeof viewer.flashViewerWheel !== 'function') {
+        return;
+    }
+
+    viewer.flashViewerWheel();
 };
 
 globalThis.setVehicleWheelHighlightByKey = function(key) {

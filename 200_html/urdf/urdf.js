@@ -183,7 +183,7 @@ class URDFViewer {
         panelElement.style.borderRadius = '10px';
         panelElement.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.12)';
         panelElement.style.pointerEvents = 'none';
-        panelElement.style.minWidth = '154px';
+        panelElement.style.minWidth = '100px';
 
         const titleElement = document.createElement('div');
         titleElement.textContent = '';

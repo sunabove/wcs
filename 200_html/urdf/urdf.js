@@ -88,6 +88,8 @@ class URDFViewer {
         this.wheelHighlightAccentColor = new THREE.Color(0xffb000);
         this.wheelHighlightDimColor = new THREE.Color(0x4f4f4f);
         this.wheelHighlightEmissiveColor = new THREE.Color(0x3a1f00);
+        this.wheelFlashAccentColor = new THREE.Color(0xffc84d);
+        this.wheelFlashEmissiveColor = new THREE.Color(0x6a3300);
         this.highlightedWheelKey = null;
         this.viewerWheelKey = this.parseViewerWheelKey(containerElement.id)
             || String(window.pendingWheelViewerKey || '').trim().toLowerCase()
@@ -195,25 +197,52 @@ class URDFViewer {
             this.wheelFlashTimeoutId = null;
         }
 
-        const nodes = [];
+        const materials = [];
         wheelObject.traverse(node => {
-            if (node && node.isMesh) {
-                nodes.push(node);
+            if (!node || !node.isMesh || !node.material) {
+                return;
             }
+
+            const nodeMaterials = Array.isArray(node.material) ? node.material : [node.material];
+            nodeMaterials.forEach(material => {
+                if (material) {
+                    materials.push(material);
+                }
+            });
         });
 
-        if (nodes.length === 0) {
+        if (materials.length === 0) {
             return;
         }
 
-        const originalVisibility = nodes.map(node => node.visible);
-        nodes.forEach(node => {
-            node.visible = false;
+        const originalStates = materials.map(material => ({
+            material: material,
+            color: material.color ? material.color.clone() : null,
+            emissive: material.emissive ? material.emissive.clone() : null
+        }));
+
+        materials.forEach(material => {
+            if (material.color) {
+                material.color.copy(this.wheelFlashAccentColor);
+            }
+
+            if (material.emissive) {
+                material.emissive.copy(this.wheelFlashEmissiveColor);
+            }
+            material.needsUpdate = true;
         });
 
         this.wheelFlashTimeoutId = setTimeout(() => {
-            nodes.forEach((node, index) => {
-                node.visible = originalVisibility[index];
+            originalStates.forEach(state => {
+                if (state.color && state.material.color) {
+                    state.material.color.copy(state.color);
+                }
+
+                if (state.emissive && state.material.emissive) {
+                    state.material.emissive.copy(state.emissive);
+                }
+
+                state.material.needsUpdate = true;
             });
             this.wheelFlashTimeoutId = null;
         }, 120);

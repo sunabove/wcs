@@ -12,6 +12,7 @@ class URDFViewer {
         this.xyGridHelper = null;
         this.axesHelper = null;
         this.axisLabelSprites = [];
+        this.axisLabelScaleRatio = 0.10;
         this.referenceToggleStep = 0;
         this.directionalLight = null;
         this.directionalLightRadius = 1;
@@ -877,6 +878,24 @@ class URDFViewer {
         this.axisLabelSprites = [xLabel, yLabel, zLabel];
     }
 
+    updateAxisLabelScaleByModelSize(modelSizeVec3) {
+        if (!modelSizeVec3 || this.axisLabelSprites.length === 0) {
+            return;
+        }
+
+        const sizeX = Number.isFinite(modelSizeVec3.x) ? modelSizeVec3.x : 0;
+        const sizeY = Number.isFinite(modelSizeVec3.y) ? modelSizeVec3.y : 0;
+        const sizeZ = Number.isFinite(modelSizeVec3.z) ? modelSizeVec3.z : 0;
+        const longestSize = Math.max(sizeX, sizeY, sizeZ, 0.001);
+        const labelScale = longestSize * this.axisLabelScaleRatio;
+
+        this.axisLabelSprites.forEach(sprite => {
+            if (sprite) {
+                sprite.scale.set(labelScale, labelScale, labelScale);
+            }
+        });
+    }
+
     setReferenceGuidesVisible(isVisible) {
         if (this.xyGridHelper) {
             this.xyGridHelper.visible = isVisible;
@@ -978,11 +997,14 @@ class URDFViewer {
                 setTimeout(() => {
                     const bbox = new THREE.Box3().setFromObject(robot);
                     const center = bbox.getCenter(new THREE.Vector3());
+                    const size = bbox.getSize(new THREE.Vector3());
                     const sphere = bbox.getBoundingSphere(new THREE.Sphere());
                     const radius = Math.max(sphere.radius, 0.001);
 
                     console.log('[URDF] 📏 모델 반경:', radius);
                     console.log('[URDF] 📍 모델 중심:', center);
+
+                    this.updateAxisLabelScaleByModelSize(size);
 
                     if (this.hasCustomCameraPosition) {
                         // cameraPosition이 주어진 경우에는 위치를 유지

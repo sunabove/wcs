@@ -695,6 +695,23 @@ class URDFViewer {
                         node.material = node.material.clone();
                     }
 
+                    const clonedMaterials = Array.isArray(node.material) ? node.material : [node.material];
+                    clonedMaterials.forEach(material => {
+                        if (!material) {
+                            return;
+                        }
+
+                        if (material.color) {
+                            material.userData = material.userData || {};
+                            material.userData.wheelBaseColor = material.color.clone();
+                        }
+
+                        if (material.emissive) {
+                            material.userData = material.userData || {};
+                            material.userData.wheelBaseEmissive = material.emissive.clone();
+                        }
+                    });
+
                     meshes.push(node);
                 });
             }
@@ -711,9 +728,8 @@ class URDFViewer {
 
         const normalized = THREE.MathUtils.clamp((rpm || 0) / this.maxWheelVisualRpm, 0, 1);
         const blend = normalized * 0.9;
-        const targetColor = this.wheelSurfaceNeutralColor.clone().lerp(this.wheelSurfaceAccentColor, blend);
         const lerpAlpha = THREE.MathUtils.clamp(1 - Math.exp(-this.wheelColorSmoothingSpeed * Math.max(deltaSec || 0, 0)), 0, 1);
-        const targetEmissive = this.wheelSurfaceAccentColor.clone().multiplyScalar(0.25 * normalized);
+        const accentEmissive = this.wheelSurfaceAccentColor.clone().multiplyScalar(0.25);
 
         wheelMeshes.forEach(mesh => {
             const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
@@ -722,8 +738,17 @@ class URDFViewer {
                     return;
                 }
 
+                const baseColor = material.userData?.wheelBaseColor instanceof THREE.Color
+                    ? material.userData.wheelBaseColor
+                    : this.wheelSurfaceNeutralColor;
+                const targetColor = baseColor.clone().lerp(this.wheelSurfaceAccentColor, blend);
                 material.color.lerp(targetColor, lerpAlpha);
+
                 if (material.emissive) {
+                    const baseEmissive = material.userData?.wheelBaseEmissive instanceof THREE.Color
+                        ? material.userData.wheelBaseEmissive
+                        : new THREE.Color(0x000000);
+                    const targetEmissive = baseEmissive.clone().lerp(accentEmissive, normalized);
                     material.emissive.lerp(targetEmissive, lerpAlpha);
                 }
             });

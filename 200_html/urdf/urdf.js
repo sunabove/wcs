@@ -16,7 +16,7 @@ class URDFViewer {
             y: null,
             z: null
         };
-        this.axisLengthScaleRatio = 1.10;
+        this.axisLengthScaleRatio = 0.55;
         this.axisLabelSprites = [];
         this.axisLabelScaleRatio = 0.10;
         this.referenceToggleStep = 0;

@@ -11,6 +11,12 @@ class URDFViewer {
         this.robotModel = null;
         this.xyGridHelper = null;
         this.axesHelper = null;
+        this.axisLineByKey = {
+            x: null,
+            y: null,
+            z: null
+        };
+        this.axisLengthScaleRatio = 1.10;
         this.axisLabelSprites = [];
         this.axisLabelScaleRatio = 0.10;
         this.referenceToggleStep = 0;
@@ -191,22 +197,8 @@ class URDFViewer {
         this.scene.add(gridHelper);
         this.xyGridHelper = gridHelper;
 
-        const axesHelper = new THREE.AxesHelper(1);
-        axesHelper.visible = false;
-        axesHelper.renderOrder = 999;
-        if (Array.isArray(axesHelper.material)) {
-            axesHelper.material.forEach(material => {
-                material.depthTest = false;
-                material.depthWrite = false;
-            });
-        } else if (axesHelper.material) {
-            axesHelper.material.depthTest = false;
-            axesHelper.material.depthWrite = false;
-        }
-        this.scene.add(axesHelper);
-        this.axesHelper = axesHelper;
-
-        this.addAxisLabels(1);
+        this.createAxisGuides(new THREE.Vector3(1, 1, 1));
+        this.addAxisLabels(new THREE.Vector3(1, 1, 1));
 
         // 마우스 이벤트 설정
         this.setupMouseEvents();
@@ -972,12 +964,75 @@ class URDFViewer {
         return sprite;
     }
 
+    createAxisLine(endVector, colorHex) {
+        const geometry = new THREE.BufferGeometry().setFromPoints([
+            new THREE.Vector3(0, 0, 0),
+            endVector
+        ]);
+        const material = new THREE.LineBasicMaterial({
+            color: colorHex,
+            depthTest: false,
+            depthWrite: false,
+            transparent: true,
+            opacity: 0.95
+        });
+        return new THREE.Line(geometry, material);
+    }
 
-    addAxisLabels(axisLength) {
-        const margin = 0.14;
-        const xLabel = this.createAxisLabel('X', '#ff3333', new THREE.Vector3(axisLength + margin, 0, 0));
-        const yLabel = this.createAxisLabel('Y', '#22aa22', new THREE.Vector3(0, axisLength + margin, 0));
-        const zLabel = this.createAxisLabel('Z', '#3366ff', new THREE.Vector3(0, 0, axisLength + margin));
+    createAxisGuides(axisLengths) {
+        const lengthX = Math.max(Number(axisLengths?.x) || 0, 0.001);
+        const lengthY = Math.max(Number(axisLengths?.y) || 0, 0.001);
+        const lengthZ = Math.max(Number(axisLengths?.z) || 0, 0.001);
+
+        const axesGroup = new THREE.Group();
+        axesGroup.visible = false;
+
+        const xLine = this.createAxisLine(new THREE.Vector3(lengthX, 0, 0), 0xff3333);
+        const yLine = this.createAxisLine(new THREE.Vector3(0, lengthY, 0), 0x22aa22);
+        const zLine = this.createAxisLine(new THREE.Vector3(0, 0, lengthZ), 0x3366ff);
+
+        axesGroup.add(xLine);
+        axesGroup.add(yLine);
+        axesGroup.add(zLine);
+
+        this.scene.add(axesGroup);
+        this.axesHelper = axesGroup;
+        this.axisLineByKey = {
+            x: xLine,
+            y: yLine,
+            z: zLine
+        };
+    }
+
+    updateAxisLineLength(axisKey, length) {
+        const axisLine = this.axisLineByKey[axisKey];
+        if (!axisLine) {
+            return;
+        }
+
+        const safeLength = Math.max(Number(length) || 0, 0.001);
+        const points = [new THREE.Vector3(0, 0, 0), new THREE.Vector3(0, 0, 0)];
+        if (axisKey === 'x') {
+            points[1].x = safeLength;
+        } else if (axisKey === 'y') {
+            points[1].y = safeLength;
+        } else {
+            points[1].z = safeLength;
+        }
+
+        axisLine.geometry.setFromPoints(points);
+        axisLine.geometry.computeBoundingSphere();
+    }
+
+
+    addAxisLabels(axisLengths) {
+        const lengthX = Math.max(Number(axisLengths?.x) || 0, 0.001);
+        const lengthY = Math.max(Number(axisLengths?.y) || 0, 0.001);
+        const lengthZ = Math.max(Number(axisLengths?.z) || 0, 0.001);
+        const margin = Math.max(Math.max(lengthX, lengthY, lengthZ) * 0.05, 0.06);
+        const xLabel = this.createAxisLabel('X', '#ff3333', new THREE.Vector3(lengthX + margin, 0, 0));
+        const yLabel = this.createAxisLabel('Y', '#22aa22', new THREE.Vector3(0, lengthY + margin, 0));
+        const zLabel = this.createAxisLabel('Z', '#3366ff', new THREE.Vector3(0, 0, lengthZ + margin));
 
         xLabel.visible = false;
         yLabel.visible = false;
@@ -988,6 +1043,31 @@ class URDFViewer {
         this.scene.add(zLabel);
 
         this.axisLabelSprites = [xLabel, yLabel, zLabel];
+    }
+
+    updateAxisGuideLengthsByModelSize(modelSizeVec3) {
+        if (!modelSizeVec3) {
+            return;
+        }
+
+        const sizeX = Math.max(Number(modelSizeVec3.x) || 0, 0.001);
+        const sizeY = Math.max(Number(modelSizeVec3.y) || 0, 0.001);
+        const sizeZ = Math.max(Number(modelSizeVec3.z) || 0, 0.001);
+
+        const axisLengthX = sizeX * this.axisLengthScaleRatio;
+        const axisLengthY = sizeY * this.axisLengthScaleRatio;
+        const axisLengthZ = sizeZ * this.axisLengthScaleRatio;
+
+        this.updateAxisLineLength('x', axisLengthX);
+        this.updateAxisLineLength('y', axisLengthY);
+        this.updateAxisLineLength('z', axisLengthZ);
+
+        const margin = Math.max(Math.max(axisLengthX, axisLengthY, axisLengthZ) * 0.05, 0.06);
+        if (this.axisLabelSprites.length >= 3) {
+            this.axisLabelSprites[0].position.set(axisLengthX + margin, 0, 0);
+            this.axisLabelSprites[1].position.set(0, axisLengthY + margin, 0);
+            this.axisLabelSprites[2].position.set(0, 0, axisLengthZ + margin);
+        }
     }
 
     redrawAxisLabelSpriteFont(sprite, fontPx) {
@@ -1147,6 +1227,7 @@ class URDFViewer {
                     console.log('[URDF] 📏 모델 반경:', radius);
                     console.log('[URDF] 📍 모델 중심:', center);
 
+                    this.updateAxisGuideLengthsByModelSize(size);
                     this.updateAxisLabelScaleByModelSize(size);
 
                     if (this.hasCustomCameraPosition) {

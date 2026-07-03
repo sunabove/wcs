@@ -694,10 +694,10 @@ class URDFViewer {
             this.setWheelDirectionSign('fr', -1);
             this.setWheelDirectionSign('rl', -1);
             this.setWheelDirectionSign('rr', -1);
-            this.setWheelSpeedRpm('fl', baseRpm);
-            this.setWheelSpeedRpm('fr', baseRpm);
-            this.setWheelSpeedRpm('rl', baseRpm);
-            this.setWheelSpeedRpm('rr', baseRpm);
+            this.setWheelSpeedRpm('fl', -baseRpm);
+            this.setWheelSpeedRpm('fr', -baseRpm);
+            this.setWheelSpeedRpm('rl', -baseRpm);
+            this.setWheelSpeedRpm('rr', -baseRpm);
             return;
         }
 

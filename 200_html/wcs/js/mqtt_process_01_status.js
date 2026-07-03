@@ -246,18 +246,18 @@ function applyWheelAngularVelocityToViewer(topic, value) {
         return;
     }
 
-    setWheelAnimationByKey(wheelKey, Math.max(Math.round(Math.abs(rpmValue)), 0));
+    setWheelAnimationByKey(wheelKey, Math.round(rpmValue));
 }
 
 function convertAngularMetricToRpm(metricPath, value) {
-    const absValue = Math.abs(Number(value));
-    if (!Number.isFinite(absValue)) {
+    const numericValue = Number(value);
+    if (!Number.isFinite(numericValue)) {
         return NaN;
     }
 
     if (metricPath === 'angle/speed') {
         // 프로젝트 표준 토픽: wheel/{id}/angle/speed 는 rad/s 로 해석
-        return (absValue * 60) / (2 * Math.PI);
+        return (numericValue * 60) / (2 * Math.PI);
     }
 
     return NaN;

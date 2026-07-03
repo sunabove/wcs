@@ -640,7 +640,12 @@ class URDFViewer {
 
     setWheelSpeedRpm(key, rpm) {
         const numericRpm = Number.parseFloat(rpm);
-        const normalizedRpm = Number.isFinite(numericRpm) ? Math.max(Math.round(numericRpm), 0) : this.wheelSpeedRpmByKey[key];
+        const directionSign = Number.isFinite(numericRpm) && numericRpm < 0 ? -1 : 1;
+        const normalizedRpm = Number.isFinite(numericRpm)
+            ? Math.max(Math.round(Math.abs(numericRpm)), 0)
+            : this.wheelSpeedRpmByKey[key];
+
+        this.setWheelDirectionSign(key, directionSign);
 
         this.wheelSpeedRpmByKey[key] = normalizedRpm;
         this.wheelAngularSpeedRadByKey[key] = this.convertRpmToRadPerSec(normalizedRpm);

@@ -124,6 +124,10 @@ class MqttSimulator:
         # 재시작 및 모니터링
         self.running = True
         self.simulation_running = True  # 시뮬레이션 실행 여부
+        self.manual_wheel_test_active = False
+        self.manual_wheel_test_wheel = None
+        self.manual_wheel_test_command = OperationCommand.STOP
+        self.manual_wheel_test_angular_speed = 8.0  # rad/s
         self.start_time = time.time()
         self.script_path = os.path.abspath(__file__)
         self.last_modified = os.path.getmtime(self.script_path) if os.path.exists(self.script_path) else 0
@@ -165,8 +169,9 @@ class MqttSimulator:
         for wheel_id in WHEEL_IDS:
             client.subscribe(f"wheel/{wheel_id}/id_request")  # ID 요청
             client.subscribe(f"wheel/{wheel_id}/id")          # ID 설정
+            client.subscribe(f"wheel/{wheel_id}/operation/command")
             
-        print("[MQTT] Subscribed to client/connect, vehicle/max_speed, simulation/start, simulation/stop, wheel/*/id_request, and wheel/*/id topics")
+        print("[MQTT] Subscribed to client/connect, vehicle/max_speed, simulation/start, simulation/stop, wheel/*/id_request, wheel/*/id, wheel/*/operation/command topics")
     
     def _on_message(self, client, userdata, msg):
         """MQTT 메시지 수신 처리"""
@@ -179,11 +184,42 @@ class MqttSimulator:
             if topic == "simulation/start":
                 if not self.simulation_running:
                     self.simulation_running = True
+                    self.manual_wheel_test_active = False
+                    self.manual_wheel_test_wheel = None
+                    self.manual_wheel_test_command = OperationCommand.STOP
                     print("[SIM] 시뮬레이션 시작")
             elif topic == "simulation/stop":
                 if self.simulation_running:
                     self.simulation_running = False
                     print("[SIM] 시뮬레이션 중지")
+            elif topic.startswith("wheel/") and topic.endswith("/operation/command"):
+                try:
+                    parts = topic.split("/")
+                    if len(parts) == 4 and parts[0] == "wheel" and parts[2] == "operation" and parts[3] == "command":
+                        wheel_id = parts[1].lower()
+                        if wheel_id not in WHEEL_IDS:
+                            print(f"[WHEEL_TEST] 알 수 없는 wheel ID: {wheel_id}")
+                        else:
+                            command_value = int(payload)
+                            if command_value not in [OperationCommand.STOP.value, OperationCommand.FORWARD.value, OperationCommand.REVERSE.value]:
+                                print(f"[WHEEL_TEST] 지원하지 않는 바퀴 테스트 명령: {command_value}")
+                            else:
+                                self.simulation_running = False
+                                self.manual_wheel_test_active = True
+                                self.manual_wheel_test_wheel = wheel_id
+                                self.manual_wheel_test_command = OperationCommand(command_value)
+                                self._publish("simulation/state", "stop")
+
+                                command_name = {
+                                    OperationCommand.STOP: "정지",
+                                    OperationCommand.FORWARD: "정회전",
+                                    OperationCommand.REVERSE: "역회전"
+                                }[self.manual_wheel_test_command]
+                                print(f"[WHEEL_TEST] 수동 바퀴 테스트 모드: {wheel_id.upper()} {command_name}")
+                    else:
+                        print(f"[WHEEL_TEST] 잘못된 토픽 형식: {topic}")
+                except ValueError:
+                    print(f"[WHEEL_TEST] 잘못된 operation/command 형식: {payload}")
             elif topic == "vehicle/surface/state":
                 try:
                     new_surface_state = int(payload)
@@ -739,6 +775,54 @@ class MqttSimulator:
             self._publish(f"{base}/operation/state", w["state"].value)
     pass  # _publish_wheels
 
+    def _publish_manual_wheel_simulation(self):
+        target_wheel = self.manual_wheel_test_wheel
+        if not self.manual_wheel_test_active or target_wheel not in self.wheels:
+            return
+
+        cmd = self.manual_wheel_test_command
+        if cmd == OperationCommand.FORWARD:
+            angular_speed = self.manual_wheel_test_angular_speed
+            state = VehicleExecState.RUN
+        elif cmd == OperationCommand.REVERSE:
+            angular_speed = -self.manual_wheel_test_angular_speed
+            state = VehicleExecState.RUN
+        else:
+            angular_speed = 0.0
+            state = VehicleExecState.STOP
+
+        for wid, wheel in self.wheels.items():
+            if wid == target_wheel:
+                wheel["command"] = cmd
+                wheel["state"] = state
+                wheel["angle_speed"] = angular_speed
+                wheel["angle_acc"] = 0.0
+                wheel["speed"] = 0.0
+                wheel["acc"] = 0.0
+                wheel["angle"] = (wheel["angle"] + angular_speed) % (2 * math.pi)
+            else:
+                wheel["command"] = OperationCommand.STOP
+                wheel["state"] = VehicleExecState.STOP
+                wheel["angle_speed"] = 0.0
+                wheel["angle_acc"] = 0.0
+                wheel["speed"] = 0.0
+                wheel["acc"] = 0.0
+
+            base = f"wheel/{wid}"
+            self._publish(f"{base}/angle/radian", round(wheel["angle"], 4))
+            self._publish(f"{base}/angle/speed", round(wheel["angle_speed"], 3))
+            self._publish(f"{base}/angle/acceleration", round(wheel["angle_acc"], 3))
+            self._publish(f"{base}/linear/speed", round(wheel["speed"], 3))
+            self._publish(f"{base}/linear/acceleration", round(wheel["acc"], 3))
+            self._publish(f"{base}/operation/command", wheel["command"].value)
+            self._publish(f"{base}/operation/state", wheel["state"].value)
+
+        print(
+            f"[WHEEL_TEST] 발행: {target_wheel.upper()} command={cmd.value} "
+            f"angle_speed={angular_speed:.3f} rad/s"
+        )
+    pass  # _publish_manual_wheel_simulation
+
     def run(self):
         self.client.connect(self.broker, self.port, 60)
         self.client.loop_start()
@@ -792,7 +876,10 @@ class MqttSimulator:
                     self._publish_position()
                     self._publish_wheels()
                 else:
-                    print("[SIM] 시뮬레이션 일시정지 중...")
+                    if self.manual_wheel_test_active:
+                        self._publish_manual_wheel_simulation()
+                    else:
+                        print("[SIM] 시뮬레이션 일시정지 중...")
     
                 loop_count += 1
                 time.sleep(1)

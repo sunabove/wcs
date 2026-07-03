@@ -650,7 +650,8 @@ class URDFViewer {
             }
 
             if (runtimeTarget.type === 'link') {
-                runtimeTarget.ref.rotation.y = this.wheelAngles[key];
+                const rotationAxis = this.viewerWheelKey ? 'x' : 'y';
+                runtimeTarget.ref.rotation[rotationAxis] = this.wheelAngles[key];
             }
         });
     }

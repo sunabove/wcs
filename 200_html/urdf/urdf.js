@@ -186,7 +186,7 @@ class URDFViewer {
         panelElement.style.minWidth = '154px';
 
         const titleElement = document.createElement('div');
-        titleElement.textContent = 'Attitude';
+        titleElement.textContent = '';
         titleElement.style.fontSize = '11px';
         titleElement.style.fontWeight = '700';
         titleElement.style.color = '#222';

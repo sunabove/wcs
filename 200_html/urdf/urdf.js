@@ -195,6 +195,7 @@ class URDFViewer {
         textElement.style.fontSize = '11px';
         textElement.style.marginTop = '2px';
         textElement.style.color = '#333';
+        textElement.style.textAlign = 'center';
 
         const dialElement = document.createElement('div');
         dialElement.style.position = 'relative';

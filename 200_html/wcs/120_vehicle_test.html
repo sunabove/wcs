@@ -279,6 +279,20 @@
                                                 <button type="button" class="btn btn-outline-secondary text-black fw-bold fs-5" id="test-stop">
                                                     <i class="bi bi-stop-fill me-1 fs-4"></i>정지
                                                 </button>
+
+                                                <div class="mt-2">
+                                                    <label for="wheelTestSpeedSlider" class="form-label fw-bold mb-1">
+                                                        <i class="bi bi-speedometer2 me-2"></i>휠 속도
+                                                    </label>
+                                                    <div class="input-group">
+                                                        <div class="w-100 d-flex justify-content-center mb-1">
+                                                            <span class="input-group-text bg-light justify-content-center" style="width: 130px;">
+                                                                <span id="wheel-test-speed-value">8.0 rad/s</span>
+                                                            </span>
+                                                        </div>
+                                                        <input type="range" id="wheelTestSpeedSlider" class="form-range" min="0" max="20" step="0.5" value="8.0">
+                                                    </div>
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
@@ -428,6 +442,7 @@
             function sendWheelCommand(command, buttonElement, actionName, icon) {
                 const selectedWheel = $('input[name="wheelTestPosition"]:checked').val().toLowerCase();
                 const topic = `wheel/${selectedWheel}/operation/command`;
+                const angularSpeedAbs = Number.parseFloat($('#wheelTestSpeedSlider').val()) || 0;
 
                 // 휠 테스트 버튼은 항상 클릭된 버튼 하나만 하이라이트
                 $('#test-clockwise, #test-counterclockwise, #test-stop')
@@ -440,7 +455,10 @@
 
                 sendMQTTMessage(topic, command, 1);
 
-                if (Number(command) === 0) {
+                if (Number(command) === 1 || Number(command) === 2) {
+                    const signedAngularSpeed = Number(command) === 2 ? -angularSpeedAbs : angularSpeedAbs;
+                    sendMQTTMessage(`wheel/${selectedWheel}/angle/speed`, signedAngularSpeed, 1);
+                } else if (Number(command) === 0) {
                     // 정지 시점에 선택된 휠의 각속도를 즉시 0으로 맞춘다.
                     sendMQTTMessage(`wheel/${selectedWheel}/angle/speed`, '0', 1);
                 }
@@ -521,6 +539,12 @@
 
             $('#test-stop').click(function() {
                 sendWheelCommand(0, $(this), '정지', '⏹️');
+            });
+
+            // 휠 테스트 속도 슬라이더 표시 업데이트
+            $('#wheelTestSpeedSlider').on('input change', function() {
+                const speedRad = Number.parseFloat($(this).val()) || 0;
+                $('#wheel-test-speed-value').text(`${speedRad.toFixed(1)} rad/s`);
             });
 
             // 차량 제어 버튼 이벤트

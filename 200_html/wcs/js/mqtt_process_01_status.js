@@ -235,18 +235,7 @@ function applyWheelAngularVelocityToViewer(topic, value) {
         return;
     }
 
-    const isAngularTopic =
-        metricPath === 'angle/speed' ||
-        metricPath.includes('angular/velocity') ||
-        metricPath.includes('angular_velocity') ||
-        metricPath.includes('angular/speed') ||
-        metricPath.includes('angle/speed') ||
-        metricPath.includes('omega') ||
-        metricPath.includes('rotational/speed') ||
-        metricPath.includes('rpm') ||
-        metricPath.includes('rad/s') ||
-        metricPath.includes('rps') ||
-        metricPath.includes('deg/s');
+    const isAngularTopic = metricPath === 'angle/speed';
 
     if (!isAngularTopic) {
         return;
@@ -266,42 +255,8 @@ function convertAngularMetricToRpm(metricPath, value) {
         return NaN;
     }
 
-    // 단위 추정 규칙
-    // - rpm 포함: 그대로 사용
-    // - rad/s 포함 또는 angular/velocity 계열 기본값: rad/s 로 간주
-    // - deg/s 포함: RPM = deg/s / 6
-    // - rps/rev_per_sec 계열: RPM = rps * 60
-    if (metricPath.includes('rpm')) {
-        return absValue;
-    }
-
-    if (
-        metricPath.includes('rps') ||
-        metricPath.includes('rev/s') ||
-        metricPath.includes('rev_per_sec') ||
-        metricPath.includes('revolution/s')
-    ) {
-        return absValue * 60;
-    }
-
-    if (metricPath.includes('deg/s') || metricPath.includes('degree/s')) {
-        return absValue / 6;
-    }
-
     if (metricPath === 'angle/speed') {
         // 프로젝트 표준 토픽: wheel/{id}/angle/speed 는 rad/s 로 해석
-        return (absValue * 60) / (2 * Math.PI);
-    }
-
-    if (
-        metricPath.includes('rad/s') ||
-        metricPath.includes('angular/velocity') ||
-        metricPath.includes('angular_velocity') ||
-        metricPath.includes('angular/speed') ||
-        metricPath.includes('angle/speed') ||
-        metricPath.includes('omega') ||
-        metricPath.includes('rotational/speed')
-    ) {
         return (absValue * 60) / (2 * Math.PI);
     }
 

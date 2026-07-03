@@ -194,7 +194,13 @@
                                 <!-- 차량 이미지 -->
                                 <div class="row"> 
                                     <div class="col-md-12">
-                                        <img id="vehicle-image" src="img/vehicle.png" alt="Vehicle Image" class="p-3 img-fluid" > 
+                                        <div class="urdf-container w-100 h-100 rounded-4 overflow-hidden border border-dark border-2" 
+                                                id="vehicle-urdf-viewer" 
+                                                urdf="/urdf/vehicle/vehicle.urdf"
+                                                cameraPosition="-0.044, -0.906, 1.529"
+                                                showAttitude="true"
+                                                style="min-height: 70vh;"> 
+                                        </div>
                                     </div> 
                                 </div>
                                 <!-- // 차량 이미지 -->

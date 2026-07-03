@@ -79,7 +79,7 @@ class URDFViewer {
             rr: []
         };
         this.wheelSurfaceNeutralColor = new THREE.Color(0x141414);
-        this.wheelSurfaceAccentColor = new THREE.Color(0x2f9bff);
+        this.wheelSurfaceAccentColor = new THREE.Color(0xb35a00);
         this.maxWheelVisualRpm = 120;
         this.wheelColorSmoothingSpeed = 8;
         this.roadRollAngleDeg = 0;

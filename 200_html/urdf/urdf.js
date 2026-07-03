@@ -78,6 +78,17 @@ class URDFViewer {
             rl: null,
             rr: null
         };
+        this.wheelHighlightMeshesByKey = {
+            fl: [],
+            fr: [],
+            rl: [],
+            rr: []
+        };
+        this.wheelHighlightBaseColor = new THREE.Color(0x141414);
+        this.wheelHighlightAccentColor = new THREE.Color(0xffb000);
+        this.wheelHighlightDimColor = new THREE.Color(0x4f4f4f);
+        this.wheelHighlightEmissiveColor = new THREE.Color(0x3a1f00);
+        this.highlightedWheelKey = null;
         this.viewerWheelKey = this.parseViewerWheelKey(containerElement.id);
         this.roadRollAngleDeg = 0;
         this.roadPitchAngleDeg = 0;
@@ -1124,7 +1135,7 @@ class URDFViewer {
 
     loadURDF() {
         const loader = new URDFLoader();
-        
+
         console.log(`[URDF] URDF 파일 로딩 중... (${this.urdfPath})`);
 
         loader.load(
@@ -1136,6 +1147,7 @@ class URDFViewer {
                 this.scene.add(robot);
                 this.robotModel = robot;
                 this.resolveWheelAnimationTargets();
+                this.resolveWheelHighlightTargets();
                 this.applyRoadAttitudeAngles();
 
                 // 자동 피팅 로직
@@ -1153,10 +1165,8 @@ class URDFViewer {
                     this.updateAxisLabelScaleByModelSize(size);
 
                     if (this.hasCustomCameraPosition) {
-                        // cameraPosition이 주어진 경우에는 위치를 유지
                         console.log('[URDF] cameraPosition 지정됨: 사용자 카메라 위치 유지');
                     } else {
-                        // cameraPosition이 없으면 모델 전체가 5% 마진으로 보이도록 자동 피팅
                         const fitDistance = this.calculateFitDistance(radius, this.cameraFitMarginRatio);
                         this.setCameraFromPosition(center, fitDistance);
                         console.log('[URDF] cameraPosition 미지정: 자동 피팅 카메라 적용 (마진 5%)');
@@ -1167,7 +1177,6 @@ class URDFViewer {
                     this.camera.far = Math.max(currentCameraDist * 100, 10);
                     this.camera.updateProjectionMatrix();
 
-                    // 회전 중심 업데이트
                     this.goalTarget.copy(center);
                     this.controls.target.copy(center);
                     this.controls.minDistance = currentCameraDist * 0.2;
@@ -1189,6 +1198,128 @@ class URDFViewer {
                 console.error('[URDF] ❌ URDF 로드 실패:', error);
             }
         );
+    }
+
+    resolveWheelHighlightTargets() {
+        const linkMap = this.robotModel?.links || {};
+
+        Object.keys(this.wheelLinkNameByKey).forEach(key => {
+            const expectedLinkName = this.wheelLinkNameByKey[key];
+            const link = linkMap[expectedLinkName] || null;
+            const meshes = [];
+
+            if (!link) {
+                this.wheelHighlightMeshesByKey[key] = meshes;
+                return;
+            }
+
+            link.traverse(node => {
+                if (!node || !node.isMesh || !node.material) {
+                    return;
+                }
+
+                if (Array.isArray(node.material)) {
+                    node.material = node.material.map(material => material?.clone?.() || material);
+                } else if (node.material?.clone) {
+                    node.material = node.material.clone();
+                }
+
+                const clonedMaterials = Array.isArray(node.material) ? node.material : [node.material];
+                clonedMaterials.forEach(material => {
+                    if (!material) {
+                        return;
+                    }
+
+                    if (material.color) {
+                        material.userData = material.userData || {};
+                        if (!(material.userData.wheelBaseColor instanceof THREE.Color)) {
+                            material.userData.wheelBaseColor = material.color.clone();
+                        }
+                    }
+
+                    if (material.emissive) {
+                        material.userData = material.userData || {};
+                        if (!(material.userData.wheelBaseEmissive instanceof THREE.Color)) {
+                            material.userData.wheelBaseEmissive = material.emissive.clone();
+                        }
+                    }
+                });
+
+                meshes.push(node);
+            });
+
+            this.wheelHighlightMeshesByKey[key] = meshes;
+        });
+    }
+
+    applyWheelHighlightByKey(selectedKey) {
+        const normalizedKey = String(selectedKey || '').trim().toLowerCase();
+        if (!normalizedKey || !Object.prototype.hasOwnProperty.call(this.wheelHighlightMeshesByKey, normalizedKey)) {
+            return;
+        }
+
+        this.highlightedWheelKey = normalizedKey;
+
+        Object.keys(this.wheelHighlightMeshesByKey).forEach(key => {
+            const wheelMeshes = this.wheelHighlightMeshesByKey[key] || [];
+            const isSelected = key === normalizedKey;
+
+            wheelMeshes.forEach(mesh => {
+                const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+                materials.forEach(material => {
+                    if (!material) {
+                        return;
+                    }
+
+                    if (material.color) {
+                        const baseColor = material.userData?.wheelBaseColor instanceof THREE.Color
+                            ? material.userData.wheelBaseColor
+                            : this.wheelHighlightBaseColor;
+                        const targetColor = isSelected
+                            ? baseColor.clone().lerp(this.wheelHighlightAccentColor, 0.72)
+                            : baseColor.clone().lerp(this.wheelHighlightDimColor, 0.22);
+                        material.color.copy(targetColor);
+                    }
+
+                    if (material.emissive) {
+                        const baseEmissive = material.userData?.wheelBaseEmissive instanceof THREE.Color
+                            ? material.userData.wheelBaseEmissive
+                            : new THREE.Color(0x000000);
+                        const targetEmissive = isSelected
+                            ? this.wheelHighlightEmissiveColor
+                            : baseEmissive;
+                        material.emissive.copy(targetEmissive);
+                    }
+
+                    material.needsUpdate = true;
+                });
+            });
+        });
+    }
+
+    clearWheelHighlights() {
+        this.highlightedWheelKey = null;
+        Object.keys(this.wheelHighlightMeshesByKey).forEach(key => {
+            const wheelMeshes = this.wheelHighlightMeshesByKey[key] || [];
+            wheelMeshes.forEach(mesh => {
+                const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+                materials.forEach(material => {
+                    if (!material) {
+                        return;
+                    }
+
+                    if (material.color && material.userData?.wheelBaseColor instanceof THREE.Color) {
+                        material.color.copy(material.userData.wheelBaseColor);
+                    }
+
+                    if (material.emissive && material.userData?.wheelBaseEmissive instanceof THREE.Color) {
+                        material.emissive.copy(material.userData.wheelBaseEmissive);
+                    }
+
+                    material.needsUpdate = true;
+                });
+            });
+        });
     }
 
     setupResizeHandler() {
@@ -1264,6 +1395,15 @@ function getWheelAnimationTargetViewer() {
 }
 
 globalThis.setWheelAnimationByKey = setWheelAnimationByKey;
+
+globalThis.setVehicleWheelHighlightByKey = function(key) {
+    const vehicleViewer = window.urdfViewersById?.['vehicle-urdf-viewer'] || null;
+    if (!vehicleViewer || typeof vehicleViewer.applyWheelHighlightByKey !== 'function') {
+        return;
+    }
+
+    vehicleViewer.applyWheelHighlightByKey(key);
+};
 
 function setDriveMode(mode) {
     if (!window.activeURDFViewer) {

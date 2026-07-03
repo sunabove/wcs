@@ -459,14 +459,13 @@
                 
                 // 바퀴 속성 정보 ID 업데이트
                 updateWheelDataIds();
-                
-                // 차량 이미지 업데이트 - 선택된 바퀴에 따라 이미지 변경
-                const wheelId = selectedWheel.toLowerCase();
-                const newImageSrc = `img/vehicle_wheel_${wheelId}_selected.png`;
-                $('#vehicle-image').attr('src', newImageSrc);
-                console.log(`[Vehicle Setting] 🖼️ 차량 이미지 업데이트: ${newImageSrc}`);
+
+                if (typeof window.setVehicleWheelHighlightByKey === 'function') {
+                    window.setVehicleWheelHighlightByKey(selectedWheel.toLowerCase());
+                }
                 
                 // wheel/{id}/id_request 토픽 발행
+                const wheelId = selectedWheel.toLowerCase();
                 const topic = `wheel/${wheelId}/id_request`;
                 const message = ""; // 빈 메시지로 ID 요청
                 
@@ -493,12 +492,12 @@
 
             // 페이지 로드시 초기 바퀴 데이터 ID 설정
             updateWheelDataIds();
-            
-            // 페이지 로드시 초기 바퀴 이미지 설정
+
+            // 페이지 로드시 초기 바퀴 하이라이트 설정
             const initialWheel = $('input[name="wheelPosition"]:checked').val().toLowerCase();
-            const initialImageSrc = `img/vehicle_wheel_${initialWheel}_selected.png`;
-            $('#vehicle-image').attr('src', initialImageSrc);
-            console.log(`[Vehicle Setting] 🖼️ 초기 차량 이미지 설정: ${initialImageSrc}`);
+            if (typeof window.setVehicleWheelHighlightByKey === 'function') {
+                window.setVehicleWheelHighlightByKey(initialWheel);
+            }
 
             // 최고 속도 설정 버튼 클릭 이벤트
             $('#max_speed_set_btn').click(function() {

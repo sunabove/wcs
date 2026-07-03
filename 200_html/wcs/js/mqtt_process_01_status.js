@@ -9,6 +9,9 @@ function prcessMqttMessage(topic, value) {
         console.log('[MQTT] 🚗 차량 데이터:', topic, value);
     } else if (topic.startsWith('wheel/')) {
         console.log('[MQTT] 🛞 바퀴 데이터:', topic, value);
+
+        // wheel 각속도 토픽이 오면 URDF 휠 애니메이션에 즉시 반영
+        applyWheelAngularVelocityToViewer(topic, value);
         
         // wheel/{id}/id 토픽 특별 처리 - Vehicle Setting 페이지의 바퀴 ID 라디오 버튼 업데이트
         const wheelIdPattern = /^wheel\/([a-z]+)\/id$/;
@@ -214,6 +217,88 @@ function prcessMqttMessage(topic, value) {
         // console.log(`[MQTT] ❌ DOM 요소를 찾을 수 없음: ${topic}`);
     }
 } // prcessMqttMessage
+
+function applyWheelAngularVelocityToViewer(topic, value) {
+    if (typeof setWheelAnimationByKey !== 'function') {
+        return;
+    }
+
+    const topicMatch = topic.match(/^wheel\/(fl|fr|rl|rr)\/(.+)$/i);
+    if (!topicMatch) {
+        return;
+    }
+
+    const wheelKey = topicMatch[1].toLowerCase();
+    const metricPath = topicMatch[2].toLowerCase();
+    const numericValue = Number(value);
+    if (!Number.isFinite(numericValue)) {
+        return;
+    }
+
+    const isAngularTopic =
+        metricPath.includes('angular/velocity') ||
+        metricPath.includes('angular_velocity') ||
+        metricPath.includes('angular/speed') ||
+        metricPath.includes('omega') ||
+        metricPath.includes('rotational/speed') ||
+        metricPath.includes('rpm') ||
+        metricPath.includes('rad/s') ||
+        metricPath.includes('rps') ||
+        metricPath.includes('deg/s');
+
+    if (!isAngularTopic) {
+        return;
+    }
+
+    const rpmValue = convertAngularMetricToRpm(metricPath, numericValue);
+    if (!Number.isFinite(rpmValue)) {
+        return;
+    }
+
+    setWheelAnimationByKey(wheelKey, Math.max(Math.round(Math.abs(rpmValue)), 0));
+}
+
+function convertAngularMetricToRpm(metricPath, value) {
+    const absValue = Math.abs(Number(value));
+    if (!Number.isFinite(absValue)) {
+        return NaN;
+    }
+
+    // 단위 추정 규칙
+    // - rpm 포함: 그대로 사용
+    // - rad/s 포함 또는 angular/velocity 계열 기본값: rad/s 로 간주
+    // - deg/s 포함: RPM = deg/s / 6
+    // - rps/rev_per_sec 계열: RPM = rps * 60
+    if (metricPath.includes('rpm')) {
+        return absValue;
+    }
+
+    if (
+        metricPath.includes('rps') ||
+        metricPath.includes('rev/s') ||
+        metricPath.includes('rev_per_sec') ||
+        metricPath.includes('revolution/s')
+    ) {
+        return absValue * 60;
+    }
+
+    if (metricPath.includes('deg/s') || metricPath.includes('degree/s')) {
+        return absValue / 6;
+    }
+
+    if (
+        metricPath.includes('rad/s') ||
+        metricPath.includes('angular/velocity') ||
+        metricPath.includes('angular_velocity') ||
+        metricPath.includes('angular/speed') ||
+        metricPath.includes('omega') ||
+        metricPath.includes('rotational/speed')
+    ) {
+        return (absValue * 60) / (2 * Math.PI);
+    }
+
+    return NaN;
+}
 
 function getFormattedTopicValue(topic, value) {
     const numValue = Number(value);

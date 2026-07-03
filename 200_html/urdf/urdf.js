@@ -64,6 +64,7 @@ class URDFViewer {
             rr: null
         };
         this.roadRollAngleDeg = 0;
+        this.roadPitchAngleDeg = 0;
         this.roadPatchLinkName = 'ground_patch';
         this.urdfPath = containerElement.getAttribute('urdf') || '/urdf/vehicle/vehicle.urdf';
         this.cameraPosition = this.parseCameraPosition(
@@ -345,14 +346,7 @@ class URDFViewer {
         });
     }
 
-    applyRoadRollAngleDeg(angleDeg) {
-        const numericAngleDeg = Number.parseFloat(angleDeg);
-        const normalizedAngleDeg = Number.isFinite(numericAngleDeg)
-            ? THREE.MathUtils.clamp(numericAngleDeg, -30, 30)
-            : this.roadRollAngleDeg;
-
-        this.roadRollAngleDeg = normalizedAngleDeg;
-
+    applyRoadAttitudeAngles() {
         if (!this.robotModel || !this.robotModel.links) {
             return;
         }
@@ -362,8 +356,32 @@ class URDFViewer {
             return;
         }
 
-        // 차량의 roll을 표현하기 위해 x축 회전을 사용
-        groundLink.rotation.set(THREE.MathUtils.degToRad(normalizedAngleDeg), 0, 0);
+        // 차량의 roll/pitch를 함께 표현하기 위해 x/y축 회전을 사용
+        groundLink.rotation.set(
+            THREE.MathUtils.degToRad(this.roadRollAngleDeg),
+            THREE.MathUtils.degToRad(this.roadPitchAngleDeg),
+            0
+        );
+    }
+
+    applyRoadRollAngleDeg(angleDeg) {
+        const numericAngleDeg = Number.parseFloat(angleDeg);
+        const normalizedAngleDeg = Number.isFinite(numericAngleDeg)
+            ? THREE.MathUtils.clamp(numericAngleDeg, -30, 30)
+            : this.roadRollAngleDeg;
+
+        this.roadRollAngleDeg = normalizedAngleDeg;
+        this.applyRoadAttitudeAngles();
+    }
+
+    applyRoadPitchAngleDeg(angleDeg) {
+        const numericAngleDeg = Number.parseFloat(angleDeg);
+        const normalizedAngleDeg = Number.isFinite(numericAngleDeg)
+            ? THREE.MathUtils.clamp(numericAngleDeg, -30, 30)
+            : this.roadPitchAngleDeg;
+
+        this.roadPitchAngleDeg = normalizedAngleDeg;
+        this.applyRoadAttitudeAngles();
     }
 
     resolveWheelAnimationTargets() {
@@ -556,7 +574,7 @@ class URDFViewer {
                 this.scene.add(robot);
                 this.robotModel = robot;
                 this.resolveWheelAnimationTargets();
-                this.applyRoadRollAngleDeg(this.roadRollAngleDeg);
+                this.applyRoadAttitudeAngles();
 
                 // 자동 피팅 로직
                 setTimeout(() => {
@@ -697,6 +715,29 @@ function setRoadRollAngleDeg(angleDeg) {
     window.activeURDFViewer.applyRoadRollAngleDeg(normalizedAngleDeg);
 }
 
+function setRoadPitchAngleDeg(angleDeg) {
+    const numericAngleDeg = Number.parseFloat(angleDeg);
+    const normalizedAngleDeg = Number.isFinite(numericAngleDeg)
+        ? Math.min(30, Math.max(-30, numericAngleDeg))
+        : 0;
+
+    const spinner = document.getElementById('road-pitch-angle-deg');
+    if (spinner) {
+        spinner.value = String(normalizedAngleDeg);
+    }
+
+    const valueElement = document.getElementById('road-pitch-angle-deg-value');
+    if (valueElement) {
+        valueElement.textContent = `${normalizedAngleDeg}\u00b0`;
+    }
+
+    if (!window.activeURDFViewer) {
+        return;
+    }
+
+    window.activeURDFViewer.applyRoadPitchAngleDeg(normalizedAngleDeg);
+}
+
 function updateDriveModeButtons(activeMode) {
     const modes = ['forward', 'backward', 'left', 'right', 'stop'];
     modes.forEach(mode => {
@@ -720,6 +761,7 @@ function updateDriveModeButtons(activeMode) {
 globalThis.setDriveMode = setDriveMode;
 globalThis.setDriveSpeedKmh = setDriveSpeedKmh;
 globalThis.setRoadRollAngleDeg = setRoadRollAngleDeg;
+globalThis.setRoadPitchAngleDeg = setRoadPitchAngleDeg;
 
 // 초기화 함수
 function initURDFViewers() {
@@ -751,6 +793,7 @@ function initURDFViewers() {
 
     setDriveSpeedKmh($('#drive-speed-kmh').val());
     setRoadRollAngleDeg($('#road-roll-angle-deg').val());
+    setRoadPitchAngleDeg($('#road-pitch-angle-deg').val());
     updateDriveModeButtons(null);
 
     console.log("[URDF] 🚀 모든 URDF Viewer 초기화 완료");

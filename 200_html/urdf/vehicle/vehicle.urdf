@@ -34,11 +34,11 @@
     <color rgba="0.95 0.95 0.20 1.0"/>
   </material>
 
-  <material name="roll_mark">
+  <material name="roll_arc_mark">
     <color rgba="0.95 0.25 0.25 1.0"/>
   </material>
 
-  <material name="pitch_mark">
+  <material name="pitch_arc_mark">
     <color rgba="0.25 0.45 0.95 1.0"/>
   </material>
 
@@ -143,38 +143,104 @@
       <material name="arrow_mark"/>
     </visual>
 
-    <!-- Roll/Pitch indicators on the top center of the body -->
+    <!-- Roll arc indicator on the top center -->
     <visual>
-      <origin xyz="0.0566667 0.0000 0.255" rpy="0 0 0"/>
+      <origin xyz="0.018 -0.084 0.255" rpy="0 0 0.46"/>
       <geometry>
-        <box size="0.18 0.012 0.004"/>
+        <box size="0.050 0.010 0.004"/>
       </geometry>
-      <material name="roll_mark"/>
+      <material name="roll_arc_mark"/>
     </visual>
 
     <visual>
-      <origin xyz="0.0566667 0.0900 0.255" rpy="0 0 0.785398"/>
+      <origin xyz="0.0566667 -0.052 0.255" rpy="0 0 0.25"/>
       <geometry>
-        <box size="0.040 0.012 0.004"/>
+        <box size="0.056 0.010 0.004"/>
       </geometry>
-      <material name="roll_mark"/>
+      <material name="roll_arc_mark"/>
     </visual>
 
     <visual>
-      <origin xyz="0.0566667 0.0000 0.255" rpy="0 0 1.5707963"/>
+      <origin xyz="0.0866667 0 0.255" rpy="0 0 0"/>
       <geometry>
-        <box size="0.18 0.012 0.004"/>
+        <box size="0.060 0.010 0.004"/>
       </geometry>
-      <material name="pitch_mark"/>
+      <material name="roll_arc_mark"/>
     </visual>
 
     <visual>
-      <origin xyz="0.1466667 0.0000 0.255" rpy="0 0 2.3561945"/>
+      <origin xyz="0.0566667 0.052 0.255" rpy="0 0 -0.25"/>
       <geometry>
-        <box size="0.040 0.012 0.004"/>
+        <box size="0.056 0.010 0.004"/>
       </geometry>
-      <material name="pitch_mark"/>
+      <material name="roll_arc_mark"/>
     </visual>
+
+    <visual>
+      <origin xyz="0.018 0.084 0.255" rpy="0 0 -0.46"/>
+      <geometry>
+        <box size="0.050 0.010 0.004"/>
+      </geometry>
+      <material name="roll_arc_mark"/>
+    </visual>
+
+    <visual>
+      <origin xyz="0.008 0.096 0.255" rpy="0 0 0.95"/>
+      <geometry>
+        <box size="0.028 0.010 0.004"/>
+      </geometry>
+      <material name="roll_arc_mark"/>
+    </visual>
+
+    <!-- Pitch arc indicator on the top center -->
+    <visual>
+      <origin xyz="-0.084 0.018 0.255" rpy="0 0 1.11"/>
+      <geometry>
+        <box size="0.050 0.010 0.004"/>
+      </geometry>
+      <material name="pitch_arc_mark"/>
+    </visual>
+
+    <visual>
+      <origin xyz="-0.052 0.0566667 0.255" rpy="0 0 0.79"/>
+      <geometry>
+        <box size="0.056 0.010 0.004"/>
+      </geometry>
+      <material name="pitch_arc_mark"/>
+    </visual>
+
+    <visual>
+      <origin xyz="0 0.0866667 0.255" rpy="0 0 1.57"/>
+      <geometry>
+        <box size="0.060 0.010 0.004"/>
+      </geometry>
+      <material name="pitch_arc_mark"/>
+    </visual>
+
+    <visual>
+      <origin xyz="0.052 0.0566667 0.255" rpy="0 0 -0.79"/>
+      <geometry>
+        <box size="0.056 0.010 0.004"/>
+      </geometry>
+      <material name="pitch_arc_mark"/>
+    </visual>
+
+    <visual>
+      <origin xyz="0.084 0.018 0.255" rpy="0 0 -1.11"/>
+      <geometry>
+        <box size="0.050 0.010 0.004"/>
+      </geometry>
+      <material name="pitch_arc_mark"/>
+    </visual>
+
+    <visual>
+      <origin xyz="0.096 0.008 0.255" rpy="0 0 -0.62"/>
+      <geometry>
+        <box size="0.028 0.010 0.004"/>
+      </geometry>
+      <material name="pitch_arc_mark"/>
+    </visual>
+
 
     <!-- Front head lights -->
     <visual>

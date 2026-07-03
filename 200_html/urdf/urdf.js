@@ -74,9 +74,12 @@ class URDFViewer {
             false
         );
         this.urdfPath = containerElement.getAttribute('urdf') || '/urdf/vehicle/vehicle.urdf';
-        this.cameraPosition = this.parseCameraPosition(
-            containerElement.getAttribute('cameraPosition') || '4,4,8'
-        );
+        const rawCameraPosition = containerElement.getAttribute('cameraPosition');
+        this.hasCustomCameraPosition = rawCameraPosition != null && String(rawCameraPosition).trim().length > 0;
+        this.cameraFitMarginRatio = 0.05;
+        this.cameraPosition = this.hasCustomCameraPosition
+            ? this.parseCameraPosition(rawCameraPosition)
+            : new THREE.Vector3(4, 4, 8);
         
         this.init();
     }
@@ -616,6 +619,17 @@ class URDFViewer {
         this.camera.lookAt(center);
     }
 
+    calculateFitDistance(radius, marginRatio = 0.05) {
+        const safeRadius = Math.max(radius, 0.001);
+        const paddedRadius = safeRadius * (1 + Math.max(marginRatio, 0));
+
+        const vFovHalfRad = THREE.MathUtils.degToRad(this.camera.fov * 0.5);
+        const hFovHalfRad = Math.atan(Math.tan(vFovHalfRad) * this.camera.aspect);
+        const limitingHalfFov = Math.max(Math.min(vFovHalfRad, hFovHalfRad), 0.001);
+
+        return paddedRadius / Math.tan(limitingHalfFov);
+    }
+
     resetDirectionalLight(center, radius) {
         if (!this.directionalLight) {
             return;
@@ -738,8 +752,16 @@ class URDFViewer {
 
                     this.resetDirectionalLight(center, radius);
 
-                    // cameraPosition으로 설정된 초기 카메라 위치를 유지하고
-                    // 클리핑 범위만 현재 카메라-모델 중심 거리 기준으로 업데이트
+                    if (this.hasCustomCameraPosition) {
+                        // cameraPosition이 주어진 경우에는 위치를 유지
+                        console.log('[URDF] cameraPosition 지정됨: 사용자 카메라 위치 유지');
+                    } else {
+                        // cameraPosition이 없으면 모델 전체가 5% 마진으로 보이도록 자동 피팅
+                        const fitDistance = this.calculateFitDistance(radius, this.cameraFitMarginRatio);
+                        this.setCameraFromPosition(center, fitDistance);
+                        console.log('[URDF] cameraPosition 미지정: 자동 피팅 카메라 적용 (마진 5%)');
+                    }
+
                     const currentCameraDist = Math.max(this.camera.position.distanceTo(center), 0.01);
                     this.camera.near = Math.max(currentCameraDist / 100, 0.01);
                     this.camera.far = Math.max(currentCameraDist * 100, 10);
@@ -753,7 +775,7 @@ class URDFViewer {
                     this.controls.update();
                     this.logCameraInfos(true);
 
-                    console.log('[URDF] ✅ 카메라 위치 유지(cameraPosition) 및 컨트롤 범위 갱신 완료');
+                    console.log('[URDF] ✅ 카메라/클리핑/컨트롤 범위 갱신 완료');
                 }, 200);
             },
             progress => {

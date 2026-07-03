@@ -78,6 +78,7 @@ class URDFViewer {
             rl: null,
             rr: null
         };
+        this.viewerWheelKey = this.parseViewerWheelKey(containerElement.id);
         this.roadRollAngleDeg = 0;
         this.roadPitchAngleDeg = 0;
         this.attitudeOverlayElement = null;
@@ -123,6 +124,21 @@ class URDFViewer {
         }
 
         return fallbackValue;
+    }
+
+    parseViewerWheelKey(containerId) {
+        const idText = String(containerId || '').trim().toLowerCase();
+        const matched = idText.match(/^([a-z]{2})-wheel-urdf-viewer$/);
+        if (!matched) {
+            return null;
+        }
+
+        const wheelKey = matched[1];
+        if (!Object.prototype.hasOwnProperty.call(this.wheelSpeedRpmByKey, wheelKey)) {
+            return null;
+        }
+
+        return wheelKey;
     }
 
     init() {
@@ -684,6 +700,20 @@ class URDFViewer {
         const linkMap = this.robotModel?.links || {};
         const jointNames = Object.keys(jointMap);
 
+        if (this.viewerWheelKey) {
+            const singleWheelLink = linkMap.wheel || null;
+            if (singleWheelLink) {
+                Object.keys(this.wheelRuntimeTargetByKey).forEach(key => {
+                    this.wheelRuntimeTargetByKey[key] = key === this.viewerWheelKey
+                        ? { type: 'link', ref: singleWheelLink }
+                        : null;
+                });
+
+                console.log(`[URDF] ${this.viewerWheelKey.toUpperCase()} 단일 휠 뷰어 연결: wheel 링크`);
+                return;
+            }
+        }
+
         Object.keys(this.wheelJointNameByKey).forEach(key => {
             const expectedJointName = this.wheelJointNameByKey[key];
             let joint = jointMap[expectedJointName] || null;
@@ -1186,12 +1216,30 @@ class URDFViewer {
 }
 
 function setWheelAnimationByKey(key, rpm) {
-    const targetViewer = getWheelAnimationTargetViewer();
-    if (!targetViewer) {
+    const targetViewers = getWheelAnimationTargetViewersByKey(key);
+    if (targetViewers.length === 0) {
         return;
     }
 
-    targetViewer.setWheelSpeedRpm(key, rpm);
+    targetViewers.forEach(viewer => {
+        viewer.setWheelSpeedRpm(key, rpm);
+    });
+}
+
+function getWheelAnimationTargetViewersByKey(key) {
+    const viewers = [];
+    const vehicleViewer = getWheelAnimationTargetViewer();
+    if (vehicleViewer) {
+        viewers.push(vehicleViewer);
+    }
+
+    const wheelViewerId = `${key}-wheel-urdf-viewer`;
+    const wheelViewer = window.urdfViewersById?.[wheelViewerId] || null;
+    if (wheelViewer && !viewers.includes(wheelViewer)) {
+        viewers.push(wheelViewer);
+    }
+
+    return viewers;
 }
 
 function getWheelAnimationTargetViewer() {

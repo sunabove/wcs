@@ -1150,6 +1150,10 @@ class URDFViewer {
                 this.resolveWheelHighlightTargets();
                 this.applyRoadAttitudeAngles();
 
+                if (this.container.id === 'vehicle-urdf-viewer' && window.pendingVehicleWheelHighlightKey) {
+                    this.applyWheelHighlightByKey(window.pendingVehicleWheelHighlightKey);
+                }
+
                 // 자동 피팅 로직
                 setTimeout(() => {
                     const bbox = new THREE.Box3().setFromObject(robot);
@@ -1397,6 +1401,8 @@ function getWheelAnimationTargetViewer() {
 globalThis.setWheelAnimationByKey = setWheelAnimationByKey;
 
 globalThis.setVehicleWheelHighlightByKey = function(key) {
+    window.pendingVehicleWheelHighlightKey = String(key || '').trim().toLowerCase();
+
     const vehicleViewer = window.urdfViewersById?.['vehicle-urdf-viewer'] || null;
     if (!vehicleViewer || typeof vehicleViewer.applyWheelHighlightByKey !== 'function') {
         return;

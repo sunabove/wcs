@@ -1296,11 +1296,31 @@ class URDFViewer {
 }
 
 function setWheelAnimationByKey(key, rpm) {
-    if (!window.activeURDFViewer) {
+    const targetViewer = getWheelAnimationTargetViewer();
+    if (!targetViewer) {
         return;
     }
 
-    window.activeURDFViewer.setWheelSpeedRpm(key, rpm);
+    targetViewer.setWheelSpeedRpm(key, rpm);
+}
+
+function getWheelAnimationTargetViewer() {
+    if (window.urdfViewersById?.['vehicle-urdf-viewer']) {
+        return window.urdfViewersById['vehicle-urdf-viewer'];
+    }
+
+    if (Array.isArray(window.urdfViewers)) {
+        const vehicleViewer = window.urdfViewers.find(viewer => {
+            const urdfPath = String(viewer?.urdfPath || '');
+            return urdfPath.includes('/vehicle/vehicle.urdf');
+        });
+
+        if (vehicleViewer) {
+            return vehicleViewer;
+        }
+    }
+
+    return window.activeURDFViewer || null;
 }
 
 globalThis.setWheelAnimationByKey = setWheelAnimationByKey;
@@ -1418,6 +1438,8 @@ globalThis.setRoadPitchAngleDeg = setRoadPitchAngleDeg;
 function initURDFViewers() {
     console.log("[URDF] 🚀 URDF Viewer 초기화 시작...");
     window.activeURDFViewer = null;
+    window.urdfViewers = [];
+    window.urdfViewersById = {};
     
     // robot-container 클래스를 가진 모든 요소들 찾기
     const containers = $('.urdf-container, .robot-container').toArray();
@@ -1439,7 +1461,13 @@ function initURDFViewers() {
         
         console.log(`[URDF] 🔧 ${containerClass} 요소 초기화 중... (ViewIndex: ${viewIndex})`);
         
-        window.activeURDFViewer = new URDFViewer(container);
+        const viewer = new URDFViewer(container);
+        window.activeURDFViewer = viewer;
+        window.urdfViewers.push(viewer);
+
+        if (container.id) {
+            window.urdfViewersById[container.id] = viewer;
+        }
     });
 
     setDriveSpeedKmh($('#drive-speed-kmh').val());

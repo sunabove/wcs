@@ -651,7 +651,8 @@ class URDFViewer {
 
             if (runtimeTarget.type === 'link') {
                 const rotationAxis = this.viewerWheelKey ? 'x' : 'y';
-                runtimeTarget.ref.rotation[rotationAxis] = this.wheelAngles[key];
+                const rotationSign = this.viewerWheelKey ? -1 : 1;
+                runtimeTarget.ref.rotation[rotationAxis] = this.wheelAngles[key] * rotationSign;
             }
         });
     }

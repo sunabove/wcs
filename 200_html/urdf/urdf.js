@@ -360,10 +360,16 @@ class URDFViewer {
         toastElement.style.fontSize = '12px';
         toastElement.style.fontWeight = '700';
         toastElement.style.letterSpacing = '0.02em';
-        toastElement.style.pointerEvents = 'none';
+        toastElement.style.pointerEvents = 'auto';
+        toastElement.style.cursor = 'pointer';
         toastElement.style.display = 'none';
         toastElement.style.whiteSpace = 'nowrap';
-        toastElement.textContent = '(0.000, 0.000, 0.000)';
+        toastElement.title = 'Click to copy camera position';
+        toastElement.textContent = '0.000, 0.000, 0.000';
+
+        toastElement.addEventListener('click', () => {
+            this.copyCameraToastToClipboard();
+        });
 
         this.container.appendChild(toastElement);
         this.cameraToastElement = toastElement;
@@ -385,7 +391,43 @@ class URDFViewer {
         const px = formatPositionValue(this.camera.position.x);
         const py = formatPositionValue(this.camera.position.y);
         const pz = formatPositionValue(this.camera.position.z);
-        this.cameraToastElement.textContent = `(${px}, ${py}, ${pz})`;
+        this.cameraToastElement.textContent = `${px}, ${py}, ${pz}`;
+    }
+
+    copyCameraToastToClipboard() {
+        if (!this.cameraToastElement) {
+            return;
+        }
+
+        const textToCopy = this.cameraToastElement.textContent || '0.000, 0.000, 0.000';
+
+        if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+            navigator.clipboard.writeText(textToCopy).catch(() => {
+                this.copyTextToClipboardFallback(textToCopy);
+            });
+            return;
+        }
+
+        this.copyTextToClipboardFallback(textToCopy);
+    }
+
+    copyTextToClipboardFallback(text) {
+        const tempTextArea = document.createElement('textarea');
+        tempTextArea.value = text;
+        tempTextArea.setAttribute('readonly', '');
+        tempTextArea.style.position = 'fixed';
+        tempTextArea.style.left = '-9999px';
+        tempTextArea.style.top = '-9999px';
+        document.body.appendChild(tempTextArea);
+        tempTextArea.select();
+
+        try {
+            document.execCommand('copy');
+        } catch (error) {
+            console.warn('[URDF] 카메라 좌표 복사 실패:', error);
+        }
+
+        document.body.removeChild(tempTextArea);
     }
 
     showCameraToastOverlay() {

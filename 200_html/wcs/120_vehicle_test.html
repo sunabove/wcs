@@ -429,6 +429,15 @@
                 const selectedWheel = $('input[name="wheelTestPosition"]:checked').val().toLowerCase();
                 const topic = `wheel/${selectedWheel}/operation/command`;
 
+                // 휠 테스트 버튼은 항상 클릭된 버튼 하나만 하이라이트
+                $('#test-clockwise, #test-counterclockwise, #test-stop')
+                    .removeClass('active btn-secondary text-white')
+                    .addClass('btn-outline-secondary text-black');
+
+                buttonElement
+                    .removeClass('btn-outline-secondary text-black')
+                    .addClass('active btn-secondary text-white');
+
                 sendMQTTMessage(topic, command, 1);
 
                 if (Number(command) === 0) {

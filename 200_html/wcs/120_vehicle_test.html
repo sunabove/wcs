@@ -391,6 +391,32 @@
                 window.setVehicleWheelHighlightByKey(initialWheel);
             }
 
+            // 페이지 로드시 MQTT 시뮬레이션 중지 명령 1회 발행
+            (function publishSimulationStopOnLoad() {
+                let attemptCount = 0;
+                const maxAttempts = 20;
+                const retryIntervalMs = 250;
+
+                const tryPublish = () => {
+                    const isConnected = Boolean(window.mqttClient && window.mqttClient.connected);
+                    if (isConnected) {
+                        sendMQTTMessage('simulation/stop', '1', 1);
+                        console.log('[Vehicle Test] ⏸️ 페이지 로드시 simulation/stop 발행 완료');
+                        return;
+                    }
+
+                    attemptCount += 1;
+                    if (attemptCount >= maxAttempts) {
+                        console.warn('[Vehicle Test] ⚠️ MQTT 미연결로 simulation/stop 자동 발행을 건너뜀');
+                        return;
+                    }
+
+                    setTimeout(tryPublish, retryIntervalMs);
+                };
+
+                tryPublish();
+            })();
+
             // 바퀴 테스트 명령 전송 함수
             function sendWheelCommand(command, buttonElement, actionName, icon) {
                 const selectedWheel = $('input[name="wheelTestPosition"]:checked').val().toLowerCase();

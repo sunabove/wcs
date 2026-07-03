@@ -831,16 +831,16 @@ class URDFViewer {
 
     createAxisLabel(text, colorHex, position) {
         const canvas = document.createElement('canvas');
-        canvas.width = 128;
-        canvas.height = 128;
+        canvas.width = 256;
+        canvas.height = 256;
 
         const context = canvas.getContext('2d');
         context.clearRect(0, 0, canvas.width, canvas.height);
-        context.font = 'bold 76px Arial';
+        context.font = 'bold 144px Arial';
         context.fillStyle = colorHex;
         context.textAlign = 'center';
         context.textBaseline = 'middle';
-        context.fillText(text, 64, 64);
+        context.fillText(text, 128, 128);
 
         const texture = new THREE.CanvasTexture(canvas);
         texture.needsUpdate = true;
@@ -856,6 +856,8 @@ class URDFViewer {
         sprite.position.copy(position);
         sprite.scale.set(0.2, 0.2, 0.2);
         sprite.renderOrder = 1000;
+        sprite.userData.axisLabelText = text;
+        sprite.userData.axisLabelColor = colorHex;
 
         return sprite;
     }
@@ -878,6 +880,33 @@ class URDFViewer {
         this.axisLabelSprites = [xLabel, yLabel, zLabel];
     }
 
+    redrawAxisLabelSpriteFont(sprite, fontPx) {
+        if (!sprite || !sprite.material || !sprite.material.map) {
+            return;
+        }
+
+        const canvas = sprite.material.map.image;
+        if (!canvas) {
+            return;
+        }
+
+        const context = canvas.getContext('2d');
+        if (!context) {
+            return;
+        }
+
+        const text = sprite.userData.axisLabelText || '';
+        const color = sprite.userData.axisLabelColor || '#ffffff';
+
+        context.clearRect(0, 0, canvas.width, canvas.height);
+        context.font = `bold ${fontPx}px Arial`;
+        context.fillStyle = color;
+        context.textAlign = 'center';
+        context.textBaseline = 'middle';
+        context.fillText(text, canvas.width / 2, canvas.height / 2);
+        sprite.material.map.needsUpdate = true;
+    }
+
     updateAxisLabelScaleByModelSize(modelSizeVec3) {
         if (!modelSizeVec3 || this.axisLabelSprites.length === 0) {
             return;
@@ -886,12 +915,14 @@ class URDFViewer {
         const sizeX = Number.isFinite(modelSizeVec3.x) ? modelSizeVec3.x : 0;
         const sizeY = Number.isFinite(modelSizeVec3.y) ? modelSizeVec3.y : 0;
         const sizeZ = Number.isFinite(modelSizeVec3.z) ? modelSizeVec3.z : 0;
-        const longestSize = Math.max(sizeX, sizeY, sizeZ, 0.001);
-        const labelScale = longestSize * this.axisLabelScaleRatio;
+        const diagonalSize = Math.max(Math.sqrt((sizeX * sizeX) + (sizeY * sizeY) + (sizeZ * sizeZ)), 0.001);
+        const labelScale = diagonalSize * this.axisLabelScaleRatio;
+        const fontPx = Math.max(48, Math.min(220, Math.round(diagonalSize * 42)));
 
         this.axisLabelSprites.forEach(sprite => {
             if (sprite) {
                 sprite.scale.set(labelScale, labelScale, labelScale);
+                this.redrawAxisLabelSpriteFont(sprite, fontPx);
             }
         });
     }

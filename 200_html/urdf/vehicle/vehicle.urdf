@@ -34,6 +34,14 @@
     <color rgba="0.95 0.95 0.20 1.0"/>
   </material>
 
+  <material name="roll_mark">
+    <color rgba="0.95 0.25 0.25 1.0"/>
+  </material>
+
+  <material name="pitch_mark">
+    <color rgba="0.25 0.45 0.95 1.0"/>
+  </material>
+
   <material name="head_light">
     <color rgba="1.00 0.98 0.85 1.0"/>
   </material>
@@ -133,6 +141,39 @@
         <box size="0.10 0.02 0.004"/>
       </geometry>
       <material name="arrow_mark"/>
+    </visual>
+
+    <!-- Roll/Pitch indicators on the top center of the body -->
+    <visual>
+      <origin xyz="0.0566667 0.0000 0.255" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.18 0.012 0.004"/>
+      </geometry>
+      <material name="roll_mark"/>
+    </visual>
+
+    <visual>
+      <origin xyz="0.0566667 0.0900 0.255" rpy="0 0 0.785398"/>
+      <geometry>
+        <box size="0.040 0.012 0.004"/>
+      </geometry>
+      <material name="roll_mark"/>
+    </visual>
+
+    <visual>
+      <origin xyz="0.0566667 0.0000 0.255" rpy="0 0 1.5707963"/>
+      <geometry>
+        <box size="0.18 0.012 0.004"/>
+      </geometry>
+      <material name="pitch_mark"/>
+    </visual>
+
+    <visual>
+      <origin xyz="0.1466667 0.0000 0.255" rpy="0 0 2.3561945"/>
+      <geometry>
+        <box size="0.040 0.012 0.004"/>
+      </geometry>
+      <material name="pitch_mark"/>
     </visual>
 
     <!-- Front head lights -->

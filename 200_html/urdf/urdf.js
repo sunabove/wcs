@@ -9,6 +9,7 @@ class URDFViewer {
     constructor(containerElement) {
         this.container = containerElement;
         this.robotModel = null;
+        this.xyGridHelper = null;
         this.directionalLight = null;
         this.directionalLightRadius = 1;
         this.goalTarget = new THREE.Vector3(0, 0, 0);
@@ -162,6 +163,7 @@ class URDFViewer {
         // 바닥 그리드와 축 추가
         const gridHelper = new THREE.GridHelper(10, 20, 0x888888, 0xcccccc);
         gridHelper.rotation.x = Math.PI / 2;
+        gridHelper.visible = false;
         gridHelper.renderOrder = 999;
         if (Array.isArray(gridHelper.material)) {
             gridHelper.material.forEach(material => {
@@ -173,6 +175,7 @@ class URDFViewer {
             gridHelper.material.depthWrite = false;
         }
         this.scene.add(gridHelper);
+        this.xyGridHelper = gridHelper;
 
         const axesHelper = new THREE.AxesHelper(1);
         axesHelper.renderOrder = 999;
@@ -868,6 +871,12 @@ class URDFViewer {
         const mouse = new THREE.Vector2();
 
         this.container.addEventListener('mousedown', (event) => {
+            if (event.ctrlKey && this.xyGridHelper) {
+                this.xyGridHelper.visible = !this.xyGridHelper.visible;
+                console.log(`[URDF] XY grid ${this.xyGridHelper.visible ? 'ON' : 'OFF'}`);
+                return;
+            }
+
             const rect = this.container.getBoundingClientRect();
             const width = rect.width;
             const height = rect.height;

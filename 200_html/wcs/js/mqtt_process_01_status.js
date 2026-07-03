@@ -236,9 +236,11 @@ function applyWheelAngularVelocityToViewer(topic, value) {
     }
 
     const isAngularTopic =
+        metricPath === 'angle/speed' ||
         metricPath.includes('angular/velocity') ||
         metricPath.includes('angular_velocity') ||
         metricPath.includes('angular/speed') ||
+        metricPath.includes('angle/speed') ||
         metricPath.includes('omega') ||
         metricPath.includes('rotational/speed') ||
         metricPath.includes('rpm') ||
@@ -286,11 +288,17 @@ function convertAngularMetricToRpm(metricPath, value) {
         return absValue / 6;
     }
 
+    if (metricPath === 'angle/speed') {
+        // 프로젝트 표준 토픽: wheel/{id}/angle/speed 는 rad/s 로 해석
+        return (absValue * 60) / (2 * Math.PI);
+    }
+
     if (
         metricPath.includes('rad/s') ||
         metricPath.includes('angular/velocity') ||
         metricPath.includes('angular_velocity') ||
         metricPath.includes('angular/speed') ||
+        metricPath.includes('angle/speed') ||
         metricPath.includes('omega') ||
         metricPath.includes('rotational/speed')
     ) {

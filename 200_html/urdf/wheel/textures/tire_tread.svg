@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="2048" height="256" viewBox="0 0 2048 256">
+  <defs>
+    <pattern id="diag" width="64" height="256" patternUnits="userSpaceOnUse">
+      <rect width="64" height="256" fill="#141414"/>
+      <path d="M-8 256 L36 0" stroke="#3c3d40" stroke-width="10"/>
+      <path d="M24 256 L68 0" stroke="#2f3134" stroke-width="8"/>
+    </pattern>
+  </defs>
+
+  <rect width="2048" height="256" fill="url(#diag)"/>
+
+  <g opacity="0.65">
+    <rect x="0" y="52" width="2048" height="10" fill="#1f2022"/>
+    <rect x="0" y="194" width="2048" height="10" fill="#1f2022"/>
+  </g>
+
+  <g opacity="0.35">
+    <path d="M0 128 H2048" stroke="#4d5055" stroke-width="4" stroke-dasharray="12 20"/>
+  </g>
+</svg>

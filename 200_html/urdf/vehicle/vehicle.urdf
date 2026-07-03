@@ -195,12 +195,12 @@
     <origin xyz="0 0 0.10" rpy="0 0 1.5707963"/>
   </joint>
 
-  <!-- Ground patch under the vehicle (about 2x body footprint area) -->
+  <!-- Ground patch under the vehicle (2x vehicle body length) -->
   <link name="ground_patch">
     <visual>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <box size="8.00 1.80 0.005"/>
+        <box size="2.00 1.80 0.005"/>
       </geometry>
       <material name="ground_surface"/>
     </visual>

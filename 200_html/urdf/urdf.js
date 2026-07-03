@@ -152,6 +152,19 @@ class URDFViewer {
         return wheelKey;
     }
 
+    setViewerWheelKey(key) {
+        const normalizedKey = String(key || '').trim().toLowerCase();
+        if (!Object.prototype.hasOwnProperty.call(this.wheelSpeedRpmByKey, normalizedKey)) {
+            return;
+        }
+
+        this.viewerWheelKey = normalizedKey;
+
+        if (this.robotModel) {
+            this.resolveWheelAnimationTargets();
+        }
+    }
+
     init() {
         // 동적 크기 계산
         const containerRect = this.container.getBoundingClientRect();
@@ -1376,6 +1389,11 @@ function getWheelAnimationTargetViewersByKey(key) {
         viewers.push(wheelViewer);
     }
 
+    const genericWheelViewer = window.urdfViewersById?.['wheel-urdf-viewer'] || null;
+    if (genericWheelViewer && !viewers.includes(genericWheelViewer)) {
+        viewers.push(genericWheelViewer);
+    }
+
     return viewers;
 }
 
@@ -1399,6 +1417,15 @@ function getWheelAnimationTargetViewer() {
 }
 
 globalThis.setWheelAnimationByKey = setWheelAnimationByKey;
+
+globalThis.setWheelViewerKey = function(key) {
+    const viewer = window.urdfViewersById?.['wheel-urdf-viewer'] || null;
+    if (!viewer || typeof viewer.setViewerWheelKey !== 'function') {
+        return;
+    }
+
+    viewer.setViewerWheelKey(key);
+};
 
 globalThis.setVehicleWheelHighlightByKey = function(key) {
     window.pendingVehicleWheelHighlightKey = String(key || '').trim().toLowerCase();

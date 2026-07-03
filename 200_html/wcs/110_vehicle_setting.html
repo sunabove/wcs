@@ -464,6 +464,10 @@
                 // 바퀴 속성 정보 ID 업데이트
                 updateWheelDataIds();
 
+                if (typeof window.setWheelViewerKey === 'function') {
+                    window.setWheelViewerKey(selectedWheel.toLowerCase());
+                }
+
                 if (typeof window.setVehicleWheelHighlightByKey === 'function') {
                     window.setVehicleWheelHighlightByKey(selectedWheel.toLowerCase());
                 }
@@ -501,6 +505,10 @@
             const initialWheel = $('input[name="wheelPosition"]:checked').val().toLowerCase();
             if (typeof window.setVehicleWheelHighlightByKey === 'function') {
                 window.setVehicleWheelHighlightByKey(initialWheel);
+            }
+
+            if (typeof window.setWheelViewerKey === 'function') {
+                window.setWheelViewerKey(initialWheel);
             }
 
             // 최고 속도 설정 버튼 클릭 이벤트

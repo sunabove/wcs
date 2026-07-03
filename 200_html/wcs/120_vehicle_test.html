@@ -172,21 +172,19 @@
                                 </div>
                                 <!-- // FL, FR 위치 정보 -->
                                 
-                                <!-- 차량 이미지 -->
+                                <!-- 차량 URDF 뷰어 -->
                                 <div class="row"> 
-                                    <div class="col-md-12">
-                                        <img id="vehicle-image" src="img/vehicle.png" alt="Vehicle Image" class="p-3 img-fluid" > 
-                                    </div> 
-                                </div>
-
-                                <div class="row"> 
-                                    <div class="col-md-12">
-                                        <div id="vehicle-urdf-container" urdf="/urdf/vehicle/vehicle.urdf" urdf-scale="1" urdf-rotation="-90,0,0" class="urdf-container border border-1 p-0 align-items-center justify-content-center" >
-                                            <img src="img/vehicle.png" alt="Vehicle Image" class="img-fluid mb-2">
+                                    <div class="col-md-12 p-2 d-flex align-items-center justify-content-center">
+                                        <div class="urdf-container w-100 h-100 rounded-4 overflow-hidden border border-dark border-2"
+                                            id="vehicle-urdf-viewer"
+                                            urdf="/urdf/vehicle/vehicle.urdf"
+                                            cameraPosition="-0.044, -0.906, 1.529"
+                                            showAttitude="false"
+                                            style="min-height: 50vh;">
                                         </div>
                                     </div> 
-                                </div>
-                                <!-- // 차량 이미지 -->
+                                </div> 
+                                <!-- // 차량 URDF 뷰어 -->
 
                                 <!-- RL, RR 위치 정보 -->
                                 <div class="row">
@@ -377,30 +375,21 @@
     <!-- Vehicle Test 페이지 전용 JavaScript -->
     <script>
         $(document).ready(function() {
-            // 바퀴 선택에 따른 차량 이미지 업데이트 함수
-            function updateVehicleImage() {
-                const selectedWheel = $('input[name="wheelTestPosition"]:checked').val().toLowerCase();
-                const newImageSrc = `img/vehicle_wheel_${selectedWheel}_selected.png`;
-                $('#vehicle-image').attr('src', newImageSrc);
-                console.log(`[Vehicle Test] 🖼️ 차량 이미지 업데이트: ${newImageSrc}`);
-            }
-
             // 바퀴 선택 변경 이벤트
             $('input[name="wheelTestPosition"]').change(function() {
                 const selectedWheel = $(this).val();
                 console.log(`[Vehicle Test] 🎯 바퀴 선택 변경: ${selectedWheel}`);
-                
-                // 차량 이미지 업데이트
-                updateVehicleImage();
-                
-                // 선택된 바퀴에 따른 시각적 피드백
-                $('#vehicle-image')
-                    .animate({opacity: 0.8}, 200)
-                    .animate({opacity: 1}, 200);
+
+                if (typeof window.setVehicleWheelHighlightByKey === 'function') {
+                    window.setVehicleWheelHighlightByKey(selectedWheel.toLowerCase());
+                }
             });
 
-            // 페이지 로드시 초기 차량 이미지 설정
-            updateVehicleImage();
+            // 페이지 로드시 초기 선택 바퀴 하이라이트
+            const initialWheel = $('input[name="wheelTestPosition"]:checked').val().toLowerCase();
+            if (typeof window.setVehicleWheelHighlightByKey === 'function') {
+                window.setVehicleWheelHighlightByKey(initialWheel);
+            }
 
             // 바퀴 테스트 명령 전송 함수
             function sendWheelCommand(command, buttonElement, actionName, icon) {
@@ -473,43 +462,35 @@
 
             // 테스트 버튼 이벤트 - 통합된 함수 사용
             $('#test-clockwise').click(function() {
-                $('#vehicle-image').attr('src', 'img/vehicle_forward.gif');
                 sendWheelCommand(1, $(this), '정회전', '⏰');
             });
 
             $('#test-counterclockwise').click(function() {
-                $('#vehicle-image').attr('src', 'img/vehicle_backward.gif');
                 sendWheelCommand(2, $(this), '역회전', '↩️');
             });
 
             $('#test-stop').click(function() {
-                $('#vehicle-image').attr('src', 'img/vehicle.png');
                 sendWheelCommand(0, $(this), '정지', '⏹️');
             });
 
             // 차량 제어 버튼 이벤트
             $('#vehicle-forward').click(function() {
-                $('#vehicle-image').attr('src', 'img/vehicle_forward.gif');
                 sendVehicleCommand(1, $(this), '전진', '⬆️');
             });
 
             $('#vehicle-backward').click(function() {
-                $('#vehicle-image').attr('src', 'img/vehicle_backward.gif');
                 sendVehicleCommand(2, $(this), '후진', '⬇️');
             });
 
             $('#vehicle-turn-left').click(function() {
-                $('#vehicle-image').attr('src', 'img/vehicle_left.gif?t=' + Date.now());
                 sendVehicleCommand(3, $(this), '좌회전', '⬅️'); 
             });
 
             $('#vehicle-turn-right').click(function() {
-                $('#vehicle-image').attr('src', 'img/vehicle_right.gif?t=' + Date.now());
                 sendVehicleCommand(4, $(this), '우회전', '➡️'); 
             });
 
             $('#vehicle-stop').click(function() {
-                $('#vehicle-image').attr('src', 'img/vehicle.png');
                 sendVehicleCommand(0, $(this), '정지', '⏹️');
             });
 

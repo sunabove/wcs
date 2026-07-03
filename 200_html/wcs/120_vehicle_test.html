@@ -270,13 +270,13 @@
                                             <label class="form-label fw-bold"><i class="bi bi-controller me-2"></i>휠 동작 선택</label>
 
                                             <div class="d-grid gap-2 h-100">
-                                                <button type="button" class="btn btn-success text-black fw-bold fs-5" id="test-clockwise">
+                                                <button type="button" class="btn btn-outline-secondary text-black fw-bold fs-5" id="test-clockwise">
                                                     <i class="bi bi-arrow-clockwise me-1 fs-4"></i>정회전
                                                 </button>
-                                                <button type="button" class="btn btn-warning text-black fw-bold fs-5" id="test-counterclockwise">
+                                                <button type="button" class="btn btn-outline-secondary text-black fw-bold fs-5" id="test-counterclockwise">
                                                     <i class="bi bi-arrow-counterclockwise me-1 fs-4"></i>역회전
                                                 </button>
-                                                <button type="button" class="btn btn-danger text-black fw-bold fs-5" id="test-stop">
+                                                <button type="button" class="btn btn-outline-secondary text-black fw-bold fs-5" id="test-stop">
                                                     <i class="bi bi-stop-fill me-1 fs-4"></i>정지
                                                 </button>
                                             </div>
@@ -428,6 +428,12 @@
                 const topic = `wheel/${selectedWheel}/operation/command`;
 
                 sendMQTTMessage(topic, command, 1);
+
+                if (Number(command) === 0) {
+                    // 정지 시점에 선택된 휠의 각속도를 즉시 0으로 맞춘다.
+                    sendMQTTMessage(`wheel/${selectedWheel}/angle/speed`, '0', 1);
+                }
+
                 console.log(`[Vehicle Test] ${icon} ${selectedWheel.toUpperCase()} 바퀴 ${actionName} 명령 전송: ${topic} = ${command}`);
                 
                 // 버튼 피드백 - 더 명확한 시각적 효과

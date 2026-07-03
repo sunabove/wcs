@@ -35,6 +35,9 @@ class SurfaceState(IntEnum):
 
 WHEEL_IDS = ["fl", "fr", "rr", "rl"]
 
+# 일반 승용차(16~18인치급) 외경 기준 반지름: 약 0.31~0.33m
+PASSENGER_CAR_WHEEL_RADIUS_M = 0.32
+
 # 바퀴 ID 매핑 (문자열 -> 숫자)
 WHEEL_ID_MAPPING = {
     "fl": 1,  # Front Left
@@ -521,6 +524,8 @@ class MqttSimulator:
 
     def _update_wheels(self):
         """시내 주행과 연동된 현실적인 바퀴 데이터 생성"""
+        wheel_radius = PASSENGER_CAR_WHEEL_RADIUS_M
+
         # 노면 상태에 따른 바퀴별 영향 (시내 도로 특성)
         surface_effects = {
             SurfaceState.ROAD: {"grip": 1.0, "vibration": 0.05, "power_loss": 1.0, "wear": 0.01},
@@ -594,7 +599,6 @@ class MqttSimulator:
             
             # 바퀴 회전각 (속도에 비례하여 증가, 림 사이즈 고려)
             if w["speed"] > 0.01:
-                wheel_radius = 0.18  # 18cm 반지름 (시내 주행용 타이어)
                 rotation_speed = w["speed"] / wheel_radius  # rad/s
                 
                 # 미끄러짐 효과 (노면 상태에 따라)

@@ -673,96 +673,6 @@ class URDFViewer {
         return sprite;
     }
 
-    createTireTreadCanvasTexture() {
-        const canvas = document.createElement('canvas');
-        canvas.width = 1024;
-        canvas.height = 256;
-
-        const ctx = canvas.getContext('2d');
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-        ctx.fillStyle = '#141414';
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-        // Diagonal tread grooves
-        ctx.strokeStyle = '#3a3c3f';
-        ctx.lineWidth = 10;
-        for (let x = -64; x < canvas.width + 128; x += 64) {
-            ctx.beginPath();
-            ctx.moveTo(x, canvas.height);
-            ctx.lineTo(x + 44, 0);
-            ctx.stroke();
-        }
-
-        // Shoulder bands
-        ctx.fillStyle = 'rgba(32, 34, 37, 0.8)';
-        ctx.fillRect(0, 50, canvas.width, 10);
-        ctx.fillRect(0, 196, canvas.width, 10);
-
-        // Center dashed guide
-        ctx.strokeStyle = 'rgba(80, 84, 90, 0.55)';
-        ctx.lineWidth = 4;
-        ctx.setLineDash([12, 20]);
-        ctx.beginPath();
-        ctx.moveTo(0, 128);
-        ctx.lineTo(canvas.width, 128);
-        ctx.stroke();
-        ctx.setLineDash([]);
-
-        const texture = new THREE.CanvasTexture(canvas);
-        texture.wrapS = THREE.RepeatWrapping;
-        texture.wrapT = THREE.RepeatWrapping;
-        texture.repeat.set(3.5, 1.0);
-        texture.needsUpdate = true;
-
-        return texture;
-    }
-
-    applyTireTreadTexture(robot) {
-        if (!robot) {
-            return;
-        }
-
-        const treadTexture = this.createTireTreadCanvasTexture();
-
-        robot.traverse(node => {
-            if (!node || !node.isMesh || !node.geometry || !node.geometry.parameters) {
-                return;
-            }
-
-            const params = node.geometry.parameters;
-            const isWheelTireCylinder =
-                node.geometry.type === 'CylinderGeometry' &&
-                Number.isFinite(params.radiusTop) &&
-                Number.isFinite(params.radiusBottom) &&
-                Number.isFinite(params.height) &&
-                params.radiusTop >= 0.15 &&
-                params.radiusBottom >= 0.15 &&
-                params.height >= 0.095 &&
-                params.height <= 0.105;
-
-            if (!isWheelTireCylinder) {
-                return;
-            }
-
-            const nextMaterial = new THREE.MeshStandardMaterial({
-                color: 0x111111,
-                map: treadTexture,
-                metalness: 0.05,
-                roughness: 0.92
-            });
-
-            if (Array.isArray(node.material)) {
-                node.material.forEach(mat => mat?.dispose?.());
-            } else {
-                node.material?.dispose?.();
-            }
-
-            node.material = nextMaterial;
-            node.castShadow = true;
-            node.receiveShadow = true;
-        });
-    }
 
     addAxisLabels(axisLength) {
         const margin = 0.14;
@@ -813,7 +723,6 @@ class URDFViewer {
 
                 this.scene.add(robot);
                 this.robotModel = robot;
-                this.applyTireTreadTexture(robot);
                 this.resolveWheelAnimationTargets();
                 this.applyRoadAttitudeAngles();
 

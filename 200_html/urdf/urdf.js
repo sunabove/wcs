@@ -575,7 +575,7 @@ class URDFViewer {
         const px = formatPositionValue(this.camera.position.x);
         const py = formatPositionValue(this.camera.position.y);
         const pz = formatPositionValue(this.camera.position.z);
-        const positionText = `(${px}, ${py}, ${pz})`;
+        const positionText = `${px}, ${py}, ${pz}`;
 
         if (this.cameraPosTextElement && this.cameraPosTextElement.length > 0) {
             this.cameraPosTextElement.text(positionText);

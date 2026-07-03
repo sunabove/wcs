@@ -72,6 +72,16 @@ class URDFViewer {
             rl: null,
             rr: null
         };
+        this.wheelSurfaceMeshesByKey = {
+            fl: [],
+            fr: [],
+            rl: [],
+            rr: []
+        };
+        this.wheelSurfaceNeutralColor = new THREE.Color(0x141414);
+        this.wheelSurfaceAccentColor = new THREE.Color(0x2f9bff);
+        this.maxWheelVisualRpm = 120;
+        this.wheelColorSmoothingSpeed = 8;
         this.roadRollAngleDeg = 0;
         this.roadPitchAngleDeg = 0;
         this.attitudeOverlayElement = null;
@@ -628,6 +638,9 @@ class URDFViewer {
                 return;
             }
 
+            const wheelRpm = Math.abs(this.wheelSpeedRpmByKey[key] || 0);
+            this.updateWheelSurfaceColorByRpm(key, wheelRpm, deltaSec);
+
             const wheelAngularSpeedRad = this.wheelAngularSpeedRadByKey[key] || 0;
             if (Math.abs(wheelAngularSpeedRad) <= 0) {
                 return;
@@ -644,6 +657,76 @@ class URDFViewer {
             if (runtimeTarget.type === 'link') {
                 runtimeTarget.ref.rotation.y = this.wheelAngles[key];
             }
+        });
+    }
+
+    resolveWheelSurfaceMeshes() {
+        const linkMap = this.robotModel?.links || {};
+
+        Object.keys(this.wheelLinkNameByKey).forEach(key => {
+            const expectedLinkName = this.wheelLinkNameByKey[key];
+            const link = linkMap[expectedLinkName] || null;
+            const meshes = [];
+
+            if (link) {
+                link.traverse(node => {
+                    if (!node || !node.isMesh || !node.material) {
+                        return;
+                    }
+
+                    const materialList = Array.isArray(node.material) ? node.material : [node.material];
+                    const hasDarkSurfaceMaterial = materialList.some(material => {
+                        if (!material || !material.color) {
+                            return false;
+                        }
+
+                        const hsl = { h: 0, s: 0, l: 0 };
+                        material.color.getHSL(hsl);
+                        return hsl.l <= 0.35;
+                    });
+
+                    if (!hasDarkSurfaceMaterial) {
+                        return;
+                    }
+
+                    if (Array.isArray(node.material)) {
+                        node.material = node.material.map(material => material?.clone?.() || material);
+                    } else if (node.material?.clone) {
+                        node.material = node.material.clone();
+                    }
+
+                    meshes.push(node);
+                });
+            }
+
+            this.wheelSurfaceMeshesByKey[key] = meshes;
+        });
+    }
+
+    updateWheelSurfaceColorByRpm(key, rpm, deltaSec) {
+        const wheelMeshes = this.wheelSurfaceMeshesByKey[key] || [];
+        if (wheelMeshes.length === 0) {
+            return;
+        }
+
+        const normalized = THREE.MathUtils.clamp((rpm || 0) / this.maxWheelVisualRpm, 0, 1);
+        const blend = normalized * 0.9;
+        const targetColor = this.wheelSurfaceNeutralColor.clone().lerp(this.wheelSurfaceAccentColor, blend);
+        const lerpAlpha = THREE.MathUtils.clamp(1 - Math.exp(-this.wheelColorSmoothingSpeed * Math.max(deltaSec || 0, 0)), 0, 1);
+        const targetEmissive = this.wheelSurfaceAccentColor.clone().multiplyScalar(0.25 * normalized);
+
+        wheelMeshes.forEach(mesh => {
+            const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+            materials.forEach(material => {
+                if (!material || !material.color) {
+                    return;
+                }
+
+                material.color.lerp(targetColor, lerpAlpha);
+                if (material.emissive) {
+                    material.emissive.lerp(targetEmissive, lerpAlpha);
+                }
+            });
         });
     }
 
@@ -691,6 +774,8 @@ class URDFViewer {
         const jointMap = this.robotModel?.joints || {};
         const linkMap = this.robotModel?.links || {};
         const jointNames = Object.keys(jointMap);
+
+        this.resolveWheelSurfaceMeshes();
 
         Object.keys(this.wheelJointNameByKey).forEach(key => {
             const expectedJointName = this.wheelJointNameByKey[key];

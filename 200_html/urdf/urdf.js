@@ -15,6 +15,9 @@ class URDFViewer {
         this.lastAngleLogAt = 0;
         this.angleLogIntervalMs = 120;
         this.cameraPosTextElement = null;
+        this.cameraToastElement = null;
+        this.cameraToastHideTimer = null;
+        this.cameraToastHideDelayMs = 1200;
         this.lastFrameTimeMs = performance.now();
         this.wheelSpeedInputByKey = {};
         this.wheelSpeedValueByKey = {};
@@ -139,6 +142,7 @@ class URDFViewer {
         this.controls.dampingFactor = 0.05;
         this.cameraPosTextElement = $('#camera-pos-text');
         this.setupCameraAngleLogging();
+        this.setupCameraToastOverlay();
         this.setupWheelControls();
         if (this.showAttitude) {
             this.setupAttitudeOverlay();
@@ -325,11 +329,105 @@ class URDFViewer {
         this.controls.addEventListener('end', () => {
             this.isDragging = false;
             this.logCameraInfos(true);
+            this.hideCameraToastOverlayLater();
         });
 
         this.controls.addEventListener('change', () => {
+            if (this.isDragging) {
+                this.updateCameraToastOverlay();
+                this.showCameraToastOverlay();
+            }
             this.logCameraInfos(false);
         });
+    }
+
+    setupCameraToastOverlay() {
+        if (!this.container || this.cameraToastElement) {
+            return;
+        }
+
+        const toastElement = document.createElement('div');
+        toastElement.style.position = 'absolute';
+        toastElement.style.right = '12px';
+        toastElement.style.bottom = '12px';
+        toastElement.style.zIndex = '20';
+        toastElement.style.padding = '8px 10px';
+        toastElement.style.background = 'rgba(17, 17, 17, 0.82)';
+        toastElement.style.border = '1px solid rgba(255, 255, 255, 0.12)';
+        toastElement.style.borderRadius = '10px';
+        toastElement.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.22)';
+        toastElement.style.color = '#ffffff';
+        toastElement.style.fontSize = '12px';
+        toastElement.style.fontWeight = '700';
+        toastElement.style.letterSpacing = '0.02em';
+        toastElement.style.pointerEvents = 'none';
+        toastElement.style.display = 'none';
+        toastElement.style.whiteSpace = 'pre';
+        toastElement.textContent = 'x 0.000\ny 0.000\nz 0.000';
+
+        this.container.appendChild(toastElement);
+        this.cameraToastElement = toastElement;
+    }
+
+    updateCameraToastOverlay() {
+        if (!this.cameraToastElement) {
+            return;
+        }
+
+        const formatPositionValue = (value) => {
+            const numberValue = Number(value);
+            if (!Number.isFinite(numberValue)) {
+                return '0.000';
+            }
+            return numberValue.toFixed(3);
+        };
+
+        const px = formatPositionValue(this.camera.position.x);
+        const py = formatPositionValue(this.camera.position.y);
+        const pz = formatPositionValue(this.camera.position.z);
+        this.cameraToastElement.textContent = `x ${px}\ny ${py}\nz ${pz}`;
+    }
+
+    showCameraToastOverlay() {
+        if (!this.cameraToastElement) {
+            return;
+        }
+
+        this.cameraToastElement.style.display = 'block';
+
+        if (this.cameraToastHideTimer) {
+            clearTimeout(this.cameraToastHideTimer);
+        }
+
+        this.cameraToastHideTimer = setTimeout(() => {
+            this.hideCameraToastOverlay();
+        }, this.cameraToastHideDelayMs);
+    }
+
+    hideCameraToastOverlay() {
+        if (!this.cameraToastElement) {
+            return;
+        }
+
+        this.cameraToastElement.style.display = 'none';
+        if (this.cameraToastHideTimer) {
+            clearTimeout(this.cameraToastHideTimer);
+            this.cameraToastHideTimer = null;
+        }
+    }
+
+    hideCameraToastOverlayLater() {
+        if (!this.cameraToastElement) {
+            return;
+        }
+
+        if (this.cameraToastHideTimer) {
+            clearTimeout(this.cameraToastHideTimer);
+        }
+
+        this.cameraToastHideTimer = setTimeout(() => {
+            this.hideCameraToastOverlay();
+        }, this.cameraToastHideDelayMs);
     }
 
     setupWheelControls() {

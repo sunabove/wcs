@@ -245,7 +245,7 @@ class URDFViewer {
                 state.material.needsUpdate = true;
             });
             this.wheelFlashTimeoutId = null;
-        }, 120);
+        }, 1000);
     }
 
     init() {

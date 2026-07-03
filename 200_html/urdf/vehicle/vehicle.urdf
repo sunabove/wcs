@@ -19,7 +19,7 @@
   </material>
 
   <material name="ground_surface">
-    <color rgba="0.96 0.96 0.96 1.0"/>
+    <color rgba="0.99 0.99 0.99 1.0"/>
   </material>
 
   <material name="ellipsoid_surface">

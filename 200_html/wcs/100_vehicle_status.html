@@ -511,11 +511,11 @@
                     <div class="card-header text-center">
                         <h4 class="mb-0">노면 상태</h4>
                     </div>
-                    <div class="card-body p-2">
-                        <div class="row h-100">
+                    <div class="card-body p-1">
+                        <div class="row h-100 g-1">
                             <div class="col-md-3 d-flex">
                                 <div id="vehicle/surface/state/0" class="card text-center h-100 w-100 border-primary border-3">
-                                    <div class="card-body d-flex flex-column justify-content-center">
+                                    <div class="card-body p-2 d-flex flex-column justify-content-center">
                                         <h5 class="card-title mb-2 text-primary fw-bold">아스팔트</h5>
                                         <i class="fas fa-road fs-1 text-primary my-2"></i>
                                         <span class="badge bg-success fs-6 mt-2">양호</span>
@@ -525,7 +525,7 @@
                             </div>
                             <div class="col-md-3 d-flex">
                                 <div id="vehicle/surface/state/1" class="card text-center h-100 w-100">
-                                    <div class="card-body d-flex flex-column justify-content-center">
+                                    <div class="card-body p-2 d-flex flex-column justify-content-center">
                                         <h5 class="card-title mb-2">보도블록</h5>
                                         <i class="fas fa-th-large fs-1 text-secondary my-2"></i>
                                         <span class="badge bg-warning fs-6 mt-2">주의</span>
@@ -534,7 +534,7 @@
                             </div>
                             <div class="col-md-3 d-flex">
                                 <div id="vehicle/surface/state/2" class="card text-center h-100 w-100">
-                                    <div class="card-body d-flex flex-column justify-content-center">
+                                    <div class="card-body p-2 d-flex flex-column justify-content-center">
                                         <h5 class="card-title mb-2">흙길</h5>
                                         <i class="fas fa-mountain fs-1 text-warning my-2"></i>
                                         <span class="badge bg-warning fs-6 mt-2">주의</span>
@@ -543,7 +543,7 @@
                             </div>
                             <div class="col-md-3 d-flex">
                                 <div id="vehicle/surface/state/3" class="card text-center h-100 w-100">
-                                    <div class="card-body d-flex flex-column justify-content-center">
+                                    <div class="card-body p-2 d-flex flex-column justify-content-center">
                                         <h5 class="card-title mb-2">자갈길</h5>
                                         <i class="fas fa-exclamation-triangle fs-1 text-warning my-2"></i>
                                         <span class="badge bg-warning fs-6 mt-2">주의</span>
@@ -561,21 +561,30 @@
                     <div class="card-header text-center">
                         <h4 class="mb-0">장애물 (vehicle/surface/obstacle)</h4>
                     </div>
-                    <div class="card-body p-2">
-                        <div class="row h-100">
-                            <div class="col-md-6 d-flex">
+                    <div class="card-body p-1">
+                        <div class="row h-100 g-1">
+                            <div class="col-md-4 d-flex">
                                 <div id="vehicle/surface/obstacle/0" class="card text-center h-100 w-100 border-primary border-3">
-                                    <div class="card-body d-flex flex-column justify-content-center">
-                                        <h5 class="card-title mb-2 text-primary fw-bold">빙판길</h5>
-                                        <i class="fas fa-snowflake fs-1 text-primary my-2"></i>
-                                        <span class="badge bg-danger fs-6 mt-2">위험</span>
+                                    <div class="card-body p-2 d-flex flex-column justify-content-center">
+                                        <h5 class="card-title mb-2 text-primary fw-bold">없음</h5>
+                                        <i class="fas fa-check-circle fs-1 text-success my-2"></i>
+                                        <span class="badge bg-success fs-6 mt-2">정상</span>
                                         <small class="text-primary mt-1 fw-bold">현재 선택됨</small>
                                     </div>
                                 </div>
                             </div>
-                            <div class="col-md-6 d-flex">
+                            <div class="col-md-4 d-flex">
                                 <div id="vehicle/surface/obstacle/1" class="card text-center h-100 w-100">
-                                    <div class="card-body d-flex flex-column justify-content-center">
+                                    <div class="card-body p-2 d-flex flex-column justify-content-center">
+                                        <h5 class="card-title mb-2">빙판길</h5>
+                                        <i class="fas fa-snowflake fs-1 text-primary my-2"></i>
+                                        <span class="badge bg-danger fs-6 mt-2">위험</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-4 d-flex">
+                                <div id="vehicle/surface/obstacle/2" class="card text-center h-100 w-100">
+                                    <div class="card-body p-2 d-flex flex-column justify-content-center">
                                         <h5 class="card-title mb-2">포트 홀</h5>
                                         <i class="fas fa-exclamation-triangle fs-1 text-danger my-2"></i>
                                         <span class="badge bg-danger fs-6 mt-2">위험</span>
@@ -598,7 +607,7 @@
                         <div class="row h-100">
                             <div class="col-md-3 d-flex">
                                 <div class="card text-center h-100 w-100">
-                                    <div class="card-body d-flex flex-column justify-content-center">
+                                    <div class="card-body p-2 d-flex flex-column justify-content-center">
                                         <h5 class="card-title mt-0 text-nowrap">배터리 잔량</h5>
                                         <i class="bi bi-battery-charging fs-1 text-success"></i>
                                         <p id="vehicle/battery/remain_amount" class="card-text fs-5 text-nowrap">85%</p>
@@ -607,7 +616,7 @@
                             </div>
                             <div class="col-md-3 d-flex">
                                 <div class="card text-center h-100 w-100">
-                                    <div class="card-body d-flex flex-column justify-content-center">
+                                    <div class="card-body p-2 d-flex flex-column justify-content-center">
                                         <h5 class="card-title mt-0 text-nowrap">주행 가능 시간</h5>
                                         <i class="bi bi-clock fs-1 text-info"></i>
                                         <p id="vehicle/drive/available_time" class="card-text fs-5 text-nowrap">2시간 30분</p>

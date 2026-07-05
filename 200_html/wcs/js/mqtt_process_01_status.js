@@ -162,7 +162,7 @@ function prcessMqttMessage(topic, value) {
                     'background-color': ''
                 });
 
-            const obstacleNames = ['ICE', 'POT_HOLE'];
+            const obstacleNames = ['NONE', 'ICE', 'POT_HOLE'];
             const obstacleName = obstacleNames[obstacle] || 'UNKNOWN';
             console.log(`[MQTT] ⚠️ 장애물 상태: ${obstacleName} (${obstacle})`);
         }

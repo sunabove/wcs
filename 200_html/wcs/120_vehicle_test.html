@@ -389,6 +389,21 @@
     <!-- Vehicle Test 페이지 전용 JavaScript -->
     <script>
         $(document).ready(function() {
+            function publishWhenConnected(topic, payload, retries = 20, intervalMs = 250) {
+                const isConnected = Boolean(window.mqttClient && window.mqttClient.connected);
+                if (isConnected) {
+                    sendMQTTMessage(topic, payload, 1);
+                    return;
+                }
+
+                if (retries <= 0) {
+                    console.warn(`[Vehicle Test] MQTT 미연결로 발행 실패: ${topic}`);
+                    return;
+                }
+
+                setTimeout(() => publishWhenConnected(topic, payload, retries - 1, intervalMs), intervalMs);
+            }
+
             // 바퀴 선택 변경 이벤트
             $('input[name="wheelTestPosition"]').change(function() {
                 const selectedWheel = $(this).val();
@@ -468,7 +483,7 @@
                     .addClass('active text-white')
                     .removeClass('text-black');
                 
-                sendMQTTMessage(topic, command, 1);
+                publishWhenConnected(topic, command);
                 console.log(`[Vehicle Test] ${icon} 차량 ${actionName} 명령 전송: ${topic} = ${command}`);
                 
                 // 버튼 피드백 - 더 명확한 시각적 효과

@@ -170,6 +170,7 @@ class MqttSimulator:
         client.subscribe("vehicle/max_speed")
         client.subscribe("simulation/start")
         client.subscribe("simulation/stop")
+        client.subscribe("vehicle/operation/command")
         client.subscribe("vehicle/surface/state")
         client.subscribe("vehicle/surface/obstacle")
         
@@ -179,7 +180,7 @@ class MqttSimulator:
             client.subscribe(f"wheel/{wheel_id}/id")          # ID 설정
             client.subscribe(f"wheel/{wheel_id}/operation/command")
             
-        print("[MQTT] Subscribed to client/connect, vehicle/max_speed, simulation/start, simulation/stop, vehicle/surface/state, vehicle/surface/obstacle, wheel/*/id_request, wheel/*/id, wheel/*/operation/command topics")
+        print("[MQTT] Subscribed to client/connect, vehicle/max_speed, simulation/start, simulation/stop, vehicle/operation/command, vehicle/surface/state, vehicle/surface/obstacle, wheel/*/id_request, wheel/*/id, wheel/*/operation/command topics")
     
     def _on_message(self, client, userdata, msg):
         """MQTT 메시지 수신 처리"""
@@ -204,6 +205,34 @@ class MqttSimulator:
                 self.simulation_running = False
                 self._publish("simulation/state", "stop")
                 print("[SIM] 시뮬레이션 중지")
+            elif topic == "vehicle/operation/command":
+                try:
+                    command_value = int(payload)
+                    if command_value in [
+                        OperationCommand.STOP.value,
+                        OperationCommand.FORWARD.value,
+                        OperationCommand.REVERSE.value,
+                        OperationCommand.TURN_LEFT.value,
+                        OperationCommand.TURN_RIGHT.value,
+                    ]:
+                        self.command = OperationCommand(command_value)
+                        if self.command == OperationCommand.STOP:
+                            self.exec_state = VehicleExecState.STOP
+                        else:
+                            self.exec_state = VehicleExecState.RUN
+
+                        command_names = {
+                            OperationCommand.STOP: "정지",
+                            OperationCommand.FORWARD: "전진",
+                            OperationCommand.REVERSE: "후진",
+                            OperationCommand.TURN_LEFT: "좌회전",
+                            OperationCommand.TURN_RIGHT: "우회전",
+                        }
+                        print(f"[VEHICLE_CMD] 차량 명령 설정: {command_names.get(self.command, '알수없음')} ({command_value})")
+                    else:
+                        print(f"[VEHICLE_CMD] 잘못된 차량 명령 값: {command_value} (허용: 0-4)")
+                except ValueError:
+                    print(f"[VEHICLE_CMD] 잘못된 차량 명령 형식: {payload}")
             elif topic.startswith("wheel/") and topic.endswith("/operation/command"):
                 try:
                     parts = topic.split("/")
@@ -443,7 +472,7 @@ class MqttSimulator:
         self.driving_scenario = "circular_hill_loop"
         base_target_speed = min(self.route_base_speed_mps, self.max_speed, self.route_max_speed_mps)
 
-        if self.exec_state == VehicleExecState.STOP:
+        if self.command == OperationCommand.STOP:
             self.target_speed = 0.0
         else:
             self.target_speed = base_target_speed
@@ -466,8 +495,15 @@ class MqttSimulator:
         previous_heading = self.angle
 
         route_target_speed = self.target_speed
-        if self.exec_state == VehicleExecState.STOP:
-            route_target_speed = 0.0
+
+        command_speed_scale = {
+            OperationCommand.STOP: 0.0,
+            OperationCommand.FORWARD: 1.0,
+            OperationCommand.REVERSE: 0.8,
+            OperationCommand.TURN_LEFT: 0.6,
+            OperationCommand.TURN_RIGHT: 0.6,
+        }
+        route_target_speed *= command_speed_scale.get(self.command, 1.0)
 
         route_distance = self.route_distance_m % self.route_loop_length_m
         _, _, _, _, _, slope = self._get_circular_hill_route_pose(route_distance)
@@ -518,15 +554,10 @@ class MqttSimulator:
         # 노면은 기본적으로 ASPHALT를 유지한다.
         self.surface_state = SurfaceState.ASPHALT
         
-        if self.current_speed < 0.05:
-            self.exec_state = VehicleExecState.STOP
+        if self.command == OperationCommand.STOP:
+            self.exec_state = VehicleExecState.STOP if self.current_speed < 0.05 else VehicleExecState.RUN
         else:
             self.exec_state = VehicleExecState.RUN
-
-        if self.exec_state == VehicleExecState.STOP:
-            self.command = OperationCommand.STOP
-        else:
-            self.command = OperationCommand.FORWARD
     pass  # _update_vehicle
 
     def _update_wheels(self):
@@ -589,6 +620,17 @@ class MqttSimulator:
             
             # 기본 속도 연동
             base_speed_factor = random.uniform(0.96, 1.04)  # 바퀴별 속도 차이
+
+            # 차량 명령에 따른 전/후진 부호
+            direction_sign = -1.0 if self.command == OperationCommand.REVERSE else 1.0
+
+            # 차량 명령에 따른 좌/우 회전 가중치
+            if self.command == OperationCommand.TURN_LEFT:
+                command_turn_factor = 0.75 if is_left_wheel else 1.25
+            elif self.command == OperationCommand.TURN_RIGHT:
+                command_turn_factor = 1.25 if is_left_wheel else 0.75
+            else:
+                command_turn_factor = 1.0
             
             # 회전시 좌우 바퀴 속도 차이 (디퍼렌셜 효과)
             if self.driving_scenario in ["turning_intersection", "parking_maneuver"]:
@@ -602,13 +644,13 @@ class MqttSimulator:
                 turn_factor = 1.0
                 
             # 최종 바퀴 속도
-            w["speed"] = self.current_speed * base_speed_factor * effect["grip"] * turn_factor
+            w["speed"] = self.current_speed * base_speed_factor * effect["grip"] * turn_factor * command_turn_factor * direction_sign
             
             # 노면과 시나리오에 따른 가속도
             w["acc"] = self.linear_acc * random.uniform(0.9, 1.1) * scenario_effect["load_factor"]
             
             # 바퀴 회전각 (속도에 비례하여 증가, 림 사이즈 고려)
-            if w["speed"] > 0.01:
+            if abs(w["speed"]) > 0.01:
                 rotation_speed = w["speed"] / wheel_radius  # rad/s
                 
                 # 미끄러짐 효과 (노면 상태에 따라)
@@ -624,8 +666,17 @@ class MqttSimulator:
             # 스티어링 각도 (전륜에만 적용, 시내 주행 특성)
             if is_front_wheel:
                 base_steering = scenario_effect["steering_demand"]
+
+                if self.command == OperationCommand.TURN_LEFT:
+                    w["axis_angle"] = math.pi / 8
+                elif self.command == OperationCommand.TURN_RIGHT:
+                    w["axis_angle"] = -math.pi / 8
+                elif self.command == OperationCommand.STOP:
+                    w["axis_angle"] = 0
+                elif self.command in [OperationCommand.FORWARD, OperationCommand.REVERSE]:
+                    w["axis_angle"] = random.uniform(-math.pi/48, math.pi/48)
                 
-                if self.driving_scenario == "circular_hill_loop":
+                elif self.driving_scenario == "circular_hill_loop":
                     turn_ratio = min(abs(self.angle_speed) / math.pi, 1.0)
                     w["axis_angle"] = (math.pi / 4) * turn_ratio * (1 if self.angle_speed >= 0 else -1)
                 elif self.driving_scenario == "turning_intersection":

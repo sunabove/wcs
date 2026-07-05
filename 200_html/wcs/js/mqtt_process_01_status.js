@@ -134,6 +134,39 @@ function prcessMqttMessage(topic, value) {
             console.log(`[MQTT] 🛣️ 노면 상태: ${stateName} (${state})`);
         }
     }
+
+    // vehicle/surface/obstacle 특별 처리 (장애물 상태별 테두리 강조 및 disabled 효과)
+    if (topic === 'vehicle/surface/obstacle') {
+        const obstacle = parseInt(value);
+
+        // 모든 장애물 상태 요소의 테두리 제거 및 disabled 효과 적용
+        $('[id^="vehicle/surface/obstacle/"]')
+            .removeClass('border-primary border-3')
+            .addClass('disabled')
+            .css({
+                'opacity': '0.6',
+                'color': '#666',
+                'background-color': '#ccc'
+            });
+
+        // 해당 장애물 요소에 테두리 추가 및 활성화
+        const $currentObstacleElement = $(`[id="vehicle/surface/obstacle/${obstacle}"]`);
+        if ($currentObstacleElement.length > 0) {
+            $currentObstacleElement
+                .addClass('border-primary border-3')
+                .removeClass('disabled')
+                .css({
+                    'opacity': '1',
+                    'color': '',
+                    'font-weight': 'bold',
+                    'background-color': ''
+                });
+
+            const obstacleNames = ['ICE', 'POT_HOLE'];
+            const obstacleName = obstacleNames[obstacle] || 'UNKNOWN';
+            console.log(`[MQTT] ⚠️ 장애물 상태: ${obstacleName} (${obstacle})`);
+        }
+    }
     
     // vehicle/operation/command 특별 처리 (차량 이동 제어 버튼 자동 선택)
     if (topic === 'vehicle/operation/command') {

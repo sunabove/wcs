@@ -33,6 +33,11 @@ class SurfaceState(IntEnum):
     GRAVEL_ROAD = 3
 
 
+class SurfaceObstacle(IntEnum):
+    ICE = 0
+    POT_HOLE = 1
+
+
 WHEEL_IDS = ["fl", "fr", "rr", "rl"]
 
 # 일반 승용차(16~18인치급) 외경 기준 반지름: 약 0.31~0.33m
@@ -83,6 +88,7 @@ class MqttSimulator:
         self.exec_state = VehicleExecState.RUN
         self.command = OperationCommand.FORWARD
         self.surface_state = SurfaceState.ASPHALT  # 초기 노면 상태
+        self.surface_obstacle = SurfaceObstacle.ICE  # 초기 장애물 상태
         self.surface_state_lock_time = 0  # 노면 상태 락 유지 시간 (초)
         self.surface_state_lock_duration = 0  # 노면 상태 락 지속 시간
         
@@ -164,6 +170,7 @@ class MqttSimulator:
         client.subscribe("simulation/start")
         client.subscribe("simulation/stop")
         client.subscribe("vehicle/surface/state")
+        client.subscribe("vehicle/surface/obstacle")
         
         # wheel ID 요청 및 설정 구독 (fl, fr, rr, rl 각각)
         for wheel_id in WHEEL_IDS:
@@ -171,7 +178,7 @@ class MqttSimulator:
             client.subscribe(f"wheel/{wheel_id}/id")          # ID 설정
             client.subscribe(f"wheel/{wheel_id}/operation/command")
             
-        print("[MQTT] Subscribed to client/connect, vehicle/max_speed, simulation/start, simulation/stop, wheel/*/id_request, wheel/*/id, wheel/*/operation/command topics")
+        print("[MQTT] Subscribed to client/connect, vehicle/max_speed, simulation/start, simulation/stop, vehicle/surface/state, vehicle/surface/obstacle, wheel/*/id_request, wheel/*/id, wheel/*/operation/command topics")
     
     def _on_message(self, client, userdata, msg):
         """MQTT 메시지 수신 처리"""
@@ -246,6 +253,18 @@ class MqttSimulator:
                         print(f"[SURFACE] 잘못된 노면 상태 값: {new_surface_state} (허용: 0-3)")
                 except ValueError:
                     print(f"[SURFACE] 잘못된 노면 상태 형식: {payload}")
+            elif topic == "vehicle/surface/obstacle":
+                try:
+                    new_surface_obstacle = int(payload)
+                    if 0 <= new_surface_obstacle <= 1:
+                        self.surface_obstacle = SurfaceObstacle(new_surface_obstacle)
+                        obstacle_names = ['ICE', 'POT_HOLE']
+                        obstacle_name = obstacle_names[new_surface_obstacle]
+                        print(f"[OBSTACLE] 장애물 상태 설정: {obstacle_name} ({new_surface_obstacle})")
+                    else:
+                        print(f"[OBSTACLE] 잘못된 장애물 상태 값: {new_surface_obstacle} (허용: 0-1)")
+                except ValueError:
+                    print(f"[OBSTACLE] 잘못된 장애물 상태 형식: {payload}")
             elif topic == "client/connect":
                 print("[CONNECT] Client connection detected - Publishing settings...")
                 self._publish_all_settings()
@@ -694,6 +713,7 @@ class MqttSimulator:
         self._publish("vehicle/battery/remain_amount", round(remain_percent, 1))  # 퍼센트(%)
         
         self._publish("vehicle/surface/state", self.surface_state.value)
+        self._publish("vehicle/surface/obstacle", self.surface_obstacle.value)
 
         # SI 단위계: 속도(m/s), 각속도(rad/s)
         self._publish("vehicle/max_speed", round(self.max_speed, 2))  # m/s (동적 값)
@@ -847,7 +867,8 @@ class MqttSimulator:
         print(f"[INFO] 오르막/내리막: ±{self.route_hill_amplitude_m:.0f}m")
         print(f"[INFO] 경로 길이(근사): {self.route_loop_length_m:.0f}m")
         print("[INFO] 경로: 원형 루프를 따라 좌회전/우회전이 반복되고, 고저차가 함께 변함")
-        print("[INFO] 노면 상태: ROAD(도로) 고정")
+        print("[INFO] 노면 상태: ASPHALT(0), BLOCK(1), DIRT_ROAD(2), GRAVEL_ROAD(3)")
+        print("[INFO] 장애물 상태: ICE(0), POT_HOLE(1)")
         print("[INFO] 주행 속도: 0-70 km/h (0-19.4 m/s)")
         print("[INFO] 실행 상태: IDLE(0)=정지, RUNNING(1)=주행")
         print("[INFO] 데이터: vehicle/ 및 wheel/ 토픽만 발행 (기존 토픽 구조 유지)")
@@ -875,7 +896,7 @@ class MqttSimulator:
                     
                     print(f"\n[ROUTE STATUS] 경과: {self.elapsed_time}s | 경로: {self.driving_scenario}")
                     print(f"[ROUTE STATUS] 속도: {kmh_speed:.1f} km/h ({self.current_speed:.2f} m/s) | 목표: {self.target_speed*3.6:.0f} km/h")
-                    print(f"[ROUTE STATUS] 배터리: {battery_percent:.1f}% ({self.battery_voltage:.1f}V) | 노면: ROAD")
+                    print(f"[ROUTE STATUS] 배터리: {battery_percent:.1f}% ({self.battery_voltage:.1f}V) | 노면: {self.surface_state.name} | 장애물: {self.surface_obstacle.name}")
                     print(f"[ROUTE STATUS] 위치: ({self.pos_x:.1f}m, {self.pos_y:.1f}m, {self.pos_z:.1f}m) | 주행거리: {total_km:.2f}km")
                     print(f"[ROUTE STATUS] 발행 토픽: {self.publish_count}개 | 상태: {state_display} ({self.exec_state.value})")
                     print("-" * 70)

@@ -27,10 +27,10 @@ class VehicleExecState(IntEnum):
 
 
 class SurfaceState(IntEnum):
-    ROAD = 0
-    GRAVEL = 1
-    ICE = 2
-    POTHOLE = 3
+    ASPHALT = 0
+    PAVING_BLOCK = 1
+    DIRT_ROAD = 2
+    GRAVEL_ROAD = 3
 
 
 WHEEL_IDS = ["fl", "fr", "rr", "rl"]
@@ -82,7 +82,7 @@ class MqttSimulator:
         self.battery_max_voltage = 48.0  # 배터리 최대 전압 (100% 기준)
         self.exec_state = VehicleExecState.RUN
         self.command = OperationCommand.FORWARD
-        self.surface_state = SurfaceState.ROAD  # 초기 노면 상태
+        self.surface_state = SurfaceState.ASPHALT  # 초기 노면 상태
         self.surface_state_lock_time = 0  # 노면 상태 락 유지 시간 (초)
         self.surface_state_lock_duration = 0  # 노면 상태 락 지속 시간
         
@@ -239,7 +239,7 @@ class MqttSimulator:
                         self.surface_state = SurfaceState(new_surface_state)
                         self.surface_state_lock_time = 0
                         self.surface_state_lock_duration = 30
-                        surface_names = ['ROAD', 'GRAVEL', 'ICE', 'POTHOLE']
+                        surface_names = ['ASPHALT', 'PAVING_BLOCK', 'DIRT_ROAD', 'GRAVEL_ROAD']
                         surface_name = surface_names[new_surface_state]
                         print(f"[SURFACE] 노면 상태 설정: {surface_name} ({new_surface_state}) - {self.surface_state_lock_duration}초 유지")
                     else:
@@ -489,8 +489,8 @@ class MqttSimulator:
                 self.exec_state = VehicleExecState.STOP
                 print(f"[CITY] 배터리 부족으로 차량 정지 ({battery_percent:.1f}%)")
         
-        # 노면은 기본적으로 ROAD를 유지한다.
-        self.surface_state = SurfaceState.ROAD
+        # 노면은 기본적으로 ASPHALT를 유지한다.
+        self.surface_state = SurfaceState.ASPHALT
         
         if self.current_speed < 0.05:
             self.exec_state = VehicleExecState.STOP
@@ -509,10 +509,10 @@ class MqttSimulator:
 
         # 노면 상태에 따른 바퀴별 영향 (시내 도로 특성)
         surface_effects = {
-            SurfaceState.ROAD: {"grip": 1.0, "vibration": 0.05, "power_loss": 1.0, "wear": 0.01},
-            SurfaceState.GRAVEL: {"grip": 0.6, "vibration": 0.4, "power_loss": 1.5, "wear": 0.03},
-            SurfaceState.ICE: {"grip": 0.2, "vibration": 0.1, "power_loss": 1.2, "wear": 0.005},
-            SurfaceState.POTHOLE: {"grip": 0.7, "vibration": 1.0, "power_loss": 2.0, "wear": 0.08}
+            SurfaceState.ASPHALT: {"grip": 1.0, "vibration": 0.05, "power_loss": 1.0, "wear": 0.01},
+            SurfaceState.PAVING_BLOCK: {"grip": 0.8, "vibration": 0.2, "power_loss": 1.2, "wear": 0.02},
+            SurfaceState.DIRT_ROAD: {"grip": 0.65, "vibration": 0.35, "power_loss": 1.4, "wear": 0.03},
+            SurfaceState.GRAVEL_ROAD: {"grip": 0.6, "vibration": 0.5, "power_loss": 1.5, "wear": 0.04}
         }
         
         effect = surface_effects[self.surface_state]
@@ -719,7 +719,7 @@ class MqttSimulator:
             safety_score = 95  # 보행자 주의시 안전도 하락
         elif self.driving_scenario == "traffic_light_stop":
             safety_score = 100  # 신호 준수시 만점
-        elif self.surface_state in [SurfaceState.ICE, SurfaceState.POTHOLE]:
+        elif self.surface_state in [SurfaceState.DIRT_ROAD, SurfaceState.GRAVEL_ROAD]:
             safety_score = max(70, safety_score - 20)  # 위험 노면에서 안전도 하락
         
         self._publish("vehicle/safety/score", safety_score)

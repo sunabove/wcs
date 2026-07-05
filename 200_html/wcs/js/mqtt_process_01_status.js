@@ -129,7 +129,7 @@ function prcessMqttMessage(topic, value) {
                     'background-color': ''  // 원본 배경색 복원
                 });
             
-            const stateNames = ['ROAD', 'GRAVEL', 'ICE', 'POTHOLE'];
+            const stateNames = ['ASPHALT', 'PAVING_BLOCK', 'DIRT_ROAD', 'GRAVEL_ROAD'];
             const stateName = stateNames[state] || 'UNKNOWN';
             console.log(`[MQTT] 🛣️ 노면 상태: ${stateName} (${state})`);
         }

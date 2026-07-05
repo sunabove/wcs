@@ -213,6 +213,13 @@ class MqttSimulator:
                             print(f"[WHEEL_TEST] 알 수 없는 wheel ID: {wheel_id}")
                         else:
                             command_value = int(payload)
+
+                            # 시뮬레이션 실행 중에는 wheel operation/command 토픽을 수동 테스트 명령으로 처리하지 않는다.
+                            # (정기 발행되는 동일 토픽의 self-echo로 인해 simulation/stop으로 전환되는 루프 방지)
+                            if self.simulation_running:
+                                print(f"[WHEEL_TEST] simulation 실행 중 wheel 명령 무시: {topic} = {command_value}")
+                                return
+
                             if command_value not in [OperationCommand.STOP.value, OperationCommand.FORWARD.value, OperationCommand.REVERSE.value]:
                                 print(f"[WHEEL_TEST] 지원하지 않는 바퀴 테스트 명령: {command_value}")
                             else:

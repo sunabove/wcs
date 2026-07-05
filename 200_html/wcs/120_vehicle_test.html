@@ -287,7 +287,7 @@
                                                     <div class="input-group">
                                                         <div class="w-100 d-flex justify-content-center mb-1">
                                                             <span class="input-group-text bg-light justify-content-center" style="width: 130px;">
-                                                                <span id="wheel-test-speed-value">8.0 rad/s</span>
+                                                                <span id="wheel-test-speed-value">76 rpm</span>
                                                             </span>
                                                         </div>
                                                         <input type="range" id="wheelTestSpeedSlider" class="form-range" min="0" max="20" step="0.5" value="8.0">
@@ -526,7 +526,8 @@
             // 휠 테스트 속도 슬라이더 표시 업데이트
             $('#wheelTestSpeedSlider').on('input change', function() {
                 const speedRad = Number.parseFloat($(this).val()) || 0;
-                $('#wheel-test-speed-value').text(`${speedRad.toFixed(1)} rad/s`);
+                const rpm = (speedRad * 60) / (2 * Math.PI);
+                $('#wheel-test-speed-value').text(`${Math.round(rpm)} rpm`);
             });
 
             // 차량 제어 버튼 이벤트

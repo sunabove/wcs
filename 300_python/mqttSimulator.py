@@ -34,8 +34,9 @@ class SurfaceState(IntEnum):
 
 
 class SurfaceObstacle(IntEnum):
-    ICE = 0
-    POT_HOLE = 1
+    NONE = 0
+    ICE = 1
+    POT_HOLE = 2
 
 
 WHEEL_IDS = ["fl", "fr", "rr", "rl"]
@@ -88,7 +89,7 @@ class MqttSimulator:
         self.exec_state = VehicleExecState.RUN
         self.command = OperationCommand.FORWARD
         self.surface_state = SurfaceState.ASPHALT  # 초기 노면 상태
-        self.surface_obstacle = SurfaceObstacle.ICE  # 초기 장애물 상태
+        self.surface_obstacle = SurfaceObstacle.NONE  # 초기 장애물 상태
         self.surface_state_lock_time = 0  # 노면 상태 락 유지 시간 (초)
         self.surface_state_lock_duration = 0  # 노면 상태 락 지속 시간
         
@@ -256,13 +257,13 @@ class MqttSimulator:
             elif topic == "vehicle/surface/obstacle":
                 try:
                     new_surface_obstacle = int(payload)
-                    if 0 <= new_surface_obstacle <= 1:
+                    if 0 <= new_surface_obstacle <= 2:
                         self.surface_obstacle = SurfaceObstacle(new_surface_obstacle)
-                        obstacle_names = ['ICE', 'POT_HOLE']
+                        obstacle_names = ['NONE', 'ICE', 'POT_HOLE']
                         obstacle_name = obstacle_names[new_surface_obstacle]
                         print(f"[OBSTACLE] 장애물 상태 설정: {obstacle_name} ({new_surface_obstacle})")
                     else:
-                        print(f"[OBSTACLE] 잘못된 장애물 상태 값: {new_surface_obstacle} (허용: 0-1)")
+                        print(f"[OBSTACLE] 잘못된 장애물 상태 값: {new_surface_obstacle} (허용: 0-2)")
                 except ValueError:
                     print(f"[OBSTACLE] 잘못된 장애물 상태 형식: {payload}")
             elif topic == "client/connect":
@@ -868,7 +869,7 @@ class MqttSimulator:
         print(f"[INFO] 경로 길이(근사): {self.route_loop_length_m:.0f}m")
         print("[INFO] 경로: 원형 루프를 따라 좌회전/우회전이 반복되고, 고저차가 함께 변함")
         print("[INFO] 노면 상태: ASPHALT(0), BLOCK(1), DIRT_ROAD(2), GRAVEL_ROAD(3)")
-        print("[INFO] 장애물 상태: ICE(0), POT_HOLE(1)")
+        print("[INFO] 장애물 상태: NONE(0), ICE(1), POT_HOLE(2)")
         print("[INFO] 주행 속도: 0-70 km/h (0-19.4 m/s)")
         print("[INFO] 실행 상태: IDLE(0)=정지, RUNNING(1)=주행")
         print("[INFO] 데이터: vehicle/ 및 wheel/ 토픽만 발행 (기존 토픽 구조 유지)")

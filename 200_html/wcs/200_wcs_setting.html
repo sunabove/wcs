@@ -226,14 +226,31 @@
     <script> 
         $(document).ready(function () {
 
+            function publishWhenConnected(topic, payload, retries = 20, intervalMs = 250) {
+                const isConnected = Boolean(window.mqttClient && window.mqttClient.connected);
+                if (isConnected) {
+                    sendMQTTMessage(topic, payload, 1);
+                    console.log(`[WCS Setting] MQTT 발행: ${topic} -> ${payload}`);
+                    return;
+                }
+
+                if (retries <= 0) {
+                    console.warn(`[WCS Setting] MQTT 미연결로 발행 실패: ${topic}`);
+                    alert('MQTT 브로커에 연결된 후 다시 시도해주세요.');
+                    return;
+                }
+
+                setTimeout(() => publishWhenConnected(topic, payload, retries - 1, intervalMs), intervalMs);
+            }
+
             // 시뮬레이션 시작
             $('#btn-sim-start').on('click', function () {
-                sendMQTTMessage('simulation/start', 'start');
+                publishWhenConnected('simulation/start', 'start');
             });
 
             // 시뮬레이션 중지
             $('#btn-sim-stop').on('click', function () {
-                sendMQTTMessage('simulation/stop', 'stop');
+                publishWhenConnected('simulation/stop', 'stop');
             });
 
             // 노면 종류 적용

@@ -385,7 +385,14 @@
     <!-- Vehicle Test 페이지 전용 JavaScript -->
     <script>
         $(document).ready(function() {
+            const pendingPublishTimers = {};
+
             function publishWhenConnected(topic, payload, retries = 20, intervalMs = 250) {
+                if (pendingPublishTimers[topic]) {
+                    clearTimeout(pendingPublishTimers[topic]);
+                    pendingPublishTimers[topic] = null;
+                }
+
                 const isConnected = Boolean(window.mqttClient && window.mqttClient.connected);
                 if (isConnected) {
                     sendMQTTMessage(topic, payload, 1);
@@ -397,7 +404,10 @@
                     return;
                 }
 
-                setTimeout(() => publishWhenConnected(topic, payload, retries - 1, intervalMs), intervalMs);
+                pendingPublishTimers[topic] = setTimeout(() => {
+                    pendingPublishTimers[topic] = null;
+                    publishWhenConnected(topic, payload, retries - 1, intervalMs);
+                }, intervalMs);
             }
 
             // 바퀴 선택 변경 이벤트

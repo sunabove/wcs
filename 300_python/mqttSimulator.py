@@ -127,6 +127,8 @@ class MqttSimulator:
         
         # Publish 통계
         self.publish_count = 0
+        self.last_vehicle_command_published = None
+        self.last_vehicle_state_published = None
         
         # 재시작 및 모니터링
         self.running = True
@@ -781,9 +783,14 @@ class MqttSimulator:
         self._publish("vehicle/max_speed", round(self.max_speed, 2))  # m/s (동적 값)
         self._publish("vehicle/max_angular_speed", 1.0)  # rad/s
 
-        # 동적 상태 정보
-        self._publish("vehicle/operation/command", self.command.value)
-        self._publish("vehicle/operation/state", self.exec_state.value)
+        # 동적 상태 정보는 변경 시에만 발행
+        if self.last_vehicle_command_published != self.command.value:
+            self._publish("vehicle/operation/command", self.command.value)
+            self.last_vehicle_command_published = self.command.value
+
+        if self.last_vehicle_state_published != self.exec_state.value:
+            self._publish("vehicle/operation/state", self.exec_state.value)
+            self.last_vehicle_state_published = self.exec_state.value
         
         # 주행 시나리오 정보 및 시내 주행 특성 추가
         self._publish("vehicle/driving/scenario", self.driving_scenario)

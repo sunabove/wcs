@@ -223,8 +223,8 @@ class MqttSimulator:
                         else:
                             self.exec_state = VehicleExecState.RUN
 
-                        # 시뮬레이션 정지 상태에서도 명령 토픽 retained 값을 즉시 최신화한다.
-                        self._publish("vehicle/operation/command", self.command.value)
+                        # operation/command는 수신 토픽과 동일하므로 여기서 재발행하면 self-echo 루프가 생길 수 있다.
+                        # 상태 토픽만 즉시 반영한다.
                         self._publish("vehicle/operation/state", self.exec_state.value)
 
                         command_names = {

@@ -28,7 +28,7 @@ class VehicleExecState(IntEnum):
 
 class SurfaceState(IntEnum):
     ASPHALT = 0
-    PAVING_BLOCK = 1
+    BLOCK = 1
     DIRT_ROAD = 2
     GRAVEL_ROAD = 3
 
@@ -239,7 +239,7 @@ class MqttSimulator:
                         self.surface_state = SurfaceState(new_surface_state)
                         self.surface_state_lock_time = 0
                         self.surface_state_lock_duration = 30
-                        surface_names = ['ASPHALT', 'PAVING_BLOCK', 'DIRT_ROAD', 'GRAVEL_ROAD']
+                        surface_names = ['ASPHALT', 'BLOCK', 'DIRT_ROAD', 'GRAVEL_ROAD']
                         surface_name = surface_names[new_surface_state]
                         print(f"[SURFACE] 노면 상태 설정: {surface_name} ({new_surface_state}) - {self.surface_state_lock_duration}초 유지")
                     else:
@@ -510,7 +510,7 @@ class MqttSimulator:
         # 노면 상태에 따른 바퀴별 영향 (시내 도로 특성)
         surface_effects = {
             SurfaceState.ASPHALT: {"grip": 1.0, "vibration": 0.05, "power_loss": 1.0, "wear": 0.01},
-            SurfaceState.PAVING_BLOCK: {"grip": 0.8, "vibration": 0.2, "power_loss": 1.2, "wear": 0.02},
+            SurfaceState.BLOCK: {"grip": 0.8, "vibration": 0.2, "power_loss": 1.2, "wear": 0.02},
             SurfaceState.DIRT_ROAD: {"grip": 0.65, "vibration": 0.35, "power_loss": 1.4, "wear": 0.03},
             SurfaceState.GRAVEL_ROAD: {"grip": 0.6, "vibration": 0.5, "power_loss": 1.5, "wear": 0.04}
         }

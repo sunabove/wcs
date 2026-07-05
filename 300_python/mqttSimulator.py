@@ -190,21 +190,20 @@ class MqttSimulator:
             print(f"[MQTT] Received: {topic} -> {payload}")
             
             if topic == "simulation/start":
+                # start 명령은 수동 바퀴 테스트 모드를 해제하고 항상 시뮬레이션 시작으로 처리
                 if self.manual_wheel_test_active and self.manual_wheel_test_command != OperationCommand.STOP:
-                    print("[SIM] 수동 바퀴 테스트 중이므로 simulation/start 무시")
-                    self._publish("simulation/state", "stop")
-                    return
+                    print("[SIM] 수동 바퀴 테스트 모드 종료 후 시뮬레이션 시작")
 
-                if not self.simulation_running:
-                    self.simulation_running = True
-                    self.manual_wheel_test_active = False
-                    self.manual_wheel_test_wheel = None
-                    self.manual_wheel_test_command = OperationCommand.STOP
-                    print("[SIM] 시뮬레이션 시작")
+                self.simulation_running = True
+                self.manual_wheel_test_active = False
+                self.manual_wheel_test_wheel = None
+                self.manual_wheel_test_command = OperationCommand.STOP
+                self._publish("simulation/state", "start")
+                print("[SIM] 시뮬레이션 시작")
             elif topic == "simulation/stop":
-                if self.simulation_running:
-                    self.simulation_running = False
-                    print("[SIM] 시뮬레이션 중지")
+                self.simulation_running = False
+                self._publish("simulation/state", "stop")
+                print("[SIM] 시뮬레이션 중지")
             elif topic.startswith("wheel/") and topic.endswith("/operation/command"):
                 try:
                     parts = topic.split("/")

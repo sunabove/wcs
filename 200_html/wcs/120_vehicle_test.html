@@ -415,7 +415,7 @@
                 const tryPublish = () => {
                     const isConnected = Boolean(window.mqttClient && window.mqttClient.connected);
                     if (isConnected) {
-                        sendMQTTMessage('simulation/stop', '1', 1);
+                        sendMQTTMessage('simulation/stop', 'stop', 1);
                         wheelIds.forEach(wheelId => {
                             sendMQTTMessage(`wheel/${wheelId}/operation/command`, '0', 1);
                             sendMQTTMessage(`wheel/${wheelId}/angle/speed`, '0', 1);
@@ -528,12 +528,12 @@
 
             // 테스트 버튼 이벤트 - 통합된 함수 사용
             $('#test-clockwise').click(function() {
-                sendMQTTMessage('simulation/stop', '1', 1);
+                sendMQTTMessage('simulation/stop', 'stop', 1);
                 sendWheelCommand(1, $(this), '정회전', '⏰');
             });
 
             $('#test-counterclockwise').click(function() {
-                sendMQTTMessage('simulation/stop', '1', 1);
+                sendMQTTMessage('simulation/stop', 'stop', 1);
                 sendWheelCommand(2, $(this), '역회전', '↩️');
             });
 

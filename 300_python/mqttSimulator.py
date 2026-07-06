@@ -220,6 +220,27 @@ class MqttSimulator:
                         self.command = OperationCommand(command_value)
                         if self.command == OperationCommand.STOP:
                             self.exec_state = VehicleExecState.STOP
+                            self.current_speed = 0.0
+                            self.linear_speed = 0.0
+                            self.linear_acc = 0.0
+                            self.angle_speed = 0.0
+                            self.angle_acc = 0.0
+
+                            for wid, wheel in self.wheels.items():
+                                wheel["command"] = OperationCommand.STOP
+                                wheel["state"] = VehicleExecState.STOP
+                                wheel["speed"] = 0.0
+                                wheel["acc"] = 0.0
+                                wheel["angle_speed"] = 0.0
+                                wheel["angle_acc"] = 0.0
+
+                                base = f"wheel/{wid}"
+                                self._publish(f"{base}/linear/speed", 0)
+                                self._publish(f"{base}/linear/acceleration", 0)
+                                self._publish(f"{base}/angle/speed", 0)
+                                self._publish(f"{base}/angle/acceleration", 0)
+                                self._publish(f"{base}/operation/command", OperationCommand.STOP.value)
+                                self._publish(f"{base}/operation/state", VehicleExecState.STOP.value)
                         else:
                             self.exec_state = VehicleExecState.RUN
 
@@ -516,7 +537,10 @@ class MqttSimulator:
         uphill_penalty = max(0.0, slope) * 1.2
         downhill_bonus = max(0.0, -slope) * 0.6
         route_target_speed = route_target_speed * (1.0 - min(uphill_penalty, 0.28) + min(downhill_bonus, 0.12))
-        route_target_speed = max(self.route_min_speed_mps, min(route_target_speed, self.route_max_speed_mps))
+        if self.command == OperationCommand.STOP:
+            route_target_speed = 0.0
+        else:
+            route_target_speed = max(self.route_min_speed_mps, min(route_target_speed, self.route_max_speed_mps))
 
         speed_diff = route_target_speed - self.current_speed
         max_acceleration = 0.50 if speed_diff > 0 else 0.70

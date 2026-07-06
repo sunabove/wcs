@@ -783,21 +783,6 @@ class MqttSimulator:
 
     # ===== Publish =====
     def _publish(self, topic, value):
-        # 시뮬레이션 중지 상태에서는 동적 토픽의 연속 발행을 차단한다.
-        if not self.simulation_running and not self.allow_publish_while_stopped:
-            blocked_while_stopped = (
-                topic.startswith("wheel/")
-                or topic.startswith("vehicle/linear/")
-                or topic.startswith("vehicle/angle/")
-                or topic.startswith("vehicle/position/")
-                or topic == "vehicle/driving/current_speed"
-                or topic == "vehicle/driving/speed_kmh"
-                or topic == "vehicle/driving/target_speed"
-                or topic == "vehicle/driving/target_speed_kmh"
-            )
-            if blocked_while_stopped:
-                return
-
         # topic과 value만 직접 발행 (JSON 포장 없이)
         payload = str(value)
         self.client.publish(topic, payload, retain=True)
@@ -936,124 +921,113 @@ class MqttSimulator:
         if not self.manual_wheel_test_active or target_wheel not in self.wheels:
             return
 
-        self.allow_publish_while_stopped = True
-        try:
-            cmd = self.manual_wheel_test_command
-            if cmd == OperationCommand.FORWARD:
-                angular_speed = self.manual_wheel_test_angular_speed
-                state = VehicleExecState.RUN
-            elif cmd == OperationCommand.REVERSE:
-                angular_speed = -self.manual_wheel_test_angular_speed
-                state = VehicleExecState.RUN
+        cmd = self.manual_wheel_test_command
+        if cmd == OperationCommand.FORWARD:
+            angular_speed = self.manual_wheel_test_angular_speed
+            state = VehicleExecState.RUN
+        elif cmd == OperationCommand.REVERSE:
+            angular_speed = -self.manual_wheel_test_angular_speed
+            state = VehicleExecState.RUN
+        else:
+            angular_speed = 0.0
+            state = VehicleExecState.STOP
+
+        for wid, wheel in self.wheels.items():
+            if wid == target_wheel:
+                wheel["command"] = cmd
+                wheel["state"] = state
+                wheel["angle_speed"] = angular_speed
+                wheel["angle_acc"] = 0.0
+                wheel["speed"] = 0.0
+                wheel["acc"] = 0.0
+                wheel["angle"] = (wheel["angle"] + angular_speed) % (2 * math.pi)
             else:
-                angular_speed = 0.0
-                state = VehicleExecState.STOP
+                wheel["command"] = OperationCommand.STOP
+                wheel["state"] = VehicleExecState.STOP
+                wheel["angle_speed"] = 0.0
+                wheel["angle_acc"] = 0.0
+                wheel["speed"] = 0.0
+                wheel["acc"] = 0.0
 
-            for wid, wheel in self.wheels.items():
-                if wid == target_wheel:
-                    wheel["command"] = cmd
-                    wheel["state"] = state
-                    wheel["angle_speed"] = angular_speed
-                    wheel["angle_acc"] = 0.0
-                    wheel["speed"] = 0.0
-                    wheel["acc"] = 0.0
-                    wheel["angle"] = (wheel["angle"] + angular_speed) % (2 * math.pi)
-                else:
-                    wheel["command"] = OperationCommand.STOP
-                    wheel["state"] = VehicleExecState.STOP
-                    wheel["angle_speed"] = 0.0
-                    wheel["angle_acc"] = 0.0
-                    wheel["speed"] = 0.0
-                    wheel["acc"] = 0.0
+            base = f"wheel/{wid}"
+            self._publish(f"{base}/angle/radian", round(wheel["angle"], 4))
+            self._publish(f"{base}/angle/speed", round(wheel["angle_speed"], 3))
+            self._publish(f"{base}/angle/acceleration", round(wheel["angle_acc"], 3))
+            self._publish(f"{base}/linear/speed", round(wheel["speed"], 3))
+            self._publish(f"{base}/linear/acceleration", round(wheel["acc"], 3))
+            self._publish(f"{base}/operation/state", wheel["state"].value)
 
-                base = f"wheel/{wid}"
-                self._publish(f"{base}/angle/radian", round(wheel["angle"], 4))
-                self._publish(f"{base}/angle/speed", round(wheel["angle_speed"], 3))
-                self._publish(f"{base}/angle/acceleration", round(wheel["angle_acc"], 3))
-                self._publish(f"{base}/linear/speed", round(wheel["speed"], 3))
-                self._publish(f"{base}/linear/acceleration", round(wheel["acc"], 3))
-                self._publish(f"{base}/operation/state", wheel["state"].value)
-
-            print(
-                f"[WHEEL_TEST] 발행: {target_wheel.upper()} command={cmd.value} "
-                f"angle_speed={angular_speed:.3f} rad/s"
-            )
-        finally:
-            self.allow_publish_while_stopped = False
+        print(
+            f"[WHEEL_TEST] 발행: {target_wheel.upper()} command={cmd.value} "
+            f"angle_speed={angular_speed:.3f} rad/s"
+        )
     pass  # _publish_manual_wheel_simulation
 
-    def _publish_vehicle_command_wheels_when_paused(self):
-        """시뮬레이션 재개 없이 차량 명령에 맞춰 휠 속도만 즉시 반영"""
-        self.allow_publish_while_stopped = True
-        try:
-            wheel_radius = PASSENGER_CAR_WHEEL_RADIUS_M
-            base_speed = max(0.0, self.max_speed)
-            command_speed_scale = {
-                OperationCommand.STOP: 0.0,
-                OperationCommand.FORWARD: 1.0,
-                OperationCommand.REVERSE: 0.8,
-                OperationCommand.TURN_LEFT: 0.6,
-                OperationCommand.TURN_RIGHT: 0.6,
-            }
-            effective_speed = base_speed * command_speed_scale.get(self.command, 1.0)
-            direction_sign = -1.0 if self.command == OperationCommand.REVERSE else 1.0
-            self.ignore_wheel_command_until = time.time() + 2.0
+    def _publish_vehicle_command_wheels_immediately(self):
+        """차량 방향 명령에 맞춰 휠 속도와 조향각을 즉시 반영"""
+        wheel_radius = PASSENGER_CAR_WHEEL_RADIUS_M
+        base_speed = max(0.0, self.max_speed)
+        command_speed_scale = {
+            OperationCommand.STOP: 0.0,
+            OperationCommand.FORWARD: 1.0,
+            OperationCommand.REVERSE: 0.8,
+            OperationCommand.TURN_LEFT: 0.6,
+            OperationCommand.TURN_RIGHT: 0.6,
+        }
+        effective_speed = base_speed * command_speed_scale.get(self.command, 1.0)
+        direction_sign = -1.0 if self.command == OperationCommand.REVERSE else 1.0
 
-            for wid, wheel in self.wheels.items():
-                is_left_wheel = wid in ["fl", "rl"]
-                is_front_wheel = wid in ["fl", "fr"]
+        for wid, wheel in self.wheels.items():
+            is_left_wheel = wid in ["fl", "rl"]
+            is_front_wheel = wid in ["fl", "fr"]
 
-                if self.command == OperationCommand.STOP:
-                    wheel_speed = 0.0
-                    axis_angle = 0.0
-                    wheel_state = VehicleExecState.STOP
-                elif self.command == OperationCommand.TURN_LEFT:
-                    wheel_speed = effective_speed * (0.7 if is_left_wheel else 1.3)
-                    axis_angle = math.pi / 8 if is_front_wheel else 0.0
-                    wheel_state = VehicleExecState.RUN
-                elif self.command == OperationCommand.TURN_RIGHT:
-                    wheel_speed = effective_speed * (1.3 if is_left_wheel else 0.7)
-                    axis_angle = -math.pi / 8 if is_front_wheel else 0.0
-                    wheel_state = VehicleExecState.RUN
-                else:
-                    wheel_speed = effective_speed
-                    axis_angle = 0.0
-                    wheel_state = VehicleExecState.RUN
+            if self.command == OperationCommand.STOP:
+                wheel_speed = 0.0
+                axis_angle = 0.0
+                wheel_state = VehicleExecState.STOP
+            elif self.command == OperationCommand.TURN_LEFT:
+                wheel_speed = effective_speed * (0.7 if is_left_wheel else 1.3)
+                axis_angle = math.pi / 8 if is_front_wheel else 0.0
+                wheel_state = VehicleExecState.RUN
+            elif self.command == OperationCommand.TURN_RIGHT:
+                wheel_speed = effective_speed * (1.3 if is_left_wheel else 0.7)
+                axis_angle = -math.pi / 8 if is_front_wheel else 0.0
+                wheel_state = VehicleExecState.RUN
+            else:
+                wheel_speed = effective_speed
+                axis_angle = 0.0
+                wheel_state = VehicleExecState.RUN
 
-                wheel_speed *= direction_sign
-                wheel_angle_speed = wheel_speed / wheel_radius if wheel_radius > 0 else 0.0
+            wheel_speed *= direction_sign
+            wheel_angle_speed = wheel_speed / wheel_radius if wheel_radius > 0 else 0.0
 
-                wheel["command"] = self.command
-                wheel["state"] = wheel_state
-                wheel["speed"] = wheel_speed
-                wheel["acc"] = 0.0
-                wheel["angle_speed"] = wheel_angle_speed
-                wheel["angle_acc"] = 0.0
-                wheel["axis_angle"] = axis_angle
+            wheel["command"] = self.command
+            wheel["state"] = wheel_state
+            wheel["speed"] = wheel_speed
+            wheel["acc"] = 0.0
+            wheel["angle_speed"] = wheel_angle_speed
+            wheel["angle_acc"] = 0.0
+            wheel["axis_angle"] = axis_angle
 
-                base = f"wheel/{wid}"
-                self._publish(f"{base}/linear/speed", round(wheel["speed"], 3))
-                self._publish(f"{base}/linear/acceleration", 0)
-                self._publish(f"{base}/angle/speed", round(wheel["angle_speed"], 3))
-                self._publish(f"{base}/angle/acceleration", 0)
-                self._publish(f"{base}/axis/angle", round(wheel["axis_angle"], 4))
-                self._publish(f"{base}/operation/state", wheel["state"].value)
+            base = f"wheel/{wid}"
+            self._publish(f"{base}/linear/speed", round(wheel["speed"], 3))
+            self._publish(f"{base}/linear/acceleration", 0)
+            self._publish(f"{base}/angle/speed", round(wheel["angle_speed"], 3))
+            self._publish(f"{base}/angle/acceleration", 0)
+            self._publish(f"{base}/axis/angle", round(wheel["axis_angle"], 4))
+            self._publish(f"{base}/operation/state", wheel["state"].value)
 
-            self.current_speed = 0.0 if self.command == OperationCommand.STOP else abs(effective_speed)
-            self.linear_speed = self.current_speed
-            self.linear_acc = 0.0
-            self.angle_speed = 0.0
-            self.angle_acc = 0.0
+        self.current_speed = 0.0 if self.command == OperationCommand.STOP else abs(effective_speed)
+        self.linear_speed = self.current_speed
+        self.linear_acc = 0.0
+        self.angle_speed = 0.0
+        self.angle_acc = 0.0
 
-            # 시뮬레이션 정지 모드에서도 차량 속도/상태 토픽을 즉시 발행해
-            # 프론트엔드의 "속도 0 -> 정지 버튼 자동 클릭" 로직이 동작하도록 한다.
-            self._publish("vehicle/driving/current_speed", round(self.current_speed, 3))
-            self._publish("vehicle/driving/speed_kmh", round(self.current_speed * 3.6, 1))
-            self._publish("vehicle/linear/speed", round(self.linear_speed, 3))
-            self._publish("vehicle/operation/state", self.exec_state.value)
-        finally:
-            self.allow_publish_while_stopped = False
-    pass  # _publish_vehicle_command_wheels_when_paused
+        self._publish("vehicle/driving/current_speed", round(self.current_speed, 3))
+        self._publish("vehicle/driving/speed_kmh", round(self.current_speed * 3.6, 1))
+        self._publish("vehicle/linear/speed", round(self.linear_speed, 3))
+        self._publish("vehicle/operation/state", self.exec_state.value)
+    pass  # _publish_vehicle_command_wheels_immediately
 
     def run(self):
         self.client.connect(self.broker, self.port, 60)
@@ -1101,15 +1075,15 @@ class MqttSimulator:
                     print(f"[ROUTE STATUS] 발행 토픽: {self.publish_count}개 | 상태: {state_display} ({self.exec_state.value})")
                     print("-" * 70)
                 
-                if self.simulation_running:
-                    self._update_vehicle()
-                    self._update_wheels()
-        
-                    self._publish_vehicle()
-                    self._publish_position()
-                    self._publish_wheels()
+                self._update_vehicle()
+                if self.manual_wheel_test_active:
+                    self._publish_manual_wheel_simulation()
                 else:
-                    print("[SIM] 시뮬레이션 일시정지 중...")
+                    self._update_wheels()
+
+                self._publish_vehicle()
+                self._publish_position()
+                self._publish_wheels()
     
                 loop_count += 1
                 time.sleep(1)

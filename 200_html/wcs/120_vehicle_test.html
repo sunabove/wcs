@@ -669,6 +669,13 @@
                 const topic = 'vehicle/max_speed';
                 sendMQTTMessage(topic, roundedSpeedMs, 1);
                 lastVehicleMaxSpeedMsSent = roundedSpeedMs;
+
+                // 속도 변경 시 현재 방향 명령을 재발행하여 휠 속도 갱신을 강제한다.
+                const vehicleButtonSelector = '#vehicle-forward, #vehicle-backward, #vehicle-turn-left, #vehicle-turn-right, #vehicle-stop';
+                const selectedButton = $(vehicleButtonSelector).filter('.active').first();
+                const selectedButtonId = selectedButton.length ? selectedButton.attr('id') : 'vehicle-stop';
+                const selectedCommand = getVehicleCommandByButtonId(selectedButtonId);
+                publishWhenConnected('vehicle/operation/command', selectedCommand);
                 
                 console.log(`[Vehicle Test] 🚀 최고 속도 설정 - ${speedKmh} Km/h (${roundedSpeedMs.toFixed(2)} m/s): ${topic} = ${roundedSpeedMs}`);
             });

@@ -968,10 +968,12 @@ class MqttSimulator:
             elif self.command == OperationCommand.TURN_LEFT:
                 # 제자리 좌회전(CCW): 좌측 바퀴 역회전, 우측 바퀴 정회전
                 wheel_speed = -effective_speed if is_left_wheel else effective_speed
+                axis_angle = 0.0
                 wheel_state = VehicleExecState.RUN
             elif self.command == OperationCommand.TURN_RIGHT:
                 # 제자리 우회전(CW): 좌측 바퀴 정회전, 우측 바퀴 역회전
                 wheel_speed = effective_speed if is_left_wheel else -effective_speed
+                axis_angle = 0.0
                 wheel_state = VehicleExecState.RUN
             else:
                 wheel_speed = effective_speed

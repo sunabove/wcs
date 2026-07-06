@@ -13,6 +13,7 @@ import base64
 import threading
 from datetime import datetime
 import platform
+from collections import deque
 
 try:
     import paho.mqtt.client as mqtt
@@ -51,8 +52,11 @@ class RoadDetector:
     _detect_lock = threading.Lock()  # Lock for thread-safe access to _detect_progress
     _chart_renderer = ChartRenderer()
     _mqtt_last_surface_state_by_context = {}
+    _surface_state_samples_by_context = {}
     _mqtt_last_obstacle_state_by_context = {}
+    _obstacle_state_samples_by_context = {}
     _mqtt_state_lock = threading.Lock()
+    SURFACE_STATE_MAJORITY_WINDOW_SEC = 0.2
     
     def __init__(self):
         self.image_ext = {".jpg", ".jpeg", ".png", ".bmp", ".webp"} 
@@ -187,15 +191,43 @@ class RoadDetector:
             return
 
         context = str(context_key or "global")
+        now_ts = time.time()
         with RoadDetector._mqtt_state_lock:
-            last_state = RoadDetector._mqtt_last_surface_state_by_context.get(context)
-            if last_state == state_value:
+            samples = RoadDetector._surface_state_samples_by_context.get(context)
+            if samples is None:
+                samples = deque()
+                RoadDetector._surface_state_samples_by_context[context] = samples
+
+            samples.append((now_ts, state_value))
+
+            cutoff_ts = now_ts - float(self.SURFACE_STATE_MAJORITY_WINDOW_SEC)
+            while samples and samples[0][0] < cutoff_ts:
+                samples.popleft()
+
+            if not samples:
                 return
 
-        published = self._publish_mqtt_topic("vehicle/surface/state", state_value)
+            counts = {}
+            last_seen_ts = {}
+            for sample_ts, sample_state in samples:
+                counts[sample_state] = counts.get(sample_state, 0) + 1
+                last_seen_ts[sample_state] = sample_ts
+
+            max_count = max(counts.values())
+            majority_candidates = [state for state, count in counts.items() if count == max_count]
+            if len(majority_candidates) == 1:
+                majority_state = majority_candidates[0]
+            else:
+                majority_state = max(majority_candidates, key=lambda state: last_seen_ts.get(state, 0.0))
+
+            last_state = RoadDetector._mqtt_last_surface_state_by_context.get(context)
+            if last_state == majority_state:
+                return
+
+        published = self._publish_mqtt_topic("vehicle/surface/state", majority_state)
         if published:
             with RoadDetector._mqtt_state_lock:
-                RoadDetector._mqtt_last_surface_state_by_context[context] = state_value
+                RoadDetector._mqtt_last_surface_state_by_context[context] = majority_state
 
     def _publish_obstacle_state_if_needed(self, detect_key, stats, mqtt_publish, context_key, include_pothole=False):
         if not mqtt_publish:
@@ -209,15 +241,43 @@ class RoadDetector:
         obstacle_value = self._resolve_obstacle_state_from_class_counts(class_counts)
 
         context = str(context_key or "global")
+        now_ts = time.time()
         with RoadDetector._mqtt_state_lock:
-            last_state = RoadDetector._mqtt_last_obstacle_state_by_context.get(context)
-            if last_state == obstacle_value:
+            samples = RoadDetector._obstacle_state_samples_by_context.get(context)
+            if samples is None:
+                samples = deque()
+                RoadDetector._obstacle_state_samples_by_context[context] = samples
+
+            samples.append((now_ts, obstacle_value))
+
+            cutoff_ts = now_ts - float(self.SURFACE_STATE_MAJORITY_WINDOW_SEC)
+            while samples and samples[0][0] < cutoff_ts:
+                samples.popleft()
+
+            if not samples:
                 return
 
-        published = self._publish_mqtt_topic("vehicle/surface/obstacle", obstacle_value)
+            counts = {}
+            last_seen_ts = {}
+            for sample_ts, sample_state in samples:
+                counts[sample_state] = counts.get(sample_state, 0) + 1
+                last_seen_ts[sample_state] = sample_ts
+
+            max_count = max(counts.values())
+            majority_candidates = [state for state, count in counts.items() if count == max_count]
+            if len(majority_candidates) == 1:
+                majority_state = majority_candidates[0]
+            else:
+                majority_state = max(majority_candidates, key=lambda state: last_seen_ts.get(state, 0.0))
+
+            last_state = RoadDetector._mqtt_last_obstacle_state_by_context.get(context)
+            if last_state == majority_state:
+                return
+
+        published = self._publish_mqtt_topic("vehicle/surface/obstacle", majority_state)
         if published:
             with RoadDetector._mqtt_state_lock:
-                RoadDetector._mqtt_last_obstacle_state_by_context[context] = obstacle_value
+                RoadDetector._mqtt_last_obstacle_state_by_context[context] = majority_state
 
     def _get_class_color_map(self):
         if self.__class__._class_color_map is not None:

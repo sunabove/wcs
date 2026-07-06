@@ -798,17 +798,53 @@ class URDFViewer {
             return;
         }
 
-        const carFrame = this.robotModel.links?.car_frame || null;
-        if (!carFrame) {
-            return;
+        const linkMap = this.robotModel.links || {};
+        const carFrame = linkMap.car_frame || null;
+        const rollRad = THREE.MathUtils.degToRad(this.roadRollAngleDeg);
+        const pitchRad = THREE.MathUtils.degToRad(this.roadPitchAngleDeg);
+
+        const attitudeTargets = [];
+        if (carFrame) {
+            attitudeTargets.push(carFrame);
         }
 
-        // 차량 차체와 노면만 함께 기울이고, 지표면은 고정한다.
-        carFrame.rotation.set(
-            THREE.MathUtils.degToRad(this.roadRollAngleDeg),
-            THREE.MathUtils.degToRad(this.roadPitchAngleDeg),
-            0
-        );
+        // 차체의 자식 링크는 부모 회전이 이미 적용되므로, 독립된 노면 링크만 추가로 기울인다.
+        const roadLinkNameCandidates = [
+            'ellipsoid_surface_patch',
+            'ground_patch'
+        ];
+
+        roadLinkNameCandidates.forEach(linkName => {
+            const link = linkMap[linkName] || null;
+            if (!link || attitudeTargets.includes(link)) {
+                return;
+            }
+
+            const isChildOfCarFrame = !!(carFrame && this.isDescendantObject3D(link, carFrame));
+            if (!isChildOfCarFrame) {
+                attitudeTargets.push(link);
+            }
+        });
+
+        attitudeTargets.forEach(target => {
+            target.rotation.set(rollRad, pitchRad, 0);
+        });
+    }
+
+    isDescendantObject3D(childObject, ancestorObject) {
+        if (!childObject || !ancestorObject || childObject === ancestorObject) {
+            return false;
+        }
+
+        let current = childObject.parent;
+        while (current) {
+            if (current === ancestorObject) {
+                return true;
+            }
+            current = current.parent;
+        }
+
+        return false;
     }
 
     applyRoadRollAngleDeg(angleDeg) {

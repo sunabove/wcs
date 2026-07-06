@@ -956,29 +956,30 @@ class MqttSimulator:
         }
         effective_speed = base_speed * command_speed_scale.get(self.command, 1.0)
         direction_sign = -1.0 if self.command == OperationCommand.REVERSE else 1.0
+        in_place_turn = self.command in [OperationCommand.TURN_LEFT, OperationCommand.TURN_RIGHT]
 
         for wid, wheel in self.wheels.items():
             is_left_wheel = wid in ["fl", "rl"]
-            is_front_wheel = wid in ["fl", "fr"]
 
             if self.command == OperationCommand.STOP:
                 wheel_speed = 0.0
                 axis_angle = 0.0
                 wheel_state = VehicleExecState.STOP
             elif self.command == OperationCommand.TURN_LEFT:
-                wheel_speed = effective_speed * (0.7 if is_left_wheel else 1.3)
-                axis_angle = math.pi / 8 if is_front_wheel else 0.0
+                # 제자리 좌회전(CCW): 좌측 바퀴 역회전, 우측 바퀴 정회전
+                wheel_speed = -effective_speed if is_left_wheel else effective_speed
                 wheel_state = VehicleExecState.RUN
             elif self.command == OperationCommand.TURN_RIGHT:
-                wheel_speed = effective_speed * (1.3 if is_left_wheel else 0.7)
-                axis_angle = -math.pi / 8 if is_front_wheel else 0.0
+                # 제자리 우회전(CW): 좌측 바퀴 정회전, 우측 바퀴 역회전
+                wheel_speed = effective_speed if is_left_wheel else -effective_speed
                 wheel_state = VehicleExecState.RUN
             else:
                 wheel_speed = effective_speed
                 axis_angle = 0.0
                 wheel_state = VehicleExecState.RUN
 
-            wheel_speed *= direction_sign
+            if not in_place_turn:
+                wheel_speed *= direction_sign
             wheel_angle_speed = wheel_speed / wheel_radius if wheel_radius > 0 else 0.0
 
             wheel["command"] = self.command
@@ -992,10 +993,15 @@ class MqttSimulator:
             base = f"wheel/{wid}"
             self._publish(f"{base}/angle/speed", round(wheel["angle_speed"], 3))
             
-        self.current_speed = 0.0 if self.command == OperationCommand.STOP else abs(effective_speed)
+        self.current_speed = 0.0 if (self.command == OperationCommand.STOP or in_place_turn) else abs(effective_speed)
         self.linear_speed = self.current_speed
         self.linear_acc = 0.0
-        self.angle_speed = 0.0
+        if self.command == OperationCommand.TURN_LEFT:
+            self.angle_speed = abs(effective_speed)
+        elif self.command == OperationCommand.TURN_RIGHT:
+            self.angle_speed = -abs(effective_speed)
+        else:
+            self.angle_speed = 0.0
         self.angle_acc = 0.0
 
     pass  # _publish_vehicle_command_wheels_immediately

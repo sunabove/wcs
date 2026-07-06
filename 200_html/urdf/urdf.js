@@ -684,6 +684,7 @@ class URDFViewer {
             this.setWheelSpeedRpm('fr', baseRpm);
             this.setWheelSpeedRpm('rl', baseRpm);
             this.setWheelSpeedRpm('rr', baseRpm);
+            this.updateWheelHighlightsByDriveDirection();
             return;
         }
 
@@ -696,6 +697,7 @@ class URDFViewer {
             this.setWheelSpeedRpm('fr', -baseRpm);
             this.setWheelSpeedRpm('rl', -baseRpm);
             this.setWheelSpeedRpm('rr', -baseRpm);
+            this.updateWheelHighlightsByDriveDirection();
             return;
         }
 
@@ -708,6 +710,7 @@ class URDFViewer {
             this.setWheelSpeedRpm('fr', baseRpm);
             this.setWheelSpeedRpm('rl', -baseRpm);
             this.setWheelSpeedRpm('rr', baseRpm);
+            this.updateWheelHighlightsByDriveDirection();
             return;
         }
 
@@ -720,6 +723,7 @@ class URDFViewer {
             this.setWheelSpeedRpm('fr', -baseRpm);
             this.setWheelSpeedRpm('rl', baseRpm);
             this.setWheelSpeedRpm('rr', -baseRpm);
+            this.updateWheelHighlightsByDriveDirection();
             return;
         }
 
@@ -732,7 +736,27 @@ class URDFViewer {
             this.setWheelSpeedRpm('fr', 0);
             this.setWheelSpeedRpm('rl', 0);
             this.setWheelSpeedRpm('rr', 0);
+            this.updateWheelHighlightsByDriveDirection();
         }
+    }
+
+    updateWheelHighlightsByDriveDirection() {
+        if (this.container.id !== 'vehicle-urdf-viewer') {
+            return;
+        }
+
+        const forwardWheelKeys = Object.keys(this.wheelSpeedRpmByKey).filter(key => {
+            const rpm = Number(this.wheelSpeedRpmByKey[key]) || 0;
+            const directionSign = Number(this.wheelDirectionSignByKey[key]) || 1;
+            return rpm > 0 && directionSign > 0;
+        });
+
+        if (forwardWheelKeys.length > 0) {
+            this.applyWheelHighlightByKeys(forwardWheelKeys);
+            return;
+        }
+
+        this.clearWheelHighlights();
     }
 
     applyWheelAnimation(deltaSec) {

@@ -12,6 +12,12 @@ from fastapi.responses import StreamingResponse
 import base64
 import threading
 from datetime import datetime
+import platform
+
+try:
+    import paho.mqtt.client as mqtt
+except Exception:  # pragma: no cover - optional runtime dependency
+    mqtt = None
 
 from send_image import resolve_upload_image_path
 from config import BASE_DIR, UPLOAD_DIR, VIDEO_EXTENSIONS
@@ -44,11 +50,122 @@ class RoadDetector:
     _detect_progress = {}  # {session_id: {status, current_frame, total_frames, percentage, error}}
     _detect_lock = threading.Lock()  # Lock for thread-safe access to _detect_progress
     _chart_renderer = ChartRenderer()
+    _mqtt_last_surface_state_by_context = {}
+    _mqtt_state_lock = threading.Lock()
     
     def __init__(self):
         self.image_ext = {".jpg", ".jpeg", ".png", ".bmp", ".webp"} 
         self.video_ext = set(VIDEO_EXTENSIONS)
     pass # __init__
+
+    def _normalize_surface_label(self, label):
+        text = str(label or "").strip().lower().replace("-", "_").replace(" ", "_")
+        if not text:
+            return ""
+
+        synonyms = {
+            "paving_block": "block",
+            "paving_blocks": "block",
+            "block_paving": "block",
+            "soil": "dirt_road",
+            "dirt": "dirt_road",
+            "sand": "dirt_road",
+            "gravel": "gravel_road",
+            "gravelroad": "gravel_road",
+            "asphalt_road": "asphalt",
+        }
+        return synonyms.get(text, text)
+
+    def _resolve_surface_state_from_class_counts(self, class_counts):
+        if not isinstance(class_counts, dict) or not class_counts:
+            return None
+
+        label_to_state = {
+            "asphalt": 0,
+            "block": 1,
+            "dirt_road": 2,
+            "gravel_road": 3,
+        }
+
+        best_label = None
+        best_count = -1
+        for raw_label, raw_count in class_counts.items():
+            normalized = self._normalize_surface_label(raw_label)
+            if normalized not in label_to_state:
+                continue
+            try:
+                count = int(raw_count)
+            except Exception:
+                continue
+            if count > best_count:
+                best_count = count
+                best_label = normalized
+
+        if best_label is None:
+            return None
+        return label_to_state[best_label]
+
+    def _get_mqtt_broker_host(self):
+        env_host = str(os.getenv("MQTT_BROKER_HOST", "")).strip()
+        if env_host:
+            return env_host
+        if platform.system() == "Windows":
+            return "orangepi6plus"
+        return "localhost"
+
+    def _publish_mqtt_topic(self, topic, payload):
+        if mqtt is None:
+            logger.warning("MQTT publish skipped: paho-mqtt is not available")
+            return False
+
+        client = None
+        try:
+            client_id = f"road_detector_{os.getpid()}_{int(time.time() * 1000) % 100000}"
+            try:
+                client = mqtt.Client(callback_api_version=mqtt.CallbackAPIVersion.VERSION2, client_id=client_id)
+            except Exception:
+                client = mqtt.Client(client_id=client_id)
+
+            client.connect(self._get_mqtt_broker_host(), 1883, 10)
+            client.loop_start()
+            publish_info = client.publish(topic, str(payload), qos=0, retain=True)
+            publish_info.wait_for_publish(timeout=2)
+            return True
+        except Exception as ex:
+            logger.warning("MQTT publish failed: %s -> %s (%s)", topic, payload, ex)
+            return False
+        finally:
+            if client is not None:
+                try:
+                    client.loop_stop()
+                except Exception:
+                    pass
+                try:
+                    client.disconnect()
+                except Exception:
+                    pass
+
+    def _publish_surface_state_if_needed(self, detect_key, stats, mqtt_publish, context_key):
+        if not mqtt_publish:
+            return
+        if str(detect_key or "").strip().lower() != "road_type":
+            return
+
+        class_counts = stats.get("class_counts") if isinstance(stats, dict) else None
+        state_value = self._resolve_surface_state_from_class_counts(class_counts)
+        if state_value is None:
+            return
+
+        context = str(context_key or "global")
+        with RoadDetector._mqtt_state_lock:
+            last_state = RoadDetector._mqtt_last_surface_state_by_context.get(context)
+            if last_state == state_value:
+                return
+
+        published = self._publish_mqtt_topic("vehicle/surface/state", state_value)
+        if published:
+            with RoadDetector._mqtt_state_lock:
+                RoadDetector._mqtt_last_surface_state_by_context[context] = state_value
 
     def _get_class_color_map(self):
         if self.__class__._class_color_map is not None:
@@ -338,14 +455,22 @@ class RoadDetector:
                 raise HTTPException(status_code=400, detail="Failed to read image file")
 
             roi = self._load_or_create_roi(input_path, input_image.shape[1], input_image.shape[0])
-            detected_image = self.detect_road(
+            detected_result = self.detect_road(
                 input_image,
                 detect_type,
                 roi=roi,
                 remove_noisy_masks=remove_noisy_masks,
                 show_detect_stats=False,
+                return_info=True,
                 include_pothole=include_pothole,
                 pothole_conf=pothole_conf,
+            )
+            detected_image = detected_result["frame"]
+            self._publish_surface_state_if_needed(
+                detect_type,
+                detected_result.get("stats"),
+                mqtt_publish,
+                f"image:{file_name}",
             )
             if not cv2.imwrite(str(output_path), detected_image):
                 raise HTTPException(status_code=500, detail="Failed to write output image")
@@ -362,6 +487,7 @@ class RoadDetector:
                 session_id=file_name,
                 include_pothole=include_pothole,
                 pothole_conf=pothole_conf,
+                mqtt_publish=mqtt_publish,
             )
         else:
             raise HTTPException(status_code=400, detail="Only image/video files are supported")
@@ -377,7 +503,7 @@ class RoadDetector:
         }
     pass # road_detect_service
 
-    def detect_video(self, input_path: Path, output_path: Path, detect_type: str, remove_noisy_masks: bool = True, show_detect_stats: bool = True, session_id: str = None, include_pothole: bool = False, pothole_conf: float = DEFAULT_POTHOLE_CONF) -> None:
+    def detect_video(self, input_path: Path, output_path: Path, detect_type: str, remove_noisy_masks: bool = True, show_detect_stats: bool = True, session_id: str = None, include_pothole: bool = False, pothole_conf: float = DEFAULT_POTHOLE_CONF, mqtt_publish: bool = False) -> None:
         capture = cv2.VideoCapture(str(input_path))
         if not capture.isOpened():
             raise HTTPException(status_code=400, detail="Failed to read video file")
@@ -447,6 +573,12 @@ class RoadDetector:
                     return_info=True,
                     include_pothole=include_pothole,
                     pothole_conf=pothole_conf,
+                )
+                self._publish_surface_state_if_needed(
+                    detect_type,
+                    detected_result.get("stats"),
+                    mqtt_publish,
+                    f"video:{session_id or input_path.as_posix()}",
                 )
                 detected_frame = detected_result["frame"]
 
@@ -561,6 +693,7 @@ class RoadDetector:
             'pothole_conf': float(pothole_conf),
             'remove_noisy_masks': bool(remove_noisy_masks),
             'show_detect_stats': bool(show_detect_stats),
+            'mqtt_publish': bool(mqtt_publish),
             'file_name': file_name,
             'input_path': input_path,
             'stats_history': {},
@@ -600,6 +733,7 @@ class RoadDetector:
             pothole_conf = float(session.get('pothole_conf', self.DEFAULT_POTHOLE_CONF))
             remove_noisy_masks = bool(session.get('remove_noisy_masks', True))
             show_detect_stats = bool(session.get('show_detect_stats', True))
+            mqtt_publish = bool(session.get('mqtt_publish', False))
             frame_index = session['frame_index']
             frame_count = session['frame_count']
             roi = session.get('roi')
@@ -632,6 +766,12 @@ class RoadDetector:
                 return_info=True,
                 include_pothole=include_pothole,
                 pothole_conf=pothole_conf,
+            )
+            self._publish_surface_state_if_needed(
+                detect_type,
+                detected_result.get("stats"),
+                mqtt_publish,
+                f"stream:{session_id}",
             )
             detected_frame = detected_result["frame"]
 
@@ -844,6 +984,7 @@ class RoadDetector:
             "pothole_conf": float(pothole_conf),
             "remove_noisy_masks": bool(remove_noisy_masks),
             "show_detect_stats": bool(show_detect_stats),
+            "mqtt_publish": bool(mqtt_publish),
             "detect_enabled": True,
             "camera_index": int(camera_index),
             "camera_name": resolved_camera_name,
@@ -889,6 +1030,7 @@ class RoadDetector:
         remove_noisy_masks = bool(session.get("remove_noisy_masks", True))
         show_detect_stats = bool(session.get("show_detect_stats", True))
         detect_enabled = bool(session.get("detect_enabled", True))
+        mqtt_publish = bool(session.get("mqtt_publish", False))
         stats_history = session.get("stats_history")
 
         ok, frame = capture.read()
@@ -927,6 +1069,12 @@ class RoadDetector:
                 return_info=True,
                 include_pothole=include_pothole,
                 pothole_conf=pothole_conf,
+            )
+            self._publish_surface_state_if_needed(
+                detect_type,
+                detected_result.get("stats"),
+                mqtt_publish,
+                f"camera:{session_id}",
             )
             detected_frame = detected_result["frame"]
 
@@ -1136,6 +1284,12 @@ class RoadDetector:
                         return_info=True,
                         include_pothole=include_pothole,
                         pothole_conf=pothole_conf,
+                    )
+                    self._publish_surface_state_if_needed(
+                        detect_type,
+                        detected_result.get("stats"),
+                        mqtt_publish,
+                        f"legacy_stream:{file_name}",
                     )
                     detected_frame = detected_result["frame"]
                     encoded_ok, encoded = cv2.imencode(".jpg", detected_frame, [int(cv2.IMWRITE_JPEG_QUALITY), 80])

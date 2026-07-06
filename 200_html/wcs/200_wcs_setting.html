@@ -213,6 +213,34 @@
                         </div>
                     </div>
                 </div>
+
+                <div class="row g-3 mt-1">
+                    <div class="col">
+                        <div class="border rounded p-3 bg-light d-flex flex-column flex-md-row align-items-md-center gap-3">
+                            <div class="setting-section-item setting-section-title">
+                                <h5 class="mb-1">
+                                    <i class="bi bi-compass me-2"></i>차량 Pitch 각도 설정
+                                </h5>
+                                <small class="text-muted">차량의 앞뒤 기울기(Pitch) 각도를 조절합니다.</small>
+                            </div>
+
+                            <div class="setting-section-item setting-section-control">
+                                <div class="d-flex align-items-center gap-2">
+                                    <input
+                                        type="range"
+                                        class="form-range mb-0"
+                                        id="vehicle-pitch-angle"
+                                        min="-30"
+                                        max="30"
+                                        step="1"
+                                        value="0"
+                                    >
+                                    <span id="vehicle-pitch-angle-value" class="badge text-bg-secondary" style="min-width: 56px;">0°</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
                 
             </div>
         </div>
@@ -249,6 +277,14 @@
                 $('#vehicle-roll-angle-value').text(`${rollAngleDeg}°`);
                 const rollAngleRad = (rollAngleDeg * Math.PI) / 180;
                 sendMQTTMessage('vehicle/road/roll_angle', rollAngleRad);
+            });
+
+            // 차량 Pitch 각도 변경 즉시 반영
+            $('#vehicle-pitch-angle').on('input change', function () {
+                const pitchAngleDeg = Number.parseInt($(this).val(), 10) || 0;
+                $('#vehicle-pitch-angle-value').text(`${pitchAngleDeg}°`);
+                const pitchAngleRad = (pitchAngleDeg * Math.PI) / 180;
+                sendMQTTMessage('vehicle/road/pitch_angle', pitchAngleRad);
             });
 
         });

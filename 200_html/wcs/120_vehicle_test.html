@@ -630,7 +630,6 @@
                     .removeClass('text-black');
 
                 applyVehicleCommandWheelHighlight(command);
-                applyVehicleWheelAnimationByCommand(command);
 
                 if (sameCommand && sameSpeed) {
                     console.log(`[Vehicle Test] 중복 방향 명령 스킵: ${topic} = ${command}, ${speedTopic} = ${roundedSpeedMs}`);
@@ -665,47 +664,6 @@
                         })
                         .removeClass('shadow-lg');
                 }, 1000);
-            }
-
-            function applyVehicleWheelAnimationByCommand(command) {
-                if (typeof setWheelAnimationByKey !== 'function') {
-                    return;
-                }
-
-                const sliderSpeedKmh = Number.parseFloat($('#vehicleMaxSpeedSlider').val()) || 0;
-                const sliderSpeedMs = sliderSpeedKmh / 3.6;
-                const telemetrySpeedMs = Number.parseFloat(window.latestVehicleLinearSpeedMs);
-                const speedMs = Number.isFinite(telemetrySpeedMs) ? Math.abs(telemetrySpeedMs) : sliderSpeedMs;
-                const wheelRadiusM = 0.32;
-                const baseRpm = ((speedMs / wheelRadiusM) * 60) / (2 * Math.PI);
-
-                const setRpmAll = (fl, fr, rl, rr) => {
-                    setWheelAnimationByKey('fl', Math.round(fl));
-                    setWheelAnimationByKey('fr', Math.round(fr));
-                    setWheelAnimationByKey('rl', Math.round(rl));
-                    setWheelAnimationByKey('rr', Math.round(rr));
-                };
-
-                const commandNumber = Number(command);
-                switch (commandNumber) {
-                    case 0:
-                        setRpmAll(0, 0, 0, 0);
-                        break;
-                    case 1: // 전진
-                        setRpmAll(baseRpm, baseRpm, baseRpm, baseRpm);
-                        break;
-                    case 2: // 후진
-                        setRpmAll(-baseRpm * 0.8, -baseRpm * 0.8, -baseRpm * 0.8, -baseRpm * 0.8);
-                        break;
-                    case 3: // 좌회전
-                        setRpmAll(baseRpm * 0.6 * 0.7, baseRpm * 0.6 * 1.3, baseRpm * 0.6 * 0.7, baseRpm * 0.6 * 1.3);
-                        break;
-                    case 4: // 우회전
-                        setRpmAll(baseRpm * 0.6 * 1.3, baseRpm * 0.6 * 0.7, baseRpm * 0.6 * 1.3, baseRpm * 0.6 * 0.7);
-                        break;
-                    default:
-                        break;
-                }
             }
 
             // 테스트 버튼 이벤트 - 통합된 함수 사용
@@ -775,7 +733,6 @@
                 const selectedButtonId = selectedButton.length ? selectedButton.attr('id') : 'vehicle-stop';
                 const selectedCommand = getVehicleCommandByButtonId(selectedButtonId);
                 publishWhenConnected('vehicle/operation/command', selectedCommand);
-                applyVehicleWheelAnimationByCommand(selectedCommand);
                 
                 console.log(`[Vehicle Test] 🚀 최고 속도 설정 - ${speedKmh.toFixed(1)} Km/h (${roundedSpeedMs.toFixed(2)} m/s): ${topic} = ${roundedSpeedMs}`);
             });

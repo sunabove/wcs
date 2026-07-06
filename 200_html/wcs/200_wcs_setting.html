@@ -149,27 +149,25 @@
 
                 <div class="row g-3 mt-1">
                     <div class="col">
-                        <div class="border rounded p-3 bg-light">
-                            <div class="row g-3 align-items-center">
-                                <div class="col-md-3">
-                                    <h5 class="mb-1">
-                                        <i class="bi bi-cone-striped me-2"></i>장애물 설정
-                                    </h5>
-                                    <small class="text-muted">현재 주행 환경의 장애물 상태를 선택합니다.</small>
-                                </div>
+                        <div class="border rounded p-3 bg-light d-flex flex-column flex-md-row align-items-md-center gap-3">
+                            <div>
+                                <h5 class="mb-1">
+                                    <i class="bi bi-cone-striped me-2"></i>장애물 설정
+                                </h5>
+                                <small class="text-muted">현재 주행 환경의 장애물 상태를 선택합니다.</small>
+                            </div>
 
-                                <div class="col-md-6">
-                                    <select class="form-select" id="surface-obstacle">
-                                        <option value="0" selected>없음</option>
-                                        <option value="1">빙판길</option>
-                                        <option value="2">포트 홀</option>
-                                    </select>
-                                </div>
-                                <div class="col-md-3">
-                                    <button type="button" id="btn-obstacle-apply" class="btn btn-primary w-100">
-                                        <i class="bi bi-check2-circle me-1"></i> 적용
-                                    </button>
-                                </div>
+                            <div class="flex-grow-1">
+                                <select class="form-select" id="surface-obstacle">
+                                    <option value="0" selected>없음</option>
+                                    <option value="1">빙판길</option>
+                                    <option value="2">포트 홀</option>
+                                </select>
+                            </div>
+                            <div>
+                                <button type="button" id="btn-obstacle-apply" class="btn btn-primary w-100">
+                                    <i class="bi bi-check2-circle me-1"></i> 적용
+                                </button>
                             </div>
                         </div>
                     </div>

@@ -356,6 +356,20 @@ class MqttSimulator:
                         if self.target_speed > self.max_speed:
                             self.target_speed = self.max_speed * 0.9  # 최고 속도의 90%로 조정
                             print(f"[SPEED] 목표 속도 조정: {self.target_speed:.1f} m/s")
+
+                        # 시뮬레이션 정지 상태에서 차량 방향 명령이 활성화되어 있으면,
+                        # 최고 속도 변경을 즉시 바퀴 속도에 반영한다.
+                        if (
+                            not self.simulation_running
+                            and not self.manual_wheel_test_active
+                            and self.command in [
+                                OperationCommand.FORWARD,
+                                OperationCommand.REVERSE,
+                                OperationCommand.TURN_LEFT,
+                                OperationCommand.TURN_RIGHT,
+                            ]
+                        ):
+                            self._publish_vehicle_command_wheels_when_paused()
                     else:
                         print(f"[SPEED] 잘못된 최고 속도 범위: {new_max_speed:.1f} m/s (허용: 0.5-27.8 m/s, 1.8-100 km/h)")
                 except ValueError:
@@ -964,7 +978,15 @@ class MqttSimulator:
     def _publish_vehicle_command_wheels_when_paused(self):
         """시뮬레이션 재개 없이 차량 명령에 맞춰 휠 속도만 즉시 반영"""
         wheel_radius = PASSENGER_CAR_WHEEL_RADIUS_M
-        base_speed = min(self.max_speed, self.route_base_speed_mps) * 0.6
+        base_speed = max(0.0, min(self.max_speed, self.route_max_speed_mps))
+        command_speed_scale = {
+            OperationCommand.STOP: 0.0,
+            OperationCommand.FORWARD: 1.0,
+            OperationCommand.REVERSE: 0.8,
+            OperationCommand.TURN_LEFT: 0.6,
+            OperationCommand.TURN_RIGHT: 0.6,
+        }
+        effective_speed = base_speed * command_speed_scale.get(self.command, 1.0)
         direction_sign = -1.0 if self.command == OperationCommand.REVERSE else 1.0
         self.ignore_wheel_command_until = time.time() + 0.5
 
@@ -977,15 +999,15 @@ class MqttSimulator:
                 axis_angle = 0.0
                 wheel_state = VehicleExecState.STOP
             elif self.command == OperationCommand.TURN_LEFT:
-                wheel_speed = base_speed * (0.7 if is_left_wheel else 1.3)
+                wheel_speed = effective_speed * (0.7 if is_left_wheel else 1.3)
                 axis_angle = math.pi / 8 if is_front_wheel else 0.0
                 wheel_state = VehicleExecState.RUN
             elif self.command == OperationCommand.TURN_RIGHT:
-                wheel_speed = base_speed * (1.3 if is_left_wheel else 0.7)
+                wheel_speed = effective_speed * (1.3 if is_left_wheel else 0.7)
                 axis_angle = -math.pi / 8 if is_front_wheel else 0.0
                 wheel_state = VehicleExecState.RUN
             else:
-                wheel_speed = base_speed
+                wheel_speed = effective_speed
                 axis_angle = 0.0
                 wheel_state = VehicleExecState.RUN
 
@@ -1009,7 +1031,7 @@ class MqttSimulator:
             self._publish(f"{base}/operation/command", wheel["command"].value)
             self._publish(f"{base}/operation/state", wheel["state"].value)
 
-        self.current_speed = 0.0 if self.command == OperationCommand.STOP else abs(base_speed)
+        self.current_speed = 0.0 if self.command == OperationCommand.STOP else abs(effective_speed)
         self.linear_speed = self.current_speed
         self.linear_acc = 0.0
         self.angle_speed = 0.0

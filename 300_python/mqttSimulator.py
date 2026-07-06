@@ -363,10 +363,15 @@ class MqttSimulator:
                     if topic == "vehicle/linear/speed":
                         if (
                             self.last_published_vehicle_linear_speed is not None
-                            and (time.time() - self.last_published_vehicle_linear_speed_at) < 1.2
-                            and str(payload) == str(self.last_published_vehicle_linear_speed)
+                            and (time.time() - self.last_published_vehicle_linear_speed_at) < 2.0
                         ):
-                            return
+                            try:
+                                incoming_speed = float(payload)
+                                if abs(incoming_speed - self.last_published_vehicle_linear_speed) < 0.001:
+                                    return
+                            except ValueError:
+                                if str(payload) == str(self.last_published_vehicle_linear_speed):
+                                    return
 
                     new_max_speed = float(payload)
                     if 0.0 <= new_max_speed <= 27.8:  # 0~100 km/h 범위 제한
@@ -829,7 +834,10 @@ class MqttSimulator:
         self.client.publish(topic, payload, retain=True)
 
         if topic == "vehicle/linear/speed":
-            self.last_published_vehicle_linear_speed = payload
+            try:
+                self.last_published_vehicle_linear_speed = float(payload)
+            except ValueError:
+                self.last_published_vehicle_linear_speed = payload
             self.last_published_vehicle_linear_speed_at = time.time()
         
         # Publish 카운트 증가 및 로그 출력
@@ -1020,7 +1028,7 @@ class MqttSimulator:
         }
         effective_speed = base_speed * command_speed_scale.get(self.command, 1.0)
         direction_sign = -1.0 if self.command == OperationCommand.REVERSE else 1.0
-        self.ignore_wheel_command_until = time.time() + 0.5
+        self.ignore_wheel_command_until = time.time() + 2.0
 
         for wid, wheel in self.wheels.items():
             is_left_wheel = wid in ["fl", "rl"]

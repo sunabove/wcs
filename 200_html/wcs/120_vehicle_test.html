@@ -584,8 +584,10 @@
             function sendVehicleCommand(command, buttonElement, actionName, icon) {
                 const topic = 'vehicle/operation/command';
                 const speedTopic = 'vehicle/linear/speed';
-                const speedKmh = Number.parseFloat($('#vehicleMaxSpeedSlider').val()) || 0;
-                const speedMs = speedKmh / 3.6;
+                const sliderSpeedKmh = Number.parseFloat($('#vehicleMaxSpeedSlider').val()) || 0;
+                const sliderSpeedMs = sliderSpeedKmh / 3.6;
+                const telemetrySpeedMs = Number.parseFloat(window.latestVehicleLinearSpeedMs);
+                const speedMs = Number.isFinite(telemetrySpeedMs) ? Math.abs(telemetrySpeedMs) : sliderSpeedMs;
                 const roundedSpeedMs = Number(speedMs.toFixed(2));
                 
                 // 모든 차량 제어 버튼에서 active와 text-white 클래스 제거
@@ -635,8 +637,10 @@
                     return;
                 }
 
-                const speedKmh = Number.parseFloat($('#vehicleMaxSpeedSlider').val()) || 0;
-                const speedMs = speedKmh / 3.6;
+                const sliderSpeedKmh = Number.parseFloat($('#vehicleMaxSpeedSlider').val()) || 0;
+                const sliderSpeedMs = sliderSpeedKmh / 3.6;
+                const telemetrySpeedMs = Number.parseFloat(window.latestVehicleLinearSpeedMs);
+                const speedMs = Number.isFinite(telemetrySpeedMs) ? Math.abs(telemetrySpeedMs) : sliderSpeedMs;
                 const wheelRadiusM = 0.32;
                 const baseRpm = ((speedMs / wheelRadiusM) * 60) / (2 * Math.PI);
 

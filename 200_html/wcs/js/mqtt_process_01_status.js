@@ -1,6 +1,7 @@
 // mqtt_process_01_status.js
 
 let vehicleSpeedZeroClickLatched = false;
+window.latestVehicleLinearSpeedMs = window.latestVehicleLinearSpeedMs || 0;
 
 function prcessMqttMessage(topic, value) {
 
@@ -250,6 +251,9 @@ function prcessMqttMessage(topic, value) {
     // 차량 실제 속도(vehicle/linear/speed) 기준으로 정지 버튼 자동 활성화
     if (topic === 'vehicle/linear/speed') {
         const numericSpeed = parseFloat(value);
+        if (Number.isFinite(numericSpeed)) {
+            window.latestVehicleLinearSpeedMs = numericSpeed;
+        }
         const speedZeroEpsilon = 0.05;
         const speedReleaseEpsilon = 0.15;
 

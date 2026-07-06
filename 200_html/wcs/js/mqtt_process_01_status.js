@@ -228,6 +228,26 @@ function prcessMqttMessage(topic, value) {
             console.log(`[MQTT] 🚗 차량 명령 버튼 선택: ${commandName} (${commandValue})`);
         }
     }
+
+    // 차량 실제 속도가 0이면 정지 버튼을 자동 활성화
+    if (topic === 'vehicle/driving/current_speed' || topic === 'vehicle/linear/speed') {
+        const numericSpeed = parseFloat(value);
+        if (Number.isFinite(numericSpeed) && Math.abs(numericSpeed) < 0.001) {
+            $('#vehicle-forward, #vehicle-backward, #vehicle-turn-left, #vehicle-turn-right, #vehicle-stop')
+                .removeClass('active text-white')
+                .addClass('text-black');
+
+            $('#vehicle-stop')
+                .addClass('active text-white')
+                .removeClass('text-black');
+
+            if (typeof window.clearVehicleWheelHighlights === 'function') {
+                window.clearVehicleWheelHighlights();
+            }
+
+            console.log('[MQTT] ⏹️ 차량 속도 0 감지: 정지 버튼 자동 활성화');
+        }
+    }
     
     // vehicle/max_speed 특별 처리 (슬라이더와 텍스트 동시 업데이트)
     if (topic === 'vehicle/max_speed') {

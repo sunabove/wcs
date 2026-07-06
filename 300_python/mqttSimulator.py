@@ -141,6 +141,7 @@ class MqttSimulator:
         self.ignore_wheel_command_until = 0.0
         self.last_published_vehicle_linear_speed = None
         self.last_published_vehicle_linear_speed_at = 0.0
+        self.allow_publish_while_stopped = False
         self.start_time = time.time()
         self.script_path = os.path.abspath(__file__)
         self.last_modified = os.path.getmtime(self.script_path) if os.path.exists(self.script_path) else 0
@@ -829,6 +830,21 @@ class MqttSimulator:
 
     # ===== Publish =====
     def _publish(self, topic, value):
+        # 시뮬레이션 중지 상태에서는 동적 토픽의 연속 발행을 차단한다.
+        if not self.simulation_running and not self.allow_publish_while_stopped:
+            blocked_while_stopped = (
+                topic.startswith("wheel/")
+                or topic.startswith("vehicle/linear/")
+                or topic.startswith("vehicle/angle/")
+                or topic.startswith("vehicle/position/")
+                or topic == "vehicle/driving/current_speed"
+                or topic == "vehicle/driving/speed_kmh"
+                or topic == "vehicle/driving/target_speed"
+                or topic == "vehicle/driving/target_speed_kmh"
+            )
+            if blocked_while_stopped:
+                return
+
         # topic과 value만 직접 발행 (JSON 포장 없이)
         payload = str(value)
         self.client.publish(topic, payload, retain=True)
@@ -972,51 +988,57 @@ class MqttSimulator:
         if not self.manual_wheel_test_active or target_wheel not in self.wheels:
             return
 
-        cmd = self.manual_wheel_test_command
-        if cmd == OperationCommand.FORWARD:
-            angular_speed = self.manual_wheel_test_angular_speed
-            state = VehicleExecState.RUN
-        elif cmd == OperationCommand.REVERSE:
-            angular_speed = -self.manual_wheel_test_angular_speed
-            state = VehicleExecState.RUN
-        else:
-            angular_speed = 0.0
-            state = VehicleExecState.STOP
-
-        for wid, wheel in self.wheels.items():
-            if wid == target_wheel:
-                wheel["command"] = cmd
-                wheel["state"] = state
-                wheel["angle_speed"] = angular_speed
-                wheel["angle_acc"] = 0.0
-                wheel["speed"] = 0.0
-                wheel["acc"] = 0.0
-                wheel["angle"] = (wheel["angle"] + angular_speed) % (2 * math.pi)
+        self.allow_publish_while_stopped = True
+        try:
+            cmd = self.manual_wheel_test_command
+            if cmd == OperationCommand.FORWARD:
+                angular_speed = self.manual_wheel_test_angular_speed
+                state = VehicleExecState.RUN
+            elif cmd == OperationCommand.REVERSE:
+                angular_speed = -self.manual_wheel_test_angular_speed
+                state = VehicleExecState.RUN
             else:
-                wheel["command"] = OperationCommand.STOP
-                wheel["state"] = VehicleExecState.STOP
-                wheel["angle_speed"] = 0.0
-                wheel["angle_acc"] = 0.0
-                wheel["speed"] = 0.0
-                wheel["acc"] = 0.0
+                angular_speed = 0.0
+                state = VehicleExecState.STOP
 
-            base = f"wheel/{wid}"
-            self._publish(f"{base}/angle/radian", round(wheel["angle"], 4))
-            self._publish(f"{base}/angle/speed", round(wheel["angle_speed"], 3))
-            self._publish(f"{base}/angle/acceleration", round(wheel["angle_acc"], 3))
-            self._publish(f"{base}/linear/speed", round(wheel["speed"], 3))
-            self._publish(f"{base}/linear/acceleration", round(wheel["acc"], 3))
-            self._publish(f"{base}/operation/command", wheel["command"].value)
-            self._publish(f"{base}/operation/state", wheel["state"].value)
+            for wid, wheel in self.wheels.items():
+                if wid == target_wheel:
+                    wheel["command"] = cmd
+                    wheel["state"] = state
+                    wheel["angle_speed"] = angular_speed
+                    wheel["angle_acc"] = 0.0
+                    wheel["speed"] = 0.0
+                    wheel["acc"] = 0.0
+                    wheel["angle"] = (wheel["angle"] + angular_speed) % (2 * math.pi)
+                else:
+                    wheel["command"] = OperationCommand.STOP
+                    wheel["state"] = VehicleExecState.STOP
+                    wheel["angle_speed"] = 0.0
+                    wheel["angle_acc"] = 0.0
+                    wheel["speed"] = 0.0
+                    wheel["acc"] = 0.0
 
-        print(
-            f"[WHEEL_TEST] 발행: {target_wheel.upper()} command={cmd.value} "
-            f"angle_speed={angular_speed:.3f} rad/s"
-        )
+                base = f"wheel/{wid}"
+                self._publish(f"{base}/angle/radian", round(wheel["angle"], 4))
+                self._publish(f"{base}/angle/speed", round(wheel["angle_speed"], 3))
+                self._publish(f"{base}/angle/acceleration", round(wheel["angle_acc"], 3))
+                self._publish(f"{base}/linear/speed", round(wheel["speed"], 3))
+                self._publish(f"{base}/linear/acceleration", round(wheel["acc"], 3))
+                self._publish(f"{base}/operation/command", wheel["command"].value)
+                self._publish(f"{base}/operation/state", wheel["state"].value)
+
+            print(
+                f"[WHEEL_TEST] 발행: {target_wheel.upper()} command={cmd.value} "
+                f"angle_speed={angular_speed:.3f} rad/s"
+            )
+        finally:
+            self.allow_publish_while_stopped = False
     pass  # _publish_manual_wheel_simulation
 
     def _publish_vehicle_command_wheels_when_paused(self):
         """시뮬레이션 재개 없이 차량 명령에 맞춰 휠 속도만 즉시 반영"""
+        self.allow_publish_while_stopped = True
+        try:
         wheel_radius = PASSENGER_CAR_WHEEL_RADIUS_M
         base_speed = max(0.0, self.max_speed)
         command_speed_scale = {
@@ -1083,6 +1105,8 @@ class MqttSimulator:
         self._publish("vehicle/driving/speed_kmh", round(self.current_speed * 3.6, 1))
         self._publish("vehicle/linear/speed", round(self.linear_speed, 3))
         self._publish("vehicle/operation/state", self.exec_state.value)
+        finally:
+            self.allow_publish_while_stopped = False
     pass  # _publish_vehicle_command_wheels_when_paused
 
     def run(self):

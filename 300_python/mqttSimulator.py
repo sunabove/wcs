@@ -375,7 +375,6 @@ class MqttSimulator:
                         # 최고 속도 변경을 즉시 바퀴 속도에 반영한다.
                         if (
                             not self.simulation_running
-                            and not self.manual_wheel_test_active
                             and self.command in [
                                 OperationCommand.FORWARD,
                                 OperationCommand.REVERSE,
@@ -383,6 +382,10 @@ class MqttSimulator:
                                 OperationCommand.TURN_RIGHT,
                             ]
                         ):
+                            # 속도 설정은 차량 주행 컨텍스트를 우선한다.
+                            self.manual_wheel_test_active = False
+                            self.manual_wheel_test_wheel = None
+                            self.manual_wheel_test_command = OperationCommand.STOP
                             self._publish_vehicle_command_wheels_when_paused()
                     else:
                         print(f"[SPEED] 잘못된 최고 속도 범위: {new_max_speed:.1f} m/s (허용: 0.0-27.8 m/s, 0-100 km/h)")

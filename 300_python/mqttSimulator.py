@@ -1036,6 +1036,13 @@ class MqttSimulator:
         self.linear_acc = 0.0
         self.angle_speed = 0.0
         self.angle_acc = 0.0
+
+        # 시뮬레이션 정지 모드에서도 차량 속도/상태 토픽을 즉시 발행해
+        # 프론트엔드의 "속도 0 -> 정지 버튼 자동 클릭" 로직이 동작하도록 한다.
+        self._publish("vehicle/driving/current_speed", round(self.current_speed, 3))
+        self._publish("vehicle/driving/speed_kmh", round(self.current_speed * 3.6, 1))
+        self._publish("vehicle/linear/speed", round(self.linear_speed, 3))
+        self._publish("vehicle/operation/state", self.exec_state.value)
     pass  # _publish_vehicle_command_wheels_when_paused
 
     def run(self):

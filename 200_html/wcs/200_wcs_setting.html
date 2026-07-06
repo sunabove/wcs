@@ -21,6 +21,28 @@
 
     <!-- WCS Common CSS -->
     <link href="./css/002_wcs_common.css" rel="stylesheet">
+    <style>
+        .setting-section-item {
+            width: 100%;
+        }
+
+        @media (min-width: 768px) {
+            .setting-section-title {
+                flex: 0 0 33.3333%;
+                max-width: 33.3333%;
+            }
+
+            .setting-section-control {
+                flex: 0 0 50%;
+                max-width: 50%;
+            }
+
+            .setting-section-action {
+                flex: 0 0 16.6667%;
+                max-width: 16.6667%;
+            }
+        }
+    </style>
 
     <!-- jQuery CDN -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js" defer></script>
@@ -120,17 +142,48 @@
 
             <div class="card-body p-2"> 
 
+                <table>
+                    <thead>
+                        <colgroup>
+                            <col width="30%">
+                            <col >
+                            <col width="20%">
+                        </colgroup>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>
+                                <h5 class="mb-1">
+                                    <i class="bi bi-water me-2"></i>노면 종류 설정
+                                </h5>
+                                <small class="text-muted">현재 주행 환경의 노면 종류를 선택합니다.</small>
+                            </td>
+                            <td>
+
+                            </td>
+                            <td>
+
+                            </td>
+                        </tr>
+                        <tr>
+                            <td></td>
+                            <td></td>
+                            <td></td>
+                        </tr>
+                    </tbody>
+                </table>
+
                 <div class="row g-3 mt-1">
                     <div class="col">
                         <div class="border rounded p-3 bg-light d-flex flex-column flex-md-row align-items-md-center gap-3">
-                            <div>
+                            <div class="setting-section-item setting-section-title">
                                 <h5 class="mb-1">
                                     <i class="bi bi-water me-2"></i>노면 종류 설정
                                 </h5>
                                 <small class="text-muted">현재 주행 환경의 노면 종류를 선택합니다.</small>
                             </div>
 
-                            <div class="flex-grow-1">
+                            <div class="setting-section-item setting-section-control">
                                 <select class="form-select" id="surface-state">
                                     <option value="0" selected>아스팔트</option>
                                     <option value="1">보도블록</option>
@@ -138,7 +191,8 @@
                                     <option value="3">자갈길</option>
                                 </select>
                             </div>
-                            <div>
+                            
+                            <div class="setting-section-item setting-section-action">
                                 <button type="button" id="btn-surface-apply" class="btn btn-primary w-100">
                                     <i class="bi bi-check2-circle me-1"></i> 적용
                                 </button>
@@ -150,21 +204,21 @@
                 <div class="row g-3 mt-1">
                     <div class="col">
                         <div class="border rounded p-3 bg-light d-flex flex-column flex-md-row align-items-md-center gap-3">
-                            <div>
+                            <div class="setting-section-item setting-section-title">
                                 <h5 class="mb-1">
                                     <i class="bi bi-cone-striped me-2"></i>장애물 설정
                                 </h5>
                                 <small class="text-muted">현재 주행 환경의 장애물 상태를 선택합니다.</small>
                             </div>
 
-                            <div class="flex-grow-1">
+                            <div class="setting-section-item setting-section-control">
                                 <select class="form-select" id="surface-obstacle">
                                     <option value="0" selected>없음</option>
                                     <option value="1">빙판길</option>
                                     <option value="2">포트 홀</option>
                                 </select>
                             </div>
-                            <div>
+                            <div class="setting-section-item setting-section-action">
                                 <button type="button" id="btn-obstacle-apply" class="btn btn-primary w-100">
                                     <i class="bi bi-check2-circle me-1"></i> 적용
                                 </button>

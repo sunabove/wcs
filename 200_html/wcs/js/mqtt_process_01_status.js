@@ -231,6 +231,22 @@ function prcessMqttMessage(topic, value) {
         }
     }
 
+    // operation/state가 STOP(0)이면 속도 토픽이 늦게 와도 정지 버튼을 확실히 선택/클릭
+    if (topic === 'vehicle/operation/state') {
+        const operationState = parseInt(value, 10);
+        if (operationState === 0) {
+            const $stopButton = $('#vehicle-stop');
+            if (!vehicleSpeedZeroClickLatched && $stopButton.length > 0) {
+                if (typeof $stopButton[0]?.click === 'function') {
+                    $stopButton[0].click();
+                } else {
+                    $stopButton.trigger('click');
+                }
+                vehicleSpeedZeroClickLatched = true;
+            }
+        }
+    }
+
     // 차량 실제 속도가 0이면 정지 버튼을 자동 활성화
     if (topic === 'vehicle/driving/current_speed' || topic === 'vehicle/linear/speed') {
         const numericSpeed = parseFloat(value);

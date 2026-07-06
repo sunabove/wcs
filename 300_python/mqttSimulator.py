@@ -348,7 +348,7 @@ class MqttSimulator:
             elif topic == "vehicle/max_speed":
                 try:
                     new_max_speed = float(payload)
-                    if 0.5 <= new_max_speed <= 27.8:  # 1.8~100 km/h 범위 제한
+                    if 0.0 <= new_max_speed <= 27.8:  # 0~100 km/h 범위 제한
                         old_speed = self.max_speed
                         self.max_speed = new_max_speed
                         print(f"[SPEED] 최고 속도 변경: {old_speed:.1f} -> {new_max_speed:.1f} m/s ({new_max_speed*3.6:.0f} km/h)")
@@ -372,7 +372,7 @@ class MqttSimulator:
                         ):
                             self._publish_vehicle_command_wheels_when_paused()
                     else:
-                        print(f"[SPEED] 잘못된 최고 속도 범위: {new_max_speed:.1f} m/s (허용: 0.5-27.8 m/s, 1.8-100 km/h)")
+                        print(f"[SPEED] 잘못된 최고 속도 범위: {new_max_speed:.1f} m/s (허용: 0.0-27.8 m/s, 0-100 km/h)")
                 except ValueError:
                     print(f"[SPEED] 잘못된 최고 속도 형식: {payload}")
             elif topic.endswith("/id_request"):

@@ -132,15 +132,12 @@ class MqttSimulator:
         
         # 재시작 및 모니터링
         self.running = True
-        self.simulation_running = True  # 시뮬레이션 실행 여부
         self.manual_wheel_test_active = False
         self.manual_wheel_test_wheel = None
         self.manual_wheel_test_command = OperationCommand.STOP
         self.manual_wheel_test_angular_speed = 8.0  # rad/s
-        self.ignore_wheel_command_until = 0.0
         self.last_published_vehicle_linear_speed = None
         self.last_published_vehicle_linear_speed_at = 0.0
-        self.allow_publish_while_stopped = False
         self.start_time = time.time()
         self.script_path = os.path.abspath(__file__)
         self.last_modified = os.path.getmtime(self.script_path) if os.path.exists(self.script_path) else 0
@@ -175,8 +172,6 @@ class MqttSimulator:
         client.subscribe("client/connect")
         client.subscribe("vehicle/linear/speed")
         client.subscribe("vehicle/max_speed")
-        client.subscribe("simulation/start")
-        client.subscribe("simulation/stop")
         client.subscribe("vehicle/operation/command")
         client.subscribe("vehicle/surface/state")
         client.subscribe("vehicle/surface/obstacle")
@@ -187,7 +182,7 @@ class MqttSimulator:
             client.subscribe(f"wheel/{wheel_id}/id")          # ID 설정
             client.subscribe(f"wheel/{wheel_id}/operation/command")
             
-        print("[MQTT] Subscribed to client/connect, vehicle/linear/speed, vehicle/max_speed, simulation/start, simulation/stop, vehicle/operation/command, vehicle/surface/state, vehicle/surface/obstacle, wheel/*/id_request, wheel/*/id, wheel/*/operation/command topics")
+        print("[MQTT] Subscribed to client/connect, vehicle/linear/speed, vehicle/max_speed, vehicle/operation/command, vehicle/surface/state, vehicle/surface/obstacle, wheel/*/id_request, wheel/*/id, wheel/*/operation/command topics")
     
     def _on_message(self, client, userdata, msg):
         """MQTT 메시지 수신 처리"""
@@ -197,28 +192,7 @@ class MqttSimulator:
             
             print(f"[MQTT] Received: {topic} -> {payload}")
             
-            if topic == "simulation/start":
-                # start 명령은 수동 바퀴 테스트 모드를 해제하고 항상 시뮬레이션 시작으로 처리
-                if self.manual_wheel_test_active and self.manual_wheel_test_command != OperationCommand.STOP:
-                    print("[SIM] 수동 바퀴 테스트 모드 종료 후 시뮬레이션 시작")
-
-                self.simulation_running = True
-                self.manual_wheel_test_active = False
-                self.manual_wheel_test_wheel = None
-                self.manual_wheel_test_command = OperationCommand.STOP
-                self._publish("simulation/state", "start")
-                print("[SIM] 시뮬레이션 시작")
-            elif topic == "simulation/stop":
-                self.simulation_running = False
-                self.manual_wheel_test_active = False
-                self.manual_wheel_test_wheel = None
-                self.manual_wheel_test_command = OperationCommand.STOP
-                self.command = OperationCommand.STOP
-                self.exec_state = VehicleExecState.STOP
-                self._publish_vehicle_command_wheels_when_paused()
-                self._publish("simulation/state", "stop")
-                print("[SIM] 시뮬레이션 중지")
-            elif topic == "vehicle/operation/command":
+            if topic == "vehicle/operation/command":
                 try:
                     command_value = int(payload)
                     if command_value in [
@@ -258,8 +232,7 @@ class MqttSimulator:
                                 self._publish(f"{base}/operation/state", VehicleExecState.STOP.value)
                         else:
                             self.exec_state = VehicleExecState.RUN
-                            if not self.simulation_running:
-                                self._publish_vehicle_command_wheels_when_paused()
+                            self._publish_vehicle_command_wheels_immediately()
 
                         # operation/command는 수신 토픽과 동일하므로 여기서 재발행하면 self-echo 루프가 생길 수 있다.
                         # 상태 토픽만 즉시 반영한다.
@@ -287,29 +260,16 @@ class MqttSimulator:
                         else:
                             command_value = int(payload)
 
-                            # 내부 상태 반영을 위해 simulator가 직접 발행한 wheel command의 self-echo는 잠시 무시한다.
-                            if time.time() < self.ignore_wheel_command_until:
-                                print(f"[WHEEL_TEST] self-echo wheel 명령 무시: {topic} = {command_value}")
-                                return
-
-                            # 시뮬레이션 실행 중에는 wheel operation/command 토픽을 수동 테스트 명령으로 처리하지 않는다.
-                            # (정기 발행되는 동일 토픽의 self-echo로 인해 simulation/stop으로 전환되는 루프 방지)
-                            if self.simulation_running:
-                                print(f"[WHEEL_TEST] simulation 실행 중 wheel 명령 무시: {topic} = {command_value}")
-                                return
-
                             if command_value not in [OperationCommand.STOP.value, OperationCommand.FORWARD.value, OperationCommand.REVERSE.value]:
                                 print(f"[WHEEL_TEST] 지원하지 않는 바퀴 테스트 명령: {command_value}")
                             else:
                                 command = OperationCommand(command_value)
-                                self.simulation_running = False
-                                self._publish("simulation/state", "stop")
 
                                 if command == OperationCommand.STOP:
                                     self.manual_wheel_test_active = False
                                     self.manual_wheel_test_wheel = None
                                     self.manual_wheel_test_command = OperationCommand.STOP
-                                    self._publish_vehicle_command_wheels_when_paused()
+                                    self._publish_vehicle_command_wheels_immediately()
                                     print(f"[WHEEL_TEST] 수동 바퀴 테스트 정지: {wheel_id.upper()}")
                                 else:
                                     self.manual_wheel_test_active = True
@@ -383,10 +343,10 @@ class MqttSimulator:
                             self.target_speed = self.max_speed * 0.9  # 최고 속도의 90%로 조정
                             print(f"[SPEED] 목표 속도 조정: {self.target_speed:.1f} m/s")
 
-                        # 시뮬레이션 정지 상태에서 차량 방향 명령이 활성화되어 있으면,
+                        # 차량 방향 명령이 활성화되어 있으면,
                         # 최고 속도 변경을 즉시 바퀴 속도에 반영한다.
                         if (
-                            not self.simulation_running
+                            not self.manual_wheel_test_active
                             and self.command in [
                                 OperationCommand.FORWARD,
                                 OperationCommand.REVERSE,
@@ -398,7 +358,7 @@ class MqttSimulator:
                             self.manual_wheel_test_active = False
                             self.manual_wheel_test_wheel = None
                             self.manual_wheel_test_command = OperationCommand.STOP
-                            self._publish_vehicle_command_wheels_when_paused()
+                            self._publish_vehicle_command_wheels_immediately()
                     else:
                         print(f"[SPEED] 잘못된 최고 속도 범위: {new_max_speed:.1f} m/s (허용: 0.0-27.8 m/s, 0-100 km/h)")
                 except ValueError:
@@ -487,11 +447,6 @@ class MqttSimulator:
                 payload = str(wheel_num_id)
                 self._publish(topic, payload)
                 print(f"[WHEEL_ID] Published {topic} -> {payload}")
-            
-            # 현재 시뮬레이션 상태 발행
-            sim_state = "start" if self.simulation_running else "stop"
-            self._publish("simulation/state", sim_state)
-            print(f"[SIM] Published simulation/state -> {sim_state}")
             
             print("[SETTINGS] All settings published successfully")
             

@@ -137,6 +137,7 @@ class MqttSimulator:
         self.manual_wheel_test_wheel = None
         self.manual_wheel_test_command = OperationCommand.STOP
         self.manual_wheel_test_angular_speed = 8.0  # rad/s
+        self.ignore_wheel_command_until = 0.0
         self.start_time = time.time()
         self.script_path = os.path.abspath(__file__)
         self.last_modified = os.path.getmtime(self.script_path) if os.path.exists(self.script_path) else 0
@@ -276,6 +277,11 @@ class MqttSimulator:
                             print(f"[WHEEL_TEST] 알 수 없는 wheel ID: {wheel_id}")
                         else:
                             command_value = int(payload)
+
+                            # 내부 상태 반영을 위해 simulator가 직접 발행한 wheel command의 self-echo는 잠시 무시한다.
+                            if time.time() < self.ignore_wheel_command_until:
+                                print(f"[WHEEL_TEST] self-echo wheel 명령 무시: {topic} = {command_value}")
+                                return
 
                             # 시뮬레이션 실행 중에는 wheel operation/command 토픽을 수동 테스트 명령으로 처리하지 않는다.
                             # (정기 발행되는 동일 토픽의 self-echo로 인해 simulation/stop으로 전환되는 루프 방지)
@@ -960,6 +966,7 @@ class MqttSimulator:
         wheel_radius = PASSENGER_CAR_WHEEL_RADIUS_M
         base_speed = min(self.max_speed, self.route_base_speed_mps) * 0.6
         direction_sign = -1.0 if self.command == OperationCommand.REVERSE else 1.0
+        self.ignore_wheel_command_until = time.time() + 0.5
 
         for wid, wheel in self.wheels.items():
             is_left_wheel = wid in ["fl", "rl"]

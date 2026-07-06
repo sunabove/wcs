@@ -136,6 +136,7 @@ class MqttSimulator:
         self.manual_wheel_test_wheel = None
         self.manual_wheel_test_command = OperationCommand.STOP
         self.manual_wheel_test_angular_speed = 8.0  # rad/s
+        self.direction_control_speed_only_mode = False
         self.last_published_vehicle_linear_speed = None
         self.last_published_vehicle_linear_speed_at = 0.0
         self.start_time = time.time()
@@ -206,37 +207,11 @@ class MqttSimulator:
                         self.manual_wheel_test_active = False
                         self.manual_wheel_test_wheel = None
                         self.manual_wheel_test_command = OperationCommand.STOP
+                        self.direction_control_speed_only_mode = True
 
                         self.command = OperationCommand(command_value)
-                        if self.command == OperationCommand.STOP:
-                            self.exec_state = VehicleExecState.STOP
-                            self.current_speed = 0.0
-                            self.linear_speed = 0.0
-                            self.linear_acc = 0.0
-                            self.angle_speed = 0.0
-                            self.angle_acc = 0.0
-
-                            for wid, wheel in self.wheels.items():
-                                wheel["command"] = OperationCommand.STOP
-                                wheel["state"] = VehicleExecState.STOP
-                                wheel["speed"] = 0.0
-                                wheel["acc"] = 0.0
-                                wheel["angle_speed"] = 0.0
-                                wheel["angle_acc"] = 0.0
-
-                                base = f"wheel/{wid}"
-                                self._publish(f"{base}/linear/speed", 0)
-                                self._publish(f"{base}/linear/acceleration", 0)
-                                self._publish(f"{base}/angle/speed", 0)
-                                self._publish(f"{base}/angle/acceleration", 0)
-                                self._publish(f"{base}/operation/state", VehicleExecState.STOP.value)
-                        else:
-                            self.exec_state = VehicleExecState.RUN
-                            self._publish_vehicle_command_wheels_immediately()
-
-                        # operation/command는 수신 토픽과 동일하므로 여기서 재발행하면 self-echo 루프가 생길 수 있다.
-                        # 상태 토픽만 즉시 반영한다.
-                        self._publish("vehicle/operation/state", self.exec_state.value)
+                        self.exec_state = VehicleExecState.STOP if self.command == OperationCommand.STOP else VehicleExecState.RUN
+                        self._publish_vehicle_command_wheels_immediately()
 
                         command_names = {
                             OperationCommand.STOP: "정지",
@@ -269,12 +244,16 @@ class MqttSimulator:
                                     self.manual_wheel_test_active = False
                                     self.manual_wheel_test_wheel = None
                                     self.manual_wheel_test_command = OperationCommand.STOP
+                                    self.command = OperationCommand.STOP
+                                    self.exec_state = VehicleExecState.STOP
+                                    self.direction_control_speed_only_mode = True
                                     self._publish_vehicle_command_wheels_immediately()
                                     print(f"[WHEEL_TEST] 수동 바퀴 테스트 정지: {wheel_id.upper()}")
                                 else:
                                     self.manual_wheel_test_active = True
                                     self.manual_wheel_test_wheel = wheel_id
                                     self.manual_wheel_test_command = command
+                                    self.direction_control_speed_only_mode = False
                                     self._publish_manual_wheel_simulation()
 
                                     command_name = {
@@ -358,6 +337,7 @@ class MqttSimulator:
                             self.manual_wheel_test_active = False
                             self.manual_wheel_test_wheel = None
                             self.manual_wheel_test_command = OperationCommand.STOP
+                            self.direction_control_speed_only_mode = True
                             self._publish_vehicle_command_wheels_immediately()
                     else:
                         print(f"[SPEED] 잘못된 최고 속도 범위: {new_max_speed:.1f} m/s (허용: 0.0-27.8 m/s, 0-100 km/h)")
@@ -964,7 +944,7 @@ class MqttSimulator:
     pass  # _publish_manual_wheel_simulation
 
     def _publish_vehicle_command_wheels_immediately(self):
-        """차량 방향 명령에 맞춰 휠 속도와 조향각을 즉시 반영"""
+        """차량 방향 명령에 맞춰 휠 회전 속도만 즉시 발행"""
         wheel_radius = PASSENGER_CAR_WHEEL_RADIUS_M
         base_speed = max(0.0, self.max_speed)
         command_speed_scale = {
@@ -1010,24 +990,20 @@ class MqttSimulator:
             wheel["axis_angle"] = axis_angle
 
             base = f"wheel/{wid}"
-            self._publish(f"{base}/linear/speed", round(wheel["speed"], 3))
-            self._publish(f"{base}/linear/acceleration", 0)
             self._publish(f"{base}/angle/speed", round(wheel["angle_speed"], 3))
-            self._publish(f"{base}/angle/acceleration", 0)
-            self._publish(f"{base}/axis/angle", round(wheel["axis_angle"], 4))
-            self._publish(f"{base}/operation/state", wheel["state"].value)
-
+            
         self.current_speed = 0.0 if self.command == OperationCommand.STOP else abs(effective_speed)
         self.linear_speed = self.current_speed
         self.linear_acc = 0.0
         self.angle_speed = 0.0
         self.angle_acc = 0.0
 
-        self._publish("vehicle/driving/current_speed", round(self.current_speed, 3))
-        self._publish("vehicle/driving/speed_kmh", round(self.current_speed * 3.6, 1))
-        self._publish("vehicle/linear/speed", round(self.linear_speed, 3))
-        self._publish("vehicle/operation/state", self.exec_state.value)
     pass  # _publish_vehicle_command_wheels_immediately
+
+    def _publish_wheel_angle_speeds_only(self):
+        for wid, wheel in self.wheels.items():
+            self._publish(f"wheel/{wid}/angle/speed", round(wheel["angle_speed"], 3))
+    pass  # _publish_wheel_angle_speeds_only
 
     def run(self):
         self.client.connect(self.broker, self.port, 60)
@@ -1075,15 +1051,16 @@ class MqttSimulator:
                     print(f"[ROUTE STATUS] 발행 토픽: {self.publish_count}개 | 상태: {state_display} ({self.exec_state.value})")
                     print("-" * 70)
                 
-                self._update_vehicle()
                 if self.manual_wheel_test_active:
                     self._publish_manual_wheel_simulation()
+                elif self.direction_control_speed_only_mode:
+                    self._publish_wheel_angle_speeds_only()
                 else:
+                    self._update_vehicle()
                     self._update_wheels()
-
-                self._publish_vehicle()
-                self._publish_position()
-                self._publish_wheels()
+                    self._publish_vehicle()
+                    self._publish_position()
+                    self._publish_wheels()
     
                 loop_count += 1
                 time.sleep(1)

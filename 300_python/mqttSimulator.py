@@ -127,7 +127,6 @@ class MqttSimulator:
         
         # Publish 통계
         self.publish_count = 0
-        self.last_vehicle_command_published = None
         self.last_vehicle_state_published = None
         self.last_vehicle_max_speed_published = None
         

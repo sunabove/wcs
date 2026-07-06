@@ -48,14 +48,14 @@
 
     <!-- 상단 메뉴 -->
     <header class="p-1 text-bg-dark fs-5">
-
-        <div class="container">
-            <div class="d-flex flex-wrap align-items-center justify-content-between">
-
-                <ul class="nav flex-grow-1 mb-2 justify-content-center mb-md-0">
-                    <li>
-                        <a href="100_vehicle_status.html" class="nav-link px-2 text-secondary">
-                            <i class="bi bi-speedometer2 me-2"></i>
+                                    <div class="d-flex align-items-center gap-2">
+                                        <label for="vehicleMaxSpeedSlider" class="form-label fw-bold mb-0 text-nowrap">
+                                            <i class="bi bi-speedometer2 me-2"></i>속도 설정
+                                        </label>
+                                        <input type="range" id="vehicleMaxSpeedSlider" class="form-range mb-0" min="0" max="100" value="50">
+                                        <span class="input-group-text bg-light justify-content-center text-nowrap" style="width: 100px;">
+                                            <span id="vehicle/max_speed">50 Km/h</span>
+                                        </span>
                             Vehicle Status
                         </a>
                     </li>

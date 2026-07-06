@@ -434,6 +434,34 @@
                 .addClass('active text-white')
                 .removeClass('text-black');
 
+            function getVehicleCommandByButtonId(buttonId) {
+                switch (buttonId) {
+                    case 'vehicle-forward':
+                        return 1;
+                    case 'vehicle-backward':
+                        return 2;
+                    case 'vehicle-turn-left':
+                        return 3;
+                    case 'vehicle-turn-right':
+                        return 4;
+                    case 'vehicle-stop':
+                    default:
+                        return 0;
+                }
+            }
+
+            function publishSelectedVehicleCommandOnLoad() {
+                const vehicleButtonSelector = '#vehicle-forward, #vehicle-backward, #vehicle-turn-left, #vehicle-turn-right, #vehicle-stop';
+                const selectedButton = $(vehicleButtonSelector).filter('.active').first();
+                const selectedButtonId = selectedButton.length ? selectedButton.attr('id') : 'vehicle-stop';
+                const selectedCommand = getVehicleCommandByButtonId(selectedButtonId);
+
+                publishWhenConnected('vehicle/operation/command', selectedCommand);
+                console.log(`[Vehicle Test] 📨 초기 방향 제어 명령 발행: vehicle/operation/command = ${selectedCommand} (${selectedButtonId})`);
+            }
+
+            publishSelectedVehicleCommandOnLoad();
+
             $('#test-clockwise, #test-counterclockwise, #test-stop')
                 .removeClass('active btn-secondary text-white')
                 .addClass('btn-outline-secondary text-black');

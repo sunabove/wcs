@@ -170,6 +170,34 @@ function prcessMqttMessage(topic, value) {
             console.log(`[MQTT] ⚠️ 장애물 상태: ${obstacleName} (${obstacle})`);
         }
     }
+
+    // road roll/pitch 각도 토픽 특별 처리 (rad -> deg, WCS Setting 슬라이더 초기화)
+    if (topic === 'vehicle/road/roll_angle' || topic === 'vehicle/road/pitch_angle') {
+        const numericRad = Number(value);
+        if (Number.isFinite(numericRad)) {
+            const angleDeg = Math.round((numericRad * 180) / Math.PI);
+
+            if (topic === 'vehicle/road/roll_angle') {
+                const $rollSlider = $('#vehicle-roll-angle');
+                const $rollValue = $('#vehicle-roll-angle-value');
+                if ($rollSlider.length > 0) {
+                    $rollSlider.val(String(angleDeg));
+                }
+                if ($rollValue.length > 0) {
+                    $rollValue.text(`${angleDeg}°`);
+                }
+            } else {
+                const $pitchSlider = $('#vehicle-pitch-angle');
+                const $pitchValue = $('#vehicle-pitch-angle-value');
+                if ($pitchSlider.length > 0) {
+                    $pitchSlider.val(String(angleDeg));
+                }
+                if ($pitchValue.length > 0) {
+                    $pitchValue.text(`${angleDeg}°`);
+                }
+            }
+        }
+    }
     
     // vehicle/operation/command 특별 처리 (차량 이동 제어 버튼 자동 선택)
     if (topic === 'vehicle/operation/command') {

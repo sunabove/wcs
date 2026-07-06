@@ -161,12 +161,6 @@
                                     <option value="3">자갈길</option>
                                 </select>
                             </div>
-                            
-                            <div class="setting-section-item setting-section-action">
-                                <button type="button" id="btn-surface-apply" class="btn btn-primary w-80">
-                                    <i class="bi bi-check2-circle me-1"></i> 적용
-                                </button>
-                            </div>
                         </div>
                     </div>
                 </div>
@@ -187,11 +181,6 @@
                                         <option value="1">빙판</option>
                                         <option value="2">포트홀</option>
                                 </select>
-                            </div>
-                            <div class="setting-section-item setting-section-action">
-                                <button type="button" id="btn-obstacle-apply" class="btn btn-primary w-80">
-                                    <i class="bi bi-check2-circle me-1"></i> 적용
-                                </button>
                             </div>
                         </div>
                     </div>
@@ -214,14 +203,14 @@
     <script> 
         $(document).ready(function () {
 
-            // 노면 종류 적용
-            $('#btn-surface-apply').on('click', function () {
+            // 노면 종류 선택 즉시 반영
+            $('#surface-state').on('change', function () {
                 const surfaceValue = $('#surface-state').val();
                 sendMQTTMessage('vehicle/surface/state', surfaceValue);
             });
 
-            // 장애물 상태 적용
-            $('#btn-obstacle-apply').on('click', function () {
+            // 장애물 상태 선택 즉시 반영
+            $('#surface-obstacle').on('change', function () {
                 const obstacleValue = $('#surface-obstacle').val();
                 sendMQTTMessage('vehicle/surface/obstacle', obstacleValue);
             });

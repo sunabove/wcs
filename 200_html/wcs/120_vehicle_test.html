@@ -391,6 +391,7 @@
             window.vehicleSpeedUiManualUntil = 0;
             window.suppressAutoStopUntil = 0;
             window.manualWheelTestActive = false;
+            window.manualWheelTestWheel = null;
 
             function cancelPendingPublish(topic) {
                 if (pendingPublishTimers[topic]) {
@@ -546,6 +547,7 @@
                 const angularSpeedAbs = Number.parseFloat($('#wheelTestSpeedSlider').val()) || 0;
                 window.suppressAutoStopUntil = Date.now() + 1500;
                 window.manualWheelTestActive = Number(command) === 1 || Number(command) === 2;
+                window.manualWheelTestWheel = window.manualWheelTestActive ? selectedWheel : null;
 
                 // 페이지 로드시 예약된 simulation/stop 재발행이 늦게 들어와 수동 휠 테스트를 끊지 않도록 취소
                 cancelPendingPublish('simulation/stop');
@@ -616,6 +618,7 @@
                 const roundedSpeedMs = Number(speedMs.toFixed(2));
                 window.suppressAutoStopUntil = Date.now() + 1500;
                 window.manualWheelTestActive = false;
+                window.manualWheelTestWheel = null;
 
                 // 페이지 로드시 예약된 simulation/stop 지연 발행이 차량 제어를 덮어쓰지 않도록 취소
                 cancelPendingPublish('simulation/stop');

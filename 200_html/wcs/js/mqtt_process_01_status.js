@@ -339,6 +339,14 @@ function applyWheelAngularVelocityToViewer(topic, value) {
         return;
     }
 
+    // 수동 휠 테스트 중에는 해당 휠의 MQTT 각속도 값(지연 0값 등)으로 로컬 회전이 덮어써지지 않게 보호
+    if (
+        window.manualWheelTestActive === true
+        && String(window.manualWheelTestWheel || '').toLowerCase() === wheelKey
+    ) {
+        return;
+    }
+
     const rpmValue = convertAngularMetricToRpm(metricPath, numericValue);
     if (!Number.isFinite(rpmValue)) {
         return;

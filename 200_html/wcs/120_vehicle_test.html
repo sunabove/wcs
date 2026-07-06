@@ -488,9 +488,6 @@
 
             publishSelectedVehicleCommandOnLoad();
 
-            // 테스트 화면 로딩 시 시뮬레이션 중지 명령을 무조건 1회 발행
-            publishWhenConnected('simulation/stop', 'stop');
-
             function applyVehicleCommandWheelHighlight(command) {
                 const commandNumber = Number(command);
 
@@ -549,9 +546,6 @@
                 window.suppressAutoStopUntil = Date.now() + 1500;
                 window.manualWheelTestActive = Number(command) === 1 || Number(command) === 2;
                 window.manualWheelTestWheel = window.manualWheelTestActive ? selectedWheel : null;
-
-                // 페이지 로드시 예약된 simulation/stop 재발행이 늦게 들어와 수동 휠 테스트를 끊지 않도록 취소
-                cancelPendingPublish('simulation/stop');
 
                 if (typeof window.setVehicleWheelHighlightByKey === 'function') {
                     window.setVehicleWheelHighlightByKey(selectedWheel);
@@ -622,9 +616,6 @@
                 window.manualWheelTestWheel = null;
                 window.vehicleDirectionCommandActive = Number(command) >= 1 && Number(command) <= 4;
 
-                // 페이지 로드시 예약된 simulation/stop 지연 발행이 차량 제어를 덮어쓰지 않도록 취소
-                cancelPendingPublish('simulation/stop');
-                
                 // 모든 차량 제어 버튼에서 active와 text-white 클래스 제거
                 $('#vehicle-forward, #vehicle-backward, #vehicle-turn-left, #vehicle-turn-right, #vehicle-stop')
                     .removeClass('active text-white')
@@ -710,12 +701,10 @@
 
             // 테스트 버튼 이벤트 - 통합된 함수 사용
             $('#test-clockwise').click(function() {
-                sendMQTTMessage('simulation/stop', 'stop', 1);
                 sendWheelCommand(1, $(this), '정회전', '⏰');
             });
 
             $('#test-counterclockwise').click(function() {
-                sendMQTTMessage('simulation/stop', 'stop', 1);
                 sendWheelCommand(2, $(this), '역회전', '↩️');
             });
 

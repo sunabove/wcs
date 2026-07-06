@@ -256,7 +256,6 @@ class MqttSimulator:
                                 self._publish(f"{base}/linear/acceleration", 0)
                                 self._publish(f"{base}/angle/speed", 0)
                                 self._publish(f"{base}/angle/acceleration", 0)
-                                self._publish(f"{base}/operation/command", OperationCommand.STOP.value)
                                 self._publish(f"{base}/operation/state", VehicleExecState.STOP.value)
                         else:
                             self.exec_state = VehicleExecState.RUN
@@ -891,10 +890,6 @@ class MqttSimulator:
         self._publish("vehicle/max_angular_speed", 1.0)  # rad/s
 
         # 동적 상태 정보는 변경 시에만 발행
-        if self.last_vehicle_command_published != self.command.value:
-            self._publish("vehicle/operation/command", self.command.value)
-            self.last_vehicle_command_published = self.command.value
-
         if self.last_vehicle_state_published != self.exec_state.value:
             self._publish("vehicle/operation/state", self.exec_state.value)
             self.last_vehicle_state_published = self.exec_state.value
@@ -979,7 +974,6 @@ class MqttSimulator:
             self._publish(f"{base}/tof/calibration", round(w["tof_calib"], 3))
 
             # 운영 상태
-            self._publish(f"{base}/operation/command", w["command"].value)
             self._publish(f"{base}/operation/state", w["state"].value)
     pass  # _publish_wheels
 
@@ -1024,7 +1018,6 @@ class MqttSimulator:
                 self._publish(f"{base}/angle/acceleration", round(wheel["angle_acc"], 3))
                 self._publish(f"{base}/linear/speed", round(wheel["speed"], 3))
                 self._publish(f"{base}/linear/acceleration", round(wheel["acc"], 3))
-                self._publish(f"{base}/operation/command", wheel["command"].value)
                 self._publish(f"{base}/operation/state", wheel["state"].value)
 
             print(
@@ -1090,7 +1083,6 @@ class MqttSimulator:
                 self._publish(f"{base}/angle/speed", round(wheel["angle_speed"], 3))
                 self._publish(f"{base}/angle/acceleration", 0)
                 self._publish(f"{base}/axis/angle", round(wheel["axis_angle"], 4))
-                self._publish(f"{base}/operation/command", wheel["command"].value)
                 self._publish(f"{base}/operation/state", wheel["state"].value)
 
             self.current_speed = 0.0 if self.command == OperationCommand.STOP else abs(effective_speed)

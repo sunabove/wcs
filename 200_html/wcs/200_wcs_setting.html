@@ -247,7 +247,8 @@
             $('#vehicle-roll-angle').on('input change', function () {
                 const rollAngleDeg = Number.parseInt($(this).val(), 10) || 0;
                 $('#vehicle-roll-angle-value').text(`${rollAngleDeg}°`);
-                sendMQTTMessage('vehicle/road/roll_angle_deg', rollAngleDeg);
+                const rollAngleRad = (rollAngleDeg * Math.PI) / 180;
+                sendMQTTMessage('vehicle/road/roll_angle', rollAngleRad);
             });
 
         });

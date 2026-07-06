@@ -287,6 +287,10 @@ function prcessMqttMessage(topic, value) {
     
     // vehicle/max_speed는 설정 슬라이더 동기화 용도로만 처리
     if (topic === 'vehicle/max_speed') {
+        if ((window.vehicleSpeedUiManualUntil || 0) > Date.now()) {
+            return;
+        }
+
         const speedMs = parseFloat(value); // m/s 단위 값
         const speedKmh = Math.round(speedMs * 3.6); // km/h로 변환 후 반올림
         
@@ -300,6 +304,10 @@ function prcessMqttMessage(topic, value) {
 
     // 차량 실제 속도 반영은 vehicle/linear/speed 기준으로 처리
     if (topic === 'vehicle/linear/speed') {
+        if ((window.vehicleSpeedUiManualUntil || 0) > Date.now()) {
+            return;
+        }
+
         const speedMs = parseFloat(value);
         if (Number.isFinite(speedMs)) {
             const speedKmh = Math.abs(speedMs) * 3.6;

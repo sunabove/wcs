@@ -388,6 +388,18 @@
         $(document).ready(function() {
             const pendingPublishTimers = {};
             let lastVehicleMaxSpeedMsSent = null;
+            window.vehicleSpeedUiManualUntil = 0;
+
+            function updateVehicleSpeedUi(speedKmh, isManual = false) {
+                const numericKmh = Number.parseFloat(speedKmh);
+                const normalizedKmh = Number.isFinite(numericKmh) ? Math.max(0, numericKmh) : 0;
+                $('#vehicleMaxSpeedSlider').val(normalizedKmh);
+                $('[id="vehicle/max_speed"]').text(`${normalizedKmh.toFixed(1)} Km/h`);
+
+                if (isManual) {
+                    window.vehicleSpeedUiManualUntil = Date.now() + 1500;
+                }
+            }
 
             function publishWhenConnected(topic, payload, retries = 20, intervalMs = 250) {
                 if (pendingPublishTimers[topic]) {
@@ -692,9 +704,15 @@
                 sendVehicleCommand(0, $(this), '정지', '⏹️');
             });
 
-            // 속도 슬라이더 이벤트 핸들러 - 최고 속도 MQTT 발행
-            $('#vehicleMaxSpeedSlider').on('input change', function() {
-                const speedKmh = $(this).val(); // 슬라이더 값 (km/h)
+            // 속도 슬라이더 입력 중에는 UI만 즉시 갱신
+            $('#vehicleMaxSpeedSlider').on('input', function() {
+                const speedKmh = Number.parseFloat($(this).val()) || 0;
+                updateVehicleSpeedUi(speedKmh, true);
+            });
+
+            // 속도 슬라이더 확정(change) 시에만 MQTT 발행
+            $('#vehicleMaxSpeedSlider').on('change', function() {
+                const speedKmh = Number.parseFloat($(this).val()) || 0;
                 const speedMs = speedKmh / 3.6; // km/h를 m/s로 변환
                 const roundedSpeedMs = Number(speedMs.toFixed(2));
 
@@ -703,7 +721,7 @@
                 }
                 
                 // 속도 표시 업데이트
-                $('[id="vehicle/max_speed"]').text(`${speedKmh} Km/h`); 
+                updateVehicleSpeedUi(speedKmh, true);
                 
                 // MQTT로 차량 속도 발행 (m/s 단위)
                 const topic = 'vehicle/linear/speed';
@@ -718,7 +736,7 @@
                 publishWhenConnected('vehicle/operation/command', selectedCommand);
                 applyVehicleWheelAnimationByCommand(selectedCommand);
                 
-                console.log(`[Vehicle Test] 🚀 최고 속도 설정 - ${speedKmh} Km/h (${roundedSpeedMs.toFixed(2)} m/s): ${topic} = ${roundedSpeedMs}`);
+                console.log(`[Vehicle Test] 🚀 최고 속도 설정 - ${speedKmh.toFixed(1)} Km/h (${roundedSpeedMs.toFixed(2)} m/s): ${topic} = ${roundedSpeedMs}`);
             });
         });
     </script>

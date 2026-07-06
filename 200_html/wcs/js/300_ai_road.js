@@ -55,6 +55,7 @@ $(function () {
     const DETECT_AFTER_UPLOAD_DELAY_MS = 800;
     const DETECT_OPTIONS_STORAGE_KEY = "wcs.ai_road.detect_options.v1";
     const POTHOLE_OPTION_STORAGE_KEY = "wcs.ai_road.enable_pothole_detect.v1";
+    const MQTT_PUBLISH_OPTION_STORAGE_KEY = "wcs.ai_road.enable_mqtt_publish.v1";
     const DEFAULT_POTHOLE_CONFIDENCE = 0.5;
     const INPUT_TAB_STORAGE_KEY = "wcs.ai_road.input_tab.v1";
     const SAMPLE_BROWSER_STORAGE_KEY = "wcs.ai_road.sample_browser.v1";
@@ -826,6 +827,7 @@ $(function () {
         try {
             window.localStorage.setItem(DETECT_OPTIONS_STORAGE_KEY, JSON.stringify(payload));
             window.localStorage.setItem(POTHOLE_OPTION_STORAGE_KEY, String(isPotholeDetectEnabled()));
+            window.localStorage.setItem(MQTT_PUBLISH_OPTION_STORAGE_KEY, String(getMqttPublishOption()));
         } catch (error) {
             // Ignore storage write errors (private mode, quota exceeded, etc.).
         }
@@ -839,16 +841,15 @@ $(function () {
         let parsed = null;
         try {
             const raw = window.localStorage.getItem(DETECT_OPTIONS_STORAGE_KEY);
-            if (!raw) {
-                return;
+            if (raw) {
+                parsed = JSON.parse(raw);
             }
-            parsed = JSON.parse(raw);
         } catch (error) {
-            return;
+            parsed = null;
         }
 
         if (!parsed || typeof parsed !== "object") {
-            return;
+            parsed = {};
         }
 
         if ($enablePotholeDetect.length > 0) {
@@ -901,6 +902,17 @@ $(function () {
 
         if (typeof parsed.mqttPublish === "boolean" && $enableMqttPublish.length > 0) {
             $enableMqttPublish.prop("checked", parsed.mqttPublish);
+        } else if ($enableMqttPublish.length > 0) {
+            try {
+                const rawMqttPublish = String(window.localStorage.getItem(MQTT_PUBLISH_OPTION_STORAGE_KEY) || "").trim().toLowerCase();
+                if (rawMqttPublish === "true") {
+                    $enableMqttPublish.prop("checked", true);
+                } else if (rawMqttPublish === "false") {
+                    $enableMqttPublish.prop("checked", false);
+                }
+            } catch (error) {
+                // Ignore storage read errors.
+            }
         }
     }
 

@@ -254,6 +254,11 @@ function prcessMqttMessage(topic, value) {
         if (Number.isFinite(numericSpeed)) {
             window.latestVehicleLinearSpeedMs = numericSpeed;
         }
+
+        if ((window.suppressAutoStopUntil || 0) > Date.now()) {
+            return;
+        }
+
         const speedZeroEpsilon = 0.05;
         const speedReleaseEpsilon = 0.15;
 

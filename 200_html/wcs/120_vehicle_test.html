@@ -389,6 +389,7 @@
             const pendingPublishTimers = {};
             let lastVehicleMaxSpeedMsSent = null;
             window.vehicleSpeedUiManualUntil = 0;
+            window.suppressAutoStopUntil = 0;
 
             function updateVehicleSpeedUi(speedKmh, isManual = false) {
                 const numericKmh = Number.parseFloat(speedKmh);
@@ -535,6 +536,7 @@
                 const selectedWheel = $('input[name="wheelTestPosition"]:checked').val().toLowerCase();
                 const topic = `wheel/${selectedWheel}/operation/command`;
                 const angularSpeedAbs = Number.parseFloat($('#wheelTestSpeedSlider').val()) || 0;
+                window.suppressAutoStopUntil = Date.now() + 1500;
 
                 if (typeof window.setVehicleWheelHighlightByKey === 'function') {
                     window.setVehicleWheelHighlightByKey(selectedWheel);
@@ -554,9 +556,18 @@
                 if (Number(command) === 1 || Number(command) === 2) {
                     const signedAngularSpeed = Number(command) === 2 ? -angularSpeedAbs : angularSpeedAbs;
                     sendMQTTMessage(`wheel/${selectedWheel}/angle/speed`, signedAngularSpeed, 1);
+
+                    if (typeof setWheelAnimationByKey === 'function') {
+                        const rpm = (signedAngularSpeed * 60) / (2 * Math.PI);
+                        setWheelAnimationByKey(selectedWheel, Math.round(rpm));
+                    }
                 } else if (Number(command) === 0) {
                     // 정지 시점에 선택된 휠의 각속도를 즉시 0으로 맞춘다.
                     sendMQTTMessage(`wheel/${selectedWheel}/angle/speed`, '0', 1);
+
+                    if (typeof setWheelAnimationByKey === 'function') {
+                        setWheelAnimationByKey(selectedWheel, 0);
+                    }
                 }
 
                 console.log(`[Vehicle Test] ${icon} ${selectedWheel.toUpperCase()} 바퀴 ${actionName} 명령 전송: ${topic} = ${command}`);
@@ -591,6 +602,7 @@
                 const sliderSpeedMs = sliderSpeedKmh / 3.6;
                 const speedMs = sliderSpeedMs;
                 const roundedSpeedMs = Number(speedMs.toFixed(2));
+                window.suppressAutoStopUntil = Date.now() + 1500;
                 
                 // 모든 차량 제어 버튼에서 active와 text-white 클래스 제거
                 $('#vehicle-forward, #vehicle-backward, #vehicle-turn-left, #vehicle-turn-right, #vehicle-stop')

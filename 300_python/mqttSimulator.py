@@ -1039,72 +1039,72 @@ class MqttSimulator:
         """시뮬레이션 재개 없이 차량 명령에 맞춰 휠 속도만 즉시 반영"""
         self.allow_publish_while_stopped = True
         try:
-        wheel_radius = PASSENGER_CAR_WHEEL_RADIUS_M
-        base_speed = max(0.0, self.max_speed)
-        command_speed_scale = {
-            OperationCommand.STOP: 0.0,
-            OperationCommand.FORWARD: 1.0,
-            OperationCommand.REVERSE: 0.8,
-            OperationCommand.TURN_LEFT: 0.6,
-            OperationCommand.TURN_RIGHT: 0.6,
-        }
-        effective_speed = base_speed * command_speed_scale.get(self.command, 1.0)
-        direction_sign = -1.0 if self.command == OperationCommand.REVERSE else 1.0
-        self.ignore_wheel_command_until = time.time() + 2.0
+            wheel_radius = PASSENGER_CAR_WHEEL_RADIUS_M
+            base_speed = max(0.0, self.max_speed)
+            command_speed_scale = {
+                OperationCommand.STOP: 0.0,
+                OperationCommand.FORWARD: 1.0,
+                OperationCommand.REVERSE: 0.8,
+                OperationCommand.TURN_LEFT: 0.6,
+                OperationCommand.TURN_RIGHT: 0.6,
+            }
+            effective_speed = base_speed * command_speed_scale.get(self.command, 1.0)
+            direction_sign = -1.0 if self.command == OperationCommand.REVERSE else 1.0
+            self.ignore_wheel_command_until = time.time() + 2.0
 
-        for wid, wheel in self.wheels.items():
-            is_left_wheel = wid in ["fl", "rl"]
-            is_front_wheel = wid in ["fl", "fr"]
+            for wid, wheel in self.wheels.items():
+                is_left_wheel = wid in ["fl", "rl"]
+                is_front_wheel = wid in ["fl", "fr"]
 
-            if self.command == OperationCommand.STOP:
-                wheel_speed = 0.0
-                axis_angle = 0.0
-                wheel_state = VehicleExecState.STOP
-            elif self.command == OperationCommand.TURN_LEFT:
-                wheel_speed = effective_speed * (0.7 if is_left_wheel else 1.3)
-                axis_angle = math.pi / 8 if is_front_wheel else 0.0
-                wheel_state = VehicleExecState.RUN
-            elif self.command == OperationCommand.TURN_RIGHT:
-                wheel_speed = effective_speed * (1.3 if is_left_wheel else 0.7)
-                axis_angle = -math.pi / 8 if is_front_wheel else 0.0
-                wheel_state = VehicleExecState.RUN
-            else:
-                wheel_speed = effective_speed
-                axis_angle = 0.0
-                wheel_state = VehicleExecState.RUN
+                if self.command == OperationCommand.STOP:
+                    wheel_speed = 0.0
+                    axis_angle = 0.0
+                    wheel_state = VehicleExecState.STOP
+                elif self.command == OperationCommand.TURN_LEFT:
+                    wheel_speed = effective_speed * (0.7 if is_left_wheel else 1.3)
+                    axis_angle = math.pi / 8 if is_front_wheel else 0.0
+                    wheel_state = VehicleExecState.RUN
+                elif self.command == OperationCommand.TURN_RIGHT:
+                    wheel_speed = effective_speed * (1.3 if is_left_wheel else 0.7)
+                    axis_angle = -math.pi / 8 if is_front_wheel else 0.0
+                    wheel_state = VehicleExecState.RUN
+                else:
+                    wheel_speed = effective_speed
+                    axis_angle = 0.0
+                    wheel_state = VehicleExecState.RUN
 
-            wheel_speed *= direction_sign
-            wheel_angle_speed = wheel_speed / wheel_radius if wheel_radius > 0 else 0.0
+                wheel_speed *= direction_sign
+                wheel_angle_speed = wheel_speed / wheel_radius if wheel_radius > 0 else 0.0
 
-            wheel["command"] = self.command
-            wheel["state"] = wheel_state
-            wheel["speed"] = wheel_speed
-            wheel["acc"] = 0.0
-            wheel["angle_speed"] = wheel_angle_speed
-            wheel["angle_acc"] = 0.0
-            wheel["axis_angle"] = axis_angle
+                wheel["command"] = self.command
+                wheel["state"] = wheel_state
+                wheel["speed"] = wheel_speed
+                wheel["acc"] = 0.0
+                wheel["angle_speed"] = wheel_angle_speed
+                wheel["angle_acc"] = 0.0
+                wheel["axis_angle"] = axis_angle
 
-            base = f"wheel/{wid}"
-            self._publish(f"{base}/linear/speed", round(wheel["speed"], 3))
-            self._publish(f"{base}/linear/acceleration", 0)
-            self._publish(f"{base}/angle/speed", round(wheel["angle_speed"], 3))
-            self._publish(f"{base}/angle/acceleration", 0)
-            self._publish(f"{base}/axis/angle", round(wheel["axis_angle"], 4))
-            self._publish(f"{base}/operation/command", wheel["command"].value)
-            self._publish(f"{base}/operation/state", wheel["state"].value)
+                base = f"wheel/{wid}"
+                self._publish(f"{base}/linear/speed", round(wheel["speed"], 3))
+                self._publish(f"{base}/linear/acceleration", 0)
+                self._publish(f"{base}/angle/speed", round(wheel["angle_speed"], 3))
+                self._publish(f"{base}/angle/acceleration", 0)
+                self._publish(f"{base}/axis/angle", round(wheel["axis_angle"], 4))
+                self._publish(f"{base}/operation/command", wheel["command"].value)
+                self._publish(f"{base}/operation/state", wheel["state"].value)
 
-        self.current_speed = 0.0 if self.command == OperationCommand.STOP else abs(effective_speed)
-        self.linear_speed = self.current_speed
-        self.linear_acc = 0.0
-        self.angle_speed = 0.0
-        self.angle_acc = 0.0
+            self.current_speed = 0.0 if self.command == OperationCommand.STOP else abs(effective_speed)
+            self.linear_speed = self.current_speed
+            self.linear_acc = 0.0
+            self.angle_speed = 0.0
+            self.angle_acc = 0.0
 
-        # 시뮬레이션 정지 모드에서도 차량 속도/상태 토픽을 즉시 발행해
-        # 프론트엔드의 "속도 0 -> 정지 버튼 자동 클릭" 로직이 동작하도록 한다.
-        self._publish("vehicle/driving/current_speed", round(self.current_speed, 3))
-        self._publish("vehicle/driving/speed_kmh", round(self.current_speed * 3.6, 1))
-        self._publish("vehicle/linear/speed", round(self.linear_speed, 3))
-        self._publish("vehicle/operation/state", self.exec_state.value)
+            # 시뮬레이션 정지 모드에서도 차량 속도/상태 토픽을 즉시 발행해
+            # 프론트엔드의 "속도 0 -> 정지 버튼 자동 클릭" 로직이 동작하도록 한다.
+            self._publish("vehicle/driving/current_speed", round(self.current_speed, 3))
+            self._publish("vehicle/driving/speed_kmh", round(self.current_speed * 3.6, 1))
+            self._publish("vehicle/linear/speed", round(self.linear_speed, 3))
+            self._publish("vehicle/operation/state", self.exec_state.value)
         finally:
             self.allow_publish_while_stopped = False
     pass  # _publish_vehicle_command_wheels_when_paused

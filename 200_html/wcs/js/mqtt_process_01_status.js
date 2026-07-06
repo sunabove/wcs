@@ -285,38 +285,8 @@ function prcessMqttMessage(topic, value) {
         }
     }
     
-    // vehicle/max_speed는 설정 슬라이더 동기화 용도로만 처리
-    if (topic === 'vehicle/max_speed') {
-        if ((window.vehicleSpeedUiManualUntil || 0) > Date.now()) {
-            return;
-        }
-
-        const speedMs = parseFloat(value); // m/s 단위 값
-        const speedKmh = Math.round(speedMs * 3.6); // km/h로 변환 후 반올림
-        
-        // 슬라이더 값 업데이트 (0-100 범위)
-        const sliderElement = $('#vehicleMaxSpeedSlider');
-        if (sliderElement.length > 0 && speedKmh !== parseInt(sliderElement.val())) {
-            sliderElement.val(speedKmh);
-            console.log(`[MQTT] 🎚️ 설정 슬라이더 업데이트(vehicle/max_speed): ${speedKmh} km/h (${speedMs.toFixed(2)} m/s)`);
-        }
-    }
-
-    // 차량 실제 속도 반영은 vehicle/linear/speed 기준으로 처리
-    if (topic === 'vehicle/linear/speed') {
-        if ((window.vehicleSpeedUiManualUntil || 0) > Date.now()) {
-            return;
-        }
-
-        const speedMs = parseFloat(value);
-        if (Number.isFinite(speedMs)) {
-            const speedKmh = Math.abs(speedMs) * 3.6;
-            const textElement = $('[id="vehicle/max_speed"]');
-            if (textElement.length > 0) {
-                textElement.text(`${speedKmh.toFixed(1)} Km/h`);
-            }
-        }
-    }
+    // 속도 UI(슬라이더/텍스트)는 수동 조작 시에만 갱신한다.
+    // MQTT 수신 토픽(vehicle/max_speed, vehicle/linear/speed)으로는 속도 UI를 갱신하지 않는다.
     
     if ($targetElement.length > 0) {
         // 숫자 값 포맷팅

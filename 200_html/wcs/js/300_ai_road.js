@@ -39,6 +39,7 @@ $(function () {
     const $potholeConfidence = $("#pothole-confidence");
     const $removeNoisyMasks = $("#remove-noisy-masks");
     const $showDetectStatsChart = $("#show-detect-stats-chart");
+    const $enableMqttPublish = $("#enable-mqtt-publish");
     const $cameraPane = $("#input-camera-pane");
     const $cameraTab = $("#input-camera-tab");
     const $cameraDeviceList = $("#camera-device-list");
@@ -783,6 +784,13 @@ $(function () {
         return $showDetectStatsChart.is(":checked");
     }
 
+    function getMqttPublishOption() {
+        if ($enableMqttPublish.length === 0) {
+            return false;
+        }
+        return $enableMqttPublish.is(":checked");
+    }
+
     function getPotholeConfidenceValue() {
         if ($potholeConfidence.length === 0) {
             return DEFAULT_POTHOLE_CONFIDENCE;
@@ -808,6 +816,7 @@ $(function () {
             potholeConfidence: getPotholeConfidenceValue(),
             removeNoisyMasks: getRemoveNoisyMasks(),
             showDetectStats: getShowDetectStatsOverlay(),
+            mqttPublish: getMqttPublishOption(),
         };
 
         try {
@@ -884,6 +893,10 @@ $(function () {
 
         if (typeof parsed.showDetectStats === "boolean" && $showDetectStatsChart.length > 0) {
             $showDetectStatsChart.prop("checked", parsed.showDetectStats);
+        }
+
+        if (typeof parsed.mqttPublish === "boolean" && $enableMqttPublish.length > 0) {
+            $enableMqttPublish.prop("checked", parsed.mqttPublish);
         }
     }
 
@@ -1057,6 +1070,7 @@ $(function () {
             remove_noisy_masks: removeNoisyMasks !== false,
             include_pothole: shouldIncludePotholeOverlay(),
             pothole_conf: getPotholeConfidenceValue(),
+            mqtt_publish: getMqttPublishOption(),
             t: Date.now(),
         });
         return base + "?" + query;
@@ -1070,6 +1084,7 @@ $(function () {
             show_detect_stats: showDetectStats !== false,
             include_pothole: shouldIncludePotholeOverlay(),
             pothole_conf: getPotholeConfidenceValue(),
+            mqtt_publish: getMqttPublishOption(),
         });
         return base + "?" + query;
     }
@@ -1108,6 +1123,7 @@ $(function () {
             show_detect_stats: showDetectStats !== false,
             include_pothole: shouldIncludePotholeOverlay(),
             pothole_conf: getPotholeConfidenceValue(),
+            mqtt_publish: getMqttPublishOption(),
         });
     }
 

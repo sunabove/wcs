@@ -77,6 +77,7 @@ function initMQTTClient() {
         // 모든 토픽 메시지 수신 (성능 최적화 적용)
         client.on('message', function (topic, message) {
             const messageStr = message.toString();
+            const shouldDisplayInMessagePanel = topic !== 'client/connect';
             
             // 로깅 최적화: vehicle/ 토픽만 상세 로그, 나머지는 요약
             if (topic.startsWith('vehicle/') || topic.startsWith('wheel/')) {
@@ -87,7 +88,7 @@ function initMQTTClient() {
             }
             
             // UI 업데이트 throttling (100ms 간격)
-            if (!client.lastUIUpdate || Date.now() - client.lastUIUpdate > 100) {
+            if (shouldDisplayInMessagePanel && (!client.lastUIUpdate || Date.now() - client.lastUIUpdate > 100)) {
                 $('#mqtt-topic').text(topic + ' :');
                 $('#mqtt-value').text(messageStr);
                 

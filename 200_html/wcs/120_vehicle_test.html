@@ -477,6 +477,9 @@
 
             publishSelectedVehicleCommandOnLoad();
 
+            // 테스트 화면 로딩 시 시뮬레이션 중지 명령을 무조건 1회 발행
+            publishWhenConnected('simulation/stop', 'stop');
+
             function applyVehicleCommandWheelHighlight(command) {
                 const commandNumber = Number(command);
 

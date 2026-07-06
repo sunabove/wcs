@@ -457,6 +457,7 @@
                 const selectedCommand = getVehicleCommandByButtonId(selectedButtonId);
 
                 publishWhenConnected('vehicle/operation/command', selectedCommand);
+                applyVehicleCommandWheelHighlight(selectedCommand);
                 console.log(`[Vehicle Test] 📨 초기 방향 제어 명령 발행: vehicle/operation/command = ${selectedCommand} (${selectedButtonId})`);
             }
 
@@ -464,6 +465,29 @@
 
             function applyVehicleCommandWheelHighlight(command) {
                 const commandNumber = Number(command);
+
+                if (commandNumber === 0) {
+                    if (typeof window.clearVehicleWheelHighlights === 'function') {
+                        window.clearVehicleWheelHighlights();
+                    }
+                    return;
+                }
+
+                if (commandNumber === 1) {
+                    // 전진 시 앞쪽 두 바퀴 강조
+                    if (typeof window.setVehicleWheelHighlightByKeys === 'function') {
+                        window.setVehicleWheelHighlightByKeys(['fl', 'fr']);
+                    }
+                    return;
+                }
+
+                if (commandNumber === 2) {
+                    // 후진 시 뒤쪽 두 바퀴 강조
+                    if (typeof window.setVehicleWheelHighlightByKeys === 'function') {
+                        window.setVehicleWheelHighlightByKeys(['rl', 'rr']);
+                    }
+                    return;
+                }
 
                 if (commandNumber === 3) {
                     // 좌회전 시 우측 바퀴(외측)가 상대적으로 빠르므로 강조
@@ -479,11 +503,6 @@
                         window.setVehicleWheelHighlightByKeys(['fl', 'rl']);
                     }
                     return;
-                }
-
-                const selectedWheel = $('input[name="wheelTestPosition"]:checked').val();
-                if (selectedWheel && typeof window.setVehicleWheelHighlightByKey === 'function') {
-                    window.setVehicleWheelHighlightByKey(selectedWheel.toLowerCase());
                 }
             }
 

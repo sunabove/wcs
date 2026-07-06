@@ -1566,6 +1566,18 @@ globalThis.setVehicleWheelHighlightByKeys = function(keys) {
     vehicleViewer.applyWheelHighlightByKeys(normalizedKeys);
 };
 
+globalThis.clearVehicleWheelHighlights = function() {
+    window.pendingVehicleWheelHighlightKey = null;
+    window.pendingVehicleWheelHighlightKeys = [];
+
+    const vehicleViewer = window.urdfViewersById?.['vehicle-urdf-viewer'] || null;
+    if (!vehicleViewer || typeof vehicleViewer.clearWheelHighlights !== 'function') {
+        return;
+    }
+
+    vehicleViewer.clearWheelHighlights();
+};
+
 function setDriveMode(mode) {
     if (!window.activeURDFViewer) {
         return;

@@ -704,24 +704,20 @@
                 sendVehicleCommand(0, $(this), '정지', '⏹️');
             });
 
-            // 속도 슬라이더 입력 중에는 UI만 즉시 갱신
-            $('#vehicleMaxSpeedSlider').on('input', function() {
-                const speedKmh = Number.parseFloat($(this).val()) || 0;
-                updateVehicleSpeedUi(speedKmh, true);
-            });
-
-            // 속도 슬라이더 확정(change) 시에만 MQTT 발행
-            $('#vehicleMaxSpeedSlider').on('change', function() {
+            // 속도 슬라이더 변경 시 현재 방향 명령과 함께 발행
+            $('#vehicleMaxSpeedSlider').on('input change', function(event) {
                 const speedKmh = Number.parseFloat($(this).val()) || 0;
                 const speedMs = speedKmh / 3.6; // km/h를 m/s로 변환
                 const roundedSpeedMs = Number(speedMs.toFixed(2));
 
-                if (lastVehicleMaxSpeedMsSent !== null && Math.abs(roundedSpeedMs - lastVehicleMaxSpeedMsSent) < 0.0001) {
+                // UI는 수동 조작 시 항상 즉시 반영
+                updateVehicleSpeedUi(speedKmh, true);
+
+                const isSameSpeed = lastVehicleMaxSpeedMsSent !== null && Math.abs(roundedSpeedMs - lastVehicleMaxSpeedMsSent) < 0.0001;
+                const isFinalChange = event.type === 'change';
+                if (isSameSpeed && !isFinalChange) {
                     return;
                 }
-                
-                // 속도 표시 업데이트
-                updateVehicleSpeedUi(speedKmh, true);
                 
                 // MQTT로 차량 속도 발행 (m/s 단위)
                 const topic = 'vehicle/linear/speed';

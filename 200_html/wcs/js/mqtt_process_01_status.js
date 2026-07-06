@@ -239,11 +239,19 @@ function prcessMqttMessage(topic, value) {
         if (operationState === 0) {
             const $stopButton = $('#vehicle-stop');
             if (!vehicleSpeedZeroClickLatched && $stopButton.length > 0) {
-                if (typeof $stopButton[0]?.click === 'function') {
-                    $stopButton[0].click();
-                } else {
-                    $stopButton.trigger('click');
+                $('#vehicle-forward, #vehicle-backward, #vehicle-turn-left, #vehicle-turn-right, #vehicle-stop')
+                    .removeClass('active text-white')
+                    .addClass('text-black');
+
+                $stopButton
+                    .addClass('active text-white')
+                    .removeClass('text-black');
+
+                if (typeof window.clearVehicleWheelHighlights === 'function') {
+                    window.clearVehicleWheelHighlights();
                 }
+
+                window.vehicleDirectionCommandActive = false;
                 vehicleSpeedZeroClickLatched = true;
             }
         }
@@ -274,29 +282,25 @@ function prcessMqttMessage(topic, value) {
         if (Number.isFinite(numericSpeed) && Math.abs(numericSpeed) <= speedZeroEpsilon) {
             const $stopButton = $('#vehicle-stop');
 
-            // 속도 0 구간에 진입할 때 1회 실제 클릭 이벤트를 발생시킨다.
+            // 속도 0 구간에 진입할 때 1회 정지 버튼 UI만 동기화한다.
             if (!vehicleSpeedZeroClickLatched && $stopButton.length > 0) {
-                if (typeof $stopButton[0]?.click === 'function') {
-                    $stopButton[0].click();
-                } else {
-                    $stopButton.trigger('click');
+                $('#vehicle-forward, #vehicle-backward, #vehicle-turn-left, #vehicle-turn-right, #vehicle-stop')
+                    .removeClass('active text-white')
+                    .addClass('text-black');
+
+                $stopButton
+                    .addClass('active text-white')
+                    .removeClass('text-black');
+
+                if (typeof window.clearVehicleWheelHighlights === 'function') {
+                    window.clearVehicleWheelHighlights();
                 }
+
+                window.vehicleDirectionCommandActive = false;
                 vehicleSpeedZeroClickLatched = true;
             }
 
-            $('#vehicle-forward, #vehicle-backward, #vehicle-turn-left, #vehicle-turn-right, #vehicle-stop')
-                .removeClass('active text-white')
-                .addClass('text-black');
-
-            $stopButton
-                .addClass('active text-white')
-                .removeClass('text-black');
-
-            if (typeof window.clearVehicleWheelHighlights === 'function') {
-                window.clearVehicleWheelHighlights();
-            }
-
-            console.log(`[MQTT] ⏹️ 차량 속도 0 근접 감지(${numericSpeed.toFixed(3)}): 정지 버튼 자동 클릭/활성화`);
+            console.log(`[MQTT] ⏹️ 차량 속도 0 근접 감지(${numericSpeed.toFixed(3)}): 정지 버튼 UI 자동 동기화`);
         } else if (Number.isFinite(numericSpeed) && Math.abs(numericSpeed) >= speedReleaseEpsilon) {
             // 다시 움직이기 시작하면 다음 정지 진입 시 자동 클릭이 재동작하도록 latch 해제
             vehicleSpeedZeroClickLatched = false;

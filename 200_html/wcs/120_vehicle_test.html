@@ -388,6 +388,7 @@
         $(document).ready(function() {
             const pendingPublishTimers = {};
             let lastVehicleMaxSpeedMsSent = null;
+            let lastVehicleDirectionCommandSent = null;
             window.vehicleSpeedUiManualUntil = 0;
             window.suppressAutoStopUntil = 0;
             window.manualWheelTestActive = false;
@@ -611,6 +612,8 @@
                 const sliderSpeedMs = sliderSpeedKmh / 3.6;
                 const speedMs = sliderSpeedMs;
                 const roundedSpeedMs = Number(speedMs.toFixed(2));
+                const sameCommand = Number(lastVehicleDirectionCommandSent) === Number(command);
+                const sameSpeed = lastVehicleMaxSpeedMsSent !== null && Math.abs(roundedSpeedMs - lastVehicleMaxSpeedMsSent) < 0.0001;
                 window.suppressAutoStopUntil = Date.now() + 1500;
                 window.manualWheelTestActive = false;
                 window.manualWheelTestWheel = null;
@@ -629,11 +632,17 @@
                 applyVehicleCommandWheelHighlight(command);
                 applyVehicleWheelAnimationByCommand(command);
 
+                if (sameCommand && sameSpeed) {
+                    console.log(`[Vehicle Test] 중복 방향 명령 스킵: ${topic} = ${command}, ${speedTopic} = ${roundedSpeedMs}`);
+                    return;
+                }
+
                 // 방향 명령 변경 시 현재 속도를 함께 발행해 서버 측 반영 시점을 맞춘다.
                 publishWhenConnected(speedTopic, roundedSpeedMs);
                 lastVehicleMaxSpeedMsSent = roundedSpeedMs;
                 
                 publishWhenConnected(topic, command);
+                lastVehicleDirectionCommandSent = Number(command);
                 console.log(`[Vehicle Test] ${icon} 차량 ${actionName} 명령 전송: ${topic} = ${command}, ${speedTopic} = ${roundedSpeedMs}`);
                 
                 // 버튼 피드백 - 더 명확한 시각적 효과

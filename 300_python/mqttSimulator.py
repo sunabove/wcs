@@ -217,6 +217,11 @@ class MqttSimulator:
                         OperationCommand.TURN_LEFT.value,
                         OperationCommand.TURN_RIGHT.value,
                     ]:
+                        # 차량 명령이 들어오면 수동 휠 테스트 상태(특히 wheel stop 잔여 상태)를 무시한다.
+                        self.manual_wheel_test_active = False
+                        self.manual_wheel_test_wheel = None
+                        self.manual_wheel_test_command = OperationCommand.STOP
+
                         self.command = OperationCommand(command_value)
                         if self.command == OperationCommand.STOP:
                             self.exec_state = VehicleExecState.STOP

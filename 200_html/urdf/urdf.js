@@ -674,8 +674,6 @@ class URDFViewer {
         this.driveSpeedKmh = Number.isFinite(Number(speedKmh)) ? Math.max(Number(speedKmh), 0) : this.driveSpeedKmh;
 
         const baseRpm = this.convertKmhToRpm(this.driveSpeedKmh);
-        const leftTurnRatio = 0.45;
-        const rightTurnRatio = 0.45;
 
         if (mode === 'forward') {
             this.setWheelDirectionSign('fl', 1);
@@ -702,26 +700,26 @@ class URDFViewer {
         }
 
         if (mode === 'left') {
-            this.setWheelDirectionSign('fl', 1);
+            this.setWheelDirectionSign('fl', -1);
             this.setWheelDirectionSign('fr', 1);
-            this.setWheelDirectionSign('rl', 1);
+            this.setWheelDirectionSign('rl', -1);
             this.setWheelDirectionSign('rr', 1);
-            this.setWheelSpeedRpm('fl', baseRpm * leftTurnRatio);
+            this.setWheelSpeedRpm('fl', -baseRpm);
             this.setWheelSpeedRpm('fr', baseRpm);
-            this.setWheelSpeedRpm('rl', baseRpm * leftTurnRatio);
+            this.setWheelSpeedRpm('rl', -baseRpm);
             this.setWheelSpeedRpm('rr', baseRpm);
             return;
         }
 
         if (mode === 'right') {
             this.setWheelDirectionSign('fl', 1);
-            this.setWheelDirectionSign('fr', 1);
+            this.setWheelDirectionSign('fr', -1);
             this.setWheelDirectionSign('rl', 1);
-            this.setWheelDirectionSign('rr', 1);
+            this.setWheelDirectionSign('rr', -1);
             this.setWheelSpeedRpm('fl', baseRpm);
-            this.setWheelSpeedRpm('fr', baseRpm * rightTurnRatio);
+            this.setWheelSpeedRpm('fr', -baseRpm);
             this.setWheelSpeedRpm('rl', baseRpm);
-            this.setWheelSpeedRpm('rr', baseRpm * rightTurnRatio);
+            this.setWheelSpeedRpm('rr', -baseRpm);
             return;
         }
 

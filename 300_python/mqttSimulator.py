@@ -210,6 +210,12 @@ class MqttSimulator:
                 print("[SIM] 시뮬레이션 시작")
             elif topic == "simulation/stop":
                 self.simulation_running = False
+                self.manual_wheel_test_active = False
+                self.manual_wheel_test_wheel = None
+                self.manual_wheel_test_command = OperationCommand.STOP
+                self.command = OperationCommand.STOP
+                self.exec_state = VehicleExecState.STOP
+                self._publish_vehicle_command_wheels_when_paused()
                 self._publish("simulation/state", "stop")
                 print("[SIM] 시뮬레이션 중지")
             elif topic == "vehicle/operation/command":
@@ -304,11 +310,13 @@ class MqttSimulator:
                                     self.manual_wheel_test_active = False
                                     self.manual_wheel_test_wheel = None
                                     self.manual_wheel_test_command = OperationCommand.STOP
+                                    self._publish_vehicle_command_wheels_when_paused()
                                     print(f"[WHEEL_TEST] 수동 바퀴 테스트 정지: {wheel_id.upper()}")
                                 else:
                                     self.manual_wheel_test_active = True
                                     self.manual_wheel_test_wheel = wheel_id
                                     self.manual_wheel_test_command = command
+                                    self._publish_manual_wheel_simulation()
 
                                     command_name = {
                                         OperationCommand.FORWARD: "정회전",
@@ -1115,11 +1123,7 @@ class MqttSimulator:
                     print(f"[ROUTE STATUS] 발행 토픽: {self.publish_count}개 | 상태: {state_display} ({self.exec_state.value})")
                     print("-" * 70)
                 
-                if self.manual_wheel_test_active and self.manual_wheel_test_command != OperationCommand.STOP:
-                    self.simulation_running = False
-                    self._publish("simulation/state", "stop")
-                    self._publish_manual_wheel_simulation()
-                elif self.simulation_running:
+                if self.simulation_running:
                     self._update_vehicle()
                     self._update_wheels()
         

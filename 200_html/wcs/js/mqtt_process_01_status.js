@@ -174,6 +174,7 @@ function prcessMqttMessage(topic, value) {
     // vehicle/operation/command 특별 처리 (차량 이동 제어 버튼 자동 선택)
     if (topic === 'vehicle/operation/command') {
         const commandValue = parseInt(value);
+        window.vehicleDirectionCommandActive = commandValue >= 1 && commandValue <= 4;
         
         // 모든 차량 제어 버튼에서 active와 text-white 클래스 제거
         $('#vehicle-forward, #vehicle-backward, #vehicle-turn-left, #vehicle-turn-right, #vehicle-stop')
@@ -253,6 +254,10 @@ function prcessMqttMessage(topic, value) {
         const numericSpeed = parseFloat(value);
         if (Number.isFinite(numericSpeed)) {
             window.latestVehicleLinearSpeedMs = numericSpeed;
+        }
+
+        if (window.vehicleDirectionCommandActive === true) {
+            return;
         }
 
         if (window.manualWheelTestActive === true) {

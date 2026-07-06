@@ -392,6 +392,7 @@
             window.suppressAutoStopUntil = 0;
             window.manualWheelTestActive = false;
             window.manualWheelTestWheel = null;
+            window.vehicleDirectionCommandActive = false;
 
             function cancelPendingPublish(topic) {
                 if (pendingPublishTimers[topic]) {
@@ -619,6 +620,7 @@
                 window.suppressAutoStopUntil = Date.now() + 1500;
                 window.manualWheelTestActive = false;
                 window.manualWheelTestWheel = null;
+                window.vehicleDirectionCommandActive = Number(command) >= 1 && Number(command) <= 4;
 
                 // 페이지 로드시 예약된 simulation/stop 지연 발행이 차량 제어를 덮어쓰지 않도록 취소
                 cancelPendingPublish('simulation/stop');

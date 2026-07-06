@@ -232,12 +232,20 @@ function prcessMqttMessage(topic, value) {
     // 차량 실제 속도가 0이면 정지 버튼을 자동 활성화
     if (topic === 'vehicle/driving/current_speed' || topic === 'vehicle/linear/speed') {
         const numericSpeed = parseFloat(value);
-        if (Number.isFinite(numericSpeed) && Math.abs(numericSpeed) < 0.001) {
+        const speedZeroEpsilon = 0.05;
+        if (Number.isFinite(numericSpeed) && Math.abs(numericSpeed) <= speedZeroEpsilon) {
+            const $stopButton = $('#vehicle-stop');
+
+            // 실제 클릭 이벤트를 발생시켜 기존 클릭 핸들러(토픽 발행/버튼 상태)를 그대로 사용
+            if ($stopButton.length > 0 && !$stopButton.hasClass('active')) {
+                $stopButton.trigger('click');
+            }
+
             $('#vehicle-forward, #vehicle-backward, #vehicle-turn-left, #vehicle-turn-right, #vehicle-stop')
                 .removeClass('active text-white')
                 .addClass('text-black');
 
-            $('#vehicle-stop')
+            $stopButton
                 .addClass('active text-white')
                 .removeClass('text-black');
 
@@ -245,7 +253,7 @@ function prcessMqttMessage(topic, value) {
                 window.clearVehicleWheelHighlights();
             }
 
-            console.log('[MQTT] ⏹️ 차량 속도 0 감지: 정지 버튼 자동 활성화');
+            console.log(`[MQTT] ⏹️ 차량 속도 0 근접 감지(${numericSpeed.toFixed(3)}): 정지 버튼 자동 클릭/활성화`);
         }
     }
     

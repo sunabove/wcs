@@ -392,6 +392,13 @@
             window.suppressAutoStopUntil = 0;
             window.manualWheelTestActive = false;
 
+            function cancelPendingPublish(topic) {
+                if (pendingPublishTimers[topic]) {
+                    clearTimeout(pendingPublishTimers[topic]);
+                    pendingPublishTimers[topic] = null;
+                }
+            }
+
             function updateVehicleSpeedUi(speedKmh, isManual = false) {
                 const numericKmh = Number.parseFloat(speedKmh);
                 const normalizedKmh = Number.isFinite(numericKmh) ? Math.max(0, numericKmh) : 0;
@@ -540,6 +547,9 @@
                 window.suppressAutoStopUntil = Date.now() + 1500;
                 window.manualWheelTestActive = Number(command) === 1 || Number(command) === 2;
 
+                // 페이지 로드시 예약된 simulation/stop 재발행이 늦게 들어와 수동 휠 테스트를 끊지 않도록 취소
+                cancelPendingPublish('simulation/stop');
+
                 if (typeof window.setVehicleWheelHighlightByKey === 'function') {
                     window.setVehicleWheelHighlightByKey(selectedWheel);
                 }
@@ -606,6 +616,9 @@
                 const roundedSpeedMs = Number(speedMs.toFixed(2));
                 window.suppressAutoStopUntil = Date.now() + 1500;
                 window.manualWheelTestActive = false;
+
+                // 페이지 로드시 예약된 simulation/stop 지연 발행이 차량 제어를 덮어쓰지 않도록 취소
+                cancelPendingPublish('simulation/stop');
                 
                 // 모든 차량 제어 버튼에서 active와 text-white 클래스 제거
                 $('#vehicle-forward, #vehicle-backward, #vehicle-turn-left, #vehicle-turn-right, #vehicle-stop')

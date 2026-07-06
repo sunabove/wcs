@@ -1414,51 +1414,6 @@ class URDFViewer {
         });
     }
 
-    applyWheelHighlightByKeyLegacy(selectedKey) {
-        const normalizedKey = String(selectedKey || '').trim().toLowerCase();
-        if (!normalizedKey || !Object.prototype.hasOwnProperty.call(this.wheelHighlightMeshesByKey, normalizedKey)) {
-            return;
-        }
-
-        this.highlightedWheelKey = normalizedKey;
-
-        Object.keys(this.wheelHighlightMeshesByKey).forEach(key => {
-            const wheelMeshes = this.wheelHighlightMeshesByKey[key] || [];
-            const isSelected = key === normalizedKey;
-
-            wheelMeshes.forEach(mesh => {
-                const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
-                materials.forEach(material => {
-                    if (!material) {
-                        return;
-                    }
-
-                    if (material.color) {
-                        const baseColor = material.userData?.wheelBaseColor instanceof THREE.Color
-                            ? material.userData.wheelBaseColor
-                            : this.wheelHighlightBaseColor;
-                        const targetColor = isSelected
-                            ? baseColor.clone().lerp(this.wheelHighlightAccentColor, 0.72)
-                            : baseColor.clone().lerp(this.wheelHighlightDimColor, 0.22);
-                        material.color.copy(targetColor);
-                    }
-
-                    if (material.emissive) {
-                        const baseEmissive = material.userData?.wheelBaseEmissive instanceof THREE.Color
-                            ? material.userData.wheelBaseEmissive
-                            : new THREE.Color(0x000000);
-                        const targetEmissive = isSelected
-                            ? this.wheelHighlightEmissiveColor
-                            : baseEmissive;
-                        material.emissive.copy(targetEmissive);
-                    }
-
-                    material.needsUpdate = true;
-                });
-            });
-        });
-    }
-
     clearWheelHighlights() {
         this.highlightedWheelKey = null;
         Object.keys(this.wheelHighlightMeshesByKey).forEach(key => {

@@ -462,6 +462,31 @@
 
             publishSelectedVehicleCommandOnLoad();
 
+            function applyVehicleCommandWheelHighlight(command) {
+                const commandNumber = Number(command);
+
+                if (commandNumber === 3) {
+                    // 좌회전 시 우측 바퀴(외측)가 상대적으로 빠르므로 강조
+                    if (typeof window.setVehicleWheelHighlightByKeys === 'function') {
+                        window.setVehicleWheelHighlightByKeys(['fr', 'rr']);
+                    }
+                    return;
+                }
+
+                if (commandNumber === 4) {
+                    // 우회전 시 좌측 바퀴(외측)가 상대적으로 빠르므로 강조
+                    if (typeof window.setVehicleWheelHighlightByKeys === 'function') {
+                        window.setVehicleWheelHighlightByKeys(['fl', 'rl']);
+                    }
+                    return;
+                }
+
+                const selectedWheel = $('input[name="wheelTestPosition"]:checked').val();
+                if (selectedWheel && typeof window.setVehicleWheelHighlightByKey === 'function') {
+                    window.setVehicleWheelHighlightByKey(selectedWheel.toLowerCase());
+                }
+            }
+
             $('#test-clockwise, #test-counterclockwise, #test-stop')
                 .removeClass('active btn-secondary text-white')
                 .addClass('btn-outline-secondary text-black');
@@ -531,6 +556,8 @@
                 buttonElement
                     .addClass('active text-white')
                     .removeClass('text-black');
+
+                applyVehicleCommandWheelHighlight(command);
                 
                 publishWhenConnected(topic, command);
                 console.log(`[Vehicle Test] ${icon} 차량 ${actionName} 명령 전송: ${topic} = ${command}`);

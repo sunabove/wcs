@@ -139,6 +139,8 @@ class MqttSimulator:
         self.manual_wheel_test_command = OperationCommand.STOP
         self.manual_wheel_test_angular_speed = 8.0  # rad/s
         self.ignore_wheel_command_until = 0.0
+        self.last_published_vehicle_linear_speed = None
+        self.last_published_vehicle_linear_speed_at = 0.0
         self.start_time = time.time()
         self.script_path = os.path.abspath(__file__)
         self.last_modified = os.path.getmtime(self.script_path) if os.path.exists(self.script_path) else 0
@@ -171,6 +173,7 @@ class MqttSimulator:
         print("MQTT Connected:", reason_code)
         # MQTT 토픽 구독
         client.subscribe("client/connect")
+        client.subscribe("vehicle/linear/speed")
         client.subscribe("vehicle/max_speed")
         client.subscribe("simulation/start")
         client.subscribe("simulation/stop")
@@ -184,7 +187,7 @@ class MqttSimulator:
             client.subscribe(f"wheel/{wheel_id}/id")          # ID 설정
             client.subscribe(f"wheel/{wheel_id}/operation/command")
             
-        print("[MQTT] Subscribed to client/connect, vehicle/max_speed, simulation/start, simulation/stop, vehicle/operation/command, vehicle/surface/state, vehicle/surface/obstacle, wheel/*/id_request, wheel/*/id, wheel/*/operation/command topics")
+        print("[MQTT] Subscribed to client/connect, vehicle/linear/speed, vehicle/max_speed, simulation/start, simulation/stop, vehicle/operation/command, vehicle/surface/state, vehicle/surface/obstacle, wheel/*/id_request, wheel/*/id, wheel/*/operation/command topics")
     
     def _on_message(self, client, userdata, msg):
         """MQTT 메시지 수신 처리"""
@@ -345,13 +348,23 @@ class MqttSimulator:
             elif topic == "client/connect":
                 print("[CONNECT] Client connection detected - Publishing settings...")
                 self._publish_all_settings()
-            elif topic == "vehicle/max_speed":
+            elif topic == "vehicle/linear/speed" or topic == "vehicle/max_speed":
                 try:
+                    # vehicle/linear/speed는 시뮬레이터가 상태 토픽으로도 발행하므로,
+                    # 직전에 스스로 발행한 값의 self-echo는 속도 설정 명령으로 처리하지 않는다.
+                    if topic == "vehicle/linear/speed":
+                        if (
+                            self.last_published_vehicle_linear_speed is not None
+                            and (time.time() - self.last_published_vehicle_linear_speed_at) < 1.2
+                            and str(payload) == str(self.last_published_vehicle_linear_speed)
+                        ):
+                            return
+
                     new_max_speed = float(payload)
                     if 0.0 <= new_max_speed <= 27.8:  # 0~100 km/h 범위 제한
                         old_speed = self.max_speed
                         self.max_speed = new_max_speed
-                        print(f"[SPEED] 최고 속도 변경: {old_speed:.1f} -> {new_max_speed:.1f} m/s ({new_max_speed*3.6:.0f} km/h)")
+                        print(f"[SPEED] 최고 속도 변경({topic}): {old_speed:.1f} -> {new_max_speed:.1f} m/s ({new_max_speed*3.6:.0f} km/h)")
                         
                         # 현재 목표 속도가 새 최고 속도를 초과하면 조정
                         if self.target_speed > self.max_speed:
@@ -803,6 +816,10 @@ class MqttSimulator:
         # topic과 value만 직접 발행 (JSON 포장 없이)
         payload = str(value)
         self.client.publish(topic, payload, retain=True)
+
+        if topic == "vehicle/linear/speed":
+            self.last_published_vehicle_linear_speed = payload
+            self.last_published_vehicle_linear_speed_at = time.time()
         
         # Publish 카운트 증가 및 로그 출력
         self.publish_count += 1

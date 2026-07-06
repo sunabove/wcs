@@ -665,8 +665,8 @@
                 // 속도 표시 업데이트
                 $('[id="vehicle/max_speed"]').text(`${speedKmh} Km/h`); 
                 
-                // MQTT로 최고 속도 발행 (m/s 단위)
-                const topic = 'vehicle/max_speed';
+                // MQTT로 차량 속도 발행 (m/s 단위)
+                const topic = 'vehicle/linear/speed';
                 sendMQTTMessage(topic, roundedSpeedMs, 1);
                 lastVehicleMaxSpeedMsSent = roundedSpeedMs;
 

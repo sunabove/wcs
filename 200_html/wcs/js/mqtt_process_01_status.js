@@ -1,5 +1,7 @@
 // mqtt_process_01_status.js
 
+let vehicleSpeedZeroClickLatched = false;
+
 function prcessMqttMessage(topic, value) {
 
     console.log(`[MQTT] 🧩 prcessMqttMessage 호출 - topic: ${topic}, value: ${value}`);
@@ -233,12 +235,19 @@ function prcessMqttMessage(topic, value) {
     if (topic === 'vehicle/driving/current_speed' || topic === 'vehicle/linear/speed') {
         const numericSpeed = parseFloat(value);
         const speedZeroEpsilon = 0.05;
+        const speedReleaseEpsilon = 0.15;
+
         if (Number.isFinite(numericSpeed) && Math.abs(numericSpeed) <= speedZeroEpsilon) {
             const $stopButton = $('#vehicle-stop');
 
-            // 실제 클릭 이벤트를 발생시켜 기존 클릭 핸들러(토픽 발행/버튼 상태)를 그대로 사용
-            if ($stopButton.length > 0 && !$stopButton.hasClass('active')) {
-                $stopButton.trigger('click');
+            // 속도 0 구간에 진입할 때 1회 실제 클릭 이벤트를 발생시킨다.
+            if (!vehicleSpeedZeroClickLatched && $stopButton.length > 0) {
+                if (typeof $stopButton[0]?.click === 'function') {
+                    $stopButton[0].click();
+                } else {
+                    $stopButton.trigger('click');
+                }
+                vehicleSpeedZeroClickLatched = true;
             }
 
             $('#vehicle-forward, #vehicle-backward, #vehicle-turn-left, #vehicle-turn-right, #vehicle-stop')
@@ -254,6 +263,9 @@ function prcessMqttMessage(topic, value) {
             }
 
             console.log(`[MQTT] ⏹️ 차량 속도 0 근접 감지(${numericSpeed.toFixed(3)}): 정지 버튼 자동 클릭/활성화`);
+        } else if (Number.isFinite(numericSpeed) && Math.abs(numericSpeed) >= speedReleaseEpsilon) {
+            // 다시 움직이기 시작하면 다음 정지 진입 시 자동 클릭이 재동작하도록 latch 해제
+            vehicleSpeedZeroClickLatched = false;
         }
     }
     

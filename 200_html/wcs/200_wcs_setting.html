@@ -120,38 +120,6 @@
 
             <div class="card-body p-2"> 
 
-                <div class="row g-3">
-                    <div class="col">
-                        <div class="border rounded p-3 bg-light">
-                            <div class="row g-3 align-items-center">
-                                <div class="col-md-3">
-                                    <h5 class="mb-1">
-                                        <i class="bi bi-cpu me-2"></i>시뮬레이션 제어
-                                    </h5>
-                                    <small class="text-muted">시뮬레이션 시작/중지 설정</small>
-                                </div>
-
-                                <div class="col-md-6">
-                                    <div class="d-flex flex-wrap gap-2 align-items-center">
-                                        <button type="button" id="btn-sim-start" class="btn btn-success">
-                                            <i class="bi bi-play-fill me-1"></i>
-                                            시작
-                                        </button>
-                                        <button type="button" id="btn-sim-stop" class="btn btn-danger">
-                                            <i class="bi bi-stop-fill me-1"></i>
-                                            중지
-                                        </button>
-                                        
-                                    </div>
-                                </div>
-                                <div class="col-md-3">
-                                    <span class="badge bg-secondary fs-4" id="sim-status">상태: 대기</span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
                 <div class="row g-3 mt-1">
                     <div class="col">
                         <div class="border rounded p-3 bg-light">
@@ -225,33 +193,6 @@
 
     <script> 
         $(document).ready(function () {
-
-            function publishWhenConnected(topic, payload, retries = 20, intervalMs = 250) {
-                const isConnected = Boolean(window.mqttClient && window.mqttClient.connected);
-                if (isConnected) {
-                    sendMQTTMessage(topic, payload, 1);
-                    console.log(`[WCS Setting] MQTT 발행: ${topic} -> ${payload}`);
-                    return;
-                }
-
-                if (retries <= 0) {
-                    console.warn(`[WCS Setting] MQTT 미연결로 발행 실패: ${topic}`);
-                    alert('MQTT 브로커에 연결된 후 다시 시도해주세요.');
-                    return;
-                }
-
-                setTimeout(() => publishWhenConnected(topic, payload, retries - 1, intervalMs), intervalMs);
-            }
-
-            // 시뮬레이션 시작
-            $('#btn-sim-start').on('click', function () {
-                publishWhenConnected('simulation/start', 'start');
-            });
-
-            // 시뮬레이션 중지
-            $('#btn-sim-stop').on('click', function () {
-                publishWhenConnected('simulation/stop', 'stop');
-            });
 
             // 노면 종류 적용
             $('#btn-surface-apply').on('click', function () {

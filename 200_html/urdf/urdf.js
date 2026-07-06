@@ -1251,7 +1251,9 @@ class URDFViewer {
                 this.resolveWheelHighlightTargets();
                 this.applyRoadAttitudeAngles();
 
-                if (this.container.id === 'vehicle-urdf-viewer' && window.pendingVehicleWheelHighlightKey) {
+                if (this.container.id === 'vehicle-urdf-viewer' && Array.isArray(window.pendingVehicleWheelHighlightKeys) && window.pendingVehicleWheelHighlightKeys.length > 0) {
+                    this.applyWheelHighlightByKeys(window.pendingVehicleWheelHighlightKeys);
+                } else if (this.container.id === 'vehicle-urdf-viewer' && window.pendingVehicleWheelHighlightKey) {
                     this.applyWheelHighlightByKey(window.pendingVehicleWheelHighlightKey);
                 }
 
@@ -1358,6 +1360,61 @@ class URDFViewer {
     }
 
     applyWheelHighlightByKey(selectedKey) {
+        this.applyWheelHighlightByKeys([selectedKey]);
+    }
+
+    applyWheelHighlightByKeys(selectedKeys) {
+        const normalizedKeySet = new Set(
+            (Array.isArray(selectedKeys) ? selectedKeys : [])
+                .map(key => String(key || '').trim().toLowerCase())
+                .filter(key => key && Object.prototype.hasOwnProperty.call(this.wheelHighlightMeshesByKey, key))
+        );
+
+        if (normalizedKeySet.size === 0) {
+            return;
+        }
+
+        const firstSelectedKey = normalizedKeySet.values().next().value || null;
+        this.highlightedWheelKey = firstSelectedKey;
+
+        Object.keys(this.wheelHighlightMeshesByKey).forEach(key => {
+            const wheelMeshes = this.wheelHighlightMeshesByKey[key] || [];
+            const isSelected = normalizedKeySet.has(key);
+
+            wheelMeshes.forEach(mesh => {
+                const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+                materials.forEach(material => {
+                    if (!material) {
+                        return;
+                    }
+
+                    if (material.color) {
+                        const baseColor = material.userData?.wheelBaseColor instanceof THREE.Color
+                            ? material.userData.wheelBaseColor
+                            : this.wheelHighlightBaseColor;
+                        const targetColor = isSelected
+                            ? baseColor.clone().lerp(this.wheelHighlightAccentColor, 0.72)
+                            : baseColor.clone().lerp(this.wheelHighlightDimColor, 0.22);
+                        material.color.copy(targetColor);
+                    }
+
+                    if (material.emissive) {
+                        const baseEmissive = material.userData?.wheelBaseEmissive instanceof THREE.Color
+                            ? material.userData.wheelBaseEmissive
+                            : new THREE.Color(0x000000);
+                        const targetEmissive = isSelected
+                            ? this.wheelHighlightEmissiveColor
+                            : baseEmissive;
+                        material.emissive.copy(targetEmissive);
+                    }
+
+                    material.needsUpdate = true;
+                });
+            });
+        });
+    }
+
+    applyWheelHighlightByKeyLegacy(selectedKey) {
         const normalizedKey = String(selectedKey || '').trim().toLowerCase();
         if (!normalizedKey || !Object.prototype.hasOwnProperty.call(this.wheelHighlightMeshesByKey, normalizedKey)) {
             return;
@@ -1527,6 +1584,7 @@ globalThis.flashWheelViewer = function() {
 };
 
 globalThis.setVehicleWheelHighlightByKey = function(key) {
+    window.pendingVehicleWheelHighlightKeys = null;
     window.pendingVehicleWheelHighlightKey = String(key || '').trim().toLowerCase();
 
     const vehicleViewer = window.urdfViewersById?.['vehicle-urdf-viewer'] || null;
@@ -1535,6 +1593,22 @@ globalThis.setVehicleWheelHighlightByKey = function(key) {
     }
 
     vehicleViewer.applyWheelHighlightByKey(key);
+};
+
+globalThis.setVehicleWheelHighlightByKeys = function(keys) {
+    const normalizedKeys = (Array.isArray(keys) ? keys : [])
+        .map(key => String(key || '').trim().toLowerCase())
+        .filter(Boolean);
+
+    window.pendingVehicleWheelHighlightKey = null;
+    window.pendingVehicleWheelHighlightKeys = normalizedKeys;
+
+    const vehicleViewer = window.urdfViewersById?.['vehicle-urdf-viewer'] || null;
+    if (!vehicleViewer || typeof vehicleViewer.applyWheelHighlightByKeys !== 'function') {
+        return;
+    }
+
+    vehicleViewer.applyWheelHighlightByKeys(normalizedKeys);
 };
 
 function setDriveMode(mode) {

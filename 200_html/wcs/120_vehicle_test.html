@@ -583,6 +583,10 @@
             // 차량 제어 명령 전송 함수
             function sendVehicleCommand(command, buttonElement, actionName, icon) {
                 const topic = 'vehicle/operation/command';
+                const speedTopic = 'vehicle/linear/speed';
+                const speedKmh = Number.parseFloat($('#vehicleMaxSpeedSlider').val()) || 0;
+                const speedMs = speedKmh / 3.6;
+                const roundedSpeedMs = Number(speedMs.toFixed(2));
                 
                 // 모든 차량 제어 버튼에서 active와 text-white 클래스 제거
                 $('#vehicle-forward, #vehicle-backward, #vehicle-turn-left, #vehicle-turn-right, #vehicle-stop')
@@ -596,9 +600,13 @@
 
                 applyVehicleCommandWheelHighlight(command);
                 applyVehicleWheelAnimationByCommand(command);
+
+                // 방향 명령 변경 시 현재 속도를 함께 발행해 서버 측 반영 시점을 맞춘다.
+                publishWhenConnected(speedTopic, roundedSpeedMs);
+                lastVehicleMaxSpeedMsSent = roundedSpeedMs;
                 
                 publishWhenConnected(topic, command);
-                console.log(`[Vehicle Test] ${icon} 차량 ${actionName} 명령 전송: ${topic} = ${command}`);
+                console.log(`[Vehicle Test] ${icon} 차량 ${actionName} 명령 전송: ${topic} = ${command}, ${speedTopic} = ${roundedSpeedMs}`);
                 
                 // 버튼 피드백 - 더 명확한 시각적 효과
                 const originalOpacity = buttonElement.css('opacity');

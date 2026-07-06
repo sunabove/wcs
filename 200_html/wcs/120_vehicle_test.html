@@ -426,6 +426,21 @@
                 window.setVehicleWheelHighlightByKey(initialWheel);
             }
 
+            // 페이지 로드시 정지 버튼 기본 활성화
+            $('#vehicle-forward, #vehicle-backward, #vehicle-turn-left, #vehicle-turn-right, #vehicle-stop')
+                .removeClass('active text-white')
+                .addClass('text-black');
+            $('#vehicle-stop')
+                .addClass('active text-white')
+                .removeClass('text-black');
+
+            $('#test-clockwise, #test-counterclockwise, #test-stop')
+                .removeClass('active btn-secondary text-white')
+                .addClass('btn-outline-secondary text-black');
+            $('#test-stop')
+                .removeClass('btn-outline-secondary text-black')
+                .addClass('active btn-secondary text-white');
+
             // 바퀴 테스트 명령 전송 함수
             function sendWheelCommand(command, buttonElement, actionName, icon) {
                 const selectedWheel = $('input[name="wheelTestPosition"]:checked').val().toLowerCase();

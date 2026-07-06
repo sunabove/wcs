@@ -213,15 +213,16 @@ function prcessMqttMessage(topic, value) {
                 .addClass('active text-white')
                 .removeClass('text-black');
 
-            if (commandValue === 3 && typeof window.setVehicleWheelHighlightByKeys === 'function') {
+            if (commandValue === 0 && typeof window.clearVehicleWheelHighlights === 'function') {
+                window.clearVehicleWheelHighlights();
+            } else if (commandValue === 1 && typeof window.setVehicleWheelHighlightByKeys === 'function') {
+                window.setVehicleWheelHighlightByKeys(['fl', 'fr']);
+            } else if (commandValue === 2 && typeof window.setVehicleWheelHighlightByKeys === 'function') {
+                window.setVehicleWheelHighlightByKeys(['rl', 'rr']);
+            } else if (commandValue === 3 && typeof window.setVehicleWheelHighlightByKeys === 'function') {
                 window.setVehicleWheelHighlightByKeys(['fr', 'rr']);
             } else if (commandValue === 4 && typeof window.setVehicleWheelHighlightByKeys === 'function') {
                 window.setVehicleWheelHighlightByKeys(['fl', 'rl']);
-            } else {
-                const selectedWheel = $('input[name="wheelTestPosition"]:checked').val();
-                if (selectedWheel && typeof window.setVehicleWheelHighlightByKey === 'function') {
-                    window.setVehicleWheelHighlightByKey(selectedWheel.toLowerCase());
-                }
             }
             
             console.log(`[MQTT] 🚗 차량 명령 버튼 선택: ${commandName} (${commandValue})`);

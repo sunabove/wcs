@@ -178,6 +178,10 @@ function prcessMqttMessage(topic, value) {
             const angleDeg = Math.round((numericRad * 180) / Math.PI);
 
             if (topic === 'vehicle/road/roll_angle') {
+                if (typeof window.setRoadRollAngleDeg === 'function') {
+                    window.setRoadRollAngleDeg(angleDeg);
+                }
+
                 const $rollSlider = $('#vehicle-roll-angle');
                 const $rollValue = $('#vehicle-roll-angle-value');
                 if ($rollSlider.length > 0) {
@@ -187,6 +191,10 @@ function prcessMqttMessage(topic, value) {
                     $rollValue.text(`${angleDeg}°`);
                 }
             } else {
+                if (typeof window.setRoadPitchAngleDeg === 'function') {
+                    window.setRoadPitchAngleDeg(angleDeg);
+                }
+
                 const $pitchSlider = $('#vehicle-pitch-angle');
                 const $pitchValue = $('#vehicle-pitch-angle-value');
                 if ($pitchSlider.length > 0) {

@@ -1690,11 +1690,12 @@ function setRoadRollAngleDeg(angleDeg) {
         valueElement.textContent = `${normalizedAngleDeg}\u00b0`;
     }
 
-    if (!window.activeURDFViewer) {
+    const targetViewer = getRoadAttitudeTargetViewer();
+    if (!targetViewer || typeof targetViewer.applyRoadRollAngleDeg !== 'function') {
         return;
     }
 
-    window.activeURDFViewer.applyRoadRollAngleDeg(normalizedAngleDeg);
+    targetViewer.applyRoadRollAngleDeg(normalizedAngleDeg);
 }
 
 function setRoadPitchAngleDeg(angleDeg) {
@@ -1713,11 +1714,32 @@ function setRoadPitchAngleDeg(angleDeg) {
         valueElement.textContent = `${normalizedAngleDeg}\u00b0`;
     }
 
-    if (!window.activeURDFViewer) {
+    const targetViewer = getRoadAttitudeTargetViewer();
+    if (!targetViewer || typeof targetViewer.applyRoadPitchAngleDeg !== 'function') {
         return;
     }
 
-    window.activeURDFViewer.applyRoadPitchAngleDeg(normalizedAngleDeg);
+    targetViewer.applyRoadPitchAngleDeg(normalizedAngleDeg);
+}
+
+function getRoadAttitudeTargetViewer() {
+    const vehicleViewer = window.urdfViewersById?.['vehicle-urdf-viewer'] || null;
+    if (vehicleViewer) {
+        return vehicleViewer;
+    }
+
+    if (Array.isArray(window.urdfViewers)) {
+        const matchedViewer = window.urdfViewers.find(viewer => {
+            const urdfPath = String(viewer?.urdfPath || '');
+            return urdfPath.includes('/vehicle/vehicle.urdf');
+        });
+
+        if (matchedViewer) {
+            return matchedViewer;
+        }
+    }
+
+    return window.activeURDFViewer || null;
 }
 
 function updateDriveModeButtons(activeMode) {

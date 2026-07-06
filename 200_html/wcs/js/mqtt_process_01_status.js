@@ -247,8 +247,8 @@ function prcessMqttMessage(topic, value) {
         }
     }
 
-    // 차량 실제 속도가 0이면 정지 버튼을 자동 활성화
-    if (topic === 'vehicle/driving/current_speed' || topic === 'vehicle/linear/speed') {
+    // 차량 실제 속도(vehicle/linear/speed) 기준으로 정지 버튼 자동 활성화
+    if (topic === 'vehicle/linear/speed') {
         const numericSpeed = parseFloat(value);
         const speedZeroEpsilon = 0.05;
         const speedReleaseEpsilon = 0.15;
@@ -285,7 +285,7 @@ function prcessMqttMessage(topic, value) {
         }
     }
     
-    // vehicle/max_speed 특별 처리 (슬라이더와 텍스트 동시 업데이트)
+    // vehicle/max_speed는 설정 슬라이더 동기화 용도로만 처리
     if (topic === 'vehicle/max_speed') {
         const speedMs = parseFloat(value); // m/s 단위 값
         const speedKmh = Math.round(speedMs * 3.6); // km/h로 변환 후 반올림
@@ -294,13 +294,19 @@ function prcessMqttMessage(topic, value) {
         const sliderElement = $('#vehicleMaxSpeedSlider');
         if (sliderElement.length > 0 && speedKmh !== parseInt(sliderElement.val())) {
             sliderElement.val(speedKmh);
-            console.log(`[MQTT] 🎚️ 슬라이더 업데이트: ${speedKmh} km/h (${speedMs.toFixed(2)} m/s)`);
+            console.log(`[MQTT] 🎚️ 설정 슬라이더 업데이트(vehicle/max_speed): ${speedKmh} km/h (${speedMs.toFixed(2)} m/s)`);
         }
-        
-        // 텍스트 표시도 함께 업데이트
-        const textElement = $('[id="vehicle/max_speed"]');
-        if (textElement.length > 0) {
-            textElement.text(`${speedKmh} Km/h`);
+    }
+
+    // 차량 실제 속도 반영은 vehicle/linear/speed 기준으로 처리
+    if (topic === 'vehicle/linear/speed') {
+        const speedMs = parseFloat(value);
+        if (Number.isFinite(speedMs)) {
+            const speedKmh = Math.abs(speedMs) * 3.6;
+            const textElement = $('[id="vehicle/max_speed"]');
+            if (textElement.length > 0) {
+                textElement.text(`${speedKmh.toFixed(1)} Km/h`);
+            }
         }
     }
     

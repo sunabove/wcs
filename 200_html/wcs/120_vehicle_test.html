@@ -390,6 +390,7 @@
             let lastVehicleMaxSpeedMsSent = null;
             window.vehicleSpeedUiManualUntil = 0;
             window.suppressAutoStopUntil = 0;
+            window.manualWheelTestActive = false;
 
             function updateVehicleSpeedUi(speedKmh, isManual = false) {
                 const numericKmh = Number.parseFloat(speedKmh);
@@ -537,6 +538,7 @@
                 const topic = `wheel/${selectedWheel}/operation/command`;
                 const angularSpeedAbs = Number.parseFloat($('#wheelTestSpeedSlider').val()) || 0;
                 window.suppressAutoStopUntil = Date.now() + 1500;
+                window.manualWheelTestActive = Number(command) === 1 || Number(command) === 2;
 
                 if (typeof window.setVehicleWheelHighlightByKey === 'function') {
                     window.setVehicleWheelHighlightByKey(selectedWheel);
@@ -603,6 +605,7 @@
                 const speedMs = sliderSpeedMs;
                 const roundedSpeedMs = Number(speedMs.toFixed(2));
                 window.suppressAutoStopUntil = Date.now() + 1500;
+                window.manualWheelTestActive = false;
                 
                 // 모든 차량 제어 버튼에서 active와 text-white 클래스 제거
                 $('#vehicle-forward, #vehicle-backward, #vehicle-turn-left, #vehicle-turn-right, #vehicle-stop')

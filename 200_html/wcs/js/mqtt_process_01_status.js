@@ -255,6 +255,10 @@ function prcessMqttMessage(topic, value) {
             window.latestVehicleLinearSpeedMs = numericSpeed;
         }
 
+        if (window.manualWheelTestActive === true) {
+            return;
+        }
+
         if ((window.suppressAutoStopUntil || 0) > Date.now()) {
             return;
         }

@@ -387,6 +387,7 @@
     <script>
         $(document).ready(function() {
             const pendingPublishTimers = {};
+            let lastVehicleMaxSpeedMsSent = null;
 
             function publishWhenConnected(topic, payload, retries = 20, intervalMs = 250) {
                 if (pendingPublishTimers[topic]) {
@@ -655,15 +656,21 @@
             $('#vehicleMaxSpeedSlider').on('input change', function() {
                 const speedKmh = $(this).val(); // 슬라이더 값 (km/h)
                 const speedMs = speedKmh / 3.6; // km/h를 m/s로 변환
+                const roundedSpeedMs = Number(speedMs.toFixed(2));
+
+                if (lastVehicleMaxSpeedMsSent !== null && Math.abs(roundedSpeedMs - lastVehicleMaxSpeedMsSent) < 0.0001) {
+                    return;
+                }
                 
                 // 속도 표시 업데이트
                 $('[id="vehicle/max_speed"]').text(`${speedKmh} Km/h`); 
                 
                 // MQTT로 최고 속도 발행 (m/s 단위)
                 const topic = 'vehicle/max_speed';
-                sendMQTTMessage(topic, speedMs, 1);
+                sendMQTTMessage(topic, roundedSpeedMs, 1);
+                lastVehicleMaxSpeedMsSent = roundedSpeedMs;
                 
-                console.log(`[Vehicle Test] 🚀 최고 속도 설정 - ${speedKmh} Km/h (${speedMs.toFixed(2)} m/s): ${topic} = ${speedMs}`);
+                console.log(`[Vehicle Test] 🚀 최고 속도 설정 - ${speedKmh} Km/h (${roundedSpeedMs.toFixed(2)} m/s): ${topic} = ${roundedSpeedMs}`);
             });
         });
     </script>

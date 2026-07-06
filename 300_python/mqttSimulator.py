@@ -129,6 +129,7 @@ class MqttSimulator:
         self.publish_count = 0
         self.last_vehicle_command_published = None
         self.last_vehicle_state_published = None
+        self.last_vehicle_max_speed_published = None
         
         # 재시작 및 모니터링
         self.running = True
@@ -831,7 +832,10 @@ class MqttSimulator:
         self._publish("vehicle/surface/obstacle", self.surface_obstacle.value)
 
         # SI 단위계: 속도(m/s), 각속도(rad/s)
-        self._publish("vehicle/max_speed", round(self.max_speed, 2))  # m/s (동적 값)
+        max_speed_rounded = round(self.max_speed, 2)
+        if self.last_vehicle_max_speed_published != max_speed_rounded:
+            self._publish("vehicle/max_speed", max_speed_rounded)  # m/s (동적 값)
+            self.last_vehicle_max_speed_published = max_speed_rounded
         self._publish("vehicle/max_angular_speed", 1.0)  # rad/s
 
         # 동적 상태 정보는 변경 시에만 발행

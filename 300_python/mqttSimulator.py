@@ -978,7 +978,7 @@ class MqttSimulator:
     def _publish_vehicle_command_wheels_when_paused(self):
         """시뮬레이션 재개 없이 차량 명령에 맞춰 휠 속도만 즉시 반영"""
         wheel_radius = PASSENGER_CAR_WHEEL_RADIUS_M
-        base_speed = max(0.0, min(self.max_speed, self.route_max_speed_mps))
+        base_speed = max(0.0, self.max_speed)
         command_speed_scale = {
             OperationCommand.STOP: 0.0,
             OperationCommand.FORWARD: 1.0,

@@ -92,6 +92,8 @@ class MqttSimulator:
         self.surface_obstacle = SurfaceObstacle.NONE  # 초기 장애물 상태
         self.surface_state_lock_time = 0  # 노면 상태 락 유지 시간 (초)
         self.surface_state_lock_duration = 0  # 노면 상태 락 지속 시간
+        self.road_roll_angle = 0.0  # rad
+        self.road_pitch_angle = 0.0  # rad
         
         # 시뮬레이션 제어 변수
         self.driving_scenario = "circular_hill_loop"  # 원형 고저차 도로 주행
@@ -176,6 +178,8 @@ class MqttSimulator:
         client.subscribe("vehicle/operation/command")
         client.subscribe("vehicle/surface/state")
         client.subscribe("vehicle/surface/obstacle")
+        client.subscribe("vehicle/road/roll_angle")
+        client.subscribe("vehicle/road/pitch_angle")
         
         # wheel ID 요청 및 설정 구독 (fl, fr, rr, rl 각각)
         for wheel_id in WHEEL_IDS:
@@ -183,7 +187,7 @@ class MqttSimulator:
             client.subscribe(f"wheel/{wheel_id}/id")          # ID 설정
             client.subscribe(f"wheel/{wheel_id}/operation/command")
             
-        print("[MQTT] Subscribed to client/connect, vehicle/linear/speed, vehicle/max_speed, vehicle/operation/command, vehicle/surface/state, vehicle/surface/obstacle, wheel/*/id_request, wheel/*/id, wheel/*/operation/command topics")
+        print("[MQTT] Subscribed to client/connect, vehicle/linear/speed, vehicle/max_speed, vehicle/operation/command, vehicle/surface/state, vehicle/surface/obstacle, vehicle/road/roll_angle, vehicle/road/pitch_angle, wheel/*/id_request, wheel/*/id, wheel/*/operation/command topics")
     
     def _on_message(self, client, userdata, msg):
         """MQTT 메시지 수신 처리"""
@@ -291,6 +295,18 @@ class MqttSimulator:
                         print(f"[OBSTACLE] 잘못된 장애물 상태 값: {new_surface_obstacle} (허용: 0-2)")
                 except ValueError:
                     print(f"[OBSTACLE] 잘못된 장애물 상태 형식: {payload}")
+            elif topic == "vehicle/road/roll_angle":
+                try:
+                    self.road_roll_angle = float(payload)
+                    print(f"[ROAD] Roll 각도 설정: {self.road_roll_angle:.4f} rad")
+                except ValueError:
+                    print(f"[ROAD] 잘못된 Roll 각도 형식: {payload}")
+            elif topic == "vehicle/road/pitch_angle":
+                try:
+                    self.road_pitch_angle = float(payload)
+                    print(f"[ROAD] Pitch 각도 설정: {self.road_pitch_angle:.4f} rad")
+                except ValueError:
+                    print(f"[ROAD] 잘못된 Pitch 각도 형식: {payload}")
             elif topic == "client/connect":
                 print("[CONNECT] Client connection detected - Publishing settings...")
                 self._publish_all_settings()
@@ -427,6 +443,12 @@ class MqttSimulator:
                 payload = str(wheel_num_id)
                 self._publish(topic, payload)
                 print(f"[WHEEL_ID] Published {topic} -> {payload}")
+
+            # 도로 자세(Roll/Pitch) 설정 발행
+            self._publish("vehicle/road/roll_angle", self.road_roll_angle)
+            print(f"[ROAD] Published vehicle/road/roll_angle -> {self.road_roll_angle}")
+            self._publish("vehicle/road/pitch_angle", self.road_pitch_angle)
+            print(f"[ROAD] Published vehicle/road/pitch_angle -> {self.road_pitch_angle}")
             
             print("[SETTINGS] All settings published successfully")
             

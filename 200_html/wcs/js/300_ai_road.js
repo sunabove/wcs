@@ -445,6 +445,7 @@ $(function () {
         const includePothole = shouldIncludePotholeOverlay();
         const removeNoisyMasks = getRemoveNoisyMasks();
         const showDetectStats = getShowDetectStatsOverlay();
+        const mqttPublish = getMqttPublishOption();
         showUploadStatusMessage("전체 동영상 검출 파일 생성 중... (큰 파일의 경우 수 분이 소요될 수 있습니다)", true);
         setDetectingState(true);
         $detectingIndicator.removeClass("d-none");
@@ -530,6 +531,7 @@ $(function () {
                     pothole_conf: getPotholeConfidenceValue(),
                     remove_noisy_masks: removeNoisyMasks,
                     show_detect_stats: showDetectStats,
+                    mqtt_publish: mqttPublish,
                 },
                 method: "GET",
                 timeout: 600000,  // 10분 타임아웃
@@ -625,6 +627,7 @@ $(function () {
         const includePothole = shouldIncludePotholeOverlay();
         const removeNoisyMasks = getRemoveNoisyMasks();
         const showDetectStats = getShowDetectStatsOverlay();
+        const mqttPublish = getMqttPublishOption();
         showUploadStatusMessage("검출 이미지 생성 중...", true);
         setDetectingState(true);
         $detectingIndicator.removeClass("d-none");
@@ -639,6 +642,7 @@ $(function () {
                 pothole_conf: getPotholeConfidenceValue(),
                 remove_noisy_masks: removeNoisyMasks,
                 show_detect_stats: showDetectStats,
+                mqtt_publish: mqttPublish,
             },
             method: "GET",
             timeout: 600000,  // 10분 타임아웃
@@ -2312,6 +2316,7 @@ $(function () {
         const includePothole = shouldIncludePotholeOverlay();
         const removeNoisyMasks = getRemoveNoisyMasks();
         const showDetectStats = getShowDetectStatsOverlay();
+        const mqttPublish = getMqttPublishOption();
         showUploadStatusMessage("도로 검출 중...", true);
         hideImageAndVideo($detectedImagePreview, $detectedVideoPreview);
         setDetectingState(true);
@@ -2334,6 +2339,7 @@ $(function () {
                 pothole_conf: getPotholeConfidenceValue(),
                 remove_noisy_masks: removeNoisyMasks,
                 show_detect_stats: showDetectStats,
+                mqtt_publish: mqttPublish,
             },
             method: "GET"
         }).done(function (result) {
@@ -2861,6 +2867,14 @@ $(function () {
     });
 
     $showDetectStatsChart.on("change", function () {
+        saveDetectOptionsToStorage();
+        scheduleDetectUpdate();
+        if (cameraStreamState && cameraStreamState.isPlaying) {
+            startCameraLiveStream(cameraStreamState.cameraIndex, cameraStreamState.cameraName);
+        }
+    });
+
+    $enableMqttPublish.on("change", function () {
         saveDetectOptionsToStorage();
         scheduleDetectUpdate();
         if (cameraStreamState && cameraStreamState.isPlaying) {

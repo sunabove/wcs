@@ -21,6 +21,8 @@
     const showVideoOverlayEnabled = $viewer.length > 0 && toBoolean($viewer.attr("showVideo"));
     let currentVideoResolveToken = 0;
     let overlayLayoutMode = "default";
+    let overlayManuallyHidden = false;
+    let latestCurrentVideoFileName = "";
 
     function normalizePath(pathValue) {
         return String(pathValue || "").trim().replace(/\\/g, "/").replace(/^\/+/, "");
@@ -83,6 +85,13 @@
         }
 
         const normalizedFile = normalizePath(fileName);
+        latestCurrentVideoFileName = normalizedFile;
+
+        // 닫기 버튼으로 숨긴 상태에서는 자동으로 다시 열지 않는다.
+        if (overlayManuallyHidden) {
+            return;
+        }
+
         if (!normalizedFile) {
             hideOverlay();
             return;
@@ -139,11 +148,15 @@
     }
 
     function showOverlay() {
+        overlayManuallyHidden = false;
         $overlay.removeClass("d-none");
         syncShowButtonVisibility();
     }
 
-    function hideOverlay() {
+    function hideOverlay(markAsManual = false) {
+        if (markAsManual) {
+            overlayManuallyHidden = true;
+        }
         hideAllMedia();
         $overlay.addClass("d-none");
         syncShowButtonVisibility();
@@ -246,11 +259,18 @@
     };
 
     $showButton.on("click", function () {
+        overlayManuallyHidden = false;
+
+        if (latestCurrentVideoFileName) {
+            resolveAndShowCurrentVideo(latestCurrentVideoFileName);
+            return;
+        }
+
         showOverlay();
     });
 
     $closeButton.on("click", function () {
-        hideOverlay();
+        hideOverlay(true);
 
         // 닫기 버튼 클릭 직후에는 보이기 버튼을 즉시 노출한다.
         if ($showButton.length > 0 && showVideoOverlayEnabled) {

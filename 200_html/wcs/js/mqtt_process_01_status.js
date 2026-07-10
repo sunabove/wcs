@@ -81,7 +81,14 @@ function prcessMqttMessage(topic, value) {
     }
 
     // jQuery를 사용한 DOM 업데이트: topic을 id로 사용해서 해당 요소 찾기 (속성 선택자 사용)
-    const $targetElement = $(`[id="${topic}"]`);
+    let targetTopic = topic;
+
+    // 차량 최고 속도는 두 토픽(vehicle/max_speed, vehicle/linear/max_speed)을 동일 UI로 매핑한다.
+    if (topic === 'vehicle/linear/max_speed') {
+        targetTopic = 'vehicle/max_speed';
+    }
+
+    const $targetElement = $(`[id="${targetTopic}"]`);
 
     // vehicle/run/state 특별 처리 (상태별 버튼 enable/disable)
     if (topic === 'vehicle/run/state') {

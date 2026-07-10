@@ -325,6 +325,17 @@
 
         $(document).ready(function() {
 
+            function applySelectedWheelHighlightOnLoad() {
+                const selectedWheel = $('input[name="wheelPosition"]:checked').val();
+                if (!selectedWheel) {
+                    return;
+                }
+
+                if (typeof window.setVehicleWheelHighlightByKey === 'function') {
+                    window.setVehicleWheelHighlightByKey(selectedWheel.toLowerCase());
+                }
+            }
+
             // 바퀴 속성 정보 ID 업데이트 함수
             function updateWheelDataIds() {
                 const selectedWheel = $('input[name="wheelPosition"]:checked').val().toLowerCase();
@@ -418,6 +429,10 @@
             if (typeof window.setVehicleWheelHighlightByKey === 'function') {
                 window.setVehicleWheelHighlightByKey(initialWheel);
             }
+
+            // 로딩 직후 수신되는 상태 토픽으로 하이라이트가 바뀌는 경우를 방지하기 위해
+            // 초기 렌더 완료 후 선택된 바퀴 하이라이트를 한 번 더 고정 적용한다.
+            setTimeout(applySelectedWheelHighlightOnLoad, 800);
 
             if (typeof window.setWheelViewerKey === 'function') {
                 window.setWheelViewerKey(initialWheel);

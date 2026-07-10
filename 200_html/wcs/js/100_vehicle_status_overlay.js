@@ -20,8 +20,42 @@
     const showVideoOverlayEnabled = $viewer.length > 0 && toBoolean($viewer.attr("showVideo"));
     let $currentVideoOverlay = $();
     let $currentVideoText = $();
+    let currentVideoResolveToken = 0;
     const overlayInlineStyle = "position:absolute;top:8px;left:8px;right:8px;z-index:15;pointer-events:none;";
     const textInlineStyle = "display:inline-block;max-width:100%;padding:0.3rem 0.55rem;border-radius:0.4rem;color:#f8f9fa;background:rgba(11, 18, 32, 0.78);font-size:0.84rem;line-height:1.15;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;";
+
+    function normalizePath(pathValue) {
+        return String(pathValue || "").trim().replace(/\\/g, "/").replace(/^\/+/, "");
+    }
+
+    function encodePathForRoute(pathValue) {
+        return normalizePath(pathValue)
+            .split("/")
+            .filter(function (segment) {
+                return segment.length > 0;
+            })
+            .map(function (segment) {
+                return encodeURIComponent(segment);
+            })
+            .join("/");
+    }
+
+    function toAbsoluteUrl(url) {
+        try {
+            return new URL(String(url || ""), window.location.origin).toString();
+        } catch (error) {
+            return "";
+        }
+    }
+
+    function buildVideoPlayableUrl(fileName) {
+        const encodedPath = encodePathForRoute(fileName);
+        if (!encodedPath) {
+            return "";
+        }
+
+        return "/fast/video_playable/" + encodedPath + "?" + $.param({ force_transcode: false });
+    }
 
     function ensureCurrentVideoOverlay() {
         if (!showVideoOverlayEnabled || $viewer.length === 0) {
@@ -66,6 +100,42 @@
         const displayName = normalized || "-";
         $currentVideoText.text("현재 동영상: " + displayName);
         $currentVideoText.attr("title", displayName);
+    }
+
+    function resolveAndShowCurrentVideo(fileName) {
+        if (!showVideoOverlayEnabled) {
+            return;
+        }
+
+        const normalizedFile = normalizePath(fileName);
+        if (!normalizedFile) {
+            hideOverlay();
+            return;
+        }
+
+        const playableApiUrl = buildVideoPlayableUrl(normalizedFile);
+        if (!playableApiUrl) {
+            return;
+        }
+
+        const requestToken = ++currentVideoResolveToken;
+        $.ajax({
+            url: playableApiUrl,
+            method: "GET",
+        }).done(function (result) {
+            if (requestToken !== currentVideoResolveToken) {
+                return;
+            }
+
+            const resolvedUrl = toAbsoluteUrl(result && result.video_url);
+            if (!resolvedUrl) {
+                return;
+            }
+
+            showVideoSource(resolvedUrl);
+        }).fail(function () {
+            // Keep title overlay even when video URL resolving fails.
+        });
     }
 
     function hideAllMedia() {
@@ -122,6 +192,7 @@
 
         if (topicText === "vehicle/current_video/file_name") {
             updateCurrentVideoOverlay(value);
+            resolveAndShowCurrentVideo(value);
             return;
         }
 

@@ -289,9 +289,9 @@
                                                     <label for="vehicleMaxSpeedSlider" class="form-label fw-bold mb-0 text-nowrap">
                                                         <i class="bi bi-speedometer2 me-2"></i>차량 속도
                                                     </label>
-                                                    <input type="range" id="vehicleMaxSpeedSlider" class="form-range mb-0" min="0" max="20" value="5">
+                                                    <input type="range" id="vehicleMaxSpeedSlider" class="form-range mb-0" min="0" max="100" value="5">
                                                     <span class="input-group-text bg-light justify-content-center text-nowrap" style="width: 100px;">
-                                                        <span id="vehicle/max_speed">50 Km/h</span>
+                                                        <span id="vehicle/linear/speed">50 Km/h</span>
                                                     </span>
                                                 </div>
                                             </div>
@@ -346,11 +346,38 @@
                 const numericKmh = Number.parseFloat(speedKmh);
                 const normalizedKmh = Number.isFinite(numericKmh) ? Math.max(0, numericKmh) : 0;
                 $('#vehicleMaxSpeedSlider').val(normalizedKmh);
-                $('[id="vehicle/max_speed"]').text(`${normalizedKmh.toFixed(1)} Km/h`);
+                $('[id="vehicle/linear/speed"]').text(`${normalizedKmh.toFixed(1)} Km/h`);
 
                 if (isManual) {
                     window.vehicleSpeedUiManualUntil = Date.now() + 1500;
                 }
+            }
+
+            function initializeVehicleSpeedUiFromMqtt(topic, value) {
+                const numericMs = Number.parseFloat(value);
+                if (!Number.isFinite(numericMs)) {
+                    return;
+                }
+
+                if (topic === 'vehicle/linear/speed') {
+                    const speedKmh = Math.max(0, numericMs * 3.6);
+                    updateVehicleSpeedUi(speedKmh, false);
+                    lastVehicleMaxSpeedMsSent = Number(numericMs.toFixed(2));
+                    console.log(`[Vehicle Test] 📥 초기 UI 동기화(linear): ${speedKmh.toFixed(1)} Km/h`);
+                }
+            }
+
+            // 공통 MQTT 처리 이후에 Vehicle Test UI 초기화를 1회 수행한다.
+            if (typeof window.prcessMqttMessage === 'function' && !window.vehicleTestInitMqttHooked) {
+                const originalProcessMqtt = window.prcessMqttMessage;
+                window.prcessMqttMessage = function(topic, value) {
+                    originalProcessMqtt(topic, value);
+
+                    if (topic === 'vehicle/linear/speed') {
+                        initializeVehicleSpeedUiFromMqtt(topic, value);
+                    }
+                };
+                window.vehicleTestInitMqttHooked = true;
             }
 
             function publishWhenConnected(topic, payload, retries = 20, intervalMs = 250) {

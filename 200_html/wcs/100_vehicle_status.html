@@ -20,33 +20,15 @@
     <link href="./css/002_wcs_common.css" rel="stylesheet">
 
     <style>
+        .top-header-row {
+            flex-wrap: nowrap !important;
+        }
+
         .top-header-row .nav-link {
             white-space: nowrap;
         }
 
-        @media (min-width: 992px) {
-            .top-header-row {
-                flex-wrap: nowrap !important;
-            }
-
-            .top-header-row .nav {
-                flex-wrap: nowrap;
-            }
-        }
-
-        #mqtt-status-container,
-        #mqtt-message-display,
-        #mqtt-message-display .badge,
-        #mqtt-message-display .mqtt-message-row,
-        #mqtt-topic,
-        #mqtt-value {
-            white-space: nowrap;
-        }
-
-        #mqtt-status-container,
-        #mqtt-message-display,
-        #mqtt-message-display .badge,
-        #mqtt-message-display .mqtt-message-row {
+        .top-header-row .nav {
             flex-wrap: nowrap;
         }
     </style>

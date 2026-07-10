@@ -460,6 +460,10 @@ class MqttSimulator:
             else:
                 print("[SETTINGS] Wheel radius values already published once; skipping")
 
+            # 차량 선속도 초기 정보 발행 (클라이언트 접속 시 현재 상태 전달)
+            self._publish("vehicle/linear/speed", round(self.linear_speed, 3))
+            print(f"[VEHICLE] Published vehicle/linear/speed -> {round(self.linear_speed, 3)}")
+
             # 도로 자세(Roll/Pitch) 설정 발행
             self._publish("vehicle/road/roll_angle", self.road_roll_angle)
             print(f"[ROAD] Published vehicle/road/roll_angle -> {self.road_roll_angle}")

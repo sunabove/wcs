@@ -54,6 +54,22 @@
     border-radius: 0.5rem;
 }
 
+.road-detect-overlay-status {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 1;
+    padding: 0.5rem 0.85rem;
+    border-radius: 0.6rem;
+    background: rgba(17, 24, 39, 0.78);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: #f8f9fa;
+    font-size: 0.9rem;
+    white-space: nowrap;
+    pointer-events: none;
+}
+
 /* Keep WCS top navigation on a single row across pages */
 .top-header-row {
     flex-wrap: nowrap !important;

@@ -1,6 +1,7 @@
 (function () {
     const $overlay = $("#road-detect-overlay");
     const $closeButton = $("#road-detect-overlay-close");
+    const $status = $("#road-detect-overlay-status");
     const $image = $("#road-detect-overlay-image");
     const $video = $("#road-detect-overlay-video");
     const $viewer = $("#vehicle-urdf-viewer");
@@ -27,6 +28,17 @@
 
     function setCloseButtonToShowMode(isShowMode) {
         $closeButton.text(isShowMode ? "보이기" : "닫기");
+    }
+
+    function setOverlayStatus(message, visible) {
+        if ($status.length === 0) {
+            return;
+        }
+        const text = String(message || "").trim();
+        if (text) {
+            $status.text(text);
+        }
+        $status.toggleClass("d-none", !visible);
     }
 
     function normalizePath(pathValue) {
@@ -164,6 +176,8 @@
         }
 
         applyCompactOverlayLayout();
+        showOverlay();
+        setOverlayStatus("검출 영상을 불러오는 중입니다...", true);
         showVideoSource(streamUrl);
     }
 
@@ -178,6 +192,9 @@
             $video[0].pause();
         }
         $video.attr("src", "").addClass("d-none");
+        if (resetMemory) {
+            setOverlayStatus("", false);
+        }
     }
 
     function showOverlay() {
@@ -188,12 +205,14 @@
         mediaHiddenByUser = false;
         setCloseButtonToShowMode(false);
         hideAllMedia(true);
+        setOverlayStatus("", false);
         $overlay.addClass("d-none");
     }
 
     function hideMediaAreaOnly() {
         mediaHiddenByUser = true;
         hideAllMedia(false);
+        setOverlayStatus("", false);
         applyCollapsedOverlayLayout();
         setCloseButtonToShowMode(true);
     }
@@ -222,6 +241,7 @@
         }
         const normalizedSrc = String(src);
         hideAllMedia();
+        setOverlayStatus("검출 프레임을 불러오는 중입니다...", true);
         $image.attr("src", normalizedSrc).removeClass("d-none");
         lastMediaType = "image";
         lastMediaSource = normalizedSrc;
@@ -249,6 +269,7 @@
         }
 
         hideAllMedia();
+        setOverlayStatus("검출 영상을 불러오는 중입니다...", true);
         $video.attr("src", normalizedSrc).removeClass("d-none");
         lastMediaType = "video";
         lastMediaSource = normalizedSrc;
@@ -353,16 +374,26 @@
         if (!this.naturalWidth || !this.naturalHeight) {
             return;
         }
+        setOverlayStatus("", false);
         lastMediaAspectRatio = this.naturalWidth / this.naturalHeight;
         applyCompactOverlayWidthByAspect(lastMediaAspectRatio);
+    });
+
+    $image.on("error", function () {
+        setOverlayStatus("검출 영상을 불러오지 못했습니다.", true);
     });
 
     $video.on("loadedmetadata", function () {
         if (!this.videoWidth || !this.videoHeight) {
             return;
         }
+        setOverlayStatus("", false);
         lastMediaAspectRatio = this.videoWidth / this.videoHeight;
         applyCompactOverlayWidthByAspect(lastMediaAspectRatio);
+    });
+
+    $video.on("error", function () {
+        setOverlayStatus("검출 영상을 불러오지 못했습니다.", true);
     });
 
     $(window).on("resize", function () {

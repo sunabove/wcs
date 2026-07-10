@@ -99,6 +99,7 @@
         return "http://ai/fast/road_detect_stream/samples/video/cobot/" + encodeURIComponent(safeFileName) + "?" + $.param({
             detect_type: "road_type",
             remove_noisy_masks: true,
+            show_time_bar: true,
             include_pothole: true,
             pothole_conf: 0.45,
             mqtt_publish: true,

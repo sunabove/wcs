@@ -727,6 +727,20 @@
                             updateVehicleMaxSpeedUi(numericMs * 3.6, false);
                         }
                     }
+
+                    if (topic === 'vehicle/surface/state') {
+                        const normalized = String(value).trim();
+                        if ($(`#surface-state option[value="${normalized}"]`).length > 0) {
+                            $('#surface-state').val(normalized);
+                        }
+                    }
+
+                    if (topic === 'vehicle/surface/obstacle') {
+                        const normalized = String(value).trim();
+                        if ($(`#surface-obstacle option[value="${normalized}"]`).length > 0) {
+                            $('#surface-obstacle').val(normalized);
+                        }
+                    }
                 };
                 window.wcsSettingMaxSpeedHooked = true;
             }

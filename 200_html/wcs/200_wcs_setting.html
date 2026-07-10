@@ -215,6 +215,39 @@
                                 <div class="d-flex align-items-start justify-content-between gap-2">
                                     <div>
                                         <h5 class="mb-1">
+                                            <i class="bi bi-speedometer2 me-2"></i>차량 최고 속도 설정
+                                        </h5>
+                                        <small class="text-muted">차량의 최고 속도 제한값을 조절합니다.</small>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="setting-section-item setting-section-control">
+                                <div class="d-flex align-items-center gap-2">
+                                    <input
+                                        type="range"
+                                        class="form-range mb-0"
+                                        id="vehicle-max-speed"
+                                        min="0"
+                                        max="100"
+                                        step="1"
+                                        value="50"
+                                    >
+                                    <button type="button" class="btn btn-outline-secondary btn-sm angle-reset-btn" id="reset-vehicle-max-speed">Reset</button>
+                                    <span id="vehicle-max-speed-value" class="badge text-bg-secondary angle-value-badge">50 Km/h</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row g-3 mt-1">
+                    <div class="col">
+                        <div class="border rounded p-3 bg-light d-flex flex-column flex-md-row align-items-md-center gap-3">
+                            <div class="setting-section-item setting-section-title">
+                                <div class="d-flex align-items-start justify-content-between gap-2">
+                                    <div>
+                                        <h5 class="mb-1">
                                             <i class="bi bi-arrow-repeat me-2"></i>차량 Roll 각도 설정
                                         </h5>
                                         <small class="text-muted">차량의 좌우 기울기(Roll) 각도를 조절합니다.</small>
@@ -290,6 +323,47 @@
 
     <script> 
         $(document).ready(function () {
+            const maxSpeedTopic = 'vehicle/linear/max_speed';
+
+            function updateVehicleMaxSpeedUi(speedKmh, shouldPublish = true) {
+                const numericKmh = Number.parseFloat(speedKmh);
+                const normalizedKmh = Number.isFinite(numericKmh) ? Math.max(0, Math.min(100, numericKmh)) : 0;
+                const roundedKmh = Math.round(normalizedKmh);
+
+                $('#vehicle-max-speed').val(roundedKmh);
+                $('#vehicle-max-speed-value').text(`${roundedKmh} Km/h`);
+
+                if (shouldPublish) {
+                    const speedMs = Number((roundedKmh / 3.6).toFixed(2));
+                    sendMQTTMessage(maxSpeedTopic, speedMs);
+                }
+            }
+
+            // 차량 최고 속도 변경 즉시 반영
+            $('#vehicle-max-speed').on('input change', function () {
+                updateVehicleMaxSpeedUi($(this).val(), true);
+            });
+
+            // 차량 최고 속도 초기화
+            $('#reset-vehicle-max-speed').on('click', function () {
+                $('#vehicle-max-speed').val(50).trigger('input');
+            });
+
+            // 공통 MQTT 처리 이후에 최고 속도 UI 초기화를 수행한다.
+            if (typeof window.prcessMqttMessage === 'function' && !window.wcsSettingMaxSpeedHooked) {
+                const originalProcessMqtt = window.prcessMqttMessage;
+                window.prcessMqttMessage = function(topic, value) {
+                    originalProcessMqtt(topic, value);
+
+                    if (topic === 'vehicle/linear/max_speed' || topic === 'vehicle/max_speed') {
+                        const numericMs = Number.parseFloat(value);
+                        if (Number.isFinite(numericMs)) {
+                            updateVehicleMaxSpeedUi(numericMs * 3.6, false);
+                        }
+                    }
+                };
+                window.wcsSettingMaxSpeedHooked = true;
+            }
 
             // 노면 종류 선택 즉시 반영
             $('#surface-state').on('change', function () {

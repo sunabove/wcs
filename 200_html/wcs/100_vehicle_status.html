@@ -43,6 +43,52 @@
 
 <body>
 
+    <template id="wheel-info-table-template">
+        <table class="table table-bordered table-striped m-0">
+            <colgroup>
+                <col width="33%">
+                <col>
+            </colgroup>
+
+            <thead class="table-dark">
+                <tr>
+                    <th class="text-center" scope="col" colspan="2">Wheel __WHEEL_LABEL__</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <th class="text-center" scope="row">Speed</th>
+                    <td id="wheel/__WHEEL_KEY__/linear/speed" class="text-end">  km/h</td>
+                </tr>
+                <tr>
+                    <th class="text-center" scope="row">RPM</th>
+                    <td id="wheel/__WHEEL_KEY__/angle/speed" class="text-end">0 rpm</td>
+                </tr>
+
+                <tr>
+                    <th class="text-center" scope="row">Power</th>
+                    <td id="wheel/__WHEEL_KEY__/power" class="text-end">120 kW</td>
+                </tr>
+                <tr>
+                    <th class="text-center" scope="row">PID</th>
+                    <td class="text-end">
+                        <span id="wheel/__WHEEL_KEY__/pid/p">1.5</span> /
+                        <span id="wheel/__WHEEL_KEY__/pid/i">0.01</span> /
+                        <span id="wheel/__WHEEL_KEY__/pid/d">0.5</span>
+                    </td>
+                </tr>
+                <tr>
+                    <th class="text-center" scope="row">ToF</th>
+                    <td id="wheel/__WHEEL_KEY__/tof/distance" class="text-end">0.5 cm</td>
+                </tr>
+                <tr>
+                    <th class="text-center" scope="row">Axis</th>
+                    <td id="wheel/__WHEEL_KEY__/axis/angle" class="text-end">10°</td>
+                </tr>
+            </tbody>
+        </table>
+    </template>
+
     <!-- 상단 메뉴 -->
     <header class="p-1 text-bg-dark fs-5"> 
 
@@ -129,50 +175,8 @@
                                     <div class="row">
                                         <!-- 바퀴 데이터 테이블 -->
                                         <div class="col-md-12">
-                                            <table class="table table-bordered table-striped m-0">
-                                                <colgroup>
-                                                    <col width="33%">
-                                                    <col>
-                                                </colgroup>
-
-                                                <!-- FL 섹션 -->
-                                                <thead class="table-dark">
-                                                    <tr>
-                                                        <th class="text-center" scope="col" colspan="2"> Wheel FL</th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody>
-                                                    <tr>
-                                                        <th class="text-center" scope="row">Speed</th>
-                                                        <td id="wheel/fl/linear/speed" class="text-end">  km/h</td>
-                                                    </tr>
-                                                    <tr>
-                                                        <th class="text-center" scope="row">RPM</th>
-                                                        <td id="wheel/fl/angle/speed" class="text-end">0 rpm</td>
-                                                    </tr>
-                                                    
-                                                    <tr>
-                                                        <th class="text-center" scope="row">Power</th>
-                                                        <td id="wheel/fl/power" class="text-end">120 kW</td>
-                                                    </tr>
-                                                    <tr>
-                                                        <th class="text-center" scope="row">PID</th>
-                                                        <td class="text-end">
-                                                            <span id="wheel/fl/pid/p">1.5</span> / 
-                                                            <span id="wheel/fl/pid/i">0.01</span> / 
-                                                            <span id="wheel/fl/pid/d">0.5</span>
-                                                        </td>
-                                                    </tr> 
-                                                    <tr>
-                                                        <th class="text-center" scope="row">ToF</th>
-                                                        <td id="wheel/fl/tof/distance" class="text-end">0.5 cm</td>
-                                                    </tr>
-                                                    <tr>
-                                                        <th class="text-center" scope="row">Axis</th>
-                                                        <td id="wheel/fl/axis/angle" class="text-end">10°</td>
-                                                    </tr>
-                                                </tbody>
-                                            </table>
+                                            <div id="wheel-info-fl-slot"></div>
+                                            
                                         </div>
                                     </div>
                                 </div>
@@ -615,6 +619,23 @@
 
     <script src="./js/mqtt_process_01_status.js"></script>
     <script src="./js/100_vehicle_status_overlay.js"></script>
+
+    <script>
+        (function renderWheelInfoTableFromTemplate() {
+            const template = document.getElementById('wheel-info-table-template');
+            const slot = document.getElementById('wheel-info-fl-slot');
+
+            if (!template || !slot) {
+                return;
+            }
+
+            const html = template.innerHTML
+                .replaceAll('__WHEEL_KEY__', 'fl')
+                .replaceAll('__WHEEL_LABEL__', 'FL');
+
+            slot.innerHTML = html;
+        })();
+    </script>
 
 </body>
 

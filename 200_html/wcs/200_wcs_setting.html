@@ -250,15 +250,8 @@
 
                             <div class="setting-section-item setting-section-control">
                                 <div class="border-0 rounded p-2">
-                                    <ul class="nav nav-tabs mb-3" id="wcs-video-input-tabs" role="tablist">
-                                        <li class="nav-item" role="presentation">
-                                            <button class="nav-link active" id="wcs-input-sample-video-tab" data-bs-toggle="tab" data-bs-target="#wcs-input-sample-video-pane" type="button" role="tab" aria-controls="wcs-input-sample-video-pane" aria-selected="true">
-                                                <i class="bi bi-camera-reels me-1"></i>샘플 동영상
-                                            </button>
-                                        </li>
-                                    </ul>
                                     <div class="tab-content">
-                                        <div class="tab-pane fade show active" id="wcs-input-sample-video-pane" role="tabpanel" aria-labelledby="wcs-input-sample-video-tab" tabindex="0">
+                                        <div class="tab-pane fade show active" id="wcs-input-sample-video-pane" role="tabpanel" tabindex="0">
                                             <div class="text-muted text-center py-3">샘플 동영상 목록</div>
                                             <template id="wcs-sample-video-item-template">
                                                 <div class="sample-thumbnail-item">
@@ -509,12 +502,7 @@
                     .attr('data-parent-folder', hasParent ? parentPath : baseFolder)
                     .prop('disabled', !hasParent);
 
-                const labelText = showAllFiles
-                    ? ('samples/' + baseFolder + ' (모든 파일)')
-                    : (normalizedCurrent === baseFolder ? 'samples/' + baseFolder : 'samples/' + normalizedCurrent);
-                const $pathLabel = $('<span class="small text-muted"></span>').text('현재: ' + labelText);
-
-                $header.append($homeButton).append($upButton).append($allFilesToggleWrap).append($pathLabel);
+                $header.append($homeButton).append($upButton).append($allFilesToggleWrap);
                 return $header;
             }
 

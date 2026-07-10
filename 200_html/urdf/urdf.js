@@ -1506,8 +1506,6 @@ class URDFViewer {
             this.camera.aspect = newWidth / newHeight;
             this.camera.updateProjectionMatrix();
             this.renderer.setSize(newWidth, newHeight);
-            
-            console.log(`[URDF] 리사이즈: ${newWidth}x${newHeight}`);
         });
     }
 

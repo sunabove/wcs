@@ -1,6 +1,7 @@
 (function () {
     const $overlay = $("#road-detect-overlay");
     const $closeButton = $("#road-detect-overlay-close");
+    const $showButton = $("#road-detect-overlay-show");
     const $image = $("#road-detect-overlay-image");
     const $video = $("#road-detect-overlay-video");
     const $viewer = $("#vehicle-urdf-viewer");
@@ -122,13 +123,30 @@
         $video.attr("src", "").addClass("d-none");
     }
 
+    function syncShowButtonVisibility() {
+        if ($showButton.length === 0) {
+            return;
+        }
+
+        // showVideo 옵션이 꺼져 있으면 보이기 버튼도 숨김
+        if (!showVideoOverlayEnabled) {
+            $showButton.addClass("d-none");
+            return;
+        }
+
+        const isOverlayHidden = $overlay.hasClass("d-none");
+        $showButton.toggleClass("d-none", !isOverlayHidden);
+    }
+
     function showOverlay() {
         $overlay.removeClass("d-none");
+        syncShowButtonVisibility();
     }
 
     function hideOverlay() {
         hideAllMedia();
         $overlay.addClass("d-none");
+        syncShowButtonVisibility();
     }
 
     function showImageSource(src) {
@@ -227,7 +245,13 @@
         showOverlay();
     };
 
+    $showButton.on("click", function () {
+        showOverlay();
+    });
+
     $closeButton.on("click", function () {
         hideOverlay();
     });
+
+    syncShowButtonVisibility();
 })();

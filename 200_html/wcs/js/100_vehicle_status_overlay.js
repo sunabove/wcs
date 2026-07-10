@@ -21,8 +21,9 @@
     let $currentVideoOverlay = $();
     let $currentVideoText = $();
     let currentVideoResolveToken = 0;
-    const overlayInlineStyle = "position:absolute;top:8px;left:8px;right:8px;z-index:15;pointer-events:none;";
-    const textInlineStyle = "display:inline-block;max-width:100%;padding:0.3rem 0.55rem;border-radius:0.4rem;color:#f8f9fa;background:rgba(11, 18, 32, 0.78);font-size:0.84rem;line-height:1.15;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;";
+    let overlayLayoutMode = "default";
+    const overlayInlineStyle = "position:absolute;top:8px;left:8px;right:8px;z-index:15;pointer-events:none;display:flex;justify-content:center;align-items:flex-start;";
+    const textInlineStyle = "display:inline-block;max-width:min(90%, 760px);padding:0.3rem 0.55rem;border-radius:0.4rem;color:#f8f9fa;background:rgba(11, 18, 32, 0.78);font-size:0.84rem;line-height:1.15;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:center;";
 
     function normalizePath(pathValue) {
         return String(pathValue || "").trim().replace(/\\/g, "/").replace(/^\/+/, "");
@@ -55,6 +56,28 @@
         }
 
         return "/fast/video_playable/" + encodedPath + "?" + $.param({ force_transcode: false });
+    }
+
+    function applyDefaultOverlayLayout() {
+        if (overlayLayoutMode === "default") {
+            return;
+        }
+
+        $overlay.attr("style", "");
+        overlayLayoutMode = "default";
+    }
+
+    function applyCompactOverlayLayout() {
+        if (overlayLayoutMode === "compact") {
+            return;
+        }
+
+        // Top-center compact overlay, constrained to less than half of viewer size.
+        $overlay.attr(
+            "style",
+            "inset:auto;top:10px;left:50%;transform:translateX(-50%);width:min(50%, 760px);height:min(46%, 420px);z-index:20;display:flex;flex-direction:column;background:rgba(0,0,0,0.82);border-radius:1rem;overflow:hidden;"
+        );
+        overlayLayoutMode = "compact";
     }
 
     function ensureCurrentVideoOverlay() {
@@ -132,6 +155,7 @@
                 return;
             }
 
+            applyCompactOverlayLayout();
             showVideoSource(resolvedUrl);
         }).fail(function () {
             // Keep title overlay even when video URL resolving fails.
@@ -197,6 +221,7 @@
         }
 
         if (topicText === "ai/road/overlay/show") {
+            applyDefaultOverlayLayout();
             if (toBoolean(value)) {
                 showOverlay();
             } else {
@@ -206,16 +231,19 @@
         }
 
         if (topicText === "ai/road/overlay/image_url") {
+            applyDefaultOverlayLayout();
             showImageSource(String(value || ""));
             return;
         }
 
         if (topicText === "ai/road/overlay/video_url") {
+            applyDefaultOverlayLayout();
             showVideoSource(String(value || ""));
             return;
         }
 
         if (topicText === "ai/road/overlay/frame_b64") {
+            applyDefaultOverlayLayout();
             const base64 = String(value || "").trim();
             if (!base64) {
                 return;

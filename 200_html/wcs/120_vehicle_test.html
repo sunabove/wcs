@@ -606,7 +606,19 @@
                 const topic = 'vehicle/operation/command';
                 const speedTopic = 'vehicle/linear/speed';
                 const sliderSpeedKmh = Number.parseFloat($('#vehicleCurrSpeedSlider').val()) || 0;
-                const sliderSpeedMs = sliderSpeedKmh / 3.6;
+                const sliderMaxKmh = Number.parseFloat($('#vehicleCurrSpeedSlider').attr('max'));
+                const effectiveMaxKmh = Number.isFinite(sliderMaxKmh)
+                    ? Math.max(0, sliderMaxKmh)
+                    : Math.max(0, latestVehicleMaxSpeedKmh);
+
+                let commandSpeedKmh = sliderSpeedKmh;
+                if (Number(command) !== 0 && commandSpeedKmh <= 0 && effectiveMaxKmh > 0) {
+                    commandSpeedKmh = Number((effectiveMaxKmh * 0.1).toFixed(1));
+                    updateVehicleSpeedUi(commandSpeedKmh, true);
+                    console.log(`[Vehicle Test] ⚙️ 현재 속도 0 감지: 최고 속도의 10%로 보정 (${commandSpeedKmh.toFixed(1)} Km/h)`);
+                }
+
+                const sliderSpeedMs = commandSpeedKmh / 3.6;
                 const speedMs = sliderSpeedMs;
                 const roundedSpeedMs = Number(speedMs.toFixed(2));
                 const sameCommand = Number(lastVehicleDirectionCommandSent) === Number(command);

@@ -249,11 +249,13 @@
                                                     </div>
 
                                                     <div id="road-detect-overlay" class="road-detect-overlay d-none" aria-label="검출 출력 오버레이">
-                                                        <div class="road-detect-overlay-header">
-                                                            <span class="road-detect-overlay-title">Road Detection Output</span>
-                                                            <button id="road-detect-overlay-close" type="button" class="btn btn-sm btn-outline-light">닫기</button>
-                                                        </div>
                                                         <div class="road-detect-overlay-body">
+                                                            <button
+                                                                id="road-detect-overlay-close"
+                                                                type="button"
+                                                                class="btn btn-sm btn-outline-light"
+                                                                style="position:absolute; top:10px; left:10px; z-index:2;"
+                                                            >닫기</button>
                                                             <img id="road-detect-overlay-image" class="road-detect-overlay-media d-none" alt="검출 결과 이미지">
                                                             <video id="road-detect-overlay-video" class="road-detect-overlay-media d-none" muted playsinline autoplay controls></video>
                                                         </div>
@@ -437,7 +439,7 @@
     <script src="./js/mqtt.js"></script>
 
     <script src="./js/mqtt_process_01_status.js"></script>
-    <script src="./js/100_vehicle_status_overlay.js"></script> 
+    <script src="./js/100_vehicle_status_overlay.js"></script>
     
 
 </body>

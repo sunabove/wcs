@@ -20,6 +20,20 @@
     <link href="./css/002_wcs_common.css" rel="stylesheet">
 
     <style>
+        .top-header-row .nav-link {
+            white-space: nowrap;
+        }
+
+        @media (min-width: 992px) {
+            .top-header-row {
+                flex-wrap: nowrap !important;
+            }
+
+            .top-header-row .nav {
+                flex-wrap: nowrap;
+            }
+        }
+
         #mqtt-status-container,
         #mqtt-message-display,
         #mqtt-message-display .badge,
@@ -65,7 +79,7 @@
     <header class="p-1 text-bg-dark fs-5"> 
 
         <div class="container">
-            <div class="d-flex flex-wrap align-items-center justify-content-between">
+            <div class="top-header-row d-flex flex-wrap align-items-center justify-content-between">
 
                 <ul class="nav flex-grow-1 mb-2 justify-content-center mb-md-0">
                     <li>

@@ -18,7 +18,6 @@
     }
 
     const showVideoOverlayEnabled = $viewer.length > 0 && toBoolean($viewer.attr("showVideo"));
-    let currentVideoResolveToken = 0;
     let overlayLayoutMode = "default";
     let latestCurrentVideoFileName = "";
     let mediaHiddenByUser = false;
@@ -33,33 +32,32 @@
         return String(pathValue || "").trim().replace(/\\/g, "/").replace(/^\/+/, "");
     }
 
-    function encodePathForRoute(pathValue) {
-        return normalizePath(pathValue)
-            .split("/")
-            .filter(function (segment) {
-                return segment.length > 0;
-            })
-            .map(function (segment) {
-                return encodeURIComponent(segment);
-            })
-            .join("/");
-    }
-
-    function toAbsoluteUrl(url) {
-        try {
-            return new URL(String(url || ""), window.location.origin).toString();
-        } catch (error) {
-            return "";
-        }
-    }
-
-    function buildVideoPlayableUrl(fileName) {
-        const encodedPath = encodePathForRoute(fileName);
-        if (!encodedPath) {
+    function extractVideoFileName(pathValue) {
+        const normalizedPath = normalizePath(pathValue);
+        if (!normalizedPath) {
             return "";
         }
 
-        return "/fast/video_playable/" + encodedPath + "?" + $.param({ force_transcode: false });
+        const segments = normalizedPath.split("/").filter(function (segment) {
+            return segment.length > 0;
+        });
+        return segments.length > 0 ? segments[segments.length - 1] : "";
+    }
+
+    function buildRoadDetectStreamUrl(fileName) {
+        const safeFileName = extractVideoFileName(fileName);
+        if (!safeFileName) {
+            return "";
+        }
+
+        return "http://ai/fast/road_detect_stream/samples/video/cobot/" + encodeURIComponent(safeFileName) + "?" + $.param({
+            detect_type: "road_type",
+            remove_noisy_masks: true,
+            include_pothole: true,
+            pothole_conf: 0.45,
+            mqtt_publish: true,
+            t: Date.now(),
+        });
     }
 
     function applyDefaultOverlayLayout() {
@@ -115,30 +113,13 @@
             return;
         }
 
-        const playableApiUrl = buildVideoPlayableUrl(normalizedFile);
-        if (!playableApiUrl) {
+        const streamUrl = buildRoadDetectStreamUrl(normalizedFile);
+        if (!streamUrl) {
             return;
         }
 
-        const requestToken = ++currentVideoResolveToken;
-        $.ajax({
-            url: playableApiUrl,
-            method: "GET",
-        }).done(function (result) {
-            if (requestToken !== currentVideoResolveToken) {
-                return;
-            }
-
-            const resolvedUrl = toAbsoluteUrl(result && result.video_url);
-            if (!resolvedUrl) {
-                return;
-            }
-
-            applyCompactOverlayLayout();
-            showVideoSource(resolvedUrl);
-        }).fail(function () {
-            // Keep title overlay even when video URL resolving fails.
-        });
+        applyCompactOverlayLayout();
+        showVideoSource(streamUrl);
     }
 
     function hideAllMedia(resetMemory = true) {

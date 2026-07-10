@@ -175,6 +175,7 @@ class MqttSimulator:
         # MQTT 토픽 구독
         client.subscribe("client/connect")
         client.subscribe("vehicle/linear/speed")
+        client.subscribe("vehicle/linear/max_speed")
         client.subscribe("vehicle/max_speed")
         client.subscribe("vehicle/operation/command")
         client.subscribe("vehicle/surface/state")
@@ -188,7 +189,7 @@ class MqttSimulator:
             client.subscribe(f"wheel/{wheel_id}/id")          # ID 설정
             client.subscribe(f"wheel/{wheel_id}/operation/command")
             
-        print("[MQTT] Subscribed to client/connect, vehicle/linear/speed, vehicle/max_speed, vehicle/operation/command, vehicle/surface/state, vehicle/surface/obstacle, vehicle/road/roll_angle, vehicle/road/pitch_angle, wheel/*/id_request, wheel/*/id, wheel/*/operation/command topics")
+        print("[MQTT] Subscribed to client/connect, vehicle/linear/speed, vehicle/linear/max_speed, vehicle/max_speed, vehicle/operation/command, vehicle/surface/state, vehicle/surface/obstacle, vehicle/road/roll_angle, vehicle/road/pitch_angle, wheel/*/id_request, wheel/*/id, wheel/*/operation/command topics")
     
     def _on_message(self, client, userdata, msg):
         """MQTT 메시지 수신 처리"""
@@ -311,7 +312,7 @@ class MqttSimulator:
             elif topic == "client/connect":
                 print("[CONNECT] Client connection detected - Publishing settings...")
                 self._publish_settings_on_client_connect()
-            elif topic == "vehicle/linear/speed" or topic == "vehicle/max_speed":
+            elif topic == "vehicle/linear/speed" or topic == "vehicle/max_speed" or topic == "vehicle/linear/max_speed":
                 try:
                     # vehicle/linear/speed는 시뮬레이터가 상태 토픽으로도 발행하므로,
                     # 직전에 스스로 발행한 값의 self-echo는 속도 설정 명령으로 처리하지 않는다.
@@ -468,6 +469,8 @@ class MqttSimulator:
             # 차량 최고 속도 초기 정보 발행 (클라이언트 접속 시 현재 설정 전달)
             self._publish("vehicle/max_speed", round(self.max_speed, 2))
             print(f"[VEHICLE] Published vehicle/max_speed -> {round(self.max_speed, 2)}")
+            self._publish("vehicle/linear/max_speed", round(self.max_speed, 2))
+            print(f"[VEHICLE] Published vehicle/linear/max_speed -> {round(self.max_speed, 2)}")
 
             # 도로 자세(Roll/Pitch) 설정 발행
             self._publish("vehicle/road/roll_angle", self.road_roll_angle)
@@ -789,6 +792,7 @@ class MqttSimulator:
         max_speed_rounded = round(self.max_speed, 2)
         if self.last_vehicle_max_speed_published != max_speed_rounded:
             self._publish("vehicle/max_speed", max_speed_rounded)  # m/s (동적 값)
+            self._publish("vehicle/linear/max_speed", max_speed_rounded)  # m/s (UI 호환)
             self.last_vehicle_max_speed_published = max_speed_rounded
         self._publish("vehicle/max_angular_speed", 1.0)  # rad/s
 

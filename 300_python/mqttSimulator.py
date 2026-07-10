@@ -129,6 +129,8 @@ class MqttSimulator:
         self.publish_count = 0
         self.last_vehicle_state_published = None
         self.last_vehicle_max_speed_published = None
+        self.wheel_id_initial_published = False
+        self.wheel_radius_initial_published = False
         
         # 재시작 및 모니터링
         self.running = True
@@ -434,21 +436,29 @@ class MqttSimulator:
             else:
                 print("[SETTINGS] No wheel_data available to publish")
             
-            # Wheel ID 설정 정보 우선 발행 (fl=1, fr=2, rr=3, rl=4)
-            print("[SETTINGS] Publishing wheel ID mappings...")
-            for wheel_str_id, wheel_num_id in WHEEL_ID_MAPPING.items():
-                topic = f"wheel/{wheel_str_id}/id"
-                payload = str(wheel_num_id)
-                self._publish(topic, payload)
-                print(f"[WHEEL_ID] Published {topic} -> {payload}")
+            # Wheel ID 설정 정보 발행 (최초 클라이언트 초기 접속 시 1회)
+            if not self.wheel_id_initial_published:
+                print("[SETTINGS] Publishing wheel ID mappings...")
+                for wheel_str_id, wheel_num_id in WHEEL_ID_MAPPING.items():
+                    topic = f"wheel/{wheel_str_id}/id"
+                    payload = str(wheel_num_id)
+                    self._publish(topic, payload)
+                    print(f"[WHEEL_ID] Published {topic} -> {payload}")
+                self.wheel_id_initial_published = True
+            else:
+                print("[SETTINGS] Wheel ID mappings already published once; skipping")
 
-            # Wheel 반지름 초기 정보 발행
-            print("[SETTINGS] Publishing wheel radius values...")
-            for wheel_str_id in WHEEL_IDS:
-                topic = f"wheel/{wheel_str_id}/radius"
-                payload = str(WHEEL_RADIUS_M)
-                self._publish(topic, payload)
-                print(f"[WHEEL] Published {topic} -> {payload}")
+            # Wheel 반지름 초기 정보 발행 (최초 클라이언트 초기 접속 시 1회)
+            if not self.wheel_radius_initial_published:
+                print("[SETTINGS] Publishing wheel radius values...")
+                for wheel_str_id in WHEEL_IDS:
+                    topic = f"wheel/{wheel_str_id}/radius"
+                    payload = str(WHEEL_RADIUS_M)
+                    self._publish(topic, payload)
+                    print(f"[WHEEL] Published {topic} -> {payload}")
+                self.wheel_radius_initial_published = True
+            else:
+                print("[SETTINGS] Wheel radius values already published once; skipping")
 
             # 도로 자세(Roll/Pitch) 설정 발행
             self._publish("vehicle/road/roll_angle", self.road_roll_angle)

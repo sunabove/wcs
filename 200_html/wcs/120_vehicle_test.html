@@ -291,7 +291,7 @@
                                                     </label>
                                                     <input type="range" id="vehicleMaxSpeedSlider" class="form-range mb-0" min="0" max="100" value="5">
                                                     <span class="input-group-text bg-light justify-content-center text-nowrap" style="width: 100px;">
-                                                        <span id="vehicle/linear/speed">50 Km/h</span>
+                                                        <span id="vehicle/linear/max_speed">50 Km/h</span>
                                                     </span>
                                                 </div>
                                             </div>
@@ -346,7 +346,7 @@
                 const numericKmh = Number.parseFloat(speedKmh);
                 const normalizedKmh = Number.isFinite(numericKmh) ? Math.max(0, numericKmh) : 0;
                 $('#vehicleMaxSpeedSlider').val(normalizedKmh);
-                $('[id="vehicle/linear/speed"]').text(`${normalizedKmh.toFixed(1)} Km/h`);
+                $('[id="vehicle/linear/max_speed"]').text(`${normalizedKmh.toFixed(1)} Km/h`);
 
                 if (isManual) {
                     window.vehicleSpeedUiManualUntil = Date.now() + 1500;
@@ -359,7 +359,7 @@
                     return;
                 }
 
-                if (topic === 'vehicle/linear/speed') {
+                if (topic === 'vehicle/linear/max_speed') {
                     const speedKmh = Math.max(0, numericMs * 3.6);
                     updateVehicleSpeedUi(speedKmh, false);
                     lastVehicleMaxSpeedMsSent = Number(numericMs.toFixed(2));
@@ -373,7 +373,7 @@
                 window.prcessMqttMessage = function(topic, value) {
                     originalProcessMqtt(topic, value);
 
-                    if (topic === 'vehicle/linear/speed') {
+                    if (topic === 'vehicle/linear/max_speed') {
                         initializeVehicleSpeedUiFromMqtt(topic, value);
                     }
                 };
@@ -574,7 +574,7 @@
             // 차량 제어 명령 전송 함수
             function sendVehicleCommand(command, buttonElement, actionName, icon) {
                 const topic = 'vehicle/operation/command';
-                const speedTopic = 'vehicle/linear/speed';
+                const speedTopic = 'vehicle/linear/max_speed';
                 const sliderSpeedKmh = Number.parseFloat($('#vehicleMaxSpeedSlider').val()) || 0;
                 const sliderSpeedMs = sliderSpeedKmh / 3.6;
                 const speedMs = sliderSpeedMs;
@@ -690,7 +690,7 @@
                 }
                 
                 // MQTT로 차량 속도 발행 (m/s 단위)
-                const topic = 'vehicle/linear/speed';
+                const topic = 'vehicle/linear/max_speed';
                 sendMQTTMessage(topic, roundedSpeedMs, 1);
                 lastVehicleMaxSpeedMsSent = roundedSpeedMs;
 

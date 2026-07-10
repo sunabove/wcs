@@ -309,7 +309,7 @@ class MqttSimulator:
                     print(f"[ROAD] 잘못된 Pitch 각도 형식: {payload}")
             elif topic == "client/connect":
                 print("[CONNECT] Client connection detected - Publishing settings...")
-                self._publish_all_settings()
+                self._publish_settings_on_client_connect()
             elif topic == "vehicle/linear/speed" or topic == "vehicle/max_speed":
                 try:
                     # vehicle/linear/speed는 시뮬레이터가 상태 토픽으로도 발행하므로,
@@ -410,7 +410,7 @@ class MqttSimulator:
             print(f"[MQTT] Message processing error: {e}")
     pass  # _on_message
     
-    def _publish_all_settings(self):
+    def _publish_settings_on_client_connect(self):
         """클라이언트 연결 시 모든 vehicle과 wheel 설정 정보를 publish"""
         try:
             print("[SETTINGS] Publishing all vehicle and wheel settings...")

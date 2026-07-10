@@ -52,3 +52,23 @@
     background: #000;
     border-radius: 0.5rem;
 }
+
+/* Keep WCS top navigation on a single row across pages */
+.top-header-row {
+    flex-wrap: nowrap !important;
+}
+
+.top-header-row .nav,
+.top-header-row .nav-link,
+.top-header-row #mqtt-topic {
+    white-space: nowrap;
+}
+
+.top-header-row .nav {
+    flex-wrap: nowrap;
+}
+
+.top-header-row #mqtt-status-container,
+.top-header-row #mqtt-message-display {
+    flex-wrap: nowrap;
+}

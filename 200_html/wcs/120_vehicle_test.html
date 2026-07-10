@@ -286,12 +286,12 @@
                                             <!-- 차량 속도 제어 -->
                                             <div class="mb-3">
                                                 <div class="d-flex align-items-center gap-2">
-                                                    <label for="vehicleMaxSpeedSlider" class="form-label fw-bold mb-0 text-nowrap">
+                                                    <label for="vehicleCurrSpeedSlider" class="form-label fw-bold mb-0 text-nowrap">
                                                         <i class="bi bi-speedometer2 me-2"></i>차량 속도
                                                     </label>
-                                                    <input type="range" id="vehicleMaxSpeedSlider" class="form-range mb-0" min="0" max="100" value="5">
+                                                    <input type="range" id="vehicleCurrSpeedSlider" class="form-range mb-0" min="0" max="100" value="5">
                                                     <span class="input-group-text bg-light justify-content-center text-nowrap" style="width: 100px;">
-                                                        <span id="vehicle/linear/max_speed">50 Km/h</span>
+                                                        <span id="vehicle/linear/speed">50 Km/h</span>
                                                     </span>
                                                 </div>
                                             </div>
@@ -345,8 +345,8 @@
             function updateVehicleSpeedUi(speedKmh, isManual = false) {
                 const numericKmh = Number.parseFloat(speedKmh);
                 const normalizedKmh = Number.isFinite(numericKmh) ? Math.max(0, numericKmh) : 0;
-                $('#vehicleMaxSpeedSlider').val(normalizedKmh);
-                $('[id="vehicle/linear/max_speed"]').text(`${normalizedKmh.toFixed(1)} Km/h`);
+                $('#vehicleCurrSpeedSlider').val(normalizedKmh);
+                $('[id="vehicle/linear/speed"]').text(`${normalizedKmh.toFixed(1)} Km/h`);
 
                 if (isManual) {
                     window.vehicleSpeedUiManualUntil = Date.now() + 1500;
@@ -575,7 +575,7 @@
             function sendVehicleCommand(command, buttonElement, actionName, icon) {
                 const topic = 'vehicle/operation/command';
                 const speedTopic = 'vehicle/linear/max_speed';
-                const sliderSpeedKmh = Number.parseFloat($('#vehicleMaxSpeedSlider').val()) || 0;
+                const sliderSpeedKmh = Number.parseFloat($('#vehicleCurrSpeedSlider').val()) || 0;
                 const sliderSpeedMs = sliderSpeedKmh / 3.6;
                 const speedMs = sliderSpeedMs;
                 const roundedSpeedMs = Number(speedMs.toFixed(2));
@@ -675,7 +675,7 @@
             });
 
             // 속도 슬라이더 변경 시 현재 방향 명령과 함께 발행
-            $('#vehicleMaxSpeedSlider').on('input change', function(event) {
+            $('#vehicleCurrSpeedSlider').on('input change', function(event) {
                 const speedKmh = Number.parseFloat($(this).val()) || 0;
                 const speedMs = speedKmh / 3.6; // km/h를 m/s로 변환
                 const roundedSpeedMs = Number(speedMs.toFixed(2));

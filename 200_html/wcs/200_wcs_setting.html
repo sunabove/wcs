@@ -419,7 +419,7 @@
 
     <script src="./js/mqtt_process_01_status.js"></script>
 
-    <script> 
+    <script>
         $(document).ready(function () {
             const maxSpeedTopic = 'vehicle/linear/max_speed';
             const $wcsSampleVideoPane = $('#wcs-input-sample-video-pane');
@@ -435,309 +435,324 @@
                 const normalizedKmh = Number.isFinite(numericKmh) ? Math.max(0, Math.min(100, numericKmh)) : 0;
                 const roundedKmh = Math.round(normalizedKmh);
 
-                function buildSamplesUrl(folderName) {
-                    return '/fast/samples/' + encodePathForRoute(folderName);
-                }
-
                 $('#vehicle-max-speed').val(roundedKmh);
-                    const normalized = normalizePath(folderPath).replace(/^samples\//, '');
-                    if (!normalized) {
-                        return baseFolder;
+                $('#vehicle-max-speed-value').text(`${roundedKmh} Km/h`);
+
+                if (shouldPublish) {
+                    const speedMs = Number((roundedKmh / 3.6).toFixed(2));
                     sendMQTTMessage(maxSpeedTopic, speedMs);
-                    return normalized;
                 }
+            }
 
-                function buildFolderLabel(baseFolder, folderPath) {
-                    const normalized = normalizeSampleFolderPath(folderPath, baseFolder);
-                    if (normalized === baseFolder) {
-                        return '기본 폴더';
-                    }
-                    return normalized.replace(new RegExp('^' + baseFolder + '/?'), '');
+            function normalizePath(pathValue) {
+                return String(pathValue || '').trim().replace(/\\/g, '/').replace(/^\/+/, '');
+            }
+
+            function encodePathForRoute(pathValue) {
+                return normalizePath(pathValue)
+                    .split('/')
+                    .filter(function (segment) { return segment.length > 0; })
+                    .map(function (segment) { return encodeURIComponent(segment); })
+                    .join('/');
+            }
+
+            function buildVideoThumbnailUrl(fileName) {
+                return '/fast/video_thumbnail/' + encodePathForRoute(fileName) + '?t=' + Date.now();
+            }
+
+            function buildSampleBrowserUrl(folderName) {
+                return '/fast/sample_browser/' + encodePathForRoute(folderName);
+            }
+
+            function buildSamplesUrl(folderName) {
+                return '/fast/samples/' + encodePathForRoute(folderName);
+            }
+
+            function normalizeSampleFolderPath(folderPath, baseFolder) {
+                const normalized = normalizePath(folderPath).replace(/^samples\//, '');
+                if (!normalized) {
+                    return baseFolder;
                 }
+                return normalized;
+            }
 
-                function buildSampleBrowserHeader(baseFolder, currentFolderPath, showAllFiles) {
-                    const normalizedCurrent = normalizeSampleFolderPath(currentFolderPath, baseFolder);
-                    const $header = $('<div class="d-flex flex-wrap align-items-center gap-2 mb-2"></div>');
-                    const $homeButton = $('<button type="button" class="btn btn-sm btn-outline-secondary sample-folder-home"><i class="bi bi-house-door me-1"></i>루트</button>')
-                        .attr('data-base-folder', baseFolder);
-                    const $allFilesToggleWrap = $('<div class="form-check form-check-inline mb-0"></div>');
-                    const toggleId = 'sample-folder-all-' + baseFolder;
-                    const $allFilesToggle = $('<input class="form-check-input sample-folder-all-toggle" type="checkbox">')
-                        .attr('id', toggleId)
-                        .attr('data-base-folder', baseFolder)
-                        .prop('checked', Boolean(showAllFiles));
-                    const $allFilesToggleLabel = $('<label class="form-check-label small" style="cursor:pointer;"></label>')
-                        .attr('for', toggleId)
-                        .text('모든 파일');
-                    $allFilesToggleWrap.append($allFilesToggle).append($allFilesToggleLabel);
-
-                    const parentPath = normalizedCurrent.indexOf(baseFolder + '/') === 0
-                        ? normalizedCurrent.split('/').slice(0, -1).join('/')
-                        : '';
-                    const hasParent = Boolean(parentPath) && normalizedCurrent !== baseFolder;
-                    const $upButton = $('<button type="button" class="btn btn-sm btn-outline-secondary sample-folder-up"><i class="bi bi-arrow-up-circle me-1"></i>상위</button>')
-                        .attr('data-base-folder', baseFolder)
-                        .attr('data-parent-folder', hasParent ? parentPath : baseFolder)
-                        .prop('disabled', !hasParent);
-
-                    const labelText = showAllFiles
-                        ? ('samples/' + baseFolder + ' (모든 파일)')
-                        : (normalizedCurrent === baseFolder ? 'samples/' + baseFolder : 'samples/' + normalizedCurrent);
-                    const $pathLabel = $('<span class="small text-muted"></span>').text('현재: ' + labelText);
-
-                    $header.append($homeButton).append($upButton).append($allFilesToggleWrap).append($pathLabel);
-                    return $header;
+            function buildFolderLabel(baseFolder, folderPath) {
+                const normalized = normalizeSampleFolderPath(folderPath, baseFolder);
+                if (normalized === baseFolder) {
+                    return '기본 폴더';
                 }
+                return normalized.replace(new RegExp('^' + baseFolder + '/?'), '');
+            }
 
-                function renderSampleFolderTiles(baseFolder, childFolders) {
-                    const $wrapper = $('<div class="d-flex flex-wrap gap-2 mb-2"></div>');
-                    const folders = Array.isArray(childFolders) ? childFolders : [];
+            function buildSampleBrowserHeader(baseFolder, currentFolderPath, showAllFiles) {
+                const normalizedCurrent = normalizeSampleFolderPath(currentFolderPath, baseFolder);
+                const $header = $('<div class="d-flex flex-wrap align-items-center gap-2 mb-2"></div>');
+                const $homeButton = $('<button type="button" class="btn btn-sm btn-outline-secondary sample-folder-home"><i class="bi bi-house-door me-1"></i>루트</button>')
+                    .attr('data-base-folder', baseFolder);
+                const $allFilesToggleWrap = $('<div class="form-check form-check-inline mb-0"></div>');
+                const toggleId = 'sample-folder-all-' + baseFolder;
+                const $allFilesToggle = $('<input class="form-check-input sample-folder-all-toggle" type="checkbox">')
+                    .attr('id', toggleId)
+                    .attr('data-base-folder', baseFolder)
+                    .prop('checked', Boolean(showAllFiles));
+                const $allFilesToggleLabel = $('<label class="form-check-label small" style="cursor:pointer;"></label>')
+                    .attr('for', toggleId)
+                    .text('모든 파일');
+                $allFilesToggleWrap.append($allFilesToggle).append($allFilesToggleLabel);
 
-                    if (folders.length === 0) {
-                        return $wrapper;
-                    }
+                const parentPath = normalizedCurrent.indexOf(baseFolder + '/') === 0
+                    ? normalizedCurrent.split('/').slice(0, -1).join('/')
+                    : '';
+                const hasParent = Boolean(parentPath) && normalizedCurrent !== baseFolder;
+                const $upButton = $('<button type="button" class="btn btn-sm btn-outline-secondary sample-folder-up"><i class="bi bi-arrow-up-circle me-1"></i>상위</button>')
+                    .attr('data-base-folder', baseFolder)
+                    .attr('data-parent-folder', hasParent ? parentPath : baseFolder)
+                    .prop('disabled', !hasParent);
 
-                    folders.forEach(function (folderPath) {
-                        const normalizedFolder = normalizeSampleFolderPath(folderPath, baseFolder);
-                        const label = buildFolderLabel(baseFolder, normalizedFolder);
-                        const $button = $('<button type="button" class="btn btn-light border sample-folder-item"></button>')
-                            .attr('data-pane', 'video')
-                            .attr('data-folder-path', normalizedFolder)
-                            .append('<i class="bi bi-folder-fill text-warning me-1"></i>')
-                            .append($('<span class="small"></span>').text(label || normalizedFolder));
-                        $wrapper.append($button);
-                    });
+                const labelText = showAllFiles
+                    ? ('samples/' + baseFolder + ' (모든 파일)')
+                    : (normalizedCurrent === baseFolder ? 'samples/' + baseFolder : 'samples/' + normalizedCurrent);
+                const $pathLabel = $('<span class="small text-muted"></span>').text('현재: ' + labelText);
 
+                $header.append($homeButton).append($upButton).append($allFilesToggleWrap).append($pathLabel);
+                return $header;
+            }
+
+            function renderSampleFolderTiles(baseFolder, childFolders) {
+                const $wrapper = $('<div class="d-flex flex-wrap gap-2 mb-2"></div>');
+                const folders = Array.isArray(childFolders) ? childFolders : [];
+
+                if (folders.length === 0) {
                     return $wrapper;
                 }
 
-                function saveSampleVideoBrowserStateToStorage() {
-                    if (typeof window.localStorage === 'undefined') {
-                        return;
-                    }
+                folders.forEach(function (folderPath) {
+                    const normalizedFolder = normalizeSampleFolderPath(folderPath, baseFolder);
+                    const label = buildFolderLabel(baseFolder, normalizedFolder);
+                    const $button = $('<button type="button" class="btn btn-light border sample-folder-item"></button>')
+                        .attr('data-pane', 'video')
+                        .attr('data-folder-path', normalizedFolder)
+                        .append('<i class="bi bi-folder-fill text-warning me-1"></i>')
+                        .append($('<span class="small"></span>').text(label || normalizedFolder));
+                    $wrapper.append($button);
+                });
 
-                    const payload = {
-                        folder: normalizeSampleFolderPath(sampleVideoBrowserPath, 'video'),
-                        showAll: Boolean(sampleVideoShowAllFiles),
-                    };
+                return $wrapper;
+            }
 
-                    try {
-                        window.localStorage.setItem(SAMPLE_VIDEO_BROWSER_STORAGE_KEY, JSON.stringify(payload));
-                    } catch (error) {
-                        // Ignore storage write errors.
-                    }
+            function saveSampleVideoBrowserStateToStorage() {
+                if (typeof window.localStorage === 'undefined') {
+                    return;
                 }
 
-                function restoreSampleVideoBrowserStateFromStorage() {
-                    if (typeof window.localStorage === 'undefined') {
-                        return;
-                    }
+                const payload = {
+                    folder: normalizeSampleFolderPath(sampleVideoBrowserPath, 'video'),
+                    showAll: Boolean(sampleVideoShowAllFiles),
+                };
 
-                    let parsed = null;
-                    try {
-                        const raw = window.localStorage.getItem(SAMPLE_VIDEO_BROWSER_STORAGE_KEY);
-                        if (!raw) {
-                            return;
-                        }
-                        parsed = JSON.parse(raw);
-                    } catch (error) {
-                        return;
-                    }
+                try {
+                    window.localStorage.setItem(SAMPLE_VIDEO_BROWSER_STORAGE_KEY, JSON.stringify(payload));
+                } catch (error) {
+                    // Ignore storage write errors.
+                }
+            }
 
-                    if (!parsed || typeof parsed !== 'object') {
-                        return;
-                    }
-
-                    sampleVideoBrowserPath = normalizeSampleFolderPath(parsed.folder, 'video');
-                    sampleVideoShowAllFiles = Boolean(parsed.showAll);
+            function restoreSampleVideoBrowserStateFromStorage() {
+                if (typeof window.localStorage === 'undefined') {
+                    return;
                 }
 
-                function extractSampleVideoFiles(result) {
-                    if (Array.isArray(result)) {
-                        return result;
+                let parsed = null;
+                try {
+                    const raw = window.localStorage.getItem(SAMPLE_VIDEO_BROWSER_STORAGE_KEY);
+                    if (!raw) {
+                        return;
                     }
-
-                    if (result && Array.isArray(result.files)) {
-                        return result.files;
-                    }
-
-                    if (result && Array.isArray(result.video_files)) {
-                        return result.video_files;
-                    }
-
-                    if (result && Array.isArray(result.image_files)) {
-                        return result.image_files;
-                    }
-
-                    return [];
+                    parsed = JSON.parse(raw);
+                } catch (error) {
+                    return;
                 }
 
-                function renderSampleVideoThumbnails(browserData, showAllFiles) {
-                    if ($wcsSampleVideoPane.length === 0) {
-                        return;
-                    }
-
-                    const currentFolder = normalizeSampleFolderPath(browserData && browserData.current_folder, 'video');
-                    const childFolders = browserData && Array.isArray(browserData.folders) ? browserData.folders : [];
-                    const fileNames = browserData && Array.isArray(browserData.files) ? browserData.files : [];
-
-                    $wcsSampleVideoPane.empty().append(buildSampleBrowserHeader('video', currentFolder, Boolean(showAllFiles)));
-                    if (!showAllFiles) {
-                        $wcsSampleVideoPane.append(renderSampleFolderTiles('video', childFolders));
-                    }
-
-                    if (!Array.isArray(fileNames) || fileNames.length === 0) {
-                        $wcsSampleVideoPane.append('<div class="text-muted text-center py-3">현재 폴더에 샘플 동영상이 없습니다.</div>');
-                        return;
-                    }
-
-                    const $scrollContainer = $('<div class="sample-thumbnail-scroll"></div>');
-                    const $track = $('<div class="sample-thumbnail-track"></div>');
-
-                    fileNames.forEach(function (fileName) {
-                        const safeFileName = normalizePath(fileName);
-                        const thumbnailUrl = buildVideoThumbnailUrl(safeFileName);
-                        const label = safeFileName.split('/').pop() || safeFileName;
-
-                        if (!wcsSampleVideoItemTemplate || !wcsSampleVideoItemTemplate.content) {
-                            return;
-                        }
-
-                        const node = wcsSampleVideoItemTemplate.content.firstElementChild.cloneNode(true);
-                        const button = node.querySelector('.sample-video-item');
-                        const thumbnailImage = node.querySelector('.sample-video-thumbnail');
-                        const video = node.querySelector('video');
-                        const caption = node.querySelector('.small');
-
-                        if (button) {
-                            button.setAttribute('data-file-name', safeFileName);
-                        }
-                        if (thumbnailImage) {
-                            thumbnailImage.setAttribute('src', thumbnailUrl);
-                            thumbnailImage.setAttribute('alt', label);
-                        } else if (video) {
-                            video.removeAttribute('src');
-                            video.setAttribute('poster', thumbnailUrl);
-                            video.setAttribute('preload', 'none');
-                            if (typeof video.load === 'function') {
-                                video.load();
-                            }
-                        }
-                        if (caption) {
-                            caption.setAttribute('title', safeFileName);
-                            caption.textContent = label;
-                        }
-
-                        $track.append(node);
-                    });
-
-                    $scrollContainer.append($track);
-                    $wcsSampleVideoPane.append($scrollContainer);
+                if (!parsed || typeof parsed !== 'object') {
+                    return;
                 }
 
-                function loadSampleVideos(folderPath, showAllFiles) {
-                    if ($wcsSampleVideoPane.length === 0) {
+                sampleVideoBrowserPath = normalizeSampleFolderPath(parsed.folder, 'video');
+                sampleVideoShowAllFiles = Boolean(parsed.showAll);
+            }
+
+            function extractSampleVideoFiles(result) {
+                if (Array.isArray(result)) {
+                    return result;
+                }
+                if (result && Array.isArray(result.files)) {
+                    return result.files;
+                }
+                if (result && Array.isArray(result.video_files)) {
+                    return result.video_files;
+                }
+                if (result && Array.isArray(result.image_files)) {
+                    return result.image_files;
+                }
+                return [];
+            }
+
+            function renderSampleVideoThumbnails(browserData, showAllFiles) {
+                if ($wcsSampleVideoPane.length === 0) {
+                    return;
+                }
+
+                const currentFolder = normalizeSampleFolderPath(browserData && browserData.current_folder, 'video');
+                const childFolders = browserData && Array.isArray(browserData.folders) ? browserData.folders : [];
+                const fileNames = browserData && Array.isArray(browserData.files) ? browserData.files : [];
+
+                $wcsSampleVideoPane.empty().append(buildSampleBrowserHeader('video', currentFolder, Boolean(showAllFiles)));
+                if (!showAllFiles) {
+                    $wcsSampleVideoPane.append(renderSampleFolderTiles('video', childFolders));
+                }
+
+                if (!Array.isArray(fileNames) || fileNames.length === 0) {
+                    $wcsSampleVideoPane.append('<div class="text-muted text-center py-3">현재 폴더에 샘플 동영상이 없습니다.</div>');
+                    return;
+                }
+
+                const $scrollContainer = $('<div class="sample-thumbnail-scroll"></div>');
+                const $track = $('<div class="sample-thumbnail-track"></div>');
+
+                fileNames.forEach(function (fileName) {
+                    const safeFileName = normalizePath(fileName);
+                    const thumbnailUrl = buildVideoThumbnailUrl(safeFileName);
+                    const label = safeFileName.split('/').pop() || safeFileName;
+
+                    if (!wcsSampleVideoItemTemplate || !wcsSampleVideoItemTemplate.content) {
                         return;
                     }
 
-                    if (isSampleVideosLoading) {
-                        return;
+                    const node = wcsSampleVideoItemTemplate.content.firstElementChild.cloneNode(true);
+                    const button = node.querySelector('.sample-video-item');
+                    const thumbnailImage = node.querySelector('.sample-video-thumbnail');
+                    const video = node.querySelector('video');
+                    const caption = node.querySelector('.small');
+
+                    if (button) {
+                        button.setAttribute('data-file-name', safeFileName);
+                    }
+                    if (thumbnailImage) {
+                        thumbnailImage.setAttribute('src', thumbnailUrl);
+                        thumbnailImage.setAttribute('alt', label);
+                    } else if (video) {
+                        video.removeAttribute('src');
+                        video.setAttribute('poster', thumbnailUrl);
+                        video.setAttribute('preload', 'none');
+                        if (typeof video.load === 'function') {
+                            video.load();
+                        }
+                    }
+                    if (caption) {
+                        caption.setAttribute('title', safeFileName);
+                        caption.textContent = label;
                     }
 
-                    isSampleVideosLoading = true;
-                    sampleVideoBrowserPath = normalizeSampleFolderPath(folderPath || sampleVideoBrowserPath, 'video');
-                    sampleVideoShowAllFiles = Boolean(showAllFiles);
-                    saveSampleVideoBrowserStateToStorage();
+                    $track.append(node);
+                });
 
-                    $wcsSampleVideoPane.html('<div class="text-muted text-center py-3">샘플 동영상을 불러오는 중...</div>');
+                $scrollContainer.append($track);
+                $wcsSampleVideoPane.append($scrollContainer);
+            }
 
-                    if (sampleVideoShowAllFiles) {
-                        $.ajax({
-                            url: buildSamplesUrl('video'),
-                            method: 'GET'
-                        }).done(function (result) {
-                            const allFileNames = extractSampleVideoFiles(result);
-                            renderSampleVideoThumbnails({
-                                current_folder: 'samples/video',
-                                folders: [],
-                                files: allFileNames,
-                            }, true);
-                            isSampleVideosLoaded = true;
-                        }).fail(function (jqXHR) {
-                            console.error('Sample video all-files error:', jqXHR.status, jqXHR.responseText);
-                            $wcsSampleVideoPane.html('<div class="text-danger text-center py-3">샘플 동영상 목록을 불러오지 못했습니다.</div>');
-                        }).always(function () {
-                            isSampleVideosLoading = false;
-                        });
-                        return;
-                    }
+            function loadSampleVideos(folderPath, showAllFiles) {
+                if ($wcsSampleVideoPane.length === 0) {
+                    return;
+                }
+                if (isSampleVideosLoading) {
+                    return;
+                }
 
+                isSampleVideosLoading = true;
+                sampleVideoBrowserPath = normalizeSampleFolderPath(folderPath || sampleVideoBrowserPath, 'video');
+                sampleVideoShowAllFiles = Boolean(showAllFiles);
+                saveSampleVideoBrowserStateToStorage();
+
+                $wcsSampleVideoPane.html('<div class="text-muted text-center py-3">샘플 동영상을 불러오는 중...</div>');
+
+                if (sampleVideoShowAllFiles) {
                     $.ajax({
-                        url: buildSampleBrowserUrl(sampleVideoBrowserPath),
+                        url: buildSamplesUrl('video'),
                         method: 'GET'
                     }).done(function (result) {
-                        renderSampleVideoThumbnails(result || {}, false);
+                        const allFileNames = extractSampleVideoFiles(result);
+                        renderSampleVideoThumbnails({
+                            current_folder: 'samples/video',
+                            folders: [],
+                            files: allFileNames,
+                        }, true);
                         isSampleVideosLoaded = true;
                     }).fail(function (jqXHR) {
-                        console.error('Sample video browser error:', jqXHR.status, jqXHR.responseText);
-                        $wcsSampleVideoPane.html('<div class="text-danger text-center py-3">샘플 폴더를 불러오지 못했습니다.</div>');
-                        isSampleVideosLoading = false;
+                        console.error('Sample video all-files error:', jqXHR.status, jqXHR.responseText);
+                        $wcsSampleVideoPane.html('<div class="text-danger text-center py-3">샘플 동영상 목록을 불러오지 못했습니다.</div>');
                     }).always(function () {
                         isSampleVideosLoading = false;
                     });
+                    return;
                 }
 
-                function ensureSampleVideosLoaded() {
-                    if (!isSampleVideosLoaded) {
-                        loadSampleVideos(sampleVideoBrowserPath, sampleVideoShowAllFiles);
-                    }
-                }
+                $.ajax({
+                    url: buildSampleBrowserUrl(sampleVideoBrowserPath),
+                    method: 'GET'
+                }).done(function (result) {
+                    renderSampleVideoThumbnails(result || {}, false);
+                    isSampleVideosLoaded = true;
+                }).fail(function (jqXHR) {
+                    console.error('Sample video browser error:', jqXHR.status, jqXHR.responseText);
+                    $wcsSampleVideoPane.html('<div class="text-danger text-center py-3">샘플 폴더를 불러오지 못했습니다.</div>');
+                }).always(function () {
+                    isSampleVideosLoading = false;
+                });
+            }
 
-            // 차량 최고 속도 변경 즉시 반영
+            function ensureSampleVideosLoaded() {
+                if (!isSampleVideosLoaded) {
+                    loadSampleVideos(sampleVideoBrowserPath, sampleVideoShowAllFiles);
+                }
+            }
+
             $('#vehicle-max-speed').on('input change', function () {
                 updateVehicleMaxSpeedUi($(this).val(), true);
             });
 
-            // 샘플 동영상 선택 표시
             $wcsSampleVideoPane.on('click', '.sample-video-item', function () {
                 $wcsSampleVideoPane.find('.sample-video-item.selected-sample').removeClass('selected-sample');
                 $(this).addClass('selected-sample');
             });
 
-            // 샘플 폴더 이동
             $wcsSampleVideoPane.on('click', '.sample-folder-item', function () {
                 const folderPath = String($(this).attr('data-folder-path') || '').trim();
                 loadSampleVideos(folderPath, sampleVideoShowAllFiles);
             });
 
-            // 샘플 폴더 루트 이동
             $wcsSampleVideoPane.on('click', '.sample-folder-home', function () {
                 const baseFolder = String($(this).attr('data-base-folder') || 'video').trim() || 'video';
                 loadSampleVideos(baseFolder, sampleVideoShowAllFiles);
             });
 
-            // 샘플 폴더 상위 이동
             $wcsSampleVideoPane.on('click', '.sample-folder-up', function () {
                 const baseFolder = String($(this).attr('data-base-folder') || 'video').trim() || 'video';
                 const parentFolder = String($(this).attr('data-parent-folder') || baseFolder).trim() || baseFolder;
                 loadSampleVideos(parentFolder, sampleVideoShowAllFiles);
             });
 
-            // 모든 파일 토글
             $wcsSampleVideoPane.on('change', '.sample-folder-all-toggle', function () {
                 const shouldShowAll = $(this).is(':checked');
                 loadSampleVideos(sampleVideoBrowserPath, shouldShowAll);
             });
 
-            // 차량 최고 속도 초기화
             $('#reset-vehicle-max-speed').on('click', function () {
                 $('#vehicle-max-speed').val(50).trigger('input');
             });
 
-            // 공통 MQTT 처리 이후에 최고 속도 UI 초기화를 수행한다.
             if (typeof window.prcessMqttMessage === 'function' && !window.wcsSettingMaxSpeedHooked) {
                 const originalProcessMqtt = window.prcessMqttMessage;
-                window.prcessMqttMessage = function(topic, value) {
+                window.prcessMqttMessage = function (topic, value) {
                     originalProcessMqtt(topic, value);
 
                     if (topic === 'vehicle/linear/max_speed') {
@@ -750,19 +765,16 @@
                 window.wcsSettingMaxSpeedHooked = true;
             }
 
-            // 노면 종류 선택 즉시 반영
             $('#surface-state').on('change', function () {
                 const surfaceValue = $('#surface-state').val();
                 sendMQTTMessage('vehicle/surface/state', surfaceValue);
             });
 
-            // 장애물 상태 선택 즉시 반영
             $('#surface-obstacle').on('change', function () {
                 const obstacleValue = $('#surface-obstacle').val();
                 sendMQTTMessage('vehicle/surface/obstacle', obstacleValue);
             });
 
-            // 차량 Roll 각도 변경 즉시 반영
             $('#vehicle-roll-angle').on('input change', function () {
                 const rollAngleDeg = Number.parseInt($(this).val(), 10) || 0;
                 $('#vehicle-roll-angle-value').text(`${rollAngleDeg}°`);
@@ -770,12 +782,10 @@
                 sendMQTTMessage('vehicle/road/roll_angle', rollAngleRad);
             });
 
-            // 차량 Roll 각도 초기화
             $('#reset-vehicle-roll-angle').on('click', function () {
                 $('#vehicle-roll-angle').val(0).trigger('input');
             });
 
-            // 차량 Pitch 각도 변경 즉시 반영
             $('#vehicle-pitch-angle').on('input change', function () {
                 const pitchAngleDeg = Number.parseInt($(this).val(), 10) || 0;
                 $('#vehicle-pitch-angle-value').text(`${pitchAngleDeg}°`);
@@ -783,15 +793,12 @@
                 sendMQTTMessage('vehicle/road/pitch_angle', pitchAngleRad);
             });
 
-            // 차량 Pitch 각도 초기화
             $('#reset-vehicle-pitch-angle').on('click', function () {
                 $('#vehicle-pitch-angle').val(0).trigger('input');
             });
 
-            // 샘플 동영상 목록 로드
             restoreSampleVideoBrowserStateFromStorage();
             ensureSampleVideosLoaded();
-
         });
     </script>
 

@@ -210,6 +210,10 @@
                                     <span id="vehicle-roll-angle-value" class="badge text-bg-secondary" style="min-width: 56px;">0°</span>
                                 </div>
                             </div>
+
+                            <div class="setting-section-item setting-section-action d-flex justify-content-md-end">
+                                <button type="button" class="btn btn-outline-secondary" id="reset-vehicle-roll-angle">Reset</button>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -237,6 +241,10 @@
                                     >
                                     <span id="vehicle-pitch-angle-value" class="badge text-bg-secondary" style="min-width: 56px;">0°</span>
                                 </div>
+                            </div>
+
+                            <div class="setting-section-item setting-section-action d-flex justify-content-md-end">
+                                <button type="button" class="btn btn-outline-secondary" id="reset-vehicle-pitch-angle">Reset</button>
                             </div>
                         </div>
                     </div>
@@ -279,12 +287,22 @@
                 sendMQTTMessage('vehicle/road/roll_angle', rollAngleRad);
             });
 
+            // 차량 Roll 각도 초기화
+            $('#reset-vehicle-roll-angle').on('click', function () {
+                $('#vehicle-roll-angle').val(0).trigger('input');
+            });
+
             // 차량 Pitch 각도 변경 즉시 반영
             $('#vehicle-pitch-angle').on('input change', function () {
                 const pitchAngleDeg = Number.parseInt($(this).val(), 10) || 0;
                 $('#vehicle-pitch-angle-value').text(`${pitchAngleDeg}°`);
                 const pitchAngleRad = (pitchAngleDeg * Math.PI) / 180;
                 sendMQTTMessage('vehicle/road/pitch_angle', pitchAngleRad);
+            });
+
+            // 차량 Pitch 각도 초기화
+            $('#reset-vehicle-pitch-angle').on('click', function () {
+                $('#vehicle-pitch-angle').val(0).trigger('input');
             });
 
         });

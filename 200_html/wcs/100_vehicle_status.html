@@ -119,83 +119,102 @@
 
                 <div class="row">
 
-                    <!-- 좌측 바퀴 정보 -->
-                    <div class="col-md-4">                        
+                    <!-- 좌측 상태 정보 -->
+                    <div class="col-md-4">
 
-                        <!-- FL 바퀴 정보 -->
-                        <div class="row ps-3 pe-3">
-                            <div class="card p-0 text-center h-100 w-100"> 
-                                <div class="card-body p-2">
-                                    <div class="row">
-                                        <!-- 바퀴 데이터 테이블 -->
-                                        <div class="col-md-12">
-                                            <div id="wheel-info-fl-slot"></div>
-                                            
+                        <!-- 노면 상태 -->
+                        <div id="roadSurfaceInfo" class="row ps-3 pe-3 d-flex">
+                            <div class="card h-100 w-100">
+                                <div class="card-header text-center">
+                                    <h4 class="mb-0">노면 상태</h4>
+                                </div>
+                                <div class="card-body p-1">
+                                    <div class="row h-100 g-1">
+                                        <div class="col-md-3 d-flex">
+                                            <div id="vehicle/surface/state/0" class="card text-center h-100 w-100 border-primary border-3">
+                                                <div class="card-body p-2 d-flex flex-column justify-content-center">
+                                                    <h5 class="card-title mb-2 text-primary fw-bold">아스팔트</h5>
+                                                    <i class="fas fa-road fs-1 text-primary my-2"></i>
+                                                    <span class="badge bg-success fs-6 mt-2">양호</span>
+                                                    <small class="text-primary mt-1 fw-bold">현재 선택됨</small>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-3 d-flex">
+                                            <div id="vehicle/surface/state/1" class="card text-center h-100 w-100">
+                                                <div class="card-body p-2 d-flex flex-column justify-content-center">
+                                                    <h5 class="card-title mb-2">보도블록</h5>
+                                                    <i class="fas fa-th-large fs-1 text-secondary my-2"></i>
+                                                    <span class="badge bg-warning fs-6 mt-2">주의</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-3 d-flex">
+                                            <div id="vehicle/surface/state/2" class="card text-center h-100 w-100">
+                                                <div class="card-body p-2 d-flex flex-column justify-content-center">
+                                                    <h5 class="card-title mb-2">흙길</h5>
+                                                    <i class="fas fa-mountain fs-1 text-warning my-2"></i>
+                                                    <span class="badge bg-warning fs-6 mt-2">주의</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-3 d-flex">
+                                            <div id="vehicle/surface/state/3" class="card text-center h-100 w-100">
+                                                <div class="card-body p-2 d-flex flex-column justify-content-center">
+                                                    <h5 class="card-title mb-2">자갈길</h5>
+                                                    <i class="fas fa-exclamation-triangle fs-1 text-warning my-2"></i>
+                                                    <span class="badge bg-warning fs-6 mt-2">주의</span>
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
                             </div>
                         </div>
-                        <!-- // FL 바퀴 정보 -->
-                        
-                        <!-- RL 바퀴 정보 -->
-                        <div class="row mt-2 ps-3 pe-3">
-                            <div class="card p-0 text-center h-100 w-100"> 
-                                <div class="card-body p-2">
-                                    <div class="row">
-                                        <!-- 바퀴 데이터 테이블 -->
-                                        <div class="col-md-12 ">
-                                            <table class="table table-bordered table-striped m-0">
-                                                <colgroup>
-                                                    <col width="33%">
-                                                    <col>
-                                                </colgroup>
 
-                                                <!-- Motor 섹션 -->
-                                                <thead class="table-dark">
-                                                    <tr>
-                                                        <th class="text-center" scope="col" colspan="2"> Wheel RL</th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody>
-                                                    <tr>
-                                                        <th class="text-center" scope="row">Speed</th>
-                                                        <td id="wheel/rl/linear/speed" class="text-end">  km/h</td>
-                                                    </tr>
-                                                    <tr>
-                                                        <th class="text-center" scope="row">RPM</th>
-                                                        <td id="wheel/rl/angle/speed" class="text-end">0 rpm</td>
-                                                    </tr>
-                                                    <tr>
-                                                        <th class="text-center" scope="row">Power</th>
-                                                        <td id="wheel/rl/power" class="text-end">120 kW</td>
-                                                    </tr>
-                                                    <tr>
-                                                        <th class="text-center" scope="row">PID</th>
-                                                        <td class="text-end">
-                                                            <span id="wheel/rl/pid/p">1.5</span> / 
-                                                            <span id="wheel/rl/pid/i">0.01</span> / 
-                                                            <span id="wheel/rl/pid/d">0.5</span>
-                                                        </td>
-                                                    </tr> 
-                                                    <tr>
-                                                        <th class="text-center" scope="row">ToF</th>
-                                                        <td id="wheel/rl/tof/distance" class="text-end">0.5 cm</td>
-                                                    </tr>
-                                                    <tr>
-                                                        <th class="text-center" scope="row">Axis</th>
-                                                        <td id="wheel/rl/axis/angle" class="text-end">10°</td>
-                                                    </tr>
-                                                </tbody>
-                                            </table>
+                        <!-- 장애물 정보 -->
+                        <div id="obstacleInfo" class="row mt-2 ps-3 pe-3 d-flex">
+                            <div class="card h-100 w-100">
+                                <div class="card-header text-center">
+                                    <h4 class="mb-0">장애물</h4>
+                                </div>
+                                <div class="card-body p-1">
+                                    <div class="row h-100 g-1">
+                                        <div class="col-md-4 d-flex">
+                                            <div id="vehicle/surface/obstacle/0" class="card text-center h-100 w-100 border-primary border-3">
+                                                <div class="card-body p-2 d-flex flex-column justify-content-center">
+                                                    <h5 class="card-title mb-2 text-primary fw-bold">없음</h5>
+                                                    <i class="fas fa-check-circle fs-1 text-success my-2"></i>
+                                                    <span class="badge bg-success fs-6 mt-2">정상</span>
+                                                    <small class="text-primary mt-1 fw-bold">현재 선택됨</small>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-4 d-flex">
+                                            <div id="vehicle/surface/obstacle/1" class="card text-center h-100 w-100">
+                                                <div class="card-body p-2 d-flex flex-column justify-content-center">
+                                                    <h5 class="card-title mb-2">빙판</h5>
+                                                    <i class="fas fa-snowflake fs-1 text-primary my-2"></i>
+                                                    <span class="badge bg-danger fs-6 mt-2">위험</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-4 d-flex">
+                                            <div id="vehicle/surface/obstacle/2" class="card text-center h-100 w-100">
+                                                <div class="card-body p-2 d-flex flex-column justify-content-center">
+                                                    <h5 class="card-title mb-2">포트홀</h5>
+                                                    <i class="fas fa-exclamation-triangle fs-1 text-danger my-2"></i>
+                                                    <span class="badge bg-danger fs-6 mt-2">위험</span>
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
                             </div>
                         </div>
-                        <!-- // RL 바퀴 정보 --> 
+                        <!-- // 장애물 정보 -->
                     </div>
-                    <!-- // 좌측 바퀴 정보 -->
+                    <!-- // 좌측 상태 정보 -->
 
                     <!-- 차량 정보 -->
                     <div class="col-md-4 p-0 d-flex vehicle_image">
@@ -412,103 +431,9 @@
         </div>
         <!-- // 차량 정보 -->
 
-        <!-- 노면 정보 -->
+        <!-- 운행 정보 -->
         <div class="row">
-
-            <!-- 노면 상태 --> 
-            <div id="roadSurfaceInfo" class="col-md-4 d-flex">  
-                <div class="card mt-2 h-100 w-100">
-                    <div class="card-header text-center">
-                        <h4 class="mb-0">노면 상태</h4>
-                    </div>
-                    <div class="card-body p-1">
-                        <div class="row h-100 g-1">
-                            <div class="col-md-3 d-flex">
-                                <div id="vehicle/surface/state/0" class="card text-center h-100 w-100 border-primary border-3">
-                                    <div class="card-body p-2 d-flex flex-column justify-content-center">
-                                        <h5 class="card-title mb-2 text-primary fw-bold">아스팔트</h5>
-                                        <i class="fas fa-road fs-1 text-primary my-2"></i>
-                                        <span class="badge bg-success fs-6 mt-2">양호</span>
-                                        <small class="text-primary mt-1 fw-bold">현재 선택됨</small>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="col-md-3 d-flex">
-                                <div id="vehicle/surface/state/1" class="card text-center h-100 w-100">
-                                    <div class="card-body p-2 d-flex flex-column justify-content-center">
-                                        <h5 class="card-title mb-2">보도블록</h5>
-                                        <i class="fas fa-th-large fs-1 text-secondary my-2"></i>
-                                        <span class="badge bg-warning fs-6 mt-2">주의</span>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="col-md-3 d-flex">
-                                <div id="vehicle/surface/state/2" class="card text-center h-100 w-100">
-                                    <div class="card-body p-2 d-flex flex-column justify-content-center">
-                                        <h5 class="card-title mb-2">흙길</h5>
-                                        <i class="fas fa-mountain fs-1 text-warning my-2"></i>
-                                        <span class="badge bg-warning fs-6 mt-2">주의</span>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="col-md-3 d-flex">
-                                <div id="vehicle/surface/state/3" class="card text-center h-100 w-100">
-                                    <div class="card-body p-2 d-flex flex-column justify-content-center">
-                                        <h5 class="card-title mb-2">자갈길</h5>
-                                        <i class="fas fa-exclamation-triangle fs-1 text-warning my-2"></i>
-                                        <span class="badge bg-warning fs-6 mt-2">주의</span>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div> 
-            </div>
-
-            <!-- 장애물 정보 -->
-            <div id="obstacleInfo" class="col-md-4 ps-0 d-flex">
-                <div class="card mt-2 h-100 w-100">
-                    <div class="card-header text-center">
-                        <h4 class="mb-0">장애물</h4>
-                    </div>
-                    <div class="card-body p-1">
-                        <div class="row h-100 g-1">
-                            <div class="col-md-4 d-flex">
-                                <div id="vehicle/surface/obstacle/0" class="card text-center h-100 w-100 border-primary border-3">
-                                    <div class="card-body p-2 d-flex flex-column justify-content-center">
-                                        <h5 class="card-title mb-2 text-primary fw-bold">없음</h5>
-                                        <i class="fas fa-check-circle fs-1 text-success my-2"></i>
-                                        <span class="badge bg-success fs-6 mt-2">정상</span>
-                                        <small class="text-primary mt-1 fw-bold">현재 선택됨</small>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="col-md-4 d-flex">
-                                <div id="vehicle/surface/obstacle/1" class="card text-center h-100 w-100">
-                                    <div class="card-body p-2 d-flex flex-column justify-content-center">
-                                        <h5 class="card-title mb-2">빙판</h5>
-                                        <i class="fas fa-snowflake fs-1 text-primary my-2"></i>
-                                        <span class="badge bg-danger fs-6 mt-2">위험</span>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="col-md-4 d-flex">
-                                <div id="vehicle/surface/obstacle/2" class="card text-center h-100 w-100">
-                                    <div class="card-body p-2 d-flex flex-column justify-content-center">
-                                        <h5 class="card-title mb-2">포트홀</h5>
-                                        <i class="fas fa-exclamation-triangle fs-1 text-danger my-2"></i>
-                                        <span class="badge bg-danger fs-6 mt-2">위험</span>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <!-- // 장애물 정보 -->
-
-            <!-- 운행 정보 -->
-            <div id="runInfo" class="col-md-4 ps-0 d-flex"> 
+            <div id="runInfo" class="col-md-12 d-flex"> 
                 <div class="card mt-2 h-100 w-100">
                     <div class="card-header text-center">
                         <h4 class="mb-0">운행 정보</h4>
@@ -555,62 +480,16 @@
                     </div>
                 </div> 
             </div>
-            <!-- // 운행 정보 --> 
+            <!-- // 운행 정보 -->
             
-        </div> 
-        <!-- // 노면 정보 -->
+        </div>
+        <!-- // 운행 정보 -->
 
     </main>
 
     <footer class="text-center py-4">
         <p class="mb-0">&copy; 2024 Wheel Control System. All rights reserved.</p>
     </footer>
-
-    <template id="wheel-info-table-template">
-        <table class="table table-bordered table-striped m-0">
-            <colgroup>
-                <col width="33%">
-                <col>
-            </colgroup>
-
-            <thead class="table-dark">
-                <tr>
-                    <th class="text-center" scope="col" colspan="2">Wheel __WHEEL_LABEL__</th>
-                </tr>
-            </thead>
-            <tbody>
-                <tr>
-                    <th class="text-center" scope="row">Speed</th>
-                    <td id="wheel/__WHEEL_KEY__/linear/speed" class="text-end">  km/h</td>
-                </tr>
-                <tr>
-                    <th class="text-center" scope="row">RPM</th>
-                    <td id="wheel/__WHEEL_KEY__/angle/speed" class="text-end">0 rpm</td>
-                </tr>
-
-                <tr>
-                    <th class="text-center" scope="row">Power</th>
-                    <td id="wheel/__WHEEL_KEY__/power" class="text-end">120 kW</td>
-                </tr>
-                <tr>
-                    <th class="text-center" scope="row">PID</th>
-                    <td class="text-end">
-                        <span id="wheel/__WHEEL_KEY__/pid/p">1.5</span> /
-                        <span id="wheel/__WHEEL_KEY__/pid/i">0.01</span> /
-                        <span id="wheel/__WHEEL_KEY__/pid/d">0.5</span>
-                    </td>
-                </tr>
-                <tr>
-                    <th class="text-center" scope="row">ToF</th>
-                    <td id="wheel/__WHEEL_KEY__/tof/distance" class="text-end">0.5 cm</td>
-                </tr>
-                <tr>
-                    <th class="text-center" scope="row">Axis</th>
-                    <td id="wheel/__WHEEL_KEY__/axis/angle" class="text-end">10°</td>
-                </tr>
-            </tbody>
-        </table>
-    </template>
 
     <script type="module" src="../urdf/urdf.js"></script>
     
@@ -620,23 +499,6 @@
     <script src="./js/mqtt_process_01_status.js"></script>
     <script src="./js/100_vehicle_status_overlay.js"></script> 
     
-
-    <script>
-        (function renderWheelInfoTableFromTemplate() {
-            const template = document.getElementById('wheel-info-table-template');
-            const slot = document.getElementById('wheel-info-fl-slot');
-
-            if (!template || !slot) {
-                return;
-            }
-
-            const html = template.innerHTML
-                .replaceAll('__WHEEL_KEY__', 'fl')
-                .replaceAll('__WHEEL_LABEL__', 'FL');
-
-            slot.innerHTML = html;
-        })();
-    </script>
 
 </body>
 

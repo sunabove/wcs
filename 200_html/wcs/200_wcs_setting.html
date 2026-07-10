@@ -424,6 +424,7 @@
             const maxSpeedTopic = 'vehicle/linear/max_speed';
             const $wcsSampleVideoPane = $('#wcs-input-sample-video-pane');
             const wcsSampleVideoItemTemplate = document.getElementById('wcs-sample-video-item-template');
+            const SAMPLE_VIDEO_BASE_FOLDER = 'samples/video';
 
             function updateVehicleMaxSpeedUi(speedKmh, shouldPublish = true) {
                 const numericKmh = Number.parseFloat(speedKmh);
@@ -460,7 +461,7 @@
             }
 
             function normalizeSampleFolderPath(folderPath, baseFolder) {
-                const fallback = normalizePath(baseFolder || 'video');
+                const fallback = normalizePath(baseFolder || SAMPLE_VIDEO_BASE_FOLDER);
                 const normalized = normalizePath(folderPath || fallback);
                 if (!normalized) {
                     return fallback;
@@ -477,7 +478,7 @@
 
             function resolveBrowserFilePath(fileName, currentFolder) {
                 const normalizedFile = normalizePath(fileName);
-                const normalizedFolder = normalizeSampleFolderPath(currentFolder, 'video');
+                const normalizedFolder = normalizeSampleFolderPath(currentFolder, SAMPLE_VIDEO_BASE_FOLDER);
                 if (!normalizedFile) {
                     return '';
                 }
@@ -514,7 +515,7 @@
                     return;
                 }
 
-                const currentFolder = normalizeSampleFolderPath(browserData && browserData.current_folder, 'video');
+                const currentFolder = normalizeSampleFolderPath(browserData && browserData.current_folder, SAMPLE_VIDEO_BASE_FOLDER);
                 const fileNames = extractSampleVideoFiles(browserData);
                 $wcsSampleVideoPane.children(':not(template)').remove();
 
@@ -571,7 +572,7 @@
                 $wcsSampleVideoPane.append('<div class="text-muted text-center py-3">샘플 동영상을 불러오는 중...</div>');
 
                 $.ajax({
-                    url: buildSampleBrowserUrl('video'),
+                    url: buildSampleBrowserUrl(SAMPLE_VIDEO_BASE_FOLDER),
                     method: 'GET'
                 }).done(function (result) {
                     renderSampleVideoThumbnails(result || {});

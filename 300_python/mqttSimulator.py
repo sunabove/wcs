@@ -465,6 +465,10 @@ class MqttSimulator:
             self._publish("vehicle/linear/speed", round(self.linear_speed, 3))
             print(f"[VEHICLE] Published vehicle/linear/speed -> {round(self.linear_speed, 3)}")
 
+            # 차량 최고 속도 초기 정보 발행 (클라이언트 접속 시 현재 설정 전달)
+            self._publish("vehicle/max_speed", round(self.max_speed, 2))
+            print(f"[VEHICLE] Published vehicle/max_speed -> {round(self.max_speed, 2)}")
+
             # 도로 자세(Roll/Pitch) 설정 발행
             self._publish("vehicle/road/roll_angle", self.road_roll_angle)
             print(f"[ROAD] Published vehicle/road/roll_angle -> {self.road_roll_angle}")

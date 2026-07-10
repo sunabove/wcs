@@ -219,6 +219,35 @@
                 <div class="row g-3 mt-1">
                     <div class="col">
 
+                        <!-- 현재 동영상 선택 -->
+                        <div class="border rounded p-3 bg-light d-flex flex-column flex-md-row align-items-md-center gap-3">
+                            <div class="setting-section-item setting-section-title">
+                                <h5 class="mb-1">
+                                    <i class="bi bi-camera-reels me-2"></i>현재 동영상 선택
+                                </h5>
+                                <small class="text-muted">Road Detection에서 사용할 현재 동영상을 선택합니다.</small>
+                            </div>
+
+                            <div class="setting-section-item setting-section-control">
+                                <div class="d-flex align-items-center gap-2">
+                                    <select class="form-select" id="current-video-select">
+                                        <option value="video/sample_01.mp4" selected>sample_01.mp4</option>
+                                        <option value="video/sample_02.mp4">sample_02.mp4</option>
+                                        <option value="video/sample_03.mp4">sample_03.mp4</option>
+                                        <option value="video/sample_04.mp4">sample_04.mp4</option>
+                                    </select>
+                                    <span id="current-video-value" class="badge text-bg-secondary setting-value-badge">sample_01.mp4</span>
+                                </div>
+                            </div>
+                        </div>
+                        <!-- // 현재 동영상 선택 -->
+
+                    </div>
+                </div>
+
+                <div class="row g-3 mt-1">
+                    <div class="col">
+
                         <!-- 차량 최고 속도 설정 -->
                         <div class="border rounded p-3 bg-light d-flex flex-column flex-md-row align-items-md-center gap-3">
                             <div class="setting-section-item setting-section-title">
@@ -323,9 +352,11 @@
                             </div>
                         </div>
                         <!-- // 차량 Pitch 각도 설정 -->
-                         
+
                     </div>
                 </div>
+
+                
                 
             </div>
         </div>
@@ -362,6 +393,13 @@
             // 차량 최고 속도 변경 즉시 반영
             $('#vehicle-max-speed').on('input change', function () {
                 updateVehicleMaxSpeedUi($(this).val(), true);
+            });
+
+            // 현재 동영상 선택 UI 반영
+            $('#current-video-select').on('change', function () {
+                const selectedPath = String($(this).val() || '').trim();
+                const selectedName = selectedPath.split('/').pop() || selectedPath || '-';
+                $('#current-video-value').text(selectedName);
             });
 
             // 차량 최고 속도 초기화

@@ -25,6 +25,11 @@
     let lastMediaType = "";
     let lastMediaSource = "";
     let lastMediaAspectRatio = 16 / 9;
+    let firstFrameTimeoutId = null;
+    let firstFrameRequestToken = 0;
+    const FIRST_FRAME_TIMEOUT_MS = 10000;
+    const LOADING_MESSAGE = "로딩중입니다.";
+    const FIRST_FRAME_TIMEOUT_MESSAGE = "동영상 로딩이 되지 않았습니다.";
 
     function setCloseButtonToShowMode(isShowMode) {
         $closeButton.text(isShowMode ? "보이기" : "닫기");
@@ -39,6 +44,34 @@
             $status.text(text);
         }
         $status.toggleClass("d-none", !visible);
+    }
+
+    function clearFirstFrameTimeout() {
+        if (firstFrameTimeoutId !== null) {
+            clearTimeout(firstFrameTimeoutId);
+            firstFrameTimeoutId = null;
+        }
+    }
+
+    function startFirstFrameWait() {
+        firstFrameRequestToken += 1;
+        const currentToken = firstFrameRequestToken;
+
+        clearFirstFrameTimeout();
+        setOverlayStatus(LOADING_MESSAGE, true);
+
+        firstFrameTimeoutId = setTimeout(function () {
+            if (currentToken !== firstFrameRequestToken) {
+                return;
+            }
+            setOverlayStatus(FIRST_FRAME_TIMEOUT_MESSAGE, true);
+        }, FIRST_FRAME_TIMEOUT_MS);
+    }
+
+    function markFirstFrameReady() {
+        firstFrameRequestToken += 1;
+        clearFirstFrameTimeout();
+        setOverlayStatus("", false);
     }
 
     function normalizePath(pathValue) {
@@ -177,7 +210,6 @@
 
         applyCompactOverlayLayout();
         showOverlay();
-        setOverlayStatus("검출 동영상을 로딩중입니다.", true);
         showVideoSource(streamUrl);
     }
 
@@ -185,6 +217,7 @@
         if (resetMemory) {
             lastMediaType = "";
             lastMediaSource = "";
+            markFirstFrameReady();
         }
         $image.attr("src", "").addClass("d-none");
 
@@ -241,7 +274,7 @@
         }
         const normalizedSrc = String(src);
         hideAllMedia();
-        setOverlayStatus("검출 동영상을 로딩중입니다.", true);
+        startFirstFrameWait();
         $image.attr("src", normalizedSrc).removeClass("d-none");
         lastMediaType = "image";
         lastMediaSource = normalizedSrc;
@@ -269,7 +302,7 @@
         }
 
         hideAllMedia();
-        setOverlayStatus("검출 동영상을 로딩중입니다.", true);
+        startFirstFrameWait();
         $video.attr("src", normalizedSrc).removeClass("d-none");
         lastMediaType = "video";
         lastMediaSource = normalizedSrc;
@@ -374,26 +407,26 @@
         if (!this.naturalWidth || !this.naturalHeight) {
             return;
         }
-        setOverlayStatus("", false);
+        markFirstFrameReady();
         lastMediaAspectRatio = this.naturalWidth / this.naturalHeight;
         applyCompactOverlayWidthByAspect(lastMediaAspectRatio);
     });
 
     $image.on("error", function () {
-        setOverlayStatus("검출 영상을 불러오지 못했습니다.", true);
+        // Keep loading message until first-frame timeout decides failure.
     });
 
-    $video.on("loadedmetadata", function () {
+    $video.on("loadeddata", function () {
         if (!this.videoWidth || !this.videoHeight) {
             return;
         }
-        setOverlayStatus("", false);
+        markFirstFrameReady();
         lastMediaAspectRatio = this.videoWidth / this.videoHeight;
         applyCompactOverlayWidthByAspect(lastMediaAspectRatio);
     });
 
     $video.on("error", function () {
-        setOverlayStatus("검출 영상을 불러오지 못했습니다.", true);
+        // Keep loading message until first-frame timeout decides failure.
     });
 
     $(window).on("resize", function () {

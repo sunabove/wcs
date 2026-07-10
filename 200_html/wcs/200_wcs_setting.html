@@ -67,6 +67,17 @@
             box-shadow: 0 0 0 0.18rem rgba(13, 110, 253, 0.2);
         }
 
+        .wcs-setting-table {
+            width: 100%;
+            table-layout: fixed;
+        }
+
+        .wcs-setting-table th[scope="row"] {
+            min-width: 420px;
+            width: 420px;
+            vertical-align: middle;
+        }
+
         @media (min-width: 768px) {
             .setting-section-title {
                 flex: 0 0 33.3333%;
@@ -188,9 +199,9 @@
 
             <div class="card-body p-2">
                 <div class="table-responsive">
-                    <table class="table table-bordered align-middle mb-0">
+                    <table class="table table-bordered align-middle mb-0 wcs-setting-table">
                         <colgroup>
-                            <col width="600px">
+                            <col style="width: 420px;">
                             <col>
                         </colgroup>
                         <tbody>

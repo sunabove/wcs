@@ -215,6 +215,23 @@ function prcessMqttMessage(topic, value) {
     if (topic === 'vehicle/operation/command') {
         const commandValue = parseInt(value);
         window.vehicleDirectionCommandActive = commandValue >= 1 && commandValue <= 4;
+
+        // 상태 페이지 동작 아이콘 동기화
+        const $operationIcon = $('[id="vehicle/operation/command/icon"]');
+        if ($operationIcon.length > 0) {
+            const iconClassByCommand = {
+                0: 'bi-stop-circle text-secondary',
+                1: 'bi-arrow-up-circle text-info',
+                2: 'bi-arrow-down-circle text-warning',
+                3: 'bi-arrow-counterclockwise text-primary',
+                4: 'bi-arrow-clockwise text-primary',
+            };
+
+            const mappedIconClass = iconClassByCommand[commandValue];
+            if (mappedIconClass) {
+                $operationIcon.attr('class', `bi fs-1 ${mappedIconClass}`);
+            }
+        }
         
         // 모든 차량 제어 버튼에서 active와 text-white 클래스 제거
         $('#vehicle-forward, #vehicle-backward, #vehicle-turn-left, #vehicle-turn-right, #vehicle-stop')

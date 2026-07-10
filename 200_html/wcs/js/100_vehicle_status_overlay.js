@@ -92,7 +92,7 @@
         // Media hidden mode: keep only a small top-center area for the toggle button.
         $overlay.attr(
             "style",
-            "inset:auto;top:10px;left:50%;transform:translateX(-50%);width:140px;height:52px;z-index:20;display:block;background:transparent;border-radius:0;overflow:visible;"
+            "inset:auto;top:10px;left:50%;transform:translateX(-50%);width:min(50%, 760px);height:52px;z-index:20;display:block;background:transparent;border-radius:0;overflow:visible;"
         );
         overlayLayoutMode = "collapsed";
     }

@@ -2457,10 +2457,10 @@ class RoadDetector:
         progress_ratio = frame_idx / float(frame_total)
 
         h, w = detected.shape[:2]
-        bar_w = max(220, int(w * 0.62))
-        bar_w = min(bar_w, max(120, w - 40))
+        side_margin = max(12, int(w * 0.03))
+        bar_w = max(120, w - (side_margin * 2))
         bar_h = max(10, int(h * 0.016))
-        x1 = int((w - bar_w) / 2)
+        x1 = int(side_margin)
         y2 = int(h - 14)
         y1 = int(y2 - bar_h)
 

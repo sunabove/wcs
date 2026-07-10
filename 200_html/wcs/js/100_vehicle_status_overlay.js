@@ -84,6 +84,19 @@
         overlayLayoutMode = "compact";
     }
 
+    function applyCollapsedOverlayLayout() {
+        if (overlayLayoutMode === "collapsed") {
+            return;
+        }
+
+        // Media hidden mode: keep only a small top-center area for the toggle button.
+        $overlay.attr(
+            "style",
+            "inset:auto;top:10px;left:50%;transform:translateX(-50%);width:140px;height:52px;z-index:20;display:block;background:transparent;border-radius:0;overflow:visible;"
+        );
+        overlayLayoutMode = "collapsed";
+    }
+
     function resolveAndShowCurrentVideo(fileName) {
         if (!showVideoOverlayEnabled) {
             return;
@@ -128,9 +141,11 @@
         });
     }
 
-    function hideAllMedia() {
-        lastMediaType = "";
-        lastMediaSource = "";
+    function hideAllMedia(resetMemory = true) {
+        if (resetMemory) {
+            lastMediaType = "";
+            lastMediaSource = "";
+        }
         $image.attr("src", "").addClass("d-none");
 
         if ($video[0] && typeof $video[0].pause === "function") {
@@ -146,19 +161,21 @@
     function hideOverlay() {
         mediaHiddenByUser = false;
         setCloseButtonToShowMode(false);
-        hideAllMedia();
+        hideAllMedia(true);
         $overlay.addClass("d-none");
     }
 
     function hideMediaAreaOnly() {
         mediaHiddenByUser = true;
-        hideAllMedia();
+        hideAllMedia(false);
+        applyCollapsedOverlayLayout();
         setCloseButtonToShowMode(true);
     }
 
     function restoreMediaAreaOnly() {
         mediaHiddenByUser = false;
         setCloseButtonToShowMode(false);
+        applyCompactOverlayLayout();
 
         if (lastMediaType === "video" && lastMediaSource) {
             showVideoSource(lastMediaSource);

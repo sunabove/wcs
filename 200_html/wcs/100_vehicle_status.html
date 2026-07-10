@@ -117,10 +117,17 @@
 
             <div class="card-body p-2">
 
-                <div class="row">
+                <table class="w-100" style="border-collapse: separate; border-spacing: 0; table-layout: fixed;">
+                    <colgroup>
+                        <col width="200px">
+                        <col>
+                        <col width="200px">
+                    </colgroup>
+                    <tbody>
+                        <tr>
 
                     <!-- 좌측 상태 정보 -->
-                    <div class="col-md-4">
+                    <td class="align-top">
 
                         <!-- 노면 상태 -->
                         <div id="roadSurfaceInfo" class="row ps-3 pe-3 d-flex">
@@ -213,11 +220,11 @@
                             </div>
                         </div>
                         <!-- // 장애물 정보 -->
-                    </div>
+                    </td>
                     <!-- // 좌측 상태 정보 -->
 
                     <!-- 차량 정보 -->
-                    <div class="col-md-4 p-0 d-flex vehicle_image">
+                    <td class="align-top p-0 d-flex vehicle_image">
 
                         <div class="card text-center h-100 w-100">
                             <div class="card-body d-flex flex-column">
@@ -302,11 +309,11 @@
                             </div>
                         </div>
 
-                    </div>
+                    </td>
                     <!-- // 차량 정보 -->
 
                     <!-- 우측 운행 정보 -->
-                    <div id="runInfo" class="col-md-4 d-flex">
+                    <td id="runInfo" class="align-top d-flex">
                         <div class="card h-100 w-100">
                             <div class="card-header text-center">
                                 <h4 class="mb-0">운행 정보</h4>
@@ -352,10 +359,12 @@
                                 </div>
                             </div>
                         </div>
-                    </div>
+                    </td>
                     <!-- // 우측 운행 정보 -->
 
-                </div> 
+                        </tr>
+                    </tbody>
+                </table>
             </div> 
         </div>
         <!-- // 차량 정보 -->

@@ -109,7 +109,7 @@ class MqttSimulator:
         self.route_max_speed_mps = 10.0
         self.target_speed = self.route_base_speed_mps  # 목표 속도 (m/s)
         self.current_speed = 0.0  # 현재 실제 속도
-        self.max_speed = 27.8  # 최고 속도 제한 초기값 (m/s, 100 km/h)
+        self.max_speed = 13.9  # 최고 속도 제한 초기값 (m/s, 50 km/h)
 
         # 위치 상태
         self.pos_x = 0.0

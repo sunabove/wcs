@@ -13,6 +13,10 @@ $(function () {
     const $detectedVideoDownloadButton = $("#detected-video-download");
     const $detectedImageDownloadWrap = $("#detected-image-download-wrap");
     const $detectedImageDownloadButton = $("#detected-image-download");
+    const $detectedOutputUrlInput = $("#detected-output-url");
+    const $detectedOutputUrlCopyButton = $("#detected-output-url-copy");
+    const $detectedOutputUrlOpenButton = $("#detected-output-url-open");
+    const $detectedOutputUrlHint = $("#detected-output-url-hint");
     const $detectedStreamFrameInput = $("#detected-stream-frame-input");
     const $detectedStreamFrameLabel = $("#detected-stream-frame-label");
     const $downloadProgressContainer = $("#download-progress-container");
@@ -79,6 +83,7 @@ $(function () {
     let frameTimerMap = {};     // 프레임 타이머 맵
     let cameraStreamState = null;
     let cameraStreamTimer = null;
+    let detectedOutputShareUrl = "";
     let originalVideoPreviewWatchdogTimer = null;
     let currentRoiInfo = null;
     let draftRoiInfo = null;
@@ -168,6 +173,63 @@ $(function () {
         // Use top-level navigation to make browser download handling more reliable
         // for large files than hidden iframe auto-download.
         window.location.assign(url);
+    }
+
+    function toAbsoluteUrl(url) {
+        try {
+            return new URL(String(url || ""), window.location.origin).toString();
+        } catch (error) {
+            return "";
+        }
+    }
+
+    function setDetectedOutputShareUrl(url, hintText) {
+        const absoluteUrl = toAbsoluteUrl(url);
+        const isShareable = Boolean(absoluteUrl) && !absoluteUrl.startsWith("data:");
+
+        detectedOutputShareUrl = isShareable ? absoluteUrl : "";
+
+        if ($detectedOutputUrlInput.length > 0) {
+            $detectedOutputUrlInput.val(detectedOutputShareUrl);
+        }
+        if ($detectedOutputUrlCopyButton.length > 0) {
+            $detectedOutputUrlCopyButton.prop("disabled", !detectedOutputShareUrl);
+        }
+        if ($detectedOutputUrlOpenButton.length > 0) {
+            $detectedOutputUrlOpenButton.prop("disabled", !detectedOutputShareUrl);
+        }
+        if ($detectedOutputUrlHint.length > 0) {
+            $detectedOutputUrlHint.text(hintText || "");
+        }
+    }
+
+    function copyDetectedOutputShareUrl() {
+        if (!detectedOutputShareUrl) {
+            return;
+        }
+
+        if (navigator.clipboard && typeof navigator.clipboard.writeText === "function") {
+            navigator.clipboard.writeText(detectedOutputShareUrl).then(function () {
+                showUploadStatusMessage("검출 URL을 클립보드에 복사했습니다.", true);
+            }).catch(function () {
+                showUploadStatusMessage("검출 URL 복사에 실패했습니다.", false);
+            });
+            return;
+        }
+
+        if ($detectedOutputUrlInput.length > 0) {
+            $detectedOutputUrlInput.trigger("focus").trigger("select");
+            const copied = document.execCommand("copy");
+            showUploadStatusMessage(copied ? "검출 URL을 클립보드에 복사했습니다." : "검출 URL 복사에 실패했습니다.", copied);
+        }
+    }
+
+    function openDetectedOutputShareUrlInNewTab() {
+        if (!detectedOutputShareUrl) {
+            return;
+        }
+
+        window.open(detectedOutputShareUrl, "_blank", "noopener,noreferrer");
     }
 
     function setupSampleVideoThumbnail(video) {

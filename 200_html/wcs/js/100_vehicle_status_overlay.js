@@ -60,6 +60,11 @@
         });
     }
 
+    function shouldRenderAsImageStream(url) {
+        const normalizedUrl = String(url || "").toLowerCase();
+        return normalizedUrl.indexOf("/fast/road_detect_stream/") !== -1;
+    }
+
     function applyDefaultOverlayLayout() {
         if (overlayLayoutMode === "default") {
             return;
@@ -190,6 +195,13 @@
             return;
         }
         const normalizedSrc = String(src);
+
+        // road_detect_stream returns stream frames that are better rendered by img.
+        if (shouldRenderAsImageStream(normalizedSrc)) {
+            showImageSource(normalizedSrc);
+            return;
+        }
+
         hideAllMedia();
         $video.attr("src", normalizedSrc).removeClass("d-none");
         lastMediaType = "video";

@@ -715,6 +715,11 @@
             $wcsSampleVideoPane.on('click', '.sample-video-item', function () {
                 $wcsSampleVideoPane.find('.sample-video-item.selected-sample').removeClass('selected-sample');
                 $(this).addClass('selected-sample');
+
+                const selectedVideoFileName = String($(this).attr('data-file-name') || '').trim();
+                if (selectedVideoFileName) {
+                    sendMQTTMessage('vehicle/current_video/file_name', selectedVideoFileName);
+                }
             });
 
             $wcsSampleVideoPane.on('click', '.sample-folder-item', function () {

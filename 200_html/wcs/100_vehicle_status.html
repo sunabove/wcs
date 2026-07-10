@@ -305,187 +305,109 @@
                     </div>
                     <!-- // 차량 정보 -->
 
-                    <!-- 우측 바퀴 정보 -->
-                    <div class="col-md-4">                        
-
-                        <!-- FR 바퀴 정보 -->
-                        <div class="row ps-3 pe-3">
-                            <div class="card p-0 text-center h-100 w-100"> 
-                                <div class="card-body p-2">
-                                    <div class="row">
-                                        <!-- 바퀴 데이터 테이블 -->
-                                        <div class="col-md-12">
-                                            <table class="table table-bordered table-striped m-0">
-                                                <colgroup>
-                                                    <col width="33%">
-                                                    <col>
-                                                </colgroup>
-
-                                                <!-- Motor 섹션 -->
-                                                <thead class="table-dark">
-                                                    <tr>
-                                                        <th class="text-center" scope="col" colspan="2">Wheel FR</th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody>
-                                                    <tr>
-                                                        <th class="text-center" scope="row">Speed</th>
-                                                        <td id="wheel/fr/linear/speed" class="text-end">  km/h</td>
-                                                    </tr>
-                                                    <tr>
-                                                        <th class="text-center" scope="row">RPM</th>
-                                                        <td id="wheel/fr/angle/speed" class="text-end">0 rpm</td>
-                                                    </tr>
-                                                    <tr>
-                                                        <th class="text-center" scope="row">Power</th>
-                                                        <td id="wheel/fr/power" class="text-end">120 kW</td>
-                                                    </tr>
-                                                    <tr>
-                                                        <th class="text-center" scope="row">PID</th>
-                                                        <td class="text-end">
-                                                            <span id="wheel/fr/pid/p">1.5</span> / 
-                                                            <span id="wheel/fr/pid/i">0.01</span> / 
-                                                            <span id="wheel/fr/pid/d">0.5</span>
-                                                        </td>
-                                                    </tr> 
-                                                    <tr>
-                                                        <th class="text-center" scope="row">ToF</th>
-                                                        <td id="wheel/fr/tof/distance" class="text-end">0.5 cm</td>
-                                                    </tr>
-                                                    <tr>
-                                                        <th class="text-center" scope="row">Axis</th>
-                                                        <td id="wheel/fr/axis/angle" class="text-end">10°</td>
-                                                    </tr>
-                                                </tbody>
-                                            </table>
+                    <!-- 우측 운행 정보 -->
+                    <div id="runInfo" class="col-md-4 d-flex">
+                        <div class="card h-100 w-100">
+                            <div class="card-header text-center">
+                                <h4 class="mb-0">운행 정보</h4>
+                            </div>
+                            <div class="card-body p-1">
+                                <div class="row h-100 g-1">
+                                    <div class="col-md-6 d-flex">
+                                        <div class="card text-center h-100 w-100">
+                                            <div class="card-body p-2 d-flex flex-column justify-content-center">
+                                                <h5 class="card-title mt-0 mb-1 text-nowrap">배터리 잔량</h5>
+                                                <i class="bi bi-battery-charging fs-1 text-success"></i>
+                                                <p id="vehicle/battery/remain_amount" class="card-text fs-5 text-nowrap mb-0">85%</p>
+                                            </div>
                                         </div>
-
+                                    </div>
+                                    <div class="col-md-6 d-flex">
+                                        <div class="card text-center h-100 w-100">
+                                            <div class="card-body p-2 d-flex flex-column justify-content-center">
+                                                <h5 class="card-title mt-0 mb-1 text-nowrap">주행 가능 시간</h5>
+                                                <i class="bi bi-clock fs-1 text-info"></i>
+                                                <p id="vehicle/drive/available_time" class="card-text fs-5 text-nowrap mb-0">2시간 30분</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6 d-flex">
+                                        <div class="card text-center h-100 w-100">
+                                            <div class="card-body p-2 d-flex flex-column justify-content-center">
+                                                <h5 class="card-title mt-0 mb-1 text-nowrap">총 주행 시간</h5>
+                                                <i class="bi bi-stopwatch fs-1 text-warning"></i>
+                                                <p id="vehicle/drive/elapsed_time" class="card-text fs-5 text-nowrap mb-0">127시간</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6 d-flex">
+                                        <div class="card text-center h-100 w-100">
+                                            <div class="card-body p-2 d-flex flex-column justify-content-center">
+                                                <h5 class="card-title mt-0 mb-1 text-nowrap">총 주행 거리</h5>
+                                                <i class="bi bi-speedometer fs-1 text-primary"></i>
+                                                <p id="vehicle/drive/total_distance" class="card-text fs-5 text-nowrap mb-0">1,247 km</p>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
                         </div>
-                        <!-- // FR 바퀴 정보 -->
-                        
-                        <!-- RR 바퀴 정보 -->
-                        <div class="row mt-2 ps-3 pe-3">
-                            <div class="card p-0 text-center h-100 w-100"> 
-                                <div class="card-body p-2">
-                                    <div class="row">
-                                        <!-- 바퀴 데이터 테이블 -->
-                                        <div class="col-md-12">
-                                            <table class="table table-bordered table-striped m-0">
-                                                <colgroup>
-                                                    <col width="33%">
-                                                    <col>
-                                                </colgroup>
-
-                                                <!-- RR 섹션 -->
-                                                <thead class="table-dark">
-                                                    <tr>
-                                                        <th class="text-center" scope="col" colspan="2">Wheel RR</th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody>
-                                                    <tr>
-                                                        <th class="text-center" scope="row">Speed</th>
-                                                        <td id="wheel/rr/linear/speed" class="text-end">  km/h</td>
-                                                    </tr>
-                                                    <tr>
-                                                        <th class="text-center" scope="row">RPM</th>
-                                                        <td id="wheel/rr/angle/speed" class="text-end">0 rpm</td>
-                                                    </tr>
-                                                    <tr>
-                                                        <th class="text-center" scope="row">Power</th>
-                                                        <td id="wheel/rr/power" class="text-end">120 kW</td>
-                                                    </tr>
-                                                    <tr>
-                                                        <th class="text-center" scope="row">PID</th>
-                                                        <td class="text-end">
-                                                            <span id="wheel/rr/pid/p">1.5</span> / 
-                                                            <span id="wheel/rr/pid/i">0.01</span> / 
-                                                            <span id="wheel/rr/pid/d">0.5</span>
-                                                        </td>
-                                                    </tr> 
-                                                    <tr>
-                                                        <th class="text-center" scope="row">ToF</th>
-                                                        <td id="wheel/rr/tof/distance" class="text-end">0.5 cm</td>
-                                                    </tr>
-                                                    <tr>
-                                                        <th class="text-center" scope="row">Axis</th>
-                                                        <td id="wheel/rr/axis/angle" class="text-end">10°</td>
-                                                    </tr>
-                                                </tbody>
-                                            </table>
-                                        </div>
-
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        <!-- // RR 바퀴 정보 -->
                     </div>
-                    <!-- // 우측 바퀴 정보 -->
+                    <!-- // 우측 운행 정보 -->
 
                 </div> 
             </div> 
         </div>
         <!-- // 차량 정보 -->
 
-        <!-- 운행 정보 -->
-        <div class="row">
-            <div id="runInfo" class="col-md-12 d-flex"> 
-                <div class="card mt-2 h-100 w-100">
-                    <div class="card-header text-center">
-                        <h4 class="mb-0">운행 정보</h4>
-                    </div>
-                    <div class="card-body p-1">
-                        <div class="row h-100 g-1">
-                            <div class="col-md-3 d-flex">
-                                <div class="card text-center h-100 w-100">
-                                    <div class="card-body p-2 d-flex flex-column justify-content-center">
-                                        <h5 class="card-title mt-0 mb-1 text-nowrap">배터리 잔량</h5>
-                                        <i class="bi bi-battery-charging fs-1 text-success"></i>
-                                        <p id="vehicle/battery/remain_amount" class="card-text fs-5 text-nowrap mb-0">85%</p>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="col-md-3 d-flex">
-                                <div class="card text-center h-100 w-100">
-                                    <div class="card-body p-2 d-flex flex-column justify-content-center">
-                                        <h5 class="card-title mt-0 mb-1 text-nowrap">주행 가능 시간</h5>
-                                        <i class="bi bi-clock fs-1 text-info"></i>
-                                        <p id="vehicle/drive/available_time" class="card-text fs-5 text-nowrap mb-0">2시간 30분</p>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="col-md-3 d-flex">
-                                <div class="card text-center h-100 w-100">
-                                    <div class="card-body p-2 d-flex flex-column justify-content-center">
-                                        <h5 class="card-title mt-0 mb-1 text-nowrap">총 주행 시간</h5>
-                                        <i class="bi bi-stopwatch fs-1 text-warning"></i>
-                                        <p id="vehicle/drive/elapsed_time" class="card-text fs-5 text-nowrap mb-0">127시간</p>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="col-md-3 d-flex">
-                                <div class="card text-center h-100 w-100">
-                                    <div class="card-body p-2 d-flex flex-column justify-content-center">
-                                        <h5 class="card-title mt-0 mb-1 text-nowrap">총 주행 거리</h5>
-                                        <i class="bi bi-speedometer fs-1 text-primary"></i>
-                                        <p id="vehicle/drive/total_distance" class="card-text fs-5 text-nowrap mb-0">1,247 km</p>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div> 
-            </div>
-            <!-- // 운행 정보 -->
-            
-        </div>
-        <!-- // 운행 정보 -->
+        
 
     </main>
+
+    <template id="wheel-info-table-template">
+        <table class="table table-bordered table-striped m-0">
+            <colgroup>
+                <col width="33%">
+                <col>
+            </colgroup>
+
+            <thead class="table-dark">
+                <tr>
+                    <th class="text-center" scope="col" colspan="2">Wheel __WHEEL_LABEL__</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <th class="text-center" scope="row">Speed</th>
+                    <td id="wheel/__WHEEL_KEY__/linear/speed" class="text-end">  km/h</td>
+                </tr>
+                <tr>
+                    <th class="text-center" scope="row">RPM</th>
+                    <td id="wheel/__WHEEL_KEY__/angle/speed" class="text-end">0 rpm</td>
+                </tr>
+                <tr>
+                    <th class="text-center" scope="row">Power</th>
+                    <td id="wheel/__WHEEL_KEY__/power" class="text-end">120 kW</td>
+                </tr>
+                <tr>
+                    <th class="text-center" scope="row">PID</th>
+                    <td class="text-end">
+                        <span id="wheel/__WHEEL_KEY__/pid/p">1.5</span> /
+                        <span id="wheel/__WHEEL_KEY__/pid/i">0.01</span> /
+                        <span id="wheel/__WHEEL_KEY__/pid/d">0.5</span>
+                    </td>
+                </tr>
+                <tr>
+                    <th class="text-center" scope="row">ToF</th>
+                    <td id="wheel/__WHEEL_KEY__/tof/distance" class="text-end">0.5 cm</td>
+                </tr>
+                <tr>
+                    <th class="text-center" scope="row">Axis</th>
+                    <td id="wheel/__WHEEL_KEY__/axis/angle" class="text-end">10°</td>
+                </tr>
+            </tbody>
+        </table>
+    </template>
 
     <footer class="text-center py-4">
         <p class="mb-0">&copy; 2024 Wheel Control System. All rights reserved.</p>

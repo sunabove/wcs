@@ -81,14 +81,7 @@ function prcessMqttMessage(topic, value) {
     }
 
     // jQuery를 사용한 DOM 업데이트: topic을 id로 사용해서 해당 요소 찾기 (속성 선택자 사용)
-    let targetTopic = topic;
-
-    // 차량 최고 속도는 두 토픽(vehicle/max_speed, vehicle/linear/max_speed)을 동일 UI로 매핑한다.
-    if (topic === 'vehicle/linear/max_speed') {
-        targetTopic = 'vehicle/max_speed';
-    }
-
-    const $targetElement = $(`[id="${targetTopic}"]`);
+    const $targetElement = $(`[id="${topic}"]`);
 
     // vehicle/run/state 특별 처리 (상태별 버튼 enable/disable)
     if (topic === 'vehicle/run/state') {
@@ -350,7 +343,7 @@ function prcessMqttMessage(topic, value) {
     }
     
     // 속도 UI(슬라이더/텍스트)는 수동 조작 시에만 갱신한다.
-    // MQTT 수신 토픽(vehicle/max_speed, vehicle/linear/speed)으로는 속도 UI를 갱신하지 않는다.
+    // MQTT 수신 토픽(vehicle/linear/max_speed, vehicle/linear/speed)으로는 속도 UI를 갱신하지 않는다.
     
     if ($targetElement.length > 0) {
         // 숫자 값 포맷팅
@@ -524,7 +517,7 @@ function getFormattedTopicValue(topic, value) {
         }
     } else if (topic === 'vehicle/battery/remain_amount') {
         formattedValue = `${numValue.toFixed(0)}%`;  // 배터리 잔량 퍼센트
-    } else if (topic === 'vehicle/max_speed' || topic === 'vehicle/linear/max_speed') {
+    } else if (topic === 'vehicle/linear/max_speed') {
         // 최고 속도: m/s를 km/h로 변환 (1 m/s = 3.6 km/h)
         const kmPerHour = numValue * 3.6;
         const roundedKmPerHour = Math.round(kmPerHour);  // 반올림하여 정수로 만듦

@@ -176,7 +176,6 @@ class MqttSimulator:
         client.subscribe("client/connect")
         client.subscribe("vehicle/linear/speed")
         client.subscribe("vehicle/linear/max_speed")
-        client.subscribe("vehicle/max_speed")
         client.subscribe("vehicle/operation/command")
         client.subscribe("vehicle/surface/state")
         client.subscribe("vehicle/surface/obstacle")
@@ -189,7 +188,7 @@ class MqttSimulator:
             client.subscribe(f"wheel/{wheel_id}/id")          # ID 설정
             client.subscribe(f"wheel/{wheel_id}/operation/command")
             
-        print("[MQTT] Subscribed to client/connect, vehicle/linear/speed, vehicle/linear/max_speed, vehicle/max_speed, vehicle/operation/command, vehicle/surface/state, vehicle/surface/obstacle, vehicle/road/roll_angle, vehicle/road/pitch_angle, wheel/*/id_request, wheel/*/id, wheel/*/operation/command topics")
+        print("[MQTT] Subscribed to client/connect, vehicle/linear/speed, vehicle/linear/max_speed, vehicle/operation/command, vehicle/surface/state, vehicle/surface/obstacle, vehicle/road/roll_angle, vehicle/road/pitch_angle, wheel/*/id_request, wheel/*/id, wheel/*/operation/command topics")
     
     def _on_message(self, client, userdata, msg):
         """MQTT 메시지 수신 처리"""
@@ -355,7 +354,7 @@ class MqttSimulator:
                         print(f"[SPEED] 잘못된 현재 속도 범위: {new_current_speed:.1f} m/s (허용: 0.0-27.8 m/s, 0-100 km/h)")
                 except ValueError:
                     print(f"[SPEED] 잘못된 현재 속도 형식: {payload}")
-            elif topic == "vehicle/max_speed" or topic == "vehicle/linear/max_speed":
+            elif topic == "vehicle/linear/max_speed":
                 try:
                     new_max_speed = float(payload)
                     if 0.0 <= new_max_speed <= 27.8:  # 0~100 km/h 범위 제한
@@ -492,8 +491,6 @@ class MqttSimulator:
             print(f"[VEHICLE] Published vehicle/linear/speed -> {round(self.linear_speed, 3)}")
 
             # 차량 최고 속도 초기 정보 발행 (클라이언트 접속 시 현재 설정 전달)
-            self._publish("vehicle/max_speed", round(self.max_speed, 2))
-            print(f"[VEHICLE] Published vehicle/max_speed -> {round(self.max_speed, 2)}")
             self._publish("vehicle/linear/max_speed", round(self.max_speed, 2))
             print(f"[VEHICLE] Published vehicle/linear/max_speed -> {round(self.max_speed, 2)}")
 
@@ -816,7 +813,6 @@ class MqttSimulator:
         # SI 단위계: 속도(m/s), 각속도(rad/s)
         max_speed_rounded = round(self.max_speed, 2)
         if self.last_vehicle_max_speed_published != max_speed_rounded:
-            self._publish("vehicle/max_speed", max_speed_rounded)  # m/s (동적 값)
             self._publish("vehicle/linear/max_speed", max_speed_rounded)  # m/s (UI 호환)
             self.last_vehicle_max_speed_published = max_speed_rounded
         self._publish("vehicle/max_angular_speed", 1.0)  # rad/s

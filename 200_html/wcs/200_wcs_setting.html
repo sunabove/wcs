@@ -355,7 +355,7 @@
                 window.prcessMqttMessage = function(topic, value) {
                     originalProcessMqtt(topic, value);
 
-                    if (topic === 'vehicle/linear/max_speed' || topic === 'vehicle/max_speed') {
+                    if (topic === 'vehicle/linear/max_speed') {
                         const numericMs = Number.parseFloat(value);
                         if (Number.isFinite(numericMs)) {
                             updateVehicleMaxSpeedUi(numericMs * 3.6, false);

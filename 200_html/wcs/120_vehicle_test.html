@@ -374,7 +374,7 @@
             }
 
             function updateVehicleCurrSpeedSliderMaxFromMqtt(topic, value) {
-                if (topic !== 'vehicle/linear/max_speed' && topic !== 'vehicle/max_speed') {
+                if (topic !== 'vehicle/linear/max_speed') {
                     return;
                 }
 
@@ -403,7 +403,7 @@
                         initializeVehicleSpeedUiFromMqtt(topic, value);
                     }
 
-                    if (topic === 'vehicle/linear/max_speed' || topic === 'vehicle/max_speed') {
+                    if (topic === 'vehicle/linear/max_speed') {
                         updateVehicleCurrSpeedSliderMaxFromMqtt(topic, value);
                     }
                 };

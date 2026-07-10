@@ -251,6 +251,11 @@
 
     $closeButton.on("click", function () {
         hideOverlay();
+
+        // 닫기 버튼 클릭 직후에는 보이기 버튼을 즉시 노출한다.
+        if ($showButton.length > 0 && showVideoOverlayEnabled) {
+            $showButton.removeClass("d-none");
+        }
     });
 
     syncShowButtonVisibility();

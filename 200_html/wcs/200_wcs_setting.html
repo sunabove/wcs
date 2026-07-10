@@ -190,10 +190,15 @@
                     <div class="col">
                         <div class="border rounded p-3 bg-light d-flex flex-column flex-md-row align-items-md-center gap-3">
                             <div class="setting-section-item setting-section-title">
-                                <h5 class="mb-1">
-                                    <i class="bi bi-arrow-repeat me-2"></i>차량 Roll 각도 설정
-                                </h5>
-                                <small class="text-muted">차량의 좌우 기울기(Roll) 각도를 조절합니다.</small>
+                                <div class="d-flex align-items-start justify-content-between gap-2">
+                                    <div>
+                                        <h5 class="mb-1">
+                                            <i class="bi bi-arrow-repeat me-2"></i>차량 Roll 각도 설정
+                                        </h5>
+                                        <small class="text-muted">차량의 좌우 기울기(Roll) 각도를 조절합니다.</small>
+                                    </div>
+                                    <button type="button" class="btn btn-outline-secondary btn-sm" id="reset-vehicle-roll-angle">Reset</button>
+                                </div>
                             </div>
 
                             <div class="setting-section-item setting-section-control">
@@ -210,10 +215,6 @@
                                     <span id="vehicle-roll-angle-value" class="badge text-bg-secondary" style="min-width: 56px;">0°</span>
                                 </div>
                             </div>
-
-                            <div class="setting-section-item setting-section-action d-flex justify-content-md-end">
-                                <button type="button" class="btn btn-outline-secondary" id="reset-vehicle-roll-angle">Reset</button>
-                            </div>
                         </div>
                     </div>
                 </div>
@@ -222,10 +223,15 @@
                     <div class="col">
                         <div class="border rounded p-3 bg-light d-flex flex-column flex-md-row align-items-md-center gap-3">
                             <div class="setting-section-item setting-section-title">
-                                <h5 class="mb-1">
-                                    <i class="bi bi-compass me-2"></i>차량 Pitch 각도 설정
-                                </h5>
-                                <small class="text-muted">차량의 앞뒤 기울기(Pitch) 각도를 조절합니다.</small>
+                                <div class="d-flex align-items-start justify-content-between gap-2">
+                                    <div>
+                                        <h5 class="mb-1">
+                                            <i class="bi bi-compass me-2"></i>차량 Pitch 각도 설정
+                                        </h5>
+                                        <small class="text-muted">차량의 앞뒤 기울기(Pitch) 각도를 조절합니다.</small>
+                                    </div>
+                                    <button type="button" class="btn btn-outline-secondary btn-sm" id="reset-vehicle-pitch-angle">Reset</button>
+                                </div>
                             </div>
 
                             <div class="setting-section-item setting-section-control">
@@ -241,10 +247,6 @@
                                     >
                                     <span id="vehicle-pitch-angle-value" class="badge text-bg-secondary" style="min-width: 56px;">0°</span>
                                 </div>
-                            </div>
-
-                            <div class="setting-section-item setting-section-action d-flex justify-content-md-end">
-                                <button type="button" class="btn btn-outline-secondary" id="reset-vehicle-pitch-angle">Reset</button>
                             </div>
                         </div>
                     </div>

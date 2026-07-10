@@ -631,6 +631,7 @@ $(function () {
                         download: true,
                         download_name: downloadFileName,
                     });
+                setDetectedOutputShareUrl(downloadUrl, "검출 동영상 URL을 복사해 새 탭에서 확인할 수 있습니다.");
                 triggerBrowserDownload(downloadUrl);
 
                 showUploadStatusMessage("검출 동영상 생성이 완료되어 다운로드를 요청했습니다. 브라우저 다운로드 목록을 확인해 주세요.", true);
@@ -739,6 +740,7 @@ $(function () {
 
             const downloadUrl = result.image_url + "?t=" + Date.now();
             showMediaPreview(downloadUrl, false, $detectedImagePreview, $detectedVideoPreview);
+            setDetectedOutputShareUrl(downloadUrl, "검출 이미지 URL을 복사해 새 탭에서 확인할 수 있습니다.");
 
             const anchor = document.createElement("a");
             anchor.href = downloadUrl;
@@ -799,6 +801,7 @@ $(function () {
         // 검출 인디케이터 초기화
         $detectingIndicator.addClass("d-none");
         setDetectingState(false);
+        setDetectedOutputShareUrl("", "");
     }
 
     function getSelectedDetectType() {
@@ -1648,6 +1651,8 @@ $(function () {
                     .removeClass("d-none");
             }
 
+            setDetectedOutputShareUrl("", "카메라 실시간 검출 프레임은 단일 URL 공유를 지원하지 않습니다.");
+
             if (isDetectEnabled) {
                 showUploadStatusMessage("카메라 실시간 검출 중... (" + String(result.frame_number || 0) + ")", true);
             } else {
@@ -2251,6 +2256,11 @@ $(function () {
                 frameStreamState[fileName].isPaused = true;
             }
 
+            setDetectedOutputShareUrl(
+                buildRoadDetectStreamUrl(fileName, detectType, removeNoisyMasks),
+                "검출 스트림 URL을 복사해 브라우저에서 독립 출력할 수 있습니다."
+            );
+
             updateDetectedStreamControls();
 
             if (initOptions.startPaused) {
@@ -2386,6 +2396,8 @@ $(function () {
             return;
         }
 
+        setDetectedOutputShareUrl("", "");
+
         const detectType = getSelectedDetectType();
         const includePothole = shouldIncludePotholeOverlay();
         const removeNoisyMasks = getRemoveNoisyMasks();
@@ -2420,6 +2432,7 @@ $(function () {
             if (result && result.image_url) {
                 const detectedMediaUrl = result.image_url + "?t=" + Date.now();
                 showMediaPreview(detectedMediaUrl, isVideoPath(result.image_url), $detectedImagePreview, $detectedVideoPreview);
+                setDetectedOutputShareUrl(detectedMediaUrl, "검출 이미지 URL을 복사해 새 탭에서 확인할 수 있습니다.");
                 showUploadStatusMessage("검출 이미지가 생성되었습니다.", true);
             } else {
                 showUploadStatusMessage("검출 결과를 받지 못했습니다.", false);
@@ -3168,6 +3181,14 @@ $(function () {
 
     $detectedImageDownloadButton.on("click", function () {
         triggerDetectedImageDownload(uploadedFileName);
+    });
+
+    $detectedOutputUrlCopyButton.on("click", function () {
+        copyDetectedOutputShareUrl();
+    });
+
+    $detectedOutputUrlOpenButton.on("click", function () {
+        openDetectedOutputShareUrlInNewTab();
     });
 
     $detectedStreamFrameInput.on("input", function () {

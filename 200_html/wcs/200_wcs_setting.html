@@ -26,6 +26,27 @@
             width: 100%;
         }
 
+        .angle-reset-btn,
+        .angle-value-badge {
+            height: 32px;
+        }
+
+        .angle-reset-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0 0.7rem;
+            line-height: 1;
+        }
+
+        .angle-value-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 56px;
+            font-size: 0.875rem;
+        }
+
         @media (min-width: 768px) {
             .setting-section-title {
                 flex: 0 0 33.3333%;
@@ -211,8 +232,8 @@
                                         step="1"
                                         value="0"
                                     >
-                                    <button type="button" class="btn btn-outline-secondary btn-sm" id="reset-vehicle-roll-angle">Reset</button>
-                                    <span id="vehicle-roll-angle-value" class="badge text-bg-secondary" style="min-width: 56px;">0°</span>
+                                    <button type="button" class="btn btn-outline-secondary btn-sm angle-reset-btn" id="reset-vehicle-roll-angle">Reset</button>
+                                    <span id="vehicle-roll-angle-value" class="badge text-bg-secondary angle-value-badge">0°</span>
                                 </div>
                             </div>
                         </div>
@@ -244,8 +265,8 @@
                                         step="1"
                                         value="0"
                                     >
-                                    <button type="button" class="btn btn-outline-secondary btn-sm" id="reset-vehicle-pitch-angle">Reset</button>
-                                    <span id="vehicle-pitch-angle-value" class="badge text-bg-secondary" style="min-width: 56px;">0°</span>
+                                    <button type="button" class="btn btn-outline-secondary btn-sm angle-reset-btn" id="reset-vehicle-pitch-angle">Reset</button>
+                                    <span id="vehicle-pitch-angle-value" class="badge text-bg-secondary angle-value-badge">0°</span>
                                 </div>
                             </div>
                         </div>

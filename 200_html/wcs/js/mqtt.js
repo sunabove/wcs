@@ -1,3 +1,56 @@
+// MQTT 로그 옵션 (기본값: false)
+const MQTT_LOG_OPTION_STORAGE_KEY = 'wcs.mqtt.console_log_enabled.v1';
+
+function getMqttConsoleLogEnabled() {
+    try {
+        const saved = window.localStorage.getItem(MQTT_LOG_OPTION_STORAGE_KEY);
+        if (saved === null) {
+            return false;
+        }
+
+        const normalized = String(saved).trim().toLowerCase();
+        return normalized === '1' || normalized === 'true' || normalized === 'on' || normalized === 'yes';
+    } catch (error) {
+        return false;
+    }
+}
+
+function setMqttConsoleLogEnabled(enabled) {
+    const flag = !!enabled;
+    window.__WCS_MQTT_CONSOLE_LOG_ENABLED = flag;
+
+    try {
+        window.localStorage.setItem(MQTT_LOG_OPTION_STORAGE_KEY, flag ? 'true' : 'false');
+    } catch (error) {
+        // localStorage 사용 불가 환경에서는 메모리 값만 사용한다.
+    }
+
+    return flag;
+}
+
+function isMqttConsoleLogEnabled() {
+    if (typeof window.__WCS_MQTT_CONSOLE_LOG_ENABLED === 'boolean') {
+        return window.__WCS_MQTT_CONSOLE_LOG_ENABLED;
+    }
+
+    const initialFlag = getMqttConsoleLogEnabled();
+    window.__WCS_MQTT_CONSOLE_LOG_ENABLED = initialFlag;
+    return initialFlag;
+}
+
+function mqttConsoleLog() {
+    if (!isMqttConsoleLogEnabled()) {
+        return;
+    }
+
+    console.log.apply(console, arguments);
+}
+
+window.getMqttConsoleLogEnabled = getMqttConsoleLogEnabled;
+window.setMqttConsoleLogEnabled = setMqttConsoleLogEnabled;
+window.isMqttConsoleLogEnabled = isMqttConsoleLogEnabled;
+window.mqttConsoleLog = mqttConsoleLog;
+
 // MQTT 클라이언트 설정 및 연결 (Mosquitto 브로커용)
 function initMQTTClient() {
     try {
@@ -6,8 +59,8 @@ function initMQTTClient() {
         const currentHost = window.location.hostname || 'localhost';
         const brokerUrl = `ws://${currentHost}:9001`; // Mosquitto WebSocket 포트
         
-        console.log('[MQTT] 🦟 브로커 연결 시도중...', brokerUrl);
-        console.log('[MQTT] 🌐 현재 호스트:', currentHost);
+        mqttConsoleLog('[MQTT] 🦟 브로커 연결 시도중...', brokerUrl);
+        mqttConsoleLog('[MQTT] 🌐 현재 호스트:', currentHost);
         
         const client = mqtt.connect(brokerUrl, {
             clientId: 'vehicle_status_client_' + Math.random().toString(16).substr(2, 8),
@@ -23,14 +76,14 @@ function initMQTTClient() {
         
         // 연결 성공
         client.on('connect', function (connack) {
-            console.log('[MQTT] ✅ Mosquitto 브로커 연결 성공');
-            console.log('[MQTT] 🔗 연결 정보:', connack);
+            mqttConsoleLog('[MQTT] ✅ Mosquitto 브로커 연결 성공');
+            mqttConsoleLog('[MQTT] 🔗 연결 정보:', connack);
             
             // 모든 토픽 구독 (와일드카드 사용)
             client.subscribe('#', { qos: 1 }, function (err, granted) {
                 if (!err) {
-                    console.log('[MQTT] 📡 모든 토픽 구독 성공');
-                    console.log('[MQTT] 🎯 QoS 설정:', granted);
+                    mqttConsoleLog('[MQTT] 📡 모든 토픽 구독 성공');
+                    mqttConsoleLog('[MQTT] 🎯 QoS 설정:', granted);
                     
                     // jQuery를 사용한 UI 업데이트
                     $('#mqtt-status-container').html('<div id="mqtt-status" class="badge fs-6" style="background:#28a745; color:white; padding:8px 12px; border-radius:5px; box-shadow:0 2px 5px rgba(0,0,0,0.2);"><i class="fas fa-wifi" style="margin-right:5px;"></i>MQTT 연결됨</div>');
@@ -62,7 +115,7 @@ function initMQTTClient() {
                         
                         // 클라이언트 접속 정보를 JSON으로 발행
                         client.publish('client/connect', JSON.stringify(clientInfo), { qos: 1 });
-                        console.log('[MQTT] 🌐 클라이언트 접속 메시지 발송:', clientInfo); 
+                        mqttConsoleLog('[MQTT] 🌐 클라이언트 접속 메시지 발송:', clientInfo); 
                     }, 1000);
                     
                 } else {
@@ -81,10 +134,10 @@ function initMQTTClient() {
             
             // 로깅 최적화: vehicle/ 토픽만 상세 로그, 나머지는 요약
             if (topic.startsWith('vehicle/') || topic.startsWith('wheel/')) {
-                console.log(`[MQTT] 📩 ${topic}: ${messageStr}`);
+                mqttConsoleLog(`[MQTT] 📩 ${topic}: ${messageStr}`);
             } else {
                 // 기타 토픽은 간소화된 로그
-                console.log(`[MQTT] 📝 ${topic.split('/')[0]}/*: ${messageStr}`);
+                mqttConsoleLog(`[MQTT] 📝 ${topic.split('/')[0]}/*: ${messageStr}`);
             }
             
             // UI 업데이트 throttling (100ms 간격)
@@ -146,7 +199,7 @@ function initMQTTClient() {
         
         // 연결 끊김 (Mosquitto 연결 끊김 이벤트)
         client.on('close', function () {
-            console.log('[MQTT] 🦟 Mosquitto 연결이 끊어졌습니다.');
+            mqttConsoleLog('[MQTT] 🦟 Mosquitto 연결이 끊어졌습니다.');
             
             // jQuery를 사용한 연결 상태 업데이트
             $('#mqtt-status').css('background', '#fd7e14').html('<i class="fas fa-unlink" style="margin-right:5px;"></i>Mosquitto 끊어짐');
@@ -158,7 +211,7 @@ function initMQTTClient() {
         
         // 재연결 (Mosquitto 재연결 로직)
         client.on('reconnect', function () {
-            console.log('[MQTT] 🔄 Mosquitto 재연결 시도중...');
+            mqttConsoleLog('[MQTT] 🔄 Mosquitto 재연결 시도중...');
             
             // jQuery를 사용한 재연결 상태 표시
             $('#mqtt-status').css('background', '#17a2b8').html('<i class="fas fa-sync fa-spin" style="margin-right:5px;"></i>Mosquitto 재연결 중...');
@@ -196,7 +249,7 @@ function sendMQTTMessage(topic, message, qos) {
             const timestamp = new Date().toLocaleTimeString();
             
             if (!err) {
-                console.log(`[MQTT] 📤 [${timestamp}] 메시지 전송성공 [QoS ${qos}]:`, topic, messageStr); 
+                mqttConsoleLog(`[MQTT] 📤 [${timestamp}] 메시지 전송성공 [QoS ${qos}]:`, topic, messageStr); 
             } else {
                 console.error(`[MQTT] ❌ [${timestamp}] 메시지 전송 실패:`, err);
                 console.error(`[MQTT]    - 토픽: ${topic}`);
@@ -218,7 +271,7 @@ function sendMQTTMessage(topic, message, qos) {
 
 // MQTT 초기화 함수 (페이지 로드 시 자동 실행)
 $(document).ready(function() {
-    console.log('[MQTT] 🦟 jQuery DOM 준비 완료 - 차량 대시보드 시작');
+    mqttConsoleLog('[MQTT] 🦟 jQuery DOM 준비 완료 - 차량 대시보드 시작');
     
     // Mosquitto MQTT 클라이언트 초기화
     initMQTTClient();
@@ -241,7 +294,7 @@ $(window).on('beforeunload', function() {
             // 동기적으로 disconnect 메시지 발송 (페이지 종료 전)
             window.mqttClient.publish('web/client/disconnect', JSON.stringify(disconnectInfo), { qos: 1 });
             window.mqttClient.publish('web/status', 'disconnected', { qos: 1 });
-            console.log('[MQTT] 👋 클라이언트 종료 메시지 발송:', disconnectInfo);
+            mqttConsoleLog('[MQTT] 👋 클라이언트 종료 메시지 발송:', disconnectInfo);
         } catch (error) {
             console.error('[MQTT] ❌ 종료 메시지 발송 실패:', error);
         }

@@ -4,15 +4,21 @@ let vehicleSpeedZeroClickLatched = false;
 window.latestVehicleLinearSpeedMs = window.latestVehicleLinearSpeedMs || 0;
 window.wheelRadiusById = window.wheelRadiusById || {};
 
+function mqttLog() {
+    if (typeof window.mqttConsoleLog === 'function') {
+        window.mqttConsoleLog.apply(window, arguments);
+    }
+}
+
 function prcessMqttMessage(topic, value) {
 
-    console.log(`[MQTT] 🧩 prcessMqttMessage 호출 - topic: ${topic}, value: ${value}`);
+    mqttLog(`[MQTT] 🧩 prcessMqttMessage 호출 - topic: ${topic}, value: ${value}`);
 
     // 토픽별 분류 및 상세 로깅
     if (topic.startsWith('vehicle/')) {
-        console.log('[MQTT] 🚗 차량 데이터:', topic, value);
+        mqttLog('[MQTT] 🚗 차량 데이터:', topic, value);
     } else if (topic.startsWith('wheel/')) {
-        console.log('[MQTT] 🛞 바퀴 데이터:', topic, value);
+        mqttLog('[MQTT] 🛞 바퀴 데이터:', topic, value);
 
         cacheWheelRadius(topic, value);
 
@@ -28,7 +34,7 @@ function prcessMqttMessage(topic, value) {
             const wheelPosition = match[1]; // fl, fr, rl, rr
             const wheelId = parseInt(value);
             
-            console.log(`[MQTT] 🏷️ Wheel ID 토픽 수신: ${topic} -> ${wheelId}`);
+            mqttLog(`[MQTT] 🏷️ Wheel ID 토픽 수신: ${topic} -> ${wheelId}`);
             
             // Vehicle Setting 페이지에만 적용
             if (window.location.pathname.includes('110_vehicle_setting.html')) {
@@ -39,7 +45,7 @@ function prcessMqttMessage(topic, value) {
                     // 해당하는 wheelId 라디오 버튼 선택
                     if (wheelId >= 1 && wheelId <= 4) {
                         $(`input[name="wheelId"][value="${wheelId}"]`).prop('checked', true);
-                        console.log(`[MQTT] ✅ 바퀴 ID 자동 선택: ${wheelPosition.toUpperCase()} -> ID ${wheelId}`);
+                        mqttLog(`[MQTT] ✅ 바퀴 ID 자동 선택: ${wheelPosition.toUpperCase()} -> ID ${wheelId}`);
                         
                         // 시각적 피드백 (버튼 하이라이트)
                         const $selectedBtn = $(`label[for="wheel-id-${wheelId}"]`);
@@ -56,15 +62,15 @@ function prcessMqttMessage(topic, value) {
             }
         }
     } else if (topic.startsWith('sensor/')) {
-        console.log('[MQTT] 📡 센서 데이터:', topic, value);
+        mqttLog('[MQTT] 📡 센서 데이터:', topic, value);
     } else if (topic.startsWith('system/')) {
-        console.log('[MQTT] ⚙️ 시스템 데이터:', topic, value);
+        mqttLog('[MQTT] ⚙️ 시스템 데이터:', topic, value);
     } else if (topic.startsWith('test/')) {
-        console.log('[MQTT] 🧪 테스트 데이터:', topic, value);
+        mqttLog('[MQTT] 🧪 테스트 데이터:', topic, value);
     } else if (topic.startsWith('web/')) {
-        console.log('[MQTT] 🌐 웹 클라이언트 데이터:', topic, value);
+        mqttLog('[MQTT] 🌐 웹 클라이언트 데이터:', topic, value);
     } else {
-        console.log('[MQTT] 📝 일반 데이터:', topic, value);
+        mqttLog('[MQTT] 📝 일반 데이터:', topic, value);
     }
 
     // 시뮬레이션 상태 토픽 특별 처리
@@ -99,13 +105,13 @@ function prcessMqttMessage(topic, value) {
                 .prop('disabled', false)
                 .removeClass('btn-secondary')
                 .addClass('btn-success');
-            console.log('[MQTT] 🔴 차량 상태: IDLE (정지)');
+            mqttLog('[MQTT] 🔴 차량 상태: IDLE (정지)');
         } else {
             $('[id="vehicle/run/state/1"]')
                 .prop('disabled', false)
                 .removeClass('btn-secondary')
                 .addClass('btn-success');
-            console.log('[MQTT] 🟢 차량 상태: RUNNING (동작중)');
+            mqttLog('[MQTT] 🟢 차량 상태: RUNNING (동작중)');
         }
     }
 
@@ -138,7 +144,7 @@ function prcessMqttMessage(topic, value) {
             
             const stateNames = ['ASPHALT', 'PAVING_BLOCK', 'DIRT_ROAD', 'GRAVEL_ROAD'];
             const stateName = stateNames[state] || 'UNKNOWN';
-            console.log(`[MQTT] 🛣️ 노면 상태: ${stateName} (${state})`);
+            mqttLog(`[MQTT] 🛣️ 노면 상태: ${stateName} (${state})`);
         }
     }
 
@@ -171,7 +177,7 @@ function prcessMqttMessage(topic, value) {
 
             const obstacleNames = ['NONE', 'STEP', 'POT_HOLE', 'ICE_ROAD'];
             const obstacleName = obstacleNames[obstacle] || 'UNKNOWN';
-            console.log(`[MQTT] ⚠️ 장애물 상태: ${obstacleName} (${obstacle})`);
+            mqttLog(`[MQTT] ⚠️ 장애물 상태: ${obstacleName} (${obstacle})`);
         }
     }
 
@@ -264,7 +270,7 @@ function prcessMqttMessage(topic, value) {
                 commandName = '우회전';
                 break;
             default:
-                console.log(`[MQTT] ⚠️ 알 수 없는 차량 명령값: ${commandValue}`);
+                mqttLog(`[MQTT] ⚠️ 알 수 없는 차량 명령값: ${commandValue}`);
                 return;
         }
         
@@ -286,7 +292,7 @@ function prcessMqttMessage(topic, value) {
                 window.setVehicleWheelHighlightByKeys(['fl', 'rl']);
             }
             
-            console.log(`[MQTT] 🚗 차량 명령 버튼 선택: ${commandName} (${commandValue})`);
+            mqttLog(`[MQTT] 🚗 차량 명령 버튼 선택: ${commandName} (${commandValue})`);
         }
     }
 
@@ -351,7 +357,7 @@ function prcessMqttMessage(topic, value) {
                     vehicleSpeedZeroClickLatched = true;
                 }
 
-                console.log(`[MQTT] ⏹️ 차량 속도 0 근접 감지(${numericSpeed.toFixed(3)}): 정지 버튼 UI 자동 동기화`);
+                mqttLog(`[MQTT] ⏹️ 차량 속도 0 근접 감지(${numericSpeed.toFixed(3)}): 정지 버튼 UI 자동 동기화`);
             } else if (Number.isFinite(numericSpeed) && Math.abs(numericSpeed) >= speedReleaseEpsilon) {
                 // 다시 움직이기 시작하면 다음 정지 진입 시 자동 클릭이 재동작하도록 latch 해제
                 vehicleSpeedZeroClickLatched = false;
@@ -371,7 +377,7 @@ function prcessMqttMessage(topic, value) {
         
         updateTargetElementCss($targetElement);
         
-        console.log(`[MQTT] ✅ DOM 업데이트 성공: ${topic} -> ${formattedValue}`);
+        mqttLog(`[MQTT] ✅ DOM 업데이트 성공: ${topic} -> ${formattedValue}`);
     } else {
         // console.log(`[MQTT] ❌ DOM 요소를 찾을 수 없음: ${topic}`);
     }
@@ -390,7 +396,7 @@ function cacheWheelRadius(topic, value) {
     }
 
     window.wheelRadiusById[wheelKey] = radius;
-    console.log(`[MQTT] 📏 바퀴 반경 캐시: ${wheelKey} -> ${radius} m`);
+    mqttLog(`[MQTT] 📏 바퀴 반경 캐시: ${wheelKey} -> ${radius} m`);
 }
 
 function applyDerivedWheelLinearSpeed(topic, value) {

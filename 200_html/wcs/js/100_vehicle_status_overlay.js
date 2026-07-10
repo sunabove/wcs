@@ -3,9 +3,62 @@
     const $closeButton = $("#road-detect-overlay-close");
     const $image = $("#road-detect-overlay-image");
     const $video = $("#road-detect-overlay-video");
+    const $viewer = $("#vehicle-urdf-viewer");
 
     if ($overlay.length === 0 || $image.length === 0 || $video.length === 0) {
         return;
+    }
+
+    function toBoolean(value) {
+        if (typeof value === "boolean") {
+            return value;
+        }
+        const text = String(value || "").trim().toLowerCase();
+        return text === "1" || text === "true" || text === "on" || text === "yes";
+    }
+
+    const showVideoOverlayEnabled = $viewer.length > 0 && toBoolean($viewer.attr("showVideo"));
+    let $currentVideoOverlay = $();
+    let $currentVideoText = $();
+
+    function ensureCurrentVideoOverlay() {
+        if (!showVideoOverlayEnabled || $viewer.length === 0) {
+            return;
+        }
+        if ($currentVideoOverlay.length > 0 && $currentVideoText.length > 0) {
+            return;
+        }
+
+        const $host = $viewer.closest(".position-relative").first();
+        if ($host.length === 0) {
+            return;
+        }
+
+        let $existing = $host.find("#urdf-current-video-overlay").first();
+        if ($existing.length === 0) {
+            $existing = $('<div id="urdf-current-video-overlay" class="urdf-video-file-overlay"></div>');
+            $existing.append('<span id="urdf-current-video-file-name" class="urdf-video-file-text">현재 동영상: -</span>');
+            $host.append($existing);
+        }
+
+        $currentVideoOverlay = $existing;
+        $currentVideoText = $existing.find("#urdf-current-video-file-name").first();
+    }
+
+    function updateCurrentVideoOverlay(fileName) {
+        if (!showVideoOverlayEnabled) {
+            return;
+        }
+
+        ensureCurrentVideoOverlay();
+        if ($currentVideoText.length === 0) {
+            return;
+        }
+
+        const normalized = String(fileName || "").trim();
+        const displayName = normalized || "-";
+        $currentVideoText.text("현재 동영상: " + displayName);
+        $currentVideoText.attr("title", displayName);
     }
 
     function hideAllMedia() {
@@ -57,16 +110,13 @@
         showOverlay();
     }
 
-    function toBoolean(value) {
-        if (typeof value === "boolean") {
-            return value;
-        }
-        const text = String(value || "").trim().toLowerCase();
-        return text === "1" || text === "true" || text === "on" || text === "yes";
-    }
-
     function handleOverlayMqttTopic(topic, value) {
         const topicText = String(topic || "").trim();
+
+        if (topicText === "vehicle/current_video/file_name") {
+            updateCurrentVideoOverlay(value);
+            return;
+        }
 
         if (topicText === "ai/road/overlay/show") {
             if (toBoolean(value)) {
@@ -120,6 +170,8 @@
     window.showRoadDetectOverlay = function () {
         showOverlay();
     };
+
+    ensureCurrentVideoOverlay();
 
     $closeButton.on("click", function () {
         hideOverlay();

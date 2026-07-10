@@ -19,6 +19,31 @@
     <!-- WCS Common CSS -->
     <link href="./css/002_wcs_common.css" rel="stylesheet">
 
+    <style>
+        .urdf-video-file-overlay {
+            position: absolute;
+            top: 8px;
+            left: 8px;
+            right: 8px;
+            z-index: 15;
+            pointer-events: none;
+        }
+
+        .urdf-video-file-text {
+            display: inline-block;
+            max-width: 100%;
+            padding: 0.3rem 0.55rem;
+            border-radius: 0.4rem;
+            color: #f8f9fa;
+            background: rgba(11, 18, 32, 0.78);
+            font-size: 0.84rem;
+            line-height: 1.15;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+    </style>
+
     <!-- jQuery CDN -->
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js" defer></script>
@@ -244,6 +269,7 @@
                                                         cameraPosition="-0.043, -0.752, 1.611"
                                                         showAttitude="true"
                                                         showWheelInfo="true"
+                                                        showVideo="true"
                                                         style="min-height: 80vh;"> 
                                                     </div>
 

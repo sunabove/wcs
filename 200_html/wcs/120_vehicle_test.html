@@ -352,8 +352,7 @@
                 const effectiveMaxKmh = Number.isFinite(sliderMaxKmh)
                     ? Math.max(0.1, sliderMaxKmh)
                     : Math.max(0.1, latestVehicleMaxSpeedKmh);
-                const speedRatio = Math.max(0, Math.min(100, (normalizedKmh / effectiveMaxKmh) * 100));
-                $('[id="vehicle/linear/speed"]').text(`${normalizedKmh.toFixed(1)} / ${effectiveMaxKmh.toFixed(1)} Km/h (${speedRatio.toFixed(0)}%)`);
+                $('[id="vehicle/linear/speed"]').text(`${normalizedKmh.toFixed(1)} / ${effectiveMaxKmh.toFixed(1)} Km/h`);
 
                 if (isManual) {
                     window.vehicleSpeedUiManualUntil = Date.now() + 1500;

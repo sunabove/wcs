@@ -24,6 +24,22 @@
     let overlayManuallyHidden = false;
     let latestCurrentVideoFileName = "";
 
+    function setShowButtonVisible(visible) {
+        if ($showButton.length === 0) {
+            return;
+        }
+
+        if (!visible) {
+            $showButton.addClass("d-none").css("display", "none");
+            return;
+        }
+
+        $showButton.removeClass("d-none").css({
+            display: "inline-flex",
+            zIndex: 30,
+        });
+    }
+
     function normalizePath(pathValue) {
         return String(pathValue || "").trim().replace(/\\/g, "/").replace(/^\/+/, "");
     }
@@ -139,12 +155,12 @@
 
         // showVideo 옵션이 꺼져 있으면 보이기 버튼도 숨김
         if (!showVideoOverlayEnabled) {
-            $showButton.addClass("d-none");
+            setShowButtonVisible(false);
             return;
         }
 
         const isOverlayHidden = $overlay.hasClass("d-none");
-        $showButton.toggleClass("d-none", !isOverlayHidden);
+        setShowButtonVisible(isOverlayHidden);
     }
 
     function showOverlay() {
@@ -274,7 +290,7 @@
 
         // 닫기 버튼 클릭 직후에는 보이기 버튼을 즉시 노출한다.
         if ($showButton.length > 0 && showVideoOverlayEnabled) {
-            $showButton.removeClass("d-none");
+            setShowButtonVisible(true);
         }
     });
 

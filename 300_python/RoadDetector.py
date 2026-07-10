@@ -166,7 +166,9 @@ class RoadDetector:
 
             client.connect(self._get_mqtt_broker_host(), 1883, 10)
             client.loop_start()
-            publish_info = client.publish(topic, str(payload), qos=0, retain=True)
+            # Do not retain detector-driven state values; retained stale detection
+            # can override manually selected surface/obstacle state on page refresh.
+            publish_info = client.publish(topic, str(payload), qos=0, retain=False)
             publish_info.wait_for_publish(timeout=2)
             return True
         except Exception as ex:

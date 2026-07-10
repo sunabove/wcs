@@ -367,6 +367,21 @@
                 }
             }
 
+            function updateVehicleCurrSpeedSliderMaxFromMqtt(topic, value) {
+                if (topic !== 'vehicle/linear/max_speed' && topic !== 'vehicle/max_speed') {
+                    return;
+                }
+
+                const numericMs = Number.parseFloat(value);
+                if (!Number.isFinite(numericMs)) {
+                    return;
+                }
+
+                const maxKmh = Math.max(0, numericMs * 3.6);
+                const normalizedMaxKmh = Number(maxKmh.toFixed(1));
+                $('#vehicleCurrSpeedSlider').attr('max', normalizedMaxKmh);
+            }
+
             // 공통 MQTT 처리 이후에 Vehicle Test UI 초기화를 1회 수행한다.
             if (typeof window.prcessMqttMessage === 'function' && !window.vehicleTestInitMqttHooked) {
                 const originalProcessMqtt = window.prcessMqttMessage;
@@ -375,6 +390,10 @@
 
                     if (topic === 'vehicle/linear/speed') {
                         initializeVehicleSpeedUiFromMqtt(topic, value);
+                    }
+
+                    if (topic === 'vehicle/linear/max_speed' || topic === 'vehicle/max_speed') {
+                        updateVehicleCurrSpeedSliderMaxFromMqtt(topic, value);
                     }
                 };
                 window.vehicleTestInitMqttHooked = true;

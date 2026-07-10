@@ -816,9 +816,6 @@ class MqttSimulator:
         
         self._publish("vehicle/battery/remain_amount", round(remain_percent, 1))  # 퍼센트(%)
         
-        self._publish("vehicle/surface/state", self.surface_state.value)
-        self._publish("vehicle/surface/obstacle", self.surface_obstacle.value)
-
         # SI 단위계: 속도(m/s), 각속도(rad/s)
         max_speed_rounded = round(self.max_speed, 2)
         if self.last_vehicle_max_speed_published != max_speed_rounded:

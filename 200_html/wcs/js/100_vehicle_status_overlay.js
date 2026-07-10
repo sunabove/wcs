@@ -1,7 +1,6 @@
 (function () {
     const $overlay = $("#road-detect-overlay");
     const $closeButton = $("#road-detect-overlay-close");
-    const $showButton = $("#road-detect-overlay-show");
     const $image = $("#road-detect-overlay-image");
     const $video = $("#road-detect-overlay-video");
     const $viewer = $("#vehicle-urdf-viewer");
@@ -21,23 +20,13 @@
     const showVideoOverlayEnabled = $viewer.length > 0 && toBoolean($viewer.attr("showVideo"));
     let currentVideoResolveToken = 0;
     let overlayLayoutMode = "default";
-    let overlayManuallyHidden = false;
     let latestCurrentVideoFileName = "";
+    let mediaHiddenByUser = false;
+    let lastMediaType = "";
+    let lastMediaSource = "";
 
-    function setShowButtonVisible(visible) {
-        if ($showButton.length === 0) {
-            return;
-        }
-
-        if (!visible) {
-            $showButton.addClass("d-none").css("display", "none");
-            return;
-        }
-
-        $showButton.removeClass("d-none").css({
-            display: "inline-flex",
-            zIndex: 30,
-        });
+    function setCloseButtonToShowMode(isShowMode) {
+        $closeButton.text(isShowMode ? "보이기" : "닫기");
     }
 
     function normalizePath(pathValue) {
@@ -103,8 +92,8 @@
         const normalizedFile = normalizePath(fileName);
         latestCurrentVideoFileName = normalizedFile;
 
-        // 닫기 버튼으로 숨긴 상태에서는 자동으로 다시 열지 않는다.
-        if (overlayManuallyHidden) {
+        // 사용자가 미디어 영역을 숨긴 상태에서는 자동으로 다시 열지 않는다.
+        if (mediaHiddenByUser) {
             return;
         }
 
@@ -140,6 +129,8 @@
     }
 
     function hideAllMedia() {
+        lastMediaType = "";
+        lastMediaSource = "";
         $image.attr("src", "").addClass("d-none");
 
         if ($video[0] && typeof $video[0].pause === "function") {
@@ -148,42 +139,51 @@
         $video.attr("src", "").addClass("d-none");
     }
 
-    function syncShowButtonVisibility() {
-        if ($showButton.length === 0) {
-            return;
-        }
-
-        // showVideo 옵션이 꺼져 있으면 보이기 버튼도 숨김
-        if (!showVideoOverlayEnabled) {
-            setShowButtonVisible(false);
-            return;
-        }
-
-        const isOverlayHidden = $overlay.hasClass("d-none");
-        setShowButtonVisible(isOverlayHidden);
-    }
-
     function showOverlay() {
-        overlayManuallyHidden = false;
         $overlay.removeClass("d-none");
-        syncShowButtonVisibility();
     }
 
-    function hideOverlay(markAsManual = false) {
-        if (markAsManual) {
-            overlayManuallyHidden = true;
-        }
+    function hideOverlay() {
+        mediaHiddenByUser = false;
+        setCloseButtonToShowMode(false);
         hideAllMedia();
         $overlay.addClass("d-none");
-        syncShowButtonVisibility();
+    }
+
+    function hideMediaAreaOnly() {
+        mediaHiddenByUser = true;
+        hideAllMedia();
+        setCloseButtonToShowMode(true);
+    }
+
+    function restoreMediaAreaOnly() {
+        mediaHiddenByUser = false;
+        setCloseButtonToShowMode(false);
+
+        if (lastMediaType === "video" && lastMediaSource) {
+            showVideoSource(lastMediaSource);
+            return;
+        }
+        if (lastMediaType === "image" && lastMediaSource) {
+            showImageSource(lastMediaSource);
+            return;
+        }
+        if (latestCurrentVideoFileName) {
+            resolveAndShowCurrentVideo(latestCurrentVideoFileName);
+        }
     }
 
     function showImageSource(src) {
         if (!src) {
             return;
         }
+        const normalizedSrc = String(src);
         hideAllMedia();
-        $image.attr("src", String(src)).removeClass("d-none");
+        $image.attr("src", normalizedSrc).removeClass("d-none");
+        lastMediaType = "image";
+        lastMediaSource = normalizedSrc;
+        mediaHiddenByUser = false;
+        setCloseButtonToShowMode(false);
         showOverlay();
     }
 
@@ -191,8 +191,13 @@
         if (!src) {
             return;
         }
+        const normalizedSrc = String(src);
         hideAllMedia();
-        $video.attr("src", String(src)).removeClass("d-none");
+        $video.attr("src", normalizedSrc).removeClass("d-none");
+        lastMediaType = "video";
+        lastMediaSource = normalizedSrc;
+        mediaHiddenByUser = false;
+        setCloseButtonToShowMode(false);
 
         if ($video[0] && typeof $video[0].load === "function") {
             $video[0].load();
@@ -274,25 +279,13 @@
         showOverlay();
     };
 
-    $showButton.on("click", function () {
-        overlayManuallyHidden = false;
-
-        if (latestCurrentVideoFileName) {
-            resolveAndShowCurrentVideo(latestCurrentVideoFileName);
-            return;
-        }
-
-        showOverlay();
-    });
-
     $closeButton.on("click", function () {
-        hideOverlay(true);
-
-        // 닫기 버튼 클릭 직후에는 보이기 버튼을 즉시 노출한다.
-        if ($showButton.length > 0 && showVideoOverlayEnabled) {
-            setShowButtonVisible(true);
+        if (mediaHiddenByUser) {
+            restoreMediaAreaOnly();
+        } else {
+            hideMediaAreaOnly();
         }
     });
 
-    syncShowButtonVisibility();
+    setCloseButtonToShowMode(false);
 })();

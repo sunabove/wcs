@@ -76,11 +76,7 @@
             min-width: 420px;
             width: 420px;
             vertical-align: middle;
-        }
-
-        .wcs-setting-table th[scope="row"] > small {
-            display: block;
-            padding-left: 1.75rem;
+            text-align: left;
         }
 
         @media (min-width: 768px) {
@@ -212,8 +208,13 @@
                         <tbody>
                             <tr>
                                 <th scope="row">
-                                    <h5 class="mb-1"><i class="bi bi-water me-2"></i>노면 종류 설정</h5>
-                                    <small class="text-muted">현재 주행 환경의 노면 종류를 선택합니다.</small>
+                                    <div class="d-flex align-items-center gap-2">
+                                        <i class="bi bi-water fs-5"></i>
+                                        <div>
+                                            <h5 class="mb-1">노면 종류 설정</h5>
+                                            <small class="text-muted d-block">현재 주행 환경의 노면 종류를 선택합니다.</small>
+                                        </div>
+                                    </div>
                                 </th>
                                 <td>
                                     <select class="form-select" id="surface-state">
@@ -227,8 +228,13 @@
 
                             <tr>
                                 <th scope="row">
-                                    <h5 class="mb-1"><i class="bi bi-cone-striped me-2"></i>장애물 설정</h5>
-                                    <small class="text-muted">현재 주행 환경의 장애물 상태를 선택합니다.</small>
+                                    <div class="d-flex align-items-center gap-2">
+                                        <i class="bi bi-cone-striped fs-5"></i>
+                                        <div>
+                                            <h5 class="mb-1">장애물 설정</h5>
+                                            <small class="text-muted d-block">현재 주행 환경의 장애물 상태를 선택합니다.</small>
+                                        </div>
+                                    </div>
                                 </th>
                                 <td>
                                     <select class="form-select" id="surface-obstacle">
@@ -242,8 +248,13 @@
 
                             <tr>
                                 <th scope="row">
-                                    <h5 class="mb-1"><i class="bi bi-camera-reels me-2"></i>동영상 선택</h5>
-                                    <small class="text-muted">장애물 검출 동영상을 선택합니다.</small>
+                                    <div class="d-flex align-items-center gap-2">
+                                        <i class="bi bi-camera-reels fs-5"></i>
+                                        <div>
+                                            <h5 class="mb-1">동영상 선택</h5>
+                                            <small class="text-muted d-block">장애물 검출 동영상을 선택합니다.</small>
+                                        </div>
+                                    </div>
                                 </th>
                                 <td>
                                     <div class="tab-content">
@@ -278,8 +289,13 @@
 
                             <tr>
                                 <th scope="row">
-                                    <h5 class="mb-1"><i class="bi bi-speedometer2 me-2"></i>차량 최고 속도 설정</h5>
-                                    <small class="text-muted">차량의 최고 속도 제한값을 조절합니다.</small>
+                                    <div class="d-flex align-items-center gap-2">
+                                        <i class="bi bi-speedometer2 fs-5"></i>
+                                        <div>
+                                            <h5 class="mb-1">차량 최고 속도 설정</h5>
+                                            <small class="text-muted d-block">차량의 최고 속도 제한값을 조절합니다.</small>
+                                        </div>
+                                    </div>
                                 </th>
                                 <td>
                                     <div class="d-flex align-items-center gap-2">
@@ -300,8 +316,13 @@
 
                             <tr>
                                 <th scope="row">
-                                    <h5 class="mb-1"><i class="bi bi-arrow-repeat me-2"></i>차량 Roll 각도 설정</h5>
-                                    <small class="text-muted">차량의 좌우 기울기(Roll) 각도를 조절합니다.</small>
+                                    <div class="d-flex align-items-center gap-2">
+                                        <i class="bi bi-arrow-repeat fs-5"></i>
+                                        <div>
+                                            <h5 class="mb-1">차량 Roll 각도 설정</h5>
+                                            <small class="text-muted d-block">차량의 좌우 기울기(Roll) 각도를 조절합니다.</small>
+                                        </div>
+                                    </div>
                                 </th>
                                 <td>
                                     <div class="d-flex align-items-center gap-2">
@@ -322,8 +343,13 @@
 
                             <tr>
                                 <th scope="row">
-                                    <h5 class="mb-1"><i class="bi bi-compass me-2"></i>차량 Pitch 각도 설정</h5>
-                                    <small class="text-muted">차량의 앞뒤 기울기(Pitch) 각도를 조절합니다.</small>
+                                    <div class="d-flex align-items-center gap-2">
+                                        <i class="bi bi-compass fs-5"></i>
+                                        <div>
+                                            <h5 class="mb-1">차량 Pitch 각도 설정</h5>
+                                            <small class="text-muted d-block">차량의 앞뒤 기울기(Pitch) 각도를 조절합니다.</small>
+                                        </div>
+                                    </div>
                                 </th>
                                 <td>
                                     <div class="d-flex align-items-center gap-2">

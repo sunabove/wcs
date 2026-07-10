@@ -377,7 +377,7 @@
     </main>
 
     <template id="wheel-info-table-template">
-        <table class="table table-bordered table-striped m-0">
+            <table class="table table-bordered table-striped m-0" style="table-layout: fixed;">
             <colgroup>
                 <col width="33%">
                 <col>
@@ -385,37 +385,37 @@
 
             <thead class="table-dark">
                 <tr>
-                    <th class="text-center" scope="col" colspan="2">Wheel __WHEEL_LABEL__</th>
+                    <th class="text-center" scope="col" colspan="2" style="padding: 0.14rem 0.2rem;">Wheel __WHEEL_LABEL__</th>
                 </tr>
             </thead>
             <tbody>
                 <tr>
-                    <th class="text-center" scope="row">Speed</th>
-                    <td id="wheel/__WHEEL_KEY__/linear/speed" class="text-end">  km/h</td>
+                    <th class="text-center" scope="row" style="padding: 0.12rem 0.2rem; vertical-align: middle;">Speed</th>
+                    <td id="wheel/__WHEEL_KEY__/linear/speed" class="text-end" style="padding: 0.12rem 0.2rem; vertical-align: middle;">  km/h</td>
                 </tr>
                 <tr>
-                    <th class="text-center" scope="row">RPM</th>
-                    <td id="wheel/__WHEEL_KEY__/angle/speed" class="text-end">0 rpm</td>
+                    <th class="text-center" scope="row" style="padding: 0.12rem 0.2rem; vertical-align: middle;">RPM</th>
+                    <td id="wheel/__WHEEL_KEY__/angle/speed" class="text-end" style="padding: 0.12rem 0.2rem; vertical-align: middle;">0 rpm</td>
                 </tr>
                 <tr>
-                    <th class="text-center" scope="row">Power</th>
-                    <td id="wheel/__WHEEL_KEY__/power" class="text-end">120 kW</td>
+                    <th class="text-center" scope="row" style="padding: 0.12rem 0.2rem; vertical-align: middle;">Power</th>
+                    <td id="wheel/__WHEEL_KEY__/power" class="text-end" style="padding: 0.12rem 0.2rem; vertical-align: middle;">120 kW</td>
                 </tr>
                 <tr>
-                    <th class="text-center" scope="row">PID</th>
-                    <td class="text-end">
+                    <th class="text-center" scope="row" style="padding: 0.12rem 0.2rem; vertical-align: middle;">PID</th>
+                    <td class="text-end" style="padding: 0.12rem 0.2rem; vertical-align: middle;">
                         <span id="wheel/__WHEEL_KEY__/pid/p">1.5</span> /
                         <span id="wheel/__WHEEL_KEY__/pid/i">0.01</span> /
                         <span id="wheel/__WHEEL_KEY__/pid/d">0.5</span>
                     </td>
                 </tr>
                 <tr>
-                    <th class="text-center" scope="row">ToF</th>
-                    <td id="wheel/__WHEEL_KEY__/tof/distance" class="text-end">0.5 cm</td>
+                    <th class="text-center" scope="row" style="padding: 0.12rem 0.2rem; vertical-align: middle;">ToF</th>
+                    <td id="wheel/__WHEEL_KEY__/tof/distance" class="text-end" style="padding: 0.12rem 0.2rem; vertical-align: middle;">0.5 cm</td>
                 </tr>
                 <tr>
-                    <th class="text-center" scope="row">Axis</th>
-                    <td id="wheel/__WHEEL_KEY__/axis/angle" class="text-end">10°</td>
+                    <th class="text-center" scope="row" style="padding: 0.12rem 0.2rem; vertical-align: middle;">Axis</th>
+                    <td id="wheel/__WHEEL_KEY__/axis/angle" class="text-end" style="padding: 0.12rem 0.2rem; vertical-align: middle;">10°</td>
                 </tr>
             </tbody>
         </table>

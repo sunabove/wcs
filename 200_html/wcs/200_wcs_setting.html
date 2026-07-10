@@ -39,6 +39,17 @@
             white-space: nowrap;
             flex-shrink: 0;
         }
+
+        #vehicle-roll-angle {
+            flex: 1 1 320px;
+            min-width: 220px;
+        }
+
+        #vehicle-roll-angle-value {
+            width: 72px;
+            min-width: 72px;
+            justify-content: center;
+        }
     </style>
 
     <!-- jQuery CDN -->
@@ -201,7 +212,7 @@
                                 <div class="input-group angle-input-group">
                                     <input
                                         type="range"
-                                        class="form-range mb-0 w-50"
+                                        class="form-range mb-0"
                                         id="vehicle-roll-angle"
                                         min="-30"
                                         max="30"

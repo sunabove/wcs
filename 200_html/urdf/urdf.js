@@ -253,8 +253,6 @@ class URDFViewer {
         const containerRect = this.container.getBoundingClientRect();
         const width = containerRect.width;
         const height = containerRect.height;
-        
-        console.log(`[URDF] 컨테이너 크기: ${width}x${height}`);
 
         // Scene 생성
         this.scene = new THREE.Scene();

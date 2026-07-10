@@ -329,6 +329,7 @@
             const pendingPublishTimers = {};
             let lastVehicleCurrSpeedMsSent = null;
             let lastVehicleDirectionCommandSent = null;
+            let latestVehicleMaxSpeedKmh = 100.0;
             window.vehicleSpeedUiManualUntil = 0;
             window.suppressAutoStopUntil = 0;
             window.manualWheelTestActive = false;
@@ -346,7 +347,13 @@
                 const numericKmh = Number.parseFloat(speedKmh);
                 const normalizedKmh = Number.isFinite(numericKmh) ? Math.max(0, numericKmh) : 0;
                 $('#vehicleCurrSpeedSlider').val(normalizedKmh);
-                $('[id="vehicle/linear/speed"]').text(`${normalizedKmh.toFixed(1)} Km/h`);
+
+                const sliderMaxKmh = Number.parseFloat($('#vehicleCurrSpeedSlider').attr('max'));
+                const effectiveMaxKmh = Number.isFinite(sliderMaxKmh)
+                    ? Math.max(0.1, sliderMaxKmh)
+                    : Math.max(0.1, latestVehicleMaxSpeedKmh);
+                const speedRatio = Math.max(0, Math.min(100, (normalizedKmh / effectiveMaxKmh) * 100));
+                $('[id="vehicle/linear/speed"]').text(`${normalizedKmh.toFixed(1)} / ${effectiveMaxKmh.toFixed(1)} Km/h (${speedRatio.toFixed(0)}%)`);
 
                 if (isManual) {
                     window.vehicleSpeedUiManualUntil = Date.now() + 1500;
@@ -380,6 +387,11 @@
                 const maxKmh = Math.max(0, numericMs * 3.6);
                 const normalizedMaxKmh = Number(maxKmh.toFixed(1));
                 $('#vehicleCurrSpeedSlider').attr('max', normalizedMaxKmh);
+                latestVehicleMaxSpeedKmh = normalizedMaxKmh;
+
+                // 최고 속도 변경 시 현재 속도 텍스트의 대비(%)를 즉시 갱신한다.
+                const currKmh = Number.parseFloat($('#vehicleCurrSpeedSlider').val()) || 0;
+                updateVehicleSpeedUi(currKmh, false);
             }
 
             // 공통 MQTT 처리 이후에 Vehicle Test UI 초기화를 1회 수행한다.

@@ -47,6 +47,26 @@
             font-size: 0.875rem;
         }
 
+        .sample-thumbnail-scroll {
+            overflow-x: auto;
+            padding-bottom: 0.25rem;
+        }
+
+        .sample-thumbnail-track {
+            display: flex;
+            gap: 0.5rem;
+            min-width: max-content;
+        }
+
+        .sample-thumbnail-item {
+            flex: 0 0 180px;
+        }
+
+        .sample-video-item.selected-sample {
+            border-color: var(--bs-primary) !important;
+            box-shadow: 0 0 0 0.18rem rgba(13, 110, 253, 0.2);
+        }
+
         @media (min-width: 768px) {
             .setting-section-title {
                 flex: 0 0 33.3333%;
@@ -223,9 +243,9 @@
                         <div class="border rounded p-3 bg-light d-flex flex-column flex-md-row align-items-md-center gap-3">
                             <div class="setting-section-item setting-section-title">
                                 <h5 class="mb-1">
-                                    <i class="bi bi-camera-reels me-2"></i>현재 동영상 선택
+                                    <i class="bi bi-camera-reels me-2"></i>동영상 선택
                                 </h5>
-                                <small class="text-muted">Road Detection에서 사용할 현재 동영상을 선택합니다.</small>
+                                <small class="text-muted">장애물 검출 동영상을 선택합니다.</small>
                             </div>
 
                             <div class="setting-section-item setting-section-control">
@@ -402,6 +422,8 @@
     <script> 
         $(document).ready(function () {
             const maxSpeedTopic = 'vehicle/linear/max_speed';
+            const $wcsSampleVideoPane = $('#wcs-input-sample-video-pane');
+            const wcsSampleVideoItemTemplate = document.getElementById('wcs-sample-video-item-template');
 
             function updateVehicleMaxSpeedUi(speedKmh, shouldPublish = true) {
                 const numericKmh = Number.parseFloat(speedKmh);
@@ -417,9 +439,102 @@
                 }
             }
 
+            function normalizePath(pathValue) {
+                return String(pathValue || '').trim().replace(/\\/g, '/').replace(/^\/+/, '');
+            }
+
+            function encodePathForRoute(pathValue) {
+                return normalizePath(pathValue)
+                    .split('/')
+                    .filter(function (segment) { return segment.length > 0; })
+                    .map(function (segment) { return encodeURIComponent(segment); })
+                    .join('/');
+            }
+
+            function buildVideoThumbnailUrl(fileName) {
+                return '/fast/video_thumbnail/' + encodePathForRoute(fileName) + '?t=' + Date.now();
+            }
+
+            function buildSampleBrowserUrl(folderName) {
+                return '/fast/sample_browser/' + encodePathForRoute(folderName);
+            }
+
+            function renderSampleVideoThumbnails(browserData) {
+                if ($wcsSampleVideoPane.length === 0) {
+                    return;
+                }
+
+                const fileNames = browserData && Array.isArray(browserData.files) ? browserData.files : [];
+                $wcsSampleVideoPane.empty();
+
+                if (!Array.isArray(fileNames) || fileNames.length === 0) {
+                    $wcsSampleVideoPane.append('<div class="text-muted text-center py-3">현재 폴더에 샘플 동영상이 없습니다.</div>');
+                    return;
+                }
+
+                const $scrollContainer = $('<div class="sample-thumbnail-scroll"></div>');
+                const $track = $('<div class="sample-thumbnail-track"></div>');
+
+                fileNames.forEach(function (fileName) {
+                    const safeFileName = normalizePath(fileName);
+                    const thumbnailUrl = buildVideoThumbnailUrl(safeFileName);
+                    const label = safeFileName.split('/').pop() || safeFileName;
+
+                    if (!wcsSampleVideoItemTemplate || !wcsSampleVideoItemTemplate.content) {
+                        return;
+                    }
+
+                    const node = wcsSampleVideoItemTemplate.content.firstElementChild.cloneNode(true);
+                    const button = node.querySelector('.sample-video-item');
+                    const thumbnailImage = node.querySelector('.sample-video-thumbnail');
+                    const caption = node.querySelector('.small');
+
+                    if (button) {
+                        button.setAttribute('data-file-name', safeFileName);
+                    }
+                    if (thumbnailImage) {
+                        thumbnailImage.setAttribute('src', thumbnailUrl);
+                        thumbnailImage.setAttribute('alt', label);
+                    }
+                    if (caption) {
+                        caption.setAttribute('title', safeFileName);
+                        caption.textContent = label;
+                    }
+
+                    $track.append(node);
+                });
+
+                $scrollContainer.append($track);
+                $wcsSampleVideoPane.append($scrollContainer);
+            }
+
+            function loadSampleVideos() {
+                if ($wcsSampleVideoPane.length === 0) {
+                    return;
+                }
+
+                $wcsSampleVideoPane.html('<div class="text-muted text-center py-3">샘플 동영상을 불러오는 중...</div>');
+
+                $.ajax({
+                    url: buildSampleBrowserUrl('video'),
+                    method: 'GET'
+                }).done(function (result) {
+                    renderSampleVideoThumbnails(result || {});
+                }).fail(function (jqXHR) {
+                    console.error('WCS sample video browser error:', jqXHR.status, jqXHR.responseText);
+                    $wcsSampleVideoPane.html('<div class="text-danger text-center py-3">샘플 동영상 목록을 불러오지 못했습니다.</div>');
+                });
+            }
+
             // 차량 최고 속도 변경 즉시 반영
             $('#vehicle-max-speed').on('input change', function () {
                 updateVehicleMaxSpeedUi($(this).val(), true);
+            });
+
+            // 샘플 동영상 선택 표시
+            $wcsSampleVideoPane.on('click', '.sample-video-item', function () {
+                $wcsSampleVideoPane.find('.sample-video-item.selected-sample').removeClass('selected-sample');
+                $(this).addClass('selected-sample');
             });
 
             // 차량 최고 속도 초기화
@@ -480,6 +595,9 @@
             $('#reset-vehicle-pitch-angle').on('click', function () {
                 $('#vehicle-pitch-angle').val(0).trigger('input');
             });
+
+            // 샘플 동영상 목록 로드
+            loadSampleVideos();
 
         });
     </script>

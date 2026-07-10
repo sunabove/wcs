@@ -22,33 +22,46 @@
     <!-- WCS Common CSS -->
     <link href="./css/002_wcs_common.css" rel="stylesheet">
     <style>
-        .angle-input-group {
-            display: flex;
-            flex-wrap: nowrap;
+        .setting-section-item {
+            width: 100%;
+        }
+
+        .angle-reset-btn,
+        .angle-value-badge {
+            height: 32px;
+        }
+
+        .angle-reset-btn {
+            display: inline-flex;
             align-items: center;
-        }
-
-        .angle-input-group .form-range {
-            flex: 1 1 auto;
-            min-width: 0;
-            margin-right: 0.5rem;
-        }
-
-        .angle-input-group .input-group-text,
-        .angle-input-group .btn {
-            white-space: nowrap;
-            flex-shrink: 0;
-        }
-
-        #vehicle-roll-angle {
-            flex: 1 1 320px;
-            min-width: 220px;
-        }
-
-        #vehicle-roll-angle-value {
-            width: 72px;
-            min-width: 72px;
             justify-content: center;
+            padding: 0 0.7rem;
+            line-height: 1;
+        }
+
+        .angle-value-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 56px;
+            font-size: 0.875rem;
+        }
+
+        @media (min-width: 768px) {
+            .setting-section-title {
+                flex: 0 0 33.3333%;
+                max-width: 33.3333%;
+            }
+
+            .setting-section-control {
+                flex: 0 0 50%;
+                max-width: 50%;
+            }
+
+            .setting-section-action {
+                flex: 0 0 16.6667%;
+                max-width: 16.6667%;
+            }
         }
     </style>
 
@@ -81,7 +94,7 @@
     <header class="p-1 text-bg-dark fs-5">
 
         <div class="container">
-            <div class="top-header-row d-flex flex-wrap align-items-center justify-content-between">
+            <div class="d-flex flex-wrap align-items-center justify-content-between">
 
                 <ul class="nav flex-grow-1 mb-2 justify-content-center mb-md-0">
                     <li>
@@ -209,7 +222,7 @@
                             </div>
 
                             <div class="setting-section-item setting-section-control">
-                                <div class="input-group angle-input-group">
+                                <div class="d-flex align-items-center gap-2">
                                     <input
                                         type="range"
                                         class="form-range mb-0"
@@ -219,8 +232,8 @@
                                         step="1"
                                         value="0"
                                     >
-                                    <span id="vehicle-roll-angle-value" class="input-group-text text-bg-secondary angle-value-badge">0°</span>
-                                    <button type="button" class="btn btn-outline-secondary angle-reset-btn" id="reset-vehicle-roll-angle">Reset</button>
+                                    <button type="button" class="btn btn-outline-secondary btn-sm angle-reset-btn" id="reset-vehicle-roll-angle">Reset</button>
+                                    <span id="vehicle-roll-angle-value" class="badge text-bg-secondary angle-value-badge">0°</span>
                                 </div>
                             </div>
                         </div>
@@ -242,7 +255,7 @@
                             </div>
 
                             <div class="setting-section-item setting-section-control">
-                                <div class="input-group angle-input-group">
+                                <div class="d-flex align-items-center gap-2">
                                     <input
                                         type="range"
                                         class="form-range mb-0"
@@ -252,8 +265,8 @@
                                         step="1"
                                         value="0"
                                     >
-                                    <span id="vehicle-pitch-angle-value" class="input-group-text text-bg-secondary angle-value-badge">0°</span>
-                                    <button type="button" class="btn btn-outline-secondary angle-reset-btn" id="reset-vehicle-pitch-angle">Reset</button>
+                                    <button type="button" class="btn btn-outline-secondary btn-sm angle-reset-btn" id="reset-vehicle-pitch-angle">Reset</button>
+                                    <span id="vehicle-pitch-angle-value" class="badge text-bg-secondary angle-value-badge">0°</span>
                                 </div>
                             </div>
                         </div>

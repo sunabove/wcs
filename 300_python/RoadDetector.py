@@ -2456,6 +2456,27 @@ class RoadDetector:
         frame_idx = max(1, min(frame_idx, frame_total))
         progress_ratio = frame_idx / float(frame_total)
 
+        def _lerp_bgr(c1, c2, t):
+            t = max(0.0, min(1.0, float(t)))
+            return (
+                int(round(c1[0] + (c2[0] - c1[0]) * t)),
+                int(round(c1[1] + (c2[1] - c1[1]) * t)),
+                int(round(c1[2] + (c2[2] - c1[2]) * t)),
+            )
+
+        # Shift bar color as playback nears the end.
+        c_start = (60, 210, 70)    # green
+        c_mid = (0, 220, 255)      # yellow
+        c_high = (0, 145, 255)     # orange
+        c_end = (45, 45, 235)      # red
+
+        if progress_ratio < 0.70:
+            fill_color = _lerp_bgr(c_start, c_mid, progress_ratio / 0.70)
+        elif progress_ratio < 0.90:
+            fill_color = _lerp_bgr(c_mid, c_high, (progress_ratio - 0.70) / 0.20)
+        else:
+            fill_color = _lerp_bgr(c_high, c_end, (progress_ratio - 0.90) / 0.10)
+
         h, w = detected.shape[:2]
         side_margin = max(12, int(w * 0.03))
         bar_w = max(120, w - (side_margin * 2))
@@ -2470,7 +2491,7 @@ class RoadDetector:
         cv2.rectangle(detected, (x1, y1), (x1 + bar_w, y2), (220, 220, 220), 1)
 
         fill_w = max(1, int((bar_w - 2) * progress_ratio))
-        cv2.rectangle(detected, (x1 + 1, y1 + 1), (x1 + 1 + fill_w, y2 - 1), (0, 220, 255), cv2.FILLED)
+        cv2.rectangle(detected, (x1 + 1, y1 + 1), (x1 + 1 + fill_w, y2 - 1), fill_color, cv2.FILLED)
 
         fps = float(frame_fps) if frame_fps is not None else 0.0
         if fps > 0:

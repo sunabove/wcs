@@ -304,46 +304,41 @@ function prcessMqttMessage(topic, value) {
             window.latestVehicleLinearSpeedMs = numericSpeed;
         }
 
-        if (window.vehicleDirectionCommandActive === true) {
-            return;
-        }
+        const shouldSkipAutoStopSync =
+            window.vehicleDirectionCommandActive === true ||
+            window.manualWheelTestActive === true ||
+            (window.suppressAutoStopUntil || 0) > Date.now();
 
-        if (window.manualWheelTestActive === true) {
-            return;
-        }
+        if (!shouldSkipAutoStopSync) {
+            const speedZeroEpsilon = 0.05;
+            const speedReleaseEpsilon = 0.15;
 
-        if ((window.suppressAutoStopUntil || 0) > Date.now()) {
-            return;
-        }
+            if (Number.isFinite(numericSpeed) && Math.abs(numericSpeed) <= speedZeroEpsilon) {
+                const $stopButton = $('#vehicle-stop');
 
-        const speedZeroEpsilon = 0.05;
-        const speedReleaseEpsilon = 0.15;
+                // 속도 0 구간에 진입할 때 1회 정지 버튼 UI만 동기화한다.
+                if (!vehicleSpeedZeroClickLatched && $stopButton.length > 0) {
+                    $('#vehicle-forward, #vehicle-backward, #vehicle-turn-left, #vehicle-turn-right, #vehicle-stop')
+                        .removeClass('active text-white')
+                        .addClass('text-black');
 
-        if (Number.isFinite(numericSpeed) && Math.abs(numericSpeed) <= speedZeroEpsilon) {
-            const $stopButton = $('#vehicle-stop');
+                    $stopButton
+                        .addClass('active text-white')
+                        .removeClass('text-black');
 
-            // 속도 0 구간에 진입할 때 1회 정지 버튼 UI만 동기화한다.
-            if (!vehicleSpeedZeroClickLatched && $stopButton.length > 0) {
-                $('#vehicle-forward, #vehicle-backward, #vehicle-turn-left, #vehicle-turn-right, #vehicle-stop')
-                    .removeClass('active text-white')
-                    .addClass('text-black');
+                    if (typeof window.clearVehicleWheelHighlights === 'function') {
+                        window.clearVehicleWheelHighlights();
+                    }
 
-                $stopButton
-                    .addClass('active text-white')
-                    .removeClass('text-black');
-
-                if (typeof window.clearVehicleWheelHighlights === 'function') {
-                    window.clearVehicleWheelHighlights();
+                    window.vehicleDirectionCommandActive = false;
+                    vehicleSpeedZeroClickLatched = true;
                 }
 
-                window.vehicleDirectionCommandActive = false;
-                vehicleSpeedZeroClickLatched = true;
+                console.log(`[MQTT] ⏹️ 차량 속도 0 근접 감지(${numericSpeed.toFixed(3)}): 정지 버튼 UI 자동 동기화`);
+            } else if (Number.isFinite(numericSpeed) && Math.abs(numericSpeed) >= speedReleaseEpsilon) {
+                // 다시 움직이기 시작하면 다음 정지 진입 시 자동 클릭이 재동작하도록 latch 해제
+                vehicleSpeedZeroClickLatched = false;
             }
-
-            console.log(`[MQTT] ⏹️ 차량 속도 0 근접 감지(${numericSpeed.toFixed(3)}): 정지 버튼 UI 자동 동기화`);
-        } else if (Number.isFinite(numericSpeed) && Math.abs(numericSpeed) >= speedReleaseEpsilon) {
-            // 다시 움직이기 시작하면 다음 정지 진입 시 자동 클릭이 재동작하도록 latch 해제
-            vehicleSpeedZeroClickLatched = false;
         }
     }
     
@@ -522,10 +517,10 @@ function getFormattedTopicValue(topic, value) {
         }
     } else if (topic === 'vehicle/battery/remain_amount') {
         formattedValue = `${numValue.toFixed(0)}%`;  // 배터리 잔량 퍼센트
-    } else if (topic === 'vehicle/max_speed') {
+    } else if (topic === 'vehicle/max_speed' || topic === 'vehicle/linear/max_speed') {
         // 최고 속도: m/s를 km/h로 변환 (1 m/s = 3.6 km/h)
         const kmPerHour = numValue * 3.6;
-        const roundedKmPerHour = Math.ceil(kmPerHour);  // 올림하여 정수로 만듦
+        const roundedKmPerHour = Math.round(kmPerHour);  // 반올림하여 정수로 만듦
         formattedValue = `${roundedKmPerHour} Km/h`;  // 소수점 없이 정수로 표시
     } else if (topic === 'vehicle/operation/command') {
         // 동작 상태: 0~4 숫자를 문자로 변환
@@ -539,7 +534,7 @@ function getFormattedTopicValue(topic, value) {
     } else if (topic.includes('/linear/speed')) {
         // m/s를 km/h로 변환 (1 m/s = 3.6 km/h)
         const kmPerHour = numValue * 3.6;
-        const roundedKmPerHour = Math.ceil(kmPerHour);  // 올림하여 정수로 만듦
+        const roundedKmPerHour = Math.round(kmPerHour);  // 반올림하여 정수로 만듦
         formattedValue = `${roundedKmPerHour} km/h`;  // 소수점 없이 정수로 표시
     } else if (topic.includes('/power')) {
         formattedValue = `${Math.round(numValue)} W`;  // SI: 와트

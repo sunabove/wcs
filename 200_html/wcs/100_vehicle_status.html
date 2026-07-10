@@ -124,8 +124,8 @@
                         <col width="200px">
                     </colgroup>
                     <tbody>
-                        <tr>
 
+                        <tr>
                             <!-- 좌측 상태 정보 -->
                             <td class="align-top">
 
@@ -224,7 +224,9 @@
                             <!-- // 좌측 상태 정보 -->
 
                             <!-- 차량 정보 -->
-                            <td class="align-top p-0 d-flex vehicle_image">
+                            <td class="align-top p-0 vehicle_image">
+
+                                <div class="d-flex h-100 w-100">
 
                                 <div class="card text-center h-100 w-100">
                                     <div class="card-body d-flex flex-column">
@@ -309,11 +311,14 @@
                                     </div>
                                 </div>
 
+                                </div>
+
                             </td>
                             <!-- // 차량 정보 -->
 
                             <!-- 우측 운행 정보 -->
-                            <td id="runInfo" class="align-top d-flex">
+                            <td id="runInfo" class="align-top">
+                                <div class="d-flex h-100 w-100">
                                 <div class="card h-100 w-100">
                                     <div class="card-header text-center">
                                         <h4 class="mb-0">운행 정보</h4>
@@ -358,6 +363,7 @@
                                             </div>
                                         </div>
                                     </div>
+                                </div>
                                 </div>
                             </td>
                             <!-- // 우측 운행 정보 -->

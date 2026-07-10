@@ -2,6 +2,7 @@
 
 let vehicleSpeedZeroClickLatched = false;
 window.latestVehicleLinearSpeedMs = window.latestVehicleLinearSpeedMs || 0;
+window.wheelRadiusById = window.wheelRadiusById || {};
 
 function prcessMqttMessage(topic, value) {
 
@@ -13,8 +14,11 @@ function prcessMqttMessage(topic, value) {
     } else if (topic.startsWith('wheel/')) {
         console.log('[MQTT] 🛞 바퀴 데이터:', topic, value);
 
+        cacheWheelRadius(topic, value);
+
         // wheel 각속도 토픽이 오면 URDF 휠 애니메이션에 즉시 반영
         applyWheelAngularVelocityToViewer(topic, value);
+        applyDerivedWheelLinearSpeed(topic, value);
         
         // wheel/{id}/id 토픽 특별 처리 - Vehicle Setting 페이지의 바퀴 ID 라디오 버튼 업데이트
         const wheelIdPattern = /^wheel\/([a-z]+)\/id$/;
@@ -360,6 +364,56 @@ function prcessMqttMessage(topic, value) {
         // console.log(`[MQTT] ❌ DOM 요소를 찾을 수 없음: ${topic}`);
     }
 } // prcessMqttMessage
+
+function cacheWheelRadius(topic, value) {
+    const radiusTopicMatch = topic.match(/^wheel\/(fl|fr|rl|rr)\/radius$/i);
+    if (!radiusTopicMatch) {
+        return;
+    }
+
+    const wheelKey = radiusTopicMatch[1].toLowerCase();
+    const radius = Number(value);
+    if (!Number.isFinite(radius) || radius <= 0) {
+        return;
+    }
+
+    window.wheelRadiusById[wheelKey] = radius;
+    console.log(`[MQTT] 📏 바퀴 반경 캐시: ${wheelKey} -> ${radius} m`);
+}
+
+function applyDerivedWheelLinearSpeed(topic, value) {
+    const topicMatch = topic.match(/^wheel\/(fl|fr|rl|rr)\/(.+)$/i);
+    if (!topicMatch) {
+        return;
+    }
+
+    const wheelKey = topicMatch[1].toLowerCase();
+    const metricPath = topicMatch[2].toLowerCase();
+    if (metricPath !== 'angle/speed') {
+        return;
+    }
+
+    const angularSpeedRadPerSec = Number(value);
+    if (!Number.isFinite(angularSpeedRadPerSec)) {
+        return;
+    }
+
+    const wheelRadius = Number(window.wheelRadiusById[wheelKey]);
+    if (!Number.isFinite(wheelRadius) || wheelRadius <= 0) {
+        return;
+    }
+
+    const linearSpeedMps = angularSpeedRadPerSec * wheelRadius;
+    const linearSpeedTopic = `wheel/${wheelKey}/linear/speed`;
+    const $linearSpeedElement = $(`[id="${linearSpeedTopic}"]`);
+    if ($linearSpeedElement.length === 0) {
+        return;
+    }
+
+    const formattedLinearSpeed = getFormattedTopicValue(linearSpeedTopic, linearSpeedMps);
+    $linearSpeedElement.text(formattedLinearSpeed);
+    updateTargetElementCss($linearSpeedElement);
+}
 
 function applyWheelAngularVelocityToViewer(topic, value) {
     if (typeof setWheelAnimationByKey !== 'function') {

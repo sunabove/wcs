@@ -312,36 +312,31 @@ class MqttSimulator:
             elif topic == "client/connect":
                 print("[CONNECT] Client connection detected - Publishing settings...")
                 self._publish_settings_on_client_connect()
-            elif topic == "vehicle/linear/speed" or topic == "vehicle/max_speed" or topic == "vehicle/linear/max_speed":
+            elif topic == "vehicle/linear/speed":
                 try:
-                    # vehicle/linear/speed는 시뮬레이터가 상태 토픽으로도 발행하므로,
-                    # 직전에 스스로 발행한 값의 self-echo는 속도 설정 명령으로 처리하지 않는다.
-                    if topic == "vehicle/linear/speed":
-                        if (
-                            self.last_published_vehicle_linear_speed is not None
-                            and (time.time() - self.last_published_vehicle_linear_speed_at) < 2.0
-                        ):
-                            try:
-                                incoming_speed = float(payload)
-                                if abs(incoming_speed - self.last_published_vehicle_linear_speed) < 0.001:
-                                    return
-                            except ValueError:
-                                if str(payload) == str(self.last_published_vehicle_linear_speed):
-                                    return
+                    # vehicle/linear/speed는 상태 토픽으로도 발행되므로,
+                    # 직전에 스스로 발행한 self-echo는 명령으로 처리하지 않는다.
+                    if (
+                        self.last_published_vehicle_linear_speed is not None
+                        and (time.time() - self.last_published_vehicle_linear_speed_at) < 2.0
+                    ):
+                        try:
+                            incoming_speed = float(payload)
+                            if abs(incoming_speed - self.last_published_vehicle_linear_speed) < 0.001:
+                                return
+                        except ValueError:
+                            if str(payload) == str(self.last_published_vehicle_linear_speed):
+                                return
 
-                    new_max_speed = float(payload)
-                    if 0.0 <= new_max_speed <= 27.8:  # 0~100 km/h 범위 제한
-                        old_speed = self.max_speed
-                        self.max_speed = new_max_speed
-                        print(f"[SPEED] 최고 속도 변경({topic}): {old_speed:.1f} -> {new_max_speed:.1f} m/s ({new_max_speed*3.6:.0f} km/h)")
-                        
-                        # 현재 목표 속도가 새 최고 속도를 초과하면 조정
-                        if self.target_speed > self.max_speed:
-                            self.target_speed = self.max_speed * 0.9  # 최고 속도의 90%로 조정
-                            print(f"[SPEED] 목표 속도 조정: {self.target_speed:.1f} m/s")
+                    new_current_speed = float(payload)
+                    if 0.0 <= new_current_speed <= 27.8:  # 0~100 km/h 범위 제한
+                        old_target = self.target_speed
+                        clamped_speed = min(new_current_speed, self.max_speed)
+                        self.target_speed = clamped_speed
+                        print(f"[SPEED] 현재 속도 명령 반영({topic}): {old_target:.1f} -> {self.target_speed:.1f} m/s ({self.target_speed*3.6:.0f} km/h)")
 
                         # 차량 방향 명령이 활성화되어 있으면,
-                        # 최고 속도 변경을 즉시 바퀴 속도에 반영한다.
+                        # 현재 속도 변경을 즉시 바퀴 속도에 반영한다.
                         if (
                             not self.manual_wheel_test_active
                             and self.command in [
@@ -351,7 +346,37 @@ class MqttSimulator:
                                 OperationCommand.TURN_RIGHT,
                             ]
                         ):
-                            # 속도 설정은 차량 주행 컨텍스트를 우선한다.
+                            self.manual_wheel_test_active = False
+                            self.manual_wheel_test_wheel = None
+                            self.manual_wheel_test_command = OperationCommand.STOP
+                            self.direction_control_speed_only_mode = True
+                            self._publish_vehicle_command_wheels_immediately()
+                    else:
+                        print(f"[SPEED] 잘못된 현재 속도 범위: {new_current_speed:.1f} m/s (허용: 0.0-27.8 m/s, 0-100 km/h)")
+                except ValueError:
+                    print(f"[SPEED] 잘못된 현재 속도 형식: {payload}")
+            elif topic == "vehicle/max_speed" or topic == "vehicle/linear/max_speed":
+                try:
+                    new_max_speed = float(payload)
+                    if 0.0 <= new_max_speed <= 27.8:  # 0~100 km/h 범위 제한
+                        old_speed = self.max_speed
+                        self.max_speed = new_max_speed
+                        print(f"[SPEED] 최고 속도 변경({topic}): {old_speed:.1f} -> {new_max_speed:.1f} m/s ({new_max_speed*3.6:.0f} km/h)")
+
+                        # 목표 속도가 새 최고 속도를 초과하면 조정
+                        if self.target_speed > self.max_speed:
+                            self.target_speed = self.max_speed * 0.9
+                            print(f"[SPEED] 목표 속도 조정: {self.target_speed:.1f} m/s")
+
+                        if (
+                            not self.manual_wheel_test_active
+                            and self.command in [
+                                OperationCommand.FORWARD,
+                                OperationCommand.REVERSE,
+                                OperationCommand.TURN_LEFT,
+                                OperationCommand.TURN_RIGHT,
+                            ]
+                        ):
                             self.manual_wheel_test_active = False
                             self.manual_wheel_test_wheel = None
                             self.manual_wheel_test_command = OperationCommand.STOP
@@ -926,7 +951,7 @@ class MqttSimulator:
     def _publish_vehicle_command_wheels_immediately(self):
         """차량 방향 명령에 맞춰 휠 회전 속도만 즉시 발행"""
         wheel_radius = WHEEL_RADIUS_M
-        base_speed = max(0.0, self.max_speed)
+        base_speed = max(0.0, min(self.target_speed, self.max_speed))
         command_speed_scale = {
             OperationCommand.STOP: 0.0,
             OperationCommand.FORWARD: 1.0,

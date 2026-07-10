@@ -327,7 +327,7 @@
     <script>
         $(document).ready(function() {
             const pendingPublishTimers = {};
-            let lastVehicleMaxSpeedMsSent = null;
+            let lastVehicleCurrSpeedMsSent = null;
             let lastVehicleDirectionCommandSent = null;
             window.vehicleSpeedUiManualUntil = 0;
             window.suppressAutoStopUntil = 0;
@@ -359,10 +359,10 @@
                     return;
                 }
 
-                if (topic === 'vehicle/linear/max_speed') {
+                if (topic === 'vehicle/linear/speed') {
                     const speedKmh = Math.max(0, numericMs * 3.6);
                     updateVehicleSpeedUi(speedKmh, false);
-                    lastVehicleMaxSpeedMsSent = Number(numericMs.toFixed(2));
+                    lastVehicleCurrSpeedMsSent = Number(numericMs.toFixed(2));
                     console.log(`[Vehicle Test] 📥 초기 UI 동기화(linear): ${speedKmh.toFixed(1)} Km/h`);
                 }
             }
@@ -373,7 +373,7 @@
                 window.prcessMqttMessage = function(topic, value) {
                     originalProcessMqtt(topic, value);
 
-                    if (topic === 'vehicle/linear/max_speed') {
+                    if (topic === 'vehicle/linear/speed') {
                         initializeVehicleSpeedUiFromMqtt(topic, value);
                     }
                 };
@@ -574,13 +574,13 @@
             // 차량 제어 명령 전송 함수
             function sendVehicleCommand(command, buttonElement, actionName, icon) {
                 const topic = 'vehicle/operation/command';
-                const speedTopic = 'vehicle/linear/max_speed';
+                const speedTopic = 'vehicle/linear/speed';
                 const sliderSpeedKmh = Number.parseFloat($('#vehicleCurrSpeedSlider').val()) || 0;
                 const sliderSpeedMs = sliderSpeedKmh / 3.6;
                 const speedMs = sliderSpeedMs;
                 const roundedSpeedMs = Number(speedMs.toFixed(2));
                 const sameCommand = Number(lastVehicleDirectionCommandSent) === Number(command);
-                const sameSpeed = lastVehicleMaxSpeedMsSent !== null && Math.abs(roundedSpeedMs - lastVehicleMaxSpeedMsSent) < 0.0001;
+                const sameSpeed = lastVehicleCurrSpeedMsSent !== null && Math.abs(roundedSpeedMs - lastVehicleCurrSpeedMsSent) < 0.0001;
                 window.suppressAutoStopUntil = Date.now() + 1500;
                 window.manualWheelTestActive = false;
                 window.manualWheelTestWheel = null;
@@ -605,7 +605,7 @@
 
                 // 방향 명령 변경 시 현재 속도를 함께 발행해 서버 측 반영 시점을 맞춘다.
                 publishWhenConnected(speedTopic, roundedSpeedMs);
-                lastVehicleMaxSpeedMsSent = roundedSpeedMs;
+                lastVehicleCurrSpeedMsSent = roundedSpeedMs;
                 
                 publishWhenConnected(topic, command);
                 lastVehicleDirectionCommandSent = Number(command);
@@ -683,16 +683,16 @@
                 // UI는 수동 조작 시 항상 즉시 반영
                 updateVehicleSpeedUi(speedKmh, true);
 
-                const isSameSpeed = lastVehicleMaxSpeedMsSent !== null && Math.abs(roundedSpeedMs - lastVehicleMaxSpeedMsSent) < 0.0001;
+                const isSameSpeed = lastVehicleCurrSpeedMsSent !== null && Math.abs(roundedSpeedMs - lastVehicleCurrSpeedMsSent) < 0.0001;
                 const isFinalChange = event.type === 'change';
                 if (isSameSpeed && !isFinalChange) {
                     return;
                 }
                 
                 // MQTT로 차량 속도 발행 (m/s 단위)
-                const topic = 'vehicle/linear/max_speed';
+                const topic = 'vehicle/linear/speed';
                 sendMQTTMessage(topic, roundedSpeedMs, 1);
-                lastVehicleMaxSpeedMsSent = roundedSpeedMs;
+                lastVehicleCurrSpeedMsSent = roundedSpeedMs;
 
                 // 속도 변경 시 현재 방향 명령을 재발행하여 휠 속도 갱신을 강제한다.
                 const vehicleButtonSelector = '#vehicle-forward, #vehicle-backward, #vehicle-turn-left, #vehicle-turn-right, #vehicle-stop';
@@ -701,7 +701,7 @@
                 const selectedCommand = getVehicleCommandByButtonId(selectedButtonId);
                 publishWhenConnected('vehicle/operation/command', selectedCommand);
                 
-                console.log(`[Vehicle Test] 🚀 최고 속도 설정 - ${speedKmh.toFixed(1)} Km/h (${roundedSpeedMs.toFixed(2)} m/s): ${topic} = ${roundedSpeedMs}`);
+                console.log(`[Vehicle Test] 🚀 현재 속도 설정 - ${speedKmh.toFixed(1)} Km/h (${roundedSpeedMs.toFixed(2)} m/s): ${topic} = ${roundedSpeedMs}`);
             });
         });
     </script>

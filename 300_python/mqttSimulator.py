@@ -35,8 +35,9 @@ class SurfaceState(IntEnum):
 
 class SurfaceObstacle(IntEnum):
     NONE = 0
-    ICE = 1
+    STEP = 1
     POT_HOLE = 2
+    ICE_ROAD = 3
 
 
 WHEEL_IDS = ["fl", "fr", "rr", "rl"]
@@ -286,13 +287,13 @@ class MqttSimulator:
             elif topic == "vehicle/surface/obstacle":
                 try:
                     new_surface_obstacle = int(payload)
-                    if 0 <= new_surface_obstacle <= 2:
+                    if 0 <= new_surface_obstacle <= 3:
                         self.surface_obstacle = SurfaceObstacle(new_surface_obstacle)
-                        obstacle_names = ['NONE', 'ICE', 'POT_HOLE']
+                        obstacle_names = ['NONE', 'STEP', 'POT_HOLE', 'ICE_ROAD']
                         obstacle_name = obstacle_names[new_surface_obstacle]
                         print(f"[OBSTACLE] 장애물 상태 설정: {obstacle_name} ({new_surface_obstacle})")
                     else:
-                        print(f"[OBSTACLE] 잘못된 장애물 상태 값: {new_surface_obstacle} (허용: 0-2)")
+                        print(f"[OBSTACLE] 잘못된 장애물 상태 값: {new_surface_obstacle} (허용: 0-3)")
                 except ValueError:
                     print(f"[OBSTACLE] 잘못된 장애물 상태 형식: {payload}")
             elif topic == "vehicle/road/roll_angle":

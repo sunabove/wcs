@@ -459,13 +459,64 @@
                 return '/fast/sample_browser/' + encodePathForRoute(folderName);
             }
 
+            function normalizeSampleFolderPath(folderPath, baseFolder) {
+                const fallback = normalizePath(baseFolder || 'video');
+                const normalized = normalizePath(folderPath || fallback);
+                if (!normalized) {
+                    return fallback;
+                }
+
+                const lowerBase = fallback.toLowerCase();
+                const lowerNormalized = normalized.toLowerCase();
+                if (lowerNormalized === lowerBase || lowerNormalized.startsWith(lowerBase + '/')) {
+                    return normalized;
+                }
+
+                return fallback;
+            }
+
+            function resolveBrowserFilePath(fileName, currentFolder) {
+                const normalizedFile = normalizePath(fileName);
+                const normalizedFolder = normalizeSampleFolderPath(currentFolder, 'video');
+                if (!normalizedFile) {
+                    return '';
+                }
+
+                if (normalizedFile.includes('/')) {
+                    return normalizedFile;
+                }
+
+                return normalizePath(`${normalizedFolder}/${normalizedFile}`);
+            }
+
+            function extractSampleVideoFiles(browserData) {
+                if (Array.isArray(browserData)) {
+                    return browserData;
+                }
+
+                if (browserData && Array.isArray(browserData.files)) {
+                    return browserData.files;
+                }
+
+                if (browserData && Array.isArray(browserData.video_files)) {
+                    return browserData.video_files;
+                }
+
+                if (browserData && Array.isArray(browserData.image_files)) {
+                    return browserData.image_files;
+                }
+
+                return [];
+            }
+
             function renderSampleVideoThumbnails(browserData) {
                 if ($wcsSampleVideoPane.length === 0) {
                     return;
                 }
 
-                const fileNames = browserData && Array.isArray(browserData.files) ? browserData.files : [];
-                $wcsSampleVideoPane.empty();
+                const currentFolder = normalizeSampleFolderPath(browserData && browserData.current_folder, 'video');
+                const fileNames = extractSampleVideoFiles(browserData);
+                $wcsSampleVideoPane.children(':not(template)').remove();
 
                 if (!Array.isArray(fileNames) || fileNames.length === 0) {
                     $wcsSampleVideoPane.append('<div class="text-muted text-center py-3">현재 폴더에 샘플 동영상이 없습니다.</div>');
@@ -476,7 +527,10 @@
                 const $track = $('<div class="sample-thumbnail-track"></div>');
 
                 fileNames.forEach(function (fileName) {
-                    const safeFileName = normalizePath(fileName);
+                    const safeFileName = resolveBrowserFilePath(fileName, currentFolder);
+                    if (!safeFileName) {
+                        return;
+                    }
                     const thumbnailUrl = buildVideoThumbnailUrl(safeFileName);
                     const label = safeFileName.split('/').pop() || safeFileName;
 
@@ -513,7 +567,8 @@
                     return;
                 }
 
-                $wcsSampleVideoPane.html('<div class="text-muted text-center py-3">샘플 동영상을 불러오는 중...</div>');
+                $wcsSampleVideoPane.children(':not(template)').remove();
+                $wcsSampleVideoPane.append('<div class="text-muted text-center py-3">샘플 동영상을 불러오는 중...</div>');
 
                 $.ajax({
                     url: buildSampleBrowserUrl('video'),
@@ -522,7 +577,8 @@
                     renderSampleVideoThumbnails(result || {});
                 }).fail(function (jqXHR) {
                     console.error('WCS sample video browser error:', jqXHR.status, jqXHR.responseText);
-                    $wcsSampleVideoPane.html('<div class="text-danger text-center py-3">샘플 동영상 목록을 불러오지 못했습니다.</div>');
+                    $wcsSampleVideoPane.children(':not(template)').remove();
+                    $wcsSampleVideoPane.append('<div class="text-danger text-center py-3">샘플 동영상 목록을 불러오지 못했습니다.</div>');
                 });
             }
 

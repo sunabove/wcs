@@ -177,7 +177,7 @@
 
         applyCompactOverlayLayout();
         showOverlay();
-        setOverlayStatus("검출 영상을 불러오는 중입니다...", true);
+        setOverlayStatus("검출 동영상을 로딩중입니다.", true);
         showVideoSource(streamUrl);
     }
 
@@ -241,7 +241,7 @@
         }
         const normalizedSrc = String(src);
         hideAllMedia();
-        setOverlayStatus("검출 프레임을 불러오는 중입니다...", true);
+        setOverlayStatus("검출 동영상을 로딩중입니다.", true);
         $image.attr("src", normalizedSrc).removeClass("d-none");
         lastMediaType = "image";
         lastMediaSource = normalizedSrc;
@@ -269,7 +269,7 @@
         }
 
         hideAllMedia();
-        setOverlayStatus("검출 영상을 불러오는 중입니다...", true);
+        setOverlayStatus("검출 동영상을 로딩중입니다.", true);
         $video.attr("src", normalizedSrc).removeClass("d-none");
         lastMediaType = "video";
         lastMediaSource = normalizedSrc;

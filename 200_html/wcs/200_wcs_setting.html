@@ -186,75 +186,50 @@
                 <h4 class="mb-0"> WCS Setting </h4>
             </div>
 
-            <div class="card-body p-2"> 
+            <div class="card-body p-2">
+                <div class="table-responsive">
+                    <table class="table table-bordered align-middle mb-0">
+                        <colgroup>
+                            <col style="width: 320px;">
+                            <col>
+                        </colgroup>
+                        <tbody>
+                            <tr>
+                                <th scope="row">
+                                    <h5 class="mb-1"><i class="bi bi-water me-2"></i>노면 종류 설정</h5>
+                                    <small class="text-muted">현재 주행 환경의 노면 종류를 선택합니다.</small>
+                                </th>
+                                <td>
+                                    <select class="form-select" id="surface-state">
+                                        <option value="0" selected>아스팔트</option>
+                                        <option value="1">보도블록</option>
+                                        <option value="2">흙길</option>
+                                        <option value="3">자갈길</option>
+                                    </select>
+                                </td>
+                            </tr>
 
-                <div class="row g-3 mt-1">
-                    <div class="col">
-                        
-                        <!-- 노면 종류 설정 -->
-                        <div class="border rounded p-3 bg-light d-flex flex-column flex-md-row align-items-md-center gap-3">
-                            <div class="setting-section-item setting-section-title">
-                                <h5 class="mb-1">
-                                    <i class="bi bi-water me-2"></i>노면 종류 설정
-                                </h5>
-                                <small class="text-muted">현재 주행 환경의 노면 종류를 선택합니다.</small>
-                            </div>
+                            <tr>
+                                <th scope="row">
+                                    <h5 class="mb-1"><i class="bi bi-cone-striped me-2"></i>장애물 설정</h5>
+                                    <small class="text-muted">현재 주행 환경의 장애물 상태를 선택합니다.</small>
+                                </th>
+                                <td>
+                                    <select class="form-select" id="surface-obstacle">
+                                        <option value="0" selected>없음</option>
+                                        <option value="1">단차</option>
+                                        <option value="2">포트홀</option>
+                                        <option value="3">빙판길</option>
+                                    </select>
+                                </td>
+                            </tr>
 
-                            <div class="setting-section-item setting-section-control">
-                                <select class="form-select" id="surface-state">
-                                    <option value="0" selected>아스팔트</option>
-                                    <option value="1">보도블록</option>
-                                    <option value="2">흙길</option>
-                                    <option value="3">자갈길</option>
-                                </select>
-                            </div>
-                        </div>
-                        <!-- // 노면 종류 설정 -->
-
-                    </div>
-                </div>
-                
-
-                <div class="row g-3 mt-1">
-                    <div class="col">
-
-                        <!-- 장애물 설정 -->
-                        <div class="border rounded p-3 bg-light d-flex flex-column flex-md-row align-items-md-center gap-3">
-                            <div class="setting-section-item setting-section-title">
-                                <h5 class="mb-1">
-                                    <i class="bi bi-cone-striped me-2"></i>장애물 설정
-                                </h5>
-                                <small class="text-muted">현재 주행 환경의 장애물 상태를 선택합니다.</small>
-                            </div>
-
-                            <div class="setting-section-item setting-section-control">
-                                <select class="form-select" id="surface-obstacle">
-                                    <option value="0" selected>없음</option>
-                                    <option value="1">단차</option>
-                                    <option value="2">포트홀</option>
-                                    <option value="3">빙판길</option>
-                                </select>
-                            </div>
-                        </div>
-                        <!-- // 장애물 설정 -->
-
-                    </div>
-                </div>
-
-                <div class="row g-3 mt-1">
-                    <div class="col">
-
-                        <!-- 현재 동영상 선택 -->
-                        <div class="border rounded p-3 bg-light d-flex flex-column flex-md-row align-items-md-center gap-3">
-                            <div class="setting-section-item setting-section-title">
-                                <h5 class="mb-1">
-                                    <i class="bi bi-camera-reels me-2"></i>동영상 선택
-                                </h5>
-                                <small class="text-muted">장애물 검출 동영상을 선택합니다.</small>
-                            </div>
-
-                            <div class="setting-section-item setting-section-control setting-section-control-fill">
-                                <div class="border-0 rounded p-2">
+                            <tr>
+                                <th scope="row">
+                                    <h5 class="mb-1"><i class="bi bi-camera-reels me-2"></i>동영상 선택</h5>
+                                    <small class="text-muted">장애물 검출 동영상을 선택합니다.</small>
+                                </th>
+                                <td>
                                     <div class="tab-content">
                                         <div class="tab-pane fade show active" id="wcs-input-sample-video-pane" role="tabpanel" tabindex="0">
                                             <div class="text-muted text-center py-3">샘플 동영상 목록</div>
@@ -282,128 +257,79 @@
                                             </template>
                                         </div>
                                     </div>
-                                </div>
-                            </div>
-                        </div>
-                        <!-- // 현재 동영상 선택 -->
+                                </td>
+                            </tr>
 
-                    </div>
-                </div>
-
-                <div class="row g-3 mt-1">
-                    <div class="col">
-
-                        <!-- 차량 최고 속도 설정 -->
-                        <div class="border rounded p-3 bg-light d-flex flex-column flex-md-row align-items-md-center gap-3">
-                            <div class="setting-section-item setting-section-title">
-                                <div class="d-flex align-items-start justify-content-between gap-2">
-                                    <div>
-                                        <h5 class="mb-1">
-                                            <i class="bi bi-speedometer2 me-2"></i>차량 최고 속도 설정
-                                        </h5>
-                                        <small class="text-muted">차량의 최고 속도 제한값을 조절합니다.</small>
+                            <tr>
+                                <th scope="row">
+                                    <h5 class="mb-1"><i class="bi bi-speedometer2 me-2"></i>차량 최고 속도 설정</h5>
+                                    <small class="text-muted">차량의 최고 속도 제한값을 조절합니다.</small>
+                                </th>
+                                <td>
+                                    <div class="d-flex align-items-center gap-2">
+                                        <input
+                                            type="range"
+                                            class="form-range mb-0"
+                                            id="vehicle-max-speed"
+                                            min="0"
+                                            max="100"
+                                            step="1"
+                                            value="50"
+                                        >
+                                        <button type="button" class="btn btn-outline-secondary btn-sm setting-reset-btn" id="reset-vehicle-max-speed">Reset</button>
+                                        <span id="vehicle-max-speed-value" class="badge text-bg-secondary setting-value-badge">50 Km/h</span>
                                     </div>
-                                </div>
-                            </div>
+                                </td>
+                            </tr>
 
-                            <div class="setting-section-item setting-section-control">
-                                <div class="d-flex align-items-center gap-2">
-                                    <input
-                                        type="range"
-                                        class="form-range mb-0"
-                                        id="vehicle-max-speed"
-                                        min="0"
-                                        max="100"
-                                        step="1"
-                                        value="50"
-                                    >
-                                    <button type="button" class="btn btn-outline-secondary btn-sm setting-reset-btn" id="reset-vehicle-max-speed">Reset</button>
-                                    <span id="vehicle-max-speed-value" class="badge text-bg-secondary setting-value-badge">50 Km/h</span>
-                                </div>
-                            </div>
-                        </div>
-                        <!-- // 차량 최고 속도 설정 -->
-
-                    </div>
-                </div>
-
-                <div class="row g-3 mt-1">
-                    <div class="col">
-
-                        <!-- 차량 Roll 각도 설정 -->
-                        <div class="border rounded p-3 bg-light d-flex flex-column flex-md-row align-items-md-center gap-3">
-                            <div class="setting-section-item setting-section-title">
-                                <div class="d-flex align-items-start justify-content-between gap-2">
-                                    <div>
-                                        <h5 class="mb-1">
-                                            <i class="bi bi-arrow-repeat me-2"></i>차량 Roll 각도 설정
-                                        </h5>
-                                        <small class="text-muted">차량의 좌우 기울기(Roll) 각도를 조절합니다.</small>
+                            <tr>
+                                <th scope="row">
+                                    <h5 class="mb-1"><i class="bi bi-arrow-repeat me-2"></i>차량 Roll 각도 설정</h5>
+                                    <small class="text-muted">차량의 좌우 기울기(Roll) 각도를 조절합니다.</small>
+                                </th>
+                                <td>
+                                    <div class="d-flex align-items-center gap-2">
+                                        <input
+                                            type="range"
+                                            class="form-range mb-0"
+                                            id="vehicle-roll-angle"
+                                            min="-30"
+                                            max="30"
+                                            step="1"
+                                            value="0"
+                                        >
+                                        <button type="button" class="btn btn-outline-secondary btn-sm setting-reset-btn" id="reset-vehicle-roll-angle">Reset</button>
+                                        <span id="vehicle-roll-angle-value" class="badge text-bg-secondary setting-value-badge">0°</span>
                                     </div>
-                                </div>
-                            </div>
+                                </td>
+                            </tr>
 
-                            <div class="setting-section-item setting-section-control">
-                                <div class="d-flex align-items-center gap-2">
-                                    <input
-                                        type="range"
-                                        class="form-range mb-0"
-                                        id="vehicle-roll-angle"
-                                        min="-30"
-                                        max="30"
-                                        step="1"
-                                        value="0"
-                                    >
-                                    <button type="button" class="btn btn-outline-secondary btn-sm setting-reset-btn" id="reset-vehicle-roll-angle">Reset</button>
-                                    <span id="vehicle-roll-angle-value" class="badge text-bg-secondary setting-value-badge">0°</span>
-                                </div>
-                            </div>
-                        </div>
-                        <!-- // 차량 Roll 각도 설정 -->
-
-                    </div>
-                </div>
-
-                <div class="row g-3 mt-1">
-                    <div class="col">
-
-                        <!-- 차량 Pitch 각도 설정 -->
-                        <div class="border rounded p-3 bg-light d-flex flex-column flex-md-row align-items-md-center gap-3">
-                            <div class="setting-section-item setting-section-title">
-                                <div class="d-flex align-items-start justify-content-between gap-2">
-                                    <div>
-                                        <h5 class="mb-1">
-                                            <i class="bi bi-compass me-2"></i>차량 Pitch 각도 설정
-                                        </h5>
-                                        <small class="text-muted">차량의 앞뒤 기울기(Pitch) 각도를 조절합니다.</small>
+                            <tr>
+                                <th scope="row">
+                                    <h5 class="mb-1"><i class="bi bi-compass me-2"></i>차량 Pitch 각도 설정</h5>
+                                    <small class="text-muted">차량의 앞뒤 기울기(Pitch) 각도를 조절합니다.</small>
+                                </th>
+                                <td>
+                                    <div class="d-flex align-items-center gap-2">
+                                        <input
+                                            type="range"
+                                            class="form-range mb-0"
+                                            id="vehicle-pitch-angle"
+                                            min="-30"
+                                            max="30"
+                                            step="1"
+                                            value="0"
+                                        >
+                                        <button type="button" class="btn btn-outline-secondary btn-sm setting-reset-btn" id="reset-vehicle-pitch-angle">Reset</button>
+                                        <span id="vehicle-pitch-angle-value" class="badge text-bg-secondary setting-value-badge">0°</span>
                                     </div>
-                                </div>
-                            </div>
-
-                            <div class="setting-section-item setting-section-control">
-                                <div class="d-flex align-items-center gap-2">
-                                    <input
-                                        type="range"
-                                        class="form-range mb-0"
-                                        id="vehicle-pitch-angle"
-                                        min="-30"
-                                        max="30"
-                                        step="1"
-                                        value="0"
-                                    >
-                                    <button type="button" class="btn btn-outline-secondary btn-sm setting-reset-btn" id="reset-vehicle-pitch-angle">Reset</button>
-                                    <span id="vehicle-pitch-angle-value" class="badge text-bg-secondary setting-value-badge">0°</span>
-                                </div>
-                            </div>
-                        </div>
-                        <!-- // 차량 Pitch 각도 설정 -->
-
-                    </div>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
                 </div>
-
-                
-                
             </div>
+            
         </div>
 
     </main>
@@ -571,7 +497,8 @@
                 }
 
                 sampleVideoBrowserPath = normalizeSampleFolderPath(parsed.folder, 'video');
-                sampleVideoShowAllFiles = Boolean(parsed.showAll);
+                // 초기 진입 지연을 줄이기 위해 저장된 전체파일 모드는 복원하지 않는다.
+                sampleVideoShowAllFiles = false;
             }
 
             function extractSampleVideoFiles(result) {

@@ -395,6 +395,7 @@
             let isSampleVideosLoading = false;
             let sampleVideoBrowserPath = 'video';
             let sampleVideoShowAllFiles = false;
+            let currentVideoFileName = '';
 
             function updateVehicleMaxSpeedUi(speedKmh, shouldPublish = true) {
                 const numericKmh = Number.parseFloat(speedKmh);
@@ -440,6 +441,27 @@
                     return baseFolder;
                 }
                 return normalized;
+            }
+
+            function applyCurrentVideoHighlight() {
+                if ($wcsSampleVideoPane.length === 0) {
+                    return;
+                }
+
+                const normalizedCurrent = normalizePath(currentVideoFileName);
+                const $items = $wcsSampleVideoPane.find('.sample-video-item');
+                $items.removeClass('selected-sample');
+
+                if (!normalizedCurrent) {
+                    return;
+                }
+
+                $items.each(function () {
+                    const itemFileName = normalizePath($(this).attr('data-file-name'));
+                    if (itemFileName === normalizedCurrent) {
+                        $(this).addClass('selected-sample');
+                    }
+                });
             }
 
             function buildFolderLabel(baseFolder, folderPath) {
@@ -619,6 +641,7 @@
 
                 $scrollContainer.append($track);
                 $wcsSampleVideoPane.append($scrollContainer);
+                applyCurrentVideoHighlight();
             }
 
             function loadSampleVideos(folderPath, showAllFiles) {
@@ -687,6 +710,7 @@
 
                 const selectedVideoFileName = String($(this).attr('data-file-name') || '').trim();
                 if (selectedVideoFileName) {
+                    currentVideoFileName = normalizePath(selectedVideoFileName);
                     sendMQTTMessage('vehicle/current_video/file_name', selectedVideoFileName);
                 }
             });
@@ -740,6 +764,11 @@
                         if ($(`#surface-obstacle option[value="${normalized}"]`).length > 0) {
                             $('#surface-obstacle').val(normalized);
                         }
+                    }
+
+                    if (topic === 'vehicle/current_video/file_name') {
+                        currentVideoFileName = normalizePath(value);
+                        applyCurrentVideoHighlight();
                     }
                 };
                 window.wcsSettingMaxSpeedHooked = true;

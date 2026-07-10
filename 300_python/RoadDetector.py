@@ -52,11 +52,15 @@ class RoadDetector:
     _detect_lock = threading.Lock()  # Lock for thread-safe access to _detect_progress
     _chart_renderer = ChartRenderer()
     _mqtt_last_surface_state_by_context = {}
+    _mqtt_last_surface_state_published_at_by_context = {}
     _surface_state_samples_by_context = {}
     _mqtt_last_obstacle_state_by_context = {}
     _obstacle_state_samples_by_context = {}
     _mqtt_state_lock = threading.Lock()
-    SURFACE_STATE_MAJORITY_WINDOW_SEC = 0.2
+    SURFACE_STATE_MAJORITY_WINDOW_SEC = 0.8
+    SURFACE_STATE_MIN_VOTES = 3
+    SURFACE_STATE_MIN_DOMINANCE_RATIO = 0.60
+    SURFACE_STATE_SWITCH_COOLDOWN_SEC = 2.0
     
     def __init__(self):
         self.image_ext = {".jpg", ".jpeg", ".png", ".bmp", ".webp"} 
@@ -220,7 +224,26 @@ class RoadDetector:
             else:
                 majority_state = max(majority_candidates, key=lambda state: last_seen_ts.get(state, 0.0))
 
+            total_votes = int(sum(counts.values()))
+            majority_votes = int(counts.get(majority_state, 0))
+            if total_votes < int(self.SURFACE_STATE_MIN_VOTES):
+                return
+
+            dominance_ratio = (majority_votes / float(total_votes)) if total_votes > 0 else 0.0
+            if dominance_ratio < float(self.SURFACE_STATE_MIN_DOMINANCE_RATIO):
+                return
+
             last_state = RoadDetector._mqtt_last_surface_state_by_context.get(context)
+            last_published_at = float(RoadDetector._mqtt_last_surface_state_published_at_by_context.get(context, 0.0))
+
+            # Avoid rapid state flapping caused by short-lived detection noise.
+            if (
+                last_state is not None
+                and last_state != majority_state
+                and (now_ts - last_published_at) < float(self.SURFACE_STATE_SWITCH_COOLDOWN_SEC)
+            ):
+                return
+
             if last_state == majority_state:
                 return
 
@@ -228,6 +251,7 @@ class RoadDetector:
         if published:
             with RoadDetector._mqtt_state_lock:
                 RoadDetector._mqtt_last_surface_state_by_context[context] = majority_state
+                RoadDetector._mqtt_last_surface_state_published_at_by_context[context] = now_ts
 
     def _publish_obstacle_state_if_needed(self, detect_key, stats, mqtt_publish, context_key, include_pothole=False):
         if not mqtt_publish:

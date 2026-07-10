@@ -22,7 +22,23 @@
     <!-- WCS Common CSS -->
     <link href="./css/002_wcs_common.css" rel="stylesheet">
     <style>
-         
+        .angle-input-group {
+            display: flex;
+            flex-wrap: nowrap;
+            align-items: center;
+        }
+
+        .angle-input-group .form-range {
+            flex: 1 1 auto;
+            min-width: 0;
+            margin-right: 0.5rem;
+        }
+
+        .angle-input-group .input-group-text,
+        .angle-input-group .btn {
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
     </style>
 
     <!-- jQuery CDN -->
@@ -54,7 +70,7 @@
     <header class="p-1 text-bg-dark fs-5">
 
         <div class="container">
-            <div class="d-flex flex-wrap align-items-center justify-content-between">
+            <div class="top-header-row d-flex flex-wrap align-items-center justify-content-between">
 
                 <ul class="nav flex-grow-1 mb-2 justify-content-center mb-md-0">
                     <li>
@@ -182,7 +198,7 @@
                             </div>
 
                             <div class="setting-section-item setting-section-control">
-                                <div class="input-group">
+                                <div class="input-group angle-input-group">
                                     <input
                                         type="range"
                                         class="form-range mb-0"
@@ -215,7 +231,7 @@
                             </div>
 
                             <div class="setting-section-item setting-section-control">
-                                <div class="input-group">
+                                <div class="input-group angle-input-group">
                                     <input
                                         type="range"
                                         class="form-range mb-0"

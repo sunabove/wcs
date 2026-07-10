@@ -95,6 +95,7 @@ class MqttSimulator:
         self.surface_state_lock_duration = 0  # 노면 상태 락 지속 시간
         self.road_roll_angle = 0.0  # rad
         self.road_pitch_angle = 0.0  # rad
+        self.current_video_file_name = ""
         
         # 시뮬레이션 제어 변수
         self.route_center_x = 0.0
@@ -181,6 +182,7 @@ class MqttSimulator:
         client.subscribe("vehicle/surface/obstacle")
         client.subscribe("vehicle/road/roll_angle")
         client.subscribe("vehicle/road/pitch_angle")
+        client.subscribe("vehicle/current_video/file_name")
         
         # wheel ID 요청 및 설정 구독 (fl, fr, rr, rl 각각)
         for wheel_id in WHEEL_IDS:
@@ -188,7 +190,7 @@ class MqttSimulator:
             client.subscribe(f"wheel/{wheel_id}/id")          # ID 설정
             client.subscribe(f"wheel/{wheel_id}/operation/command")
             
-        print("[MQTT] Subscribed to client/connect, vehicle/linear/speed, vehicle/linear/max_speed, vehicle/operation/command, vehicle/surface/state, vehicle/surface/obstacle, vehicle/road/roll_angle, vehicle/road/pitch_angle, wheel/*/id_request, wheel/*/id, wheel/*/operation/command topics")
+        print("[MQTT] Subscribed to client/connect, vehicle/linear/speed, vehicle/linear/max_speed, vehicle/operation/command, vehicle/surface/state, vehicle/surface/obstacle, vehicle/road/roll_angle, vehicle/road/pitch_angle, vehicle/current_video/file_name, wheel/*/id_request, wheel/*/id, wheel/*/operation/command topics")
     
     def _on_message(self, client, userdata, msg):
         """MQTT 메시지 수신 처리"""
@@ -308,6 +310,9 @@ class MqttSimulator:
                     print(f"[ROAD] Pitch 각도 설정: {self.road_pitch_angle:.4f} rad")
                 except ValueError:
                     print(f"[ROAD] 잘못된 Pitch 각도 형식: {payload}")
+            elif topic == "vehicle/current_video/file_name":
+                self.current_video_file_name = str(payload).strip()
+                print(f"[VIDEO] 현재 동영상 파일명 설정: {self.current_video_file_name}")
             elif topic == "client/connect":
                 print("[CONNECT] Client connection detected - Publishing settings...")
                 self._publish_settings_on_client_connect()
@@ -499,6 +504,10 @@ class MqttSimulator:
             print(f"[ROAD] Published vehicle/road/roll_angle -> {self.road_roll_angle}")
             self._publish("vehicle/road/pitch_angle", self.road_pitch_angle)
             print(f"[ROAD] Published vehicle/road/pitch_angle -> {self.road_pitch_angle}")
+
+            # 현재 선택 동영상 파일명 발행
+            self._publish("vehicle/current_video/file_name", self.current_video_file_name)
+            print(f"[VIDEO] Published vehicle/current_video/file_name -> {self.current_video_file_name}")
             
             print("[SETTINGS] All settings published successfully")
             

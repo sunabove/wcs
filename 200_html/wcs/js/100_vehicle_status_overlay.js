@@ -20,6 +20,8 @@
     const showVideoOverlayEnabled = $viewer.length > 0 && toBoolean($viewer.attr("showVideo"));
     let $currentVideoOverlay = $();
     let $currentVideoText = $();
+    const overlayInlineStyle = "position:absolute;top:8px;left:8px;right:8px;z-index:15;pointer-events:none;";
+    const textInlineStyle = "display:inline-block;max-width:100%;padding:0.3rem 0.55rem;border-radius:0.4rem;color:#f8f9fa;background:rgba(11, 18, 32, 0.78);font-size:0.84rem;line-height:1.15;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;";
 
     function ensureCurrentVideoOverlay() {
         if (!showVideoOverlayEnabled || $viewer.length === 0) {
@@ -36,13 +38,18 @@
 
         let $existing = $host.find("#urdf-current-video-overlay").first();
         if ($existing.length === 0) {
-            $existing = $('<div id="urdf-current-video-overlay" class="urdf-video-file-overlay"></div>');
-            $existing.append('<span id="urdf-current-video-file-name" class="urdf-video-file-text">현재 동영상: -</span>');
+            $existing = $('<div id="urdf-current-video-overlay" style="' + overlayInlineStyle + '"></div>');
+            $existing.append('<span id="urdf-current-video-file-name" style="' + textInlineStyle + '">현재 동영상: -</span>');
             $host.append($existing);
+        } else {
+            $existing.attr("style", overlayInlineStyle);
         }
 
         $currentVideoOverlay = $existing;
         $currentVideoText = $existing.find("#urdf-current-video-file-name").first();
+        if ($currentVideoText.length > 0) {
+            $currentVideoText.attr("style", textInlineStyle);
+        }
     }
 
     function updateCurrentVideoOverlay(fileName) {

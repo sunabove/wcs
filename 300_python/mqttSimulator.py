@@ -42,7 +42,7 @@ class SurfaceObstacle(IntEnum):
 WHEEL_IDS = ["fl", "fr", "rr", "rl"]
 
 # 일반 승용차(16~18인치급) 외경 기준 반지름: 약 0.31~0.33m
-PASSENGER_CAR_WHEEL_RADIUS_M = 0.32
+WHEEL_RADIUS_M = 0.32
 
 # 바퀴 ID 매핑 (문자열 -> 숫자)
 WHEEL_ID_MAPPING = {
@@ -442,6 +442,14 @@ class MqttSimulator:
                 self._publish(topic, payload)
                 print(f"[WHEEL_ID] Published {topic} -> {payload}")
 
+            # Wheel 반지름 초기 정보 발행
+            print("[SETTINGS] Publishing wheel radius values...")
+            for wheel_str_id in WHEEL_IDS:
+                topic = f"wheel/{wheel_str_id}/radius"
+                payload = str(WHEEL_RADIUS_M)
+                self._publish(topic, payload)
+                print(f"[WHEEL] Published {topic} -> {payload}")
+
             # 도로 자세(Roll/Pitch) 설정 발행
             self._publish("vehicle/road/roll_angle", self.road_roll_angle)
             print(f"[ROAD] Published vehicle/road/roll_angle -> {self.road_roll_angle}")
@@ -584,7 +592,7 @@ class MqttSimulator:
 
     def _update_wheels(self):
         """시내 주행과 연동된 현실적인 바퀴 데이터 생성"""
-        wheel_radius = PASSENGER_CAR_WHEEL_RADIUS_M
+        wheel_radius = WHEEL_RADIUS_M
 
         # 노면 상태에 따른 바퀴별 영향 (시내 도로 특성)
         surface_effects = {
@@ -894,7 +902,7 @@ class MqttSimulator:
 
     def _publish_vehicle_command_wheels_immediately(self):
         """차량 방향 명령에 맞춰 휠 회전 속도만 즉시 발행"""
-        wheel_radius = PASSENGER_CAR_WHEEL_RADIUS_M
+        wheel_radius = WHEEL_RADIUS_M
         base_speed = max(0.0, self.max_speed)
         command_speed_scale = {
             OperationCommand.STOP: 0.0,

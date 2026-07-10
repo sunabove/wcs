@@ -23,6 +23,7 @@
     let mediaHiddenByUser = false;
     let lastMediaType = "";
     let lastMediaSource = "";
+    let lastMediaAspectRatio = 16 / 9;
 
     function setCloseButtonToShowMode(isShowMode) {
         $closeButton.text(isShowMode ? "보이기" : "닫기");
@@ -85,6 +86,40 @@
             "inset:auto;top:10px;left:50%;transform:translateX(-50%);width:min(50%, 760px);height:min(46%, 420px);z-index:20;display:flex;flex-direction:column;background:rgba(0,0,0,0.82);border-radius:1rem;overflow:hidden;"
         );
         overlayLayoutMode = "compact";
+        applyCompactOverlayWidthByAspect(lastMediaAspectRatio);
+    }
+
+    function getCompactOverlayMaxWidth() {
+        const viewerWidth = Number($viewer.outerWidth() || 0);
+        if (!Number.isFinite(viewerWidth) || viewerWidth <= 0) {
+            return 760;
+        }
+        return Math.max(240, Math.min(760, Math.round(viewerWidth * 0.5)));
+    }
+
+    function applyCompactOverlayWidthByAspect(aspectRatio) {
+        const ratio = Number(aspectRatio);
+        if (!Number.isFinite(ratio) || ratio <= 0 || overlayLayoutMode !== "compact") {
+            return;
+        }
+
+        const overlayElement = $overlay[0];
+        if (!overlayElement) {
+            return;
+        }
+
+        const overlayHeight = Number(overlayElement.clientHeight || 0);
+        if (!Number.isFinite(overlayHeight) || overlayHeight <= 0) {
+            return;
+        }
+
+        // Body padding is 8px * 2 in CSS.
+        const mediaHeight = Math.max(0, overlayHeight - 16);
+        const mediaWidth = mediaHeight * ratio;
+        const targetWidth = Math.round(mediaWidth + 16);
+        const clampedWidth = Math.min(getCompactOverlayMaxWidth(), Math.max(240, targetWidth));
+
+        $overlay.css("width", clampedWidth + "px");
     }
 
     function applyCollapsedOverlayLayout() {
@@ -92,10 +127,15 @@
             return;
         }
 
+        const currentWidth = Number($overlay.outerWidth() || 0);
+        const collapsedWidth = Number.isFinite(currentWidth) && currentWidth > 0
+            ? Math.round(currentWidth) + "px"
+            : "min(50%, 760px)";
+
         // Media hidden mode: keep only a small top-center area for the toggle button.
         $overlay.attr(
             "style",
-            "inset:auto;top:10px;left:50%;transform:translateX(-50%);width:min(50%, 760px);height:52px;z-index:20;display:block;background:transparent;border-radius:0;overflow:visible;"
+            "inset:auto;top:10px;left:50%;transform:translateX(-50%);width:" + collapsedWidth + ";height:52px;z-index:20;display:block;background:transparent;border-radius:0;overflow:visible;"
         );
         overlayLayoutMode = "collapsed";
     }
@@ -188,6 +228,12 @@
         mediaHiddenByUser = false;
         setCloseButtonToShowMode(false);
         showOverlay();
+
+        const imageElement = $image[0];
+        if (imageElement && imageElement.naturalWidth > 0 && imageElement.naturalHeight > 0) {
+            lastMediaAspectRatio = imageElement.naturalWidth / imageElement.naturalHeight;
+            applyCompactOverlayWidthByAspect(lastMediaAspectRatio);
+        }
     }
 
     function showVideoSource(src) {
@@ -222,6 +268,12 @@
         }
 
         showOverlay();
+
+        const videoElement = $video[0];
+        if (videoElement && videoElement.videoWidth > 0 && videoElement.videoHeight > 0) {
+            lastMediaAspectRatio = videoElement.videoWidth / videoElement.videoHeight;
+            applyCompactOverlayWidthByAspect(lastMediaAspectRatio);
+        }
     }
 
     function handleOverlayMqttTopic(topic, value) {
@@ -294,6 +346,28 @@
             restoreMediaAreaOnly();
         } else {
             hideMediaAreaOnly();
+        }
+    });
+
+    $image.on("load", function () {
+        if (!this.naturalWidth || !this.naturalHeight) {
+            return;
+        }
+        lastMediaAspectRatio = this.naturalWidth / this.naturalHeight;
+        applyCompactOverlayWidthByAspect(lastMediaAspectRatio);
+    });
+
+    $video.on("loadedmetadata", function () {
+        if (!this.videoWidth || !this.videoHeight) {
+            return;
+        }
+        lastMediaAspectRatio = this.videoWidth / this.videoHeight;
+        applyCompactOverlayWidthByAspect(lastMediaAspectRatio);
+    });
+
+    $(window).on("resize", function () {
+        if (overlayLayoutMode === "compact") {
+            applyCompactOverlayWidthByAspect(lastMediaAspectRatio);
         }
     });
 

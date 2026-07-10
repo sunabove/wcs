@@ -177,7 +177,16 @@ $(function () {
 
     function toAbsoluteUrl(url) {
         try {
-            return new URL(String(url || ""), window.location.origin).toString();
+            const parsed = new URL(String(url || ""), window.location.origin);
+
+            // Backend may return internal alias host like http://ai/...; rewrite it to current host for browser access.
+            if (parsed.hostname.toLowerCase() === "ai") {
+                parsed.protocol = window.location.protocol;
+                parsed.hostname = window.location.hostname;
+                parsed.port = window.location.port || "";
+            }
+
+            return parsed.toString();
         } catch (error) {
             return "";
         }

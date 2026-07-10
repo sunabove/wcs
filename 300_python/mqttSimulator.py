@@ -499,6 +499,12 @@ class MqttSimulator:
             self._publish("vehicle/linear/max_speed", round(self.max_speed, 2))
             print(f"[VEHICLE] Published vehicle/linear/max_speed -> {round(self.max_speed, 2)}")
 
+            # 노면/장애물 상태 초기 정보 발행 (새로고침 시 retain된 과거 상태 덮어쓰기)
+            self._publish("vehicle/surface/state", self.surface_state.value)
+            print(f"[SURFACE] Published vehicle/surface/state -> {self.surface_state.value}")
+            self._publish("vehicle/surface/obstacle", self.surface_obstacle.value)
+            print(f"[OBSTACLE] Published vehicle/surface/obstacle -> {self.surface_obstacle.value}")
+
             # 도로 자세(Roll/Pitch) 설정 발행
             self._publish("vehicle/road/roll_angle", self.road_roll_angle)
             print(f"[ROAD] Published vehicle/road/roll_angle -> {self.road_roll_angle}")

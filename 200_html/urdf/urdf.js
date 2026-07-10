@@ -105,6 +105,11 @@ class URDFViewer {
             containerElement.getAttribute('showAttitude'),
             false
         );
+        this.showWheelInfo = this.parseBooleanAttribute(
+            containerElement.getAttribute('showWheelInfo'),
+            false
+        );
+        this.wheelInfoOverlayElement = null;
         this.urdfPath = containerElement.getAttribute('urdf') || '/urdf/vehicle/vehicle.urdf';
         const rawCameraPosition = containerElement.getAttribute('cameraPosition');
         this.hasCustomCameraPosition = rawCameraPosition != null && String(rawCameraPosition).trim().length > 0;
@@ -280,6 +285,9 @@ class URDFViewer {
         if (this.showAttitude) {
             this.setupAttitudeOverlay();
         }
+        if (this.showWheelInfo) {
+            this.setupWheelInfoOverlay();
+        }
 
         // 조명 설정
         this.directionalLight = new THREE.DirectionalLight(0xffffff, 1.5);
@@ -322,6 +330,73 @@ class URDFViewer {
 
         // 리사이즈 이벤트 설정
         this.setupResizeHandler();
+    }
+
+    setupWheelInfoOverlay() {
+        if (!this.container || this.wheelInfoOverlayElement) {
+            return;
+        }
+
+        const templateElement = document.getElementById('wheel-info-table-template');
+        if (!templateElement) {
+            console.warn('[URDF] wheel-info-table-template not found. Wheel info overlay skipped.');
+            return;
+        }
+
+        const computedStyle = window.getComputedStyle(this.container);
+        if (computedStyle.position === 'static') {
+            this.container.style.position = 'relative';
+        }
+
+        const overlayElement = document.createElement('div');
+        overlayElement.style.position = 'absolute';
+        overlayElement.style.inset = '0';
+        overlayElement.style.zIndex = '14';
+        overlayElement.style.pointerEvents = 'none';
+
+        const wheelLayout = [
+            { key: 'fl', label: 'FL', top: '10px', left: '10px' },
+            { key: 'fr', label: 'FR', top: '10px', right: '10px' },
+            { key: 'rl', label: 'RL', bottom: '10px', left: '10px' },
+            { key: 'rr', label: 'RR', bottom: '10px', right: '10px' }
+        ];
+
+        const templateHtml = templateElement.innerHTML;
+        wheelLayout.forEach(wheel => {
+            const panelElement = document.createElement('div');
+            panelElement.style.position = 'absolute';
+            panelElement.style.width = '230px';
+            panelElement.style.maxWidth = '34%';
+            panelElement.style.pointerEvents = 'none';
+            panelElement.style.background = 'rgba(255, 255, 255, 0.92)';
+            panelElement.style.border = '1px solid rgba(0, 0, 0, 0.08)';
+            panelElement.style.borderRadius = '8px';
+            panelElement.style.boxShadow = '0 2px 6px rgba(0, 0, 0, 0.16)';
+            panelElement.style.overflow = 'hidden';
+            panelElement.style.backdropFilter = 'blur(1px)';
+
+            if (wheel.top) {
+                panelElement.style.top = wheel.top;
+            }
+            if (wheel.bottom) {
+                panelElement.style.bottom = wheel.bottom;
+            }
+            if (wheel.left) {
+                panelElement.style.left = wheel.left;
+            }
+            if (wheel.right) {
+                panelElement.style.right = wheel.right;
+            }
+
+            panelElement.innerHTML = templateHtml
+                .replaceAll('__WHEEL_KEY__', wheel.key)
+                .replaceAll('__WHEEL_LABEL__', wheel.label);
+
+            overlayElement.appendChild(panelElement);
+        });
+
+        this.container.appendChild(overlayElement);
+        this.wheelInfoOverlayElement = overlayElement;
     }
 
     setupAttitudeOverlay() {

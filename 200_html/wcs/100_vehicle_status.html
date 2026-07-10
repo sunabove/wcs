@@ -228,88 +228,88 @@
 
                                 <div class="d-flex h-100 w-100">
 
-                                <div class="card text-center h-100 w-100">
-                                    <div class="card-body d-flex flex-column">
-                                        
-                                        <div class="flex-grow-1 d-flex align-items-center justify-content-center">
+                                    <div class="card text-center h-100 w-100">
+                                        <div class="card-body d-flex flex-column">
                                             
-                                            <!-- 차량 이미지 -->
-                                            <div class="row w-100 m-0"> 
-                                                <div class="col-12 p-0 position-relative">
-                                                    <div class="urdf-container w-100 h-100 overflow-hidden border border-secondary border-1" 
-                                                        id="vehicle-urdf-viewer" 
-                                                        urdf="/urdf/vehicle/vehicle.urdf"
-                                                        cameraPosition="-0.043, -0.752, 1.611"
-                                                        showAttitude="true"
-                                                        style="min-height: 70vh;"> 
-                                                    </div>
-
-                                                    <div id="road-detect-overlay" class="road-detect-overlay d-none" aria-label="검출 출력 오버레이">
-                                                        <div class="road-detect-overlay-header">
-                                                            <span class="road-detect-overlay-title">Road Detection Output</span>
-                                                            <button id="road-detect-overlay-close" type="button" class="btn btn-sm btn-outline-light">닫기</button>
+                                            <div class="flex-grow-1 d-flex align-items-center justify-content-center">
+                                                
+                                                <!-- 차량 이미지 -->
+                                                <div class="row w-100 m-0"> 
+                                                    <div class="col-12 p-0 position-relative">
+                                                        <div class="urdf-container w-100 h-100 overflow-hidden border border-secondary border-1" 
+                                                            id="vehicle-urdf-viewer" 
+                                                            urdf="/urdf/vehicle/vehicle.urdf"
+                                                            cameraPosition="-0.043, -0.752, 1.611"
+                                                            showAttitude="true"
+                                                            style="min-height: 70vh;"> 
                                                         </div>
-                                                        <div class="road-detect-overlay-body">
-                                                            <img id="road-detect-overlay-image" class="road-detect-overlay-media d-none" alt="검출 결과 이미지">
-                                                            <video id="road-detect-overlay-video" class="road-detect-overlay-media d-none" muted playsinline autoplay controls></video>
+
+                                                        <div id="road-detect-overlay" class="road-detect-overlay d-none" aria-label="검출 출력 오버레이">
+                                                            <div class="road-detect-overlay-header">
+                                                                <span class="road-detect-overlay-title">Road Detection Output</span>
+                                                                <button id="road-detect-overlay-close" type="button" class="btn btn-sm btn-outline-light">닫기</button>
+                                                            </div>
+                                                            <div class="road-detect-overlay-body">
+                                                                <img id="road-detect-overlay-image" class="road-detect-overlay-media d-none" alt="검출 결과 이미지">
+                                                                <video id="road-detect-overlay-video" class="road-detect-overlay-media d-none" muted playsinline autoplay controls></video>
+                                                            </div>
                                                         </div>
-                                                    </div>
-                                                </div> 
-                                            </div>
-                                            <!-- // 차량 이미지 -->
-
-                                        </div>
-
-                                        <!-- 차량 속도 정보 -->
-                                        <div class="mt-3 p-2 bg-white rounded">
-                                            <div class="row text-center">
-                                                <div class="col-12"> 
-                                                    <!-- 동작 상태 -->
-                                                    <div class="d-flex align-items-center justify-content-center">
-                                                        <i class="bi bi-arrow-up-circle me-2 text-info fs-4"></i>
-                                                        <small class="text-muted me-2">동작 상태:</small>
-                                                        <span id="vehicle/operation/command" class="fs-6 fw-bold text-info">정지</span>
-                                                    </div>
-                                                    
-                                                    <!-- 최고 속도 -->
-                                                    <div class="d-flex align-items-center justify-content-center">
-                                                        <small class="text-muted me-2">최고 속도:</small>
-                                                        <span id="vehicle/max_speed" class="fs-5 fw-bold text-secondary">50 Km/h</span>
-                                                    </div>
-                                                    
-                                                    <!-- 현재 속도 -->
-                                                    <div class="d-flex align-items-center justify-content-center mb-2">
-                                                        <i class="bi bi-speedometer2 me-2 text-primary fs-1"></i>
-                                                        &nbsp;
-                                                        <span id="vehicle/linear/speed" class="fs-2 fw-bold text-primary">0 Km/h</span>
                                                     </div> 
-                                                    
+                                                </div>
+                                                <!-- // 차량 이미지 -->
+
+                                            </div>
+
+                                            <!-- 차량 속도 정보 -->
+                                            <div class="mt-3 p-2 bg-white rounded">
+                                                <div class="row text-center">
+                                                    <div class="col-12"> 
+                                                        <!-- 동작 상태 -->
+                                                        <div class="d-flex align-items-center justify-content-center">
+                                                            <i class="bi bi-arrow-up-circle me-2 text-info fs-4"></i>
+                                                            <small class="text-muted me-2">동작 상태:</small>
+                                                            <span id="vehicle/operation/command" class="fs-6 fw-bold text-info">정지</span>
+                                                        </div>
+                                                        
+                                                        <!-- 최고 속도 -->
+                                                        <div class="d-flex align-items-center justify-content-center">
+                                                            <small class="text-muted me-2">최고 속도:</small>
+                                                            <span id="vehicle/max_speed" class="fs-5 fw-bold text-secondary">50 Km/h</span>
+                                                        </div>
+                                                        
+                                                        <!-- 현재 속도 -->
+                                                        <div class="d-flex align-items-center justify-content-center mb-2">
+                                                            <i class="bi bi-speedometer2 me-2 text-primary fs-1"></i>
+                                                            &nbsp;
+                                                            <span id="vehicle/linear/speed" class="fs-2 fw-bold text-primary">0 Km/h</span>
+                                                        </div> 
+                                                        
+                                                    </div>
                                                 </div>
                                             </div>
-                                        </div>
-                                        <!-- // 차량 속도 정보 --> 
-                                        
-                                        <!-- 차량 컨트롤 버튼 -->
-                                        <div class="d-flex gap-4 mt-2 justify-content-center" id="runState">
+                                            <!-- // 차량 속도 정보 --> 
                                             
-                                            <div class="text-center">
-                                                <button id="vehicle/run/state/1" type="button" class="btn btn-success btn-lg rounded-circle d-flex align-items-center justify-content-center" style="width: 70px; height: 70px;">
-                                                    <i class="bi bi-play-fill" style="font-size: 3rem;"></i>
-                                                </button>
-                                                <h5 class="card-title mt-2">RUN</h5> 
-                                            </div>
+                                            <!-- 차량 컨트롤 버튼 -->
+                                            <div class="d-flex gap-4 mt-2 justify-content-center" id="runState">
+                                                
+                                                <div class="text-center">
+                                                    <button id="vehicle/run/state/1" type="button" class="btn btn-success btn-lg rounded-circle d-flex align-items-center justify-content-center" style="width: 70px; height: 70px;">
+                                                        <i class="bi bi-play-fill" style="font-size: 3rem;"></i>
+                                                    </button>
+                                                    <h5 class="card-title mt-2">RUN</h5> 
+                                                </div>
 
-                                            <div class="text-center">
-                                                <button id="vehicle/run/state/0" type="button" class="btn btn-success btn-lg rounded-circle d-flex align-items-center justify-content-center" style="width: 70px; height: 70px;">
-                                                    <i class="bi bi-stop-fill" style="font-size: 3rem;"></i>
-                                                </button>
-                                                <h5 class="card-title mt-2">STOP</h5> 
+                                                <div class="text-center">
+                                                    <button id="vehicle/run/state/0" type="button" class="btn btn-success btn-lg rounded-circle d-flex align-items-center justify-content-center" style="width: 70px; height: 70px;">
+                                                        <i class="bi bi-stop-fill" style="font-size: 3rem;"></i>
+                                                    </button>
+                                                    <h5 class="card-title mt-2">STOP</h5> 
+                                                </div>
+                                                
                                             </div>
-                                            
+                                            <!-- // 차량 컨트롤 버튼 -->
                                         </div>
-                                        <!-- // 차량 컨트롤 버튼 -->
                                     </div>
-                                </div>
 
                                 </div>
 
@@ -318,52 +318,52 @@
 
                             <!-- 우측 운행 정보 -->
                             <td id="runInfo" class="align-top p-0">
-                                <div class="d-flex h-100 w-100">
-                                <div class="card h-100 w-100">
-                                    <div class="card-header text-center">
-                                        <h4 class="mb-0">운행 정보</h4>
-                                    </div>
-                                    <div class="card-body p-1">
-                                        <div class="row h-100 g-1">
-                                            <div class="col-md-6 d-flex">
-                                                <div class="card text-center h-100 w-100">
-                                                    <div class="card-body p-2 d-flex flex-column justify-content-center">
-                                                        <h5 class="card-title mt-0 mb-1 text-nowrap">배터리 잔량</h5>
-                                                        <i class="bi bi-battery-charging fs-1 text-success"></i>
-                                                        <p id="vehicle/battery/remain_amount" class="card-text fs-5 text-nowrap mb-0">85%</p>
+                                <div class="d-flex h-100 w-100 ms-1">
+                                    <div class="card h-100 w-100">
+                                        <div class="card-header text-center">
+                                            <h4 class="mb-0">운행 정보</h4>
+                                        </div>
+                                        <div class="card-body p-1">
+                                            <div class="row h-100 g-1">
+                                                <div class="col-md-6 d-flex">
+                                                    <div class="card text-center h-100 w-100">
+                                                        <div class="card-body p-2 d-flex flex-column justify-content-center">
+                                                            <h5 class="card-title mt-0 mb-1 text-nowrap">배터리 잔량</h5>
+                                                            <i class="bi bi-battery-charging fs-1 text-success"></i>
+                                                            <p id="vehicle/battery/remain_amount" class="card-text fs-5 text-nowrap mb-0">85%</p>
+                                                        </div>
                                                     </div>
                                                 </div>
-                                            </div>
-                                            <div class="col-md-6 d-flex">
-                                                <div class="card text-center h-100 w-100">
-                                                    <div class="card-body p-2 d-flex flex-column justify-content-center">
-                                                        <h5 class="card-title mt-0 mb-1 text-nowrap">주행 가능 시간</h5>
-                                                        <i class="bi bi-clock fs-1 text-info"></i>
-                                                        <p id="vehicle/drive/available_time" class="card-text fs-5 text-nowrap mb-0">2시간 30분</p>
+                                                <div class="col-md-6 d-flex">
+                                                    <div class="card text-center h-100 w-100">
+                                                        <div class="card-body p-2 d-flex flex-column justify-content-center">
+                                                            <h5 class="card-title mt-0 mb-1 text-nowrap">주행 가능 시간</h5>
+                                                            <i class="bi bi-clock fs-1 text-info"></i>
+                                                            <p id="vehicle/drive/available_time" class="card-text fs-5 text-nowrap mb-0">2시간 30분</p>
+                                                        </div>
                                                     </div>
                                                 </div>
-                                            </div>
-                                            <div class="col-md-6 d-flex">
-                                                <div class="card text-center h-100 w-100">
-                                                    <div class="card-body p-2 d-flex flex-column justify-content-center">
-                                                        <h5 class="card-title mt-0 mb-1 text-nowrap">총 주행 시간</h5>
-                                                        <i class="bi bi-stopwatch fs-1 text-warning"></i>
-                                                        <p id="vehicle/drive/elapsed_time" class="card-text fs-5 text-nowrap mb-0">127시간</p>
+                                                <div class="col-md-6 d-flex">
+                                                    <div class="card text-center h-100 w-100">
+                                                        <div class="card-body p-2 d-flex flex-column justify-content-center">
+                                                            <h5 class="card-title mt-0 mb-1 text-nowrap">총 주행 시간</h5>
+                                                            <i class="bi bi-stopwatch fs-1 text-warning"></i>
+                                                            <p id="vehicle/drive/elapsed_time" class="card-text fs-5 text-nowrap mb-0">127시간</p>
+                                                        </div>
                                                     </div>
                                                 </div>
-                                            </div>
-                                            <div class="col-md-6 d-flex">
-                                                <div class="card text-center h-100 w-100">
-                                                    <div class="card-body p-2 d-flex flex-column justify-content-center">
-                                                        <h5 class="card-title mt-0 mb-1 text-nowrap">총 주행 거리</h5>
-                                                        <i class="bi bi-speedometer fs-1 text-primary"></i>
-                                                        <p id="vehicle/drive/total_distance" class="card-text fs-5 text-nowrap mb-0">1,247 km</p>
+                                                <div class="col-md-6 d-flex">
+                                                    <div class="card text-center h-100 w-100">
+                                                        <div class="card-body p-2 d-flex flex-column justify-content-center">
+                                                            <h5 class="card-title mt-0 mb-1 text-nowrap">총 주행 거리</h5>
+                                                            <i class="bi bi-speedometer fs-1 text-primary"></i>
+                                                            <p id="vehicle/drive/total_distance" class="card-text fs-5 text-nowrap mb-0">1,247 km</p>
+                                                        </div>
                                                     </div>
                                                 </div>
                                             </div>
                                         </div>
                                     </div>
-                                </div>
                                 </div>
                             </td>
                             <!-- // 우측 운행 정보 -->

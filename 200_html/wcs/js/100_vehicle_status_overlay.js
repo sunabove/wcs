@@ -119,9 +119,61 @@
         });
     }
 
+    function buildRoadDetectStreamCleanupUrlByPath(filePath) {
+        const normalizedPath = normalizePath(filePath);
+        if (!normalizedPath) {
+            return "";
+        }
+
+        return "http://ai/fast/road_detect_stream_cleanup/" + normalizedPath.split("/").map(function (segment) {
+            return encodeURIComponent(segment);
+        }).join("/") + "?" + $.param({
+            t: Date.now(),
+        });
+    }
+
+    function extractRoadDetectStreamFilePathFromUrl(url) {
+        const text = String(url || "").trim();
+        if (!text) {
+            return "";
+        }
+
+        const marker = "/fast/road_detect_stream/";
+        const markerIndex = text.indexOf(marker);
+        if (markerIndex < 0) {
+            return "";
+        }
+
+        const startIndex = markerIndex + marker.length;
+        const queryIndex = text.indexOf("?", startIndex);
+        const rawPath = queryIndex >= 0 ? text.slice(startIndex, queryIndex) : text.slice(startIndex);
+        if (!rawPath) {
+            return "";
+        }
+
+        try {
+            return normalizePath(decodeURIComponent(rawPath));
+        } catch (error) {
+            return normalizePath(rawPath);
+        }
+    }
+
     function requestRoadDetectSessionCleanup(fileName) {
-        const cleanupUrl = buildRoadDetectStreamCleanupUrl(fileName || latestCurrentVideoFileName);
-        if (!cleanupUrl) {
+        const cleanupUrlCandidates = [];
+
+        const byFileNameUrl = buildRoadDetectStreamCleanupUrl(fileName || latestCurrentVideoFileName);
+        if (byFileNameUrl) {
+            cleanupUrlCandidates.push(byFileNameUrl);
+        }
+
+        const streamedFilePath = extractRoadDetectStreamFilePathFromUrl(lastMediaSource);
+        const byStreamPathUrl = buildRoadDetectStreamCleanupUrlByPath(streamedFilePath);
+        if (byStreamPathUrl) {
+            cleanupUrlCandidates.push(byStreamPathUrl);
+        }
+
+        const uniqueCleanupUrls = Array.from(new Set(cleanupUrlCandidates));
+        if (uniqueCleanupUrls.length === 0) {
             return;
         }
 
@@ -129,11 +181,16 @@
             cleanupRequest.abort();
         }
 
-        cleanupRequest = $.ajax({
-            url: cleanupUrl,
-            method: "POST",
-            timeout: 3000,
-        }).always(function () {
+        const cleanupRequests = uniqueCleanupUrls.map(function (cleanupUrl) {
+            return $.ajax({
+                url: cleanupUrl,
+                method: "POST",
+                timeout: 3000,
+            });
+        });
+
+        cleanupRequest = cleanupRequests[cleanupRequests.length - 1] || null;
+        $.when.apply($, cleanupRequests).always(function () {
             cleanupRequest = null;
         });
     }

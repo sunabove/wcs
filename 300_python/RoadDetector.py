@@ -166,6 +166,27 @@ class RoadDetector:
             return "orangepi6plus"
         return "localhost"
 
+    def _normalize_stream_key(self, key):
+        text = str(key or "").strip().replace("\\", "/")
+        text = text.lstrip("/")
+        while "//" in text:
+            text = text.replace("//", "/")
+        return text
+
+    def _legacy_stream_stop_key_candidates(self, key):
+        normalized = self._normalize_stream_key(key)
+        candidates = set()
+
+        if normalized:
+            candidates.add(normalized)
+
+            name_only = normalized.split("/")[-1]
+            if name_only:
+                candidates.add(name_only)
+                candidates.add(f"samples/video/cobot/{name_only}")
+
+        return candidates
+
     def _publish_mqtt_topic(self, topic, payload):
         if mqtt is None:
             logger.warning("MQTT publish skipped: paho-mqtt is not available")
@@ -1077,14 +1098,16 @@ class RoadDetector:
 
     def road_detect_stream_cleanup(self, file_name: str) -> dict:
         """스트리밍 세션 정리"""
-        session_id = file_name
+        session_id = self._normalize_stream_key(file_name)
 
         # 닫기 버튼 cleanup 요청 시 검출 토픽 발행 대기열을 비운다.
         self._clear_detection_mqtt_queue()
 
         # 레거시 /road_detect_stream 루프 종료 신호를 먼저 기록한다.
+        stop_key_candidates = self._legacy_stream_stop_key_candidates(file_name)
         with RoadDetector._legacy_stream_stop_lock:
-            RoadDetector._legacy_stream_stop_requested_by_key[session_id] = True
+            for stop_key in stop_key_candidates:
+                RoadDetector._legacy_stream_stop_requested_by_key[stop_key] = True
         
         # 세션이 없으면 이미 정리된 것
         if session_id not in RoadDetector._stream_sessions:
@@ -1527,9 +1550,11 @@ class RoadDetector:
         if fps <= 0:
             fps = 20.0
 
-        stream_key = str(file_name)
+        stream_key = self._normalize_stream_key(file_name)
+        stop_key_candidates = self._legacy_stream_stop_key_candidates(stream_key)
         with RoadDetector._legacy_stream_stop_lock:
-            RoadDetector._legacy_stream_stop_requested_by_key[stream_key] = False
+            for stop_key in stop_key_candidates:
+                RoadDetector._legacy_stream_stop_requested_by_key[stop_key] = False
 
         def generate():
             roi = None
@@ -1539,7 +1564,10 @@ class RoadDetector:
             try:
                 while True:
                     with RoadDetector._legacy_stream_stop_lock:
-                        stop_requested = bool(RoadDetector._legacy_stream_stop_requested_by_key.get(stream_key, False))
+                        stop_requested = any(
+                            bool(RoadDetector._legacy_stream_stop_requested_by_key.get(stop_key, False))
+                            for stop_key in stop_key_candidates
+                        )
                     if stop_requested:
                         break
 
@@ -1595,7 +1623,8 @@ class RoadDetector:
             finally:
                 capture.release()
                 with RoadDetector._legacy_stream_stop_lock:
-                    RoadDetector._legacy_stream_stop_requested_by_key.pop(stream_key, None)
+                    for stop_key in stop_key_candidates:
+                        RoadDetector._legacy_stream_stop_requested_by_key.pop(stop_key, None)
 
         return StreamingResponse(generate(), media_type="multipart/x-mixed-replace; boundary=frame")
     pass # road_detect_stream

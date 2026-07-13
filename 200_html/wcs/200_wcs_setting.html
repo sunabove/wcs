@@ -514,6 +514,7 @@
                     .attr('for', toggleId)
                     .text('모든 파일');
                 $allFilesToggleWrap.append($allFilesToggle).append($allFilesToggleLabel);
+                const $clearSelectionButton = $('<button type="button" class="btn btn-sm btn-outline-danger sample-video-clear-selection"><i class="bi bi-x-circle me-1"></i>동영상 미선택</button>');
 
                 const parentPath = normalizedCurrent.indexOf(baseFolder + '/') === 0
                     ? normalizedCurrent.split('/').slice(0, -1).join('/')
@@ -524,7 +525,7 @@
                     .attr('data-parent-folder', hasParent ? parentPath : baseFolder)
                     .prop('disabled', !hasParent);
 
-                $header.append($homeButton).append($upButton).append($allFilesToggleWrap);
+                $header.append($homeButton).append($upButton).append($allFilesToggleWrap).append($clearSelectionButton);
                 return $header;
             }
 
@@ -765,6 +766,12 @@
             $wcsSampleVideoPane.on('change', '.sample-folder-all-toggle', function () {
                 const shouldShowAll = $(this).is(':checked');
                 loadSampleVideos(sampleVideoBrowserPath, shouldShowAll);
+            });
+
+            $wcsSampleVideoPane.on('click', '.sample-video-clear-selection', function () {
+                currentVideoFileName = '';
+                applyCurrentVideoHighlight();
+                sendMQTTMessage('vehicle/current_video/file_name', '');
             });
 
             $('#reset-vehicle-max-speed').on('click', function () {

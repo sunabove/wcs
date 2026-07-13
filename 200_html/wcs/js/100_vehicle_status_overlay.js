@@ -112,10 +112,17 @@
         const rawText = String(window.__wcsLastSpeechText || "").trim();
         const speechText = rawText || "대기중";
         const titleText = audioEnabled ? "음성 ON" : "음성 OFF";
-        const isSpeakingNow = audioEnabled
-            && typeof window.speechSynthesis !== "undefined"
-            && !!window.speechSynthesis
-            && window.speechSynthesis.speaking === true;
+        const lastSpeechAt = Number(window.__wcsLastSpeechAt || 0);
+        const isRecentSpeech = Number.isFinite(lastSpeechAt) && (Date.now() - lastSpeechAt) < 900;
+        const isSpeakingNow = audioEnabled && (
+            window.__wcsAudioSpeaking === true
+            || (
+                typeof window.speechSynthesis !== "undefined"
+                && !!window.speechSynthesis
+                && window.speechSynthesis.speaking === true
+            )
+            || isRecentSpeech
+        );
 
         $audioHud.text(titleText + " | " + speechText);
         $audioHud.css("background", audioEnabled ? "rgba(25, 135, 84, 0.70)" : "rgba(108, 117, 125, 0.72)");

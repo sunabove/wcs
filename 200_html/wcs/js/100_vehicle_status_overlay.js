@@ -253,6 +253,16 @@
         });
     }
 
+    function requestRoadDetectSessionCleanupAllOnLoad() {
+        $.ajax({
+            url: "http://ai/fast/road_detect_stream_cleanup_all?" + $.param({ t: Date.now() }),
+            method: "POST",
+            timeout: 3000,
+        }).fail(function () {
+            // Ignore startup cleanup failures; overlay can still work without this.
+        });
+    }
+
     function shouldRenderAsImageStream(url) {
         const normalizedUrl = String(url || "").toLowerCase();
         return normalizedUrl.indexOf("/fast/road_detect_stream/") !== -1;
@@ -618,5 +628,6 @@
 
     setCloseButtonToShowMode(false);
     updateOverlayAudioHud();
+    requestRoadDetectSessionCleanupAllOnLoad();
     setInterval(updateOverlayAudioHud, 400);
 })();

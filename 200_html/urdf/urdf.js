@@ -1831,6 +1831,8 @@ const vehicleAudioState = {
     pendingMessage: null,
     pendingOptions: null,
     speakTimerId: null,
+    speechQueue: [],
+    isSpeaking: false,
     lastSpokenMessage: '',
     lastSpokenAt: 0,
     duplicateMessageBlockMs: 350
@@ -1908,6 +1910,9 @@ function setVehicleAudioEnabled(enabled) {
     if (canUseSpeechSynthesis()) {
         window.speechSynthesis.cancel();
     }
+
+    vehicleAudioState.speechQueue = [];
+    vehicleAudioState.isSpeaking = false;
 }
 
 function tryActivateVehicleAudio(trigger = 'system') {
@@ -1958,12 +1963,54 @@ function setupVehicleAudioActivationListener() {
     document.addEventListener('touchstart', onFirstUserGesture, true);
 }
 
+function processVehicleSpeechQueue() {
+    if (!isVehicleAudioEnabled() || !canUseSpeechSynthesis()) {
+        return;
+    }
+
+    if (!vehicleAudioState.isActivated || vehicleAudioState.isSpeaking) {
+        return;
+    }
+
+    if (!Array.isArray(vehicleAudioState.speechQueue) || vehicleAudioState.speechQueue.length === 0) {
+        return;
+    }
+
+    const nextMessage = String(vehicleAudioState.speechQueue.shift() || '').trim();
+    if (!nextMessage) {
+        processVehicleSpeechQueue();
+        return;
+    }
+
+    vehicleAudioState.isSpeaking = true;
+
+    try {
+        window.speechSynthesis.resume();
+    } catch (error) {
+        console.warn('[URDF][Audio] speechSynthesis resume before queue speak failed:', error);
+    }
+
+    const utterance = new window.SpeechSynthesisUtterance(nextMessage);
+    utterance.lang = 'ko-KR';
+    utterance.rate = 1.05;
+    utterance.pitch = 1;
+    utterance.volume = 1;
+    utterance.onend = () => {
+        vehicleAudioState.isSpeaking = false;
+        processVehicleSpeechQueue();
+    };
+    utterance.onerror = () => {
+        vehicleAudioState.isSpeaking = false;
+        processVehicleSpeechQueue();
+    };
+    window.speechSynthesis.speak(utterance);
+}
+
 function speakVehicleStatus(text, options = {}) {
     if (!isVehicleAudioEnabled() || !canUseSpeechSynthesis()) {
         return;
     }
 
-    const { interrupt = true } = options;
     const message = String(text || '').trim();
     if (!message) {
         return;
@@ -1993,32 +2040,8 @@ function speakVehicleStatus(text, options = {}) {
     }
     window.__wcsGlobalSpeechState = { message: message, at: now };
 
-    if (vehicleAudioState.speakTimerId) {
-        clearTimeout(vehicleAudioState.speakTimerId);
-        vehicleAudioState.speakTimerId = null;
-    }
-
-    // 최신 상태를 즉시 읽도록 이전 대기/재생 음성을 정리한다.
-    if (interrupt || window.speechSynthesis.speaking || window.speechSynthesis.pending) {
-        window.speechSynthesis.cancel();
-    }
-
-    // cancel 직후 즉시 speak 시 일부 브라우저에서 발화가 누락될 수 있어 한 틱 뒤에 재생한다.
-    vehicleAudioState.speakTimerId = window.setTimeout(() => {
-        vehicleAudioState.speakTimerId = null;
-        try {
-            window.speechSynthesis.resume();
-        } catch (error) {
-            console.warn('[URDF][Audio] speechSynthesis resume before speak failed:', error);
-        }
-
-        const utterance = new window.SpeechSynthesisUtterance(message);
-        utterance.lang = 'ko-KR';
-        utterance.rate = 1.05;
-        utterance.pitch = 1;
-        utterance.volume = 1;
-        window.speechSynthesis.speak(utterance);
-    }, 40);
+    vehicleAudioState.speechQueue.push(message);
+    processVehicleSpeechQueue();
 
     vehicleAudioState.lastSpokenMessage = message;
     vehicleAudioState.lastSpokenAt = now;

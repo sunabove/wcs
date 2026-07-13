@@ -10,6 +10,8 @@ const fallbackVehicleAudioState = {
     listenerAttached: false,
     pendingMessage: null,
     speakTimerId: null,
+    speechQueue: [],
+    isSpeaking: false,
     lastSurfaceState: null,
     lastRollAngleDeg: null,
     lastRollAnnouncedAt: 0,
@@ -91,12 +93,54 @@ function ensureFallbackAudioActivationListener() {
     document.addEventListener('touchstart', onFirstUserGesture, true);
 }
 
+function processFallbackSpeechQueue() {
+    if (!readVehicleAudioEnabledFallback() || !canUseSpeechSynthesisFallback()) {
+        return;
+    }
+
+    if (!fallbackVehicleAudioState.isActivated || fallbackVehicleAudioState.isSpeaking) {
+        return;
+    }
+
+    if (!Array.isArray(fallbackVehicleAudioState.speechQueue) || fallbackVehicleAudioState.speechQueue.length === 0) {
+        return;
+    }
+
+    const nextMessage = String(fallbackVehicleAudioState.speechQueue.shift() || '').trim();
+    if (!nextMessage) {
+        processFallbackSpeechQueue();
+        return;
+    }
+
+    fallbackVehicleAudioState.isSpeaking = true;
+
+    try {
+        window.speechSynthesis.resume();
+    } catch (error) {
+        console.warn('[MQTT][Audio] resume before queue speak failed:', error);
+    }
+
+    const utterance = new window.SpeechSynthesisUtterance(nextMessage);
+    utterance.lang = 'ko-KR';
+    utterance.rate = 1.05;
+    utterance.pitch = 1;
+    utterance.volume = 1;
+    utterance.onend = () => {
+        fallbackVehicleAudioState.isSpeaking = false;
+        processFallbackSpeechQueue();
+    };
+    utterance.onerror = () => {
+        fallbackVehicleAudioState.isSpeaking = false;
+        processFallbackSpeechQueue();
+    };
+    window.speechSynthesis.speak(utterance);
+}
+
 function speakVehicleStatusFallback(text, options = {}) {
     if (!readVehicleAudioEnabledFallback() || !canUseSpeechSynthesisFallback()) {
         return;
     }
 
-    const { interrupt = true } = options;
     const message = String(text || '').trim();
     if (!message) {
         return;
@@ -125,30 +169,8 @@ function speakVehicleStatusFallback(text, options = {}) {
     }
     window.__wcsGlobalSpeechState = { message: message, at: now };
 
-    if (fallbackVehicleAudioState.speakTimerId) {
-        clearTimeout(fallbackVehicleAudioState.speakTimerId);
-        fallbackVehicleAudioState.speakTimerId = null;
-    }
-
-    if (interrupt || window.speechSynthesis.speaking || window.speechSynthesis.pending) {
-        window.speechSynthesis.cancel();
-    }
-
-    fallbackVehicleAudioState.speakTimerId = window.setTimeout(() => {
-        fallbackVehicleAudioState.speakTimerId = null;
-        try {
-            window.speechSynthesis.resume();
-        } catch (error) {
-            console.warn('[MQTT][Audio] resume before speak failed:', error);
-        }
-
-        const utterance = new window.SpeechSynthesisUtterance(message);
-        utterance.lang = 'ko-KR';
-        utterance.rate = 1.05;
-        utterance.pitch = 1;
-        utterance.volume = 1;
-        window.speechSynthesis.speak(utterance);
-    }, 40);
+    fallbackVehicleAudioState.speechQueue.push(message);
+    processFallbackSpeechQueue();
 
     fallbackVehicleAudioState.lastSpokenMessage = message;
     fallbackVehicleAudioState.lastSpokenAt = now;

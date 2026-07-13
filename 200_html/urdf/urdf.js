@@ -25,6 +25,7 @@ class URDFViewer {
         this.directionalLightRadius = 1;
         this.goalTarget = new THREE.Vector3(0, 0, 0);
         this.goalTargetVerticalOffset = 0;
+        this.overlayDragPanPixels = 0;
         this.isDragging = false;
         this.lastAngleLogAt = 0;
         this.angleLogIntervalMs = 120;
@@ -1394,6 +1395,61 @@ class URDFViewer {
         this.resetDirectionalLight(this.controls.target, this.directionalLightRadius);
     }
 
+    setOverlayVerticalDragPixels(pixelHeight) {
+        if (!this.controls || !this.camera) {
+            return;
+        }
+
+        const containerHeight = Number(this.container?.clientHeight || this.container?.getBoundingClientRect?.().height || 0);
+        if (!Number.isFinite(containerHeight) || containerHeight <= 0) {
+            return;
+        }
+
+        const requestedPixels = Number(pixelHeight);
+        const nextPixels = Number.isFinite(requestedPixels)
+            ? THREE.MathUtils.clamp(requestedPixels, 0, containerHeight * 0.85)
+            : 0;
+        const deltaPixels = nextPixels - this.overlayDragPanPixels;
+
+        if (Math.abs(deltaPixels) < 0.5) {
+            return;
+        }
+
+        const target = this.controls.target.clone();
+        const viewDir = target.clone().sub(this.camera.position).normalize();
+        if (viewDir.lengthSq() === 0) {
+            return;
+        }
+
+        let worldPerPixel = 0;
+        if (this.camera.isPerspectiveCamera) {
+            const distance = Math.max(this.camera.position.distanceTo(target), 0.001);
+            const fovRad = THREE.MathUtils.degToRad(this.camera.fov || 50);
+            worldPerPixel = (2 * distance * Math.tan(fovRad / 2)) / containerHeight;
+        } else if (this.camera.isOrthographicCamera) {
+            const frustumHeight = (this.camera.top - this.camera.bottom) / Math.max(this.camera.zoom || 1, 0.001);
+            worldPerPixel = frustumHeight / containerHeight;
+        }
+
+        if (!Number.isFinite(worldPerPixel) || worldPerPixel <= 0) {
+            return;
+        }
+
+        const right = new THREE.Vector3().crossVectors(viewDir, this.camera.up).normalize();
+        if (right.lengthSq() === 0) {
+            return;
+        }
+
+        const screenUp = new THREE.Vector3().crossVectors(right, viewDir).normalize();
+        const panOffset = screenUp.multiplyScalar(deltaPixels * worldPerPixel);
+
+        this.camera.position.add(panOffset);
+        this.goalTarget.add(panOffset);
+        this.overlayDragPanPixels = nextPixels;
+        this.applyGoalTargetToControls();
+        this.resetDirectionalLight(this.controls.target, this.directionalLightRadius);
+    }
+
     loadURDF() {
         const loader = new URDFLoader();
 
@@ -2211,6 +2267,14 @@ globalThis.setVehicleViewerVerticalOffset = function(offsetValue) {
     }
 
     vehicleViewer.setGoalTargetVerticalOffset(offsetValue);
+};
+globalThis.setVehicleViewerOverlayDragPixels = function(pixelHeight) {
+    const vehicleViewer = window.urdfViewersById?.['vehicle-urdf-viewer'] || null;
+    if (!vehicleViewer || typeof vehicleViewer.setOverlayVerticalDragPixels !== 'function') {
+        return;
+    }
+
+    vehicleViewer.setOverlayVerticalDragPixels(pixelHeight);
 };
 globalThis.isVehicleAudioEnabled = isVehicleAudioEnabled;
 globalThis.setVehicleAudioEnabled = setVehicleAudioEnabled;

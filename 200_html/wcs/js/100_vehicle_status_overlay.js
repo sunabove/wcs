@@ -34,6 +34,7 @@
     const FIRST_FRAME_TIMEOUT_MS = 10000;
     const LOADING_MESSAGE = "로딩중입니다.";
     const FIRST_FRAME_TIMEOUT_MESSAGE = "동영상 로딩이 되지 않았습니다.";
+    const VIEWER_VERTICAL_OFFSET_FOR_OVERLAY = 0.18;
 
     let $audioHud = $("#vehicle-audio-hud");
     if ($audioHud.length === 0) {
@@ -294,6 +295,10 @@
 
         $overlay.attr("style", "");
         overlayLayoutMode = "default";
+
+        if (typeof window.setVehicleViewerVerticalOffset === "function") {
+            window.setVehicleViewerVerticalOffset(0);
+        }
     }
 
     function applyCompactOverlayLayout() {
@@ -309,6 +314,11 @@
             "inset:auto;top:10px;left:50%;transform:translateX(-50%);width:" + initialWidth + "px;height:min(46%, 420px);z-index:20;display:flex;flex-direction:column;background:rgba(0,0,0,0.82);border-radius:1rem;overflow:hidden;"
         );
         overlayLayoutMode = "compact";
+
+        if (typeof window.setVehicleViewerVerticalOffset === "function") {
+            window.setVehicleViewerVerticalOffset(VIEWER_VERTICAL_OFFSET_FOR_OVERLAY);
+        }
+
         applyCompactOverlayWidthByAspect(lastMediaAspectRatio);
     }
 
@@ -391,6 +401,10 @@
             "inset:auto;top:10px;left:50%;transform:translateX(-50%);width:" + collapsedWidth + ";height:52px;z-index:20;display:block;background:transparent;border-radius:0;overflow:visible;"
         );
         overlayLayoutMode = "collapsed";
+
+        if (typeof window.setVehicleViewerVerticalOffset === "function") {
+            window.setVehicleViewerVerticalOffset(0);
+        }
     }
 
     function resolveAndShowCurrentVideo(fileName) {

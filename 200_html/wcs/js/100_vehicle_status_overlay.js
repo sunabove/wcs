@@ -34,7 +34,6 @@
     const FIRST_FRAME_TIMEOUT_MS = 10000;
     const LOADING_MESSAGE = "로딩중입니다.";
     const FIRST_FRAME_TIMEOUT_MESSAGE = "동영상 로딩이 되지 않았습니다.";
-    const VIEWER_VERTICAL_OFFSET_FOR_OVERLAY = 0.18;
 
     let $audioHud = $("#vehicle-audio-hud");
     if ($audioHud.length === 0) {
@@ -296,7 +295,9 @@
         $overlay.attr("style", "");
         overlayLayoutMode = "default";
 
-        if (typeof window.setVehicleViewerVerticalOffset === "function") {
+        if (typeof window.setVehicleViewerOverlayDragPixels === "function") {
+            window.setVehicleViewerOverlayDragPixels(0);
+        } else if (typeof window.setVehicleViewerVerticalOffset === "function") {
             window.setVehicleViewerVerticalOffset(0);
         }
     }
@@ -315,11 +316,37 @@
         );
         overlayLayoutMode = "compact";
 
-        if (typeof window.setVehicleViewerVerticalOffset === "function") {
-            window.setVehicleViewerVerticalOffset(VIEWER_VERTICAL_OFFSET_FOR_OVERLAY);
+        applyCompactOverlayWidthByAspect(lastMediaAspectRatio);
+        applyVehicleViewerDragByOverlayHeight();
+    }
+
+    function getCompactOverlayTargetHeightPx() {
+        const overlayElement = $overlay[0];
+        const liveHeight = Number(overlayElement?.clientHeight || 0);
+        if (Number.isFinite(liveHeight) && liveHeight > 0) {
+            return liveHeight;
         }
 
-        applyCompactOverlayWidthByAspect(lastMediaAspectRatio);
+        const viewerHeight = Number($viewer.outerHeight() || 0);
+        if (!Number.isFinite(viewerHeight) || viewerHeight <= 0) {
+            return 220;
+        }
+
+        return Math.min(420, Math.max(180, viewerHeight * 0.46));
+    }
+
+    function applyVehicleViewerDragByOverlayHeight() {
+        if (typeof window.setVehicleViewerOverlayDragPixels !== "function") {
+            return;
+        }
+
+        if (overlayLayoutMode !== "compact") {
+            window.setVehicleViewerOverlayDragPixels(0);
+            return;
+        }
+
+        const overlayHeightPx = getCompactOverlayTargetHeightPx();
+        window.setVehicleViewerOverlayDragPixels(overlayHeightPx);
     }
 
     function getCompactOverlayMaxWidth() {
@@ -402,7 +429,9 @@
         );
         overlayLayoutMode = "collapsed";
 
-        if (typeof window.setVehicleViewerVerticalOffset === "function") {
+        if (typeof window.setVehicleViewerOverlayDragPixels === "function") {
+            window.setVehicleViewerOverlayDragPixels(0);
+        } else if (typeof window.setVehicleViewerVerticalOffset === "function") {
             window.setVehicleViewerVerticalOffset(0);
         }
     }
@@ -660,6 +689,7 @@
     $(window).on("resize", function () {
         if (overlayLayoutMode === "compact") {
             applyCompactOverlayWidthByAspect(lastMediaAspectRatio);
+            applyVehicleViewerDragByOverlayHeight();
         }
     });
 

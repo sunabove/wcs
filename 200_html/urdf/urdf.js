@@ -3,6 +3,7 @@ import URDFLoader from 'urdf-loader';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 
 const $ = window.jQuery;
+const VEHICLE_AUDIO_STORAGE_KEY = 'wcs.vehicle.showAudio';
 
 // 각 뷰어를 위한 클래스
 class URDFViewer {
@@ -1841,9 +1842,70 @@ function canUseSpeechSynthesis() {
         && typeof window.speechSynthesis.speak === 'function';
 }
 
+function readVehicleAudioEnabledFromStorage() {
+    try {
+        const rawValue = window.localStorage.getItem(VEHICLE_AUDIO_STORAGE_KEY);
+        if (rawValue == null) {
+            return null;
+        }
+
+        const normalized = String(rawValue).trim().toLowerCase();
+        if (normalized === 'true' || normalized === '1' || normalized === 'yes' || normalized === 'on') {
+            return true;
+        }
+
+        if (normalized === 'false' || normalized === '0' || normalized === 'no' || normalized === 'off') {
+            return false;
+        }
+    } catch (error) {
+        console.warn('[URDF][Audio] localStorage read failed:', error);
+    }
+
+    return null;
+}
+
+function writeVehicleAudioEnabledToStorage(enabled) {
+    try {
+        window.localStorage.setItem(VEHICLE_AUDIO_STORAGE_KEY, enabled ? 'true' : 'false');
+    } catch (error) {
+        console.warn('[URDF][Audio] localStorage write failed:', error);
+    }
+}
+
 function isVehicleAudioEnabled() {
+    if (typeof window.vehicleAudioEnabled === 'boolean') {
+        return window.vehicleAudioEnabled;
+    }
+
+    const storageEnabled = readVehicleAudioEnabledFromStorage();
+    if (storageEnabled != null) {
+        return storageEnabled;
+    }
+
     const viewer = getRoadAttitudeTargetViewer();
     return !!(viewer && viewer.showAudio === true);
+}
+
+function setVehicleAudioEnabled(enabled) {
+    const normalizedEnabled = !!enabled;
+    window.vehicleAudioEnabled = normalizedEnabled;
+    writeVehicleAudioEnabledToStorage(normalizedEnabled);
+
+    if (normalizedEnabled) {
+        setupVehicleAudioActivationListener();
+        return;
+    }
+
+    vehicleAudioState.pendingMessage = null;
+    vehicleAudioState.pendingOptions = null;
+    if (vehicleAudioState.speakTimerId) {
+        clearTimeout(vehicleAudioState.speakTimerId);
+        vehicleAudioState.speakTimerId = null;
+    }
+
+    if (canUseSpeechSynthesis()) {
+        window.speechSynthesis.cancel();
+    }
 }
 
 function tryActivateVehicleAudio(trigger = 'system') {
@@ -2064,6 +2126,7 @@ globalThis.setDriveSpeedKmh = setDriveSpeedKmh;
 globalThis.setRoadRollAngleDeg = setRoadRollAngleDeg;
 globalThis.setRoadPitchAngleDeg = setRoadPitchAngleDeg;
 globalThis.isVehicleAudioEnabled = isVehicleAudioEnabled;
+globalThis.setVehicleAudioEnabled = setVehicleAudioEnabled;
 globalThis.announceVehicleDriveCommand = announceVehicleDriveCommand;
 globalThis.announceVehicleRollAngleDeg = announceVehicleRollAngleDeg;
 globalThis.announceVehicleObstacle = announceVehicleObstacle;
@@ -2113,6 +2176,14 @@ function initURDFViewers() {
         // 사용자 제스처 전에 MQTT 이벤트가 먼저 와도 안내 문구를 보류해 두었다가 재생하기 위해 리스너를 준비한다.
         setupVehicleAudioActivationListener();
         tryActivateVehicleAudio('system');
+    }
+
+    const storageEnabled = readVehicleAudioEnabledFromStorage();
+    if (storageEnabled == null) {
+        const viewer = getRoadAttitudeTargetViewer();
+        if (viewer) {
+            setVehicleAudioEnabled(viewer.showAudio === true);
+        }
     }
 
     console.log("[URDF] 🚀 모든 URDF Viewer 초기화 완료");

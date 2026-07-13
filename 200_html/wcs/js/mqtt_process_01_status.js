@@ -3,11 +3,166 @@
 let vehicleSpeedZeroClickLatched = false;
 window.latestVehicleLinearSpeedMs = window.latestVehicleLinearSpeedMs || 0;
 window.wheelRadiusById = window.wheelRadiusById || {};
+const VEHICLE_AUDIO_STORAGE_KEY = 'wcs.vehicle.showAudio';
+
+const fallbackVehicleAudioState = {
+    isActivated: false,
+    listenerAttached: false,
+    pendingMessage: null,
+    speakTimerId: null,
+    lastSpokenMessage: '',
+    lastSpokenAt: 0,
+    duplicateMessageBlockMs: 350
+};
 
 function mqttLog() {
     if (typeof window.mqttConsoleLog === 'function') {
         window.mqttConsoleLog.apply(window, arguments);
     }
+}
+
+function canUseSpeechSynthesisFallback() {
+    return typeof window !== 'undefined'
+        && typeof window.SpeechSynthesisUtterance === 'function'
+        && window.speechSynthesis
+        && typeof window.speechSynthesis.speak === 'function';
+}
+
+function readVehicleAudioEnabledFallback() {
+    if (typeof window.isVehicleAudioEnabled === 'function') {
+        return !!window.isVehicleAudioEnabled();
+    }
+
+    try {
+        const rawValue = window.localStorage.getItem(VEHICLE_AUDIO_STORAGE_KEY);
+        if (rawValue == null) {
+            return false;
+        }
+
+        const normalized = String(rawValue).trim().toLowerCase();
+        return normalized === 'true' || normalized === '1' || normalized === 'yes' || normalized === 'on';
+    } catch (error) {
+        console.warn('[MQTT][Audio] localStorage read failed:', error);
+    }
+
+    return false;
+}
+
+function tryActivateFallbackAudioFromGesture() {
+    if (!canUseSpeechSynthesisFallback()) {
+        return;
+    }
+
+    try {
+        window.speechSynthesis.resume();
+    } catch (error) {
+        console.warn('[MQTT][Audio] resume failed:', error);
+    }
+
+    fallbackVehicleAudioState.isActivated = true;
+    const pendingMessage = fallbackVehicleAudioState.pendingMessage;
+    if (pendingMessage) {
+        fallbackVehicleAudioState.pendingMessage = null;
+        speakVehicleStatusFallback(pendingMessage, { interrupt: true });
+    }
+}
+
+function ensureFallbackAudioActivationListener() {
+    if (fallbackVehicleAudioState.listenerAttached || !readVehicleAudioEnabledFallback()) {
+        return;
+    }
+
+    fallbackVehicleAudioState.listenerAttached = true;
+
+    const onFirstUserGesture = () => {
+        tryActivateFallbackAudioFromGesture();
+        document.removeEventListener('pointerdown', onFirstUserGesture, true);
+        document.removeEventListener('keydown', onFirstUserGesture, true);
+        document.removeEventListener('touchstart', onFirstUserGesture, true);
+    };
+
+    document.addEventListener('pointerdown', onFirstUserGesture, true);
+    document.addEventListener('keydown', onFirstUserGesture, true);
+    document.addEventListener('touchstart', onFirstUserGesture, true);
+}
+
+function speakVehicleStatusFallback(text, options = {}) {
+    if (!readVehicleAudioEnabledFallback() || !canUseSpeechSynthesisFallback()) {
+        return;
+    }
+
+    const { interrupt = true } = options;
+    const message = String(text || '').trim();
+    if (!message) {
+        return;
+    }
+
+    const now = Date.now();
+    if (
+        fallbackVehicleAudioState.lastSpokenMessage === message
+        && (now - fallbackVehicleAudioState.lastSpokenAt) < fallbackVehicleAudioState.duplicateMessageBlockMs
+    ) {
+        return;
+    }
+
+    if (!fallbackVehicleAudioState.isActivated) {
+        fallbackVehicleAudioState.pendingMessage = message;
+        ensureFallbackAudioActivationListener();
+        return;
+    }
+
+    if (fallbackVehicleAudioState.speakTimerId) {
+        clearTimeout(fallbackVehicleAudioState.speakTimerId);
+        fallbackVehicleAudioState.speakTimerId = null;
+    }
+
+    if (interrupt || window.speechSynthesis.speaking || window.speechSynthesis.pending) {
+        window.speechSynthesis.cancel();
+    }
+
+    fallbackVehicleAudioState.speakTimerId = window.setTimeout(() => {
+        fallbackVehicleAudioState.speakTimerId = null;
+        try {
+            window.speechSynthesis.resume();
+        } catch (error) {
+            console.warn('[MQTT][Audio] resume before speak failed:', error);
+        }
+
+        const utterance = new window.SpeechSynthesisUtterance(message);
+        utterance.lang = 'ko-KR';
+        utterance.rate = 1.05;
+        utterance.pitch = 1;
+        utterance.volume = 1;
+        window.speechSynthesis.speak(utterance);
+    }, 40);
+
+    fallbackVehicleAudioState.lastSpokenMessage = message;
+    fallbackVehicleAudioState.lastSpokenAt = now;
+}
+
+function announceVehicleObstacleAudio(obstacle) {
+    if (typeof window.announceVehicleObstacle === 'function') {
+        window.announceVehicleObstacle(obstacle);
+        return;
+    }
+
+    const obstacleValue = Number.parseInt(obstacle, 10);
+    const obstacleText = {
+        1: '장애물 단차 검출',
+        2: '장애물 포트홀 검출',
+        3: '장애물 빙판길 검출'
+    };
+
+    if (obstacleValue === 0) {
+        return;
+    }
+
+    const message = obstacleText[obstacleValue];
+    if (!message) {
+        return;
+    }
+
+    speakVehicleStatusFallback(message, { interrupt: true });
 }
 
 function prcessMqttMessage(topic, value) {
@@ -152,9 +307,7 @@ function prcessMqttMessage(topic, value) {
     if (topic === 'vehicle/surface/obstacle') {
         const obstacle = parseInt(value);
 
-        if (typeof window.announceVehicleObstacle === 'function') {
-            window.announceVehicleObstacle(obstacle);
-        }
+        announceVehicleObstacleAudio(obstacle);
 
         // 모든 장애물 상태 요소의 테두리 제거 및 disabled 효과 적용
         $('[id^="vehicle/surface/obstacle/"]')
@@ -410,6 +563,10 @@ function cacheWheelRadius(topic, value) {
     window.wheelRadiusById[wheelKey] = radius;
     mqttLog(`[MQTT] 📏 바퀴 반경 캐시: ${wheelKey} -> ${radius} m`);
 }
+
+$(document).ready(function() {
+    ensureFallbackAudioActivationListener();
+});
 
 function applyDerivedWheelLinearSpeed(topic, value) {
     const topicMatch = topic.match(/^wheel\/(fl|fr|rl|rr)\/(.+)$/i);

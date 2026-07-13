@@ -6,6 +6,7 @@
     const $video = $("#road-detect-overlay-video");
     const $viewer = $("#vehicle-urdf-viewer");
     const VEHICLE_AUDIO_STORAGE_KEY = "wcs.vehicle.showAudio";
+    const OVERLAY_MEDIA_HIDDEN_STORAGE_KEY = "wcs.status.overlay.media_hidden";
 
     if ($overlay.length === 0 || $image.length === 0 || $video.length === 0) {
         return;
@@ -59,6 +60,24 @@
 
     function setCloseButtonToShowMode(isShowMode) {
         $closeButton.text(isShowMode ? "보이기" : "닫기");
+    }
+
+    function readOverlayMediaHiddenState() {
+        try {
+            const rawValue = window.localStorage.getItem(OVERLAY_MEDIA_HIDDEN_STORAGE_KEY);
+            const normalized = String(rawValue || "").trim().toLowerCase();
+            return normalized === "true" || normalized === "1" || normalized === "yes" || normalized === "on";
+        } catch (error) {
+            return false;
+        }
+    }
+
+    function writeOverlayMediaHiddenState(hidden) {
+        try {
+            window.localStorage.setItem(OVERLAY_MEDIA_HIDDEN_STORAGE_KEY, hidden ? "true" : "false");
+        } catch (error) {
+            // Ignore storage write failures.
+        }
     }
 
     function isAudioEnabledForOverlay() {
@@ -425,8 +444,7 @@
 
     function hideOverlay() {
         requestRoadDetectSessionCleanup(latestCurrentVideoFileName);
-        mediaHiddenByUser = false;
-        setCloseButtonToShowMode(false);
+        setCloseButtonToShowMode(mediaHiddenByUser);
         hideAllMedia(true);
         setOverlayStatus("", false);
         $overlay.addClass("d-none");
@@ -435,6 +453,7 @@
     function hideMediaAreaOnly() {
         requestRoadDetectSessionCleanup(latestCurrentVideoFileName);
         mediaHiddenByUser = true;
+        writeOverlayMediaHiddenState(true);
         hideAllMedia(false);
         setOverlayStatus("", false);
         applyCollapsedOverlayLayout();
@@ -443,6 +462,7 @@
 
     function restoreMediaAreaOnly() {
         mediaHiddenByUser = false;
+        writeOverlayMediaHiddenState(false);
         setCloseButtonToShowMode(false);
         applyCompactOverlayLayout();
 
@@ -626,7 +646,8 @@
         }
     });
 
-    setCloseButtonToShowMode(false);
+    mediaHiddenByUser = readOverlayMediaHiddenState();
+    setCloseButtonToShowMode(mediaHiddenByUser);
     updateOverlayAudioHud();
     requestRoadDetectSessionCleanupAllOnLoad();
     setInterval(updateOverlayAudioHud, 400);

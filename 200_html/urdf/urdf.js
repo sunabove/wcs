@@ -26,8 +26,10 @@ class URDFViewer {
         this.goalTarget = new THREE.Vector3(0, 0, 0);
         this.goalTargetVerticalOffset = 0;
         this.overlayDragPanPixels = 0;
+        this.overlayZoomOutRatio = 0;
         this.isInitialCameraPoseReady = false;
         this.pendingOverlayDragPixels = null;
+        this.pendingOverlayZoomOutRatio = null;
         this.isDragging = false;
         this.lastAngleLogAt = 0;
         this.angleLogIntervalMs = 120;
@@ -1400,13 +1402,17 @@ class URDFViewer {
     markInitialCameraPoseReady() {
         this.isInitialCameraPoseReady = true;
 
-        if (this.pendingOverlayDragPixels == null) {
-            return;
+        if (this.pendingOverlayDragPixels != null) {
+            const queuedPixels = this.pendingOverlayDragPixels;
+            this.pendingOverlayDragPixels = null;
+            this.setOverlayVerticalDragPixels(queuedPixels);
         }
 
-        const queuedPixels = this.pendingOverlayDragPixels;
-        this.pendingOverlayDragPixels = null;
-        this.setOverlayVerticalDragPixels(queuedPixels);
+        if (this.pendingOverlayZoomOutRatio != null) {
+            const queuedZoomOutRatio = this.pendingOverlayZoomOutRatio;
+            this.pendingOverlayZoomOutRatio = null;
+            this.setOverlayZoomOutRatio(queuedZoomOutRatio);
+        }
     }
 
     setOverlayVerticalDragPixels(pixelHeight) {
@@ -1467,6 +1473,44 @@ class URDFViewer {
         this.overlayDragPanPixels = nextPixels;
         this.applyGoalTargetToControls();
         this.resetDirectionalLight(this.controls.target, this.directionalLightRadius);
+    }
+
+    setOverlayZoomOutRatio(zoomOutRatio) {
+        if (!this.controls || !this.camera) {
+            return;
+        }
+
+        const requestedRatio = Number(zoomOutRatio);
+        const nextRatio = Number.isFinite(requestedRatio)
+            ? THREE.MathUtils.clamp(requestedRatio, 0, 0.35)
+            : 0;
+
+        if (!this.isInitialCameraPoseReady) {
+            this.pendingOverlayZoomOutRatio = nextRatio;
+            return;
+        }
+
+        const currentRatio = Number(this.overlayZoomOutRatio) || 0;
+        if (Math.abs(nextRatio - currentRatio) < 0.0005) {
+            return;
+        }
+
+        const target = this.controls.target.clone();
+        const cameraOffset = this.camera.position.clone().sub(target);
+        const currentDistance = cameraOffset.length();
+        if (!Number.isFinite(currentDistance) || currentDistance <= 0.0001) {
+            return;
+        }
+
+        const baseDistance = currentDistance / Math.max(1 + currentRatio, 0.001);
+        const nextDistance = baseDistance * (1 + nextRatio);
+        const normalizedOffset = cameraOffset.normalize().multiplyScalar(nextDistance);
+
+        this.camera.position.copy(target.clone().add(normalizedOffset));
+        this.overlayZoomOutRatio = nextRatio;
+        this.controls.update();
+        this.resetDirectionalLight(this.controls.target, this.directionalLightRadius);
+        this.logCameraInfos(true);
     }
 
     loadURDF() {
@@ -2295,6 +2339,14 @@ globalThis.setVehicleViewerOverlayDragPixels = function(pixelHeight) {
     }
 
     vehicleViewer.setOverlayVerticalDragPixels(pixelHeight);
+};
+globalThis.setVehicleViewerOverlayZoomOutRatio = function(zoomOutRatio) {
+    const vehicleViewer = window.urdfViewersById?.['vehicle-urdf-viewer'] || null;
+    if (!vehicleViewer || typeof vehicleViewer.setOverlayZoomOutRatio !== 'function') {
+        return;
+    }
+
+    vehicleViewer.setOverlayZoomOutRatio(zoomOutRatio);
 };
 globalThis.isVehicleAudioEnabled = isVehicleAudioEnabled;
 globalThis.setVehicleAudioEnabled = setVehicleAudioEnabled;

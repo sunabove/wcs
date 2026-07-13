@@ -10,6 +10,7 @@ const fallbackVehicleAudioState = {
     listenerAttached: false,
     pendingMessage: null,
     speakTimerId: null,
+    lastSurfaceState: null,
     lastSpokenMessage: '',
     lastSpokenAt: 0,
     duplicateMessageBlockMs: 350
@@ -171,6 +172,33 @@ function announceVehicleObstacleAudio(obstacle) {
     speakVehicleStatusFallback(message, { interrupt: true });
 }
 
+function announceVehicleSurfaceStateAudio(surfaceState) {
+    if (typeof window.announceVehicleSurfaceState === 'function') {
+        window.announceVehicleSurfaceState(surfaceState);
+        return;
+    }
+
+    const surfaceStateValue = Number.parseInt(surfaceState, 10);
+    const surfaceText = {
+        0: '노면 상태 아스팔트',
+        1: '노면 상태 보도블록',
+        2: '노면 상태 흙길',
+        3: '노면 상태 자갈길'
+    };
+
+    const message = surfaceText[surfaceStateValue];
+    if (!message) {
+        return;
+    }
+
+    if (fallbackVehicleAudioState.lastSurfaceState === surfaceStateValue) {
+        return;
+    }
+
+    fallbackVehicleAudioState.lastSurfaceState = surfaceStateValue;
+    speakVehicleStatusFallback(message, { interrupt: true });
+}
+
 function prcessMqttMessage(topic, value) {
 
     mqttLog(`[MQTT] 🧩 prcessMqttMessage 호출 - topic: ${topic}, value: ${value}`);
@@ -279,6 +307,8 @@ function prcessMqttMessage(topic, value) {
     // vehicle/surface/state 특별 처리 (노면 상태별 테두리 강조 및 disabled 효과)
     if (topic === 'vehicle/surface/state') {
         const state = parseInt(value);
+
+        announceVehicleSurfaceStateAudio(state);
         
         // 모든 노면 상태 요소의 테두리 제거 및 disabled 효과 적용
         $('[id^="vehicle/surface/state/"]')

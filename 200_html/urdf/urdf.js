@@ -1820,6 +1820,7 @@ function getRoadAttitudeTargetViewer() {
 
 const vehicleAudioState = {
     lastCommand: null,
+    lastSurfaceState: null,
     lastObstacle: null,
     lastRollAngleDeg: null,
     lastRollAnnouncedAt: 0,
@@ -2107,6 +2108,32 @@ function announceVehicleObstacle(obstacleValue) {
     speakVehicleStatus(`장애물 ${obstacleLabel} 검출`, { interrupt: true });
 }
 
+function announceVehicleSurfaceState(surfaceStateValue) {
+    if (!isVehicleAudioEnabled()) {
+        return;
+    }
+
+    const numericSurfaceState = Number.parseInt(surfaceStateValue, 10);
+    const surfaceLabelByValue = {
+        0: '아스팔트',
+        1: '보도블록',
+        2: '흙길',
+        3: '자갈길'
+    };
+
+    const surfaceLabel = surfaceLabelByValue[numericSurfaceState];
+    if (!surfaceLabel) {
+        return;
+    }
+
+    if (vehicleAudioState.lastSurfaceState === numericSurfaceState) {
+        return;
+    }
+
+    vehicleAudioState.lastSurfaceState = numericSurfaceState;
+    speakVehicleStatus(`노면 상태 ${surfaceLabel}`, { interrupt: true });
+}
+
 function updateDriveModeButtons(activeMode) {
     const modes = ['forward', 'backward', 'left', 'right', 'stop'];
     modes.forEach(mode => {
@@ -2136,6 +2163,7 @@ globalThis.setVehicleAudioEnabled = setVehicleAudioEnabled;
 globalThis.announceVehicleDriveCommand = announceVehicleDriveCommand;
 globalThis.announceVehicleRollAngleDeg = announceVehicleRollAngleDeg;
 globalThis.announceVehicleObstacle = announceVehicleObstacle;
+globalThis.announceVehicleSurfaceState = announceVehicleSurfaceState;
 
 // 초기화 함수
 function initURDFViewers() {

@@ -933,9 +933,23 @@ class URDFViewer {
             return this.carFrameAlertMaterials;
         }
 
+        const linkMap = this.robotModel?.links || {};
+        const excludedRoots = [
+            linkMap.ellipsoid_surface_patch || null,
+            linkMap.ground_patch || null,
+        ].filter(Boolean);
+
+        const isExcludedRoadNode = (node) => {
+            if (!node || excludedRoots.length === 0) {
+                return false;
+            }
+
+            return excludedRoots.some(root => node === root || this.isDescendantObject3D(node, root));
+        };
+
         const collectedMaterials = [];
         carFrame.traverse(node => {
-            if (!node || !node.isMesh || !node.material) {
+            if (!node || !node.isMesh || !node.material || isExcludedRoadNode(node)) {
                 return;
             }
 

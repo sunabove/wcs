@@ -35,6 +35,7 @@
     const LOADING_MESSAGE = "로딩중입니다.";
     const FIRST_FRAME_TIMEOUT_MESSAGE = "동영상 로딩이 되지 않았습니다.";
     const VIEWER_DRAG_PIXELS_RATIO = 0.45;
+    const VIEWER_ZOOM_OUT_RATIO = 0.06;
 
     let $audioHud = $("#vehicle-audio-hud");
     if ($audioHud.length === 0) {
@@ -305,6 +306,10 @@
         } else if (typeof window.setVehicleViewerVerticalOffset === "function") {
             window.setVehicleViewerVerticalOffset(0);
         }
+
+        if (typeof window.setVehicleViewerOverlayZoomOutRatio === "function") {
+            window.setVehicleViewerOverlayZoomOutRatio(0);
+        }
     }
 
     function applyCompactOverlayLayout() {
@@ -323,6 +328,7 @@
 
         applyCompactOverlayWidthByAspect(lastMediaAspectRatio);
         applyVehicleViewerDragByOverlayHeight();
+        applyVehicleViewerZoomByOverlayMode();
     }
 
     function getCompactOverlayTargetHeightPx() {
@@ -352,6 +358,19 @@
 
         const overlayHeightPx = getCompactOverlayTargetHeightPx();
         window.setVehicleViewerOverlayDragPixels(overlayHeightPx * VIEWER_DRAG_PIXELS_RATIO);
+    }
+
+    function applyVehicleViewerZoomByOverlayMode() {
+        if (typeof window.setVehicleViewerOverlayZoomOutRatio !== "function") {
+            return;
+        }
+
+        if (overlayLayoutMode !== "compact") {
+            window.setVehicleViewerOverlayZoomOutRatio(0);
+            return;
+        }
+
+        window.setVehicleViewerOverlayZoomOutRatio(VIEWER_ZOOM_OUT_RATIO);
     }
 
     function getCompactOverlayMaxWidth() {
@@ -438,6 +457,10 @@
             window.setVehicleViewerOverlayDragPixels(0);
         } else if (typeof window.setVehicleViewerVerticalOffset === "function") {
             window.setVehicleViewerVerticalOffset(0);
+        }
+
+        if (typeof window.setVehicleViewerOverlayZoomOutRatio === "function") {
+            window.setVehicleViewerOverlayZoomOutRatio(0);
         }
     }
 
@@ -696,6 +719,7 @@
         if (overlayLayoutMode === "compact") {
             applyCompactOverlayWidthByAspect(lastMediaAspectRatio);
             applyVehicleViewerDragByOverlayHeight();
+            applyVehicleViewerZoomByOverlayMode();
         }
     });
 

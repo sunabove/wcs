@@ -33,25 +33,28 @@
     const LOADING_MESSAGE = "로딩중입니다.";
     const FIRST_FRAME_TIMEOUT_MESSAGE = "동영상 로딩이 되지 않았습니다.";
 
-    const $audioHud = $('<div id="road-detect-overlay-audio-hud"></div>');
-    $audioHud.css({
-        position: "absolute",
-        left: "50%",
-        bottom: "8px",
-        transform: "translateX(-50%)",
-        zIndex: "25",
-        maxWidth: "92%",
-        padding: "4px 10px",
-        borderRadius: "999px",
-        background: "rgba(0, 0, 0, 0.62)",
-        color: "#fff",
-        fontSize: "12px",
-        whiteSpace: "nowrap",
-        overflow: "hidden",
-        textOverflow: "ellipsis",
-        pointerEvents: "none",
-    });
-    $overlay.append($audioHud);
+    let $audioHud = $("#vehicle-audio-hud");
+    if ($audioHud.length === 0) {
+        $audioHud = $('<div id="vehicle-audio-hud"></div>');
+        $audioHud.css({
+            position: "absolute",
+            left: "50%",
+            bottom: "10px",
+            transform: "translateX(-50%)",
+            zIndex: "24",
+            maxWidth: "92%",
+            padding: "4px 10px",
+            borderRadius: "999px",
+            background: "rgba(108, 117, 125, 0.72)",
+            color: "#fff",
+            fontSize: "12px",
+            whiteSpace: "nowrap",
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            pointerEvents: "none",
+        });
+        $viewer.parent().append($audioHud);
+    }
 
     function setCloseButtonToShowMode(isShowMode) {
         $closeButton.text(isShowMode ? "보이기" : "닫기");

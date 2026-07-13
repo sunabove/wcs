@@ -412,6 +412,32 @@
                 }
             }
 
+            function updateVehicleRollAngleUi(rollAngleDeg, shouldPublish = true) {
+                const numericRoll = Number.parseInt(rollAngleDeg, 10);
+                const normalizedRoll = Number.isFinite(numericRoll) ? Math.max(-30, Math.min(30, numericRoll)) : 0;
+
+                $('#vehicle-roll-angle').val(normalizedRoll);
+                $('#vehicle-roll-angle-value').text(`${normalizedRoll}°`);
+
+                if (shouldPublish) {
+                    const rollAngleRad = (normalizedRoll * Math.PI) / 180;
+                    sendMQTTMessage('vehicle/road/roll_angle', rollAngleRad);
+                }
+            }
+
+            function updateVehiclePitchAngleUi(pitchAngleDeg, shouldPublish = true) {
+                const numericPitch = Number.parseInt(pitchAngleDeg, 10);
+                const normalizedPitch = Number.isFinite(numericPitch) ? Math.max(-30, Math.min(30, numericPitch)) : 0;
+
+                $('#vehicle-pitch-angle').val(normalizedPitch);
+                $('#vehicle-pitch-angle-value').text(`${normalizedPitch}°`);
+
+                if (shouldPublish) {
+                    const pitchAngleRad = (normalizedPitch * Math.PI) / 180;
+                    sendMQTTMessage('vehicle/road/pitch_angle', pitchAngleRad);
+                }
+            }
+
             function normalizePath(pathValue) {
                 return String(pathValue || '').trim().replace(/\\/g, '/').replace(/^\/+/, '');
             }
@@ -701,7 +727,11 @@
                 }
             }
 
-            $('#vehicle-max-speed').on('input change', function () {
+            $('#vehicle-max-speed').on('input', function () {
+                updateVehicleMaxSpeedUi($(this).val(), false);
+            });
+
+            $('#vehicle-max-speed').on('change', function () {
                 updateVehicleMaxSpeedUi($(this).val(), true);
             });
 
@@ -738,7 +768,7 @@
             });
 
             $('#reset-vehicle-max-speed').on('click', function () {
-                $('#vehicle-max-speed').val(50).trigger('input');
+                updateVehicleMaxSpeedUi(50, true);
             });
 
             if (typeof window.prcessMqttMessage === 'function' && !window.wcsSettingMaxSpeedHooked) {
@@ -785,26 +815,28 @@
                 sendMQTTMessage('vehicle/surface/obstacle', obstacleValue);
             });
 
-            $('#vehicle-roll-angle').on('input change', function () {
-                const rollAngleDeg = Number.parseInt($(this).val(), 10) || 0;
-                $('#vehicle-roll-angle-value').text(`${rollAngleDeg}°`);
-                const rollAngleRad = (rollAngleDeg * Math.PI) / 180;
-                sendMQTTMessage('vehicle/road/roll_angle', rollAngleRad);
+            $('#vehicle-roll-angle').on('input', function () {
+                updateVehicleRollAngleUi($(this).val(), false);
+            });
+
+            $('#vehicle-roll-angle').on('change', function () {
+                updateVehicleRollAngleUi($(this).val(), true);
             });
 
             $('#reset-vehicle-roll-angle').on('click', function () {
-                $('#vehicle-roll-angle').val(0).trigger('input');
+                updateVehicleRollAngleUi(0, true);
             });
 
-            $('#vehicle-pitch-angle').on('input change', function () {
-                const pitchAngleDeg = Number.parseInt($(this).val(), 10) || 0;
-                $('#vehicle-pitch-angle-value').text(`${pitchAngleDeg}°`);
-                const pitchAngleRad = (pitchAngleDeg * Math.PI) / 180;
-                sendMQTTMessage('vehicle/road/pitch_angle', pitchAngleRad);
+            $('#vehicle-pitch-angle').on('input', function () {
+                updateVehiclePitchAngleUi($(this).val(), false);
+            });
+
+            $('#vehicle-pitch-angle').on('change', function () {
+                updateVehiclePitchAngleUi($(this).val(), true);
             });
 
             $('#reset-vehicle-pitch-angle').on('click', function () {
-                $('#vehicle-pitch-angle').val(0).trigger('input');
+                updateVehiclePitchAngleUi(0, true);
             });
 
             restoreSampleVideoBrowserStateFromStorage();

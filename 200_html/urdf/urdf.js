@@ -2000,7 +2000,7 @@ function announceVehicleObstacle(obstacleValue) {
     }
 
     vehicleAudioState.lastObstacle = numericObstacle;
-    speakVehicleStatus(`장애물 검출, ${obstacleLabel}`, { interrupt: true });
+    speakVehicleStatus(`장애물 ${obstacleLabel} 검출`, { interrupt: true });
 }
 
 function updateDriveModeButtons(activeMode) {

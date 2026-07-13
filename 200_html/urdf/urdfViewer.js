@@ -2015,6 +2015,7 @@ const vehicleAudioState = {
     lastSurfaceState: null,
     hasSurfaceBaseline: false,
     lastObstacle: null,
+    hasObstacleBaseline: false,
     lastRollAngleDeg: null,
     hasRollBaseline: false,
     lastRollAnnouncedAt: 0,
@@ -2320,6 +2321,13 @@ function announceVehicleObstacle(obstacleValue) {
         2: '포트홀',
         3: '빙판길'
     };
+
+    // 첫 수신 장애물 상태는 기준만 설정하고 음성은 출력하지 않는다.
+    if (!vehicleAudioState.hasObstacleBaseline) {
+        vehicleAudioState.hasObstacleBaseline = true;
+        vehicleAudioState.lastObstacle = (numericObstacle === 0) ? null : numericObstacle;
+        return;
+    }
 
     // 장애물 없음(0)이 들어오면 다음 검출 알림을 위해 상태만 초기화한다.
     if (numericObstacle === 0) {

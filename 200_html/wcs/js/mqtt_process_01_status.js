@@ -14,6 +14,7 @@ const fallbackVehicleAudioState = {
     isSpeaking: false,
     lastSurfaceState: null,
     hasSurfaceBaseline: false,
+    hasObstacleBaseline: false,
     lastRollAngleDeg: null,
     hasRollBaseline: false,
     lastRollAnnouncedAt: 0,
@@ -190,6 +191,12 @@ function announceVehicleObstacleAudio(obstacle) {
         2: '장애물 포트홀 검출',
         3: '장애물 빙판길 검출'
     };
+
+    // 첫 수신 장애물 상태는 기준만 설정하고 음성은 생략한다.
+    if (!fallbackVehicleAudioState.hasObstacleBaseline) {
+        fallbackVehicleAudioState.hasObstacleBaseline = true;
+        return;
+    }
 
     if (obstacleValue === 0) {
         return;

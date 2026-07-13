@@ -1379,8 +1379,8 @@ class URDFViewer {
 
         this.controls.target.set(
             this.goalTarget.x,
-            this.goalTarget.y,
-            this.goalTarget.z + this.goalTargetVerticalOffset
+            this.goalTarget.y - this.goalTargetVerticalOffset,
+            this.goalTarget.z
         );
         this.controls.update();
     }

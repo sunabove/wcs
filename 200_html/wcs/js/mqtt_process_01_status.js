@@ -152,6 +152,10 @@ function prcessMqttMessage(topic, value) {
     if (topic === 'vehicle/surface/obstacle') {
         const obstacle = parseInt(value);
 
+        if (typeof window.announceVehicleObstacle === 'function') {
+            window.announceVehicleObstacle(obstacle);
+        }
+
         // 모든 장애물 상태 요소의 테두리 제거 및 disabled 효과 적용
         $('[id^="vehicle/surface/obstacle/"]')
             .removeClass('border-primary border-3')

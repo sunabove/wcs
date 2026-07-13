@@ -1819,6 +1819,7 @@ function getRoadAttitudeTargetViewer() {
 
 const vehicleAudioState = {
     lastCommand: null,
+    lastObstacle: null,
     lastRollAngleDeg: null,
     lastRollAnnouncedAt: 0,
     minRollDeltaDeg: 2,
@@ -1971,6 +1972,37 @@ function announceVehicleRollAngleDeg(angleDeg) {
     speakVehicleStatus(`롤 각도 ${roundedAngleDeg}도`);
 }
 
+function announceVehicleObstacle(obstacleValue) {
+    if (!isVehicleAudioEnabled()) {
+        return;
+    }
+
+    const numericObstacle = Number.parseInt(obstacleValue, 10);
+    const obstacleLabelByValue = {
+        1: '단차',
+        2: '포트홀',
+        3: '빙판길'
+    };
+
+    // 장애물 없음(0)이 들어오면 다음 검출 알림을 위해 상태만 초기화한다.
+    if (numericObstacle === 0) {
+        vehicleAudioState.lastObstacle = null;
+        return;
+    }
+
+    const obstacleLabel = obstacleLabelByValue[numericObstacle];
+    if (!obstacleLabel) {
+        return;
+    }
+
+    if (vehicleAudioState.lastObstacle === numericObstacle) {
+        return;
+    }
+
+    vehicleAudioState.lastObstacle = numericObstacle;
+    speakVehicleStatus(`장애물 검출, ${obstacleLabel}`, { interrupt: true });
+}
+
 function updateDriveModeButtons(activeMode) {
     const modes = ['forward', 'backward', 'left', 'right', 'stop'];
     modes.forEach(mode => {
@@ -1998,6 +2030,7 @@ globalThis.setRoadPitchAngleDeg = setRoadPitchAngleDeg;
 globalThis.isVehicleAudioEnabled = isVehicleAudioEnabled;
 globalThis.announceVehicleDriveCommand = announceVehicleDriveCommand;
 globalThis.announceVehicleRollAngleDeg = announceVehicleRollAngleDeg;
+globalThis.announceVehicleObstacle = announceVehicleObstacle;
 
 // 초기화 함수
 function initURDFViewers() {

@@ -1827,7 +1827,10 @@ const vehicleAudioState = {
     isActivated: false,
     isActivationListenerAttached: false,
     pendingMessage: null,
-    pendingOptions: null
+    pendingOptions: null,
+    lastSpokenMessage: '',
+    lastSpokenAt: 0,
+    duplicateMessageBlockMs: 350
 };
 
 function canUseSpeechSynthesis() {
@@ -1890,9 +1893,17 @@ function speakVehicleStatus(text, options = {}) {
         return;
     }
 
-    const { interrupt = false } = options;
+    const { interrupt = true } = options;
     const message = String(text || '').trim();
     if (!message) {
+        return;
+    }
+
+    const now = Date.now();
+    if (
+        vehicleAudioState.lastSpokenMessage === message
+        && (now - vehicleAudioState.lastSpokenAt) < vehicleAudioState.duplicateMessageBlockMs
+    ) {
         return;
     }
 
@@ -1903,16 +1914,19 @@ function speakVehicleStatus(text, options = {}) {
         return;
     }
 
-    if (interrupt) {
+    // 최신 상태를 즉시 읽도록 이전 대기/재생 음성을 정리한다.
+    if (interrupt || window.speechSynthesis.speaking || window.speechSynthesis.pending) {
         window.speechSynthesis.cancel();
     }
 
     const utterance = new window.SpeechSynthesisUtterance(message);
     utterance.lang = 'ko-KR';
-    utterance.rate = 1;
+    utterance.rate = 1.05;
     utterance.pitch = 1;
     utterance.volume = 1;
     window.speechSynthesis.speak(utterance);
+    vehicleAudioState.lastSpokenMessage = message;
+    vehicleAudioState.lastSpokenAt = now;
 }
 
 function announceVehicleDriveCommand(commandValue) {
@@ -1969,7 +1983,7 @@ function announceVehicleRollAngleDeg(angleDeg) {
 
     vehicleAudioState.lastRollAngleDeg = roundedAngleDeg;
     vehicleAudioState.lastRollAnnouncedAt = now;
-    speakVehicleStatus(`롤 각도 ${roundedAngleDeg}도`);
+    speakVehicleStatus(`롤 각도 ${roundedAngleDeg}도`, { interrupt: true });
 }
 
 function announceVehicleObstacle(obstacleValue) {

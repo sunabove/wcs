@@ -2493,13 +2493,7 @@ class RoadDetector:
         fill_w = max(1, int((bar_w - 2) * progress_ratio))
         cv2.rectangle(detected, (x1 + 1, y1 + 1), (x1 + 1 + fill_w, y2 - 1), fill_color, cv2.FILLED)
 
-        fps = float(frame_fps) if frame_fps is not None else 0.0
-        if fps > 0:
-            current_sec = frame_idx / fps
-            total_sec = frame_total / fps
-            time_label = f"{self._format_hms_from_seconds(current_sec)} / {self._format_hms_from_seconds(total_sec)}"
-        else:
-            time_label = f"{frame_idx} / {frame_total}"
+        time_label = f"{frame_idx} / {frame_total}"
 
         (tw, th), bl = cv2.getTextSize(time_label, font_face, 0.62, 2)
         tx = int((w - tw) / 2)

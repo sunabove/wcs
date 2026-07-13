@@ -13,10 +13,12 @@ const fallbackVehicleAudioState = {
     speechQueue: [],
     isSpeaking: false,
     lastSurfaceState: null,
-    hasSurfaceBaseline: false,
-    hasObstacleBaseline: false,
     lastRollAngleDeg: null,
-    hasRollBaseline: false,
+    baselineSeen: {
+        surface: false,
+        obstacle: false,
+        roll: false,
+    },
     lastRollAnnouncedAt: 0,
     minRollDeltaDeg: 2,
     minRollAnnounceIntervalMs: 1200,
@@ -193,8 +195,8 @@ function announceVehicleObstacleAudio(obstacle) {
     };
 
     // 첫 수신 장애물 상태는 기준만 설정하고 음성은 생략한다.
-    if (!fallbackVehicleAudioState.hasObstacleBaseline) {
-        fallbackVehicleAudioState.hasObstacleBaseline = true;
+    if (!fallbackVehicleAudioState.baselineSeen.obstacle) {
+        fallbackVehicleAudioState.baselineSeen.obstacle = true;
         return;
     }
 
@@ -230,8 +232,8 @@ function announceVehicleSurfaceStateAudio(surfaceState) {
     }
 
     // 첫 수신 노면 상태는 기준만 설정하고 음성은 생략한다.
-    if (!fallbackVehicleAudioState.hasSurfaceBaseline) {
-        fallbackVehicleAudioState.hasSurfaceBaseline = true;
+    if (!fallbackVehicleAudioState.baselineSeen.surface) {
+        fallbackVehicleAudioState.baselineSeen.surface = true;
         fallbackVehicleAudioState.lastSurfaceState = surfaceStateValue;
         return;
     }
@@ -258,8 +260,8 @@ function announceVehicleRollAngleAudio(angleDeg) {
     const now = Date.now();
 
     // 첫 수신값(초기값)은 기준만 설정하고 음성은 생략한다.
-    if (!fallbackVehicleAudioState.hasRollBaseline) {
-        fallbackVehicleAudioState.hasRollBaseline = true;
+    if (!fallbackVehicleAudioState.baselineSeen.roll) {
+        fallbackVehicleAudioState.baselineSeen.roll = true;
         fallbackVehicleAudioState.lastRollAngleDeg = roundedAngleDeg;
         fallbackVehicleAudioState.lastRollAnnouncedAt = now;
         return;

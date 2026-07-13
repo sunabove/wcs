@@ -2011,13 +2011,15 @@ function getRoadAttitudeTargetViewer() {
 
 const vehicleAudioState = {
     lastCommand: null,
-    hasCommandBaseline: false,
     lastSurfaceState: null,
-    hasSurfaceBaseline: false,
     lastObstacle: null,
-    hasObstacleBaseline: false,
     lastRollAngleDeg: null,
-    hasRollBaseline: false,
+    baselineSeen: {
+        command: false,
+        surface: false,
+        obstacle: false,
+        roll: false,
+    },
     lastRollAnnouncedAt: 0,
     minRollDeltaDeg: 2,
     minRollAnnounceIntervalMs: 1200,
@@ -2262,8 +2264,8 @@ function announceVehicleDriveCommand(commandValue) {
     }
 
     // 첫 수신 명령값은 기준값만 설정하고 음성은 출력하지 않는다.
-    if (!vehicleAudioState.hasCommandBaseline) {
-        vehicleAudioState.hasCommandBaseline = true;
+    if (!vehicleAudioState.baselineSeen.command) {
+        vehicleAudioState.baselineSeen.command = true;
         vehicleAudioState.lastCommand = numericCommand;
         return;
     }
@@ -2290,8 +2292,8 @@ function announceVehicleRollAngleDeg(angleDeg) {
     const now = Date.now();
 
     // 첫 수신값(대개 초기 0도)은 기준값만 설정하고 음성 출력하지 않는다.
-    if (!vehicleAudioState.hasRollBaseline) {
-        vehicleAudioState.hasRollBaseline = true;
+    if (!vehicleAudioState.baselineSeen.roll) {
+        vehicleAudioState.baselineSeen.roll = true;
         vehicleAudioState.lastRollAngleDeg = roundedAngleDeg;
         vehicleAudioState.lastRollAnnouncedAt = now;
         return;
@@ -2323,8 +2325,8 @@ function announceVehicleObstacle(obstacleValue) {
     };
 
     // 첫 수신 장애물 상태는 기준만 설정하고 음성은 출력하지 않는다.
-    if (!vehicleAudioState.hasObstacleBaseline) {
-        vehicleAudioState.hasObstacleBaseline = true;
+    if (!vehicleAudioState.baselineSeen.obstacle) {
+        vehicleAudioState.baselineSeen.obstacle = true;
         vehicleAudioState.lastObstacle = (numericObstacle === 0) ? null : numericObstacle;
         return;
     }
@@ -2367,8 +2369,8 @@ function announceVehicleSurfaceState(surfaceStateValue) {
     }
 
     // 첫 수신 노면 상태(대개 초기 아스팔트)는 기준만 설정하고 음성은 출력하지 않는다.
-    if (!vehicleAudioState.hasSurfaceBaseline) {
-        vehicleAudioState.hasSurfaceBaseline = true;
+    if (!vehicleAudioState.baselineSeen.surface) {
+        vehicleAudioState.baselineSeen.surface = true;
         vehicleAudioState.lastSurfaceState = numericSurfaceState;
         return;
     }

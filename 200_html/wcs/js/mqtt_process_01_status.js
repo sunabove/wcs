@@ -192,6 +192,10 @@ function prcessMqttMessage(topic, value) {
                     window.setRoadRollAngleDeg(angleDeg);
                 }
 
+                if (typeof window.announceVehicleRollAngleDeg === 'function') {
+                    window.announceVehicleRollAngleDeg(angleDeg);
+                }
+
                 const $rollSlider = $('#vehicle-roll-angle');
                 const $rollValue = $('#vehicle-roll-angle-value');
                 if ($rollSlider.length > 0) {
@@ -279,6 +283,10 @@ function prcessMqttMessage(topic, value) {
             $(activeButtonId)
                 .addClass('active text-white')
                 .removeClass('text-black');
+
+            if (typeof window.announceVehicleDriveCommand === 'function') {
+                window.announceVehicleDriveCommand(commandValue);
+            }
 
             if (commandValue === 0 && typeof window.clearVehicleWheelHighlights === 'function') {
                 window.clearVehicleWheelHighlights();

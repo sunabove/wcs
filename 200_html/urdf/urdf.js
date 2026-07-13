@@ -109,6 +109,10 @@ class URDFViewer {
             containerElement.getAttribute('showWheelInfo'),
             false
         );
+        this.showAudio = this.parseBooleanAttribute(
+            containerElement.getAttribute('showAudio'),
+            false
+        );
         this.wheelInfoOverlayElement = null;
         this.urdfPath = containerElement.getAttribute('urdf') || '/urdf/vehicle/vehicle.urdf';
         const rawCameraPosition = containerElement.getAttribute('cameraPosition');
@@ -1813,6 +1817,106 @@ function getRoadAttitudeTargetViewer() {
     return window.activeURDFViewer || null;
 }
 
+const vehicleAudioState = {
+    lastCommand: null,
+    lastRollAngleDeg: null,
+    lastRollAnnouncedAt: 0,
+    minRollDeltaDeg: 2,
+    minRollAnnounceIntervalMs: 1200
+};
+
+function canUseSpeechSynthesis() {
+    return typeof window !== 'undefined'
+        && typeof window.SpeechSynthesisUtterance === 'function'
+        && window.speechSynthesis
+        && typeof window.speechSynthesis.speak === 'function';
+}
+
+function isVehicleAudioEnabled() {
+    const viewer = getRoadAttitudeTargetViewer();
+    return !!(viewer && viewer.showAudio === true);
+}
+
+function speakVehicleStatus(text, options = {}) {
+    if (!isVehicleAudioEnabled() || !canUseSpeechSynthesis()) {
+        return;
+    }
+
+    const { interrupt = false } = options;
+    const message = String(text || '').trim();
+    if (!message) {
+        return;
+    }
+
+    if (interrupt) {
+        window.speechSynthesis.cancel();
+    }
+
+    const utterance = new window.SpeechSynthesisUtterance(message);
+    utterance.lang = 'ko-KR';
+    utterance.rate = 1;
+    utterance.pitch = 1;
+    utterance.volume = 1;
+    window.speechSynthesis.speak(utterance);
+}
+
+function announceVehicleDriveCommand(commandValue) {
+    if (!isVehicleAudioEnabled()) {
+        return;
+    }
+
+    const numericCommand = Number.parseInt(commandValue, 10);
+    const commandLabelByValue = {
+        1: '전진',
+        2: '후진',
+        3: '좌회전',
+        4: '우회전'
+    };
+
+    if (numericCommand === 0) {
+        vehicleAudioState.lastCommand = null;
+        return;
+    }
+
+    const commandLabel = commandLabelByValue[numericCommand];
+    if (!commandLabel) {
+        return;
+    }
+
+    if (vehicleAudioState.lastCommand === numericCommand) {
+        return;
+    }
+
+    vehicleAudioState.lastCommand = numericCommand;
+    speakVehicleStatus(`차량 ${commandLabel}`, { interrupt: true });
+}
+
+function announceVehicleRollAngleDeg(angleDeg) {
+    if (!isVehicleAudioEnabled()) {
+        return;
+    }
+
+    const numericAngle = Number(angleDeg);
+    if (!Number.isFinite(numericAngle)) {
+        return;
+    }
+
+    const roundedAngleDeg = Math.round(numericAngle);
+    const now = Date.now();
+
+    if (vehicleAudioState.lastRollAngleDeg != null) {
+        const angleDelta = Math.abs(roundedAngleDeg - vehicleAudioState.lastRollAngleDeg);
+        const elapsedMs = now - vehicleAudioState.lastRollAnnouncedAt;
+        if (angleDelta < vehicleAudioState.minRollDeltaDeg || elapsedMs < vehicleAudioState.minRollAnnounceIntervalMs) {
+            return;
+        }
+    }
+
+    vehicleAudioState.lastRollAngleDeg = roundedAngleDeg;
+    vehicleAudioState.lastRollAnnouncedAt = now;
+    speakVehicleStatus(`롤 각도 ${roundedAngleDeg}도`);
+}
+
 function updateDriveModeButtons(activeMode) {
     const modes = ['forward', 'backward', 'left', 'right', 'stop'];
     modes.forEach(mode => {
@@ -1837,6 +1941,9 @@ globalThis.setDriveMode = setDriveMode;
 globalThis.setDriveSpeedKmh = setDriveSpeedKmh;
 globalThis.setRoadRollAngleDeg = setRoadRollAngleDeg;
 globalThis.setRoadPitchAngleDeg = setRoadPitchAngleDeg;
+globalThis.isVehicleAudioEnabled = isVehicleAudioEnabled;
+globalThis.announceVehicleDriveCommand = announceVehicleDriveCommand;
+globalThis.announceVehicleRollAngleDeg = announceVehicleRollAngleDeg;
 
 // 초기화 함수
 function initURDFViewers() {

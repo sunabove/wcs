@@ -1890,6 +1890,7 @@ function isVehicleAudioEnabled() {
 function setVehicleAudioEnabled(enabled) {
     const normalizedEnabled = !!enabled;
     window.vehicleAudioEnabled = normalizedEnabled;
+    window.__wcsAudioEnabled = normalizedEnabled;
     writeVehicleAudioEnabledToStorage(normalizedEnabled);
 
     if (normalizedEnabled) {
@@ -1969,6 +1970,9 @@ function speakVehicleStatus(text, options = {}) {
     }
 
     const now = Date.now();
+    window.__wcsAudioEnabled = true;
+    window.__wcsLastSpeechText = message;
+    window.__wcsLastSpeechAt = now;
     if (
         vehicleAudioState.lastSpokenMessage === message
         && (now - vehicleAudioState.lastSpokenAt) < vehicleAudioState.duplicateMessageBlockMs

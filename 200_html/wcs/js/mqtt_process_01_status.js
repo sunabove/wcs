@@ -103,6 +103,9 @@ function speakVehicleStatusFallback(text, options = {}) {
     }
 
     const now = Date.now();
+    window.__wcsAudioEnabled = true;
+    window.__wcsLastSpeechText = message;
+    window.__wcsLastSpeechAt = now;
     if (
         fallbackVehicleAudioState.lastSpokenMessage === message
         && (now - fallbackVehicleAudioState.lastSpokenAt) < fallbackVehicleAudioState.duplicateMessageBlockMs

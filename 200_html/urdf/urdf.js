@@ -26,6 +26,8 @@ class URDFViewer {
         this.goalTarget = new THREE.Vector3(0, 0, 0);
         this.goalTargetVerticalOffset = 0;
         this.overlayDragPanPixels = 0;
+        this.isInitialCameraPoseReady = false;
+        this.pendingOverlayDragPixels = null;
         this.isDragging = false;
         this.lastAngleLogAt = 0;
         this.angleLogIntervalMs = 120;
@@ -1395,8 +1397,26 @@ class URDFViewer {
         this.resetDirectionalLight(this.controls.target, this.directionalLightRadius);
     }
 
+    markInitialCameraPoseReady() {
+        this.isInitialCameraPoseReady = true;
+
+        if (this.pendingOverlayDragPixels == null) {
+            return;
+        }
+
+        const queuedPixels = this.pendingOverlayDragPixels;
+        this.pendingOverlayDragPixels = null;
+        this.setOverlayVerticalDragPixels(queuedPixels);
+    }
+
     setOverlayVerticalDragPixels(pixelHeight) {
         if (!this.controls || !this.camera) {
+            return;
+        }
+
+        const requestedPixels = Number(pixelHeight);
+        if (!this.isInitialCameraPoseReady) {
+            this.pendingOverlayDragPixels = Number.isFinite(requestedPixels) ? requestedPixels : 0;
             return;
         }
 
@@ -1405,7 +1425,6 @@ class URDFViewer {
             return;
         }
 
-        const requestedPixels = Number(pixelHeight);
         const nextPixels = Number.isFinite(requestedPixels)
             ? THREE.MathUtils.clamp(requestedPixels, 0, containerHeight * 0.85)
             : 0;
@@ -1506,6 +1525,7 @@ class URDFViewer {
                     this.controls.maxDistance = currentCameraDist * 8;
                     this.resetDirectionalLight(center, radius);
                     this.logCameraInfos(true);
+                    this.markInitialCameraPoseReady();
 
                     console.log('[URDF] ✅ 카메라/클리핑/컨트롤 범위 갱신 완료');
                 }, 200);

@@ -57,6 +57,11 @@ class RoadDetector:
     _mqtt_last_obstacle_state_by_context = {}
     _obstacle_state_samples_by_context = {}
     _mqtt_state_lock = threading.Lock()
+    _mqtt_publish_queue = deque()
+    _mqtt_publish_condition = threading.Condition()
+    _mqtt_publish_worker_started = False
+    _mqtt_publish_worker_lock = threading.Lock()
+    MQTT_PUBLISH_QUEUE_MAX_SIZE = 500
     SURFACE_STATE_MAJORITY_WINDOW_SEC = 0.8
     SURFACE_STATE_MIN_VOTES = 3
     SURFACE_STATE_MIN_DOMINANCE_RATIO = 0.60
@@ -185,6 +190,54 @@ class RoadDetector:
                 except Exception:
                     pass
 
+    def _mqtt_publish_worker_loop(self):
+        while True:
+            publish_item = None
+            with RoadDetector._mqtt_publish_condition:
+                while not RoadDetector._mqtt_publish_queue:
+                    RoadDetector._mqtt_publish_condition.wait()
+
+                publish_item = RoadDetector._mqtt_publish_queue.popleft()
+
+            if not publish_item:
+                continue
+
+            topic, payload = publish_item
+            self._publish_mqtt_topic(topic, payload)
+
+    def _ensure_mqtt_publish_worker(self):
+        if RoadDetector._mqtt_publish_worker_started:
+            return
+
+        with RoadDetector._mqtt_publish_worker_lock:
+            if RoadDetector._mqtt_publish_worker_started:
+                return
+
+            worker = threading.Thread(
+                target=self._mqtt_publish_worker_loop,
+                name="road-detector-mqtt-publisher",
+                daemon=True,
+            )
+            worker.start()
+            RoadDetector._mqtt_publish_worker_started = True
+
+    def _enqueue_mqtt_topic(self, topic, payload):
+        if mqtt is None:
+            logger.warning("MQTT enqueue skipped: paho-mqtt is not available")
+            return False
+
+        self._ensure_mqtt_publish_worker()
+
+        with RoadDetector._mqtt_publish_condition:
+            if len(RoadDetector._mqtt_publish_queue) >= int(self.MQTT_PUBLISH_QUEUE_MAX_SIZE):
+                RoadDetector._mqtt_publish_queue.popleft()
+                logger.warning("MQTT queue full; dropped oldest message")
+
+            RoadDetector._mqtt_publish_queue.append((str(topic), str(payload)))
+            RoadDetector._mqtt_publish_condition.notify()
+
+        return True
+
     def _publish_surface_state_if_needed(self, detect_key, stats, mqtt_publish, context_key):
         if not mqtt_publish:
             return
@@ -249,8 +302,8 @@ class RoadDetector:
             if last_state == majority_state:
                 return
 
-        published = self._publish_mqtt_topic("vehicle/surface/state", majority_state)
-        if published:
+        enqueued = self._enqueue_mqtt_topic("vehicle/surface/state", majority_state)
+        if enqueued:
             with RoadDetector._mqtt_state_lock:
                 RoadDetector._mqtt_last_surface_state_by_context[context] = majority_state
                 RoadDetector._mqtt_last_surface_state_published_at_by_context[context] = now_ts
@@ -300,8 +353,8 @@ class RoadDetector:
             if last_state == majority_state:
                 return
 
-        published = self._publish_mqtt_topic("vehicle/surface/obstacle", majority_state)
-        if published:
+        enqueued = self._enqueue_mqtt_topic("vehicle/surface/obstacle", majority_state)
+        if enqueued:
             with RoadDetector._mqtt_state_lock:
                 RoadDetector._mqtt_last_obstacle_state_by_context[context] = majority_state
 

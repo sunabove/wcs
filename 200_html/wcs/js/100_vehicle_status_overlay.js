@@ -59,7 +59,7 @@
     }
 
     function setCloseButtonToShowMode(isShowMode) {
-        $closeButton.text(isShowMode ? "보이기" : "닫기");
+        $closeButton.text(isShowMode ? "동영상" : "닫기");
     }
 
     function readOverlayMediaHiddenState() {

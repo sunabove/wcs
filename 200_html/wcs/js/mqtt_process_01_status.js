@@ -180,10 +180,10 @@ function announceVehicleSurfaceStateAudio(surfaceState) {
 
     const surfaceStateValue = Number.parseInt(surfaceState, 10);
     const surfaceText = {
-        0: '노면 상태 아스팔트',
-        1: '노면 상태 보도블록',
-        2: '노면 상태 흙길',
-        3: '노면 상태 자갈길'
+        0: '노면 아스팔트',
+        1: '노면 보도블록',
+        2: '노면 흙길',
+        3: '노면 자갈길'
     };
 
     const message = surfaceText[surfaceStateValue];

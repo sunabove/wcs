@@ -1828,6 +1828,7 @@ const vehicleAudioState = {
     isActivationListenerAttached: false,
     pendingMessage: null,
     pendingOptions: null,
+    speakTimerId: null,
     lastSpokenMessage: '',
     lastSpokenAt: 0,
     duplicateMessageBlockMs: 350
@@ -1845,7 +1846,7 @@ function isVehicleAudioEnabled() {
     return !!(viewer && viewer.showAudio === true);
 }
 
-function tryActivateVehicleAudio() {
+function tryActivateVehicleAudio(trigger = 'system') {
     if (!canUseSpeechSynthesis()) {
         return false;
     }
@@ -1854,6 +1855,11 @@ function tryActivateVehicleAudio() {
         window.speechSynthesis.resume();
     } catch (error) {
         console.warn('[URDF][Audio] speechSynthesis resume failed:', error);
+    }
+
+    // 브라우저 자동재생 정책 때문에 실제 활성화는 사용자 제스처에서만 확정한다.
+    if (trigger !== 'gesture') {
+        return false;
     }
 
     vehicleAudioState.isActivated = true;
@@ -1877,7 +1883,7 @@ function setupVehicleAudioActivationListener() {
     vehicleAudioState.isActivationListenerAttached = true;
 
     const onFirstUserGesture = () => {
-        tryActivateVehicleAudio();
+        tryActivateVehicleAudio('gesture');
         document.removeEventListener('pointerdown', onFirstUserGesture, true);
         document.removeEventListener('keydown', onFirstUserGesture, true);
         document.removeEventListener('touchstart', onFirstUserGesture, true);
@@ -1914,17 +1920,33 @@ function speakVehicleStatus(text, options = {}) {
         return;
     }
 
+    if (vehicleAudioState.speakTimerId) {
+        clearTimeout(vehicleAudioState.speakTimerId);
+        vehicleAudioState.speakTimerId = null;
+    }
+
     // 최신 상태를 즉시 읽도록 이전 대기/재생 음성을 정리한다.
     if (interrupt || window.speechSynthesis.speaking || window.speechSynthesis.pending) {
         window.speechSynthesis.cancel();
     }
 
-    const utterance = new window.SpeechSynthesisUtterance(message);
-    utterance.lang = 'ko-KR';
-    utterance.rate = 1.05;
-    utterance.pitch = 1;
-    utterance.volume = 1;
-    window.speechSynthesis.speak(utterance);
+    // cancel 직후 즉시 speak 시 일부 브라우저에서 발화가 누락될 수 있어 한 틱 뒤에 재생한다.
+    vehicleAudioState.speakTimerId = window.setTimeout(() => {
+        vehicleAudioState.speakTimerId = null;
+        try {
+            window.speechSynthesis.resume();
+        } catch (error) {
+            console.warn('[URDF][Audio] speechSynthesis resume before speak failed:', error);
+        }
+
+        const utterance = new window.SpeechSynthesisUtterance(message);
+        utterance.lang = 'ko-KR';
+        utterance.rate = 1.05;
+        utterance.pitch = 1;
+        utterance.volume = 1;
+        window.speechSynthesis.speak(utterance);
+    }, 40);
+
     vehicleAudioState.lastSpokenMessage = message;
     vehicleAudioState.lastSpokenAt = now;
 }
@@ -2090,7 +2112,7 @@ function initURDFViewers() {
     if (isVehicleAudioEnabled()) {
         // 사용자 제스처 전에 MQTT 이벤트가 먼저 와도 안내 문구를 보류해 두었다가 재생하기 위해 리스너를 준비한다.
         setupVehicleAudioActivationListener();
-        tryActivateVehicleAudio();
+        tryActivateVehicleAudio('system');
     }
 
     console.log("[URDF] 🚀 모든 URDF Viewer 초기화 완료");

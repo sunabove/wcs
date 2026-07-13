@@ -1822,7 +1822,11 @@ const vehicleAudioState = {
     lastRollAngleDeg: null,
     lastRollAnnouncedAt: 0,
     minRollDeltaDeg: 2,
-    minRollAnnounceIntervalMs: 1200
+    minRollAnnounceIntervalMs: 1200,
+    isActivated: false,
+    isActivationListenerAttached: false,
+    pendingMessage: null,
+    pendingOptions: null
 };
 
 function canUseSpeechSynthesis() {
@@ -1837,6 +1841,49 @@ function isVehicleAudioEnabled() {
     return !!(viewer && viewer.showAudio === true);
 }
 
+function tryActivateVehicleAudio() {
+    if (!canUseSpeechSynthesis()) {
+        return false;
+    }
+
+    try {
+        window.speechSynthesis.resume();
+    } catch (error) {
+        console.warn('[URDF][Audio] speechSynthesis resume failed:', error);
+    }
+
+    vehicleAudioState.isActivated = true;
+
+    const pendingMessage = vehicleAudioState.pendingMessage;
+    const pendingOptions = vehicleAudioState.pendingOptions || {};
+    if (pendingMessage) {
+        vehicleAudioState.pendingMessage = null;
+        vehicleAudioState.pendingOptions = null;
+        speakVehicleStatus(pendingMessage, pendingOptions);
+    }
+
+    return true;
+}
+
+function setupVehicleAudioActivationListener() {
+    if (vehicleAudioState.isActivationListenerAttached || !isVehicleAudioEnabled()) {
+        return;
+    }
+
+    vehicleAudioState.isActivationListenerAttached = true;
+
+    const onFirstUserGesture = () => {
+        tryActivateVehicleAudio();
+        document.removeEventListener('pointerdown', onFirstUserGesture, true);
+        document.removeEventListener('keydown', onFirstUserGesture, true);
+        document.removeEventListener('touchstart', onFirstUserGesture, true);
+    };
+
+    document.addEventListener('pointerdown', onFirstUserGesture, true);
+    document.addEventListener('keydown', onFirstUserGesture, true);
+    document.addEventListener('touchstart', onFirstUserGesture, true);
+}
+
 function speakVehicleStatus(text, options = {}) {
     if (!isVehicleAudioEnabled() || !canUseSpeechSynthesis()) {
         return;
@@ -1845,6 +1892,13 @@ function speakVehicleStatus(text, options = {}) {
     const { interrupt = false } = options;
     const message = String(text || '').trim();
     if (!message) {
+        return;
+    }
+
+    if (!vehicleAudioState.isActivated) {
+        vehicleAudioState.pendingMessage = message;
+        vehicleAudioState.pendingOptions = options;
+        setupVehicleAudioActivationListener();
         return;
     }
 
@@ -1985,6 +2039,12 @@ function initURDFViewers() {
     setRoadRollAngleDeg($('#road-roll-angle-deg').val());
     setRoadPitchAngleDeg($('#road-pitch-angle-deg').val());
     updateDriveModeButtons(null);
+
+    if (isVehicleAudioEnabled()) {
+        // 사용자 제스처 전에 MQTT 이벤트가 먼저 와도 안내 문구를 보류해 두었다가 재생하기 위해 리스너를 준비한다.
+        setupVehicleAudioActivationListener();
+        tryActivateVehicleAudio();
+    }
 
     console.log("[URDF] 🚀 모든 URDF Viewer 초기화 완료");
 }

@@ -1982,6 +1982,12 @@ function speakVehicleStatus(text, options = {}) {
         return;
     }
 
+    const globalSpeechState = window.__wcsGlobalSpeechState || { message: '', at: 0 };
+    if (globalSpeechState.message === message && (now - globalSpeechState.at) < 1200) {
+        return;
+    }
+    window.__wcsGlobalSpeechState = { message: message, at: now };
+
     if (vehicleAudioState.speakTimerId) {
         clearTimeout(vehicleAudioState.speakTimerId);
         vehicleAudioState.speakTimerId = null;

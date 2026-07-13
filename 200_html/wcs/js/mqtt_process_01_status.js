@@ -111,6 +111,12 @@ function speakVehicleStatusFallback(text, options = {}) {
         return;
     }
 
+    const globalSpeechState = window.__wcsGlobalSpeechState || { message: '', at: 0 };
+    if (globalSpeechState.message === message && (now - globalSpeechState.at) < 1200) {
+        return;
+    }
+    window.__wcsGlobalSpeechState = { message: message, at: now };
+
     if (fallbackVehicleAudioState.speakTimerId) {
         clearTimeout(fallbackVehicleAudioState.speakTimerId);
         fallbackVehicleAudioState.speakTimerId = null;

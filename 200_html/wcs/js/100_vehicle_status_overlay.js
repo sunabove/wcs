@@ -272,10 +272,12 @@
             return;
         }
 
+        const initialWidth = getCompactOverlayInitialWidth(lastMediaAspectRatio);
+
         // Top-center compact overlay, constrained to less than half of viewer size.
         $overlay.attr(
             "style",
-            "inset:auto;top:10px;left:50%;transform:translateX(-50%);width:min(50%, 760px);height:min(46%, 420px);z-index:20;display:flex;flex-direction:column;background:rgba(0,0,0,0.82);border-radius:1rem;overflow:hidden;"
+            "inset:auto;top:10px;left:50%;transform:translateX(-50%);width:" + initialWidth + "px;height:min(46%, 420px);z-index:20;display:flex;flex-direction:column;background:rgba(0,0,0,0.82);border-radius:1rem;overflow:hidden;"
         );
         overlayLayoutMode = "compact";
         applyCompactOverlayWidthByAspect(lastMediaAspectRatio);
@@ -301,6 +303,22 @@
         }
 
         return Math.max(220, Math.min(760, Math.round(viewerWidth * 0.5)));
+    }
+
+    function getCompactOverlayInitialWidth(aspectRatio) {
+        const ratio = Number(aspectRatio);
+        const safeRatio = Number.isFinite(ratio) && ratio > 0 ? ratio : (16 / 9);
+
+        const viewerHeight = Number($viewer.outerHeight() || 0);
+        if (!Number.isFinite(viewerHeight) || viewerHeight <= 0) {
+            return getCompactOverlayMaxWidth();
+        }
+
+        const overlayHeight = Math.min(420, Math.max(180, viewerHeight * 0.46));
+        const mediaHeight = Math.max(0, overlayHeight - 16);
+        const estimatedWidth = Math.round((mediaHeight * safeRatio) + 16);
+
+        return Math.min(getCompactOverlayMaxWidth(), Math.max(220, estimatedWidth));
     }
 
     function applyCompactOverlayWidthByAspect(aspectRatio) {

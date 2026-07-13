@@ -30,6 +30,7 @@ class URDFViewer {
         this.isInitialCameraPoseReady = false;
         this.pendingOverlayDragPixels = null;
         this.pendingOverlayZoomOutRatio = null;
+        this.isOrbitInteractionActive = false;
         this.isDragging = false;
         this.lastAngleLogAt = 0;
         this.angleLogIntervalMs = 120;
@@ -289,6 +290,7 @@ class URDFViewer {
         this.controls = new OrbitControls(this.camera, this.renderer.domElement);
         this.controls.enableDamping = true;
         this.controls.dampingFactor = 0.05;
+        this.controls.enabled = false;
         this.cameraPosTextElement = $('#camera-pos-text');
         this.setupCameraAngleLogging();
         this.setupCameraToastOverlay();
@@ -1344,6 +1346,62 @@ class URDFViewer {
         const raycaster = new THREE.Raycaster();
         const mouse = new THREE.Vector2();
 
+        const getRobotIntersections = (event) => {
+            if (!this.robotModel) {
+                return [];
+            }
+
+            const rect = this.container.getBoundingClientRect();
+            const width = rect.width;
+            const height = rect.height;
+
+            if (!width || !height) {
+                return [];
+            }
+
+            mouse.x = ((event.clientX - rect.left) / width) * 2 - 1;
+            mouse.y = -((event.clientY - rect.top) / height) * 2 + 1;
+            raycaster.setFromCamera(mouse, this.camera);
+
+            return raycaster.intersectObject(this.robotModel, true);
+        };
+
+        const isChassisHit = (hitObject) => {
+            if (!hitObject || !this.robotModel) {
+                return false;
+            }
+
+            const carFrame = this.robotModel?.links?.car_frame || null;
+            if (!carFrame) {
+                return true;
+            }
+
+            return hitObject === carFrame || this.isDescendantObject3D(hitObject, carFrame);
+        };
+
+        const disableOrbitInteraction = () => {
+            this.isOrbitInteractionActive = false;
+            if (this.controls) {
+                this.controls.enabled = false;
+            }
+        };
+
+        this.renderer.domElement.addEventListener('pointerdown', (event) => {
+            if (!this.controls || event.ctrlKey) {
+                return;
+            }
+
+            const intersects = getRobotIntersections(event);
+            const allowInteraction = intersects.length > 0 && isChassisHit(intersects[0].object);
+
+            this.isOrbitInteractionActive = allowInteraction;
+            this.controls.enabled = allowInteraction;
+        }, true);
+
+        window.addEventListener('pointerup', disableOrbitInteraction, true);
+        window.addEventListener('pointercancel', disableOrbitInteraction, true);
+        window.addEventListener('blur', disableOrbitInteraction);
+
         this.container.addEventListener('mousedown', (event) => {
             if (event.ctrlKey) {
                 if (this.referenceToggleStep === 0) {
@@ -1356,23 +1414,11 @@ class URDFViewer {
                 return;
             }
 
-            const rect = this.container.getBoundingClientRect();
-            const width = rect.width;
-            const height = rect.height;
-            
-            mouse.x = ((event.clientX - rect.left) / width) * 2 - 1;
-            mouse.y = -((event.clientY - rect.top) / height) * 2 + 1;
-
-            raycaster.setFromCamera(mouse, this.camera);
-
-            if (this.robotModel) {
-                const intersects = raycaster.intersectObject(this.robotModel, true);
-
-                if (intersects.length > 0) {
-                    this.goalTarget.copy(intersects[0].point);
-                    this.applyGoalTargetToControls();
-                    console.log('[URDF] 목표 지점 설정:', this.goalTarget);
-                }
+            const intersects = getRobotIntersections(event);
+            if (intersects.length > 0) {
+                this.goalTarget.copy(intersects[0].point);
+                this.applyGoalTargetToControls();
+                console.log('[URDF] 목표 지점 설정:', this.goalTarget);
             }
         });
     }

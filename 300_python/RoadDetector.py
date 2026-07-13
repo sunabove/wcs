@@ -318,6 +318,8 @@ class RoadDetector:
     def _publish_surface_state_if_needed(self, detect_key, stats, mqtt_publish, context_key):
         if not mqtt_publish:
             return
+        if self._is_global_stream_stop_requested():
+            return
         if str(detect_key or "").strip().lower() != "road_type":
             return
 
@@ -387,6 +389,8 @@ class RoadDetector:
 
     def _publish_obstacle_state_if_needed(self, detect_key, stats, mqtt_publish, context_key, include_pothole=False):
         if not mqtt_publish:
+            return
+        if self._is_global_stream_stop_requested():
             return
 
         key = str(detect_key or "").strip().lower()
@@ -939,6 +943,8 @@ class RoadDetector:
 
     def road_detect_stream_init(self, file_name: str, detect_type: str = "road", remove_noisy_masks: bool = True, show_detect_stats: bool = False, show_time_bar: bool = False, include_pothole: bool = False, pothole_conf: float = DEFAULT_POTHOLE_CONF, mqtt_publish: bool = False) -> dict:
         """비디오 스트리밍 세션 초기화"""
+        self._clear_global_stream_stop_requested()
+
         input_path = resolve_upload_image_path(file_name)
         if not input_path.exists() or not input_path.is_file():
             raise HTTPException(status_code=404, detail="Input file not found")
@@ -1287,6 +1293,8 @@ class RoadDetector:
         roi_path.write_text(f"{x1},{y1},{x2},{y2}\n", encoding="utf-8")
 
     def camera_detect_stream_init(self, camera_index: int, detect_type: str = "road", camera_name: str = "", remove_noisy_masks: bool = True, show_detect_stats: bool = False, show_time_bar: bool = False, include_pothole: bool = False, pothole_conf: float = DEFAULT_POTHOLE_CONF, mqtt_publish: bool = False) -> dict:
+        self._clear_global_stream_stop_requested()
+
         session_id = f"camera_{camera_index}"
 
         if session_id in RoadDetector._camera_stream_sessions:

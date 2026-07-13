@@ -1472,9 +1472,27 @@ class URDFViewer {
                 return false;
             }
 
-            const carFrame = this.robotModel?.links?.car_frame || null;
+            const linkMap = this.robotModel?.links || {};
+            const carFrame = linkMap.car_frame || null;
             if (!carFrame) {
                 return true;
+            }
+
+            const excludedLinkRoots = [
+                linkMap.ellipsoid_surface_patch || null,
+                linkMap.ground_patch || null,
+                linkMap.wheel_fl || null,
+                linkMap.wheel_fr || null,
+                linkMap.wheel_rl || null,
+                linkMap.wheel_rr || null,
+            ].filter(Boolean);
+
+            const isExcludedNode = excludedLinkRoots.some(root => {
+                return hitObject === root || this.isDescendantObject3D(hitObject, root);
+            });
+
+            if (isExcludedNode) {
+                return false;
             }
 
             return hitObject === carFrame || this.isDescendantObject3D(hitObject, carFrame);

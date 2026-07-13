@@ -283,6 +283,10 @@
         });
     }
 
+    function requestRoadDetectSessionCleanupAll() {
+        requestRoadDetectSessionCleanupAllOnLoad();
+    }
+
     function shouldRenderAsImageStream(url) {
         const normalizedUrl = String(url || "").toLowerCase();
         return normalizedUrl.indexOf("/fast/road_detect_stream/") !== -1;
@@ -454,6 +458,7 @@
         }
 
         if (!normalizedFile) {
+            requestRoadDetectSessionCleanupAll();
             hideOverlay();
             return;
         }

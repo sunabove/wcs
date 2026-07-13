@@ -48,17 +48,45 @@
             transform: "translateX(-50%)",
             zIndex: "24",
             maxWidth: "92%",
+            display: "inline-flex",
+            alignItems: "center",
+            gap: "8px",
+            pointerEvents: "none",
+        });
+        $viewer.parent().append($audioHud);
+    }
+
+    let $audioHudState = $("#vehicle-audio-hud-state");
+    let $audioHudText = $("#vehicle-audio-hud-text");
+
+    if ($audioHudState.length === 0 || $audioHudText.length === 0) {
+        $audioHud.empty();
+
+        $audioHudState = $('<div id="vehicle-audio-hud-state"></div>');
+        $audioHudText = $('<div id="vehicle-audio-hud-text"></div>');
+
+        $audioHudState.css({
             padding: "4px 10px",
             borderRadius: "999px",
             background: "rgba(108, 117, 125, 0.72)",
             color: "#fff",
             fontSize: "12px",
             whiteSpace: "nowrap",
+        });
+
+        $audioHudText.css({
+            maxWidth: "min(62vw, 540px)",
+            padding: "4px 10px",
+            borderRadius: "999px",
+            background: "rgba(33, 37, 41, 0.62)",
+            color: "#fff",
+            fontSize: "12px",
+            whiteSpace: "nowrap",
             overflow: "hidden",
             textOverflow: "ellipsis",
-            pointerEvents: "none",
         });
-        $viewer.parent().append($audioHud);
+
+        $audioHud.append($audioHudState, $audioHudText);
     }
 
     function setCloseButtonToShowMode(isShowMode) {
@@ -124,12 +152,13 @@
             || isRecentSpeech
         );
 
-        $audioHud.text(titleText + " | " + speechText);
-        $audioHud.css("background", audioEnabled ? "rgba(25, 135, 84, 0.70)" : "rgba(108, 117, 125, 0.72)");
+        $audioHudState.text(titleText);
+        $audioHudText.text(speechText);
+        $audioHudState.css("background", audioEnabled ? "rgba(25, 135, 84, 0.70)" : "rgba(108, 117, 125, 0.72)");
 
         if (isSpeakingNow) {
             audioHudBlinkPhase = !audioHudBlinkPhase;
-            $audioHud.css({
+            $audioHudState.css({
                 opacity: audioHudBlinkPhase ? "1" : "0.42",
                 boxShadow: audioHudBlinkPhase ? "0 0 0 2px rgba(255,255,255,0.18)" : "none",
             });
@@ -137,7 +166,7 @@
         }
 
         audioHudBlinkPhase = false;
-        $audioHud.css({
+        $audioHudState.css({
             opacity: "1",
             boxShadow: "none",
         });

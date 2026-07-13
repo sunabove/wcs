@@ -11,6 +11,10 @@ const fallbackVehicleAudioState = {
     pendingMessage: null,
     speakTimerId: null,
     lastSurfaceState: null,
+    lastRollAngleDeg: null,
+    lastRollAnnouncedAt: 0,
+    minRollDeltaDeg: 2,
+    minRollAnnounceIntervalMs: 1200,
     lastSpokenMessage: '',
     lastSpokenAt: 0,
     duplicateMessageBlockMs: 350
@@ -199,6 +203,32 @@ function announceVehicleSurfaceStateAudio(surfaceState) {
     speakVehicleStatusFallback(message, { interrupt: true });
 }
 
+function announceVehicleRollAngleAudio(angleDeg) {
+    if (typeof window.announceVehicleRollAngleDeg === 'function') {
+        window.announceVehicleRollAngleDeg(angleDeg);
+    }
+
+    const numericAngleDeg = Number(angleDeg);
+    if (!Number.isFinite(numericAngleDeg)) {
+        return;
+    }
+
+    const roundedAngleDeg = Math.round(numericAngleDeg);
+    const now = Date.now();
+
+    if (fallbackVehicleAudioState.lastRollAngleDeg != null) {
+        const angleDelta = Math.abs(roundedAngleDeg - fallbackVehicleAudioState.lastRollAngleDeg);
+        const elapsedMs = now - fallbackVehicleAudioState.lastRollAnnouncedAt;
+        if (angleDelta < fallbackVehicleAudioState.minRollDeltaDeg || elapsedMs < fallbackVehicleAudioState.minRollAnnounceIntervalMs) {
+            return;
+        }
+    }
+
+    fallbackVehicleAudioState.lastRollAngleDeg = roundedAngleDeg;
+    fallbackVehicleAudioState.lastRollAnnouncedAt = now;
+    speakVehicleStatusFallback(`롤 각도 ${roundedAngleDeg}도`, { interrupt: true });
+}
+
 function prcessMqttMessage(topic, value) {
 
     mqttLog(`[MQTT] 🧩 prcessMqttMessage 호출 - topic: ${topic}, value: ${value}`);
@@ -385,9 +415,7 @@ function prcessMqttMessage(topic, value) {
                     window.setRoadRollAngleDeg(angleDeg);
                 }
 
-                if (typeof window.announceVehicleRollAngleDeg === 'function') {
-                    window.announceVehicleRollAngleDeg(angleDeg);
-                }
+                announceVehicleRollAngleAudio(angleDeg);
 
                 const $rollSlider = $('#vehicle-roll-angle');
                 const $rollValue = $('#vehicle-roll-angle-value');

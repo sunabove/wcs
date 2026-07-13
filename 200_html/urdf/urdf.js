@@ -2031,16 +2031,12 @@ function announceVehicleDriveCommand(commandValue) {
 
     const numericCommand = Number.parseInt(commandValue, 10);
     const commandLabelByValue = {
+        0: '정지',
         1: '전진',
         2: '후진',
         3: '좌회전',
         4: '우회전'
     };
-
-    if (numericCommand === 0) {
-        vehicleAudioState.lastCommand = null;
-        return;
-    }
 
     const commandLabel = commandLabelByValue[numericCommand];
     if (!commandLabel) {

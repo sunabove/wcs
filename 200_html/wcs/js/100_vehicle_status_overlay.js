@@ -5,6 +5,7 @@
     const $image = $("#road-detect-overlay-image");
     const $video = $("#road-detect-overlay-video");
     const $viewer = $("#vehicle-urdf-viewer");
+    const VEHICLE_AUDIO_STORAGE_KEY = "wcs.vehicle.showAudio";
 
     if ($overlay.length === 0 || $image.length === 0 || $video.length === 0) {
         return;
@@ -32,8 +33,61 @@
     const LOADING_MESSAGE = "로딩중입니다.";
     const FIRST_FRAME_TIMEOUT_MESSAGE = "동영상 로딩이 되지 않았습니다.";
 
+    const $audioHud = $('<div id="road-detect-overlay-audio-hud"></div>');
+    $audioHud.css({
+        position: "absolute",
+        left: "50%",
+        bottom: "8px",
+        transform: "translateX(-50%)",
+        zIndex: "25",
+        maxWidth: "92%",
+        padding: "4px 10px",
+        borderRadius: "999px",
+        background: "rgba(0, 0, 0, 0.62)",
+        color: "#fff",
+        fontSize: "12px",
+        whiteSpace: "nowrap",
+        overflow: "hidden",
+        textOverflow: "ellipsis",
+        pointerEvents: "none",
+    });
+    $overlay.append($audioHud);
+
     function setCloseButtonToShowMode(isShowMode) {
         $closeButton.text(isShowMode ? "보이기" : "닫기");
+    }
+
+    function isAudioEnabledForOverlay() {
+        if (typeof window.isVehicleAudioEnabled === "function") {
+            try {
+                const enabled = !!window.isVehicleAudioEnabled();
+                window.__wcsAudioEnabled = enabled;
+                return enabled;
+            } catch (error) {
+                // fallback to storage check.
+            }
+        }
+
+        if (typeof window.__wcsAudioEnabled === "boolean") {
+            return window.__wcsAudioEnabled;
+        }
+
+        try {
+            const rawValue = window.localStorage.getItem(VEHICLE_AUDIO_STORAGE_KEY);
+            const normalized = String(rawValue || "").trim().toLowerCase();
+            return normalized === "true" || normalized === "1" || normalized === "yes" || normalized === "on";
+        } catch (error) {
+            return false;
+        }
+    }
+
+    function updateOverlayAudioHud() {
+        const audioEnabled = isAudioEnabledForOverlay();
+        const rawText = String(window.__wcsLastSpeechText || "").trim();
+        const speechText = rawText || "대기중";
+        const titleText = audioEnabled ? "음성 ON" : "음성 OFF";
+        $audioHud.text(titleText + " | " + speechText);
+        $audioHud.css("background", audioEnabled ? "rgba(25, 135, 84, 0.70)" : "rgba(108, 117, 125, 0.72)");
     }
 
     function setOverlayStatus(message, visible) {
@@ -527,4 +581,6 @@
     });
 
     setCloseButtonToShowMode(false);
+    updateOverlayAudioHud();
+    setInterval(updateOverlayAudioHud, 400);
 })();

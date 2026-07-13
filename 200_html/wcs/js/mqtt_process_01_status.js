@@ -14,6 +14,7 @@ const fallbackVehicleAudioState = {
     isSpeaking: false,
     lastSurfaceState: null,
     lastRollAngleDeg: null,
+    hasRollBaseline: false,
     lastRollAnnouncedAt: 0,
     minRollDeltaDeg: 2,
     minRollAnnounceIntervalMs: 1200,
@@ -240,6 +241,14 @@ function announceVehicleRollAngleAudio(angleDeg) {
 
     const roundedAngleDeg = Math.round(numericAngleDeg);
     const now = Date.now();
+
+    // 첫 수신값(초기값)은 기준만 설정하고 음성은 생략한다.
+    if (!fallbackVehicleAudioState.hasRollBaseline) {
+        fallbackVehicleAudioState.hasRollBaseline = true;
+        fallbackVehicleAudioState.lastRollAngleDeg = roundedAngleDeg;
+        fallbackVehicleAudioState.lastRollAnnouncedAt = now;
+        return;
+    }
 
     if (fallbackVehicleAudioState.lastRollAngleDeg != null) {
         const angleDelta = Math.abs(roundedAngleDeg - fallbackVehicleAudioState.lastRollAngleDeg);

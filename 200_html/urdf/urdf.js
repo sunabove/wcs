@@ -2014,6 +2014,7 @@ const vehicleAudioState = {
     lastSurfaceState: null,
     lastObstacle: null,
     lastRollAngleDeg: null,
+    hasRollBaseline: false,
     lastRollAnnouncedAt: 0,
     minRollDeltaDeg: 2,
     minRollAnnounceIntervalMs: 1200,
@@ -2277,6 +2278,14 @@ function announceVehicleRollAngleDeg(angleDeg) {
 
     const roundedAngleDeg = Math.round(numericAngle);
     const now = Date.now();
+
+    // 첫 수신값(대개 초기 0도)은 기준값만 설정하고 음성 출력하지 않는다.
+    if (!vehicleAudioState.hasRollBaseline) {
+        vehicleAudioState.hasRollBaseline = true;
+        vehicleAudioState.lastRollAngleDeg = roundedAngleDeg;
+        vehicleAudioState.lastRollAnnouncedAt = now;
+        return;
+    }
 
     if (vehicleAudioState.lastRollAngleDeg != null) {
         const angleDelta = Math.abs(roundedAngleDeg - vehicleAudioState.lastRollAngleDeg);

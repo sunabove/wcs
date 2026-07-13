@@ -20,6 +20,7 @@
     }
 
     const showVideoOverlayEnabled = $viewer.length > 0 && toBoolean($viewer.attr("showVideo"));
+    const showWheelInfoOverlayEnabled = $viewer.length > 0 && toBoolean($viewer.attr("showWheelInfo"));
     let overlayLayoutMode = "default";
     let latestCurrentVideoFileName = "";
     let mediaHiddenByUser = false;
@@ -285,7 +286,21 @@
         if (!Number.isFinite(viewerWidth) || viewerWidth <= 0) {
             return 760;
         }
-        return Math.max(240, Math.min(760, Math.round(viewerWidth * 0.5)));
+
+        const sideMargin = 12;
+        const centerGap = 16;
+        const estimatedWheelPanelWidth = showWheelInfoOverlayEnabled
+            ? Math.min(230, Math.round(viewerWidth * 0.34))
+            : 0;
+
+        const reservedWidth = (estimatedWheelPanelWidth * 2) + (sideMargin * 2) + centerGap;
+        const availableCenterWidth = Math.round(viewerWidth - reservedWidth);
+
+        if (availableCenterWidth > 0) {
+            return Math.max(220, Math.min(760, availableCenterWidth));
+        }
+
+        return Math.max(220, Math.min(760, Math.round(viewerWidth * 0.5)));
     }
 
     function applyCompactOverlayWidthByAspect(aspectRatio) {
@@ -308,7 +323,7 @@
         const mediaHeight = Math.max(0, overlayHeight - 16);
         const mediaWidth = mediaHeight * ratio;
         const targetWidth = Math.round(mediaWidth + 16);
-        const clampedWidth = Math.min(getCompactOverlayMaxWidth(), Math.max(240, targetWidth));
+        const clampedWidth = Math.min(getCompactOverlayMaxWidth(), Math.max(220, targetWidth));
 
         $overlay.css("width", clampedWidth + "px");
     }

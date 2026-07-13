@@ -24,6 +24,7 @@ class URDFViewer {
         this.directionalLight = null;
         this.directionalLightRadius = 1;
         this.goalTarget = new THREE.Vector3(0, 0, 0);
+        this.goalTargetVerticalOffset = 0;
         this.isDragging = false;
         this.lastAngleLogAt = 0;
         this.angleLogIntervalMs = 120;
@@ -1364,10 +1365,33 @@ class URDFViewer {
 
                 if (intersects.length > 0) {
                     this.goalTarget.copy(intersects[0].point);
+                    this.applyGoalTargetToControls();
                     console.log('[URDF] 목표 지점 설정:', this.goalTarget);
                 }
             }
         });
+    }
+
+    applyGoalTargetToControls() {
+        if (!this.controls) {
+            return;
+        }
+
+        this.controls.target.set(
+            this.goalTarget.x,
+            this.goalTarget.y,
+            this.goalTarget.z + this.goalTargetVerticalOffset
+        );
+        this.controls.update();
+    }
+
+    setGoalTargetVerticalOffset(offsetValue) {
+        const numericOffset = Number(offsetValue);
+        this.goalTargetVerticalOffset = Number.isFinite(numericOffset)
+            ? THREE.MathUtils.clamp(numericOffset, -2, 2)
+            : 0;
+        this.applyGoalTargetToControls();
+        this.resetDirectionalLight(this.controls.target, this.directionalLightRadius);
     }
 
     loadURDF() {
@@ -1421,11 +1445,10 @@ class URDFViewer {
                     this.camera.updateProjectionMatrix();
 
                     this.goalTarget.copy(center);
-                    this.controls.target.copy(center);
+                    this.applyGoalTargetToControls();
                     this.controls.minDistance = currentCameraDist * 0.2;
                     this.controls.maxDistance = currentCameraDist * 8;
                     this.resetDirectionalLight(center, radius);
-                    this.controls.update();
                     this.logCameraInfos(true);
 
                     console.log('[URDF] ✅ 카메라/클리핑/컨트롤 범위 갱신 완료');
@@ -2181,6 +2204,14 @@ globalThis.setDriveMode = setDriveMode;
 globalThis.setDriveSpeedKmh = setDriveSpeedKmh;
 globalThis.setRoadRollAngleDeg = setRoadRollAngleDeg;
 globalThis.setRoadPitchAngleDeg = setRoadPitchAngleDeg;
+globalThis.setVehicleViewerVerticalOffset = function(offsetValue) {
+    const vehicleViewer = window.urdfViewersById?.['vehicle-urdf-viewer'] || null;
+    if (!vehicleViewer || typeof vehicleViewer.setGoalTargetVerticalOffset !== 'function') {
+        return;
+    }
+
+    vehicleViewer.setGoalTargetVerticalOffset(offsetValue);
+};
 globalThis.isVehicleAudioEnabled = isVehicleAudioEnabled;
 globalThis.setVehicleAudioEnabled = setVehicleAudioEnabled;
 globalThis.announceVehicleDriveCommand = announceVehicleDriveCommand;

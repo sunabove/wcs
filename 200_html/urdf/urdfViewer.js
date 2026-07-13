@@ -2011,6 +2011,7 @@ function getRoadAttitudeTargetViewer() {
 
 const vehicleAudioState = {
     lastCommand: null,
+    hasCommandBaseline: false,
     lastSurfaceState: null,
     lastObstacle: null,
     lastRollAngleDeg: null,
@@ -2255,6 +2256,13 @@ function announceVehicleDriveCommand(commandValue) {
 
     const commandLabel = commandLabelByValue[numericCommand];
     if (!commandLabel) {
+        return;
+    }
+
+    // 첫 수신 명령값은 기준값만 설정하고 음성은 출력하지 않는다.
+    if (!vehicleAudioState.hasCommandBaseline) {
+        vehicleAudioState.hasCommandBaseline = true;
+        vehicleAudioState.lastCommand = numericCommand;
         return;
     }
 

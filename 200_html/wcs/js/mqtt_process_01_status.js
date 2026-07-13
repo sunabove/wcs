@@ -118,6 +118,7 @@ function processFallbackSpeechQueue() {
     }
 
     fallbackVehicleAudioState.isSpeaking = true;
+    window.__wcsAudioSpeaking = true;
 
     try {
         window.speechSynthesis.resume();
@@ -132,10 +133,12 @@ function processFallbackSpeechQueue() {
     utterance.volume = 1;
     utterance.onend = () => {
         fallbackVehicleAudioState.isSpeaking = false;
+        window.__wcsAudioSpeaking = false;
         processFallbackSpeechQueue();
     };
     utterance.onerror = () => {
         fallbackVehicleAudioState.isSpeaking = false;
+        window.__wcsAudioSpeaking = false;
         processFallbackSpeechQueue();
     };
     window.speechSynthesis.speak(utterance);

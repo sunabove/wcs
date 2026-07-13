@@ -339,6 +339,15 @@ async def road_detect_stream_cleanup_service(
     return detector.road_detect_stream_cleanup(file_name)
 pass # road_detect_stream_cleanup_service
 
+@router.post("/road_detect_stream_cleanup_all")
+async def road_detect_stream_cleanup_all_service():
+    from RoadDetector import RoadDetector
+
+    detector = RoadDetector()
+
+    return detector.road_detect_stream_cleanup_all()
+pass # road_detect_stream_cleanup_all_service
+
 @router.get("/road_detect_progress/{file_name:path}")
 async def road_detect_progress_service(file_name: str):
     """비디오 감지 진행 상황 조회"""

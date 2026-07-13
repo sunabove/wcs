@@ -13,6 +13,7 @@ const fallbackVehicleAudioState = {
     speechQueue: [],
     isSpeaking: false,
     lastSurfaceState: null,
+    hasSurfaceBaseline: false,
     lastRollAngleDeg: null,
     hasRollBaseline: false,
     lastRollAnnouncedAt: 0,
@@ -218,6 +219,13 @@ function announceVehicleSurfaceStateAudio(surfaceState) {
 
     const message = surfaceText[surfaceStateValue];
     if (!message) {
+        return;
+    }
+
+    // 첫 수신 노면 상태는 기준만 설정하고 음성은 생략한다.
+    if (!fallbackVehicleAudioState.hasSurfaceBaseline) {
+        fallbackVehicleAudioState.hasSurfaceBaseline = true;
+        fallbackVehicleAudioState.lastSurfaceState = surfaceStateValue;
         return;
     }
 

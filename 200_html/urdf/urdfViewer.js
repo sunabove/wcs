@@ -2013,6 +2013,7 @@ const vehicleAudioState = {
     lastCommand: null,
     hasCommandBaseline: false,
     lastSurfaceState: null,
+    hasSurfaceBaseline: false,
     lastObstacle: null,
     lastRollAngleDeg: null,
     hasRollBaseline: false,
@@ -2354,6 +2355,13 @@ function announceVehicleSurfaceState(surfaceStateValue) {
 
     const surfaceLabel = surfaceLabelByValue[numericSurfaceState];
     if (!surfaceLabel) {
+        return;
+    }
+
+    // 첫 수신 노면 상태(대개 초기 아스팔트)는 기준만 설정하고 음성은 출력하지 않는다.
+    if (!vehicleAudioState.hasSurfaceBaseline) {
+        vehicleAudioState.hasSurfaceBaseline = true;
+        vehicleAudioState.lastSurfaceState = numericSurfaceState;
         return;
     }
 

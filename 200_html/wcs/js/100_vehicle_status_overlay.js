@@ -25,6 +25,7 @@
     let lastMediaType = "";
     let lastMediaSource = "";
     let lastMediaAspectRatio = 16 / 9;
+    let cleanupRequest = null;
     let firstFrameTimeoutId = null;
     let firstFrameRequestToken = 0;
     const FIRST_FRAME_TIMEOUT_MS = 10000;
@@ -104,6 +105,36 @@
             pothole_conf: 0.45,
             mqtt_publish: true,
             t: Date.now(),
+        });
+    }
+
+    function buildRoadDetectStreamCleanupUrl(fileName) {
+        const safeFileName = extractVideoFileName(fileName);
+        if (!safeFileName) {
+            return "";
+        }
+
+        return "http://ai/fast/road_detect_stream_cleanup/samples/video/cobot/" + encodeURIComponent(safeFileName) + "?" + $.param({
+            t: Date.now(),
+        });
+    }
+
+    function requestRoadDetectSessionCleanup(fileName) {
+        const cleanupUrl = buildRoadDetectStreamCleanupUrl(fileName || latestCurrentVideoFileName);
+        if (!cleanupUrl) {
+            return;
+        }
+
+        if (cleanupRequest && typeof cleanupRequest.abort === "function") {
+            cleanupRequest.abort();
+        }
+
+        cleanupRequest = $.ajax({
+            url: cleanupUrl,
+            method: "POST",
+            timeout: 3000,
+        }).always(function () {
+            cleanupRequest = null;
         });
     }
 
@@ -236,6 +267,7 @@
     }
 
     function hideOverlay() {
+        requestRoadDetectSessionCleanup(latestCurrentVideoFileName);
         mediaHiddenByUser = false;
         setCloseButtonToShowMode(false);
         hideAllMedia(true);
@@ -244,6 +276,7 @@
     }
 
     function hideMediaAreaOnly() {
+        requestRoadDetectSessionCleanup(latestCurrentVideoFileName);
         mediaHiddenByUser = true;
         hideAllMedia(false);
         setOverlayStatus("", false);

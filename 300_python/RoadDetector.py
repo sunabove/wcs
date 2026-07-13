@@ -76,6 +76,7 @@ class RoadDetector:
     }
     _legacy_stream_stop_requested_by_key = {}
     _legacy_stream_stop_lock = threading.Lock()
+    _global_stream_stop_flag_path = Path(__file__).resolve().parent / ".road_detect_stream_stop_all.flag"
     SURFACE_STATE_MAJORITY_WINDOW_SEC = 0.8
     SURFACE_STATE_MIN_VOTES = 3
     SURFACE_STATE_MIN_DOMINANCE_RATIO = 0.60
@@ -176,6 +177,25 @@ class RoadDetector:
         while "//" in text:
             text = text.replace("//", "/")
         return text
+
+    def _mark_global_stream_stop_requested(self):
+        try:
+            self._global_stream_stop_flag_path.write_text(str(time.time()), encoding="utf-8")
+        except Exception as ex:
+            logger.warning("Failed to mark global stream stop flag: %s", ex)
+
+    def _clear_global_stream_stop_requested(self):
+        try:
+            if self._global_stream_stop_flag_path.exists():
+                self._global_stream_stop_flag_path.unlink()
+        except Exception as ex:
+            logger.warning("Failed to clear global stream stop flag: %s", ex)
+
+    def _is_global_stream_stop_requested(self):
+        try:
+            return self._global_stream_stop_flag_path.exists()
+        except Exception:
+            return False
 
     def _legacy_stream_stop_key_candidates(self, key):
         normalized = self._normalize_stream_key(key)
@@ -1111,6 +1131,7 @@ class RoadDetector:
 
         # 닫기 버튼 cleanup 요청 시 검출 토픽 발행 대기열을 비운다.
         self._clear_detection_mqtt_queue()
+        self._mark_global_stream_stop_requested()
 
         # 레거시 /road_detect_stream 루프 종료 신호를 먼저 기록한다.
         stop_key_candidates = self._legacy_stream_stop_key_candidates(file_name)
@@ -1146,6 +1167,7 @@ class RoadDetector:
     def road_detect_stream_cleanup_all(self) -> dict:
         """모든 road detect 스트리밍 세션 정리"""
         self._clear_detection_mqtt_queue()
+        self._mark_global_stream_stop_requested()
 
         cleaned_session_ids = []
 
@@ -1588,6 +1610,9 @@ class RoadDetector:
         if fps <= 0:
             fps = 20.0
 
+        # 새 스트림 시작 시 이전 종료 요청 플래그를 정리한다.
+        self._clear_global_stream_stop_requested()
+
         stream_key = self._normalize_stream_key(file_name)
         stop_key_candidates = self._legacy_stream_stop_key_candidates(stream_key)
         with RoadDetector._legacy_stream_stop_lock:
@@ -1601,6 +1626,9 @@ class RoadDetector:
             frame_number = 0
             try:
                 while True:
+                    if self._is_global_stream_stop_requested():
+                        break
+
                     with RoadDetector._legacy_stream_stop_lock:
                         stop_requested = any(
                             bool(RoadDetector._legacy_stream_stop_requested_by_key.get(stop_key, False))

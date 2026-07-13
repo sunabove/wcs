@@ -2131,7 +2131,7 @@ function announceVehicleSurfaceState(surfaceStateValue) {
     }
 
     vehicleAudioState.lastSurfaceState = numericSurfaceState;
-    speakVehicleStatus(`노면 상태 ${surfaceLabel}`, { interrupt: true });
+    speakVehicleStatus(`${surfaceLabel}`, { interrupt: true });
 }
 
 function updateDriveModeButtons(activeMode) {

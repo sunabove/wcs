@@ -65,7 +65,11 @@ class RoadDetector:
     MQTT_LATEST_ONLY_TOPICS = {
         "vehicle/surface/state",
         "vehicle/surface/obstacle",
+        "vehicle/operation/command",
     }
+    MQTT_LATEST_ONLY_PREFIXES = (
+        "vehicle/",
+    )
     MQTT_DETECTION_TOPICS = {
         "vehicle/surface/state",
         "vehicle/surface/obstacle",
@@ -262,8 +266,13 @@ class RoadDetector:
         topic_text = str(topic)
         payload_text = str(payload)
 
+        def is_latest_only_topic(topic_name):
+            if topic_name in self.MQTT_LATEST_ONLY_TOPICS:
+                return True
+            return any(topic_name.startswith(prefix) for prefix in self.MQTT_LATEST_ONLY_PREFIXES)
+
         with RoadDetector._mqtt_publish_condition:
-            if topic_text in self.MQTT_LATEST_ONLY_TOPICS and RoadDetector._mqtt_publish_queue:
+            if is_latest_only_topic(topic_text) and RoadDetector._mqtt_publish_queue:
                 RoadDetector._mqtt_publish_queue = deque(
                     item for item in RoadDetector._mqtt_publish_queue if item[0] != topic_text
                 )

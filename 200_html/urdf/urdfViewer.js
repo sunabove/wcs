@@ -105,6 +105,11 @@ class URDFViewer {
         this.wheelFlashTimeoutId = null;
         this.roadRollAngleDeg = 0;
         this.roadPitchAngleDeg = 0;
+        this.carFrameRollAlertThresholdDeg = 8;
+        this.carFrameAlertMaterials = [];
+        this.isCarFrameAlertActive = false;
+        this.carFrameAlertTintColor = new THREE.Color(0xd32f2f);
+        this.carFrameAlertEmissiveColor = new THREE.Color(0x521414);
         this.attitudeOverlayElement = null;
         this.attitudeTextElement = null;
         this.rollNeedleElement = null;
@@ -915,6 +920,88 @@ class URDFViewer {
         attitudeTargets.forEach(target => {
             target.rotation.set(rollRad, pitchRad, 0);
         });
+
+        this.applyCarFrameRollAlertVisual(carFrame);
+    }
+
+    ensureCarFrameAlertMaterials(carFrame) {
+        if (!carFrame) {
+            return [];
+        }
+
+        if (Array.isArray(this.carFrameAlertMaterials) && this.carFrameAlertMaterials.length > 0) {
+            return this.carFrameAlertMaterials;
+        }
+
+        const collectedMaterials = [];
+        carFrame.traverse(node => {
+            if (!node || !node.isMesh || !node.material) {
+                return;
+            }
+
+            if (!node.userData.__wcsCarFrameMaterialCloned) {
+                if (Array.isArray(node.material)) {
+                    node.material = node.material.map(material => material?.clone?.() || material);
+                } else if (node.material?.clone) {
+                    node.material = node.material.clone();
+                }
+                node.userData.__wcsCarFrameMaterialCloned = true;
+            }
+
+            const materials = Array.isArray(node.material) ? node.material : [node.material];
+            materials.forEach(material => {
+                if (!material || collectedMaterials.some(item => item.material === material)) {
+                    return;
+                }
+
+                collectedMaterials.push({
+                    material: material,
+                    baseColor: material.color ? material.color.clone() : null,
+                    baseEmissive: material.emissive ? material.emissive.clone() : null,
+                });
+            });
+        });
+
+        this.carFrameAlertMaterials = collectedMaterials;
+        return this.carFrameAlertMaterials;
+    }
+
+    applyCarFrameRollAlertVisual(carFrame) {
+        const alertMaterials = this.ensureCarFrameAlertMaterials(carFrame);
+        if (!alertMaterials || alertMaterials.length === 0) {
+            return;
+        }
+
+        const shouldAlert = Math.abs(Number(this.roadRollAngleDeg) || 0) > this.carFrameRollAlertThresholdDeg;
+        if (this.isCarFrameAlertActive === shouldAlert) {
+            return;
+        }
+
+        alertMaterials.forEach(item => {
+            if (!item || !item.material) {
+                return;
+            }
+
+            if (item.baseColor && item.material.color) {
+                if (shouldAlert) {
+                    item.material.color.copy(item.baseColor).lerp(this.carFrameAlertTintColor, 0.85);
+                } else {
+                    item.material.color.copy(item.baseColor);
+                }
+            }
+
+            if (item.baseEmissive && item.material.emissive) {
+                if (shouldAlert) {
+                    item.material.emissive.copy(this.carFrameAlertEmissiveColor);
+                } else {
+                    item.material.emissive.copy(item.baseEmissive);
+                }
+            }
+
+            item.material.needsUpdate = true;
+        });
+
+        this.isCarFrameAlertActive = shouldAlert;
     }
 
     isDescendantObject3D(childObject, ancestorObject) {
@@ -1574,6 +1661,8 @@ class URDFViewer {
 
                 this.scene.add(robot);
                 this.robotModel = robot;
+                this.carFrameAlertMaterials = [];
+                this.isCarFrameAlertActive = false;
                 this.resolveWheelAnimationTargets();
                 this.resolveWheelHighlightTargets();
                 this.applyRoadAttitudeAngles();

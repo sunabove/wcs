@@ -266,8 +266,17 @@
 
                                                     <div
                                                         id="vehicle-audio-hud"
-                                                        style="position:absolute; left:50%; bottom:10px; transform:translateX(-50%); z-index:24; max-width:92%; padding:4px 10px; border-radius:999px; background:rgba(108,117,125,0.72); color:#fff; font-size:12px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; pointer-events:none;"
-                                                    >음성 OFF | 대기중</div>
+                                                        style="position:absolute; left:50%; bottom:10px; transform:translateX(-50%); z-index:24; max-width:92%; display:inline-flex; align-items:center; gap:8px; pointer-events:none;"
+                                                    >
+                                                        <div
+                                                            id="vehicle-audio-hud-state"
+                                                            style="padding:4px 10px; border-radius:999px; background:rgba(108,117,125,0.72); color:#fff; font-size:12px; white-space:nowrap;"
+                                                        >음성 OFF</div>
+                                                        <div
+                                                            id="vehicle-audio-hud-text"
+                                                            style="max-width:min(62vw, 540px); padding:4px 10px; border-radius:999px; background:rgba(33,37,41,0.62); color:#fff; font-size:12px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;"
+                                                        >대기중</div>
+                                                    </div>
                                                 </div> 
                                             </div>
                                             <!-- // 차량 URDF Viewer -->

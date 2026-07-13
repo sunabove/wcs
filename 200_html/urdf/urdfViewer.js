@@ -2110,6 +2110,7 @@ function setVehicleAudioEnabled(enabled) {
 
     vehicleAudioState.speechQueue = [];
     vehicleAudioState.isSpeaking = false;
+    window.__wcsAudioSpeaking = false;
 }
 
 function tryActivateVehicleAudio(trigger = 'system') {
@@ -2180,6 +2181,7 @@ function processVehicleSpeechQueue() {
     }
 
     vehicleAudioState.isSpeaking = true;
+    window.__wcsAudioSpeaking = true;
 
     try {
         window.speechSynthesis.resume();
@@ -2194,10 +2196,12 @@ function processVehicleSpeechQueue() {
     utterance.volume = 1;
     utterance.onend = () => {
         vehicleAudioState.isSpeaking = false;
+        window.__wcsAudioSpeaking = false;
         processVehicleSpeechQueue();
     };
     utterance.onerror = () => {
         vehicleAudioState.isSpeaking = false;
+        window.__wcsAudioSpeaking = false;
         processVehicleSpeechQueue();
     };
     window.speechSynthesis.speak(utterance);

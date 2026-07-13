@@ -34,7 +34,7 @@
     const FIRST_FRAME_TIMEOUT_MS = 10000;
     const LOADING_MESSAGE = "로딩중입니다.";
     const FIRST_FRAME_TIMEOUT_MESSAGE = "동영상 로딩이 되지 않았습니다.";
-    const VIEWER_DRAG_PIXELS_RATIO = 0.5;
+    const VIEWER_DRAG_PIXELS_RATIO = 0.4;
 
     let $audioHud = $("#vehicle-audio-hud");
     if ($audioHud.length === 0) {

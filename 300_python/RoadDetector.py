@@ -1134,6 +1134,35 @@ class RoadDetector:
         }
     pass # road_detect_stream_cleanup
 
+    def road_detect_stream_cleanup_all(self) -> dict:
+        """모든 road detect 스트리밍 세션 정리"""
+        self._clear_detection_mqtt_queue()
+
+        cleaned_session_ids = []
+
+        with RoadDetector._legacy_stream_stop_lock:
+            for key in list(RoadDetector._legacy_stream_stop_requested_by_key.keys()):
+                RoadDetector._legacy_stream_stop_requested_by_key[key] = True
+
+        for session_id, session in list(RoadDetector._stream_sessions.items()):
+            try:
+                capture = session.get('capture') if isinstance(session, dict) else None
+                if capture is not None:
+                    capture.release()
+            except Exception as ex:
+                logger.warning("Error releasing capture for %s: %s", session_id, ex)
+            finally:
+                cleaned_session_ids.append(session_id)
+
+        RoadDetector._stream_sessions = {}
+
+        return {
+            'message': 'All road stream sessions cleaned up successfully',
+            'count': len(cleaned_session_ids),
+            'session_ids': cleaned_session_ids,
+        }
+    pass # road_detect_stream_cleanup_all
+
     def _open_camera_capture(self, camera_index: int):
         backends = [
             getattr(cv2, "CAP_DSHOW", None),

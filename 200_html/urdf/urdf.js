@@ -1392,7 +1392,8 @@ class URDFViewer {
             }
 
             const intersects = getRobotIntersections(event);
-            const allowInteraction = intersects.length > 0 && isChassisHit(intersects[0].object);
+            const chassisHit = intersects.find(intersection => isChassisHit(intersection?.object));
+            const allowInteraction = !!chassisHit;
 
             this.isOrbitInteractionActive = allowInteraction;
             this.controls.enabled = allowInteraction;
@@ -1415,8 +1416,9 @@ class URDFViewer {
             }
 
             const intersects = getRobotIntersections(event);
-            if (intersects.length > 0) {
-                this.goalTarget.copy(intersects[0].point);
+            const chassisHit = intersects.find(intersection => isChassisHit(intersection?.object));
+            if (chassisHit && chassisHit.point) {
+                this.goalTarget.copy(chassisHit.point);
                 this.applyGoalTargetToControls();
                 console.log('[URDF] 목표 지점 설정:', this.goalTarget);
             }

@@ -62,6 +62,8 @@ class RoadDetector:
     _mqtt_publish_worker_started = False
     _mqtt_publish_worker_lock = threading.Lock()
     MQTT_PUBLISH_QUEUE_MAX_SIZE = 500
+    _legacy_stream_stop_requested_by_key = {}
+    _legacy_stream_stop_lock = threading.Lock()
     SURFACE_STATE_MAJORITY_WINDOW_SEC = 0.8
     SURFACE_STATE_MIN_VOTES = 3
     SURFACE_STATE_MIN_DOMINANCE_RATIO = 0.60
@@ -1051,11 +1053,15 @@ class RoadDetector:
     def road_detect_stream_cleanup(self, file_name: str) -> dict:
         """스트리밍 세션 정리"""
         session_id = file_name
+
+        # 레거시 /road_detect_stream 루프 종료 신호를 먼저 기록한다.
+        with RoadDetector._legacy_stream_stop_lock:
+            RoadDetector._legacy_stream_stop_requested_by_key[session_id] = True
         
         # 세션이 없으면 이미 정리된 것
         if session_id not in RoadDetector._stream_sessions:
             return {
-                'message': 'Stream session already cleaned or not found',
+                'message': 'Stream cleanup requested (session not found, legacy stream stop flag set)',
                 'session_id': session_id
             }
 
@@ -1493,6 +1499,10 @@ class RoadDetector:
         if fps <= 0:
             fps = 20.0
 
+        stream_key = str(file_name)
+        with RoadDetector._legacy_stream_stop_lock:
+            RoadDetector._legacy_stream_stop_requested_by_key[stream_key] = False
+
         def generate():
             roi = None
             stats_history = {}
@@ -1500,6 +1510,11 @@ class RoadDetector:
             frame_number = 0
             try:
                 while True:
+                    with RoadDetector._legacy_stream_stop_lock:
+                        stop_requested = bool(RoadDetector._legacy_stream_stop_requested_by_key.get(stream_key, False))
+                    if stop_requested:
+                        break
+
                     ok, frame = capture.read()
                     if not ok:
                         break
@@ -1551,6 +1566,8 @@ class RoadDetector:
                     )
             finally:
                 capture.release()
+                with RoadDetector._legacy_stream_stop_lock:
+                    RoadDetector._legacy_stream_stop_requested_by_key.pop(stream_key, None)
 
         return StreamingResponse(generate(), media_type="multipart/x-mixed-replace; boundary=frame")
     pass # road_detect_stream

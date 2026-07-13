@@ -31,6 +31,7 @@
     let cleanupRequest = null;
     let firstFrameTimeoutId = null;
     let firstFrameRequestToken = 0;
+    let audioHudBlinkPhase = false;
     const FIRST_FRAME_TIMEOUT_MS = 10000;
     const LOADING_MESSAGE = "로딩중입니다.";
     const FIRST_FRAME_TIMEOUT_MESSAGE = "동영상 로딩이 되지 않았습니다.";
@@ -111,8 +112,28 @@
         const rawText = String(window.__wcsLastSpeechText || "").trim();
         const speechText = rawText || "대기중";
         const titleText = audioEnabled ? "음성 ON" : "음성 OFF";
+        const isSpeakingNow = audioEnabled
+            && typeof window.speechSynthesis !== "undefined"
+            && !!window.speechSynthesis
+            && window.speechSynthesis.speaking === true;
+
         $audioHud.text(titleText + " | " + speechText);
         $audioHud.css("background", audioEnabled ? "rgba(25, 135, 84, 0.70)" : "rgba(108, 117, 125, 0.72)");
+
+        if (isSpeakingNow) {
+            audioHudBlinkPhase = !audioHudBlinkPhase;
+            $audioHud.css({
+                opacity: audioHudBlinkPhase ? "1" : "0.42",
+                boxShadow: audioHudBlinkPhase ? "0 0 0 2px rgba(255,255,255,0.18)" : "none",
+            });
+            return;
+        }
+
+        audioHudBlinkPhase = false;
+        $audioHud.css({
+            opacity: "1",
+            boxShadow: "none",
+        });
     }
 
     function setOverlayStatus(message, visible) {

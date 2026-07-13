@@ -62,6 +62,10 @@ class RoadDetector:
     _mqtt_publish_worker_started = False
     _mqtt_publish_worker_lock = threading.Lock()
     MQTT_PUBLISH_QUEUE_MAX_SIZE = 500
+    MQTT_LATEST_ONLY_TOPICS = {
+        "vehicle/surface/state",
+        "vehicle/surface/obstacle",
+    }
     _legacy_stream_stop_requested_by_key = {}
     _legacy_stream_stop_lock = threading.Lock()
     SURFACE_STATE_MAJORITY_WINDOW_SEC = 0.8
@@ -230,12 +234,20 @@ class RoadDetector:
 
         self._ensure_mqtt_publish_worker()
 
+        topic_text = str(topic)
+        payload_text = str(payload)
+
         with RoadDetector._mqtt_publish_condition:
+            if topic_text in self.MQTT_LATEST_ONLY_TOPICS and RoadDetector._mqtt_publish_queue:
+                RoadDetector._mqtt_publish_queue = deque(
+                    item for item in RoadDetector._mqtt_publish_queue if item[0] != topic_text
+                )
+
             if len(RoadDetector._mqtt_publish_queue) >= int(self.MQTT_PUBLISH_QUEUE_MAX_SIZE):
                 RoadDetector._mqtt_publish_queue.popleft()
                 logger.warning("MQTT queue full; dropped oldest message")
 
-            RoadDetector._mqtt_publish_queue.append((str(topic), str(payload)))
+            RoadDetector._mqtt_publish_queue.append((topic_text, payload_text))
             RoadDetector._mqtt_publish_condition.notify()
 
         return True

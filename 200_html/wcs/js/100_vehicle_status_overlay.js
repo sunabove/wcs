@@ -403,6 +403,9 @@
 
         // 사용자가 미디어 영역을 숨긴 상태에서는 자동으로 다시 열지 않는다.
         if (mediaHiddenByUser) {
+            applyCollapsedOverlayLayout();
+            setCloseButtonToShowMode(true);
+            showOverlay();
             return;
         }
 
@@ -648,6 +651,10 @@
 
     mediaHiddenByUser = readOverlayMediaHiddenState();
     setCloseButtonToShowMode(mediaHiddenByUser);
+    if (mediaHiddenByUser) {
+        applyCollapsedOverlayLayout();
+        showOverlay();
+    }
     updateOverlayAudioHud();
     requestRoadDetectSessionCleanupAllOnLoad();
     setInterval(updateOverlayAudioHud, 400);

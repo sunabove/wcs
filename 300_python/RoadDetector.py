@@ -66,6 +66,10 @@ class RoadDetector:
         "vehicle/surface/state",
         "vehicle/surface/obstacle",
     }
+    MQTT_DETECTION_TOPICS = {
+        "vehicle/surface/state",
+        "vehicle/surface/obstacle",
+    }
     _legacy_stream_stop_requested_by_key = {}
     _legacy_stream_stop_lock = threading.Lock()
     SURFACE_STATE_MAJORITY_WINDOW_SEC = 0.8
@@ -251,6 +255,15 @@ class RoadDetector:
             RoadDetector._mqtt_publish_condition.notify()
 
         return True
+
+    def _clear_detection_mqtt_queue(self):
+        with RoadDetector._mqtt_publish_condition:
+            if not RoadDetector._mqtt_publish_queue:
+                return
+
+            RoadDetector._mqtt_publish_queue = deque(
+                item for item in RoadDetector._mqtt_publish_queue if item[0] not in self.MQTT_DETECTION_TOPICS
+            )
 
     def _publish_surface_state_if_needed(self, detect_key, stats, mqtt_publish, context_key):
         if not mqtt_publish:
@@ -1065,6 +1078,9 @@ class RoadDetector:
     def road_detect_stream_cleanup(self, file_name: str) -> dict:
         """스트리밍 세션 정리"""
         session_id = file_name
+
+        # 닫기 버튼 cleanup 요청 시 검출 토픽 발행 대기열을 비운다.
+        self._clear_detection_mqtt_queue()
 
         # 레거시 /road_detect_stream 루프 종료 신호를 먼저 기록한다.
         with RoadDetector._legacy_stream_stop_lock:

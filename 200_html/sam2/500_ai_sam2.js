@@ -467,7 +467,7 @@
             row.appendChild(meta);
             li.appendChild(row);
 
-            row.addEventListener('click', () => {
+            row.addEventListener('click', async () => {
                 if (!item.serverFileName || detectButton.disabled) {
                     return;
                 }
@@ -482,6 +482,26 @@
                 stopCurrentOutputPlayback();
                 clearAllPoints();
                 clearBoundingBox();
+
+                try {
+                    const apiBase = await resolveApiBase();
+                    const inputPathUrl = `/fast/image/${selectedServerFileName}`;
+                    const inputUrl = await resolvePlayableVideoUrl(apiBase, inputPathUrl, true);
+                    await assignVideoSource(inputVideoElement, inputUrl, 'input');
+                    inputVideoElement.pause();
+                    inputVideoElement.currentTime = 0;
+
+                    const inputTabButton = document.getElementById('sam2-input-tab');
+                    if (inputTabButton) {
+                        if (window.bootstrap && typeof window.bootstrap.Tab === 'function') {
+                            window.bootstrap.Tab.getOrCreateInstance(inputTabButton).show();
+                        } else {
+                            inputTabButton.click();
+                        }
+                    }
+                } catch (_ignore) {
+                    // Keep selection behavior even when preview loading fails.
+                }
 
                 renderUploadedHistory();
                 setStatus(`선택됨: ${item.name} (분할 시작 버튼을 눌러 실행)`, 'secondary');

@@ -32,7 +32,8 @@
     let selectedServerFileName = '';
     let positivePoints = [];
     let boundingBox = null;
-    let bboxDraftStart = null;
+    let bboxDragStart = null;
+    let bboxDragging = false;
     const MAX_POINT_COUNT = 20;
     const STORAGE_TARGET_KEY = 'sam2.targetType';
     const STORAGE_CONF_KEY = 'sam2.conf';
@@ -204,17 +205,55 @@
         renderPointUi();
     }
 
+    function findNearestPointIndex(point) {
+        if (!Array.isArray(positivePoints) || positivePoints.length === 0) {
+            return -1;
+        }
+
+        let nearestIndex = 0;
+        let nearestDistSq = Number.POSITIVE_INFINITY;
+        positivePoints.forEach((candidate, index) => {
+            const dx = toNumber(candidate && candidate.x, 0) - point.x;
+            const dy = toNumber(candidate && candidate.y, 0) - point.y;
+            const distSq = (dx * dx) + (dy * dy);
+            if (distSq < nearestDistSq) {
+                nearestDistSq = distSq;
+                nearestIndex = index;
+            }
+        });
+
+        return nearestIndex;
+    }
+
     function addPointByClick(event) {
         const point = toRelativePoint(event);
         if (!point) {
             return;
         }
 
-        if (positivePoints.length >= MAX_POINT_COUNT) {
-            positivePoints.shift();
+        if (event && event.ctrlKey) {
+            if (positivePoints.length >= MAX_POINT_COUNT) {
+                positivePoints.shift();
+            }
+            positivePoints.push(point);
+            renderPointUi();
+            setStatus('Positive Point가 추가되었습니다. (Ctrl+클릭)', 'secondary');
+            return;
         }
-        positivePoints.push(point);
+
+        if (positivePoints.length === 0) {
+            positivePoints.push(point);
+            renderPointUi();
+            setStatus('Positive Point가 추가되었습니다.', 'secondary');
+            return;
+        }
+
+        const nearestIndex = findNearestPointIndex(point);
+        if (nearestIndex >= 0) {
+            positivePoints[nearestIndex] = point;
+        }
         renderPointUi();
+        setStatus('가장 가까운 Positive Point 위치를 수정했습니다.', 'secondary');
     }
 
     function toRelativePoint(event) {
@@ -243,7 +282,45 @@
         return `x:${box.x.toFixed(1)}%, y:${box.y.toFixed(1)}%, w:${box.w.toFixed(1)}%, h:${box.h.toFixed(1)}%`;
     }
 
+    function createFullBoundingBox() {
+        return {
+            x: 0,
+            y: 0,
+            w: 100,
+            h: 100,
+        };
+    }
+
+    function ensureDefaultBoundingBox() {
+        if (!hasSelectedVideo()) {
+            return;
+        }
+        if (boundingBox) {
+            return;
+        }
+        boundingBox = createFullBoundingBox();
+    }
+
+    function updateBoundingBoxFromPoints(startPoint, endPoint) {
+        if (!startPoint || !endPoint) {
+            return;
+        }
+
+        const x1 = Math.min(startPoint.x, endPoint.x);
+        const y1 = Math.min(startPoint.y, endPoint.y);
+        const x2 = Math.max(startPoint.x, endPoint.x);
+        const y2 = Math.max(startPoint.y, endPoint.y);
+        boundingBox = {
+            x: x1,
+            y: y1,
+            w: Math.max(0.1, x2 - x1),
+            h: Math.max(0.1, y2 - y1),
+        };
+    }
+
     function renderBoundingBoxUi() {
+        ensureDefaultBoundingBox();
+
         if (bboxValueElement) {
             bboxValueElement.textContent = formatBoundingBoxText(boundingBox);
         }
@@ -272,12 +349,13 @@
     }
 
     function clearBoundingBox() {
-        boundingBox = null;
-        bboxDraftStart = null;
+        bboxDragging = false;
+        bboxDragStart = null;
+        boundingBox = createFullBoundingBox();
         renderBoundingBoxUi();
     }
 
-    function handleBoundingBoxCapture(event) {
+    function handleBoundingBoxDragStart(event) {
         if (!bboxEnabledInput || !bboxEnabledInput.checked) {
             return;
         }
@@ -292,23 +370,38 @@
             return;
         }
 
-        if (!bboxDraftStart) {
-            bboxDraftStart = point;
-            setStatus('BBox 시작점이 설정되었습니다. 두 번째 클릭으로 종료점을 지정하세요.', 'secondary');
+        bboxDragging = true;
+        bboxDragStart = point;
+        updateBoundingBoxFromPoints(point, point);
+        renderBoundingBoxUi();
+    }
+
+    function handleBoundingBoxDragMove(event) {
+        if (!bboxDragging || !bboxDragStart) {
             return;
         }
 
-        const x1 = Math.min(bboxDraftStart.x, point.x);
-        const y1 = Math.min(bboxDraftStart.y, point.y);
-        const x2 = Math.max(bboxDraftStart.x, point.x);
-        const y2 = Math.max(bboxDraftStart.y, point.y);
-        boundingBox = {
-            x: x1,
-            y: y1,
-            w: Math.max(0.1, x2 - x1),
-            h: Math.max(0.1, y2 - y1),
-        };
-        bboxDraftStart = null;
+        const point = toRelativePoint(event);
+        if (!point) {
+            return;
+        }
+
+        updateBoundingBoxFromPoints(bboxDragStart, point);
+        renderBoundingBoxUi();
+    }
+
+    function handleBoundingBoxDragEnd(event) {
+        if (!bboxDragging || !bboxDragStart) {
+            return;
+        }
+
+        const point = toRelativePoint(event);
+        if (point) {
+            updateBoundingBoxFromPoints(bboxDragStart, point);
+        }
+
+        bboxDragging = false;
+        bboxDragStart = null;
         renderBoundingBoxUi();
         setStatus('Bounding Box가 설정되었습니다.', 'secondary');
     }
@@ -338,6 +431,8 @@
         await assignVideoSource(inputVideoElement, inputUrl, 'input');
         inputVideoElement.pause();
         inputVideoElement.currentTime = 0;
+        ensureDefaultBoundingBox();
+        renderBoundingBoxUi();
 
         if (!showInputTab) {
             return;
@@ -820,6 +915,7 @@
         const file = selectedFile || fileFromInput;
         const targetType = getSelectedTargetType();
         const conf = toNumber(confInput ? confInput.value : 0.25, 0.25);
+        ensureDefaultBoundingBox();
         const bboxQuery = buildBboxQuery();
         if (!file && !selectedServerFileName) {
             setStatus('동영상 파일을 선택하세요.', 'warning');

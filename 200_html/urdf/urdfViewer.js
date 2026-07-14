@@ -589,10 +589,10 @@ class URDFViewer {
             return buttonElement;
         };
 
-        gridElement.appendChild(createFaceButton('front', 'F', 'Front (+X)'));
-        gridElement.appendChild(createFaceButton('back', 'B', 'Back (-X)'));
-        gridElement.appendChild(createFaceButton('left', 'L', 'Left (+Y)'));
-        gridElement.appendChild(createFaceButton('right', 'R', 'Right (-Y)'));
+        gridElement.appendChild(createFaceButton('front', 'F', 'Front (+Y)'));
+        gridElement.appendChild(createFaceButton('back', 'B', 'Back (-Y)'));
+        gridElement.appendChild(createFaceButton('left', 'L', 'Left (-X)'));
+        gridElement.appendChild(createFaceButton('right', 'R', 'Right (+X)'));
         gridElement.appendChild(createFaceButton('top', 'T', 'Top (+Z)'));
         gridElement.appendChild(createFaceButton('bottom', 'D', 'Down (-Z)'));
 
@@ -735,10 +735,10 @@ class URDFViewer {
         }
 
         const directionByFace = {
-            front: new THREE.Vector3(1, 0, 0),
-            back: new THREE.Vector3(-1, 0, 0),
-            left: new THREE.Vector3(0, 1, 0),
-            right: new THREE.Vector3(0, -1, 0),
+            front: new THREE.Vector3(0, 1, 0),
+            back: new THREE.Vector3(0, -1, 0),
+            left: new THREE.Vector3(-1, 0, 0),
+            right: new THREE.Vector3(1, 0, 0),
             top: new THREE.Vector3(0, 0, 1),
             bottom: new THREE.Vector3(0, 0, -1)
         };
@@ -825,10 +825,10 @@ class URDFViewer {
         const absZ = Math.abs(direction.z);
 
         let activeFaceKey = 'front';
-        if (absX >= absY && absX >= absZ) {
-            activeFaceKey = direction.x >= 0 ? 'front' : 'back';
-        } else if (absY >= absX && absY >= absZ) {
-            activeFaceKey = direction.y >= 0 ? 'left' : 'right';
+        if (absY >= absX && absY >= absZ) {
+            activeFaceKey = direction.y >= 0 ? 'front' : 'back';
+        } else if (absX >= absY && absX >= absZ) {
+            activeFaceKey = direction.x >= 0 ? 'right' : 'left';
         } else {
             activeFaceKey = direction.z >= 0 ? 'top' : 'bottom';
         }

@@ -455,13 +455,13 @@ class URDFViewer {
         panelElement.style.borderRadius = '10px';
         panelElement.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.12)';
         panelElement.style.pointerEvents = 'none';
-        panelElement.style.minWidth = '100px';
+        panelElement.style.width = 'auto';
 
         const dialElement = document.createElement('div');
         dialElement.style.position = 'relative';
-        dialElement.style.width = '56px';
-        dialElement.style.height = '56px';
-        dialElement.style.margin = '2px auto';
+        dialElement.style.width = '48px';
+        dialElement.style.height = '48px';
+        dialElement.style.margin = '4px auto';
         dialElement.style.border = '1px solid rgba(34, 34, 34, 0.28)';
         dialElement.style.borderRadius = '999px';
         dialElement.style.background = 'rgba(245, 247, 250, 0.9)';

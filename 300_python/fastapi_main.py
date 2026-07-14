@@ -23,7 +23,9 @@ pass # hello
 
 from RoadDetectService import router as roadDetectRouter
 from yolo.YoloDetectService import router as yoloDetectRouter
+from sam2.Sam2DetectService import router as sam2DetectRouter
 
 app.include_router(roadDetectRouter)
 app.include_router(yoloDetectRouter)
+app.include_router(sam2DetectRouter)
 

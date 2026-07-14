@@ -445,8 +445,7 @@ class URDFViewer {
         const panelElement = document.createElement('div');
         panelElement.style.position = 'absolute';
         panelElement.style.top = '12px';
-        panelElement.style.left = '50%';
-        panelElement.style.transform = 'translateX(-50%)';
+        panelElement.style.right = '12px';
         panelElement.style.zIndex = '13';
         panelElement.style.padding = '8px 10px';
         panelElement.style.background = 'rgba(255, 255, 255, 0.88)';
@@ -555,7 +554,7 @@ class URDFViewer {
         const panelElement = document.createElement('div');
         panelElement.style.position = 'absolute';
         panelElement.style.top = '12px';
-        panelElement.style.right = '12px';
+        panelElement.style.left = '12px';
         panelElement.style.zIndex = '16';
         panelElement.style.width = '110px';
         panelElement.style.padding = '6px';

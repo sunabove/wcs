@@ -129,6 +129,10 @@ class URDFViewer {
             containerElement.getAttribute('showAudio'),
             false
         );
+        this.showViewCube = this.parseBooleanAttribute(
+            containerElement.getAttribute('showViewCube'),
+            false
+        );
         this.wheelInfoOverlayElement = null;
         this.urdfPath = containerElement.getAttribute('urdf') || '/urdf/vehicle/vehicle.urdf';
         const rawCameraPosition = containerElement.getAttribute('cameraPosition');
@@ -305,7 +309,9 @@ class URDFViewer {
         this.controls.enablePan = false;
         this.cameraPosTextElement = $('#camera-pos-text');
         this.setupCameraAngleLogging();
-        this.setupViewCubeOverlay();
+        if (this.showViewCube) {
+            this.setupViewCubeOverlay();
+        }
         this.setupCameraToastOverlay();
         this.setupWheelControls();
         if (this.showAttitude) {

@@ -154,38 +154,79 @@
 
         for (const item of uploadedHistory) {
             const li = document.createElement('li');
-            li.className = 'list-group-item small d-flex justify-content-between align-items-center';
+            li.className = 'list-group-item small';
 
-            const nameSpan = document.createElement('span');
-            nameSpan.className = 'text-truncate me-2';
-            nameSpan.style.maxWidth = '78%';
-            nameSpan.title = item.name;
-            nameSpan.textContent = item.name;
+            const row = document.createElement('div');
+            row.className = 'yolo-uploaded-item';
 
-            const timeSpan = document.createElement('span');
-            timeSpan.className = 'text-muted';
-            timeSpan.textContent = item.time;
+            const thumb = document.createElement('video');
+            thumb.className = 'yolo-uploaded-thumb';
+            thumb.muted = true;
+            thumb.playsInline = true;
+            thumb.preload = 'metadata';
+            thumb.controls = false;
+            if (item.thumbnailUrl) {
+                thumb.src = item.thumbnailUrl;
+            }
 
-            li.appendChild(nameSpan);
-            li.appendChild(timeSpan);
+            const meta = document.createElement('div');
+            meta.className = 'yolo-uploaded-meta flex-grow-1';
+
+            const nameDiv = document.createElement('div');
+            nameDiv.className = 'text-truncate';
+            nameDiv.title = item.name;
+            nameDiv.textContent = item.name;
+
+            const timeDiv = document.createElement('div');
+            timeDiv.className = 'text-muted';
+            timeDiv.textContent = item.time;
+
+            meta.appendChild(nameDiv);
+            meta.appendChild(timeDiv);
+            row.appendChild(thumb);
+            row.appendChild(meta);
+            li.appendChild(row);
             uploadedListElement.appendChild(li);
         }
     }
 
-    function addUploadedHistoryItem(fileNameHint, inputFilePath) {
+    function createThumbnailUrl(fileObject) {
+        if (!fileObject) {
+            return '';
+        }
+
+        try {
+            return URL.createObjectURL(fileObject);
+        } catch (_ignore) {
+            return '';
+        }
+    }
+
+    function addUploadedHistoryItem(fileNameHint, inputFilePath, fileObject) {
         const displayName = basename(fileNameHint) || basename(inputFilePath) || 'unknown_video';
         const now = new Date();
         const hh = String(now.getHours()).padStart(2, '0');
         const mm = String(now.getMinutes()).padStart(2, '0');
         const ss = String(now.getSeconds()).padStart(2, '0');
+        const thumbnailUrl = createThumbnailUrl(fileObject);
 
         const duplicateIndex = uploadedHistory.findIndex(item => item.name === displayName);
-        const record = { name: displayName, time: `${hh}:${mm}:${ss}` };
+        const record = { name: displayName, time: `${hh}:${mm}:${ss}`, thumbnailUrl };
         if (duplicateIndex >= 0) {
+            const old = uploadedHistory[duplicateIndex];
+            if (old && old.thumbnailUrl) {
+                URL.revokeObjectURL(old.thumbnailUrl);
+            }
             uploadedHistory.splice(duplicateIndex, 1);
         }
         uploadedHistory.unshift(record);
         if (uploadedHistory.length > 20) {
+            const removed = uploadedHistory.slice(20);
+            for (const item of removed) {
+                if (item && item.thumbnailUrl) {
+                    URL.revokeObjectURL(item.thumbnailUrl);
+                }
+            }
             uploadedHistory = uploadedHistory.slice(0, 20);
         }
 
@@ -399,7 +440,7 @@
 
             const result = await response.json();
 
-            addUploadedHistoryItem(file.name, result.input_file);
+            addUploadedHistoryItem(file.name, result.input_file, file);
 
             const inputUrl = await resolvePlayableVideoUrl(apiBase, result.input_url, true);
             const outputUrl = await resolvePlayableVideoUrl(apiBase, result.output_url, true);

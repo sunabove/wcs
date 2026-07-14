@@ -4,6 +4,7 @@ import shutil
 from pathlib import Path
 
 import cv2
+import numpy as np
 from ultralytics import YOLO
 
 from config import BASE_DIR
@@ -17,6 +18,17 @@ from yolo.YoloVideoConfig import (
 
 class YoloVideoDetector:
     _model_cache = {}
+    _bbox_palette = [
+        (0, 0, 255),
+        (0, 255, 0),
+        (255, 255, 0),
+        (255, 0, 255),
+        (0, 255, 255),
+        (255, 0, 0),
+        (0, 165, 255),
+        (255, 255, 255),
+        (0, 0, 0),
+    ]
 
     def __init__(self):
         YOLO_UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
@@ -73,6 +85,89 @@ class YoloVideoDetector:
                 return writer
             writer.release()
         return None
+
+    def _pick_contrast_color(self, frame: np.ndarray, x1: int, y1: int, x2: int, y2: int):
+        height, width = frame.shape[:2]
+        margin = max(3, int(min(width, height) * 0.01))
+        samples = []
+
+        if y1 - margin > 0:
+            samples.append(frame[max(0, y1 - margin):y1, max(0, x1):min(width, x2)])
+        if y2 + margin < height:
+            samples.append(frame[y2:min(height, y2 + margin), max(0, x1):min(width, x2)])
+        if x1 - margin > 0:
+            samples.append(frame[max(0, y1):min(height, y2), max(0, x1 - margin):x1])
+        if x2 + margin < width:
+            samples.append(frame[max(0, y1):min(height, y2), x2:min(width, x2 + margin)])
+
+        if samples:
+            pixels = np.concatenate([sample.reshape(-1, 3) for sample in samples if sample.size > 0], axis=0)
+        else:
+            inner = frame[max(0, y1):min(height, y2), max(0, x1):min(width, x2)]
+            pixels = inner.reshape(-1, 3) if inner.size > 0 else frame.reshape(-1, 3)
+
+        mean_color = pixels.mean(axis=0)
+        best_color = self._bbox_palette[0]
+        best_distance = -1.0
+
+        for palette_color in self._bbox_palette:
+            candidate = np.array(palette_color, dtype=np.float32)
+            distance = float(np.linalg.norm(candidate - mean_color))
+            if distance > best_distance:
+                best_distance = distance
+                best_color = palette_color
+
+        return best_color
+
+    def _render_contrast_bbox(self, frame: np.ndarray, result):
+        plotted = frame.copy()
+        boxes = result.boxes
+        if boxes is None or boxes.xyxy is None or len(boxes.xyxy) == 0:
+            return plotted
+
+        names = result.names or {}
+        box_xyxy = boxes.xyxy.detach().cpu().numpy()
+        box_cls = boxes.cls.detach().cpu().numpy().astype(int) if boxes.cls is not None else np.zeros((len(box_xyxy),), dtype=int)
+        box_conf = boxes.conf.detach().cpu().numpy() if boxes.conf is not None else np.zeros((len(box_xyxy),), dtype=float)
+
+        for index, coords in enumerate(box_xyxy):
+            x1, y1, x2, y2 = [int(round(value)) for value in coords.tolist()]
+            x1 = max(0, x1)
+            y1 = max(0, y1)
+            x2 = min(plotted.shape[1] - 1, x2)
+            y2 = min(plotted.shape[0] - 1, y2)
+            if x2 <= x1 or y2 <= y1:
+                continue
+
+            color = self._pick_contrast_color(plotted, x1, y1, x2, y2)
+            class_id = int(box_cls[index]) if index < len(box_cls) else -1
+            class_name = str(names.get(class_id, class_id))
+            confidence = float(box_conf[index]) if index < len(box_conf) else 0.0
+            label = f"{class_name} {confidence:.2f}"
+
+            thickness = max(2, int(round(min(plotted.shape[0], plotted.shape[1]) * 0.0025)))
+            cv2.rectangle(plotted, (x1, y1), (x2, y2), color, thickness)
+
+            (label_w, label_h), baseline = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 0.5, 1)
+            label_top = max(0, y1 - label_h - baseline - 4)
+            label_bottom = label_top + label_h + baseline + 4
+            label_right = min(plotted.shape[1] - 1, x1 + label_w + 8)
+            cv2.rectangle(plotted, (x1, label_top), (label_right, label_bottom), color, -1)
+
+            luminance = 0.114 * color[0] + 0.587 * color[1] + 0.299 * color[2]
+            text_color = (0, 0, 0) if luminance > 150 else (255, 255, 255)
+            cv2.putText(
+                plotted,
+                label,
+                (x1 + 4, label_bottom - baseline - 2),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.5,
+                text_color,
+                1,
+                cv2.LINE_AA,
+            )
+
+        return plotted
 
     def detect_video_file(
         self,
@@ -140,7 +235,7 @@ class YoloVideoDetector:
                         class_name = str(names.get(class_id, class_id))
                         class_counts[class_name] = class_counts.get(class_name, 0) + 1
 
-                plotted = result.plot()
+                plotted = self._render_contrast_bbox(frame, result)
                 if plotted.shape[1] != width or plotted.shape[0] != height:
                     plotted = cv2.resize(plotted, (width, height), interpolation=cv2.INTER_AREA)
 

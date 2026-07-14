@@ -111,7 +111,6 @@ class URDFViewer {
         this.carFrameAlertTintColor = new THREE.Color(0xd32f2f);
         this.carFrameAlertEmissiveColor = new THREE.Color(0x521414);
         this.attitudeOverlayElement = null;
-        this.attitudeTextElement = null;
         this.rollNeedleElement = null;
         this.pitchNeedleElement = null;
         this.viewCubeOverlayElement = null;
@@ -458,23 +457,11 @@ class URDFViewer {
         panelElement.style.pointerEvents = 'none';
         panelElement.style.minWidth = '100px';
 
-        const titleElement = document.createElement('div');
-        titleElement.textContent = '';
-        titleElement.style.fontSize = '11px';
-        titleElement.style.fontWeight = '700';
-        titleElement.style.color = '#222';
-
-        const textElement = document.createElement('div');
-        textElement.style.fontSize = '11px';
-        textElement.style.marginTop = '2px';
-        textElement.style.color = '#333';
-        textElement.style.textAlign = 'center';
-
         const dialElement = document.createElement('div');
         dialElement.style.position = 'relative';
         dialElement.style.width = '56px';
         dialElement.style.height = '56px';
-        dialElement.style.margin = '8px auto 2px';
+        dialElement.style.margin = '2px auto';
         dialElement.style.border = '1px solid rgba(34, 34, 34, 0.28)';
         dialElement.style.borderRadius = '999px';
         dialElement.style.background = 'rgba(245, 247, 250, 0.9)';
@@ -535,13 +522,10 @@ class URDFViewer {
         dialElement.appendChild(pitchNeedleElement);
         dialElement.appendChild(centerDotElement);
 
-        panelElement.appendChild(titleElement);
-        panelElement.appendChild(textElement);
         panelElement.appendChild(dialElement);
         this.container.appendChild(panelElement);
 
         this.attitudeOverlayElement = panelElement;
-        this.attitudeTextElement = textElement;
         this.rollNeedleElement = rollNeedleElement;
         this.pitchNeedleElement = pitchNeedleElement;
         this.updateAttitudeOverlay();
@@ -846,10 +830,6 @@ class URDFViewer {
     updateAttitudeOverlay() {
         const rollDeg = Number.isFinite(this.roadRollAngleDeg) ? this.roadRollAngleDeg : 0;
         const pitchDeg = Number.isFinite(this.roadPitchAngleDeg) ? this.roadPitchAngleDeg : 0;
-
-        if (this.attitudeTextElement) {
-            this.attitudeTextElement.textContent = `Roll ${rollDeg.toFixed(1)}\u00b0 / Pitch ${pitchDeg.toFixed(1)}\u00b0`;
-        }
 
         if (this.rollNeedleElement) {
             this.rollNeedleElement.style.transform = `translate(-50%, -100%) rotate(${rollDeg}deg)`;

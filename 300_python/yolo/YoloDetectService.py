@@ -1,11 +1,11 @@
 from fastapi import APIRouter, File, Query, UploadFile
 
 from yolo.YoloVideoConfig import YOLO_DEFAULT_MODEL
-from yolo.YoloVideoDetector import YoloVideoDetector
+from yolo.YoloVideoService import YoloVideoService
 
 router = APIRouter(prefix="/fast/yolo")
 
-_detector = YoloVideoDetector()
+_service = YoloVideoService()
 
 
 @router.get("/health")
@@ -25,7 +25,7 @@ def detect_video_upload(
     max_det: int = Query(300, ge=1, le=2000),
     model_name: str = Query(YOLO_DEFAULT_MODEL),
 ):
-    return _detector.detect_uploaded_video(
+    return _service.detect_uploaded_video(
         upload_file=file,
         conf=conf,
         iou=iou,

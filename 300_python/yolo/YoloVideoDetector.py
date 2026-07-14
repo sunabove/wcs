@@ -1,10 +1,8 @@
-import shutil
 import time
 import uuid
 from pathlib import Path
 
 import cv2
-from fastapi import HTTPException, UploadFile
 from ultralytics import YOLO
 
 from config import BASE_DIR
@@ -37,36 +35,28 @@ class YoloVideoDetector:
             self._model_cache[normalized] = YOLO(normalized)
         return self._model_cache[normalized]
 
-    def _safe_suffix(self, file_name: str) -> str:
-        suffix = Path(str(file_name or "")).suffix.lower()
-        if suffix not in YOLO_VIDEO_EXTENSIONS:
-            raise HTTPException(status_code=400, detail="Only video files are supported")
-        return suffix
-
-    def detect_uploaded_video(
+    def detect_video_file(
         self,
-        upload_file: UploadFile,
+        input_path: Path,
         conf: float = 0.25,
         iou: float = 0.45,
         max_det: int = 300,
         model_name: str = YOLO_DEFAULT_MODEL,
     ):
-        suffix = self._safe_suffix(upload_file.filename)
+        resolved_input = Path(input_path).resolve()
+        suffix = resolved_input.suffix.lower()
+        if suffix not in YOLO_VIDEO_EXTENSIONS:
+            raise ValueError("Only video files are supported")
+
+        if not resolved_input.exists() or not resolved_input.is_file():
+            raise FileNotFoundError(f"Input video not found: {resolved_input}")
 
         job_id = f"{int(time.time() * 1000)}_{uuid.uuid4().hex[:8]}"
-        input_path = YOLO_UPLOAD_DIR / f"{job_id}{suffix}"
         output_path = YOLO_OUTPUT_DIR / f"{job_id}_detected.mp4"
 
-        try:
-            upload_file.file.seek(0)
-            with input_path.open("wb") as target_file:
-                shutil.copyfileobj(upload_file.file, target_file)
-        finally:
-            upload_file.file.close()
-
-        capture = cv2.VideoCapture(str(input_path))
+        capture = cv2.VideoCapture(str(resolved_input))
         if not capture.isOpened():
-            raise HTTPException(status_code=400, detail="Failed to open uploaded video")
+            raise RuntimeError("Failed to open uploaded video")
 
         fps = float(capture.get(cv2.CAP_PROP_FPS) or 0.0)
         if fps <= 0:
@@ -77,7 +67,7 @@ class YoloVideoDetector:
         total_frames = int(capture.get(cv2.CAP_PROP_FRAME_COUNT) or 0)
         if width <= 0 or height <= 0:
             capture.release()
-            raise HTTPException(status_code=500, detail="Invalid video size")
+            raise RuntimeError("Invalid video size")
 
         writer = cv2.VideoWriter(
             str(output_path),
@@ -87,7 +77,7 @@ class YoloVideoDetector:
         )
         if not writer.isOpened():
             capture.release()
-            raise HTTPException(status_code=500, detail="Failed to create output video")
+            raise RuntimeError("Failed to create output video")
 
         start_time = time.time()
         model = self._get_model(model_name)
@@ -127,7 +117,7 @@ class YoloVideoDetector:
             writer.release()
 
         if processed_frames <= 0:
-            raise HTTPException(status_code=500, detail="No frames were processed")
+            raise RuntimeError("No frames were processed")
 
         elapsed_sec = round(time.time() - start_time, 3)
 
@@ -139,8 +129,8 @@ class YoloVideoDetector:
             "fps": round(fps, 3),
             "elapsed_sec": elapsed_sec,
             "class_counts": class_counts,
-            "input_file": str(input_path.resolve()),
+            "input_file": str(resolved_input),
             "output_file": str(output_path.resolve()),
-            "input_url": self._to_route_url(input_path),
+            "input_url": self._to_route_url(resolved_input),
             "output_url": self._to_route_url(output_path),
         }

@@ -126,6 +126,10 @@
     }
 
     async function runYoloDetect() {
+        if (detectButton.disabled) {
+            return;
+        }
+
         const fileFromInput = fileInput.files && fileInput.files[0] ? fileInput.files[0] : null;
         const file = selectedFile || fileFromInput;
         if (!file) {
@@ -227,6 +231,7 @@
         }
 
         handleChosenFile(file);
+        runYoloDetect();
     });
 
     detectButton.addEventListener('click', runYoloDetect);

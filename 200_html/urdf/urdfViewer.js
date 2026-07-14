@@ -119,6 +119,8 @@ class URDFViewer {
         this.viewCubeButtonByFace = {};
         this.viewCubeDragState = null;
         this.viewCubeSuppressClickUntilMs = 0;
+        this.viewCubeDragRotateSpeed = 0.0028;
+        this.viewCubeDragMaxDeltaPx = 14;
         this.showAttitude = this.parseBooleanAttribute(
             containerElement.getAttribute('showAttitude'),
             false
@@ -645,9 +647,20 @@ class URDFViewer {
             const target = this.controls.target.clone();
             const offset = this.camera.position.clone().sub(target);
 
-            const rotateSpeed = 0.0035;
-            const yawAngle = -deltaX * rotateSpeed;
-            const pitchAngle = -deltaY * rotateSpeed;
+            const limitedDeltaX = THREE.MathUtils.clamp(
+                deltaX,
+                -this.viewCubeDragMaxDeltaPx,
+                this.viewCubeDragMaxDeltaPx
+            );
+            const limitedDeltaY = THREE.MathUtils.clamp(
+                deltaY,
+                -this.viewCubeDragMaxDeltaPx,
+                this.viewCubeDragMaxDeltaPx
+            );
+
+            const rotateSpeed = this.viewCubeDragRotateSpeed;
+            const yawAngle = -limitedDeltaX * rotateSpeed;
+            const pitchAngle = -limitedDeltaY * rotateSpeed;
 
             const yawQuaternion = new THREE.Quaternion().setFromAxisAngle(worldUp, yawAngle);
             offset.applyQuaternion(yawQuaternion);

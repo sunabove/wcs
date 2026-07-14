@@ -10,6 +10,15 @@
     const loopToggleInput = document.getElementById('sam2-loop-toggle');
     const uploadedListElement = document.getElementById('sam2-uploaded-list');
     const uploadedEmptyElement = document.getElementById('sam2-uploaded-empty');
+    const pointClearButton = document.getElementById('sam2-point-clear');
+    const positivePointListElement = document.getElementById('sam2-positive-points');
+    const positivePointCountElement = document.getElementById('sam2-positive-count');
+    const pointMarkerLayerElement = document.getElementById('sam2-point-marker-layer');
+    const bboxEnabledInput = document.getElementById('sam2-bbox-enabled');
+    const bboxClearButton = document.getElementById('sam2-bbox-clear');
+    const bboxValueElement = document.getElementById('sam2-bbox-value');
+    const bboxLayerElement = document.getElementById('sam2-bbox-layer');
+    const bboxCaptureLayerElement = document.getElementById('sam2-bbox-capture-layer');
 
     const statusElement = document.getElementById('sam2-status');
     const inputVideoElement = document.getElementById('sam2-input-video');
@@ -21,6 +30,10 @@
     let outputObjectUrl = '';
     let uploadedHistory = [];
     let selectedServerFileName = '';
+    let positivePoints = [];
+    let boundingBox = null;
+    let bboxDraftStart = null;
+    const MAX_POINT_COUNT = 20;
     const STORAGE_TARGET_KEY = 'sam2.targetType';
     const STORAGE_CONF_KEY = 'sam2.conf';
     const STORAGE_SELECTED_VIDEO_KEY = 'sam2.selectedVideo';
@@ -126,6 +139,192 @@
         const loopEnabled = Boolean(loopToggleInput && loopToggleInput.checked);
         inputVideoElement.loop = loopEnabled;
         outputVideoElement.loop = loopEnabled;
+    }
+
+    function clamp(value, min, max) {
+        return Math.max(min, Math.min(max, value));
+    }
+
+    function formatPointLabel(point, index) {
+        const x = toNumber(point && point.x, 0).toFixed(1);
+        const y = toNumber(point && point.y, 0).toFixed(1);
+        return `${index + 1}: (${x}%, ${y}%)`;
+    }
+
+    function renderPointList(targetElement, points, chipClassName) {
+        if (!targetElement) {
+            return;
+        }
+
+        targetElement.innerHTML = '';
+        if (!Array.isArray(points) || points.length === 0) {
+            const empty = document.createElement('span');
+            empty.className = 'small text-muted';
+            empty.textContent = '없음';
+            targetElement.appendChild(empty);
+            return;
+        }
+
+        points.forEach((point, index) => {
+            const chip = document.createElement('span');
+            chip.className = `sam2-point-chip ${chipClassName}`;
+            chip.textContent = formatPointLabel(point, index);
+            targetElement.appendChild(chip);
+        });
+    }
+
+    function renderPointMarkers() {
+        if (!pointMarkerLayerElement) {
+            return;
+        }
+
+        pointMarkerLayerElement.innerHTML = '';
+
+        const appendMarker = (point, className) => {
+            const marker = document.createElement('div');
+            marker.className = `sam2-point-marker ${className}`;
+            marker.style.left = `${toNumber(point && point.x, 0)}%`;
+            marker.style.top = `${toNumber(point && point.y, 0)}%`;
+            pointMarkerLayerElement.appendChild(marker);
+        };
+
+        positivePoints.forEach(point => appendMarker(point, 'sam2-point-marker-positive'));
+    }
+
+    function renderPointUi() {
+        if (positivePointCountElement) {
+            positivePointCountElement.textContent = String(positivePoints.length);
+        }
+        renderPointList(positivePointListElement, positivePoints, 'sam2-point-chip-positive');
+        renderPointMarkers();
+    }
+
+    function clearAllPoints() {
+        positivePoints = [];
+        renderPointUi();
+    }
+
+    function addPointByClick(event) {
+        const point = toRelativePoint(event);
+        if (!point) {
+            return;
+        }
+
+        if (positivePoints.length >= MAX_POINT_COUNT) {
+            positivePoints.shift();
+        }
+        positivePoints.push(point);
+        renderPointUi();
+    }
+
+    function toRelativePoint(event) {
+        if (!inputVideoElement) {
+            return null;
+        }
+
+        const rect = inputVideoElement.getBoundingClientRect();
+        if (!rect || rect.width <= 0 || rect.height <= 0) {
+            return null;
+        }
+
+        const relativeX = ((event.clientX - rect.left) / rect.width) * 100;
+        const relativeY = ((event.clientY - rect.top) / rect.height) * 100;
+        return {
+            x: clamp(relativeX, 0, 100),
+            y: clamp(relativeY, 0, 100),
+        };
+    }
+
+    function formatBoundingBoxText(box) {
+        if (!box) {
+            return '없음';
+        }
+
+        return `x:${box.x.toFixed(1)}%, y:${box.y.toFixed(1)}%, w:${box.w.toFixed(1)}%, h:${box.h.toFixed(1)}%`;
+    }
+
+    function renderBoundingBoxUi() {
+        if (bboxValueElement) {
+            bboxValueElement.textContent = formatBoundingBoxText(boundingBox);
+        }
+
+        if (bboxCaptureLayerElement) {
+            const enabled = Boolean(bboxEnabledInput && bboxEnabledInput.checked);
+            bboxCaptureLayerElement.classList.toggle('active', enabled);
+        }
+
+        if (!bboxLayerElement) {
+            return;
+        }
+
+        bboxLayerElement.innerHTML = '';
+        if (!boundingBox) {
+            return;
+        }
+
+        const rect = document.createElement('div');
+        rect.className = 'sam2-bbox-rect';
+        rect.style.left = `${boundingBox.x}%`;
+        rect.style.top = `${boundingBox.y}%`;
+        rect.style.width = `${boundingBox.w}%`;
+        rect.style.height = `${boundingBox.h}%`;
+        bboxLayerElement.appendChild(rect);
+    }
+
+    function clearBoundingBox() {
+        boundingBox = null;
+        bboxDraftStart = null;
+        renderBoundingBoxUi();
+    }
+
+    function handleBoundingBoxCapture(event) {
+        if (!bboxEnabledInput || !bboxEnabledInput.checked) {
+            return;
+        }
+
+        if (!hasSelectedVideo()) {
+            setStatus('먼저 동영상을 선택하세요.', 'warning');
+            return;
+        }
+
+        const point = toRelativePoint(event);
+        if (!point) {
+            return;
+        }
+
+        if (!bboxDraftStart) {
+            bboxDraftStart = point;
+            setStatus('BBox 시작점이 설정되었습니다. 두 번째 클릭으로 종료점을 지정하세요.', 'secondary');
+            return;
+        }
+
+        const x1 = Math.min(bboxDraftStart.x, point.x);
+        const y1 = Math.min(bboxDraftStart.y, point.y);
+        const x2 = Math.max(bboxDraftStart.x, point.x);
+        const y2 = Math.max(bboxDraftStart.y, point.y);
+        boundingBox = {
+            x: x1,
+            y: y1,
+            w: Math.max(0.1, x2 - x1),
+            h: Math.max(0.1, y2 - y1),
+        };
+        bboxDraftStart = null;
+        renderBoundingBoxUi();
+        setStatus('Bounding Box가 설정되었습니다.', 'secondary');
+    }
+
+    function buildBboxQuery() {
+        if (!boundingBox) {
+            return '';
+        }
+
+        const payload = {
+            x: toNumber(boundingBox.x, 0),
+            y: toNumber(boundingBox.y, 0),
+            w: toNumber(boundingBox.w, 0),
+            h: toNumber(boundingBox.h, 0),
+        };
+        return `&bbox=${encodeURIComponent(JSON.stringify(payload))}`;
     }
 
     function stopCurrentOutputPlayback() {
@@ -281,6 +480,8 @@
                 saveSelectedVideo(selectedServerFileName);
 
                 stopCurrentOutputPlayback();
+                clearAllPoints();
+                clearBoundingBox();
 
                 renderUploadedHistory();
                 setStatus(`선택됨: ${item.name} (분할 시작 버튼을 눌러 실행)`, 'secondary');
@@ -567,6 +768,8 @@
         saveSelectedVideo('');
         syncInputWithFile(file);
         stopCurrentOutputPlayback();
+        clearAllPoints();
+        clearBoundingBox();
         renderUploadedHistory();
             setStatus('동영상 파일이 준비되었습니다. 분할 시작을 눌러주세요.', 'secondary');
     }
@@ -580,6 +783,7 @@
         const file = selectedFile || fileFromInput;
         const targetType = getSelectedTargetType();
         const conf = toNumber(confInput ? confInput.value : 0.25, 0.25);
+        const bboxQuery = buildBboxQuery();
         if (!file && !selectedServerFileName) {
             setStatus('동영상 파일을 선택하세요.', 'warning');
             return;
@@ -595,13 +799,13 @@
             if (file) {
                 const formData = new FormData();
                 formData.append('file', file);
-                const url = `${apiBase}/fast/sam2/segment_video_upload?target_type=${encodeURIComponent(targetType)}&conf=${encodeURIComponent(conf)}`;
+                const url = `${apiBase}/fast/sam2/segment_video_upload?target_type=${encodeURIComponent(targetType)}&conf=${encodeURIComponent(conf)}${bboxQuery}`;
                 response = await fetch(url, {
                     method: 'POST',
                     body: formData,
                 });
             } else {
-                const url = `${apiBase}/fast/sam2/segment_saved_video?file_name=${encodeURIComponent(selectedServerFileName)}&target_type=${encodeURIComponent(targetType)}&conf=${encodeURIComponent(conf)}`;
+                const url = `${apiBase}/fast/sam2/segment_saved_video?file_name=${encodeURIComponent(selectedServerFileName)}&target_type=${encodeURIComponent(targetType)}&conf=${encodeURIComponent(conf)}${bboxQuery}`;
                 response = await fetch(url, {
                     method: 'POST',
                 });
@@ -710,6 +914,42 @@
     });
 
     detectButton.addEventListener('click', runSam2Segment);
+    if (pointClearButton) {
+        pointClearButton.addEventListener('click', () => {
+            clearAllPoints();
+            setStatus('Point 설정을 초기화했습니다.', 'secondary');
+        });
+    }
+    if (bboxEnabledInput) {
+        bboxEnabledInput.addEventListener('change', () => {
+            bboxDraftStart = null;
+            renderBoundingBoxUi();
+        });
+    }
+    if (bboxClearButton) {
+        bboxClearButton.addEventListener('click', () => {
+            clearBoundingBox();
+            setStatus('Bounding Box를 초기화했습니다.', 'secondary');
+        });
+    }
+    if (bboxCaptureLayerElement) {
+        bboxCaptureLayerElement.addEventListener('click', (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            handleBoundingBoxCapture(event);
+        });
+    }
+    if (inputVideoElement) {
+        inputVideoElement.addEventListener('click', (event) => {
+            if (bboxEnabledInput && bboxEnabledInput.checked) {
+                return;
+            }
+            if (!hasSelectedVideo()) {
+                return;
+            }
+            addPointByClick(event);
+        });
+    }
     if (confInput) {
         confInput.addEventListener('input', () => {
             stopCurrentOutputPlayback();
@@ -733,6 +973,8 @@
     applyLoopOption();
     loadUiOptions();
     updateConfValueLabel();
+    renderPointUi();
+    renderBoundingBoxUi();
 
     loadUploadedHistoryFromServer();
 })();

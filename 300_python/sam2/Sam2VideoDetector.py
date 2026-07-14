@@ -1,6 +1,7 @@
 import shutil
 import time
 import uuid
+import json
 from pathlib import Path
 
 import cv2
@@ -130,6 +131,78 @@ class Sam2VideoDetector:
 
         return sorted(set(matched_ids))
 
+    def _parse_bbox(self, bbox, width: int, height: int):
+        if bbox is None:
+            return None, None
+
+        raw_value = bbox
+        if isinstance(raw_value, str):
+            text = raw_value.strip()
+            if not text:
+                return None, None
+            try:
+                raw_value = json.loads(text)
+            except Exception as ex:
+                raise ValueError(f"Invalid bbox JSON: {ex}") from ex
+
+        if not isinstance(raw_value, dict):
+            raise ValueError("bbox must be an object with x, y, w, h")
+
+        try:
+            x = float(raw_value.get("x"))
+            y = float(raw_value.get("y"))
+            w = float(raw_value.get("w"))
+            h = float(raw_value.get("h"))
+        except (TypeError, ValueError) as ex:
+            raise ValueError("bbox values must be numbers") from ex
+
+        if w <= 0 or h <= 0:
+            raise ValueError("bbox width and height must be greater than 0")
+
+        x1_norm = max(0.0, min(100.0, x))
+        y1_norm = max(0.0, min(100.0, y))
+        x2_norm = max(0.0, min(100.0, x + w))
+        y2_norm = max(0.0, min(100.0, y + h))
+        if x2_norm <= x1_norm or y2_norm <= y1_norm:
+            raise ValueError("bbox area is empty after normalization")
+
+        x1 = int(round((x1_norm / 100.0) * width))
+        y1 = int(round((y1_norm / 100.0) * height))
+        x2 = int(round((x2_norm / 100.0) * width))
+        y2 = int(round((y2_norm / 100.0) * height))
+
+        x1 = max(0, min(width - 1, x1))
+        y1 = max(0, min(height - 1, y1))
+        x2 = max(1, min(width, x2))
+        y2 = max(1, min(height, y2))
+        if x2 <= x1:
+            x2 = min(width, x1 + 1)
+        if y2 <= y1:
+            y2 = min(height, y1 + 1)
+
+        normalized_bbox = {
+            "x": round(x1_norm, 3),
+            "y": round(y1_norm, 3),
+            "w": round(x2_norm - x1_norm, 3),
+            "h": round(y2_norm - y1_norm, 3),
+        }
+        return (x1, y1, x2, y2), normalized_bbox
+
+    def _overlay_bbox_result(self, frame, roi_plotted, bbox_rect):
+        if bbox_rect is None:
+            return roi_plotted
+
+        x1, y1, x2, y2 = bbox_rect
+        composed = frame.copy()
+        roi_w = max(1, x2 - x1)
+        roi_h = max(1, y2 - y1)
+        if roi_plotted.shape[1] != roi_w or roi_plotted.shape[0] != roi_h:
+            roi_plotted = cv2.resize(roi_plotted, (roi_w, roi_h), interpolation=cv2.INTER_AREA)
+
+        composed[y1:y2, x1:x2] = roi_plotted
+        cv2.rectangle(composed, (x1, y1), (x2 - 1, y2 - 1), (13, 110, 253), 1)
+        return composed
+
     def detect_video_file(
         self,
         input_path: Path,
@@ -137,6 +210,7 @@ class Sam2VideoDetector:
         conf: float = 0.25,
         max_det: int = 300,
         model_name: str = SAM2_DEFAULT_MODEL,
+        bbox=None,
     ):
         resolved_input = Path(input_path).resolve()
         suffix = resolved_input.suffix.lower()
@@ -164,6 +238,8 @@ class Sam2VideoDetector:
             capture.release()
             raise RuntimeError("Invalid video size")
 
+        bbox_rect, normalized_bbox = self._parse_bbox(bbox, width, height)
+
         writer = self._create_video_writer(output_path, fps, width, height)
         if writer is None:
             capture.release()
@@ -185,6 +261,9 @@ class Sam2VideoDetector:
 
                 if isinstance(target_classes, list) and len(target_classes) == 0:
                     plotted = frame.copy()
+                    if bbox_rect is not None:
+                        x1, y1, x2, y2 = bbox_rect
+                        cv2.rectangle(plotted, (x1, y1), (x2 - 1, y2 - 1), (13, 110, 253), 1)
                     if plotted.shape[1] != width or plotted.shape[0] != height:
                         plotted = cv2.resize(plotted, (width, height), interpolation=cv2.INTER_AREA)
                     writer.write(plotted)
@@ -192,8 +271,13 @@ class Sam2VideoDetector:
                     continue
 
                 if processed_frames % infer_stride == 0 or last_plotted is None:
+                    source_frame = frame
+                    if bbox_rect is not None:
+                        x1, y1, x2, y2 = bbox_rect
+                        source_frame = frame[y1:y2, x1:x2]
+
                     predict_kwargs = {
-                        "source": frame,
+                        "source": source_frame,
                         "conf": conf,
                         "verbose": False,
                     }
@@ -207,6 +291,7 @@ class Sam2VideoDetector:
                         total_segments += int(masks.data.shape[0])
 
                     plotted = result.plot()
+                    plotted = self._overlay_bbox_result(frame, plotted, bbox_rect)
                     last_plotted = plotted
                 else:
                     plotted = last_plotted.copy() if last_plotted is not None else frame
@@ -234,6 +319,7 @@ class Sam2VideoDetector:
             "fps": round(fps, 3),
             "elapsed_sec": elapsed_sec,
             "segment_count": int(total_segments),
+            "bbox": normalized_bbox,
             "input_file": str(resolved_input),
             "output_file": str(output_path.resolve()),
             "input_url": self._to_route_url(resolved_input),

@@ -24,6 +24,7 @@ def segment_video_upload(
     conf: float = Query(0.25, ge=0.0, le=1.0),
     max_det: int = Query(300, ge=1, le=2000),
     model_name: str = Query("auto"),
+    bbox: str = Query(""),
 ):
     return _service.detect_uploaded_video(
         upload_file=file,
@@ -31,6 +32,7 @@ def segment_video_upload(
         conf=conf,
         max_det=max_det,
         model_name=model_name,
+        bbox=bbox,
     )
 
 
@@ -48,6 +50,7 @@ def segment_saved_video(
     conf: float = Query(0.25, ge=0.0, le=1.0),
     max_det: int = Query(300, ge=1, le=2000),
     model_name: str = Query("auto"),
+    bbox: str = Query(""),
 ):
     return _service.detect_saved_video(
         file_name=file_name,
@@ -55,4 +58,5 @@ def segment_saved_video(
         conf=conf,
         max_det=max_det,
         model_name=model_name,
+        bbox=bbox,
     )

@@ -129,6 +129,7 @@ class Sam2VideoService:
         conf: float = 0.25,
         max_det: int = 300,
         model_name: str = "auto",
+        bbox: str = "",
     ):
         input_path = self._save_uploaded_video(upload_file)
         normalized_target_type = self._normalize_target_type(target_type)
@@ -141,6 +142,7 @@ class Sam2VideoService:
                 conf=conf,
                 max_det=max_det,
                 model_name=resolved_model_name,
+                bbox=bbox,
             )
         except FileNotFoundError as ex:
             raise HTTPException(status_code=404, detail=str(ex)) from ex
@@ -158,6 +160,7 @@ class Sam2VideoService:
         conf: float = 0.25,
         max_det: int = 300,
         model_name: str = "auto",
+        bbox: str = "",
     ):
         input_path = self._resolve_uploaded_video_path(file_name)
         normalized_target_type = self._normalize_target_type(target_type)
@@ -170,6 +173,7 @@ class Sam2VideoService:
                 conf=conf,
                 max_det=max_det,
                 model_name=resolved_model_name,
+                bbox=bbox,
             )
         except FileNotFoundError as ex:
             raise HTTPException(status_code=404, detail=str(ex)) from ex

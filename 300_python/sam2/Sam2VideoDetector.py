@@ -23,8 +23,8 @@ class Sam2VideoDetector:
         "curb_step": 2,
     }
     _target_class_keywords = {
-        "pothole": ("pothole", "pot_hole", "hole", "포트홀"),
-        "curb_step": ("curb", "step", "bump", "hump", "speedbump", "speed_bump", "단차", "턱", "연석"),
+        "pothole": ("pothole", "pot_hole", "hole"),
+        "curb_step": ("curb", "step", "bump", "hump", "speedbump", "speed_bump"),
     }
 
     def __init__(self):

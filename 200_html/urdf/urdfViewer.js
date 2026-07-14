@@ -623,6 +623,10 @@ class URDFViewer {
             return;
         }
 
+        interactionElement.style.cursor = 'grab';
+
+        const worldUp = new THREE.Vector3(0, 0, 1);
+
         const onPointerMove = (event) => {
             if (!this.viewCubeDragState || !this.controls || !this.camera) {
                 return;
@@ -640,19 +644,28 @@ class URDFViewer {
 
             const target = this.controls.target.clone();
             const offset = this.camera.position.clone().sub(target);
-            const spherical = new THREE.Spherical().setFromVector3(offset);
 
             const rotateSpeed = 0.006;
-            spherical.theta -= deltaX * rotateSpeed;
-            spherical.phi -= deltaY * rotateSpeed;
+            const yawAngle = -deltaX * rotateSpeed;
+            const pitchAngle = -deltaY * rotateSpeed;
 
-            const minPolar = 0.01;
-            const maxPolar = Math.PI - 0.01;
-            spherical.phi = THREE.MathUtils.clamp(spherical.phi, minPolar, maxPolar);
+            const yawQuaternion = new THREE.Quaternion().setFromAxisAngle(worldUp, yawAngle);
+            offset.applyQuaternion(yawQuaternion);
 
-            const nextOffset = new THREE.Vector3().setFromSpherical(spherical);
-            this.camera.position.copy(target.clone().add(nextOffset));
-            this.camera.up.set(0, 0, 1);
+            const cameraRight = new THREE.Vector3().crossVectors(offset, worldUp).normalize();
+            if (cameraRight.lengthSq() > 1e-8) {
+                const pitchQuaternion = new THREE.Quaternion().setFromAxisAngle(cameraRight, pitchAngle);
+                const pitchedOffset = offset.clone().applyQuaternion(pitchQuaternion);
+                const pitchedPolar = Math.acos(THREE.MathUtils.clamp(pitchedOffset.clone().normalize().dot(worldUp), -1, 1));
+                const minPolar = 0.02;
+                const maxPolar = Math.PI - 0.02;
+                if (pitchedPolar > minPolar && pitchedPolar < maxPolar) {
+                    offset.copy(pitchedOffset);
+                }
+            }
+
+            this.camera.position.copy(target.clone().add(offset));
+            this.camera.up.copy(worldUp);
             this.camera.lookAt(target);
             this.controls.update();
             this.updateViewCubeOverlay();
@@ -666,6 +679,7 @@ class URDFViewer {
             }
             const movedEnough = this.viewCubeDragState.totalMove > 3;
             this.viewCubeDragState = null;
+            interactionElement.style.cursor = 'grab';
             if (movedEnough) {
                 this.logCameraInfos(true);
             }
@@ -682,6 +696,7 @@ class URDFViewer {
 
             event.preventDefault();
             event.stopPropagation();
+            interactionElement.style.cursor = 'grabbing';
             this.viewCubeDragState = {
                 lastClientX: event.clientX,
                 lastClientY: event.clientY,

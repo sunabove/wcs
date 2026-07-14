@@ -7,6 +7,8 @@
     const detectButton = document.getElementById('yolo-detect-btn');
     const confInput = document.getElementById('yolo-conf');
     const iouInput = document.getElementById('yolo-iou');
+    const confValueElement = document.getElementById('yolo-conf-value');
+    const iouValueElement = document.getElementById('yolo-iou-value');
 
     const statusElement = document.getElementById('yolo-status');
     const inputVideoElement = document.getElementById('yolo-input-video');
@@ -16,6 +18,10 @@
     let resolvedApiBase = null;
     let inputObjectUrl = '';
     let outputObjectUrl = '';
+    let realtimeDetectTimer = null;
+    let pendingRealtimeDetect = false;
+
+    const REALTIME_DETECT_DEBOUNCE_MS = 300;
 
     function setStatus(message, type) {
         const alertType = type || 'secondary';
@@ -26,6 +32,47 @@
     function toNumber(value, fallback) {
         const parsed = Number(value);
         return Number.isFinite(parsed) ? parsed : fallback;
+    }
+
+    function formatParamValue(value, fallback) {
+        return toNumber(value, fallback).toFixed(2);
+    }
+
+    function hasSelectedVideo() {
+        const fileFromInput = fileInput.files && fileInput.files[0] ? fileInput.files[0] : null;
+        return Boolean(selectedFile || fileFromInput);
+    }
+
+    function updateSliderValueLabels() {
+        if (confValueElement) {
+            confValueElement.textContent = formatParamValue(confInput.value, 0.25);
+        }
+        if (iouValueElement) {
+            iouValueElement.textContent = formatParamValue(iouInput.value, 0.45);
+        }
+    }
+
+    function scheduleRealtimeDetect() {
+        updateSliderValueLabels();
+
+        if (!hasSelectedVideo()) {
+            return;
+        }
+
+        if (realtimeDetectTimer) {
+            clearTimeout(realtimeDetectTimer);
+        }
+
+        realtimeDetectTimer = setTimeout(() => {
+            realtimeDetectTimer = null;
+
+            if (detectButton.disabled) {
+                pendingRealtimeDetect = true;
+                return;
+            }
+
+            runYoloDetect();
+        }, REALTIME_DETECT_DEBOUNCE_MS);
     }
 
     async function resolveApiBase() {
@@ -317,6 +364,11 @@
             setStatus(`오류: ${message}`, 'danger');
         } finally {
             detectButton.disabled = false;
+
+            if (pendingRealtimeDetect) {
+                pendingRealtimeDetect = false;
+                runYoloDetect();
+            }
         }
     }
 
@@ -368,4 +420,8 @@
     });
 
     detectButton.addEventListener('click', runYoloDetect);
+    confInput.addEventListener('input', scheduleRealtimeDetect);
+    iouInput.addEventListener('input', scheduleRealtimeDetect);
+
+    updateSliderValueLabels();
 })();

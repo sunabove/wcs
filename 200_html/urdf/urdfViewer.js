@@ -312,7 +312,7 @@ class URDFViewer {
         this.controls.enableZoom = true;
         this.controls.enableRotate = false;
         this.controls.enablePan = false;
-        this.controls.mouseButtons.RIGHT = THREE.MOUSE.ROTATE;
+        this.controls.mouseButtons.LEFT = THREE.MOUSE.ROTATE;
         this.cameraPosTextElement = $('#camera-pos-text');
         this.setupCameraAngleLogging();
         if (this.showViewCube) {
@@ -1812,13 +1812,13 @@ class URDFViewer {
                 return;
             }
 
-            if (event.button === 2) {
+            if (event.button === 0) {
                 event.preventDefault();
             }
 
             const intersects = getRobotIntersections(event);
             const chassisHit = intersects.find(intersection => isChassisHit(intersection?.object));
-            const allowInteraction = event.button === 2 && !!chassisHit;
+            const allowInteraction = event.button === 0 && !!chassisHit;
 
             this.isOrbitInteractionActive = allowInteraction;
             this.controls.enableRotate = allowInteraction;

@@ -119,8 +119,7 @@ class URDFViewer {
         this.viewCubeButtonByFace = {};
         this.viewCubeDragState = null;
         this.viewCubeSuppressClickUntilMs = 0;
-        this.viewCubeDragRotateSpeed = 0.0028;
-        this.viewCubeDragMaxDeltaPx = 14;
+        this.viewCubeArcballSensitivity = 1.0;
         this.showAttitude = this.parseBooleanAttribute(
             containerElement.getAttribute('showAttitude'),
             false
@@ -627,7 +626,24 @@ class URDFViewer {
 
         interactionElement.style.cursor = 'grab';
 
-        const worldUp = new THREE.Vector3(0, 0, 1);
+        const projectToArcball = (clientX, clientY) => {
+            const rect = interactionElement.getBoundingClientRect();
+            if (rect.width <= 0 || rect.height <= 0) {
+                return new THREE.Vector3(0, 0, 1);
+            }
+
+            const x = ((clientX - rect.left) / rect.width) * 2 - 1;
+            const y = -(((clientY - rect.top) / rect.height) * 2 - 1);
+            const lengthSq = x * x + y * y;
+
+            if (lengthSq > 1) {
+                const invLength = 1 / Math.sqrt(lengthSq);
+                return new THREE.Vector3(x * invLength, y * invLength, 0);
+            }
+
+            const z = Math.sqrt(Math.max(0, 1 - lengthSq));
+            return new THREE.Vector3(x, y, z).normalize();
+        };
 
         const onPointerMove = (event) => {
             if (!this.viewCubeDragState || !this.controls || !this.camera) {
@@ -644,41 +660,33 @@ class URDFViewer {
                 this.viewCubeSuppressClickUntilMs = performance.now() + 150;
             }
 
+            const previousArcball = this.viewCubeDragState.arcballVector;
+            const nextArcball = projectToArcball(event.clientX, event.clientY);
+            this.viewCubeDragState.arcballVector = nextArcball;
+
+            const axisCamera = new THREE.Vector3().crossVectors(previousArcball, nextArcball);
+            if (axisCamera.lengthSq() < 1e-10) {
+                return;
+            }
+
+            const dot = THREE.MathUtils.clamp(previousArcball.dot(nextArcball), -1, 1);
+            const angle = Math.acos(dot) * this.viewCubeArcballSensitivity;
+            if (!Number.isFinite(angle) || angle <= 1e-6) {
+                return;
+            }
+
+            axisCamera.normalize();
+            const axisWorld = axisCamera.clone().applyQuaternion(this.camera.quaternion).normalize();
+
             const target = this.controls.target.clone();
             const offset = this.camera.position.clone().sub(target);
 
-            const limitedDeltaX = THREE.MathUtils.clamp(
-                deltaX,
-                -this.viewCubeDragMaxDeltaPx,
-                this.viewCubeDragMaxDeltaPx
-            );
-            const limitedDeltaY = THREE.MathUtils.clamp(
-                deltaY,
-                -this.viewCubeDragMaxDeltaPx,
-                this.viewCubeDragMaxDeltaPx
-            );
-
-            const rotateSpeed = this.viewCubeDragRotateSpeed;
-            const yawAngle = -limitedDeltaX * rotateSpeed;
-            const pitchAngle = -limitedDeltaY * rotateSpeed;
-
-            const yawQuaternion = new THREE.Quaternion().setFromAxisAngle(worldUp, yawAngle);
-            offset.applyQuaternion(yawQuaternion);
-
-            const cameraRight = new THREE.Vector3().crossVectors(offset, worldUp).normalize();
-            if (cameraRight.lengthSq() > 1e-8) {
-                const pitchQuaternion = new THREE.Quaternion().setFromAxisAngle(cameraRight, pitchAngle);
-                const pitchedOffset = offset.clone().applyQuaternion(pitchQuaternion);
-                const pitchedPolar = Math.acos(THREE.MathUtils.clamp(pitchedOffset.clone().normalize().dot(worldUp), -1, 1));
-                const minPolar = 0.02;
-                const maxPolar = Math.PI - 0.02;
-                if (pitchedPolar > minPolar && pitchedPolar < maxPolar) {
-                    offset.copy(pitchedOffset);
-                }
-            }
+            // Invert angle so dragging the cube feels like rotating the view around the model.
+            const rotation = new THREE.Quaternion().setFromAxisAngle(axisWorld, -angle);
+            offset.applyQuaternion(rotation);
+            this.camera.up.applyQuaternion(rotation).normalize();
 
             this.camera.position.copy(target.clone().add(offset));
-            this.camera.up.copy(worldUp);
             this.camera.lookAt(target);
             this.controls.update();
             this.updateViewCubeOverlay();
@@ -713,7 +721,8 @@ class URDFViewer {
             this.viewCubeDragState = {
                 lastClientX: event.clientX,
                 lastClientY: event.clientY,
-                totalMove: 0
+                totalMove: 0,
+                arcballVector: projectToArcball(event.clientX, event.clientY)
             };
 
             window.addEventListener('pointermove', onPointerMove, true);

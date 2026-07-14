@@ -19,12 +19,8 @@
     let resolvedApiBase = null;
     let inputObjectUrl = '';
     let outputObjectUrl = '';
-    let realtimeDetectTimer = null;
-    let pendingRealtimeDetect = false;
     let uploadedHistory = [];
     let selectedServerFileName = '';
-
-    const REALTIME_DETECT_DEBOUNCE_MS = 300;
     const STORAGE_TARGET_KEY = 'sam2.targetType';
     const STORAGE_CONF_KEY = 'sam2.conf';
 
@@ -108,30 +104,6 @@
         const loopEnabled = Boolean(loopToggleInput && loopToggleInput.checked);
         inputVideoElement.loop = loopEnabled;
         outputVideoElement.loop = loopEnabled;
-    }
-
-    function scheduleRealtimeDetect() {
-        updateConfValueLabel();
-        saveUiOptions();
-
-        if (!hasSelectedVideo()) {
-            return;
-        }
-
-        if (realtimeDetectTimer) {
-            clearTimeout(realtimeDetectTimer);
-        }
-
-        realtimeDetectTimer = setTimeout(() => {
-            realtimeDetectTimer = null;
-
-            if (detectButton.disabled) {
-                pendingRealtimeDetect = true;
-                return;
-            }
-
-            runSam2Segment();
-        }, REALTIME_DETECT_DEBOUNCE_MS);
     }
 
     async function resolveApiBase() {
@@ -625,11 +597,6 @@
             setStatus(`오류: ${message}`, 'danger');
         } finally {
             detectButton.disabled = false;
-
-            if (pendingRealtimeDetect) {
-                pendingRealtimeDetect = false;
-                runSam2Segment();
-            }
         }
     }
 
@@ -677,17 +644,18 @@
         }
 
         handleChosenFile(file);
-        runSam2Segment();
     });
 
     detectButton.addEventListener('click', runSam2Segment);
     if (confInput) {
-        confInput.addEventListener('input', scheduleRealtimeDetect);
+        confInput.addEventListener('input', () => {
+            updateConfValueLabel();
+            saveUiOptions();
+        });
     }
     document.querySelectorAll('input[name="sam2-target"]').forEach((input) => {
         input.addEventListener('change', () => {
             saveUiOptions();
-            scheduleRealtimeDetect();
         });
     });
     if (loopToggleInput) {

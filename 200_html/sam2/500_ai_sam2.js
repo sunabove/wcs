@@ -236,8 +236,7 @@
                 }
 
                 renderUploadedHistory();
-                setStatus(`선택됨: ${item.name} (재분할 중...)`, 'info');
-                runSam2Segment();
+                setStatus(`선택됨: ${item.name} (분할 시작 버튼을 눌러 실행)`, 'secondary');
             });
 
             uploadedListElement.appendChild(li);

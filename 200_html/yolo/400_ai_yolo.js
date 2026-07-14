@@ -157,6 +157,28 @@
 
         videoElement.src = newObjectUrl;
         videoElement.load();
+
+        await new Promise((resolve, reject) => {
+            const cleanup = () => {
+                videoElement.removeEventListener('loadeddata', onLoadedData);
+                videoElement.removeEventListener('error', onError);
+            };
+
+            const onLoadedData = () => {
+                cleanup();
+                resolve();
+            };
+
+            const onError = () => {
+                const mediaError = videoElement.error;
+                const code = mediaError && mediaError.code ? mediaError.code : 'unknown';
+                cleanup();
+                reject(new Error(`동영상 디코딩 실패 (code: ${code})`));
+            };
+
+            videoElement.addEventListener('loadeddata', onLoadedData, { once: true });
+            videoElement.addEventListener('error', onError, { once: true });
+        });
     }
 
     function isVideoFile(file) {
@@ -262,6 +284,24 @@
 
             await assignVideoSource(inputVideoElement, inputUrl, 'input');
             await assignVideoSource(outputVideoElement, outputUrl, 'output');
+
+            // Try to present first frame/play state immediately. Some browsers block autoplay.
+            try {
+                await inputVideoElement.play();
+                inputVideoElement.pause();
+                inputVideoElement.currentTime = 0;
+            } catch (_ignore) {
+                // User interaction may be required to start playback.
+            }
+
+            try {
+                await outputVideoElement.play();
+                outputVideoElement.pause();
+                outputVideoElement.currentTime = 0;
+            } catch (_ignore) {
+                // User interaction may be required to start playback.
+            }
+
             setStatus('검출 완료', 'success');
         } catch (error) {
             const message = error && error.message ? error.message : String(error);

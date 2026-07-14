@@ -99,17 +99,6 @@ def get_browser_playable_video_url(file_name: str, force_transcode: bool = False
     if suffix not in VIDEO_EXTENSIONS:
         raise HTTPException(status_code=400, detail="file_name is not a video")
 
-    # Path for the backup of the original file
-    backup_path = video_path.with_name(f"_{video_path.name}")
-
-    # If backup exists and we're NOT forcing transcode, return the backup (original format)
-    # This ensures that "원본 영상" (original video) tab shows the actual original
-    if backup_path.exists() and backup_path.is_file() and backup_path.stat().st_size > 0 and not force_transcode:
-        return {
-            "video_url": _to_image_route_url(backup_path),
-            "source": "backup_original",
-        }
-
     # Most browsers handle these containers directly.
     if not force_transcode and suffix in {".mp4", ".m4v", ".webm"}:
         return {
@@ -117,14 +106,14 @@ def get_browser_playable_video_url(file_name: str, force_transcode: bool = False
             "source": "original",
         }
 
-    # Temporary path for transcoding
-    temp_path = video_path.with_name(f"{video_path.stem}.tmp.mp4")
-    
-    needs_transcode = True
-    # Check if backup already exists and is newer than original
-    if backup_path.exists() and backup_path.is_file() and backup_path.stat().st_size > 0:
+    # Keep source intact and generate a dedicated browser-friendly MP4.
+    playable_path = video_path.with_name(f"{video_path.stem}.playable.mp4")
+    temp_path = video_path.with_name(f"{video_path.stem}.playable.tmp.mp4")
+
+    needs_transcode = force_transcode or not playable_path.exists() or not playable_path.is_file() or playable_path.stat().st_size <= 0
+    if not needs_transcode:
         try:
-            needs_transcode = backup_path.stat().st_mtime < video_path.stat().st_mtime
+            needs_transcode = playable_path.stat().st_mtime < video_path.stat().st_mtime
         except OSError:
             needs_transcode = True
 
@@ -175,12 +164,7 @@ def get_browser_playable_video_url(file_name: str, force_transcode: bool = False
             raise HTTPException(status_code=500, detail="Failed to transcode video")
 
         try:
-            # Backup the original file if not already backed up
-            if not backup_path.exists():
-                video_path.rename(backup_path)
-            
-            # Replace the original with the transcoded version
-            temp_path.replace(video_path)
+            temp_path.replace(playable_path)
         except OSError as ex:
             try:
                 temp_path.unlink(missing_ok=True)
@@ -189,7 +173,7 @@ def get_browser_playable_video_url(file_name: str, force_transcode: bool = False
             raise HTTPException(status_code=500, detail=f"Failed to finalize transcoded video: {ex}")
 
     return {
-        "video_url": _to_image_route_url(video_path),
+        "video_url": _to_image_route_url(playable_path),
         "source": "transcoded",
     }
 pass # get_browser_playable_video_url

@@ -663,6 +663,13 @@ class URDFViewer {
                 return;
             }
 
+            if (!this.viewCubeDragState.isActivated) {
+                this.viewCubeDragState.isActivated = true;
+                this.viewCubeSuppressClickUntilMs = performance.now() + 150;
+                this.viewCubeDragState.arcballVector = nextArcball;
+                return;
+            }
+
             this.viewCubeSuppressClickUntilMs = performance.now() + 150;
 
             const previousArcball = this.viewCubeDragState.arcballVector;
@@ -726,6 +733,7 @@ class URDFViewer {
                 lastClientX: event.clientX,
                 lastClientY: event.clientY,
                 totalMove: 0,
+                isActivated: false,
                 arcballVector: projectToArcball(event.clientX, event.clientY)
             };
 

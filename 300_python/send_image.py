@@ -19,7 +19,7 @@ def _to_image_route_url(file_path: Path) -> str:
 
 
 def _create_browser_video_writer(output_path: Path, fps: float, width: int, height: int):
-    for codec in ("avc1", "H264", "mp4v"):
+    for codec in ("mp4v", "avc1", "H264"):
         writer = cv2.VideoWriter(
             str(output_path),
             cv2.VideoWriter_fourcc(*codec),

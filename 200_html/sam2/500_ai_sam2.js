@@ -325,11 +325,6 @@
             bboxValueElement.textContent = formatBoundingBoxText(boundingBox);
         }
 
-        if (bboxCaptureLayerElement) {
-            const enabled = Boolean(bboxEnabledInput && bboxEnabledInput.checked);
-            bboxCaptureLayerElement.classList.toggle('active', enabled);
-        }
-
         if (!bboxLayerElement) {
             return;
         }
@@ -1067,27 +1062,9 @@
         });
     }
     if (bboxCaptureLayerElement) {
-        bboxCaptureLayerElement.addEventListener('mousedown', (event) => {
+        bboxCaptureLayerElement.addEventListener('click', (event) => {
             event.preventDefault();
             event.stopPropagation();
-            handleBoundingBoxDragStart(event);
-        });
-        bboxCaptureLayerElement.addEventListener('mousemove', (event) => {
-            event.preventDefault();
-            event.stopPropagation();
-            handleBoundingBoxDragMove(event);
-        });
-        bboxCaptureLayerElement.addEventListener('mouseup', (event) => {
-            event.preventDefault();
-            event.stopPropagation();
-            handleBoundingBoxDragEnd(event);
-        });
-        bboxCaptureLayerElement.addEventListener('mouseleave', (event) => {
-            handleBoundingBoxDragEnd(event);
-        });
-    }
-    if (inputVideoElement) {
-        inputVideoElement.addEventListener('click', (event) => {
             if (bboxEnabledInput && bboxEnabledInput.checked) {
                 return;
             }
@@ -1095,6 +1072,36 @@
                 return;
             }
             addPointByClick(event);
+        });
+        bboxCaptureLayerElement.addEventListener('mousedown', (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            if (!(bboxEnabledInput && bboxEnabledInput.checked)) {
+                return;
+            }
+            handleBoundingBoxDragStart(event);
+        });
+        bboxCaptureLayerElement.addEventListener('mousemove', (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            if (!(bboxEnabledInput && bboxEnabledInput.checked)) {
+                return;
+            }
+            handleBoundingBoxDragMove(event);
+        });
+        bboxCaptureLayerElement.addEventListener('mouseup', (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            if (!(bboxEnabledInput && bboxEnabledInput.checked)) {
+                return;
+            }
+            handleBoundingBoxDragEnd(event);
+        });
+        bboxCaptureLayerElement.addEventListener('mouseleave', (event) => {
+            if (!(bboxEnabledInput && bboxEnabledInput.checked)) {
+                return;
+            }
+            handleBoundingBoxDragEnd(event);
         });
     }
     if (confInput) {

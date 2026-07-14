@@ -35,6 +35,19 @@ class YoloVideoDetector:
             self._model_cache[normalized] = YOLO(normalized)
         return self._model_cache[normalized]
 
+    def _create_video_writer(self, output_path: Path, fps: float, width: int, height: int):
+        for codec in ("avc1", "H264", "mp4v"):
+            writer = cv2.VideoWriter(
+                str(output_path),
+                cv2.VideoWriter_fourcc(*codec),
+                fps,
+                (width, height),
+            )
+            if writer.isOpened():
+                return writer
+            writer.release()
+        return None
+
     def detect_video_file(
         self,
         input_path: Path,
@@ -69,13 +82,8 @@ class YoloVideoDetector:
             capture.release()
             raise RuntimeError("Invalid video size")
 
-        writer = cv2.VideoWriter(
-            str(output_path),
-            cv2.VideoWriter_fourcc(*"mp4v"),
-            fps,
-            (width, height),
-        )
-        if not writer.isOpened():
+        writer = self._create_video_writer(output_path, fps, width, height)
+        if writer is None:
             capture.release()
             raise RuntimeError("Failed to create output video")
 

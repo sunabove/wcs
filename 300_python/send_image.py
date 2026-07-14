@@ -17,6 +17,20 @@ def _to_image_route_url(file_path: Path) -> str:
         relative = file_path.name
     return f"/fast/image/{relative}"
 
+
+def _create_browser_video_writer(output_path: Path, fps: float, width: int, height: int):
+    for codec in ("avc1", "H264", "mp4v"):
+        writer = cv2.VideoWriter(
+            str(output_path),
+            cv2.VideoWriter_fourcc(*codec),
+            fps,
+            (width, height),
+        )
+        if writer.isOpened():
+            return writer
+        writer.release()
+    return None
+
 def resolve_upload_image_path(file_name: str) -> Path:
     if not file_name or not file_name.strip():
         raise HTTPException(status_code=400, detail="file_name is required")
@@ -131,9 +145,8 @@ def get_browser_playable_video_url(file_name: str, force_transcode: bool = False
             if width <= 0 or height <= 0:
                 raise HTTPException(status_code=500, detail="Invalid video size")
 
-            fourcc = cv2.VideoWriter_fourcc(*"mp4v")
-            writer = cv2.VideoWriter(str(temp_path), fourcc, fps, (width, height))
-            if not writer.isOpened():
+            writer = _create_browser_video_writer(temp_path, fps, width, height)
+            if writer is None:
                 raise HTTPException(status_code=500, detail="Failed to create browser-playable video")
 
             while True:

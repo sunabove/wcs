@@ -96,7 +96,7 @@
         return text.slice(index + marker.length);
     }
 
-    async function resolvePlayableVideoUrl(apiBase, rawVideoUrl) {
+    async function resolvePlayableVideoUrl(apiBase, rawVideoUrl, forceTranscode) {
         const pathValue = extractFastImagePath(rawVideoUrl);
         if (!pathValue) {
             return buildAbsoluteUrl(apiBase, rawVideoUrl);
@@ -107,7 +107,8 @@
             .map(segment => encodeURIComponent(segment))
             .join('/');
 
-        const playableApiUrl = `${apiBase}/fast/video_playable/${encodedPath}`;
+        const transcodeParam = forceTranscode ? '?force_transcode=true' : '';
+        const playableApiUrl = `${apiBase}/fast/video_playable/${encodedPath}${transcodeParam}`;
         try {
             const response = await fetch(playableApiUrl, {
                 method: 'GET',
@@ -224,8 +225,8 @@
 
             const result = await response.json();
 
-            const inputUrl = await resolvePlayableVideoUrl(apiBase, result.input_url);
-            const outputUrl = await resolvePlayableVideoUrl(apiBase, result.output_url);
+            const inputUrl = await resolvePlayableVideoUrl(apiBase, result.input_url, true);
+            const outputUrl = await resolvePlayableVideoUrl(apiBase, result.output_url, true);
 
             inputVideoElement.src = inputUrl;
             outputVideoElement.src = outputUrl;

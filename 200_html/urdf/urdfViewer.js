@@ -560,7 +560,7 @@ class URDFViewer {
         panelElement.style.left = '12px';
         panelElement.style.zIndex = '16';
         panelElement.style.width = '120px';
-        panelElement.style.padding = '8px 8px 6px';
+        panelElement.style.padding = '4px';
         panelElement.style.background = 'rgba(255, 255, 255, 0.92)';
         panelElement.style.border = '1px solid rgba(20, 20, 20, 0.2)';
         panelElement.style.borderRadius = '10px';
@@ -570,7 +570,7 @@ class URDFViewer {
 
         const cubeViewportElement = document.createElement('div');
         cubeViewportElement.style.width = '100%';
-        cubeViewportElement.style.height = '82px';
+        cubeViewportElement.style.height = '56px';
         cubeViewportElement.style.display = 'flex';
         cubeViewportElement.style.alignItems = 'center';
         cubeViewportElement.style.justifyContent = 'center';

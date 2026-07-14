@@ -15,7 +15,6 @@
     const positivePointCountElement = document.getElementById('sam2-positive-count');
     const pointMarkerLayerElement = document.getElementById('sam2-point-marker-layer');
     const bboxEnabledInput = document.getElementById('sam2-bbox-enabled');
-    const bboxClearButton = document.getElementById('sam2-bbox-clear');
     const bboxValueElement = document.getElementById('sam2-bbox-value');
     const bboxLayerElement = document.getElementById('sam2-bbox-layer');
     const bboxCaptureLayerElement = document.getElementById('sam2-bbox-capture-layer');
@@ -1185,12 +1184,6 @@
             bboxDragging = false;
             bboxDragStart = null;
             renderBoundingBoxUi();
-        });
-    }
-    if (bboxClearButton) {
-        bboxClearButton.addEventListener('click', () => {
-            clearBoundingBox();
-            setStatus('Bounding Box를 전체 영역으로 초기화했습니다.', 'secondary');
         });
     }
     if (bboxCaptureLayerElement) {

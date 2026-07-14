@@ -295,7 +295,11 @@ class URDFViewer {
         this.controls = new OrbitControls(this.camera, this.renderer.domElement);
         this.controls.enableDamping = true;
         this.controls.dampingFactor = 0.05;
-        this.controls.enabled = false;
+        // 휠 줌은 항상 허용하고, 회전/패닝만 차체 클릭 시에만 허용한다.
+        this.controls.enabled = true;
+        this.controls.enableZoom = true;
+        this.controls.enableRotate = false;
+        this.controls.enablePan = false;
         this.cameraPosTextElement = $('#camera-pos-text');
         this.setupCameraAngleLogging();
         this.setupCameraToastOverlay();
@@ -1489,7 +1493,8 @@ class URDFViewer {
         const disableOrbitInteraction = () => {
             this.isOrbitInteractionActive = false;
             if (this.controls) {
-                this.controls.enabled = false;
+                this.controls.enableRotate = false;
+                this.controls.enablePan = false;
             }
         };
 
@@ -1503,7 +1508,8 @@ class URDFViewer {
             const allowInteraction = !!chassisHit;
 
             this.isOrbitInteractionActive = allowInteraction;
-            this.controls.enabled = allowInteraction;
+            this.controls.enableRotate = allowInteraction;
+            this.controls.enablePan = allowInteraction;
         }, true);
 
         window.addEventListener('pointerup', disableOrbitInteraction, true);

@@ -120,6 +120,7 @@ class URDFViewer {
         this.viewCubeDragState = null;
         this.viewCubeSuppressClickUntilMs = 0;
         this.viewCubeArcballSensitivity = 1.0;
+        this.viewCubeDragActivateDistancePx = 4;
         this.showAttitude = this.parseBooleanAttribute(
             containerElement.getAttribute('showAttitude'),
             false
@@ -655,13 +656,16 @@ class URDFViewer {
             this.viewCubeDragState.lastClientX = event.clientX;
             this.viewCubeDragState.lastClientY = event.clientY;
             this.viewCubeDragState.totalMove += Math.hypot(deltaX, deltaY);
+            const nextArcball = projectToArcball(event.clientX, event.clientY);
 
-            if (this.viewCubeDragState.totalMove > 3) {
-                this.viewCubeSuppressClickUntilMs = performance.now() + 150;
+            if (this.viewCubeDragState.totalMove <= this.viewCubeDragActivateDistancePx) {
+                this.viewCubeDragState.arcballVector = nextArcball;
+                return;
             }
 
+            this.viewCubeSuppressClickUntilMs = performance.now() + 150;
+
             const previousArcball = this.viewCubeDragState.arcballVector;
-            const nextArcball = projectToArcball(event.clientX, event.clientY);
             this.viewCubeDragState.arcballVector = nextArcball;
 
             const axisCamera = new THREE.Vector3().crossVectors(previousArcball, nextArcball);
@@ -698,7 +702,7 @@ class URDFViewer {
             if (!this.viewCubeDragState) {
                 return;
             }
-            const movedEnough = this.viewCubeDragState.totalMove > 3;
+            const movedEnough = this.viewCubeDragState.totalMove > this.viewCubeDragActivateDistancePx;
             this.viewCubeDragState = null;
             interactionElement.style.cursor = 'grab';
             if (movedEnough) {

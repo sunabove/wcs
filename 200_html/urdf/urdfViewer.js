@@ -555,75 +555,52 @@ class URDFViewer {
         panelElement.style.pointerEvents = 'auto';
         panelElement.style.userSelect = 'none';
 
-        const cubeViewportElement = document.createElement('div');
-        cubeViewportElement.style.width = '48px';
-        cubeViewportElement.style.height = '56px';
-        cubeViewportElement.style.display = 'flex';
-        cubeViewportElement.style.alignItems = 'center';
-        cubeViewportElement.style.justifyContent = 'center';
-        cubeViewportElement.style.perspective = '420px';
+        this.viewCubeButtonByFace = {};
 
-        const cubeElement = document.createElement('div');
-        cubeElement.style.position = 'relative';
-        cubeElement.style.width = '42px';
-        cubeElement.style.height = '42px';
-        cubeElement.style.transformStyle = 'preserve-3d';
-        cubeElement.style.transform = 'rotateX(0deg) rotateY(0deg) rotateZ(0deg)';
-        cubeElement.style.transition = 'transform 120ms ease-out';
+        const gridElement = document.createElement('div');
+        gridElement.style.display = 'grid';
+        gridElement.style.gridTemplateColumns = 'repeat(2, minmax(0, 1fr))';
+        gridElement.style.columnGap = '4px';
+        gridElement.style.rowGap = '4px';
 
-        const createFaceButton = (faceKey, label, title, transformValue) => {
+        const createFaceButton = (faceKey, label, title) => {
             const buttonElement = document.createElement('button');
             buttonElement.type = 'button';
             buttonElement.textContent = label;
             buttonElement.title = title;
-            buttonElement.style.position = 'absolute';
-            buttonElement.style.inset = '0';
+            buttonElement.style.minWidth = '56px';
+            buttonElement.style.height = '24px';
             buttonElement.style.border = '1px solid rgba(32, 46, 66, 0.45)';
             buttonElement.style.borderRadius = '4px';
             buttonElement.style.background = 'rgba(255, 255, 255, 0.98)';
             buttonElement.style.color = '#1f2937';
-            buttonElement.style.fontSize = '8px';
+            buttonElement.style.fontSize = '9px';
             buttonElement.style.fontWeight = '700';
             buttonElement.style.cursor = 'pointer';
-            buttonElement.style.padding = '0';
+            buttonElement.style.padding = '0 4px';
             buttonElement.style.lineHeight = '1.1';
-            buttonElement.style.whiteSpace = 'normal';
-            buttonElement.style.backfaceVisibility = 'hidden';
-            buttonElement.style.transform = transformValue;
-            buttonElement.style.boxShadow = 'inset 0 0 0 1px rgba(255, 255, 255, 0.35)';
+            buttonElement.style.whiteSpace = 'nowrap';
             buttonElement.addEventListener('click', (event) => {
                 event.preventDefault();
                 event.stopPropagation();
-                if (performance.now() < this.viewCubeIgnoreFaceClickUntilMs) {
-                    return;
-                }
-                if (performance.now() < this.viewCubeSuppressClickUntilMs) {
-                    return;
-                }
                 this.setCameraByViewCubeFace(faceKey);
             });
             this.viewCubeButtonByFace[faceKey] = buttonElement;
             return buttonElement;
         };
 
-        const halfSize = '21px';
-        // Face normals are aligned to the same world-axis convention used in camera logic:
-        // FRONT=+X, BACK=-X, LEFT=+Y, RIGHT=-Y, TOP=+Z, BOTTOM=-Z.
-        cubeElement.appendChild(createFaceButton('front', 'FRONT', 'Front (+X)', `rotateY(90deg) translateZ(${halfSize})`));
-        cubeElement.appendChild(createFaceButton('back', 'BACK', 'Back (-X)', `rotateY(-90deg) translateZ(${halfSize})`));
-        cubeElement.appendChild(createFaceButton('left', 'LEFT', 'Left (+Y)', `rotateX(-90deg) translateZ(${halfSize})`));
-        cubeElement.appendChild(createFaceButton('right', 'RIGHT', 'Right (-Y)', `rotateX(90deg) translateZ(${halfSize})`));
-        cubeElement.appendChild(createFaceButton('top', 'TOP', 'Top (+Z)', `rotateY(0deg) translateZ(${halfSize})`));
-        cubeElement.appendChild(createFaceButton('bottom', 'BOTTOM', 'Down (-Z)', `rotateY(180deg) translateZ(${halfSize})`));
+        gridElement.appendChild(createFaceButton('front', 'FRONT', 'Front (+X)'));
+        gridElement.appendChild(createFaceButton('back', 'BACK', 'Back (-X)'));
+        gridElement.appendChild(createFaceButton('left', 'LEFT', 'Left (+Y)'));
+        gridElement.appendChild(createFaceButton('right', 'RIGHT', 'Right (-Y)'));
+        gridElement.appendChild(createFaceButton('top', 'TOP', 'Top (+Z)'));
+        gridElement.appendChild(createFaceButton('bottom', 'BOTTOM', 'Down (-Z)'));
 
-        cubeViewportElement.appendChild(cubeElement);
-
-        panelElement.appendChild(cubeViewportElement);
+        panelElement.appendChild(gridElement);
 
         this.container.appendChild(panelElement);
         this.viewCubeOverlayElement = panelElement;
-        this.viewCubeCubeElement = cubeElement;
-        this.setupViewCubeDragInteraction(cubeViewportElement);
+        this.viewCubeCubeElement = null;
         this.updateViewCubeOverlay();
     }
 
@@ -834,15 +811,6 @@ class URDFViewer {
         const hasButtons = this.viewCubeButtonByFace && Object.keys(this.viewCubeButtonByFace).length > 0;
         if (!hasButtons || !this.controls || !this.camera) {
             return;
-        }
-
-        if (this.viewCubeCubeElement) {
-            const inverseCameraQuaternion = this.camera.quaternion.clone().invert();
-            const cubeEuler = new THREE.Euler().setFromQuaternion(inverseCameraQuaternion, 'YXZ');
-            const rotXDeg = THREE.MathUtils.radToDeg(cubeEuler.x);
-            const rotYDeg = THREE.MathUtils.radToDeg(cubeEuler.y);
-            const rotZDeg = THREE.MathUtils.radToDeg(cubeEuler.z);
-            this.viewCubeCubeElement.style.transform = `rotateX(${rotXDeg}deg) rotateY(${rotYDeg}deg) rotateZ(${rotZDeg}deg)`;
         }
 
         const target = this.controls.target.clone();

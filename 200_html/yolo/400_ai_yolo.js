@@ -302,6 +302,15 @@
                 // User interaction may be required to start playback.
             }
 
+            const outputTabButton = document.getElementById('yolo-output-tab');
+            if (outputTabButton) {
+                if (window.bootstrap && typeof window.bootstrap.Tab === 'function') {
+                    window.bootstrap.Tab.getOrCreateInstance(outputTabButton).show();
+                } else {
+                    outputTabButton.click();
+                }
+            }
+
             setStatus('검출 완료', 'success');
         } catch (error) {
             const message = error && error.message ? error.message : String(error);

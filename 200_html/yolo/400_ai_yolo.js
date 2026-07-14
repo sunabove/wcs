@@ -7,6 +7,7 @@
     const detectButton = document.getElementById('yolo-detect-btn');
     const confInput = document.getElementById('yolo-conf');
     const iouInput = document.getElementById('yolo-iou');
+    const loopToggleInput = document.getElementById('yolo-loop-toggle');
     const confValueElement = document.getElementById('yolo-conf-value');
     const iouValueElement = document.getElementById('yolo-iou-value');
     const uploadedListElement = document.getElementById('yolo-uploaded-list');
@@ -54,6 +55,12 @@
         if (iouValueElement) {
             iouValueElement.textContent = formatParamValue(iouInput.value, 0.45);
         }
+    }
+
+    function applyLoopOption() {
+        const loopEnabled = Boolean(loopToggleInput && loopToggleInput.checked);
+        inputVideoElement.loop = loopEnabled;
+        outputVideoElement.loop = loopEnabled;
     }
 
     function scheduleRealtimeDetect() {
@@ -543,6 +550,8 @@
             await assignVideoSource(inputVideoElement, inputUrl, 'input');
             await assignVideoSource(outputVideoElement, outputUrl, 'output');
 
+            applyLoopOption();
+
             await autoPlayVideo(inputVideoElement);
             await autoPlayVideo(outputVideoElement);
 
@@ -619,11 +628,16 @@
     detectButton.addEventListener('click', runYoloDetect);
     confInput.addEventListener('input', scheduleRealtimeDetect);
     iouInput.addEventListener('input', scheduleRealtimeDetect);
+    if (loopToggleInput) {
+        loopToggleInput.addEventListener('change', applyLoopOption);
+    }
 
     updateSliderValueLabels();
     if (uploadedEmptyElement) {
         renderUploadedHistory();
     }
+
+    applyLoopOption();
 
     loadUploadedHistoryFromServer();
 })();

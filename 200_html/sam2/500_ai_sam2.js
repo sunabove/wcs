@@ -25,6 +25,8 @@
     let selectedServerFileName = '';
 
     const REALTIME_DETECT_DEBOUNCE_MS = 300;
+    const STORAGE_TARGET_KEY = 'sam2.targetType';
+    const STORAGE_CONF_KEY = 'sam2.conf';
 
     function setStatus(message, type) {
         const alertType = type || 'secondary';
@@ -47,6 +49,40 @@
     function hasSelectedVideo() {
         const fileFromInput = fileInput.files && fileInput.files[0] ? fileInput.files[0] : null;
         return Boolean(selectedFile || fileFromInput || selectedServerFileName);
+    }
+
+    function saveUiOptions() {
+        try {
+            const targetType = getSelectedTargetType();
+            const conf = toNumber(confInput ? confInput.value : 0.25, 0.25);
+            localStorage.setItem(STORAGE_TARGET_KEY, targetType);
+            localStorage.setItem(STORAGE_CONF_KEY, String(conf));
+        } catch (_ignore) {
+            // localStorage may be unavailable in some browser/privacy modes.
+        }
+    }
+
+    function loadUiOptions() {
+        try {
+            const storedTargetType = String(localStorage.getItem(STORAGE_TARGET_KEY) || '').trim();
+            if (storedTargetType === 'road' || storedTargetType === 'pothole' || storedTargetType === 'curb_step') {
+                const targetInput = document.querySelector(`input[name="sam2-target"][value="${storedTargetType}"]`);
+                if (targetInput) {
+                    targetInput.checked = true;
+                }
+            }
+
+            if (confInput) {
+                const storedConfRaw = localStorage.getItem(STORAGE_CONF_KEY);
+                if (storedConfRaw != null) {
+                    const storedConf = toNumber(storedConfRaw, 0.25);
+                    const normalizedConf = Math.max(0, Math.min(1, storedConf));
+                    confInput.value = String(normalizedConf);
+                }
+            }
+        } catch (_ignore) {
+            // Keep defaults when localStorage is unavailable.
+        }
     }
 
     function getSelectedTargetType() {
@@ -76,6 +112,7 @@
 
     function scheduleRealtimeDetect() {
         updateConfValueLabel();
+        saveUiOptions();
 
         if (!hasSelectedVideo()) {
             return;
@@ -642,6 +679,12 @@
     if (confInput) {
         confInput.addEventListener('input', scheduleRealtimeDetect);
     }
+    document.querySelectorAll('input[name="sam2-target"]').forEach((input) => {
+        input.addEventListener('change', () => {
+            saveUiOptions();
+            scheduleRealtimeDetect();
+        });
+    });
     if (loopToggleInput) {
         loopToggleInput.addEventListener('change', applyLoopOption);
     }
@@ -650,6 +693,7 @@
     }
 
     applyLoopOption();
+    loadUiOptions();
     updateConfValueLabel();
 
     loadUploadedHistoryFromServer();

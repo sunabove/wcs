@@ -119,42 +119,42 @@
 			</div>
 
 			<div class="row g-2 mt-1 align-items-end">
-				<div class="col-12 col-lg-4">
+				<div class="col">
 					<label for="yolo-conf" class="form-label d-flex justify-content-between align-items-center">
 						<span>Conf</span>
 						<span id="yolo-conf-value" class="badge text-bg-secondary">0.25</span>
 					</label>
 					<input id="yolo-conf" class="form-range" type="range" min="0" max="1" step="0.01" value="0.25">
 				</div>
-				<div class="col-12 col-lg-4">
+				<div class="col">
 					<label for="yolo-iou" class="form-label d-flex justify-content-between align-items-center">
 						<span>IoU</span>
 						<span id="yolo-iou-value" class="badge text-bg-secondary">0.45</span>
 					</label>
 					<input id="yolo-iou" class="form-range" type="range" min="0" max="1" step="0.01" value="0.45">
 				</div>
-				<div class="col-12 col-lg-4 d-grid">
+				<div class="col">
 					<button id="yolo-detect-btn" class="btn btn-primary">검출 시작</button>
-				</div>
-				<div class="col-12">
-					<div class="form-check form-switch">
-						<input class="form-check-input" type="checkbox" role="switch" id="yolo-loop-toggle">
-						<label class="form-check-label" for="yolo-loop-toggle">무한 반복 재생</label>
-					</div>
 				</div>
 			</div>
 
 			<div id="yolo-status" class="alert alert-secondary mt-2 mb-0">대기 중</div>
 
 			<div class="mt-3">
-				<ul class="nav nav-tabs" id="yolo-video-tabs" role="tablist">
-					<li class="nav-item" role="presentation">
-						<button class="nav-link active" id="yolo-input-tab" data-bs-toggle="tab" data-bs-target="#yolo-input-pane" type="button" role="tab" aria-controls="yolo-input-pane" aria-selected="true">📼 원본 영상</button>
-					</li>
-					<li class="nav-item" role="presentation">
-						<button class="nav-link" id="yolo-output-tab" data-bs-toggle="tab" data-bs-target="#yolo-output-pane" type="button" role="tab" aria-controls="yolo-output-pane" aria-selected="false">🎯 검출 영상</button>
-					</li>
-				</ul>
+				<div class="d-flex justify-content-between align-items-center mb-1">
+					<ul class="nav nav-tabs" id="yolo-video-tabs" role="tablist">
+						<li class="nav-item" role="presentation">
+							<button class="nav-link active" id="yolo-input-tab" data-bs-toggle="tab" data-bs-target="#yolo-input-pane" type="button" role="tab" aria-controls="yolo-input-pane" aria-selected="true">📼 원본 영상</button>
+						</li>
+						<li class="nav-item" role="presentation">
+							<button class="nav-link" id="yolo-output-tab" data-bs-toggle="tab" data-bs-target="#yolo-output-pane" type="button" role="tab" aria-controls="yolo-output-pane" aria-selected="false">🎯 검출 영상</button>
+						</li>
+					</ul>
+					<div class="form-check form-switch mb-0 ms-2">
+						<input class="form-check-input" type="checkbox" role="switch" id="yolo-loop-toggle">
+						<label class="form-check-label small" for="yolo-loop-toggle">무한 반복 재생</label>
+					</div>
+				</div>
 				<div class="tab-content border border-top-0 rounded-bottom p-3 bg-white" id="yolo-video-tab-content">
 					<div class="tab-pane fade show active" id="yolo-input-pane" role="tabpanel" aria-labelledby="yolo-input-tab" tabindex="0">
 						<div class="yolo-video-wrap">

@@ -865,23 +865,7 @@ class URDFViewer {
             activeFaceKey = direction.z >= 0 ? 'top' : 'bottom';
         }
 
-        if (this.viewCubeActiveFaceKey !== activeFaceKey) {
-            this.viewCubeActiveFaceKey = activeFaceKey;
-        }
-
-        Object.entries(this.viewCubeButtonByFace).forEach(([faceKey, buttonElement]) => {
-            if (!buttonElement) {
-                return;
-            }
-
-            const isActive = faceKey === this.viewCubeActiveFaceKey;
-            buttonElement.style.background = isActive ? 'rgba(37, 99, 235, 0.98)' : 'rgba(255, 255, 255, 0.98)';
-            buttonElement.style.borderColor = isActive ? '#1d4ed8' : 'rgba(32, 46, 66, 0.45)';
-            buttonElement.style.color = isActive ? '#ffffff' : '#1f2937';
-            buttonElement.style.boxShadow = isActive
-                ? 'inset 0 0 0 1px rgba(255, 255, 255, 0.18), 0 0 10px rgba(37, 99, 235, 0.35)'
-                : 'inset 0 0 0 1px rgba(255, 255, 255, 0.35)';
-        });
+        this.viewCubeActiveFaceKey = activeFaceKey;
     }
 
     updateAttitudeOverlay() {

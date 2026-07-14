@@ -2,6 +2,8 @@
     'use strict';
 
     const fileInput = document.getElementById('yolo-video-file');
+    const dropZone = document.getElementById('yolo-drop-zone');
+    const selectedFileElement = document.getElementById('yolo-selected-file');
     const detectButton = document.getElementById('yolo-detect-btn');
     const confInput = document.getElementById('yolo-conf');
     const iouInput = document.getElementById('yolo-iou');
@@ -10,6 +12,8 @@
     const inputVideoElement = document.getElementById('yolo-input-video');
     const outputVideoElement = document.getElementById('yolo-output-video');
     const resultJsonElement = document.getElementById('yolo-result-json');
+
+    let selectedFile = null;
 
     function setStatus(message, type) {
         const alertType = type || 'secondary';
@@ -22,8 +26,72 @@
         return Number.isFinite(parsed) ? parsed : fallback;
     }
 
+    function setSelectedFile(file) {
+        selectedFile = file || null;
+        if (selectedFile) {
+            selectedFileElement.textContent = `선택됨: ${selectedFile.name}`;
+        } else {
+            selectedFileElement.textContent = '선택된 파일 없음';
+        }
+    }
+
+    function isVideoFile(file) {
+        if (!file) {
+            return false;
+        }
+
+        const typeText = String(file.type || '').toLowerCase();
+        if (typeText.startsWith('video/')) {
+            return true;
+        }
+
+        const nameText = String(file.name || '').toLowerCase();
+        return /\.(mp4|avi|mov|mkv|wmv|webm|m4v)$/i.test(nameText);
+    }
+
+    function pickFirstVideoFile(fileList) {
+        const files = Array.from(fileList || []);
+        return files.find(isVideoFile) || null;
+    }
+
+    function syncInputWithFile(file) {
+        if (!fileInput) {
+            return;
+        }
+
+        if (!file) {
+            fileInput.value = '';
+            return;
+        }
+
+        try {
+            const dataTransfer = new DataTransfer();
+            dataTransfer.items.add(file);
+            fileInput.files = dataTransfer.files;
+        } catch (_ignore) {
+            // Some browsers may not allow programmatic FileList assignment.
+        }
+    }
+
+    function handleChosenFile(file) {
+        if (!file) {
+            setSelectedFile(null);
+            return;
+        }
+
+        if (!isVideoFile(file)) {
+            setStatus('동영상 파일만 업로드할 수 있습니다.', 'warning');
+            return;
+        }
+
+        setSelectedFile(file);
+        syncInputWithFile(file);
+        setStatus('동영상 파일이 준비되었습니다. 검출 시작을 눌러주세요.', 'secondary');
+    }
+
     async function runYoloDetect() {
-        const file = fileInput.files && fileInput.files[0] ? fileInput.files[0] : null;
+        const fileFromInput = fileInput.files && fileInput.files[0] ? fileInput.files[0] : null;
+        const file = selectedFile || fileFromInput;
         if (!file) {
             setStatus('동영상 파일을 선택하세요.', 'warning');
             return;
@@ -74,6 +142,52 @@
             detectButton.disabled = false;
         }
     }
+
+    fileInput.addEventListener('change', () => {
+        const file = pickFirstVideoFile(fileInput.files);
+        handleChosenFile(file);
+    });
+
+    dropZone.addEventListener('click', () => {
+        fileInput.click();
+    });
+
+    dropZone.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+            fileInput.click();
+        }
+    });
+
+    ['dragenter', 'dragover'].forEach(eventName => {
+        dropZone.addEventListener(eventName, (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            dropZone.classList.add('drag-active');
+        });
+    });
+
+    ['dragleave', 'dragend'].forEach(eventName => {
+        dropZone.addEventListener(eventName, (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            dropZone.classList.remove('drag-active');
+        });
+    });
+
+    dropZone.addEventListener('drop', (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        dropZone.classList.remove('drag-active');
+
+        const file = pickFirstVideoFile(event.dataTransfer?.files);
+        if (!file) {
+            setStatus('드롭한 파일 중 동영상이 없습니다.', 'warning');
+            return;
+        }
+
+        handleChosenFile(file);
+    });
 
     detectButton.addEventListener('click', runYoloDetect);
 })();

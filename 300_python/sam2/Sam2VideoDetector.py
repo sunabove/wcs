@@ -76,8 +76,6 @@ class Sam2VideoDetector:
     def detect_video_file(
         self,
         input_path: Path,
-        conf: float = 0.25,
-        iou: float = 0.45,
         max_det: int = 300,
         model_name: str = SAM2_DEFAULT_MODEL,
     ):

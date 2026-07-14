@@ -90,7 +90,7 @@
 
 <header class="p-2 text-bg-dark fs-5">
 		<div class="container d-flex justify-content-between align-items-center">
-			<div>SAM2 Video Segmentation</div>
+			<div>SAM2 Segmentation</div>
 		<div class="d-flex gap-2">
 			<a href="/ai/300_ai_road.html" class="btn btn-outline-light btn-sm">Road Detection</a>
 			<a href="/yolo/400_ai_yolo.html" class="btn btn-outline-light btn-sm">YOLO Detection</a>
@@ -122,21 +122,7 @@
 			</div>
 
 			<div class="row g-2 mt-1 align-items-end">
-				<div class="col">
-					<label for="sam2-conf" class="form-label d-flex justify-content-between align-items-center">
-						<span>Conf</span>
-						<span id="sam2-conf-value" class="badge text-bg-secondary">0.25</span>
-					</label>
-					<input id="sam2-conf" class="form-range" type="range" min="0" max="1" step="0.01" value="0.25">
-				</div>
-				<div class="col">
-					<label for="sam2-iou" class="form-label d-flex justify-content-between align-items-center">
-						<span>IoU</span>
-						<span id="sam2-iou-value" class="badge text-bg-secondary">0.45</span>
-					</label>
-					<input id="sam2-iou" class="form-range" type="range" min="0" max="1" step="0.01" value="0.45">
-				</div>
-				<div class="col">
+				<div class="col-auto">
 					<button id="sam2-detect-btn" class="btn btn-primary">분할 시작</button>
 				</div>
 			</div>

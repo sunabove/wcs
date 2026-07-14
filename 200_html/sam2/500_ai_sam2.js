@@ -5,11 +5,7 @@
     const dropZone = document.getElementById('sam2-drop-zone');
     const selectedFileElement = document.getElementById('sam2-selected-file');
     const detectButton = document.getElementById('sam2-detect-btn');
-    const confInput = document.getElementById('sam2-conf');
-    const iouInput = document.getElementById('sam2-iou');
     const loopToggleInput = document.getElementById('sam2-loop-toggle');
-    const confValueElement = document.getElementById('sam2-conf-value');
-    const iouValueElement = document.getElementById('sam2-iou-value');
     const uploadedListElement = document.getElementById('sam2-uploaded-list');
     const uploadedEmptyElement = document.getElementById('sam2-uploaded-empty');
 
@@ -34,27 +30,9 @@
         statusElement.textContent = message;
     }
 
-    function toNumber(value, fallback) {
-        const parsed = Number(value);
-        return Number.isFinite(parsed) ? parsed : fallback;
-    }
-
-    function formatParamValue(value, fallback) {
-        return toNumber(value, fallback).toFixed(2);
-    }
-
     function hasSelectedVideo() {
         const fileFromInput = fileInput.files && fileInput.files[0] ? fileInput.files[0] : null;
         return Boolean(selectedFile || fileFromInput || selectedServerFileName);
-    }
-
-    function updateSliderValueLabels() {
-        if (confValueElement) {
-            confValueElement.textContent = formatParamValue(confInput.value, 0.25);
-        }
-        if (iouValueElement) {
-            iouValueElement.textContent = formatParamValue(iouInput.value, 0.45);
-        }
     }
 
     function applyLoopOption() {
@@ -64,8 +42,6 @@
     }
 
     function scheduleRealtimeDetect() {
-        updateSliderValueLabels();
-
         if (!hasSelectedVideo()) {
             return;
         }
@@ -82,7 +58,7 @@
                 return;
             }
 
-            runYoloDetect();
+            runSam2Segment();
         }, REALTIME_DETECT_DEBOUNCE_MS);
     }
 
@@ -216,8 +192,8 @@
                 }
 
                 renderUploadedHistory();
-                setStatus(`선택됨: ${item.name} (재검출 중...)`, 'info');
-                runYoloDetect();
+                setStatus(`선택됨: ${item.name} (재분할 중...)`, 'info');
+                runSam2Segment();
             });
 
             uploadedListElement.appendChild(li);
@@ -486,7 +462,7 @@
             setStatus('동영상 파일이 준비되었습니다. 분할 시작을 눌러주세요.', 'secondary');
     }
 
-    async function runYoloDetect() {
+    async function runSam2Segment() {
         if (detectButton.disabled) {
             return;
         }
@@ -498,9 +474,6 @@
             return;
         }
 
-        const conf = toNumber(confInput.value, 0.25);
-        const iou = toNumber(iouInput.value, 0.45);
-
         detectButton.disabled = true;
         setStatus('SAM2 분할 진행 중...', 'info');
 
@@ -511,13 +484,13 @@
             if (file) {
                 const formData = new FormData();
                 formData.append('file', file);
-                const url = `${apiBase}/fast/sam2/segment_video_upload?conf=${encodeURIComponent(conf)}&iou=${encodeURIComponent(iou)}`;
+                const url = `${apiBase}/fast/sam2/segment_video_upload`;
                 response = await fetch(url, {
                     method: 'POST',
                     body: formData,
                 });
             } else {
-                const url = `${apiBase}/fast/sam2/segment_saved_video?file_name=${encodeURIComponent(selectedServerFileName)}&conf=${encodeURIComponent(conf)}&iou=${encodeURIComponent(iou)}`;
+                const url = `${apiBase}/fast/sam2/segment_saved_video?file_name=${encodeURIComponent(selectedServerFileName)}`;
                 response = await fetch(url, {
                     method: 'POST',
                 });
@@ -573,7 +546,7 @@
 
             if (pendingRealtimeDetect) {
                 pendingRealtimeDetect = false;
-                runYoloDetect();
+                runSam2Segment();
             }
         }
     }
@@ -622,17 +595,13 @@
         }
 
         handleChosenFile(file);
-        runYoloDetect();
+        runSam2Segment();
     });
 
-    detectButton.addEventListener('click', runYoloDetect);
-    confInput.addEventListener('input', scheduleRealtimeDetect);
-    iouInput.addEventListener('input', scheduleRealtimeDetect);
+    detectButton.addEventListener('click', runSam2Segment);
     if (loopToggleInput) {
         loopToggleInput.addEventListener('change', applyLoopOption);
     }
-
-    updateSliderValueLabels();
     if (uploadedEmptyElement) {
         renderUploadedHistory();
     }

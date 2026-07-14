@@ -20,15 +20,11 @@ def health_check():
 @router.post("/segment_video_upload")
 def segment_video_upload(
     file: UploadFile = File(...),
-    conf: float = Query(0.25, ge=0.0, le=1.0),
-    iou: float = Query(0.45, ge=0.0, le=1.0),
     max_det: int = Query(300, ge=1, le=2000),
     model_name: str = Query(SAM2_DEFAULT_MODEL),
 ):
     return _service.detect_uploaded_video(
         upload_file=file,
-        conf=conf,
-        iou=iou,
         max_det=max_det,
         model_name=model_name,
     )
@@ -44,15 +40,11 @@ def uploaded_videos(
 @router.post("/segment_saved_video")
 def segment_saved_video(
     file_name: str = Query(...),
-    conf: float = Query(0.25, ge=0.0, le=1.0),
-    iou: float = Query(0.45, ge=0.0, le=1.0),
     max_det: int = Query(300, ge=1, le=2000),
     model_name: str = Query(SAM2_DEFAULT_MODEL),
 ):
     return _service.detect_saved_video(
         file_name=file_name,
-        conf=conf,
-        iou=iou,
         max_det=max_det,
         model_name=model_name,
     )

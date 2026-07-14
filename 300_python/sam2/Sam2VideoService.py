@@ -108,8 +108,6 @@ class Sam2VideoService:
     def detect_uploaded_video(
         self,
         upload_file: UploadFile,
-        conf: float = 0.25,
-        iou: float = 0.45,
         max_det: int = 300,
         model_name: str = SAM2_DEFAULT_MODEL,
     ):
@@ -118,8 +116,6 @@ class Sam2VideoService:
         try:
             return self.detector.detect_video_file(
                 input_path=input_path,
-                conf=conf,
-                iou=iou,
                 max_det=max_det,
                 model_name=model_name,
             )
@@ -135,8 +131,6 @@ class Sam2VideoService:
     def detect_saved_video(
         self,
         file_name: str,
-        conf: float = 0.25,
-        iou: float = 0.45,
         max_det: int = 300,
         model_name: str = SAM2_DEFAULT_MODEL,
     ):
@@ -145,8 +139,6 @@ class Sam2VideoService:
         try:
             return self.detector.detect_video_file(
                 input_path=input_path,
-                conf=conf,
-                iou=iou,
                 max_det=max_det,
                 model_name=model_name,
             )

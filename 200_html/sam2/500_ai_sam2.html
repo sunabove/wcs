@@ -122,6 +122,25 @@
 			</div>
 
 			<div class="row g-2 mt-1 align-items-end">
+				<div class="col">
+					<div class="border rounded p-2">
+						<div class="small fw-semibold text-secondary mb-1">분할 대상</div>
+						<div class="d-flex flex-wrap gap-3" id="sam2-target-group">
+							<div class="form-check mb-0">
+								<input class="form-check-input" type="radio" name="sam2-target" id="sam2-target-road" value="road" checked>
+								<label class="form-check-label" for="sam2-target-road">도로</label>
+							</div>
+							<div class="form-check mb-0">
+								<input class="form-check-input" type="radio" name="sam2-target" id="sam2-target-pothole" value="pothole">
+								<label class="form-check-label" for="sam2-target-pothole">포트홀</label>
+							</div>
+							<div class="form-check mb-0">
+								<input class="form-check-input" type="radio" name="sam2-target" id="sam2-target-curb-step" value="curb_step">
+								<label class="form-check-label" for="sam2-target-curb-step">단차</label>
+							</div>
+						</div>
+					</div>
+				</div>
 				<div class="col-auto">
 					<button id="sam2-detect-btn" class="btn btn-primary">분할 시작</button>
 				</div>

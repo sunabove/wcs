@@ -20,11 +20,13 @@ def health_check():
 @router.post("/segment_video_upload")
 def segment_video_upload(
     file: UploadFile = File(...),
+    target_type: str = Query("road"),
     max_det: int = Query(300, ge=1, le=2000),
     model_name: str = Query(SAM2_DEFAULT_MODEL),
 ):
     return _service.detect_uploaded_video(
         upload_file=file,
+        target_type=target_type,
         max_det=max_det,
         model_name=model_name,
     )
@@ -40,11 +42,13 @@ def uploaded_videos(
 @router.post("/segment_saved_video")
 def segment_saved_video(
     file_name: str = Query(...),
+    target_type: str = Query("road"),
     max_det: int = Query(300, ge=1, le=2000),
     model_name: str = Query(SAM2_DEFAULT_MODEL),
 ):
     return _service.detect_saved_video(
         file_name=file_name,
+        target_type=target_type,
         max_det=max_det,
         model_name=model_name,
     )

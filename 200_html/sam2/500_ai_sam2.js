@@ -35,6 +35,25 @@
         return Boolean(selectedFile || fileFromInput || selectedServerFileName);
     }
 
+    function getSelectedTargetType() {
+        const selected = document.querySelector('input[name="sam2-target"]:checked');
+        const value = selected ? String(selected.value || '').trim() : '';
+        if (value === 'road' || value === 'pothole' || value === 'curb_step') {
+            return value;
+        }
+        return 'road';
+    }
+
+    function targetTypeLabel(targetType) {
+        if (targetType === 'pothole') {
+            return '포트홀';
+        }
+        if (targetType === 'curb_step') {
+            return '단차';
+        }
+        return '도로';
+    }
+
     function applyLoopOption() {
         const loopEnabled = Boolean(loopToggleInput && loopToggleInput.checked);
         inputVideoElement.loop = loopEnabled;
@@ -469,13 +488,14 @@
 
         const fileFromInput = fileInput.files && fileInput.files[0] ? fileInput.files[0] : null;
         const file = selectedFile || fileFromInput;
+        const targetType = getSelectedTargetType();
         if (!file && !selectedServerFileName) {
             setStatus('동영상 파일을 선택하세요.', 'warning');
             return;
         }
 
         detectButton.disabled = true;
-        setStatus('SAM2 분할 진행 중...', 'info');
+        setStatus(`SAM2 분할 진행 중... (대상: ${targetTypeLabel(targetType)})`, 'info');
 
         try {
             const apiBase = await resolveApiBase();
@@ -484,13 +504,13 @@
             if (file) {
                 const formData = new FormData();
                 formData.append('file', file);
-                const url = `${apiBase}/fast/sam2/segment_video_upload`;
+                const url = `${apiBase}/fast/sam2/segment_video_upload?target_type=${encodeURIComponent(targetType)}`;
                 response = await fetch(url, {
                     method: 'POST',
                     body: formData,
                 });
             } else {
-                const url = `${apiBase}/fast/sam2/segment_saved_video?file_name=${encodeURIComponent(selectedServerFileName)}`;
+                const url = `${apiBase}/fast/sam2/segment_saved_video?file_name=${encodeURIComponent(selectedServerFileName)}&target_type=${encodeURIComponent(targetType)}`;
                 response = await fetch(url, {
                     method: 'POST',
                 });

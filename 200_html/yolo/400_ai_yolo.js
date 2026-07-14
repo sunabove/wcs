@@ -139,16 +139,14 @@
 
     function shortDisplayName(nameText) {
         const value = String(nameText || '');
-        const maxLength = 14;
-        if (value.length <= maxLength) {
-            return value;
+        const dotIndex = value.lastIndexOf('.');
+        const stem = dotIndex > 0 ? value.slice(0, dotIndex) : value;
+        const maxLength = 10;
+        if (stem.length <= maxLength) {
+            return stem;
         }
 
-        const dotIndex = value.lastIndexOf('.');
-        const ext = dotIndex > 0 ? value.slice(dotIndex) : '';
-        const stemMax = Math.max(6, maxLength - ext.length - 1);
-        const stem = dotIndex > 0 ? value.slice(0, dotIndex) : value;
-        return `${stem.slice(0, stemMax)}...${ext}`;
+        return `${stem.slice(0, maxLength)}...`;
     }
 
     function renderUploadedHistory() {

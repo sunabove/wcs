@@ -891,31 +891,19 @@ class URDFViewer {
 
         const linkMap = this.robotModel.links || {};
         const carFrame = linkMap.car_frame || null;
+        const groundLink = linkMap.ground_patch || linkMap.ground || null;
         const rollRad = THREE.MathUtils.degToRad(this.roadRollAngleDeg);
         const pitchRad = THREE.MathUtils.degToRad(this.roadPitchAngleDeg);
 
         const attitudeTargets = [];
-        if (carFrame) {
+        // 현재 URDF 구조(ellipsoid_surface -> ground -> car_frame) 기준으로
+        // ground만 기울여도 car_frame 및 하위 링크에 회전이 전파된다.
+        if (groundLink) {
+            attitudeTargets.push(groundLink);
+        } else if (carFrame) {
+            // ground 링크를 찾지 못할 때만 기존처럼 차체를 직접 회전한다.
             attitudeTargets.push(carFrame);
         }
-
-        // 차체의 자식 링크는 부모 회전이 이미 적용되므로, 독립된 노면 링크만 추가로 기울인다.
-        const roadLinkNameCandidates = [
-            'ellipsoid_surface_patch',
-            'ground_patch'
-        ];
-
-        roadLinkNameCandidates.forEach(linkName => {
-            const link = linkMap[linkName] || null;
-            if (!link || attitudeTargets.includes(link)) {
-                return;
-            }
-
-            const isChildOfCarFrame = !!(carFrame && this.isDescendantObject3D(link, carFrame));
-            if (!isChildOfCarFrame) {
-                attitudeTargets.push(link);
-            }
-        });
 
         attitudeTargets.forEach(target => {
             target.rotation.set(rollRad, pitchRad, 0);

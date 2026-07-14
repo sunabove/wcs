@@ -128,7 +128,7 @@ class Sam2VideoService:
         target_type: str = "road",
         conf: float = 0.25,
         max_det: int = 300,
-        model_name: str = SAM2_DEFAULT_MODEL,
+        model_name: str = "auto",
     ):
         input_path = self._save_uploaded_video(upload_file)
         normalized_target_type = self._normalize_target_type(target_type)
@@ -157,7 +157,7 @@ class Sam2VideoService:
         target_type: str = "road",
         conf: float = 0.25,
         max_det: int = 300,
-        model_name: str = SAM2_DEFAULT_MODEL,
+        model_name: str = "auto",
     ):
         input_path = self._resolve_uploaded_video_path(file_name)
         normalized_target_type = self._normalize_target_type(target_type)

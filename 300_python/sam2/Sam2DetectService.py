@@ -23,7 +23,7 @@ def segment_video_upload(
     target_type: str = Query("road"),
     conf: float = Query(0.25, ge=0.0, le=1.0),
     max_det: int = Query(300, ge=1, le=2000),
-    model_name: str = Query(SAM2_DEFAULT_MODEL),
+    model_name: str = Query("auto"),
 ):
     return _service.detect_uploaded_video(
         upload_file=file,
@@ -47,7 +47,7 @@ def segment_saved_video(
     target_type: str = Query("road"),
     conf: float = Query(0.25, ge=0.0, le=1.0),
     max_det: int = Query(300, ge=1, le=2000),
-    model_name: str = Query(SAM2_DEFAULT_MODEL),
+    model_name: str = Query("auto"),
 ):
     return _service.detect_saved_video(
         file_name=file_name,

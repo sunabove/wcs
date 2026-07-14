@@ -568,15 +568,6 @@ class URDFViewer {
         panelElement.style.pointerEvents = 'auto';
         panelElement.style.userSelect = 'none';
 
-        const titleElement = document.createElement('div');
-        titleElement.textContent = 'VIEW';
-        titleElement.style.textAlign = 'center';
-        titleElement.style.fontSize = '10px';
-        titleElement.style.fontWeight = '700';
-        titleElement.style.letterSpacing = '0.08em';
-        titleElement.style.color = '#1f2937';
-        titleElement.style.marginBottom = '6px';
-
         const cubeViewportElement = document.createElement('div');
         cubeViewportElement.style.width = '100%';
         cubeViewportElement.style.height = '82px';
@@ -634,16 +625,7 @@ class URDFViewer {
 
         cubeViewportElement.appendChild(cubeElement);
 
-        const hintElement = document.createElement('div');
-        hintElement.textContent = 'Click cube face';
-        hintElement.style.marginTop = '3px';
-        hintElement.style.textAlign = 'center';
-        hintElement.style.fontSize = '10px';
-        hintElement.style.color = '#4b5563';
-
-        panelElement.appendChild(titleElement);
         panelElement.appendChild(cubeViewportElement);
-        panelElement.appendChild(hintElement);
 
         this.container.appendChild(panelElement);
         this.viewCubeOverlayElement = panelElement;

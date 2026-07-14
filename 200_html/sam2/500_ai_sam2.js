@@ -330,30 +330,6 @@
         bboxCaptureLayerElement.querySelectorAll('.sam2-bbox-control-point').forEach((node) => {
             node.remove();
         });
-
-        if (!boundingBox) {
-            return;
-        }
-
-        const x1 = toNumber(boundingBox.x, 0);
-        const y1 = toNumber(boundingBox.y, 0);
-        const x2 = toNumber(boundingBox.x, 0) + toNumber(boundingBox.w, 0);
-        const y2 = toNumber(boundingBox.y, 0) + toNumber(boundingBox.h, 0);
-        const handles = [
-            { key: 'nw', x: x1, y: y1 },
-            { key: 'ne', x: x2, y: y1 },
-            { key: 'sw', x: x1, y: y2 },
-            { key: 'se', x: x2, y: y2 },
-        ];
-
-        handles.forEach((handle) => {
-            const node = document.createElement('div');
-            node.className = `sam2-bbox-control-point sam2-bbox-control-point-${handle.key}`;
-            node.dataset.handle = handle.key;
-            node.style.left = `${clamp(handle.x, 0, 100)}%`;
-            node.style.top = `${clamp(handle.y, 0, 100)}%`;
-            bboxCaptureLayerElement.appendChild(node);
-        });
     }
 
     function resizeBoundingBoxFromHandle(handleKey, currentPoint) {
@@ -1192,51 +1168,22 @@
         bboxCaptureLayerElement.addEventListener('click', (event) => {
             event.preventDefault();
             event.stopPropagation();
-            if (event.target && event.target.closest('.sam2-bbox-control-point')) {
-                return;
-            }
-            if (bboxEnabledInput && bboxEnabledInput.checked) {
-                return;
-            }
-            if (!hasSelectedVideo()) {
-                return;
-            }
-            addPointByClick(event);
         });
         bboxCaptureLayerElement.addEventListener('mousedown', (event) => {
             event.preventDefault();
             event.stopPropagation();
-            if (!(bboxEnabledInput && bboxEnabledInput.checked)) {
-                return;
-            }
-            const handleNode = event.target && event.target.closest('.sam2-bbox-control-point');
-            if (handleNode) {
-                startBboxResize(handleNode.dataset.handle, event);
-                return;
-            }
-            handleBoundingBoxDragStart(event);
         });
         bboxCaptureLayerElement.addEventListener('mousemove', (event) => {
             event.preventDefault();
             event.stopPropagation();
-            if (!(bboxEnabledInput && bboxEnabledInput.checked)) {
-                return;
-            }
-            handleBoundingBoxDragMove(event);
         });
         bboxCaptureLayerElement.addEventListener('mouseup', (event) => {
             event.preventDefault();
             event.stopPropagation();
-            if (!(bboxEnabledInput && bboxEnabledInput.checked)) {
-                return;
-            }
-            handleBoundingBoxDragEnd(event);
         });
         bboxCaptureLayerElement.addEventListener('mouseleave', (event) => {
-            if (!(bboxEnabledInput && bboxEnabledInput.checked)) {
-                return;
-            }
-            handleBoundingBoxDragEnd(event);
+            event.preventDefault();
+            event.stopPropagation();
         });
     }
     if (confInput) {

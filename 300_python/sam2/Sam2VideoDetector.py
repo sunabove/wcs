@@ -86,6 +86,7 @@ class Sam2VideoDetector:
         self,
         input_path: Path,
         target_type: str = "road",
+        conf: float = 0.25,
         max_det: int = 300,
         model_name: str = SAM2_DEFAULT_MODEL,
     ):
@@ -134,7 +135,7 @@ class Sam2VideoDetector:
                     break
 
                 if processed_frames % infer_stride == 0 or last_plotted is None:
-                    result = model.predict(source=frame, verbose=False)[0]
+                    result = model.predict(source=frame, conf=conf, verbose=False)[0]
 
                     masks = getattr(result, "masks", None)
                     if masks is not None and getattr(masks, "data", None) is not None:

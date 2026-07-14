@@ -5,6 +5,8 @@
     const dropZone = document.getElementById('sam2-drop-zone');
     const selectedFileElement = document.getElementById('sam2-selected-file');
     const detectButton = document.getElementById('sam2-detect-btn');
+    const confInput = document.getElementById('sam2-conf');
+    const confValueElement = document.getElementById('sam2-conf-value');
     const loopToggleInput = document.getElementById('sam2-loop-toggle');
     const uploadedListElement = document.getElementById('sam2-uploaded-list');
     const uploadedEmptyElement = document.getElementById('sam2-uploaded-empty');
@@ -28,6 +30,18 @@
         const alertType = type || 'secondary';
         statusElement.className = `alert alert-${alertType} mt-3 mb-0`;
         statusElement.textContent = message;
+    }
+
+    function toNumber(value, fallback) {
+        const parsed = Number(value);
+        return Number.isFinite(parsed) ? parsed : fallback;
+    }
+
+    function updateConfValueLabel() {
+        if (!confValueElement) {
+            return;
+        }
+        confValueElement.textContent = toNumber(confInput ? confInput.value : 0.25, 0.25).toFixed(2);
     }
 
     function hasSelectedVideo() {
@@ -61,6 +75,8 @@
     }
 
     function scheduleRealtimeDetect() {
+        updateConfValueLabel();
+
         if (!hasSelectedVideo()) {
             return;
         }
@@ -489,6 +505,7 @@
         const fileFromInput = fileInput.files && fileInput.files[0] ? fileInput.files[0] : null;
         const file = selectedFile || fileFromInput;
         const targetType = getSelectedTargetType();
+        const conf = toNumber(confInput ? confInput.value : 0.25, 0.25);
         if (!file && !selectedServerFileName) {
             setStatus('동영상 파일을 선택하세요.', 'warning');
             return;
@@ -504,13 +521,13 @@
             if (file) {
                 const formData = new FormData();
                 formData.append('file', file);
-                const url = `${apiBase}/fast/sam2/segment_video_upload?target_type=${encodeURIComponent(targetType)}`;
+                const url = `${apiBase}/fast/sam2/segment_video_upload?target_type=${encodeURIComponent(targetType)}&conf=${encodeURIComponent(conf)}`;
                 response = await fetch(url, {
                     method: 'POST',
                     body: formData,
                 });
             } else {
-                const url = `${apiBase}/fast/sam2/segment_saved_video?file_name=${encodeURIComponent(selectedServerFileName)}&target_type=${encodeURIComponent(targetType)}`;
+                const url = `${apiBase}/fast/sam2/segment_saved_video?file_name=${encodeURIComponent(selectedServerFileName)}&target_type=${encodeURIComponent(targetType)}&conf=${encodeURIComponent(conf)}`;
                 response = await fetch(url, {
                     method: 'POST',
                 });
@@ -622,6 +639,9 @@
     });
 
     detectButton.addEventListener('click', runSam2Segment);
+    if (confInput) {
+        confInput.addEventListener('input', scheduleRealtimeDetect);
+    }
     if (loopToggleInput) {
         loopToggleInput.addEventListener('change', applyLoopOption);
     }
@@ -630,6 +650,7 @@
     }
 
     applyLoopOption();
+    updateConfValueLabel();
 
     loadUploadedHistoryFromServer();
 })();

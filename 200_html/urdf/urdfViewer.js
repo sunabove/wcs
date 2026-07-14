@@ -118,6 +118,8 @@ class URDFViewer {
         this.viewCubeCubeElement = null;
         this.viewCubeActiveFaceKey = null;
         this.viewCubeButtonByFace = {};
+        this.viewCubeDragState = null;
+        this.viewCubeSuppressClickUntilMs = 0;
         this.showAttitude = this.parseBooleanAttribute(
             containerElement.getAttribute('showAttitude'),
             false
@@ -613,6 +615,9 @@ class URDFViewer {
             buttonElement.addEventListener('click', (event) => {
                 event.preventDefault();
                 event.stopPropagation();
+                if (performance.now() < this.viewCubeSuppressClickUntilMs) {
+                    return;
+                }
                 this.setCameraByViewCubeFace(faceKey);
             });
             this.viewCubeButtonByFace[faceKey] = buttonElement;
@@ -643,7 +648,85 @@ class URDFViewer {
         this.container.appendChild(panelElement);
         this.viewCubeOverlayElement = panelElement;
         this.viewCubeCubeElement = cubeElement;
+        this.setupViewCubeDragInteraction(cubeViewportElement);
         this.updateViewCubeOverlay();
+    }
+
+    setupViewCubeDragInteraction(interactionElement) {
+        if (!interactionElement) {
+            return;
+        }
+
+        const onPointerMove = (event) => {
+            if (!this.viewCubeDragState || !this.controls || !this.camera) {
+                return;
+            }
+
+            const deltaX = event.clientX - this.viewCubeDragState.lastClientX;
+            const deltaY = event.clientY - this.viewCubeDragState.lastClientY;
+            this.viewCubeDragState.lastClientX = event.clientX;
+            this.viewCubeDragState.lastClientY = event.clientY;
+            this.viewCubeDragState.totalMove += Math.hypot(deltaX, deltaY);
+
+            if (this.viewCubeDragState.totalMove > 3) {
+                this.viewCubeSuppressClickUntilMs = performance.now() + 150;
+            }
+
+            const target = this.controls.target.clone();
+            const offset = this.camera.position.clone().sub(target);
+            const spherical = new THREE.Spherical().setFromVector3(offset);
+
+            const rotateSpeed = 0.006;
+            spherical.theta -= deltaX * rotateSpeed;
+            spherical.phi -= deltaY * rotateSpeed;
+
+            const minPolar = 0.01;
+            const maxPolar = Math.PI - 0.01;
+            spherical.phi = THREE.MathUtils.clamp(spherical.phi, minPolar, maxPolar);
+
+            const nextOffset = new THREE.Vector3().setFromSpherical(spherical);
+            this.camera.position.copy(target.clone().add(nextOffset));
+            this.camera.up.set(0, 0, 1);
+            this.camera.lookAt(target);
+            this.controls.update();
+            this.updateViewCubeOverlay();
+            this.resetDirectionalLight(this.controls.target, this.directionalLightRadius);
+            this.logCameraInfos(false);
+        };
+
+        const endDrag = () => {
+            if (!this.viewCubeDragState) {
+                return;
+            }
+            const movedEnough = this.viewCubeDragState.totalMove > 3;
+            this.viewCubeDragState = null;
+            if (movedEnough) {
+                this.logCameraInfos(true);
+            }
+            window.removeEventListener('pointermove', onPointerMove, true);
+            window.removeEventListener('pointerup', endDrag, true);
+            window.removeEventListener('pointercancel', endDrag, true);
+            window.removeEventListener('blur', endDrag);
+        };
+
+        interactionElement.addEventListener('pointerdown', (event) => {
+            if (event.button !== 0) {
+                return;
+            }
+
+            event.preventDefault();
+            event.stopPropagation();
+            this.viewCubeDragState = {
+                lastClientX: event.clientX,
+                lastClientY: event.clientY,
+                totalMove: 0
+            };
+
+            window.addEventListener('pointermove', onPointerMove, true);
+            window.addEventListener('pointerup', endDrag, true);
+            window.addEventListener('pointercancel', endDrag, true);
+            window.addEventListener('blur', endDrag);
+        });
     }
 
     setCameraByViewCubeFace(faceKey) {
@@ -681,15 +764,47 @@ class URDFViewer {
             : 3;
 
         const nextPosition = target.clone().add(targetDirection.clone().multiplyScalar(cameraDistance));
-        this.camera.position.copy(nextPosition);
-
         const cameraUp = upByFace[faceKey] || upByFace.front;
-        this.camera.up.copy(cameraUp);
-        this.camera.lookAt(target);
-        this.controls.update();
-        this.updateViewCubeOverlay();
-        this.resetDirectionalLight(this.controls.target, this.directionalLightRadius);
-        this.logCameraInfos(true);
+        this.animateCameraToPose(nextPosition, cameraUp, 220);
+    }
+
+    animateCameraToPose(nextPosition, nextUp, durationMs = 220) {
+        if (!this.camera || !this.controls || !nextPosition || !nextUp) {
+            return;
+        }
+
+        const startPosition = this.camera.position.clone();
+        const startUp = this.camera.up.clone();
+        const target = this.controls.target.clone();
+        const startTimeMs = performance.now();
+
+        const easeInOut = (t) => {
+            return t < 0.5
+                ? 2 * t * t
+                : 1 - Math.pow(-2 * t + 2, 2) / 2;
+        };
+
+        const step = () => {
+            const elapsedMs = performance.now() - startTimeMs;
+            const progress = durationMs > 0 ? THREE.MathUtils.clamp(elapsedMs / durationMs, 0, 1) : 1;
+            const eased = easeInOut(progress);
+
+            this.camera.position.copy(startPosition.clone().lerp(nextPosition, eased));
+            this.camera.up.copy(startUp.clone().lerp(nextUp, eased).normalize());
+            this.camera.lookAt(target);
+            this.controls.update();
+            this.updateViewCubeOverlay();
+            this.resetDirectionalLight(this.controls.target, this.directionalLightRadius);
+
+            if (progress < 1) {
+                requestAnimationFrame(step);
+                return;
+            }
+
+            this.logCameraInfos(true);
+        };
+
+        requestAnimationFrame(step);
     }
 
     updateViewCubeOverlay() {

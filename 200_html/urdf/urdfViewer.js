@@ -119,6 +119,7 @@ class URDFViewer {
         this.viewCubeButtonByFace = {};
         this.viewCubeDragState = null;
         this.viewCubeSuppressClickUntilMs = 0;
+        this.viewCubeIgnoreFaceClickUntilMs = 0;
         this.viewCubeArcballSensitivity = 1.0;
         this.viewCubeDragActivateDistancePx = 4;
         this.showAttitude = this.parseBooleanAttribute(
@@ -593,6 +594,9 @@ class URDFViewer {
             buttonElement.addEventListener('click', (event) => {
                 event.preventDefault();
                 event.stopPropagation();
+                if (performance.now() < this.viewCubeIgnoreFaceClickUntilMs) {
+                    return;
+                }
                 if (performance.now() < this.viewCubeSuppressClickUntilMs) {
                     return;
                 }
@@ -714,6 +718,7 @@ class URDFViewer {
             this.viewCubeDragState = null;
             interactionElement.style.cursor = 'grab';
             if (movedEnough) {
+                this.viewCubeIgnoreFaceClickUntilMs = performance.now() + 300;
                 this.logCameraInfos(true);
             }
             window.removeEventListener('pointermove', onPointerMove, true);

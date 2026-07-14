@@ -1,5 +1,6 @@
 import time
 import uuid
+import shutil
 from pathlib import Path
 
 import cv2
@@ -32,7 +33,32 @@ class YoloVideoDetector:
     def _get_model(self, model_name: str) -> YOLO:
         normalized = str(model_name or "").strip() or YOLO_DEFAULT_MODEL
         if normalized not in self._model_cache:
-            self._model_cache[normalized] = YOLO(normalized)
+            requested_path = Path(normalized)
+            is_local_pt_path = requested_path.suffix.lower() == ".pt" and (
+                requested_path.is_absolute() or "/" in normalized or "\\" in normalized
+            )
+
+            if is_local_pt_path and not requested_path.exists():
+                requested_path.parent.mkdir(parents=True, exist_ok=True)
+
+                downloaded_model = YOLO(requested_path.name)
+                ckpt_path = getattr(downloaded_model, "ckpt_path", None)
+
+                if ckpt_path:
+                    source_path = Path(str(ckpt_path)).resolve()
+                    if source_path.exists() and source_path != requested_path.resolve():
+                        try:
+                            shutil.copy2(source_path, requested_path)
+                        except OSError:
+                            # Keep using the downloaded model even if local copy fails.
+                            pass
+
+                if requested_path.exists():
+                    self._model_cache[normalized] = YOLO(str(requested_path))
+                else:
+                    self._model_cache[normalized] = downloaded_model
+            else:
+                self._model_cache[normalized] = YOLO(normalized)
         return self._model_cache[normalized]
 
     def _create_video_writer(self, output_path: Path, fps: float, width: int, height: int):

@@ -310,8 +310,8 @@ class URDFViewer {
         // 휠 줌은 항상 허용하고, 좌클릭은 회전, 우클릭은 패닝으로 분리한다.
         this.controls.enabled = true;
         this.controls.enableZoom = true;
-        this.controls.enableRotate = false;
-        this.controls.enablePan = false;
+        this.controls.enableRotate = true;
+        this.controls.enablePan = true;
         this.controls.mouseButtons.LEFT = THREE.MOUSE.ROTATE;
         this.controls.mouseButtons.RIGHT = THREE.MOUSE.PAN;
         this.cameraPosTextElement = $('#camera-pos-text');
@@ -1803,10 +1803,6 @@ class URDFViewer {
 
         const disableOrbitInteraction = () => {
             this.isOrbitInteractionActive = false;
-            if (this.controls) {
-                this.controls.enableRotate = false;
-                this.controls.enablePan = false;
-            }
         };
 
         this.renderer.domElement.addEventListener('pointerdown', (event) => {
@@ -1822,12 +1818,7 @@ class URDFViewer {
 
             const intersects = getRobotIntersections(event);
             const chassisHit = intersects.find(intersection => isChassisHit(intersection?.object));
-            const allowRotate = event.button === 0;
-            const allowPan = event.button === 2;
-
-            this.isOrbitInteractionActive = allowRotate || allowPan;
-            this.controls.enableRotate = allowRotate;
-            this.controls.enablePan = allowPan;
+            this.isOrbitInteractionActive = event.button === 0 || event.button === 2;
         }, true);
 
         this.renderer.domElement.addEventListener('contextmenu', (event) => {

@@ -607,12 +607,14 @@ class URDFViewer {
         };
 
         const halfSize = '21px';
-        cubeElement.appendChild(createFaceButton('front', 'FRONT', 'Front (+X)', `rotateY(0deg) translateZ(${halfSize})`));
-        cubeElement.appendChild(createFaceButton('back', 'BACK', 'Back (-X)', `rotateY(180deg) translateZ(${halfSize})`));
-        cubeElement.appendChild(createFaceButton('left', 'LEFT', 'Left (+Y)', `rotateY(-90deg) translateZ(${halfSize})`));
-        cubeElement.appendChild(createFaceButton('right', 'RIGHT', 'Right (-Y)', `rotateY(90deg) translateZ(${halfSize})`));
-        cubeElement.appendChild(createFaceButton('top', 'TOP', 'Top (+Z)', `rotateX(90deg) translateZ(${halfSize})`));
-        cubeElement.appendChild(createFaceButton('bottom', 'BOTTOM', 'Down (-Z)', `rotateX(-90deg) translateZ(${halfSize})`));
+        // Face normals are aligned to the same world-axis convention used in camera logic:
+        // FRONT=+X, BACK=-X, LEFT=+Y, RIGHT=-Y, TOP=+Z, BOTTOM=-Z.
+        cubeElement.appendChild(createFaceButton('front', 'FRONT', 'Front (+X)', `rotateY(90deg) translateZ(${halfSize})`));
+        cubeElement.appendChild(createFaceButton('back', 'BACK', 'Back (-X)', `rotateY(-90deg) translateZ(${halfSize})`));
+        cubeElement.appendChild(createFaceButton('left', 'LEFT', 'Left (+Y)', `rotateX(-90deg) translateZ(${halfSize})`));
+        cubeElement.appendChild(createFaceButton('right', 'RIGHT', 'Right (-Y)', `rotateX(90deg) translateZ(${halfSize})`));
+        cubeElement.appendChild(createFaceButton('top', 'TOP', 'Top (+Z)', `rotateY(0deg) translateZ(${halfSize})`));
+        cubeElement.appendChild(createFaceButton('bottom', 'BOTTOM', 'Down (-Z)', `rotateY(180deg) translateZ(${halfSize})`));
 
         cubeViewportElement.appendChild(cubeElement);
 

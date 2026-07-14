@@ -447,7 +447,7 @@ class URDFViewer {
         const panelElement = document.createElement('div');
         panelElement.style.position = 'absolute';
         panelElement.style.top = '16px';
-        panelElement.style.right = '24px';
+        panelElement.style.right = '10px';
         panelElement.style.zIndex = '13';
         panelElement.style.padding = '8px';
         panelElement.style.background = 'rgba(255, 255, 255, 0.88)';

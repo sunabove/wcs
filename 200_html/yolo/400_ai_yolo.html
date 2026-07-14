@@ -86,40 +86,39 @@
 		</div>
 		<div class="card-body">
 			<div class="row g-3 align-items-start">
-				<div class="col-12 col-lg-6">
+				<div class="col-12 col-lg-7">
 					<label for="yolo-video-file" class="form-label">동영상 파일</label>
 					<input id="yolo-video-file" class="form-control mb-2" type="file" accept="video/*">
 					<div id="yolo-drop-zone" role="button" tabindex="0" aria-label="동영상 드래그 업로드 영역">
 						<div class="fw-semibold">동영상을 여기로 드래그하세요</div>
 						<div class="small text-muted mt-1">또는 클릭해서 파일 선택</div>
 					</div>
-					<div class="mt-2">
-						<div class="small fw-semibold text-secondary mb-1">업로드한 동영상</div>
-						<ul id="yolo-uploaded-list" class="list-group list-group-sm">
-							<li id="yolo-uploaded-empty" class="list-group-item small text-muted">업로드 이력 없음</li>
-						</ul>
-					</div>
 				</div>
-				<div class="col-12 col-lg-6">
-					<div class="row g-2">
-						<div class="col-6">
-							<label for="yolo-conf" class="form-label d-flex justify-content-between align-items-center">
-								<span>Conf</span>
-								<span id="yolo-conf-value" class="badge text-bg-secondary">0.25</span>
-							</label>
-							<input id="yolo-conf" class="form-range" type="range" min="0" max="1" step="0.01" value="0.25">
-						</div>
-						<div class="col-6">
-							<label for="yolo-iou" class="form-label d-flex justify-content-between align-items-center">
-								<span>IoU</span>
-								<span id="yolo-iou-value" class="badge text-bg-secondary">0.45</span>
-							</label>
-							<input id="yolo-iou" class="form-range" type="range" min="0" max="1" step="0.01" value="0.45">
-						</div>
-						<div class="col-12 d-grid">
-							<button id="yolo-detect-btn" class="btn btn-primary">검출 시작</button>
-						</div>
-					</div>
+				<div class="col-12 col-lg-5">
+					<div class="small fw-semibold text-secondary mb-1">업로드한 동영상</div>
+					<ul id="yolo-uploaded-list" class="list-group list-group-sm">
+						<li id="yolo-uploaded-empty" class="list-group-item small text-muted">업로드 이력 없음</li>
+					</ul>
+				</div>
+			</div>
+
+			<div class="row g-2 mt-1 align-items-end">
+				<div class="col-12 col-lg-4">
+					<label for="yolo-conf" class="form-label d-flex justify-content-between align-items-center">
+						<span>Conf</span>
+						<span id="yolo-conf-value" class="badge text-bg-secondary">0.25</span>
+					</label>
+					<input id="yolo-conf" class="form-range" type="range" min="0" max="1" step="0.01" value="0.25">
+				</div>
+				<div class="col-12 col-lg-4">
+					<label for="yolo-iou" class="form-label d-flex justify-content-between align-items-center">
+						<span>IoU</span>
+						<span id="yolo-iou-value" class="badge text-bg-secondary">0.45</span>
+					</label>
+					<input id="yolo-iou" class="form-range" type="range" min="0" max="1" step="0.01" value="0.45">
+				</div>
+				<div class="col-12 col-lg-4 d-grid">
+					<button id="yolo-detect-btn" class="btn btn-primary">검출 시작</button>
 				</div>
 			</div>
 

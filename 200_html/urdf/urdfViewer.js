@@ -540,7 +540,7 @@ class URDFViewer {
 
         const panelElement = document.createElement('div');
         panelElement.style.position = 'absolute';
-        panelElement.style.top = '24px';
+        panelElement.style.top = '20px';
         panelElement.style.left = '24px';
         panelElement.style.zIndex = '16';
         panelElement.style.width = 'auto';

@@ -122,6 +122,9 @@ class URDFViewer {
         this.viewCubeIgnoreFaceClickUntilMs = 0;
         this.viewCubeArcballSensitivity = 1.0;
         this.viewCubeDragActivateDistancePx = 4;
+        this.mainOrbitDragState = null;
+        this.mainOrbitArcballSensitivity = 1.0;
+        this.mainOrbitDragActivateDistancePx = 4;
         this.showAttitude = this.parseBooleanAttribute(
             containerElement.getAttribute('showAttitude'),
             false
@@ -310,7 +313,7 @@ class URDFViewer {
         // 휠 줌은 항상 허용하고, 좌클릭은 회전, 우클릭은 패닝으로 분리한다.
         this.controls.enabled = true;
         this.controls.enableZoom = true;
-        this.controls.enableRotate = true;
+        this.controls.enableRotate = false;
         this.controls.enablePan = true;
         this.controls.mouseButtons.LEFT = THREE.MOUSE.ROTATE;
         this.controls.mouseButtons.RIGHT = THREE.MOUSE.PAN;
@@ -1750,6 +1753,25 @@ class URDFViewer {
         const raycaster = new THREE.Raycaster();
         const mouse = new THREE.Vector2();
 
+        const projectToArcball = (clientX, clientY) => {
+            const rect = this.container.getBoundingClientRect();
+            if (rect.width <= 0 || rect.height <= 0) {
+                return new THREE.Vector3(0, 0, 1);
+            }
+
+            const x = ((clientX - rect.left) / rect.width) * 2 - 1;
+            const y = -(((clientY - rect.top) / rect.height) * 2 - 1);
+            const lengthSq = x * x + y * y;
+
+            if (lengthSq > 1) {
+                const invLength = 1 / Math.sqrt(lengthSq);
+                return new THREE.Vector3(x * invLength, y * invLength, 0);
+            }
+
+            const z = Math.sqrt(Math.max(0, 1 - lengthSq));
+            return new THREE.Vector3(x, y, z).normalize();
+        };
+
         const getRobotIntersections = (event) => {
             if (!this.robotModel) {
                 return [];
@@ -1803,6 +1825,78 @@ class URDFViewer {
 
         const disableOrbitInteraction = () => {
             this.isOrbitInteractionActive = false;
+            this.mainOrbitDragState = null;
+        };
+
+        const startMainOrbitDrag = (event) => {
+            this.mainOrbitDragState = {
+                lastClientX: event.clientX,
+                lastClientY: event.clientY,
+                totalMove: 0,
+                isActivated: false,
+                arcballVector: projectToArcball(event.clientX, event.clientY)
+            };
+        };
+
+        const updateMainOrbitDrag = (event) => {
+            if (!this.mainOrbitDragState || !this.controls || !this.camera) {
+                return;
+            }
+
+            const deltaX = event.clientX - this.mainOrbitDragState.lastClientX;
+            const deltaY = event.clientY - this.mainOrbitDragState.lastClientY;
+            this.mainOrbitDragState.lastClientX = event.clientX;
+            this.mainOrbitDragState.lastClientY = event.clientY;
+            this.mainOrbitDragState.totalMove += Math.hypot(deltaX, deltaY);
+
+            const nextArcball = projectToArcball(event.clientX, event.clientY);
+            if (this.mainOrbitDragState.totalMove <= this.mainOrbitDragActivateDistancePx) {
+                this.mainOrbitDragState.arcballVector = nextArcball;
+                return;
+            }
+
+            if (!this.mainOrbitDragState.isActivated) {
+                this.mainOrbitDragState.isActivated = true;
+                this.mainOrbitDragState.arcballVector = nextArcball;
+                return;
+            }
+
+            const previousArcball = this.mainOrbitDragState.arcballVector;
+            this.mainOrbitDragState.arcballVector = nextArcball;
+
+            const axisCamera = new THREE.Vector3().crossVectors(previousArcball, nextArcball);
+            if (axisCamera.lengthSq() < 1e-10) {
+                return;
+            }
+
+            const dot = THREE.MathUtils.clamp(previousArcball.dot(nextArcball), -1, 1);
+            const angle = Math.acos(dot) * this.mainOrbitArcballSensitivity;
+            if (!Number.isFinite(angle) || angle <= 1e-6) {
+                return;
+            }
+
+            axisCamera.normalize();
+            const axisWorld = axisCamera.clone().applyQuaternion(this.camera.quaternion).normalize();
+
+            const target = this.controls.target.clone();
+            const offset = this.camera.position.clone().sub(target);
+            const rotation = new THREE.Quaternion().setFromAxisAngle(axisWorld, -angle);
+            offset.applyQuaternion(rotation);
+            this.camera.up.applyQuaternion(rotation).normalize();
+
+            this.camera.position.copy(target.clone().add(offset));
+            this.camera.lookAt(target);
+            this.controls.update();
+            this.resetDirectionalLight(this.controls.target, this.directionalLightRadius);
+            this.logCameraInfos(false);
+        };
+
+        const endMainOrbitDrag = () => {
+            if (!this.mainOrbitDragState) {
+                return;
+            }
+
+            this.mainOrbitDragState = null;
         };
 
         this.renderer.domElement.addEventListener('pointerdown', (event) => {
@@ -1812,6 +1906,7 @@ class URDFViewer {
 
             if (event.button === 0) {
                 event.preventDefault();
+                startMainOrbitDrag(event);
             } else if (event.button === 2) {
                 event.preventDefault();
             }
@@ -1821,11 +1916,20 @@ class URDFViewer {
             this.isOrbitInteractionActive = event.button === 0 || event.button === 2;
         }, true);
 
+        this.renderer.domElement.addEventListener('pointermove', (event) => {
+            updateMainOrbitDrag(event);
+        }, true);
+
         this.renderer.domElement.addEventListener('contextmenu', (event) => {
             event.preventDefault();
         });
 
-        window.addEventListener('pointerup', disableOrbitInteraction, true);
+        window.addEventListener('pointerup', (event) => {
+            disableOrbitInteraction();
+            if (event.button === 0) {
+                endMainOrbitDrag();
+            }
+        }, true);
         window.addEventListener('pointercancel', disableOrbitInteraction, true);
         window.addEventListener('blur', disableOrbitInteraction);
 

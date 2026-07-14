@@ -169,6 +169,11 @@ class YoloVideoService:
             if path.suffix.lower() not in YOLO_VIDEO_EXTENSIONS:
                 continue
 
+            name_lower = path.name.lower()
+            # Skip derived/transient files so only real uploaded originals are listed.
+            if ".playable." in name_lower or ".uploading" in name_lower or name_lower.startswith("_"):
+                continue
+
             stat = path.stat()
             relative = self._to_relative_under_base(path)
             items.append(

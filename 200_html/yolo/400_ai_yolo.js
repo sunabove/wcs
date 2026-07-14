@@ -137,6 +137,20 @@
         return index >= 0 ? normalized.slice(index + 1) : normalized;
     }
 
+    function shortDisplayName(nameText) {
+        const value = String(nameText || '');
+        const maxLength = 14;
+        if (value.length <= maxLength) {
+            return value;
+        }
+
+        const dotIndex = value.lastIndexOf('.');
+        const ext = dotIndex > 0 ? value.slice(dotIndex) : '';
+        const stemMax = Math.max(6, maxLength - ext.length - 1);
+        const stem = dotIndex > 0 ? value.slice(0, dotIndex) : value;
+        return `${stem.slice(0, stemMax)}...${ext}`;
+    }
+
     function renderUploadedHistory() {
         if (!uploadedListElement) {
             return;
@@ -178,14 +192,9 @@
             const nameDiv = document.createElement('div');
             nameDiv.className = 'text-truncate';
             nameDiv.title = item.name;
-            nameDiv.textContent = item.name;
-
-            const timeDiv = document.createElement('div');
-            timeDiv.className = 'text-muted';
-            timeDiv.textContent = item.time;
+            nameDiv.textContent = shortDisplayName(item.name);
 
             meta.appendChild(nameDiv);
-            meta.appendChild(timeDiv);
             row.appendChild(thumb);
             row.appendChild(meta);
             li.appendChild(row);

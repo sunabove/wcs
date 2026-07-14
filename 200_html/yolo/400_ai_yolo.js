@@ -23,6 +23,7 @@
     let realtimeDetectTimer = null;
     let pendingRealtimeDetect = false;
     let uploadedHistory = [];
+    let selectedServerFileName = '';
 
     const REALTIME_DETECT_DEBOUNCE_MS = 300;
 
@@ -43,7 +44,7 @@
 
     function hasSelectedVideo() {
         const fileFromInput = fileInput.files && fileInput.files[0] ? fileInput.files[0] : null;
-        return Boolean(selectedFile || fileFromInput);
+        return Boolean(selectedFile || fileFromInput || selectedServerFileName);
     }
 
     function updateSliderValueLabels() {
@@ -156,17 +157,19 @@
             const li = document.createElement('li');
             li.className = 'list-group-item small';
 
+            if (item.serverFileName && item.serverFileName === selectedServerFileName) {
+                li.classList.add('active');
+            }
+
             const row = document.createElement('div');
             row.className = 'yolo-uploaded-item';
+            row.style.cursor = 'pointer';
 
-            const thumb = document.createElement('video');
+            const thumb = document.createElement('img');
             thumb.className = 'yolo-uploaded-thumb';
-            thumb.muted = true;
-            thumb.playsInline = true;
-            thumb.preload = 'metadata';
-            thumb.controls = false;
-            if (item.thumbnailUrl) {
-                thumb.src = item.thumbnailUrl;
+            thumb.alt = item.name || 'thumbnail';
+            if (item.thumbnailUrl || item.thumbnailSource) {
+                thumb.src = item.thumbnailUrl || item.thumbnailSource;
             }
 
             const meta = document.createElement('div');
@@ -186,6 +189,23 @@
             row.appendChild(thumb);
             row.appendChild(meta);
             li.appendChild(row);
+
+            row.addEventListener('click', () => {
+                if (!item.serverFileName || detectButton.disabled) {
+                    return;
+                }
+
+                selectedServerFileName = item.serverFileName;
+                selectedFile = null;
+                if (fileInput) {
+                    fileInput.value = '';
+                }
+
+                renderUploadedHistory();
+                setStatus(`선택됨: ${item.name} (재검출 중...)`, 'info');
+                runYoloDetect();
+            });
+
             uploadedListElement.appendChild(li);
         }
     }
@@ -211,7 +231,12 @@
         const thumbnailUrl = createThumbnailUrl(fileObject);
 
         const duplicateIndex = uploadedHistory.findIndex(item => item.name === displayName);
-        const record = { name: displayName, time: `${hh}:${mm}:${ss}`, thumbnailUrl };
+        const record = {
+            name: displayName,
+            time: `${hh}:${mm}:${ss}`,
+            thumbnailUrl,
+            serverFileName: String(inputFilePath || ''),
+        };
         if (duplicateIndex >= 0) {
             const old = uploadedHistory[duplicateIndex];
             if (old && old.thumbnailUrl) {
@@ -231,6 +256,34 @@
         }
 
         renderUploadedHistory();
+    }
+
+    async function loadUploadedHistoryFromServer() {
+        try {
+            const apiBase = await resolveApiBase();
+            const response = await fetch(`${apiBase}/fast/yolo/uploaded_videos?limit=50`, {
+                method: 'GET',
+                cache: 'no-store',
+            });
+            if (!response.ok) {
+                return;
+            }
+
+            const body = await response.json();
+            const videos = body && Array.isArray(body.videos) ? body.videos : [];
+            const mapped = videos.map((item) => ({
+                name: basename(item.display_name || item.file_name),
+                time: String(item.uploaded_at || '').replace('T', ' '),
+                thumbnailUrl: '',
+                thumbnailSource: buildAbsoluteUrl(apiBase, item.thumbnail_url),
+                serverFileName: String(item.file_name || ''),
+            }));
+
+            uploadedHistory = mapped;
+            renderUploadedHistory();
+        } catch (_ignore) {
+            // Keep empty state when loading history fails.
+        }
     }
 
     function buildAbsoluteUrl(base, pathOrUrl) {
@@ -392,7 +445,9 @@
         }
 
         setSelectedFile(file);
+        selectedServerFileName = '';
         syncInputWithFile(file);
+        renderUploadedHistory();
         setStatus('동영상 파일이 준비되었습니다. 검출 시작을 눌러주세요.', 'secondary');
     }
 
@@ -403,7 +458,7 @@
 
         const fileFromInput = fileInput.files && fileInput.files[0] ? fileInput.files[0] : null;
         const file = selectedFile || fileFromInput;
-        if (!file) {
+        if (!file && !selectedServerFileName) {
             setStatus('동영상 파일을 선택하세요.', 'warning');
             return;
         }
@@ -415,15 +470,23 @@
         setStatus('YOLO 검출 진행 중...', 'info');
 
         try {
-            const formData = new FormData();
-            formData.append('file', file);
-
             const apiBase = await resolveApiBase();
-            const url = `${apiBase}/fast/yolo/detect_video_upload?conf=${encodeURIComponent(conf)}&iou=${encodeURIComponent(iou)}`;
-            const response = await fetch(url, {
-                method: 'POST',
-                body: formData,
-            });
+            let response;
+
+            if (file) {
+                const formData = new FormData();
+                formData.append('file', file);
+                const url = `${apiBase}/fast/yolo/detect_video_upload?conf=${encodeURIComponent(conf)}&iou=${encodeURIComponent(iou)}`;
+                response = await fetch(url, {
+                    method: 'POST',
+                    body: formData,
+                });
+            } else {
+                const url = `${apiBase}/fast/yolo/detect_saved_video?file_name=${encodeURIComponent(selectedServerFileName)}&conf=${encodeURIComponent(conf)}&iou=${encodeURIComponent(iou)}`;
+                response = await fetch(url, {
+                    method: 'POST',
+                });
+            }
 
             if (!response.ok) {
                 let errorMessage = `요청 실패 (${response.status})`;
@@ -440,7 +503,11 @@
 
             const result = await response.json();
 
-            addUploadedHistoryItem(file.name, result.input_file, file);
+            if (file) {
+                addUploadedHistoryItem(file.name, result.input_file, file);
+                selectedServerFileName = String(result.input_file || selectedServerFileName);
+                renderUploadedHistory();
+            }
 
             const inputUrl = await resolvePlayableVideoUrl(apiBase, result.input_url, true);
             const outputUrl = await resolvePlayableVideoUrl(apiBase, result.output_url, true);
@@ -543,4 +610,6 @@
     if (uploadedEmptyElement) {
         renderUploadedHistory();
     }
+
+    loadUploadedHistoryFromServer();
 })();

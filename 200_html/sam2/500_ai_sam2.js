@@ -23,6 +23,7 @@
     let selectedServerFileName = '';
     const STORAGE_TARGET_KEY = 'sam2.targetType';
     const STORAGE_CONF_KEY = 'sam2.conf';
+    const STORAGE_SELECTED_VIDEO_KEY = 'sam2.selectedVideo';
 
     function setStatus(message, type) {
         const alertType = type || 'secondary';
@@ -55,6 +56,27 @@
             localStorage.setItem(STORAGE_CONF_KEY, String(conf));
         } catch (_ignore) {
             // localStorage may be unavailable in some browser/privacy modes.
+        }
+    }
+
+    function saveSelectedVideo(fileName) {
+        try {
+            const value = String(fileName || '').trim();
+            if (value) {
+                localStorage.setItem(STORAGE_SELECTED_VIDEO_KEY, value);
+            } else {
+                localStorage.removeItem(STORAGE_SELECTED_VIDEO_KEY);
+            }
+        } catch (_ignore) {
+            // localStorage may be unavailable in some browser/privacy modes.
+        }
+    }
+
+    function loadSelectedVideo() {
+        try {
+            return String(localStorage.getItem(STORAGE_SELECTED_VIDEO_KEY) || '').trim();
+        } catch (_ignore) {
+            return '';
         }
     }
 
@@ -256,6 +278,7 @@
                 if (fileInput) {
                     fileInput.value = '';
                 }
+                saveSelectedVideo(selectedServerFileName);
 
                 stopCurrentOutputPlayback();
 
@@ -323,6 +346,20 @@
                 thumbnailSource: buildThumbnailUrl(apiBase, item.file_name),
                 serverFileName: String(item.file_name || ''),
             }));
+
+            const savedSelectedVideo = loadSelectedVideo();
+            const matchedSelected = mapped.find((item) => item.serverFileName === savedSelectedVideo);
+            if (matchedSelected) {
+                selectedServerFileName = matchedSelected.serverFileName;
+                selectedFile = null;
+                if (fileInput) {
+                    fileInput.value = '';
+                }
+                setStatus(`선택 복원됨: ${matchedSelected.name}`, 'secondary');
+            } else if (savedSelectedVideo) {
+                selectedServerFileName = '';
+                saveSelectedVideo('');
+            }
 
             uploadedHistory = mapped;
             renderUploadedHistory();
@@ -527,6 +564,7 @@
 
         setSelectedFile(file);
         selectedServerFileName = '';
+        saveSelectedVideo('');
         syncInputWithFile(file);
         stopCurrentOutputPlayback();
         renderUploadedHistory();
@@ -592,6 +630,7 @@
                 const thumbnailSource = buildThumbnailUrl(apiBase, relativeServerPath);
                 addUploadedHistoryItem(file.name, relativeServerPath, thumbnailSource);
                 selectedServerFileName = String(relativeServerPath || selectedServerFileName);
+                saveSelectedVideo(selectedServerFileName);
                 renderUploadedHistory();
             }
 

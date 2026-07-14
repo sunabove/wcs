@@ -9,6 +9,8 @@
     const iouInput = document.getElementById('yolo-iou');
     const confValueElement = document.getElementById('yolo-conf-value');
     const iouValueElement = document.getElementById('yolo-iou-value');
+    const uploadedListElement = document.getElementById('yolo-uploaded-list');
+    const uploadedEmptyElement = document.getElementById('yolo-uploaded-empty');
 
     const statusElement = document.getElementById('yolo-status');
     const inputVideoElement = document.getElementById('yolo-input-video');
@@ -20,6 +22,7 @@
     let outputObjectUrl = '';
     let realtimeDetectTimer = null;
     let pendingRealtimeDetect = false;
+    let uploadedHistory = [];
 
     const REALTIME_DETECT_DEBOUNCE_MS = 300;
 
@@ -117,6 +120,72 @@
         } else {
             selectedFileElement.textContent = '선택된 파일 없음';
         }
+    }
+
+    function basename(pathOrName) {
+        const text = String(pathOrName || '').trim();
+        if (!text) {
+            return '';
+        }
+        const normalized = text.replace(/\\/g, '/');
+        const index = normalized.lastIndexOf('/');
+        return index >= 0 ? normalized.slice(index + 1) : normalized;
+    }
+
+    function renderUploadedHistory() {
+        if (!uploadedListElement) {
+            return;
+        }
+
+        uploadedListElement.innerHTML = '';
+
+        if (uploadedHistory.length === 0) {
+            const emptyItem = document.createElement('li');
+            emptyItem.id = 'yolo-uploaded-empty';
+            emptyItem.className = 'list-group-item small text-muted';
+            emptyItem.textContent = '업로드 이력 없음';
+            uploadedListElement.appendChild(emptyItem);
+            return;
+        }
+
+        for (const item of uploadedHistory) {
+            const li = document.createElement('li');
+            li.className = 'list-group-item small d-flex justify-content-between align-items-center';
+
+            const nameSpan = document.createElement('span');
+            nameSpan.className = 'text-truncate me-2';
+            nameSpan.style.maxWidth = '78%';
+            nameSpan.title = item.name;
+            nameSpan.textContent = item.name;
+
+            const timeSpan = document.createElement('span');
+            timeSpan.className = 'text-muted';
+            timeSpan.textContent = item.time;
+
+            li.appendChild(nameSpan);
+            li.appendChild(timeSpan);
+            uploadedListElement.appendChild(li);
+        }
+    }
+
+    function addUploadedHistoryItem(fileNameHint, inputFilePath) {
+        const displayName = basename(fileNameHint) || basename(inputFilePath) || 'unknown_video';
+        const now = new Date();
+        const hh = String(now.getHours()).padStart(2, '0');
+        const mm = String(now.getMinutes()).padStart(2, '0');
+        const ss = String(now.getSeconds()).padStart(2, '0');
+
+        const duplicateIndex = uploadedHistory.findIndex(item => item.name === displayName);
+        const record = { name: displayName, time: `${hh}:${mm}:${ss}` };
+        if (duplicateIndex >= 0) {
+            uploadedHistory.splice(duplicateIndex, 1);
+        }
+        uploadedHistory.unshift(record);
+        if (uploadedHistory.length > 20) {
+            uploadedHistory = uploadedHistory.slice(0, 20);
+        }
+
+        renderUploadedHistory();
     }
 
     function buildAbsoluteUrl(base, pathOrUrl) {
@@ -326,6 +395,8 @@
 
             const result = await response.json();
 
+            addUploadedHistoryItem(file.name, result.input_file);
+
             const inputUrl = await resolvePlayableVideoUrl(apiBase, result.input_url, true);
             const outputUrl = await resolvePlayableVideoUrl(apiBase, result.output_url, true);
 
@@ -424,4 +495,7 @@
     iouInput.addEventListener('input', scheduleRealtimeDetect);
 
     updateSliderValueLabels();
+    if (uploadedEmptyElement) {
+        renderUploadedHistory();
+    }
 })();

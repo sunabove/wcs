@@ -29,6 +29,11 @@
 			color: #475569;
 		}
 
+		#yolo-uploaded-list {
+			max-height: 160px;
+			overflow-y: auto;
+		}
+
 		.yolo-video-wrap {
 			text-align: center;
 		}
@@ -56,7 +61,7 @@
 <main class="container my-4">
 	<div class="card shadow-sm">
 		<div class="card-header">
-			<h5 class="mb-0">동영상 업로드 후 YOLO 최신 모델 검출</h5>
+			<h5 class="mb-0">YOLO 객체 검출</h5>
 		</div>
 		<div class="card-body">
 			<div class="row g-3 align-items-start">
@@ -68,6 +73,12 @@
 						<div class="small text-muted mt-1">또는 클릭해서 파일 선택</div>
 					</div>
 					<div id="yolo-selected-file" class="mt-1">선택된 파일 없음</div>
+					<div class="mt-2">
+						<div class="small fw-semibold text-secondary mb-1">업로드한 동영상</div>
+						<ul id="yolo-uploaded-list" class="list-group list-group-sm">
+							<li id="yolo-uploaded-empty" class="list-group-item small text-muted">업로드 이력 없음</li>
+						</ul>
+					</div>
 				</div>
 				<div class="col-12 col-lg-6">
 					<div class="row g-2">

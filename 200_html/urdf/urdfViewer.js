@@ -589,12 +589,12 @@ class URDFViewer {
             return buttonElement;
         };
 
-        gridElement.appendChild(createFaceButton('front', 'FRONT', 'Front (+X)'));
-        gridElement.appendChild(createFaceButton('back', 'BACK', 'Back (-X)'));
-        gridElement.appendChild(createFaceButton('left', 'LEFT', 'Left (+Y)'));
-        gridElement.appendChild(createFaceButton('right', 'RIGHT', 'Right (-Y)'));
-        gridElement.appendChild(createFaceButton('top', 'TOP', 'Top (+Z)'));
-        gridElement.appendChild(createFaceButton('bottom', 'BOTTOM', 'Down (-Z)'));
+        gridElement.appendChild(createFaceButton('front', 'F', 'Front (+X)'));
+        gridElement.appendChild(createFaceButton('back', 'B', 'Back (-X)'));
+        gridElement.appendChild(createFaceButton('left', 'L', 'Left (+Y)'));
+        gridElement.appendChild(createFaceButton('right', 'R', 'Right (-Y)'));
+        gridElement.appendChild(createFaceButton('top', 'T', 'Top (+Z)'));
+        gridElement.appendChild(createFaceButton('bottom', 'D', 'Down (-Z)'));
 
         panelElement.appendChild(gridElement);
 

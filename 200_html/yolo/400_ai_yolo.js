@@ -14,6 +14,7 @@
     const resultJsonElement = document.getElementById('yolo-result-json');
 
     let selectedFile = null;
+    let resolvedApiBase = null;
 
     function setStatus(message, type) {
         const alertType = type || 'secondary';
@@ -24,6 +25,41 @@
     function toNumber(value, fallback) {
         const parsed = Number(value);
         return Number.isFinite(parsed) ? parsed : fallback;
+    }
+
+    async function resolveApiBase() {
+        if (resolvedApiBase != null) {
+            return resolvedApiBase;
+        }
+
+        const origin = window.location.origin;
+        const host = window.location.hostname || 'localhost';
+        const candidateBases = [
+            '',
+            `http://${host}:8000`,
+            'http://localhost:8000',
+            'http://127.0.0.1:8000',
+        ];
+
+        const uniqueBases = Array.from(new Set(candidateBases));
+        for (const base of uniqueBases) {
+            const healthUrl = `${base}/fast/yolo/health`;
+            try {
+                const response = await fetch(healthUrl, {
+                    method: 'GET',
+                    cache: 'no-store',
+                });
+                if (response.ok) {
+                    resolvedApiBase = base;
+                    return resolvedApiBase;
+                }
+            } catch (_ignore) {
+                // Try next candidate.
+            }
+        }
+
+        resolvedApiBase = '';
+        return resolvedApiBase;
     }
 
     function setSelectedFile(file) {
@@ -107,7 +143,8 @@
             const formData = new FormData();
             formData.append('file', file);
 
-            const url = `/fast/yolo/detect_video_upload?conf=${encodeURIComponent(conf)}&iou=${encodeURIComponent(iou)}`;
+            const apiBase = await resolveApiBase();
+            const url = `${apiBase}/fast/yolo/detect_video_upload?conf=${encodeURIComponent(conf)}&iou=${encodeURIComponent(iou)}`;
             const response = await fetch(url, {
                 method: 'POST',
                 body: formData,
@@ -128,8 +165,11 @@
 
             const result = await response.json();
 
-            inputVideoElement.src = result.input_url || '';
-            outputVideoElement.src = result.output_url || '';
+            const inputUrl = result.input_url ? `${apiBase}${result.input_url}` : '';
+            const outputUrl = result.output_url ? `${apiBase}${result.output_url}` : '';
+
+            inputVideoElement.src = inputUrl;
+            outputVideoElement.src = outputUrl;
             inputVideoElement.load();
             outputVideoElement.load();
 

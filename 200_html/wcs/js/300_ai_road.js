@@ -2468,7 +2468,13 @@ $(function () {
         if (normalized === baseFolder) {
             return "기본 폴더";
         }
-        return normalized.replace(new RegExp("^" + baseFolder + "/?"), "");
+        const relative = normalized.replace(new RegExp("^" + baseFolder + "/?"), "");
+        if (!relative) {
+            return "기본 폴더";
+        }
+
+        const parts = relative.split("/").filter(Boolean);
+        return parts.length > 0 ? parts[parts.length - 1] : relative;
     }
 
     function buildSampleBrowserHeader(baseFolder, currentFolderPath, showAllFiles) {

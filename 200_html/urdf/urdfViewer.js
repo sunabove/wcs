@@ -581,11 +581,12 @@ class URDFViewer {
             buttonElement.style.borderRadius = '4px';
             buttonElement.style.background = 'rgba(255, 255, 255, 0.98)';
             buttonElement.style.color = '#1f2937';
-            buttonElement.style.fontSize = '11px';
+            buttonElement.style.fontSize = '8px';
             buttonElement.style.fontWeight = '700';
             buttonElement.style.cursor = 'pointer';
             buttonElement.style.padding = '0';
-            buttonElement.style.lineHeight = '1';
+            buttonElement.style.lineHeight = '1.1';
+            buttonElement.style.whiteSpace = 'normal';
             buttonElement.style.backfaceVisibility = 'hidden';
             buttonElement.style.transform = transformValue;
             buttonElement.style.boxShadow = 'inset 0 0 0 1px rgba(255, 255, 255, 0.35)';
@@ -602,12 +603,12 @@ class URDFViewer {
         };
 
         const halfSize = '21px';
-        cubeElement.appendChild(createFaceButton('front', 'F', 'Front (+X)', `rotateY(0deg) translateZ(${halfSize})`));
-        cubeElement.appendChild(createFaceButton('back', 'B', 'Back (-X)', `rotateY(180deg) translateZ(${halfSize})`));
-        cubeElement.appendChild(createFaceButton('left', 'L', 'Left (+Y)', `rotateY(-90deg) translateZ(${halfSize})`));
-        cubeElement.appendChild(createFaceButton('right', 'R', 'Right (-Y)', `rotateY(90deg) translateZ(${halfSize})`));
-        cubeElement.appendChild(createFaceButton('top', 'T', 'Top (+Z)', `rotateX(90deg) translateZ(${halfSize})`));
-        cubeElement.appendChild(createFaceButton('bottom', 'B', 'Down (-Z)', `rotateX(-90deg) translateZ(${halfSize})`));
+        cubeElement.appendChild(createFaceButton('front', 'Front', 'Front (+X)', `rotateY(0deg) translateZ(${halfSize})`));
+        cubeElement.appendChild(createFaceButton('back', 'Back', 'Back (-X)', `rotateY(180deg) translateZ(${halfSize})`));
+        cubeElement.appendChild(createFaceButton('left', 'Left', 'Left (+Y)', `rotateY(-90deg) translateZ(${halfSize})`));
+        cubeElement.appendChild(createFaceButton('right', 'Right', 'Right (-Y)', `rotateY(90deg) translateZ(${halfSize})`));
+        cubeElement.appendChild(createFaceButton('top', 'Top', 'Top (+Z)', `rotateX(90deg) translateZ(${halfSize})`));
+        cubeElement.appendChild(createFaceButton('bottom', 'Bottom', 'Down (-Z)', `rotateX(-90deg) translateZ(${halfSize})`));
 
         cubeViewportElement.appendChild(cubeElement);
 

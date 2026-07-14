@@ -22,6 +22,10 @@ class Sam2VideoDetector:
         "pothole": 2,
         "curb_step": 2,
     }
+    _target_class_keywords = {
+        "pothole": ("pothole", "pot_hole", "hole", "포트홀"),
+        "curb_step": ("curb", "step", "bump", "hump", "speedbump", "speed_bump", "단차", "턱", "연석"),
+    }
 
     def __init__(self):
         SAM2_UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
@@ -82,6 +86,36 @@ class Sam2VideoDetector:
             writer.release()
         return None
 
+    def _normalize_class_name(self, name_text: str) -> str:
+        return ''.join(ch for ch in str(name_text or '').strip().lower() if ch.isalnum())
+
+    def _resolve_target_classes(self, model, target_type: str):
+        target_key = str(target_type or '').strip().lower()
+        if target_key == 'road':
+            return None
+
+        keywords = self._target_class_keywords.get(target_key)
+        if not keywords:
+            return None
+
+        normalized_keywords = [self._normalize_class_name(keyword) for keyword in keywords if keyword]
+        names = getattr(model, 'names', None)
+        if not isinstance(names, dict) or not names:
+            return []
+
+        matched_ids = []
+        for class_id, class_name in names.items():
+            normalized_name = self._normalize_class_name(class_name)
+            if not normalized_name:
+                continue
+            if any(keyword in normalized_name for keyword in normalized_keywords):
+                try:
+                    matched_ids.append(int(class_id))
+                except (TypeError, ValueError):
+                    continue
+
+        return sorted(set(matched_ids))
+
     def detect_video_file(
         self,
         input_path: Path,
@@ -123,6 +157,7 @@ class Sam2VideoDetector:
 
         start_time = time.time()
         model = self._get_model(model_name)
+        target_classes = self._resolve_target_classes(model, target_type)
         processed_frames = 0
         total_segments = 0
         infer_stride = max(1, int(self._target_infer_stride.get(str(target_type), 2)))
@@ -134,8 +169,24 @@ class Sam2VideoDetector:
                 if not ok:
                     break
 
+                if isinstance(target_classes, list) and len(target_classes) == 0:
+                    plotted = frame.copy()
+                    if plotted.shape[1] != width or plotted.shape[0] != height:
+                        plotted = cv2.resize(plotted, (width, height), interpolation=cv2.INTER_AREA)
+                    writer.write(plotted)
+                    processed_frames += 1
+                    continue
+
                 if processed_frames % infer_stride == 0 or last_plotted is None:
-                    result = model.predict(source=frame, conf=conf, verbose=False)[0]
+                    predict_kwargs = {
+                        "source": frame,
+                        "conf": conf,
+                        "verbose": False,
+                    }
+                    if isinstance(target_classes, list):
+                        predict_kwargs["classes"] = target_classes
+
+                    result = model.predict(**predict_kwargs)[0]
 
                     masks = getattr(result, "masks", None)
                     if masks is not None and getattr(masks, "data", None) is not None:

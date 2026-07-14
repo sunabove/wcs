@@ -19,15 +19,14 @@ from yolo.YoloVideoConfig import (
 class YoloVideoDetector:
     _model_cache = {}
     _bbox_palette = [
-        (0, 0, 255),
-        (0, 255, 0),
+        (255, 80, 0),
+        (255, 140, 0),
+        (255, 200, 0),
         (255, 255, 0),
-        (255, 0, 255),
-        (0, 255, 255),
-        (255, 0, 0),
-        (0, 165, 255),
-        (255, 255, 255),
-        (0, 0, 0),
+        (220, 255, 0),
+        (160, 255, 40),
+        (100, 240, 100),
+        (200, 255, 120),
     ]
 
     def __init__(self):
@@ -155,7 +154,7 @@ class YoloVideoDetector:
             cv2.rectangle(plotted, (x1, label_top), (label_right, label_bottom), color, -1)
 
             luminance = 0.114 * color[0] + 0.587 * color[1] + 0.299 * color[2]
-            text_color = (0, 0, 0) if luminance > 150 else (255, 255, 255)
+            text_color = (220, 80, 0) if luminance > 170 else (255, 255, 120)
             cv2.putText(
                 plotted,
                 label,

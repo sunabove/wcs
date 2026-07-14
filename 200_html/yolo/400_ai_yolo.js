@@ -71,6 +71,62 @@
         }
     }
 
+    function buildAbsoluteUrl(base, pathOrUrl) {
+        const text = String(pathOrUrl || '').trim();
+        if (!text) {
+            return '';
+        }
+        if (/^https?:\/\//i.test(text)) {
+            return text;
+        }
+        return `${base}${text.startsWith('/') ? text : `/${text}`}`;
+    }
+
+    function extractFastImagePath(pathOrUrl) {
+        const text = String(pathOrUrl || '').trim();
+        if (!text) {
+            return '';
+        }
+
+        const marker = '/fast/image/';
+        const index = text.indexOf(marker);
+        if (index < 0) {
+            return '';
+        }
+
+        return text.slice(index + marker.length);
+    }
+
+    async function resolvePlayableVideoUrl(apiBase, rawVideoUrl) {
+        const pathValue = extractFastImagePath(rawVideoUrl);
+        if (!pathValue) {
+            return buildAbsoluteUrl(apiBase, rawVideoUrl);
+        }
+
+        const encodedPath = pathValue
+            .split('/')
+            .map(segment => encodeURIComponent(segment))
+            .join('/');
+
+        const playableApiUrl = `${apiBase}/fast/video_playable/${encodedPath}`;
+        try {
+            const response = await fetch(playableApiUrl, {
+                method: 'GET',
+                cache: 'no-store',
+            });
+            if (response.ok) {
+                const body = await response.json();
+                if (body && body.video_url) {
+                    return buildAbsoluteUrl(apiBase, body.video_url);
+                }
+            }
+        } catch (_ignore) {
+            // Fall through to original URL.
+        }
+
+        return buildAbsoluteUrl(apiBase, rawVideoUrl);
+    }
+
     function isVideoFile(file) {
         if (!file) {
             return false;
@@ -169,8 +225,8 @@
 
             const result = await response.json();
 
-            const inputUrl = result.input_url ? `${apiBase}${result.input_url}` : '';
-            const outputUrl = result.output_url ? `${apiBase}${result.output_url}` : '';
+            const inputUrl = await resolvePlayableVideoUrl(apiBase, result.input_url);
+            const outputUrl = await resolvePlayableVideoUrl(apiBase, result.output_url);
 
             inputVideoElement.src = inputUrl;
             outputVideoElement.src = outputUrl;

@@ -115,6 +115,10 @@
 
     function setSelectedFile(file) {
         selectedFile = file || null;
+        if (!selectedFileElement) {
+            return;
+        }
+
         if (selectedFile) {
             selectedFileElement.textContent = `선택됨: ${selectedFile.name}`;
         } else {

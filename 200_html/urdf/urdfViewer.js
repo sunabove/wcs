@@ -559,7 +559,7 @@ class URDFViewer {
 
         const gridElement = document.createElement('div');
         gridElement.style.display = 'grid';
-        gridElement.style.gridTemplateColumns = 'repeat(2, minmax(0, 1fr))';
+        gridElement.style.gridTemplateColumns = 'repeat(3, minmax(0, 1fr))';
         gridElement.style.columnGap = '4px';
         gridElement.style.rowGap = '4px';
 

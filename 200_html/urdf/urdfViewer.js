@@ -607,7 +607,7 @@ class URDFViewer {
         cubeElement.appendChild(createFaceButton('left', 'L', 'Left (+Y)', `rotateY(-90deg) translateZ(${halfSize})`));
         cubeElement.appendChild(createFaceButton('right', 'R', 'Right (-Y)', `rotateY(90deg) translateZ(${halfSize})`));
         cubeElement.appendChild(createFaceButton('top', 'T', 'Top (+Z)', `rotateX(90deg) translateZ(${halfSize})`));
-        cubeElement.appendChild(createFaceButton('bottom', 'D', 'Down (-Z)', `rotateX(-90deg) translateZ(${halfSize})`));
+        cubeElement.appendChild(createFaceButton('bottom', 'B', 'Down (-Z)', `rotateX(-90deg) translateZ(${halfSize})`));
 
         cubeViewportElement.appendChild(cubeElement);
 

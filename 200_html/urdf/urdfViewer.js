@@ -114,6 +114,9 @@ class URDFViewer {
         this.attitudeTextElement = null;
         this.rollNeedleElement = null;
         this.pitchNeedleElement = null;
+        this.viewCubeOverlayElement = null;
+        this.viewCubeActiveFaceKey = null;
+        this.viewCubeButtonByFace = {};
         this.showAttitude = this.parseBooleanAttribute(
             containerElement.getAttribute('showAttitude'),
             false
@@ -302,6 +305,7 @@ class URDFViewer {
         this.controls.enablePan = false;
         this.cameraPosTextElement = $('#camera-pos-text');
         this.setupCameraAngleLogging();
+        this.setupViewCubeOverlay();
         this.setupCameraToastOverlay();
         this.setupWheelControls();
         if (this.showAttitude) {
@@ -354,6 +358,17 @@ class URDFViewer {
         this.setupResizeHandler();
     }
 
+    ensureContainerOverlayPositioning() {
+        if (!this.container) {
+            return;
+        }
+
+        const computedStyle = window.getComputedStyle(this.container);
+        if (computedStyle.position === 'static') {
+            this.container.style.position = 'relative';
+        }
+    }
+
     setupWheelInfoOverlay() {
         if (!this.container || this.wheelInfoOverlayElement) {
             return;
@@ -365,10 +380,7 @@ class URDFViewer {
             return;
         }
 
-        const computedStyle = window.getComputedStyle(this.container);
-        if (computedStyle.position === 'static') {
-            this.container.style.position = 'relative';
-        }
+        this.ensureContainerOverlayPositioning();
 
         const overlayElement = document.createElement('div');
         overlayElement.style.position = 'absolute';
@@ -377,8 +389,8 @@ class URDFViewer {
         overlayElement.style.pointerEvents = 'none';
 
         const wheelLayout = [
-            { key: 'fl', label: 'FL', top: '10px', left: '10px' },
-            { key: 'fr', label: 'FR', top: '10px', right: '10px' },
+            { key: 'fl', label: 'FL', top: '96px', left: '10px' },
+            { key: 'fr', label: 'FR', top: '96px', right: '10px' },
             { key: 'rl', label: 'RL', bottom: '10px', left: '10px' },
             { key: 'rr', label: 'RR', bottom: '10px', right: '10px' }
         ];
@@ -422,11 +434,14 @@ class URDFViewer {
     }
 
     setupAttitudeOverlay() {
+        this.ensureContainerOverlayPositioning();
+
         const panelElement = document.createElement('div');
         panelElement.style.position = 'absolute';
         panelElement.style.top = '12px';
-        panelElement.style.right = '12px';
-        panelElement.style.zIndex = '12';
+        panelElement.style.left = '50%';
+        panelElement.style.transform = 'translateX(-50%)';
+        panelElement.style.zIndex = '13';
         panelElement.style.padding = '8px 10px';
         panelElement.style.background = 'rgba(255, 255, 255, 0.88)';
         panelElement.style.border = '1px solid rgba(30, 30, 30, 0.2)';
@@ -524,6 +539,188 @@ class URDFViewer {
         this.updateAttitudeOverlay();
     }
 
+    setupViewCubeOverlay() {
+        if (!this.container || this.viewCubeOverlayElement) {
+            return;
+        }
+
+        this.ensureContainerOverlayPositioning();
+
+        const panelElement = document.createElement('div');
+        panelElement.style.position = 'absolute';
+        panelElement.style.top = '12px';
+        panelElement.style.right = '12px';
+        panelElement.style.zIndex = '16';
+        panelElement.style.width = '110px';
+        panelElement.style.padding = '6px';
+        panelElement.style.background = 'rgba(255, 255, 255, 0.92)';
+        panelElement.style.border = '1px solid rgba(20, 20, 20, 0.2)';
+        panelElement.style.borderRadius = '10px';
+        panelElement.style.boxShadow = '0 3px 10px rgba(0, 0, 0, 0.16)';
+        panelElement.style.pointerEvents = 'auto';
+        panelElement.style.userSelect = 'none';
+
+        const titleElement = document.createElement('div');
+        titleElement.textContent = 'VIEW';
+        titleElement.style.textAlign = 'center';
+        titleElement.style.fontSize = '10px';
+        titleElement.style.fontWeight = '700';
+        titleElement.style.letterSpacing = '0.08em';
+        titleElement.style.color = '#1f2937';
+        titleElement.style.marginBottom = '4px';
+
+        const gridElement = document.createElement('div');
+        gridElement.style.display = 'grid';
+        gridElement.style.gridTemplateColumns = 'repeat(3, 30px)';
+        gridElement.style.gridTemplateRows = 'repeat(3, 22px)';
+        gridElement.style.justifyContent = 'center';
+        gridElement.style.alignItems = 'center';
+        gridElement.style.gap = '4px';
+
+        const createFaceButton = (faceKey, label, title) => {
+            const buttonElement = document.createElement('button');
+            buttonElement.type = 'button';
+            buttonElement.textContent = label;
+            buttonElement.title = title;
+            buttonElement.style.width = '30px';
+            buttonElement.style.height = '22px';
+            buttonElement.style.border = '1px solid rgba(45, 55, 72, 0.35)';
+            buttonElement.style.borderRadius = '5px';
+            buttonElement.style.background = '#ffffff';
+            buttonElement.style.color = '#1f2937';
+            buttonElement.style.fontSize = '10px';
+            buttonElement.style.fontWeight = '700';
+            buttonElement.style.cursor = 'pointer';
+            buttonElement.style.padding = '0';
+            buttonElement.style.lineHeight = '1';
+            buttonElement.addEventListener('click', (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                this.setCameraByViewCubeFace(faceKey);
+            });
+            this.viewCubeButtonByFace[faceKey] = buttonElement;
+            return buttonElement;
+        };
+
+        const placeFaceButton = (rowIndex, columnIndex, faceKey, label, title) => {
+            const buttonElement = createFaceButton(faceKey, label, title);
+            buttonElement.style.gridRow = String(rowIndex);
+            buttonElement.style.gridColumn = String(columnIndex);
+            gridElement.appendChild(buttonElement);
+        };
+
+        placeFaceButton(1, 2, 'top', 'T', 'Top (+Z)');
+        placeFaceButton(2, 1, 'left', 'L', 'Left (+Y)');
+        placeFaceButton(2, 2, 'front', 'F', 'Front (+X)');
+        placeFaceButton(2, 3, 'right', 'R', 'Right (-Y)');
+        placeFaceButton(3, 2, 'bottom', 'D', 'Down (-Z)');
+        placeFaceButton(3, 3, 'back', 'B', 'Back (-X)');
+
+        const hintElement = document.createElement('div');
+        hintElement.textContent = 'Click face';
+        hintElement.style.marginTop = '5px';
+        hintElement.style.textAlign = 'center';
+        hintElement.style.fontSize = '10px';
+        hintElement.style.color = '#4b5563';
+
+        panelElement.appendChild(titleElement);
+        panelElement.appendChild(gridElement);
+        panelElement.appendChild(hintElement);
+
+        this.container.appendChild(panelElement);
+        this.viewCubeOverlayElement = panelElement;
+        this.updateViewCubeOverlay();
+    }
+
+    setCameraByViewCubeFace(faceKey) {
+        if (!this.controls || !this.camera) {
+            return;
+        }
+
+        const directionByFace = {
+            front: new THREE.Vector3(1, 0, 0),
+            back: new THREE.Vector3(-1, 0, 0),
+            left: new THREE.Vector3(0, 1, 0),
+            right: new THREE.Vector3(0, -1, 0),
+            top: new THREE.Vector3(0, 0, 1),
+            bottom: new THREE.Vector3(0, 0, -1)
+        };
+
+        const upByFace = {
+            front: new THREE.Vector3(0, 0, 1),
+            back: new THREE.Vector3(0, 0, 1),
+            left: new THREE.Vector3(0, 0, 1),
+            right: new THREE.Vector3(0, 0, 1),
+            top: new THREE.Vector3(1, 0, 0),
+            bottom: new THREE.Vector3(-1, 0, 0)
+        };
+
+        const targetDirection = directionByFace[faceKey];
+        if (!targetDirection) {
+            return;
+        }
+
+        const target = this.controls.target.clone();
+        const currentDistance = this.camera.position.distanceTo(target);
+        const cameraDistance = Number.isFinite(currentDistance) && currentDistance > 0.001
+            ? currentDistance
+            : 3;
+
+        const nextPosition = target.clone().add(targetDirection.clone().multiplyScalar(cameraDistance));
+        this.camera.position.copy(nextPosition);
+
+        const cameraUp = upByFace[faceKey] || upByFace.front;
+        this.camera.up.copy(cameraUp);
+        this.camera.lookAt(target);
+        this.controls.update();
+        this.updateViewCubeOverlay();
+        this.resetDirectionalLight(this.controls.target, this.directionalLightRadius);
+        this.logCameraInfos(true);
+    }
+
+    updateViewCubeOverlay() {
+        const hasButtons = this.viewCubeButtonByFace && Object.keys(this.viewCubeButtonByFace).length > 0;
+        if (!hasButtons || !this.controls || !this.camera) {
+            return;
+        }
+
+        const target = this.controls.target.clone();
+        const cameraOffset = this.camera.position.clone().sub(target);
+        if (cameraOffset.lengthSq() < 1e-8) {
+            return;
+        }
+
+        const direction = cameraOffset.normalize();
+        const absX = Math.abs(direction.x);
+        const absY = Math.abs(direction.y);
+        const absZ = Math.abs(direction.z);
+
+        let activeFaceKey = 'front';
+        if (absX >= absY && absX >= absZ) {
+            activeFaceKey = direction.x >= 0 ? 'front' : 'back';
+        } else if (absY >= absX && absY >= absZ) {
+            activeFaceKey = direction.y >= 0 ? 'left' : 'right';
+        } else {
+            activeFaceKey = direction.z >= 0 ? 'top' : 'bottom';
+        }
+
+        if (this.viewCubeActiveFaceKey === activeFaceKey) {
+            return;
+        }
+
+        this.viewCubeActiveFaceKey = activeFaceKey;
+        Object.entries(this.viewCubeButtonByFace).forEach(([faceKey, buttonElement]) => {
+            if (!buttonElement) {
+                return;
+            }
+
+            const isActive = faceKey === activeFaceKey;
+            buttonElement.style.background = isActive ? '#2563eb' : '#ffffff';
+            buttonElement.style.borderColor = isActive ? '#1d4ed8' : 'rgba(45, 55, 72, 0.35)';
+            buttonElement.style.color = isActive ? '#ffffff' : '#1f2937';
+        });
+    }
+
     updateAttitudeOverlay() {
         const rollDeg = Number.isFinite(this.roadRollAngleDeg) ? this.roadRollAngleDeg : 0;
         const pitchDeg = Number.isFinite(this.roadPitchAngleDeg) ? this.roadPitchAngleDeg : 0;
@@ -554,6 +751,7 @@ class URDFViewer {
 
         this.controls.addEventListener('change', () => {
             this.resetDirectionalLight(this.controls.target, this.directionalLightRadius);
+            this.updateViewCubeOverlay();
             if (this.isDragging) {
                 this.updateCameraToastOverlay();
                 this.showCameraToastOverlay();

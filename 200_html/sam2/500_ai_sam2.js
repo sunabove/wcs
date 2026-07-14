@@ -592,9 +592,10 @@
             const result = await response.json();
 
             if (file) {
-                const thumbnailSource = buildThumbnailUrl(apiBase, result.input_file);
-                addUploadedHistoryItem(file.name, result.input_file, thumbnailSource);
-                selectedServerFileName = String(result.input_file || selectedServerFileName);
+                const relativeServerPath = extractFastImagePath(result.input_url) || String(result.input_file || '').trim();
+                const thumbnailSource = buildThumbnailUrl(apiBase, relativeServerPath);
+                addUploadedHistoryItem(file.name, relativeServerPath, thumbnailSource);
+                selectedServerFileName = String(relativeServerPath || selectedServerFileName);
                 renderUploadedHistory();
             }
 

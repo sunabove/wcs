@@ -4,6 +4,7 @@ from fastapi.responses import Response
 
 import cv2
 import numpy as np
+import subprocess
 
 from pathlib import Path
 from config import *
@@ -30,6 +31,34 @@ def _create_browser_video_writer(output_path: Path, fps: float, width: int, heig
             return writer
         writer.release()
     return None
+
+
+def _transcode_with_ffmpeg(source_path: Path, target_path: Path) -> None:
+    command = [
+        "ffmpeg",
+        "-y",
+        "-i", str(source_path),
+        "-map", "0:v:0",
+        "-map", "0:a?",
+        "-c:v", "libx264",
+        "-preset", "veryfast",
+        "-crf", "23",
+        "-pix_fmt", "yuv420p",
+        "-c:a", "aac",
+        "-b:a", "128k",
+        "-movflags", "+faststart",
+        str(target_path),
+    ]
+
+    result = subprocess.run(
+        command,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if result.returncode != 0:
+        stderr = (result.stderr or "").strip()
+        raise RuntimeError(stderr or "ffmpeg transcode failed")
 
 def resolve_upload_image_path(file_name: str) -> Path:
     if not file_name or not file_name.strip():
@@ -118,45 +147,55 @@ def get_browser_playable_video_url(file_name: str, force_transcode: bool = False
             needs_transcode = True
 
     if needs_transcode:
-        capture = cv2.VideoCapture(str(video_path))
-        if not capture.isOpened():
-            raise HTTPException(status_code=400, detail="Unable to open source video")
-
-        writer = None
-        written = 0
         try:
-            fps = float(capture.get(cv2.CAP_PROP_FPS) or 0.0)
-            if fps <= 0:
-                fps = 20.0
+            _transcode_with_ffmpeg(video_path, temp_path)
+        except Exception:
+            capture = cv2.VideoCapture(str(video_path))
+            if not capture.isOpened():
+                raise HTTPException(status_code=400, detail="Unable to open source video")
 
-            width = int(capture.get(cv2.CAP_PROP_FRAME_WIDTH) or 0)
-            height = int(capture.get(cv2.CAP_PROP_FRAME_HEIGHT) or 0)
-            if width <= 0 or height <= 0:
-                raise HTTPException(status_code=500, detail="Invalid video size")
+            writer = None
+            written = 0
+            try:
+                fps = float(capture.get(cv2.CAP_PROP_FPS) or 0.0)
+                if fps <= 0:
+                    fps = 20.0
 
-            writer = _create_browser_video_writer(temp_path, fps, width, height)
-            if writer is None:
-                raise HTTPException(status_code=500, detail="Failed to create browser-playable video")
+                width = int(capture.get(cv2.CAP_PROP_FRAME_WIDTH) or 0)
+                height = int(capture.get(cv2.CAP_PROP_FRAME_HEIGHT) or 0)
+                if width <= 0 or height <= 0:
+                    raise HTTPException(status_code=500, detail="Invalid video size")
 
-            while True:
-                ok, frame = capture.read()
-                if not ok:
-                    break
+                writer = _create_browser_video_writer(temp_path, fps, width, height)
+                if writer is None:
+                    raise HTTPException(status_code=500, detail="Failed to create browser-playable video")
 
-                if frame is None:
-                    continue
+                while True:
+                    ok, frame = capture.read()
+                    if not ok:
+                        break
 
-                if frame.shape[1] != width or frame.shape[0] != height:
-                    frame = cv2.resize(frame, (width, height), interpolation=cv2.INTER_AREA)
+                    if frame is None:
+                        continue
 
-                writer.write(frame)
-                written += 1
-        finally:
-            capture.release()
-            if writer is not None:
-                writer.release()
+                    if frame.shape[1] != width or frame.shape[0] != height:
+                        frame = cv2.resize(frame, (width, height), interpolation=cv2.INTER_AREA)
 
-        if written <= 0 or not temp_path.exists() or temp_path.stat().st_size <= 0:
+                    writer.write(frame)
+                    written += 1
+            finally:
+                capture.release()
+                if writer is not None:
+                    writer.release()
+
+            if written <= 0 or not temp_path.exists() or temp_path.stat().st_size <= 0:
+                try:
+                    temp_path.unlink(missing_ok=True)
+                except OSError:
+                    pass
+                raise HTTPException(status_code=500, detail="Failed to transcode video")
+
+        if not temp_path.exists() or temp_path.stat().st_size <= 0:
             try:
                 temp_path.unlink(missing_ok=True)
             except OSError:

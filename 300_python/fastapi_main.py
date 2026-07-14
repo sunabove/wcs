@@ -22,6 +22,8 @@ async def hello():
 pass # hello
 
 from RoadDetectService import router as roadDetectRouter
+from YoloDetectService import router as yoloDetectRouter
 
 app.include_router(roadDetectRouter)
+app.include_router(yoloDetectRouter)
 

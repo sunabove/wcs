@@ -11,7 +11,6 @@
     const statusElement = document.getElementById('yolo-status');
     const inputVideoElement = document.getElementById('yolo-input-video');
     const outputVideoElement = document.getElementById('yolo-output-video');
-    const resultJsonElement = document.getElementById('yolo-result-json');
 
     let selectedFile = null;
     let resolvedApiBase = null;
@@ -232,8 +231,6 @@
             outputVideoElement.src = outputUrl;
             inputVideoElement.load();
             outputVideoElement.load();
-
-            resultJsonElement.textContent = JSON.stringify(result, null, 2);
             setStatus('검출 완료', 'success');
         } catch (error) {
             const message = error && error.message ? error.message : String(error);

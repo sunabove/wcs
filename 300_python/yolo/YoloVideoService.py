@@ -57,3 +57,5 @@ class YoloVideoService:
             raise HTTPException(status_code=400, detail=str(ex)) from ex
         except RuntimeError as ex:
             raise HTTPException(status_code=500, detail=str(ex)) from ex
+        except Exception as ex:
+            raise HTTPException(status_code=500, detail=f"YOLO detect failed: {ex}") from ex

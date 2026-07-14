@@ -106,6 +106,28 @@
         outputVideoElement.loop = loopEnabled;
     }
 
+    function stopCurrentOutputPlayback() {
+        try {
+            outputVideoElement.pause();
+        } catch (_ignore) {
+            // Ignore pause failures from browser state.
+        }
+
+        try {
+            outputVideoElement.currentTime = 0;
+        } catch (_ignore) {
+            // Ignore seek failures when metadata is unavailable.
+        }
+
+        outputVideoElement.removeAttribute('src');
+        outputVideoElement.load();
+
+        if (outputObjectUrl) {
+            URL.revokeObjectURL(outputObjectUrl);
+            outputObjectUrl = '';
+        }
+    }
+
     async function resolveApiBase() {
         if (resolvedApiBase != null) {
             return resolvedApiBase;
@@ -234,6 +256,8 @@
                 if (fileInput) {
                     fileInput.value = '';
                 }
+
+                stopCurrentOutputPlayback();
 
                 renderUploadedHistory();
                 setStatus(`선택됨: ${item.name} (분할 시작 버튼을 눌러 실행)`, 'secondary');
@@ -504,6 +528,7 @@
         setSelectedFile(file);
         selectedServerFileName = '';
         syncInputWithFile(file);
+        stopCurrentOutputPlayback();
         renderUploadedHistory();
             setStatus('동영상 파일이 준비되었습니다. 분할 시작을 눌러주세요.', 'secondary');
     }
@@ -648,12 +673,14 @@
     detectButton.addEventListener('click', runSam2Segment);
     if (confInput) {
         confInput.addEventListener('input', () => {
+            stopCurrentOutputPlayback();
             updateConfValueLabel();
             saveUiOptions();
         });
     }
     document.querySelectorAll('input[name="sam2-target"]').forEach((input) => {
         input.addEventListener('change', () => {
+            stopCurrentOutputPlayback();
             saveUiOptions();
         });
     });

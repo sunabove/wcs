@@ -603,12 +603,12 @@ class URDFViewer {
         };
 
         const halfSize = '21px';
-        cubeElement.appendChild(createFaceButton('front', 'Front', 'Front (+X)', `rotateY(0deg) translateZ(${halfSize})`));
-        cubeElement.appendChild(createFaceButton('back', 'Back', 'Back (-X)', `rotateY(180deg) translateZ(${halfSize})`));
-        cubeElement.appendChild(createFaceButton('left', 'Left', 'Left (+Y)', `rotateY(-90deg) translateZ(${halfSize})`));
-        cubeElement.appendChild(createFaceButton('right', 'Right', 'Right (-Y)', `rotateY(90deg) translateZ(${halfSize})`));
-        cubeElement.appendChild(createFaceButton('top', 'Top', 'Top (+Z)', `rotateX(90deg) translateZ(${halfSize})`));
-        cubeElement.appendChild(createFaceButton('bottom', 'Bottom', 'Down (-Z)', `rotateX(-90deg) translateZ(${halfSize})`));
+        cubeElement.appendChild(createFaceButton('front', 'FRONT', 'Front (+X)', `rotateY(0deg) translateZ(${halfSize})`));
+        cubeElement.appendChild(createFaceButton('back', 'BACK', 'Back (-X)', `rotateY(180deg) translateZ(${halfSize})`));
+        cubeElement.appendChild(createFaceButton('left', 'LEFT', 'Left (+Y)', `rotateY(-90deg) translateZ(${halfSize})`));
+        cubeElement.appendChild(createFaceButton('right', 'RIGHT', 'Right (-Y)', `rotateY(90deg) translateZ(${halfSize})`));
+        cubeElement.appendChild(createFaceButton('top', 'TOP', 'Top (+Z)', `rotateX(90deg) translateZ(${halfSize})`));
+        cubeElement.appendChild(createFaceButton('bottom', 'BOTTOM', 'Down (-Z)', `rotateX(-90deg) translateZ(${halfSize})`));
 
         cubeViewportElement.appendChild(cubeElement);
 

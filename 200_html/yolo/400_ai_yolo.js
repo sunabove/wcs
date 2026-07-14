@@ -14,6 +14,8 @@
 
     let selectedFile = null;
     let resolvedApiBase = null;
+    let inputObjectUrl = '';
+    let outputObjectUrl = '';
 
     function setStatus(message, type) {
         const alertType = type || 'secondary';
@@ -109,22 +111,52 @@
 
         const transcodeParam = forceTranscode ? '?force_transcode=true' : '';
         const playableApiUrl = `${apiBase}/fast/video_playable/${encodedPath}${transcodeParam}`;
-        try {
-            const response = await fetch(playableApiUrl, {
-                method: 'GET',
-                cache: 'no-store',
-            });
-            if (response.ok) {
-                const body = await response.json();
-                if (body && body.video_url) {
-                    return buildAbsoluteUrl(apiBase, body.video_url);
-                }
-            }
-        } catch (_ignore) {
-            // Fall through to original URL.
+        const response = await fetch(playableApiUrl, {
+            method: 'GET',
+            cache: 'no-store',
+        });
+        if (!response.ok) {
+            throw new Error(`재생 URL 조회 실패 (${response.status})`);
         }
 
-        return buildAbsoluteUrl(apiBase, rawVideoUrl);
+        const body = await response.json();
+        if (body && body.video_url) {
+            return buildAbsoluteUrl(apiBase, body.video_url);
+        }
+
+        throw new Error('재생 URL 응답이 올바르지 않습니다.');
+
+    }
+
+    async function assignVideoSource(videoElement, sourceUrl, objectUrlKey) {
+        const response = await fetch(sourceUrl, {
+            method: 'GET',
+            cache: 'no-store',
+        });
+        if (!response.ok) {
+            throw new Error(`동영상 로드 실패 (${response.status})`);
+        }
+
+        const blob = await response.blob();
+        if (!blob || blob.size <= 0) {
+            throw new Error('동영상 데이터가 비어 있습니다.');
+        }
+
+        const newObjectUrl = URL.createObjectURL(blob);
+        if (objectUrlKey === 'input') {
+            if (inputObjectUrl) {
+                URL.revokeObjectURL(inputObjectUrl);
+            }
+            inputObjectUrl = newObjectUrl;
+        } else {
+            if (outputObjectUrl) {
+                URL.revokeObjectURL(outputObjectUrl);
+            }
+            outputObjectUrl = newObjectUrl;
+        }
+
+        videoElement.src = newObjectUrl;
+        videoElement.load();
     }
 
     function isVideoFile(file) {
@@ -228,10 +260,8 @@
             const inputUrl = await resolvePlayableVideoUrl(apiBase, result.input_url, true);
             const outputUrl = await resolvePlayableVideoUrl(apiBase, result.output_url, true);
 
-            inputVideoElement.src = inputUrl;
-            outputVideoElement.src = outputUrl;
-            inputVideoElement.load();
-            outputVideoElement.load();
+            await assignVideoSource(inputVideoElement, inputUrl, 'input');
+            await assignVideoSource(outputVideoElement, outputUrl, 'output');
             setStatus('검출 완료', 'success');
         } catch (error) {
             const message = error && error.message ? error.message : String(error);

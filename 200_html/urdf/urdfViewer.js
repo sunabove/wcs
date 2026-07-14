@@ -645,7 +645,7 @@ class URDFViewer {
             const target = this.controls.target.clone();
             const offset = this.camera.position.clone().sub(target);
 
-            const rotateSpeed = 0.006;
+            const rotateSpeed = 0.0035;
             const yawAngle = -deltaX * rotateSpeed;
             const pitchAngle = -deltaY * rotateSpeed;
 

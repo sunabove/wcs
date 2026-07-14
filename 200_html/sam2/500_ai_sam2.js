@@ -34,6 +34,9 @@
     let boundingBox = null;
     let bboxDragStart = null;
     let bboxDragging = false;
+    let bboxResizeHandle = '';
+    let bboxResizeStartPoint = null;
+    let bboxResizeStartBox = null;
     const MAX_POINT_COUNT = 20;
     const STORAGE_TARGET_KEY = 'sam2.targetType';
     const STORAGE_CONF_KEY = 'sam2.conf';
@@ -318,6 +321,125 @@
         };
     }
 
+    function renderBboxControlPoints() {
+        if (!bboxCaptureLayerElement) {
+            return;
+        }
+
+        bboxCaptureLayerElement.querySelectorAll('.sam2-bbox-control-point').forEach((node) => {
+            node.remove();
+        });
+
+        if (!boundingBox) {
+            return;
+        }
+
+        const x1 = toNumber(boundingBox.x, 0);
+        const y1 = toNumber(boundingBox.y, 0);
+        const x2 = toNumber(boundingBox.x, 0) + toNumber(boundingBox.w, 0);
+        const y2 = toNumber(boundingBox.y, 0) + toNumber(boundingBox.h, 0);
+        const handles = [
+            { key: 'nw', x: x1, y: y1 },
+            { key: 'ne', x: x2, y: y1 },
+            { key: 'sw', x: x1, y: y2 },
+            { key: 'se', x: x2, y: y2 },
+        ];
+
+        handles.forEach((handle) => {
+            const node = document.createElement('div');
+            node.className = `sam2-bbox-control-point sam2-bbox-control-point-${handle.key}`;
+            node.dataset.handle = handle.key;
+            node.style.left = `${clamp(handle.x, 0, 100)}%`;
+            node.style.top = `${clamp(handle.y, 0, 100)}%`;
+            bboxCaptureLayerElement.appendChild(node);
+        });
+    }
+
+    function resizeBoundingBoxFromHandle(handleKey, currentPoint) {
+        if (!bboxResizeStartBox || !bboxResizeStartPoint || !currentPoint) {
+            return;
+        }
+
+        let left = toNumber(bboxResizeStartBox.x, 0);
+        let top = toNumber(bboxResizeStartBox.y, 0);
+        let right = left + toNumber(bboxResizeStartBox.w, 0);
+        let bottom = top + toNumber(bboxResizeStartBox.h, 0);
+        const dx = currentPoint.x - bboxResizeStartPoint.x;
+        const dy = currentPoint.y - bboxResizeStartPoint.y;
+
+        if (handleKey.includes('w')) {
+            left = clamp(left + dx, 0, right - 0.1);
+        }
+        if (handleKey.includes('e')) {
+            right = clamp(right + dx, left + 0.1, 100);
+        }
+        if (handleKey.includes('n')) {
+            top = clamp(top + dy, 0, bottom - 0.1);
+        }
+        if (handleKey.includes('s')) {
+            bottom = clamp(bottom + dy, top + 0.1, 100);
+        }
+
+        boundingBox = {
+            x: left,
+            y: top,
+            w: Math.max(0.1, right - left),
+            h: Math.max(0.1, bottom - top),
+        };
+    }
+
+    function handleBboxResizeMove(event) {
+        if (!bboxResizeHandle) {
+            return;
+        }
+
+        const point = toRelativePoint(event);
+        if (!point) {
+            return;
+        }
+
+        resizeBoundingBoxFromHandle(bboxResizeHandle, point);
+        renderBoundingBoxUi();
+    }
+
+    function handleBboxResizeEnd() {
+        if (!bboxResizeHandle) {
+            return;
+        }
+
+        bboxResizeHandle = '';
+        bboxResizeStartPoint = null;
+        bboxResizeStartBox = null;
+        document.removeEventListener('mousemove', handleBboxResizeMove);
+        document.removeEventListener('mouseup', handleBboxResizeEnd);
+        setStatus('Bounding Box control point로 수정되었습니다.', 'secondary');
+    }
+
+    function startBboxResize(handleKey, event) {
+        if (!bboxEnabledInput || !bboxEnabledInput.checked || !boundingBox) {
+            return;
+        }
+
+        const point = toRelativePoint(event);
+        if (!point) {
+            return;
+        }
+
+        bboxDragging = false;
+        bboxDragStart = null;
+        bboxResizeHandle = String(handleKey || '').toLowerCase();
+        bboxResizeStartPoint = point;
+        bboxResizeStartBox = {
+            x: toNumber(boundingBox.x, 0),
+            y: toNumber(boundingBox.y, 0),
+            w: toNumber(boundingBox.w, 100),
+            h: toNumber(boundingBox.h, 100),
+        };
+
+        document.addEventListener('mousemove', handleBboxResizeMove);
+        document.addEventListener('mouseup', handleBboxResizeEnd);
+    }
+
     function renderBoundingBoxUi() {
         ensureDefaultBoundingBox();
 
@@ -341,6 +463,7 @@
         rect.style.width = `${boundingBox.w}%`;
         rect.style.height = `${boundingBox.h}%`;
         bboxLayerElement.appendChild(rect);
+        renderBboxControlPoints();
     }
 
     function clearBoundingBox() {
@@ -352,6 +475,9 @@
 
     function handleBoundingBoxDragStart(event) {
         if (!bboxEnabledInput || !bboxEnabledInput.checked) {
+            return;
+        }
+        if (bboxResizeHandle) {
             return;
         }
 
@@ -375,6 +501,9 @@
         if (!bboxDragging || !bboxDragStart) {
             return;
         }
+        if (bboxResizeHandle) {
+            return;
+        }
 
         const point = toRelativePoint(event);
         if (!point) {
@@ -387,6 +516,9 @@
 
     function handleBoundingBoxDragEnd(event) {
         if (!bboxDragging || !bboxDragStart) {
+            return;
+        }
+        if (bboxResizeHandle) {
             return;
         }
 
@@ -1065,6 +1197,9 @@
         bboxCaptureLayerElement.addEventListener('click', (event) => {
             event.preventDefault();
             event.stopPropagation();
+            if (event.target && event.target.closest('.sam2-bbox-control-point')) {
+                return;
+            }
             if (bboxEnabledInput && bboxEnabledInput.checked) {
                 return;
             }
@@ -1077,6 +1212,11 @@
             event.preventDefault();
             event.stopPropagation();
             if (!(bboxEnabledInput && bboxEnabledInput.checked)) {
+                return;
+            }
+            const handleNode = event.target && event.target.closest('.sam2-bbox-control-point');
+            if (handleNode) {
+                startBboxResize(handleNode.dataset.handle, event);
                 return;
             }
             handleBoundingBoxDragStart(event);

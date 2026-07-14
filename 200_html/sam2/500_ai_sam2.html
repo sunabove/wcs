@@ -164,6 +164,29 @@
 			border: 2px dashed #0d6efd;
 			background: rgba(13, 110, 253, 0.15);
 			box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.35);
+			pointer-events: none;
+		}
+
+		.sam2-bbox-control-point {
+			position: absolute;
+			width: 12px;
+			height: 12px;
+			border-radius: 999px;
+			background: #0d6efd;
+			border: 2px solid #ffffff;
+			box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.25);
+			transform: translate(-50%, -50%);
+			z-index: 12;
+		}
+
+		.sam2-bbox-control-point-nw,
+		.sam2-bbox-control-point-se {
+			cursor: nwse-resize;
+		}
+
+		.sam2-bbox-control-point-ne,
+		.sam2-bbox-control-point-sw {
+			cursor: nesw-resize;
 		}
 	</style>
 	<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js" defer></script>

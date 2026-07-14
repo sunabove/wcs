@@ -218,11 +218,11 @@
     }
 
     function toRelativePoint(event) {
-        if (!inputVideoElement) {
+        if (!outputVideoElement) {
             return null;
         }
 
-        const rect = inputVideoElement.getBoundingClientRect();
+        const rect = outputVideoElement.getBoundingClientRect();
         if (!rect || rect.width <= 0 || rect.height <= 0) {
             return null;
         }
@@ -939,8 +939,8 @@
             handleBoundingBoxCapture(event);
         });
     }
-    if (inputVideoElement) {
-        inputVideoElement.addEventListener('click', (event) => {
+    if (outputVideoElement) {
+        outputVideoElement.addEventListener('click', (event) => {
             if (bboxEnabledInput && bboxEnabledInput.checked) {
                 return;
             }

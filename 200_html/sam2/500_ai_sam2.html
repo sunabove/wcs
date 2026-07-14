@@ -248,7 +248,7 @@
 						<label class="form-check-label small" for="sam2-bbox-enabled">Bounding Box 모드</label>
 					</div>
 					<button id="sam2-bbox-clear" type="button" class="btn btn-outline-primary btn-sm">BBox 삭제</button>
-					<div class="small text-muted ms-1">원본 영상을 클릭해 포인트를 추가합니다.</div>
+					<div class="small text-muted ms-1">분할 영상을 클릭해 포인트를 추가합니다.</div>
 				</div>
 				<div class="row g-2">
 					<div class="col-md-6">
@@ -281,17 +281,17 @@
 				<div class="tab-content border border-top-0 rounded-bottom p-3 bg-white" id="sam2-video-tab-content">
 					<div class="tab-pane fade show active" id="sam2-input-pane" role="tabpanel" aria-labelledby="sam2-input-tab" tabindex="0">
 						<div class="sam2-video-wrap">
-							<div id="sam2-input-video-wrap" class="sam2-input-stage border rounded overflow-hidden">
-								<video id="sam2-input-video" class="sam2-video-player" controls playsinline></video>
-								<div id="sam2-point-marker-layer" class="sam2-point-marker-layer" aria-hidden="true"></div>
-								<div id="sam2-bbox-layer" class="sam2-bbox-layer" aria-hidden="true"></div>
-								<div id="sam2-bbox-capture-layer" class="sam2-bbox-capture-layer" aria-label="Bounding Box 입력 레이어"></div>
-							</div>
+							<video id="sam2-input-video" class="sam2-video-player border rounded" controls playsinline></video>
 						</div>
 					</div>
 					<div class="tab-pane fade" id="sam2-output-pane" role="tabpanel" aria-labelledby="sam2-output-tab" tabindex="0">
 						<div class="sam2-video-wrap">
-							<video id="sam2-output-video" class="sam2-video-player border rounded" controls playsinline></video>
+							<div id="sam2-output-video-wrap" class="sam2-input-stage border rounded overflow-hidden">
+								<video id="sam2-output-video" class="sam2-video-player" controls playsinline></video>
+								<div id="sam2-point-marker-layer" class="sam2-point-marker-layer" aria-hidden="true"></div>
+								<div id="sam2-bbox-layer" class="sam2-bbox-layer" aria-hidden="true"></div>
+								<div id="sam2-bbox-capture-layer" class="sam2-bbox-capture-layer" aria-label="Bounding Box 입력 레이어"></div>
+							</div>
 						</div>
 					</div>
 				</div>

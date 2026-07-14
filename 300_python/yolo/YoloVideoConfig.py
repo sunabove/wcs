@@ -2,7 +2,7 @@ from pathlib import Path
 
 from config import BASE_DIR
 
-YOLO_DEFAULT_MODEL = str((BASE_DIR / "yolo" / "yolo26n.pt").resolve())
+YOLO_DEFAULT_MODEL = str((BASE_DIR / "yolo" / "yolo26m.pt").resolve())
 YOLO_UPLOAD_SUBDIR = Path("upload/yolo/input")
 YOLO_OUTPUT_SUBDIR = Path("upload/yolo/output")
 

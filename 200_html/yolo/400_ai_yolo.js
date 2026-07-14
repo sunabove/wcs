@@ -404,6 +404,27 @@
         });
     }
 
+    async function autoPlayVideo(videoElement) {
+        if (!videoElement) {
+            return;
+        }
+
+        try {
+            await videoElement.play();
+            return;
+        } catch (_firstError) {
+            // Retry with muted=true for browsers that block autoplay with audio.
+        }
+
+        const previousMuted = Boolean(videoElement.muted);
+        videoElement.muted = true;
+        try {
+            await videoElement.play();
+        } catch (_secondError) {
+            videoElement.muted = previousMuted;
+        }
+    }
+
     function isVideoFile(file) {
         if (!file) {
             return false;
@@ -524,22 +545,8 @@
             await assignVideoSource(inputVideoElement, inputUrl, 'input');
             await assignVideoSource(outputVideoElement, outputUrl, 'output');
 
-            // Try to present first frame/play state immediately. Some browsers block autoplay.
-            try {
-                await inputVideoElement.play();
-                inputVideoElement.pause();
-                inputVideoElement.currentTime = 0;
-            } catch (_ignore) {
-                // User interaction may be required to start playback.
-            }
-
-            try {
-                await outputVideoElement.play();
-                outputVideoElement.pause();
-                outputVideoElement.currentTime = 0;
-            } catch (_ignore) {
-                // User interaction may be required to start playback.
-            }
+            await autoPlayVideo(inputVideoElement);
+            await autoPlayVideo(outputVideoElement);
 
             const outputTabButton = document.getElementById('yolo-output-tab');
             if (outputTabButton) {

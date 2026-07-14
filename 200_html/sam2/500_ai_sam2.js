@@ -327,6 +327,32 @@
         return `&bbox=${encodeURIComponent(JSON.stringify(payload))}`;
     }
 
+    async function previewSelectedVideoFirstFrame(showInputTab) {
+        if (!selectedServerFileName) {
+            return;
+        }
+
+        const apiBase = await resolveApiBase();
+        const inputPathUrl = `/fast/image/${selectedServerFileName}`;
+        const inputUrl = await resolvePlayableVideoUrl(apiBase, inputPathUrl, true);
+        await assignVideoSource(inputVideoElement, inputUrl, 'input');
+        inputVideoElement.pause();
+        inputVideoElement.currentTime = 0;
+
+        if (!showInputTab) {
+            return;
+        }
+
+        const inputTabButton = document.getElementById('sam2-input-tab');
+        if (inputTabButton) {
+            if (window.bootstrap && typeof window.bootstrap.Tab === 'function') {
+                window.bootstrap.Tab.getOrCreateInstance(inputTabButton).show();
+            } else {
+                inputTabButton.click();
+            }
+        }
+    }
+
     function stopCurrentOutputPlayback() {
         try {
             outputVideoElement.pause();
@@ -484,21 +510,7 @@
                 clearBoundingBox();
 
                 try {
-                    const apiBase = await resolveApiBase();
-                    const inputPathUrl = `/fast/image/${selectedServerFileName}`;
-                    const inputUrl = await resolvePlayableVideoUrl(apiBase, inputPathUrl, true);
-                    await assignVideoSource(inputVideoElement, inputUrl, 'input');
-                    inputVideoElement.pause();
-                    inputVideoElement.currentTime = 0;
-
-                    const inputTabButton = document.getElementById('sam2-input-tab');
-                    if (inputTabButton) {
-                        if (window.bootstrap && typeof window.bootstrap.Tab === 'function') {
-                            window.bootstrap.Tab.getOrCreateInstance(inputTabButton).show();
-                        } else {
-                            inputTabButton.click();
-                        }
-                    }
+                    await previewSelectedVideoFirstFrame(true);
                 } catch (_ignore) {
                     // Keep selection behavior even when preview loading fails.
                 }
@@ -577,6 +589,11 @@
                     fileInput.value = '';
                 }
                 setStatus(`선택 복원됨: ${matchedSelected.name}`, 'secondary');
+                try {
+                    await previewSelectedVideoFirstFrame(false);
+                } catch (_ignore) {
+                    // Keep restore behavior even when preview loading fails.
+                }
             } else if (savedSelectedVideo) {
                 selectedServerFileName = '';
                 saveSelectedVideo('');

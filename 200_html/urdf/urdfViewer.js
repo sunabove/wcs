@@ -1822,7 +1822,7 @@ class URDFViewer {
 
             const intersects = getRobotIntersections(event);
             const chassisHit = intersects.find(intersection => isChassisHit(intersection?.object));
-            const allowRotate = event.button === 0 && !!chassisHit;
+            const allowRotate = event.button === 0;
             const allowPan = event.button === 2;
 
             this.isOrbitInteractionActive = allowRotate || allowPan;

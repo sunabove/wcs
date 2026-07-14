@@ -272,31 +272,19 @@
         }
     }
 
-    function createThumbnailUrl(fileObject) {
-        if (!fileObject) {
-            return '';
-        }
-
-        try {
-            return URL.createObjectURL(fileObject);
-        } catch (_ignore) {
-            return '';
-        }
-    }
-
-    function addUploadedHistoryItem(fileNameHint, inputFilePath, fileObject) {
+    function addUploadedHistoryItem(fileNameHint, inputFilePath, thumbnailSource) {
         const displayName = basename(fileNameHint) || basename(inputFilePath) || 'unknown_video';
         const now = new Date();
         const hh = String(now.getHours()).padStart(2, '0');
         const mm = String(now.getMinutes()).padStart(2, '0');
         const ss = String(now.getSeconds()).padStart(2, '0');
-        const thumbnailUrl = createThumbnailUrl(fileObject);
 
         const duplicateIndex = uploadedHistory.findIndex(item => item.name === displayName);
         const record = {
             name: displayName,
             time: `${hh}:${mm}:${ss}`,
-            thumbnailUrl,
+            thumbnailUrl: '',
+            thumbnailSource: String(thumbnailSource || ''),
             serverFileName: String(inputFilePath || ''),
         };
         if (duplicateIndex >= 0) {
@@ -337,7 +325,7 @@
                 name: basename(item.display_name || item.file_name),
                 time: String(item.uploaded_at || '').replace('T', ' '),
                 thumbnailUrl: '',
-                thumbnailSource: buildAbsoluteUrl(apiBase, item.thumbnail_url),
+                thumbnailSource: buildThumbnailUrl(apiBase, item.file_name),
                 serverFileName: String(item.file_name || ''),
             }));
 
@@ -357,6 +345,21 @@
             return text;
         }
         return `${base}${text.startsWith('/') ? text : `/${text}`}`;
+    }
+
+    function encodePathSegments(pathText) {
+        return String(pathText || '')
+            .split('/')
+            .map(segment => encodeURIComponent(segment))
+            .join('/');
+    }
+
+    function buildThumbnailUrl(apiBase, fileName) {
+        const filePath = String(fileName || '').trim();
+        if (!filePath) {
+            return '';
+        }
+        return `${apiBase}/fast/video_thumbnail/${encodePathSegments(filePath)}`;
     }
 
     function extractFastImagePath(pathOrUrl) {
@@ -589,7 +592,8 @@
             const result = await response.json();
 
             if (file) {
-                addUploadedHistoryItem(file.name, result.input_file, file);
+                const thumbnailSource = buildThumbnailUrl(apiBase, result.input_file);
+                addUploadedHistoryItem(file.name, result.input_file, thumbnailSource);
                 selectedServerFileName = String(result.input_file || selectedServerFileName);
                 renderUploadedHistory();
             }

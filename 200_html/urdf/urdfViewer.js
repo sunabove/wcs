@@ -307,12 +307,13 @@ class URDFViewer {
         this.controls = new OrbitControls(this.camera, this.renderer.domElement);
         this.controls.enableDamping = true;
         this.controls.dampingFactor = 0.05;
-        // 휠 줌은 항상 허용하고, 회전/패닝만 차체 클릭 시에만 허용한다.
+        // 휠 줌은 항상 허용하고, 좌클릭은 회전, 우클릭은 패닝으로 분리한다.
         this.controls.enabled = true;
         this.controls.enableZoom = true;
         this.controls.enableRotate = false;
         this.controls.enablePan = false;
         this.controls.mouseButtons.LEFT = THREE.MOUSE.ROTATE;
+        this.controls.mouseButtons.RIGHT = THREE.MOUSE.PAN;
         this.cameraPosTextElement = $('#camera-pos-text');
         this.setupCameraAngleLogging();
         if (this.showViewCube) {
@@ -1804,6 +1805,7 @@ class URDFViewer {
             this.isOrbitInteractionActive = false;
             if (this.controls) {
                 this.controls.enableRotate = false;
+                this.controls.enablePan = false;
             }
         };
 
@@ -1814,14 +1816,18 @@ class URDFViewer {
 
             if (event.button === 0) {
                 event.preventDefault();
+            } else if (event.button === 2) {
+                event.preventDefault();
             }
 
             const intersects = getRobotIntersections(event);
             const chassisHit = intersects.find(intersection => isChassisHit(intersection?.object));
-            const allowInteraction = event.button === 0 && !!chassisHit;
+            const allowRotate = event.button === 0 && !!chassisHit;
+            const allowPan = event.button === 2;
 
-            this.isOrbitInteractionActive = allowInteraction;
-            this.controls.enableRotate = allowInteraction;
+            this.isOrbitInteractionActive = allowRotate || allowPan;
+            this.controls.enableRotate = allowRotate;
+            this.controls.enablePan = allowPan;
         }, true);
 
         this.renderer.domElement.addEventListener('contextmenu', (event) => {

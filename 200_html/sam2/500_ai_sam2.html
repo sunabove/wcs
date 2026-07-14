@@ -82,6 +82,11 @@
 			max-height: 70vh;
 			display: inline-block;
 		}
+
+		.sam2-option-card {
+			height: 100%;
+			min-height: 96px;
+		}
 	</style>
 	<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js" defer></script>
 	<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
@@ -123,7 +128,7 @@
 
 			<div class="row g-2 mt-1 align-items-end">
 				<div class="col">
-					<div class="border rounded p-2">
+					<div class="sam2-option-card border rounded p-2">
 						<div class="small fw-semibold text-secondary mb-1">분할 대상</div>
 						<div class="d-flex flex-wrap gap-3" id="sam2-target-group">
 							<div class="form-check mb-0">
@@ -142,7 +147,7 @@
 					</div>
 				</div>
 				<div class="col">
-					<div class="border rounded p-2">
+					<div class="sam2-option-card border rounded p-2">
 						<label for="sam2-conf" class="form-label d-flex justify-content-between align-items-center mb-1">
 							<span class="small fw-semibold text-secondary">신뢰도</span>
 							<span id="sam2-conf-value" class="badge text-bg-secondary">0.25</span>

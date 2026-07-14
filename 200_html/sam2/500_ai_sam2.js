@@ -518,6 +518,9 @@
 
             if (!response.ok) {
                 let errorMessage = `요청 실패 (${response.status})`;
+                if (response.status === 504) {
+                    errorMessage = '요청 실패 (504): 처리 시간이 초과되었습니다. 짧은 영상으로 시도하거나 서버를 재시작 후 다시 실행하세요.';
+                }
                 try {
                     const errorBody = await response.json();
                     if (errorBody && errorBody.detail) {

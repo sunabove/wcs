@@ -7,7 +7,12 @@ from pathlib import Path
 from fastapi import HTTPException, UploadFile
 
 from config import BASE_DIR
-from sam2.Sam2VideoConfig import SAM2_DEFAULT_MODEL, SAM2_UPLOAD_DIR, SAM2_VIDEO_EXTENSIONS
+from sam2.Sam2VideoConfig import (
+    SAM2_DEFAULT_MODEL,
+    SAM2_TARGET_MODEL_MAP,
+    SAM2_UPLOAD_DIR,
+    SAM2_VIDEO_EXTENSIONS,
+)
 from sam2.Sam2VideoDetector import Sam2VideoDetector
 
 
@@ -26,6 +31,12 @@ class Sam2VideoService:
         if suffix not in SAM2_VIDEO_EXTENSIONS:
             raise HTTPException(status_code=400, detail="Only video files are supported")
         return suffix
+
+    def _resolve_model_name(self, target_type: str, model_name: str) -> str:
+        value = str(model_name or "").strip()
+        if value and value.lower() not in {"auto", "default"}:
+            return value
+        return SAM2_TARGET_MODEL_MAP.get(target_type, SAM2_DEFAULT_MODEL)
 
     def _to_relative_under_base(self, file_path: Path) -> str:
         base_dir = BASE_DIR.resolve()
@@ -120,13 +131,14 @@ class Sam2VideoService:
     ):
         input_path = self._save_uploaded_video(upload_file)
         normalized_target_type = self._normalize_target_type(target_type)
+        resolved_model_name = self._resolve_model_name(normalized_target_type, model_name)
 
         try:
             return self.detector.detect_video_file(
                 input_path=input_path,
                 target_type=normalized_target_type,
                 max_det=max_det,
-                model_name=model_name,
+                model_name=resolved_model_name,
             )
         except FileNotFoundError as ex:
             raise HTTPException(status_code=404, detail=str(ex)) from ex
@@ -146,13 +158,14 @@ class Sam2VideoService:
     ):
         input_path = self._resolve_uploaded_video_path(file_name)
         normalized_target_type = self._normalize_target_type(target_type)
+        resolved_model_name = self._resolve_model_name(normalized_target_type, model_name)
 
         try:
             return self.detector.detect_video_file(
                 input_path=input_path,
                 target_type=normalized_target_type,
                 max_det=max_det,
-                model_name=model_name,
+                model_name=resolved_model_name,
             )
         except FileNotFoundError as ex:
             raise HTTPException(status_code=404, detail=str(ex)) from ex

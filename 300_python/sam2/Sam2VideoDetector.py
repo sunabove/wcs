@@ -4,7 +4,7 @@ import uuid
 from pathlib import Path
 
 import cv2
-from ultralytics import SAM
+from ultralytics import SAM, YOLO
 
 from config import BASE_DIR
 from sam2.Sam2VideoConfig import (
@@ -17,6 +17,11 @@ from sam2.Sam2VideoConfig import (
 
 class Sam2VideoDetector:
     _model_cache = {}
+    _target_infer_stride = {
+        "road": 2,
+        "pothole": 2,
+        "curb_step": 2,
+    }
 
     def __init__(self):
         SAM2_UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
@@ -32,16 +37,20 @@ class Sam2VideoDetector:
 
     def _get_model(self, model_name: str):
         normalized = str(model_name or "").strip() or SAM2_DEFAULT_MODEL
-        if normalized not in self._model_cache:
+        engine = "sam" if "sam" in normalized.lower() else "yolo"
+        cache_key = f"{engine}:{normalized}"
+        if cache_key not in self._model_cache:
             requested_path = Path(normalized)
             is_local_pt_path = requested_path.suffix.lower() == ".pt" and (
                 requested_path.is_absolute() or "/" in normalized or "\\" in normalized
             )
 
+            model_cls = SAM if engine == "sam" else YOLO
+
             if is_local_pt_path and not requested_path.exists():
                 requested_path.parent.mkdir(parents=True, exist_ok=True)
 
-                downloaded_model = SAM(requested_path.name)
+                downloaded_model = model_cls(requested_path.name)
                 ckpt_path = getattr(downloaded_model, "ckpt_path", None)
 
                 if ckpt_path:
@@ -53,12 +62,12 @@ class Sam2VideoDetector:
                             pass
 
                 if requested_path.exists():
-                    self._model_cache[normalized] = SAM(str(requested_path))
+                    self._model_cache[cache_key] = model_cls(str(requested_path))
                 else:
-                    self._model_cache[normalized] = downloaded_model
+                    self._model_cache[cache_key] = downloaded_model
             else:
-                self._model_cache[normalized] = SAM(normalized)
-        return self._model_cache[normalized]
+                self._model_cache[cache_key] = model_cls(normalized)
+        return self._model_cache[cache_key]
 
     def _create_video_writer(self, output_path: Path, fps: float, width: int, height: int):
         for codec in ("mp4v", "avc1", "H264"):
@@ -115,6 +124,8 @@ class Sam2VideoDetector:
         model = self._get_model(model_name)
         processed_frames = 0
         total_segments = 0
+        infer_stride = max(1, int(self._target_infer_stride.get(str(target_type), 2)))
+        last_plotted = None
 
         try:
             while True:
@@ -122,13 +133,18 @@ class Sam2VideoDetector:
                 if not ok:
                     break
 
-                result = model.predict(source=frame, verbose=False)[0]
+                if processed_frames % infer_stride == 0 or last_plotted is None:
+                    result = model.predict(source=frame, verbose=False)[0]
 
-                masks = getattr(result, "masks", None)
-                if masks is not None and getattr(masks, "data", None) is not None:
-                    total_segments += int(masks.data.shape[0])
+                    masks = getattr(result, "masks", None)
+                    if masks is not None and getattr(masks, "data", None) is not None:
+                        total_segments += int(masks.data.shape[0])
 
-                plotted = result.plot()
+                    plotted = result.plot()
+                    last_plotted = plotted
+                else:
+                    plotted = last_plotted.copy() if last_plotted is not None else frame
+
                 if plotted.shape[1] != width or plotted.shape[0] != height:
                     plotted = cv2.resize(plotted, (width, height), interpolation=cv2.INTER_AREA)
 

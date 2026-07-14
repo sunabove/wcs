@@ -1055,21 +1055,35 @@
     }
     if (bboxEnabledInput) {
         bboxEnabledInput.addEventListener('change', () => {
-            bboxDraftStart = null;
+            bboxDragging = false;
+            bboxDragStart = null;
             renderBoundingBoxUi();
         });
     }
     if (bboxClearButton) {
         bboxClearButton.addEventListener('click', () => {
             clearBoundingBox();
-            setStatus('Bounding Box를 초기화했습니다.', 'secondary');
+            setStatus('Bounding Box를 전체 영역으로 초기화했습니다.', 'secondary');
         });
     }
     if (bboxCaptureLayerElement) {
-        bboxCaptureLayerElement.addEventListener('click', (event) => {
+        bboxCaptureLayerElement.addEventListener('mousedown', (event) => {
             event.preventDefault();
             event.stopPropagation();
-            handleBoundingBoxCapture(event);
+            handleBoundingBoxDragStart(event);
+        });
+        bboxCaptureLayerElement.addEventListener('mousemove', (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            handleBoundingBoxDragMove(event);
+        });
+        bboxCaptureLayerElement.addEventListener('mouseup', (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            handleBoundingBoxDragEnd(event);
+        });
+        bboxCaptureLayerElement.addEventListener('mouseleave', (event) => {
+            handleBoundingBoxDragEnd(event);
         });
     }
     if (inputVideoElement) {

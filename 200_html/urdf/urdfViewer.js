@@ -568,7 +568,6 @@ class URDFViewer {
             buttonElement.type = 'button';
             buttonElement.textContent = label;
             buttonElement.title = title;
-            buttonElement.style.minWidth = '56px';
             buttonElement.style.minWidth = '28px';
             buttonElement.style.height = '24px';
             buttonElement.style.border = '1px solid rgba(32, 46, 66, 0.45)';

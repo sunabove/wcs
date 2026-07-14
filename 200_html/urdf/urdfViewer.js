@@ -312,6 +312,7 @@ class URDFViewer {
         this.controls.enableZoom = true;
         this.controls.enableRotate = false;
         this.controls.enablePan = false;
+        this.controls.mouseButtons.RIGHT = THREE.MOUSE.ROTATE;
         this.cameraPosTextElement = $('#camera-pos-text');
         this.setupCameraAngleLogging();
         if (this.showViewCube) {
@@ -1803,7 +1804,6 @@ class URDFViewer {
             this.isOrbitInteractionActive = false;
             if (this.controls) {
                 this.controls.enableRotate = false;
-                this.controls.enablePan = false;
             }
         };
 
@@ -1812,14 +1812,21 @@ class URDFViewer {
                 return;
             }
 
+            if (event.button === 2) {
+                event.preventDefault();
+            }
+
             const intersects = getRobotIntersections(event);
             const chassisHit = intersects.find(intersection => isChassisHit(intersection?.object));
-            const allowInteraction = !!chassisHit;
+            const allowInteraction = event.button === 2 && !!chassisHit;
 
             this.isOrbitInteractionActive = allowInteraction;
             this.controls.enableRotate = allowInteraction;
-            this.controls.enablePan = allowInteraction;
         }, true);
+
+        this.renderer.domElement.addEventListener('contextmenu', (event) => {
+            event.preventDefault();
+        });
 
         window.addEventListener('pointerup', disableOrbitInteraction, true);
         window.addEventListener('pointercancel', disableOrbitInteraction, true);
@@ -1834,6 +1841,10 @@ class URDFViewer {
                 }
 
                 this.referenceToggleStep = (this.referenceToggleStep + 1) % 2;
+                return;
+            }
+
+            if (event.button !== 0) {
                 return;
             }
 

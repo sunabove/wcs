@@ -263,7 +263,9 @@
             return null;
         }
 
-        const rect = inputVideoElement.getBoundingClientRect();
+        const rect = bboxCaptureLayerElement
+            ? bboxCaptureLayerElement.getBoundingClientRect()
+            : inputVideoElement.getBoundingClientRect();
         if (!rect || rect.width <= 0 || rect.height <= 0) {
             return null;
         }

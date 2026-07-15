@@ -1015,6 +1015,7 @@
         uploadedListLatestRequestSeq = requestSeq;
         uploadedListInFlightCount += 1;
         setUploadedListLoading(true, '목록 불러오는 중...');
+        setStatus('업로드 목록을 가져오는 중...', 'info');
         try {
             let apiBase = '';
             let response = await fetch(`/fast/sam2/uploaded_videos?limit=500`, {
@@ -1074,6 +1075,9 @@
             } else if (savedSelectedVideo) {
                 selectedServerFileName = '';
                 saveSelectedVideo('');
+                setStatus(`업로드 목록 ${mapped.length}건을 불러왔습니다.`, 'secondary');
+            } else {
+                setStatus(`업로드 목록 ${mapped.length}건을 불러왔습니다.`, 'secondary');
             }
         } catch (_ignore) {
             if (requestSeq === uploadedListLatestRequestSeq) {

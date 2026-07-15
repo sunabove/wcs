@@ -1,11 +1,14 @@
+import json
+import importlib
 import shutil
+import sys
 import time
 import uuid
-import json
 from pathlib import Path
 
 import cv2
-from ultralytics import SAM
+import numpy as np
+import torch
 
 from config import BASE_DIR
 from sam2.Sam2VideoConfig import (
@@ -18,29 +21,7 @@ from sam2.Sam2VideoConfig import (
 
 class Sam2VideoDetector:
     _model_cache = {}
-    _target_infer_stride = {
-        "road": 2,
-        "pothole": 2,
-        "curb_step": 2,
-    }
-    _target_class_keywords = {
-        "pothole": ("pothole", "pot_hole", "hole"),
-        "curb_step": (
-            "curb",
-            "curbstone",
-            "kerb",
-            "step",
-            "stair",
-            "stairs",
-            "sidewalk",
-            "gutter",
-            "edge",
-            "bump",
-            "hump",
-            "speedbump",
-            "speed_bump",
-        ),
-    }
+    _sam2_predictor_class = None
 
     def __init__(self):
         SAM2_UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
@@ -54,40 +35,53 @@ class Sam2VideoDetector:
             relative = file_path.name
         return f"/fast/image/{relative}"
 
+    def _load_sam2_predictor_class(self):
+        if self.__class__._sam2_predictor_class is not None:
+            return self.__class__._sam2_predictor_class
+
+        local_root = Path(__file__).resolve().parents[1]
+        original_sys_path = list(sys.path)
+        restored_modules = {
+            name: sys.modules[name]
+            for name in list(sys.modules.keys())
+            if name == "sam2" or name.startswith("sam2.")
+        }
+
+        try:
+            for name in list(restored_modules.keys()):
+                sys.modules.pop(name, None)
+
+            filtered_path = []
+            for entry in original_sys_path:
+                if not entry:
+                    continue
+                try:
+                    if Path(entry).resolve() == local_root:
+                        continue
+                except OSError:
+                    pass
+                filtered_path.append(entry)
+
+            sys.path = filtered_path
+            module = importlib.import_module("sam2.sam2_video_predictor")
+            predictor_class = module.SAM2VideoPredictor
+            self.__class__._sam2_predictor_class = predictor_class
+            return predictor_class
+        finally:
+            sys.path = original_sys_path
+            for name, module in restored_modules.items():
+                sys.modules.setdefault(name, module)
+
     def _get_model(self, model_name: str):
         normalized = str(model_name or "").strip() or SAM2_DEFAULT_MODEL
-        if "yolo" in normalized.lower():
-            raise ValueError("SAM2 detector does not support YOLO model weights")
-
-        cache_key = f"sam:{normalized}"
+        cache_key = f"sam2:{normalized}"
         if cache_key not in self._model_cache:
-            requested_path = Path(normalized)
-            is_local_pt_path = requested_path.suffix.lower() == ".pt" and (
-                requested_path.is_absolute() or "/" in normalized or "\\" in normalized
+            predictor_class = self._load_sam2_predictor_class()
+            device = "cuda" if torch.cuda.is_available() else "cpu"
+            self._model_cache[cache_key] = predictor_class.from_pretrained(
+                normalized,
+                device=device,
             )
-
-            model_cls = SAM
-
-            if is_local_pt_path and not requested_path.exists():
-                requested_path.parent.mkdir(parents=True, exist_ok=True)
-
-                downloaded_model = model_cls(requested_path.name)
-                ckpt_path = getattr(downloaded_model, "ckpt_path", None)
-
-                if ckpt_path:
-                    source_path = Path(str(ckpt_path)).resolve()
-                    if source_path.exists() and source_path != requested_path.resolve():
-                        try:
-                            shutil.copy2(source_path, requested_path)
-                        except OSError:
-                            pass
-
-                if requested_path.exists():
-                    self._model_cache[cache_key] = model_cls(str(requested_path))
-                else:
-                    self._model_cache[cache_key] = downloaded_model
-            else:
-                self._model_cache[cache_key] = model_cls(normalized)
         return self._model_cache[cache_key]
 
     def _create_video_writer(self, output_path: Path, fps: float, width: int, height: int):
@@ -102,36 +96,6 @@ class Sam2VideoDetector:
                 return writer
             writer.release()
         return None
-
-    def _normalize_class_name(self, name_text: str) -> str:
-        return ''.join(ch for ch in str(name_text or '').strip().lower() if ch.isalnum())
-
-    def _resolve_target_classes(self, model, target_type: str):
-        target_key = str(target_type or '').strip().lower()
-        if target_key == 'road':
-            return None
-
-        keywords = self._target_class_keywords.get(target_key)
-        if not keywords:
-            return None
-
-        normalized_keywords = [self._normalize_class_name(keyword) for keyword in keywords if keyword]
-        names = getattr(model, 'names', None)
-        if not isinstance(names, dict) or not names:
-            return []
-
-        matched_ids = []
-        for class_id, class_name in names.items():
-            normalized_name = self._normalize_class_name(class_name)
-            if not normalized_name:
-                continue
-            if any(keyword in normalized_name for keyword in normalized_keywords):
-                try:
-                    matched_ids.append(int(class_id))
-                except (TypeError, ValueError):
-                    continue
-
-        return sorted(set(matched_ids))
 
     def _parse_bbox(self, bbox, width: int, height: int):
         if bbox is None:
@@ -205,6 +169,29 @@ class Sam2VideoDetector:
         cv2.rectangle(composed, (x1, y1), (x2 - 1, y2 - 1), (13, 110, 253), 1)
         return composed
 
+    def _overlay_mask_result(self, frame, mask_tensor, bbox_rect=None):
+        if mask_tensor is None:
+            return self._overlay_bbox_result(frame, frame, bbox_rect)
+
+        mask = mask_tensor.detach().to("cpu")
+        if mask.ndim == 3:
+            mask = mask[0]
+        if mask.ndim != 2:
+            return self._overlay_bbox_result(frame, frame, bbox_rect)
+
+        mask_np = mask.numpy() > 0
+        if not np.any(mask_np):
+            return self._overlay_bbox_result(frame, frame, bbox_rect)
+
+        overlay = frame.copy()
+        color = np.array([13, 110, 253], dtype=np.float32)
+        overlay_pixels = overlay[mask_np].astype(np.float32)
+        overlay[mask_np] = np.clip(overlay_pixels * 0.35 + color * 0.65, 0, 255).astype(np.uint8)
+        if bbox_rect is not None:
+            x1, y1, x2, y2 = bbox_rect
+            cv2.rectangle(overlay, (x1, y1), (x2 - 1, y2 - 1), (13, 110, 253), 1)
+        return overlay
+
     def detect_video_file(
         self,
         input_path: Path,
@@ -241,6 +228,14 @@ class Sam2VideoDetector:
             raise RuntimeError("Invalid video size")
 
         bbox_rect, normalized_bbox = self._parse_bbox(bbox, width, height)
+        if bbox_rect is None:
+            bbox_rect = (0, 0, width, height)
+            normalized_bbox = {
+                "x": 0.0,
+                "y": 0.0,
+                "w": 100.0,
+                "h": 100.0,
+            }
 
         writer = self._create_video_writer(output_path, fps, width, height)
         if writer is None:
@@ -249,65 +244,40 @@ class Sam2VideoDetector:
 
         start_time = time.time()
         model = self._get_model(model_name)
-        target_classes = self._resolve_target_classes(model, target_type)
-        processed_frames = 0
+        inference_state = model.init_state(str(resolved_input))
+        x1, y1, x2, y2 = bbox_rect
+        model.add_new_points_or_box(
+            inference_state=inference_state,
+            frame_idx=0,
+            obj_id=1,
+            box=[x1, y1, x2, y2],
+        )
+
+        tracked_frames = 0
         total_segments = 0
-        infer_stride = max(1, int(self._target_infer_stride.get(str(target_type), 2)))
-        last_plotted = None
 
         try:
-            while True:
+            for frame_idx, _obj_ids, video_res_masks in model.propagate_in_video(inference_state):
                 ok, frame = capture.read()
                 if not ok:
                     break
 
-                if isinstance(target_classes, list) and len(target_classes) == 0:
-                    plotted = frame.copy()
-                    if bbox_rect is not None:
-                        x1, y1, x2, y2 = bbox_rect
-                        cv2.rectangle(plotted, (x1, y1), (x2 - 1, y2 - 1), (13, 110, 253), 1)
-                    if plotted.shape[1] != width or plotted.shape[0] != height:
-                        plotted = cv2.resize(plotted, (width, height), interpolation=cv2.INTER_AREA)
-                    writer.write(plotted)
-                    processed_frames += 1
-                    continue
+                mask_tensor = video_res_masks[0] if hasattr(video_res_masks, "shape") and len(video_res_masks.shape) == 4 else video_res_masks
+                if mask_tensor is not None and hasattr(mask_tensor, "detach"):
+                    total_segments += 1
 
-                if processed_frames % infer_stride == 0 or last_plotted is None:
-                    source_frame = frame
-                    if bbox_rect is not None:
-                        x1, y1, x2, y2 = bbox_rect
-                        source_frame = frame[y1:y2, x1:x2]
-
-                    predict_kwargs = {
-                        "source": source_frame,
-                        "conf": conf,
-                        "verbose": False,
-                    }
-                    if isinstance(target_classes, list):
-                        predict_kwargs["classes"] = target_classes
-
-                    result = model.predict(**predict_kwargs)[0]
-
-                    masks = getattr(result, "masks", None)
-                    if masks is not None and getattr(masks, "data", None) is not None:
-                        total_segments += int(masks.data.shape[0])
-
-                    plotted = result.plot()
-                    plotted = self._overlay_bbox_result(frame, plotted, bbox_rect)
-                    last_plotted = plotted
-                else:
-                    plotted = last_plotted.copy() if last_plotted is not None else frame
+                plotted = self._overlay_mask_result(frame, mask_tensor, bbox_rect)
 
                 if plotted.shape[1] != width or plotted.shape[0] != height:
                     plotted = cv2.resize(plotted, (width, height), interpolation=cv2.INTER_AREA)
 
                 writer.write(plotted)
-                processed_frames += 1
+                tracked_frames += 1
         finally:
             capture.release()
             writer.release()
 
-        if processed_frames <= 0:
+        if tracked_frames <= 0:
             raise RuntimeError("No frames were processed")
 
         elapsed_sec = round(time.time() - start_time, 3)
@@ -316,7 +286,7 @@ class Sam2VideoDetector:
             "job_id": job_id,
             "target_type": str(target_type),
             "model": str(model_name or SAM2_DEFAULT_MODEL),
-            "processed_frames": processed_frames,
+            "processed_frames": tracked_frames,
             "input_total_frames": total_frames,
             "fps": round(fps, 3),
             "elapsed_sec": elapsed_sec,

@@ -79,12 +79,7 @@
         const sizeText = maxUploadBytes <= 0
             ? '제한 없음'
             : (configuredText || formatBytes(maxUploadBytes));
-        const sourceText = source === 'nginx'
-            ? ' (nginx)'
-            : source === 'env'
-                ? ' (server env)'
-                : '';
-        uploadMaxSizeElement.textContent = `최대 업로드 용량: ${sizeText}${sourceText}`;
+        uploadMaxSizeElement.textContent = `최대 업로드 용량: ${sizeText}`;
     }
 
     async function loadUploadLimitFromServer() {

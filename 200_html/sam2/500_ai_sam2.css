@@ -1,0 +1,187 @@
+#sam2-drop-zone {
+    border: 2px dashed #9aa4b2;
+    border-radius: 10px;
+    background: #f8fafc;
+    padding: 14px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    color: #334155;
+}
+
+#sam2-drop-zone.drag-active {
+    border-color: #0d6efd;
+    background: #e8f1ff;
+    box-shadow: inset 0 0 0 1px rgba(13, 110, 253, 0.2);
+}
+
+#sam2-selected-file {
+    font-size: 0.875rem;
+    color: #475569;
+}
+
+#sam2-uploaded-list {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    gap: 0.5rem;
+    align-items: stretch;
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding-bottom: 0.25rem;
+    white-space: nowrap;
+}
+
+#sam2-uploaded-list .list-group-item {
+    min-width: 118px;
+    max-width: 118px;
+    padding: 0.4rem;
+}
+
+.sam2-uploaded-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.35rem;
+}
+
+.sam2-uploaded-thumb {
+    width: 100%;
+    height: 64px;
+    object-fit: cover;
+    border-radius: 0.35rem;
+    border: 1px solid #dee2e6;
+    background: #f1f5f9;
+    flex-shrink: 0;
+}
+
+.sam2-uploaded-meta {
+    width: 100%;
+    min-width: 0;
+    line-height: 1.2;
+    text-align: center;
+}
+
+.sam2-video-wrap {
+    text-align: center;
+}
+
+.sam2-video-player {
+    width: min(640px, 100%);
+    aspect-ratio: 4 / 3;
+    height: auto;
+    max-width: 100%;
+    max-height: 70vh;
+    display: inline-block;
+    object-fit: contain;
+}
+
+.sam2-option-card {
+    height: 100%;
+    min-height: 96px;
+}
+
+.sam2-point-panel {
+    border: 1px solid #dbe3ec;
+    border-radius: 0.5rem;
+    padding: 0.65rem;
+    background: #fbfdff;
+}
+
+.sam2-point-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+    min-height: 32px;
+}
+
+.sam2-point-chip {
+    font-size: 0.75rem;
+    padding: 0.15rem 0.4rem;
+    border-radius: 999px;
+    border: 1px solid transparent;
+}
+
+.sam2-point-chip-positive {
+    background: #e9f7ef;
+    border-color: #a6dfbe;
+    color: #146c43;
+}
+
+.sam2-input-stage {
+    position: relative;
+    display: inline-block;
+    line-height: 0;
+    cursor: crosshair;
+}
+
+.sam2-point-marker-layer {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 0;
+    bottom: 46px;
+    pointer-events: none;
+}
+
+.sam2-point-marker {
+    position: absolute;
+    width: 12px;
+    height: 12px;
+    border-radius: 999px;
+    transform: translate(-50%, -50%);
+    border: 2px solid #ffffff;
+    box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.15);
+}
+
+.sam2-point-marker-positive {
+    background: #198754;
+}
+
+.sam2-bbox-layer {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 0;
+    bottom: 46px;
+    pointer-events: none;
+}
+
+.sam2-bbox-capture-layer {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 0;
+    bottom: 46px;
+    pointer-events: auto;
+}
+
+.sam2-bbox-rect {
+    position: absolute;
+    border: 2px dashed #0d6efd;
+    background: rgba(13, 110, 253, 0.15);
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.35);
+    pointer-events: none;
+}
+
+.sam2-bbox-control-point {
+    position: absolute;
+    width: 12px;
+    height: 12px;
+    border-radius: 999px;
+    background: #0d6efd;
+    border: 2px solid #ffffff;
+    box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.25);
+    transform: translate(-50%, -50%);
+    z-index: 12;
+}
+
+.sam2-bbox-control-point-nw,
+.sam2-bbox-control-point-se {
+    cursor: nwse-resize;
+}
+
+.sam2-bbox-control-point-ne,
+.sam2-bbox-control-point-sw {
+    cursor: nesw-resize;
+}

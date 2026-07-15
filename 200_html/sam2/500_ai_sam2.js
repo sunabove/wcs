@@ -12,6 +12,9 @@
     const uploadedEmptyElement = document.getElementById('sam2-uploaded-empty');
     const uploadedLoadingElement = document.getElementById('sam2-uploaded-loading');
     const uploadedLoadingTextElement = document.getElementById('sam2-uploaded-loading-text');
+    const uploadedLoadingSpinnerElement = uploadedLoadingElement
+        ? uploadedLoadingElement.querySelector('.spinner-border')
+        : null;
     const uploadMaxSizeElement = document.getElementById('sam2-upload-max-size');
     const uploadProgressWrapElement = document.getElementById('sam2-upload-progress-wrap');
     const uploadProgressBarElement = document.getElementById('sam2-upload-progress-bar');
@@ -902,12 +905,22 @@
 
         if (uploadedLoadingElement) {
             if (isLoading) {
+                uploadedLoadingElement.classList.remove('text-success');
+                uploadedLoadingElement.classList.add('text-primary');
+                if (uploadedLoadingSpinnerElement) {
+                    uploadedLoadingSpinnerElement.classList.remove('d-none');
+                }
                 if (uploadedLoadingTextElement) {
                     uploadedLoadingTextElement.textContent = uploadedListLoadingMessage;
                 }
                 uploadedLoadingElement.classList.remove('d-none');
             } else {
                 uploadedLoadingElement.classList.add('d-none');
+                uploadedLoadingElement.classList.remove('text-success');
+                uploadedLoadingElement.classList.add('text-primary');
+                if (uploadedLoadingSpinnerElement) {
+                    uploadedLoadingSpinnerElement.classList.remove('d-none');
+                }
             }
         }
 
@@ -929,7 +942,7 @@
         uploadedListLoadingStartedAt = 0;
     }
 
-    async function finishUploadedListLoading() {
+    async function finishUploadedListLoading(doneMessage) {
         uploadedListInFlightCount = Math.max(0, uploadedListInFlightCount - 1);
         if (uploadedListInFlightCount > 0) {
             return;
@@ -943,6 +956,20 @@
             });
         }
         hasCompletedInitialUploadedListLoad = true;
+
+        const completionText = String(doneMessage || '').trim();
+        if (completionText && uploadedLoadingElement && uploadedLoadingTextElement) {
+            uploadedLoadingElement.classList.remove('text-primary');
+            uploadedLoadingElement.classList.add('text-success');
+            if (uploadedLoadingSpinnerElement) {
+                uploadedLoadingSpinnerElement.classList.add('d-none');
+            }
+            uploadedLoadingTextElement.textContent = completionText;
+            await new Promise((resolve) => {
+                setTimeout(resolve, 1200);
+            });
+        }
+
         setUploadedListLoading(false);
     }
 
@@ -986,6 +1013,7 @@
         const requestSeq = ++uploadedListRequestSeq;
         uploadedListLatestRequestSeq = requestSeq;
         uploadedListInFlightCount += 1;
+        let doneMessage = '';
         setUploadedListLoading(true, '동영상 목록을 불러오는 중...');
         setStatus('업로드 목록을 가져오는 중...', 'info');
         try {
@@ -1026,6 +1054,7 @@
 
             uploadedHistory = mapped;
             renderUploadedHistory();
+            doneMessage = `동영상 목록 ${mapped.length}건 불러오기 완료`;
 
             const savedSelectedVideo = loadSelectedVideo();
             const matchedSelected = mapped.find((item) => item.serverFileName === savedSelectedVideo);
@@ -1056,7 +1085,7 @@
                 setStatus('업로드 목록을 불러오지 못했습니다. API 연결 상태를 확인하세요.', 'warning');
             }
         } finally {
-            await finishUploadedListLoading();
+            await finishUploadedListLoading(doneMessage);
         }
     }
 

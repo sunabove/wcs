@@ -12,4 +12,5 @@ scikit-image
 ultralytics
 sam2
 huggingface_hub
+decord
 tensorboard 

@@ -1,5 +1,6 @@
 import json
 import importlib
+import os
 import shutil
 import sys
 import time
@@ -43,6 +44,12 @@ class Sam2VideoDetector:
         if self.__class__._sam2_predictor_class is not None:
             return self.__class__._sam2_predictor_class
 
+        module = self._load_external_sam2_module("sam2.sam2_video_predictor")
+        predictor_class = module.SAM2VideoPredictor
+        self.__class__._sam2_predictor_class = predictor_class
+        return predictor_class
+
+    def _load_external_sam2_module(self, module_name: str):
         local_root = Path(__file__).resolve().parents[1]
         original_sys_path = list(sys.path)
         restored_modules = {
@@ -67,25 +74,51 @@ class Sam2VideoDetector:
                 filtered_path.append(entry)
 
             sys.path = filtered_path
-            module = importlib.import_module("sam2.sam2_video_predictor")
-            predictor_class = module.SAM2VideoPredictor
-            self.__class__._sam2_predictor_class = predictor_class
-            return predictor_class
+            return importlib.import_module(module_name)
         finally:
             sys.path = original_sys_path
             for name, module in restored_modules.items():
                 sys.modules.setdefault(name, module)
 
+    def _build_model_from_hf_model_id(self, model_id: str, device: str):
+        build_sam_module = self._load_external_sam2_module("sam2.build_sam")
+        hf_map = getattr(build_sam_module, "HF_MODEL_ID_TO_FILENAMES", {})
+        if model_id not in hf_map:
+            raise ValueError(f"Unsupported SAM2 model id: {model_id}")
+
+        config_name, checkpoint_name = hf_map[model_id]
+
+        from huggingface_hub import hf_hub_download
+
+        offline_text = str(os.getenv("HF_HUB_OFFLINE", "")).strip().lower()
+        local_files_only = offline_text in {"1", "true", "yes", "on"}
+
+        ckpt_path = hf_hub_download(
+            repo_id=model_id,
+            filename=checkpoint_name,
+            local_files_only=local_files_only,
+        )
+
+        build_video_predictor = getattr(build_sam_module, "build_sam2_video_predictor")
+        return build_video_predictor(
+            config_file=config_name,
+            ckpt_path=ckpt_path,
+            device=device,
+        )
+
     def _get_model(self, model_name: str):
         normalized = str(model_name or "").strip() or SAM2_DEFAULT_MODEL
         cache_key = f"sam2:{normalized}"
         if cache_key not in self._model_cache:
-            predictor_class = self._load_sam2_predictor_class()
             device = "cuda" if torch.cuda.is_available() else "cpu"
-            self._model_cache[cache_key] = predictor_class.from_pretrained(
-                normalized,
-                device=device,
-            )
+            if normalized.startswith("facebook/"):
+                self._model_cache[cache_key] = self._build_model_from_hf_model_id(normalized, device)
+            else:
+                predictor_class = self._load_sam2_predictor_class()
+                self._model_cache[cache_key] = predictor_class.from_pretrained(
+                    normalized,
+                    device=device,
+                )
         return self._model_cache[cache_key]
 
     def _create_video_writer(self, output_path: Path, fps: float, width: int, height: int):

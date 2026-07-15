@@ -883,14 +883,24 @@
 
     function setUploadedListLoading(isLoading, message) {
         if (!uploadedLoadingElement) {
-            return;
+            // Continue to list placeholder handling below even when header text is absent.
         }
 
-        if (isLoading) {
-            uploadedLoadingElement.textContent = String(message || '목록 불러오는 중...');
-            uploadedLoadingElement.classList.remove('d-none');
-        } else {
-            uploadedLoadingElement.classList.add('d-none');
+        if (uploadedLoadingElement) {
+            if (isLoading) {
+                uploadedLoadingElement.textContent = String(message || '목록 불러오는 중...');
+                uploadedLoadingElement.classList.remove('d-none');
+            } else {
+                uploadedLoadingElement.classList.add('d-none');
+            }
+        }
+
+        if (isLoading && uploadedListElement && uploadedHistory.length === 0) {
+            uploadedListElement.innerHTML = '';
+            const loadingItem = document.createElement('li');
+            loadingItem.className = 'list-group-item small text-muted';
+            loadingItem.textContent = String(message || '목록 불러오는 중...');
+            uploadedListElement.appendChild(loadingItem);
         }
     }
 
@@ -933,11 +943,20 @@
     async function loadUploadedHistoryFromServer() {
         setUploadedListLoading(true, '목록 불러오는 중...');
         try {
-            const apiBase = await resolveApiBase();
-            const response = await fetch(`${apiBase}/fast/sam2/uploaded_videos?limit=500`, {
+            let apiBase = '';
+            let response = await fetch(`/fast/sam2/uploaded_videos?limit=500`, {
                 method: 'GET',
                 cache: 'no-store',
             });
+
+            if (!response.ok) {
+                apiBase = await resolveApiBase();
+                response = await fetch(`${apiBase}/fast/sam2/uploaded_videos?limit=500`, {
+                    method: 'GET',
+                    cache: 'no-store',
+                });
+            }
+
             if (!response.ok) {
                 setUploadedListLoading(false);
                 setStatus(`업로드 목록 조회 실패 (${response.status})`, 'warning');

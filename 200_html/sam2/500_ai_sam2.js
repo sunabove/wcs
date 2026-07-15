@@ -1377,6 +1377,12 @@
         const conf = toNumber(confInput ? confInput.value : 0.25, 0.25);
         ensureDefaultBoundingBox();
         const bboxQuery = buildBboxQuery();
+
+        if (!file && !selectedServerFileName && highlightedServerFileName) {
+            setStatus('이전 선택은 하이라이트만 복원되었습니다. 목록에서 동영상을 다시 클릭해 활성 선택 후 분할을 실행하세요.', 'warning');
+            return;
+        }
+
         if (!file && !selectedServerFileName) {
             setStatus('동영상 파일을 선택하세요.', 'warning');
             return;

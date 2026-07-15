@@ -38,6 +38,7 @@
     let outputObjectUrl = '';
     let uploadedHistory = [];
     let selectedServerFileName = '';
+    let highlightedServerFileName = '';
     let positivePoints = [];
     let boundingBox = null;
     let bboxDragStart = null;
@@ -837,7 +838,7 @@
             const li = document.createElement('li');
             li.className = 'list-group-item small';
 
-            if (item.serverFileName && item.serverFileName === selectedServerFileName) {
+            if (item.serverFileName && item.serverFileName === highlightedServerFileName) {
                 li.classList.add('active');
             }
 
@@ -871,6 +872,7 @@
                 }
 
                 selectedServerFileName = item.serverFileName;
+                highlightedServerFileName = item.serverFileName;
                 selectedFile = null;
                 if (fileInput) {
                     fileInput.value = '';
@@ -1053,28 +1055,28 @@
             }
 
             uploadedHistory = mapped;
+
+            // Keep active selection and visual highlight independent.
+            if (selectedServerFileName) {
+                highlightedServerFileName = selectedServerFileName;
+            }
+
             renderUploadedHistory();
             doneMessage = `동영상 목록 ${mapped.length}건 불러오기 완료`;
 
             const savedSelectedVideo = loadSelectedVideo();
             const matchedSelected = mapped.find((item) => item.serverFileName === savedSelectedVideo);
             if (matchedSelected) {
-                selectedServerFileName = matchedSelected.serverFileName;
-                selectedFile = null;
-                if (fileInput) {
-                    fileInput.value = '';
+                // Restore only highlight from previous session; do not restore active behavior.
+                if (!selectedServerFileName) {
+                    highlightedServerFileName = matchedSelected.serverFileName;
+                    renderUploadedHistory();
+                    setStatus(`이전 선택 표시됨: ${matchedSelected.name} (하이라이트만 복원)`, 'secondary');
                 }
-                setStatus(`선택 복원됨: ${matchedSelected.name}`, 'secondary');
-                // Keep list rendering snappy by restoring preview asynchronously.
-                Promise.resolve().then(async () => {
-                    try {
-                        await previewSelectedVideoFirstFrame(false);
-                    } catch (_ignore) {
-                        // Keep restore behavior even when preview loading fails.
-                    }
-                });
             } else if (savedSelectedVideo) {
-                selectedServerFileName = '';
+                if (!selectedServerFileName) {
+                    highlightedServerFileName = '';
+                }
                 saveSelectedVideo('');
                 setStatus(`업로드 목록 ${mapped.length}건을 불러왔습니다.`, 'secondary');
             } else {
@@ -1293,6 +1295,7 @@
 
         setSelectedFile(file);
         selectedServerFileName = '';
+        highlightedServerFileName = '';
         saveSelectedVideo('');
         syncInputWithFile(file);
         stopCurrentOutputPlayback();
@@ -1319,6 +1322,7 @@
                 fileInput.value = '';
             }
             selectedServerFileName = uploadedPath;
+            highlightedServerFileName = uploadedPath;
             saveSelectedVideo(selectedServerFileName);
 
             await loadUploadedHistoryFromServer();
@@ -1421,6 +1425,7 @@
             if (file) {
                 const relativeServerPath = extractFastImagePath(result.input_url) || String(result.input_file || '').trim();
                 selectedServerFileName = String(relativeServerPath || selectedServerFileName);
+                highlightedServerFileName = selectedServerFileName;
                 saveSelectedVideo(selectedServerFileName);
                 await loadUploadedHistoryFromServer();
             }
@@ -1463,6 +1468,7 @@
                         const uploadedPath = extractFastImagePath(uploadResult.input_url) || String(uploadResult.file_name || '').trim();
                         if (uploadedPath) {
                             selectedServerFileName = uploadedPath;
+                            highlightedServerFileName = uploadedPath;
                             saveSelectedVideo(selectedServerFileName);
                         }
                     }

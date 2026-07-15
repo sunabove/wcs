@@ -49,6 +49,7 @@
     let uploadedListRequestSeq = 0;
     let uploadedListLatestRequestSeq = 0;
     let uploadedListInFlightCount = 0;
+    let hasCompletedInitialUploadedListLoad = false;
     const MAX_POINT_COUNT = 20;
     const STORAGE_TARGET_KEY = 'sam2.targetType';
     const STORAGE_CONF_KEY = 'sam2.conf';
@@ -965,12 +966,13 @@
         }
 
         const elapsed = Date.now() - uploadedListLoadingStartedAt;
-        const minVisibleMs = 450;
+        const minVisibleMs = hasCompletedInitialUploadedListLoad ? 450 : 2200;
         if (elapsed < minVisibleMs) {
             await new Promise((resolve) => {
                 setTimeout(resolve, minVisibleMs - elapsed);
             });
         }
+        hasCompletedInitialUploadedListLoad = true;
         setUploadedListLoading(false);
     }
 

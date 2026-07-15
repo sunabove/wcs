@@ -1336,8 +1336,12 @@
         const bboxQuery = buildBboxQuery();
 
         if (!file && !selectedServerFileName && highlightedServerFileName) {
-            setStatus('이전 선택은 하이라이트만 복원되었습니다. 목록에서 동영상을 다시 클릭해 활성 선택 후 분할을 실행하세요.', 'warning');
-            return;
+            const highlightedExists = uploadedHistory.some((item) => item.serverFileName === highlightedServerFileName);
+            if (highlightedExists) {
+                selectedServerFileName = highlightedServerFileName;
+                saveSelectedVideo(selectedServerFileName);
+                setStatus('하이라이트된 동영상을 자동 선택하여 분할을 시작합니다.', 'secondary');
+            }
         }
 
         if (!file && !selectedServerFileName) {

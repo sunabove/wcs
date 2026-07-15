@@ -235,7 +235,10 @@
 				<div class="col-8">
 					<div class="d-flex align-items-center justify-content-between mb-1">
 						<div class="small fw-semibold text-secondary">업로드한 동영상</div>
-						<div id="sam2-uploaded-loading" class="small text-muted d-none">목록 불러오는 중...</div>
+						<div id="sam2-uploaded-loading" class="small text-primary d-none" aria-live="polite">
+							<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
+							<span id="sam2-uploaded-loading-text">목록 불러오는 중...</span>
+						</div>
 					</div>
 					<ul id="sam2-uploaded-list" class="list-group list-group-sm">
 						<li id="sam2-uploaded-empty" class="list-group-item small text-muted">업로드 이력 없음</li>

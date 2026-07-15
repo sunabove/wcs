@@ -11,6 +11,7 @@
     const uploadedListElement = document.getElementById('sam2-uploaded-list');
     const uploadedEmptyElement = document.getElementById('sam2-uploaded-empty');
     const uploadedLoadingElement = document.getElementById('sam2-uploaded-loading');
+    const uploadedLoadingTextElement = document.getElementById('sam2-uploaded-loading-text');
     const uploadMaxSizeElement = document.getElementById('sam2-upload-max-size');
     const uploadProgressWrapElement = document.getElementById('sam2-upload-progress-wrap');
     const uploadProgressBarElement = document.getElementById('sam2-upload-progress-bar');
@@ -888,18 +889,24 @@
 
         if (uploadedLoadingElement) {
             if (isLoading) {
-                uploadedLoadingElement.textContent = String(message || '목록 불러오는 중...');
+                if (uploadedLoadingTextElement) {
+                    uploadedLoadingTextElement.textContent = String(message || '목록 불러오는 중...');
+                }
                 uploadedLoadingElement.classList.remove('d-none');
             } else {
                 uploadedLoadingElement.classList.add('d-none');
             }
         }
 
+        if (uploadedListElement) {
+            uploadedListElement.style.opacity = isLoading ? '0.65' : '1';
+        }
+
         if (isLoading && uploadedListElement && uploadedHistory.length === 0) {
             uploadedListElement.innerHTML = '';
             const loadingItem = document.createElement('li');
             loadingItem.className = 'list-group-item small text-muted';
-            loadingItem.textContent = String(message || '목록 불러오는 중...');
+            loadingItem.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>' + String(message || '목록 불러오는 중...');
             uploadedListElement.appendChild(loadingItem);
         }
     }

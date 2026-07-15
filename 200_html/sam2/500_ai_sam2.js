@@ -1586,6 +1586,8 @@
     renderPointUi();
     renderBoundingBoxUi();
 
+    setUploadedListLoading(true, '목록 불러오는 중...');
+    setStatus('업로드 목록을 가져오는 중...', 'info');
     loadUploadLimitFromServer();
     loadUploadedHistoryFromServer();
 })();

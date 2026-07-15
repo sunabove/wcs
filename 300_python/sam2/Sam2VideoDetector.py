@@ -5,7 +5,7 @@ import json
 from pathlib import Path
 
 import cv2
-from ultralytics import SAM, YOLO
+from ultralytics import SAM
 
 from config import BASE_DIR
 from sam2.Sam2VideoConfig import (
@@ -56,15 +56,17 @@ class Sam2VideoDetector:
 
     def _get_model(self, model_name: str):
         normalized = str(model_name or "").strip() or SAM2_DEFAULT_MODEL
-        engine = "sam" if "sam" in normalized.lower() else "yolo"
-        cache_key = f"{engine}:{normalized}"
+        if "yolo" in normalized.lower():
+            raise ValueError("SAM2 detector does not support YOLO model weights")
+
+        cache_key = f"sam:{normalized}"
         if cache_key not in self._model_cache:
             requested_path = Path(normalized)
             is_local_pt_path = requested_path.suffix.lower() == ".pt" and (
                 requested_path.is_absolute() or "/" in normalized or "\\" in normalized
             )
 
-            model_cls = SAM if engine == "sam" else YOLO
+            model_cls = SAM
 
             if is_local_pt_path and not requested_path.exists():
                 requested_path.parent.mkdir(parents=True, exist_ok=True)

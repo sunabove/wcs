@@ -9,7 +9,6 @@ from fastapi import HTTPException, UploadFile
 from config import BASE_DIR
 from sam2.Sam2VideoConfig import (
     SAM2_DEFAULT_MODEL,
-    SAM2_TARGET_MODEL_MAP,
     SAM2_UPLOAD_DIR,
     SAM2_VIDEO_EXTENSIONS,
 )
@@ -33,10 +32,11 @@ class Sam2VideoService:
         return suffix
 
     def _resolve_model_name(self, target_type: str, model_name: str) -> str:
+        _ = target_type
         value = str(model_name or "").strip()
         if value and value.lower() not in {"auto", "default"}:
             return value
-        return SAM2_TARGET_MODEL_MAP.get(target_type, SAM2_DEFAULT_MODEL)
+        return SAM2_DEFAULT_MODEL
 
     def _to_relative_under_base(self, file_path: Path) -> str:
         base_dir = BASE_DIR.resolve()

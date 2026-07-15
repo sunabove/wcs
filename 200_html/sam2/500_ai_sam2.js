@@ -10,6 +10,7 @@
     const loopToggleInput = document.getElementById('sam2-loop-toggle');
     const uploadedListElement = document.getElementById('sam2-uploaded-list');
     const uploadedEmptyElement = document.getElementById('sam2-uploaded-empty');
+    const uploadMaxSizeElement = document.getElementById('sam2-upload-max-size');
     const pointClearButton = document.getElementById('sam2-point-clear');
     const positivePointListElement = document.getElementById('sam2-positive-points');
     const positivePointCountElement = document.getElementById('sam2-positive-count');
@@ -41,11 +42,30 @@
     const STORAGE_TARGET_KEY = 'sam2.targetType';
     const STORAGE_CONF_KEY = 'sam2.conf';
     const STORAGE_SELECTED_VIDEO_KEY = 'sam2.selectedVideo';
+    const MAX_UPLOAD_BYTES = 1024 * 1024 * 1024; // 1 GB
 
     function setStatus(message, type) {
         const alertType = type || 'secondary';
         statusElement.className = `alert alert-${alertType} mt-3 mb-0`;
         statusElement.textContent = message;
+    }
+
+    function formatBytes(bytes) {
+        const value = Number(bytes);
+        if (!Number.isFinite(value) || value <= 0) {
+            return '0 B';
+        }
+
+        const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+        let size = value;
+        let unitIndex = 0;
+        while (size >= 1024 && unitIndex < units.length - 1) {
+            size /= 1024;
+            unitIndex += 1;
+        }
+
+        const precision = unitIndex === 0 ? 0 : 1;
+        return `${size.toFixed(precision)} ${units[unitIndex]}`;
     }
 
     function toNumber(value, fallback) {
@@ -1001,6 +1021,14 @@
             return;
         }
 
+        if (Number(file.size || 0) > MAX_UPLOAD_BYTES) {
+            setSelectedFile(null);
+            syncInputWithFile(null);
+            const maxText = formatBytes(MAX_UPLOAD_BYTES);
+            setStatus(`파일 용량이 너무 큽니다. 최대 업로드 용량은 ${maxText} 입니다.`, 'warning');
+            return;
+        }
+
         setSelectedFile(file);
         selectedServerFileName = '';
         saveSelectedVideo('');
@@ -1283,6 +1311,9 @@
     }
     if (uploadedEmptyElement) {
         renderUploadedHistory();
+    }
+    if (uploadMaxSizeElement) {
+        uploadMaxSizeElement.textContent = `최대 업로드 용량: ${formatBytes(MAX_UPLOAD_BYTES)}`;
     }
 
     applyLoopOption();

@@ -17,6 +17,11 @@ def health_check():
     }
 
 
+@router.get("/upload_limit")
+def upload_limit():
+    return _service.get_upload_limit()
+
+
 @router.post("/segment_video_upload")
 def segment_video_upload(
     file: UploadFile = File(...),

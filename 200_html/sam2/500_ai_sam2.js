@@ -42,7 +42,8 @@
     const STORAGE_TARGET_KEY = 'sam2.targetType';
     const STORAGE_CONF_KEY = 'sam2.conf';
     const STORAGE_SELECTED_VIDEO_KEY = 'sam2.selectedVideo';
-    const MAX_UPLOAD_BYTES = 1024 * 1024 * 1024; // 1 GB
+    const DEFAULT_MAX_UPLOAD_BYTES = 1024 * 1024 * 1024; // 1 GB
+    let maxUploadBytes = DEFAULT_MAX_UPLOAD_BYTES;
 
     function setStatus(message, type) {
         const alertType = type || 'secondary';
@@ -66,6 +67,47 @@
 
         const precision = unitIndex === 0 ? 0 : 1;
         return `${size.toFixed(precision)} ${units[unitIndex]}`;
+    }
+
+    function updateUploadLimitLabel(source) {
+        if (!uploadMaxSizeElement) {
+            return;
+        }
+
+        const sizeText = maxUploadBytes <= 0
+            ? '제한 없음'
+            : formatBytes(maxUploadBytes);
+        const sourceText = source === 'nginx'
+            ? ' (nginx)'
+            : source === 'env'
+                ? ' (server env)'
+                : '';
+        uploadMaxSizeElement.textContent = `최대 업로드 용량: ${sizeText}${sourceText}`;
+    }
+
+    async function loadUploadLimitFromServer() {
+        try {
+            const apiBase = await resolveApiBase();
+            const response = await fetch(`${apiBase}/fast/sam2/upload_limit`, {
+                method: 'GET',
+                cache: 'no-store',
+            });
+            if (!response.ok) {
+                updateUploadLimitLabel('default');
+                return;
+            }
+
+            const body = await response.json();
+            const candidate = Number(body && body.max_upload_bytes);
+            if (Number.isFinite(candidate) && candidate >= 0) {
+                maxUploadBytes = candidate;
+            }
+
+            const source = String((body && body.source) || 'default').toLowerCase();
+            updateUploadLimitLabel(source);
+        } catch (_ignore) {
+            updateUploadLimitLabel('default');
+        }
     }
 
     function toNumber(value, fallback) {
@@ -1021,10 +1063,10 @@
             return;
         }
 
-        if (Number(file.size || 0) > MAX_UPLOAD_BYTES) {
+        if (maxUploadBytes > 0 && Number(file.size || 0) > maxUploadBytes) {
             setSelectedFile(null);
             syncInputWithFile(null);
-            const maxText = formatBytes(MAX_UPLOAD_BYTES);
+            const maxText = formatBytes(maxUploadBytes);
             setStatus(`파일 용량이 너무 큽니다. 최대 업로드 용량은 ${maxText} 입니다.`, 'warning');
             return;
         }
@@ -1312,9 +1354,7 @@
     if (uploadedEmptyElement) {
         renderUploadedHistory();
     }
-    if (uploadMaxSizeElement) {
-        uploadMaxSizeElement.textContent = `최대 업로드 용량: ${formatBytes(MAX_UPLOAD_BYTES)}`;
-    }
+    updateUploadLimitLabel('default');
 
     applyLoopOption();
     loadUiOptions();
@@ -1322,5 +1362,6 @@
     renderPointUi();
     renderBoundingBoxUi();
 
+    loadUploadLimitFromServer();
     loadUploadedHistoryFromServer();
 })();

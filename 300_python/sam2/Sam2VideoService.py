@@ -1,4 +1,7 @@
 import hashlib
+import os
+import re
+import subprocess
 import time
 import uuid
 from datetime import datetime
@@ -13,6 +16,9 @@ from sam2.Sam2VideoConfig import (
     SAM2_VIDEO_EXTENSIONS,
 )
 from sam2.Sam2VideoDetector import Sam2VideoDetector
+
+
+DEFAULT_UPLOAD_LIMIT_BYTES = 1024 * 1024 * 1024
 
 
 class Sam2VideoService:
@@ -30,6 +36,59 @@ class Sam2VideoService:
         if suffix not in SAM2_VIDEO_EXTENSIONS:
             raise HTTPException(status_code=400, detail="Only video files are supported")
         return suffix
+
+    def _parse_size_to_bytes(self, size_text: str):
+        value = str(size_text or "").strip().lower().rstrip(";")
+        if not value:
+            return None
+
+        if value == "0":
+            return 0
+
+        match = re.match(r"^(\d+)([kmg])?$", value)
+        if not match:
+            return None
+
+        amount = int(match.group(1))
+        suffix = match.group(2)
+        if suffix == "k":
+            return amount * 1024
+        if suffix == "m":
+            return amount * 1024 * 1024
+        if suffix == "g":
+            return amount * 1024 * 1024 * 1024
+        return amount
+
+    def _resolve_nginx_upload_limit(self):
+        env_value = os.getenv("NGINX_CLIENT_MAX_BODY_SIZE") or os.getenv("CLIENT_MAX_BODY_SIZE")
+        env_bytes = self._parse_size_to_bytes(env_value)
+        if env_bytes is not None:
+            return env_bytes, "env"
+
+        try:
+            result = subprocess.run(
+                ["nginx", "-T"],
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            output_text = (result.stdout or "") + "\n" + (result.stderr or "")
+            matches = re.findall(r"client_max_body_size\s+([^\s;]+)", output_text, flags=re.IGNORECASE)
+            for raw_value in reversed(matches):
+                parsed = self._parse_size_to_bytes(raw_value)
+                if parsed is not None:
+                    return parsed, "nginx"
+        except Exception:
+            pass
+
+        return DEFAULT_UPLOAD_LIMIT_BYTES, "default"
+
+    def get_upload_limit(self):
+        max_upload_bytes, source = self._resolve_nginx_upload_limit()
+        return {
+            "max_upload_bytes": int(max_upload_bytes),
+            "source": source,
+        }
 
     def _safe_uploaded_file_name(self, file_name: str) -> str:
         value = str(file_name or "").strip()

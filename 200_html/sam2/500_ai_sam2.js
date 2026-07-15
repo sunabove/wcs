@@ -867,7 +867,7 @@
             li.appendChild(row);
 
             row.addEventListener('click', async () => {
-                if (!item.serverFileName || detectButton.disabled) {
+                if (!item.serverFileName) {
                     return;
                 }
 

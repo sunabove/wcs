@@ -1391,6 +1391,15 @@
         detectButton.disabled = true;
         setStatus(`SAM2 분할 진행 중... (대상: ${targetTypeLabel(targetType)})`, 'info');
 
+        const outputTabButton = document.getElementById('sam2-output-tab');
+        if (outputTabButton) {
+            if (window.bootstrap && typeof window.bootstrap.Tab === 'function') {
+                window.bootstrap.Tab.getOrCreateInstance(outputTabButton).show();
+            } else {
+                outputTabButton.click();
+            }
+        }
+
         try {
             const apiBase = await resolveApiBase();
             let response;
@@ -1446,15 +1455,6 @@
 
             await autoPlayVideo(inputVideoElement);
             await autoPlayVideo(outputVideoElement);
-
-            const outputTabButton = document.getElementById('sam2-output-tab');
-            if (outputTabButton) {
-                if (window.bootstrap && typeof window.bootstrap.Tab === 'function') {
-                    window.bootstrap.Tab.getOrCreateInstance(outputTabButton).show();
-                } else {
-                    outputTabButton.click();
-                }
-            }
 
             setStatus('분할 완료', 'success');
         } catch (error) {

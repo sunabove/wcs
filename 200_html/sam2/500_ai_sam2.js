@@ -1014,6 +1014,10 @@
                 serverFileName: String(item.file_name || ''),
             }));
 
+            uploadedHistory = mapped;
+            renderUploadedHistory();
+            await finishUploadedListLoading();
+
             const savedSelectedVideo = loadSelectedVideo();
             const matchedSelected = mapped.find((item) => item.serverFileName === savedSelectedVideo);
             if (matchedSelected) {
@@ -1023,19 +1027,18 @@
                     fileInput.value = '';
                 }
                 setStatus(`선택 복원됨: ${matchedSelected.name}`, 'secondary');
-                try {
-                    await previewSelectedVideoFirstFrame(false);
-                } catch (_ignore) {
-                    // Keep restore behavior even when preview loading fails.
-                }
+                // Keep list rendering snappy by restoring preview asynchronously.
+                Promise.resolve().then(async () => {
+                    try {
+                        await previewSelectedVideoFirstFrame(false);
+                    } catch (_ignore) {
+                        // Keep restore behavior even when preview loading fails.
+                    }
+                });
             } else if (savedSelectedVideo) {
                 selectedServerFileName = '';
                 saveSelectedVideo('');
             }
-
-            uploadedHistory = mapped;
-            renderUploadedHistory();
-            await finishUploadedListLoading();
         } catch (_ignore) {
             await finishUploadedListLoading();
             setStatus('업로드 목록을 불러오지 못했습니다. API 연결 상태를 확인하세요.', 'warning');

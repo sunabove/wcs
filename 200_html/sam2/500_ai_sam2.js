@@ -811,32 +811,12 @@
         return `${stem.slice(0, maxLength)}...`;
     }
 
-    function ensureUploadedListLoadingRow() {
-        if (!uploadedListElement || !isUploadedListLoading) {
-            return;
-        }
-
-        const loadingText = String(uploadedListLoadingMessage || '동영상 목록을 불러오는 중...');
-        let loadingItem = uploadedListElement.querySelector('#sam2-uploaded-loading-item');
-        if (!loadingItem) {
-            loadingItem = document.createElement('li');
-            loadingItem.id = 'sam2-uploaded-loading-item';
-            loadingItem.className = 'list-group-item small text-muted';
-            uploadedListElement.prepend(loadingItem);
-        }
-        loadingItem.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>' + loadingText;
-    }
-
     function renderUploadedHistory() {
         if (!uploadedListElement) {
             return;
         }
 
         uploadedListElement.innerHTML = '';
-
-        if (isUploadedListLoading) {
-            ensureUploadedListLoadingRow();
-        }
 
         if (uploadedHistory.length === 0) {
             if (isUploadedListLoading) {
@@ -939,23 +919,13 @@
             return;
         }
 
-        const existingLoadingItem = uploadedListElement.querySelector('#sam2-uploaded-loading-item');
-
         if (isLoading) {
             if (!uploadedListLoadingStartedAt) {
                 uploadedListLoadingStartedAt = Date.now();
             }
-
-            if (uploadedHistory.length === 0) {
-                uploadedListElement.innerHTML = '';
-            }
-            ensureUploadedListLoadingRow();
             return;
         }
 
-        if (existingLoadingItem) {
-            existingLoadingItem.remove();
-        }
         uploadedListLoadingStartedAt = 0;
     }
 

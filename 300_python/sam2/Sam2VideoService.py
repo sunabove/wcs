@@ -200,7 +200,7 @@ class Sam2VideoService:
     def list_uploaded_videos(self, limit: int = 50):
         SAM2_UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
-        upload_subdir_prefix = SAM2_UPLOAD_SUBDIR.as_posix().strip("/") + "/"
+        upload_subdir_prefix = SAM2_UPLOAD_DIR.as_posix().strip("/") + "/"
         items = []
         for path in SAM2_UPLOAD_DIR.glob("*"):
             if not self._is_listable_uploaded_video(path):

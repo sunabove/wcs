@@ -1069,11 +1069,9 @@
 
             if (file) {
                 const relativeServerPath = extractFastImagePath(result.input_url) || String(result.input_file || '').trim();
-                const thumbnailSource = buildThumbnailUrl(apiBase, relativeServerPath);
-                addUploadedHistoryItem(file.name, relativeServerPath, thumbnailSource);
                 selectedServerFileName = String(relativeServerPath || selectedServerFileName);
                 saveSelectedVideo(selectedServerFileName);
-                renderUploadedHistory();
+                await loadUploadedHistoryFromServer();
             }
 
             const inputUrl = await resolvePlayableVideoUrl(apiBase, result.input_url, true);

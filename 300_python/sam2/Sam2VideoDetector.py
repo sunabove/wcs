@@ -1,7 +1,6 @@
 import json
 import importlib
 import os
-import shutil
 import sys
 import time
 import uuid
@@ -22,7 +21,7 @@ from sam2.Sam2VideoConfig import (
 
 class Sam2VideoDetector:
     _model_cache = {}
-    _sam2_predictor_class = None
+    _sam2_image_predictor_class = None
     _max_infer_side = 960
     _max_infer_fps = 10.0
     _max_infer_frames = 600
@@ -40,13 +39,13 @@ class Sam2VideoDetector:
             relative = file_path.name
         return f"/fast/image/{relative}"
 
-    def _load_sam2_predictor_class(self):
-        if self.__class__._sam2_predictor_class is not None:
-            return self.__class__._sam2_predictor_class
+    def _load_sam2_image_predictor_class(self):
+        if self.__class__._sam2_image_predictor_class is not None:
+            return self.__class__._sam2_image_predictor_class
 
-        module = self._load_external_sam2_module("sam2.sam2_video_predictor")
-        predictor_class = module.SAM2VideoPredictor
-        self.__class__._sam2_predictor_class = predictor_class
+        module = self._load_external_sam2_module("sam2.sam2_image_predictor")
+        predictor_class = module.SAM2ImagePredictor
+        self.__class__._sam2_image_predictor_class = predictor_class
         return predictor_class
 
     def _load_external_sam2_module(self, module_name: str):
@@ -99,12 +98,14 @@ class Sam2VideoDetector:
             local_files_only=local_files_only,
         )
 
-        build_video_predictor = getattr(build_sam_module, "build_sam2_video_predictor")
-        return build_video_predictor(
+        build_image_model = getattr(build_sam_module, "build_sam2")
+        image_model = build_image_model(
             config_file=config_name,
             ckpt_path=ckpt_path,
             device=device,
         )
+        predictor_class = self._load_sam2_image_predictor_class()
+        return predictor_class(image_model)
 
     def _get_model(self, model_name: str):
         normalized = str(model_name or "").strip() or SAM2_DEFAULT_MODEL
@@ -114,7 +115,7 @@ class Sam2VideoDetector:
             if normalized.startswith("facebook/"):
                 self._model_cache[cache_key] = self._build_model_from_hf_model_id(normalized, device)
             else:
-                predictor_class = self._load_sam2_predictor_class()
+                predictor_class = self._load_sam2_image_predictor_class()
                 self._model_cache[cache_key] = predictor_class.from_pretrained(
                     normalized,
                     device=device,
@@ -305,13 +306,19 @@ class Sam2VideoDetector:
         if mask_tensor is None:
             return self._overlay_bbox_result(frame, frame, bbox_rect)
 
-        mask = mask_tensor.detach().to("cpu")
+        if isinstance(mask_tensor, np.ndarray):
+            mask = mask_tensor
+        elif hasattr(mask_tensor, "detach"):
+            mask = mask_tensor.detach().to("cpu").numpy()
+        else:
+            mask = np.array(mask_tensor)
+
         if mask.ndim == 3:
             mask = mask[0]
         if mask.ndim != 2:
             return self._overlay_bbox_result(frame, frame, bbox_rect)
 
-        mask_np = mask.numpy() > 0
+        mask_np = mask > 0
         if not np.any(mask_np):
             return self._overlay_bbox_result(frame, frame, bbox_rect)
 
@@ -378,39 +385,37 @@ class Sam2VideoDetector:
 
         start_time = time.time()
         model = self._get_model(model_name)
-        try:
-            inference_state = model.init_state(
-                str(prepared_path),
-                offload_video_to_cpu=True,
-                offload_state_to_cpu=True,
-            )
-            x1, y1, x2, y2 = bbox_rect
-            model.add_new_points_or_box(
-                inference_state=inference_state,
-                frame_idx=0,
-                obj_id=1,
-                box=[x1, y1, x2, y2],
-            )
-        except RuntimeError as ex:
-            message = str(ex)
-            if "can't allocate memory" in message.lower() or "cannot allocate memory" in message.lower():
-                raise RuntimeError(
-                    "메모리가 부족합니다. 더 짧은 영상을 사용하거나 해상도를 낮춘 뒤 다시 시도하세요."
-                ) from ex
-            raise
+        x1, y1, x2, y2 = bbox_rect
+        box_prompt = np.array([x1, y1, x2, y2], dtype=np.float32)
 
         tracked_frames = 0
         total_segments = 0
 
         try:
-            for frame_idx, _obj_ids, video_res_masks in model.propagate_in_video(inference_state):
+            while True:
                 ok, frame = capture.read()
                 if not ok:
                     break
 
-                mask_tensor = video_res_masks[0] if hasattr(video_res_masks, "shape") and len(video_res_masks.shape) == 4 else video_res_masks
-                if mask_tensor is not None and hasattr(mask_tensor, "detach"):
-                    total_segments += 1
+                try:
+                    rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                    model.set_image(rgb_frame)
+                    masks, scores, _logits = model.predict(
+                        box=box_prompt,
+                        multimask_output=False,
+                        return_logits=False,
+                        normalize_coords=True,
+                    )
+                    mask_tensor = masks[0] if isinstance(masks, np.ndarray) and masks.ndim == 3 else masks
+                    if mask_tensor is not None:
+                        total_segments += 1
+                except RuntimeError as ex:
+                    message = str(ex)
+                    if "can't allocate memory" in message.lower() or "cannot allocate memory" in message.lower():
+                        raise RuntimeError(
+                            "메모리가 부족합니다. 더 짧은 영상을 사용하거나 해상도를 낮춘 뒤 다시 시도하세요."
+                        ) from ex
+                    raise
 
                 plotted = self._overlay_mask_result(frame, mask_tensor, bbox_rect)
 

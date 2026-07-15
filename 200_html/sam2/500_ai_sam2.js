@@ -36,6 +36,7 @@
     let bboxResizeHandle = '';
     let bboxResizeStartPoint = null;
     let bboxResizeStartBox = null;
+    let isUploadingImmediately = false;
     const MAX_POINT_COUNT = 20;
     const STORAGE_TARGET_KEY = 'sam2.targetType';
     const STORAGE_CONF_KEY = 'sam2.conf';
@@ -989,7 +990,7 @@
         }
     }
 
-    function handleChosenFile(file) {
+    async function handleChosenFile(file) {
         if (!file) {
             setSelectedFile(null);
             return;
@@ -1008,7 +1009,62 @@
         clearAllPoints();
         clearBoundingBox();
         renderUploadedHistory();
-            setStatus('동영상 파일이 준비되었습니다. 분할 시작을 눌러주세요.', 'secondary');
+
+        if (isUploadingImmediately) {
+            setStatus('다른 동영상 업로드가 진행 중입니다. 잠시 후 다시 시도하세요.', 'warning');
+            return;
+        }
+
+        isUploadingImmediately = true;
+        setStatus('동영상 업로드 중...', 'info');
+
+        try {
+            const apiBase = await resolveApiBase();
+            const formData = new FormData();
+            formData.append('file', file);
+
+            const uploadResponse = await fetch(`${apiBase}/fast/sam2/upload_video`, {
+                method: 'POST',
+                body: formData,
+            });
+
+            if (!uploadResponse.ok) {
+                let errorMessage = `업로드 실패 (${uploadResponse.status})`;
+                try {
+                    const errorBody = await uploadResponse.json();
+                    if (errorBody && errorBody.detail) {
+                        errorMessage = String(errorBody.detail);
+                    }
+                } catch (_ignore) {
+                    // Keep default message.
+                }
+                throw new Error(errorMessage);
+            }
+
+            const uploadResult = await uploadResponse.json();
+            const uploadedPath = extractFastImagePath(uploadResult.input_url) || String(uploadResult.file_name || '').trim();
+            selectedFile = null;
+            if (fileInput) {
+                fileInput.value = '';
+            }
+            selectedServerFileName = uploadedPath;
+            saveSelectedVideo(selectedServerFileName);
+
+            await loadUploadedHistoryFromServer();
+            try {
+                await previewSelectedVideoFirstFrame(false);
+            } catch (_ignore) {
+                // Keep successful upload flow even if preview fails.
+            }
+
+            setStatus('동영상 업로드 완료. 분할 시작 버튼을 눌러주세요.', 'success');
+        } catch (error) {
+            const message = error && error.message ? error.message : String(error);
+            // Fallback: keep selected file so segment_video_upload can still upload+segment.
+            setStatus(`업로드 오류: ${message} (분할 시작 시 업로드 재시도)`, 'warning');
+        } finally {
+            isUploadingImmediately = false;
+        }
     }
 
     async function runSam2Segment() {
@@ -1129,7 +1185,7 @@
 
     fileInput.addEventListener('change', () => {
         const file = pickFirstVideoFile(fileInput.files);
-        handleChosenFile(file);
+        void handleChosenFile(file);
     });
 
     dropZone.addEventListener('click', () => {
@@ -1170,7 +1226,7 @@
             return;
         }
 
-        handleChosenFile(file);
+        void handleChosenFile(file);
     });
 
     detectButton.addEventListener('click', runSam2Segment);

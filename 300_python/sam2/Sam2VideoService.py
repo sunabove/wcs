@@ -76,6 +76,19 @@ class Sam2VideoService:
 
         return resolved
 
+    def _is_listable_uploaded_video(self, path: Path) -> bool:
+        if not path.is_file():
+            return False
+
+        if path.suffix.lower() not in SAM2_VIDEO_EXTENSIONS:
+            return False
+
+        name_lower = path.name.lower()
+        if ".playable." in name_lower or ".uploading" in name_lower or name_lower.startswith("_"):
+            return False
+
+        return True
+
     def _save_uploaded_video(self, upload_file: UploadFile) -> Path:
         suffix = self._safe_suffix(upload_file.filename)
         SAM2_UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
@@ -187,19 +200,16 @@ class Sam2VideoService:
     def list_uploaded_videos(self, limit: int = 50):
         SAM2_UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
+        upload_subdir_prefix = SAM2_UPLOAD_SUBDIR.as_posix().strip("/") + "/"
         items = []
         for path in SAM2_UPLOAD_DIR.glob("*"):
-            if not path.is_file():
-                continue
-            if path.suffix.lower() not in SAM2_VIDEO_EXTENSIONS:
-                continue
-
-            name_lower = path.name.lower()
-            if ".playable." in name_lower or ".uploading" in name_lower or name_lower.startswith("_"):
+            if not self._is_listable_uploaded_video(path):
                 continue
 
             stat = path.stat()
             relative = self._to_relative_under_base(path)
+            if not relative.startswith(upload_subdir_prefix):
+                continue
             items.append(
                 {
                     "file_name": relative,

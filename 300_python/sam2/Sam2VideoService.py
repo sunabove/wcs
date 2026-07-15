@@ -65,6 +65,12 @@ class Sam2VideoService:
         if env_bytes is not None:
             return env_bytes, "env", str(env_value).strip()
 
+        conf_limit = self._resolve_nginx_upload_limit_from_files()
+        if conf_limit is not None:
+            conf_bytes = self._parse_size_to_bytes(conf_limit)
+            if conf_bytes is not None:
+                return conf_bytes, "nginx", conf_limit
+
         try:
             result = subprocess.run(
                 ["nginx", "-T"],
@@ -82,6 +88,38 @@ class Sam2VideoService:
             pass
 
         return DEFAULT_UPLOAD_LIMIT_BYTES, "default", "1g"
+
+    def _resolve_nginx_upload_limit_from_files(self):
+        candidate_files = [
+            os.getenv("NGINX_CONF_PATH", "").strip(),
+            "/etc/nginx/nginx.conf",
+            "/etc/nginx/conf.d/default.conf",
+            "/etc/nginx/sites-enabled/default",
+            "/etc/nginx/sites-available/default",
+        ]
+
+        merged_text_parts = []
+        for file_path in candidate_files:
+            if not file_path:
+                continue
+            try:
+                path = Path(file_path)
+                if path.exists() and path.is_file():
+                    merged_text_parts.append(path.read_text(encoding="utf-8", errors="ignore"))
+            except OSError:
+                continue
+
+        if not merged_text_parts:
+            return None
+
+        merged_text = "\n".join(merged_text_parts)
+        matches = re.findall(r"client_max_body_size\s+([^\s;]+)", merged_text, flags=re.IGNORECASE)
+        for raw_value in reversed(matches):
+            parsed = self._parse_size_to_bytes(raw_value)
+            if parsed is not None:
+                return str(raw_value).strip()
+
+        return None
 
     def get_upload_limit(self):
         max_upload_bytes, source, configured_value = self._resolve_nginx_upload_limit()

@@ -6,11 +6,11 @@
 	<title>AI SAM2 Video Segmentation</title>
 	<link rel="icon" href="/favicon.ico" type="image/x-icon">
 	<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-	<link rel="stylesheet" href="500_ai_sam2.css?v=20260715_1">
+	<link rel="stylesheet" href="500_ai_sam2.css?v=20260715_2">
 
 	<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js" defer></script>
 	<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-	<script src="500_ai_sam2.js?v=20260715_2" defer></script>
+	<script src="500_ai_sam2.js?v=20260715_3" defer></script>
 </head>
 
 <body class="bg-light">
@@ -31,6 +31,10 @@
 			<h5 class="mb-0">SAM2 객체 분할</h5>
 		</div>
 		<div class="card-body">
+			<div id="sam2-list-loading-banner" class="alert alert-info py-1 px-2 mb-2" role="status" aria-live="polite">
+				<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+				동영상 목록을 불러오는 중...
+			</div>
 			<div class="row g-3 align-items-start">
 				<div class="col-4">
 					<label for="sam2-video-file" class="form-label">동영상 파일</label>
@@ -52,12 +56,12 @@
 						<div class="small fw-semibold text-secondary">업로드한 동영상</div>
 						<div id="sam2-uploaded-loading" class="small text-primary d-inline-flex align-items-center" aria-live="polite">
 							<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
-							<span id="sam2-uploaded-loading-text">목록 불러오는 중...</span>
+							<span id="sam2-uploaded-loading-text">동영상 목록을 불러오는 중...</span>
 						</div>
 					</div>
 					<ul id="sam2-uploaded-list" class="list-group list-group-sm">
 						<li id="sam2-uploaded-loading-item" class="list-group-item small text-muted">
-							<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>목록 불러오는 중...
+							<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>동영상 목록을 불러오는 중...
 						</li>
 					</ul>
 				</div>

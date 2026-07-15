@@ -8,6 +8,7 @@
     const confInput = document.getElementById('sam2-conf');
     const confValueElement = document.getElementById('sam2-conf-value');
     const loopToggleInput = document.getElementById('sam2-loop-toggle');
+    const listLoadingBannerElement = document.getElementById('sam2-list-loading-banner');
     const uploadedListElement = document.getElementById('sam2-uploaded-list');
     const uploadedEmptyElement = document.getElementById('sam2-uploaded-empty');
     const uploadedLoadingElement = document.getElementById('sam2-uploaded-loading');
@@ -45,7 +46,7 @@
     let isUploadingImmediately = false;
     let uploadedListLoadingStartedAt = 0;
     let isUploadedListLoading = false;
-    let uploadedListLoadingMessage = '목록 불러오는 중...';
+    let uploadedListLoadingMessage = '동영상 목록을 불러오는 중...';
     let uploadedListRequestSeq = 0;
     let uploadedListLatestRequestSeq = 0;
     let uploadedListInFlightCount = 0;
@@ -816,7 +817,7 @@
             return;
         }
 
-        const loadingText = String(uploadedListLoadingMessage || '목록 불러오는 중...');
+        const loadingText = String(uploadedListLoadingMessage || '동영상 목록을 불러오는 중...');
         let loadingItem = uploadedListElement.querySelector('#sam2-uploaded-loading-item');
         if (!loadingItem) {
             loadingItem = document.createElement('li');
@@ -918,7 +919,15 @@
         }
 
         isUploadedListLoading = Boolean(isLoading);
-        uploadedListLoadingMessage = String(message || uploadedListLoadingMessage || '목록 불러오는 중...');
+        uploadedListLoadingMessage = String(message || uploadedListLoadingMessage || '동영상 목록을 불러오는 중...');
+
+        if (listLoadingBannerElement) {
+            if (isLoading) {
+                listLoadingBannerElement.classList.remove('d-none');
+            } else {
+                listLoadingBannerElement.classList.add('d-none');
+            }
+        }
 
         if (uploadedLoadingElement) {
             if (isLoading) {
@@ -1016,7 +1025,7 @@
         const requestSeq = ++uploadedListRequestSeq;
         uploadedListLatestRequestSeq = requestSeq;
         uploadedListInFlightCount += 1;
-        setUploadedListLoading(true, '목록 불러오는 중...');
+        setUploadedListLoading(true, '동영상 목록을 불러오는 중...');
         setStatus('업로드 목록을 가져오는 중...', 'info');
         try {
             let apiBase = '';
@@ -1577,7 +1586,7 @@
     if (loopToggleInput) {
         loopToggleInput.addEventListener('change', applyLoopOption);
     }
-    setUploadedListLoading(true, '목록 불러오는 중...');
+    setUploadedListLoading(true, '동영상 목록을 불러오는 중...');
     setStatus('업로드 목록을 가져오는 중...', 'info');
 
     if (uploadedEmptyElement) {

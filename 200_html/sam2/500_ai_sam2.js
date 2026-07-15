@@ -118,6 +118,11 @@
         return new Promise((resolve, reject) => {
             const xhr = new XMLHttpRequest();
             xhr.open('POST', `${apiBase}/fast/sam2/upload_video`, true);
+            xhr.timeout = 10 * 60 * 1000;
+
+            xhr.addEventListener('loadstart', () => {
+                setUploadProgress(0, '업로드 시작...');
+            });
 
             xhr.upload.addEventListener('progress', (event) => {
                 if (event && event.lengthComputable && event.total > 0) {
@@ -156,13 +161,16 @@
                 reject(new Error('업로드 중 네트워크 오류가 발생했습니다.'));
             });
 
+            xhr.addEventListener('timeout', () => {
+                reject(new Error('업로드 시간이 초과되었습니다.'));
+            });
+
             xhr.addEventListener('abort', () => {
                 reject(new Error('업로드가 취소되었습니다.'));
             });
 
             const formData = new FormData();
             formData.append('file', file);
-            setUploadProgress(0, '업로드 시작...');
             xhr.send(formData);
         });
     }
@@ -1175,6 +1183,7 @@
         isUploadingImmediately = true;
         setStatus('동영상 업로드 중...', 'info');
         setUploadProgress(0, '업로드 시작...');
+        let uploadCompleted = false;
 
         try {
             const apiBase = await resolveApiBase();
@@ -1194,6 +1203,7 @@
                 // Keep successful upload flow even if preview fails.
             }
 
+            uploadCompleted = true;
             setStatus('동영상 업로드 완료. 분할 시작 버튼을 눌러주세요.', 'success');
         } catch (error) {
             const message = error && error.message ? error.message : String(error);
@@ -1202,6 +1212,9 @@
                 uploadProgressTextElement.textContent = `업로드 실패: ${message}`;
             }
             if (uploadProgressBarElement) {
+                uploadProgressBarElement.style.width = '100%';
+                uploadProgressBarElement.textContent = '실패';
+                uploadProgressBarElement.setAttribute('aria-valuenow', '100');
                 uploadProgressBarElement.classList.remove('progress-bar-animated');
                 uploadProgressBarElement.classList.remove('progress-bar-striped');
                 uploadProgressBarElement.classList.add('bg-danger');
@@ -1209,16 +1222,18 @@
             setStatus(`업로드 오류: ${message} (분할 시작 시 업로드 재시도)`, 'danger');
         } finally {
             isUploadingImmediately = false;
-            if (uploadProgressBarElement) {
-                uploadProgressBarElement.classList.add('progress-bar-animated');
-                uploadProgressBarElement.classList.add('progress-bar-striped');
-                uploadProgressBarElement.classList.remove('bg-danger');
-            }
-            setTimeout(() => {
-                if (!isUploadingImmediately) {
-                    hideUploadProgress();
+            if (uploadCompleted) {
+                if (uploadProgressBarElement) {
+                    uploadProgressBarElement.classList.add('progress-bar-animated');
+                    uploadProgressBarElement.classList.add('progress-bar-striped');
+                    uploadProgressBarElement.classList.remove('bg-danger');
                 }
-            }, 1500);
+                setTimeout(() => {
+                    if (!isUploadingImmediately) {
+                        hideUploadProgress();
+                    }
+                }, 1800);
+            }
         }
     }
 

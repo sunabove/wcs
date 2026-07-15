@@ -233,7 +233,10 @@
 					<div id="sam2-upload-max-size" class="small text-muted mt-1">최대 업로드 용량: 1 GB</div>
 				</div>
 				<div class="col-8">
-					<div class="small fw-semibold text-secondary mb-1">업로드한 동영상</div>
+					<div class="d-flex align-items-center justify-content-between mb-1">
+						<div class="small fw-semibold text-secondary">업로드한 동영상</div>
+						<div id="sam2-uploaded-loading" class="small text-muted d-none">목록 불러오는 중...</div>
+					</div>
 					<ul id="sam2-uploaded-list" class="list-group list-group-sm">
 						<li id="sam2-uploaded-empty" class="list-group-item small text-muted">업로드 이력 없음</li>
 					</ul>

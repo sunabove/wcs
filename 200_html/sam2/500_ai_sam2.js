@@ -10,6 +10,7 @@
     const loopToggleInput = document.getElementById('sam2-loop-toggle');
     const uploadedListElement = document.getElementById('sam2-uploaded-list');
     const uploadedEmptyElement = document.getElementById('sam2-uploaded-empty');
+    const uploadedLoadingElement = document.getElementById('sam2-uploaded-loading');
     const uploadMaxSizeElement = document.getElementById('sam2-upload-max-size');
     const uploadProgressWrapElement = document.getElementById('sam2-upload-progress-wrap');
     const uploadProgressBarElement = document.getElementById('sam2-upload-progress-bar');
@@ -880,6 +881,19 @@
         }
     }
 
+    function setUploadedListLoading(isLoading, message) {
+        if (!uploadedLoadingElement) {
+            return;
+        }
+
+        if (isLoading) {
+            uploadedLoadingElement.textContent = String(message || '목록 불러오는 중...');
+            uploadedLoadingElement.classList.remove('d-none');
+        } else {
+            uploadedLoadingElement.classList.add('d-none');
+        }
+    }
+
     function addUploadedHistoryItem(fileNameHint, inputFilePath, thumbnailSource) {
         const displayName = basename(fileNameHint) || basename(inputFilePath) || 'unknown_video';
         const now = new Date();
@@ -917,6 +931,7 @@
     }
 
     async function loadUploadedHistoryFromServer() {
+        setUploadedListLoading(true, '목록 불러오는 중...');
         try {
             const apiBase = await resolveApiBase();
             const response = await fetch(`${apiBase}/fast/sam2/uploaded_videos?limit=500`, {
@@ -924,6 +939,7 @@
                 cache: 'no-store',
             });
             if (!response.ok) {
+                setUploadedListLoading(false);
                 setStatus(`업로드 목록 조회 실패 (${response.status})`, 'warning');
                 return;
             }
@@ -959,7 +975,9 @@
 
             uploadedHistory = mapped;
             renderUploadedHistory();
+            setUploadedListLoading(false);
         } catch (_ignore) {
+            setUploadedListLoading(false);
             setStatus('업로드 목록을 불러오지 못했습니다. API 연결 상태를 확인하세요.', 'warning');
         }
     }

@@ -761,11 +761,12 @@
     async function loadUploadedHistoryFromServer() {
         try {
             const apiBase = await resolveApiBase();
-            const response = await fetch(`${apiBase}/fast/sam2/uploaded_videos?limit=50`, {
+            const response = await fetch(`${apiBase}/fast/sam2/uploaded_videos?limit=500`, {
                 method: 'GET',
                 cache: 'no-store',
             });
             if (!response.ok) {
+                setStatus(`업로드 목록 조회 실패 (${response.status})`, 'warning');
                 return;
             }
 
@@ -801,7 +802,7 @@
             uploadedHistory = mapped;
             renderUploadedHistory();
         } catch (_ignore) {
-            // Keep empty state when loading history fails.
+            setStatus('업로드 목록을 불러오지 못했습니다. API 연결 상태를 확인하세요.', 'warning');
         }
     }
 

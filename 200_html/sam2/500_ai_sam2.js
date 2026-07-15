@@ -44,6 +44,11 @@
     let bboxResizeStartBox = null;
     let isUploadingImmediately = false;
     let uploadedListLoadingStartedAt = 0;
+    let isUploadedListLoading = false;
+    let uploadedListLoadingMessage = '목록 불러오는 중...';
+    let uploadedListRequestSeq = 0;
+    let uploadedListLatestRequestSeq = 0;
+    let uploadedListInFlightCount = 0;
     const MAX_POINT_COUNT = 20;
     const STORAGE_TARGET_KEY = 'sam2.targetType';
     const STORAGE_CONF_KEY = 'sam2.conf';
@@ -805,6 +810,22 @@
         return `${stem.slice(0, maxLength)}...`;
     }
 
+    function ensureUploadedListLoadingRow() {
+        if (!uploadedListElement || !isUploadedListLoading) {
+            return;
+        }
+
+        const loadingText = String(uploadedListLoadingMessage || '목록 불러오는 중...');
+        let loadingItem = uploadedListElement.querySelector('#sam2-uploaded-loading-item');
+        if (!loadingItem) {
+            loadingItem = document.createElement('li');
+            loadingItem.id = 'sam2-uploaded-loading-item';
+            loadingItem.className = 'list-group-item small text-muted';
+            uploadedListElement.prepend(loadingItem);
+        }
+        loadingItem.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>' + loadingText;
+    }
+
     function renderUploadedHistory() {
         if (!uploadedListElement) {
             return;
@@ -812,7 +833,14 @@
 
         uploadedListElement.innerHTML = '';
 
+        if (isUploadedListLoading) {
+            ensureUploadedListLoadingRow();
+        }
+
         if (uploadedHistory.length === 0) {
+            if (isUploadedListLoading) {
+                return;
+            }
             const emptyItem = document.createElement('li');
             emptyItem.id = 'sam2-uploaded-empty';
             emptyItem.className = 'list-group-item small text-muted';
@@ -888,10 +916,13 @@
             // Continue to list placeholder handling below even when header text is absent.
         }
 
+        isUploadedListLoading = Boolean(isLoading);
+        uploadedListLoadingMessage = String(message || uploadedListLoadingMessage || '목록 불러오는 중...');
+
         if (uploadedLoadingElement) {
             if (isLoading) {
                 if (uploadedLoadingTextElement) {
-                    uploadedLoadingTextElement.textContent = String(message || '목록 불러오는 중...');
+                    uploadedLoadingTextElement.textContent = uploadedListLoadingMessage;
                 }
                 uploadedLoadingElement.classList.remove('d-none');
             } else {
@@ -907,34 +938,32 @@
             return;
         }
 
-        const loadingText = String(message || '목록 불러오는 중...');
         const existingLoadingItem = uploadedListElement.querySelector('#sam2-uploaded-loading-item');
 
         if (isLoading) {
-            uploadedListLoadingStartedAt = Date.now();
+            if (!uploadedListLoadingStartedAt) {
+                uploadedListLoadingStartedAt = Date.now();
+            }
 
             if (uploadedHistory.length === 0) {
                 uploadedListElement.innerHTML = '';
             }
-
-            if (!existingLoadingItem) {
-                const loadingItem = document.createElement('li');
-                loadingItem.id = 'sam2-uploaded-loading-item';
-                loadingItem.className = 'list-group-item small text-muted';
-                loadingItem.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>' + loadingText;
-                uploadedListElement.prepend(loadingItem);
-            } else {
-                existingLoadingItem.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>' + loadingText;
-            }
+            ensureUploadedListLoadingRow();
             return;
         }
 
         if (existingLoadingItem) {
             existingLoadingItem.remove();
         }
+        uploadedListLoadingStartedAt = 0;
     }
 
     async function finishUploadedListLoading() {
+        uploadedListInFlightCount = Math.max(0, uploadedListInFlightCount - 1);
+        if (uploadedListInFlightCount > 0) {
+            return;
+        }
+
         const elapsed = Date.now() - uploadedListLoadingStartedAt;
         const minVisibleMs = 450;
         if (elapsed < minVisibleMs) {
@@ -982,6 +1011,9 @@
     }
 
     async function loadUploadedHistoryFromServer() {
+        const requestSeq = ++uploadedListRequestSeq;
+        uploadedListLatestRequestSeq = requestSeq;
+        uploadedListInFlightCount += 1;
         setUploadedListLoading(true, '목록 불러오는 중...');
         try {
             let apiBase = '';
@@ -999,8 +1031,9 @@
             }
 
             if (!response.ok) {
-                await finishUploadedListLoading();
-                setStatus(`업로드 목록 조회 실패 (${response.status})`, 'warning');
+                if (requestSeq === uploadedListLatestRequestSeq) {
+                    setStatus(`업로드 목록 조회 실패 (${response.status})`, 'warning');
+                }
                 return;
             }
 
@@ -1014,9 +1047,12 @@
                 serverFileName: String(item.file_name || ''),
             }));
 
+            if (requestSeq !== uploadedListLatestRequestSeq) {
+                return;
+            }
+
             uploadedHistory = mapped;
             renderUploadedHistory();
-            await finishUploadedListLoading();
 
             const savedSelectedVideo = loadSelectedVideo();
             const matchedSelected = mapped.find((item) => item.serverFileName === savedSelectedVideo);
@@ -1040,8 +1076,11 @@
                 saveSelectedVideo('');
             }
         } catch (_ignore) {
+            if (requestSeq === uploadedListLatestRequestSeq) {
+                setStatus('업로드 목록을 불러오지 못했습니다. API 연결 상태를 확인하세요.', 'warning');
+            }
+        } finally {
             await finishUploadedListLoading();
-            setStatus('업로드 목록을 불러오지 못했습니다. API 연결 상태를 확인하세요.', 'warning');
         }
     }
 

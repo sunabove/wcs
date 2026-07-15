@@ -335,7 +335,6 @@ class Sam2VideoDetector:
         self,
         input_path: Path,
         target_type: str = "road",
-        conf: float = 0.25,
         max_det: int = 300,
         model_name: str = SAM2_DEFAULT_MODEL,
         bbox=None,

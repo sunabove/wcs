@@ -5,8 +5,6 @@
     const dropZone = document.getElementById('sam2-drop-zone');
     const selectedFileElement = document.getElementById('sam2-selected-file');
     const detectButton = document.getElementById('sam2-detect-btn');
-    const confInput = document.getElementById('sam2-conf');
-    const confValueElement = document.getElementById('sam2-conf-value');
     const loopToggleInput = document.getElementById('sam2-loop-toggle');
     const uploadedListElement = document.getElementById('sam2-uploaded-list');
     const uploadedEmptyElement = document.getElementById('sam2-uploaded-empty');
@@ -56,7 +54,6 @@
     let hasCompletedInitialUploadedListLoad = false;
     const MAX_POINT_COUNT = 20;
     const STORAGE_TARGET_KEY = 'sam2.targetType';
-    const STORAGE_CONF_KEY = 'sam2.conf';
     const STORAGE_SELECTED_VIDEO_KEY = 'sam2.selectedVideo';
     const DEFAULT_MAX_UPLOAD_BYTES = 1024 * 1024 * 1024; // 1 GB
     let maxUploadBytes = DEFAULT_MAX_UPLOAD_BYTES;
@@ -223,13 +220,6 @@
         return Number.isFinite(parsed) ? parsed : fallback;
     }
 
-    function updateConfValueLabel() {
-        if (!confValueElement) {
-            return;
-        }
-        confValueElement.textContent = toNumber(confInput ? confInput.value : 0.25, 0.25).toFixed(2);
-    }
-
     function hasSelectedVideo() {
         const fileFromInput = fileInput.files && fileInput.files[0] ? fileInput.files[0] : null;
         return Boolean(selectedFile || fileFromInput || selectedServerFileName);
@@ -238,9 +228,7 @@
     function saveUiOptions() {
         try {
             const targetType = getSelectedTargetType();
-            const conf = toNumber(confInput ? confInput.value : 0.25, 0.25);
             localStorage.setItem(STORAGE_TARGET_KEY, targetType);
-            localStorage.setItem(STORAGE_CONF_KEY, String(conf));
         } catch (_ignore) {
             // localStorage may be unavailable in some browser/privacy modes.
         }
@@ -274,15 +262,6 @@
                 const targetInput = document.querySelector(`input[name="sam2-target"][value="${storedTargetType}"]`);
                 if (targetInput) {
                     targetInput.checked = true;
-                }
-            }
-
-            if (confInput) {
-                const storedConfRaw = localStorage.getItem(STORAGE_CONF_KEY);
-                if (storedConfRaw != null) {
-                    const storedConf = toNumber(storedConfRaw, 0.25);
-                    const normalizedConf = Math.max(0, Math.min(1, storedConf));
-                    confInput.value = String(normalizedConf);
                 }
             }
         } catch (_ignore) {
@@ -1374,7 +1353,6 @@
         const fileFromInput = fileInput.files && fileInput.files[0] ? fileInput.files[0] : null;
         const file = selectedFile || fileFromInput;
         const targetType = getSelectedTargetType();
-        const conf = toNumber(confInput ? confInput.value : 0.25, 0.25);
         ensureDefaultBoundingBox();
         const bboxQuery = buildBboxQuery();
 
@@ -1407,13 +1385,13 @@
             if (file) {
                 const formData = new FormData();
                 formData.append('file', file);
-                const url = `${apiBase}/fast/sam2/segment_video_upload?target_type=${encodeURIComponent(targetType)}&conf=${encodeURIComponent(conf)}${bboxQuery}`;
+                const url = `${apiBase}/fast/sam2/segment_video_upload?target_type=${encodeURIComponent(targetType)}${bboxQuery}`;
                 response = await fetch(url, {
                     method: 'POST',
                     body: formData,
                 });
             } else {
-                const url = `${apiBase}/fast/sam2/segment_saved_video?file_name=${encodeURIComponent(selectedServerFileName)}&target_type=${encodeURIComponent(targetType)}&conf=${encodeURIComponent(conf)}${bboxQuery}`;
+                const url = `${apiBase}/fast/sam2/segment_saved_video?file_name=${encodeURIComponent(selectedServerFileName)}&target_type=${encodeURIComponent(targetType)}${bboxQuery}`;
                 response = await fetch(url, {
                     method: 'POST',
                 });
@@ -1572,13 +1550,6 @@
             event.stopPropagation();
         });
     }
-    if (confInput) {
-        confInput.addEventListener('input', () => {
-            stopCurrentOutputPlayback();
-            updateConfValueLabel();
-            saveUiOptions();
-        });
-    }
     document.querySelectorAll('input[name="sam2-target"]').forEach((input) => {
         input.addEventListener('change', () => {
             stopCurrentOutputPlayback();
@@ -1598,7 +1569,6 @@
 
     applyLoopOption();
     loadUiOptions();
-    updateConfValueLabel();
     renderPointUi();
     renderBoundingBoxUi();
 

@@ -254,7 +254,6 @@ class Sam2VideoService:
         self,
         upload_file: UploadFile,
         target_type: str = "road",
-        conf: float = 0.25,
         max_det: int = 300,
         model_name: str = "auto",
         bbox: str = "",
@@ -267,7 +266,6 @@ class Sam2VideoService:
             return self.detector.detect_video_file(
                 input_path=input_path,
                 target_type=normalized_target_type,
-                conf=conf,
                 max_det=max_det,
                 model_name=resolved_model_name,
                 bbox=bbox,
@@ -298,7 +296,6 @@ class Sam2VideoService:
         self,
         file_name: str,
         target_type: str = "road",
-        conf: float = 0.25,
         max_det: int = 300,
         model_name: str = "auto",
         bbox: str = "",
@@ -311,7 +308,6 @@ class Sam2VideoService:
             return self.detector.detect_video_file(
                 input_path=input_path,
                 target_type=normalized_target_type,
-                conf=conf,
                 max_det=max_det,
                 model_name=resolved_model_name,
                 bbox=bbox,

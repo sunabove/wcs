@@ -26,7 +26,6 @@ def upload_limit():
 def segment_video_upload(
     file: UploadFile = File(...),
     target_type: str = Query("road"),
-    conf: float = Query(0.25, ge=0.0, le=1.0),
     max_det: int = Query(300, ge=1, le=2000),
     model_name: str = Query("auto"),
     bbox: str = Query(""),
@@ -34,7 +33,6 @@ def segment_video_upload(
     return _service.detect_uploaded_video(
         upload_file=file,
         target_type=target_type,
-        conf=conf,
         max_det=max_det,
         model_name=model_name,
         bbox=bbox,
@@ -59,7 +57,6 @@ def uploaded_videos(
 def segment_saved_video(
     file_name: str = Query(...),
     target_type: str = Query("road"),
-    conf: float = Query(0.25, ge=0.0, le=1.0),
     max_det: int = Query(300, ge=1, le=2000),
     model_name: str = Query("auto"),
     bbox: str = Query(""),
@@ -67,7 +64,6 @@ def segment_saved_video(
     return _service.detect_saved_video(
         file_name=file_name,
         target_type=target_type,
-        conf=conf,
         max_det=max_det,
         model_name=model_name,
         bbox=bbox,

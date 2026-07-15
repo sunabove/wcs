@@ -31,6 +31,17 @@ class Sam2VideoService:
             raise HTTPException(status_code=400, detail="Only video files are supported")
         return suffix
 
+    def _safe_uploaded_file_name(self, file_name: str) -> str:
+        value = str(file_name or "").strip()
+        if not value:
+            raise HTTPException(status_code=400, detail="file_name is required")
+
+        name = Path(value).name
+        if not name or name in {".", ".."}:
+            raise HTTPException(status_code=400, detail="Invalid file name")
+
+        return name
+
     def _resolve_model_name(self, target_type: str, model_name: str) -> str:
         _ = target_type
         value = str(model_name or "").strip()
@@ -90,10 +101,11 @@ class Sam2VideoService:
         return True
 
     def _save_uploaded_video(self, upload_file: UploadFile) -> Path:
-        suffix = self._safe_suffix(upload_file.filename)
+        original_file_name = self._safe_uploaded_file_name(upload_file.filename)
+        suffix = self._safe_suffix(original_file_name)
         SAM2_UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
         job_id = f"{int(time.time() * 1000)}_{uuid.uuid4().hex[:8]}"
-        temp_path = SAM2_UPLOAD_DIR / f"{job_id}.uploading{suffix}"
+        temp_path = SAM2_UPLOAD_DIR / f"{Path(original_file_name).stem}.{job_id}.uploading{suffix}"
 
         hasher = hashlib.sha256()
         written_size = 0
@@ -112,6 +124,7 @@ class Sam2VideoService:
             upload_file.file.close()
 
         new_digest = hasher.hexdigest()
+        target_name = original_file_name
 
         for existing_path in SAM2_UPLOAD_DIR.glob(f"*{suffix}"):
             if not existing_path.is_file() or existing_path == temp_path:
@@ -131,7 +144,11 @@ class Sam2VideoService:
                     pass
                 return existing_path
 
-        input_path = SAM2_UPLOAD_DIR / f"{job_id}{suffix}"
+        input_path = SAM2_UPLOAD_DIR / target_name
+        if input_path.exists():
+            stem = Path(original_file_name).stem
+            input_path = SAM2_UPLOAD_DIR / f"{stem}_{job_id}{suffix}"
+
         temp_path.replace(input_path)
         return input_path
 

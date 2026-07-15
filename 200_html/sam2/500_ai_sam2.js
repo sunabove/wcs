@@ -8,7 +8,6 @@
     const confInput = document.getElementById('sam2-conf');
     const confValueElement = document.getElementById('sam2-conf-value');
     const loopToggleInput = document.getElementById('sam2-loop-toggle');
-    const listLoadingBannerElement = document.getElementById('sam2-list-loading-banner');
     const uploadedListElement = document.getElementById('sam2-uploaded-list');
     const uploadedEmptyElement = document.getElementById('sam2-uploaded-empty');
     const uploadedLoadingElement = document.getElementById('sam2-uploaded-loading');
@@ -920,14 +919,6 @@
 
         isUploadedListLoading = Boolean(isLoading);
         uploadedListLoadingMessage = String(message || uploadedListLoadingMessage || '동영상 목록을 불러오는 중...');
-
-        if (listLoadingBannerElement) {
-            if (isLoading) {
-                listLoadingBannerElement.classList.remove('d-none');
-            } else {
-                listLoadingBannerElement.classList.add('d-none');
-            }
-        }
 
         if (uploadedLoadingElement) {
             if (isLoading) {

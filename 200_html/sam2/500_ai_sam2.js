@@ -11,6 +11,9 @@
     const uploadedListElement = document.getElementById('sam2-uploaded-list');
     const uploadedEmptyElement = document.getElementById('sam2-uploaded-empty');
     const uploadMaxSizeElement = document.getElementById('sam2-upload-max-size');
+    const uploadProgressWrapElement = document.getElementById('sam2-upload-progress-wrap');
+    const uploadProgressBarElement = document.getElementById('sam2-upload-progress-bar');
+    const uploadProgressTextElement = document.getElementById('sam2-upload-progress-text');
     const pointClearButton = document.getElementById('sam2-point-clear');
     const positivePointListElement = document.getElementById('sam2-positive-points');
     const positivePointCountElement = document.getElementById('sam2-positive-count');
@@ -80,6 +83,88 @@
             ? '제한 없음'
             : (configuredText || formatBytes(maxUploadBytes));
         uploadMaxSizeElement.textContent = `최대 업로드 용량: ${sizeText}`;
+    }
+
+    function setUploadProgress(percent, text) {
+        const normalized = Math.max(0, Math.min(100, Number(percent) || 0));
+        if (uploadProgressWrapElement) {
+            uploadProgressWrapElement.classList.remove('d-none');
+        }
+        if (uploadProgressBarElement) {
+            uploadProgressBarElement.style.width = `${normalized}%`;
+            uploadProgressBarElement.textContent = `${normalized}%`;
+            uploadProgressBarElement.setAttribute('aria-valuenow', String(normalized));
+        }
+        if (uploadProgressTextElement && text) {
+            uploadProgressTextElement.textContent = String(text);
+        }
+    }
+
+    function hideUploadProgress() {
+        if (uploadProgressWrapElement) {
+            uploadProgressWrapElement.classList.add('d-none');
+        }
+        if (uploadProgressBarElement) {
+            uploadProgressBarElement.style.width = '0%';
+            uploadProgressBarElement.textContent = '0%';
+            uploadProgressBarElement.setAttribute('aria-valuenow', '0');
+        }
+        if (uploadProgressTextElement) {
+            uploadProgressTextElement.textContent = '업로드 준비 중...';
+        }
+    }
+
+    function uploadVideoWithProgress(apiBase, file) {
+        return new Promise((resolve, reject) => {
+            const xhr = new XMLHttpRequest();
+            xhr.open('POST', `${apiBase}/fast/sam2/upload_video`, true);
+
+            xhr.upload.addEventListener('progress', (event) => {
+                if (event && event.lengthComputable && event.total > 0) {
+                    const percent = Math.round((event.loaded / event.total) * 100);
+                    setUploadProgress(percent, `업로드 중... ${percent}% (${formatBytes(event.loaded)} / ${formatBytes(event.total)})`);
+                } else {
+                    setUploadProgress(0, '업로드 중...');
+                }
+            });
+
+            xhr.addEventListener('load', () => {
+                if (xhr.status >= 200 && xhr.status < 300) {
+                    try {
+                        const body = JSON.parse(xhr.responseText || '{}');
+                        setUploadProgress(100, '업로드 완료');
+                        resolve(body);
+                    } catch (_ignore) {
+                        reject(new Error('업로드 응답 파싱 실패'));
+                    }
+                    return;
+                }
+
+                let errorMessage = `업로드 실패 (${xhr.status})`;
+                try {
+                    const body = JSON.parse(xhr.responseText || '{}');
+                    if (body && body.detail) {
+                        errorMessage = String(body.detail);
+                    }
+                } catch (_ignore) {
+                    // Keep default error message.
+                }
+                reject(new Error(errorMessage));
+            });
+
+            xhr.addEventListener('error', () => {
+                reject(new Error('업로드 중 네트워크 오류가 발생했습니다.'));
+            });
+
+            xhr.addEventListener('abort', () => {
+                reject(new Error('업로드가 취소되었습니다.'));
+            });
+
+            const formData = new FormData();
+            formData.append('file', file);
+            setUploadProgress(0, '업로드 시작...');
+            xhr.send(formData);
+        });
     }
 
     async function loadUploadLimitFromServer() {
@@ -1089,31 +1174,11 @@
 
         isUploadingImmediately = true;
         setStatus('동영상 업로드 중...', 'info');
+        setUploadProgress(0, '업로드 시작...');
 
         try {
             const apiBase = await resolveApiBase();
-            const formData = new FormData();
-            formData.append('file', file);
-
-            const uploadResponse = await fetch(`${apiBase}/fast/sam2/upload_video`, {
-                method: 'POST',
-                body: formData,
-            });
-
-            if (!uploadResponse.ok) {
-                let errorMessage = `업로드 실패 (${uploadResponse.status})`;
-                try {
-                    const errorBody = await uploadResponse.json();
-                    if (errorBody && errorBody.detail) {
-                        errorMessage = String(errorBody.detail);
-                    }
-                } catch (_ignore) {
-                    // Keep default message.
-                }
-                throw new Error(errorMessage);
-            }
-
-            const uploadResult = await uploadResponse.json();
+            const uploadResult = await uploadVideoWithProgress(apiBase, file);
             const uploadedPath = extractFastImagePath(uploadResult.input_url) || String(uploadResult.file_name || '').trim();
             selectedFile = null;
             if (fileInput) {
@@ -1133,9 +1198,27 @@
         } catch (error) {
             const message = error && error.message ? error.message : String(error);
             // Fallback: keep selected file so segment_video_upload can still upload+segment.
-            setStatus(`업로드 오류: ${message} (분할 시작 시 업로드 재시도)`, 'warning');
+            if (uploadProgressTextElement) {
+                uploadProgressTextElement.textContent = `업로드 실패: ${message}`;
+            }
+            if (uploadProgressBarElement) {
+                uploadProgressBarElement.classList.remove('progress-bar-animated');
+                uploadProgressBarElement.classList.remove('progress-bar-striped');
+                uploadProgressBarElement.classList.add('bg-danger');
+            }
+            setStatus(`업로드 오류: ${message} (분할 시작 시 업로드 재시도)`, 'danger');
         } finally {
             isUploadingImmediately = false;
+            if (uploadProgressBarElement) {
+                uploadProgressBarElement.classList.add('progress-bar-animated');
+                uploadProgressBarElement.classList.add('progress-bar-striped');
+                uploadProgressBarElement.classList.remove('bg-danger');
+            }
+            setTimeout(() => {
+                if (!isUploadingImmediately) {
+                    hideUploadProgress();
+                }
+            }, 1500);
         }
     }
 

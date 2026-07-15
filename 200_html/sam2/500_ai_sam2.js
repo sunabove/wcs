@@ -43,6 +43,7 @@
     let bboxResizeStartPoint = null;
     let bboxResizeStartBox = null;
     let isUploadingImmediately = false;
+    let uploadedListLoadingStartedAt = 0;
     const MAX_POINT_COUNT = 20;
     const STORAGE_TARGET_KEY = 'sam2.targetType';
     const STORAGE_CONF_KEY = 'sam2.conf';
@@ -902,13 +903,46 @@
             uploadedListElement.style.opacity = isLoading ? '0.65' : '1';
         }
 
-        if (isLoading && uploadedListElement && uploadedHistory.length === 0) {
-            uploadedListElement.innerHTML = '';
-            const loadingItem = document.createElement('li');
-            loadingItem.className = 'list-group-item small text-muted';
-            loadingItem.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>' + String(message || '목록 불러오는 중...');
-            uploadedListElement.appendChild(loadingItem);
+        if (!uploadedListElement) {
+            return;
         }
+
+        const loadingText = String(message || '목록 불러오는 중...');
+        const existingLoadingItem = uploadedListElement.querySelector('#sam2-uploaded-loading-item');
+
+        if (isLoading) {
+            uploadedListLoadingStartedAt = Date.now();
+
+            if (uploadedHistory.length === 0) {
+                uploadedListElement.innerHTML = '';
+            }
+
+            if (!existingLoadingItem) {
+                const loadingItem = document.createElement('li');
+                loadingItem.id = 'sam2-uploaded-loading-item';
+                loadingItem.className = 'list-group-item small text-muted';
+                loadingItem.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>' + loadingText;
+                uploadedListElement.prepend(loadingItem);
+            } else {
+                existingLoadingItem.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>' + loadingText;
+            }
+            return;
+        }
+
+        if (existingLoadingItem) {
+            existingLoadingItem.remove();
+        }
+    }
+
+    async function finishUploadedListLoading() {
+        const elapsed = Date.now() - uploadedListLoadingStartedAt;
+        const minVisibleMs = 450;
+        if (elapsed < minVisibleMs) {
+            await new Promise((resolve) => {
+                setTimeout(resolve, minVisibleMs - elapsed);
+            });
+        }
+        setUploadedListLoading(false);
     }
 
     function addUploadedHistoryItem(fileNameHint, inputFilePath, thumbnailSource) {
@@ -965,7 +999,7 @@
             }
 
             if (!response.ok) {
-                setUploadedListLoading(false);
+                await finishUploadedListLoading();
                 setStatus(`업로드 목록 조회 실패 (${response.status})`, 'warning');
                 return;
             }
@@ -1001,9 +1035,9 @@
 
             uploadedHistory = mapped;
             renderUploadedHistory();
-            setUploadedListLoading(false);
+            await finishUploadedListLoading();
         } catch (_ignore) {
-            setUploadedListLoading(false);
+            await finishUploadedListLoading();
             setStatus('업로드 목록을 불러오지 못했습니다. API 연결 상태를 확인하세요.', 'warning');
         }
     }

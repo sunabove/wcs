@@ -22,6 +22,10 @@ from sam2.Sam2VideoConfig import (
 class Sam2VideoDetector:
     _model_cache = {}
     _sam2_predictor_class = None
+    _max_infer_side = 960
+    _max_infer_fps = 10.0
+    _max_infer_frames = 600
+    _max_infer_pixels_total = 320_000_000
 
     def __init__(self):
         SAM2_UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
@@ -96,6 +100,101 @@ class Sam2VideoDetector:
                 return writer
             writer.release()
         return None
+
+    def _prepare_video_for_inference(self, input_path: Path, job_id: str):
+        capture = cv2.VideoCapture(str(input_path))
+        if not capture.isOpened():
+            raise RuntimeError("Failed to open uploaded video")
+
+        try:
+            src_fps = float(capture.get(cv2.CAP_PROP_FPS) or 0.0)
+            if src_fps <= 0:
+                src_fps = 20.0
+
+            src_width = int(capture.get(cv2.CAP_PROP_FRAME_WIDTH) or 0)
+            src_height = int(capture.get(cv2.CAP_PROP_FRAME_HEIGHT) or 0)
+            src_frames = int(capture.get(cv2.CAP_PROP_FRAME_COUNT) or 0)
+            if src_width <= 0 or src_height <= 0:
+                raise RuntimeError("Invalid video size")
+
+            longest_side = max(src_width, src_height)
+            resize_ratio = 1.0
+            if longest_side > self._max_infer_side:
+                resize_ratio = self._max_infer_side / float(longest_side)
+
+            dst_width = max(2, int(round(src_width * resize_ratio)))
+            dst_height = max(2, int(round(src_height * resize_ratio)))
+            dst_width += dst_width % 2
+            dst_height += dst_height % 2
+
+            target_fps = min(src_fps, self._max_infer_fps)
+            frame_step = max(1, int(round(src_fps / max(0.1, target_fps))))
+
+            estimated_out_frames = src_frames // frame_step if src_frames > 0 else self._max_infer_frames
+            requires_optimize = (
+                resize_ratio < 1.0
+                or frame_step > 1
+                or (src_frames > 0 and estimated_out_frames > self._max_infer_frames)
+                or (src_frames > 0 and (src_width * src_height * src_frames) > self._max_infer_pixels_total)
+            )
+
+            if not requires_optimize:
+                return {
+                    "path": input_path,
+                    "cleanup": False,
+                    "optimized": False,
+                    "fps": src_fps,
+                    "width": src_width,
+                    "height": src_height,
+                }
+
+            SAM2_UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+            optimized_path = SAM2_UPLOAD_DIR / f"_{job_id}.sam2_optimized.mp4"
+            writer = self._create_video_writer(optimized_path, target_fps, dst_width, dst_height)
+            if writer is None:
+                raise RuntimeError("Failed to create optimized inference video")
+
+            written = 0
+            frame_index = 0
+            try:
+                while True:
+                    ok, frame = capture.read()
+                    if not ok:
+                        break
+
+                    if frame_index % frame_step != 0:
+                        frame_index += 1
+                        continue
+
+                    if dst_width != src_width or dst_height != src_height:
+                        frame = cv2.resize(frame, (dst_width, dst_height), interpolation=cv2.INTER_AREA)
+
+                    writer.write(frame)
+                    written += 1
+                    frame_index += 1
+
+                    if written >= self._max_infer_frames:
+                        break
+            finally:
+                writer.release()
+
+            if written <= 0 or not optimized_path.exists() or optimized_path.stat().st_size <= 0:
+                try:
+                    optimized_path.unlink(missing_ok=True)
+                except OSError:
+                    pass
+                raise RuntimeError("Failed to prepare video for SAM2 inference")
+
+            return {
+                "path": optimized_path,
+                "cleanup": True,
+                "optimized": True,
+                "fps": target_fps,
+                "width": dst_width,
+                "height": dst_height,
+            }
+        finally:
+            capture.release()
 
     def _parse_bbox(self, bbox, width: int, height: int):
         if bbox is None:
@@ -212,7 +311,9 @@ class Sam2VideoDetector:
         job_id = f"{int(time.time() * 1000)}_{uuid.uuid4().hex[:8]}"
         output_path = SAM2_OUTPUT_DIR / f"{job_id}_{target_type}_segmented.mp4"
 
-        capture = cv2.VideoCapture(str(resolved_input))
+        prepared = self._prepare_video_for_inference(resolved_input, job_id)
+        prepared_path = Path(prepared["path"])
+        capture = cv2.VideoCapture(str(prepared_path))
         if not capture.isOpened():
             raise RuntimeError("Failed to open uploaded video")
 
@@ -244,14 +345,26 @@ class Sam2VideoDetector:
 
         start_time = time.time()
         model = self._get_model(model_name)
-        inference_state = model.init_state(str(resolved_input))
-        x1, y1, x2, y2 = bbox_rect
-        model.add_new_points_or_box(
-            inference_state=inference_state,
-            frame_idx=0,
-            obj_id=1,
-            box=[x1, y1, x2, y2],
-        )
+        try:
+            inference_state = model.init_state(
+                str(prepared_path),
+                offload_video_to_cpu=True,
+                offload_state_to_cpu=True,
+            )
+            x1, y1, x2, y2 = bbox_rect
+            model.add_new_points_or_box(
+                inference_state=inference_state,
+                frame_idx=0,
+                obj_id=1,
+                box=[x1, y1, x2, y2],
+            )
+        except RuntimeError as ex:
+            message = str(ex)
+            if "can't allocate memory" in message.lower() or "cannot allocate memory" in message.lower():
+                raise RuntimeError(
+                    "메모리가 부족합니다. 더 짧은 영상을 사용하거나 해상도를 낮춘 뒤 다시 시도하세요."
+                ) from ex
+            raise
 
         tracked_frames = 0
         total_segments = 0
@@ -276,6 +389,11 @@ class Sam2VideoDetector:
         finally:
             capture.release()
             writer.release()
+            if prepared.get("cleanup"):
+                try:
+                    prepared_path.unlink(missing_ok=True)
+                except OSError:
+                    pass
 
         if tracked_frames <= 0:
             raise RuntimeError("No frames were processed")
@@ -292,6 +410,7 @@ class Sam2VideoDetector:
             "elapsed_sec": elapsed_sec,
             "segment_count": int(total_segments),
             "bbox": normalized_bbox,
+            "optimized_input": bool(prepared.get("optimized")),
             "input_file": str(resolved_input),
             "output_file": str(output_path.resolve()),
             "input_url": self._to_route_url(resolved_input),

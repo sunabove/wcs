@@ -44,6 +44,7 @@
     const STORAGE_SELECTED_VIDEO_KEY = 'sam2.selectedVideo';
     const DEFAULT_MAX_UPLOAD_BYTES = 1024 * 1024 * 1024; // 1 GB
     let maxUploadBytes = DEFAULT_MAX_UPLOAD_BYTES;
+    let maxUploadConfiguredValue = '1g';
 
     function setStatus(message, type) {
         const alertType = type || 'secondary';
@@ -74,9 +75,10 @@
             return;
         }
 
+        const configuredText = String(maxUploadConfiguredValue || '').trim();
         const sizeText = maxUploadBytes <= 0
             ? '제한 없음'
-            : formatBytes(maxUploadBytes);
+            : (configuredText || formatBytes(maxUploadBytes));
         const sourceText = source === 'nginx'
             ? ' (nginx)'
             : source === 'env'
@@ -101,6 +103,11 @@
             const candidate = Number(body && body.max_upload_bytes);
             if (Number.isFinite(candidate) && candidate >= 0) {
                 maxUploadBytes = candidate;
+            }
+
+            const configuredValue = String((body && body.configured_value) || '').trim();
+            if (configuredValue) {
+                maxUploadConfiguredValue = configuredValue;
             }
 
             const source = String((body && body.source) || 'default').toLowerCase();

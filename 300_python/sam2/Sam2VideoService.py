@@ -63,7 +63,7 @@ class Sam2VideoService:
         env_value = os.getenv("NGINX_CLIENT_MAX_BODY_SIZE") or os.getenv("CLIENT_MAX_BODY_SIZE")
         env_bytes = self._parse_size_to_bytes(env_value)
         if env_bytes is not None:
-            return env_bytes, "env"
+            return env_bytes, "env", str(env_value).strip()
 
         try:
             result = subprocess.run(
@@ -77,17 +77,18 @@ class Sam2VideoService:
             for raw_value in reversed(matches):
                 parsed = self._parse_size_to_bytes(raw_value)
                 if parsed is not None:
-                    return parsed, "nginx"
+                    return parsed, "nginx", str(raw_value).strip()
         except Exception:
             pass
 
-        return DEFAULT_UPLOAD_LIMIT_BYTES, "default"
+        return DEFAULT_UPLOAD_LIMIT_BYTES, "default", "1g"
 
     def get_upload_limit(self):
-        max_upload_bytes, source = self._resolve_nginx_upload_limit()
+        max_upload_bytes, source, configured_value = self._resolve_nginx_upload_limit()
         return {
             "max_upload_bytes": int(max_upload_bytes),
             "source": source,
+            "configured_value": configured_value,
         }
 
     def _safe_uploaded_file_name(self, file_name: str) -> str:

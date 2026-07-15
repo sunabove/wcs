@@ -11,4 +11,5 @@ opencv-python
 scikit-image
 ultralytics
 sam2
+huggingface_hub
 tensorboard 

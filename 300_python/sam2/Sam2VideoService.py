@@ -183,6 +183,19 @@ class Sam2VideoService:
         except Exception as ex:
             raise HTTPException(status_code=500, detail=f"SAM2 segmentation failed: {ex}") from ex
 
+    def upload_video_only(self, upload_file: UploadFile):
+        input_path = self._save_uploaded_video(upload_file)
+        relative = self._to_relative_under_base(input_path)
+
+        return {
+            "file_name": relative,
+            "display_name": input_path.name,
+            "size": int(input_path.stat().st_size),
+            "uploaded_at": datetime.fromtimestamp(input_path.stat().st_mtime).isoformat(timespec="seconds"),
+            "input_url": f"/fast/image/{relative}",
+            "thumbnail_url": f"/fast/video_thumbnail/{relative}",
+        }
+
     def detect_saved_video(
         self,
         file_name: str,

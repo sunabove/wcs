@@ -1099,6 +1099,30 @@
             setStatus('분할 완료', 'success');
         } catch (error) {
             const message = error && error.message ? error.message : String(error);
+            if (file) {
+                try {
+                    const apiBase = await resolveApiBase();
+                    const fallbackFormData = new FormData();
+                    fallbackFormData.append('file', file);
+                    const uploadResponse = await fetch(`${apiBase}/fast/sam2/upload_video`, {
+                        method: 'POST',
+                        body: fallbackFormData,
+                    });
+
+                    if (uploadResponse.ok) {
+                        const uploadResult = await uploadResponse.json();
+                        const uploadedPath = extractFastImagePath(uploadResult.input_url) || String(uploadResult.file_name || '').trim();
+                        if (uploadedPath) {
+                            selectedServerFileName = uploadedPath;
+                            saveSelectedVideo(selectedServerFileName);
+                        }
+                    }
+
+                    await loadUploadedHistoryFromServer();
+                } catch (_ignore) {
+                    // Keep original error message when history refresh fails.
+                }
+            }
             setStatus(`오류: ${message}`, 'danger');
         } finally {
             detectButton.disabled = false;

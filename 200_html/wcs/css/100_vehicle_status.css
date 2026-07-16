@@ -208,6 +208,11 @@
     box-sizing: border-box;
 }
 
+.obstacle-sensor-chip-number-cell.active {
+    background: currentColor;
+    opacity: 0.92;
+}
+
 #obstacleInfo .obstacle-sensor-chip i {
     font-size: 1.5em !important;
 }

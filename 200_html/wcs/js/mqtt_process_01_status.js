@@ -46,6 +46,7 @@ const SENSOR_DISPLAY_ORDER = ['ToF', 'IMU', 'Current', 'Camera', 'Lidar'];
 const sensorCountById = {};
 const receivedSensorIds = new Set();
 const obstacleActiveSensorIds = new Set();
+const receivedSensorIndexById = new Map();
 
 function getSensorDisplayOrder(sensorId) {
     const orderIndex = SENSOR_DISPLAY_ORDER.indexOf(sensorId);
@@ -63,16 +64,22 @@ function getSensorNumberLabel(sensorIndex) {
     return String(sensorIndex + 1);
 }
 
+function hasReceivedSensorIndex(sensorId, sensorIndex) {
+    const receivedIndexes = receivedSensorIndexById.get(String(sensorId));
+    return receivedIndexes instanceof Set && receivedIndexes.has(sensorIndex);
+}
+
 function getSensorCountRangeLabel(sensorId) {
     const sensorCount = Number.parseInt(sensorCountById[sensorId], 10);
     if (!Number.isFinite(sensorCount) || sensorCount <= 0) {
         return '';
     }
 
-    return Array.from(
-        { length: sensorCount },
-        () => '<span class="obstacle-sensor-chip-number-cell" aria-hidden="true"></span>'
-    ).join('');
+    return Array.from({ length: sensorCount }, (_, sensorIndex) => {
+        const isActive = hasReceivedSensorIndex(sensorId, sensorIndex);
+        const activeClassName = isActive ? ' active' : '';
+        return `<span class="obstacle-sensor-chip-number-cell${activeClassName}" data-sensor-index="${sensorIndex}" aria-hidden="true"></span>`;
+    }).join('');
 }
 
 function refreshObstacleSensorChipNumbers(sensorId) {
@@ -96,6 +103,26 @@ function refreshSensorRowLabels(sensorId) {
         const rowSensorIndex = Number.parseInt($(this).attr('data-sensor-index'), 10);
         $(this).find('[data-sensor-label]').text(getSensorRowLabel(rowSensorId, rowSensorIndex));
         $(this).find('[data-sensor-number]').text(getSensorNumberLabel(rowSensorIndex));
+    });
+}
+
+function applyObstacleSensorChipNumberState(sensorId) {
+    const selector = sensorId
+        ? `#obstacle-sensor-types .obstacle-sensor-chip[data-sensor-id="${sensorId}"]`
+        : '#obstacle-sensor-types .obstacle-sensor-chip[data-sensor-id]';
+
+    $(selector).each(function () {
+        const rowSensorId = String($(this).attr('data-sensor-id') || '').trim();
+        if (!rowSensorId) {
+            return;
+        }
+
+        $(this).find('[data-sensor-chip-number] .obstacle-sensor-chip-number-cell').each(function (cellIndex) {
+            const dataIndex = Number.parseInt($(this).attr('data-sensor-index'), 10);
+            const normalizedCellIndex = Number.isFinite(dataIndex) ? dataIndex : cellIndex;
+            const isActive = hasReceivedSensorIndex(rowSensorId, normalizedCellIndex);
+            $(this).toggleClass('active', isActive);
+        });
     });
 }
 
@@ -138,6 +165,31 @@ function updateReceivedSensorTypes(topic) {
     }
 
     applyObstacleSensorChipState();
+}
+
+function updateReceivedSensorNumberCells(topic) {
+    const sensorTopicMatch = String(topic || '').match(/^sensor\/([^/]+)\/(\d+)\/(state|value|obstacle|obstacle\/confidence)$/);
+    if (!sensorTopicMatch) {
+        return;
+    }
+
+    const sensorId = String(sensorTopicMatch[1] || '').trim();
+    const sensorIndex = Number.parseInt(sensorTopicMatch[2], 10);
+    if (!sensorId || !Number.isFinite(sensorIndex)) {
+        return;
+    }
+
+    if (!receivedSensorIndexById.has(sensorId)) {
+        receivedSensorIndexById.set(sensorId, new Set());
+    }
+
+    const receivedIndexes = receivedSensorIndexById.get(sensorId);
+    if (!(receivedIndexes instanceof Set)) {
+        return;
+    }
+
+    receivedIndexes.add(sensorIndex);
+    applyObstacleSensorChipNumberState(sensorId);
 }
 
 function updateObstacleSensorTypes(topic, value) {
@@ -640,11 +692,13 @@ function prcessMqttMessage(topic, value) {
             sensorCountById[sensorId] = sensorCount;
             refreshSensorRowLabels(sensorId);
             refreshObstacleSensorChipNumbers(sensorId);
+            applyObstacleSensorChipNumberState(sensorId);
         }
     }
 
     ensureDynamicSensorRow(topic);
     updateReceivedSensorTypes(topic);
+    updateReceivedSensorNumberCells(topic);
     updateObstacleSensorTypes(topic, value);
 
     // jQuery를 사용한 DOM 업데이트: topic을 id로 사용해서 해당 요소 찾기 (속성 선택자 사용)

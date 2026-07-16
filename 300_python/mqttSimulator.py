@@ -65,6 +65,12 @@ WHEEL_ID_MAPPING = {
 _shutdown_flag = False
 
 
+def iter_sensor_definitions_in_order():
+    """SENSOR_DEFINITIONS 선언 순서를 기준으로 순회한다."""
+    for sensor_def in SENSOR_DEFINITIONS:
+        yield sensor_def
+
+
 # ===== Simulator =====
 class MqttSimulator:
     def __init__(self, broker="localhost", port=1883):
@@ -455,7 +461,7 @@ class MqttSimulator:
             print("[SETTINGS] Publishing all vehicle and wheel settings...")
 
             # 센서 타입 정의 정보 발행
-            for sensor_def in SENSOR_DEFINITIONS:
+            for sensor_def in iter_sensor_definitions_in_order():
                 sensor_id = sensor_def["id"]
                 self._publish(f"sensor/{sensor_id}/count", sensor_def["count"])
                 self._publish(f"sensor/{sensor_id}/target", sensor_def["target"])
@@ -942,7 +948,7 @@ class MqttSimulator:
             return []
 
         sources = []
-        for sensor_def in SENSOR_DEFINITIONS:
+        for sensor_def in iter_sensor_definitions_in_order():
             sensor_id = sensor_def["id"]
             if not sensor_def["enabled"]:
                 continue
@@ -1014,7 +1020,7 @@ class MqttSimulator:
     def _publish_sensor_interfaces(self):
         obstacle_value = int(self.surface_obstacle.value)
 
-        for sensor_def in SENSOR_DEFINITIONS:
+        for sensor_def in iter_sensor_definitions_in_order():
             sensor_id = sensor_def["id"]
             sensor_enabled = bool(sensor_def["enabled"])
 

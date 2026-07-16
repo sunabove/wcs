@@ -2,6 +2,7 @@
 
 let vehicleSpeedZeroClickLatched = false;
 window.latestVehicleLinearSpeedMs = window.latestVehicleLinearSpeedMs || 0;
+window.latestVehicleOperationCommand = window.latestVehicleOperationCommand ?? null;
 window.wheelRadiusById = window.wheelRadiusById || {};
 const VEHICLE_AUDIO_STORAGE_KEY = 'wcs.vehicle.showAudio';
 
@@ -499,6 +500,9 @@ function prcessMqttMessage(topic, value) {
     // vehicle/operation/command 특별 처리 (차량 이동 제어 버튼 자동 선택)
     if (topic === 'vehicle/operation/command') {
         const commandValue = parseInt(value);
+        if (Number.isFinite(commandValue)) {
+            window.latestVehicleOperationCommand = commandValue;
+        }
         window.vehicleDirectionCommandActive = commandValue >= 1 && commandValue <= 4;
 
         // 상태 페이지 동작 아이콘 동기화

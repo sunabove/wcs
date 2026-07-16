@@ -444,7 +444,11 @@ $(document).ready(function () {
         sendVehicleDirectionCommand(command);
     });
 
-    updateVehicleDirectionControlUi(0);
+    if (Number.isFinite(window.latestVehicleOperationCommand)) {
+        updateVehicleDirectionControlUi(window.latestVehicleOperationCommand);
+    } else {
+        updateVehicleDirectionControlUi(0);
+    }
 
     if (typeof window.prcessMqttMessage === 'function' && !window.wcsSettingMaxSpeedHooked) {
         const originalProcessMqtt = window.prcessMqttMessage;

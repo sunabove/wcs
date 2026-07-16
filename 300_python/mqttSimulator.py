@@ -499,6 +499,12 @@ class MqttSimulator:
             self._publish("vehicle/linear/max_speed", round(self.max_speed, 2))
             print(f"[VEHICLE] Published vehicle/linear/max_speed -> {round(self.max_speed, 2)}")
 
+            # 차량 방향 제어 초기 정보 발행 (클라이언트 접속 시 현재 명령/상태 전달)
+            self._publish("vehicle/operation/command", self.command.value)
+            print(f"[VEHICLE] Published vehicle/operation/command -> {self.command.value}")
+            self._publish("vehicle/operation/state", self.exec_state.value)
+            print(f"[VEHICLE] Published vehicle/operation/state -> {self.exec_state.value}")
+
             # 노면/장애물 상태 초기 정보 발행 (새로고침 시 retain된 과거 상태 덮어쓰기)
             self._publish("vehicle/surface/state", self.surface_state.value)
             print(f"[SURFACE] Published vehicle/surface/state -> {self.surface_state.value}")

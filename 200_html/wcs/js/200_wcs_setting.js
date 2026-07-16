@@ -478,17 +478,14 @@ $(document).ready(function () {
         handleVehicleDirectionUpdate(detail.value);
     });
 
-    const storedVehicleOperationState = readStoredVehicleDirectionValue(vehicleOperationStateStorageKey);
     const storedVehicleOperationCommand = readStoredVehicleDirectionValue(vehicleOperationCommandStorageKey);
 
-    if (Number.isFinite(window.latestVehicleOperationState)) {
-        updateVehicleDirectionControlUi(window.latestVehicleOperationState);
-    } else if (Number.isFinite(storedVehicleOperationState)) {
-        updateVehicleDirectionControlUi(storedVehicleOperationState);
-    } else if (Number.isFinite(window.latestVehicleOperationCommand)) {
+    if (Number.isFinite(window.latestVehicleOperationCommand)) {
         updateVehicleDirectionControlUi(window.latestVehicleOperationCommand);
     } else if (Number.isFinite(storedVehicleOperationCommand)) {
         updateVehicleDirectionControlUi(storedVehicleOperationCommand);
+    } else if (window.latestVehicleOperationState === 0) {
+        updateVehicleDirectionControlUi(0);
     } else {
         updateVehicleDirectionControlUi(0);
     }
@@ -528,8 +525,8 @@ $(document).ready(function () {
                 handleVehicleDirectionUpdate(value);
             }
 
-            if (topic === 'vehicle/operation/state') {
-                handleVehicleDirectionUpdate(value);
+            if (topic === 'vehicle/operation/state' && Number.parseInt(value, 10) === 0) {
+                handleVehicleDirectionUpdate(0);
             }
         };
         window.wcsSettingMaxSpeedHooked = true;

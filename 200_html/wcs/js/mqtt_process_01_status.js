@@ -643,17 +643,6 @@ function prcessMqttMessage(topic, value) {
         if (Number.isFinite(operationState)) {
             window.latestVehicleOperationState = operationState;
             writeVehicleDirectionStorage(VEHICLE_OPERATION_STATE_STORAGE_KEY, operationState);
-            dispatchVehicleDirectionEvent(topic, operationState);
-        }
-
-        if (operationState >= 0 && operationState <= 4) {
-            syncVehicleDirectionButtons(operationState);
-            window.vehicleDirectionCommandActive = operationState >= 1 && operationState <= 4;
-            vehicleSpeedZeroClickLatched = operationState === 0;
-
-            if (operationState === 0 && typeof window.clearVehicleWheelHighlights === 'function') {
-                window.clearVehicleWheelHighlights();
-            }
         }
 
         if (operationState === 0) {
@@ -668,6 +657,8 @@ function prcessMqttMessage(topic, value) {
                 window.vehicleDirectionCommandActive = false;
                 vehicleSpeedZeroClickLatched = true;
             }
+        } else if (operationState === 1) {
+            vehicleSpeedZeroClickLatched = false;
         }
     }
 

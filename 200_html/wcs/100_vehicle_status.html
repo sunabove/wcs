@@ -18,6 +18,7 @@
 
     <!-- WCS Common CSS -->
     <link href="./css/002_wcs_common.css" rel="stylesheet">
+    <link href="./css/100_vehicle_status.css" rel="stylesheet">
 
     <!-- jQuery CDN -->
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
@@ -38,7 +39,11 @@
         }
     </script>
 
-    <script src="./js/010_wcs_common.js" defer></script> 
+    <script src="./js/010_wcs_common.js" defer></script>
+    <script type="module" src="../urdf/urdfViewer.js"></script>
+    <script src="./js/mqtt.js" defer></script>
+    <script src="./js/mqtt_process_01_status.js" defer></script>
+    <script src="./js/100_vehicle_status_overlay.js" defer></script>
 </head>
 
 <body>
@@ -91,8 +96,8 @@
                 </div>
 
                 <!-- 최근 MQTT 메시지 표시 영역 -->
-                <div id="mqtt-message-display" class="d-flex flex-nowrap align-items-center" style="width: 300px; min-width: 300px; flex-shrink: 0;">
-                    <div class="badge bg-info text-dark fs-6 px-3 py-2 w-100 d-flex align-items-center" style="min-width: 0;">
+                <div id="mqtt-message-display" class="d-flex flex-nowrap align-items-center mqtt-message-display-fixed">
+                    <div class="badge bg-info text-dark fs-6 px-3 py-2 w-100 d-flex align-items-center mqtt-message-badge-wrap">
                         <i class="fas fa-envelope me-2 flex-shrink-0"></i>
                         <div class="mqtt-message-row d-flex justify-content-between align-items-center w-100 text-truncate">
                             <span id="mqtt-topic" class="fw-bold text-white text-nowrap">대기중</span>
@@ -117,7 +122,7 @@
 
             <div class="card-body p-2">
 
-                <table class="w-100" style="border-collapse: separate; border-spacing: 0; table-layout: fixed;">
+                <table class="w-100 vehicle-status-layout-table">
                     <colgroup>
                         <col width="360px">
                         <col>
@@ -239,7 +244,7 @@
                                             <!-- 차량 URDF Viewer -->
                                             <div class="row w-100 m-0"> 
                                                 <div class="col-12 p-0 position-relative">
-                                                    <div class="urdf-container w-100 h-100 overflow-hidden border border-secondary border-1" 
+                                                    <div class="urdf-container w-100 h-100 overflow-hidden border border-secondary border-1 vehicle-status-urdf-min-height" 
                                                         id="vehicle-urdf-viewer" 
                                                         urdf="/urdf/vehicle/vehicle.urdf"
                                                         cameraPosition="0.014, 0.070, 2.277"
@@ -248,7 +253,7 @@
                                                         showVideo="true"
                                                         showAudio="true"
                                                         showViewCube="true"
-                                                        style="min-height: 80vh;"> 
+                                                        > 
                                                     </div>
 
                                                     <div id="road-detect-overlay" class="road-detect-overlay d-none" aria-label="검출 출력 오버레이">
@@ -257,7 +262,7 @@
                                                                 id="road-detect-overlay-close"
                                                                 type="button"
                                                                 class="btn btn-sm btn-outline-light"
-                                                                style="position:absolute; top:10px; right:10px; z-index:2; width:80px; display:inline-flex; justify-content:center; background-color:#fff; color:#111; border-color:#fff;"
+                                                                class="road-detect-overlay-close-btn"
                                                             >닫기</button>
                                                             <div id="road-detect-overlay-status" class="road-detect-overlay-status d-none" aria-live="polite">검출 동영상을 로딩중입니다.</div>
                                                             <img id="road-detect-overlay-image" class="road-detect-overlay-media d-none" alt="검출 결과 이미지">
@@ -267,15 +272,15 @@
 
                                                     <div
                                                         id="vehicle-audio-hud"
-                                                        style="position:absolute; left:50%; bottom:10px; transform:translateX(-50%); z-index:24; max-width:92%; display:inline-flex; align-items:center; gap:8px; pointer-events:none;"
+                                                        class="vehicle-audio-hud"
                                                     >
                                                         <div
                                                             id="vehicle-audio-hud-state"
-                                                            style="padding:4px 10px; border-radius:999px; background:rgba(108,117,125,0.72); color:#fff; font-size:12px; white-space:nowrap;"
+                                                            class="vehicle-audio-hud-state"
                                                         >음성 OFF</div>
                                                         <div
                                                             id="vehicle-audio-hud-text"
-                                                            style="max-width:min(62vw, 540px); padding:4px 10px; border-radius:999px; background:rgba(33,37,41,0.62); color:#fff; font-size:12px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;"
+                                                            class="vehicle-audio-hud-text"
                                                         >대기중</div>
                                                     </div>
                                                 </div> 
@@ -404,7 +409,7 @@
     </main>
 
     <template id="wheel-info-table-template">
-            <table class="table table-bordered table-striped m-0" style="table-layout: fixed;">
+            <table class="table table-bordered table-striped m-0 wheel-info-table">
             <colgroup>
                 <col width="33%">
                 <col>
@@ -412,37 +417,37 @@
 
             <thead class="table-dark">
                 <tr>
-                    <th class="text-center" scope="col" colspan="2" style="padding: 0.14rem 0.2rem; white-space: nowrap;">Wheel __WHEEL_LABEL__</th>
+                    <th class="text-center wheel-info-head-cell" scope="col" colspan="2">Wheel __WHEEL_LABEL__</th>
                 </tr>
             </thead>
             <tbody>
                 <tr>
-                    <th class="text-center" scope="row" style="padding: 0.12rem 0.2rem; vertical-align: middle; white-space: nowrap;">Speed</th>
-                    <td id="wheel/__WHEEL_KEY__/linear/speed" class="text-end" style="padding: 0.12rem 0.2rem; vertical-align: middle; white-space: nowrap;">  km/h</td>
+                    <th class="text-center wheel-info-body-cell" scope="row">Speed</th>
+                    <td id="wheel/__WHEEL_KEY__/linear/speed" class="text-end wheel-info-body-cell">  km/h</td>
                 </tr>
                 <tr>
-                    <th class="text-center" scope="row" style="padding: 0.12rem 0.2rem; vertical-align: middle; white-space: nowrap;">RPM</th>
-                    <td id="wheel/__WHEEL_KEY__/angle/speed" class="text-end" style="padding: 0.12rem 0.2rem; vertical-align: middle; white-space: nowrap;">0 rpm</td>
+                    <th class="text-center wheel-info-body-cell" scope="row">RPM</th>
+                    <td id="wheel/__WHEEL_KEY__/angle/speed" class="text-end wheel-info-body-cell">0 rpm</td>
                 </tr>
                 <tr>
-                    <th class="text-center" scope="row" style="padding: 0.12rem 0.2rem; vertical-align: middle; white-space: nowrap;">Power</th>
-                    <td id="wheel/__WHEEL_KEY__/power" class="text-end" style="padding: 0.12rem 0.2rem; vertical-align: middle; white-space: nowrap;">120 kW</td>
+                    <th class="text-center wheel-info-body-cell" scope="row">Power</th>
+                    <td id="wheel/__WHEEL_KEY__/power" class="text-end wheel-info-body-cell">120 kW</td>
                 </tr>
                 <tr>
-                    <th class="text-center" scope="row" style="padding: 0.12rem 0.2rem; vertical-align: middle; white-space: nowrap;">PID</th>
-                    <td class="text-end" style="padding: 0.12rem 0.2rem; vertical-align: middle; white-space: nowrap;">
+                    <th class="text-center wheel-info-body-cell" scope="row">PID</th>
+                    <td class="text-end wheel-info-body-cell">
                         <span id="wheel/__WHEEL_KEY__/pid/p">1.5</span> /
                         <span id="wheel/__WHEEL_KEY__/pid/i">0.01</span> /
                         <span id="wheel/__WHEEL_KEY__/pid/d">0.5</span>
                     </td>
                 </tr>
                 <tr>
-                    <th class="text-center" scope="row" style="padding: 0.12rem 0.2rem; vertical-align: middle; white-space: nowrap;">ToF</th>
-                    <td id="wheel/__WHEEL_KEY__/tof/distance" class="text-end" style="padding: 0.12rem 0.2rem; vertical-align: middle; white-space: nowrap;">0.5 cm</td>
+                    <th class="text-center wheel-info-body-cell" scope="row">ToF</th>
+                    <td id="wheel/__WHEEL_KEY__/tof/distance" class="text-end wheel-info-body-cell">0.5 cm</td>
                 </tr>
                 <tr>
-                    <th class="text-center" scope="row" style="padding: 0.12rem 0.2rem; vertical-align: middle; white-space: nowrap;">Axis</th>
-                    <td id="wheel/__WHEEL_KEY__/axis/angle" class="text-end" style="padding: 0.12rem 0.2rem; vertical-align: middle; white-space: nowrap;">10°</td>
+                    <th class="text-center wheel-info-body-cell" scope="row">Axis</th>
+                    <td id="wheel/__WHEEL_KEY__/axis/angle" class="text-end wheel-info-body-cell">10°</td>
                 </tr>
             </tbody>
         </table>
@@ -451,15 +456,6 @@
     <footer class="text-center py-4">
         <p class="mb-0">&copy; 2024 Wheel Control System. All rights reserved.</p>
     </footer>
-
-    <script type="module" src="../urdf/urdfViewer.js"></script>
-    
-    <!-- MQTT 클라이언트 모듈 -->
-    <script src="./js/mqtt.js"></script>
-
-    <script src="./js/mqtt_process_01_status.js"></script>
-    <script src="./js/100_vehicle_status_overlay.js"></script>
-    
 
 </body>
 

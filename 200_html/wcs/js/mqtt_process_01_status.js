@@ -103,6 +103,10 @@ function updateObstacleSensorTypes(topic, value) {
             .filter(Boolean)
     );
 
+    if (activeSensorIds.has('ToF')) {
+        activeSensorIds.add('IMU');
+    }
+
     activeSensorIds.forEach((sensorId) => {
         $chips.filter(`[data-sensor-id="${sensorId}"]`)
             .removeClass('disabled')

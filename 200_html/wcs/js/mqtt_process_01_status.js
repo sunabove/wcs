@@ -49,6 +49,23 @@ function writeVehicleDirectionStorage(key, value) {
     }
 }
 
+function dispatchVehicleDirectionEvent(sourceTopic, value) {
+    if (!Number.isFinite(value)) {
+        return;
+    }
+
+    try {
+        window.dispatchEvent(new CustomEvent('wcs:vehicle-direction-update', {
+            detail: {
+                topic: String(sourceTopic || ''),
+                value: value,
+            },
+        }));
+    } catch (error) {
+        // Ignore event dispatch failures.
+    }
+}
+
 function syncVehicleDirectionButtons(commandValue) {
     $('#vehicle-forward, #vehicle-backward, #vehicle-turn-left, #vehicle-turn-right, #vehicle-stop')
         .removeClass('active text-white')
@@ -552,6 +569,7 @@ function prcessMqttMessage(topic, value) {
         if (Number.isFinite(commandValue)) {
             window.latestVehicleOperationCommand = commandValue;
             writeVehicleDirectionStorage(VEHICLE_OPERATION_COMMAND_STORAGE_KEY, commandValue);
+            dispatchVehicleDirectionEvent(topic, commandValue);
         }
         window.vehicleDirectionCommandActive = commandValue >= 1 && commandValue <= 4;
 
@@ -625,6 +643,7 @@ function prcessMqttMessage(topic, value) {
         if (Number.isFinite(operationState)) {
             window.latestVehicleOperationState = operationState;
             writeVehicleDirectionStorage(VEHICLE_OPERATION_STATE_STORAGE_KEY, operationState);
+            dispatchVehicleDirectionEvent(topic, operationState);
         }
 
         if (operationState >= 0 && operationState <= 4) {

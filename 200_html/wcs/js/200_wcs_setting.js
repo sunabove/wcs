@@ -102,6 +102,15 @@ $(document).ready(function () {
         sendMQTTMessage(vehicleOperationCommandTopic, Number(command), 1);
     }
 
+    function handleVehicleDirectionUpdate(value) {
+        const numericValue = Number.parseInt(value, 10);
+        if (!Number.isFinite(numericValue)) {
+            return;
+        }
+
+        updateVehicleDirectionControlUi(numericValue);
+    }
+
     function readStoredVehicleDirectionValue(storageKey) {
         try {
             const rawValue = window.localStorage.getItem(storageKey);
@@ -460,6 +469,15 @@ $(document).ready(function () {
         sendVehicleDirectionCommand(command);
     });
 
+    window.addEventListener('wcs:vehicle-direction-update', function (event) {
+        const detail = event && event.detail ? event.detail : null;
+        if (!detail) {
+            return;
+        }
+
+        handleVehicleDirectionUpdate(detail.value);
+    });
+
     const storedVehicleOperationState = readStoredVehicleDirectionValue(vehicleOperationStateStorageKey);
     const storedVehicleOperationCommand = readStoredVehicleDirectionValue(vehicleOperationCommandStorageKey);
 
@@ -507,11 +525,11 @@ $(document).ready(function () {
             }
 
             if (topic === vehicleOperationCommandTopic) {
-                updateVehicleDirectionControlUi(value);
+                handleVehicleDirectionUpdate(value);
             }
 
             if (topic === 'vehicle/operation/state') {
-                updateVehicleDirectionControlUi(value);
+                handleVehicleDirectionUpdate(value);
             }
         };
         window.wcsSettingMaxSpeedHooked = true;

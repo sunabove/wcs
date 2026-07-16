@@ -444,7 +444,9 @@ $(document).ready(function () {
         sendVehicleDirectionCommand(command);
     });
 
-    if (Number.isFinite(window.latestVehicleOperationCommand)) {
+    if (Number.isFinite(window.latestVehicleOperationState)) {
+        updateVehicleDirectionControlUi(window.latestVehicleOperationState);
+    } else if (Number.isFinite(window.latestVehicleOperationCommand)) {
         updateVehicleDirectionControlUi(window.latestVehicleOperationCommand);
     } else {
         updateVehicleDirectionControlUi(0);
@@ -482,6 +484,10 @@ $(document).ready(function () {
             }
 
             if (topic === vehicleOperationCommandTopic) {
+                updateVehicleDirectionControlUi(value);
+            }
+
+            if (topic === 'vehicle/operation/state') {
                 updateVehicleDirectionControlUi(value);
             }
         };

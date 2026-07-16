@@ -3,6 +3,7 @@
 let vehicleSpeedZeroClickLatched = false;
 window.latestVehicleLinearSpeedMs = window.latestVehicleLinearSpeedMs || 0;
 window.latestVehicleOperationCommand = window.latestVehicleOperationCommand ?? null;
+window.latestVehicleOperationState = window.latestVehicleOperationState ?? null;
 window.wheelRadiusById = window.wheelRadiusById || {};
 const VEHICLE_AUDIO_STORAGE_KEY = 'wcs.vehicle.showAudio';
 
@@ -32,6 +33,40 @@ function mqttLog() {
     if (typeof window.mqttConsoleLog === 'function') {
         window.mqttConsoleLog.apply(window, arguments);
     }
+}
+
+function syncVehicleDirectionButtons(commandValue) {
+    $('#vehicle-forward, #vehicle-backward, #vehicle-turn-left, #vehicle-turn-right, #vehicle-stop')
+        .removeClass('active text-white')
+        .addClass('text-black');
+
+    let activeButtonId = '';
+
+    switch (commandValue) {
+        case 0:
+            activeButtonId = '#vehicle-stop';
+            break;
+        case 1:
+            activeButtonId = '#vehicle-forward';
+            break;
+        case 2:
+            activeButtonId = '#vehicle-backward';
+            break;
+        case 3:
+            activeButtonId = '#vehicle-turn-left';
+            break;
+        case 4:
+            activeButtonId = '#vehicle-turn-right';
+            break;
+        default:
+            return false;
+    }
+
+    $(activeButtonId)
+        .addClass('active text-white')
+        .removeClass('text-black');
+
+    return true;
 }
 
 function canUseSpeechSynthesisFallback() {
@@ -522,34 +557,23 @@ function prcessMqttMessage(topic, value) {
             }
         }
         
-        // 모든 차량 제어 버튼에서 active와 text-white 클래스 제거
-        $('#vehicle-forward, #vehicle-backward, #vehicle-turn-left, #vehicle-turn-right, #vehicle-stop')
-            .removeClass('active text-white')
-            .addClass('text-black');
-        
         // 명령값에 따라 해당 버튼 활성화
-        let activeButtonId = '';
         let commandName = '';
         
         switch(commandValue) {
             case 0: // 정지
-                activeButtonId = '#vehicle-stop';
                 commandName = '정지';
                 break;
             case 1: // 전진
-                activeButtonId = '#vehicle-forward'; 
                 commandName = '전진';
                 break;
             case 2: // 후진
-                activeButtonId = '#vehicle-backward';
                 commandName = '후진';
                 break;
             case 3: // 좌회전
-                activeButtonId = '#vehicle-turn-left';
                 commandName = '좌회전';
                 break;
             case 4: // 우회전
-                activeButtonId = '#vehicle-turn-right';
                 commandName = '우회전';
                 break;
             default:
@@ -558,10 +582,7 @@ function prcessMqttMessage(topic, value) {
         }
         
         // 해당 버튼 활성화
-        if (activeButtonId) {
-            $(activeButtonId)
-                .addClass('active text-white')
-                .removeClass('text-black');
+        if (syncVehicleDirectionButtons(commandValue)) {
 
             if (typeof window.announceVehicleDriveCommand === 'function') {
                 window.announceVehicleDriveCommand(commandValue);
@@ -586,16 +607,24 @@ function prcessMqttMessage(topic, value) {
     // operation/state가 STOP(0)이면 속도 토픽이 늦게 와도 정지 버튼을 확실히 선택/클릭
     if (topic === 'vehicle/operation/state') {
         const operationState = parseInt(value, 10);
+        if (Number.isFinite(operationState)) {
+            window.latestVehicleOperationState = operationState;
+        }
+
+        if (operationState >= 0 && operationState <= 4) {
+            syncVehicleDirectionButtons(operationState);
+            window.vehicleDirectionCommandActive = operationState >= 1 && operationState <= 4;
+            vehicleSpeedZeroClickLatched = operationState === 0;
+
+            if (operationState === 0 && typeof window.clearVehicleWheelHighlights === 'function') {
+                window.clearVehicleWheelHighlights();
+            }
+        }
+
         if (operationState === 0) {
             const $stopButton = $('#vehicle-stop');
             if (!vehicleSpeedZeroClickLatched && $stopButton.length > 0) {
-                $('#vehicle-forward, #vehicle-backward, #vehicle-turn-left, #vehicle-turn-right, #vehicle-stop')
-                    .removeClass('active text-white')
-                    .addClass('text-black');
-
-                $stopButton
-                    .addClass('active text-white')
-                    .removeClass('text-black');
+                syncVehicleDirectionButtons(0);
 
                 if (typeof window.clearVehicleWheelHighlights === 'function') {
                     window.clearVehicleWheelHighlights();

@@ -21,6 +21,7 @@
 
     <!-- WCS Common CSS -->
     <link href="./css/002_wcs_common.css" rel="stylesheet">
+    <link href="./css/120_vehicle_test.css" rel="stylesheet">
 
     <!-- jQuery CDN -->
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
@@ -42,6 +43,10 @@
     </script>
 
     <script src="./js/010_wcs_common.js" defer></script>
+    <script type="module" src="../urdf/urdfViewer.js"></script>
+    <script src="./js/mqtt.js" defer></script>
+    <script src="./js/mqtt_process_01_status.js" defer></script>
+    <script src="./js/120_vehicle_test.js" defer></script>
 </head>
 
 <body>
@@ -94,8 +99,8 @@
                 </div>
 
                 <!-- 최근 MQTT 메시지 표시 영역 -->
-                <div id="mqtt-message-display" class="d-flex align-items-center" style="width: 300px; min-width: 300px; flex-shrink: 0;">
-                    <div class="badge bg-info text-dark fs-6 px-3 py-2 w-100 d-flex align-items-center" style="min-width: 0;">
+                <div id="mqtt-message-display" class="d-flex align-items-center mqtt-message-display-fixed">
+                    <div class="badge bg-info text-dark fs-6 px-3 py-2 w-100 d-flex align-items-center mqtt-message-badge-wrap">
                         <i class="fas fa-envelope me-2 flex-shrink-0"></i>
                         <div class="d-flex justify-content-between align-items-center w-100 text-truncate">
                             <span id="mqtt-topic" class="fw-bold text-white">대기중</span>
@@ -119,7 +124,7 @@
 
             <div class="card-body p-2">
 
-                <table class="w-100" style="border-collapse: separate; border-spacing: 0; table-layout: fixed;">
+                <table class="w-100 vehicle-test-layout-table">
                     <colgroup>
                         <col >
                         <col width="400px;">
@@ -143,12 +148,11 @@
                                             <!-- 차량 URDF 뷰어 -->
                                             <div class="row"> 
                                                 <div class="col-md-12 p-0 d-flex align-items-center justify-content-center">
-                                                    <div class="urdf-container w-100 h-100 border border-secondary border-1"
+                                                    <div class="urdf-container w-100 h-100 border border-secondary border-1 vehicle-urdf-min-height"
                                                         id="vehicle-urdf-viewer"
                                                         urdf="/urdf/vehicle/vehicle.urdf"
                                                         cameraPosition="-0.029, -0.719, 1.344"
-                                                        showAttitude="false"
-                                                        style="min-height: 70vh;">
+                                                        showAttitude="false">
                                                     </div>
                                                 </div> 
                                             </div> 
@@ -217,7 +221,7 @@
                                                                     <i class="bi bi-speedometer2 me-2"></i>휠 속도
                                                                 </label>
                                                                 <input type="range" id="wheelTestSpeedSlider" class="form-range mb-0" min="0" max="20" step="0.5" value="8.0">
-                                                                <span class="input-group-text bg-light justify-content-center text-nowrap" style="width: 100px;">
+                                                                <span class="input-group-text bg-light justify-content-center text-nowrap speed-value-chip">
                                                                     <span id="wheel-test-speed-value">76 rpm</span>
                                                                 </span>
                                                             </div>
@@ -290,7 +294,7 @@
                                                         <i class="bi bi-speedometer2 me-2"></i>차량 속도
                                                     </label>
                                                     <input type="range" id="vehicleCurrSpeedSlider" class="form-range mb-0" min="0" max="100" value="5">
-                                                    <span class="input-group-text bg-light justify-content-center text-nowrap" style="width: 100px;">
+                                                    <span class="input-group-text bg-light justify-content-center text-nowrap speed-value-chip">
                                                         <span id="vehicle/linear/speed">50 Km/h</span>
                                                     </span>
                                                 </div>
@@ -315,438 +319,6 @@
     <footer class="text-center py-4">
         <p class="mb-0">&copy; 2024 Wheel Control System. All rights reserved.</p>
     </footer> 
-
-    <script type="module" src="../urdf/urdfViewer.js"></script>
-
-    <!-- MQTT 클라이언트 모듈 -->
-    <script src="./js/mqtt.js"></script>
-
-    <script src="./js/mqtt_process_01_status.js"></script>
-    
-    <!-- Vehicle Test 페이지 전용 JavaScript -->
-    <script>
-        $(document).ready(function() {
-            const pendingPublishTimers = {};
-            let lastVehicleCurrSpeedMsSent = null;
-            let lastVehicleDirectionCommandSent = null;
-            let latestVehicleMaxSpeedKmh = 100.0;
-            window.vehicleSpeedUiManualUntil = 0;
-            window.suppressAutoStopUntil = 0;
-            window.manualWheelTestActive = false;
-            window.manualWheelTestWheel = null;
-            window.vehicleDirectionCommandActive = false;
-
-            function cancelPendingPublish(topic) {
-                if (pendingPublishTimers[topic]) {
-                    clearTimeout(pendingPublishTimers[topic]);
-                    pendingPublishTimers[topic] = null;
-                }
-            }
-
-            function updateVehicleSpeedUi(speedKmh, isManual = false) {
-                const numericKmh = Number.parseFloat(speedKmh);
-                const normalizedKmh = Number.isFinite(numericKmh) ? Math.max(0, numericKmh) : 0;
-                $('#vehicleCurrSpeedSlider').val(normalizedKmh);
-
-                const sliderMaxKmh = Number.parseFloat($('#vehicleCurrSpeedSlider').attr('max'));
-                const effectiveMaxKmh = Number.isFinite(sliderMaxKmh)
-                    ? Math.max(0.1, sliderMaxKmh)
-                    : Math.max(0.1, latestVehicleMaxSpeedKmh);
-                $('[id="vehicle/linear/speed"]').text(`${Math.round(normalizedKmh)}/${Math.round(effectiveMaxKmh)} Km/h`);
-
-                if (isManual) {
-                    window.vehicleSpeedUiManualUntil = Date.now() + 1500;
-                }
-            }
-
-            function initializeVehicleSpeedUiFromMqtt(topic, value) {
-                const numericMs = Number.parseFloat(value);
-                if (!Number.isFinite(numericMs)) {
-                    return;
-                }
-
-                if (topic === 'vehicle/linear/speed') {
-                    const speedKmh = Math.max(0, numericMs * 3.6);
-                    updateVehicleSpeedUi(speedKmh, false);
-                    lastVehicleCurrSpeedMsSent = Number(numericMs.toFixed(2));
-                    console.log(`[Vehicle Test] 📥 초기 UI 동기화(linear): ${speedKmh.toFixed(1)} Km/h`);
-                }
-            }
-
-            function updateVehicleCurrSpeedSliderMaxFromMqtt(topic, value) {
-                if (topic !== 'vehicle/linear/max_speed') {
-                    return;
-                }
-
-                const numericMs = Number.parseFloat(value);
-                if (!Number.isFinite(numericMs)) {
-                    return;
-                }
-
-                const maxKmh = Math.max(0, numericMs * 3.6);
-                const normalizedMaxKmh = Number(maxKmh.toFixed(1));
-                $('#vehicleCurrSpeedSlider').attr('max', normalizedMaxKmh);
-                latestVehicleMaxSpeedKmh = normalizedMaxKmh;
-
-                // 최고 속도 변경 시 현재 속도 텍스트의 대비(%)를 즉시 갱신한다.
-                const currKmh = Number.parseFloat($('#vehicleCurrSpeedSlider').val()) || 0;
-                updateVehicleSpeedUi(currKmh, false);
-            }
-
-            // 공통 MQTT 처리 이후에 Vehicle Test UI 초기화를 1회 수행한다.
-            if (typeof window.prcessMqttMessage === 'function' && !window.vehicleTestInitMqttHooked) {
-                const originalProcessMqtt = window.prcessMqttMessage;
-                window.prcessMqttMessage = function(topic, value) {
-                    originalProcessMqtt(topic, value);
-
-                    if (topic === 'vehicle/linear/speed') {
-                        initializeVehicleSpeedUiFromMqtt(topic, value);
-                    }
-
-                    if (topic === 'vehicle/linear/max_speed') {
-                        updateVehicleCurrSpeedSliderMaxFromMqtt(topic, value);
-                    }
-                };
-                window.vehicleTestInitMqttHooked = true;
-            }
-
-            function publishWhenConnected(topic, payload, retries = 20, intervalMs = 250) {
-                if (pendingPublishTimers[topic]) {
-                    clearTimeout(pendingPublishTimers[topic]);
-                    pendingPublishTimers[topic] = null;
-                }
-
-                const isConnected = Boolean(window.mqttClient && window.mqttClient.connected);
-                if (isConnected) {
-                    sendMQTTMessage(topic, payload, 1);
-                    return;
-                }
-
-                if (retries <= 0) {
-                    console.warn(`[Vehicle Test] MQTT 미연결로 발행 실패: ${topic}`);
-                    return;
-                }
-
-                pendingPublishTimers[topic] = setTimeout(() => {
-                    pendingPublishTimers[topic] = null;
-                    publishWhenConnected(topic, payload, retries - 1, intervalMs);
-                }, intervalMs);
-            }
-
-            // 바퀴 선택 변경 이벤트
-            $('input[name="wheelTestPosition"]').change(function() {
-                const selectedWheel = $(this).val();
-                console.log(`[Vehicle Test] 🎯 바퀴 선택 변경: ${selectedWheel}`);
-
-                if (typeof window.setVehicleWheelHighlightByKey === 'function') {
-                    window.setVehicleWheelHighlightByKey(selectedWheel.toLowerCase());
-                }
-            });
-
-            // 페이지 로드시 초기 선택 바퀴 하이라이트
-            const initialWheel = $('input[name="wheelTestPosition"]:checked').val().toLowerCase();
-            if (typeof window.setVehicleWheelHighlightByKey === 'function') {
-                window.setVehicleWheelHighlightByKey(initialWheel);
-            }
-
-            // 페이지 로드시 정지 버튼 기본 활성화
-            $('#vehicle-forward, #vehicle-backward, #vehicle-turn-left, #vehicle-turn-right, #vehicle-stop')
-                .removeClass('active text-white')
-                .addClass('text-black');
-            $('#vehicle-stop')
-                .addClass('active text-white')
-                .removeClass('text-black');
-
-            function getVehicleCommandByButtonId(buttonId) {
-                switch (buttonId) {
-                    case 'vehicle-forward':
-                        return 1;
-                    case 'vehicle-backward':
-                        return 2;
-                    case 'vehicle-turn-left':
-                        return 3;
-                    case 'vehicle-turn-right':
-                        return 4;
-                    case 'vehicle-stop':
-                    default:
-                        return 0;
-                }
-            }
-
-            function publishSelectedVehicleCommandOnLoad() {
-                const vehicleButtonSelector = '#vehicle-forward, #vehicle-backward, #vehicle-turn-left, #vehicle-turn-right, #vehicle-stop';
-                const selectedButton = $(vehicleButtonSelector).filter('.active').first();
-                const selectedButtonId = selectedButton.length ? selectedButton.attr('id') : 'vehicle-stop';
-                const selectedCommand = getVehicleCommandByButtonId(selectedButtonId);
-
-                publishWhenConnected('vehicle/operation/command', selectedCommand);
-                applyVehicleCommandWheelHighlight(selectedCommand);
-                console.log(`[Vehicle Test] 📨 초기 방향 제어 명령 발행: vehicle/operation/command = ${selectedCommand} (${selectedButtonId})`);
-            }
-
-            publishSelectedVehicleCommandOnLoad();
-
-            function applyVehicleCommandWheelHighlight(command) {
-                const commandNumber = Number(command);
-
-                if (commandNumber === 0) {
-                    if (typeof window.clearVehicleWheelHighlights === 'function') {
-                        window.clearVehicleWheelHighlights();
-                    }
-                    return;
-                }
-
-                if (commandNumber === 1) {
-                    // 전진 시 앞쪽 두 바퀴 강조
-                    if (typeof window.setVehicleWheelHighlightByKeys === 'function') {
-                        window.setVehicleWheelHighlightByKeys(['fl', 'fr']);
-                    }
-                    return;
-                }
-
-                if (commandNumber === 2) {
-                    // 후진 시 뒤쪽 두 바퀴 강조
-                    if (typeof window.setVehicleWheelHighlightByKeys === 'function') {
-                        window.setVehicleWheelHighlightByKeys(['rl', 'rr']);
-                    }
-                    return;
-                }
-
-                if (commandNumber === 3) {
-                    // 좌회전 시 우측 바퀴(외측)가 상대적으로 빠르므로 강조
-                    if (typeof window.setVehicleWheelHighlightByKeys === 'function') {
-                        window.setVehicleWheelHighlightByKeys(['fr', 'rr']);
-                    }
-                    return;
-                }
-
-                if (commandNumber === 4) {
-                    // 우회전 시 좌측 바퀴(외측)가 상대적으로 빠르므로 강조
-                    if (typeof window.setVehicleWheelHighlightByKeys === 'function') {
-                        window.setVehicleWheelHighlightByKeys(['fl', 'rl']);
-                    }
-                    return;
-                }
-            }
-
-            $('#test-clockwise, #test-counterclockwise, #test-stop')
-                .removeClass('active btn-secondary text-white')
-                .addClass('btn-outline-secondary text-black');
-            $('#test-stop')
-                .removeClass('btn-outline-secondary text-black')
-                .addClass('active btn-secondary text-white');
-
-            // 바퀴 테스트 명령 전송 함수
-            function sendWheelCommand(command, buttonElement, actionName, icon) {
-                const selectedWheel = $('input[name="wheelTestPosition"]:checked').val().toLowerCase();
-                const topic = `wheel/${selectedWheel}/operation/command`;
-                const angularSpeedAbs = Number.parseFloat($('#wheelTestSpeedSlider').val()) || 0;
-                window.suppressAutoStopUntil = Date.now() + 1500;
-                window.manualWheelTestActive = Number(command) === 1 || Number(command) === 2;
-                window.manualWheelTestWheel = window.manualWheelTestActive ? selectedWheel : null;
-
-                if (typeof window.setVehicleWheelHighlightByKey === 'function') {
-                    window.setVehicleWheelHighlightByKey(selectedWheel);
-                }
-
-                // 휠 테스트 버튼은 항상 클릭된 버튼 하나만 하이라이트
-                $('#test-clockwise, #test-counterclockwise, #test-stop')
-                    .removeClass('active btn-secondary text-white')
-                    .addClass('btn-outline-secondary text-black');
-
-                buttonElement
-                    .removeClass('btn-outline-secondary text-black')
-                    .addClass('active btn-secondary text-white');
-
-                sendMQTTMessage(topic, command, 1);
-
-                if (Number(command) === 1 || Number(command) === 2) {
-                    const signedAngularSpeed = Number(command) === 2 ? -angularSpeedAbs : angularSpeedAbs;
-                    sendMQTTMessage(`wheel/${selectedWheel}/angle/speed`, signedAngularSpeed, 1);
-
-                    if (typeof setWheelAnimationByKey === 'function') {
-                        const rpm = (signedAngularSpeed * 60) / (2 * Math.PI);
-                        setWheelAnimationByKey(selectedWheel, Math.round(rpm));
-                    }
-                } else if (Number(command) === 0) {
-                    // 정지 시점에 선택된 휠의 각속도를 즉시 0으로 맞춘다.
-                    sendMQTTMessage(`wheel/${selectedWheel}/angle/speed`, '0', 1);
-
-                    if (typeof setWheelAnimationByKey === 'function') {
-                        setWheelAnimationByKey(selectedWheel, 0);
-                    }
-                }
-
-                console.log(`[Vehicle Test] ${icon} ${selectedWheel.toUpperCase()} 바퀴 ${actionName} 명령 전송: ${topic} = ${command}`);
-                
-                // 버튼 피드백 - 더 명확한 시각적 효과
-                const originalOpacity = buttonElement.css('opacity');
-                const originalTransform = buttonElement.css('transform');
-                
-                buttonElement
-                    .css({
-                        'opacity': '0.7',
-                        'transform': 'scale(0.95)',
-                        'transition': 'all 0.1s ease'
-                    })
-                    .addClass('shadow-lg');
-
-                setTimeout(() => {
-                    buttonElement
-                        .css({
-                            'opacity': originalOpacity,
-                            'transform': originalTransform
-                        })
-                        .removeClass('shadow-lg');
-                }, 1000);
-            }
-
-            // 차량 제어 명령 전송 함수
-            function sendVehicleCommand(command, buttonElement, actionName, icon) {
-                const topic = 'vehicle/operation/command';
-                const speedTopic = 'vehicle/linear/speed';
-                const sliderSpeedKmh = Number.parseFloat($('#vehicleCurrSpeedSlider').val()) || 0;
-                const sliderMaxKmh = Number.parseFloat($('#vehicleCurrSpeedSlider').attr('max'));
-                const effectiveMaxKmh = Number.isFinite(sliderMaxKmh)
-                    ? Math.max(0, sliderMaxKmh)
-                    : Math.max(0, latestVehicleMaxSpeedKmh);
-
-                let commandSpeedKmh = sliderSpeedKmh;
-                if (Number(command) !== 0 && commandSpeedKmh <= 0 && effectiveMaxKmh > 0) {
-                    commandSpeedKmh = Number((effectiveMaxKmh * 0.1).toFixed(1));
-                    updateVehicleSpeedUi(commandSpeedKmh, true);
-                    console.log(`[Vehicle Test] ⚙️ 현재 속도 0 감지: 최고 속도의 10%로 보정 (${commandSpeedKmh.toFixed(1)} Km/h)`);
-                }
-
-                const sliderSpeedMs = commandSpeedKmh / 3.6;
-                const speedMs = sliderSpeedMs;
-                const roundedSpeedMs = Number(speedMs.toFixed(2));
-                const sameCommand = Number(lastVehicleDirectionCommandSent) === Number(command);
-                const sameSpeed = lastVehicleCurrSpeedMsSent !== null && Math.abs(roundedSpeedMs - lastVehicleCurrSpeedMsSent) < 0.0001;
-                window.suppressAutoStopUntil = Date.now() + 1500;
-                window.manualWheelTestActive = false;
-                window.manualWheelTestWheel = null;
-                window.vehicleDirectionCommandActive = Number(command) >= 1 && Number(command) <= 4;
-
-                // 모든 차량 제어 버튼에서 active와 text-white 클래스 제거
-                $('#vehicle-forward, #vehicle-backward, #vehicle-turn-left, #vehicle-turn-right, #vehicle-stop')
-                    .removeClass('active text-white')
-                    .addClass('text-black');
-                
-                // 클릭된 버튼에만 active와 text-white 클래스 추가
-                buttonElement
-                    .addClass('active text-white')
-                    .removeClass('text-black');
-
-                applyVehicleCommandWheelHighlight(command);
-
-                if (sameCommand && sameSpeed) {
-                    console.log(`[Vehicle Test] 중복 방향 명령 스킵: ${topic} = ${command}, ${speedTopic} = ${roundedSpeedMs}`);
-                    return;
-                }
-
-                // 방향 명령 변경 시 현재 속도를 함께 발행해 서버 측 반영 시점을 맞춘다.
-                publishWhenConnected(speedTopic, roundedSpeedMs);
-                lastVehicleCurrSpeedMsSent = roundedSpeedMs;
-                
-                publishWhenConnected(topic, command);
-                lastVehicleDirectionCommandSent = Number(command);
-                console.log(`[Vehicle Test] ${icon} 차량 ${actionName} 명령 전송: ${topic} = ${command}, ${speedTopic} = ${roundedSpeedMs}`);
-                
-                // 버튼 피드백 - 더 명확한 시각적 효과
-                const originalOpacity = buttonElement.css('opacity');
-                const originalTransform = buttonElement.css('transform');
-                
-                buttonElement
-                    .css({
-                        'opacity': '0.7',
-                        'transform': 'scale(0.95)',
-                        'transition': 'all 0.1s ease'
-                    })
-                    .addClass('shadow-lg');
-
-                setTimeout(() => {
-                    buttonElement
-                        .css({
-                            'opacity': originalOpacity,
-                            'transform': originalTransform
-                        })
-                        .removeClass('shadow-lg');
-                }, 1000);
-            }
-
-            // 테스트 버튼 이벤트 - 통합된 함수 사용
-            $('#test-clockwise').click(function() {
-                sendWheelCommand(1, $(this), '정회전', '⏰');
-            });
-
-            $('#test-counterclockwise').click(function() {
-                sendWheelCommand(2, $(this), '역회전', '↩️');
-            });
-
-            $('#test-stop').click(function() {
-                sendWheelCommand(0, $(this), '정지', '⏹️');
-            });
-
-            // 휠 테스트 속도 슬라이더 표시 업데이트
-            $('#wheelTestSpeedSlider').on('input change', function() {
-                const speedRad = Number.parseFloat($(this).val()) || 0;
-                const rpm = (speedRad * 60) / (2 * Math.PI);
-                $('#wheel-test-speed-value').text(`${Math.round(rpm)} rpm`);
-            });
-
-            // 차량 제어 버튼 이벤트
-            $('#vehicle-forward').click(function() {
-                sendVehicleCommand(1, $(this), '전진', '⬆️');
-            });
-
-            $('#vehicle-backward').click(function() {
-                sendVehicleCommand(2, $(this), '후진', '⬇️');
-            });
-
-            $('#vehicle-turn-left').click(function() {
-                sendVehicleCommand(3, $(this), '좌회전', '⬅️'); 
-            });
-
-            $('#vehicle-turn-right').click(function() {
-                sendVehicleCommand(4, $(this), '우회전', '➡️'); 
-            });
-
-            $('#vehicle-stop').click(function() {
-                sendVehicleCommand(0, $(this), '정지', '⏹️');
-            });
-
-            // 속도 슬라이더 변경 시 현재 방향 명령과 함께 발행
-            $('#vehicleCurrSpeedSlider').on('input change', function(event) {
-                const speedKmh = Number.parseFloat($(this).val()) || 0;
-                const speedMs = speedKmh / 3.6; // km/h를 m/s로 변환
-                const roundedSpeedMs = Number(speedMs.toFixed(2));
-
-                // UI는 수동 조작 시 항상 즉시 반영
-                updateVehicleSpeedUi(speedKmh, true);
-
-                const isSameSpeed = lastVehicleCurrSpeedMsSent !== null && Math.abs(roundedSpeedMs - lastVehicleCurrSpeedMsSent) < 0.0001;
-                const isFinalChange = event.type === 'change';
-                if (isSameSpeed && !isFinalChange) {
-                    return;
-                }
-                
-                // MQTT로 차량 속도 발행 (m/s 단위)
-                const topic = 'vehicle/linear/speed';
-                sendMQTTMessage(topic, roundedSpeedMs, 1);
-                lastVehicleCurrSpeedMsSent = roundedSpeedMs;
-
-                // 속도 변경 시 현재 방향 명령을 재발행하여 휠 속도 갱신을 강제한다.
-                const vehicleButtonSelector = '#vehicle-forward, #vehicle-backward, #vehicle-turn-left, #vehicle-turn-right, #vehicle-stop';
-                const selectedButton = $(vehicleButtonSelector).filter('.active').first();
-                const selectedButtonId = selectedButton.length ? selectedButton.attr('id') : 'vehicle-stop';
-                const selectedCommand = getVehicleCommandByButtonId(selectedButtonId);
-                publishWhenConnected('vehicle/operation/command', selectedCommand);
-                
-                console.log(`[Vehicle Test] 🚀 현재 속도 설정 - ${speedKmh.toFixed(1)} Km/h (${roundedSpeedMs.toFixed(2)} m/s): ${topic} = ${roundedSpeedMs}`);
-            });
-        });
-    </script>
 
 </body>
 

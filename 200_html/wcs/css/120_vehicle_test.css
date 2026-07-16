@@ -1,0 +1,23 @@
+.mqtt-message-display-fixed {
+    width: 300px;
+    min-width: 300px;
+    flex-shrink: 0;
+}
+
+.mqtt-message-badge-wrap {
+    min-width: 0;
+}
+
+.vehicle-test-layout-table {
+    border-collapse: separate;
+    border-spacing: 0;
+    table-layout: fixed;
+}
+
+.vehicle-urdf-min-height {
+    min-height: 70vh;
+}
+
+.speed-value-chip {
+    width: 100px;
+}

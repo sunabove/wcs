@@ -1,0 +1,79 @@
+.setting-section-item {
+    width: 100%;
+}
+
+.setting-reset-btn,
+.setting-value-badge {
+    height: 32px;
+}
+
+.setting-reset-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 0.7rem;
+    line-height: 1;
+}
+
+.setting-value-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 90px;
+    font-size: 0.875rem;
+}
+
+.sample-thumbnail-scroll {
+    overflow-x: auto;
+    padding-bottom: 0.25rem;
+}
+
+.sample-thumbnail-track {
+    display: flex;
+    gap: 0.5rem;
+    min-width: max-content;
+}
+
+.sample-thumbnail-item {
+    flex: 0 0 180px;
+}
+
+.sample-video-item.selected-sample {
+    border-color: var(--bs-primary) !important;
+    box-shadow: 0 0 0 0.18rem rgba(13, 110, 253, 0.2);
+    background-color: rgba(13, 110, 253, 0.16);
+}
+
+.wcs-setting-table {
+    width: 100%;
+    table-layout: fixed;
+}
+
+.wcs-setting-table th[scope="row"] {
+    min-width: 420px;
+    width: 420px;
+    vertical-align: middle;
+    text-align: left;
+}
+
+@media (min-width: 768px) {
+    .setting-section-title {
+        flex: 0 0 33.3333%;
+        max-width: 33.3333%;
+    }
+
+    .setting-section-control {
+        flex: 0 0 50%;
+        max-width: 50%;
+    }
+
+    .setting-section-action {
+        flex: 0 0 16.6667%;
+        max-width: 16.6667%;
+    }
+
+    .setting-section-control-fill {
+        flex: 1 1 auto;
+        max-width: 66.6667%;
+    }
+}

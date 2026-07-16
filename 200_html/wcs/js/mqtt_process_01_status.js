@@ -58,7 +58,7 @@ function getSensorNumberLabel(sensorIndex) {
     if (!Number.isFinite(sensorIndex)) {
         return '-';
     }
-    return String(sensorIndex);
+    return String(sensorIndex + 1);
 }
 
 function refreshSensorRowLabels(sensorId) {

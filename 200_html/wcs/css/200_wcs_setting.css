@@ -58,16 +58,12 @@
 
 .wcs-direction-control-grid {
     display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: minmax(0, 1fr);
     gap: 0.5rem;
 }
 
 .wcs-direction-btn {
     min-height: 48px;
-}
-
-.wcs-direction-stop-btn {
-    grid-column: 1 / -1;
 }
 
 @media (min-width: 768px) {

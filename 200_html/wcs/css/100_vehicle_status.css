@@ -177,19 +177,19 @@
 
 .obstacle-sensor-chip-number {
     margin-top: 0.6rem;
-    display: grid;
+    display: inline-flex;
     flex: 1 1 auto;
-    grid-auto-flow: column;
-    grid-auto-columns: minmax(0, 1fr);
     align-items: stretch;
-    gap: 0;
+    justify-content: center;
+    gap: 0.14rem;
     font-size: 0.72em;
     font-weight: 500;
     line-height: 1;
     opacity: 0.92;
     min-height: 1.2rem;
     width: 100%;
-    overflow: hidden;
+    overflow-x: auto;
+    overflow-y: hidden;
     height: 100%;
 }
 
@@ -197,9 +197,10 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 100%;
+    width: 0.72rem;
+    flex: 0 0 0.72rem;
     min-width: 0;
-    padding: 0.08rem 0.2rem;
+    padding: 0.08rem 0;
     border: 1px solid currentColor;
     border-radius: 0.2rem;
     background: rgba(255, 255, 255, 0.36);

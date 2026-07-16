@@ -143,3 +143,25 @@
     background-color: #9aa0a6 !important;
     border-color: #9aa0a6 !important;
 }
+
+#sensorInfo .card-header h4 {
+    font-size: 1.1rem;
+}
+
+.sensor-info-table {
+    table-layout: fixed;
+    font-size: 0.83rem;
+}
+
+.sensor-info-table th,
+.sensor-info-table td {
+    padding: 0.24rem 0.22rem;
+    vertical-align: middle;
+    white-space: nowrap;
+}
+
+.sensor-source-cell {
+    max-width: 120px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}

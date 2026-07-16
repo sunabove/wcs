@@ -816,7 +816,31 @@ function getFormattedTopicValue(topic, value) {
 
     let formattedValue = value;
             
-    if (topic === 'vehicle/drive/available_time') {
+    if (topic.startsWith('sensor/') && topic.endsWith('/enabled')) {
+        formattedValue = numValue === 1 ? 'O' : 'X';
+    } else if (topic.startsWith('sensor/') && topic.endsWith('/state')) {
+        formattedValue = numValue === 1 ? '정상' : '비활성';
+    } else if (topic === 'obstacle') {
+        const obstacleNames = ['없음', '단차', '포트홀', '빙판길'];
+        const stateIndex = parseInt(value, 10);
+        formattedValue = obstacleNames[stateIndex] || '알수없음';
+    } else if (topic === 'obstacle/confidence') {
+        const confidencePercent = Number.isFinite(numValue) ? Math.round(numValue * 100) : 0;
+        formattedValue = `${confidencePercent}%`;
+    } else if (topic === 'obstacle/sensors') {
+        try {
+            const parsed = JSON.parse(String(value));
+            if (Array.isArray(parsed) && parsed.length > 0) {
+                formattedValue = parsed
+                    .map((sensor) => `${sensor.id || '?'}#${sensor.index ?? '?'}`)
+                    .join(', ');
+            } else {
+                formattedValue = '-';
+            }
+        } catch (error) {
+            formattedValue = String(value || '-');
+        }
+    } else if (topic === 'vehicle/drive/available_time') {
         // 주행 가능 시간
         // 시분 변환 표시 (초 → 시:분)
         const hours = Math.floor(numValue / 3600);

@@ -42,6 +42,14 @@ class SurfaceObstacle(IntEnum):
 
 WHEEL_IDS = ["fl", "fr", "rr", "rl"]
 
+SENSOR_DEFINITIONS = [
+    {"id": "ToF", "count": 4, "target": "거리,장애물", "enabled": True},
+    {"id": "Lidar", "count": 1, "target": "거리,장애물", "enabled": True},
+    {"id": "Current", "count": 4, "target": "전류", "enabled": True},
+    {"id": "IMU", "count": 5, "target": "가속도,각속도", "enabled": True},
+    {"id": "Camera", "count": 1, "target": "장애물", "enabled": True},
+]
+
 # 일반 승용차(16~18인치급) 외경 기준 반지름: 약 0.31~0.33m
 WHEEL_RADIUS_M = 0.32
 
@@ -445,6 +453,16 @@ class MqttSimulator:
         """클라이언트 연결 시 모든 vehicle과 wheel 설정 정보를 publish"""
         try:
             print("[SETTINGS] Publishing all vehicle and wheel settings...")
+
+            # 센서 타입 정의 정보 발행
+            for sensor_def in SENSOR_DEFINITIONS:
+                sensor_id = sensor_def["id"]
+                self._publish(f"sensor/{sensor_id}/count", sensor_def["count"])
+                self._publish(f"sensor/{sensor_id}/target", sensor_def["target"])
+                print(
+                    f"[SENSOR_DEF] Published sensor/{sensor_id}/count={sensor_def['count']}, "
+                    f"target={sensor_def['target']}"
+                )
             
             # Vehicle 설정 정보 publish
             if hasattr(self, 'vehicle_data') and self.vehicle_data:
@@ -915,6 +933,113 @@ class MqttSimulator:
             self._publish(f"{base}/operation/state", w["state"].value)
     pass  # _publish_wheels
 
+    def _build_obstacle_sensor_sources(self):
+        if self.surface_obstacle == SurfaceObstacle.NONE:
+            return []
+
+        sources = []
+        for sensor_def in SENSOR_DEFINITIONS:
+            sensor_id = sensor_def["id"]
+            if not sensor_def["enabled"]:
+                continue
+
+            if sensor_id == "ToF":
+                for index in range(sensor_def["count"]):
+                    sources.append({"id": sensor_id, "index": index})
+            elif sensor_id in ("Lidar", "Camera"):
+                sources.append({"id": sensor_id, "index": 0})
+
+        return sources
+
+    def _get_sensor_value(self, sensor_id, index):
+        if sensor_id == "ToF":
+            wheel_id = WHEEL_IDS[index % len(WHEEL_IDS)]
+            distance = self.wheels.get(wheel_id, {}).get("tof_distance", 0.0)
+            return round(max(0.05, float(distance)), 3)
+
+        if sensor_id == "Lidar":
+            min_distance = min(
+                max(0.05, float(self.wheels.get(wid, {}).get("tof_distance", 0.0)))
+                for wid in WHEEL_IDS
+            )
+            return round(min_distance + random.uniform(-0.03, 0.03), 3)
+
+        if sensor_id == "Current":
+            wheel_id = WHEEL_IDS[index % len(WHEEL_IDS)]
+            power = abs(float(self.wheels.get(wheel_id, {}).get("power", 0.0)))
+            voltage = max(1.0, float(self.battery_voltage))
+            return round(power / voltage, 3)
+
+        if sensor_id == "IMU":
+            if index == 0:
+                return round(self.linear_acc + random.uniform(-0.03, 0.03), 3)
+            if index == 1:
+                return round(self.angle_speed * 0.25 + random.uniform(-0.02, 0.02), 3)
+            if index == 2:
+                return round(9.81 + random.uniform(-0.08, 0.08), 3)
+            if index == 3:
+                return round(self.angle_speed + random.uniform(-0.02, 0.02), 3)
+            return round(self.road_roll_angle + random.uniform(-0.01, 0.01), 3)
+
+        if sensor_id == "Camera":
+            return int(self.surface_obstacle.value)
+
+        return 0
+
+    def _get_sensor_obstacle_confidence(self, sensor_id):
+        if self.surface_obstacle == SurfaceObstacle.NONE:
+            return 0.0
+
+        base_confidence_by_obstacle = {
+            SurfaceObstacle.STEP: 0.73,
+            SurfaceObstacle.POT_HOLE: 0.86,
+            SurfaceObstacle.ICE_ROAD: 0.81,
+        }
+        sensor_weight = {
+            "ToF": 0.88,
+            "Lidar": 0.92,
+            "Current": 0.40,
+            "IMU": 0.55,
+            "Camera": 0.95,
+        }
+
+        base_confidence = base_confidence_by_obstacle.get(self.surface_obstacle, 0.7)
+        weighted_confidence = base_confidence * sensor_weight.get(sensor_id, 0.5)
+        return round(max(0.0, min(0.99, weighted_confidence + random.uniform(-0.04, 0.04))), 3)
+
+    def _publish_sensor_interfaces(self):
+        obstacle_value = int(self.surface_obstacle.value)
+
+        for sensor_def in SENSOR_DEFINITIONS:
+            sensor_id = sensor_def["id"]
+            sensor_enabled = bool(sensor_def["enabled"])
+
+            for index in range(sensor_def["count"]):
+                topic_prefix = f"sensor/{sensor_id}/{index}"
+                sensor_state = 1 if sensor_enabled else 0
+                sensor_value = self._get_sensor_value(sensor_id, index)
+
+                supports_obstacle = sensor_id in ("ToF", "Lidar", "Camera")
+                sensor_obstacle = obstacle_value if (sensor_enabled and supports_obstacle) else SurfaceObstacle.NONE.value
+                obstacle_confidence = self._get_sensor_obstacle_confidence(sensor_id) if (sensor_enabled and supports_obstacle) else 0.0
+
+                self._publish(f"{topic_prefix}/state", sensor_state)
+                self._publish(f"{topic_prefix}/value", sensor_value)
+                self._publish(f"{topic_prefix}/obstacle", sensor_obstacle)
+                self._publish(f"{topic_prefix}/obstacle/confidence", obstacle_confidence)
+
+        sources = self._build_obstacle_sensor_sources()
+        self._publish("obstacle", obstacle_value)
+        self._publish("obstacle/sensors", json.dumps(sources, ensure_ascii=False))
+
+        if self.surface_obstacle == SurfaceObstacle.NONE:
+            total_confidence = 0.0
+        else:
+            confidence_values = [self._get_sensor_obstacle_confidence(source["id"]) for source in sources]
+            total_confidence = round(sum(confidence_values) / len(confidence_values), 3) if confidence_values else 0.0
+        self._publish("obstacle/confidence", total_confidence)
+    pass  # _publish_sensor_interfaces
+
     def _publish_manual_wheel_simulation(self):
         target_wheel = self.manual_wheel_test_wheel
         if not self.manual_wheel_test_active or target_wheel not in self.wheels:
@@ -1048,7 +1173,7 @@ class MqttSimulator:
         print("[INFO] 장애물 상태: NONE(0), ICE(1), POT_HOLE(2)")
         print("[INFO] 주행 속도: 0-70 km/h (0-19.4 m/s)")
         print("[INFO] 실행 상태: IDLE(0)=정지, RUNNING(1)=주행")
-        print("[INFO] 데이터: vehicle/ 및 wheel/ 토픽만 발행 (기존 토픽 구조 유지)")
+        print("[INFO] 데이터: vehicle/, wheel/, sensor/, obstacle 토픽 발행")
         print("-" * 70)
         
         loop_count = 0
@@ -1088,6 +1213,7 @@ class MqttSimulator:
                     self._publish_vehicle()
                     self._publish_position()
                     self._publish_wheels()
+                    self._publish_sensor_interfaces()
     
                 loop_count += 1
                 time.sleep(1)

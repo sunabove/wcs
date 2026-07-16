@@ -231,6 +231,115 @@
                                     </div>
                                 </div>
                                 <!-- // 장애물 정보 -->
+
+                                <!-- 센서 정보 -->
+                                <div id="sensorInfo" class="card mt-2 me-1">
+                                    <div class="card-header text-center">
+                                        <h4 class="mb-0">센서 정보</h4>
+                                    </div>
+                                    <div class="card-body p-1">
+                                        <div class="table-responsive">
+                                            <table class="table table-sm table-bordered mb-2 sensor-info-table">
+                                                <thead class="table-light">
+                                                    <tr>
+                                                        <th class="text-center">센서</th>
+                                                        <th class="text-center">개수</th>
+                                                        <th class="text-center">검출 대상</th>
+                                                        <th class="text-center">상태</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    <tr>
+                                                        <th class="text-center" scope="row">ToF</th>
+                                                        <td id="sensor/ToF/count" class="text-center">-</td>
+                                                        <td id="sensor/ToF/target" class="text-center">-</td>
+                                                        <td id="sensor/ToF/0/state" class="text-center">-</td>
+                                                    </tr>
+                                                    <tr>
+                                                        <th class="text-center" scope="row">Lidar</th>
+                                                        <td id="sensor/Lidar/count" class="text-center">-</td>
+                                                        <td id="sensor/Lidar/target" class="text-center">-</td>
+                                                        <td id="sensor/Lidar/0/state" class="text-center">-</td>
+                                                    </tr>
+                                                    <tr>
+                                                        <th class="text-center" scope="row">Current</th>
+                                                        <td id="sensor/Current/count" class="text-center">-</td>
+                                                        <td id="sensor/Current/target" class="text-center">-</td>
+                                                        <td id="sensor/Current/0/state" class="text-center">-</td>
+                                                    </tr>
+                                                    <tr>
+                                                        <th class="text-center" scope="row">IMU</th>
+                                                        <td id="sensor/IMU/count" class="text-center">-</td>
+                                                        <td id="sensor/IMU/target" class="text-center">-</td>
+                                                        <td id="sensor/IMU/0/state" class="text-center">-</td>
+                                                    </tr>
+                                                    <tr>
+                                                        <th class="text-center" scope="row">Camera</th>
+                                                        <td id="sensor/Camera/count" class="text-center">-</td>
+                                                        <td id="sensor/Camera/target" class="text-center">-</td>
+                                                        <td id="sensor/Camera/0/state" class="text-center">-</td>
+                                                    </tr>
+                                                </tbody>
+                                            </table>
+
+                                            <table class="table table-sm table-bordered mb-0 sensor-info-table">
+                                                <thead class="table-light">
+                                                    <tr>
+                                                        <th class="text-center">실시간</th>
+                                                        <th class="text-center">상태</th>
+                                                        <th class="text-center">값</th>
+                                                        <th class="text-center">장애물</th>
+                                                        <th class="text-center">신뢰도</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    <tr>
+                                                        <th class="text-center" scope="row">ToF #0</th>
+                                                        <td id="sensor/ToF/0/state" class="text-center">-</td>
+                                                        <td id="sensor/ToF/0/value" class="text-center">-</td>
+                                                        <td id="sensor/ToF/0/obstacle" class="text-center">-</td>
+                                                        <td id="sensor/ToF/0/obstacle/confidence" class="text-center">-</td>
+                                                    </tr>
+                                                    <tr>
+                                                        <th class="text-center" scope="row">Lidar #0</th>
+                                                        <td id="sensor/Lidar/0/state" class="text-center">-</td>
+                                                        <td id="sensor/Lidar/0/value" class="text-center">-</td>
+                                                        <td id="sensor/Lidar/0/obstacle" class="text-center">-</td>
+                                                        <td id="sensor/Lidar/0/obstacle/confidence" class="text-center">-</td>
+                                                    </tr>
+                                                    <tr>
+                                                        <th class="text-center" scope="row">Current #0</th>
+                                                        <td id="sensor/Current/0/state" class="text-center">-</td>
+                                                        <td id="sensor/Current/0/value" class="text-center">-</td>
+                                                        <td class="text-center">-</td>
+                                                        <td class="text-center">-</td>
+                                                    </tr>
+                                                    <tr>
+                                                        <th class="text-center" scope="row">IMU #0</th>
+                                                        <td id="sensor/IMU/0/state" class="text-center">-</td>
+                                                        <td id="sensor/IMU/0/value" class="text-center">-</td>
+                                                        <td class="text-center">-</td>
+                                                        <td class="text-center">-</td>
+                                                    </tr>
+                                                    <tr>
+                                                        <th class="text-center" scope="row">Camera #0</th>
+                                                        <td id="sensor/Camera/0/state" class="text-center">-</td>
+                                                        <td id="sensor/Camera/0/value" class="text-center">-</td>
+                                                        <td id="sensor/Camera/0/obstacle" class="text-center">-</td>
+                                                        <td id="sensor/Camera/0/obstacle/confidence" class="text-center">-</td>
+                                                    </tr>
+                                                    <tr>
+                                                        <th class="text-center" scope="row">Obstacle</th>
+                                                        <td id="obstacle" class="text-center" colspan="2">-</td>
+                                                        <td id="obstacle/confidence" class="text-center">-</td>
+                                                        <td id="obstacle/sensors" class="text-center sensor-source-cell">-</td>
+                                                    </tr>
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                </div>
+                                <!-- // 센서 정보 -->
                             </td>
                             
                             <td class="align-top p-0 vehicle_image">

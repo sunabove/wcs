@@ -151,6 +151,26 @@
     transition: all 0.18s ease;
 }
 
+.obstacle-sensor-chip-body {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-width: 0;
+}
+
+.obstacle-sensor-chip-label {
+    line-height: 1.05;
+}
+
+.obstacle-sensor-chip-number {
+    margin-top: 0.14rem;
+    font-size: 0.72em;
+    font-weight: 500;
+    line-height: 1;
+    opacity: 0.92;
+}
+
 #obstacleInfo .obstacle-sensor-chip i {
     font-size: 1.5em !important;
 }

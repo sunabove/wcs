@@ -61,6 +61,30 @@ function getSensorNumberLabel(sensorIndex) {
     return String(sensorIndex + 1);
 }
 
+function getSensorCountRangeLabel(sensorId) {
+    const sensorCount = Number.parseInt(sensorCountById[sensorId], 10);
+    if (!Number.isFinite(sensorCount) || sensorCount <= 0) {
+        return '-';
+    }
+
+    if (sensorCount === 1) {
+        return '1';
+    }
+
+    return `1~${sensorCount}`;
+}
+
+function refreshObstacleSensorChipNumbers(sensorId) {
+    const selector = sensorId
+        ? `#obstacle-sensor-types .obstacle-sensor-chip[data-sensor-id="${sensorId}"]`
+        : '#obstacle-sensor-types .obstacle-sensor-chip[data-sensor-id]';
+
+    $(selector).each(function () {
+        const rowSensorId = String($(this).attr('data-sensor-id') || '');
+        $(this).find('[data-sensor-chip-number]').text(getSensorCountRangeLabel(rowSensorId));
+    });
+}
+
 function refreshSensorRowLabels(sensorId) {
     const selector = sensorId
         ? `#sensor-info-tbody tr[data-sensor-row-key][data-sensor-id="${sensorId}"]`
@@ -576,6 +600,7 @@ function prcessMqttMessage(topic, value) {
         if (Number.isFinite(sensorCount) && sensorCount > 0) {
             sensorCountById[sensorId] = sensorCount;
             refreshSensorRowLabels(sensorId);
+            refreshObstacleSensorChipNumbers(sensorId);
         }
     }
 

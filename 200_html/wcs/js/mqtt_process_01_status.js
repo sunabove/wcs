@@ -51,11 +51,14 @@ function getSensorDisplayOrder(sensorId) {
 }
 
 function getSensorRowLabel(sensorId, sensorIndex) {
-    const count = Number(sensorCountById[sensorId]);
-    if (Number.isFinite(count) && count <= 1) {
-        return String(sensorId);
+    return String(sensorId);
+}
+
+function getSensorNumberLabel(sensorIndex) {
+    if (!Number.isFinite(sensorIndex)) {
+        return '-';
     }
-    return `${sensorId} #${sensorIndex}`;
+    return String(sensorIndex);
 }
 
 function refreshSensorRowLabels(sensorId) {
@@ -67,6 +70,7 @@ function refreshSensorRowLabels(sensorId) {
         const rowSensorId = String($(this).attr('data-sensor-id') || '');
         const rowSensorIndex = Number.parseInt($(this).attr('data-sensor-index'), 10);
         $(this).find('[data-sensor-label]').text(getSensorRowLabel(rowSensorId, rowSensorIndex));
+        $(this).find('[data-sensor-number]').text(getSensorNumberLabel(rowSensorIndex));
     });
 }
 
@@ -112,6 +116,7 @@ function ensureDynamicSensorRow(topic) {
         .attr('data-sensor-index', sensorIndex);
 
     $newRow.find('[data-sensor-label]').text(getSensorRowLabel(safeSensorId, sensorIndex));
+    $newRow.find('[data-sensor-number]').text(getSensorNumberLabel(sensorIndex));
     $newRow.find('[data-topic-suffix]').each(function () {
         const topicSuffix = String($(this).attr('data-topic-suffix') || '').trim();
         if (!topicSuffix) {

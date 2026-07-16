@@ -152,7 +152,7 @@
 }
 
 #obstacleInfo .obstacle-sensor-chip i {
-    font-size: 0.5em !important;
+    font-size: 0.75em !important;
 }
 
 .obstacle-sensor-chip.disabled {

@@ -1,0 +1,22 @@
+.mqtt-message-display-fixed {
+    width: 300px;
+    min-width: 300px;
+    flex-shrink: 0;
+}
+
+.mqtt-message-badge-wrap {
+    min-width: 0;
+}
+
+.vehicle-setting-layout-table {
+    table-layout: fixed;
+}
+
+.vehicle-urdf-min-height {
+    min-height: 70vh;
+}
+
+.setting-unit-chip,
+.setting-action-btn {
+    width: 60px;
+}

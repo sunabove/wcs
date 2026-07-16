@@ -937,13 +937,16 @@ function getFormattedTopicValue(topic, value) {
     const numValue = Number(value);
 
     let formattedValue = value;
+    const surfaceObstacleLabels = ['없음', '단차', '포트홀', '빙판길'];
             
     if (topic.startsWith('sensor/') && topic.endsWith('/state')) {
         formattedValue = numValue === 1 ? '정상' : '비활성';
+    } else if (topic.startsWith('sensor/') && topic.endsWith('/obstacle')) {
+        const obstacleIndex = Number.parseInt(value, 10);
+        formattedValue = surfaceObstacleLabels[obstacleIndex] || '알수없음';
     } else if (topic === 'obstacle') {
-        const obstacleNames = ['없음', '단차', '포트홀', '빙판길'];
         const stateIndex = parseInt(value, 10);
-        formattedValue = obstacleNames[stateIndex] || '알수없음';
+        formattedValue = surfaceObstacleLabels[stateIndex] || '알수없음';
     } else if (topic === 'obstacle/confidence') {
         const confidencePercent = Number.isFinite(numValue) ? Math.round(numValue * 100) : 0;
         formattedValue = `${confidencePercent}%`;

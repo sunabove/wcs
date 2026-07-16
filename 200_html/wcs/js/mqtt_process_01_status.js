@@ -69,7 +69,7 @@ function getSensorCountRangeLabel(sensorId) {
 
     return Array.from(
         { length: sensorCount },
-        (_, index) => `<span class="obstacle-sensor-chip-number-cell">${index + 1}</span>`
+        () => '<span class="obstacle-sensor-chip-number-cell" aria-hidden="true"></span>'
     ).join('');
 }
 

@@ -175,14 +175,15 @@
 .obstacle-sensor-chip-number {
     margin-top: 0.14rem;
     display: inline-flex;
-    flex-wrap: nowrap;
+    flex-wrap: wrap;
     justify-content: center;
+    align-items: center;
+    align-content: center;
     gap: 0.16rem;
     font-size: 0.72em;
     font-weight: 500;
     line-height: 1;
     opacity: 0.92;
-    white-space: nowrap;
 }
 
 .obstacle-sensor-chip-number-cell {

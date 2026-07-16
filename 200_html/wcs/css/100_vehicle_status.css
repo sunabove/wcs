@@ -126,3 +126,20 @@
         max-width: 50%;
     }
 }
+
+/* Unselected surface/obstacle cards are shown in neutral gray tones. */
+[id^="vehicle/surface/state/"].disabled i,
+[id^="vehicle/surface/obstacle/"].disabled i,
+[id^="vehicle/surface/state/"].disabled .card-title,
+[id^="vehicle/surface/obstacle/"].disabled .card-title,
+[id^="vehicle/surface/state/"].disabled .card-text,
+[id^="vehicle/surface/obstacle/"].disabled .card-text {
+    color: #7f8790 !important;
+}
+
+[id^="vehicle/surface/state/"].disabled .badge,
+[id^="vehicle/surface/obstacle/"].disabled .badge {
+    color: #f1f3f5 !important;
+    background-color: #9aa0a6 !important;
+    border-color: #9aa0a6 !important;
+}

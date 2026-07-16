@@ -1,6 +1,8 @@
 // mqtt_process_01_status.js
 
 let vehicleSpeedZeroClickLatched = false;
+const VEHICLE_OPERATION_COMMAND_STORAGE_KEY = 'wcs.vehicle.operation.command.v1';
+const VEHICLE_OPERATION_STATE_STORAGE_KEY = 'wcs.vehicle.operation.state.v1';
 window.latestVehicleLinearSpeedMs = window.latestVehicleLinearSpeedMs || 0;
 window.latestVehicleOperationCommand = window.latestVehicleOperationCommand ?? null;
 window.latestVehicleOperationState = window.latestVehicleOperationState ?? null;
@@ -32,6 +34,18 @@ const fallbackVehicleAudioState = {
 function mqttLog() {
     if (typeof window.mqttConsoleLog === 'function') {
         window.mqttConsoleLog.apply(window, arguments);
+    }
+}
+
+function writeVehicleDirectionStorage(key, value) {
+    if (!Number.isFinite(value)) {
+        return;
+    }
+
+    try {
+        window.localStorage.setItem(key, String(value));
+    } catch (error) {
+        // Ignore storage write failures.
     }
 }
 
@@ -537,6 +551,7 @@ function prcessMqttMessage(topic, value) {
         const commandValue = parseInt(value);
         if (Number.isFinite(commandValue)) {
             window.latestVehicleOperationCommand = commandValue;
+            writeVehicleDirectionStorage(VEHICLE_OPERATION_COMMAND_STORAGE_KEY, commandValue);
         }
         window.vehicleDirectionCommandActive = commandValue >= 1 && commandValue <= 4;
 
@@ -609,6 +624,7 @@ function prcessMqttMessage(topic, value) {
         const operationState = parseInt(value, 10);
         if (Number.isFinite(operationState)) {
             window.latestVehicleOperationState = operationState;
+            writeVehicleDirectionStorage(VEHICLE_OPERATION_STATE_STORAGE_KEY, operationState);
         }
 
         if (operationState >= 0 && operationState <= 4) {

@@ -1,6 +1,8 @@
 $(document).ready(function () {
     const maxSpeedTopic = 'vehicle/linear/max_speed';
     const vehicleOperationCommandTopic = 'vehicle/operation/command';
+    const vehicleOperationCommandStorageKey = 'wcs.vehicle.operation.command.v1';
+    const vehicleOperationStateStorageKey = 'wcs.vehicle.operation.state.v1';
     const $wcsSampleVideoPane = $('#wcs-input-sample-video-pane');
     const vehicleDirectionButtonSelector = '#vehicle-forward, #vehicle-backward, #vehicle-turn-left, #vehicle-turn-right, #vehicle-stop';
     const wcsSampleVideoItemTemplate = document.getElementById('wcs-sample-video-item-template');
@@ -98,6 +100,20 @@ $(document).ready(function () {
     function sendVehicleDirectionCommand(command) {
         updateVehicleDirectionControlUi(command);
         sendMQTTMessage(vehicleOperationCommandTopic, Number(command), 1);
+    }
+
+    function readStoredVehicleDirectionValue(storageKey) {
+        try {
+            const rawValue = window.localStorage.getItem(storageKey);
+            if (rawValue === null) {
+                return null;
+            }
+
+            const numericValue = Number.parseInt(rawValue, 10);
+            return Number.isFinite(numericValue) ? numericValue : null;
+        } catch (error) {
+            return null;
+        }
     }
 
     function normalizePath(pathValue) {
@@ -444,10 +460,17 @@ $(document).ready(function () {
         sendVehicleDirectionCommand(command);
     });
 
+    const storedVehicleOperationState = readStoredVehicleDirectionValue(vehicleOperationStateStorageKey);
+    const storedVehicleOperationCommand = readStoredVehicleDirectionValue(vehicleOperationCommandStorageKey);
+
     if (Number.isFinite(window.latestVehicleOperationState)) {
         updateVehicleDirectionControlUi(window.latestVehicleOperationState);
+    } else if (Number.isFinite(storedVehicleOperationState)) {
+        updateVehicleDirectionControlUi(storedVehicleOperationState);
     } else if (Number.isFinite(window.latestVehicleOperationCommand)) {
         updateVehicleDirectionControlUi(window.latestVehicleOperationCommand);
+    } else if (Number.isFinite(storedVehicleOperationCommand)) {
+        updateVehicleDirectionControlUi(storedVehicleOperationCommand);
     } else {
         updateVehicleDirectionControlUi(0);
     }

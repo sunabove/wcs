@@ -641,6 +641,18 @@ function prcessMqttMessage(topic, value) {
         }
     }
 
+    // 센서 정의 표의 상태 칸은 대표 인덱스(0) state를 미러링한다.
+    const sensorSummaryTopicMatch = topic.match(/^sensor\/(ToF|Lidar|Current|IMU|Camera)\/0\/state$/);
+    if (sensorSummaryTopicMatch) {
+        const sensorId = sensorSummaryTopicMatch[1];
+        const summaryTopic = `sensor/${sensorId}/state_summary`;
+        const $summaryElement = $(`[id="${summaryTopic}"]`);
+        if ($summaryElement.length > 0) {
+            $summaryElement.text(getFormattedTopicValue(topic, value));
+            updateTargetElementCss($summaryElement);
+        }
+    }
+
     // 차량 실제 속도(vehicle/linear/speed) 기준으로 정지 버튼 자동 활성화
     if (topic === 'vehicle/linear/speed') {
         const numericSpeed = parseFloat(value);

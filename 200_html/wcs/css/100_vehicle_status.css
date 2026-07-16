@@ -151,7 +151,7 @@
     transition: all 0.18s ease;
 }
 
-.obstacle-sensor-chip i {
+#obstacleInfo .obstacle-sensor-chip i {
     font-size: 0.5em !important;
 }
 

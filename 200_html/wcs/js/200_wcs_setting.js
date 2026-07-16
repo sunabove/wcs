@@ -10,6 +10,9 @@ $(document).ready(function () {
     let sampleVideoBrowserPath = 'video';
     let sampleVideoShowAllFiles = false;
     let currentVideoFileName = '';
+    let isDirectionInitSyncWindow = true;
+    let pendingDirectionCommandValue = null;
+    let pendingDirectionCommandTimer = null;
 
     function updateVehicleMaxSpeedUi(speedKmh, shouldPublish = true) {
         const numericKmh = Number.parseFloat(speedKmh);
@@ -98,6 +101,13 @@ $(document).ready(function () {
     function sendVehicleDirectionCommand(command) {
         const numericCommand = Number(command);
 
+        isDirectionInitSyncWindow = false;
+        if (pendingDirectionCommandTimer) {
+            clearTimeout(pendingDirectionCommandTimer);
+            pendingDirectionCommandTimer = null;
+            pendingDirectionCommandValue = null;
+        }
+
         window.vehicleDirectionCommandActive = numericCommand >= 1 && numericCommand <= 4;
         if (window.vehicleDirectionCommandActive) {
             window.suppressAutoStopUntil = Date.now() + 1500;
@@ -110,6 +120,24 @@ $(document).ready(function () {
     function handleVehicleDirectionUpdate(value) {
         const numericValue = Number.parseInt(value, 10);
         if (!Number.isFinite(numericValue)) {
+            return;
+        }
+
+        if (isDirectionInitSyncWindow) {
+            pendingDirectionCommandValue = numericValue;
+
+            if (pendingDirectionCommandTimer) {
+                clearTimeout(pendingDirectionCommandTimer);
+            }
+
+            pendingDirectionCommandTimer = setTimeout(function () {
+                if (Number.isFinite(pendingDirectionCommandValue)) {
+                    updateVehicleDirectionControlUi(pendingDirectionCommandValue);
+                }
+                pendingDirectionCommandTimer = null;
+                pendingDirectionCommandValue = null;
+            }, 220);
+
             return;
         }
 
@@ -476,6 +504,20 @@ $(document).ready(function () {
     } else {
         updateVehicleDirectionControlUi(0);
     }
+
+    setTimeout(function () {
+        isDirectionInitSyncWindow = false;
+
+        if (pendingDirectionCommandTimer) {
+            clearTimeout(pendingDirectionCommandTimer);
+            pendingDirectionCommandTimer = null;
+        }
+
+        if (Number.isFinite(pendingDirectionCommandValue)) {
+            updateVehicleDirectionControlUi(pendingDirectionCommandValue);
+            pendingDirectionCommandValue = null;
+        }
+    }, 1200);
 
     if (typeof window.prcessMqttMessage === 'function' && !window.wcsSettingMaxSpeedHooked) {
         const originalProcessMqtt = window.prcessMqttMessage;

@@ -64,7 +64,7 @@ function getSensorNumberLabel(sensorIndex) {
 function getSensorCountRangeLabel(sensorId) {
     const sensorCount = Number.parseInt(sensorCountById[sensorId], 10);
     if (!Number.isFinite(sensorCount) || sensorCount <= 0) {
-        return '<span class="obstacle-sensor-chip-number-cell">-</span>';
+        return '';
     }
 
     return Array.from(

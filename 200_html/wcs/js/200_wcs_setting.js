@@ -1,6 +1,8 @@
 $(document).ready(function () {
     const maxSpeedTopic = 'vehicle/linear/max_speed';
+    const vehicleOperationCommandTopic = 'vehicle/operation/command';
     const $wcsSampleVideoPane = $('#wcs-input-sample-video-pane');
+    const vehicleDirectionButtonSelector = '#vehicle-forward, #vehicle-backward, #vehicle-turn-left, #vehicle-turn-right, #vehicle-stop';
     const wcsSampleVideoItemTemplate = document.getElementById('wcs-sample-video-item-template');
     const SAMPLE_VIDEO_BROWSER_STORAGE_KEY = 'wcs.setting.sample_video_browser.v1';
     let isSampleVideosLoaded = false;
@@ -47,6 +49,55 @@ $(document).ready(function () {
             const pitchAngleRad = (normalizedPitch * Math.PI) / 180;
             sendMQTTMessage('vehicle/road/pitch_angle', pitchAngleRad);
         }
+    }
+
+    function getVehicleCommandByButtonId(buttonId) {
+        switch (buttonId) {
+            case 'vehicle-forward':
+                return 1;
+            case 'vehicle-backward':
+                return 2;
+            case 'vehicle-turn-left':
+                return 3;
+            case 'vehicle-turn-right':
+                return 4;
+            case 'vehicle-stop':
+            default:
+                return 0;
+        }
+    }
+
+    function getVehicleButtonIdByCommand(command) {
+        switch (Number(command)) {
+            case 1:
+                return 'vehicle-forward';
+            case 2:
+                return 'vehicle-backward';
+            case 3:
+                return 'vehicle-turn-left';
+            case 4:
+                return 'vehicle-turn-right';
+            case 0:
+            default:
+                return 'vehicle-stop';
+        }
+    }
+
+    function updateVehicleDirectionControlUi(command) {
+        const activeButtonId = getVehicleButtonIdByCommand(command);
+
+        $(vehicleDirectionButtonSelector)
+            .removeClass('active btn-secondary text-white')
+            .addClass('btn-outline-secondary text-black');
+
+        $('#' + activeButtonId)
+            .removeClass('btn-outline-secondary text-black')
+            .addClass('active btn-secondary text-white');
+    }
+
+    function sendVehicleDirectionCommand(command) {
+        updateVehicleDirectionControlUi(command);
+        sendMQTTMessage(vehicleOperationCommandTopic, Number(command), 1);
     }
 
     function normalizePath(pathValue) {
@@ -388,6 +439,13 @@ $(document).ready(function () {
         updateVehicleMaxSpeedUi(50, true);
     });
 
+    $(vehicleDirectionButtonSelector).on('click', function () {
+        const command = getVehicleCommandByButtonId($(this).attr('id'));
+        sendVehicleDirectionCommand(command);
+    });
+
+    updateVehicleDirectionControlUi(0);
+
     if (typeof window.prcessMqttMessage === 'function' && !window.wcsSettingMaxSpeedHooked) {
         const originalProcessMqtt = window.prcessMqttMessage;
         window.prcessMqttMessage = function (topic, value) {
@@ -417,6 +475,10 @@ $(document).ready(function () {
             if (topic === 'vehicle/current_video/file_name') {
                 currentVideoFileName = normalizePath(value);
                 applyCurrentVideoHighlight();
+            }
+
+            if (topic === vehicleOperationCommandTopic) {
+                updateVehicleDirectionControlUi(value);
             }
         };
         window.wcsSettingMaxSpeedHooked = true;

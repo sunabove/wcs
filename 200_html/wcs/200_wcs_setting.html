@@ -241,6 +241,37 @@
                             <tr>
                                 <th scope="row">
                                     <div class="d-flex align-items-center gap-2">
+                                        <i class="bi bi-sign-turn-right fs-5"></i>
+                                        <div class="ms-1">
+                                            <h5 class="mb-1">차량 방향 제어</h5>
+                                            <small class="text-muted d-block">전진, 후진, 좌회전, 우회전, 정지 명령을 전송합니다.</small>
+                                        </div>
+                                    </div>
+                                </th>
+                                <td>
+                                    <div class="wcs-direction-control-grid">
+                                        <button type="button" class="btn btn-outline-secondary text-black fw-bold wcs-direction-btn" id="vehicle-forward">
+                                            <i class="bi bi-arrow-up me-2"></i>전진
+                                        </button>
+                                        <button type="button" class="btn btn-outline-secondary text-black fw-bold wcs-direction-btn" id="vehicle-backward">
+                                            <i class="bi bi-arrow-down me-2"></i>후진
+                                        </button>
+                                        <button type="button" class="btn btn-outline-secondary text-black fw-bold wcs-direction-btn" id="vehicle-turn-left">
+                                            <i class="bi bi-arrow-left me-2"></i>좌회전
+                                        </button>
+                                        <button type="button" class="btn btn-outline-secondary text-black fw-bold wcs-direction-btn" id="vehicle-turn-right">
+                                            <i class="bi bi-arrow-right me-2"></i>우회전
+                                        </button>
+                                        <button type="button" class="btn btn-outline-secondary text-black fw-bold wcs-direction-btn wcs-direction-stop-btn" id="vehicle-stop">
+                                            <i class="bi bi-stop-circle me-2"></i>정지
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+
+                            <tr>
+                                <th scope="row">
+                                    <div class="d-flex align-items-center gap-2">
                                         <i class="bi bi-arrow-repeat fs-5"></i>
                                         <div class="ms-1">
                                             <h5 class="mb-1">차량 Roll 각도 설정</h5>

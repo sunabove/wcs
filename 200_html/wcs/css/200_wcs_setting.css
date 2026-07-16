@@ -56,6 +56,20 @@
     text-align: left;
 }
 
+.wcs-direction-control-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.5rem;
+}
+
+.wcs-direction-btn {
+    min-height: 48px;
+}
+
+.wcs-direction-stop-btn {
+    grid-column: 1 / -1;
+}
+
 @media (min-width: 768px) {
     .setting-section-title {
         flex: 0 0 33.3333%;

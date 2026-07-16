@@ -42,6 +42,89 @@ function mqttLog() {
     }
 }
 
+const SENSOR_DISPLAY_ORDER = ['ToF', 'Lidar', 'Current', 'IMU', 'Camera'];
+
+function getSensorDisplayOrder(sensorId) {
+    const orderIndex = SENSOR_DISPLAY_ORDER.indexOf(sensorId);
+    return orderIndex >= 0 ? orderIndex : SENSOR_DISPLAY_ORDER.length + 1;
+}
+
+function ensureDynamicSensorRow(topic) {
+    const topicMatch = String(topic || '').match(/^sensor\/([^/]+)\/(\d+)\/(state|value|obstacle|obstacle\/confidence)$/);
+    if (!topicMatch) {
+        return;
+    }
+
+    const sensorId = topicMatch[1];
+    const sensorIndex = Number.parseInt(topicMatch[2], 10);
+    if (!Number.isFinite(sensorIndex)) {
+        return;
+    }
+
+    const $tbody = $('#sensor-info-tbody');
+    if ($tbody.length === 0) {
+        return;
+    }
+
+    const $rowTemplate = $('#sensor-info-row-template');
+    if ($rowTemplate.length === 0) {
+        return;
+    }
+
+    // Keep template hidden at all times even after dynamic DOM operations.
+    $rowTemplate.addClass('d-none');
+
+    const rowKey = `${sensorId}#${sensorIndex}`;
+    const rowSelector = `[data-sensor-row-key="${rowKey}"]`;
+    if ($tbody.find(rowSelector).length > 0) {
+        return;
+    }
+
+    $('#sensor-info-empty-row').remove();
+
+    const safeSensorId = String(sensorId);
+    const $newRow = $rowTemplate.clone(false)
+        .removeAttr('id')
+        .removeClass('d-none')
+        .attr('data-sensor-row-key', rowKey)
+        .attr('data-sensor-id', safeSensorId)
+        .attr('data-sensor-index', sensorIndex);
+
+    $newRow.find('[data-sensor-label]').text(`${safeSensorId} #${sensorIndex}`);
+    $newRow.find('[data-topic-suffix]').each(function () {
+        const topicSuffix = String($(this).attr('data-topic-suffix') || '').trim();
+        if (!topicSuffix) {
+            return;
+        }
+        $(this).attr('id', `sensor/${safeSensorId}/${sensorIndex}/${topicSuffix}`);
+    });
+
+    $rowTemplate.before($newRow);
+
+    const rows = $tbody.find('tr[data-sensor-row-key]').get();
+    rows.sort((a, b) => {
+        const aSensorId = String($(a).attr('data-sensor-id') || '');
+        const bSensorId = String($(b).attr('data-sensor-id') || '');
+        const aSensorIndex = Number.parseInt($(a).attr('data-sensor-index'), 10);
+        const bSensorIndex = Number.parseInt($(b).attr('data-sensor-index'), 10);
+
+        const orderDelta = getSensorDisplayOrder(aSensorId) - getSensorDisplayOrder(bSensorId);
+        if (orderDelta !== 0) {
+            return orderDelta;
+        }
+
+        if (aSensorId !== bSensorId) {
+            return aSensorId.localeCompare(bSensorId);
+        }
+
+        return aSensorIndex - bSensorIndex;
+    });
+
+    rows.forEach((row) => {
+        $rowTemplate.before(row);
+    });
+}
+
 function dispatchVehicleDirectionEvent(sourceTopic, value) {
     if (!Number.isFinite(value)) {
         return;
@@ -418,6 +501,9 @@ function prcessMqttMessage(topic, value) {
             $('#sim-status').removeClass('bg-secondary bg-success').addClass('bg-danger').text('상태: 중지됨');
         }
     }
+
+    // 센서 토픽은 tbody 행을 동적으로 만든 후 값을 반영한다.
+    ensureDynamicSensorRow(topic);
 
     // jQuery를 사용한 DOM 업데이트: topic을 id로 사용해서 해당 요소 찾기 (속성 선택자 사용)
     const $targetElement = $(`[id="${topic}"]`);

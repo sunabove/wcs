@@ -249,41 +249,16 @@
                                                         <th class="text-center">신뢰도</th>
                                                     </tr>
                                                 </thead>
-                                                <tbody>
-                                                    <tr>
-                                                        <th class="text-center" scope="row">ToF #0</th>
-                                                        <td id="sensor/ToF/0/state" class="text-center">-</td>
-                                                        <td id="sensor/ToF/0/value" class="text-center">-</td>
-                                                        <td id="sensor/ToF/0/obstacle" class="text-center">-</td>
-                                                        <td id="sensor/ToF/0/obstacle/confidence" class="text-center">-</td>
+                                                <tbody id="sensor-info-tbody">
+                                                    <tr id="sensor-info-empty-row">
+                                                        <td class="text-center text-muted" colspan="5">센서 데이터 수신 대기중</td>
                                                     </tr>
-                                                    <tr>
-                                                        <th class="text-center" scope="row">Lidar #0</th>
-                                                        <td id="sensor/Lidar/0/state" class="text-center">-</td>
-                                                        <td id="sensor/Lidar/0/value" class="text-center">-</td>
-                                                        <td id="sensor/Lidar/0/obstacle" class="text-center">-</td>
-                                                        <td id="sensor/Lidar/0/obstacle/confidence" class="text-center">-</td>
-                                                    </tr>
-                                                    <tr>
-                                                        <th class="text-center" scope="row">Current #0</th>
-                                                        <td id="sensor/Current/0/state" class="text-center">-</td>
-                                                        <td id="sensor/Current/0/value" class="text-center">-</td>
-                                                        <td class="text-center">-</td>
-                                                        <td class="text-center">-</td>
-                                                    </tr>
-                                                    <tr>
-                                                        <th class="text-center" scope="row">IMU #0</th>
-                                                        <td id="sensor/IMU/0/state" class="text-center">-</td>
-                                                        <td id="sensor/IMU/0/value" class="text-center">-</td>
-                                                        <td class="text-center">-</td>
-                                                        <td class="text-center">-</td>
-                                                    </tr>
-                                                    <tr>
-                                                        <th class="text-center" scope="row">Camera #0</th>
-                                                        <td id="sensor/Camera/0/state" class="text-center">-</td>
-                                                        <td id="sensor/Camera/0/value" class="text-center">-</td>
-                                                        <td id="sensor/Camera/0/obstacle" class="text-center">-</td>
-                                                        <td id="sensor/Camera/0/obstacle/confidence" class="text-center">-</td>
+                                                    <tr id="sensor-info-row-template" class="d-none">
+                                                        <th class="text-center" scope="row" data-sensor-label>Sensor #0</th>
+                                                        <td class="text-center" data-topic-suffix="state">-</td>
+                                                        <td class="text-center" data-topic-suffix="value">-</td>
+                                                        <td class="text-center" data-topic-suffix="obstacle">-</td>
+                                                        <td class="text-center" data-topic-suffix="obstacle/confidence">-</td>
                                                     </tr>
                                                 </tbody>
                                             </table>

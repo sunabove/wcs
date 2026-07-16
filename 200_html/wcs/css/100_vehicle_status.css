@@ -160,6 +160,23 @@
     white-space: nowrap;
 }
 
+/* Hide only the outer frame of the bordered table. */
+.sensor-info-table.table-bordered > :not(caption) > tr > :first-child {
+    border-left: 0;
+}
+
+.sensor-info-table.table-bordered > :not(caption) > tr > :last-child {
+    border-right: 0;
+}
+
+.sensor-info-table.table-bordered > thead > tr:first-child > * {
+    border-top: 0;
+}
+
+.sensor-info-table.table-bordered > tbody > tr:last-child > * {
+    border-bottom: 0;
+}
+
 .sensor-source-cell {
     max-width: 120px;
     overflow: hidden;

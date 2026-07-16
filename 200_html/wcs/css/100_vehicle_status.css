@@ -113,6 +113,70 @@
     font-size: 0.85rem !important;
 }
 
+.obstacle-sensor-row {
+    margin-top: 0.6rem;
+    padding: 0.55rem 0.65rem;
+    border: 1px solid #d8dee4;
+    border-radius: 0.6rem;
+    background: linear-gradient(180deg, #f8f9fa 0%, #eef2f6 100%);
+}
+
+.obstacle-sensor-row-title {
+    margin-bottom: 0.45rem;
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: #5c6773;
+}
+
+.obstacle-sensor-types {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.45rem;
+}
+
+.obstacle-sensor-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.38rem;
+    padding: 0.32rem 0.62rem;
+    border: 1px solid #c7d2da;
+    border-radius: 999px;
+    background: #ffffff;
+    color: #6b7680;
+    font-size: 0.84rem;
+    font-weight: 600;
+    line-height: 1;
+    transition: all 0.18s ease;
+}
+
+.obstacle-sensor-chip i {
+    font-size: 0.95rem !important;
+}
+
+.obstacle-sensor-chip.disabled {
+    background: #e9ecef;
+    border-color: #d3d9df;
+    color: #8a949e;
+}
+
+.obstacle-sensor-chip.active[data-sensor-id="ToF"] {
+    background: #fff4d6;
+    border-color: #f0c36d;
+    color: #9a6700;
+}
+
+.obstacle-sensor-chip.active[data-sensor-id="Camera"] {
+    background: #ffe2d9;
+    border-color: #f2a38d;
+    color: #b54708;
+}
+
+.obstacle-sensor-chip.active[data-sensor-id="Lidar"] {
+    background: #dff5ea;
+    border-color: #8fd0ad;
+    color: #0f766e;
+}
+
 #runInfo .card-text {
     font-size: 1.05rem !important;
     line-height: 1.2;

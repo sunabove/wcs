@@ -74,6 +74,42 @@ function refreshSensorRowLabels(sensorId) {
     });
 }
 
+function updateObstacleSensorTypes(topic, value) {
+    if (topic !== 'obstacle/sensors') {
+        return;
+    }
+
+    const $chips = $('#obstacle-sensor-types .obstacle-sensor-chip');
+    if ($chips.length === 0) {
+        return;
+    }
+
+    $chips.removeClass('active').addClass('disabled');
+
+    let parsedSources = [];
+    try {
+        parsedSources = JSON.parse(String(value || '[]'));
+    } catch (error) {
+        return;
+    }
+
+    if (!Array.isArray(parsedSources) || parsedSources.length === 0) {
+        return;
+    }
+
+    const activeSensorIds = new Set(
+        parsedSources
+            .map((source) => String(source && source.id ? source.id : '').trim())
+            .filter(Boolean)
+    );
+
+    activeSensorIds.forEach((sensorId) => {
+        $chips.filter(`[data-sensor-id="${sensorId}"]`)
+            .removeClass('disabled')
+            .addClass('active');
+    });
+}
+
 function ensureDynamicSensorRow(topic) {
     const topicMatch = String(topic || '').match(/^sensor\/([^/]+)\/(\d+)\/(state|value|obstacle|obstacle\/confidence)$/);
     if (!topicMatch) {
@@ -540,6 +576,7 @@ function prcessMqttMessage(topic, value) {
     }
 
     ensureDynamicSensorRow(topic);
+    updateObstacleSensorTypes(topic, value);
 
     // jQuery를 사용한 DOM 업데이트: topic을 id로 사용해서 해당 요소 찾기 (속성 선택자 사용)
     const $targetElement = $(`[id="${topic}"]`);

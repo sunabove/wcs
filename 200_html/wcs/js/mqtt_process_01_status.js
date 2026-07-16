@@ -64,10 +64,13 @@ function getSensorNumberLabel(sensorIndex) {
 function getSensorCountRangeLabel(sensorId) {
     const sensorCount = Number.parseInt(sensorCountById[sensorId], 10);
     if (!Number.isFinite(sensorCount) || sensorCount <= 0) {
-        return '-';
+        return '<span class="obstacle-sensor-chip-number-cell">-</span>';
     }
 
-    return Array.from({ length: sensorCount }, (_, index) => String(index + 1)).join(', ');
+    return Array.from(
+        { length: sensorCount },
+        (_, index) => `<span class="obstacle-sensor-chip-number-cell">${index + 1}</span>`
+    ).join('');
 }
 
 function refreshObstacleSensorChipNumbers(sensorId) {
@@ -77,7 +80,7 @@ function refreshObstacleSensorChipNumbers(sensorId) {
 
     $(selector).each(function () {
         const rowSensorId = String($(this).attr('data-sensor-id') || '');
-        $(this).find('[data-sensor-chip-number]').text(getSensorCountRangeLabel(rowSensorId));
+        $(this).find('[data-sensor-chip-number]').html(getSensorCountRangeLabel(rowSensorId));
     });
 }
 

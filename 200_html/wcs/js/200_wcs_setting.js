@@ -1,8 +1,6 @@
 $(document).ready(function () {
     const maxSpeedTopic = 'vehicle/linear/max_speed';
     const vehicleOperationCommandTopic = 'vehicle/operation/command';
-    const vehicleOperationCommandStorageKey = 'wcs.vehicle.operation.command.v1';
-    const vehicleOperationStateStorageKey = 'wcs.vehicle.operation.state.v1';
     const $wcsSampleVideoPane = $('#wcs-input-sample-video-pane');
     const vehicleDirectionButtonSelector = '#vehicle-forward, #vehicle-backward, #vehicle-turn-left, #vehicle-turn-right, #vehicle-stop';
     const wcsSampleVideoItemTemplate = document.getElementById('wcs-sample-video-item-template');
@@ -109,20 +107,6 @@ $(document).ready(function () {
         }
 
         updateVehicleDirectionControlUi(numericValue);
-    }
-
-    function readStoredVehicleDirectionValue(storageKey) {
-        try {
-            const rawValue = window.localStorage.getItem(storageKey);
-            if (rawValue === null) {
-                return null;
-            }
-
-            const numericValue = Number.parseInt(rawValue, 10);
-            return Number.isFinite(numericValue) ? numericValue : null;
-        } catch (error) {
-            return null;
-        }
     }
 
     function normalizePath(pathValue) {
@@ -478,12 +462,8 @@ $(document).ready(function () {
         handleVehicleDirectionUpdate(detail.value);
     });
 
-    const storedVehicleOperationCommand = readStoredVehicleDirectionValue(vehicleOperationCommandStorageKey);
-
     if (Number.isFinite(window.latestVehicleOperationCommand)) {
         updateVehicleDirectionControlUi(window.latestVehicleOperationCommand);
-    } else if (Number.isFinite(storedVehicleOperationCommand)) {
-        updateVehicleDirectionControlUi(storedVehicleOperationCommand);
     } else if (window.latestVehicleOperationState === 0) {
         updateVehicleDirectionControlUi(0);
     } else {

@@ -224,6 +224,16 @@
     color: #1d4f91;
 }
 
+.obstacle-sensor-chip.sensor-received .obstacle-sensor-chip-head,
+.obstacle-sensor-chip.sensor-received .obstacle-sensor-chip-head i,
+.obstacle-sensor-chip.sensor-received .obstacle-sensor-chip-label {
+    color: #1d4f91;
+}
+
+.obstacle-sensor-chip.sensor-received .obstacle-sensor-chip-label {
+    font-weight: 700;
+}
+
 #runInfo .card-text {
     font-size: 1.05rem !important;
     line-height: 1.2;

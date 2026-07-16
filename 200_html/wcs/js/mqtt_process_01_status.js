@@ -44,6 +44,8 @@ function mqttLog() {
 
 const SENSOR_DISPLAY_ORDER = ['ToF', 'IMU', 'Current', 'Camera', 'Lidar'];
 const sensorCountById = {};
+const receivedSensorIds = new Set();
+const obstacleActiveSensorIds = new Set();
 
 function getSensorDisplayOrder(sensorId) {
     const orderIndex = SENSOR_DISPLAY_ORDER.indexOf(sensorId);
@@ -97,26 +99,64 @@ function refreshSensorRowLabels(sensorId) {
     });
 }
 
-function updateObstacleSensorTypes(topic, value) {
-    if (topic !== 'obstacle/sensors') {
-        return;
-    }
-
+function applyObstacleSensorChipState() {
     const $chips = $('#obstacle-sensor-types .obstacle-sensor-chip');
     if ($chips.length === 0) {
         return;
     }
 
-    $chips.removeClass('active').addClass('disabled');
+    $chips.each(function () {
+        const sensorId = String($(this).attr('data-sensor-id') || '').trim();
+        if (!sensorId) {
+            return;
+        }
+
+        const isReceived = receivedSensorIds.has(sensorId);
+        const isObstacleActive = obstacleActiveSensorIds.has(sensorId);
+        const isActive = isReceived || isObstacleActive;
+
+        $(this)
+            .toggleClass('active', isActive)
+            .toggleClass('disabled', !isActive)
+            .toggleClass('sensor-received', isReceived);
+    });
+}
+
+function updateReceivedSensorTypes(topic) {
+    const sensorTopicMatch = String(topic || '').match(/^sensor\/([^/]+)\//);
+    if (!sensorTopicMatch) {
+        return;
+    }
+
+    const sensorId = String(sensorTopicMatch[1] || '').trim();
+    if (!sensorId) {
+        return;
+    }
+
+    if (!receivedSensorIds.has(sensorId)) {
+        receivedSensorIds.add(sensorId);
+    }
+
+    applyObstacleSensorChipState();
+}
+
+function updateObstacleSensorTypes(topic, value) {
+    if (topic !== 'obstacle/sensors') {
+        return;
+    }
+
+    obstacleActiveSensorIds.clear();
 
     let parsedSources = [];
     try {
         parsedSources = JSON.parse(String(value || '[]'));
     } catch (error) {
+        applyObstacleSensorChipState();
         return;
     }
 
     if (!Array.isArray(parsedSources) || parsedSources.length === 0) {
+        applyObstacleSensorChipState();
         return;
     }
 
@@ -131,10 +171,10 @@ function updateObstacleSensorTypes(topic, value) {
     }
 
     activeSensorIds.forEach((sensorId) => {
-        $chips.filter(`[data-sensor-id="${sensorId}"]`)
-            .removeClass('disabled')
-            .addClass('active');
+        obstacleActiveSensorIds.add(sensorId);
     });
+
+    applyObstacleSensorChipState();
 }
 
 function ensureDynamicSensorRow(topic) {
@@ -604,6 +644,7 @@ function prcessMqttMessage(topic, value) {
     }
 
     ensureDynamicSensorRow(topic);
+    updateReceivedSensorTypes(topic);
     updateObstacleSensorTypes(topic, value);
 
     // jQuery를 사용한 DOM 업데이트: topic을 id로 사용해서 해당 요소 찾기 (속성 선택자 사용)

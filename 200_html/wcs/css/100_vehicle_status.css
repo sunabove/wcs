@@ -176,7 +176,7 @@
 }
 
 .obstacle-sensor-chip-number {
-    margin-top: 0.14rem;
+    margin-top: 0.24rem;
     display: grid;
     flex: 1 1 auto;
     grid-auto-flow: column;

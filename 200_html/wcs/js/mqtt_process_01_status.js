@@ -424,6 +424,7 @@ function prcessMqttMessage(topic, value) {
 
     // vehicle/run/state 특별 처리 (상태별 버튼 enable/disable)
     if (topic === 'vehicle/run/state') {
+
         const state = parseInt(value);
         
         // 모든 상태 버튼 비활성화 (속성 선택자 사용)

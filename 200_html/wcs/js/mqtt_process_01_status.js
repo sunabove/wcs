@@ -1055,7 +1055,7 @@ function getFormattedTopicValue(topic, value) {
         formattedValue = `${numValue.toFixed(3)} m`;  // SI: 미터 (기타 거리)
     } else if (topic.includes('/acceleration')) {
         const accelerationKmPerHourPerSec = numValue * 3.6;
-        formattedValue = `${accelerationKmPerHourPerSec.toFixed(2)} km/hs`;
+        formattedValue = `${accelerationKmPerHourPerSec.toFixed(1)} km/hs`;
     } else if (topic.includes('/torque')) {
         formattedValue = `${numValue.toFixed(2)} Nm`;  // SI: 뉴턴미터
     } else if (topic.includes('_time')) {

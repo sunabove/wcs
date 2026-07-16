@@ -161,22 +161,10 @@
     color: #8a949e;
 }
 
-.obstacle-sensor-chip.active[data-sensor-id="ToF"] {
-    background: #fff4d6;
-    border-color: #f0c36d;
-    color: #9a6700;
-}
-
-.obstacle-sensor-chip.active[data-sensor-id="Camera"] {
-    background: #ffe2d9;
-    border-color: #f2a38d;
-    color: #b54708;
-}
-
-.obstacle-sensor-chip.active[data-sensor-id="Lidar"] {
-    background: #dff5ea;
-    border-color: #8fd0ad;
-    color: #0f766e;
+.obstacle-sensor-chip.active {
+    background: #e7f1ff;
+    border-color: #8bb8ff;
+    color: #1d4f91;
 }
 
 #runInfo .card-text {

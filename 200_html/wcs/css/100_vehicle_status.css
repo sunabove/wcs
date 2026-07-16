@@ -138,7 +138,7 @@
     display: inline-flex;
     align-items: stretch;
     justify-content: center;
-    padding: 0.32rem 0.08rem;
+    padding: 0.32rem 0.14rem;
     border: 1px solid #c7d2da;
     border-radius: var(--bs-border-radius);
     background: #ffffff;

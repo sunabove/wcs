@@ -753,50 +753,16 @@ function applyDerivedWheelLinearSpeed(topic, value) {
     if ($linearSpeedElement.length === 0) {
         return;
     }
-                    // 차량 실제 속도(vehicle/linear/speed) 기준으로 정지 버튼 자동 활성화
-                    if (topic === 'vehicle/linear/speed') {
-                        const numericSpeed = parseFloat(value);
-                        if (Number.isFinite(numericSpeed)) {
-                            window.latestVehicleLinearSpeedMs = numericSpeed;
-                        }
+    const formattedLinearSpeed = getFormattedTopicValue(linearSpeedTopic, linearSpeedMps);
+    $linearSpeedElement.text(formattedLinearSpeed);
+    updateTargetElementCss($linearSpeedElement);
+}
 
-                        const shouldSkipAutoStopSync =
-                            window.vehicleDirectionCommandActive === true ||
-                            window.manualWheelTestActive === true ||
-                            (window.suppressAutoStopUntil || 0) > Date.now();
+function applyWheelAngularVelocityToViewer(topic, value) {
+    if (typeof setWheelAnimationByKey !== 'function') {
+        return;
+    }
 
-                        if (!shouldSkipAutoStopSync) {
-                            const speedZeroEpsilon = 0.05;
-                            const speedReleaseEpsilon = 0.15;
-
-                            if (Number.isFinite(numericSpeed) && Math.abs(numericSpeed) <= speedZeroEpsilon) {
-                                const $stopButton = $('#vehicle-stop');
-
-                                // 속도 0 구간에 진입할 때 1회 정지 버튼 UI만 동기화한다.
-                                if (!vehicleSpeedZeroClickLatched && $stopButton.length > 0) {
-                                    $('#vehicle-forward, #vehicle-backward, #vehicle-turn-left, #vehicle-turn-right, #vehicle-stop')
-                                        .removeClass('active text-white')
-                                        .addClass('text-black');
-
-                                    $stopButton
-                                        .addClass('active text-white')
-                                        .removeClass('text-black');
-
-                                    if (typeof window.clearVehicleWheelHighlights === 'function') {
-                                        window.clearVehicleWheelHighlights();
-                                    }
-
-                                    window.vehicleDirectionCommandActive = false;
-                                    vehicleSpeedZeroClickLatched = true;
-                                }
-
-                                mqttLog(`[MQTT] ⏹️ 차량 속도 0 근접 감지(${numericSpeed.toFixed(3)}): 정지 버튼 UI 자동 동기화`);
-                            } else if (Number.isFinite(numericSpeed) && Math.abs(numericSpeed) >= speedReleaseEpsilon) {
-                                // 다시 움직이기 시작하면 다음 정지 진입 시 자동 클릭이 재동작하도록 latch 해제
-                                vehicleSpeedZeroClickLatched = false;
-                            }
-                        }
-                    }
     const topicMatch = topic.match(/^wheel\/(fl|fr|rl|rr)\/(.+)$/i);
     if (!topicMatch) {
         return;

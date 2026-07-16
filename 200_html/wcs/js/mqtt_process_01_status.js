@@ -629,26 +629,14 @@ function prcessMqttMessage(topic, value) {
         }
     }
 
-    // operation/state가 STOP(0)이면 속도 토픽이 늦게 와도 정지 버튼을 확실히 선택/클릭
+    // operation/state는 주행 상태 보조 정보로만 사용하고, 방향 버튼 강제 동기화에는 사용하지 않는다.
     if (topic === 'vehicle/operation/state') {
         const operationState = parseInt(value, 10);
         if (Number.isFinite(operationState)) {
             window.latestVehicleOperationState = operationState;
         }
 
-        if (operationState === 0) {
-            const $stopButton = $('#vehicle-stop');
-            if (!vehicleSpeedZeroClickLatched && $stopButton.length > 0) {
-                syncVehicleDirectionButtons(0);
-
-                if (typeof window.clearVehicleWheelHighlights === 'function') {
-                    window.clearVehicleWheelHighlights();
-                }
-
-                window.vehicleDirectionCommandActive = false;
-                vehicleSpeedZeroClickLatched = true;
-            }
-        } else if (operationState === 1) {
+        if (operationState === 1) {
             vehicleSpeedZeroClickLatched = false;
         }
     }

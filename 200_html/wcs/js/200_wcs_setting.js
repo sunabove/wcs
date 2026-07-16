@@ -96,8 +96,15 @@ $(document).ready(function () {
     }
 
     function sendVehicleDirectionCommand(command) {
+        const numericCommand = Number(command);
+
+        window.vehicleDirectionCommandActive = numericCommand >= 1 && numericCommand <= 4;
+        if (window.vehicleDirectionCommandActive) {
+            window.suppressAutoStopUntil = Date.now() + 1500;
+        }
+
         updateVehicleDirectionControlUi(command);
-        sendMQTTMessage(vehicleOperationCommandTopic, Number(command), 1);
+        sendMQTTMessage(vehicleOperationCommandTopic, numericCommand, 1);
     }
 
     function handleVehicleDirectionUpdate(value) {
@@ -505,9 +512,6 @@ $(document).ready(function () {
                 handleVehicleDirectionUpdate(value);
             }
 
-            if (topic === 'vehicle/operation/state' && Number.parseInt(value, 10) === 0) {
-                handleVehicleDirectionUpdate(0);
-            }
         };
         window.wcsSettingMaxSpeedHooked = true;
     }

@@ -463,6 +463,10 @@ class MqttSimulator:
                     f"[SENSOR_DEF] Published sensor/{sensor_id}/count={sensor_def['count']}, "
                     f"target={sensor_def['target']}"
                 )
+
+            # 센서 개수(count)만큼 각 센서 인덱스 토픽을 접속 직후에도 즉시 발행한다.
+            self._publish_sensor_interfaces()
+            print("[SENSOR_DEF] Published sensor/{id}/{index}/* topics for all sensor counts")
             
             # Vehicle 설정 정보 publish
             if hasattr(self, 'vehicle_data') and self.vehicle_data:

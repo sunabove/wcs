@@ -1213,7 +1213,9 @@ class MqttSimulator:
                     self._publish_vehicle()
                     self._publish_position()
                     self._publish_wheels()
-                    self._publish_sensor_interfaces()
+
+                # 센서 인터페이스(특히 IMU 0~4)는 동작 모드와 무관하게 항상 발행한다.
+                self._publish_sensor_interfaces()
     
                 loop_count += 1
                 time.sleep(1)

@@ -1054,7 +1054,8 @@ function getFormattedTopicValue(topic, value) {
     } else if (topic.includes('/distance') || topic.includes('/total_distance')) {
         formattedValue = `${numValue.toFixed(3)} m`;  // SI: 미터 (기타 거리)
     } else if (topic.includes('/acceleration')) {
-        formattedValue = `${numValue.toFixed(2)} m/s²`;  // SI: 미터/초²
+        const accelerationKmPerHourPerSec = numValue * 3.6;
+        formattedValue = `${accelerationKmPerHourPerSec.toFixed(2)} km/hs`;
     } else if (topic.includes('/torque')) {
         formattedValue = `${numValue.toFixed(2)} Nm`;  // SI: 뉴턴미터
     } else if (topic.includes('_time')) {

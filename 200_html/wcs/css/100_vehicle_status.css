@@ -129,14 +129,15 @@
 }
 
 .obstacle-sensor-types {
-    display: flex;
-    flex-wrap: wrap;
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
     gap: 0.45rem;
 }
 
 .obstacle-sensor-chip {
     display: inline-flex;
     align-items: center;
+    justify-content: center;
     gap: 0.38rem;
     padding: 0.32rem 0.62rem;
     border: 1px solid #c7d2da;
@@ -146,6 +147,7 @@
     font-size: 0.84rem;
     font-weight: 600;
     line-height: 1;
+    width: 100%;
     transition: all 0.18s ease;
 }
 

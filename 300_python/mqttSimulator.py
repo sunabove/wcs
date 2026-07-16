@@ -43,8 +43,8 @@ class SurfaceObstacle(IntEnum):
 WHEEL_IDS = ["fl", "fr", "rr", "rl"]
 
 SENSOR_DEFINITIONS = [
-    {"id": "IMU", "count": 5, "target": "가속도,각속도", "enabled": True},
     {"id": "ToF", "count": 4, "target": "거리,장애물", "enabled": True},
+    {"id": "IMU", "count": 5, "target": "가속도,각속도", "enabled": True},
     {"id": "Current", "count": 4, "target": "전류", "enabled": True},
     {"id": "Camera", "count": 1, "target": "장애물", "enabled": True},
     {"id": "Lidar", "count": 1, "target": "거리,장애물", "enabled": True}, 

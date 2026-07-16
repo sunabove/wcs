@@ -131,7 +131,7 @@
 .obstacle-sensor-types {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
-    gap: 0.45rem;
+    gap: 0.32rem;
 }
 
 .obstacle-sensor-chip {

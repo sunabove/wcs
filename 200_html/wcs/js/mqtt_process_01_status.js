@@ -67,11 +67,7 @@ function getSensorCountRangeLabel(sensorId) {
         return '-';
     }
 
-    if (sensorCount === 1) {
-        return '1';
-    }
-
-    return `1~${sensorCount}`;
+    return Array.from({ length: sensorCount }, (_, index) => String(index + 1)).join(', ');
 }
 
 function refreshObstacleSensorChipNumbers(sensorId) {

@@ -42,7 +42,7 @@ function mqttLog() {
     }
 }
 
-const SENSOR_DISPLAY_ORDER = ['ToF', 'Lidar', 'Current', 'IMU', 'Camera'];
+const SENSOR_DISPLAY_ORDER = ['IMU', 'ToF', 'Current', 'Camera', 'Lidar'];
 const sensorCountById = {};
 
 function getSensorDisplayOrder(sensorId) {

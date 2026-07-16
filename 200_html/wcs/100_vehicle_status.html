@@ -242,7 +242,8 @@
                                             <table class="table table-sm table-bordered mb-0 sensor-info-table">
                                                 <thead class="table-light">
                                                     <tr>
-                                                        <th class="text-center">항목</th>
+                                                        <th class="text-center">센서</th>
+                                                        <th class="text-center">번호</th>
                                                         <th class="text-center">동작</th>
                                                         <th class="text-center">값</th>
                                                         <th class="text-center">장애물</th>
@@ -251,10 +252,11 @@
                                                 </thead>
                                                 <tbody id="sensor-info-tbody">
                                                     <tr id="sensor-info-empty-row">
-                                                        <td class="text-center text-muted" colspan="5">센서 데이터 수신 대기중</td>
+                                                        <td class="text-center text-muted" colspan="6">센서 데이터 수신 대기중</td>
                                                     </tr>
-                                                    <tr id="sensor-info-row-template" class="">
-                                                        <th class="text-center" scope="row" data-sensor-label>Sensor #0</th>
+                                                    <tr id="sensor-info-row-template" class="d-none">
+                                                        <th class="text-center" scope="row" data-sensor-label>Sensor</th>
+                                                        <td class="text-center" data-sensor-number>0</td>
                                                         <td class="text-center" data-topic-suffix="state">-</td>
                                                         <td class="text-center" data-topic-suffix="value">-</td>
                                                         <td class="text-center" data-topic-suffix="obstacle">-</td>

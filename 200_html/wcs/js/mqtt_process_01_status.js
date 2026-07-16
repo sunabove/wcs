@@ -43,10 +43,31 @@ function mqttLog() {
 }
 
 const SENSOR_DISPLAY_ORDER = ['ToF', 'Lidar', 'Current', 'IMU', 'Camera'];
+const sensorCountById = {};
 
 function getSensorDisplayOrder(sensorId) {
     const orderIndex = SENSOR_DISPLAY_ORDER.indexOf(sensorId);
     return orderIndex >= 0 ? orderIndex : SENSOR_DISPLAY_ORDER.length + 1;
+}
+
+function getSensorRowLabel(sensorId, sensorIndex) {
+    const count = Number(sensorCountById[sensorId]);
+    if (Number.isFinite(count) && count <= 1) {
+        return String(sensorId);
+    }
+    return `${sensorId} #${sensorIndex}`;
+}
+
+function refreshSensorRowLabels(sensorId) {
+    const selector = sensorId
+        ? `#sensor-info-tbody tr[data-sensor-row-key][data-sensor-id="${sensorId}"]`
+        : '#sensor-info-tbody tr[data-sensor-row-key]';
+
+    $(selector).each(function () {
+        const rowSensorId = String($(this).attr('data-sensor-id') || '');
+        const rowSensorIndex = Number.parseInt($(this).attr('data-sensor-index'), 10);
+        $(this).find('[data-sensor-label]').text(getSensorRowLabel(rowSensorId, rowSensorIndex));
+    });
 }
 
 function ensureDynamicSensorRow(topic) {
@@ -90,7 +111,7 @@ function ensureDynamicSensorRow(topic) {
         .attr('data-sensor-id', safeSensorId)
         .attr('data-sensor-index', sensorIndex);
 
-    $newRow.find('[data-sensor-label]').text(`${safeSensorId} #${sensorIndex}`);
+    $newRow.find('[data-sensor-label]').text(getSensorRowLabel(safeSensorId, sensorIndex));
     $newRow.find('[data-topic-suffix]').each(function () {
         const topicSuffix = String($(this).attr('data-topic-suffix') || '').trim();
         if (!topicSuffix) {
@@ -503,6 +524,16 @@ function prcessMqttMessage(topic, value) {
     }
 
     // 센서 토픽은 tbody 행을 동적으로 만든 후 값을 반영한다.
+    const sensorCountTopicMatch = String(topic || '').match(/^sensor\/([^/]+)\/count$/);
+    if (sensorCountTopicMatch) {
+        const sensorId = sensorCountTopicMatch[1];
+        const sensorCount = Number.parseInt(value, 10);
+        if (Number.isFinite(sensorCount) && sensorCount > 0) {
+            sensorCountById[sensorId] = sensorCount;
+            refreshSensorRowLabels(sensorId);
+        }
+    }
+
     ensureDynamicSensorRow(topic);
 
     // jQuery를 사용한 DOM 업데이트: topic을 id로 사용해서 해당 요소 찾기 (속성 선택자 사용)

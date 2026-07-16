@@ -79,3 +79,50 @@
     vertical-align: middle;
     white-space: nowrap;
 }
+
+/* Keep 4 status items in a single row on desktop for each status section. */
+#roadSurfaceInfo .row > .col-md-6,
+#obstacleInfo .row > .col-md-6,
+#runInfo .row > .col-md-6 {
+    flex: 0 0 25%;
+    max-width: 25%;
+}
+
+#roadSurfaceInfo .card-body,
+#obstacleInfo .card-body,
+#runInfo .card-body {
+    padding: 0.6rem;
+}
+
+#roadSurfaceInfo .card-title,
+#obstacleInfo .card-title,
+#runInfo .card-title {
+    font-size: 1rem;
+    line-height: 1.25;
+}
+
+#roadSurfaceInfo i,
+#obstacleInfo i,
+#runInfo i {
+    font-size: 1.8rem !important;
+}
+
+#roadSurfaceInfo .badge,
+#obstacleInfo .badge,
+#runInfo .badge {
+    font-size: 0.85rem !important;
+}
+
+#runInfo .card-text {
+    font-size: 1.05rem !important;
+    line-height: 1.2;
+}
+
+@media (max-width: 1400px) {
+    #roadSurfaceInfo .row > .col-md-6,
+    #obstacleInfo .row > .col-md-6,
+    #runInfo .row > .col-md-6 {
+        flex: 0 0 50%;
+        max-width: 50%;
+    }
+}

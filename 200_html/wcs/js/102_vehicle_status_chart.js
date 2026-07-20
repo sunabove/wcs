@@ -306,9 +306,14 @@ function createVehicleSpeedHistoryChart() {
                     type: 'linear',
                     position: 'left',
                     grace: '10%',
+                    ticks: {
+                        callback(value, index, ticks) {
+                            const label = String(value);
+                            return index === ticks.length - 1 ? `${label} (km/h)` : label;
+                        },
+                    },
                     title: {
-                        display: true,
-                        text: 'km/h',
+                        display: false,
                     },
                     grid: {
                         color: 'rgba(173, 181, 189, 0.2)',
@@ -318,9 +323,14 @@ function createVehicleSpeedHistoryChart() {
                     type: 'linear',
                     position: 'right',
                     grace: '10%',
+                    ticks: {
+                        callback(value, index, ticks) {
+                            const label = String(value);
+                            return index === ticks.length - 1 ? `${label} (km/hs)` : label;
+                        },
+                    },
                     title: {
-                        display: true,
-                        text: 'km/hs',
+                        display: false,
                     },
                     grid: {
                         drawOnChartArea: false,

@@ -253,7 +253,7 @@ $(document).ready(function () {
                                 ${disabledAttr}
                             >
                             <span class="badge text-bg-secondary obstacle-sensor-row-value-text">${valueNumber}</span>
-                            <button type="button" class="btn btn-outline-secondary btn-sm obstacle-sensor-row-reset-value" ${disabledAttr}>값 초기화</button>
+                            <button type="button" class="btn btn-outline-secondary btn-sm obstacle-sensor-row-reset-value" ${disabledAttr}>초기화</button>
                         </div>
                     </td>
                     <td>
@@ -268,7 +268,7 @@ $(document).ready(function () {
                                 ${disabledAttr}
                             >
                             <span class="badge text-bg-secondary obstacle-sensor-row-confidence-text">${confidenceNumber}</span>
-                            <button type="button" class="btn btn-outline-secondary btn-sm obstacle-sensor-row-reset-confidence" ${disabledAttr}>신뢰도 초기화</button>
+                            <button type="button" class="btn btn-outline-secondary btn-sm obstacle-sensor-row-reset-confidence" ${disabledAttr}>초기화</button>
                         </div>
                     </td>
                 </tr>

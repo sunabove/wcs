@@ -1619,6 +1619,33 @@ class URDFViewer {
         return paddedRadius / Math.tan(limitingHalfFov);
     }
 
+    calculateFitDistanceForFace(sizeVec3, faceKey, marginRatio = 0.05) {
+        if (!sizeVec3) {
+            return this.calculateFitDistance(1, marginRatio);
+        }
+
+        const axisPairsByFace = {
+            front: ['x', 'z'],
+            back: ['x', 'z'],
+            left: ['y', 'z'],
+            right: ['y', 'z'],
+            top: ['x', 'y'],
+            bottom: ['x', 'y']
+        };
+
+        const [verticalAxis, horizontalAxis] = axisPairsByFace[faceKey] || ['x', 'y'];
+        const verticalSize = Math.max(Number(sizeVec3[verticalAxis]) || 0, 0.001) * (1 + Math.max(marginRatio, 0));
+        const horizontalSize = Math.max(Number(sizeVec3[horizontalAxis]) || 0, 0.001) * (1 + Math.max(marginRatio, 0));
+
+        const vFovHalfRad = THREE.MathUtils.degToRad(this.camera.fov * 0.5);
+        const hFovHalfRad = Math.atan(Math.tan(vFovHalfRad) * this.camera.aspect);
+
+        const distanceByHeight = (verticalSize * 0.5) / Math.tan(Math.max(vFovHalfRad, 0.001));
+        const distanceByWidth = (horizontalSize * 0.5) / Math.tan(Math.max(hFovHalfRad, 0.001));
+
+        return Math.max(distanceByHeight, distanceByWidth, 0.001);
+    }
+
     resetDirectionalLight(center, radius) {
         if (!this.directionalLight) {
             return;
@@ -2288,7 +2315,7 @@ class URDFViewer {
                     if (this.hasCustomCameraPosition) {
                         console.log('[URDF] cameraPose 지정됨: 사용자 카메라 위치 유지');
                     } else {
-                        const fitDistance = this.calculateFitDistance(radius, this.cameraFitMarginRatio);
+                        const fitDistance = this.calculateFitDistanceForFace(size, 'top', this.cameraFitMarginRatio);
                         this.setCameraFromFace(center, fitDistance, 'top');
                         console.log('[URDF] cameraPose 미지정: top view 자동 피팅 카메라 적용 (마진 5%)');
                     }

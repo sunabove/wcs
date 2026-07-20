@@ -23,6 +23,51 @@ const vehicleSpeedHistoryState = {
     maxPoints: 30,
 };
 
+function createVirtualYAxisUnitTickPlugin(unitsByScaleId, pluginId) {
+    return {
+        id: pluginId,
+        afterDraw(chart) {
+            const { ctx, chartArea, scales } = chart;
+            if (!chartArea || !scales) {
+                return;
+            }
+
+            const unitEntries = Object.entries(unitsByScaleId || {});
+            if (unitEntries.length === 0) {
+                return;
+            }
+
+            ctx.save();
+            ctx.fillStyle = '#6c757d';
+            ctx.strokeStyle = '#6c757d';
+            ctx.lineWidth = 1;
+            ctx.font = '600 11px system-ui, -apple-system, "Segoe UI", sans-serif';
+            ctx.textBaseline = 'middle';
+
+            unitEntries.forEach(([scaleId, unitText]) => {
+                const scale = scales[scaleId];
+                if (!scale) {
+                    return;
+                }
+
+                const x = (scale.left + scale.right) / 2;
+                const tickTop = chartArea.top - 2;
+                const tickBottom = chartArea.top + 4;
+
+                ctx.beginPath();
+                ctx.moveTo(x, tickTop);
+                ctx.lineTo(x, tickBottom);
+                ctx.stroke();
+
+                ctx.textAlign = 'center';
+                ctx.fillText(unitText, x, chartArea.top - 9);
+            });
+
+            ctx.restore();
+        },
+    };
+}
+
 function formatRunInfoChartTimeLabel(dateValue) {
     const date = dateValue instanceof Date ? dateValue : new Date();
     const hours = String(date.getHours()).padStart(2, '0');
@@ -37,8 +82,17 @@ function createRunInfoHistoryChart() {
         return;
     }
 
+    const runInfoVirtualUnitTickPlugin = createVirtualYAxisUnitTickPlugin(
+        {
+            yBattery: '%',
+            yTime: '분',
+        },
+        'runInfoVirtualUnitTickPlugin'
+    );
+
     runInfoHistoryState.chart = new Chart(canvas, {
         type: 'line',
+        plugins: [runInfoVirtualUnitTickPlugin],
         data: {
             labels: runInfoHistoryState.labels,
             datasets: [
@@ -90,7 +144,7 @@ function createRunInfoHistoryChart() {
             animation: false,
             layout: {
                 padding: {
-                    top: 14,
+                    top: 22,
                 },
             },
             interaction: {
@@ -127,12 +181,6 @@ function createRunInfoHistoryChart() {
                     position: 'left',
                     min: 0,
                     max: 100,
-                    ticks: {
-                        callback(value, index, ticks) {
-                            const label = String(value);
-                            return index === ticks.length - 1 ? `${label} (%)` : label;
-                        },
-                    },
                     title: {
                         display: false,
                     },
@@ -141,12 +189,6 @@ function createRunInfoHistoryChart() {
                     type: 'linear',
                     position: 'right',
                     grace: '10%',
-                    ticks: {
-                        callback(value, index, ticks) {
-                            const label = String(value);
-                            return index === ticks.length - 1 ? `${label} (분)` : label;
-                        },
-                    },
                     title: {
                         display: false,
                     },
@@ -232,8 +274,17 @@ function createVehicleSpeedHistoryChart() {
         return;
     }
 
+    const vehicleSpeedVirtualUnitTickPlugin = createVirtualYAxisUnitTickPlugin(
+        {
+            ySpeed: 'km/h',
+            yAcceleration: 'm/s²',
+        },
+        'vehicleSpeedVirtualUnitTickPlugin'
+    );
+
     vehicleSpeedHistoryState.chart = new Chart(canvas, {
         type: 'line',
+        plugins: [vehicleSpeedVirtualUnitTickPlugin],
         data: {
             labels: vehicleSpeedHistoryState.labels,
             datasets: [
@@ -273,6 +324,11 @@ function createVehicleSpeedHistoryChart() {
             responsive: true,
             maintainAspectRatio: false,
             animation: false,
+            layout: {
+                padding: {
+                    top: 22,
+                },
+            },
             interaction: {
                 mode: 'index',
                 intersect: false,
@@ -306,12 +362,6 @@ function createVehicleSpeedHistoryChart() {
                     type: 'linear',
                     position: 'left',
                     grace: '10%',
-                    ticks: {
-                        callback(value, index, ticks) {
-                            const label = String(value);
-                            return index === ticks.length - 1 ? `${label} (km/h)` : label;
-                        },
-                    },
                     title: {
                         display: false,
                     },
@@ -323,12 +373,6 @@ function createVehicleSpeedHistoryChart() {
                     type: 'linear',
                     position: 'right',
                     grace: '10%',
-                    ticks: {
-                        callback(value, index, ticks) {
-                            const label = String(value);
-                            return index === ticks.length - 1 ? `${label} (km/hs)` : label;
-                        },
-                    },
                     title: {
                         display: false,
                     },

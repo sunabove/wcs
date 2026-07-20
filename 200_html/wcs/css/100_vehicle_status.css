@@ -316,8 +316,8 @@
     }
 }
 
-#sensor-info-tbody tr.sensor-info-row-blink [data-sensor-label],
-#sensor-info-tbody tr.sensor-info-row-blink [data-sensor-number] {
+#sensor-info-tbody tr.sensor-info-row-blink > th,
+#sensor-info-tbody tr.sensor-info-row-blink > td {
     animation: sensor-text-colorful 0.8s ease;
 }
 

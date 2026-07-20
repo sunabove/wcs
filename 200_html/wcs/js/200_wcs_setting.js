@@ -320,6 +320,30 @@ $(document).ready(function () {
         renderObstacleSensorSettings();
     }
 
+    function initializeObstacleSensorSettingsDefaults() {
+        OBSTACLE_SENSOR_DEFINITIONS.forEach((sensorDef) => {
+            if (!obstacleSensorSettingById[sensorDef.id]) {
+                upsertObstacleSensorSetting(sensorDef.id, {
+                    count: sensorDef.count,
+                    target: sensorDef.target,
+                    enabled: sensorDef.enabled,
+                });
+            }
+
+            for (let sensorIndex = 0; sensorIndex < sensorDef.count; sensorIndex += 1) {
+                const rowKey = getSensorRowKey(sensorDef.id, sensorIndex);
+                if (!obstacleSensorRowValueByKey[rowKey]) {
+                    upsertObstacleSensorRowValue(sensorDef.id, sensorIndex, {
+                        value: getDefaultSensorValue(sensorDef.id),
+                        confidence: getDefaultSensorConfidence(sensorDef.id),
+                    });
+                }
+            }
+        });
+
+        renderObstacleSensorSettings();
+    }
+
     function publishObstacleSensorSettings() {
         const settings = getOrderedObstacleSensorSettings();
         settings.forEach((sensorDef) => {
@@ -1030,6 +1054,16 @@ $(document).ready(function () {
                 renderObstacleSensorValueTable();
             }
 
+            const sensorStateMatch = String(topic || '').match(/^sensor\/([^/]+)\/(\d+)\/state$/);
+            if (sensorStateMatch) {
+                const sensorId = sensorStateMatch[1];
+                const sensorIndex = Number.parseInt(sensorStateMatch[2], 10);
+                const stateText = String(value || '').trim().toLowerCase();
+                const enabled = stateText === '1' || stateText === 'true' || stateText === 'on' || stateText === 'yes';
+                upsertObstacleSensorRowValue(sensorId, sensorIndex, { enabled: enabled });
+                renderObstacleSensorValueTable();
+            }
+
             if (topic === vehicleOperationCommandTopic) {
                 handleVehicleDirectionUpdate(value);
             }
@@ -1073,6 +1107,6 @@ $(document).ready(function () {
     });
 
     restoreSampleVideoBrowserStateFromStorage();
-    resetObstacleSensorSettings();
+    initializeObstacleSensorSettingsDefaults();
     ensureSampleVideosLoaded();
 });

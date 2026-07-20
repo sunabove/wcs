@@ -147,6 +147,7 @@ class MqttSimulator:
         self.last_vehicle_max_speed_published = None
         self.wheel_id_initial_published = False
         self.wheel_radius_initial_published = False
+        self.last_sensor_interface_payloads = {}
         
         # 재시작 및 모니터링
         self.running = True
@@ -471,8 +472,12 @@ class MqttSimulator:
                 )
 
             # 센서 개수(count)만큼 각 센서 인덱스 토픽을 접속 직후에도 즉시 발행한다.
-            self._publish_sensor_interfaces()
-            print("[SENSOR_DEF] Published sensor/{id}/{index}/* topics for all sensor counts")
+            if self.last_sensor_interface_payloads:
+                self._publish_last_sensor_interfaces()
+                print("[SENSOR_DEF] Replayed last published sensor/{id}/{index}/* topics")
+            else:
+                self._publish_sensor_interfaces()
+                print("[SENSOR_DEF] Published sensor/{id}/{index}/* topics for all sensor counts")
             
             # Vehicle 설정 정보 publish
             if hasattr(self, 'vehicle_data') and self.vehicle_data:
@@ -825,6 +830,9 @@ class MqttSimulator:
         payload = str(value)
         self.client.publish(topic, payload, retain=True)
 
+        if self._is_sensor_interface_topic(topic):
+            self.last_sensor_interface_payloads[topic] = payload
+
         if topic == "vehicle/linear/speed":
             try:
                 self.last_published_vehicle_linear_speed = float(payload)
@@ -836,6 +844,29 @@ class MqttSimulator:
         self.publish_count += 1
         print(f"[{self.publish_count}] [PUB] {topic} -> {payload}")
     pass  # _publish
+
+    def _is_sensor_interface_topic(self, topic):
+        if not isinstance(topic, str):
+            return False
+
+        if topic in ("obstacle", "obstacle/sensors", "obstacle/confidence"):
+            return True
+
+        parts = topic.split("/")
+        if len(parts) == 4 and parts[0] == "sensor":
+            metric = parts[3]
+            return metric in ("state", "value", "obstacle")
+
+        if len(parts) == 5 and parts[0] == "sensor" and parts[3] == "obstacle" and parts[4] == "confidence":
+            return True
+
+        return False
+    pass  # _is_sensor_interface_topic
+
+    def _publish_last_sensor_interfaces(self):
+        for topic, payload in self.last_sensor_interface_payloads.items():
+            self._publish(topic, payload)
+    pass  # _publish_last_sensor_interfaces
 
     def _publish_vehicle(self):
         # 배터리 잔량(%) 계산 및 발행

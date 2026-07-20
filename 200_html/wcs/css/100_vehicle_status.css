@@ -305,10 +305,10 @@
 }
 
 .obstacle-sensor-chip.partial {
-    background: #fffaf0;
-    --bs-border-color: #d39e00;
-    border: 1px solid #d39e00 !important;
-    color: #a86b1d;
+    background: #fff8db;
+    --bs-border-color: #f2c94c;
+    border: 1px solid #f2c94c !important;
+    color: #c69214;
 }
 
 .obstacle-sensor-chip.active .obstacle-sensor-chip-head,
@@ -321,7 +321,7 @@
 .obstacle-sensor-chip.partial .obstacle-sensor-chip-head,
 .obstacle-sensor-chip.partial .obstacle-sensor-chip-head i,
 .obstacle-sensor-chip.partial .obstacle-sensor-chip-label {
-    color: #a86b1d;
+    color: #c69214;
 }
 
 .obstacle-sensor-chip.disabled .obstacle-sensor-chip-head,
@@ -332,7 +332,7 @@
 }
 
 .obstacle-sensor-chip.partial .obstacle-sensor-chip-number {
-    color: #a86b1d;
+    color: #c69214;
 }
 
 .obstacle-sensor-chip.disabled .obstacle-sensor-chip-head,

@@ -197,15 +197,19 @@ class URDFViewer {
         }
 
         const parts = normalizedValue.split('|').map(value => value.trim());
-        if (parts.length !== 3) {
+        if (parts.length < 1 || parts.length > 3 || !parts[0]) {
             return null;
         }
 
         const fallbackPosition = new THREE.Vector3(4, 4, 8);
         const fallbackTarget = new THREE.Vector3(0, 0, 0);
         const position = this.parseVector3Attribute(parts[0], fallbackPosition.clone());
-        const target = this.parseVector3Attribute(parts[1], fallbackTarget.clone());
-        const up = this.parseUpVector(parts[2]);
+        const target = parts[1]
+            ? this.parseVector3Attribute(parts[1], fallbackTarget.clone())
+            : fallbackTarget.clone();
+        const up = parts[2]
+            ? this.parseUpVector(parts[2])
+            : new THREE.Vector3(0, 1, 0);
 
         return {
             position,

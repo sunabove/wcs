@@ -149,7 +149,15 @@
     align-items: center;
 }
 
-.obstacle-sensor-value-row-disabled {
+.obstacle-sensor-value-row-disabled .obstacle-sensor-row-value,
+.obstacle-sensor-value-row-disabled .obstacle-sensor-row-confidence {
+    opacity: 0.45;
+}
+
+.obstacle-sensor-value-row-disabled .obstacle-sensor-row-value-text,
+.obstacle-sensor-value-row-disabled .obstacle-sensor-row-confidence-text,
+.obstacle-sensor-value-row-disabled td:first-child,
+.obstacle-sensor-value-row-disabled td:nth-child(2) {
     opacity: 0.65;
 }
 

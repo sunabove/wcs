@@ -67,6 +67,29 @@ const runInfoHistoryState = {
     maxPoints: 30,
 };
 
+const runInfoAxisUnitPlugin = {
+    id: 'runInfoAxisUnitPlugin',
+    afterDraw(chart) {
+        const { ctx, chartArea } = chart;
+        if (!chartArea) {
+            return;
+        }
+
+        ctx.save();
+        ctx.fillStyle = '#6c757d';
+        ctx.font = '600 11px system-ui, -apple-system, "Segoe UI", sans-serif';
+        ctx.textBaseline = 'top';
+
+        ctx.textAlign = 'left';
+        ctx.fillText('%', chartArea.left + 4, chartArea.top + 4);
+
+        ctx.textAlign = 'right';
+        ctx.fillText('분', chartArea.right - 4, chartArea.top + 4);
+
+        ctx.restore();
+    },
+};
+
 function formatRunInfoChartTimeLabel(dateValue) {
     const date = dateValue instanceof Date ? dateValue : new Date();
     const hours = String(date.getHours()).padStart(2, '0');
@@ -83,6 +106,7 @@ function createRunInfoHistoryChart() {
 
     runInfoHistoryState.chart = new Chart(canvas, {
         type: 'line',
+        plugins: [runInfoAxisUnitPlugin],
         data: {
             labels: runInfoHistoryState.labels,
             datasets: [
@@ -167,8 +191,7 @@ function createRunInfoHistoryChart() {
                     min: 0,
                     max: 100,
                     title: {
-                        display: true,
-                        text: '%',
+                        display: false,
                     },
                 },
                 yTime: {
@@ -176,8 +199,7 @@ function createRunInfoHistoryChart() {
                     position: 'right',
                     grace: '10%',
                     title: {
-                        display: true,
-                        text: '분',
+                        display: false,
                     },
                     grid: {
                         drawOnChartArea: false,

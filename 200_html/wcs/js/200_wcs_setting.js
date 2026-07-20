@@ -249,7 +249,7 @@ $(document).ready(function () {
                 <tr class="${groupStyleClass}${groupStartClass}${rowDisabledClass}" data-sensor-id="${sensorLabel}" data-sensor-index="${row.index}">
                     <td class="text-center fw-semibold">${sensorLabel}</td>
                     <td class="text-center">${sensorNumber}</td>
-                    <td>
+                    <td class="text-center">
                         <button
                             type="button"
                             class="btn btn-sm obstacle-sensor-row-state-toggle ${isEnabled ? 'btn-success' : 'btn-outline-secondary'}"

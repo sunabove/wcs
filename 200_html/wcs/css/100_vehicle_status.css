@@ -320,7 +320,7 @@
 }
 
 .obstacle-sensor-chip.disabled {
-    background: #d5dbe1;
+    background: #ffffff;
     --bs-border-color: #212529;
     border: 1px solid #212529 !important;
     color: #6f7780;

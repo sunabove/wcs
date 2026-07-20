@@ -132,6 +132,42 @@ $(document).ready(function () {
         }
     }
 
+    function getSensorValueSliderSpec(sensorId) {
+        switch (String(sensorId)) {
+            case 'ToF':
+            case 'Lidar':
+                return { min: 0, max: 5, step: 0.01, decimals: 2 };
+            case 'Current':
+                return { min: 0, max: 20, step: 0.01, decimals: 2 };
+            case 'IMU':
+                return { min: -20, max: 20, step: 0.01, decimals: 2 };
+            case 'Camera':
+                return { min: 0, max: 3, step: 1, decimals: 0 };
+            default:
+                return { min: 0, max: 10, step: 0.01, decimals: 2 };
+        }
+    }
+
+    function normalizeSensorValueById(sensorId, rawValue) {
+        const spec = getSensorValueSliderSpec(sensorId);
+        const numericValue = Number.parseFloat(rawValue);
+        const fallback = getDefaultSensorValue(sensorId);
+        const safeValue = Number.isFinite(numericValue) ? numericValue : fallback;
+        const clamped = Math.max(spec.min, Math.min(spec.max, safeValue));
+
+        if (spec.decimals === 0) {
+            return Math.round(clamped);
+        }
+
+        return Number(clamped.toFixed(spec.decimals));
+    }
+
+    function normalizeSensorConfidence(rawValue) {
+        const numericConfidence = Number.parseFloat(rawValue);
+        const safeConfidence = Number.isFinite(numericConfidence) ? numericConfidence : 0;
+        return Number(Math.max(0, Math.min(1, safeConfidence)).toFixed(3));
+    }
+
     function upsertObstacleSensorRowValue(sensorId, sensorIndex, partialValue) {
         const safeId = String(sensorId || '').trim();
         const safeIndex = Number.parseInt(sensorIndex, 10);
@@ -195,8 +231,9 @@ $(document).ready(function () {
             const sensorLabel = String(row.id || '');
             const sensorNumber = Number.parseInt(row.index, 10) + 1;
             const isEnabled = Boolean(row.enabled);
-            const valueText = String(row.value ?? '');
-            const confidenceText = String(row.confidence ?? '');
+            const valueNumber = normalizeSensorValueById(sensorLabel, row.value);
+            const confidenceNumber = normalizeSensorConfidence(row.confidence);
+            const valueSpec = getSensorValueSliderSpec(sensorLabel);
 
             const rowDisabledClass = isEnabled ? '' : ' obstacle-sensor-value-row-disabled';
             const disabledAttr = isEnabled ? '' : ' disabled';
@@ -205,10 +242,32 @@ $(document).ready(function () {
                     <td class="text-center fw-semibold">${sensorLabel}</td>
                     <td class="text-center">${sensorNumber}</td>
                     <td>
-                        <input type="number" step="0.001" class="form-control form-control-sm obstacle-sensor-row-value" value="${valueText}"${disabledAttr}>
+                        <div class="d-flex align-items-center gap-2">
+                            <input
+                                type="range"
+                                min="${valueSpec.min}"
+                                max="${valueSpec.max}"
+                                step="${valueSpec.step}"
+                                class="form-range mb-0 obstacle-sensor-row-value"
+                                value="${valueNumber}"
+                                ${disabledAttr}
+                            >
+                            <span class="badge text-bg-secondary obstacle-sensor-row-value-text">${valueNumber}</span>
+                        </div>
                     </td>
                     <td>
-                        <input type="number" min="0" max="1" step="0.01" class="form-control form-control-sm obstacle-sensor-row-confidence" value="${confidenceText}"${disabledAttr}>
+                        <div class="d-flex align-items-center gap-2">
+                            <input
+                                type="range"
+                                min="0"
+                                max="1"
+                                step="0.01"
+                                class="form-range mb-0 obstacle-sensor-row-confidence"
+                                value="${confidenceNumber}"
+                                ${disabledAttr}
+                            >
+                            <span class="badge text-bg-secondary obstacle-sensor-row-confidence-text">${confidenceNumber}</span>
+                        </div>
                     </td>
                 </tr>
             `;
@@ -243,13 +302,8 @@ $(document).ready(function () {
         });
 
         getOrderedObstacleSensorRows().forEach((row) => {
-            const numericValue = Number.parseFloat(row.value);
-            const sensorValue = Number.isFinite(numericValue) ? Number(numericValue.toFixed(3)) : 0;
-
-            const numericConfidence = Number.parseFloat(row.confidence);
-            const sensorConfidence = Number.isFinite(numericConfidence)
-                ? Math.max(0, Math.min(1, Number(numericConfidence.toFixed(3))))
-                : 0;
+            const sensorValue = normalizeSensorValueById(row.id, row.value);
+            const sensorConfidence = normalizeSensorConfidence(row.confidence);
 
             sendMQTTMessage(`sensor/${row.id}/${row.index}/value`, sensorValue);
             sendMQTTMessage(`sensor/${row.id}/${row.index}/obstacle/confidence`, sensorConfidence);
@@ -646,15 +700,13 @@ $(document).ready(function () {
             return;
         }
 
-        const numericValue = Number.parseFloat($row.find('.obstacle-sensor-row-value').val());
-        const normalizedValue = Number.isFinite(numericValue) ? Number(numericValue.toFixed(3)) : 0;
+        const normalizedValue = normalizeSensorValueById(sensorId, $row.find('.obstacle-sensor-row-value').val());
         $row.find('.obstacle-sensor-row-value').val(normalizedValue);
+        $row.find('.obstacle-sensor-row-value-text').text(normalizedValue);
 
-        const numericConfidence = Number.parseFloat($row.find('.obstacle-sensor-row-confidence').val());
-        const normalizedConfidence = Number.isFinite(numericConfidence)
-            ? Math.max(0, Math.min(1, Number(numericConfidence.toFixed(3))))
-            : 0;
+        const normalizedConfidence = normalizeSensorConfidence($row.find('.obstacle-sensor-row-confidence').val());
         $row.find('.obstacle-sensor-row-confidence').val(normalizedConfidence);
+        $row.find('.obstacle-sensor-row-confidence-text').text(normalizedConfidence);
 
         upsertObstacleSensorRowValue(sensorId, sensorIndex, {
             value: normalizedValue,
@@ -816,8 +868,7 @@ $(document).ready(function () {
             if (sensorValueMatch) {
                 const sensorId = sensorValueMatch[1];
                 const sensorIndex = Number.parseInt(sensorValueMatch[2], 10);
-                const numericValue = Number.parseFloat(value);
-                const normalizedValue = Number.isFinite(numericValue) ? Number(numericValue.toFixed(3)) : 0;
+                const normalizedValue = normalizeSensorValueById(sensorId, value);
                 upsertObstacleSensorRowValue(sensorId, sensorIndex, { value: normalizedValue });
                 renderObstacleSensorValueTable();
             }
@@ -826,10 +877,7 @@ $(document).ready(function () {
             if (sensorConfidenceMatch) {
                 const sensorId = sensorConfidenceMatch[1];
                 const sensorIndex = Number.parseInt(sensorConfidenceMatch[2], 10);
-                const numericConfidence = Number.parseFloat(value);
-                const normalizedConfidence = Number.isFinite(numericConfidence)
-                    ? Math.max(0, Math.min(1, Number(numericConfidence.toFixed(3))))
-                    : 0;
+                const normalizedConfidence = normalizeSensorConfidence(value);
                 upsertObstacleSensorRowValue(sensorId, sensorIndex, { confidence: normalizedConfidence });
                 renderObstacleSensorValueTable();
             }

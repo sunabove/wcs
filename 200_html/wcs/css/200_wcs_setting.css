@@ -93,6 +93,17 @@
     min-width: 100px;
 }
 
+.obstacle-sensor-value-table .form-range {
+    min-width: 140px;
+}
+
+.obstacle-sensor-row-value-text,
+.obstacle-sensor-row-confidence-text {
+    min-width: 56px;
+    display: inline-flex;
+    justify-content: center;
+}
+
 .obstacle-sensor-value-row-disabled {
     opacity: 0.65;
 }

@@ -390,6 +390,36 @@ function triggerSensorInfoRowBlink(topic) {
     $row.data('blinkTimerId', timerId);
 }
 
+function syncSensorRowLabelNumberColor(topic) {
+    const topicMatch = String(topic || '').match(/^sensor\/([^/]+)\/(\d+)\/(state|value|obstacle|obstacle\/confidence)$/);
+    if (!topicMatch) {
+        return;
+    }
+
+    const sensorId = String(topicMatch[1] || '').trim();
+    const sensorIndex = Number.parseInt(topicMatch[2], 10);
+    if (!sensorId || !Number.isFinite(sensorIndex)) {
+        return;
+    }
+
+    const rowKey = `${sensorId}#${sensorIndex}`;
+    const $row = $(`#sensor-info-tbody tr[data-sensor-row-key="${rowKey}"]`);
+    if ($row.length === 0) {
+        return;
+    }
+
+    const $sensorLabelCell = $row.find('[data-sensor-label]');
+    const $sensorNumberCell = $row.find('[data-sensor-number]');
+
+    if ($sensorLabelCell.length > 0) {
+        updateTargetElementCss($sensorLabelCell);
+    }
+
+    if ($sensorNumberCell.length > 0) {
+        updateTargetElementCss($sensorNumberCell);
+    }
+}
+
 function dispatchVehicleDirectionEvent(sourceTopic, value) {
     if (!Number.isFinite(value)) {
         return;
@@ -1066,6 +1096,7 @@ function prcessMqttMessage(topic, value) {
         $targetElement.text(formattedValue);
         
         updateTargetElementCss($targetElement);
+        syncSensorRowLabelNumberColor(topic);
         
         mqttLog(`[MQTT] ✅ DOM 업데이트 성공: ${topic} -> ${formattedValue}`);
     } else {

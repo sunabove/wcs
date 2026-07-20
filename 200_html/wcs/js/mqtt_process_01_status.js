@@ -97,7 +97,7 @@ function createRunInfoHistoryChart() {
                     borderWidth: 2,
                 },
                 {
-                    label: '주행 가능(분)',
+                    label: '주행가능',
                     data: [],
                     borderColor: '#1c7ed6',
                     backgroundColor: 'rgba(28, 126, 214, 0.12)',
@@ -107,7 +107,7 @@ function createRunInfoHistoryChart() {
                     borderWidth: 2,
                 },
                 {
-                    label: '주행 시간(분)',
+                    label: '주행시간',
                     data: [],
                     borderColor: '#f08c00',
                     backgroundColor: 'rgba(240, 140, 0, 0.12)',
@@ -117,7 +117,7 @@ function createRunInfoHistoryChart() {
                     borderWidth: 2,
                 },
                 {
-                    label: '주행 거리(km)',
+                    label: '주행거리',
                     data: [],
                     borderColor: '#6741d9',
                     backgroundColor: 'rgba(103, 65, 217, 0.12)',
@@ -140,8 +140,12 @@ function createRunInfoHistoryChart() {
                 legend: {
                     position: 'bottom',
                     labels: {
-                        boxWidth: 10,
-                        boxHeight: 10,
+                        boxWidth: 8,
+                        boxHeight: 8,
+                        font: {
+                            size: 10,
+                        },
+                        padding: 10,
                         usePointStyle: true,
                     },
                 },

@@ -271,6 +271,7 @@ function updateReceivedSensorNumberCells(topic, value) {
     }
 
     applyObstacleSensorChipNumberState(sensorId);
+    applyObstacleSensorChipState();
 }
 
 function updateObstacleSensorTypes(topic, value) {

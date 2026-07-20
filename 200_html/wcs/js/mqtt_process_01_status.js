@@ -272,12 +272,17 @@ function updateReceivedSensorNumberCells(topic, value) {
     const sensorState = Number.parseInt(value, 10);
     if (sensorState === 1) {
         receivedIndexes.add(sensorIndex);
+        obstacleFusionState.sensorLastSeenAtById.set(sensorId, Date.now());
     } else {
         receivedIndexes.delete(sensorIndex);
+        if (receivedIndexes.size === 0) {
+            obstacleFusionState.sensorLastSeenAtById.delete(sensorId);
+        }
     }
 
     applyObstacleSensorChipNumberState(sensorId);
     applyObstacleSensorChipState();
+    renderObstacleFusionStatus();
 }
 
 function updateObstacleSensorTypes(topic, value) {
@@ -285,24 +290,18 @@ function updateObstacleSensorTypes(topic, value) {
         return;
     }
 
-    const now = Date.now();
     obstacleActiveSensorIds.clear();
-    obstacleFusionState.sensorIds.clear();
 
     let parsedSources = [];
     try {
         parsedSources = JSON.parse(String(value || '[]'));
     } catch (error) {
-        obstacleFusionState.sensorLastSeenAtById.clear();
         applyObstacleSensorChipState();
-        renderObstacleFusionStatus();
         return;
     }
 
     if (!Array.isArray(parsedSources) || parsedSources.length === 0) {
-        obstacleFusionState.sensorLastSeenAtById.clear();
         applyObstacleSensorChipState();
-        renderObstacleFusionStatus();
         return;
     }
 
@@ -312,16 +311,11 @@ function updateObstacleSensorTypes(topic, value) {
             .filter(Boolean)
     );
 
-    obstacleFusionState.sensorLastSeenAtById.clear();
-
     activeSensorIds.forEach((sensorId) => {
         obstacleActiveSensorIds.add(sensorId);
-        obstacleFusionState.sensorIds.add(sensorId);
-        obstacleFusionState.sensorLastSeenAtById.set(sensorId, now);
     });
 
     applyObstacleSensorChipState();
-    renderObstacleFusionStatus();
 }
 
 function updateObstacleFusionValues(topic, value) {

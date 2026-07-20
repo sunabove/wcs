@@ -104,6 +104,10 @@
     justify-content: center;
 }
 
+.obstacle-sensor-row-reset {
+    min-width: 54px;
+}
+
 .obstacle-sensor-value-row-disabled {
     opacity: 0.65;
 }

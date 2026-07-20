@@ -1038,7 +1038,7 @@ class URDFViewer {
             return;
         }
 
-        const textToCopy = this.cameraToastElement.title || this.cameraToastElement.textContent || 'cameraPose="0.000, 0.000, 0.000|0.000, 0.000, 0.000|0.000, 1.000, 0.000"';
+        const textToCopy = this.cameraToastElement.textContent || '0.000, 0.000, 0.000|0.000, 0.000, 0.000|0.000, 1.000, 0.000';
 
         this.copyTextToClipboard(textToCopy)
             .then(() => {

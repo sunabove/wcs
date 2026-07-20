@@ -78,7 +78,7 @@ function createRunInfoHistoryChart() {
             animation: false,
             layout: {
                 padding: {
-                    top: 28,
+                    top: 14,
                 },
             },
             interaction: {

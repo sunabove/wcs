@@ -1155,7 +1155,7 @@ function prcessMqttMessage(topic, value) {
                 .toggleClass('sensor-state-active', !isSensorInactive);
         }
 
-        if (!isSensorInactive) {
+        if (!isSensorStateTopic && !isSensorInactive) {
             updateTargetElementCss($targetElement);
         }
         syncSensorRowLabelNumberColor(topic);

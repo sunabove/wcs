@@ -344,6 +344,11 @@
     font-weight: 600 !important;
 }
 
+#sensor-info-tbody td.sensor-state-active {
+    color: #1f9d57 !important;
+    font-weight: 700 !important;
+}
+
 #sensor-info-tbody tr.sensor-info-row-inactive td,
 #sensor-info-tbody tr.sensor-info-row-inactive th {
     color: #8a949e !important;

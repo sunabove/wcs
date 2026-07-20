@@ -172,7 +172,14 @@
 .fusion-status-inline > .badge {
     display: inline-flex;
     align-items: center;
-    height: 1.5rem;
+    height: 1.6rem;
+    padding: 0 0.45rem;
+    line-height: 1;
+    box-sizing: border-box;
+}
+
+#obstacle-fusion-enabled {
+    border: 1px solid transparent;
 }
 
 .fusion-confidence-slider-scale {

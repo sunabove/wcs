@@ -232,6 +232,7 @@ $(document).ready(function () {
 
             const rowDisabledClass = isEnabled ? '' : ' obstacle-sensor-value-row-disabled';
             const disabledAttr = isEnabled ? '' : ' disabled';
+            const buttonDisabledAttr = '';
             const shouldRenderGroupReset = !groupRenderedBySensorId[sensorLabel];
             const groupStyleClass = groupStyleClassBySensorId[sensorLabel] || '';
             const groupStartClass = shouldRenderGroupReset ? ' obstacle-sensor-group-start' : '';
@@ -242,8 +243,8 @@ $(document).ready(function () {
             const groupResetCellHtml = shouldRenderGroupReset
                 ? `<td class="text-center" rowspan="${groupRowCountBySensorId[sensorLabel]}">
                         <div class="obstacle-sensor-group-action-wrap">
-                            <button type="button" class="btn btn-outline-secondary btn-sm obstacle-sensor-row-reset-group" ${disabledAttr}>초기화</button>
-                            <button type="button" class="btn btn-primary btn-sm obstacle-sensor-row-apply-group" ${disabledAttr}>적용</button>
+                            <button type="button" class="btn btn-outline-secondary btn-sm obstacle-sensor-row-reset-group" ${buttonDisabledAttr}>초기화</button>
+                            <button type="button" class="btn btn-primary btn-sm obstacle-sensor-row-apply-group" ${buttonDisabledAttr}>적용</button>
                         </div>
                     </td>`
                 : '';
@@ -274,7 +275,7 @@ $(document).ready(function () {
                                 ${disabledAttr}
                             >
                             <span class="badge text-bg-secondary obstacle-sensor-row-value-text">${valueNumber}</span>
-                            <button type="button" class="btn btn-outline-secondary btn-sm obstacle-sensor-row-reset-value" ${disabledAttr}>초기화</button>
+                            <button type="button" class="btn btn-outline-secondary btn-sm obstacle-sensor-row-reset-value" ${buttonDisabledAttr}>초기화</button>
                         </div>
                     </td>
                     <td>
@@ -289,11 +290,11 @@ $(document).ready(function () {
                                 ${disabledAttr}
                             >
                             <span class="badge text-bg-secondary obstacle-sensor-row-confidence-text">${confidenceNumber}</span>
-                            <button type="button" class="btn btn-outline-secondary btn-sm obstacle-sensor-row-reset-confidence" ${disabledAttr}>초기화</button>
+                            <button type="button" class="btn btn-outline-secondary btn-sm obstacle-sensor-row-reset-confidence" ${buttonDisabledAttr}>초기화</button>
                         </div>
                     </td>
                     <td class="text-center">
-                        <button type="button" class="btn btn-outline-secondary btn-sm obstacle-sensor-row-reset-all" ${disabledAttr}>초기화</button>
+                        <button type="button" class="btn btn-outline-secondary btn-sm obstacle-sensor-row-reset-all" ${buttonDisabledAttr}>초기화</button>
                     </td>
                     ${groupResetCellHtml}
                 </tr>

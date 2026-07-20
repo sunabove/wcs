@@ -1106,11 +1106,22 @@ function prcessMqttMessage(topic, value) {
     if ($targetElement.length > 0) {
         // 숫자 값 포맷팅
         let formattedValue = getFormattedTopicValue(topic, value);
+        const isSensorStateTopic = /^sensor\/[^/]+\/\d+\/state$/.test(String(topic || ''));
+        const numericSensorState = Number.parseInt(value, 10);
+        const isSensorInactive = isSensorStateTopic && numericSensorState !== 1;
         
         // jQuery를 사용한 DOM 요소 업데이트
         $targetElement.text(formattedValue);
-        
-        updateTargetElementCss($targetElement);
+
+        if (isSensorStateTopic) {
+            $targetElement
+                .toggleClass('sensor-state-inactive', isSensorInactive)
+                .toggleClass('sensor-state-active', !isSensorInactive);
+        }
+
+        if (!isSensorInactive) {
+            updateTargetElementCss($targetElement);
+        }
         syncSensorRowLabelNumberColor(topic);
         
         mqttLog(`[MQTT] ✅ DOM 업데이트 성공: ${topic} -> ${formattedValue}`);

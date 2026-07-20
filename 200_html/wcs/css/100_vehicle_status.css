@@ -339,6 +339,11 @@
     font-size: 1.1rem;
 }
 
+#sensor-info-tbody td.sensor-state-inactive {
+    color: #8a949e !important;
+    font-weight: 600 !important;
+}
+
 .sensor-info-table {
     table-layout: fixed;
 }

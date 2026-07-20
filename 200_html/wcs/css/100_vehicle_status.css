@@ -316,7 +316,12 @@
 }
 
 #sensor-info-tbody [data-sensor-number] {
+    color: var(--bs-body-color);
     font-weight: 700;
+}
+
+#sensor-info-tbody [data-sensor-label] {
+    color: var(--bs-body-color);
 }
 
 /* Hide only the outer frame of the bordered table. */

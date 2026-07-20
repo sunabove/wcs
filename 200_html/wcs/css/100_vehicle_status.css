@@ -276,8 +276,6 @@
 
 .sensor-info-table {
     table-layout: fixed;
-    font-size: 0.78rem;
-    line-height: 1.15;
 }
 
 #sensorInfo .table-responsive {

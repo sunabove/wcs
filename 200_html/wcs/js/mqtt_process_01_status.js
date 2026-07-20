@@ -70,8 +70,10 @@ const runInfoHistoryState = {
 const runInfoAxisUnitPlugin = {
     id: 'runInfoAxisUnitPlugin',
     afterDraw(chart) {
-        const { ctx, chartArea } = chart;
-        if (!chartArea) {
+        const { ctx, chartArea, scales } = chart;
+        const batteryScale = scales && scales.yBattery;
+        const timeScale = scales && scales.yTime;
+        if (!chartArea || !batteryScale || !timeScale) {
             return;
         }
 
@@ -80,11 +82,9 @@ const runInfoAxisUnitPlugin = {
         ctx.font = '600 11px system-ui, -apple-system, "Segoe UI", sans-serif';
         ctx.textBaseline = 'top';
 
-        ctx.textAlign = 'left';
-        ctx.fillText('%', chartArea.left + 4, chartArea.top + 4);
-
-        ctx.textAlign = 'right';
-        ctx.fillText('분', chartArea.right - 4, chartArea.top + 4);
+        ctx.textAlign = 'center';
+        ctx.fillText('%', (batteryScale.left + batteryScale.right) / 2, chartArea.top + 4);
+        ctx.fillText('분', (timeScale.left + timeScale.right) / 2, chartArea.top + 4);
 
         ctx.restore();
     },

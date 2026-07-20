@@ -293,6 +293,19 @@ $(document).ready(function () {
         renderObstacleSensorSettings();
     }
 
+    function resetObstacleSensorRowValuesOnly() {
+        getOrderedObstacleSensorSettings().forEach((sensorDef) => {
+            for (let sensorIndex = 0; sensorIndex < sensorDef.count; sensorIndex += 1) {
+                upsertObstacleSensorRowValue(sensorDef.id, sensorIndex, {
+                    value: getDefaultSensorValue(sensorDef.id),
+                    confidence: getDefaultSensorConfidence(sensorDef.id),
+                });
+            }
+        });
+
+        renderObstacleSensorValueTable();
+    }
+
     function publishObstacleSensorSettings() {
         const settings = getOrderedObstacleSensorSettings();
         settings.forEach((sensorDef) => {
@@ -311,6 +324,17 @@ $(document).ready(function () {
         });
 
         sendMQTTMessage('obstacle/sensor/settings', JSON.stringify(settings));
+    }
+
+    function publishObstacleSensorRowValuesOnly() {
+        getOrderedObstacleSensorRows().forEach((row) => {
+            const sensorValue = normalizeSensorValueById(row.id, row.value);
+            const sensorConfidence = normalizeSensorConfidence(row.confidence);
+
+            sendMQTTMessage(`sensor/${row.id}/${row.index}/value`, sensorValue);
+            sendMQTTMessage(`sensor/${row.id}/${row.index}/obstacle/confidence`, sensorConfidence);
+            sendMQTTMessage(`sensor/${row.id}/${row.index}/state`, row.enabled ? 1 : 0);
+        });
     }
 
     function getVehicleCommandByButtonId(buttonId) {
@@ -717,6 +741,11 @@ $(document).ready(function () {
     $('#reset-obstacle-sensor-settings').on('click', function () {
         resetObstacleSensorSettings();
         publishObstacleSensorSettings();
+    });
+
+    $('#reset-obstacle-sensor-values').on('click', function () {
+        resetObstacleSensorRowValuesOnly();
+        publishObstacleSensorRowValuesOnly();
     });
 
     $('#apply-obstacle-sensor-settings').on('click', function () {

@@ -43,6 +43,7 @@ function mqttLog() {
 }
 
 const SENSOR_DISPLAY_ORDER = ['ToF', 'IMU', 'Current', 'Camera', 'Lidar'];
+const OBSTACLE_FUSION_SENSOR_RECEIVE_WINDOW_MS = 2500;
 const sensorCountById = {};
 const receivedSensorIds = new Set();
 const obstacleActiveSensorIds = new Set();
@@ -51,6 +52,7 @@ const obstacleFusionState = {
     obstacle: null,
     confidence: null,
     sensorIds: new Set(),
+    sensorLastSeenAtById: new Map(),
 };
 
 function renderObstacleFusionStatus() {
@@ -63,13 +65,18 @@ function renderObstacleFusionStatus() {
         return;
     }
 
-    const sensorIds = Array.from(obstacleFusionState.sensorIds);
+    const now = Date.now();
+    const activeSensorIds = Array.from(obstacleFusionState.sensorLastSeenAtById.entries())
+        .filter(([, lastSeenAt]) => Number.isFinite(lastSeenAt) && (now - lastSeenAt) <= OBSTACLE_FUSION_SENSOR_RECEIVE_WINDOW_MS)
+        .map(([sensorId]) => sensorId);
+
+    obstacleFusionState.sensorIds = new Set(activeSensorIds);
     const confidenceValue = Number(obstacleFusionState.confidence);
     const confidencePercent = Number.isFinite(confidenceValue)
         ? Math.round(confidenceValue * 100)
         : null;
 
-    const fusionEnabled = sensorIds.length >= 2;
+    const fusionEnabled = activeSensorIds.length >= 2;
 
     $enabled
         .removeClass('text-bg-secondary text-bg-success text-bg-warning')
@@ -278,6 +285,7 @@ function updateObstacleSensorTypes(topic, value) {
         return;
     }
 
+    const now = Date.now();
     obstacleActiveSensorIds.clear();
     obstacleFusionState.sensorIds.clear();
 
@@ -291,6 +299,7 @@ function updateObstacleSensorTypes(topic, value) {
     }
 
     if (!Array.isArray(parsedSources) || parsedSources.length === 0) {
+        obstacleFusionState.sensorLastSeenAtById.clear();
         applyObstacleSensorChipState();
         renderObstacleFusionStatus();
         return;
@@ -302,13 +311,10 @@ function updateObstacleSensorTypes(topic, value) {
             .filter(Boolean)
     );
 
-    if (activeSensorIds.has('ToF')) {
-        activeSensorIds.add('IMU');
-    }
-
     activeSensorIds.forEach((sensorId) => {
         obstacleActiveSensorIds.add(sensorId);
         obstacleFusionState.sensorIds.add(sensorId);
+        obstacleFusionState.sensorLastSeenAtById.set(sensorId, now);
     });
 
     applyObstacleSensorChipState();

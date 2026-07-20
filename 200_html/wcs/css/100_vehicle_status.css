@@ -344,12 +344,14 @@
     font-weight: 600 !important;
 }
 
-#sensor-info-tbody tr.sensor-info-row-inactive td {
+#sensor-info-tbody tr.sensor-info-row-inactive td,
+#sensor-info-tbody tr.sensor-info-row-inactive th {
     color: #8a949e !important;
     font-weight: 600 !important;
 }
 
-#sensor-info-tbody tr.sensor-info-row-inactive td * {
+#sensor-info-tbody tr.sensor-info-row-inactive td *,
+#sensor-info-tbody tr.sensor-info-row-inactive th * {
     color: #8a949e !important;
 }
 

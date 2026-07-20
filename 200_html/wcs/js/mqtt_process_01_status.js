@@ -64,13 +64,12 @@ function renderObstacleFusionStatus() {
     }
 
     const sensorIds = Array.from(obstacleFusionState.sensorIds);
-    const obstacleValue = Number.parseInt(obstacleFusionState.obstacle, 10);
     const confidenceValue = Number(obstacleFusionState.confidence);
     const confidencePercent = Number.isFinite(confidenceValue)
         ? Math.round(confidenceValue * 100)
         : null;
 
-    const fusionEnabled = sensorIds.length >= 2 && obstacleValue > 0;
+    const fusionEnabled = sensorIds.length >= 2;
 
     $enabled
         .removeClass('text-bg-secondary text-bg-success text-bg-warning')

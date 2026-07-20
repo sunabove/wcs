@@ -17,6 +17,7 @@ const vehicleSpeedHistoryState = {
     latestValues: {
         speedKmh: null,
         maxSpeedKmh: null,
+        accelerationKmhPerSec: null,
     },
     lastPointAt: 0,
     maxPoints: 30,
@@ -256,6 +257,16 @@ function createVehicleSpeedHistoryChart() {
                     pointRadius: 1.8,
                     borderWidth: 2,
                 },
+                {
+                    label: '가속도',
+                    data: [],
+                    borderColor: '#f08c00',
+                    backgroundColor: 'rgba(240, 140, 0, 0.12)',
+                    yAxisID: 'yAcceleration',
+                    tension: 0.25,
+                    pointRadius: 1.8,
+                    borderWidth: 2,
+                },
             ],
         },
         options: {
@@ -303,6 +314,18 @@ function createVehicleSpeedHistoryChart() {
                         color: 'rgba(173, 181, 189, 0.2)',
                     },
                 },
+                yAcceleration: {
+                    type: 'linear',
+                    position: 'right',
+                    grace: '10%',
+                    title: {
+                        display: true,
+                        text: 'km/hs',
+                    },
+                    grid: {
+                        drawOnChartArea: false,
+                    },
+                },
             },
         },
     });
@@ -328,6 +351,7 @@ function pushVehicleSpeedHistoryPoint(forcePush = false) {
     vehicleSpeedHistoryState.labels.push(formatVehicleSpeedChartTimeLabel(new Date(now)));
     vehicleSpeedHistoryState.chart.data.datasets[0].data.push(latest.speedKmh);
     vehicleSpeedHistoryState.chart.data.datasets[1].data.push(latest.maxSpeedKmh);
+    vehicleSpeedHistoryState.chart.data.datasets[2].data.push(latest.accelerationKmhPerSec);
 
     if (vehicleSpeedHistoryState.labels.length > vehicleSpeedHistoryState.maxPoints) {
         vehicleSpeedHistoryState.labels.shift();
@@ -349,6 +373,8 @@ function updateVehicleSpeedHistoryMetric(topic, value) {
         vehicleSpeedHistoryState.latestValues.speedKmh = numericValue * 3.6;
     } else if (topic === 'vehicle/linear/max_speed') {
         vehicleSpeedHistoryState.latestValues.maxSpeedKmh = numericValue * 3.6;
+    } else if (topic.includes('/acceleration')) {
+        vehicleSpeedHistoryState.latestValues.accelerationKmhPerSec = numericValue * 3.6;
     } else {
         return;
     }

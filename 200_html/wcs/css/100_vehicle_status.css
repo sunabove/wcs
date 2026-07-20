@@ -298,27 +298,21 @@
     white-space: nowrap;
 }
 
-@keyframes sensor-text-colorful {
+@keyframes sensor-text-blink {
     0% {
-        color: #0d6efd;
-    }
-    25% {
-        color: #20c997;
+        opacity: 1;
     }
     50% {
-        color: #fd7e14;
-    }
-    75% {
-        color: #6f42c1;
+        opacity: 0.35;
     }
     100% {
-        color: inherit;
+        opacity: 1;
     }
 }
 
 #sensor-info-tbody tr.sensor-info-row-blink > th,
 #sensor-info-tbody tr.sensor-info-row-blink > td {
-    animation: sensor-text-colorful 0.8s ease;
+    animation: sensor-text-blink 0.8s ease;
 }
 
 #sensor-info-tbody [data-sensor-number] {

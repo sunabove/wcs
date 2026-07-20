@@ -80,11 +80,12 @@ const runInfoAxisUnitPlugin = {
         ctx.save();
         ctx.fillStyle = '#6c757d';
         ctx.font = '600 11px system-ui, -apple-system, "Segoe UI", sans-serif';
-        ctx.textBaseline = 'top';
+        ctx.textBaseline = 'bottom';
 
         ctx.textAlign = 'center';
-        ctx.fillText('%', (batteryScale.left + batteryScale.right) / 2, chartArea.top + 4);
-        ctx.fillText('분', (timeScale.left + timeScale.right) / 2, chartArea.top + 4);
+        const axisUnitY = Math.max(0, chartArea.top - 2);
+        ctx.fillText('%', (batteryScale.left + batteryScale.right) / 2, axisUnitY);
+        ctx.fillText('분', (timeScale.left + timeScale.right) / 2, axisUnitY);
 
         ctx.restore();
     },

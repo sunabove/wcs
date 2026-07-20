@@ -223,7 +223,7 @@ $(document).ready(function () {
         $obstacleSensorValueTbody.empty();
 
         if (rows.length === 0) {
-            $obstacleSensorValueTbody.append('<tr><td colspan="4" class="text-center text-muted py-2">센서 항목이 없습니다.</td></tr>');
+            $obstacleSensorValueTbody.append('<tr><td colspan="5" class="text-center text-muted py-2">센서 항목이 없습니다.</td></tr>');
             return;
         }
 
@@ -269,6 +269,9 @@ $(document).ready(function () {
                             <span class="badge text-bg-secondary obstacle-sensor-row-confidence-text">${confidenceNumber}</span>
                         </div>
                     </td>
+                    <td class="text-center">
+                        <button type="button" class="btn btn-outline-secondary btn-sm obstacle-sensor-row-reset" ${disabledAttr}>Reset</button>
+                    </td>
                 </tr>
             `;
             $obstacleSensorValueTbody.append(html);
@@ -293,19 +296,6 @@ $(document).ready(function () {
         renderObstacleSensorSettings();
     }
 
-    function resetObstacleSensorRowValuesOnly() {
-        getOrderedObstacleSensorSettings().forEach((sensorDef) => {
-            for (let sensorIndex = 0; sensorIndex < sensorDef.count; sensorIndex += 1) {
-                upsertObstacleSensorRowValue(sensorDef.id, sensorIndex, {
-                    value: getDefaultSensorValue(sensorDef.id),
-                    confidence: getDefaultSensorConfidence(sensorDef.id),
-                });
-            }
-        });
-
-        renderObstacleSensorValueTable();
-    }
-
     function publishObstacleSensorSettings() {
         const settings = getOrderedObstacleSensorSettings();
         settings.forEach((sensorDef) => {
@@ -326,15 +316,21 @@ $(document).ready(function () {
         sendMQTTMessage('obstacle/sensor/settings', JSON.stringify(settings));
     }
 
-    function publishObstacleSensorRowValuesOnly() {
-        getOrderedObstacleSensorRows().forEach((row) => {
-            const sensorValue = normalizeSensorValueById(row.id, row.value);
-            const sensorConfidence = normalizeSensorConfidence(row.confidence);
+    function publishSingleObstacleSensorRow(sensorId, sensorIndex) {
+        const rowKey = getSensorRowKey(sensorId, sensorIndex);
+        const row = obstacleSensorRowValueByKey[rowKey];
+        const setting = obstacleSensorSettingById[String(sensorId)] || {};
+        if (!row) {
+            return;
+        }
 
-            sendMQTTMessage(`sensor/${row.id}/${row.index}/value`, sensorValue);
-            sendMQTTMessage(`sensor/${row.id}/${row.index}/obstacle/confidence`, sensorConfidence);
-            sendMQTTMessage(`sensor/${row.id}/${row.index}/state`, row.enabled ? 1 : 0);
-        });
+        const sensorValue = normalizeSensorValueById(row.id, row.value);
+        const sensorConfidence = normalizeSensorConfidence(row.confidence);
+        const enabled = Boolean(setting.enabled ?? true);
+
+        sendMQTTMessage(`sensor/${row.id}/${row.index}/value`, sensorValue);
+        sendMQTTMessage(`sensor/${row.id}/${row.index}/obstacle/confidence`, sensorConfidence);
+        sendMQTTMessage(`sensor/${row.id}/${row.index}/state`, enabled ? 1 : 0);
     }
 
     function getVehicleCommandByButtonId(buttonId) {
@@ -743,9 +739,21 @@ $(document).ready(function () {
         publishObstacleSensorSettings();
     });
 
-    $('#reset-obstacle-sensor-values').on('click', function () {
-        resetObstacleSensorRowValuesOnly();
-        publishObstacleSensorRowValuesOnly();
+    $obstacleSensorValueTbody.on('click', '.obstacle-sensor-row-reset', function () {
+        const $row = $(this).closest('tr[data-sensor-id][data-sensor-index]');
+        const sensorId = String($row.attr('data-sensor-id') || '').trim();
+        const sensorIndex = Number.parseInt($row.attr('data-sensor-index'), 10);
+        if (!sensorId || !Number.isFinite(sensorIndex)) {
+            return;
+        }
+
+        upsertObstacleSensorRowValue(sensorId, sensorIndex, {
+            value: getDefaultSensorValue(sensorId),
+            confidence: getDefaultSensorConfidence(sensorId),
+        });
+
+        renderObstacleSensorValueTable();
+        publishSingleObstacleSensorRow(sensorId, sensorIndex);
     });
 
     $('#apply-obstacle-sensor-settings').on('click', function () {

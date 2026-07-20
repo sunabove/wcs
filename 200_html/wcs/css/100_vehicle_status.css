@@ -305,7 +305,7 @@
 }
 
 .obstacle-sensor-chip.partial {
-    background: #fff8db;
+    background: #ffffff;
     --bs-border-color: #f2c94c;
     border: 1px solid #f2c94c !important;
     color: #c69214;

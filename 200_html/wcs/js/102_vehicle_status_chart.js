@@ -76,6 +76,11 @@ function createRunInfoHistoryChart() {
             responsive: true,
             maintainAspectRatio: false,
             animation: false,
+            layout: {
+                padding: {
+                    top: 28,
+                },
+            },
             interaction: {
                 mode: 'index',
                 intersect: false,

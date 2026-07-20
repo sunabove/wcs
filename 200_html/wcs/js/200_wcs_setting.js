@@ -13,7 +13,9 @@ $(document).ready(function () {
         { id: 'Lidar', count: 1, target: '거리,장애물', enabled: true },
     ];
     const obstacleSensorSettingById = {};
+    const obstacleSensorRowValueByKey = {};
     const $obstacleSensorSettingList = $('#obstacle-sensor-setting-list');
+    const $obstacleSensorValueTbody = $('#obstacle-sensor-value-tbody');
     const obstacleSensorSettingItemTemplate = document.getElementById('obstacle-sensor-setting-item-template');
     let isSampleVideosLoaded = false;
     let isSampleVideosLoading = false;
@@ -96,6 +98,83 @@ $(document).ready(function () {
             }));
     }
 
+    function getSensorRowKey(sensorId, sensorIndex) {
+        return `${String(sensorId)}#${Number.parseInt(sensorIndex, 10)}`;
+    }
+
+    function getDefaultSensorValue(sensorId) {
+        switch (String(sensorId)) {
+            case 'ToF':
+            case 'Lidar':
+                return 1.0;
+            case 'Camera':
+                return 0;
+            case 'Current':
+            case 'IMU':
+                return 0.0;
+            default:
+                return 0;
+        }
+    }
+
+    function getDefaultSensorConfidence(sensorId) {
+        switch (String(sensorId)) {
+            case 'Camera':
+                return 0.9;
+            case 'Lidar':
+                return 0.85;
+            case 'ToF':
+                return 0.8;
+            case 'IMU':
+                return 0.55;
+            case 'Current':
+                return 0.4;
+            default:
+                return 0.5;
+        }
+    }
+
+    function upsertObstacleSensorRowValue(sensorId, sensorIndex, partialValue) {
+        const safeId = String(sensorId || '').trim();
+        const safeIndex = Number.parseInt(sensorIndex, 10);
+        if (!safeId || !Number.isFinite(safeIndex) || safeIndex < 0) {
+            return;
+        }
+
+        const rowKey = getSensorRowKey(safeId, safeIndex);
+        if (!obstacleSensorRowValueByKey[rowKey]) {
+            obstacleSensorRowValueByKey[rowKey] = {
+                id: safeId,
+                index: safeIndex,
+                value: getDefaultSensorValue(safeId),
+                confidence: getDefaultSensorConfidence(safeId),
+            };
+        }
+
+        obstacleSensorRowValueByKey[rowKey] = {
+            ...obstacleSensorRowValueByKey[rowKey],
+            ...partialValue,
+        };
+    }
+
+    function getOrderedObstacleSensorRows() {
+        const rows = [];
+        getOrderedObstacleSensorSettings().forEach((sensorDef) => {
+            for (let sensorIndex = 0; sensorIndex < sensorDef.count; sensorIndex += 1) {
+                const rowKey = getSensorRowKey(sensorDef.id, sensorIndex);
+                if (!obstacleSensorRowValueByKey[rowKey]) {
+                    upsertObstacleSensorRowValue(sensorDef.id, sensorIndex, {});
+                }
+
+                rows.push({
+                    ...obstacleSensorRowValueByKey[rowKey],
+                    enabled: sensorDef.enabled,
+                });
+            }
+        });
+        return rows;
+    }
+
     function renderObstacleSensorSettings() {
         if ($obstacleSensorSettingList.length === 0 || !obstacleSensorSettingItemTemplate || !obstacleSensorSettingItemTemplate.content) {
             return;
@@ -114,6 +193,46 @@ $(document).ready(function () {
 
             $obstacleSensorSettingList.append($node);
         });
+
+        renderObstacleSensorValueTable();
+    }
+
+    function renderObstacleSensorValueTable() {
+        if ($obstacleSensorValueTbody.length === 0) {
+            return;
+        }
+
+        const rows = getOrderedObstacleSensorRows();
+        $obstacleSensorValueTbody.empty();
+
+        if (rows.length === 0) {
+            $obstacleSensorValueTbody.append('<tr><td colspan="4" class="text-center text-muted py-2">센서 항목이 없습니다.</td></tr>');
+            return;
+        }
+
+        rows.forEach((row) => {
+            const sensorLabel = String(row.id || '');
+            const sensorNumber = Number.parseInt(row.index, 10) + 1;
+            const isEnabled = Boolean(row.enabled);
+            const valueText = String(row.value ?? '');
+            const confidenceText = String(row.confidence ?? '');
+
+            const rowDisabledClass = isEnabled ? '' : ' obstacle-sensor-value-row-disabled';
+            const disabledAttr = isEnabled ? '' : ' disabled';
+            const html = `
+                <tr class="${rowDisabledClass}" data-sensor-id="${sensorLabel}" data-sensor-index="${row.index}">
+                    <td class="text-center fw-semibold">${sensorLabel}</td>
+                    <td class="text-center">${sensorNumber}</td>
+                    <td>
+                        <input type="number" step="0.001" class="form-control form-control-sm obstacle-sensor-row-value" value="${valueText}"${disabledAttr}>
+                    </td>
+                    <td>
+                        <input type="number" min="0" max="1" step="0.01" class="form-control form-control-sm obstacle-sensor-row-confidence" value="${confidenceText}"${disabledAttr}>
+                    </td>
+                </tr>
+            `;
+            $obstacleSensorValueTbody.append(html);
+        });
     }
 
     function resetObstacleSensorSettings() {
@@ -123,6 +242,13 @@ $(document).ready(function () {
                 target: sensorDef.target,
                 enabled: sensorDef.enabled,
             });
+
+            for (let sensorIndex = 0; sensorIndex < sensorDef.count; sensorIndex += 1) {
+                upsertObstacleSensorRowValue(sensorDef.id, sensorIndex, {
+                    value: getDefaultSensorValue(sensorDef.id),
+                    confidence: getDefaultSensorConfidence(sensorDef.id),
+                });
+            }
         });
         renderObstacleSensorSettings();
     }
@@ -133,6 +259,20 @@ $(document).ready(function () {
             sendMQTTMessage(`sensor/${sensorDef.id}/count`, sensorDef.count);
             sendMQTTMessage(`sensor/${sensorDef.id}/target`, sensorDef.target);
             sendMQTTMessage(`sensor/${sensorDef.id}/enabled`, sensorDef.enabled ? 1 : 0);
+        });
+
+        getOrderedObstacleSensorRows().forEach((row) => {
+            const numericValue = Number.parseFloat(row.value);
+            const sensorValue = Number.isFinite(numericValue) ? Number(numericValue.toFixed(3)) : 0;
+
+            const numericConfidence = Number.parseFloat(row.confidence);
+            const sensorConfidence = Number.isFinite(numericConfidence)
+                ? Math.max(0, Math.min(1, Number(numericConfidence.toFixed(3))))
+                : 0;
+
+            sendMQTTMessage(`sensor/${row.id}/${row.index}/value`, sensorValue);
+            sendMQTTMessage(`sensor/${row.id}/${row.index}/obstacle/confidence`, sensorConfidence);
+            sendMQTTMessage(`sensor/${row.id}/${row.index}/state`, row.enabled ? 1 : 0);
         });
 
         sendMQTTMessage('obstacle/sensor/settings', JSON.stringify(settings));
@@ -530,6 +670,31 @@ $(document).ready(function () {
 
         $item.find('.obstacle-sensor-count').val(count);
         upsertObstacleSensorSetting(sensorId, { enabled, count, target });
+        renderObstacleSensorValueTable();
+    });
+
+    $obstacleSensorValueTbody.on('change input', '.obstacle-sensor-row-value, .obstacle-sensor-row-confidence', function () {
+        const $row = $(this).closest('tr[data-sensor-id][data-sensor-index]');
+        const sensorId = String($row.attr('data-sensor-id') || '').trim();
+        const sensorIndex = Number.parseInt($row.attr('data-sensor-index'), 10);
+        if (!sensorId || !Number.isFinite(sensorIndex)) {
+            return;
+        }
+
+        const numericValue = Number.parseFloat($row.find('.obstacle-sensor-row-value').val());
+        const normalizedValue = Number.isFinite(numericValue) ? Number(numericValue.toFixed(3)) : 0;
+        $row.find('.obstacle-sensor-row-value').val(normalizedValue);
+
+        const numericConfidence = Number.parseFloat($row.find('.obstacle-sensor-row-confidence').val());
+        const normalizedConfidence = Number.isFinite(numericConfidence)
+            ? Math.max(0, Math.min(1, Number(numericConfidence.toFixed(3))))
+            : 0;
+        $row.find('.obstacle-sensor-row-confidence').val(normalizedConfidence);
+
+        upsertObstacleSensorRowValue(sensorId, sensorIndex, {
+            value: normalizedValue,
+            confidence: normalizedConfidence,
+        });
     });
 
     $('#reset-obstacle-sensor-settings').on('click', function () {
@@ -680,6 +845,28 @@ $(document).ready(function () {
                 const enabled = enabledText === '1' || enabledText === 'true' || enabledText === 'on' || enabledText === 'yes';
                 upsertObstacleSensorSetting(sensorId, { enabled: enabled });
                 renderObstacleSensorSettings();
+            }
+
+            const sensorValueMatch = String(topic || '').match(/^sensor\/([^/]+)\/(\d+)\/value$/);
+            if (sensorValueMatch) {
+                const sensorId = sensorValueMatch[1];
+                const sensorIndex = Number.parseInt(sensorValueMatch[2], 10);
+                const numericValue = Number.parseFloat(value);
+                const normalizedValue = Number.isFinite(numericValue) ? Number(numericValue.toFixed(3)) : 0;
+                upsertObstacleSensorRowValue(sensorId, sensorIndex, { value: normalizedValue });
+                renderObstacleSensorValueTable();
+            }
+
+            const sensorConfidenceMatch = String(topic || '').match(/^sensor\/([^/]+)\/(\d+)\/obstacle\/confidence$/);
+            if (sensorConfidenceMatch) {
+                const sensorId = sensorConfidenceMatch[1];
+                const sensorIndex = Number.parseInt(sensorConfidenceMatch[2], 10);
+                const numericConfidence = Number.parseFloat(value);
+                const normalizedConfidence = Number.isFinite(numericConfidence)
+                    ? Math.max(0, Math.min(1, Number(numericConfidence.toFixed(3))))
+                    : 0;
+                upsertObstacleSensorRowValue(sensorId, sensorIndex, { confidence: normalizedConfidence });
+                renderObstacleSensorValueTable();
             }
 
             if (topic === vehicleOperationCommandTopic) {

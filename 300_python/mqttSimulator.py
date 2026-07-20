@@ -232,7 +232,7 @@ class MqttSimulator:
 
                         self.command = OperationCommand(command_value)
                         self.exec_state = VehicleExecState.STOP if self.command == OperationCommand.STOP else VehicleExecState.RUN
-                        self._publish_vehicle_command_wheels_immediately()
+                        self._publish_vehicle_command_wheels_immediately(publish=False)
 
                         command_names = {
                             OperationCommand.STOP: "정지",
@@ -268,14 +268,14 @@ class MqttSimulator:
                                     self.command = OperationCommand.STOP
                                     self.exec_state = VehicleExecState.STOP
                                     self.direction_control_speed_only_mode = True
-                                    self._publish_vehicle_command_wheels_immediately()
+                                    self._publish_vehicle_command_wheels_immediately(publish=False)
                                     print(f"[WHEEL_TEST] 수동 바퀴 테스트 정지: {wheel_id.upper()}")
                                 else:
                                     self.manual_wheel_test_active = True
                                     self.manual_wheel_test_wheel = wheel_id
                                     self.manual_wheel_test_command = command
                                     self.direction_control_speed_only_mode = False
-                                    self._publish_manual_wheel_simulation()
+                                    self._publish_manual_wheel_simulation(publish=False)
 
                                     command_name = {
                                         OperationCommand.FORWARD: "정회전",
@@ -368,7 +368,7 @@ class MqttSimulator:
                             self.manual_wheel_test_wheel = None
                             self.manual_wheel_test_command = OperationCommand.STOP
                             self.direction_control_speed_only_mode = True
-                            self._publish_vehicle_command_wheels_immediately()
+                            self._publish_vehicle_command_wheels_immediately(publish=False)
                     else:
                         print(f"[SPEED] 잘못된 현재 속도 범위: {new_current_speed:.1f} m/s (허용: 0.0-27.8 m/s, 0-100 km/h)")
                 except ValueError:
@@ -399,7 +399,7 @@ class MqttSimulator:
                             self.manual_wheel_test_wheel = None
                             self.manual_wheel_test_command = OperationCommand.STOP
                             self.direction_control_speed_only_mode = True
-                            self._publish_vehicle_command_wheels_immediately()
+                            self._publish_vehicle_command_wheels_immediately(publish=False)
                     else:
                         print(f"[SPEED] 잘못된 최고 속도 범위: {new_max_speed:.1f} m/s (허용: 0.0-27.8 m/s, 0-100 km/h)")
                 except ValueError:
@@ -1050,7 +1050,7 @@ class MqttSimulator:
         self._publish("obstacle/confidence", total_confidence)
     pass  # _publish_sensor_interfaces
 
-    def _publish_manual_wheel_simulation(self):
+    def _publish_manual_wheel_simulation(self, publish=True):
         target_wheel = self.manual_wheel_test_wheel
         if not self.manual_wheel_test_active or target_wheel not in self.wheels:
             return
@@ -1084,12 +1084,13 @@ class MqttSimulator:
                 wheel["acc"] = 0.0
 
             base = f"wheel/{wid}"
-            self._publish(f"{base}/angle/radian", round(wheel["angle"], 4))
-            self._publish(f"{base}/angle/speed", round(wheel["angle_speed"], 3))
-            self._publish(f"{base}/angle/acceleration", round(wheel["angle_acc"], 3))
-            self._publish(f"{base}/linear/speed", round(wheel["speed"], 3))
-            self._publish(f"{base}/linear/acceleration", round(wheel["acc"], 3))
-            self._publish(f"{base}/operation/state", wheel["state"].value)
+            if publish:
+                self._publish(f"{base}/angle/radian", round(wheel["angle"], 4))
+                self._publish(f"{base}/angle/speed", round(wheel["angle_speed"], 3))
+                self._publish(f"{base}/angle/acceleration", round(wheel["angle_acc"], 3))
+                self._publish(f"{base}/linear/speed", round(wheel["speed"], 3))
+                self._publish(f"{base}/linear/acceleration", round(wheel["acc"], 3))
+                self._publish(f"{base}/operation/state", wheel["state"].value)
 
         print(
             f"[WHEEL_TEST] 발행: {target_wheel.upper()} command={cmd.value} "
@@ -1097,7 +1098,7 @@ class MqttSimulator:
         )
     pass  # _publish_manual_wheel_simulation
 
-    def _publish_vehicle_command_wheels_immediately(self):
+    def _publish_vehicle_command_wheels_immediately(self, publish=True):
         """차량 방향 명령에 맞춰 휠 회전 속도만 즉시 발행"""
         wheel_radius = WHEEL_RADIUS_M
         base_speed = max(0.0, min(self.target_speed, self.max_speed))
@@ -1147,7 +1148,8 @@ class MqttSimulator:
             wheel["axis_angle"] = axis_angle
 
             base = f"wheel/{wid}"
-            self._publish(f"{base}/angle/speed", round(wheel["angle_speed"], 3))
+            if publish:
+                self._publish(f"{base}/angle/speed", round(wheel["angle_speed"], 3))
             
         self.current_speed = 0.0 if (self.command == OperationCommand.STOP or in_place_turn) else abs(effective_speed)
         self.linear_speed = self.current_speed
@@ -1214,18 +1216,15 @@ class MqttSimulator:
                     print("-" * 70)
                 
                 if self.manual_wheel_test_active:
-                    self._publish_manual_wheel_simulation()
+                    # 수동 휠 테스트는 내부 상태만 갱신하고, 발행은 초기 접속 시에만 수행한다.
+                    self._publish_manual_wheel_simulation(publish=False)
                 elif self.direction_control_speed_only_mode:
-                    self._publish_wheel_angle_speeds_only()
+                    # 차량 방향 제어 모드에서는 즉시 명령으로 설정된 상태를 유지한다.
+                    pass
                 else:
+                    # 주기 발행 없이 내부 시뮬레이션 상태만 갱신한다.
                     self._update_vehicle()
                     self._update_wheels()
-                    self._publish_vehicle()
-                    self._publish_position()
-                    self._publish_wheels()
-
-                # 센서 인터페이스(특히 IMU 0~4)는 동작 모드와 무관하게 항상 발행한다.
-                self._publish_sensor_interfaces()
     
                 loop_count += 1
                 time.sleep(1)

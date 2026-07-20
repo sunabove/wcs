@@ -506,13 +506,15 @@
                                                 </div>
                                             </div>
                                         </div>
-                                    </div>
 
-                                    <div class="run-info-chart-panel mt-2">
-                                        <div class="run-info-chart-body px-2" style="height: 180px;">
-                                            <canvas id="vehicle-speed-history-chart" aria-label="차량 속도 추이 차트"></canvas>
+                                        <div class="speed-info-chart-panel mt-2">
+                                            <div class="speed-info-chart-body px-2" style="height: 180px;">
+                                                <canvas id="vehicle-speed-history-chart" aria-label="차량 속도 추이 차트"></canvas>
+                                            </div>
                                         </div>
                                     </div>
+
+                                    
                                 </div>
                                 <!-- // 차량 속도 정보 -->
 
@@ -534,12 +536,7 @@
                 <col>
             </colgroup>
 
-            <thead class="table-dark">
-                <tr>
-                    <th class="text-center wheel-info-head-cell" scope="col" colspan="2">Wheel __WHEEL_LABEL__</th>
-                </tr>
-            </thead>
-            <tbody>
+
                 <tr>
                     <th class="text-center wheel-info-body-cell" scope="row">Speed</th>
                     <td id="wheel/__WHEEL_KEY__/linear/speed" class="text-end wheel-info-body-cell">  km/h</td>

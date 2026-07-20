@@ -385,7 +385,8 @@
     line-height: 1.2;
 }
 
-.run-info-chart-panel {
+.run-info-chart-panel,
+.speed-info-chart-panel {
     border: 1px solid #d9e0e6;
     border-radius: 0.5rem;
     background: linear-gradient(180deg, #fbfcfd 0%, #f3f6f9 100%);
@@ -398,6 +399,15 @@
 }
 
 #run-info-history-chart {
+    width: 100% !important;
+    height: 100% !important;
+}
+
+.speed-info-chart-body {
+    height: 100%;
+}
+
+#vehicle-speed-history-chart {
     width: 100% !important;
     height: 100% !important;
 }

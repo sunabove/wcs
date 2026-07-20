@@ -921,10 +921,10 @@ class URDFViewer {
             this.cameraPosTextElement.off('click').on('click', () => {
                 this.copyTextToClipboard(this.cameraPosCopyText)
                     .then(() => {
-                        this.showCameraToastMessage('cameraPose copied to clipboard');
+                        this.showCameraToastMessage('cameraPose가 클립보드에 복사되었습니다.');
                     })
                     .catch(() => {
-                        this.showCameraToastMessage('Failed to copy cameraPose');
+                        this.showCameraToastMessage('cameraPose 복사에 실패했습니다.');
                     });
             });
         }
@@ -1012,10 +1012,10 @@ class URDFViewer {
 
         this.copyTextToClipboard(textToCopy)
             .then(() => {
-                this.showCameraToastMessage('Camera position copied');
+                this.showCameraToastMessage('카메라 위치가 클립보드에 복사되었습니다.');
             })
             .catch(() => {
-                this.showCameraToastMessage('Failed to copy camera position');
+                this.showCameraToastMessage('카메라 위치 복사에 실패했습니다.');
             });
     }
 

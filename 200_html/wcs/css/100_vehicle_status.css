@@ -129,13 +129,17 @@
 }
 
 .fusion-confidence-text {
-    display: block;
-    margin-bottom: 0.1rem;
-    font-size: 0.76rem;
-    line-height: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: flex-end;
+    min-width: 46px;
+    margin-left: 0.2rem;
+    font-size: 0.8rem;
+    line-height: 1.1;
     font-weight: 600;
     color: #5c6773;
     text-align: right;
+    white-space: nowrap;
 }
 
 .fusion-confidence-slider {

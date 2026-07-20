@@ -1517,11 +1517,11 @@ class URDFViewer {
         const ux = formatPositionValue(this.camera.up.x);
         const uy = formatPositionValue(this.camera.up.y);
         const uz = formatPositionValue(this.camera.up.z);
-        const positionText = `cameraPose="${px}, ${py}, ${pz}|${tx}, ${ty}, ${tz}|${ux}, ${uy}, ${uz}"`;
-        this.cameraPosCopyText = positionText;
+        const poseValueText = `${px}, ${py}, ${pz}|${tx}, ${ty}, ${tz}|${ux}, ${uy}, ${uz}`;
+        this.cameraPosCopyText = `cameraPose="${poseValueText}"`;
 
         if (this.cameraPosTextElement && this.cameraPosTextElement.length > 0) {
-            this.cameraPosTextElement.text(positionText);
+            this.cameraPosTextElement.text(poseValueText);
         }
     }
 

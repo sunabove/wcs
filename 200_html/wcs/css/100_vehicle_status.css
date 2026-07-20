@@ -298,6 +298,27 @@
     white-space: nowrap;
 }
 
+@keyframes sensor-row-blink {
+    0% {
+        background-color: rgba(255, 214, 102, 0);
+    }
+    35% {
+        background-color: rgba(255, 214, 102, 0.7);
+    }
+    100% {
+        background-color: rgba(255, 214, 102, 0);
+    }
+}
+
+#sensor-info-tbody tr.sensor-info-row-blink > th,
+#sensor-info-tbody tr.sensor-info-row-blink > td {
+    animation: sensor-row-blink 0.8s ease;
+}
+
+#sensor-info-tbody [data-sensor-number] {
+    font-weight: 700;
+}
+
 /* Hide only the outer frame of the bordered table. */
 .sensor-info-table.table-bordered > :not(caption) > tr > :first-child {
     border-left: 0;

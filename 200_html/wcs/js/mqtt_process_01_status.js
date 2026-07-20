@@ -355,6 +355,41 @@ function ensureDynamicSensorRow(topic) {
     });
 }
 
+function triggerSensorInfoRowBlink(topic) {
+    const topicMatch = String(topic || '').match(/^sensor\/([^/]+)\/(\d+)\/(state|value|obstacle|obstacle\/confidence)$/);
+    if (!topicMatch) {
+        return;
+    }
+
+    const sensorId = String(topicMatch[1] || '').trim();
+    const sensorIndex = Number.parseInt(topicMatch[2], 10);
+    if (!sensorId || !Number.isFinite(sensorIndex)) {
+        return;
+    }
+
+    const rowKey = `${sensorId}#${sensorIndex}`;
+    const $row = $(`#sensor-info-tbody tr[data-sensor-row-key="${rowKey}"]`);
+    if ($row.length === 0) {
+        return;
+    }
+
+    const existingTimer = $row.data('blinkTimerId');
+    if (existingTimer) {
+        clearTimeout(existingTimer);
+    }
+
+    $row.removeClass('sensor-info-row-blink');
+    void $row.get(0).offsetWidth;
+    $row.addClass('sensor-info-row-blink');
+
+    const timerId = setTimeout(() => {
+        $row.removeClass('sensor-info-row-blink');
+        $row.removeData('blinkTimerId');
+    }, 800);
+
+    $row.data('blinkTimerId', timerId);
+}
+
 function dispatchVehicleDirectionEvent(sourceTopic, value) {
     if (!Number.isFinite(value)) {
         return;
@@ -746,6 +781,7 @@ function prcessMqttMessage(topic, value) {
     }
 
     ensureDynamicSensorRow(topic);
+    triggerSensorInfoRowBlink(topic);
     updateReceivedSensorTypes(topic);
     updateReceivedSensorNumberCells(topic);
     updateObstacleSensorTypes(topic, value);

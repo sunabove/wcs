@@ -84,7 +84,7 @@ function renderObstacleFusionStatus() {
         const sliderValue = Number.isFinite(confidencePercent) ? confidencePercent : 0;
         $confidenceSlider
             .val(sliderValue)
-            .css('background', `linear-gradient(90deg, #198754 0%, #198754 ${sliderValue}%, #dce3ea ${sliderValue}%, #dce3ea 100%)`);
+            .css('background', '');
     }
 }
 

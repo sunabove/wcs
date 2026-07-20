@@ -1151,11 +1151,16 @@ class URDFViewer {
         }
 
         const inputRpm = Number.parseFloat(inputElement.val());
-        const normalizedRpm = Number.isFinite(inputRpm) ? Math.max(Math.round(inputRpm), 0) : this.wheelSpeedRpmByKey[key];
+        const signedRpm = Number.isFinite(inputRpm)
+            ? THREE.MathUtils.clamp(Math.round(inputRpm), -120, 120)
+            : this.getSignedWheelRpm(key);
+        const normalizedRpm = Math.abs(signedRpm);
+        const directionSign = signedRpm < 0 ? -1 : 1;
 
+        this.setWheelDirectionSign(key, directionSign);
         this.wheelSpeedRpmByKey[key] = normalizedRpm;
         this.wheelAngularSpeedRadByKey[key] = this.convertRpmToRadPerSec(normalizedRpm);
-        inputElement.val(String(normalizedRpm));
+        inputElement.val(String(signedRpm));
 
         const valueElement = this.wheelSpeedValueByKey[key];
         if (valueElement && valueElement.length > 0) {
@@ -1177,7 +1182,7 @@ class URDFViewer {
 
         const inputElement = this.wheelSpeedInputByKey[key];
         if (inputElement && inputElement.length > 0) {
-            inputElement.val(String(normalizedRpm));
+            inputElement.val(String(this.getSignedWheelRpm(key)));
         }
 
         const valueElement = this.wheelSpeedValueByKey[key];

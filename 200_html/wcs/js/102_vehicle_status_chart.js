@@ -11,6 +11,17 @@ const runInfoHistoryState = {
     maxPoints: 30,
 };
 
+const vehicleSpeedHistoryState = {
+    chart: null,
+    labels: [],
+    latestValues: {
+        speedKmh: null,
+        maxSpeedKmh: null,
+    },
+    lastPointAt: 0,
+    maxPoints: 30,
+};
+
 function formatRunInfoChartTimeLabel(dateValue) {
     const date = dateValue instanceof Date ? dateValue : new Date();
     const hours = String(date.getHours()).padStart(2, '0');
@@ -208,4 +219,139 @@ function updateRunInfoHistoryMetric(topic, value) {
     }
 
     pushRunInfoHistoryPoint();
+}
+
+function formatVehicleSpeedChartTimeLabel(dateValue) {
+    return formatRunInfoChartTimeLabel(dateValue);
+}
+
+function createVehicleSpeedHistoryChart() {
+    const canvas = document.getElementById('vehicle-speed-history-chart');
+    if (!canvas || typeof Chart !== 'function') {
+        return;
+    }
+
+    vehicleSpeedHistoryState.chart = new Chart(canvas, {
+        type: 'line',
+        data: {
+            labels: vehicleSpeedHistoryState.labels,
+            datasets: [
+                {
+                    label: '현재 속도',
+                    data: [],
+                    borderColor: '#228be6',
+                    backgroundColor: 'rgba(34, 139, 230, 0.12)',
+                    yAxisID: 'ySpeed',
+                    tension: 0.25,
+                    pointRadius: 1.8,
+                    borderWidth: 2,
+                },
+                {
+                    label: '최고 속도',
+                    data: [],
+                    borderColor: '#12b886',
+                    backgroundColor: 'rgba(18, 184, 134, 0.12)',
+                    yAxisID: 'ySpeed',
+                    tension: 0.25,
+                    pointRadius: 1.8,
+                    borderWidth: 2,
+                },
+            ],
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            animation: false,
+            interaction: {
+                mode: 'index',
+                intersect: false,
+            },
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: {
+                        boxWidth: 8,
+                        boxHeight: 8,
+                        font: {
+                            size: 10,
+                        },
+                        padding: 10,
+                        usePointStyle: true,
+                    },
+                },
+            },
+            scales: {
+                x: {
+                    ticks: {
+                        maxRotation: 0,
+                        autoSkip: true,
+                        maxTicksLimit: 6,
+                    },
+                    grid: {
+                        color: 'rgba(173, 181, 189, 0.2)',
+                    },
+                },
+                ySpeed: {
+                    type: 'linear',
+                    position: 'left',
+                    grace: '10%',
+                    title: {
+                        display: true,
+                        text: 'km/h',
+                    },
+                    grid: {
+                        color: 'rgba(173, 181, 189, 0.2)',
+                    },
+                },
+            },
+        },
+    });
+}
+
+function pushVehicleSpeedHistoryPoint(forcePush = false) {
+    if (!vehicleSpeedHistoryState.chart) {
+        return;
+    }
+
+    const latest = vehicleSpeedHistoryState.latestValues;
+    const hasAnyValue = Object.values(latest).some((value) => Number.isFinite(value));
+    if (!hasAnyValue) {
+        return;
+    }
+
+    const now = Date.now();
+    if (!forcePush && vehicleSpeedHistoryState.lastPointAt > 0 && (now - vehicleSpeedHistoryState.lastPointAt) < 900) {
+        return;
+    }
+
+    vehicleSpeedHistoryState.lastPointAt = now;
+    vehicleSpeedHistoryState.labels.push(formatVehicleSpeedChartTimeLabel(new Date(now)));
+    vehicleSpeedHistoryState.chart.data.datasets[0].data.push(latest.speedKmh);
+    vehicleSpeedHistoryState.chart.data.datasets[1].data.push(latest.maxSpeedKmh);
+
+    if (vehicleSpeedHistoryState.labels.length > vehicleSpeedHistoryState.maxPoints) {
+        vehicleSpeedHistoryState.labels.shift();
+        vehicleSpeedHistoryState.chart.data.datasets.forEach((dataset) => {
+            dataset.data.shift();
+        });
+    }
+
+    vehicleSpeedHistoryState.chart.update('none');
+}
+
+function updateVehicleSpeedHistoryMetric(topic, value) {
+    const numericValue = Number(value);
+    if (!Number.isFinite(numericValue)) {
+        return;
+    }
+
+    if (topic === 'vehicle/linear/speed') {
+        vehicleSpeedHistoryState.latestValues.speedKmh = numericValue * 3.6;
+    } else if (topic === 'vehicle/linear/max_speed') {
+        vehicleSpeedHistoryState.latestValues.maxSpeedKmh = numericValue * 3.6;
+    } else {
+        return;
+    }
+
+    pushVehicleSpeedHistoryPoint();
 }

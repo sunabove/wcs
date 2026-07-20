@@ -940,7 +940,9 @@ class URDFViewer {
 
     setupCameraAngleLogging() {
         if (this.cameraPosTextElement && this.cameraPosTextElement.length > 0) {
-            this.cameraPosTextElement.off('click').on('click', () => {
+            this.cameraPosTextElement.off('click').on('click', (event) => {
+                event.preventDefault();
+                event.stopPropagation();
                 this.copyTextToClipboard(this.cameraPosCopyText)
                     .then(() => {
                         this.showCameraToastMessage('cameraPose가 클립보드에 복사되었습니다.');
@@ -998,7 +1000,15 @@ class URDFViewer {
         toastElement.title = 'cameraPose="0.000, 0.000, 0.000|0.000, 0.000, 0.000|0.000, 1.000, 0.000"';
         toastElement.textContent = '0.000, 0.000, 0.000|0.000, 0.000, 0.000|0.000, 1.000, 0.000';
 
-        toastElement.addEventListener('click', () => {
+        const stopOverlayEvent = (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+        };
+
+        toastElement.addEventListener('pointerdown', stopOverlayEvent, true);
+        toastElement.addEventListener('mousedown', stopOverlayEvent, true);
+        toastElement.addEventListener('click', (event) => {
+            stopOverlayEvent(event);
             this.copyCameraToastToClipboard();
         });
 

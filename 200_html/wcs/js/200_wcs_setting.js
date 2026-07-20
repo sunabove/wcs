@@ -153,11 +153,13 @@ $(document).ready(function () {
 
         const rowKey = getSensorRowKey(safeId, safeIndex);
         if (!obstacleSensorRowValueByKey[rowKey]) {
+            const sensorSetting = obstacleSensorSettingById[safeId] || {};
             obstacleSensorRowValueByKey[rowKey] = {
                 id: safeId,
                 index: safeIndex,
                 value: getDefaultSensorValue(safeId),
                 confidence: getDefaultSensorConfidence(safeId),
+                enabled: Boolean(sensorSetting.enabled ?? true),
             };
         }
 
@@ -178,7 +180,7 @@ $(document).ready(function () {
 
                 rows.push({
                     ...obstacleSensorRowValueByKey[rowKey],
-                    enabled: sensorDef.enabled,
+                    enabled: Boolean(obstacleSensorRowValueByKey[rowKey].enabled ?? sensorDef.enabled),
                 });
             }
         });
@@ -207,7 +209,7 @@ $(document).ready(function () {
         $obstacleSensorValueTbody.empty();
 
         if (rows.length === 0) {
-            $obstacleSensorValueTbody.append('<tr><td colspan="6" class="text-center text-muted py-2">센서 항목이 없습니다.</td></tr>');
+            $obstacleSensorValueTbody.append('<tr><td colspan="7" class="text-center text-muted py-2">센서 항목이 없습니다.</td></tr>');
             return;
         }
 
@@ -236,6 +238,12 @@ $(document).ready(function () {
                 <tr class="${rowDisabledClass}" data-sensor-id="${sensorLabel}" data-sensor-index="${row.index}">
                     <td class="text-center fw-semibold">${sensorLabel}</td>
                     <td class="text-center">${sensorNumber}</td>
+                    <td>
+                        <select class="form-select form-select-sm obstacle-sensor-row-state">
+                            <option value="1" ${isEnabled ? 'selected' : ''}>ON</option>
+                            <option value="0" ${isEnabled ? '' : 'selected'}>OFF</option>
+                        </select>
+                    </td>
                     <td>
                         <div class="obstacle-sensor-row-control">
                             <input
@@ -317,14 +325,13 @@ $(document).ready(function () {
     function publishSingleObstacleSensorRow(sensorId, sensorIndex) {
         const rowKey = getSensorRowKey(sensorId, sensorIndex);
         const row = obstacleSensorRowValueByKey[rowKey];
-        const setting = obstacleSensorSettingById[String(sensorId)] || {};
         if (!row) {
             return;
         }
 
         const sensorValue = normalizeSensorValueById(row.id, row.value);
         const sensorConfidence = normalizeSensorConfidence(row.confidence);
-        const enabled = Boolean(setting.enabled ?? true);
+        const enabled = Boolean(row.enabled ?? true);
 
         sendMQTTMessage(`sensor/${row.id}/${row.index}/value`, sensorValue);
         sendMQTTMessage(`sensor/${row.id}/${row.index}/obstacle/confidence`, sensorConfidence);
@@ -738,6 +745,23 @@ $(document).ready(function () {
             value: normalizedValue,
             confidence: normalizedConfidence,
         });
+    });
+
+    $obstacleSensorValueTbody.on('change', '.obstacle-sensor-row-state', function () {
+        const $row = $(this).closest('tr[data-sensor-id][data-sensor-index]');
+        const sensorId = String($row.attr('data-sensor-id') || '').trim();
+        const sensorIndex = Number.parseInt($row.attr('data-sensor-index'), 10);
+        if (!sensorId || !Number.isFinite(sensorIndex)) {
+            return;
+        }
+
+        const isEnabled = String($(this).val()) === '1';
+        upsertObstacleSensorRowValue(sensorId, sensorIndex, {
+            enabled: isEnabled,
+        });
+
+        renderObstacleSensorValueTable();
+        publishSingleObstacleSensorRow(sensorId, sensorIndex);
     });
 
     $('#reset-obstacle-sensor-settings').on('click', function () {

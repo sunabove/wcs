@@ -108,6 +108,10 @@
     min-width: 120px;
 }
 
+.obstacle-sensor-row-state {
+    min-width: 86px;
+}
+
 .obstacle-sensor-row-value-text,
 .obstacle-sensor-row-confidence-text {
     min-width: 56px;

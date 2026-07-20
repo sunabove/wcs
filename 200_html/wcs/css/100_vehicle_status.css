@@ -291,7 +291,7 @@
     outline: 1px solid #212529;
     outline-offset: -1px;
     box-shadow: inset 0 0 0 1px #212529;
-    color: #7f8a95;
+    color: #6f7780;
 }
 
 .obstacle-sensor-chip.disabled .obstacle-sensor-chip-number-cell {
@@ -314,19 +314,31 @@
     background: #fffaf0;
     --bs-border-color: #d39e00;
     border: 1px solid #d39e00 !important;
-    color: #b7791f;
+    color: #a86b1d;
 }
 
 .obstacle-sensor-chip.active .obstacle-sensor-chip-head,
 .obstacle-sensor-chip.active .obstacle-sensor-chip-head i,
-.obstacle-sensor-chip.active .obstacle-sensor-chip-label {
+.obstacle-sensor-chip.active .obstacle-sensor-chip-label,
+.obstacle-sensor-chip.active .obstacle-sensor-chip-number {
     color: #198754;
 }
 
 .obstacle-sensor-chip.partial .obstacle-sensor-chip-head,
 .obstacle-sensor-chip.partial .obstacle-sensor-chip-head i,
 .obstacle-sensor-chip.partial .obstacle-sensor-chip-label {
-    color: #b7791f;
+    color: #a86b1d;
+}
+
+.obstacle-sensor-chip.disabled .obstacle-sensor-chip-head,
+.obstacle-sensor-chip.disabled .obstacle-sensor-chip-head i,
+.obstacle-sensor-chip.disabled .obstacle-sensor-chip-label,
+.obstacle-sensor-chip.disabled .obstacle-sensor-chip-number {
+    color: #6f7780;
+}
+
+.obstacle-sensor-chip.partial .obstacle-sensor-chip-number {
+    color: #a86b1d;
 }
 
 .obstacle-sensor-chip.disabled .obstacle-sensor-chip-head,

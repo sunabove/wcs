@@ -35,6 +35,7 @@ class URDFViewer {
         this.lastAngleLogAt = 0;
         this.angleLogIntervalMs = 120;
         this.cameraPosTextElement = null;
+        this.cameraPosCopyText = 'P 0.000, 0.000, 0.000\nT 0.000, 0.000, 0.000\nU 0.000, 0.000, 1.000';
         this.cameraToastElement = null;
         this.cameraToastHideTimer = null;
         this.cameraToastHideDelayMs = 3000;
@@ -855,6 +856,13 @@ class URDFViewer {
     }
 
     setupCameraAngleLogging() {
+        if (this.cameraPosTextElement && this.cameraPosTextElement.length > 0) {
+            this.cameraPosTextElement.attr('title', 'Click to copy camera pose');
+            this.cameraPosTextElement.off('click').on('click', () => {
+                this.copyTextToClipboard(this.cameraPosCopyText);
+            });
+        }
+
         this.controls.addEventListener('start', () => {
             this.isDragging = true;
         });
@@ -935,6 +943,14 @@ class URDFViewer {
         }
 
         const textToCopy = this.cameraToastElement.textContent || '0.000, 0.000, 0.000';
+
+        this.copyTextToClipboard(textToCopy);
+    }
+
+    copyTextToClipboard(textToCopy) {
+        if (!textToCopy) {
+            return;
+        }
 
         if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
             navigator.clipboard.writeText(textToCopy).catch(() => {
@@ -1439,7 +1455,14 @@ class URDFViewer {
         const px = formatPositionValue(this.camera.position.x);
         const py = formatPositionValue(this.camera.position.y);
         const pz = formatPositionValue(this.camera.position.z);
-        const positionText = `${px}, ${py}, ${pz}`;
+        const tx = formatPositionValue(this.controls?.target?.x);
+        const ty = formatPositionValue(this.controls?.target?.y);
+        const tz = formatPositionValue(this.controls?.target?.z);
+        const ux = formatPositionValue(this.camera.up.x);
+        const uy = formatPositionValue(this.camera.up.y);
+        const uz = formatPositionValue(this.camera.up.z);
+        const positionText = `P ${px}, ${py}, ${pz}\nT ${tx}, ${ty}, ${tz}\nU ${ux}, ${uy}, ${uz}`;
+        this.cameraPosCopyText = positionText;
 
         if (this.cameraPosTextElement && this.cameraPosTextElement.length > 0) {
             this.cameraPosTextElement.text(positionText);

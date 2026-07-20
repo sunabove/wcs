@@ -101,35 +101,11 @@ $(document).ready(function () {
     }
 
     function getDefaultSensorValue(sensorId) {
-        switch (String(sensorId)) {
-            case 'ToF':
-            case 'Lidar':
-                return 1.0;
-            case 'Camera':
-                return 0;
-            case 'Current':
-            case 'IMU':
-                return 0.0;
-            default:
-                return 0;
-        }
+        return 0;
     }
 
     function getDefaultSensorConfidence(sensorId) {
-        switch (String(sensorId)) {
-            case 'Camera':
-                return 0.9;
-            case 'Lidar':
-                return 0.85;
-            case 'ToF':
-                return 0.8;
-            case 'IMU':
-                return 0.55;
-            case 'Current':
-                return 0.4;
-            default:
-                return 0.5;
-        }
+        return 0;
     }
 
     function getSensorValueSliderSpec(sensorId) {

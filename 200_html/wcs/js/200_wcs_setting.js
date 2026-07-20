@@ -223,7 +223,7 @@ $(document).ready(function () {
         $obstacleSensorValueTbody.empty();
 
         if (rows.length === 0) {
-            $obstacleSensorValueTbody.append('<tr><td colspan="5" class="text-center text-muted py-2">센서 항목이 없습니다.</td></tr>');
+            $obstacleSensorValueTbody.append('<tr><td colspan="4" class="text-center text-muted py-2">센서 항목이 없습니다.</td></tr>');
             return;
         }
 
@@ -242,7 +242,7 @@ $(document).ready(function () {
                     <td class="text-center fw-semibold">${sensorLabel}</td>
                     <td class="text-center">${sensorNumber}</td>
                     <td>
-                        <div class="d-flex align-items-center gap-2">
+                        <div class="obstacle-sensor-row-control">
                             <input
                                 type="range"
                                 min="${valueSpec.min}"
@@ -253,10 +253,11 @@ $(document).ready(function () {
                                 ${disabledAttr}
                             >
                             <span class="badge text-bg-secondary obstacle-sensor-row-value-text">${valueNumber}</span>
+                            <button type="button" class="btn btn-outline-secondary btn-sm obstacle-sensor-row-reset-value" ${disabledAttr}>값 초기화</button>
                         </div>
                     </td>
                     <td>
-                        <div class="d-flex align-items-center gap-2">
+                        <div class="obstacle-sensor-row-control">
                             <input
                                 type="range"
                                 min="0"
@@ -267,11 +268,6 @@ $(document).ready(function () {
                                 ${disabledAttr}
                             >
                             <span class="badge text-bg-secondary obstacle-sensor-row-confidence-text">${confidenceNumber}</span>
-                        </div>
-                    </td>
-                    <td class="text-center">
-                        <div class="obstacle-sensor-row-reset-wrap">
-                            <button type="button" class="btn btn-outline-secondary btn-sm obstacle-sensor-row-reset-value" ${disabledAttr}>값 초기화</button>
                             <button type="button" class="btn btn-outline-secondary btn-sm obstacle-sensor-row-reset-confidence" ${disabledAttr}>신뢰도 초기화</button>
                         </div>
                     </td>

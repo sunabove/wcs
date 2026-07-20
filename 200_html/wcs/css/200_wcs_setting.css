@@ -97,6 +97,17 @@
     min-width: 140px;
 }
 
+.obstacle-sensor-row-control {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.obstacle-sensor-row-control .form-range {
+    flex: 1 1 auto;
+    min-width: 120px;
+}
+
 .obstacle-sensor-row-value-text,
 .obstacle-sensor-row-confidence-text {
     min-width: 56px;
@@ -112,6 +123,7 @@
 .obstacle-sensor-row-reset-value,
 .obstacle-sensor-row-reset-confidence {
     min-width: 76px;
+    margin-left: auto;
 }
 
 .obstacle-sensor-value-row-disabled {

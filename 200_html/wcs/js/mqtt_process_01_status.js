@@ -212,9 +212,14 @@ function updateReceivedSensorTypes(topic) {
     applyObstacleSensorChipState();
 }
 
-function updateReceivedSensorNumberCells(topic) {
+function updateReceivedSensorNumberCells(topic, value) {
     const sensorTopicMatch = String(topic || '').match(/^sensor\/([^/]+)\/(\d+)\/(state|value|obstacle|obstacle\/confidence)$/);
     if (!sensorTopicMatch) {
+        return;
+    }
+
+    const metricType = String(sensorTopicMatch[3] || '').trim();
+    if (metricType !== 'state') {
         return;
     }
 
@@ -233,7 +238,13 @@ function updateReceivedSensorNumberCells(topic) {
         return;
     }
 
-    receivedIndexes.add(sensorIndex);
+    const sensorState = Number.parseInt(value, 10);
+    if (sensorState === 1) {
+        receivedIndexes.add(sensorIndex);
+    } else {
+        receivedIndexes.delete(sensorIndex);
+    }
+
     applyObstacleSensorChipNumberState(sensorId);
 }
 
@@ -842,7 +853,7 @@ function prcessMqttMessage(topic, value) {
     ensureDynamicSensorRow(topic);
     triggerSensorInfoRowBlink(topic);
     updateReceivedSensorTypes(topic);
-    updateReceivedSensorNumberCells(topic);
+    updateReceivedSensorNumberCells(topic, value);
     updateObstacleSensorTypes(topic, value);
     updateObstacleFusionValues(topic, value);
 

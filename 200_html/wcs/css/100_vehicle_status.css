@@ -280,6 +280,41 @@
     opacity: 0.92;
 }
 
+@keyframes obstacle-sensor-chip-blink {
+    0% {
+        transform: scale(1);
+        box-shadow: 0 0 0 rgba(25, 135, 84, 0);
+    }
+    35% {
+        transform: scale(1.02);
+        box-shadow: 0 0 0.45rem rgba(25, 135, 84, 0.35);
+    }
+    100% {
+        transform: scale(1);
+        box-shadow: 0 0 0 rgba(25, 135, 84, 0);
+    }
+}
+
+@keyframes obstacle-sensor-chip-cell-blink {
+    0% {
+        filter: brightness(1);
+    }
+    35% {
+        filter: brightness(1.28);
+    }
+    100% {
+        filter: brightness(1);
+    }
+}
+
+.obstacle-sensor-chip-blink {
+    animation: obstacle-sensor-chip-blink 0.8s ease;
+}
+
+.obstacle-sensor-chip-number-cell-blink {
+    animation: obstacle-sensor-chip-cell-blink 0.8s ease;
+}
+
 #obstacleInfo .obstacle-sensor-chip i {
     font-size: 1.5em !important;
 }

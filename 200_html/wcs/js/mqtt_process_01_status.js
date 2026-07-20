@@ -442,6 +442,58 @@ function triggerSensorInfoRowBlink(topic) {
     $row.data('blinkTimerId', timerId);
 }
 
+function triggerObstacleSensorChipBlink(topic) {
+    const topicMatch = String(topic || '').match(/^sensor\/([^/]+)\/(\d+)\/(state|value|obstacle|obstacle\/confidence)$/);
+    if (!topicMatch) {
+        return;
+    }
+
+    const sensorId = String(topicMatch[1] || '').trim();
+    const sensorIndex = Number.parseInt(topicMatch[2], 10);
+    if (!sensorId || !Number.isFinite(sensorIndex)) {
+        return;
+    }
+
+    const $chip = $(`#obstacle-sensor-types .obstacle-sensor-chip[data-sensor-id="${sensorId}"]`);
+    if ($chip.length === 0) {
+        return;
+    }
+
+    const $numberCell = $chip.find(`[data-sensor-chip-number] .obstacle-sensor-chip-number-cell[data-sensor-index="${sensorIndex}"]`);
+
+    const chipTimerId = $chip.data('blinkTimerId');
+    if (chipTimerId) {
+        clearTimeout(chipTimerId);
+    }
+
+    $chip.removeClass('obstacle-sensor-chip-blink');
+    void $chip.get(0).offsetWidth;
+    $chip.addClass('obstacle-sensor-chip-blink');
+
+    const nextChipTimerId = setTimeout(() => {
+        $chip.removeClass('obstacle-sensor-chip-blink');
+        $chip.removeData('blinkTimerId');
+    }, 800);
+    $chip.data('blinkTimerId', nextChipTimerId);
+
+    if ($numberCell.length > 0) {
+        const cellTimerId = $numberCell.data('blinkTimerId');
+        if (cellTimerId) {
+            clearTimeout(cellTimerId);
+        }
+
+        $numberCell.removeClass('obstacle-sensor-chip-number-cell-blink');
+        void $numberCell.get(0).offsetWidth;
+        $numberCell.addClass('obstacle-sensor-chip-number-cell-blink');
+
+        const nextCellTimerId = setTimeout(() => {
+            $numberCell.removeClass('obstacle-sensor-chip-number-cell-blink');
+            $numberCell.removeData('blinkTimerId');
+        }, 800);
+        $numberCell.data('blinkTimerId', nextCellTimerId);
+    }
+}
+
 function syncSensorRowLabelNumberColor(topic) {
     const topicMatch = String(topic || '').match(/^sensor\/([^/]+)\/(\d+)\/(state|value|obstacle|obstacle\/confidence)$/);
     if (!topicMatch) {
@@ -878,6 +930,7 @@ function prcessMqttMessage(topic, value) {
 
     ensureDynamicSensorRow(topic);
     triggerSensorInfoRowBlink(topic);
+    triggerObstacleSensorChipBlink(topic);
     updateReceivedSensorTypes(topic);
     updateReceivedSensorNumberCells(topic, value);
     updateObstacleSensorTypes(topic, value);

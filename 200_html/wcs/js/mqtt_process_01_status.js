@@ -423,6 +423,10 @@ function syncSensorRowLabelNumberColor(topic) {
         return;
     }
 
+    if ($row.hasClass('sensor-info-row-inactive')) {
+        return;
+    }
+
     const $sensorLabelCell = $row.find('[data-sensor-label]');
     const $sensorNumberCell = $row.find('[data-sensor-number]');
 
@@ -433,6 +437,16 @@ function syncSensorRowLabelNumberColor(topic) {
     if ($sensorNumberCell.length > 0) {
         updateTargetElementCss($sensorNumberCell);
     }
+}
+
+function setSensorInfoRowInactiveState(sensorId, sensorIndex, isInactive) {
+    const rowKey = `${sensorId}#${sensorIndex}`;
+    const $row = $(`#sensor-info-tbody tr[data-sensor-row-key="${rowKey}"]`);
+    if ($row.length === 0) {
+        return;
+    }
+
+    $row.toggleClass('sensor-info-row-inactive', Boolean(isInactive));
 }
 
 function dispatchVehicleDirectionEvent(sourceTopic, value) {
@@ -1109,6 +1123,17 @@ function prcessMqttMessage(topic, value) {
         const isSensorStateTopic = /^sensor\/[^/]+\/\d+\/state$/.test(String(topic || ''));
         const numericSensorState = Number.parseInt(value, 10);
         const isSensorInactive = isSensorStateTopic && numericSensorState !== 1;
+
+        if (isSensorStateTopic) {
+            const sensorTopicMatch = String(topic || '').match(/^sensor\/([^/]+)\/(\d+)\/state$/);
+            if (sensorTopicMatch) {
+                const sensorId = String(sensorTopicMatch[1] || '').trim();
+                const sensorIndex = Number.parseInt(sensorTopicMatch[2], 10);
+                if (sensorId && Number.isFinite(sensorIndex)) {
+                    setSensorInfoRowInactiveState(sensorId, sensorIndex, isSensorInactive);
+                }
+            }
+        }
         
         // jQuery를 사용한 DOM 요소 업데이트
         $targetElement.text(formattedValue);
@@ -1378,6 +1403,11 @@ function getFormattedTopicValue(topic, value) {
 function updateTargetElementCss( $targetElement ) {
     // tr의 index를 구해서 색상 결정
     const $parentRow = $targetElement.closest('tr');
+
+    if ($parentRow.length > 0 && $parentRow.hasClass('sensor-info-row-inactive')) {
+        return;
+    }
+
     let rowIndex = $parentRow.length > 0 ? $parentRow.index() : 0;
     
     // rowIndex가 유효하지 않은 경우 기본값 0으로 설정

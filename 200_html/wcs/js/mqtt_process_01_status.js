@@ -58,7 +58,7 @@ function renderObstacleFusionStatus() {
     const $confidence = $('#obstacle-fusion-confidence');
     const $confidenceSlider = $('#obstacle-fusion-confidence-slider');
 
-    if ($enabled.length === 0 || $confidence.length === 0) {
+    if ($enabled.length === 0) {
         return;
     }
 
@@ -76,7 +76,9 @@ function renderObstacleFusionStatus() {
         .addClass(fusionEnabled ? 'text-bg-success' : 'text-bg-warning')
         .text(fusionEnabled ? '융합 ON' : '융합 OFF');
 
-    $confidence.text(Number.isFinite(confidencePercent) ? `${confidencePercent}%` : '-%');
+    if ($confidence.length > 0) {
+        $confidence.text(Number.isFinite(confidencePercent) ? `${confidencePercent}%` : '-%');
+    }
 
     if ($confidenceSlider.length > 0) {
         const sliderValue = Number.isFinite(confidencePercent) ? confidencePercent : 0;

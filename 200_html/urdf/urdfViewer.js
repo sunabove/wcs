@@ -800,6 +800,22 @@ class URDFViewer {
             return;
         }
 
+        const faceVectors = this.getCameraVectorsByFace(faceKey);
+        if (!faceVectors) {
+            return;
+        }
+
+        const target = this.controls.target.clone();
+        const currentDistance = this.camera.position.distanceTo(target);
+        const cameraDistance = Number.isFinite(currentDistance) && currentDistance > 0.001
+            ? currentDistance
+            : 3;
+
+        const nextPosition = target.clone().add(faceVectors.direction.multiplyScalar(cameraDistance));
+        this.animateCameraToPose(nextPosition, faceVectors.up, 220);
+    }
+
+    getCameraVectorsByFace(faceKey) {
         const directionByFace = {
             front: new THREE.Vector3(0, 1, 0),
             back: new THREE.Vector3(0, -1, 0),
@@ -818,20 +834,27 @@ class URDFViewer {
             bottom: new THREE.Vector3(-1, 0, 0)
         };
 
-        const targetDirection = directionByFace[faceKey];
-        if (!targetDirection) {
+        const direction = directionByFace[faceKey];
+        if (!direction) {
+            return null;
+        }
+
+        return {
+            direction: direction.clone(),
+            up: (upByFace[faceKey] || upByFace.front).clone()
+        };
+    }
+
+    setCameraFromFace(center, distance, faceKey) {
+        const faceVectors = this.getCameraVectorsByFace(faceKey);
+        if (!this.camera || !center || !faceVectors) {
             return;
         }
 
-        const target = this.controls.target.clone();
-        const currentDistance = this.camera.position.distanceTo(target);
-        const cameraDistance = Number.isFinite(currentDistance) && currentDistance > 0.001
-            ? currentDistance
-            : 3;
-
-        const nextPosition = target.clone().add(targetDirection.clone().multiplyScalar(cameraDistance));
-        const cameraUp = upByFace[faceKey] || upByFace.front;
-        this.animateCameraToPose(nextPosition, cameraUp, 220);
+        const safeDistance = Number.isFinite(distance) && distance > 0.001 ? distance : 3;
+        this.camera.position.copy(center).add(faceVectors.direction.multiplyScalar(safeDistance));
+        this.camera.up.copy(faceVectors.up);
+        this.camera.lookAt(center);
     }
 
     animateCameraToPose(nextPosition, nextUp, durationMs = 220) {
@@ -2263,11 +2286,11 @@ class URDFViewer {
                     this.updateAxisLabelScaleByModelSize(size);
 
                     if (this.hasCustomCameraPosition) {
-                        console.log('[URDF] cameraPosition 지정됨: 사용자 카메라 위치 유지');
+                        console.log('[URDF] cameraPose 지정됨: 사용자 카메라 위치 유지');
                     } else {
                         const fitDistance = this.calculateFitDistance(radius, this.cameraFitMarginRatio);
-                        this.setCameraFromPosition(center, fitDistance);
-                        console.log('[URDF] cameraPosition 미지정: 자동 피팅 카메라 적용 (마진 5%)');
+                        this.setCameraFromFace(center, fitDistance, 'top');
+                        console.log('[URDF] cameraPose 미지정: top view 자동 피팅 카메라 적용 (마진 5%)');
                     }
 
                     const poseTarget = this.hasCustomCameraTarget ? this.cameraTarget.clone() : center.clone();

@@ -385,6 +385,27 @@
     line-height: 1.2;
 }
 
+.run-info-chart-panel {
+    border: 1px solid #d9e0e6;
+    border-radius: 0.5rem;
+    background: linear-gradient(180deg, #fbfcfd 0%, #f3f6f9 100%);
+}
+
+.run-info-chart-header h6 {
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: #43515c;
+}
+
+.run-info-chart-body {
+    height: 220px;
+}
+
+#run-info-history-chart {
+    width: 100% !important;
+    height: 100% !important;
+}
+
 @media (max-width: 1400px) {
     #roadSurfaceInfo .row > .col-md-6,
     #obstacleInfo .row > .col-md-6,

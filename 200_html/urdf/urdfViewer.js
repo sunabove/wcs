@@ -35,7 +35,7 @@ class URDFViewer {
         this.lastAngleLogAt = 0;
         this.angleLogIntervalMs = 120;
         this.cameraPosTextElement = null;
-        this.cameraPosCopyText = 'P 0.000, 0.000, 0.000\nT 0.000, 0.000, 0.000\nU 0.000, 0.000, 1.000';
+        this.cameraPosCopyText = 'cameraPose="0.000, 0.000, 0.000|0.000, 0.000, 0.000|0.000, 1.000, 0.000"';
         this.cameraToastElement = null;
         this.cameraToastHideTimer = null;
         this.cameraToastHideDelayMs = 3000;
@@ -144,23 +144,74 @@ class URDFViewer {
         );
         this.wheelInfoOverlayElement = null;
         this.urdfPath = containerElement.getAttribute('urdf') || '/urdf/vehicle/vehicle.urdf';
+        const rawCameraPose = containerElement.getAttribute('cameraPose');
         const rawCameraPosition = containerElement.getAttribute('cameraPosition');
-        this.hasCustomCameraPosition = rawCameraPosition != null && String(rawCameraPosition).trim().length > 0;
+        const rawCameraTarget = containerElement.getAttribute('cameraTarget');
+        const rawCameraUp = containerElement.getAttribute('cameraUp');
+        const parsedCameraPose = this.parseCameraPose(rawCameraPose);
+        this.hasCustomCameraPose = parsedCameraPose != null;
+        this.hasCustomCameraPosition = this.hasCustomCameraPose || (rawCameraPosition != null && String(rawCameraPosition).trim().length > 0);
+        this.hasCustomCameraTarget = this.hasCustomCameraPose || (rawCameraTarget != null && String(rawCameraTarget).trim().length > 0);
+        this.hasCustomCameraUp = this.hasCustomCameraPose || (rawCameraUp != null && String(rawCameraUp).trim().length > 0);
         this.cameraFitMarginRatio = 0.05;
-        this.cameraPosition = this.hasCustomCameraPosition
-            ? this.parseCameraPosition(rawCameraPosition)
+        this.cameraPosition = this.hasCustomCameraPose
+            ? parsedCameraPose.position.clone()
+            : this.hasCustomCameraPosition
+            ? this.parseVector3Attribute(rawCameraPosition, new THREE.Vector3(4, 4, 8))
             : new THREE.Vector3(4, 4, 8);
+        this.cameraTarget = this.hasCustomCameraPose
+            ? parsedCameraPose.target.clone()
+            : this.hasCustomCameraTarget
+            ? this.parseVector3Attribute(rawCameraTarget, new THREE.Vector3(0, 0, 0))
+            : new THREE.Vector3(0, 0, 0);
+        this.cameraUp = this.hasCustomCameraPose
+            ? parsedCameraPose.up.clone()
+            : this.hasCustomCameraUp
+            ? this.parseUpVector(rawCameraUp)
+            : new THREE.Vector3(0, 1, 0);
         
         this.init();
     }
 
-    parseCameraPosition(rawValue) {
-        const fallback = new THREE.Vector3(4, 4, 8);
+    parseVector3Attribute(rawValue, fallback) {
         const tokens = String(rawValue || '').split(',').map(value => Number.parseFloat(value.trim()));
         if (tokens.length < 3 || !Number.isFinite(tokens[0]) || !Number.isFinite(tokens[1]) || !Number.isFinite(tokens[2])) {
             return fallback;
         }
         return new THREE.Vector3(tokens[0], tokens[1], tokens[2]);
+    }
+
+    parseUpVector(rawValue) {
+        const fallback = new THREE.Vector3(0, 1, 0);
+        const parsed = this.parseVector3Attribute(rawValue, fallback.clone());
+        if (parsed.lengthSq() < 1e-8) {
+            return fallback;
+        }
+        return parsed.normalize();
+    }
+
+    parseCameraPose(rawValue) {
+        const normalizedValue = String(rawValue || '').trim();
+        if (!normalizedValue) {
+            return null;
+        }
+
+        const parts = normalizedValue.split('|').map(value => value.trim());
+        if (parts.length !== 3) {
+            return null;
+        }
+
+        const fallbackPosition = new THREE.Vector3(4, 4, 8);
+        const fallbackTarget = new THREE.Vector3(0, 0, 0);
+        const position = this.parseVector3Attribute(parts[0], fallbackPosition.clone());
+        const target = this.parseVector3Attribute(parts[1], fallbackTarget.clone());
+        const up = this.parseUpVector(parts[2]);
+
+        return {
+            position,
+            target,
+            up
+        };
     }
 
     parseBooleanAttribute(rawValue, fallbackValue) {
@@ -299,6 +350,7 @@ class URDFViewer {
         // Camera 생성
         this.camera = new THREE.PerspectiveCamera(50, width / height, 0.01, 1000);
         this.camera.position.copy(this.cameraPosition);
+        this.camera.up.copy(this.cameraUp);
 
         // Renderer 생성
         this.renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -318,6 +370,10 @@ class URDFViewer {
         this.controls.enablePan = true;
         this.controls.mouseButtons.LEFT = THREE.MOUSE.ROTATE;
         this.controls.mouseButtons.RIGHT = THREE.MOUSE.PAN;
+        if (this.hasCustomCameraTarget) {
+            this.goalTarget.copy(this.cameraTarget);
+            this.applyGoalTargetToControls();
+        }
         this.cameraPosTextElement = $('#camera-pos-text');
         this.setupCameraAngleLogging();
         if (this.showViewCube) {
@@ -857,7 +913,7 @@ class URDFViewer {
 
     setupCameraAngleLogging() {
         if (this.cameraPosTextElement && this.cameraPosTextElement.length > 0) {
-            this.cameraPosTextElement.attr('title', 'Click to copy camera pose');
+            this.cameraPosTextElement.attr('title', 'Click to copy cameraPose');
             this.cameraPosTextElement.off('click').on('click', () => {
                 this.copyTextToClipboard(this.cameraPosCopyText);
             });
@@ -1461,7 +1517,7 @@ class URDFViewer {
         const ux = formatPositionValue(this.camera.up.x);
         const uy = formatPositionValue(this.camera.up.y);
         const uz = formatPositionValue(this.camera.up.z);
-        const positionText = `P ${px}, ${py}, ${pz}\nT ${tx}, ${ty}, ${tz}\nU ${ux}, ${uy}, ${uz}`;
+        const positionText = `cameraPose="${px}, ${py}, ${pz}|${tx}, ${ty}, ${tz}|${ux}, ${uy}, ${uz}"`;
         this.cameraPosCopyText = positionText;
 
         if (this.cameraPosTextElement && this.cameraPosTextElement.length > 0) {
@@ -2165,16 +2221,17 @@ class URDFViewer {
                         console.log('[URDF] cameraPosition 미지정: 자동 피팅 카메라 적용 (마진 5%)');
                     }
 
-                    const currentCameraDist = Math.max(this.camera.position.distanceTo(center), 0.01);
+                    const poseTarget = this.hasCustomCameraTarget ? this.cameraTarget.clone() : center.clone();
+                    const currentCameraDist = Math.max(this.camera.position.distanceTo(poseTarget), 0.01);
                     this.camera.near = Math.max(currentCameraDist / 100, 0.01);
                     this.camera.far = Math.max(currentCameraDist * 100, 10);
                     this.camera.updateProjectionMatrix();
 
-                    this.goalTarget.copy(center);
+                    this.goalTarget.copy(poseTarget);
                     this.applyGoalTargetToControls();
                     this.controls.minDistance = currentCameraDist * 0.2;
                     this.controls.maxDistance = currentCameraDist * 8;
-                    this.resetDirectionalLight(center, radius);
+                    this.resetDirectionalLight(this.controls.target, radius);
                     this.logCameraInfos(true);
                     this.markInitialCameraPoseReady();
 

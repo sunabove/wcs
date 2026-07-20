@@ -5,6 +5,16 @@ $(document).ready(function () {
     const vehicleDirectionButtonSelector = '#vehicle-forward, #vehicle-backward, #vehicle-turn-left, #vehicle-turn-right, #vehicle-stop';
     const wcsSampleVideoItemTemplate = document.getElementById('wcs-sample-video-item-template');
     const SAMPLE_VIDEO_BROWSER_STORAGE_KEY = 'wcs.setting.sample_video_browser.v1';
+    const OBSTACLE_SENSOR_DEFINITIONS = [
+        { id: 'ToF', count: 4, target: '거리,장애물', enabled: true },
+        { id: 'IMU', count: 5, target: '가속도,각속도', enabled: true },
+        { id: 'Current', count: 4, target: '전류', enabled: true },
+        { id: 'Camera', count: 1, target: '장애물', enabled: true },
+        { id: 'Lidar', count: 1, target: '거리,장애물', enabled: true },
+    ];
+    const obstacleSensorSettingById = {};
+    const $obstacleSensorSettingList = $('#obstacle-sensor-setting-list');
+    const obstacleSensorSettingItemTemplate = document.getElementById('obstacle-sensor-setting-item-template');
     let isSampleVideosLoaded = false;
     let isSampleVideosLoading = false;
     let sampleVideoBrowserPath = 'video';
@@ -52,6 +62,80 @@ $(document).ready(function () {
             const pitchAngleRad = (normalizedPitch * Math.PI) / 180;
             sendMQTTMessage('vehicle/road/pitch_angle', pitchAngleRad);
         }
+    }
+
+    function upsertObstacleSensorSetting(sensorId, partialValue) {
+        const safeId = String(sensorId || '').trim();
+        if (!safeId) {
+            return;
+        }
+
+        if (!obstacleSensorSettingById[safeId]) {
+            obstacleSensorSettingById[safeId] = {
+                id: safeId,
+                count: 1,
+                target: '',
+                enabled: true,
+            };
+        }
+
+        obstacleSensorSettingById[safeId] = {
+            ...obstacleSensorSettingById[safeId],
+            ...partialValue,
+        };
+    }
+
+    function getOrderedObstacleSensorSettings() {
+        return OBSTACLE_SENSOR_DEFINITIONS
+            .map((sensorDef) => obstacleSensorSettingById[sensorDef.id] || sensorDef)
+            .map((sensorDef) => ({
+                id: String(sensorDef.id),
+                count: Math.max(1, Number.parseInt(sensorDef.count, 10) || 1),
+                target: String(sensorDef.target || ''),
+                enabled: Boolean(sensorDef.enabled),
+            }));
+    }
+
+    function renderObstacleSensorSettings() {
+        if ($obstacleSensorSettingList.length === 0 || !obstacleSensorSettingItemTemplate || !obstacleSensorSettingItemTemplate.content) {
+            return;
+        }
+
+        $obstacleSensorSettingList.empty();
+        getOrderedObstacleSensorSettings().forEach((sensorDef) => {
+            const node = obstacleSensorSettingItemTemplate.content.firstElementChild.cloneNode(true);
+            const $node = $(node);
+            $node.attr('data-sensor-id', sensorDef.id);
+
+            $node.find('.obstacle-sensor-id').text(sensorDef.id);
+            $node.find('.obstacle-sensor-enabled').prop('checked', sensorDef.enabled);
+            $node.find('.obstacle-sensor-count').val(sensorDef.count);
+            $node.find('.obstacle-sensor-target').val(sensorDef.target);
+
+            $obstacleSensorSettingList.append($node);
+        });
+    }
+
+    function resetObstacleSensorSettings() {
+        OBSTACLE_SENSOR_DEFINITIONS.forEach((sensorDef) => {
+            upsertObstacleSensorSetting(sensorDef.id, {
+                count: sensorDef.count,
+                target: sensorDef.target,
+                enabled: sensorDef.enabled,
+            });
+        });
+        renderObstacleSensorSettings();
+    }
+
+    function publishObstacleSensorSettings() {
+        const settings = getOrderedObstacleSensorSettings();
+        settings.forEach((sensorDef) => {
+            sendMQTTMessage(`sensor/${sensorDef.id}/count`, sensorDef.count);
+            sendMQTTMessage(`sensor/${sensorDef.id}/target`, sensorDef.target);
+            sendMQTTMessage(`sensor/${sensorDef.id}/enabled`, sensorDef.enabled ? 1 : 0);
+        });
+
+        sendMQTTMessage('obstacle/sensor/settings', JSON.stringify(settings));
     }
 
     function getVehicleCommandByButtonId(buttonId) {
@@ -433,6 +517,30 @@ $(document).ready(function () {
         }
     }
 
+    $obstacleSensorSettingList.on('change input', '.obstacle-sensor-enabled, .obstacle-sensor-count, .obstacle-sensor-target', function () {
+        const $item = $(this).closest('.obstacle-sensor-setting-item');
+        const sensorId = String($item.attr('data-sensor-id') || '').trim();
+        if (!sensorId) {
+            return;
+        }
+
+        const enabled = $item.find('.obstacle-sensor-enabled').is(':checked');
+        const count = Math.max(1, Math.min(16, Number.parseInt($item.find('.obstacle-sensor-count').val(), 10) || 1));
+        const target = String($item.find('.obstacle-sensor-target').val() || '').trim();
+
+        $item.find('.obstacle-sensor-count').val(count);
+        upsertObstacleSensorSetting(sensorId, { enabled, count, target });
+    });
+
+    $('#reset-obstacle-sensor-settings').on('click', function () {
+        resetObstacleSensorSettings();
+        publishObstacleSensorSettings();
+    });
+
+    $('#apply-obstacle-sensor-settings').on('click', function () {
+        publishObstacleSensorSettings();
+    });
+
     $('#vehicle-max-speed').on('input', function () {
         updateVehicleMaxSpeedUi($(this).val(), false);
     });
@@ -550,6 +658,30 @@ $(document).ready(function () {
                 applyCurrentVideoHighlight();
             }
 
+            const sensorCountMatch = String(topic || '').match(/^sensor\/([^/]+)\/count$/);
+            if (sensorCountMatch) {
+                const sensorId = sensorCountMatch[1];
+                const sensorCount = Math.max(1, Math.min(16, Number.parseInt(value, 10) || 1));
+                upsertObstacleSensorSetting(sensorId, { count: sensorCount });
+                renderObstacleSensorSettings();
+            }
+
+            const sensorTargetMatch = String(topic || '').match(/^sensor\/([^/]+)\/target$/);
+            if (sensorTargetMatch) {
+                const sensorId = sensorTargetMatch[1];
+                upsertObstacleSensorSetting(sensorId, { target: String(value || '') });
+                renderObstacleSensorSettings();
+            }
+
+            const sensorEnabledMatch = String(topic || '').match(/^sensor\/([^/]+)\/enabled$/);
+            if (sensorEnabledMatch) {
+                const sensorId = sensorEnabledMatch[1];
+                const enabledText = String(value || '').trim().toLowerCase();
+                const enabled = enabledText === '1' || enabledText === 'true' || enabledText === 'on' || enabledText === 'yes';
+                upsertObstacleSensorSetting(sensorId, { enabled: enabled });
+                renderObstacleSensorSettings();
+            }
+
             if (topic === vehicleOperationCommandTopic) {
                 handleVehicleDirectionUpdate(value);
             }
@@ -593,5 +725,6 @@ $(document).ready(function () {
     });
 
     restoreSampleVideoBrowserStateFromStorage();
+    resetObstacleSensorSettings();
     ensureSampleVideosLoaded();
 });

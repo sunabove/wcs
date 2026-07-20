@@ -24,10 +24,10 @@ const runInfoAxisUnitPlugin = {
         ctx.save();
         ctx.fillStyle = '#6c757d';
         ctx.font = '600 11px system-ui, -apple-system, "Segoe UI", sans-serif';
-        ctx.textBaseline = 'bottom';
+        ctx.textBaseline = 'top';
         ctx.textAlign = 'center';
 
-        const axisUnitY = Math.max(0, chartArea.top - 2);
+        const axisUnitY = chartArea.top + 2;
         ctx.fillText('%', (batteryScale.left + batteryScale.right) / 2, axisUnitY);
         ctx.fillText('분', (timeScale.left + timeScale.right) / 2, axisUnitY);
 
@@ -101,6 +101,11 @@ function createRunInfoHistoryChart() {
             responsive: true,
             maintainAspectRatio: false,
             animation: false,
+            layout: {
+                padding: {
+                    top: 18,
+                },
+            },
             interaction: {
                 mode: 'index',
                 intersect: false,

@@ -56,6 +56,7 @@ const obstacleFusionState = {
 function renderObstacleFusionStatus() {
     const $enabled = $('#obstacle-fusion-enabled');
     const $confidence = $('#obstacle-fusion-confidence');
+    const $confidenceSlider = $('#obstacle-fusion-confidence-slider');
 
     if ($enabled.length === 0 || $confidence.length === 0) {
         return;
@@ -76,6 +77,13 @@ function renderObstacleFusionStatus() {
         .text(fusionEnabled ? '융합 ON' : '융합 OFF');
 
     $confidence.text(Number.isFinite(confidencePercent) ? `${confidencePercent}%` : '-%');
+
+    if ($confidenceSlider.length > 0) {
+        const sliderValue = Number.isFinite(confidencePercent) ? confidencePercent : 0;
+        $confidenceSlider
+            .val(sliderValue)
+            .css('background', `linear-gradient(90deg, #198754 0%, #198754 ${sliderValue}%, #dce3ea ${sliderValue}%, #dce3ea 100%)`);
+    }
 }
 
 function getSensorDisplayOrder(sensorId) {

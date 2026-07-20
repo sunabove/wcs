@@ -123,6 +123,25 @@
     background: linear-gradient(180deg, #f8f9fa 0%, #eef2f6 100%);
 }
 
+.fusion-confidence-slider-wrap {
+    padding: 0 0.15rem;
+}
+
+.fusion-confidence-slider {
+    margin-bottom: 0.2rem;
+    pointer-events: none;
+}
+
+.fusion-confidence-slider:disabled {
+    opacity: 1;
+}
+
+.fusion-confidence-slider-scale {
+    font-size: 0.72rem;
+    color: #5c6773;
+    line-height: 1;
+}
+
 .obstacle-sensor-row-title {
     margin-bottom: 0.45rem;
     font-size: 0.82rem;

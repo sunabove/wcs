@@ -189,6 +189,8 @@
                                             <h4 class="mb-0">장애물</h4>
                                         </div>
                                         <div class="card-body p-1">
+
+                                            <!-- 장애물 종류 -->
                                             <div class="row h-100 g-1">
                                                     <div class="col-md-6 d-flex">
                                                     <div id="vehicle/surface/obstacle/0" class="card text-center h-100 w-100 disabled">
@@ -227,6 +229,9 @@
                                                         </div>
                                                     </div>
                                             </div>
+                                            <!-- // 장애물 종류 -->
+
+                                            <!-- 센서 융합 -->
                                             <div id="obstacle-fusion-row" class="fusion-status-row border border-secondary-subtle rounded-3 p-2 mt-2" aria-live="polite">
                                                 <div class="d-flex flex-wrap align-items-center justify-content-between gap-2">
                                                     <div class="d-flex align-items-center gap-2">
@@ -237,7 +242,28 @@
                                                         <span id="obstacle-fusion-confidence" class="badge text-bg-light border">-%</span>
                                                     </div>
                                                 </div>
+                                                <div class="fusion-confidence-slider-wrap mt-2">
+                                                    <input
+                                                        id="obstacle-fusion-confidence-slider"
+                                                        class="form-range fusion-confidence-slider"
+                                                        type="range"
+                                                        min="0"
+                                                        max="100"
+                                                        value="0"
+                                                        step="1"
+                                                        aria-label="센서 융합 신뢰도"
+                                                        disabled
+                                                    >
+                                                    <div class="fusion-confidence-slider-scale d-flex justify-content-between">
+                                                        <small>0%</small>
+                                                        <small>50%</small>
+                                                        <small>100%</small>
+                                                    </div>
+                                                </div>
                                             </div>
+                                            <!-- // 센서 융합 -->
+
+                                            <!-- 장애물 센서 정보 -->
                                             <div class="obstacle-sensor-row border-0 rounded-3 p-0 mt-2">
                                                 <div id="obstacle-sensor-types" class="obstacle-sensor-types">
                                                     <div class="obstacle-sensor-chip border rounded disabled" data-sensor-id="ToF">
@@ -278,12 +304,14 @@
                                                     </div>
                                                 </div>
                                             </div>
+                                            <!-- // 장애물 센서 정보 -->
+
                                         </div>
                                     </div>
                                 </div>
                                 <!-- // 장애물 정보 -->
 
-                                <!-- 센서 정보 -->
+                                <!-- 센서 상세 정보 -->
                                 <div id="sensorInfo" class="card mt-2 me-1">
                                     <div class="card-header text-center">
                                         <h4 class="mb-0">센서 정보</h4>
@@ -318,7 +346,8 @@
                                         </div>
                                     </div>
                                 </div>
-                                <!-- // 센서 정보 -->
+                                <!-- // 센서 상세 정보 -->
+                                 
                             </td>
                             
                             <td class="align-top p-0 vehicle_image">

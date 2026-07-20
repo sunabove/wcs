@@ -199,7 +199,7 @@ $(document).ready(function () {
         $obstacleSensorValueTbody.empty();
 
         if (rows.length === 0) {
-            $obstacleSensorValueTbody.append('<tr><td colspan="5" class="text-center text-muted py-2">센서 항목이 없습니다.</td></tr>');
+            $obstacleSensorValueTbody.append('<tr><td colspan="6" class="text-center text-muted py-2">센서 항목이 없습니다.</td></tr>');
             return;
         }
 
@@ -249,6 +249,9 @@ $(document).ready(function () {
                     </td>
                     <td class="text-center">
                         <button type="button" class="btn btn-outline-secondary btn-sm obstacle-sensor-row-reset-all" ${disabledAttr}>초기화</button>
+                    </td>
+                    <td class="text-center">
+                        <button type="button" class="btn btn-outline-secondary btn-sm obstacle-sensor-row-reset-group" ${disabledAttr}>초기화</button>
                     </td>
                 </tr>
             `;
@@ -309,6 +312,14 @@ $(document).ready(function () {
         sendMQTTMessage(`sensor/${row.id}/${row.index}/value`, sensorValue);
         sendMQTTMessage(`sensor/${row.id}/${row.index}/obstacle/confidence`, sensorConfidence);
         sendMQTTMessage(`sensor/${row.id}/${row.index}/state`, enabled ? 1 : 0);
+    }
+
+    function publishObstacleSensorGroup(sensorId) {
+        getOrderedObstacleSensorRows().forEach((row) => {
+            if (String(row.id) === String(sensorId)) {
+                publishSingleObstacleSensorRow(row.id, row.index);
+            }
+        });
     }
 
     function getVehicleCommandByButtonId(buttonId) {
@@ -764,6 +775,26 @@ $(document).ready(function () {
 
         renderObstacleSensorValueTable();
         publishSingleObstacleSensorRow(sensorId, sensorIndex);
+    });
+
+    $obstacleSensorValueTbody.on('click', '.obstacle-sensor-row-reset-group', function () {
+        const $row = $(this).closest('tr[data-sensor-id][data-sensor-index]');
+        const sensorId = String($row.attr('data-sensor-id') || '').trim();
+        if (!sensorId) {
+            return;
+        }
+
+        getOrderedObstacleSensorRows().forEach((row) => {
+            if (String(row.id) === sensorId) {
+                upsertObstacleSensorRowValue(row.id, row.index, {
+                    value: getDefaultSensorValue(row.id),
+                    confidence: getDefaultSensorConfidence(row.id),
+                });
+            }
+        });
+
+        renderObstacleSensorValueTable();
+        publishObstacleSensorGroup(sensorId);
     });
 
     $('#apply-obstacle-sensor-settings').on('click', function () {

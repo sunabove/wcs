@@ -130,6 +130,10 @@
     min-width: 76px;
 }
 
+.obstacle-sensor-row-reset-group {
+    min-width: 76px;
+}
+
 .obstacle-sensor-value-row-disabled {
     opacity: 0.65;
 }

@@ -134,7 +134,7 @@
     display: inline-flex;
     align-items: center;
     justify-content: flex-end;
-    min-width: 46px;
+    min-width: 36px;
     margin-left: 0;
     font-size: 0.8rem;
     line-height: 1.1;
@@ -157,6 +157,7 @@
 .fusion-status-inline {
     flex-wrap: nowrap;
     min-width: 0;
+    gap: 0.22rem;
 }
 
 .fusion-confidence-slider-scale {

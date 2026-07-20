@@ -288,9 +288,6 @@
     background: #d5dbe1;
     --bs-border-color: #212529;
     border: 1px solid #212529 !important;
-    outline: 1px solid #212529;
-    outline-offset: -1px;
-    box-shadow: inset 0 0 0 1px #212529;
     color: #6f7780;
 }
 
@@ -298,9 +295,6 @@
     background: #9ea8b2;
     --bs-border-color: #212529;
     border: 1px solid #212529 !important;
-    outline: 1px solid #212529;
-    outline-offset: -1px;
-    box-shadow: inset 0 0 0 1px #212529;
 }
 
 .obstacle-sensor-chip.active {

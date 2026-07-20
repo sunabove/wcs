@@ -113,7 +113,7 @@ function createRunInfoHistoryChart() {
                     ticks: {
                         callback(value, index, ticks) {
                             const label = String(value);
-                            return index === ticks.length - 1 ? `${label}%` : label;
+                            return index === ticks.length - 1 ? `${label}(%)` : label;
                         },
                     },
                     title: {
@@ -127,7 +127,7 @@ function createRunInfoHistoryChart() {
                     ticks: {
                         callback(value, index, ticks) {
                             const label = String(value);
-                            return index === ticks.length - 1 ? `${label}분` : label;
+                            return index === ticks.length - 1 ? `${label}(분)` : label;
                         },
                     },
                     title: {

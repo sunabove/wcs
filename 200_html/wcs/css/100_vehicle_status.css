@@ -296,7 +296,7 @@
 }
 
 .obstacle-sensor-chip.active {
-    background: #e9f8ef;
+    background: #ffffff;
     --bs-border-color: #63c98a;
     color: #198754;
 }

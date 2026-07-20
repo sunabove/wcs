@@ -286,13 +286,13 @@
 
 .obstacle-sensor-chip.disabled {
     background: #e4e8ed;
-    --bs-border-color: #c3ccd5;
+    --bs-border-color: #212529;
     color: #7f8a95;
 }
 
 .obstacle-sensor-chip.disabled .obstacle-sensor-chip-number-cell {
     background: #b8c1ca;
-    --bs-border-color: #a7b1bb;
+    --bs-border-color: #212529;
 }
 
 .obstacle-sensor-chip.active {

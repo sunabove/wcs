@@ -1138,6 +1138,12 @@ class URDFViewer {
         return (rpm * Math.PI * 2) / 60;
     }
 
+    getSignedWheelRpm(key) {
+        const rpm = Number(this.wheelSpeedRpmByKey[key]) || 0;
+        const directionSign = Number(this.wheelDirectionSignByKey[key]) || 1;
+        return rpm * directionSign;
+    }
+
     updateWheelSpeedFromInput(key) {
         const inputElement = this.wheelSpeedInputByKey[key];
         if (!inputElement || inputElement.length === 0) {
@@ -1153,7 +1159,7 @@ class URDFViewer {
 
         const valueElement = this.wheelSpeedValueByKey[key];
         if (valueElement && valueElement.length > 0) {
-            valueElement.text(`${normalizedRpm} rpm`);
+            valueElement.text(`${this.getSignedWheelRpm(key)} rpm`);
         }
     }
 
@@ -1176,7 +1182,7 @@ class URDFViewer {
 
         const valueElement = this.wheelSpeedValueByKey[key];
         if (valueElement && valueElement.length > 0) {
-            valueElement.text(`${normalizedRpm} rpm`);
+            valueElement.text(`${this.getSignedWheelRpm(key)} rpm`);
         }
     }
 

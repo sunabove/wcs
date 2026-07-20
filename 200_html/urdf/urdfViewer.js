@@ -940,7 +940,6 @@ class URDFViewer {
 
     setupCameraAngleLogging() {
         if (this.cameraPosTextElement && this.cameraPosTextElement.length > 0) {
-            this.cameraPosTextElement.attr('title', 'Click to copy cameraPose');
             this.cameraPosTextElement.off('click').on('click', () => {
                 this.copyTextToClipboard(this.cameraPosCopyText)
                     .then(() => {
@@ -1594,6 +1593,7 @@ class URDFViewer {
 
         if (this.cameraPosTextElement && this.cameraPosTextElement.length > 0) {
             this.cameraPosTextElement.text(poseValueText);
+            this.cameraPosTextElement.attr('title', `cameraPose="${poseValueText}"`);
         }
     }
 

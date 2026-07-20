@@ -461,21 +461,6 @@ function triggerObstacleSensorChipBlink(topic) {
 
     const $numberCell = $chip.find(`[data-sensor-chip-number] .obstacle-sensor-chip-number-cell[data-sensor-index="${sensorIndex}"]`);
 
-    const chipTimerId = $chip.data('blinkTimerId');
-    if (chipTimerId) {
-        clearTimeout(chipTimerId);
-    }
-
-    $chip.removeClass('obstacle-sensor-chip-blink');
-    void $chip.get(0).offsetWidth;
-    $chip.addClass('obstacle-sensor-chip-blink');
-
-    const nextChipTimerId = setTimeout(() => {
-        $chip.removeClass('obstacle-sensor-chip-blink');
-        $chip.removeData('blinkTimerId');
-    }, 800);
-    $chip.data('blinkTimerId', nextChipTimerId);
-
     if ($numberCell.length > 0) {
         const cellTimerId = $numberCell.data('blinkTimerId');
         if (cellTimerId) {

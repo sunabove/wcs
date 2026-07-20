@@ -84,6 +84,19 @@
     font-size: 0.78rem;
 }
 
+.obstacle-sensor-value-table td,
+.obstacle-sensor-value-table th {
+    vertical-align: middle;
+}
+
+.obstacle-sensor-value-table input {
+    min-width: 100px;
+}
+
+.obstacle-sensor-value-row-disabled {
+    opacity: 0.65;
+}
+
 @media (min-width: 768px) {
     .setting-section-title {
         flex: 0 0 33.3333%;

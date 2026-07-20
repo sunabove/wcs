@@ -185,6 +185,25 @@
                                 </th>
                                 <td>
                                     <div id="obstacle-sensor-setting-list" class="obstacle-sensor-setting-list"></div>
+
+                                    <div class="table-responsive mt-2">
+                                        <table class="table table-sm table-bordered mb-0 obstacle-sensor-value-table" id="obstacle-sensor-value-table">
+                                            <thead class="table-light">
+                                                <tr>
+                                                    <th class="text-center" style="width: 90px;">센서</th>
+                                                    <th class="text-center" style="width: 70px;">번호</th>
+                                                    <th class="text-center">센서값</th>
+                                                    <th class="text-center">신뢰도(0~1)</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="obstacle-sensor-value-tbody">
+                                                <tr>
+                                                    <td colspan="4" class="text-center text-muted py-2">센서 개수 설정을 기준으로 항목이 생성됩니다.</td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+
                                     <div class="d-flex justify-content-end gap-2 mt-2">
                                         <button type="button" class="btn btn-outline-secondary btn-sm" id="reset-obstacle-sensor-settings">Reset</button>
                                         <button type="button" class="btn btn-primary btn-sm" id="apply-obstacle-sensor-settings">적용</button>

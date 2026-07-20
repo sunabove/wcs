@@ -128,6 +128,8 @@
     flex: 1 1 auto;
     min-width: 0;
     margin-left: 0.15rem;
+    display: inline-flex;
+    align-items: center;
 }
 
 .fusion-confidence-text {
@@ -143,6 +145,7 @@
     text-align: right;
     white-space: nowrap;
     flex: 0 0 auto;
+    height: 1.5rem;
 }
 
 .fusion-confidence-slider {
@@ -158,6 +161,13 @@
     flex-wrap: nowrap;
     min-width: 0;
     gap: 0.22rem;
+    align-items: center;
+}
+
+.fusion-status-inline > .badge {
+    display: inline-flex;
+    align-items: center;
+    height: 1.5rem;
 }
 
 .fusion-confidence-slider-scale {

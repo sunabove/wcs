@@ -121,10 +121,12 @@
 
 .fusion-status-row {
     background: linear-gradient(180deg, #f8f9fa 0%, #eef2f6 100%);
+    overflow: hidden;
 }
 
 .fusion-confidence-slider-wrap {
-    min-width: 140px;
+    flex: 1 1 auto;
+    min-width: 0;
     margin-left: 0.15rem;
 }
 
@@ -140,6 +142,7 @@
     color: #5c6773;
     text-align: right;
     white-space: nowrap;
+    flex: 0 0 auto;
 }
 
 .fusion-confidence-slider {
@@ -153,6 +156,7 @@
 
 .fusion-status-inline {
     flex-wrap: nowrap;
+    min-width: 0;
 }
 
 .fusion-confidence-slider-scale {

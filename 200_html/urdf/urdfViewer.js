@@ -919,7 +919,13 @@ class URDFViewer {
         if (this.cameraPosTextElement && this.cameraPosTextElement.length > 0) {
             this.cameraPosTextElement.attr('title', 'Click to copy cameraPose');
             this.cameraPosTextElement.off('click').on('click', () => {
-                this.copyTextToClipboard(this.cameraPosCopyText);
+                this.copyTextToClipboard(this.cameraPosCopyText)
+                    .then(() => {
+                        this.showCameraToastMessage('cameraPose copied to clipboard');
+                    })
+                    .catch(() => {
+                        this.showCameraToastMessage('Failed to copy cameraPose');
+                    });
             });
         }
 
@@ -1004,22 +1010,27 @@ class URDFViewer {
 
         const textToCopy = this.cameraToastElement.textContent || '0.000, 0.000, 0.000';
 
-        this.copyTextToClipboard(textToCopy);
+        this.copyTextToClipboard(textToCopy)
+            .then(() => {
+                this.showCameraToastMessage('Camera position copied');
+            })
+            .catch(() => {
+                this.showCameraToastMessage('Failed to copy camera position');
+            });
     }
 
     copyTextToClipboard(textToCopy) {
         if (!textToCopy) {
-            return;
+            return Promise.reject(new Error('No text to copy'));
         }
 
         if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
-            navigator.clipboard.writeText(textToCopy).catch(() => {
+            return navigator.clipboard.writeText(textToCopy).catch(() => {
                 this.copyTextToClipboardFallback(textToCopy);
             });
-            return;
         }
 
-        this.copyTextToClipboardFallback(textToCopy);
+        return Promise.resolve(this.copyTextToClipboardFallback(textToCopy));
     }
 
     copyTextToClipboardFallback(text) {
@@ -1033,12 +1044,35 @@ class URDFViewer {
         tempTextArea.select();
 
         try {
-            document.execCommand('copy');
+            const copied = document.execCommand('copy');
+            if (!copied) {
+                throw new Error('execCommand returned false');
+            }
         } catch (error) {
             console.warn('[URDF] 카메라 좌표 복사 실패:', error);
+            document.body.removeChild(tempTextArea);
+            throw error;
         }
 
         document.body.removeChild(tempTextArea);
+    }
+
+    showCameraToastMessage(message, durationMs = 1600) {
+        if (!this.cameraToastElement || !message) {
+            return;
+        }
+
+        this.cameraToastElement.textContent = String(message);
+        this.cameraToastElement.title = String(message);
+        this.cameraToastElement.style.display = 'block';
+
+        if (this.cameraToastHideTimer) {
+            clearTimeout(this.cameraToastHideTimer);
+        }
+
+        this.cameraToastHideTimer = setTimeout(() => {
+            this.hideCameraToastOverlay();
+        }, durationMs);
     }
 
     showCameraToastOverlay() {

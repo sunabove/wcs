@@ -138,6 +138,17 @@
     min-width: 76px;
 }
 
+.obstacle-sensor-row-apply-group {
+    min-width: 76px;
+}
+
+.obstacle-sensor-group-action-wrap {
+    display: inline-flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    align-items: center;
+}
+
 .obstacle-sensor-value-row-disabled {
     opacity: 0.65;
 }

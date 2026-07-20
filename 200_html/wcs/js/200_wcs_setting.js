@@ -241,7 +241,10 @@ $(document).ready(function () {
 
             const groupResetCellHtml = shouldRenderGroupReset
                 ? `<td class="text-center" rowspan="${groupRowCountBySensorId[sensorLabel]}">
-                        <button type="button" class="btn btn-outline-secondary btn-sm obstacle-sensor-row-reset-group" ${disabledAttr}>초기화</button>
+                        <div class="obstacle-sensor-group-action-wrap">
+                            <button type="button" class="btn btn-outline-secondary btn-sm obstacle-sensor-row-reset-group" ${disabledAttr}>초기화</button>
+                            <button type="button" class="btn btn-primary btn-sm obstacle-sensor-row-apply-group" ${disabledAttr}>적용</button>
+                        </div>
                     </td>`
                 : '';
 
@@ -851,6 +854,16 @@ $(document).ready(function () {
         });
 
         renderObstacleSensorValueTable();
+        publishObstacleSensorGroup(sensorId);
+    });
+
+    $obstacleSensorValueTbody.on('click', '.obstacle-sensor-row-apply-group', function () {
+        const $row = $(this).closest('tr[data-sensor-id][data-sensor-index]');
+        const sensorId = String($row.attr('data-sensor-id') || '').trim();
+        if (!sensorId) {
+            return;
+        }
+
         publishObstacleSensorGroup(sensorId);
     });
 

@@ -116,8 +116,6 @@
 .obstacle-sensor-row {
     margin-top: 0.6rem;
     padding: 0.55rem 0.65rem;
-    border: 1px solid #d8dee4;
-    border-radius: 0.6rem;
     background: linear-gradient(180deg, #f8f9fa 0%, #eef2f6 100%);
 }
 
@@ -139,8 +137,7 @@
     align-items: stretch;
     justify-content: center;
     padding: 0.32rem 0.14rem;
-    border: 1px solid #c7d2da;
-    border-radius: var(--bs-border-radius);
+    --bs-border-color: #c7d2da;
     background: #ffffff;
     color: #6b7680;
     font-size: 0.84rem;
@@ -201,8 +198,7 @@
     flex: 0 0 0.792rem;
     min-width: 0;
     padding: 0.08rem 0;
-    border: 1px solid currentColor;
-    border-radius: 0.2rem;
+    --bs-border-color: currentColor;
     background: rgba(255, 255, 255, 0.36);
     height: 0.792rem;
     box-sizing: border-box;
@@ -219,13 +215,13 @@
 
 .obstacle-sensor-chip.disabled {
     background: #e9ecef;
-    border-color: #d3d9df;
+    --bs-border-color: #d3d9df;
     color: #8a949e;
 }
 
 .obstacle-sensor-chip.active {
     background: #e7f1ff;
-    border-color: #8bb8ff;
+    --bs-border-color: #8bb8ff;
     color: #1d4f91;
 }
 

@@ -269,8 +269,8 @@
     flex: 0 0 0.792rem;
     min-width: 0;
     padding: 0.08rem 0;
-    --bs-border-color: currentColor;
-    background: rgba(255, 255, 255, 0.36);
+    --bs-border-color: #aeb8c2;
+    background: #c1c9d1;
     height: 0.792rem;
     box-sizing: border-box;
 }

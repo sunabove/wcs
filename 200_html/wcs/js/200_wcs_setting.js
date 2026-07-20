@@ -354,6 +354,10 @@ $(document).ready(function () {
         });
 
         getOrderedObstacleSensorRows().forEach((row) => {
+            if (!row.enabled) {
+                return;
+            }
+
             const sensorValue = normalizeSensorValueById(row.id, row.value);
             const sensorConfidence = normalizeSensorConfidence(row.confidence);
 

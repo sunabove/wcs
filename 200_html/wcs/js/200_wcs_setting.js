@@ -196,6 +196,14 @@ $(document).ready(function () {
         }
 
         const rows = getOrderedObstacleSensorRows();
+        const groupRowCountBySensorId = {};
+        const groupRenderedBySensorId = {};
+
+        rows.forEach((row) => {
+            const sensorId = String(row.id || '');
+            groupRowCountBySensorId[sensorId] = (groupRowCountBySensorId[sensorId] || 0) + 1;
+        });
+
         $obstacleSensorValueTbody.empty();
 
         if (rows.length === 0) {
@@ -213,6 +221,17 @@ $(document).ready(function () {
 
             const rowDisabledClass = isEnabled ? '' : ' obstacle-sensor-value-row-disabled';
             const disabledAttr = isEnabled ? '' : ' disabled';
+            const shouldRenderGroupReset = !groupRenderedBySensorId[sensorLabel];
+            if (shouldRenderGroupReset) {
+                groupRenderedBySensorId[sensorLabel] = true;
+            }
+
+            const groupResetCellHtml = shouldRenderGroupReset
+                ? `<td class="text-center" rowspan="${groupRowCountBySensorId[sensorLabel]}">
+                        <button type="button" class="btn btn-outline-secondary btn-sm obstacle-sensor-row-reset-group" ${disabledAttr}>초기화</button>
+                    </td>`
+                : '';
+
             const html = `
                 <tr class="${rowDisabledClass}" data-sensor-id="${sensorLabel}" data-sensor-index="${row.index}">
                     <td class="text-center fw-semibold">${sensorLabel}</td>
@@ -250,9 +269,7 @@ $(document).ready(function () {
                     <td class="text-center">
                         <button type="button" class="btn btn-outline-secondary btn-sm obstacle-sensor-row-reset-all" ${disabledAttr}>초기화</button>
                     </td>
-                    <td class="text-center">
-                        <button type="button" class="btn btn-outline-secondary btn-sm obstacle-sensor-row-reset-group" ${disabledAttr}>초기화</button>
-                    </td>
+                    ${groupResetCellHtml}
                 </tr>
             `;
             $obstacleSensorValueTbody.append(html);

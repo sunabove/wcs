@@ -239,10 +239,14 @@ $(document).ready(function () {
                     <td class="text-center fw-semibold">${sensorLabel}</td>
                     <td class="text-center">${sensorNumber}</td>
                     <td>
-                        <select class="form-select form-select-sm obstacle-sensor-row-state">
-                            <option value="1" ${isEnabled ? 'selected' : ''}>ON</option>
-                            <option value="0" ${isEnabled ? '' : 'selected'}>OFF</option>
-                        </select>
+                        <button
+                            type="button"
+                            class="btn btn-sm obstacle-sensor-row-state-toggle ${isEnabled ? 'btn-success' : 'btn-outline-secondary'}"
+                            data-enabled="${isEnabled ? '1' : '0'}"
+                            aria-pressed="${isEnabled ? 'true' : 'false'}"
+                        >
+                            ${isEnabled ? 'ON' : 'OFF'}
+                        </button>
                     </td>
                     <td>
                         <div class="obstacle-sensor-row-control">
@@ -747,7 +751,7 @@ $(document).ready(function () {
         });
     });
 
-    $obstacleSensorValueTbody.on('change', '.obstacle-sensor-row-state', function () {
+    $obstacleSensorValueTbody.on('click', '.obstacle-sensor-row-state-toggle', function () {
         const $row = $(this).closest('tr[data-sensor-id][data-sensor-index]');
         const sensorId = String($row.attr('data-sensor-id') || '').trim();
         const sensorIndex = Number.parseInt($row.attr('data-sensor-index'), 10);
@@ -755,7 +759,8 @@ $(document).ready(function () {
             return;
         }
 
-        const isEnabled = String($(this).val()) === '1';
+        const currentEnabled = String($(this).attr('data-enabled') || '0') === '1';
+        const isEnabled = !currentEnabled;
         upsertObstacleSensorRowValue(sensorId, sensorIndex, {
             enabled: isEnabled,
         });

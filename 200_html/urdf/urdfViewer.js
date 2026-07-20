@@ -995,8 +995,8 @@ class URDFViewer {
         toastElement.style.cursor = 'pointer';
         toastElement.style.display = 'none';
         toastElement.style.whiteSpace = 'nowrap';
-        toastElement.title = 'Click to copy camera position';
-        toastElement.textContent = '0.000, 0.000, 0.000';
+        toastElement.title = 'cameraPose="0.000, 0.000, 0.000|0.000, 0.000, 0.000|0.000, 1.000, 0.000"';
+        toastElement.textContent = '0.000, 0.000, 0.000|0.000, 0.000, 0.000|0.000, 1.000, 0.000';
 
         toastElement.addEventListener('click', () => {
             this.copyCameraToastToClipboard();
@@ -1022,7 +1022,15 @@ class URDFViewer {
         const px = formatPositionValue(this.camera.position.x);
         const py = formatPositionValue(this.camera.position.y);
         const pz = formatPositionValue(this.camera.position.z);
-        this.cameraToastElement.textContent = `${px}, ${py}, ${pz}`;
+        const tx = formatPositionValue(this.controls?.target?.x);
+        const ty = formatPositionValue(this.controls?.target?.y);
+        const tz = formatPositionValue(this.controls?.target?.z);
+        const ux = formatPositionValue(this.camera.up.x);
+        const uy = formatPositionValue(this.camera.up.y);
+        const uz = formatPositionValue(this.camera.up.z);
+        const poseValueText = `${px}, ${py}, ${pz}|${tx}, ${ty}, ${tz}|${ux}, ${uy}, ${uz}`;
+        this.cameraToastElement.textContent = poseValueText;
+        this.cameraToastElement.title = `cameraPose="${poseValueText}"`;
     }
 
     copyCameraToastToClipboard() {
@@ -1030,14 +1038,14 @@ class URDFViewer {
             return;
         }
 
-        const textToCopy = this.cameraToastElement.textContent || '0.000, 0.000, 0.000';
+        const textToCopy = this.cameraToastElement.title || this.cameraToastElement.textContent || 'cameraPose="0.000, 0.000, 0.000|0.000, 0.000, 0.000|0.000, 1.000, 0.000"';
 
         this.copyTextToClipboard(textToCopy)
             .then(() => {
-                this.showCameraToastMessage('카메라 위치가 클립보드에 복사되었습니다.');
+                this.showCameraToastMessage('cameraPose가 클립보드에 복사되었습니다.');
             })
             .catch(() => {
-                this.showCameraToastMessage('카메라 위치 복사에 실패했습니다.');
+                this.showCameraToastMessage('cameraPose 복사에 실패했습니다.');
             });
     }
 

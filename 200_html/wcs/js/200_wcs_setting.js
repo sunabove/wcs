@@ -223,7 +223,7 @@ $(document).ready(function () {
         $obstacleSensorValueTbody.empty();
 
         if (rows.length === 0) {
-            $obstacleSensorValueTbody.append('<tr><td colspan="4" class="text-center text-muted py-2">센서 항목이 없습니다.</td></tr>');
+            $obstacleSensorValueTbody.append('<tr><td colspan="5" class="text-center text-muted py-2">센서 항목이 없습니다.</td></tr>');
             return;
         }
 
@@ -270,6 +270,9 @@ $(document).ready(function () {
                             <span class="badge text-bg-secondary obstacle-sensor-row-confidence-text">${confidenceNumber}</span>
                             <button type="button" class="btn btn-outline-secondary btn-sm obstacle-sensor-row-reset-confidence" ${disabledAttr}>초기화</button>
                         </div>
+                    </td>
+                    <td class="text-center">
+                        <button type="button" class="btn btn-outline-secondary btn-sm obstacle-sensor-row-reset-all" ${disabledAttr}>초기화</button>
                     </td>
                 </tr>
             `;
@@ -763,6 +766,23 @@ $(document).ready(function () {
         }
 
         upsertObstacleSensorRowValue(sensorId, sensorIndex, {
+            confidence: getDefaultSensorConfidence(sensorId),
+        });
+
+        renderObstacleSensorValueTable();
+        publishSingleObstacleSensorRow(sensorId, sensorIndex);
+    });
+
+    $obstacleSensorValueTbody.on('click', '.obstacle-sensor-row-reset-all', function () {
+        const $row = $(this).closest('tr[data-sensor-id][data-sensor-index]');
+        const sensorId = String($row.attr('data-sensor-id') || '').trim();
+        const sensorIndex = Number.parseInt($row.attr('data-sensor-index'), 10);
+        if (!sensorId || !Number.isFinite(sensorIndex)) {
+            return;
+        }
+
+        upsertObstacleSensorRowValue(sensorId, sensorIndex, {
+            value: getDefaultSensorValue(sensorId),
             confidence: getDefaultSensorConfidence(sensorId),
         });
 

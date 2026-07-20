@@ -126,6 +126,10 @@
     margin-left: auto;
 }
 
+.obstacle-sensor-row-reset-all {
+    min-width: 76px;
+}
+
 .obstacle-sensor-value-row-disabled {
     opacity: 0.65;
 }

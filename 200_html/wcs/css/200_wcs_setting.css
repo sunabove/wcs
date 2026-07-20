@@ -104,8 +104,14 @@
     justify-content: center;
 }
 
-.obstacle-sensor-row-reset {
-    min-width: 54px;
+.obstacle-sensor-row-reset-wrap {
+    display: inline-flex;
+    gap: 0.25rem;
+}
+
+.obstacle-sensor-row-reset-value,
+.obstacle-sensor-row-reset-confidence {
+    min-width: 76px;
 }
 
 .obstacle-sensor-value-row-disabled {

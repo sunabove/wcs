@@ -11,30 +11,6 @@ const runInfoHistoryState = {
     maxPoints: 30,
 };
 
-const runInfoAxisUnitPlugin = {
-    id: 'runInfoAxisUnitPlugin',
-    afterDraw(chart) {
-        const { ctx, chartArea, scales } = chart;
-        const batteryScale = scales && scales.yBattery;
-        const timeScale = scales && scales.yTime;
-        if (!chartArea || !batteryScale || !timeScale) {
-            return;
-        }
-
-        ctx.save();
-        ctx.fillStyle = '#6c757d';
-        ctx.font = '600 11px system-ui, -apple-system, "Segoe UI", sans-serif';
-        ctx.textBaseline = 'top';
-        ctx.textAlign = 'center';
-
-        const axisUnitY = chartArea.top + 2;
-        ctx.fillText('%', (batteryScale.left + batteryScale.right) / 2, axisUnitY);
-        ctx.fillText('분', (timeScale.left + timeScale.right) / 2, axisUnitY);
-
-        ctx.restore();
-    },
-};
-
 function formatRunInfoChartTimeLabel(dateValue) {
     const date = dateValue instanceof Date ? dateValue : new Date();
     const hours = String(date.getHours()).padStart(2, '0');
@@ -51,7 +27,6 @@ function createRunInfoHistoryChart() {
 
     runInfoHistoryState.chart = new Chart(canvas, {
         type: 'line',
-        plugins: [runInfoAxisUnitPlugin],
         data: {
             labels: runInfoHistoryState.labels,
             datasets: [
@@ -101,11 +76,6 @@ function createRunInfoHistoryChart() {
             responsive: true,
             maintainAspectRatio: false,
             animation: false,
-            layout: {
-                padding: {
-                    top: 18,
-                },
-            },
             interaction: {
                 mode: 'index',
                 intersect: false,
@@ -140,6 +110,12 @@ function createRunInfoHistoryChart() {
                     position: 'left',
                     min: 0,
                     max: 100,
+                    ticks: {
+                        callback(value, index, ticks) {
+                            const label = String(value);
+                            return index === ticks.length - 1 ? `${label}%` : label;
+                        },
+                    },
                     title: {
                         display: false,
                     },
@@ -148,6 +124,12 @@ function createRunInfoHistoryChart() {
                     type: 'linear',
                     position: 'right',
                     grace: '10%',
+                    ticks: {
+                        callback(value, index, ticks) {
+                            const label = String(value);
+                            return index === ticks.length - 1 ? `${label}분` : label;
+                        },
+                    },
                     title: {
                         display: false,
                     },

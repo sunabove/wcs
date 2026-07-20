@@ -35,7 +35,7 @@ class URDFViewer {
         this.lastAngleLogAt = 0;
         this.angleLogIntervalMs = 120;
         this.cameraPosTextElement = null;
-        this.cameraPosCopyText = 'cameraPose="0.000, 0.000, 0.000|0.000, 0.000, 0.000|0.000, 1.000, 0.000"';
+        this.cameraPosCopyText = '0.000, 0.000, 0.000|0.000, 0.000, 0.000|0.000, 1.000, 0.000';
         this.cameraToastElement = null;
         this.cameraToastHideTimer = null;
         this.cameraToastHideDelayMs = 3000;
@@ -1556,7 +1556,7 @@ class URDFViewer {
         const uy = formatPositionValue(this.camera.up.y);
         const uz = formatPositionValue(this.camera.up.z);
         const poseValueText = `${px}, ${py}, ${pz}|${tx}, ${ty}, ${tz}|${ux}, ${uy}, ${uz}`;
-        this.cameraPosCopyText = `cameraPose="${poseValueText}"`;
+        this.cameraPosCopyText = poseValueText;
 
         if (this.cameraPosTextElement && this.cameraPosTextElement.length > 0) {
             this.cameraPosTextElement.text(poseValueText);

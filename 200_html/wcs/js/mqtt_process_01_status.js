@@ -293,6 +293,7 @@ function updateObstacleSensorTypes(topic, value) {
     try {
         parsedSources = JSON.parse(String(value || '[]'));
     } catch (error) {
+        obstacleFusionState.sensorLastSeenAtById.clear();
         applyObstacleSensorChipState();
         renderObstacleFusionStatus();
         return;
@@ -310,6 +311,8 @@ function updateObstacleSensorTypes(topic, value) {
             .map((source) => String(source && source.id ? source.id : '').trim())
             .filter(Boolean)
     );
+
+    obstacleFusionState.sensorLastSeenAtById.clear();
 
     activeSensorIds.forEach((sensorId) => {
         obstacleActiveSensorIds.add(sensorId);

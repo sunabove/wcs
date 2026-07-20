@@ -198,6 +198,9 @@ class MqttSimulator:
         client.subscribe("vehicle/road/roll_angle")
         client.subscribe("vehicle/road/pitch_angle")
         client.subscribe("vehicle/current_video/file_name")
+        client.subscribe("sensor/#")
+        client.subscribe("obstacle")
+        client.subscribe("obstacle/#")
         
         # wheel ID 요청 및 설정 구독 (fl, fr, rr, rl 각각)
         for wheel_id in WHEEL_IDS:
@@ -205,13 +208,15 @@ class MqttSimulator:
             client.subscribe(f"wheel/{wheel_id}/id")          # ID 설정
             client.subscribe(f"wheel/{wheel_id}/operation/command")
             
-        print("[MQTT] Subscribed to client/connect, vehicle/linear/speed, vehicle/linear/max_speed, vehicle/operation/command, vehicle/surface/state, vehicle/surface/obstacle, vehicle/road/roll_angle, vehicle/road/pitch_angle, vehicle/current_video/file_name, wheel/*/id_request, wheel/*/id, wheel/*/operation/command topics")
+        print("[MQTT] Subscribed to client/connect, vehicle/linear/speed, vehicle/linear/max_speed, vehicle/operation/command, vehicle/surface/state, vehicle/surface/obstacle, vehicle/road/roll_angle, vehicle/road/pitch_angle, vehicle/current_video/file_name, sensor/#, obstacle/#, wheel/*/id_request, wheel/*/id, wheel/*/operation/command topics")
     
     def _on_message(self, client, userdata, msg):
         """MQTT 메시지 수신 처리"""
         try:
             topic = msg.topic
             payload = msg.payload.decode('utf-8')
+
+            self._cache_sensor_interface_payload(topic, payload)
             
             print(f"[MQTT] Received: {topic} -> {payload}")
             
@@ -455,6 +460,11 @@ class MqttSimulator:
         except Exception as e:
             print(f"[MQTT] Message processing error: {e}")
     pass  # _on_message
+
+    def _cache_sensor_interface_payload(self, topic, payload):
+        if self._is_sensor_interface_topic(topic):
+            self.last_sensor_interface_payloads[topic] = str(payload)
+    pass  # _cache_sensor_interface_payload
     
     def _publish_settings_on_client_connect(self):
         """클라이언트 연결 시 모든 vehicle과 wheel 설정 정보를 publish"""

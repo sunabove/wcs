@@ -14,9 +14,7 @@ $(document).ready(function () {
     ];
     const obstacleSensorSettingById = {};
     const obstacleSensorRowValueByKey = {};
-    const $obstacleSensorSettingList = $('#obstacle-sensor-setting-list');
     const $obstacleSensorValueTbody = $('#obstacle-sensor-value-tbody');
-    const obstacleSensorSettingItemTemplate = document.getElementById('obstacle-sensor-setting-item-template');
     let isSampleVideosLoaded = false;
     let isSampleVideosLoading = false;
     let sampleVideoBrowserPath = 'video';
@@ -176,24 +174,7 @@ $(document).ready(function () {
     }
 
     function renderObstacleSensorSettings() {
-        if ($obstacleSensorSettingList.length === 0 || !obstacleSensorSettingItemTemplate || !obstacleSensorSettingItemTemplate.content) {
-            return;
-        }
-
-        $obstacleSensorSettingList.empty();
-        getOrderedObstacleSensorSettings().forEach((sensorDef) => {
-            const node = obstacleSensorSettingItemTemplate.content.firstElementChild.cloneNode(true);
-            const $node = $(node);
-            $node.attr('data-sensor-id', sensorDef.id);
-
-            $node.find('.obstacle-sensor-id').text(sensorDef.id);
-            $node.find('.obstacle-sensor-enabled').prop('checked', sensorDef.enabled);
-            $node.find('.obstacle-sensor-count').val(sensorDef.count);
-            $node.find('.obstacle-sensor-target').val(sensorDef.target);
-
-            $obstacleSensorSettingList.append($node);
-        });
-
+        // Sensor list UI was removed; keep table rendering entrypoint intact.
         renderObstacleSensorValueTable();
     }
 
@@ -656,22 +637,6 @@ $(document).ready(function () {
             loadSampleVideos(sampleVideoBrowserPath, sampleVideoShowAllFiles);
         }
     }
-
-    $obstacleSensorSettingList.on('change input', '.obstacle-sensor-enabled, .obstacle-sensor-count, .obstacle-sensor-target', function () {
-        const $item = $(this).closest('.obstacle-sensor-setting-item');
-        const sensorId = String($item.attr('data-sensor-id') || '').trim();
-        if (!sensorId) {
-            return;
-        }
-
-        const enabled = $item.find('.obstacle-sensor-enabled').is(':checked');
-        const count = Math.max(1, Math.min(16, Number.parseInt($item.find('.obstacle-sensor-count').val(), 10) || 1));
-        const target = String($item.find('.obstacle-sensor-target').val() || '').trim();
-
-        $item.find('.obstacle-sensor-count').val(count);
-        upsertObstacleSensorSetting(sensorId, { enabled, count, target });
-        renderObstacleSensorValueTable();
-    });
 
     $obstacleSensorValueTbody.on('change input', '.obstacle-sensor-row-value, .obstacle-sensor-row-confidence', function () {
         const $row = $(this).closest('tr[data-sensor-id][data-sensor-index]');

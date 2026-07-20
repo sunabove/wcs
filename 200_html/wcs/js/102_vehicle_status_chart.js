@@ -307,9 +307,9 @@ function createVehicleSpeedHistoryChart() {
                     position: 'left',
                     grace: '10%',
                     ticks: {
-                        callback(value, index) {
+                        callback(value, index, ticks) {
                             const label = String(value);
-                            return index === 0 ? `${label} (km/h)` : label;
+                            return index === ticks.length - 1 ? `${label} (km/h)` : label;
                         },
                     },
                     title: {
@@ -324,9 +324,9 @@ function createVehicleSpeedHistoryChart() {
                     position: 'right',
                     grace: '10%',
                     ticks: {
-                        callback(value, index) {
+                        callback(value, index, ticks) {
                             const label = String(value);
-                            return index === 0 ? `${label} (km/hs)` : label;
+                            return index === ticks.length - 1 ? `${label} (km/hs)` : label;
                         },
                     },
                     title: {

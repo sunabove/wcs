@@ -184,8 +184,6 @@
                                     </div>
                                 </th>
                                 <td>
-                                    <div id="obstacle-sensor-setting-list" class="obstacle-sensor-setting-list"></div>
-
                                     <div class="table-responsive mt-2">
                                         <table class="table table-sm table-bordered mb-0 obstacle-sensor-value-table" id="obstacle-sensor-value-table">
                                             <thead class="table-light">
@@ -208,27 +206,6 @@
                                         <button type="button" class="btn btn-outline-secondary btn-sm" id="reset-obstacle-sensor-settings">Reset</button>
                                         <button type="button" class="btn btn-primary btn-sm" id="apply-obstacle-sensor-settings">적용</button>
                                     </div>
-
-                                    <template id="obstacle-sensor-setting-item-template">
-                                        <div class="obstacle-sensor-setting-item border rounded p-2 mb-2">
-                                            <div class="row g-2 align-items-center">
-                                                <div class="col-md-3">
-                                                    <div class="form-check form-switch mb-0">
-                                                        <input class="form-check-input obstacle-sensor-enabled" type="checkbox">
-                                                        <label class="form-check-label fw-semibold obstacle-sensor-id"></label>
-                                                    </div>
-                                                </div>
-                                                <div class="col-md-3">
-                                                    <label class="form-label small text-muted mb-1">센서 개수</label>
-                                                    <input type="number" min="1" max="16" step="1" class="form-control form-control-sm obstacle-sensor-count">
-                                                </div>
-                                                <div class="col-md-6">
-                                                    <label class="form-label small text-muted mb-1">대상 설명</label>
-                                                    <input type="text" class="form-control form-control-sm obstacle-sensor-target" placeholder="예: 거리,장애물">
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </template>
                                 </td>
                             </tr>
                             <!-- // 장애물 센서정보 설정 -->

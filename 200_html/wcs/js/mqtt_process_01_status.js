@@ -56,6 +56,7 @@ const obstacleFusionState = {
 function renderObstacleFusionStatus() {
     const $enabled = $('#obstacle-fusion-enabled');
     const $confidence = $('#obstacle-fusion-confidence');
+    const $confidenceText = $('#obstacle-fusion-confidence-text');
     const $confidenceSlider = $('#obstacle-fusion-confidence-slider');
 
     if ($enabled.length === 0) {
@@ -78,6 +79,10 @@ function renderObstacleFusionStatus() {
 
     if ($confidence.length > 0) {
         $confidence.text(Number.isFinite(confidencePercent) ? `${confidencePercent}%` : '-%');
+    }
+
+    if ($confidenceText.length > 0) {
+        $confidenceText.text(Number.isFinite(confidencePercent) ? `${confidencePercent}%` : '-%');
     }
 
     if ($confidenceSlider.length > 0) {

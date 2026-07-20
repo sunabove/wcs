@@ -47,6 +47,38 @@ const sensorCountById = {};
 const receivedSensorIds = new Set();
 const obstacleActiveSensorIds = new Set();
 const receivedSensorIndexById = new Map();
+const obstacleFusionState = {
+    obstacle: null,
+    confidence: null,
+    sensorIds: new Set(),
+};
+
+function renderObstacleFusionStatus() {
+    const $enabled = $('#obstacle-fusion-enabled');
+    const $sensors = $('#obstacle-fusion-sensors');
+    const $confidence = $('#obstacle-fusion-confidence');
+
+    if ($enabled.length === 0 || $sensors.length === 0 || $confidence.length === 0) {
+        return;
+    }
+
+    const sensorIds = Array.from(obstacleFusionState.sensorIds);
+    const obstacleValue = Number.parseInt(obstacleFusionState.obstacle, 10);
+    const confidenceValue = Number(obstacleFusionState.confidence);
+    const confidencePercent = Number.isFinite(confidenceValue)
+        ? Math.round(confidenceValue * 100)
+        : null;
+
+    const fusionEnabled = sensorIds.length >= 2 && obstacleValue > 0;
+
+    $enabled
+        .removeClass('text-bg-secondary text-bg-success text-bg-warning')
+        .addClass(fusionEnabled ? 'text-bg-success' : 'text-bg-warning')
+        .text(fusionEnabled ? '융합 ON' : '융합 OFF');
+
+    $sensors.text(sensorIds.length > 0 ? sensorIds.join(' + ') : '-');
+    $confidence.text(Number.isFinite(confidencePercent) ? `${confidencePercent}%` : '-%');
+}
 
 function getSensorDisplayOrder(sensorId) {
     const orderIndex = SENSOR_DISPLAY_ORDER.indexOf(sensorId);
@@ -198,17 +230,20 @@ function updateObstacleSensorTypes(topic, value) {
     }
 
     obstacleActiveSensorIds.clear();
+    obstacleFusionState.sensorIds.clear();
 
     let parsedSources = [];
     try {
         parsedSources = JSON.parse(String(value || '[]'));
     } catch (error) {
         applyObstacleSensorChipState();
+        renderObstacleFusionStatus();
         return;
     }
 
     if (!Array.isArray(parsedSources) || parsedSources.length === 0) {
         applyObstacleSensorChipState();
+        renderObstacleFusionStatus();
         return;
     }
 
@@ -224,9 +259,25 @@ function updateObstacleSensorTypes(topic, value) {
 
     activeSensorIds.forEach((sensorId) => {
         obstacleActiveSensorIds.add(sensorId);
+        obstacleFusionState.sensorIds.add(sensorId);
     });
 
     applyObstacleSensorChipState();
+    renderObstacleFusionStatus();
+}
+
+function updateObstacleFusionValues(topic, value) {
+    if (topic === 'obstacle') {
+        obstacleFusionState.obstacle = Number.parseInt(value, 10);
+        renderObstacleFusionStatus();
+        return;
+    }
+
+    if (topic === 'obstacle/confidence') {
+        const confidence = Number(value);
+        obstacleFusionState.confidence = Number.isFinite(confidence) ? confidence : null;
+        renderObstacleFusionStatus();
+    }
 }
 
 function ensureDynamicSensorRow(topic) {
@@ -700,6 +751,7 @@ function prcessMqttMessage(topic, value) {
     updateReceivedSensorTypes(topic);
     updateReceivedSensorNumberCells(topic);
     updateObstacleSensorTypes(topic, value);
+    updateObstacleFusionValues(topic, value);
 
     // jQuery를 사용한 DOM 업데이트: topic을 id로 사용해서 해당 요소 찾기 (속성 선택자 사용)
     const $targetElement = $(`[id="${topic}"]`);

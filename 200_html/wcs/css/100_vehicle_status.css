@@ -119,6 +119,10 @@
     background: linear-gradient(180deg, #f8f9fa 0%, #eef2f6 100%);
 }
 
+.fusion-status-row {
+    background: linear-gradient(180deg, #f8f9fa 0%, #eef2f6 100%);
+}
+
 .obstacle-sensor-row-title {
     margin-bottom: 0.45rem;
     font-size: 0.82rem;

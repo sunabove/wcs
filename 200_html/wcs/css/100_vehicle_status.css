@@ -306,13 +306,33 @@
 .obstacle-sensor-chip.active {
     background: #ffffff;
     --bs-border-color: #63c98a;
+    border-color: #63c98a !important;
     color: #198754;
 }
 
-.obstacle-sensor-chip.sensor-received .obstacle-sensor-chip-head,
-.obstacle-sensor-chip.sensor-received .obstacle-sensor-chip-head i,
-.obstacle-sensor-chip.sensor-received .obstacle-sensor-chip-label {
+.obstacle-sensor-chip.partial {
+    background: #fffaf0;
+    --bs-border-color: #d39e00;
+    border: 1px solid #d39e00 !important;
+    color: #b7791f;
+}
+
+.obstacle-sensor-chip.active .obstacle-sensor-chip-head,
+.obstacle-sensor-chip.active .obstacle-sensor-chip-head i,
+.obstacle-sensor-chip.active .obstacle-sensor-chip-label {
     color: #198754;
+}
+
+.obstacle-sensor-chip.partial .obstacle-sensor-chip-head,
+.obstacle-sensor-chip.partial .obstacle-sensor-chip-head i,
+.obstacle-sensor-chip.partial .obstacle-sensor-chip-label {
+    color: #b7791f;
+}
+
+.obstacle-sensor-chip.disabled .obstacle-sensor-chip-head,
+.obstacle-sensor-chip.disabled .obstacle-sensor-chip-head i,
+.obstacle-sensor-chip.disabled .obstacle-sensor-chip-label {
+    color: #7f8a95;
 }
 
 .obstacle-sensor-chip.sensor-received .obstacle-sensor-chip-label {

@@ -114,6 +114,28 @@ function hasReceivedSensorIndex(sensorId, sensorIndex) {
     return receivedIndexes instanceof Set && receivedIndexes.has(sensorIndex);
 }
 
+function getReceivedSensorIndexCount(sensorId) {
+    const receivedIndexes = receivedSensorIndexById.get(String(sensorId));
+    return receivedIndexes instanceof Set ? receivedIndexes.size : 0;
+}
+
+function getConfiguredSensorCount(sensorId) {
+    const configuredCount = Number.parseInt(sensorCountById[String(sensorId)], 10);
+    if (Number.isFinite(configuredCount) && configuredCount > 0) {
+        return configuredCount;
+    }
+
+    const $chip = $(`#obstacle-sensor-types .obstacle-sensor-chip[data-sensor-id="${String(sensorId)}"]`);
+    if ($chip.length > 0) {
+        const domCount = $chip.find('[data-sensor-chip-number] .obstacle-sensor-chip-number-cell').length;
+        if (domCount > 0) {
+            return domCount;
+        }
+    }
+
+    return 0;
+}
+
 function getSensorCountRangeLabel(sensorId) {
     const sensorCount = Number.parseInt(sensorCountById[sensorId], 10);
     if (!Number.isFinite(sensorCount) || sensorCount <= 0) {
@@ -183,14 +205,17 @@ function applyObstacleSensorChipState() {
             return;
         }
 
-        const isReceived = receivedSensorIds.has(sensorId);
-        const isObstacleActive = obstacleActiveSensorIds.has(sensorId);
-        const isActive = isReceived || isObstacleActive;
+        const configuredCount = getConfiguredSensorCount(sensorId);
+        const activeCount = getReceivedSensorIndexCount(sensorId);
+        const isFullyActive = configuredCount > 0 && activeCount >= configuredCount;
+        const isPartiallyActive = activeCount > 0 && (!isFullyActive);
+        const isDisabled = activeCount <= 0;
 
         $(this)
-            .toggleClass('active', isActive)
-            .toggleClass('disabled', !isActive)
-            .toggleClass('sensor-received', isReceived);
+            .toggleClass('active', isFullyActive)
+            .toggleClass('partial', isPartiallyActive)
+            .toggleClass('disabled', isDisabled)
+            .toggleClass('sensor-received', activeCount > 0);
     });
 }
 

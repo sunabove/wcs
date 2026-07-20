@@ -70,6 +70,20 @@
     grid-column: auto;
 }
 
+.obstacle-sensor-setting-list {
+    max-height: 290px;
+    overflow-y: auto;
+    padding-right: 2px;
+}
+
+.obstacle-sensor-setting-item {
+    background: linear-gradient(180deg, #f8f9fa 0%, #eef2f6 100%);
+}
+
+.obstacle-sensor-setting-item .form-label {
+    font-size: 0.78rem;
+}
+
 @media (min-width: 768px) {
     .setting-section-title {
         flex: 0 0 33.3333%;

@@ -124,16 +124,21 @@
 }
 
 .fusion-confidence-slider-wrap {
-    padding: 0 0.15rem;
+    min-width: 140px;
+    margin-left: 0.15rem;
 }
 
 .fusion-confidence-slider {
-    margin-bottom: 0.2rem;
+    margin: 0;
     pointer-events: none;
 }
 
 .fusion-confidence-slider:disabled {
     opacity: 1;
+}
+
+.fusion-status-inline {
+    flex-wrap: nowrap;
 }
 
 .fusion-confidence-slider-scale {

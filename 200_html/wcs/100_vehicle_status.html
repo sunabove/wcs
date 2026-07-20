@@ -233,16 +233,11 @@
 
                                             <!-- 센서 융합 -->
                                             <div id="obstacle-fusion-row" class="fusion-status-row border border-secondary-subtle rounded-3 p-2 mt-2" aria-live="polite">
-                                                <div class="d-flex flex-wrap align-items-center justify-content-between gap-2">
-                                                    <div class="d-flex align-items-center gap-2">
-                                                        <span id="obstacle-fusion-enabled" class="badge text-bg-secondary">대기중</span>
-                                                    </div>
-                                                    <div class="d-flex align-items-center gap-2">
-                                                        <span class="badge text-bg-light border">신뢰도</span>
-                                                        <span id="obstacle-fusion-confidence" class="badge text-bg-light border">-%</span>
-                                                    </div>
-                                                </div>
-                                                <div class="fusion-confidence-slider-wrap mt-2">
+                                                <div class="fusion-status-inline d-flex align-items-center gap-2">
+                                                    <span id="obstacle-fusion-enabled" class="badge text-bg-secondary">대기중</span>
+                                                    <span class="badge text-bg-light border">신뢰도</span>
+                                                    <span id="obstacle-fusion-confidence" class="badge text-bg-light border">-%</span>
+                                                    <div class="fusion-confidence-slider-wrap flex-grow-1">
                                                     <input
                                                         id="obstacle-fusion-confidence-slider"
                                                         class="form-range fusion-confidence-slider"
@@ -254,10 +249,6 @@
                                                         aria-label="센서 융합 신뢰도"
                                                         disabled
                                                     >
-                                                    <div class="fusion-confidence-slider-scale d-flex justify-content-between">
-                                                        <small>0%</small>
-                                                        <small>50%</small>
-                                                        <small>100%</small>
                                                     </div>
                                                 </div>
                                             </div>

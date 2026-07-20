@@ -142,6 +142,18 @@
     opacity: 0.65;
 }
 
+.obstacle-sensor-value-table tbody tr.obstacle-sensor-group-even > td {
+    background-color: #fbfdff;
+}
+
+.obstacle-sensor-value-table tbody tr.obstacle-sensor-group-odd > td {
+    background-color: #f7fbff;
+}
+
+.obstacle-sensor-value-table tbody tr.obstacle-sensor-group-start:not(:first-child) > td {
+    border-top: 2px solid #9fb3c8;
+}
+
 @media (min-width: 768px) {
     .setting-section-title {
         flex: 0 0 33.3333%;

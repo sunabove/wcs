@@ -200,10 +200,19 @@ $(document).ready(function () {
         const rows = getOrderedObstacleSensorRows();
         const groupRowCountBySensorId = {};
         const groupRenderedBySensorId = {};
+        const groupStyleClassBySensorId = {};
+        let groupStyleIndex = 0;
 
         rows.forEach((row) => {
             const sensorId = String(row.id || '');
             groupRowCountBySensorId[sensorId] = (groupRowCountBySensorId[sensorId] || 0) + 1;
+
+            if (!groupStyleClassBySensorId[sensorId]) {
+                groupStyleClassBySensorId[sensorId] = groupStyleIndex % 2 === 0
+                    ? 'obstacle-sensor-group-even'
+                    : 'obstacle-sensor-group-odd';
+                groupStyleIndex += 1;
+            }
         });
 
         $obstacleSensorValueTbody.empty();
@@ -224,6 +233,8 @@ $(document).ready(function () {
             const rowDisabledClass = isEnabled ? '' : ' obstacle-sensor-value-row-disabled';
             const disabledAttr = isEnabled ? '' : ' disabled';
             const shouldRenderGroupReset = !groupRenderedBySensorId[sensorLabel];
+            const groupStyleClass = groupStyleClassBySensorId[sensorLabel] || '';
+            const groupStartClass = shouldRenderGroupReset ? ' obstacle-sensor-group-start' : '';
             if (shouldRenderGroupReset) {
                 groupRenderedBySensorId[sensorLabel] = true;
             }
@@ -235,7 +246,7 @@ $(document).ready(function () {
                 : '';
 
             const html = `
-                <tr class="${rowDisabledClass}" data-sensor-id="${sensorLabel}" data-sensor-index="${row.index}">
+                <tr class="${groupStyleClass}${groupStartClass}${rowDisabledClass}" data-sensor-id="${sensorLabel}" data-sensor-index="${row.index}">
                     <td class="text-center fw-semibold">${sensorLabel}</td>
                     <td class="text-center">${sensorNumber}</td>
                     <td>

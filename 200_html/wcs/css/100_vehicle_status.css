@@ -238,6 +238,8 @@
 }
 
 .obstacle-sensor-chip-label {
+    display: inline-block;
+    text-align: center;
     line-height: 1;
 }
 
@@ -283,21 +285,26 @@
 }
 
 .obstacle-sensor-chip.disabled {
-    background: #e9ecef;
-    --bs-border-color: #d3d9df;
-    color: #8a949e;
+    background: #e4e8ed;
+    --bs-border-color: #c3ccd5;
+    color: #7f8a95;
+}
+
+.obstacle-sensor-chip.disabled .obstacle-sensor-chip-number-cell {
+    background: #b8c1ca;
+    --bs-border-color: #a7b1bb;
 }
 
 .obstacle-sensor-chip.active {
-    background: #e7f1ff;
-    --bs-border-color: #8bb8ff;
-    color: #1d4f91;
+    background: #e8f2ff;
+    --bs-border-color: #63a5ff;
+    color: #0b66ff;
 }
 
 .obstacle-sensor-chip.sensor-received .obstacle-sensor-chip-head,
 .obstacle-sensor-chip.sensor-received .obstacle-sensor-chip-head i,
 .obstacle-sensor-chip.sensor-received .obstacle-sensor-chip-label {
-    color: #1d4f91;
+    color: #0b66ff;
 }
 
 .obstacle-sensor-chip.sensor-received .obstacle-sensor-chip-label {

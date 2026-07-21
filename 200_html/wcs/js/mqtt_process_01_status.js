@@ -570,6 +570,14 @@ function canUseSpeechSynthesisFallback() {
         && typeof window.speechSynthesis.speak === 'function';
 }
 
+function hasUserActivatedDocumentFallback() {
+    try {
+        return !!(navigator.userActivation && navigator.userActivation.hasBeenActive === true);
+    } catch (error) {
+        return false;
+    }
+}
+
 function readVehicleAudioEnabledFallback() {
     if (typeof window.isVehicleAudioEnabled === 'function') {
         return !!window.isVehicleAudioEnabled();
@@ -609,8 +617,28 @@ function tryActivateFallbackAudioFromGesture() {
     }
 }
 
+function tryActivateFallbackAudioAuto() {
+    if (!canUseSpeechSynthesisFallback() || !hasUserActivatedDocumentFallback()) {
+        return false;
+    }
+
+    try {
+        window.speechSynthesis.resume();
+    } catch (error) {
+        console.warn('[MQTT][Audio] auto resume failed:', error);
+    }
+
+    fallbackVehicleAudioState.isActivated = true;
+    return true;
+}
+
 function ensureFallbackAudioActivationListener() {
     if (fallbackVehicleAudioState.listenerAttached || !readVehicleAudioEnabledFallback()) {
+        return;
+    }
+
+    if (hasUserActivatedDocumentFallback()) {
+        tryActivateFallbackAudioAuto();
         return;
     }
 
@@ -696,9 +724,17 @@ function speakVehicleStatusFallback(text, options = {}) {
     }
 
     if (!fallbackVehicleAudioState.isActivated) {
+        if (hasUserActivatedDocumentFallback()) {
+            tryActivateFallbackAudioAuto();
+        }
+
+        if (fallbackVehicleAudioState.isActivated) {
+            // continue to enqueue/speak below.
+        } else {
         fallbackVehicleAudioState.pendingMessage = message;
         ensureFallbackAudioActivationListener();
         return;
+        }
     }
 
     const globalSpeechState = window.__wcsGlobalSpeechState || { message: '', at: 0 };

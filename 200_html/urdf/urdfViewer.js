@@ -2775,6 +2775,14 @@ function canUseSpeechSynthesis() {
         && typeof window.speechSynthesis.speak === 'function';
 }
 
+function hasUserActivatedDocument() {
+    try {
+        return !!(navigator.userActivation && navigator.userActivation.hasBeenActive === true);
+    } catch (error) {
+        return false;
+    }
+}
+
 function readVehicleAudioEnabledFromStorage() {
     try {
         const rawValue = window.localStorage.getItem(VEHICLE_AUDIO_STORAGE_KEY);
@@ -2827,6 +2835,9 @@ function setVehicleAudioEnabled(enabled) {
 
     if (normalizedEnabled) {
         setupVehicleAudioActivationListener();
+        if (hasUserActivatedDocument()) {
+            tryActivateVehicleAudio('auto');
+        }
         return;
     }
 
@@ -2857,8 +2868,11 @@ function tryActivateVehicleAudio(trigger = 'system') {
         console.warn('[URDF][Audio] speechSynthesis resume failed:', error);
     }
 
-    // 브라우저 자동재생 정책 때문에 실제 활성화는 사용자 제스처에서만 확정한다.
-    if (trigger !== 'gesture') {
+    const canActivateByGesture = trigger === 'gesture';
+    const canActivateByPriorInteraction = trigger === 'auto' && hasUserActivatedDocument();
+
+    // 브라우저 자동재생 정책상 사용자 제스처 또는 이미 사용자 상호작용이 확인된 경우에만 활성화한다.
+    if (!canActivateByGesture && !canActivateByPriorInteraction) {
         return false;
     }
 
@@ -2877,6 +2891,11 @@ function tryActivateVehicleAudio(trigger = 'system') {
 
 function setupVehicleAudioActivationListener() {
     if (vehicleAudioState.isActivationListenerAttached || !isVehicleAudioEnabled()) {
+        return;
+    }
+
+    if (hasUserActivatedDocument()) {
+        tryActivateVehicleAudio('auto');
         return;
     }
 
@@ -2962,10 +2981,18 @@ function speakVehicleStatus(text, options = {}) {
     }
 
     if (!vehicleAudioState.isActivated) {
+        if (hasUserActivatedDocument()) {
+            tryActivateVehicleAudio('auto');
+        }
+
+        if (vehicleAudioState.isActivated) {
+            // continue to enqueue/speak below.
+        } else {
         vehicleAudioState.pendingMessage = message;
         vehicleAudioState.pendingOptions = options;
         setupVehicleAudioActivationListener();
         return;
+        }
     }
 
     const globalSpeechState = window.__wcsGlobalSpeechState || { message: '', at: 0 };

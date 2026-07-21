@@ -1428,7 +1428,7 @@ function applyWheelAngularVelocityToViewer(topic, value) {
         return;
     }
 
-    setWheelAnimationByKey(wheelKey, Math.round(rpmValue));
+    setWheelAnimationByKey(wheelKey, rpmValue);
 }
 
 function convertAngularMetricToRpm(metricPath, value) {

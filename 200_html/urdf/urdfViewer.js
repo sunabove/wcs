@@ -1206,6 +1206,16 @@ class URDFViewer {
         return rpm * directionSign;
     }
 
+    formatRpmText(value) {
+        const numeric = Number(value);
+        if (!Number.isFinite(numeric)) {
+            return '0';
+        }
+
+        const rounded = Math.round(numeric * 10) / 10;
+        return Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(1);
+    }
+
     updateWheelSpeedFromInput(key) {
         const inputElement = this.wheelSpeedInputByKey[key];
         if (!inputElement || inputElement.length === 0) {
@@ -1234,7 +1244,7 @@ class URDFViewer {
         const numericRpm = Number.parseFloat(rpm);
         const directionSign = Number.isFinite(numericRpm) && numericRpm < 0 ? -1 : 1;
         const normalizedRpm = Number.isFinite(numericRpm)
-            ? Math.max(Math.round(Math.abs(numericRpm)), 0)
+            ? Math.max(Math.abs(numericRpm), 0)
             : this.wheelSpeedRpmByKey[key];
 
         this.setWheelDirectionSign(key, directionSign);
@@ -1244,12 +1254,12 @@ class URDFViewer {
 
         const inputElement = this.wheelSpeedInputByKey[key];
         if (inputElement && inputElement.length > 0) {
-            inputElement.val(String(this.getSignedWheelRpm(key)));
+            inputElement.val(this.formatRpmText(this.getSignedWheelRpm(key)));
         }
 
         const valueElement = this.wheelSpeedValueByKey[key];
         if (valueElement && valueElement.length > 0) {
-            valueElement.text(`${this.getSignedWheelRpm(key)} rpm`);
+            valueElement.text(`${this.formatRpmText(this.getSignedWheelRpm(key))} rpm`);
         }
     }
 

@@ -132,8 +132,8 @@
     function setCloseButtonToShowMode(isShowMode) {
         if (isShowMode) {
             $closeButton
-                .attr("title", "동영상 다시 보기")
-                .attr("aria-label", "동영상 다시 보기")
+                .attr("title", "동영상 보기")
+                .attr("aria-label", "동영상 보기")
                 .html('<i class="bi bi-play-btn-fill overlay-toggle-icon overlay-toggle-icon-video" aria-hidden="true"></i>');
             return;
         }

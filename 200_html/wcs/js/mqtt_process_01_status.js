@@ -761,14 +761,6 @@ function speakVehicleStatusFallback(text, options = {}) {
     if (!fallbackVehicleAudioState.isActivated) {
         if (hasUserActivatedDocumentFallback()) {
             tryActivateFallbackAudioAuto();
-        } else {
-            try {
-                window.speechSynthesis.resume();
-                window.speechSynthesis.getVoices();
-                fallbackVehicleAudioState.isActivated = true;
-            } catch (error) {
-                // keep pending flow.
-            }
         }
 
         if (fallbackVehicleAudioState.isActivated) {

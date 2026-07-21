@@ -3017,14 +3017,6 @@ function speakVehicleStatus(text, options = {}) {
     if (!vehicleAudioState.isActivated) {
         if (hasUserActivatedDocument()) {
             tryActivateVehicleAudio('auto');
-        } else {
-            try {
-                window.speechSynthesis.resume();
-                window.speechSynthesis.getVoices();
-                vehicleAudioState.isActivated = true;
-            } catch (error) {
-                // keep pending flow.
-            }
         }
 
         if (vehicleAudioState.isActivated) {

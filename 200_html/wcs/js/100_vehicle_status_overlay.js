@@ -2,6 +2,7 @@
     const $overlay = $("#road-detect-overlay");
     const $closeButton = $("#road-detect-overlay-close");
     const $playToggleButton = $("#road-detect-overlay-play-toggle");
+    const $loopToggleButton = $("#road-detect-overlay-loop-toggle");
     const $status = $("#road-detect-overlay-status");
     const $image = $("#road-detect-overlay-image");
     const $video = $("#road-detect-overlay-video");
@@ -45,6 +46,7 @@
     let latestCurrentVideoFileName = "";
     let mediaHiddenByUser = false;
     let mediaPlaybackPaused = false;
+    let autoReplayEnabled = false;
     let lastMediaType = "";
     let lastMediaSource = "";
     let lastMediaAspectRatio = 16 / 9;
@@ -134,6 +136,33 @@
             .html('<i class="bi bi-x-lg overlay-toggle-icon overlay-toggle-icon-close" aria-hidden="true"></i>');
     }
 
+    function updateLoopToggleButton(isVideoReady = false) {
+        if ($loopToggleButton.length === 0) {
+            return;
+        }
+
+        if (mediaHiddenByUser) {
+            $loopToggleButton.addClass("d-none");
+            return;
+        }
+
+        $loopToggleButton.removeClass("d-none");
+
+        if (autoReplayEnabled) {
+            $loopToggleButton
+                .addClass("road-detect-overlay-control-btn-active")
+                .attr("title", "자동 반복 ON")
+                .attr("aria-label", "자동 반복 ON");
+        } else {
+            $loopToggleButton
+                .removeClass("road-detect-overlay-control-btn-active")
+                .attr("title", "자동 반복 OFF")
+                .attr("aria-label", "자동 반복 OFF");
+        }
+
+        $loopToggleButton.prop("disabled", !isVideoReady);
+    }
+
     function updateVideoControlButtons() {
         if ($playToggleButton.length === 0 || $video.length === 0) {
             return;
@@ -141,12 +170,14 @@
 
         if (mediaHiddenByUser) {
             $playToggleButton.addClass("d-none");
+            updateLoopToggleButton(false);
             return;
         }
 
         $playToggleButton.removeClass("d-none");
 
         if (lastMediaType === "image") {
+            updateLoopToggleButton(false);
             if (mediaPlaybackPaused) {
                 $playToggleButton
                     .prop("disabled", false)
@@ -169,6 +200,8 @@
         const hasVideoSource = !!String($video.attr("src") || "").trim();
         const isVideoReady = isVideoVisible && hasVideoSource;
         const isPaused = !isVideoReady || videoElement.paused || videoElement.ended;
+
+        updateLoopToggleButton(isVideoReady);
 
         if (!isVideoReady) {
             $playToggleButton
@@ -941,6 +974,11 @@
         updateVideoControlButtons();
     });
 
+    $loopToggleButton.on("click", function () {
+        autoReplayEnabled = !autoReplayEnabled;
+        updateVideoControlButtons();
+    });
+
     $image.on("load", function () {
         if (!this.naturalWidth || !this.naturalHeight) {
             return;
@@ -964,8 +1002,31 @@
         updateVideoControlButtons();
     });
 
-    $video.on("play pause ended", function () {
-        mediaPlaybackPaused = this.paused || this.ended;
+    $video.on("play pause", function () {
+        mediaPlaybackPaused = this.paused;
+        updateVideoControlButtons();
+    });
+
+    $video.on("ended", function () {
+        if (autoReplayEnabled && !$video.hasClass("d-none") && typeof this.play === "function") {
+            try {
+                this.currentTime = 0;
+            } catch (error) {
+                // Ignore currentTime reset issues.
+            }
+
+            mediaPlaybackPaused = false;
+            const replayPromise = this.play();
+            if (replayPromise && typeof replayPromise.catch === "function") {
+                replayPromise.catch(function () {
+                    // Ignore autoplay policy rejections for loop replay.
+                });
+            }
+            updateVideoControlButtons();
+            return;
+        }
+
+        mediaPlaybackPaused = true;
         updateVideoControlButtons();
     });
 

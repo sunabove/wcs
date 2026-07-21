@@ -56,6 +56,12 @@
     border-color: rgba(229, 231, 235, 0.96);
 }
 
+.road-detect-overlay-control-btn-active {
+    background-color: #0d6efd;
+    color: #fff;
+    border-color: #0d6efd;
+}
+
 .road-detect-overlay-close-btn .overlay-toggle-icon-close {
     font-size: 1.15rem;
 }

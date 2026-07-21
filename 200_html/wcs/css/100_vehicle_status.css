@@ -18,11 +18,17 @@
     min-height: 80vh;
 }
 
-.road-detect-overlay-close-btn {
+.road-detect-overlay-controls {
     position: absolute;
     top: 10px;
     right: 10px;
     z-index: 2;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.road-detect-overlay-control-btn {
     width: 36px;
     height: 36px;
     padding: 0;
@@ -35,8 +41,9 @@
     border-color: #fff;
 }
 
-.road-detect-overlay-close-btn .overlay-toggle-icon {
+.road-detect-overlay-control-btn i {
     line-height: 1;
+    font-size: 1.05rem;
 }
 
 .road-detect-overlay-close-btn .overlay-toggle-icon-video {

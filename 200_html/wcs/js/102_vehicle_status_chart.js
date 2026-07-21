@@ -41,7 +41,7 @@ function createVirtualYAxisUnitTickPlugin(unitsByScaleId, pluginId) {
             ctx.fillStyle = '#6c757d';
             ctx.strokeStyle = '#6c757d';
             ctx.lineWidth = 1;
-            ctx.font = '600 11px system-ui, -apple-system, "Segoe UI", sans-serif';
+            ctx.font = '600 10px system-ui, -apple-system, "Segoe UI", sans-serif';
             ctx.textBaseline = 'middle';
 
             unitEntries.forEach(([scaleId, unitText]) => {
@@ -51,8 +51,8 @@ function createVirtualYAxisUnitTickPlugin(unitsByScaleId, pluginId) {
                 }
 
                 const x = (scale.left + scale.right) / 2;
-                const tickTop = chartArea.top - 2;
-                const tickBottom = chartArea.top + 4;
+                const tickTop = chartArea.top - 1;
+                const tickBottom = chartArea.top + 3;
 
                 ctx.beginPath();
                 ctx.moveTo(x, tickTop);
@@ -60,7 +60,7 @@ function createVirtualYAxisUnitTickPlugin(unitsByScaleId, pluginId) {
                 ctx.stroke();
 
                 ctx.textAlign = 'center';
-                ctx.fillText(unitText, x, chartArea.top - 9);
+                ctx.fillText(unitText, x, chartArea.top - 16);
             });
 
             ctx.restore();
@@ -144,7 +144,7 @@ function createRunInfoHistoryChart() {
             animation: false,
             layout: {
                 padding: {
-                    top: 22,
+                    top: 34,
                 },
             },
             interaction: {
@@ -181,6 +181,9 @@ function createRunInfoHistoryChart() {
                     position: 'left',
                     min: 0,
                     max: 100,
+                    ticks: {
+                        padding: 6,
+                    },
                     title: {
                         display: false,
                     },
@@ -189,6 +192,9 @@ function createRunInfoHistoryChart() {
                     type: 'linear',
                     position: 'right',
                     grace: '10%',
+                    ticks: {
+                        padding: 6,
+                    },
                     title: {
                         display: false,
                     },
@@ -362,6 +368,9 @@ function createVehicleSpeedHistoryChart() {
                     type: 'linear',
                     position: 'left',
                     grace: '10%',
+                    ticks: {
+                        padding: 6,
+                    },
                     title: {
                         display: false,
                     },
@@ -373,6 +382,9 @@ function createVehicleSpeedHistoryChart() {
                     type: 'linear',
                     position: 'right',
                     grace: '10%',
+                    ticks: {
+                        padding: 6,
+                    },
                     title: {
                         display: false,
                     },

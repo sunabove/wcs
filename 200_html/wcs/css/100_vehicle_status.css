@@ -477,6 +477,11 @@
     background: linear-gradient(180deg, #fbfcfd 0%, #f3f6f9 100%);
 }
 
+.run-info-chart-body,
+.speed-info-chart-body {
+    padding-top: 0.35rem;
+}
+
 .run-info-chart-header h6 {
     font-size: 0.9rem;
     font-weight: 700;

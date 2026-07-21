@@ -672,7 +672,7 @@
         // Top-center compact overlay, constrained to less than half of viewer size.
         $overlay.attr(
             "style",
-            "inset:auto;top:10px;left:50%;transform:translateX(-50%);width:" + initialWidth + "px;height:min(46%, 420px);z-index:20;display:flex;flex-direction:column;background:rgba(0,0,0,0.82);border-radius:1rem;overflow:hidden;"
+            "inset:auto;top:10px;left:50%;transform:translateX(-50%);width:" + initialWidth + "px;height:min(46%, 420px);z-index:60;display:flex;flex-direction:column;background:rgba(0,0,0,0.82);border-radius:1rem;overflow:hidden;"
         );
         overlayLayoutMode = "compact";
 
@@ -799,7 +799,7 @@
         // Media hidden mode: keep only a small top-center area for the toggle button.
         $overlay.attr(
             "style",
-            "inset:auto;top:10px;left:50%;transform:translateX(-50%);width:" + collapsedWidth + ";height:52px;z-index:20;display:block;background:transparent;border-radius:0;overflow:visible;"
+            "inset:auto;top:10px;left:50%;transform:translateX(-50%);width:" + collapsedWidth + ";height:52px;z-index:60;display:block;background:transparent;border-radius:0;overflow:visible;"
         );
         overlayLayoutMode = "collapsed";
 

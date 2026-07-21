@@ -1,6 +1,7 @@
 // MQTT 클라이언트 설정 및 연결 (Mosquitto 브로커용)
 class MqttClientManager {
     static logOptionStorageKey = 'wcs.mqtt.console_log_enabled.v1';
+    static instance = null;
 
     constructor(options = {}) {
         this.brokerUrl = options.brokerUrl || null;
@@ -53,6 +54,32 @@ class MqttClientManager {
         }
 
         console.log.apply(console, arguments);
+    }
+
+    static getInstance(options = {}) {
+        if (!MqttClientManager.instance) {
+            MqttClientManager.instance = new MqttClientManager(options);
+        }
+
+        return MqttClientManager.instance;
+    }
+
+    static init(options = {}) {
+        return MqttClientManager.getInstance(options).connect();
+    }
+
+    static send(topic, message, qos) {
+        const manager = MqttClientManager.getInstance();
+
+        if (!manager.client || !manager.client.connected) {
+            const timestamp = new Date().toLocaleTimeString();
+            console.error(`[MQTT] ❌ [${timestamp}] 클라이언트가 연결되지 않음`);
+            console.warn('[MQTT] - MQTT 클라이언트 연결 상태를 확인하세요.');
+            alert('MQTT 클라이언트가 연결되지 않았습니다.\n브로커 연결 상태를 확인해주세요.');
+            return false;
+        }
+
+        return manager.send(topic, message, qos);
     }
 
     buildBrokerUrl() {
@@ -316,53 +343,25 @@ class MqttClientManager {
     }
 }
 
-function getMqttClientManager() {
-    if (!window.mqttClientManager) {
-        window.mqttClientManager = new MqttClientManager();
-    }
-
-    return window.mqttClientManager;
-}
-
-function initMQTTClient() {
-    return getMqttClientManager().connect();
-}
-
-// Mosquitto 메시지 전송 함수 (Console 로그만 사용)
-function sendMQTTMessage(topic, message, qos) {
-    const manager = getMqttClientManager();
-
-    if (!manager.client || !manager.client.connected) {
-        const timestamp = new Date().toLocaleTimeString();
-        console.error(`[MQTT] ❌ [${timestamp}] 클라이언트가 연결되지 않음`);
-        console.warn('[MQTT] - MQTT 클라이언트 연결 상태를 확인하세요.');
-        alert('MQTT 클라이언트가 연결되지 않았습니다.\n브로커 연결 상태를 확인해주세요.');
-        return false;
-    }
-
-    return manager.send(topic, message, qos);
-}
-
 // MQTT 초기화 함수 (페이지 로드 시 자동 실행)
 $(document).ready(function() {
     MqttClientManager.log('[MQTT] 🦟 jQuery DOM 준비 완료 - 차량 대시보드 시작');
     
     // Mosquitto MQTT 클라이언트 초기화
-    initMQTTClient();
+    MqttClientManager.init();
 });
 
 // 페이지 종료 시 disconnect 메시지 발송
 $(window).on('beforeunload', function() {
-    const manager = window.mqttClientManager;
+    const manager = MqttClientManager.instance;
     if (manager) {
         manager.publishDisconnectInfo();
     }
 });
 
 window.WcsMqtt = {
-    manager: null,
-    initMQTTClient,
-    sendMQTTMessage,
+    initMQTTClient: () => MqttClientManager.init(),
+    sendMQTTMessage: (topic, message, qos) => MqttClientManager.send(topic, message, qos),
     getConsoleLogEnabled: () => MqttClientManager.getConsoleLogEnabled(),
     setConsoleLogEnabled: (enabled) => MqttClientManager.setConsoleLogEnabled(enabled),
     isConsoleLogEnabled: () => MqttClientManager.isConsoleLogEnabled(),

@@ -212,10 +212,16 @@
     }
 
     function normalizePath(pathValue) {
+        if (typeof window.wcsNormalizePath === "function") {
+            return window.wcsNormalizePath(pathValue);
+        }
         return String(pathValue || "").trim().replace(/\\/g, "/").replace(/^\/+/, "");
     }
 
     function encodePathForRoute(pathValue) {
+        if (typeof window.wcsEncodePathForRoute === "function") {
+            return window.wcsEncodePathForRoute(pathValue);
+        }
         return normalizePath(pathValue)
             .split("/")
             .filter(function (segment) {
@@ -228,6 +234,10 @@
     }
 
     function resolveRoadDetectStreamPath(pathValue) {
+        if (typeof window.wcsResolveRoadDetectStreamPath === "function") {
+            return window.wcsResolveRoadDetectStreamPath(pathValue);
+        }
+
         const normalizedPath = normalizePath(pathValue);
         if (!normalizedPath) {
             return "";

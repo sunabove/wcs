@@ -129,6 +129,47 @@ function syncVehicleDirectionButtons(commandValue, buttonSelector) {
     return true;
 }
 
+function wcsNormalizePath(pathValue) {
+    return String(pathValue || '')
+        .trim()
+        .replace(/\\/g, '/')
+        .replace(/^\/+/, '');
+}
+
+function wcsEncodePathForRoute(pathValue) {
+    return wcsNormalizePath(pathValue)
+        .split('/')
+        .filter(function (segment) {
+            return segment.length > 0;
+        })
+        .map(function (segment) {
+            return encodeURIComponent(segment);
+        })
+        .join('/');
+}
+
+function wcsNormalizeSampleFolderPath(folderPath, baseFolder) {
+    const normalized = wcsNormalizePath(folderPath).replace(/^samples\//, '');
+    if (!normalized) {
+        return String(baseFolder || '');
+    }
+    return normalized;
+}
+
+function wcsResolveRoadDetectStreamPath(pathValue) {
+    const normalizedPath = wcsNormalizePath(pathValue);
+    if (!normalizedPath) {
+        return '';
+    }
+
+    // Backward compatibility: a bare file name is treated as cobot sample.
+    if (normalizedPath.indexOf('/') === -1) {
+        return 'samples/video/cobot/' + normalizedPath;
+    }
+
+    return normalizedPath;
+}
+
 window.getVehicleDirectionButtonSelector = getVehicleDirectionButtonSelector;
 window.getVehicleCommandByButtonId = getVehicleCommandByButtonId;
 window.getVehicleButtonIdByCommand = getVehicleButtonIdByCommand;
@@ -136,6 +177,10 @@ window.getVehicleDriveModeByCommand = getVehicleDriveModeByCommand;
 window.getVehicleHighlightWheelKeysByCommand = getVehicleHighlightWheelKeysByCommand;
 window.getCommandSignedWheelRpm = getCommandSignedWheelRpm;
 window.syncVehicleDirectionButtons = syncVehicleDirectionButtons;
+window.wcsNormalizePath = wcsNormalizePath;
+window.wcsEncodePathForRoute = wcsEncodePathForRoute;
+window.wcsNormalizeSampleFolderPath = wcsNormalizeSampleFolderPath;
+window.wcsResolveRoadDetectStreamPath = wcsResolveRoadDetectStreamPath;
 
 // 페이지 로드 시 실행 
 $(document).ready(function() {

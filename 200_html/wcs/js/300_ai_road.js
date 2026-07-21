@@ -1107,6 +1107,9 @@ $(function () {
     }
 
     function normalizePath(pathValue) {
+        if (typeof window.wcsNormalizePath === "function") {
+            return window.wcsNormalizePath(pathValue);
+        }
         return String(pathValue || "")
             .trim()
             .replace(/\\/g, "/")
@@ -1114,6 +1117,9 @@ $(function () {
     }
 
     function encodePathForRoute(pathValue) {
+        if (typeof window.wcsEncodePathForRoute === "function") {
+            return window.wcsEncodePathForRoute(pathValue);
+        }
         return normalizePath(pathValue)
             .split("/")
             .filter(function (segment) {
@@ -2456,6 +2462,9 @@ $(function () {
     }
 
     function normalizeSampleFolderPath(folderPath, baseFolder) {
+        if (typeof window.wcsNormalizeSampleFolderPath === "function") {
+            return window.wcsNormalizeSampleFolderPath(folderPath, baseFolder);
+        }
         const normalized = normalizePath(folderPath).replace(/^samples\//, "");
         if (!normalized) {
             return baseFolder;

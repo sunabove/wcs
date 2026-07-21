@@ -166,6 +166,10 @@
         }
 
         $loopToggleButton.prop("disabled", !isControlEnabled);
+
+        if ($video.length > 0 && !$video.hasClass("d-none")) {
+            $video.prop("loop", autoReplayEnabled && lastMediaType === "video");
+        }
     }
 
     function updateVideoControlButtons() {
@@ -882,6 +886,7 @@
 
         hideAllMedia();
         startFirstFrameWait();
+        $video.prop("loop", autoReplayEnabled);
         $video.attr("src", normalizedSrc).removeClass("d-none");
         lastMediaType = "video";
         lastMediaSource = normalizedSrc;
@@ -1081,7 +1086,20 @@
                 // Ignore currentTime reset issues.
             }
 
+            try {
+                this.loop = true;
+            } catch (error) {
+                // Ignore loop property issues.
+            }
+
             mediaPlaybackPaused = false;
+            if (typeof this.load === "function") {
+                try {
+                    this.load();
+                } catch (error) {
+                    // Ignore reload issues and try play() below.
+                }
+            }
             const replayPromise = this.play();
             if (replayPromise && typeof replayPromise.catch === "function") {
                 replayPromise.catch(function () {

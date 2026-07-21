@@ -902,7 +902,13 @@
             if (mediaPlaybackPaused) {
                 mediaPlaybackPaused = false;
                 setOverlayStatus("", false);
-                showImageSource(lastMediaSource);
+
+                if (latestCurrentVideoFileName) {
+                    resolveAndShowCurrentVideo(latestCurrentVideoFileName);
+                } else {
+                    const cacheBustSeparator = lastMediaSource.includes("?") ? "&" : "?";
+                    showImageSource(`${lastMediaSource}${cacheBustSeparator}t=${Date.now()}`);
+                }
             } else {
                 mediaPlaybackPaused = true;
                 requestRoadDetectSessionCleanup(latestCurrentVideoFileName);

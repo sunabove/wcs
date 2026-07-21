@@ -1580,7 +1580,7 @@ function getFormattedTopicValue(topic, value) {
     } else if (topic.includes('/pid/')) {
         formattedValue = numValue.toFixed(2);  // 무차원
     } else if (topic.includes('/tof/distance')) {
-        formattedValue = `${numValue.toFixed(3)} m`;  // SI: 미터 (ToF 센서)
+        formattedValue = `${numValue.toFixed(2)} m`;  // SI: 미터 (ToF 센서)
     } else if (topic.includes('/angle/speed')) {
         // rad/s -> rpm
         const rpm = (numValue * 60) / (2 * Math.PI);

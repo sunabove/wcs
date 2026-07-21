@@ -939,6 +939,35 @@
         updateVideoControlButtons();
     }
 
+    function freezeCurrentImageFrameForPause() {
+        const imageElement = $image[0];
+        if (!imageElement || !imageElement.naturalWidth || !imageElement.naturalHeight) {
+            return false;
+        }
+
+        try {
+            const canvas = document.createElement("canvas");
+            canvas.width = imageElement.naturalWidth;
+            canvas.height = imageElement.naturalHeight;
+
+            const context = canvas.getContext("2d");
+            if (!context) {
+                return false;
+            }
+
+            context.drawImage(imageElement, 0, 0, canvas.width, canvas.height);
+            const snapshotDataUrl = canvas.toDataURL("image/jpeg", 0.92);
+            if (!snapshotDataUrl) {
+                return false;
+            }
+
+            $image.attr("src", snapshotDataUrl).removeClass("d-none");
+            return true;
+        } catch (error) {
+            return false;
+        }
+    }
+
     function showVideoSource(src) {
         if (!src) {
             return;
@@ -1074,9 +1103,9 @@
                 }
             } else {
                 mediaPlaybackPaused = true;
+                freezeCurrentImageFrameForPause();
                 requestRoadDetectSessionCleanup(latestCurrentVideoFileName);
                 setOverlayStatus("일시 정지", true);
-                $image.addClass("d-none");
             }
             updateVideoControlButtons();
             return;

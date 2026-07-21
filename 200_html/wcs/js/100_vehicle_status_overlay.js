@@ -1123,6 +1123,8 @@
 
         if (videoElement.paused || videoElement.ended) {
             mediaPlaybackPaused = false;
+            clearTemporaryStatusMessage();
+            setOverlayStatus("", false);
             if (typeof videoElement.play === "function") {
                 const playPromise = videoElement.play();
                 if (playPromise && typeof playPromise.catch === "function") {
@@ -1134,6 +1136,7 @@
         } else if (typeof videoElement.pause === "function") {
             mediaPlaybackPaused = true;
             videoElement.pause();
+            setOverlayStatus("일시 정지", true);
         }
 
         updateVideoControlButtons();
@@ -1181,6 +1184,13 @@
 
     $video.on("play pause", function () {
         mediaPlaybackPaused = this.paused;
+        const hasVideoSource = !!String($video.attr("src") || "").trim();
+        if (mediaPlaybackPaused && !mediaHiddenByUser && !$video.hasClass("d-none") && hasVideoSource) {
+            setOverlayStatus("일시 정지", true);
+        } else if (!mediaPlaybackPaused) {
+            clearTemporaryStatusMessage();
+            setOverlayStatus("", false);
+        }
         updateVideoControlButtons();
     });
 
@@ -1204,6 +1214,7 @@
                 // Ignore pause issues.
             }
         }
+        setOverlayStatus("일시 정지", true);
         updateVideoControlButtons();
     });
 

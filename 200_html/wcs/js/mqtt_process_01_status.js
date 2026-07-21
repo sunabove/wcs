@@ -1453,7 +1453,7 @@ function applyWheelAngularVelocityToViewer(topic, value) {
 
     // 로그는 URDF 함수 준비 여부와 관계없이 항상 남긴다.
     console.log(
-        `[WHEEL_SPEED] #${wheelSpeedLogCounter.total} ${wheelKey.toUpperCase()}(${wheelSpeedLogCounter.byWheel[wheelKey]}) ${rpmValue.toFixed(1)} rpm`
+        `[WHEEL_SPEED] #${wheelSpeedLogCounter.total} ${wheelKey.toUpperCase()}(${wheelSpeedLogCounter.byWheel[wheelKey]}) ${Math.round(rpmValue)} rpm`
     );
 
     if (typeof setWheelAnimationByKey !== 'function') {
@@ -1584,7 +1584,7 @@ function getFormattedTopicValue(topic, value) {
     } else if (topic.includes('/angle/speed')) {
         // rad/s -> rpm
         const rpm = (numValue * 60) / (2 * Math.PI);
-        formattedValue = `${rpm.toFixed(1)} rpm`;
+        formattedValue = `${Math.round(rpm)} rpm`;
     } else if (topic.includes('/angle')) {
         // radian을 도(degree)로 변환 표시
         const degrees = (numValue * 180 / Math.PI);

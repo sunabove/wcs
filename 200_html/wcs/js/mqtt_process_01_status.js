@@ -60,13 +60,12 @@ function mqttLog() {
         return;
     }
 
-    const firstArg = args[0];
-    const secondArg = args[1];
-    const wheelSpeedTopicPattern = /^wheel\/(fl|fr|rl|rr)\/angle\/speed$/i;
-    const firstArgIsWheelSpeedTopic = typeof firstArg === 'string' && wheelSpeedTopicPattern.test(firstArg);
-    const secondArgIsWheelSpeedTopic = typeof secondArg === 'string' && wheelSpeedTopicPattern.test(secondArg);
+    const topicLogPattern = /(wheel\/(fl|fr|rl|rr)\/(angle\/speed|linear\/speed|operation\/command|radius|angle)|vehicle\/operation\/command|vehicle\/linear\/speed)/i;
+    const joinedStringArgs = args
+        .filter((arg) => typeof arg === 'string')
+        .join(' ');
 
-    if (!firstArgIsWheelSpeedTopic && !secondArgIsWheelSpeedTopic) {
+    if (!topicLogPattern.test(joinedStringArgs)) {
         return;
     }
 

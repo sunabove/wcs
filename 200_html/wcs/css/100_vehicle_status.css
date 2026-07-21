@@ -44,6 +44,16 @@
     border-color: rgba(255, 255, 255, 0.95);
 }
 
+.road-detect-overlay-control-btn:hover,
+.road-detect-overlay-control-btn:focus,
+.road-detect-overlay-control-btn:focus-visible,
+.road-detect-overlay-control-btn:active {
+    background-color: rgba(255, 255, 255, 0.95);
+    color: #0f172a;
+    border-color: rgba(255, 255, 255, 0.95);
+    box-shadow: none;
+}
+
 .road-detect-overlay-control-btn i {
     line-height: 1;
     font-size: 1.2rem;
@@ -60,6 +70,16 @@
     background-color: #0d6efd;
     color: #fff;
     border-color: #0d6efd;
+}
+
+.road-detect-overlay-control-btn-active:hover,
+.road-detect-overlay-control-btn-active:focus,
+.road-detect-overlay-control-btn-active:focus-visible,
+.road-detect-overlay-control-btn-active:active {
+    background-color: #0d6efd;
+    color: #fff;
+    border-color: #0d6efd;
+    box-shadow: none;
 }
 
 .road-detect-overlay-close-btn .overlay-toggle-icon-close {

@@ -55,13 +55,13 @@
     let firstFrameRequestToken = 0;
     let lastImageFrameAt = 0;
     let lastImageReplayAttemptAt = 0;
+    let imageStreamNeedsReplay = false;
     let audioHudBlinkPhase = false;
     const FIRST_FRAME_TIMEOUT_MS = 10000;
     const LOADING_MESSAGE = "로딩중입니다.";
     const FIRST_FRAME_TIMEOUT_MESSAGE = "동영상 로딩이 되지 않았습니다.";
     const VIEWER_DRAG_PIXELS_RATIO = 0.47;
     const VIEWER_ZOOM_OUT_RATIO = 0.07;
-    const IMAGE_STREAM_STALE_MS = 3500;
     const IMAGE_STREAM_REPLAY_COOLDOWN_MS = 2500;
 
     let $audioHud = $("#vehicle-audio-hud");
@@ -535,7 +535,10 @@
         }
 
         const now = Date.now();
-        if (lastImageFrameAt <= 0 || (now - lastImageFrameAt) < IMAGE_STREAM_STALE_MS) {
+        const statusText = String($status.text() || "").trim();
+        const isTimeoutState = imageStreamNeedsReplay
+            || (!$status.hasClass("d-none") && statusText === FIRST_FRAME_TIMEOUT_MESSAGE);
+        if (!isTimeoutState) {
             return;
         }
 
@@ -543,6 +546,8 @@
             return;
         }
 
+        imageStreamNeedsReplay = false;
+        lastImageFrameAt = now;
         lastImageReplayAttemptAt = now;
         resolveAndShowCurrentVideo(latestCurrentVideoFileName);
     }
@@ -825,6 +830,8 @@
         hideAllMedia();
         startFirstFrameWait();
         $image.attr("src", normalizedSrc).removeClass("d-none");
+        imageStreamNeedsReplay = false;
+        lastImageFrameAt = Date.now();
         lastImageReplayAttemptAt = 0;
         lastMediaType = "image";
         lastMediaSource = normalizedSrc;
@@ -1008,6 +1015,10 @@
 
     $loopToggleButton.on("click", function () {
         autoReplayEnabled = !autoReplayEnabled;
+        if (autoReplayEnabled && lastMediaType === "image") {
+            imageStreamNeedsReplay = false;
+            lastImageFrameAt = Date.now();
+        }
         updateVideoControlButtons();
     });
 
@@ -1015,6 +1026,7 @@
         if (!this.naturalWidth || !this.naturalHeight) {
             return;
         }
+        imageStreamNeedsReplay = false;
         lastImageFrameAt = Date.now();
         markFirstFrameReady();
         lastMediaAspectRatio = this.naturalWidth / this.naturalHeight;
@@ -1022,7 +1034,8 @@
     });
 
     $image.on("error", function () {
-        // Keep loading message until first-frame timeout decides failure.
+        imageStreamNeedsReplay = true;
+        setOverlayStatus(FIRST_FRAME_TIMEOUT_MESSAGE, true);
     });
 
     $video.on("loadeddata", function () {

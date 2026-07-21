@@ -1552,7 +1552,7 @@ function getFormattedTopicValue(topic, value) {
     } else if (topic.includes('/angle/speed')) {
         // rad/s -> rpm
         const rpm = (numValue * 60) / (2 * Math.PI);
-        formattedValue = `${Math.round(rpm)} rpm`;
+        formattedValue = `${rpm.toFixed(1)} rpm`;
     } else if (topic.includes('/angle')) {
         // radian을 도(degree)로 변환 표시
         const degrees = (numValue * 180 / Math.PI);

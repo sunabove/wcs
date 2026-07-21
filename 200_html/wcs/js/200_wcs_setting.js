@@ -455,23 +455,21 @@ $(document).ready(function () {
         updateVehicleDirectionControlUi(numericValue);
     }
 
-    function normalizePath(pathValue) {
-        if (typeof window.wcsNormalizePath === 'function') {
-            return window.wcsNormalizePath(pathValue);
-        }
-        return String(pathValue || '').trim().replace(/\\/g, '/').replace(/^\/+/, '');
-    }
+    const normalizePath = typeof window.wcsNormalizePath === 'function'
+        ? window.wcsNormalizePath
+        : function (pathValue) {
+            return String(pathValue || '').trim().replace(/\\/g, '/').replace(/^\/+/, '');
+        };
 
-    function encodePathForRoute(pathValue) {
-        if (typeof window.wcsEncodePathForRoute === 'function') {
-            return window.wcsEncodePathForRoute(pathValue);
-        }
-        return normalizePath(pathValue)
-            .split('/')
-            .filter(function (segment) { return segment.length > 0; })
-            .map(function (segment) { return encodeURIComponent(segment); })
-            .join('/');
-    }
+    const encodePathForRoute = typeof window.wcsEncodePathForRoute === 'function'
+        ? window.wcsEncodePathForRoute
+        : function (pathValue) {
+            return normalizePath(pathValue)
+                .split('/')
+                .filter(function (segment) { return segment.length > 0; })
+                .map(function (segment) { return encodeURIComponent(segment); })
+                .join('/');
+        };
 
     function buildVideoThumbnailUrl(fileName) {
         return '/fast/video_thumbnail/' + encodePathForRoute(fileName) + '?t=' + Date.now();
@@ -485,16 +483,15 @@ $(document).ready(function () {
         return '/fast/samples/' + encodePathForRoute(folderName);
     }
 
-    function normalizeSampleFolderPath(folderPath, baseFolder) {
-        if (typeof window.wcsNormalizeSampleFolderPath === 'function') {
-            return window.wcsNormalizeSampleFolderPath(folderPath, baseFolder);
-        }
-        const normalized = normalizePath(folderPath).replace(/^samples\//, '');
-        if (!normalized) {
-            return baseFolder;
-        }
-        return normalized;
-    }
+    const normalizeSampleFolderPath = typeof window.wcsNormalizeSampleFolderPath === 'function'
+        ? window.wcsNormalizeSampleFolderPath
+        : function (folderPath, baseFolder) {
+            const normalized = normalizePath(folderPath).replace(/^samples\//, '');
+            if (!normalized) {
+                return baseFolder;
+            }
+            return normalized;
+        };
 
     function applyCurrentVideoHighlight() {
         if ($wcsSampleVideoPane.length === 0) {

@@ -1106,30 +1106,28 @@ $(function () {
             : getValidPercent($defaultConfidenceOthers, FALLBACK_DEFAULT_CONFIDENCE_PERCENT) / 100;
     }
 
-    function normalizePath(pathValue) {
-        if (typeof window.wcsNormalizePath === "function") {
-            return window.wcsNormalizePath(pathValue);
-        }
-        return String(pathValue || "")
-            .trim()
-            .replace(/\\/g, "/")
-            .replace(/^\/+/, "");
-    }
+    const normalizePath = typeof window.wcsNormalizePath === "function"
+        ? window.wcsNormalizePath
+        : function (pathValue) {
+            return String(pathValue || "")
+                .trim()
+                .replace(/\\/g, "/")
+                .replace(/^\/+/, "");
+        };
 
-    function encodePathForRoute(pathValue) {
-        if (typeof window.wcsEncodePathForRoute === "function") {
-            return window.wcsEncodePathForRoute(pathValue);
-        }
-        return normalizePath(pathValue)
-            .split("/")
-            .filter(function (segment) {
-                return segment.length > 0;
-            })
-            .map(function (segment) {
-                return encodeURIComponent(segment);
-            })
-            .join("/");
-    }
+    const encodePathForRoute = typeof window.wcsEncodePathForRoute === "function"
+        ? window.wcsEncodePathForRoute
+        : function (pathValue) {
+            return normalizePath(pathValue)
+                .split("/")
+                .filter(function (segment) {
+                    return segment.length > 0;
+                })
+                .map(function (segment) {
+                    return encodeURIComponent(segment);
+                })
+                .join("/");
+        };
 
     function buildImageUrl(fileName) {
         return "/fast/image/" + encodePathForRoute(fileName) + "?t=" + Date.now();
@@ -2461,16 +2459,15 @@ $(function () {
         });
     }
 
-    function normalizeSampleFolderPath(folderPath, baseFolder) {
-        if (typeof window.wcsNormalizeSampleFolderPath === "function") {
-            return window.wcsNormalizeSampleFolderPath(folderPath, baseFolder);
-        }
-        const normalized = normalizePath(folderPath).replace(/^samples\//, "");
-        if (!normalized) {
-            return baseFolder;
-        }
-        return normalized;
-    }
+    const normalizeSampleFolderPath = typeof window.wcsNormalizeSampleFolderPath === "function"
+        ? window.wcsNormalizeSampleFolderPath
+        : function (folderPath, baseFolder) {
+            const normalized = normalizePath(folderPath).replace(/^samples\//, "");
+            if (!normalized) {
+                return baseFolder;
+            }
+            return normalized;
+        };
 
     function buildFolderLabel(baseFolder, folderPath) {
         const normalized = normalizeSampleFolderPath(folderPath, baseFolder);

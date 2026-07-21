@@ -754,7 +754,14 @@ function processFallbackSpeechQueue() {
         window.__wcsAudioSpeaking = false;
         processFallbackSpeechQueue();
     };
-    window.speechSynthesis.speak(utterance);
+    try {
+        window.speechSynthesis.speak(utterance);
+    } catch (error) {
+        console.warn('[MQTT][Audio] speechSynthesis.speak failed:', error);
+        fallbackVehicleAudioState.isSpeaking = false;
+        window.__wcsAudioSpeaking = false;
+        processFallbackSpeechQueue();
+    }
 }
 
 function speakVehicleStatusFallback(text, options = {}) {

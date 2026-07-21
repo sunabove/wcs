@@ -3014,7 +3014,14 @@ function processVehicleSpeechQueue() {
         window.__wcsAudioSpeaking = false;
         processVehicleSpeechQueue();
     };
-    window.speechSynthesis.speak(utterance);
+    try {
+        window.speechSynthesis.speak(utterance);
+    } catch (error) {
+        console.warn('[URDF][Audio] speechSynthesis.speak failed:', error);
+        vehicleAudioState.isSpeaking = false;
+        window.__wcsAudioSpeaking = false;
+        processVehicleSpeechQueue();
+    }
 }
 
 function speakVehicleStatus(text, options = {}) {

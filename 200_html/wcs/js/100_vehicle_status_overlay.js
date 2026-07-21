@@ -9,6 +9,7 @@
     const $viewer = $("#vehicle-urdf-viewer");
     const VEHICLE_AUDIO_STORAGE_KEY = "wcs.vehicle.showAudio";
     const OVERLAY_MEDIA_HIDDEN_STORAGE_KEY = "wcs.status.overlay.media_hidden";
+    const OVERLAY_AUTO_REPLAY_STORAGE_KEY = "wcs.status.overlay.auto_replay";
 
     if ($overlay.length === 0 || $image.length === 0 || $video.length === 0) {
         return;
@@ -246,6 +247,24 @@
     function writeOverlayMediaHiddenState(hidden) {
         try {
             window.localStorage.setItem(OVERLAY_MEDIA_HIDDEN_STORAGE_KEY, hidden ? "true" : "false");
+        } catch (error) {
+            // Ignore storage write failures.
+        }
+    }
+
+    function readOverlayAutoReplayState() {
+        try {
+            const rawValue = window.localStorage.getItem(OVERLAY_AUTO_REPLAY_STORAGE_KEY);
+            const normalized = String(rawValue || "").trim().toLowerCase();
+            return normalized === "true" || normalized === "1" || normalized === "yes" || normalized === "on";
+        } catch (error) {
+            return false;
+        }
+    }
+
+    function writeOverlayAutoReplayState(enabled) {
+        try {
+            window.localStorage.setItem(OVERLAY_AUTO_REPLAY_STORAGE_KEY, enabled ? "true" : "false");
         } catch (error) {
             // Ignore storage write failures.
         }
@@ -1015,6 +1034,7 @@
 
     $loopToggleButton.on("click", function () {
         autoReplayEnabled = !autoReplayEnabled;
+        writeOverlayAutoReplayState(autoReplayEnabled);
         if (autoReplayEnabled && lastMediaType === "image") {
             imageStreamNeedsReplay = false;
             lastImageFrameAt = Date.now();
@@ -1089,6 +1109,7 @@
     });
 
     mediaHiddenByUser = readOverlayMediaHiddenState();
+    autoReplayEnabled = readOverlayAutoReplayState();
     setCloseButtonToShowMode(mediaHiddenByUser);
     updateVideoControlButtons();
     if (mediaHiddenByUser) {

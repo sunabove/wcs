@@ -1101,28 +1101,27 @@ function prcessMqttMessage(topic, value) {
                 return;
         }
         
+        if (typeof window.announceVehicleDriveCommand === 'function') {
+            window.announceVehicleDriveCommand(commandValue);
+        }
+
+        if (commandValue === 0 && typeof window.clearVehicleWheelHighlights === 'function') {
+            window.clearVehicleWheelHighlights();
+        } else if (commandValue === 1 && typeof window.setVehicleWheelHighlightByKeys === 'function') {
+            window.setVehicleWheelHighlightByKeys(['fl', 'fr']);
+        } else if (commandValue === 2 && typeof window.setVehicleWheelHighlightByKeys === 'function') {
+            window.setVehicleWheelHighlightByKeys(['rl', 'rr']);
+        } else if (commandValue === 3 && typeof window.setVehicleWheelHighlightByKeys === 'function') {
+            window.setVehicleWheelHighlightByKeys(['fr', 'rr']);
+        } else if (commandValue === 4 && typeof window.setVehicleWheelHighlightByKeys === 'function') {
+            window.setVehicleWheelHighlightByKeys(['fl', 'rl']);
+        }
+
         // 해당 버튼 활성화
         const syncedDirectionUi = (typeof window.syncVehicleDirectionButtons === 'function')
             ? window.syncVehicleDirectionButtons(commandValue)
             : false;
         if (syncedDirectionUi) {
-
-            if (typeof window.announceVehicleDriveCommand === 'function') {
-                window.announceVehicleDriveCommand(commandValue);
-            }
-
-            if (commandValue === 0 && typeof window.clearVehicleWheelHighlights === 'function') {
-                window.clearVehicleWheelHighlights();
-            } else if (commandValue === 1 && typeof window.setVehicleWheelHighlightByKeys === 'function') {
-                window.setVehicleWheelHighlightByKeys(['fl', 'fr']);
-            } else if (commandValue === 2 && typeof window.setVehicleWheelHighlightByKeys === 'function') {
-                window.setVehicleWheelHighlightByKeys(['rl', 'rr']);
-            } else if (commandValue === 3 && typeof window.setVehicleWheelHighlightByKeys === 'function') {
-                window.setVehicleWheelHighlightByKeys(['fr', 'rr']);
-            } else if (commandValue === 4 && typeof window.setVehicleWheelHighlightByKeys === 'function') {
-                window.setVehicleWheelHighlightByKeys(['fl', 'rl']);
-            }
-            
             mqttLog(`[MQTT] 🚗 차량 명령 버튼 선택: ${commandName} (${commandValue})`);
         }
     }

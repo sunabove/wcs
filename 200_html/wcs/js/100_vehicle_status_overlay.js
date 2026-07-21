@@ -44,6 +44,7 @@
     let overlayLayoutMode = "default";
     let latestCurrentVideoFileName = "";
     let mediaHiddenByUser = false;
+    let mediaPlaybackPaused = false;
     let lastMediaType = "";
     let lastMediaSource = "";
     let lastMediaAspectRatio = 16 / 9;
@@ -149,7 +150,26 @@
         const isVideoVisible = !$video.hasClass("d-none");
         const hasVideoSource = !!String($video.attr("src") || "").trim();
         const isVideoReady = isVideoVisible && hasVideoSource;
+        const isImageVisible = !$image.hasClass("d-none") && !!String($image.attr("src") || "").trim();
         const isPaused = !isVideoReady || videoElement.paused || videoElement.ended;
+
+        if (isImageVisible) {
+            if (mediaPlaybackPaused) {
+                $playToggleButton
+                    .prop("disabled", false)
+                    .attr("title", "동영상 재생")
+                    .attr("aria-label", "동영상 재생")
+                    .html('<i class="bi bi-play-fill" aria-hidden="true"></i>');
+                return;
+            }
+
+            $playToggleButton
+                .prop("disabled", false)
+                .attr("title", "동영상 일시 정지")
+                .attr("aria-label", "동영상 일시 정지")
+                .html('<i class="bi bi-pause-fill" aria-hidden="true"></i>');
+            return;
+        }
 
         if (!isVideoReady) {
             $playToggleButton
@@ -676,6 +696,7 @@
         if (resetMemory) {
             lastMediaType = "";
             lastMediaSource = "";
+            mediaPlaybackPaused = false;
             markFirstFrameReady();
         }
         $image.attr("src", "").addClass("d-none");
@@ -705,6 +726,7 @@
     function hideMediaAreaOnly() {
         requestRoadDetectSessionCleanup(latestCurrentVideoFileName);
         mediaHiddenByUser = true;
+        mediaPlaybackPaused = false;
         writeOverlayMediaHiddenState(true);
         hideAllMedia(false);
         setOverlayStatus("", false);
@@ -714,6 +736,7 @@
 
     function restoreMediaAreaOnly() {
         mediaHiddenByUser = false;
+        mediaPlaybackPaused = false;
         writeOverlayMediaHiddenState(false);
         setCloseButtonToShowMode(false);
         applyCompactOverlayLayout();
@@ -741,6 +764,7 @@
         $image.attr("src", normalizedSrc).removeClass("d-none");
         lastMediaType = "image";
         lastMediaSource = normalizedSrc;
+        mediaPlaybackPaused = false;
         mediaHiddenByUser = false;
         setCloseButtonToShowMode(false);
         showOverlay();
@@ -771,6 +795,7 @@
         $video.attr("src", normalizedSrc).removeClass("d-none");
         lastMediaType = "video";
         lastMediaSource = normalizedSrc;
+        mediaPlaybackPaused = false;
         mediaHiddenByUser = false;
         setCloseButtonToShowMode(false);
 
@@ -872,11 +897,29 @@
 
     $playToggleButton.on("click", function () {
         const videoElement = $video[0];
+        const isImageVisible = !$image.hasClass("d-none") && !!String($image.attr("src") || "").trim();
+
+        if (isImageVisible && lastMediaType === "image") {
+            if (mediaPlaybackPaused) {
+                mediaPlaybackPaused = false;
+                setOverlayStatus("", false);
+                showImageSource(lastMediaSource);
+            } else {
+                mediaPlaybackPaused = true;
+                requestRoadDetectSessionCleanup(latestCurrentVideoFileName);
+                setOverlayStatus("일시 정지", true);
+                $image.addClass("d-none");
+            }
+            updateVideoControlButtons();
+            return;
+        }
+
         if (!videoElement || $video.hasClass("d-none")) {
             return;
         }
 
         if (videoElement.paused || videoElement.ended) {
+            mediaPlaybackPaused = false;
             if (typeof videoElement.play === "function") {
                 const playPromise = videoElement.play();
                 if (playPromise && typeof playPromise.catch === "function") {
@@ -886,6 +929,7 @@
                 }
             }
         } else if (typeof videoElement.pause === "function") {
+            mediaPlaybackPaused = true;
             videoElement.pause();
         }
 
@@ -916,6 +960,7 @@
     });
 
     $video.on("play pause ended", function () {
+        mediaPlaybackPaused = this.paused || this.ended;
         updateVideoControlButtons();
     });
 

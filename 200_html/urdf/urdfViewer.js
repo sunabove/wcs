@@ -535,9 +535,12 @@ class URDFViewer {
     setupAttitudeOverlay() {
         this.ensureContainerOverlayPositioning();
 
+        // Match overlay widgets with road video overlay vertical start.
+        const overlayTopPx = '10px';
+
         const panelElement = document.createElement('div');
         panelElement.style.position = 'absolute';
-        panelElement.style.top = '16px';
+        panelElement.style.top = overlayTopPx;
         panelElement.style.right = '10px';
         panelElement.style.zIndex = '13';
         panelElement.style.padding = '8px';
@@ -629,9 +632,12 @@ class URDFViewer {
 
         this.ensureContainerOverlayPositioning();
 
+        // Match overlay widgets with road video overlay vertical start.
+        const overlayTopPx = '10px';
+
         const panelElement = document.createElement('div');
         panelElement.style.position = 'absolute';
-        panelElement.style.top = '16px';
+        panelElement.style.top = overlayTopPx;
         panelElement.style.left = '10px';
         panelElement.style.zIndex = '16';
         panelElement.style.width = 'auto';

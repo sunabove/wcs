@@ -35,6 +35,18 @@
     border-color: #fff;
 }
 
+.road-detect-overlay-close-btn .overlay-toggle-icon {
+    line-height: 1;
+}
+
+.road-detect-overlay-close-btn .overlay-toggle-icon-video {
+    font-size: 1.3rem;
+}
+
+.road-detect-overlay-close-btn .overlay-toggle-icon-close {
+    font-size: 1.05rem;
+}
+
 .vehicle-audio-hud {
     position: absolute;
     left: 50%;

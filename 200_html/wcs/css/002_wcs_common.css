@@ -60,12 +60,11 @@
 .road-detect-overlay-status {
     position: absolute;
     inset: 0;
-    z-index: 200;
+    z-index: 120;
     display: flex;
     align-items: center;
     justify-content: center;
     padding: 0.5rem 0.85rem;
-    overflow: visible;
     pointer-events: none;
 }
 
@@ -84,17 +83,13 @@
     border-radius: 0.6rem;
     background: rgba(17, 24, 39, 0.78);
     border: 1px solid rgba(255, 255, 255, 0.2);
-    z-index: 0;
 }
 
 .road-detect-overlay-status {
-    position: absolute;
     color: #f8f9fa;
     font-size: 0.9rem;
-    font-weight: 600;
     white-space: nowrap;
     text-align: center;
-    z-index: 200;
 }
 
 /* Keep WCS top navigation on a single row across pages */

@@ -542,76 +542,6 @@ function dispatchVehicleDirectionEvent(sourceTopic, value) {
     }
 }
 
-function syncVehicleDirectionButtons(commandValue) {
-    $('#vehicle-forward, #vehicle-backward, #vehicle-turn-left, #vehicle-turn-right, #vehicle-stop')
-        .removeClass('active text-white')
-        .addClass('text-black');
-
-    let activeButtonId = '';
-
-    switch (commandValue) {
-        case 0:
-            activeButtonId = '#vehicle-stop';
-            break;
-        case 1:
-            activeButtonId = '#vehicle-forward';
-            break;
-        case 2:
-            activeButtonId = '#vehicle-backward';
-            break;
-        case 3:
-            activeButtonId = '#vehicle-turn-left';
-            break;
-        case 4:
-            activeButtonId = '#vehicle-turn-right';
-            break;
-        default:
-            return false;
-    }
-
-    $(activeButtonId)
-        .addClass('active text-white')
-        .removeClass('text-black');
-
-    return true;
-}
-
-function getVehicleDriveModeByCommand(commandValue) {
-    switch (Number(commandValue)) {
-        case 1:
-            return 'forward';
-        case 2:
-            return 'backward';
-        case 3:
-            return 'left';
-        case 4:
-            return 'right';
-        case 0:
-        default:
-            return 'stop';
-    }
-}
-
-function getCommandSignedWheelRpm(commandValue, wheelKey, rpmMagnitude) {
-    const absRpm = Math.max(0, Math.abs(Number(rpmMagnitude) || 0));
-    const normalizedWheelKey = String(wheelKey || '').trim().toLowerCase();
-
-    switch (Number(commandValue)) {
-        case 0:
-            return 0;
-        case 1:
-            return absRpm;
-        case 2:
-            return -absRpm;
-        case 3:
-            return (normalizedWheelKey === 'fl' || normalizedWheelKey === 'rl') ? -absRpm : absRpm;
-        case 4:
-            return (normalizedWheelKey === 'fl' || normalizedWheelKey === 'rl') ? absRpm : -absRpm;
-        default:
-            return Number(rpmMagnitude) || 0;
-    }
-}
-
 function syncViewerDriveAnimationByCommand(commandValue) {
     const numericCommand = Number.parseInt(commandValue, 10);
     if (!Number.isFinite(numericCommand)) {
@@ -626,7 +556,10 @@ function syncViewerDriveAnimationByCommand(commandValue) {
     }
 
     if (typeof window.setDriveMode === 'function') {
-        window.setDriveMode(getVehicleDriveModeByCommand(numericCommand));
+        const driveMode = (typeof window.getVehicleDriveModeByCommand === 'function')
+            ? window.getVehicleDriveModeByCommand(numericCommand)
+            : 'stop';
+        window.setDriveMode(driveMode);
     }
 }
 
@@ -1169,7 +1102,10 @@ function prcessMqttMessage(topic, value) {
         }
         
         // 해당 버튼 활성화
-        if (syncVehicleDirectionButtons(commandValue)) {
+        const syncedDirectionUi = (typeof window.syncVehicleDirectionButtons === 'function')
+            ? window.syncVehicleDirectionButtons(commandValue)
+            : false;
+        if (syncedDirectionUi) {
 
             if (typeof window.announceVehicleDriveCommand === 'function') {
                 window.announceVehicleDriveCommand(commandValue);
@@ -1389,7 +1325,9 @@ function applyWheelAngularVelocityToViewer(topic, value) {
     const latestCommand = Number(window.latestVehicleOperationCommand);
     let effectiveRpm = rpmValue;
     if (Number.isFinite(latestCommand) && latestCommand >= 0 && latestCommand <= 4) {
-        effectiveRpm = getCommandSignedWheelRpm(latestCommand, wheelKey, rpmValue);
+        if (typeof window.getCommandSignedWheelRpm === 'function') {
+            effectiveRpm = window.getCommandSignedWheelRpm(latestCommand, wheelKey, rpmValue);
+        }
     }
 
     setWheelAnimationByKey(wheelKey, Math.round(effectiveRpm));

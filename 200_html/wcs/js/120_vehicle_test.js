@@ -1,5 +1,8 @@
 $(document).ready(function() {
     const pendingPublishTimers = {};
+    const vehicleButtonSelector = (typeof window.getVehicleDirectionButtonSelector === 'function')
+        ? window.getVehicleDirectionButtonSelector()
+        : '#vehicle-forward, #vehicle-backward, #vehicle-turn-left, #vehicle-turn-right, #vehicle-stop';
     let lastVehicleCurrSpeedMsSent = null;
     let lastVehicleDirectionCommandSent = null;
     let latestVehicleMaxSpeedKmh = 100.0;
@@ -118,47 +121,17 @@ $(document).ready(function() {
         window.setVehicleWheelHighlightByKey(initialWheel);
     }
 
-    $('#vehicle-forward, #vehicle-backward, #vehicle-turn-left, #vehicle-turn-right, #vehicle-stop')
+    $(vehicleButtonSelector)
         .removeClass('active text-white')
         .addClass('text-black');
     $('#vehicle-stop')
         .addClass('active text-white')
         .removeClass('text-black');
 
-    function getVehicleCommandByButtonId(buttonId) {
-        switch (buttonId) {
-            case 'vehicle-forward':
-                return 1;
-            case 'vehicle-backward':
-                return 2;
-            case 'vehicle-turn-left':
-                return 3;
-            case 'vehicle-turn-right':
-                return 4;
-            case 'vehicle-stop':
-            default:
-                return 0;
-        }
-    }
-
-    function getDriveModeByVehicleCommand(command) {
-        switch (Number(command)) {
-            case 1:
-                return 'forward';
-            case 2:
-                return 'backward';
-            case 3:
-                return 'left';
-            case 4:
-                return 'right';
-            case 0:
-            default:
-                return 'stop';
-        }
-    }
-
     function applyVehicleDirectionAnimation(command, speedKmh) {
-        const mode = getDriveModeByVehicleCommand(command);
+        const mode = (typeof window.getVehicleDriveModeByCommand === 'function')
+            ? window.getVehicleDriveModeByCommand(command)
+            : 'stop';
         const numericSpeed = Number.parseFloat(speedKmh);
         const normalizedSpeed = Number.isFinite(numericSpeed) ? Math.max(0, numericSpeed) : 0;
 
@@ -172,10 +145,11 @@ $(document).ready(function() {
     }
 
     function publishSelectedVehicleCommandOnLoad() {
-        const vehicleButtonSelector = '#vehicle-forward, #vehicle-backward, #vehicle-turn-left, #vehicle-turn-right, #vehicle-stop';
         const selectedButton = $(vehicleButtonSelector).filter('.active').first();
         const selectedButtonId = selectedButton.length ? selectedButton.attr('id') : 'vehicle-stop';
-        const selectedCommand = getVehicleCommandByButtonId(selectedButtonId);
+        const selectedCommand = (typeof window.getVehicleCommandByButtonId === 'function')
+            ? window.getVehicleCommandByButtonId(selectedButtonId)
+            : 0;
         const selectedSpeedKmh = Number.parseFloat($('#vehicleCurrSpeedSlider').val()) || 0;
 
         publishWhenConnected('vehicle/operation/command', selectedCommand);
@@ -188,40 +162,19 @@ $(document).ready(function() {
 
     function applyVehicleCommandWheelHighlight(command) {
         const commandNumber = Number(command);
+        const wheelKeys = (typeof window.getVehicleHighlightWheelKeysByCommand === 'function')
+            ? window.getVehicleHighlightWheelKeysByCommand(commandNumber)
+            : [];
 
-        if (commandNumber === 0) {
+        if (wheelKeys.length === 0) {
             if (typeof window.clearVehicleWheelHighlights === 'function') {
                 window.clearVehicleWheelHighlights();
             }
             return;
         }
 
-        if (commandNumber === 1) {
-            if (typeof window.setVehicleWheelHighlightByKeys === 'function') {
-                window.setVehicleWheelHighlightByKeys(['fl', 'fr']);
-            }
-            return;
-        }
-
-        if (commandNumber === 2) {
-            if (typeof window.setVehicleWheelHighlightByKeys === 'function') {
-                window.setVehicleWheelHighlightByKeys(['rl', 'rr']);
-            }
-            return;
-        }
-
-        if (commandNumber === 3) {
-            if (typeof window.setVehicleWheelHighlightByKeys === 'function') {
-                window.setVehicleWheelHighlightByKeys(['fr', 'rr']);
-            }
-            return;
-        }
-
-        if (commandNumber === 4) {
-            if (typeof window.setVehicleWheelHighlightByKeys === 'function') {
-                window.setVehicleWheelHighlightByKeys(['fl', 'rl']);
-            }
-            return;
+        if (typeof window.setVehicleWheelHighlightByKeys === 'function') {
+            window.setVehicleWheelHighlightByKeys(wheelKeys);
         }
     }
 
@@ -318,7 +271,7 @@ $(document).ready(function() {
         window.manualWheelTestWheel = null;
         window.vehicleDirectionCommandActive = Number(command) >= 1 && Number(command) <= 4;
 
-        $('#vehicle-forward, #vehicle-backward, #vehicle-turn-left, #vehicle-turn-right, #vehicle-stop')
+        $(vehicleButtonSelector)
             .removeClass('active text-white')
             .addClass('text-black');
 
@@ -417,10 +370,11 @@ $(document).ready(function() {
         sendMQTTMessage(topic, roundedSpeedMs, 1);
         lastVehicleCurrSpeedMsSent = roundedSpeedMs;
 
-        const vehicleButtonSelector = '#vehicle-forward, #vehicle-backward, #vehicle-turn-left, #vehicle-turn-right, #vehicle-stop';
         const selectedButton = $(vehicleButtonSelector).filter('.active').first();
         const selectedButtonId = selectedButton.length ? selectedButton.attr('id') : 'vehicle-stop';
-        const selectedCommand = getVehicleCommandByButtonId(selectedButtonId);
+        const selectedCommand = (typeof window.getVehicleCommandByButtonId === 'function')
+            ? window.getVehicleCommandByButtonId(selectedButtonId)
+            : 0;
         applyVehicleDirectionAnimation(selectedCommand, speedKmh);
         publishWhenConnected('vehicle/operation/command', selectedCommand);
 

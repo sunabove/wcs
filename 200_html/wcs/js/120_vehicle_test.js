@@ -210,17 +210,8 @@ $(document).ready(function() {
         if (Number(command) === 1 || Number(command) === 2) {
             const signedAngularSpeed = Number(command) === 2 ? -angularSpeedAbs : angularSpeedAbs;
             sendMQTTMessage(`wheel/${selectedWheel}/angle/speed`, signedAngularSpeed, 1);
-
-            if (typeof setWheelAnimationByKey === 'function') {
-                const rpm = (signedAngularSpeed * 60) / (2 * Math.PI);
-                setWheelAnimationByKey(selectedWheel, Math.round(rpm));
-            }
         } else if (Number(command) === 0) {
             sendMQTTMessage(`wheel/${selectedWheel}/angle/speed`, '0', 1);
-
-            if (typeof setWheelAnimationByKey === 'function') {
-                setWheelAnimationByKey(selectedWheel, 0);
-            }
         }
 
         console.log(`[Vehicle Test] ${icon} ${selectedWheel.toUpperCase()} 바퀴 ${actionName} 명령 전송: ${topic} = ${command}`);

@@ -860,25 +860,18 @@ function announceVehicleObstacleAudio(obstacle) {
 
     const obstacleValue = Number.parseInt(obstacle, 10);
     const obstacleText = {
+        0: '장애물 없음',
         1: '장애물 단차 검출',
         2: '장애물 포트홀 검출',
         3: '장애물 빙판길 검출'
     };
 
-    // 첫 수신 장애물 상태는 기준만 설정하고 음성은 생략한다.
-    if (!fallbackVehicleAudioState.baselineSeen.obstacle) {
-        fallbackVehicleAudioState.baselineSeen.obstacle = true;
-        return;
-    }
-
-    if (obstacleValue === 0) {
-        return;
-    }
-
     const message = obstacleText[obstacleValue];
     if (!message) {
         return;
     }
+
+    fallbackVehicleAudioState.baselineSeen.obstacle = true;
 
     speakVehicleStatusFallback(message, { interrupt: true });
 }

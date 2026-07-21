@@ -745,6 +745,8 @@ function speakVehicleStatusFallback(text, options = {}) {
         return;
     }
 
+    const shouldInterrupt = !!(options && options.interrupt === true);
+
     const now = Date.now();
     window.__wcsAudioEnabled = true;
     window.__wcsLastSpeechText = message;
@@ -783,6 +785,20 @@ function speakVehicleStatusFallback(text, options = {}) {
         return;
     }
     window.__wcsGlobalSpeechState = { message: message, at: now };
+
+    if (shouldInterrupt && canUseSpeechSynthesisFallback()) {
+        try {
+            window.speechSynthesis.cancel();
+        } catch (error) {
+            // Ignore cancel failures and continue queue handling.
+        }
+        fallbackVehicleAudioState.speechQueue = [];
+        fallbackVehicleAudioState.isSpeaking = false;
+        window.__wcsAudioSpeaking = false;
+    } else if (fallbackVehicleAudioState.speechQueue.length >= 6) {
+        // Keep queue bounded to prevent stale delayed speech.
+        fallbackVehicleAudioState.speechQueue = fallbackVehicleAudioState.speechQueue.slice(-3);
+    }
 
     fallbackVehicleAudioState.speechQueue.push(message);
     processFallbackSpeechQueue();

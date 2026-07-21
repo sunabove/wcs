@@ -3001,6 +3001,8 @@ function speakVehicleStatus(text, options = {}) {
         return;
     }
 
+    const shouldInterrupt = !!(options && options.interrupt === true);
+
     const now = Date.now();
     window.__wcsAudioEnabled = true;
     window.__wcsLastSpeechText = message;
@@ -3040,6 +3042,20 @@ function speakVehicleStatus(text, options = {}) {
         return;
     }
     window.__wcsGlobalSpeechState = { message: message, at: now };
+
+    if (shouldInterrupt && canUseSpeechSynthesis()) {
+        try {
+            window.speechSynthesis.cancel();
+        } catch (error) {
+            // Ignore cancel failures and continue queue handling.
+        }
+        vehicleAudioState.speechQueue = [];
+        vehicleAudioState.isSpeaking = false;
+        window.__wcsAudioSpeaking = false;
+    } else if (vehicleAudioState.speechQueue.length >= 6) {
+        // Keep queue bounded to prevent stale delayed speech.
+        vehicleAudioState.speechQueue = vehicleAudioState.speechQueue.slice(-3);
+    }
 
     vehicleAudioState.speechQueue.push(message);
     processVehicleSpeechQueue();

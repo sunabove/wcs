@@ -141,14 +141,46 @@ $(document).ready(function() {
         }
     }
 
+    function getDriveModeByVehicleCommand(command) {
+        switch (Number(command)) {
+            case 1:
+                return 'forward';
+            case 2:
+                return 'backward';
+            case 3:
+                return 'left';
+            case 4:
+                return 'right';
+            case 0:
+            default:
+                return 'stop';
+        }
+    }
+
+    function applyVehicleDirectionAnimation(command, speedKmh) {
+        const mode = getDriveModeByVehicleCommand(command);
+        const numericSpeed = Number.parseFloat(speedKmh);
+        const normalizedSpeed = Number.isFinite(numericSpeed) ? Math.max(0, numericSpeed) : 0;
+
+        if (typeof window.setDriveSpeedKmh === 'function') {
+            window.setDriveSpeedKmh(normalizedSpeed);
+        }
+
+        if (typeof window.setDriveMode === 'function') {
+            window.setDriveMode(mode);
+        }
+    }
+
     function publishSelectedVehicleCommandOnLoad() {
         const vehicleButtonSelector = '#vehicle-forward, #vehicle-backward, #vehicle-turn-left, #vehicle-turn-right, #vehicle-stop';
         const selectedButton = $(vehicleButtonSelector).filter('.active').first();
         const selectedButtonId = selectedButton.length ? selectedButton.attr('id') : 'vehicle-stop';
         const selectedCommand = getVehicleCommandByButtonId(selectedButtonId);
+        const selectedSpeedKmh = Number.parseFloat($('#vehicleCurrSpeedSlider').val()) || 0;
 
         publishWhenConnected('vehicle/operation/command', selectedCommand);
         applyVehicleCommandWheelHighlight(selectedCommand);
+        applyVehicleDirectionAnimation(selectedCommand, selectedSpeedKmh);
         console.log(`[Vehicle Test] 📨 초기 방향 제어 명령 발행: vehicle/operation/command = ${selectedCommand} (${selectedButtonId})`);
     }
 
@@ -295,6 +327,7 @@ $(document).ready(function() {
             .removeClass('text-black');
 
         applyVehicleCommandWheelHighlight(command);
+        applyVehicleDirectionAnimation(command, commandSpeedKmh);
 
         if (sameCommand && sameSpeed) {
             console.log(`[Vehicle Test] 중복 방향 명령 스킵: ${topic} = ${command}, ${speedTopic} = ${roundedSpeedMs}`);
@@ -388,8 +421,24 @@ $(document).ready(function() {
         const selectedButton = $(vehicleButtonSelector).filter('.active').first();
         const selectedButtonId = selectedButton.length ? selectedButton.attr('id') : 'vehicle-stop';
         const selectedCommand = getVehicleCommandByButtonId(selectedButtonId);
+        applyVehicleDirectionAnimation(selectedCommand, speedKmh);
         publishWhenConnected('vehicle/operation/command', selectedCommand);
 
         console.log(`[Vehicle Test] 🚀 현재 속도 설정 - ${speedKmh.toFixed(1)} Km/h (${roundedSpeedMs.toFixed(2)} m/s): ${topic} = ${roundedSpeedMs}`);
+    });
+
+    window.addEventListener('wcs:vehicle-direction-update', function(event) {
+        const commandValue = Number.parseInt(event?.detail?.value, 10);
+        if (!Number.isFinite(commandValue)) {
+            return;
+        }
+
+        const latestSpeedMs = Number(window.latestVehicleLinearSpeedMs);
+        const fallbackSpeedKmh = Number.parseFloat($('#vehicleCurrSpeedSlider').val()) || 0;
+        const speedKmh = Number.isFinite(latestSpeedMs)
+            ? Math.max(0, latestSpeedMs * 3.6)
+            : fallbackSpeedKmh;
+
+        applyVehicleDirectionAnimation(commandValue, speedKmh);
     });
 });

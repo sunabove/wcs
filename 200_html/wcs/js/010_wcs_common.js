@@ -327,6 +327,232 @@ function wcsRenderSampleFolderTiles(options) {
     return $wrapper;
 }
 
+function wcsExtractSampleVideoFiles(result) {
+    if (Array.isArray(result)) {
+        return result;
+    }
+    if (result && Array.isArray(result.files)) {
+        return result.files;
+    }
+    if (result && Array.isArray(result.video_files)) {
+        return result.video_files;
+    }
+    if (result && Array.isArray(result.image_files)) {
+        return result.image_files;
+    }
+    return [];
+}
+
+function wcsRenderSampleVideoThumbnails(options) {
+    const config = Object.assign({
+        pane: null,
+        browserData: {},
+        showAllFiles: false,
+        baseFolder: 'video',
+        paneSelector: 'video',
+        itemTemplate: null,
+        emptyMessage: '',
+        normalizePath: wcsNormalizePath,
+        normalizeSampleFolderPath: wcsNormalizeSampleFolderPath,
+        buildSampleBrowserHeader: function (baseFolder, currentFolderPath, showAllFiles) {
+            return wcsBuildSampleBrowserHeader({
+                baseFolder: baseFolder,
+                currentFolderPath: currentFolderPath,
+                showAllFiles: showAllFiles,
+                includeClearSelectionButton: false,
+                showPathLabel: true,
+                pathLabelPrefix: '현재: ',
+                allFilesSuffix: ' (모든 파일)',
+            });
+        },
+        renderSampleFolderTiles: function (baseFolder, currentFolderPath, childFolders, paneSelector) {
+            return wcsRenderSampleFolderTiles({
+                baseFolder: baseFolder,
+                childFolders: childFolders,
+                paneSelector: paneSelector,
+                leafOnlyLabel: true,
+            });
+        },
+        buildVideoThumbnailUrl: wcsBuildVideoThumbnailUrl,
+        onAfterRender: null,
+    }, options || {});
+
+    const $pane = config.pane;
+    if (!$pane || $pane.length === 0) {
+        return;
+    }
+
+    const browserData = config.browserData || {};
+    const currentFolder = config.normalizeSampleFolderPath(browserData.current_folder, config.baseFolder);
+    const childFolders = Array.isArray(browserData.folders) ? browserData.folders : [];
+    const fileNames = Array.isArray(browserData.files) ? browserData.files : [];
+
+    $pane.empty().append(config.buildSampleBrowserHeader(config.baseFolder, currentFolder, Boolean(config.showAllFiles)));
+    if (!config.showAllFiles) {
+        $pane.append(config.renderSampleFolderTiles(config.baseFolder, currentFolder, childFolders, config.paneSelector));
+    }
+
+    if (!Array.isArray(fileNames) || fileNames.length === 0) {
+        if (config.emptyMessage) {
+            $pane.append('<div class="text-muted text-center py-3">' + String(config.emptyMessage) + '</div>');
+        }
+        return;
+    }
+
+    if (!config.itemTemplate || !config.itemTemplate.content) {
+        return;
+    }
+
+    const $scrollContainer = $('<div class="sample-thumbnail-scroll"></div>');
+    const $track = $('<div class="sample-thumbnail-track"></div>');
+
+    fileNames.forEach(function (fileName) {
+        const safeFileName = config.normalizePath(fileName);
+        const thumbnailUrl = config.buildVideoThumbnailUrl(safeFileName);
+        const label = safeFileName.split('/').pop() || safeFileName;
+
+        const node = config.itemTemplate.content.firstElementChild.cloneNode(true);
+        const button = node.querySelector('.sample-video-item');
+        const thumbnailImage = node.querySelector('.sample-video-thumbnail');
+        const video = node.querySelector('video');
+        const caption = node.querySelector('.small');
+
+        if (button) {
+            button.setAttribute('data-file-name', safeFileName);
+        }
+        if (thumbnailImage) {
+            thumbnailImage.setAttribute('src', thumbnailUrl);
+            thumbnailImage.setAttribute('alt', label);
+        } else if (video) {
+            video.removeAttribute('src');
+            video.setAttribute('poster', thumbnailUrl);
+            video.setAttribute('preload', 'none');
+            if (typeof video.load === 'function') {
+                video.load();
+            }
+        }
+        if (caption) {
+            caption.setAttribute('title', safeFileName);
+            caption.textContent = label;
+        }
+
+        $track.append(node);
+    });
+
+    $scrollContainer.append($track);
+    $pane.append($scrollContainer);
+
+    if (typeof config.onAfterRender === 'function') {
+        config.onAfterRender();
+    }
+}
+
+function wcsLoadSampleVideos(options) {
+    const config = Object.assign({
+        pane: null,
+        folderPath: '',
+        currentFolderPath: '',
+        showAllFiles: false,
+        isLoading: false,
+        baseFolder: 'video',
+        loadingMessage: '샘플 동영상을 불러오는 중...',
+        allFilesErrorMessage: '샘플 동영상 목록을 불러오지 못했습니다.',
+        browserErrorMessage: '샘플 폴더를 불러오지 못했습니다.',
+        normalizeSampleFolderPath: wcsNormalizeSampleFolderPath,
+        buildSamplesUrl: wcsBuildSamplesUrl,
+        buildSampleBrowserUrl: wcsBuildSampleBrowserUrl,
+        extractSampleVideoFiles: wcsExtractSampleVideoFiles,
+        renderSampleVideoThumbnails: null,
+        setLoading: null,
+        setCurrentFolderPath: null,
+        setShowAllFiles: null,
+        saveBrowserState: null,
+        onLoaded: null,
+    }, options || {});
+
+    const $pane = config.pane;
+    if (!$pane || $pane.length === 0 || config.isLoading) {
+        return;
+    }
+
+    const nextFolderPath = config.normalizeSampleFolderPath(config.folderPath || config.currentFolderPath, config.baseFolder);
+    const nextShowAllFiles = Boolean(config.showAllFiles);
+
+    if (typeof config.setLoading === 'function') {
+        config.setLoading(true);
+    }
+    if (typeof config.setCurrentFolderPath === 'function') {
+        config.setCurrentFolderPath(nextFolderPath);
+    }
+    if (typeof config.setShowAllFiles === 'function') {
+        config.setShowAllFiles(nextShowAllFiles);
+    }
+    if (typeof config.saveBrowserState === 'function') {
+        config.saveBrowserState();
+    }
+
+    $pane.html('<div class="text-muted text-center py-3">' + String(config.loadingMessage) + '</div>');
+
+    if (nextShowAllFiles) {
+        $.ajax({
+            url: config.buildSamplesUrl(config.baseFolder),
+            method: 'GET'
+        }).done(function (result) {
+            const allFileNames = config.extractSampleVideoFiles(result);
+            if (typeof config.renderSampleVideoThumbnails === 'function') {
+                config.renderSampleVideoThumbnails({
+                    current_folder: 'samples/' + config.baseFolder,
+                    folders: [],
+                    files: allFileNames,
+                }, true);
+            }
+            if (typeof config.onLoaded === 'function') {
+                config.onLoaded(true);
+            }
+        }).fail(function (jqXHR) {
+            console.error('Sample video all-files error:', jqXHR.status, jqXHR.responseText);
+            $pane.html('<div class="text-danger text-center py-3">' + String(config.allFilesErrorMessage) + '</div>');
+        }).always(function () {
+            if (typeof config.setLoading === 'function') {
+                config.setLoading(false);
+            }
+        });
+        return;
+    }
+
+    $.ajax({
+        url: config.buildSampleBrowserUrl(nextFolderPath),
+        method: 'GET'
+    }).done(function (result) {
+        if (typeof config.renderSampleVideoThumbnails === 'function') {
+            config.renderSampleVideoThumbnails(result || {}, false);
+        }
+        if (typeof config.onLoaded === 'function') {
+            config.onLoaded(true);
+        }
+    }).fail(function (jqXHR) {
+        console.error('Sample video browser error:', jqXHR.status, jqXHR.responseText);
+        $pane.html('<div class="text-danger text-center py-3">' + String(config.browserErrorMessage) + '</div>');
+    }).always(function () {
+        if (typeof config.setLoading === 'function') {
+            config.setLoading(false);
+        }
+    });
+}
+
+function wcsEnsureSampleVideosLoaded(options) {
+    const config = Object.assign({
+        isLoaded: false,
+        loadSampleVideos: null,
+        folderPath: '',
+        showAllFiles: false,
+    }, options || {});
+
+    if (!config.isLoaded && typeof config.loadSampleVideos === 'function') {
+        config.loadSampleVideos(config.folderPath, config.showAllFiles);
+    }
+}
+
 window.getVehicleDirectionButtonSelector = getVehicleDirectionButtonSelector;
 window.getVehicleCommandByButtonId = getVehicleCommandByButtonId;
 window.getVehicleButtonIdByCommand = getVehicleButtonIdByCommand;
@@ -346,6 +572,10 @@ window.wcsBuildRoadDetectStreamCleanupUrl = wcsBuildRoadDetectStreamCleanupUrl;
 window.wcsBuildFolderLabel = wcsBuildFolderLabel;
 window.wcsBuildSampleBrowserHeader = wcsBuildSampleBrowserHeader;
 window.wcsRenderSampleFolderTiles = wcsRenderSampleFolderTiles;
+window.wcsExtractSampleVideoFiles = wcsExtractSampleVideoFiles;
+window.wcsRenderSampleVideoThumbnails = wcsRenderSampleVideoThumbnails;
+window.wcsLoadSampleVideos = wcsLoadSampleVideos;
+window.wcsEnsureSampleVideosLoaded = wcsEnsureSampleVideosLoaded;
 
 // 페이지 로드 시 실행 
 $(document).ready(function() {

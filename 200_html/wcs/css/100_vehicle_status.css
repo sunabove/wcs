@@ -23,8 +23,12 @@
     top: 10px;
     right: 10px;
     z-index: 2;
-    width: 80px;
+    width: 36px;
+    height: 36px;
+    padding: 0;
+    border-radius: 999px;
     display: inline-flex;
+    align-items: center;
     justify-content: center;
     background-color: #fff;
     color: #111;

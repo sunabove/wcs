@@ -118,7 +118,18 @@
         });
 
     function setCloseButtonToShowMode(isShowMode) {
-        $closeButton.text(isShowMode ? "동영상" : "닫기");
+        if (isShowMode) {
+            $closeButton
+                .attr("title", "동영상 다시 보기")
+                .attr("aria-label", "동영상 다시 보기")
+                .html('<i class="bi bi-film" aria-hidden="true"></i>');
+            return;
+        }
+
+        $closeButton
+            .attr("title", "오버레이 닫기")
+            .attr("aria-label", "오버레이 닫기")
+            .html('<i class="bi bi-x-lg" aria-hidden="true"></i>');
     }
 
     function readOverlayMediaHiddenState() {

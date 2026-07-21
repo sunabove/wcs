@@ -1133,9 +1133,11 @@ $(function () {
         return "/fast/image/" + encodePathForRoute(fileName) + "?t=" + Date.now();
     }
 
-    function buildVideoThumbnailUrl(fileName) {
-        return "/fast/video_thumbnail/" + encodePathForRoute(fileName) + "?t=" + Date.now();
-    }
+    const buildVideoThumbnailUrl = typeof window.wcsBuildVideoThumbnailUrl === "function"
+        ? window.wcsBuildVideoThumbnailUrl
+        : function (fileName) {
+            return "/fast/video_thumbnail/" + encodePathForRoute(fileName) + "?t=" + Date.now();
+        };
 
     function buildVideoPlayableUrl(fileName, forceTranscode) {
         const base = "/fast/video_playable/" + encodePathForRoute(fileName);
@@ -1157,18 +1159,29 @@ $(function () {
         return "/fast/road_roi/" + encodePathForRoute(fileName);
     }
 
-    function buildRoadDetectStreamUrl(fileName, detectType, removeNoisyMasks) {
-        const base = "/fast/road_detect_stream/" + encodePathForRoute(fileName);
-        const query = $.param({
-            detect_type: detectType || "road",
-            remove_noisy_masks: removeNoisyMasks !== false,
-            include_pothole: shouldIncludePotholeOverlay(),
-            pothole_conf: getPotholeConfidenceValue(),
-            mqtt_publish: getMqttPublishOption(),
-            t: Date.now(),
-        });
-        return base + "?" + query;
-    }
+    const buildRoadDetectStreamUrl = typeof window.wcsBuildRoadDetectStreamUrl === "function"
+        ? function (fileName, detectType, removeNoisyMasks) {
+            return window.wcsBuildRoadDetectStreamUrl(fileName, {
+                detect_type: detectType || "road",
+                remove_noisy_masks: removeNoisyMasks !== false,
+                include_pothole: shouldIncludePotholeOverlay(),
+                pothole_conf: getPotholeConfidenceValue(),
+                mqtt_publish: getMqttPublishOption(),
+                t: Date.now(),
+            });
+        }
+        : function (fileName, detectType, removeNoisyMasks) {
+            const base = "/fast/road_detect_stream/" + encodePathForRoute(fileName);
+            const query = $.param({
+                detect_type: detectType || "road",
+                remove_noisy_masks: removeNoisyMasks !== false,
+                include_pothole: shouldIncludePotholeOverlay(),
+                pothole_conf: getPotholeConfidenceValue(),
+                mqtt_publish: getMqttPublishOption(),
+                t: Date.now(),
+            });
+            return base + "?" + query;
+        };
 
     function buildRoadDetectStreamInitUrl(fileName, detectType, removeNoisyMasks, showDetectStats) {
         const base = "/fast/road_detect_stream_init/" + encodePathForRoute(fileName);
@@ -1192,17 +1205,25 @@ $(function () {
         return base + "?" + $.param({ frame_number: frameNumber });
     }
 
-    function buildRoadDetectStreamCleanupUrl(fileName) {
-        return "/fast/road_detect_stream_cleanup/" + encodePathForRoute(fileName);
-    }
+    const buildRoadDetectStreamCleanupUrl = typeof window.wcsBuildRoadDetectStreamCleanupUrl === "function"
+        ? function (fileName) {
+            return window.wcsBuildRoadDetectStreamCleanupUrl(fileName, {});
+        }
+        : function (fileName) {
+            return "/fast/road_detect_stream_cleanup/" + encodePathForRoute(fileName);
+        };
 
-    function buildSamplesUrl(folderName) {
-        return "/fast/samples/" + encodePathForRoute(folderName);
-    }
+    const buildSamplesUrl = typeof window.wcsBuildSamplesUrl === "function"
+        ? window.wcsBuildSamplesUrl
+        : function (folderName) {
+            return "/fast/samples/" + encodePathForRoute(folderName);
+        };
 
-    function buildSampleBrowserUrl(folderName) {
-        return "/fast/sample_browser/" + encodePathForRoute(folderName);
-    }
+    const buildSampleBrowserUrl = typeof window.wcsBuildSampleBrowserUrl === "function"
+        ? window.wcsBuildSampleBrowserUrl
+        : function (folderName) {
+            return "/fast/sample_browser/" + encodePathForRoute(folderName);
+        };
 
     function buildCameraDevicesUrl() {
         return "/fast/camera/devices";

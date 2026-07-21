@@ -471,17 +471,23 @@ $(document).ready(function () {
                 .join('/');
         };
 
-    function buildVideoThumbnailUrl(fileName) {
-        return '/fast/video_thumbnail/' + encodePathForRoute(fileName) + '?t=' + Date.now();
-    }
+    const buildVideoThumbnailUrl = typeof window.wcsBuildVideoThumbnailUrl === 'function'
+        ? window.wcsBuildVideoThumbnailUrl
+        : function (fileName) {
+            return '/fast/video_thumbnail/' + encodePathForRoute(fileName) + '?t=' + Date.now();
+        };
 
-    function buildSampleBrowserUrl(folderName) {
-        return '/fast/sample_browser/' + encodePathForRoute(folderName);
-    }
+    const buildSampleBrowserUrl = typeof window.wcsBuildSampleBrowserUrl === 'function'
+        ? window.wcsBuildSampleBrowserUrl
+        : function (folderName) {
+            return '/fast/sample_browser/' + encodePathForRoute(folderName);
+        };
 
-    function buildSamplesUrl(folderName) {
-        return '/fast/samples/' + encodePathForRoute(folderName);
-    }
+    const buildSamplesUrl = typeof window.wcsBuildSamplesUrl === 'function'
+        ? window.wcsBuildSamplesUrl
+        : function (folderName) {
+            return '/fast/samples/' + encodePathForRoute(folderName);
+        };
 
     const normalizeSampleFolderPath = typeof window.wcsNormalizeSampleFolderPath === 'function'
         ? window.wcsNormalizeSampleFolderPath

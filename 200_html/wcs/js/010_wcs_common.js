@@ -170,6 +170,49 @@ function wcsResolveRoadDetectStreamPath(pathValue) {
     return normalizedPath;
 }
 
+function wcsBuildVideoThumbnailUrl(fileName) {
+    return '/fast/video_thumbnail/' + wcsEncodePathForRoute(fileName) + '?t=' + Date.now();
+}
+
+function wcsBuildSamplesUrl(folderName) {
+    return '/fast/samples/' + wcsEncodePathForRoute(folderName);
+}
+
+function wcsBuildSampleBrowserUrl(folderName) {
+    return '/fast/sample_browser/' + wcsEncodePathForRoute(folderName);
+}
+
+function wcsBuildRoadDetectStreamUrl(fileName, options) {
+    const streamPath = wcsResolveRoadDetectStreamPath(fileName);
+    const encodedPath = wcsEncodePathForRoute(streamPath);
+    if (!encodedPath) {
+        return '';
+    }
+
+    const config = Object.assign({
+        detect_type: 'road',
+        remove_noisy_masks: true,
+        show_time_bar: false,
+        include_pothole: false,
+        pothole_conf: 0.5,
+        mqtt_publish: false,
+        t: Date.now(),
+    }, options || {});
+
+    return '/fast/road_detect_stream/' + encodedPath + '?' + $.param(config);
+}
+
+function wcsBuildRoadDetectStreamCleanupUrl(fileName, queryParams) {
+    const streamPath = wcsResolveRoadDetectStreamPath(fileName);
+    const encodedPath = wcsEncodePathForRoute(streamPath);
+    if (!encodedPath) {
+        return '';
+    }
+
+    const params = Object.assign({ t: Date.now() }, queryParams || {});
+    return '/fast/road_detect_stream_cleanup/' + encodedPath + '?' + $.param(params);
+}
+
 window.getVehicleDirectionButtonSelector = getVehicleDirectionButtonSelector;
 window.getVehicleCommandByButtonId = getVehicleCommandByButtonId;
 window.getVehicleButtonIdByCommand = getVehicleButtonIdByCommand;
@@ -181,6 +224,11 @@ window.wcsNormalizePath = wcsNormalizePath;
 window.wcsEncodePathForRoute = wcsEncodePathForRoute;
 window.wcsNormalizeSampleFolderPath = wcsNormalizeSampleFolderPath;
 window.wcsResolveRoadDetectStreamPath = wcsResolveRoadDetectStreamPath;
+window.wcsBuildVideoThumbnailUrl = wcsBuildVideoThumbnailUrl;
+window.wcsBuildSamplesUrl = wcsBuildSamplesUrl;
+window.wcsBuildSampleBrowserUrl = wcsBuildSampleBrowserUrl;
+window.wcsBuildRoadDetectStreamUrl = wcsBuildRoadDetectStreamUrl;
+window.wcsBuildRoadDetectStreamCleanupUrl = wcsBuildRoadDetectStreamCleanupUrl;
 
 // 페이지 로드 시 실행 
 $(document).ready(function() {

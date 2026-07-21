@@ -247,35 +247,51 @@
             return normalizedPath;
         };
 
-    function buildRoadDetectStreamUrl(fileName) {
-        const streamPath = resolveRoadDetectStreamPath(fileName);
-        const encodedPath = encodePathForRoute(streamPath);
-        if (!encodedPath) {
-            return "";
+    const buildRoadDetectStreamUrl = typeof window.wcsBuildRoadDetectStreamUrl === "function"
+        ? function (fileName) {
+            return window.wcsBuildRoadDetectStreamUrl(fileName, {
+                detect_type: "road_type",
+                remove_noisy_masks: true,
+                show_time_bar: true,
+                include_pothole: true,
+                pothole_conf: 0.45,
+                mqtt_publish: true,
+                t: Date.now(),
+            });
         }
+        : function (fileName) {
+            const streamPath = resolveRoadDetectStreamPath(fileName);
+            const encodedPath = encodePathForRoute(streamPath);
+            if (!encodedPath) {
+                return "";
+            }
 
-        return "/fast/road_detect_stream/" + encodedPath + "?" + $.param({
-            detect_type: "road_type",
-            remove_noisy_masks: true,
-            show_time_bar: true,
-            include_pothole: true,
-            pothole_conf: 0.45,
-            mqtt_publish: true,
-            t: Date.now(),
-        });
-    }
+            return "/fast/road_detect_stream/" + encodedPath + "?" + $.param({
+                detect_type: "road_type",
+                remove_noisy_masks: true,
+                show_time_bar: true,
+                include_pothole: true,
+                pothole_conf: 0.45,
+                mqtt_publish: true,
+                t: Date.now(),
+            });
+        };
 
-    function buildRoadDetectStreamCleanupUrl(fileName) {
-        const streamPath = resolveRoadDetectStreamPath(fileName);
-        const encodedPath = encodePathForRoute(streamPath);
-        if (!encodedPath) {
-            return "";
+    const buildRoadDetectStreamCleanupUrl = typeof window.wcsBuildRoadDetectStreamCleanupUrl === "function"
+        ? function (fileName) {
+            return window.wcsBuildRoadDetectStreamCleanupUrl(fileName, { t: Date.now() });
         }
+        : function (fileName) {
+            const streamPath = resolveRoadDetectStreamPath(fileName);
+            const encodedPath = encodePathForRoute(streamPath);
+            if (!encodedPath) {
+                return "";
+            }
 
-        return "/fast/road_detect_stream_cleanup/" + encodedPath + "?" + $.param({
-            t: Date.now(),
-        });
-    }
+            return "/fast/road_detect_stream_cleanup/" + encodedPath + "?" + $.param({
+                t: Date.now(),
+            });
+        };
 
     function buildRoadDetectStreamCleanupUrlByPath(filePath) {
         const normalizedPath = normalizePath(filePath);

@@ -576,6 +576,60 @@ function syncVehicleDirectionButtons(commandValue) {
     return true;
 }
 
+function getVehicleDriveModeByCommand(commandValue) {
+    switch (Number(commandValue)) {
+        case 1:
+            return 'forward';
+        case 2:
+            return 'backward';
+        case 3:
+            return 'left';
+        case 4:
+            return 'right';
+        case 0:
+        default:
+            return 'stop';
+    }
+}
+
+function getCommandSignedWheelRpm(commandValue, wheelKey, rpmMagnitude) {
+    const absRpm = Math.max(0, Math.abs(Number(rpmMagnitude) || 0));
+    const normalizedWheelKey = String(wheelKey || '').trim().toLowerCase();
+
+    switch (Number(commandValue)) {
+        case 0:
+            return 0;
+        case 1:
+            return absRpm;
+        case 2:
+            return -absRpm;
+        case 3:
+            return (normalizedWheelKey === 'fl' || normalizedWheelKey === 'rl') ? -absRpm : absRpm;
+        case 4:
+            return (normalizedWheelKey === 'fl' || normalizedWheelKey === 'rl') ? absRpm : -absRpm;
+        default:
+            return Number(rpmMagnitude) || 0;
+    }
+}
+
+function syncViewerDriveAnimationByCommand(commandValue) {
+    const numericCommand = Number.parseInt(commandValue, 10);
+    if (!Number.isFinite(numericCommand)) {
+        return;
+    }
+
+    const speedMs = Number(window.latestVehicleLinearSpeedMs);
+    const speedKmh = Number.isFinite(speedMs) ? Math.max(0, speedMs * 3.6) : 0;
+
+    if (typeof window.setDriveSpeedKmh === 'function') {
+        window.setDriveSpeedKmh(speedKmh);
+    }
+
+    if (typeof window.setDriveMode === 'function') {
+        window.setDriveMode(getVehicleDriveModeByCommand(numericCommand));
+    }
+}
+
 function canUseSpeechSynthesisFallback() {
     return typeof window !== 'undefined'
         && typeof window.SpeechSynthesisUtterance === 'function'
@@ -1069,6 +1123,7 @@ function prcessMqttMessage(topic, value) {
         if (Number.isFinite(commandValue)) {
             window.latestVehicleOperationCommand = commandValue;
             dispatchVehicleDirectionEvent(topic, commandValue);
+            syncViewerDriveAnimationByCommand(commandValue);
         }
         window.vehicleDirectionCommandActive = commandValue >= 1 && commandValue <= 4;
 
@@ -1153,6 +1208,12 @@ function prcessMqttMessage(topic, value) {
         const numericSpeed = parseFloat(value);
         if (Number.isFinite(numericSpeed)) {
             window.latestVehicleLinearSpeedMs = numericSpeed;
+
+            // 차량 방향 명령이 활성 상태면 최신 속도로 뷰어 애니메이션 속도를 동기화한다.
+            const latestCommand = Number(window.latestVehicleOperationCommand);
+            if (Number.isFinite(latestCommand) && latestCommand >= 0 && latestCommand <= 4) {
+                syncViewerDriveAnimationByCommand(latestCommand);
+            }
         }
 
         const shouldSkipAutoStopSync =
@@ -1325,7 +1386,13 @@ function applyWheelAngularVelocityToViewer(topic, value) {
         return;
     }
 
-    setWheelAnimationByKey(wheelKey, Math.round(rpmValue));
+    const latestCommand = Number(window.latestVehicleOperationCommand);
+    let effectiveRpm = rpmValue;
+    if (Number.isFinite(latestCommand) && latestCommand >= 0 && latestCommand <= 4) {
+        effectiveRpm = getCommandSignedWheelRpm(latestCommand, wheelKey, rpmValue);
+    }
+
+    setWheelAnimationByKey(wheelKey, Math.round(effectiveRpm));
 }
 
 function convertAngularMetricToRpm(metricPath, value) {

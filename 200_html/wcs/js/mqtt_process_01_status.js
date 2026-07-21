@@ -54,6 +54,16 @@ const fallbackVehicleAudioState = {
     duplicateMessageBlockMs: 350
 };
 
+const wheelSpeedLogCounter = {
+    total: 0,
+    byWheel: {
+        fl: 0,
+        fr: 0,
+        rl: 0,
+        rr: 0,
+    },
+};
+
 function mqttLog() {
     const args = Array.from(arguments);
     if (args.length === 0) {
@@ -1438,8 +1448,13 @@ function applyWheelAngularVelocityToViewer(topic, value) {
         return;
     }
 
+    wheelSpeedLogCounter.total += 1;
+    wheelSpeedLogCounter.byWheel[wheelKey] = (wheelSpeedLogCounter.byWheel[wheelKey] || 0) + 1;
+
     // 로그는 URDF 함수 준비 여부와 관계없이 항상 남긴다.
-    console.log(`[WHEEL_SPEED] ${wheelKey.toUpperCase()} ${rpmValue.toFixed(1)} rpm`);
+    console.log(
+        `[WHEEL_SPEED] #${wheelSpeedLogCounter.total} ${wheelKey.toUpperCase()}(${wheelSpeedLogCounter.byWheel[wheelKey]}) ${rpmValue.toFixed(1)} rpm`
+    );
 
     if (typeof setWheelAnimationByKey !== 'function') {
         return;

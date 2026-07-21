@@ -1170,7 +1170,6 @@ function prcessMqttMessage(topic, value) {
         if (Number.isFinite(commandValue)) {
             window.latestVehicleOperationCommand = commandValue;
             dispatchVehicleDirectionEvent(topic, commandValue);
-            syncViewerDriveAnimationByCommand(commandValue);
         }
         window.vehicleDirectionCommandActive = commandValue >= 1 && commandValue <= 4;
 
@@ -1257,12 +1256,6 @@ function prcessMqttMessage(topic, value) {
         const numericSpeed = parseFloat(value);
         if (Number.isFinite(numericSpeed)) {
             window.latestVehicleLinearSpeedMs = numericSpeed;
-
-            // 차량 방향 명령이 활성 상태면 최신 속도로 뷰어 애니메이션 속도를 동기화한다.
-            const latestCommand = Number(window.latestVehicleOperationCommand);
-            if (Number.isFinite(latestCommand) && latestCommand >= 0 && latestCommand <= 4) {
-                syncViewerDriveAnimationByCommand(latestCommand);
-            }
         }
 
         const shouldSkipAutoStopSync =
@@ -1435,15 +1428,7 @@ function applyWheelAngularVelocityToViewer(topic, value) {
         return;
     }
 
-    const latestCommand = Number(window.latestVehicleOperationCommand);
-    let effectiveRpm = rpmValue;
-    if (Number.isFinite(latestCommand) && latestCommand >= 0 && latestCommand <= 4) {
-        if (typeof window.getCommandSignedWheelRpm === 'function') {
-            effectiveRpm = window.getCommandSignedWheelRpm(latestCommand, wheelKey, rpmValue);
-        }
-    }
-
-    setWheelAnimationByKey(wheelKey, Math.round(effectiveRpm));
+    setWheelAnimationByKey(wheelKey, Math.round(rpmValue));
 }
 
 function convertAngularMetricToRpm(metricPath, value) {

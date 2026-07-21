@@ -129,19 +129,10 @@ $(document).ready(function() {
         .removeClass('text-black');
 
     function applyVehicleDirectionAnimation(command, speedKmh) {
-        const mode = (typeof window.getVehicleDriveModeByCommand === 'function')
-            ? window.getVehicleDriveModeByCommand(command)
-            : 'stop';
-        const numericSpeed = Number.parseFloat(speedKmh);
-        const normalizedSpeed = Number.isFinite(numericSpeed) ? Math.max(0, numericSpeed) : 0;
-
-        if (typeof window.setDriveSpeedKmh === 'function') {
-            window.setDriveSpeedKmh(normalizedSpeed);
-        }
-
-        if (typeof window.setDriveMode === 'function') {
-            window.setDriveMode(mode);
-        }
+        // 휠 애니메이션은 서버가 발행한 wheel/*/angle/speed 토픽으로만 반영한다.
+        // 테스트 페이지에서는 방향 명령에 따른 로컬 URDF 구동(추정 애니메이션)을 수행하지 않는다.
+        void command;
+        void speedKmh;
     }
 
     function publishSelectedVehicleCommandOnLoad() {

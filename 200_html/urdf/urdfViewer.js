@@ -3223,10 +3223,13 @@ function initURDFViewers() {
     }
 
     const storageEnabled = readVehicleAudioEnabledFromStorage();
-    if (storageEnabled == null) {
-        const viewer = getRoadAttitudeTargetViewer();
-        if (viewer) {
-            setVehicleAudioEnabled(viewer.showAudio === true);
+    const viewer = getRoadAttitudeTargetViewer();
+    if (viewer) {
+        if (viewer.showAudio === true) {
+            // showAudio=true 페이지에서는 과거 localStorage의 OFF 값으로 영구 음소거되지 않게 ON을 우선한다.
+            setVehicleAudioEnabled(true);
+        } else if (storageEnabled == null) {
+            setVehicleAudioEnabled(false);
         }
     }
 

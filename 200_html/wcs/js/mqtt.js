@@ -131,6 +131,11 @@ function initMQTTClient() {
         client.on('message', function (topic, message) {
             const messageStr = message.toString();
             const shouldDisplayInMessagePanel = topic !== 'client/connect';
+            let processedValue = messageStr;
+            const numValue = parseFloat(messageStr);
+            if (!isNaN(numValue)) {
+                processedValue = numValue;
+            }
             
             // 로깅 최적화: vehicle/ 토픽만 상세 로그, 나머지는 요약
             if (topic.startsWith('vehicle/') || topic.startsWith('wheel/')) {
@@ -167,13 +172,6 @@ function initMQTTClient() {
                 client.lastUIUpdate = Date.now();
             }
             
-            // 숫자 파싱 최적화
-            let processedValue = messageStr;
-            const numValue = parseFloat(messageStr);
-            if (!isNaN(numValue)) {
-                processedValue = numValue;
-            }
-
             // prcessMqttMessage 함수가 정의되어 있으면 호출
             if (typeof prcessMqttMessage === 'function') {
                 prcessMqttMessage(topic, processedValue);

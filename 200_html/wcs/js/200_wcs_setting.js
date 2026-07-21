@@ -36,7 +36,7 @@ $(document).ready(function () {
 
         if (shouldPublish) {
             const speedMs = Number((roundedKmh / 3.6).toFixed(2));
-            sendMQTTMessage(maxSpeedTopic, speedMs);
+            window.WcsMqtt.sendMQTTMessage(maxSpeedTopic, speedMs);
         }
     }
 
@@ -49,7 +49,7 @@ $(document).ready(function () {
 
         if (shouldPublish) {
             const rollAngleRad = (normalizedRoll * Math.PI) / 180;
-            sendMQTTMessage('vehicle/road/roll_angle', rollAngleRad);
+            window.WcsMqtt.sendMQTTMessage('vehicle/road/roll_angle', rollAngleRad);
         }
     }
 
@@ -62,7 +62,7 @@ $(document).ready(function () {
 
         if (shouldPublish) {
             const pitchAngleRad = (normalizedPitch * Math.PI) / 180;
-            sendMQTTMessage('vehicle/road/pitch_angle', pitchAngleRad);
+            window.WcsMqtt.sendMQTTMessage('vehicle/road/pitch_angle', pitchAngleRad);
         }
     }
 
@@ -350,9 +350,9 @@ $(document).ready(function () {
     function publishObstacleSensorSettings() {
         const settings = getOrderedObstacleSensorSettings();
         settings.forEach((sensorDef) => {
-            sendMQTTMessage(`sensor/${sensorDef.id}/count`, sensorDef.count);
-            sendMQTTMessage(`sensor/${sensorDef.id}/target`, sensorDef.target);
-            sendMQTTMessage(`sensor/${sensorDef.id}/enabled`, sensorDef.enabled ? 1 : 0);
+            window.WcsMqtt.sendMQTTMessage(`sensor/${sensorDef.id}/count`, sensorDef.count);
+            window.WcsMqtt.sendMQTTMessage(`sensor/${sensorDef.id}/target`, sensorDef.target);
+            window.WcsMqtt.sendMQTTMessage(`sensor/${sensorDef.id}/enabled`, sensorDef.enabled ? 1 : 0);
         });
 
         getOrderedObstacleSensorRows().forEach((row) => {
@@ -363,12 +363,12 @@ $(document).ready(function () {
             const sensorValue = normalizeSensorValueById(row.id, row.value);
             const sensorConfidence = normalizeSensorConfidence(row.confidence);
 
-            sendMQTTMessage(`sensor/${row.id}/${row.index}/value`, sensorValue);
-            sendMQTTMessage(`sensor/${row.id}/${row.index}/obstacle/confidence`, sensorConfidence);
-            sendMQTTMessage(`sensor/${row.id}/${row.index}/state`, row.enabled ? 1 : 0);
+            window.WcsMqtt.sendMQTTMessage(`sensor/${row.id}/${row.index}/value`, sensorValue);
+            window.WcsMqtt.sendMQTTMessage(`sensor/${row.id}/${row.index}/obstacle/confidence`, sensorConfidence);
+            window.WcsMqtt.sendMQTTMessage(`sensor/${row.id}/${row.index}/state`, row.enabled ? 1 : 0);
         });
 
-        sendMQTTMessage('obstacle/sensor/settings', JSON.stringify(settings));
+        window.WcsMqtt.sendMQTTMessage('obstacle/sensor/settings', JSON.stringify(settings));
     }
 
     function publishSingleObstacleSensorRow(sensorId, sensorIndex) {
@@ -382,7 +382,7 @@ $(document).ready(function () {
         const sensorConfidence = normalizeSensorConfidence(row.confidence);
         const enabled = Boolean(row.enabled ?? true);
 
-        sendMQTTMessage(`sensor/${row.id}/${row.index}/value`, sensorValue);
+        window.WcsMqtt.sendMQTTMessage(`sensor/${row.id}/${row.index}/value`, sensorValue);
         sendMQTTMessage(`sensor/${row.id}/${row.index}/obstacle/confidence`, sensorConfidence);
         sendMQTTMessage(`sensor/${row.id}/${row.index}/state`, enabled ? 1 : 0);
     }

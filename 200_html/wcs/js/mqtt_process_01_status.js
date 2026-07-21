@@ -79,8 +79,8 @@ function mqttLog() {
         return;
     }
 
-    if (typeof window.mqttConsoleLog === 'function') {
-        window.mqttConsoleLog.apply(window, args);
+    if (window.WcsMqtt && typeof window.WcsMqtt.log === 'function') {
+        window.WcsMqtt.log.apply(window.WcsMqtt, args);
     }
 }
 

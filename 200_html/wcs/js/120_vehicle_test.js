@@ -92,7 +92,7 @@ $(document).ready(function() {
 
         const isConnected = Boolean(window.mqttClient && window.mqttClient.connected);
         if (isConnected) {
-            sendMQTTMessage(topic, payload, 1);
+            window.WcsMqtt.sendMQTTMessage(topic, payload, 1);
             return;
         }
 
@@ -196,11 +196,11 @@ $(document).ready(function() {
             .removeClass('btn-outline-secondary text-black')
             .addClass('active btn-secondary text-white');
 
-        sendMQTTMessage(topic, command, 1);
+        window.WcsMqtt.sendMQTTMessage(topic, command, 1);
 
         if (Number(command) === 1 || Number(command) === 2) {
             const signedAngularSpeed = Number(command) === 2 ? -angularSpeedAbs : angularSpeedAbs;
-            sendMQTTMessage(`wheel/${selectedWheel}/angle/speed`, signedAngularSpeed, 1);
+            window.WcsMqtt.sendMQTTMessage(`wheel/${selectedWheel}/angle/speed`, signedAngularSpeed, 1);
         } else if (Number(command) === 0) {
             sendMQTTMessage(`wheel/${selectedWheel}/angle/speed`, '0', 1);
         }

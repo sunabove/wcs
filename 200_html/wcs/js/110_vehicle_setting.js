@@ -66,7 +66,7 @@ $(document).ready(function() {
         console.log('[Vehicle Setting] 📤 ID 요청 MQTT 전송 준비 - 토픽:', topic);
 
         try {
-            sendMQTTMessage(topic, message, 1);
+            window.WcsMqtt.sendMQTTMessage(topic, message, 1);
             console.log(`[Vehicle Setting] 🔍 바퀴 ID 요청 발행 - 바퀴: ${selectedWheel}, 토픽: ${topic}`);
         } catch (error) {
             console.error('[Vehicle Setting] ❌ ID 요청 sendMQTTMessage 호출 에러:', error);
@@ -107,7 +107,7 @@ $(document).ready(function() {
                 const topic = 'vehicle/linear/max_speed';
                 const message = speed;
 
-                sendMQTTMessage(topic, message, 1);
+                window.WcsMqtt.sendMQTTMessage(topic, message, 1);
 
                 console.log(`[Vehicle Setting] 🚗 최고 속도 설정 - 바퀴: ${selectedWheel}, 속도: ${speed} km/s`);
 
@@ -145,7 +145,7 @@ $(document).ready(function() {
             console.log('[Vehicle Setting] 📤 MQTT 전송 준비 - 토픽:', topic, '메시지:', message, '타입:', typeof message);
 
             try {
-                sendMQTTMessage(topic, message, 1);
+                window.WcsMqtt.sendMQTTMessage(topic, message, 1);
             } catch (error) {
                 console.error('[Vehicle Setting] ❌ sendMQTTMessage 호출 에러:', error);
                 alert(`ToF 캘리브레이션 전송 중 오류 발생: ${error.message}`);

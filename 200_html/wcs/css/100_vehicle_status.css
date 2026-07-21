@@ -26,32 +26,42 @@
     display: inline-flex;
     align-items: center;
     gap: 6px;
+    padding: 4px 6px;
+    border-radius: 999px;
+    background: rgba(17, 24, 39, 0.45);
 }
 
 .road-detect-overlay-control-btn {
-    width: 36px;
-    height: 36px;
+    width: 38px;
+    height: 38px;
     padding: 0;
     border-radius: 999px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    background-color: #fff;
-    color: #111;
-    border-color: #fff;
+    background-color: rgba(255, 255, 255, 0.95);
+    color: #0f172a;
+    border-color: rgba(255, 255, 255, 0.95);
 }
 
 .road-detect-overlay-control-btn i {
     line-height: 1;
-    font-size: 1.05rem;
+    font-size: 1.2rem;
+}
+
+.road-detect-overlay-control-btn:disabled {
+    opacity: 0.8;
+    color: #6b7280;
+    background-color: rgba(229, 231, 235, 0.96);
+    border-color: rgba(229, 231, 235, 0.96);
 }
 
 .road-detect-overlay-close-btn .overlay-toggle-icon-video {
-    font-size: 1.3rem;
+    font-size: 1.35rem;
 }
 
 .road-detect-overlay-close-btn .overlay-toggle-icon-close {
-    font-size: 1.05rem;
+    font-size: 1.15rem;
 }
 
 .vehicle-audio-hud {

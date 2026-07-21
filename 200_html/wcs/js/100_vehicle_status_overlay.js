@@ -211,45 +211,41 @@
         setOverlayStatus("", false);
     }
 
-    function normalizePath(pathValue) {
-        if (typeof window.wcsNormalizePath === "function") {
-            return window.wcsNormalizePath(pathValue);
-        }
-        return String(pathValue || "").trim().replace(/\\/g, "/").replace(/^\/+/, "");
-    }
+    const normalizePath = typeof window.wcsNormalizePath === "function"
+        ? window.wcsNormalizePath
+        : function (pathValue) {
+            return String(pathValue || "").trim().replace(/\\/g, "/").replace(/^\/+/, "");
+        };
 
-    function encodePathForRoute(pathValue) {
-        if (typeof window.wcsEncodePathForRoute === "function") {
-            return window.wcsEncodePathForRoute(pathValue);
-        }
-        return normalizePath(pathValue)
-            .split("/")
-            .filter(function (segment) {
-                return segment.length > 0;
-            })
-            .map(function (segment) {
-                return encodeURIComponent(segment);
-            })
-            .join("/");
-    }
+    const encodePathForRoute = typeof window.wcsEncodePathForRoute === "function"
+        ? window.wcsEncodePathForRoute
+        : function (pathValue) {
+            return normalizePath(pathValue)
+                .split("/")
+                .filter(function (segment) {
+                    return segment.length > 0;
+                })
+                .map(function (segment) {
+                    return encodeURIComponent(segment);
+                })
+                .join("/");
+        };
 
-    function resolveRoadDetectStreamPath(pathValue) {
-        if (typeof window.wcsResolveRoadDetectStreamPath === "function") {
-            return window.wcsResolveRoadDetectStreamPath(pathValue);
-        }
+    const resolveRoadDetectStreamPath = typeof window.wcsResolveRoadDetectStreamPath === "function"
+        ? window.wcsResolveRoadDetectStreamPath
+        : function (pathValue) {
+            const normalizedPath = normalizePath(pathValue);
+            if (!normalizedPath) {
+                return "";
+            }
 
-        const normalizedPath = normalizePath(pathValue);
-        if (!normalizedPath) {
-            return "";
-        }
+            // Backward compatibility: a bare file name is treated as cobot sample.
+            if (normalizedPath.indexOf("/") === -1) {
+                return "samples/video/cobot/" + normalizedPath;
+            }
 
-        // Backward compatibility: a bare file name is treated as cobot sample.
-        if (normalizedPath.indexOf("/") === -1) {
-            return "samples/video/cobot/" + normalizedPath;
-        }
-
-        return normalizedPath;
-    }
+            return normalizedPath;
+        };
 
     function buildRoadDetectStreamUrl(fileName) {
         const streamPath = resolveRoadDetectStreamPath(fileName);

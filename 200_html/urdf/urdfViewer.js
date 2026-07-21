@@ -82,13 +82,6 @@ class URDFViewer {
             rl: 1,
             rr: 1
         };
-        // Visual mesh orientation compensation (right-side wheels are mirrored in many URDF models).
-        this.wheelVisualRotationSignByKey = {
-            fl: 1,
-            fr: -1,
-            rl: 1,
-            rr: -1
-        };
         this.driveMode = 'forward';
         this.driveSpeedKmh = 0;
         this.kmhToRpmFactor = 4;
@@ -1385,8 +1378,7 @@ class URDFViewer {
             }
 
             const wheelDirection = this.wheelDirectionSignByKey[key] || 1;
-            const visualRotationSign = this.wheelVisualRotationSignByKey[key] || 1;
-            this.wheelAngles[key] += wheelDirection * visualRotationSign * wheelAngularSpeedRad * deltaSec;
+            this.wheelAngles[key] += wheelDirection * wheelAngularSpeedRad * deltaSec;
 
             if (runtimeTarget.type === 'joint') {
                 runtimeTarget.ref.setJointValue(this.wheelAngles[key]);

@@ -55,8 +55,23 @@ const fallbackVehicleAudioState = {
 };
 
 function mqttLog() {
+    const args = Array.from(arguments);
+    if (args.length === 0) {
+        return;
+    }
+
+    const firstArg = args[0];
+    const secondArg = args[1];
+    const wheelSpeedTopicPattern = /^wheel\/(fl|fr|rl|rr)\/angle\/speed$/i;
+    const firstArgIsWheelSpeedTopic = typeof firstArg === 'string' && wheelSpeedTopicPattern.test(firstArg);
+    const secondArgIsWheelSpeedTopic = typeof secondArg === 'string' && wheelSpeedTopicPattern.test(secondArg);
+
+    if (!firstArgIsWheelSpeedTopic && !secondArgIsWheelSpeedTopic) {
+        return;
+    }
+
     if (typeof window.mqttConsoleLog === 'function') {
-        window.mqttConsoleLog.apply(window, arguments);
+        window.mqttConsoleLog.apply(window, args);
     }
 }
 
@@ -1427,6 +1442,8 @@ function applyWheelAngularVelocityToViewer(topic, value) {
     if (!Number.isFinite(rpmValue)) {
         return;
     }
+
+    console.log(`[WHEEL_SPEED] ${wheelKey.toUpperCase()} ${rpmValue.toFixed(1)} rpm`);
 
     setWheelAnimationByKey(wheelKey, rpmValue);
 }

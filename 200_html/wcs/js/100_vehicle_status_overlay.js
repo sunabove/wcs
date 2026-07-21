@@ -136,7 +136,7 @@
             .html('<i class="bi bi-x-lg overlay-toggle-icon overlay-toggle-icon-close" aria-hidden="true"></i>');
     }
 
-    function updateLoopToggleButton(isVideoReady = false) {
+    function updateLoopToggleButton(isControlEnabled = false) {
         if ($loopToggleButton.length === 0) {
             return;
         }
@@ -160,7 +160,7 @@
                 .attr("aria-label", "자동 반복 OFF");
         }
 
-        $loopToggleButton.prop("disabled", !isVideoReady);
+        $loopToggleButton.prop("disabled", !isControlEnabled);
     }
 
     function updateVideoControlButtons() {
@@ -177,7 +177,8 @@
         $playToggleButton.removeClass("d-none");
 
         if (lastMediaType === "image") {
-            updateLoopToggleButton(false);
+            const hasImageSource = !!String(lastMediaSource || $image.attr("src") || "").trim();
+            updateLoopToggleButton(hasImageSource);
             if (mediaPlaybackPaused) {
                 $playToggleButton
                     .prop("disabled", false)

@@ -131,7 +131,7 @@
         $closeButton
             .attr("title", "오버레이 닫기")
             .attr("aria-label", "오버레이 닫기")
-            .html('<i class="bi bi-film-slash-fill overlay-toggle-icon overlay-toggle-icon-close" aria-hidden="true"></i>');
+            .html('<i class="bi bi-x-lg overlay-toggle-icon overlay-toggle-icon-close" aria-hidden="true"></i>');
     }
 
     function updateVideoControlButtons() {

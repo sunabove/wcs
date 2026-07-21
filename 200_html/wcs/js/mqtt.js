@@ -142,8 +142,11 @@ function initMQTTClient() {
             
             // UI 업데이트 throttling (100ms 간격)
             if (shouldDisplayInMessagePanel && (!client.lastUIUpdate || Date.now() - client.lastUIUpdate > 100)) {
+                const processedValueText = typeof getFormattedTopicValue === 'function'
+                    ? getFormattedTopicValue(topic, processedValue)
+                    : messageStr;
                 $('#mqtt-topic').text(topic + ' :');
-                $('#mqtt-value').text(messageStr);
+                $('#mqtt-value').text(String(processedValueText));
                 
                 // 토픽에 따른 배경색 변경
                 let badgeColor = 'bg-info';

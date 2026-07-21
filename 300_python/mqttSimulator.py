@@ -238,7 +238,7 @@ class MqttSimulator:
 
                         self.command = OperationCommand(command_value)
                         self.exec_state = VehicleExecState.STOP if self.command == OperationCommand.STOP else VehicleExecState.RUN
-                        self._publish_vehicle_command_wheels_immediately(publish=False)
+                        self._publish_vehicle_command_wheels_immediately(publish=True)
 
                         command_names = {
                             OperationCommand.STOP: "정지",
@@ -274,7 +274,7 @@ class MqttSimulator:
                                     self.command = OperationCommand.STOP
                                     self.exec_state = VehicleExecState.STOP
                                     self.direction_control_speed_only_mode = True
-                                    self._publish_vehicle_command_wheels_immediately(publish=False)
+                                    self._publish_vehicle_command_wheels_immediately(publish=True)
                                     print(f"[WHEEL_TEST] 수동 바퀴 테스트 정지: {wheel_id.upper()}")
                                 else:
                                     self.manual_wheel_test_active = True
@@ -374,7 +374,7 @@ class MqttSimulator:
                             self.manual_wheel_test_wheel = None
                             self.manual_wheel_test_command = OperationCommand.STOP
                             self.direction_control_speed_only_mode = True
-                            self._publish_vehicle_command_wheels_immediately(publish=False)
+                            self._publish_vehicle_command_wheels_immediately(publish=True)
                     else:
                         print(f"[SPEED] 잘못된 현재 속도 범위: {new_current_speed:.1f} m/s (허용: 0.0-27.8 m/s, 0-100 km/h)")
                 except ValueError:
@@ -405,7 +405,7 @@ class MqttSimulator:
                             self.manual_wheel_test_wheel = None
                             self.manual_wheel_test_command = OperationCommand.STOP
                             self.direction_control_speed_only_mode = True
-                            self._publish_vehicle_command_wheels_immediately(publish=False)
+                            self._publish_vehicle_command_wheels_immediately(publish=True)
                     else:
                         print(f"[SPEED] 잘못된 최고 속도 범위: {new_max_speed:.1f} m/s (허용: 0.0-27.8 m/s, 0-100 km/h)")
                 except ValueError:

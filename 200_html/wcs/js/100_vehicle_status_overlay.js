@@ -131,7 +131,7 @@
             $closeButton
                 .attr("title", "동영상 다시 보기")
                 .attr("aria-label", "동영상 다시 보기")
-                .html('<i class="bi bi-x-lg overlay-toggle-icon overlay-toggle-icon-close" aria-hidden="true"></i>');
+                .html('<i class="bi bi-eye-fill overlay-toggle-icon overlay-toggle-icon-show" aria-hidden="true"></i>');
             return;
         }
 

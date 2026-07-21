@@ -1105,7 +1105,7 @@
                 mediaPlaybackPaused = true;
                 freezeCurrentImageFrameForPause();
                 requestRoadDetectSessionCleanup(latestCurrentVideoFileName);
-                showTemporaryStatusMessage("일시 정지");
+                setOverlayStatus("일시 정지", true);
             }
             updateVideoControlButtons();
             return;

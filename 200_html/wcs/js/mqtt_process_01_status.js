@@ -1481,6 +1481,9 @@ function getFormattedTopicValue(topic, value) {
     } else if (topic.startsWith('sensor/') && topic.endsWith('/obstacle')) {
         const obstacleIndex = Number.parseInt(value, 10);
         formattedValue = surfaceObstacleLabels[obstacleIndex] || '알수없음';
+    } else if (topic === 'vehicle/surface/obstacle') {
+        const obstacleIndex = Number.parseInt(value, 10);
+        formattedValue = surfaceObstacleLabels[obstacleIndex] || '알수없음';
     } else if (topic === 'obstacle') {
         const stateIndex = parseInt(value, 10);
         formattedValue = surfaceObstacleLabels[stateIndex] || '알수없음';

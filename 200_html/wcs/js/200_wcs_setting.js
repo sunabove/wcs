@@ -664,124 +664,185 @@ $(document).ready(function () {
         return [];
     }
 
-    function renderSampleVideoThumbnails(browserData, showAllFiles) {
-        if ($wcsSampleVideoPane.length === 0) {
-            return;
+    const renderSampleVideoThumbnails = typeof window.wcsRenderSampleVideoThumbnails === 'function'
+        ? function (browserData, showAllFiles) {
+            return window.wcsRenderSampleVideoThumbnails({
+                pane: $wcsSampleVideoPane,
+                browserData: browserData,
+                showAllFiles: showAllFiles,
+                baseFolder: 'video',
+                paneSelector: 'video',
+                itemTemplate: wcsSampleVideoItemTemplate,
+                emptyMessage: '',
+                normalizePath: normalizePath,
+                normalizeSampleFolderPath: normalizeSampleFolderPath,
+                buildSampleBrowserHeader: buildSampleBrowserHeader,
+                renderSampleFolderTiles: function (baseFolder, currentFolderPath, childFolders) {
+                    return renderSampleFolderTiles(baseFolder, childFolders);
+                },
+                buildVideoThumbnailUrl: buildVideoThumbnailUrl,
+                onAfterRender: applyCurrentVideoHighlight,
+            });
         }
-
-        const currentFolder = normalizeSampleFolderPath(browserData && browserData.current_folder, 'video');
-        const childFolders = browserData && Array.isArray(browserData.folders) ? browserData.folders : [];
-        const fileNames = browserData && Array.isArray(browserData.files) ? browserData.files : [];
-
-        $wcsSampleVideoPane.empty().append(buildSampleBrowserHeader('video', currentFolder, Boolean(showAllFiles)));
-        if (!showAllFiles) {
-            $wcsSampleVideoPane.append(renderSampleFolderTiles('video', childFolders));
-        }
-
-        if (!Array.isArray(fileNames) || fileNames.length === 0) {
-            return;
-        }
-
-        const $scrollContainer = $('<div class="sample-thumbnail-scroll"></div>');
-        const $track = $('<div class="sample-thumbnail-track"></div>');
-
-        fileNames.forEach(function (fileName) {
-            const safeFileName = normalizePath(fileName);
-            const thumbnailUrl = buildVideoThumbnailUrl(safeFileName);
-            const label = safeFileName.split('/').pop() || safeFileName;
-
-            if (!wcsSampleVideoItemTemplate || !wcsSampleVideoItemTemplate.content) {
+        : function (browserData, showAllFiles) {
+            if ($wcsSampleVideoPane.length === 0) {
                 return;
             }
 
-            const node = wcsSampleVideoItemTemplate.content.firstElementChild.cloneNode(true);
-            const button = node.querySelector('.sample-video-item');
-            const thumbnailImage = node.querySelector('.sample-video-thumbnail');
-            const video = node.querySelector('video');
-            const caption = node.querySelector('.small');
+            const currentFolder = normalizeSampleFolderPath(browserData && browserData.current_folder, 'video');
+            const childFolders = browserData && Array.isArray(browserData.folders) ? browserData.folders : [];
+            const fileNames = browserData && Array.isArray(browserData.files) ? browserData.files : [];
 
-            if (button) {
-                button.setAttribute('data-file-name', safeFileName);
+            $wcsSampleVideoPane.empty().append(buildSampleBrowserHeader('video', currentFolder, Boolean(showAllFiles)));
+            if (!showAllFiles) {
+                $wcsSampleVideoPane.append(renderSampleFolderTiles('video', childFolders));
             }
-            if (thumbnailImage) {
-                thumbnailImage.setAttribute('src', thumbnailUrl);
-                thumbnailImage.setAttribute('alt', label);
-            } else if (video) {
-                video.removeAttribute('src');
-                video.setAttribute('poster', thumbnailUrl);
-                video.setAttribute('preload', 'none');
-                if (typeof video.load === 'function') {
-                    video.load();
+
+            if (!Array.isArray(fileNames) || fileNames.length === 0) {
+                return;
+            }
+
+            const $scrollContainer = $('<div class="sample-thumbnail-scroll"></div>');
+            const $track = $('<div class="sample-thumbnail-track"></div>');
+
+            fileNames.forEach(function (fileName) {
+                const safeFileName = normalizePath(fileName);
+                const thumbnailUrl = buildVideoThumbnailUrl(safeFileName);
+                const label = safeFileName.split('/').pop() || safeFileName;
+
+                if (!wcsSampleVideoItemTemplate || !wcsSampleVideoItemTemplate.content) {
+                    return;
                 }
-            }
-            if (caption) {
-                caption.setAttribute('title', safeFileName);
-                caption.textContent = label;
-            }
 
-            $track.append(node);
-        });
+                const node = wcsSampleVideoItemTemplate.content.firstElementChild.cloneNode(true);
+                const button = node.querySelector('.sample-video-item');
+                const thumbnailImage = node.querySelector('.sample-video-thumbnail');
+                const video = node.querySelector('video');
+                const caption = node.querySelector('.small');
 
-        $scrollContainer.append($track);
-        $wcsSampleVideoPane.append($scrollContainer);
-        applyCurrentVideoHighlight();
-    }
+                if (button) {
+                    button.setAttribute('data-file-name', safeFileName);
+                }
+                if (thumbnailImage) {
+                    thumbnailImage.setAttribute('src', thumbnailUrl);
+                    thumbnailImage.setAttribute('alt', label);
+                } else if (video) {
+                    video.removeAttribute('src');
+                    video.setAttribute('poster', thumbnailUrl);
+                    video.setAttribute('preload', 'none');
+                    if (typeof video.load === 'function') {
+                        video.load();
+                    }
+                }
+                if (caption) {
+                    caption.setAttribute('title', safeFileName);
+                    caption.textContent = label;
+                }
 
-    function loadSampleVideos(folderPath, showAllFiles) {
-        if ($wcsSampleVideoPane.length === 0) {
-            return;
+                $track.append(node);
+            });
+
+            $scrollContainer.append($track);
+            $wcsSampleVideoPane.append($scrollContainer);
+            applyCurrentVideoHighlight();
+        };
+
+    const loadSampleVideos = typeof window.wcsLoadSampleVideos === 'function'
+        ? function (folderPath, showAllFiles) {
+            return window.wcsLoadSampleVideos({
+                pane: $wcsSampleVideoPane,
+                folderPath: folderPath,
+                currentFolderPath: sampleVideoBrowserPath,
+                showAllFiles: showAllFiles,
+                isLoading: isSampleVideosLoading,
+                baseFolder: 'video',
+                loadingMessage: '샘플 동영상을 불러오는 중...',
+                allFilesErrorMessage: '샘플 동영상 목록을 불러오지 못했습니다.',
+                browserErrorMessage: '샘플 폴더를 불러오지 못했습니다.',
+                normalizeSampleFolderPath: normalizeSampleFolderPath,
+                buildSamplesUrl: buildSamplesUrl,
+                buildSampleBrowserUrl: buildSampleBrowserUrl,
+                extractSampleVideoFiles: extractSampleVideoFiles,
+                renderSampleVideoThumbnails: renderSampleVideoThumbnails,
+                setLoading: function (next) {
+                    isSampleVideosLoading = Boolean(next);
+                },
+                setCurrentFolderPath: function (nextPath) {
+                    sampleVideoBrowserPath = nextPath;
+                },
+                setShowAllFiles: function (nextShowAll) {
+                    sampleVideoShowAllFiles = Boolean(nextShowAll);
+                },
+                saveBrowserState: saveSampleVideoBrowserStateToStorage,
+                onLoaded: function () {
+                    isSampleVideosLoaded = true;
+                },
+            });
         }
-        if (isSampleVideosLoading) {
-            return;
-        }
+        : function (folderPath, showAllFiles) {
+            if ($wcsSampleVideoPane.length === 0) {
+                return;
+            }
+            if (isSampleVideosLoading) {
+                return;
+            }
 
-        isSampleVideosLoading = true;
-        sampleVideoBrowserPath = normalizeSampleFolderPath(folderPath || sampleVideoBrowserPath, 'video');
-        sampleVideoShowAllFiles = Boolean(showAllFiles);
-        saveSampleVideoBrowserStateToStorage();
+            isSampleVideosLoading = true;
+            sampleVideoBrowserPath = normalizeSampleFolderPath(folderPath || sampleVideoBrowserPath, 'video');
+            sampleVideoShowAllFiles = Boolean(showAllFiles);
+            saveSampleVideoBrowserStateToStorage();
 
-        $wcsSampleVideoPane.html('<div class="text-muted text-center py-3">샘플 동영상을 불러오는 중...</div>');
+            $wcsSampleVideoPane.html('<div class="text-muted text-center py-3">샘플 동영상을 불러오는 중...</div>');
 
-        if (sampleVideoShowAllFiles) {
+            if (sampleVideoShowAllFiles) {
+                $.ajax({
+                    url: buildSamplesUrl('video'),
+                    method: 'GET'
+                }).done(function (result) {
+                    const allFileNames = extractSampleVideoFiles(result);
+                    renderSampleVideoThumbnails({
+                        current_folder: 'samples/video',
+                        folders: [],
+                        files: allFileNames,
+                    }, true);
+                    isSampleVideosLoaded = true;
+                }).fail(function (jqXHR) {
+                    console.error('Sample video all-files error:', jqXHR.status, jqXHR.responseText);
+                    $wcsSampleVideoPane.html('<div class="text-danger text-center py-3">샘플 동영상 목록을 불러오지 못했습니다.</div>');
+                }).always(function () {
+                    isSampleVideosLoading = false;
+                });
+                return;
+            }
+
             $.ajax({
-                url: buildSamplesUrl('video'),
+                url: buildSampleBrowserUrl(sampleVideoBrowserPath),
                 method: 'GET'
             }).done(function (result) {
-                const allFileNames = extractSampleVideoFiles(result);
-                renderSampleVideoThumbnails({
-                    current_folder: 'samples/video',
-                    folders: [],
-                    files: allFileNames,
-                }, true);
+                renderSampleVideoThumbnails(result || {}, false);
                 isSampleVideosLoaded = true;
             }).fail(function (jqXHR) {
-                console.error('Sample video all-files error:', jqXHR.status, jqXHR.responseText);
-                $wcsSampleVideoPane.html('<div class="text-danger text-center py-3">샘플 동영상 목록을 불러오지 못했습니다.</div>');
+                console.error('Sample video browser error:', jqXHR.status, jqXHR.responseText);
+                $wcsSampleVideoPane.html('<div class="text-danger text-center py-3">샘플 폴더를 불러오지 못했습니다.</div>');
             }).always(function () {
                 isSampleVideosLoading = false;
             });
-            return;
-        }
+        };
 
-        $.ajax({
-            url: buildSampleBrowserUrl(sampleVideoBrowserPath),
-            method: 'GET'
-        }).done(function (result) {
-            renderSampleVideoThumbnails(result || {}, false);
-            isSampleVideosLoaded = true;
-        }).fail(function (jqXHR) {
-            console.error('Sample video browser error:', jqXHR.status, jqXHR.responseText);
-            $wcsSampleVideoPane.html('<div class="text-danger text-center py-3">샘플 폴더를 불러오지 못했습니다.</div>');
-        }).always(function () {
-            isSampleVideosLoading = false;
-        });
-    }
-
-    function ensureSampleVideosLoaded() {
-        if (!isSampleVideosLoaded) {
-            loadSampleVideos(sampleVideoBrowserPath, sampleVideoShowAllFiles);
+    const ensureSampleVideosLoaded = typeof window.wcsEnsureSampleVideosLoaded === 'function'
+        ? function () {
+            return window.wcsEnsureSampleVideosLoaded({
+                isLoaded: isSampleVideosLoaded,
+                loadSampleVideos: loadSampleVideos,
+                folderPath: sampleVideoBrowserPath,
+                showAllFiles: sampleVideoShowAllFiles,
+            });
         }
-    }
+        : function () {
+            if (!isSampleVideosLoaded) {
+                loadSampleVideos(sampleVideoBrowserPath, sampleVideoShowAllFiles);
+            }
+        };
 
     $obstacleSensorValueTbody.on('change input', '.obstacle-sensor-row-value, .obstacle-sensor-row-confidence', function () {
         const $row = $(this).closest('tr[data-sensor-id][data-sensor-index]');

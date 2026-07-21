@@ -1407,10 +1407,6 @@ function applyDerivedWheelLinearSpeed(topic, value) {
 }
 
 function applyWheelAngularVelocityToViewer(topic, value) {
-    if (typeof setWheelAnimationByKey !== 'function') {
-        return;
-    }
-
     const topicMatch = topic.match(/^wheel\/(fl|fr|rl|rr)\/(.+)$/i);
     if (!topicMatch) {
         return;
@@ -1442,7 +1438,12 @@ function applyWheelAngularVelocityToViewer(topic, value) {
         return;
     }
 
+    // 로그는 URDF 함수 준비 여부와 관계없이 항상 남긴다.
     console.log(`[WHEEL_SPEED] ${wheelKey.toUpperCase()} ${rpmValue.toFixed(1)} rpm`);
+
+    if (typeof setWheelAnimationByKey !== 'function') {
+        return;
+    }
 
     setWheelAnimationByKey(wheelKey, rpmValue);
 }

@@ -215,25 +215,40 @@
         return String(pathValue || "").trim().replace(/\\/g, "/").replace(/^\/+/, "");
     }
 
-    function extractVideoFileName(pathValue) {
+    function encodePathForRoute(pathValue) {
+        return normalizePath(pathValue)
+            .split("/")
+            .filter(function (segment) {
+                return segment.length > 0;
+            })
+            .map(function (segment) {
+                return encodeURIComponent(segment);
+            })
+            .join("/");
+    }
+
+    function resolveRoadDetectStreamPath(pathValue) {
         const normalizedPath = normalizePath(pathValue);
         if (!normalizedPath) {
             return "";
         }
 
-        const segments = normalizedPath.split("/").filter(function (segment) {
-            return segment.length > 0;
-        });
-        return segments.length > 0 ? segments[segments.length - 1] : "";
+        // Backward compatibility: a bare file name is treated as cobot sample.
+        if (normalizedPath.indexOf("/") === -1) {
+            return "samples/video/cobot/" + normalizedPath;
+        }
+
+        return normalizedPath;
     }
 
     function buildRoadDetectStreamUrl(fileName) {
-        const safeFileName = extractVideoFileName(fileName);
-        if (!safeFileName) {
+        const streamPath = resolveRoadDetectStreamPath(fileName);
+        const encodedPath = encodePathForRoute(streamPath);
+        if (!encodedPath) {
             return "";
         }
 
-        return "http://ai/fast/road_detect_stream/samples/video/cobot/" + encodeURIComponent(safeFileName) + "?" + $.param({
+        return "/fast/road_detect_stream/" + encodedPath + "?" + $.param({
             detect_type: "road_type",
             remove_noisy_masks: true,
             show_time_bar: true,
@@ -245,12 +260,13 @@
     }
 
     function buildRoadDetectStreamCleanupUrl(fileName) {
-        const safeFileName = extractVideoFileName(fileName);
-        if (!safeFileName) {
+        const streamPath = resolveRoadDetectStreamPath(fileName);
+        const encodedPath = encodePathForRoute(streamPath);
+        if (!encodedPath) {
             return "";
         }
 
-        return "http://ai/fast/road_detect_stream_cleanup/samples/video/cobot/" + encodeURIComponent(safeFileName) + "?" + $.param({
+        return "/fast/road_detect_stream_cleanup/" + encodedPath + "?" + $.param({
             t: Date.now(),
         });
     }
@@ -261,9 +277,7 @@
             return "";
         }
 
-        return "http://ai/fast/road_detect_stream_cleanup/" + normalizedPath.split("/").map(function (segment) {
-            return encodeURIComponent(segment);
-        }).join("/") + "?" + $.param({
+        return "/fast/road_detect_stream_cleanup/" + encodePathForRoute(normalizedPath) + "?" + $.param({
             t: Date.now(),
         });
     }
@@ -333,7 +347,7 @@
 
     function requestRoadDetectSessionCleanupAllOnLoad() {
         $.ajax({
-            url: "http://ai/fast/road_detect_stream_cleanup_all?" + $.param({ t: Date.now() }),
+            url: "/fast/road_detect_stream_cleanup_all?" + $.param({ t: Date.now() }),
             method: "POST",
             timeout: 3000,
         }).fail(function () {

@@ -61,6 +61,23 @@ WHEEL_ID_MAPPING = {
     "rl": 4   # Rear Left
 }
 
+SENSOR_COUNT_TOPIC_TEMPLATE = "sensor/{sensor_id}/count"
+SENSOR_TARGET_TOPIC_TEMPLATE = "sensor/{sensor_id}/target"
+WHEEL_ID_TOPIC_TEMPLATE = "wheel/{wheel_str_id}/id"
+WHEEL_RADIUS_TOPIC_TEMPLATE = "wheel/{wheel_str_id}/radius"
+
+INITIAL_CONNECT_TOPIC_SPECS = (
+    ("vehicle/linear/speed", lambda sim: round(sim.linear_speed, 3), "VEHICLE"),
+    ("vehicle/linear/max_speed", lambda sim: round(sim.max_speed, 2), "VEHICLE"),
+    ("vehicle/operation/command", lambda sim: sim.command.value, "VEHICLE"),
+    ("vehicle/operation/state", lambda sim: sim.exec_state.value, "VEHICLE"),
+    ("vehicle/surface/state", lambda sim: sim.surface_state.value, "SURFACE"),
+    ("vehicle/surface/obstacle", lambda sim: sim.surface_obstacle.value, "OBSTACLE"),
+    ("vehicle/road/roll_angle", lambda sim: sim.road_roll_angle, "ROAD"),
+    ("vehicle/road/pitch_angle", lambda sim: sim.road_pitch_angle, "ROAD"),
+    ("vehicle/current_video/file_name", lambda sim: sim.current_video_file_name, "VIDEO"),
+)
+
 # ===== 전역 변수 =====
 _shutdown_flag = False
 
@@ -474,10 +491,12 @@ class MqttSimulator:
             # 센서 타입 정의 정보 발행
             for sensor_def in iter_sensor_definitions_in_order():
                 sensor_id = sensor_def["id"]
-                self._publish(f"sensor/{sensor_id}/count", sensor_def["count"])
-                self._publish(f"sensor/{sensor_id}/target", sensor_def["target"])
+                sensor_count_topic = SENSOR_COUNT_TOPIC_TEMPLATE.format(sensor_id=sensor_id)
+                sensor_target_topic = SENSOR_TARGET_TOPIC_TEMPLATE.format(sensor_id=sensor_id)
+                self._publish(sensor_count_topic, sensor_def["count"])
+                self._publish(sensor_target_topic, sensor_def["target"])
                 print(
-                    f"[SENSOR_DEF] Published sensor/{sensor_id}/count={sensor_def['count']}, "
+                    f"[SENSOR_DEF] Published {sensor_count_topic}={sensor_def['count']}, "
                     f"target={sensor_def['target']}"
                 )
 
@@ -514,7 +533,7 @@ class MqttSimulator:
             if not self.wheel_id_initial_published:
                 print("[SETTINGS] Publishing wheel ID mappings...")
                 for wheel_str_id, wheel_num_id in WHEEL_ID_MAPPING.items():
-                    topic = f"wheel/{wheel_str_id}/id"
+                    topic = WHEEL_ID_TOPIC_TEMPLATE.format(wheel_str_id=wheel_str_id)
                     payload = str(wheel_num_id)
                     self._publish(topic, payload)
                     print(f"[WHEEL_ID] Published {topic} -> {payload}")
@@ -526,7 +545,7 @@ class MqttSimulator:
             if not self.wheel_radius_initial_published:
                 print("[SETTINGS] Publishing wheel radius values...")
                 for wheel_str_id in WHEEL_IDS:
-                    topic = f"wheel/{wheel_str_id}/radius"
+                    topic = WHEEL_RADIUS_TOPIC_TEMPLATE.format(wheel_str_id=wheel_str_id)
                     payload = str(WHEEL_RADIUS_M)
                     self._publish(topic, payload)
                     print(f"[WHEEL] Published {topic} -> {payload}")
@@ -534,40 +553,19 @@ class MqttSimulator:
             else:
                 print("[SETTINGS] Wheel radius values already published once; skipping")
 
-            # 차량 선속도 초기 정보 발행 (클라이언트 접속 시 현재 상태 전달)
-            self._publish("vehicle/linear/speed", round(self.linear_speed, 3))
-            print(f"[VEHICLE] Published vehicle/linear/speed -> {round(self.linear_speed, 3)}")
-
-            # 차량 최고 속도 초기 정보 발행 (클라이언트 접속 시 현재 설정 전달)
-            self._publish("vehicle/linear/max_speed", round(self.max_speed, 2))
-            print(f"[VEHICLE] Published vehicle/linear/max_speed -> {round(self.max_speed, 2)}")
-
-            # 차량 방향 제어 초기 정보 발행 (클라이언트 접속 시 현재 명령/상태 전달)
-            self._publish("vehicle/operation/command", self.command.value)
-            print(f"[VEHICLE] Published vehicle/operation/command -> {self.command.value}")
-            self._publish("vehicle/operation/state", self.exec_state.value)
-            print(f"[VEHICLE] Published vehicle/operation/state -> {self.exec_state.value}")
-
-            # 노면/장애물 상태 초기 정보 발행 (새로고침 시 retain된 과거 상태 덮어쓰기)
-            self._publish("vehicle/surface/state", self.surface_state.value)
-            print(f"[SURFACE] Published vehicle/surface/state -> {self.surface_state.value}")
-            self._publish("vehicle/surface/obstacle", self.surface_obstacle.value)
-            print(f"[OBSTACLE] Published vehicle/surface/obstacle -> {self.surface_obstacle.value}")
-
-            # 도로 자세(Roll/Pitch) 설정 발행
-            self._publish("vehicle/road/roll_angle", self.road_roll_angle)
-            print(f"[ROAD] Published vehicle/road/roll_angle -> {self.road_roll_angle}")
-            self._publish("vehicle/road/pitch_angle", self.road_pitch_angle)
-            print(f"[ROAD] Published vehicle/road/pitch_angle -> {self.road_pitch_angle}")
-
-            # 현재 선택 동영상 파일명 발행
-            self._publish("vehicle/current_video/file_name", self.current_video_file_name)
-            print(f"[VIDEO] Published vehicle/current_video/file_name -> {self.current_video_file_name}")
+            self._publish_initial_connect_topics()
             
             print("[SETTINGS] All settings published successfully")
             
         except Exception as e:
             print(f"[SETTINGS] Error publishing settings: {e}")
+
+    def _publish_initial_connect_topics(self):
+        """초기 접속 시 즉시 전달할 핵심 상태 토픽들을 발행한다."""
+        for topic, payload_resolver, log_tag in INITIAL_CONNECT_TOPIC_SPECS:
+            payload = payload_resolver(self)
+            self._publish(topic, payload)
+            print(f"[{log_tag}] Published {topic} -> {payload}")
     
     def _check_file_changes(self):
         """파일 변경 감지 및 서비스 재시작"""

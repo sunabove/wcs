@@ -53,12 +53,16 @@
     let cleanupRequest = null;
     let firstFrameTimeoutId = null;
     let firstFrameRequestToken = 0;
+    let lastImageFrameAt = 0;
+    let lastImageReplayAttemptAt = 0;
     let audioHudBlinkPhase = false;
     const FIRST_FRAME_TIMEOUT_MS = 10000;
     const LOADING_MESSAGE = "로딩중입니다.";
     const FIRST_FRAME_TIMEOUT_MESSAGE = "동영상 로딩이 되지 않았습니다.";
     const VIEWER_DRAG_PIXELS_RATIO = 0.47;
     const VIEWER_ZOOM_OUT_RATIO = 0.07;
+    const IMAGE_STREAM_STALE_MS = 3500;
+    const IMAGE_STREAM_REPLAY_COOLDOWN_MS = 2500;
 
     let $audioHud = $("#vehicle-audio-hud");
     if ($audioHud.length === 0) {
@@ -517,6 +521,32 @@
         requestRoadDetectSessionCleanupAllOnLoad();
     }
 
+    function attemptImageStreamAutoReplay() {
+        if (!autoReplayEnabled || mediaHiddenByUser || mediaPlaybackPaused) {
+            return;
+        }
+
+        if (lastMediaType !== "image") {
+            return;
+        }
+
+        if (!latestCurrentVideoFileName) {
+            return;
+        }
+
+        const now = Date.now();
+        if (lastImageFrameAt <= 0 || (now - lastImageFrameAt) < IMAGE_STREAM_STALE_MS) {
+            return;
+        }
+
+        if ((now - lastImageReplayAttemptAt) < IMAGE_STREAM_REPLAY_COOLDOWN_MS) {
+            return;
+        }
+
+        lastImageReplayAttemptAt = now;
+        resolveAndShowCurrentVideo(latestCurrentVideoFileName);
+    }
+
     function shouldRenderAsImageStream(url) {
         const normalizedUrl = String(url || "").toLowerCase();
         return normalizedUrl.indexOf("/fast/road_detect_stream/") !== -1;
@@ -795,6 +825,7 @@
         hideAllMedia();
         startFirstFrameWait();
         $image.attr("src", normalizedSrc).removeClass("d-none");
+        lastImageReplayAttemptAt = 0;
         lastMediaType = "image";
         lastMediaSource = normalizedSrc;
         mediaPlaybackPaused = false;
@@ -984,6 +1015,7 @@
         if (!this.naturalWidth || !this.naturalHeight) {
             return;
         }
+        lastImageFrameAt = Date.now();
         markFirstFrameReady();
         lastMediaAspectRatio = this.naturalWidth / this.naturalHeight;
         applyCompactOverlayWidthByAspect(lastMediaAspectRatio);
@@ -1053,4 +1085,5 @@
     updateOverlayAudioHud();
     requestRoadDetectSessionCleanupAllOnLoad();
     setInterval(updateOverlayAudioHud, 400);
+    setInterval(attemptImageStreamAutoReplay, 500);
 })();

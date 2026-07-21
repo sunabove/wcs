@@ -3278,6 +3278,10 @@ globalThis.setVehicleViewerOverlayZoomOutRatio = function(zoomOutRatio) {
 };
 globalThis.isVehicleAudioEnabled = isVehicleAudioEnabled;
 globalThis.setVehicleAudioEnabled = setVehicleAudioEnabled;
+globalThis.activateVehicleAudioByGesture = function() {
+    setVehicleAudioEnabled(true);
+    return tryActivateVehicleAudio('gesture');
+};
 globalThis.announceVehicleDriveCommand = announceVehicleDriveCommand;
 globalThis.announceVehicleRollAngleDeg = announceVehicleRollAngleDeg;
 globalThis.announceVehicleObstacle = announceVehicleObstacle;

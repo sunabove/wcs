@@ -41,7 +41,7 @@
     display: inline-flex;
     align-items: center;
     gap: 8px;
-    pointer-events: none;
+    pointer-events: auto;
 }
 
 .vehicle-audio-hud-state {

@@ -12,6 +12,24 @@
         return;
     }
 
+    function requestAudioUnlockFromHud() {
+        try {
+            if (typeof window.activateVehicleAudioByGesture === "function") {
+                window.activateVehicleAudioByGesture();
+            } else {
+                if (typeof window.setVehicleAudioEnabled === "function") {
+                    window.setVehicleAudioEnabled(true);
+                }
+                if (typeof window.speechSynthesis !== "undefined" && window.speechSynthesis) {
+                    window.speechSynthesis.resume();
+                }
+            }
+        } catch (error) {
+            // Ignore audio unlock failures; HUD state will continue to show current status.
+        }
+        updateOverlayAudioHud();
+    }
+
     function toBoolean(value) {
         if (typeof value === "boolean") {
             return value;
@@ -51,7 +69,7 @@
             display: "inline-flex",
             alignItems: "center",
             gap: "8px",
-            pointerEvents: "none",
+            pointerEvents: "auto",
         });
         $viewer.parent().append($audioHud);
     }
@@ -88,6 +106,16 @@
 
         $audioHud.append($audioHudState, $audioHudText);
     }
+
+    $audioHudState.add($audioHudText)
+        .css("cursor", "pointer")
+        .attr("title", "클릭하여 음성 활성화")
+        .off("click.wcsAudioUnlock")
+        .on("click.wcsAudioUnlock", function (event) {
+            event.preventDefault();
+            event.stopPropagation();
+            requestAudioUnlockFromHud();
+        });
 
     function setCloseButtonToShowMode(isShowMode) {
         $closeButton.text(isShowMode ? "동영상" : "닫기");
@@ -139,7 +167,7 @@
         const audioEnabled = isAudioEnabledForOverlay();
         const rawText = String(window.__wcsLastSpeechText || "").trim();
         const speechText = rawText || "대기중";
-        const titleText = audioEnabled ? "음성 ON" : "음성 OFF";
+        const titleText = audioEnabled ? "음성 ON" : "음성 OFF (클릭 활성화)";
         const lastSpeechAt = Number(window.__wcsLastSpeechAt || 0);
         const isRecentSpeech = Number.isFinite(lastSpeechAt) && (Date.now() - lastSpeechAt) < 900;
         const isSpeakingNow = audioEnabled && (
@@ -153,7 +181,7 @@
         );
 
         $audioHudState.text(titleText);
-        $audioHudText.text(speechText);
+        $audioHudText.text(audioEnabled ? speechText : "새로고침 후 이곳을 한번 클릭하세요");
         $audioHudState.css("background", audioEnabled ? "rgba(25, 135, 84, 0.70)" : "rgba(108, 117, 125, 0.72)");
 
         if (isSpeakingNow) {

@@ -873,6 +873,8 @@
 
     function hideMediaAreaOnly() {
         requestRoadDetectSessionCleanup(latestCurrentVideoFileName);
+        clearFirstFrameTimeout();
+        clearTemporaryStatusMessage();
         mediaHiddenByUser = true;
         mediaPlaybackPaused = false;
         writeOverlayMediaHiddenState(true);
@@ -883,6 +885,9 @@
     }
 
     function restoreMediaAreaOnly() {
+        clearFirstFrameTimeout();
+        clearTemporaryStatusMessage();
+        setOverlayStatus("", false);
         mediaHiddenByUser = false;
         mediaPlaybackPaused = false;
         writeOverlayMediaHiddenState(false);

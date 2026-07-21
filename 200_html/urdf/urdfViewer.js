@@ -1578,10 +1578,14 @@ class URDFViewer {
 
             if (!joint) {
                 const keySuffix = `_${key}`;
+                const keyJointSuffix = `${key}_joint`;
+                const keyTokenRegex = new RegExp(`(^|[_/.-])${key}([_/.-]|$)`, 'i');
                 const candidateJointName = jointNames.find(name => (
                     name === expectedJointName ||
                     name.endsWith(expectedJointName) ||
-                    name.endsWith(keySuffix)
+                    name.endsWith(keySuffix) ||
+                    name.endsWith(keyJointSuffix) ||
+                    (name.toLowerCase().includes('joint') && keyTokenRegex.test(name))
                 ));
 
                 if (candidateJointName) {

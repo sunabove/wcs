@@ -1,6 +1,8 @@
 (function () {
     const $overlay = $("#road-detect-overlay");
     const $closeButton = $("#road-detect-overlay-close");
+    const $playButton = $("#road-detect-overlay-play");
+    const $pauseButton = $("#road-detect-overlay-pause");
     const $status = $("#road-detect-overlay-status");
     const $image = $("#road-detect-overlay-image");
     const $video = $("#road-detect-overlay-video");
@@ -129,7 +131,22 @@
         $closeButton
             .attr("title", "오버레이 닫기")
             .attr("aria-label", "오버레이 닫기")
-            .html('<i class="bi bi-x-circle-fill overlay-toggle-icon overlay-toggle-icon-close" aria-hidden="true"></i>');
+            .html('<i class="bi bi-film-slash-fill overlay-toggle-icon overlay-toggle-icon-close" aria-hidden="true"></i>');
+    }
+
+    function updateVideoControlButtons() {
+        if ($playButton.length === 0 || $pauseButton.length === 0 || $video.length === 0) {
+            return;
+        }
+
+        const videoElement = $video[0];
+        const isVideoVisible = !$video.hasClass("d-none");
+        const hasVideoSource = !!String($video.attr("src") || "").trim();
+        const isVideoReady = isVideoVisible && hasVideoSource;
+        const isPaused = !isVideoReady || videoElement.paused || videoElement.ended;
+
+        $playButton.prop("disabled", !isVideoReady || !isPaused);
+        $pauseButton.prop("disabled", !isVideoReady || isPaused);
     }
 
     function readOverlayMediaHiddenState() {
@@ -640,6 +657,7 @@
             $video[0].pause();
         }
         $video.attr("src", "").addClass("d-none");
+        updateVideoControlButtons();
         if (resetMemory) {
             setOverlayStatus("", false);
         }
@@ -705,6 +723,8 @@
             lastMediaAspectRatio = imageElement.naturalWidth / imageElement.naturalHeight;
             applyCompactOverlayWidthByAspect(lastMediaAspectRatio);
         }
+
+        updateVideoControlButtons();
     }
 
     function showVideoSource(src) {
@@ -738,6 +758,8 @@
                 });
             }
         }
+
+        updateVideoControlButtons();
 
         showOverlay();
 
@@ -821,6 +843,31 @@
         }
     });
 
+    $playButton.on("click", function () {
+        const videoElement = $video[0];
+        if (!videoElement || $video.hasClass("d-none") || typeof videoElement.play !== "function") {
+            return;
+        }
+
+        const playPromise = videoElement.play();
+        if (playPromise && typeof playPromise.catch === "function") {
+            playPromise.catch(function () {
+                // Ignore autoplay policy rejections for manual resume.
+            });
+        }
+        updateVideoControlButtons();
+    });
+
+    $pauseButton.on("click", function () {
+        const videoElement = $video[0];
+        if (!videoElement || $video.hasClass("d-none") || typeof videoElement.pause !== "function") {
+            return;
+        }
+
+        videoElement.pause();
+        updateVideoControlButtons();
+    });
+
     $image.on("load", function () {
         if (!this.naturalWidth || !this.naturalHeight) {
             return;
@@ -841,6 +888,11 @@
         markFirstFrameReady();
         lastMediaAspectRatio = this.videoWidth / this.videoHeight;
         applyCompactOverlayWidthByAspect(lastMediaAspectRatio);
+        updateVideoControlButtons();
+    });
+
+    $video.on("play pause ended", function () {
+        updateVideoControlButtons();
     });
 
     $video.on("error", function () {
@@ -857,6 +909,7 @@
 
     mediaHiddenByUser = readOverlayMediaHiddenState();
     setCloseButtonToShowMode(mediaHiddenByUser);
+    updateVideoControlButtons();
     if (mediaHiddenByUser) {
         applyCollapsedOverlayLayout();
         showOverlay();

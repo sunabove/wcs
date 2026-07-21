@@ -570,6 +570,28 @@ function canUseSpeechSynthesisFallback() {
         && typeof window.speechSynthesis.speak === 'function';
 }
 
+function getPreferredSpeechVoiceFallback() {
+    if (!canUseSpeechSynthesisFallback()) {
+        return null;
+    }
+
+    let voices = [];
+    try {
+        voices = window.speechSynthesis.getVoices() || [];
+    } catch (error) {
+        voices = [];
+    }
+
+    if (!Array.isArray(voices) || voices.length === 0) {
+        return null;
+    }
+
+    const koVoice = voices.find(function (voice) {
+        return String(voice && voice.lang || '').toLowerCase().startsWith('ko');
+    });
+    return koVoice || voices[0] || null;
+}
+
 function hasUserActivatedDocumentFallback() {
     try {
         return !!(navigator.userActivation && navigator.userActivation.hasBeenActive === true);
@@ -605,6 +627,7 @@ function tryActivateFallbackAudioFromGesture() {
 
     try {
         window.speechSynthesis.resume();
+        window.speechSynthesis.getVoices();
     } catch (error) {
         console.warn('[MQTT][Audio] resume failed:', error);
     }
@@ -624,6 +647,7 @@ function tryActivateFallbackAudioAuto() {
 
     try {
         window.speechSynthesis.resume();
+        window.speechSynthesis.getVoices();
     } catch (error) {
         console.warn('[MQTT][Audio] auto resume failed:', error);
     }
@@ -680,12 +704,21 @@ function processFallbackSpeechQueue() {
 
     try {
         window.speechSynthesis.resume();
+        window.speechSynthesis.getVoices();
     } catch (error) {
         console.warn('[MQTT][Audio] resume before queue speak failed:', error);
     }
 
     const utterance = new window.SpeechSynthesisUtterance(nextMessage);
-    utterance.lang = 'ko-KR';
+    const preferredVoice = getPreferredSpeechVoiceFallback();
+    if (preferredVoice) {
+        utterance.voice = preferredVoice;
+        if (preferredVoice.lang) {
+            utterance.lang = preferredVoice.lang;
+        }
+    } else {
+        utterance.lang = 'ko-KR';
+    }
     utterance.rate = 1.05;
     utterance.pitch = 1;
     utterance.volume = 1;
@@ -726,14 +759,22 @@ function speakVehicleStatusFallback(text, options = {}) {
     if (!fallbackVehicleAudioState.isActivated) {
         if (hasUserActivatedDocumentFallback()) {
             tryActivateFallbackAudioAuto();
+        } else {
+            try {
+                window.speechSynthesis.resume();
+                window.speechSynthesis.getVoices();
+                fallbackVehicleAudioState.isActivated = true;
+            } catch (error) {
+                // keep pending flow.
+            }
         }
 
         if (fallbackVehicleAudioState.isActivated) {
             // continue to enqueue/speak below.
         } else {
-        fallbackVehicleAudioState.pendingMessage = message;
-        ensureFallbackAudioActivationListener();
-        return;
+            fallbackVehicleAudioState.pendingMessage = message;
+            ensureFallbackAudioActivationListener();
+            return;
         }
     }
 

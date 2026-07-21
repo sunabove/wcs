@@ -2775,6 +2775,28 @@ function canUseSpeechSynthesis() {
         && typeof window.speechSynthesis.speak === 'function';
 }
 
+function getPreferredSpeechVoice() {
+    if (!canUseSpeechSynthesis()) {
+        return null;
+    }
+
+    let voices = [];
+    try {
+        voices = window.speechSynthesis.getVoices() || [];
+    } catch (error) {
+        voices = [];
+    }
+
+    if (!Array.isArray(voices) || voices.length === 0) {
+        return null;
+    }
+
+    const koVoice = voices.find(function (voice) {
+        return String(voice && voice.lang || '').toLowerCase().startsWith('ko');
+    });
+    return koVoice || voices[0] || null;
+}
+
 function hasUserActivatedDocument() {
     try {
         return !!(navigator.userActivation && navigator.userActivation.hasBeenActive === true);
@@ -2864,6 +2886,7 @@ function tryActivateVehicleAudio(trigger = 'system') {
 
     try {
         window.speechSynthesis.resume();
+        window.speechSynthesis.getVoices();
     } catch (error) {
         console.warn('[URDF][Audio] speechSynthesis resume failed:', error);
     }
@@ -2937,12 +2960,21 @@ function processVehicleSpeechQueue() {
 
     try {
         window.speechSynthesis.resume();
+        window.speechSynthesis.getVoices();
     } catch (error) {
         console.warn('[URDF][Audio] speechSynthesis resume before queue speak failed:', error);
     }
 
     const utterance = new window.SpeechSynthesisUtterance(nextMessage);
-    utterance.lang = 'ko-KR';
+    const preferredVoice = getPreferredSpeechVoice();
+    if (preferredVoice) {
+        utterance.voice = preferredVoice;
+        if (preferredVoice.lang) {
+            utterance.lang = preferredVoice.lang;
+        }
+    } else {
+        utterance.lang = 'ko-KR';
+    }
     utterance.rate = 1.05;
     utterance.pitch = 1;
     utterance.volume = 1;
@@ -2983,15 +3015,23 @@ function speakVehicleStatus(text, options = {}) {
     if (!vehicleAudioState.isActivated) {
         if (hasUserActivatedDocument()) {
             tryActivateVehicleAudio('auto');
+        } else {
+            try {
+                window.speechSynthesis.resume();
+                window.speechSynthesis.getVoices();
+                vehicleAudioState.isActivated = true;
+            } catch (error) {
+                // keep pending flow.
+            }
         }
 
         if (vehicleAudioState.isActivated) {
             // continue to enqueue/speak below.
         } else {
-        vehicleAudioState.pendingMessage = message;
-        vehicleAudioState.pendingOptions = options;
-        setupVehicleAudioActivationListener();
-        return;
+            vehicleAudioState.pendingMessage = message;
+            vehicleAudioState.pendingOptions = options;
+            setupVehicleAudioActivationListener();
+            return;
         }
     }
 

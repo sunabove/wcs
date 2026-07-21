@@ -572,7 +572,36 @@
         imageStreamNeedsReplay = false;
         lastImageFrameAt = now;
         lastImageReplayAttemptAt = now;
+        if (lastMediaSource) {
+            const cacheBustSeparator = lastMediaSource.includes("?") ? "&" : "?";
+            showImageSource(`${lastMediaSource}${cacheBustSeparator}t=${Date.now()}`);
+            return;
+        }
+
         resolveAndShowCurrentVideo(latestCurrentVideoFileName);
+    }
+
+    function replayActiveOverlayMedia() {
+        if (!autoReplayEnabled || mediaHiddenByUser) {
+            return;
+        }
+
+        mediaPlaybackPaused = false;
+
+        if (lastMediaType === "image" && lastMediaSource) {
+            const cacheBustSeparator = lastMediaSource.includes("?") ? "&" : "?";
+            showImageSource(`${lastMediaSource}${cacheBustSeparator}t=${Date.now()}`);
+            return;
+        }
+
+        if (lastMediaSource) {
+            showVideoSource(lastMediaSource);
+            return;
+        }
+
+        if (latestCurrentVideoFileName) {
+            resolveAndShowCurrentVideo(latestCurrentVideoFileName);
+        }
     }
 
     function shouldRenderAsImageStream(url) {
@@ -1079,33 +1108,8 @@
     });
 
     $video.on("ended", function () {
-        if (autoReplayEnabled && !$video.hasClass("d-none") && typeof this.play === "function") {
-            try {
-                this.currentTime = 0;
-            } catch (error) {
-                // Ignore currentTime reset issues.
-            }
-
-            try {
-                this.loop = true;
-            } catch (error) {
-                // Ignore loop property issues.
-            }
-
-            mediaPlaybackPaused = false;
-            if (typeof this.load === "function") {
-                try {
-                    this.load();
-                } catch (error) {
-                    // Ignore reload issues and try play() below.
-                }
-            }
-            const replayPromise = this.play();
-            if (replayPromise && typeof replayPromise.catch === "function") {
-                replayPromise.catch(function () {
-                    // Ignore autoplay policy rejections for loop replay.
-                });
-            }
+        if (autoReplayEnabled && !$video.hasClass("d-none")) {
+            replayActiveOverlayMedia();
             updateVideoControlButtons();
             return;
         }

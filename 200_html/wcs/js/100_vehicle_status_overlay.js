@@ -146,14 +146,7 @@
 
         $playToggleButton.removeClass("d-none");
 
-        const videoElement = $video[0];
-        const isVideoVisible = !$video.hasClass("d-none");
-        const hasVideoSource = !!String($video.attr("src") || "").trim();
-        const isVideoReady = isVideoVisible && hasVideoSource;
-        const isImageVisible = !$image.hasClass("d-none") && !!String($image.attr("src") || "").trim();
-        const isPaused = !isVideoReady || videoElement.paused || videoElement.ended;
-
-        if (isImageVisible) {
+        if (lastMediaType === "image") {
             if (mediaPlaybackPaused) {
                 $playToggleButton
                     .prop("disabled", false)
@@ -170,6 +163,12 @@
                 .html('<i class="bi bi-pause-fill" aria-hidden="true"></i>');
             return;
         }
+
+        const videoElement = $video[0];
+        const isVideoVisible = !$video.hasClass("d-none");
+        const hasVideoSource = !!String($video.attr("src") || "").trim();
+        const isVideoReady = isVideoVisible && hasVideoSource;
+        const isPaused = !isVideoReady || videoElement.paused || videoElement.ended;
 
         if (!isVideoReady) {
             $playToggleButton

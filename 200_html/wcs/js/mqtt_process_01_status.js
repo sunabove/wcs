@@ -7,6 +7,24 @@ window.latestVehicleOperationState = window.latestVehicleOperationState ?? null;
 window.wheelRadiusById = window.wheelRadiusById || {};
 const VEHICLE_AUDIO_STORAGE_KEY = 'wcs.vehicle.showAudio';
 
+function ensureGlobalUserGestureTrackerFallback() {
+    if (window.__wcsUserGestureTrackerAttached === true) {
+        return;
+    }
+
+    const markGesture = function () {
+        window.__wcsAnyUserGestureDetected = true;
+    };
+
+    document.addEventListener('pointerdown', markGesture, true);
+    document.addEventListener('keydown', markGesture, true);
+    document.addEventListener('touchstart', markGesture, true);
+
+    window.__wcsUserGestureTrackerAttached = true;
+}
+
+ensureGlobalUserGestureTrackerFallback();
+
 try {
     window.localStorage.removeItem('wcs.vehicle.operation.command.v1');
     window.localStorage.removeItem('wcs.vehicle.operation.state.v1');
@@ -593,6 +611,10 @@ function getPreferredSpeechVoiceFallback() {
 }
 
 function hasUserActivatedDocumentFallback() {
+    if (window.__wcsAnyUserGestureDetected === true) {
+        return true;
+    }
+
     try {
         return !!(navigator.userActivation && navigator.userActivation.hasBeenActive === true);
     } catch (error) {

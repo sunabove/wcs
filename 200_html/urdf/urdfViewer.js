@@ -5,6 +5,28 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 const $ = window.jQuery;
 const VEHICLE_AUDIO_STORAGE_KEY = 'wcs.vehicle.showAudio';
 
+function ensureGlobalUserGestureTracker() {
+    if (window.__wcsUserGestureTrackerAttached === true) {
+        return;
+    }
+
+    const markGesture = function () {
+        window.__wcsAnyUserGestureDetected = true;
+    };
+
+    document.addEventListener('pointerdown', markGesture, true);
+    document.addEventListener('keydown', markGesture, true);
+    document.addEventListener('touchstart', markGesture, true);
+
+    window.__wcsUserGestureTrackerAttached = true;
+}
+
+function hasGlobalUserGestureDetected() {
+    return window.__wcsAnyUserGestureDetected === true;
+}
+
+ensureGlobalUserGestureTracker();
+
 // 각 뷰어를 위한 클래스
 class URDFViewer {
     constructor(containerElement) {
@@ -2798,6 +2820,10 @@ function getPreferredSpeechVoice() {
 }
 
 function hasUserActivatedDocument() {
+    if (hasGlobalUserGestureDetected()) {
+        return true;
+    }
+
     try {
         return !!(navigator.userActivation && navigator.userActivation.hasBeenActive === true);
     } catch (error) {

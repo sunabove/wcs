@@ -82,6 +82,36 @@
     box-shadow: none;
 }
 
+#road-detect-overlay-loop-toggle {
+    background-color: rgba(148, 163, 184, 0.92);
+    color: #1f2937;
+    border-color: rgba(148, 163, 184, 0.92);
+}
+
+#road-detect-overlay-loop-toggle:hover,
+#road-detect-overlay-loop-toggle:focus,
+#road-detect-overlay-loop-toggle:focus-visible,
+#road-detect-overlay-loop-toggle:active {
+    background-color: rgba(148, 163, 184, 0.92);
+    color: #1f2937;
+    border-color: rgba(148, 163, 184, 0.92);
+}
+
+#road-detect-overlay-loop-toggle.road-detect-overlay-control-btn-active {
+    background-color: rgba(255, 255, 255, 0.98);
+    color: #111827;
+    border-color: rgba(255, 255, 255, 0.98);
+}
+
+#road-detect-overlay-loop-toggle.road-detect-overlay-control-btn-active:hover,
+#road-detect-overlay-loop-toggle.road-detect-overlay-control-btn-active:focus,
+#road-detect-overlay-loop-toggle.road-detect-overlay-control-btn-active:focus-visible,
+#road-detect-overlay-loop-toggle.road-detect-overlay-control-btn-active:active {
+    background-color: rgba(255, 255, 255, 0.98);
+    color: #111827;
+    border-color: rgba(255, 255, 255, 0.98);
+}
+
 .road-detect-overlay-close-btn .overlay-toggle-icon-close {
     font-size: 1.15rem;
 }

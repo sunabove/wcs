@@ -896,9 +896,9 @@
 
     $playToggleButton.on("click", function () {
         const videoElement = $video[0];
-        const isImageVisible = !$image.hasClass("d-none") && !!String($image.attr("src") || "").trim();
+        const hasImageSource = !!String(lastMediaSource || "").trim();
 
-        if (isImageVisible && lastMediaType === "image") {
+        if (lastMediaType === "image" && hasImageSource) {
             if (mediaPlaybackPaused) {
                 mediaPlaybackPaused = false;
                 setOverlayStatus("", false);

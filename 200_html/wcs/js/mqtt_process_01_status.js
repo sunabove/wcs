@@ -1037,8 +1037,12 @@ function prcessMqttMessage(topic, value) {
     updateReceivedSensorNumberCells(topic, value);
     updateObstacleSensorTypes(topic, value);
     updateObstacleFusionValues(topic, value);
-    updateRunInfoHistoryMetric(topic, value);
-    updateVehicleSpeedHistoryMetric(topic, value);
+    if (typeof window.updateRunInfoHistoryMetric === 'function') {
+        window.updateRunInfoHistoryMetric(topic, value);
+    }
+    if (typeof window.updateVehicleSpeedHistoryMetric === 'function') {
+        window.updateVehicleSpeedHistoryMetric(topic, value);
+    }
 
     // jQuery를 사용한 DOM 업데이트: topic을 id로 사용해서 해당 요소 찾기 (속성 선택자 사용)
     const $targetElement = $(`[id="${topic}"]`);
@@ -1369,8 +1373,12 @@ function cacheWheelRadius(topic, value) {
 
 $(document).ready(function() {
     ensureFallbackAudioActivationListener();
-    createRunInfoHistoryChart();
-    createVehicleSpeedHistoryChart();
+    if (typeof window.createRunInfoHistoryChart === 'function') {
+        window.createRunInfoHistoryChart();
+    }
+    if (typeof window.createVehicleSpeedHistoryChart === 'function') {
+        window.createVehicleSpeedHistoryChart();
+    }
 });
 
 function applyDerivedWheelLinearSpeed(topic, value) {

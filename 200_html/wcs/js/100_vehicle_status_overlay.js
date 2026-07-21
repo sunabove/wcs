@@ -209,7 +209,7 @@
         const isVideoVisible = !$video.hasClass("d-none");
         const hasVideoSource = !!String($video.attr("src") || "").trim();
         const isVideoReady = isVideoVisible && hasVideoSource;
-        const isPaused = !isVideoReady || videoElement.paused || videoElement.ended;
+        const isPaused = !isVideoReady || mediaPlaybackPaused || videoElement.paused || videoElement.ended;
 
         updateLoopToggleButton(isVideoReady);
 
@@ -1115,6 +1115,18 @@
         }
 
         mediaPlaybackPaused = true;
+        try {
+            this.loop = false;
+        } catch (error) {
+            // Ignore loop property issues.
+        }
+        if (typeof this.pause === "function") {
+            try {
+                this.pause();
+            } catch (error) {
+                // Ignore pause issues.
+            }
+        }
         updateVideoControlButtons();
     });
 

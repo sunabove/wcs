@@ -58,9 +58,11 @@
     let lastImageReplayAttemptAt = 0;
     let imageStreamNeedsReplay = false;
     let audioHudBlinkPhase = false;
+    let temporaryStatusHideTimerId = null;
     const FIRST_FRAME_TIMEOUT_MS = 10000;
     const LOADING_MESSAGE = "로딩중입니다.";
-    const FIRST_FRAME_TIMEOUT_MESSAGE = "동영상 로딩이 되지 않았습니다.";
+    const FIRST_FRAME_TIMEOUT_MESSAGE = "동영상이 로딩되지 않았습니다.";
+    const TEMPORARY_STATUS_MESSAGE_MS = 1800;
     const VIEWER_DRAG_PIXELS_RATIO = 0.47;
     const VIEWER_ZOOM_OUT_RATIO = 0.07;
     const IMAGE_STREAM_STALE_MS = 3500;
@@ -347,6 +349,22 @@
         $status.toggleClass("d-none", !visible);
     }
 
+    function clearTemporaryStatusMessage() {
+        if (temporaryStatusHideTimerId !== null) {
+            clearTimeout(temporaryStatusHideTimerId);
+            temporaryStatusHideTimerId = null;
+        }
+    }
+
+    function showTemporaryStatusMessage(message, durationMs = TEMPORARY_STATUS_MESSAGE_MS) {
+        clearTemporaryStatusMessage();
+        setOverlayStatus(message, true);
+        temporaryStatusHideTimerId = setTimeout(function () {
+            temporaryStatusHideTimerId = null;
+            setOverlayStatus("", false);
+        }, durationMs);
+    }
+
     function clearFirstFrameTimeout() {
         if (firstFrameTimeoutId !== null) {
             clearTimeout(firstFrameTimeoutId);
@@ -372,6 +390,7 @@
     function markFirstFrameReady() {
         firstFrameRequestToken += 1;
         clearFirstFrameTimeout();
+        clearTemporaryStatusMessage();
         setOverlayStatus("", false);
     }
 
@@ -1053,6 +1072,12 @@
         }
 
         if (!videoElement || $video.hasClass("d-none")) {
+            showTemporaryStatusMessage(FIRST_FRAME_TIMEOUT_MESSAGE);
+            return;
+        }
+
+        if (!String($video.attr("src") || "").trim()) {
+            showTemporaryStatusMessage(FIRST_FRAME_TIMEOUT_MESSAGE);
             return;
         }
 
@@ -1140,6 +1165,7 @@
 
     $video.on("error", function () {
         // Keep loading message until first-frame timeout decides failure.
+        showTemporaryStatusMessage(FIRST_FRAME_TIMEOUT_MESSAGE);
     });
 
     $(window).on("resize", function () {

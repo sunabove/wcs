@@ -342,6 +342,12 @@
         if ($status.length === 0) {
             return;
         }
+
+        if (mediaHiddenByUser && visible) {
+            $status.addClass("d-none");
+            return;
+        }
+
         const text = String(message || "").trim();
         if (text) {
             $status.text(text);
@@ -1126,6 +1132,10 @@
     });
 
     $image.on("error", function () {
+        const hasImageSource = !!String($image.attr("src") || "").trim();
+        if (mediaHiddenByUser || $image.hasClass("d-none") || !hasImageSource) {
+            return;
+        }
         imageStreamNeedsReplay = true;
         setOverlayStatus(FIRST_FRAME_TIMEOUT_MESSAGE, true);
     });
@@ -1169,6 +1179,10 @@
     });
 
     $video.on("error", function () {
+        const hasVideoSource = !!String($video.attr("src") || "").trim();
+        if (mediaHiddenByUser || $video.hasClass("d-none") || !hasVideoSource) {
+            return;
+        }
         // Keep loading message until first-frame timeout decides failure.
         showTemporaryStatusMessage(FIRST_FRAME_TIMEOUT_MESSAGE);
     });

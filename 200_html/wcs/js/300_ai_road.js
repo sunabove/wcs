@@ -2490,75 +2490,103 @@ $(function () {
             return normalized;
         };
 
-    function buildFolderLabel(baseFolder, folderPath) {
-        const normalized = normalizeSampleFolderPath(folderPath, baseFolder);
-        if (normalized === baseFolder) {
-            return "기본 폴더";
+    const buildFolderLabel = typeof window.wcsBuildFolderLabel === 'function'
+        ? function (baseFolder, folderPath) {
+            return window.wcsBuildFolderLabel(baseFolder, folderPath, {
+                leafOnly: true,
+                defaultLabel: '기본 폴더',
+            });
         }
-        const relative = normalized.replace(new RegExp("^" + baseFolder + "/?"), "");
-        if (!relative) {
-            return "기본 폴더";
+        : function (baseFolder, folderPath) {
+            const normalized = normalizeSampleFolderPath(folderPath, baseFolder);
+            if (normalized === baseFolder) {
+                return "기본 폴더";
+            }
+            const relative = normalized.replace(new RegExp("^" + baseFolder + "/?"), "");
+            if (!relative) {
+                return "기본 폴더";
+            }
+
+            const parts = relative.split("/").filter(Boolean);
+            return parts.length > 0 ? parts[parts.length - 1] : relative;
+        };
+
+    const buildSampleBrowserHeader = typeof window.wcsBuildSampleBrowserHeader === 'function'
+        ? function (baseFolder, currentFolderPath, showAllFiles) {
+            return window.wcsBuildSampleBrowserHeader({
+                baseFolder: baseFolder,
+                currentFolderPath: currentFolderPath,
+                showAllFiles: showAllFiles,
+                includeClearSelectionButton: false,
+                showPathLabel: true,
+                pathLabelPrefix: '현재: ',
+                allFilesSuffix: ' (모든 파일)',
+            });
         }
+        : function (baseFolder, currentFolderPath, showAllFiles) {
+            const normalizedCurrent = normalizeSampleFolderPath(currentFolderPath, baseFolder);
+            const $header = $('<div class="d-flex flex-wrap align-items-center gap-2 mb-2"></div>');
+            const $homeButton = $('<button type="button" class="btn btn-sm btn-outline-secondary sample-folder-home"><i class="bi bi-house-door me-1"></i>루트</button>')
+                .attr("data-base-folder", baseFolder);
+            const $allFilesToggleWrap = $('<div class="form-check form-check-inline mb-0"></div>');
+            const toggleId = "sample-folder-all-" + baseFolder;
+            const $allFilesToggle = $('<input class="form-check-input sample-folder-all-toggle" type="checkbox">')
+                .attr("id", toggleId)
+                .attr("data-base-folder", baseFolder)
+                .prop("checked", Boolean(showAllFiles));
+            const $allFilesToggleLabel = $('<label class="form-check-label small" style="cursor:pointer;"></label>')
+                .attr("for", toggleId)
+                .text("모든 파일");
+            $allFilesToggleWrap.append($allFilesToggle).append($allFilesToggleLabel);
 
-        const parts = relative.split("/").filter(Boolean);
-        return parts.length > 0 ? parts[parts.length - 1] : relative;
-    }
+            const parentPath = normalizedCurrent.indexOf(baseFolder + "/") === 0
+                ? normalizedCurrent.split("/").slice(0, -1).join("/")
+                : "";
+            const hasParent = Boolean(parentPath) && normalizedCurrent !== baseFolder;
+            const $upButton = $('<button type="button" class="btn btn-sm btn-outline-secondary sample-folder-up"><i class="bi bi-arrow-up-circle me-1"></i>상위</button>')
+                .attr("data-base-folder", baseFolder)
+                .attr("data-parent-folder", hasParent ? parentPath : baseFolder)
+                .prop("disabled", !hasParent);
 
-    function buildSampleBrowserHeader(baseFolder, currentFolderPath, showAllFiles) {
-        const normalizedCurrent = normalizeSampleFolderPath(currentFolderPath, baseFolder);
-        const $header = $('<div class="d-flex flex-wrap align-items-center gap-2 mb-2"></div>');
-        const $homeButton = $('<button type="button" class="btn btn-sm btn-outline-secondary sample-folder-home"><i class="bi bi-house-door me-1"></i>루트</button>')
-            .attr("data-base-folder", baseFolder);
-        const $allFilesToggleWrap = $('<div class="form-check form-check-inline mb-0"></div>');
-        const toggleId = "sample-folder-all-" + baseFolder;
-        const $allFilesToggle = $('<input class="form-check-input sample-folder-all-toggle" type="checkbox">')
-            .attr("id", toggleId)
-            .attr("data-base-folder", baseFolder)
-            .prop("checked", Boolean(showAllFiles));
-        const $allFilesToggleLabel = $('<label class="form-check-label small" style="cursor:pointer;"></label>')
-            .attr("for", toggleId)
-            .text("모든 파일");
-        $allFilesToggleWrap.append($allFilesToggle).append($allFilesToggleLabel);
+            const labelText = showAllFiles
+                ? ("samples/" + baseFolder + " (모든 파일)")
+                : (normalizedCurrent === baseFolder ? "samples/" + baseFolder : "samples/" + normalizedCurrent);
+            const $pathLabel = $('<span class="small text-muted"></span>').text("현재: " + labelText);
 
-        const parentPath = normalizedCurrent.indexOf(baseFolder + "/") === 0
-            ? normalizedCurrent.split("/").slice(0, -1).join("/")
-            : "";
-        const hasParent = Boolean(parentPath) && normalizedCurrent !== baseFolder;
-        const $upButton = $('<button type="button" class="btn btn-sm btn-outline-secondary sample-folder-up"><i class="bi bi-arrow-up-circle me-1"></i>상위</button>')
-            .attr("data-base-folder", baseFolder)
-            .attr("data-parent-folder", hasParent ? parentPath : baseFolder)
-            .prop("disabled", !hasParent);
+            $header.append($homeButton).append($upButton).append($allFilesToggleWrap).append($pathLabel);
+            return $header;
+        };
 
-        const labelText = showAllFiles
-            ? ("samples/" + baseFolder + " (모든 파일)")
-            : (normalizedCurrent === baseFolder ? "samples/" + baseFolder : "samples/" + normalizedCurrent);
-        const $pathLabel = $('<span class="small text-muted"></span>').text("현재: " + labelText);
+    const renderSampleFolderTiles = typeof window.wcsRenderSampleFolderTiles === 'function'
+        ? function (baseFolder, currentFolderPath, childFolders, paneSelector) {
+            return window.wcsRenderSampleFolderTiles({
+                baseFolder: baseFolder,
+                childFolders: childFolders,
+                paneSelector: paneSelector,
+                leafOnlyLabel: true,
+            });
+        }
+        : function (baseFolder, currentFolderPath, childFolders, paneSelector) {
+            const $wrapper = $('<div class="d-flex flex-wrap gap-2 mb-2"></div>');
+            const folders = Array.isArray(childFolders) ? childFolders : [];
 
-        $header.append($homeButton).append($upButton).append($allFilesToggleWrap).append($pathLabel);
-        return $header;
-    }
+            if (folders.length === 0) {
+                return $wrapper;
+            }
 
-    function renderSampleFolderTiles(baseFolder, currentFolderPath, childFolders, paneSelector) {
-        const $wrapper = $('<div class="d-flex flex-wrap gap-2 mb-2"></div>');
-        const folders = Array.isArray(childFolders) ? childFolders : [];
+            folders.forEach(function (folderPath) {
+                const normalizedFolder = normalizeSampleFolderPath(folderPath, baseFolder);
+                const label = buildFolderLabel(baseFolder, normalizedFolder);
+                const $button = $('<button type="button" class="btn btn-light border sample-folder-item"></button>')
+                    .attr("data-pane", paneSelector)
+                    .attr("data-folder-path", normalizedFolder)
+                    .append('<i class="bi bi-folder-fill text-warning me-1"></i>')
+                    .append($('<span class="small"></span>').text(label || normalizedFolder));
+                $wrapper.append($button);
+            });
 
-        if (folders.length === 0) {
             return $wrapper;
-        }
-
-        folders.forEach(function (folderPath) {
-            const normalizedFolder = normalizeSampleFolderPath(folderPath, baseFolder);
-            const label = buildFolderLabel(baseFolder, normalizedFolder);
-            const $button = $('<button type="button" class="btn btn-light border sample-folder-item"></button>')
-                .attr("data-pane", paneSelector)
-                .attr("data-folder-path", normalizedFolder)
-                .append('<i class="bi bi-folder-fill text-warning me-1"></i>')
-                .append($('<span class="small"></span>').text(label || normalizedFolder));
-            $wrapper.append($button);
-        });
-
-        return $wrapper;
-    }
+        };
 
     function renderSampleImageThumbnails(browserData, showAllFiles) {
         if ($sampleImagePane.length === 0) {

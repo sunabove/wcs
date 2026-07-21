@@ -213,6 +213,120 @@ function wcsBuildRoadDetectStreamCleanupUrl(fileName, queryParams) {
     return '/fast/road_detect_stream_cleanup/' + encodedPath + '?' + $.param(params);
 }
 
+function wcsBuildFolderLabel(baseFolder, folderPath, options) {
+    const config = Object.assign({
+        leafOnly: false,
+        defaultLabel: '기본 폴더',
+    }, options || {});
+
+    const normalized = wcsNormalizeSampleFolderPath(folderPath, baseFolder);
+    if (normalized === baseFolder) {
+        return config.defaultLabel;
+    }
+
+    const relative = normalized.replace(new RegExp('^' + String(baseFolder || '') + '/?'), '');
+    if (!relative) {
+        return config.defaultLabel;
+    }
+
+    if (!config.leafOnly) {
+        return relative;
+    }
+
+    const parts = relative.split('/').filter(Boolean);
+    return parts.length > 0 ? parts[parts.length - 1] : relative;
+}
+
+function wcsBuildSampleBrowserHeader(options) {
+    const config = Object.assign({
+        baseFolder: '',
+        currentFolderPath: '',
+        showAllFiles: false,
+        includeClearSelectionButton: false,
+        clearSelectionLabel: '동영상 미선택',
+        showPathLabel: false,
+        pathLabelPrefix: '현재: ',
+        allFilesSuffix: ' (모든 파일)',
+    }, options || {});
+
+    const baseFolder = String(config.baseFolder || '');
+    const normalizedCurrent = wcsNormalizeSampleFolderPath(config.currentFolderPath, baseFolder);
+    const showAllFiles = Boolean(config.showAllFiles);
+
+    const $header = $('<div class="d-flex flex-wrap align-items-center gap-2 mb-2"></div>');
+    const $homeButton = $('<button type="button" class="btn btn-sm btn-outline-secondary sample-folder-home"><i class="bi bi-house-door me-1"></i>루트</button>')
+        .attr('data-base-folder', baseFolder);
+    const $allFilesToggleWrap = $('<div class="form-check form-check-inline mb-0"></div>');
+    const toggleId = 'sample-folder-all-' + baseFolder;
+    const $allFilesToggle = $('<input class="form-check-input sample-folder-all-toggle" type="checkbox">')
+        .attr('id', toggleId)
+        .attr('data-base-folder', baseFolder)
+        .prop('checked', showAllFiles);
+    const $allFilesToggleLabel = $('<label class="form-check-label small" style="cursor:pointer;"></label>')
+        .attr('for', toggleId)
+        .text('모든 파일');
+    $allFilesToggleWrap.append($allFilesToggle).append($allFilesToggleLabel);
+
+    const parentPath = normalizedCurrent.indexOf(baseFolder + '/') === 0
+        ? normalizedCurrent.split('/').slice(0, -1).join('/')
+        : '';
+    const hasParent = Boolean(parentPath) && normalizedCurrent !== baseFolder;
+    const $upButton = $('<button type="button" class="btn btn-sm btn-outline-secondary sample-folder-up"><i class="bi bi-arrow-up-circle me-1"></i>상위</button>')
+        .attr('data-base-folder', baseFolder)
+        .attr('data-parent-folder', hasParent ? parentPath : baseFolder)
+        .prop('disabled', !hasParent);
+
+    $header.append($homeButton).append($upButton).append($allFilesToggleWrap);
+
+    if (config.includeClearSelectionButton) {
+        const $clearSelectionButton = $('<button type="button" class="btn btn-sm btn-outline-danger sample-video-clear-selection"><i class="bi bi-x-circle me-1"></i></button>')
+            .append(document.createTextNode(String(config.clearSelectionLabel || '동영상 미선택')));
+        $header.append($clearSelectionButton);
+    }
+
+    if (config.showPathLabel) {
+        const labelText = showAllFiles
+            ? ('samples/' + baseFolder + config.allFilesSuffix)
+            : (normalizedCurrent === baseFolder ? 'samples/' + baseFolder : 'samples/' + normalizedCurrent);
+        const $pathLabel = $('<span class="small text-muted"></span>').text(String(config.pathLabelPrefix || '현재: ') + labelText);
+        $header.append($pathLabel);
+    }
+
+    return $header;
+}
+
+function wcsRenderSampleFolderTiles(options) {
+    const config = Object.assign({
+        baseFolder: '',
+        childFolders: [],
+        paneSelector: '',
+        leafOnlyLabel: false,
+    }, options || {});
+
+    const $wrapper = $('<div class="d-flex flex-wrap gap-2 mb-2"></div>');
+    const folders = Array.isArray(config.childFolders) ? config.childFolders : [];
+
+    if (folders.length === 0) {
+        return $wrapper;
+    }
+
+    folders.forEach(function (folderPath) {
+        const normalizedFolder = wcsNormalizeSampleFolderPath(folderPath, config.baseFolder);
+        const label = wcsBuildFolderLabel(config.baseFolder, normalizedFolder, {
+            leafOnly: Boolean(config.leafOnlyLabel),
+            defaultLabel: '기본 폴더',
+        });
+        const $button = $('<button type="button" class="btn btn-light border sample-folder-item"></button>')
+            .attr('data-pane', config.paneSelector)
+            .attr('data-folder-path', normalizedFolder)
+            .append('<i class="bi bi-folder-fill text-warning me-1"></i>')
+            .append($('<span class="small"></span>').text(label || normalizedFolder));
+        $wrapper.append($button);
+    });
+
+    return $wrapper;
+}
+
 window.getVehicleDirectionButtonSelector = getVehicleDirectionButtonSelector;
 window.getVehicleCommandByButtonId = getVehicleCommandByButtonId;
 window.getVehicleButtonIdByCommand = getVehicleButtonIdByCommand;
@@ -229,6 +343,9 @@ window.wcsBuildSamplesUrl = wcsBuildSamplesUrl;
 window.wcsBuildSampleBrowserUrl = wcsBuildSampleBrowserUrl;
 window.wcsBuildRoadDetectStreamUrl = wcsBuildRoadDetectStreamUrl;
 window.wcsBuildRoadDetectStreamCleanupUrl = wcsBuildRoadDetectStreamCleanupUrl;
+window.wcsBuildFolderLabel = wcsBuildFolderLabel;
+window.wcsBuildSampleBrowserHeader = wcsBuildSampleBrowserHeader;
+window.wcsRenderSampleFolderTiles = wcsRenderSampleFolderTiles;
 
 // 페이지 로드 시 실행 
 $(document).ready(function() {

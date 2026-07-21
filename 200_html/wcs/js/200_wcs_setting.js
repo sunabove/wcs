@@ -520,65 +520,92 @@ $(document).ready(function () {
         });
     }
 
-    function buildFolderLabel(baseFolder, folderPath) {
-        const normalized = normalizeSampleFolderPath(folderPath, baseFolder);
-        if (normalized === baseFolder) {
-            return '기본 폴더';
+    const buildFolderLabel = typeof window.wcsBuildFolderLabel === 'function'
+        ? function (baseFolder, folderPath) {
+            return window.wcsBuildFolderLabel(baseFolder, folderPath, {
+                leafOnly: false,
+                defaultLabel: '기본 폴더',
+            });
         }
-        return normalized.replace(new RegExp('^' + baseFolder + '/?'), '');
-    }
+        : function (baseFolder, folderPath) {
+            const normalized = normalizeSampleFolderPath(folderPath, baseFolder);
+            if (normalized === baseFolder) {
+                return '기본 폴더';
+            }
+            return normalized.replace(new RegExp('^' + baseFolder + '/?'), '');
+        };
 
-    function buildSampleBrowserHeader(baseFolder, currentFolderPath, showAllFiles) {
-        const normalizedCurrent = normalizeSampleFolderPath(currentFolderPath, baseFolder);
-        const $header = $('<div class="d-flex flex-wrap align-items-center gap-2 mb-2"></div>');
-        const $homeButton = $('<button type="button" class="btn btn-sm btn-outline-secondary sample-folder-home"><i class="bi bi-house-door me-1"></i>루트</button>')
-            .attr('data-base-folder', baseFolder);
-        const $allFilesToggleWrap = $('<div class="form-check form-check-inline mb-0"></div>');
-        const toggleId = 'sample-folder-all-' + baseFolder;
-        const $allFilesToggle = $('<input class="form-check-input sample-folder-all-toggle" type="checkbox">')
-            .attr('id', toggleId)
-            .attr('data-base-folder', baseFolder)
-            .prop('checked', Boolean(showAllFiles));
-        const $allFilesToggleLabel = $('<label class="form-check-label small" style="cursor:pointer;"></label>')
-            .attr('for', toggleId)
-            .text('모든 파일');
-        $allFilesToggleWrap.append($allFilesToggle).append($allFilesToggleLabel);
-        const $clearSelectionButton = $('<button type="button" class="btn btn-sm btn-outline-danger sample-video-clear-selection"><i class="bi bi-x-circle me-1"></i>동영상 미선택</button>');
+    const buildSampleBrowserHeader = typeof window.wcsBuildSampleBrowserHeader === 'function'
+        ? function (baseFolder, currentFolderPath, showAllFiles) {
+            return window.wcsBuildSampleBrowserHeader({
+                baseFolder: baseFolder,
+                currentFolderPath: currentFolderPath,
+                showAllFiles: showAllFiles,
+                includeClearSelectionButton: true,
+                clearSelectionLabel: '동영상 미선택',
+                showPathLabel: false,
+            });
+        }
+        : function (baseFolder, currentFolderPath, showAllFiles) {
+            const normalizedCurrent = normalizeSampleFolderPath(currentFolderPath, baseFolder);
+            const $header = $('<div class="d-flex flex-wrap align-items-center gap-2 mb-2"></div>');
+            const $homeButton = $('<button type="button" class="btn btn-sm btn-outline-secondary sample-folder-home"><i class="bi bi-house-door me-1"></i>루트</button>')
+                .attr('data-base-folder', baseFolder);
+            const $allFilesToggleWrap = $('<div class="form-check form-check-inline mb-0"></div>');
+            const toggleId = 'sample-folder-all-' + baseFolder;
+            const $allFilesToggle = $('<input class="form-check-input sample-folder-all-toggle" type="checkbox">')
+                .attr('id', toggleId)
+                .attr('data-base-folder', baseFolder)
+                .prop('checked', Boolean(showAllFiles));
+            const $allFilesToggleLabel = $('<label class="form-check-label small" style="cursor:pointer;"></label>')
+                .attr('for', toggleId)
+                .text('모든 파일');
+            $allFilesToggleWrap.append($allFilesToggle).append($allFilesToggleLabel);
+            const $clearSelectionButton = $('<button type="button" class="btn btn-sm btn-outline-danger sample-video-clear-selection"><i class="bi bi-x-circle me-1"></i>동영상 미선택</button>');
 
-        const parentPath = normalizedCurrent.indexOf(baseFolder + '/') === 0
-            ? normalizedCurrent.split('/').slice(0, -1).join('/')
-            : '';
-        const hasParent = Boolean(parentPath) && normalizedCurrent !== baseFolder;
-        const $upButton = $('<button type="button" class="btn btn-sm btn-outline-secondary sample-folder-up"><i class="bi bi-arrow-up-circle me-1"></i>상위</button>')
-            .attr('data-base-folder', baseFolder)
-            .attr('data-parent-folder', hasParent ? parentPath : baseFolder)
-            .prop('disabled', !hasParent);
+            const parentPath = normalizedCurrent.indexOf(baseFolder + '/') === 0
+                ? normalizedCurrent.split('/').slice(0, -1).join('/')
+                : '';
+            const hasParent = Boolean(parentPath) && normalizedCurrent !== baseFolder;
+            const $upButton = $('<button type="button" class="btn btn-sm btn-outline-secondary sample-folder-up"><i class="bi bi-arrow-up-circle me-1"></i>상위</button>')
+                .attr('data-base-folder', baseFolder)
+                .attr('data-parent-folder', hasParent ? parentPath : baseFolder)
+                .prop('disabled', !hasParent);
 
-        $header.append($homeButton).append($upButton).append($allFilesToggleWrap).append($clearSelectionButton);
-        return $header;
-    }
+            $header.append($homeButton).append($upButton).append($allFilesToggleWrap).append($clearSelectionButton);
+            return $header;
+        };
 
-    function renderSampleFolderTiles(baseFolder, childFolders) {
-        const $wrapper = $('<div class="d-flex flex-wrap gap-2 mb-2"></div>');
-        const folders = Array.isArray(childFolders) ? childFolders : [];
+    const renderSampleFolderTiles = typeof window.wcsRenderSampleFolderTiles === 'function'
+        ? function (baseFolder, childFolders) {
+            return window.wcsRenderSampleFolderTiles({
+                baseFolder: baseFolder,
+                childFolders: childFolders,
+                paneSelector: 'video',
+                leafOnlyLabel: false,
+            });
+        }
+        : function (baseFolder, childFolders) {
+            const $wrapper = $('<div class="d-flex flex-wrap gap-2 mb-2"></div>');
+            const folders = Array.isArray(childFolders) ? childFolders : [];
 
-        if (folders.length === 0) {
+            if (folders.length === 0) {
+                return $wrapper;
+            }
+
+            folders.forEach(function (folderPath) {
+                const normalizedFolder = normalizeSampleFolderPath(folderPath, baseFolder);
+                const label = buildFolderLabel(baseFolder, normalizedFolder);
+                const $button = $('<button type="button" class="btn btn-light border sample-folder-item"></button>')
+                    .attr('data-pane', 'video')
+                    .attr('data-folder-path', normalizedFolder)
+                    .append('<i class="bi bi-folder-fill text-warning me-1"></i>')
+                    .append($('<span class="small"></span>').text(label || normalizedFolder));
+                $wrapper.append($button);
+            });
+
             return $wrapper;
-        }
-
-        folders.forEach(function (folderPath) {
-            const normalizedFolder = normalizeSampleFolderPath(folderPath, baseFolder);
-            const label = buildFolderLabel(baseFolder, normalizedFolder);
-            const $button = $('<button type="button" class="btn btn-light border sample-folder-item"></button>')
-                .attr('data-pane', 'video')
-                .attr('data-folder-path', normalizedFolder)
-                .append('<i class="bi bi-folder-fill text-warning me-1"></i>')
-                .append($('<span class="small"></span>').text(label || normalizedFolder));
-            $wrapper.append($button);
-        });
-
-        return $wrapper;
-    }
+        };
 
     function saveSampleVideoBrowserStateToStorage() {
         if (typeof window.localStorage === 'undefined') {

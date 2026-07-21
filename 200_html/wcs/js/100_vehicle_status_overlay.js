@@ -1,8 +1,7 @@
 (function () {
     const $overlay = $("#road-detect-overlay");
     const $closeButton = $("#road-detect-overlay-close");
-    const $playButton = $("#road-detect-overlay-play");
-    const $pauseButton = $("#road-detect-overlay-pause");
+    const $playToggleButton = $("#road-detect-overlay-play-toggle");
     const $status = $("#road-detect-overlay-status");
     const $image = $("#road-detect-overlay-image");
     const $video = $("#road-detect-overlay-video");
@@ -135,9 +134,16 @@
     }
 
     function updateVideoControlButtons() {
-        if ($playButton.length === 0 || $pauseButton.length === 0 || $video.length === 0) {
+        if ($playToggleButton.length === 0 || $video.length === 0) {
             return;
         }
+
+        if (mediaHiddenByUser) {
+            $playToggleButton.addClass("d-none");
+            return;
+        }
+
+        $playToggleButton.removeClass("d-none");
 
         const videoElement = $video[0];
         const isVideoVisible = !$video.hasClass("d-none");
@@ -145,8 +151,29 @@
         const isVideoReady = isVideoVisible && hasVideoSource;
         const isPaused = !isVideoReady || videoElement.paused || videoElement.ended;
 
-        $playButton.prop("disabled", !isVideoReady || !isPaused);
-        $pauseButton.prop("disabled", !isVideoReady || isPaused);
+        if (!isVideoReady) {
+            $playToggleButton
+                .prop("disabled", true)
+                .attr("title", "동영상 재생")
+                .attr("aria-label", "동영상 재생")
+                .html('<i class="bi bi-play-fill" aria-hidden="true"></i>');
+            return;
+        }
+
+        if (isPaused) {
+            $playToggleButton
+                .prop("disabled", false)
+                .attr("title", "동영상 재생")
+                .attr("aria-label", "동영상 재생")
+                .html('<i class="bi bi-play-fill" aria-hidden="true"></i>');
+            return;
+        }
+
+        $playToggleButton
+            .prop("disabled", false)
+            .attr("title", "동영상 일시 정지")
+            .attr("aria-label", "동영상 일시 정지")
+            .html('<i class="bi bi-pause-fill" aria-hidden="true"></i>');
     }
 
     function readOverlayMediaHiddenState() {
@@ -843,28 +870,25 @@
         }
     });
 
-    $playButton.on("click", function () {
+    $playToggleButton.on("click", function () {
         const videoElement = $video[0];
-        if (!videoElement || $video.hasClass("d-none") || typeof videoElement.play !== "function") {
+        if (!videoElement || $video.hasClass("d-none")) {
             return;
         }
 
-        const playPromise = videoElement.play();
-        if (playPromise && typeof playPromise.catch === "function") {
-            playPromise.catch(function () {
-                // Ignore autoplay policy rejections for manual resume.
-            });
-        }
-        updateVideoControlButtons();
-    });
-
-    $pauseButton.on("click", function () {
-        const videoElement = $video[0];
-        if (!videoElement || $video.hasClass("d-none") || typeof videoElement.pause !== "function") {
-            return;
+        if (videoElement.paused || videoElement.ended) {
+            if (typeof videoElement.play === "function") {
+                const playPromise = videoElement.play();
+                if (playPromise && typeof playPromise.catch === "function") {
+                    playPromise.catch(function () {
+                        // Ignore autoplay policy rejections for manual resume.
+                    });
+                }
+            }
+        } else if (typeof videoElement.pause === "function") {
+            videoElement.pause();
         }
 
-        videoElement.pause();
         updateVideoControlButtons();
     });
 

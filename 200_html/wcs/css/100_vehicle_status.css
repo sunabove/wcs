@@ -56,10 +56,6 @@
     border-color: rgba(229, 231, 235, 0.96);
 }
 
-.road-detect-overlay-close-btn .overlay-toggle-icon-video {
-    font-size: 1.35rem;
-}
-
 .road-detect-overlay-close-btn .overlay-toggle-icon-close {
     font-size: 1.15rem;
 }

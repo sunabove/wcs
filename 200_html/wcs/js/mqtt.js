@@ -1,64 +1,58 @@
-// MQTT 로그 옵션 (기본값: false)
-const MQTT_LOG_OPTION_STORAGE_KEY = 'wcs.mqtt.console_log_enabled.v1';
-
-function getMqttConsoleLogEnabled() {
-    try {
-        const saved = window.localStorage.getItem(MQTT_LOG_OPTION_STORAGE_KEY);
-        if (saved === null) {
-            return false;
-        }
-
-        const normalized = String(saved).trim().toLowerCase();
-        return normalized === '1' || normalized === 'true' || normalized === 'on' || normalized === 'yes';
-    } catch (error) {
-        return false;
-    }
-}
-
-function setMqttConsoleLogEnabled(enabled) {
-    const flag = !!enabled;
-    window.__WCS_MQTT_CONSOLE_LOG_ENABLED = flag;
-
-    try {
-        window.localStorage.setItem(MQTT_LOG_OPTION_STORAGE_KEY, flag ? 'true' : 'false');
-    } catch (error) {
-        // localStorage 사용 불가 환경에서는 메모리 값만 사용한다.
-    }
-
-    return flag;
-}
-
-function isMqttConsoleLogEnabled() {
-    if (typeof window.__WCS_MQTT_CONSOLE_LOG_ENABLED === 'boolean') {
-        return window.__WCS_MQTT_CONSOLE_LOG_ENABLED;
-    }
-
-    const initialFlag = getMqttConsoleLogEnabled();
-    window.__WCS_MQTT_CONSOLE_LOG_ENABLED = initialFlag;
-    return initialFlag;
-}
-
-function mqttConsoleLog() {
-    if (!isMqttConsoleLogEnabled()) {
-        return;
-    }
-
-    console.log.apply(console, arguments);
-}
-
-window.getMqttConsoleLogEnabled = getMqttConsoleLogEnabled;
-window.setMqttConsoleLogEnabled = setMqttConsoleLogEnabled;
-window.isMqttConsoleLogEnabled = isMqttConsoleLogEnabled;
-window.mqttConsoleLog = mqttConsoleLog;
-
 // MQTT 클라이언트 설정 및 연결 (Mosquitto 브로커용)
 class MqttClientManager {
+    static logOptionStorageKey = 'wcs.mqtt.console_log_enabled.v1';
+
     constructor(options = {}) {
         this.brokerUrl = options.brokerUrl || null;
         this.clientId = options.clientId || `vehicle_status_client_${Math.random().toString(16).substr(2, 8)}`;
         this.topicFormatter = options.topicFormatter || null;
         this.client = null;
         this.lastUIUpdate = 0;
+    }
+
+    static getConsoleLogEnabled() {
+        try {
+            const saved = window.localStorage.getItem(MqttClientManager.logOptionStorageKey);
+            if (saved === null) {
+                return false;
+            }
+
+            const normalized = String(saved).trim().toLowerCase();
+            return normalized === '1' || normalized === 'true' || normalized === 'on' || normalized === 'yes';
+        } catch (error) {
+            return false;
+        }
+    }
+
+    static setConsoleLogEnabled(enabled) {
+        const flag = !!enabled;
+        window.__WCS_MQTT_CONSOLE_LOG_ENABLED = flag;
+
+        try {
+            window.localStorage.setItem(MqttClientManager.logOptionStorageKey, flag ? 'true' : 'false');
+        } catch (error) {
+            // localStorage 사용 불가 환경에서는 메모리 값만 사용한다.
+        }
+
+        return flag;
+    }
+
+    static isConsoleLogEnabled() {
+        if (typeof window.__WCS_MQTT_CONSOLE_LOG_ENABLED === 'boolean') {
+            return window.__WCS_MQTT_CONSOLE_LOG_ENABLED;
+        }
+
+        const initialFlag = MqttClientManager.getConsoleLogEnabled();
+        window.__WCS_MQTT_CONSOLE_LOG_ENABLED = initialFlag;
+        return initialFlag;
+    }
+
+    static log() {
+        if (!MqttClientManager.isConsoleLogEnabled()) {
+            return;
+        }
+
+        console.log.apply(console, arguments);
     }
 
     buildBrokerUrl() {
@@ -76,8 +70,8 @@ class MqttClientManager {
             const brokerUrl = this.buildBrokerUrl();
             const currentHost = window.location.hostname || 'localhost';
 
-            mqttConsoleLog('[MQTT] 🦟 브로커 연결 시도중...', brokerUrl);
-            mqttConsoleLog('[MQTT] 🌐 현재 호스트:', currentHost);
+            MqttClientManager.log('[MQTT] 🦟 브로커 연결 시도중...', brokerUrl);
+            MqttClientManager.log('[MQTT] 🌐 현재 호스트:', currentHost);
 
             this.client = mqtt.connect(brokerUrl, {
                 clientId: this.clientId,
@@ -110,8 +104,8 @@ class MqttClientManager {
     }
 
     handleConnect(connack) {
-        mqttConsoleLog('[MQTT] ✅ Mosquitto 브로커 연결 성공');
-        mqttConsoleLog('[MQTT] 🔗 연결 정보:', connack);
+        MqttClientManager.log('[MQTT] ✅ Mosquitto 브로커 연결 성공');
+        MqttClientManager.log('[MQTT] 🔗 연결 정보:', connack);
 
         if (!this.client) {
             return;
@@ -124,8 +118,8 @@ class MqttClientManager {
                 return;
             }
 
-            mqttConsoleLog('[MQTT] 📡 모든 토픽 구독 성공');
-            mqttConsoleLog('[MQTT] 🎯 QoS 설정:', granted);
+            MqttClientManager.log('[MQTT] 📡 모든 토픽 구독 성공');
+            MqttClientManager.log('[MQTT] 🎯 QoS 설정:', granted);
 
             $('#mqtt-status-container').html('<div id="mqtt-status" class="badge fs-6" style="background:#28a745; color:white; padding:8px 12px; border-radius:5px; box-shadow:0 2px 5px rgba(0,0,0,0.2);"><i class="fas fa-wifi" style="margin-right:5px;"></i>MQTT 연결됨</div>');
             $('#mqtt-topic').text('연결완료:');
@@ -143,9 +137,9 @@ class MqttClientManager {
         const shouldDisplayInMessagePanel = topic !== 'client/connect';
 
         if (topic.startsWith('vehicle/') || topic.startsWith('wheel/')) {
-            mqttConsoleLog(`[MQTT] 📩 ${topic}: ${messageStr}`);
+            MqttClientManager.log(`[MQTT] 📩 ${topic}: ${messageStr}`);
         } else {
-            mqttConsoleLog(`[MQTT] 📝 ${topic.split('/')[0]}/*: ${messageStr}`);
+            MqttClientManager.log(`[MQTT] 📝 ${topic.split('/')[0]}/*: ${messageStr}`);
         }
 
         if (shouldDisplayInMessagePanel && (!this.lastUIUpdate || Date.now() - this.lastUIUpdate > 100)) {
@@ -213,14 +207,14 @@ class MqttClientManager {
     }
 
     handleClose() {
-        mqttConsoleLog('[MQTT] 🦟 Mosquitto 연결이 끊어졌습니다.');
+        MqttClientManager.log('[MQTT] 🦟 Mosquitto 연결이 끊어졌습니다.');
         $('#mqtt-status').css('background', '#fd7e14').html('<i class="fas fa-unlink" style="margin-right:5px;"></i>Mosquitto 끊어짐');
         $('#mqtt-topic').text('연결끊어짐:');
         $('#mqtt-value').text('브로커 연결이 끊어졌습니다');
     }
 
     handleReconnect() {
-        mqttConsoleLog('[MQTT] 🔄 Mosquitto 재연결 시도중...');
+        MqttClientManager.log('[MQTT] 🔄 Mosquitto 재연결 시도중...');
         $('#mqtt-status').css('background', '#17a2b8').html('<i class="fas fa-sync fa-spin" style="margin-right:5px;"></i>Mosquitto 재연결 중...');
         $('#mqtt-topic').text('재연결중:');
         $('#mqtt-value').text('브로커 재연결 시도중...');
@@ -253,7 +247,7 @@ class MqttClientManager {
         };
 
         this.client.publish('client/connect', JSON.stringify(clientInfo), { qos: 1 });
-        mqttConsoleLog('[MQTT] 🌐 클라이언트 접속 메시지 발송:', clientInfo);
+        MqttClientManager.log('[MQTT] 🌐 클라이언트 접속 메시지 발송:', clientInfo);
     }
 
     publish(topic, message, qos) {
@@ -273,7 +267,7 @@ class MqttClientManager {
             const timestamp = new Date().toLocaleTimeString();
 
             if (!err) {
-                mqttConsoleLog(`[MQTT] 📤 [${timestamp}] 메시지 전송성공 [QoS ${qosValue}]:`, topic, messageStr);
+                MqttClientManager.log(`[MQTT] 📤 [${timestamp}] 메시지 전송성공 [QoS ${qosValue}]:`, topic, messageStr);
                 return;
             }
 
@@ -315,7 +309,7 @@ class MqttClientManager {
 
             this.client.publish('web/client/disconnect', JSON.stringify(disconnectInfo), { qos: 1 });
             this.client.publish('web/status', 'disconnected', { qos: 1 });
-            mqttConsoleLog('[MQTT] 👋 클라이언트 종료 메시지 발송:', disconnectInfo);
+            MqttClientManager.log('[MQTT] 👋 클라이언트 종료 메시지 발송:', disconnectInfo);
         } catch (error) {
             console.error('[MQTT] ❌ 종료 메시지 발송 실패:', error);
         }
@@ -351,7 +345,7 @@ function sendMQTTMessage(topic, message, qos) {
 
 // MQTT 초기화 함수 (페이지 로드 시 자동 실행)
 $(document).ready(function() {
-    mqttConsoleLog('[MQTT] 🦟 jQuery DOM 준비 완료 - 차량 대시보드 시작');
+    MqttClientManager.log('[MQTT] 🦟 jQuery DOM 준비 완료 - 차량 대시보드 시작');
     
     // Mosquitto MQTT 클라이언트 초기화
     initMQTTClient();
@@ -365,6 +359,12 @@ $(window).on('beforeunload', function() {
     }
 });
 
-// 전역 함수로 내보내기
-window.sendMQTTMessage = sendMQTTMessage;
-window.initMQTTClient = initMQTTClient;
+window.WcsMqtt = {
+    manager: null,
+    initMQTTClient,
+    sendMQTTMessage,
+    getConsoleLogEnabled: () => MqttClientManager.getConsoleLogEnabled(),
+    setConsoleLogEnabled: (enabled) => MqttClientManager.setConsoleLogEnabled(enabled),
+    isConsoleLogEnabled: () => MqttClientManager.isConsoleLogEnabled(),
+    log: (...args) => MqttClientManager.log(...args),
+};

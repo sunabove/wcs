@@ -760,50 +760,17 @@ class MqttSimulator:
         
         print(f"[SIMULATOR] 시작 - PID: {os.getpid()}")
         print(f"[MONITOR] 파일 모니터링: {self.script_path}")
-        print("[ROUTE] 🛣️  원형 고저차 도로 주행 시뮬레이션 시작")
-        print(f"[INFO] 중심 반경: {self.route_radius_m:.0f}m")
-        print(f"[INFO] 좌우 굴곡: ±{self.route_wobble_m:.0f}m")
-        print(f"[INFO] 오르막/내리막: ±{self.route_hill_amplitude_m:.0f}m")
-        print(f"[INFO] 경로 길이(근사): {self.route_loop_length_m:.0f}m")
-        print("[INFO] 경로: 원형 루프를 따라 좌회전/우회전이 반복되고, 고저차가 함께 변함")
-        print("[INFO] 노면 상태: ASPHALT(0), BLOCK(1), DIRT_ROAD(2), GRAVEL_ROAD(3)")
-        print("[INFO] 장애물 상태: NONE(0), ICE(1), POT_HOLE(2)")
-        print("[INFO] 주행 속도: 0-70 km/h (0-19.4 m/s)")
-        print("[INFO] 실행 상태: IDLE(0)=정지, RUNNING(1)=주행")
-        print("[INFO] 데이터: vehicle/, wheel/, sensor/, obstacle 토픽 발행")
+        print("[INFO] 시뮬레이션 상태 갱신 함수는 비활성화됨")
         print("-" * 70)
-        
-        loop_count = 0
+
+        last_monitor_check_at = 0.0
         while self.running and not _shutdown_flag:
             try:
-                # 매 10주기마다 파일 변경 확인 (10초마다)
-                if loop_count % 10 == 0:
+                now = time.time()
+                if now - last_monitor_check_at >= 10.0:
                     self._check_file_changes()
-                
-                # 매 30초마다 상태 요약 출력 (시내 주행 정보)
-                if loop_count % 30 == 0 and loop_count > 0:
-                    battery_percent = (self.battery_voltage / self.battery_max_voltage) * 100
-                    kmh_speed = self.current_speed * 3.6  # km/h 변환
-                    total_km = self.total_distance / 1000  # 총 주행거리(km)
-                    
-                    # 상태별 아이콘과 설명
-                    state_icons = {
-                        VehicleExecState.STOP: "🔴 정지",
-                        VehicleExecState.RUN: "🟢 주행중"
-                    }
-                    state_display = state_icons.get(self.exec_state, "❓ 알수없음")
-                    
-                    print(f"\n[ROUTE STATUS] 경과: {self.elapsed_time}s")
-                    print(f"[ROUTE STATUS] 속도: {kmh_speed:.1f} km/h ({self.current_speed:.2f} m/s) | 목표: {self.target_speed*3.6:.0f} km/h")
-                    print(f"[ROUTE STATUS] 배터리: {battery_percent:.1f}% ({self.battery_voltage:.1f}V) | 노면: {self.surface_state.name} | 장애물: {self.surface_obstacle.name}")
-                    print(f"[ROUTE STATUS] 위치: ({self.pos_x:.1f}m, {self.pos_y:.1f}m, {self.pos_z:.1f}m) | 주행거리: {total_km:.2f}km")
-                    print(f"[ROUTE STATUS] 발행 토픽: {self.publish_count}개 | 상태: {state_display} ({self.exec_state.value})")
-                    print("-" * 70)
-                
-                # 시뮬레이션 함수 제거 정책: 상태 갱신 루프 없이 대기한다.
-                pass
-    
-                loop_count += 1
+                    last_monitor_check_at = now
+
                 time.sleep(1)
                 
             except KeyboardInterrupt:
@@ -814,7 +781,7 @@ class MqttSimulator:
                 time.sleep(1)
         
         self._cleanup()
-        print("[CITY] 🏁 시내 도로 주행 시뮬레이션 종료")
+        print("[SIMULATOR] 종료")
     pass  # run
 
 pass # MqttSimulator

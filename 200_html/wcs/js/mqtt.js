@@ -14,6 +14,8 @@ class MqttClientManager {
         this.maxTopicHistorySize = 300;
         this.receivedTopicHistory = [];
         this.publishedTopicHistory = [];
+        this.currentHistoryType = 'received';
+        this.topicHistorySort = { key: 'time', direction: 'desc' };
         this.bindTopicHistoryHandlers();
     }
 
@@ -143,6 +145,7 @@ class MqttClientManager {
 
     bindTopicHistoryHandlers() {
         const selector = '.mqtt-topic-history-trigger';
+        const sortSelector = '.mqtt-topic-sort-trigger';
 
         $(document)
             .off('click.mqttTopicHistory', selector)
@@ -162,6 +165,89 @@ class MqttClientManager {
                 const historyType = String($(event.currentTarget).attr('data-history-type') || '').toLowerCase();
                 this.openTopicHistoryModal(historyType);
             });
+
+        $(document)
+            .off('click.mqttTopicSort', sortSelector)
+            .on('click.mqttTopicSort', sortSelector, (event) => {
+                const sortKey = String($(event.currentTarget).attr('data-sort-key') || '').toLowerCase();
+                this.toggleTopicHistorySort(sortKey);
+            });
+
+        $(document)
+            .off('keydown.mqttTopicSort', sortSelector)
+            .on('keydown.mqttTopicSort', sortSelector, (event) => {
+                if (event.key !== 'Enter' && event.key !== ' ') {
+                    return;
+                }
+
+                event.preventDefault();
+                const sortKey = String($(event.currentTarget).attr('data-sort-key') || '').toLowerCase();
+                this.toggleTopicHistorySort(sortKey);
+            });
+    }
+
+    toggleTopicHistorySort(sortKey) {
+        if (sortKey !== 'time' && sortKey !== 'topic') {
+            return;
+        }
+
+        if (this.topicHistorySort.key === sortKey) {
+            this.topicHistorySort.direction = this.topicHistorySort.direction === 'asc' ? 'desc' : 'asc';
+        } else {
+            this.topicHistorySort.key = sortKey;
+            this.topicHistorySort.direction = sortKey === 'time' ? 'desc' : 'asc';
+        }
+
+        const currentList = this.currentHistoryType === 'published'
+            ? this.publishedTopicHistory
+            : this.receivedTopicHistory;
+        const title = this.currentHistoryType === 'published'
+            ? 'MQTT 발행 토픽 이력'
+            : 'MQTT 수신 토픽 이력';
+
+        this.renderTopicHistoryRows(currentList, title);
+    }
+
+    getSortedTopicHistory(historyList) {
+        const sortKey = this.topicHistorySort.key;
+        const sortDirection = this.topicHistorySort.direction;
+        const sortedHistory = Array.isArray(historyList) ? historyList.slice() : [];
+
+        sortedHistory.sort((a, b) => {
+            if (sortKey === 'topic') {
+                const left = String(a.topic || '');
+                const right = String(b.topic || '');
+                return left.localeCompare(right, 'ko', { sensitivity: 'base', numeric: true });
+            }
+
+            const leftTime = a.time instanceof Date ? a.time.getTime() : Number.MIN_SAFE_INTEGER;
+            const rightTime = b.time instanceof Date ? b.time.getTime() : Number.MIN_SAFE_INTEGER;
+            return leftTime - rightTime;
+        });
+
+        if (sortDirection === 'desc') {
+            sortedHistory.reverse();
+        }
+
+        return sortedHistory;
+    }
+
+    updateTopicHistorySortIndicators() {
+        const currentKey = this.topicHistorySort.key;
+        const currentDirection = this.topicHistorySort.direction;
+
+        $('.mqtt-topic-sort-trigger').each(function () {
+            const $header = $(this);
+            const headerKey = String($header.attr('data-sort-key') || '').toLowerCase();
+            const $indicator = $header.find('.mqtt-sort-indicator');
+
+            if (headerKey !== currentKey) {
+                $indicator.text('');
+                return;
+            }
+
+            $indicator.text(currentDirection === 'asc' ? '▲' : '▼');
+        });
     }
 
     registerTopicHistory(type, topic, payload, qos) {
@@ -186,6 +272,7 @@ class MqttClientManager {
 
     openTopicHistoryModal(historyType) {
         const normalizedType = historyType === 'published' ? 'published' : 'received';
+        this.currentHistoryType = normalizedType;
         const historyList = normalizedType === 'published' ? this.publishedTopicHistory : this.receivedTopicHistory;
         const title = normalizedType === 'published' ? 'MQTT 발행 토픽 이력' : 'MQTT 수신 토픽 이력';
 
@@ -195,6 +282,7 @@ class MqttClientManager {
 
     renderTopicHistoryRows(historyList, title) {
         $('#mqtt-topic-history-title').text(title);
+        this.updateTopicHistorySortIndicators();
 
         const $tbody = $('#mqtt-topic-history-table-body');
         const $empty = $('#mqtt-topic-history-empty');
@@ -207,7 +295,9 @@ class MqttClientManager {
 
         $empty.addClass('d-none');
 
-        historyList.forEach((entry, index) => {
+        const sortedHistoryList = this.getSortedTopicHistory(historyList);
+
+        sortedHistoryList.forEach((entry, index) => {
             const formattedTime = entry.time instanceof Date
                 ? entry.time.toLocaleTimeString('ko-KR', {
                     hour12: false,

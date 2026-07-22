@@ -204,6 +204,20 @@
     min-height: 0;
 }
 
+#mqtt-topic-history-modal .mqtt-topic-history-drag-handle {
+    cursor: move;
+    user-select: none;
+}
+
+#mqtt-topic-history-modal .mqtt-topic-history-drag-handle .nav-link,
+#mqtt-topic-history-modal .mqtt-topic-history-drag-handle .btn-close {
+    cursor: pointer;
+}
+
+#mqtt-topic-history-modal.mqtt-topic-history-dragging {
+    user-select: none;
+}
+
 #mqtt-topic-history-table thead th {
     position: sticky;
     top: 0;

@@ -20,7 +20,15 @@ class MqttClientManager {
             received: '',
             published: '',
         };
+        this.topicHistoryDragState = {
+            active: false,
+            startX: 0,
+            startY: 0,
+            originLeft: 0,
+            originTop: 0,
+        };
         this.bindTopicHistoryHandlers();
+        this.bindTopicHistoryDragHandlers();
     }
 
     static getConsoleLogEnabled() {
@@ -443,11 +451,151 @@ class MqttClientManager {
         if (window.bootstrap && typeof window.bootstrap.Modal === 'function') {
             const modal = window.bootstrap.Modal.getOrCreateInstance(modalElement);
             modal.show();
+            window.requestAnimationFrame(() => this.prepareTopicHistoryDialogForDrag());
             return;
         }
 
         // Bootstrap JS가 없는 경우 최소 표시 fallback
         $(modalElement).addClass('show').css('display', 'block').attr('aria-hidden', 'false');
+        window.requestAnimationFrame(() => this.prepareTopicHistoryDialogForDrag());
+    }
+
+    bindTopicHistoryDragHandlers() {
+        const modalSelector = '#mqtt-topic-history-modal';
+        const handleSelector = `${modalSelector} .mqtt-topic-history-drag-handle`;
+        const cancelSelector = 'button, input, textarea, select, a, .btn-close, .mqtt-topic-sort-trigger, .mqtt-topic-history-tab, .mqtt-topic-filter-input';
+
+        $(document)
+            .off('mousedown.mqttTopicHistoryDrag', handleSelector)
+            .on('mousedown.mqttTopicHistoryDrag', handleSelector, (event) => {
+                if (event.button !== 0) {
+                    return;
+                }
+
+                if ($(event.target).closest(cancelSelector).length > 0) {
+                    return;
+                }
+
+                const modalElement = document.getElementById('mqtt-topic-history-modal');
+                const dialogElement = modalElement ? modalElement.querySelector('.mqtt-topic-history-dialog') : null;
+                if (!modalElement || !dialogElement) {
+                    return;
+                }
+
+                this.prepareTopicHistoryDialogForDrag();
+
+                const rect = dialogElement.getBoundingClientRect();
+                this.topicHistoryDragState.active = true;
+                this.topicHistoryDragState.startX = event.clientX;
+                this.topicHistoryDragState.startY = event.clientY;
+                this.topicHistoryDragState.originLeft = rect.left;
+                this.topicHistoryDragState.originTop = rect.top;
+
+                modalElement.classList.add('mqtt-topic-history-dragging');
+                event.preventDefault();
+            });
+
+        $(document)
+            .off('mousemove.mqttTopicHistoryDrag')
+            .on('mousemove.mqttTopicHistoryDrag', (event) => {
+                if (!this.topicHistoryDragState.active) {
+                    return;
+                }
+
+                const modalElement = document.getElementById('mqtt-topic-history-modal');
+                const dialogElement = modalElement ? modalElement.querySelector('.mqtt-topic-history-dialog') : null;
+                if (!modalElement || !dialogElement) {
+                    this.stopTopicHistoryDragging();
+                    return;
+                }
+
+                const dx = event.clientX - this.topicHistoryDragState.startX;
+                const dy = event.clientY - this.topicHistoryDragState.startY;
+                const viewportWidth = window.innerWidth || document.documentElement.clientWidth || 0;
+                const viewportHeight = window.innerHeight || document.documentElement.clientHeight || 0;
+                const rect = dialogElement.getBoundingClientRect();
+                const maxLeft = Math.max(8, viewportWidth - rect.width - 8);
+                const maxTop = Math.max(8, viewportHeight - rect.height - 8);
+                const nextLeft = Math.min(maxLeft, Math.max(8, this.topicHistoryDragState.originLeft + dx));
+                const nextTop = Math.min(maxTop, Math.max(8, this.topicHistoryDragState.originTop + dy));
+
+                dialogElement.style.left = `${nextLeft}px`;
+                dialogElement.style.top = `${nextTop}px`;
+            });
+
+        $(document)
+            .off('mouseup.mqttTopicHistoryDrag')
+            .on('mouseup.mqttTopicHistoryDrag', () => {
+                this.stopTopicHistoryDragging();
+            });
+
+        $(document)
+            .off('hidden.bs.modal.mqttTopicHistoryDrag', modalSelector)
+            .on('hidden.bs.modal.mqttTopicHistoryDrag', modalSelector, () => {
+                this.stopTopicHistoryDragging();
+            });
+
+        $(window)
+            .off('resize.mqttTopicHistoryDrag')
+            .on('resize.mqttTopicHistoryDrag', () => {
+                this.clampTopicHistoryDialogInViewport();
+            });
+    }
+
+    prepareTopicHistoryDialogForDrag() {
+        const modalElement = document.getElementById('mqtt-topic-history-modal');
+        const dialogElement = modalElement ? modalElement.querySelector('.mqtt-topic-history-dialog') : null;
+        if (!modalElement || !dialogElement) {
+            return;
+        }
+
+        const currentRect = dialogElement.getBoundingClientRect();
+        const hasManualPosition = dialogElement.dataset.dragReady === 'true';
+
+        dialogElement.style.position = 'fixed';
+        dialogElement.style.margin = '0';
+        dialogElement.style.transform = 'none';
+
+        if (!hasManualPosition) {
+            const left = Math.max(8, currentRect.left);
+            const top = Math.max(8, currentRect.top);
+            dialogElement.style.left = `${left}px`;
+            dialogElement.style.top = `${top}px`;
+            dialogElement.dataset.dragReady = 'true';
+        }
+
+        this.clampTopicHistoryDialogInViewport();
+    }
+
+    clampTopicHistoryDialogInViewport() {
+        const modalElement = document.getElementById('mqtt-topic-history-modal');
+        const dialogElement = modalElement ? modalElement.querySelector('.mqtt-topic-history-dialog') : null;
+        if (!modalElement || !dialogElement || dialogElement.dataset.dragReady !== 'true') {
+            return;
+        }
+
+        const rect = dialogElement.getBoundingClientRect();
+        const viewportWidth = window.innerWidth || document.documentElement.clientWidth || 0;
+        const viewportHeight = window.innerHeight || document.documentElement.clientHeight || 0;
+        const maxLeft = Math.max(8, viewportWidth - rect.width - 8);
+        const maxTop = Math.max(8, viewportHeight - rect.height - 8);
+        const currentLeft = Number.parseFloat(dialogElement.style.left);
+        const currentTop = Number.parseFloat(dialogElement.style.top);
+
+        const clampedLeft = Math.min(maxLeft, Math.max(8, Number.isFinite(currentLeft) ? currentLeft : rect.left));
+        const clampedTop = Math.min(maxTop, Math.max(8, Number.isFinite(currentTop) ? currentTop : rect.top));
+
+        dialogElement.style.left = `${clampedLeft}px`;
+        dialogElement.style.top = `${clampedTop}px`;
+    }
+
+    stopTopicHistoryDragging() {
+        this.topicHistoryDragState.active = false;
+
+        const modalElement = document.getElementById('mqtt-topic-history-modal');
+        if (modalElement) {
+            modalElement.classList.remove('mqtt-topic-history-dragging');
+        }
     }
 
     renderConnectionStatus(options = {}) {

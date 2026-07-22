@@ -164,6 +164,7 @@ class MqttSimulator:
         self.last_vehicle_max_speed_published = None
         self.wheel_id_initial_published = False
         self.wheel_radius_initial_published = False
+        self.wheel_radius_published_client_ids = set()
         self.last_sensor_interface_payloads = {}
         
         # 재시작 및 모니터링
@@ -352,7 +353,7 @@ class MqttSimulator:
                 print(f"[VIDEO] 현재 동영상 파일명 설정: {self.current_video_file_name}")
             elif topic == "client/connect":
                 print("[CONNECT] Client connection detected - Publishing settings...")
-                self._publish_settings_on_client_connect()
+                self._publish_settings_on_client_connect(payload)
             elif topic == "vehicle/linear/speed":
                 try:
                     # vehicle/linear/speed는 상태 토픽으로도 발행되므로,
@@ -482,10 +483,21 @@ class MqttSimulator:
         if self._is_sensor_interface_topic(topic):
             self.last_sensor_interface_payloads[topic] = str(payload)
     pass  # _cache_sensor_interface_payload
+
+    def _extract_client_connect_id(self, payload):
+        try:
+            connect_info = json.loads(str(payload))
+        except (TypeError, ValueError, json.JSONDecodeError):
+            return None
+
+        client_id = str(connect_info.get("client_id") or "").strip()
+        return client_id or None
+    pass  # _extract_client_connect_id
     
-    def _publish_settings_on_client_connect(self):
+    def _publish_settings_on_client_connect(self, client_connect_payload=None):
         """클라이언트 연결 시 모든 vehicle과 wheel 설정 정보를 publish"""
         try:
+            client_id = self._extract_client_connect_id(client_connect_payload)
             print("[SETTINGS] Publishing all vehicle and wheel settings...")
 
             # 센서 타입 정의 정보 발행
@@ -541,17 +553,21 @@ class MqttSimulator:
             else:
                 print("[SETTINGS] Wheel ID mappings already published once; skipping")
 
-            # Wheel 반지름 초기 정보 발행 (최초 클라이언트 초기 접속 시 1회)
-            if not self.wheel_radius_initial_published:
-                print("[SETTINGS] Publishing wheel radius values...")
+            # Wheel 반지름 초기 정보 발행 (각 클라이언트 최초 접속 시 1회)
+            should_publish_wheel_radius = bool(client_id) and client_id not in self.wheel_radius_published_client_ids
+            if should_publish_wheel_radius:
+                print(f"[SETTINGS] Publishing wheel radius values for first client connect: {client_id}")
                 for wheel_str_id in WHEEL_IDS:
                     topic = WHEEL_RADIUS_TOPIC_TEMPLATE.format(wheel_str_id=wheel_str_id)
                     payload = str(WHEEL_RADIUS_M)
                     self._publish(topic, payload)
                     print(f"[WHEEL] Published {topic} -> {payload}")
                 self.wheel_radius_initial_published = True
+                self.wheel_radius_published_client_ids.add(client_id)
+            elif client_id:
+                print(f"[SETTINGS] Wheel radius values already published for client: {client_id}; skipping")
             else:
-                print("[SETTINGS] Wheel radius values already published once; skipping")
+                print("[SETTINGS] Missing client_id in client/connect payload; skipping wheel radius publish")
 
             self._publish_initial_connect_topics()
             

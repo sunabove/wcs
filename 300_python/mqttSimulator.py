@@ -509,13 +509,10 @@ class MqttSimulator:
                     f"target={sensor_def['target']}"
                 )
 
-            # 센서 개수(count)만큼 각 센서 인덱스 토픽을 접속 직후에도 즉시 발행한다.
-            if self.last_sensor_interface_payloads:
-                self._publish_last_sensor_interfaces()
-                print("[SENSOR_DEF] Replayed last published sensor/{id}/{index}/* topics")
-            else:
-                self._publish_sensor_interfaces()
-                print("[SENSOR_DEF] Published sensor/{id}/{index}/* topics for all sensor counts")
+            # 센서 인터페이스는 항상 현재 상태로 다시 생성해 발행한다.
+            # (retained 구버전 JSON payload 재사용 방지)
+            self._publish_sensor_interfaces()
+            print("[SENSOR_DEF] Published sensor/{id}/{index}/* topics for all sensor counts")
             
             # Vehicle 설정 정보 publish
             if hasattr(self, 'vehicle_data') and self.vehicle_data:
@@ -846,10 +843,52 @@ class MqttSimulator:
     pass  # _update_wheels
 
     # ===== Publish =====
+    def _normalize_obstacle_sensor_payload(self, value):
+        """obstacle/sensors payload를 id,index,id,index CSV 문자열로 정규화한다."""
+        if value is None:
+            return ""
+
+        if isinstance(value, str):
+            text = value.strip()
+            if text == "":
+                return ""
+
+            try:
+                decoded = json.loads(text)
+            except (TypeError, ValueError, json.JSONDecodeError):
+                return text
+
+            return self._normalize_obstacle_sensor_payload(decoded)
+
+        if isinstance(value, dict):
+            sensor_id = str(value.get("id", "")).strip()
+            sensor_index = value.get("index", "")
+            if sensor_id == "":
+                return ""
+            return f"{sensor_id},{sensor_index}"
+
+        if isinstance(value, (list, tuple)):
+            tokens = []
+            for item in value:
+                if isinstance(item, dict):
+                    sensor_id = str(item.get("id", "")).strip()
+                    sensor_index = item.get("index", "")
+                    if sensor_id == "":
+                        continue
+                    tokens.append(sensor_id)
+                    tokens.append(str(sensor_index))
+                else:
+                    text = str(item).strip()
+                    if text != "":
+                        tokens.append(text)
+            return ",".join(tokens)
+
+        return str(value)
+
     def _publish(self, topic, value):
         # topic과 value만 직접 발행 (JSON 포장 없이)
-        if topic == "obstacle/sensors" and isinstance(value, (list, tuple)):
-            payload = ",".join(str(item) for item in value)
+        if topic == "obstacle/sensors":
+            payload = self._normalize_obstacle_sensor_payload(value)
         else:
             payload = str(value)
         self.client.publish(topic, payload, retain=True)

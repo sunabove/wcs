@@ -299,12 +299,7 @@ class MqttClientManager {
 
         sortedHistoryList.forEach((entry, index) => {
             const formattedTime = entry.time instanceof Date
-                ? entry.time.toLocaleTimeString('ko-KR', {
-                    hour12: false,
-                    hour: '2-digit',
-                    minute: '2-digit',
-                    second: '2-digit',
-                })
+                ? `${String(entry.time.getHours()).padStart(2, '0')}:${String(entry.time.getMinutes()).padStart(2, '0')}:${String(entry.time.getSeconds()).padStart(2, '0')}.${String(entry.time.getMilliseconds()).padStart(3, '0')}`
                 : String(entry.time || '');
 
             const $row = $('<tr></tr>');

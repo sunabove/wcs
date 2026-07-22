@@ -177,17 +177,10 @@
     scrollbar-gutter: stable;
 }
 
-#mqtt-topic-history-modal .mqtt-topic-history-dialog {
-    width: min(960px, calc(100vw - 1.5rem));
-    max-width: calc(100vw - 1rem);
-}
-
 #mqtt-topic-history-modal .mqtt-topic-history-content {
-    resize: both;
+    resize: vertical;
     overflow: hidden;
-    min-width: 32rem;
-    min-height: 22rem;
-    max-width: calc(100vw - 1rem);
+    min-height: 18rem;
     max-height: calc(100vh - 1rem);
     display: flex;
     flex-direction: column;

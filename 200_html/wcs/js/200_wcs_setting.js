@@ -17,6 +17,7 @@ $(document).ready(function () {
     const obstacleSensorSettingById = {};
     const obstacleSensorRowValueByKey = {};
     const $obstacleSensorValueTbody = $('#obstacle-sensor-value-tbody');
+    const $toggleObstacleSensorSettingsButton = $('#disable-obstacle-sensor-settings');
     const obstacleSensorPublishBlinkUntilByKey = {};
     const OBSTACLE_SENSOR_PUBLISH_BLINK_TOTAL_MS = 6200;
     let isSampleVideosLoaded = false;
@@ -307,6 +308,24 @@ $(document).ready(function () {
         });
 
         restoreObstacleSensorPublishBlinkState();
+        updateObstacleSensorToggleButtonUi();
+    }
+
+    function areAllObstacleSensorRowsDisabled() {
+        const rows = getOrderedObstacleSensorRows();
+        return rows.length > 0 && rows.every((row) => !Boolean(row.enabled));
+    }
+
+    function updateObstacleSensorToggleButtonUi() {
+        if ($toggleObstacleSensorSettingsButton.length === 0) {
+            return;
+        }
+
+        const allDisabled = areAllObstacleSensorRowsDisabled();
+        $toggleObstacleSensorSettingsButton
+            .toggleClass('btn-outline-danger', !allDisabled)
+            .toggleClass('btn-outline-success', allDisabled)
+            .text(allDisabled ? '전체 활성화' : '전체 비활성화');
     }
 
     function resetObstacleSensorSettings() {
@@ -327,17 +346,18 @@ $(document).ready(function () {
         renderObstacleSensorSettings();
     }
 
-    function disableObstacleSensorSettings() {
+    function setAllObstacleSensorSettingsEnabled(enabled) {
+        const nextEnabled = Boolean(enabled);
         OBSTACLE_SENSOR_DEFINITIONS.forEach((sensorDef) => {
             upsertObstacleSensorSetting(sensorDef.id, {
                 count: sensorDef.count,
                 target: sensorDef.target,
-                enabled: false,
+                enabled: nextEnabled,
             });
 
             for (let sensorIndex = 0; sensorIndex < sensorDef.count; sensorIndex += 1) {
                 upsertObstacleSensorRowValue(sensorDef.id, sensorIndex, {
-                    enabled: false,
+                    enabled: nextEnabled,
                 });
             }
         });
@@ -1006,7 +1026,8 @@ $(document).ready(function () {
     });
 
     $('#disable-obstacle-sensor-settings').on('click', function () {
-        disableObstacleSensorSettings();
+        const shouldEnable = areAllObstacleSensorRowsDisabled();
+        setAllObstacleSensorSettingsEnabled(shouldEnable);
         publishObstacleSensorSettings();
     });
 

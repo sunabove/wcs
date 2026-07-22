@@ -285,15 +285,16 @@ class MqttClientManager {
         this.updateTopicHistorySortIndicators();
 
         const $tbody = $('#mqtt-topic-history-table-body');
-        const $empty = $('#mqtt-topic-history-empty');
         $tbody.empty();
 
         if (!Array.isArray(historyList) || historyList.length === 0) {
-            $empty.removeClass('d-none');
+            const $emptyRow = $('<tr class="mqtt-topic-history-empty-row"></tr>');
+            $('<td class="small text-center text-muted py-3" colspan="4"></td>')
+                .text('표시할 이력이 없습니다.')
+                .appendTo($emptyRow);
+            $tbody.append($emptyRow);
             return;
         }
-
-        $empty.addClass('d-none');
 
         const sortedHistoryList = this.getSortedTopicHistory(historyList);
 

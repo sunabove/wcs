@@ -1,5 +1,5 @@
 [Unit]
-Description=MQTT Data Simulator Service
+Description=MQTT Data Manager Service
 After=network.target mosquitto.service
 Wants=mosquitto.service
 Requires=mosquitto.service
@@ -8,7 +8,7 @@ Requires=mosquitto.service
 User=www
 WorkingDirectory=/home/www/wcs/300_python
 
-ExecStart=/usr/bin/python3 /home/www/wcs/300_python/mqttSimulator.py
+ExecStart=/usr/bin/python3 /home/www/wcs/300_python/mqttManager.py
 
 Restart=always
 RestartSec=3

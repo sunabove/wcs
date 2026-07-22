@@ -159,6 +159,10 @@
     color: #212529;
 }
 
+.mqtt-topic-filter-wrap .input-group-text {
+    min-width: 5.75rem;
+}
+
 #mqtt-topic-history-table {
     table-layout: fixed;
     width: 100%;

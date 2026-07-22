@@ -38,6 +38,18 @@
                         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="닫기"></button>
                     </li>
                 </ul>
+                <div id="mqtt-topic-filter-received" class="mqtt-topic-filter-wrap mb-2" data-history-type="received">
+                    <div class="input-group input-group-sm">
+                        <span class="input-group-text">수신 필터</span>
+                        <input id="mqtt-topic-filter-input-received" type="text" class="form-control mqtt-topic-filter-input" data-history-type="received" placeholder="토픽 포함 문자열 입력">
+                    </div>
+                </div>
+                <div id="mqtt-topic-filter-published" class="mqtt-topic-filter-wrap mb-2 d-none" data-history-type="published">
+                    <div class="input-group input-group-sm">
+                        <span class="input-group-text">전송 필터</span>
+                        <input id="mqtt-topic-filter-input-published" type="text" class="form-control mqtt-topic-filter-input" data-history-type="published" placeholder="토픽 포함 문자열 입력">
+                    </div>
+                </div>
                 <div class="table-responsive mqtt-topic-history-table-wrap">
                     <table class="table table-sm table-striped align-middle mb-0" id="mqtt-topic-history-table">
                         <colgroup>

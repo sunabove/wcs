@@ -16,6 +16,10 @@ class MqttClientManager {
         this.publishedTopicHistory = [];
         this.currentHistoryType = 'received';
         this.topicHistorySort = { key: 'time', direction: 'desc' };
+        this.topicHistoryFilters = {
+            received: '',
+            published: '',
+        };
         this.bindTopicHistoryHandlers();
     }
 
@@ -147,6 +151,7 @@ class MqttClientManager {
         const selector = '.mqtt-topic-history-trigger';
         const sortSelector = '.mqtt-topic-sort-trigger';
         const tabSelector = '.mqtt-topic-history-tab';
+        const filterSelector = '.mqtt-topic-filter-input';
 
         $(document)
             .off('click.mqttTopicHistory', selector)
@@ -204,6 +209,22 @@ class MqttClientManager {
                 const historyType = String($(event.currentTarget).attr('data-history-type') || '').toLowerCase();
                 this.switchTopicHistoryTab(historyType);
             });
+
+        $(document)
+            .off('input.mqttTopicFilter', filterSelector)
+            .on('input.mqttTopicFilter', filterSelector, (event) => {
+                const $input = $(event.currentTarget);
+                const historyType = this.normalizeHistoryType($input.attr('data-history-type'));
+                this.topicHistoryFilters[historyType] = String($input.val() || '');
+
+                if (historyType !== this.currentHistoryType) {
+                    return;
+                }
+
+                const historyList = this.getTopicHistoryList(historyType);
+                const title = this.getTopicHistoryTitle(historyType);
+                this.renderTopicHistoryRows(historyList, title);
+            });
     }
 
     normalizeHistoryType(historyType) {
@@ -216,6 +237,37 @@ class MqttClientManager {
 
     getTopicHistoryTitle(historyType) {
         return historyType === 'published' ? 'MQTT 전송 토픽 이력' : 'MQTT 수신 토픽 이력';
+    }
+
+    getTopicFilterText(historyType) {
+        const normalizedType = this.normalizeHistoryType(historyType);
+        return String(this.topicHistoryFilters[normalizedType] || '').trim();
+    }
+
+    getFilteredTopicHistory(historyList, historyType) {
+        const filterText = this.getTopicFilterText(historyType);
+        if (!filterText) {
+            return Array.isArray(historyList) ? historyList.slice() : [];
+        }
+
+        const normalizedFilter = filterText.toLowerCase();
+        const sourceList = Array.isArray(historyList) ? historyList : [];
+        return sourceList.filter((entry) => {
+            const topicText = String(entry.topic || '').toLowerCase();
+            return topicText.includes(normalizedFilter);
+        });
+    }
+
+    updateTopicFilterUi() {
+        const currentType = this.normalizeHistoryType(this.currentHistoryType);
+        const receivedFilter = this.getTopicFilterText('received');
+        const publishedFilter = this.getTopicFilterText('published');
+
+        $('#mqtt-topic-filter-input-received').val(receivedFilter);
+        $('#mqtt-topic-filter-input-published').val(publishedFilter);
+
+        $('#mqtt-topic-filter-received').toggleClass('d-none', currentType !== 'received');
+        $('#mqtt-topic-filter-published').toggleClass('d-none', currentType !== 'published');
     }
 
     updateTopicHistoryTabs() {
@@ -234,6 +286,7 @@ class MqttClientManager {
         const normalizedType = this.normalizeHistoryType(historyType);
         this.currentHistoryType = normalizedType;
         this.updateTopicHistoryTabs();
+        this.updateTopicFilterUi();
 
         const historyList = this.getTopicHistoryList(normalizedType);
         const title = this.getTopicHistoryTitle(normalizedType);
@@ -331,6 +384,7 @@ class MqttClientManager {
         const normalizedType = this.normalizeHistoryType(historyType);
         this.currentHistoryType = normalizedType;
         this.updateTopicHistoryTabs();
+        this.updateTopicFilterUi();
         const historyList = this.getTopicHistoryList(normalizedType);
         const title = this.getTopicHistoryTitle(normalizedType);
 
@@ -359,7 +413,8 @@ class MqttClientManager {
             return;
         }
 
-        const sortedHistoryList = this.getSortedTopicHistory(historyList);
+        const filteredHistoryList = this.getFilteredTopicHistory(historyList, this.currentHistoryType);
+        const sortedHistoryList = this.getSortedTopicHistory(filteredHistoryList);
         $summary.text(`총 ${sortedHistoryList.length}건`);
 
         sortedHistoryList.forEach((entry, index) => {

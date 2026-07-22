@@ -246,7 +246,7 @@ $(document).ready(function () {
                 ? `<td class="text-center" rowspan="${groupRowCountBySensorId[sensorLabel]}">
                         <div class="obstacle-sensor-group-action-wrap">
                             <button type="button" class="btn btn-outline-secondary btn-sm obstacle-sensor-row-reset-group" ${buttonDisabledAttr}>초기화</button>
-                            <button type="button" class="btn btn-primary btn-sm obstacle-sensor-row-apply-group" ${buttonDisabledAttr}>적용</button>
+                                <button type="button" class="btn btn-primary btn-sm obstacle-sensor-row-apply-group" ${buttonDisabledAttr}>그룹 적용</button>
                         </div>
                     </td>`
                 : '';

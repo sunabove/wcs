@@ -157,6 +157,17 @@ class MqttClientManager {
         $('#mqtt-published-count').text(String(this.publishedTopicCount));
     }
 
+    triggerCounterBadgeBlink(selector, blinkClassName) {
+        const element = document.querySelector(selector);
+        if (!element) {
+            return;
+        }
+
+        element.classList.remove(blinkClassName);
+        void element.offsetWidth;
+        element.classList.add(blinkClassName);
+    }
+
     bindTopicHistoryHandlers() {
         const selector = '.mqtt-topic-history-trigger';
         const sortSelector = '.mqtt-topic-sort-trigger';
@@ -756,6 +767,7 @@ class MqttClientManager {
         if (shouldCountAsReceived) {
             this.receivedTopicCount += 1;
             this.registerTopicHistory('received', topic, messageStr, '-');
+            this.triggerCounterBadgeBlink('#mqtt-received-badge', 'mqtt-counter-badge-blink-received');
         }
 
         if (!this.lastUIUpdate || Date.now() - this.lastUIUpdate > 100) {
@@ -886,6 +898,7 @@ class MqttClientManager {
             if (!err) {
                 this.publishedTopicCount += 1;
                 this.registerTopicHistory('published', topic, messageStr, qosValue);
+                this.triggerCounterBadgeBlink('#mqtt-published-badge', 'mqtt-counter-badge-blink-published');
                 $('#mqtt-published-badge')
                     .removeClass('bg-info bg-success bg-warning bg-primary bg-secondary')
                     .addClass('bg-primary');

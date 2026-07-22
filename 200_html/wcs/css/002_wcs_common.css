@@ -132,6 +132,44 @@
     white-space: nowrap;
 }
 
+@keyframes mqtt-counter-badge-pulse-received {
+    0% {
+        box-shadow: 0 0 0 0 rgba(13, 202, 240, 0.55);
+        filter: brightness(1);
+    }
+    45% {
+        box-shadow: 0 0 0 8px rgba(13, 202, 240, 0);
+        filter: brightness(1.18);
+    }
+    100% {
+        box-shadow: 0 0 0 0 rgba(13, 202, 240, 0);
+        filter: brightness(1);
+    }
+}
+
+@keyframes mqtt-counter-badge-pulse-published {
+    0% {
+        box-shadow: 0 0 0 0 rgba(108, 117, 125, 0.55);
+        filter: brightness(1);
+    }
+    45% {
+        box-shadow: 0 0 0 8px rgba(108, 117, 125, 0);
+        filter: brightness(1.18);
+    }
+    100% {
+        box-shadow: 0 0 0 0 rgba(108, 117, 125, 0);
+        filter: brightness(1);
+    }
+}
+
+#mqtt-received-badge.mqtt-counter-badge-blink-received {
+    animation: mqtt-counter-badge-pulse-received 0.52s ease-out 2;
+}
+
+#mqtt-published-badge.mqtt-counter-badge-blink-published {
+    animation: mqtt-counter-badge-pulse-published 0.52s ease-out 2;
+}
+
 .mqtt-topic-history-trigger {
     cursor: pointer;
 }

@@ -292,7 +292,7 @@ class MqttClientManager {
             $summary.text('총 0건');
             const $emptyRow = $('<tr class="mqtt-topic-history-empty-row"></tr>');
             $('<td class="small text-center text-muted py-3" colspan="4"></td>')
-                .text('표시할 이력이 없습니다.')
+                .text('수신(전송) 토픽이 없습니다.')
                 .appendTo($emptyRow);
             $tbody.append($emptyRow);
             return;

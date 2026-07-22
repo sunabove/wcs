@@ -11,7 +11,7 @@ class MqttClientManager {
         this.lastUIUpdate = 0;
         this.receivedTopicCount = 0;
         this.publishedTopicCount = 0;
-        this.maxTopicHistorySize = 1000;
+        this.maxTopicHistorySize = 300;
         this.topicRowBlinkDurationMs = 1800;
         this.receivedTopicHistory = [];
         this.publishedTopicHistory = [];

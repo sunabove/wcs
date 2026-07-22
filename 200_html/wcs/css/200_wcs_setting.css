@@ -135,11 +135,13 @@
 }
 
 .obstacle-sensor-row-reset-group {
-    min-width: 76px;
+    width: 96px;
+    min-width: 96px;
 }
 
 .obstacle-sensor-row-apply-group {
-    min-width: 76px;
+    width: 96px;
+    min-width: 96px;
 }
 
 .obstacle-sensor-group-action-wrap {

@@ -399,17 +399,15 @@ $(document).ready(function () {
         });
 
         getOrderedObstacleSensorRows().forEach((row) => {
-            if (!row.enabled) {
-                return;
-            }
-
             publishedRowKeys.push(getSensorRowKey(row.id, row.index));
 
             const sensorValue = normalizeSensorValueById(row.id, row.value);
             const sensorConfidence = normalizeSensorConfidence(row.confidence);
 
-            window.WcsMqtt.sendMQTTMessage(`sensor/${row.id}/${row.index}/value`, sensorValue);
-            window.WcsMqtt.sendMQTTMessage(`sensor/${row.id}/${row.index}/obstacle/confidence`, sensorConfidence);
+            if (row.enabled) {
+                window.WcsMqtt.sendMQTTMessage(`sensor/${row.id}/${row.index}/value`, sensorValue);
+                window.WcsMqtt.sendMQTTMessage(`sensor/${row.id}/${row.index}/obstacle/confidence`, sensorConfidence);
+            }
             window.WcsMqtt.sendMQTTMessage(`sensor/${row.id}/${row.index}/state`, row.enabled ? 1 : 0);
         });
 

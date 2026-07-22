@@ -29,51 +29,52 @@ class SurfaceObstacle(IntEnum):
     NONE = 0
 
 
-WHEEL_IDS = ["fl", "fr", "rr", "rl"]
+class MqttConfig:
+    WHEEL_IDS = ["fl", "fr", "rr", "rl"]
 
-SENSOR_DEFINITIONS = [
-    {"id": "ToF", "count": 4, "enabled": True},
-    {"id": "IMU", "count": 5, "enabled": True},
-    {"id": "Current", "count": 4, "enabled": True},
-    {"id": "Camera", "count": 1, "enabled": True},
-    {"id": "Lidar", "count": 1, "enabled": True},
-]
+    SENSOR_DEFINITIONS = [
+        {"id": "ToF", "count": 4, "enabled": True},
+        {"id": "IMU", "count": 5, "enabled": True},
+        {"id": "Current", "count": 4, "enabled": True},
+        {"id": "Camera", "count": 1, "enabled": True},
+        {"id": "Lidar", "count": 1, "enabled": True},
+    ]
 
-WHEEL_RADIUS_M = 0.32
+    WHEEL_RADIUS_M = 0.32
 
-WHEEL_ID_MAPPING = {
-    "fl": 1,
-    "fr": 2,
-    "rr": 3,
-    "rl": 4,
-}
+    WHEEL_ID_MAPPING = {
+        "fl": 1,
+        "fr": 2,
+        "rr": 3,
+        "rl": 4,
+    }
 
-SENSOR_COUNT_TOPIC_TEMPLATE = "sensor/{sensor_id}/count"
-WHEEL_ID_TOPIC_TEMPLATE = "wheel/{wheel_str_id}/id"
-WHEEL_RADIUS_TOPIC_TEMPLATE = "wheel/{wheel_str_id}/radius"
+    SENSOR_COUNT_TOPIC_TEMPLATE = "sensor/{sensor_id}/count"
+    WHEEL_ID_TOPIC_TEMPLATE = "wheel/{wheel_str_id}/id"
+    WHEEL_RADIUS_TOPIC_TEMPLATE = "wheel/{wheel_str_id}/radius"
 
-INITIAL_CONNECT_TOPIC_SPECS = (
-    ("vehicle/battery/remain_amount", lambda sim: round(sim.battery_remain_amount, 1), "BATTERY"),
-    ("vehicle/drive/available_time", lambda sim: int(sim.drive_available_time), "DRIVE"),
-    ("vehicle/drive/elapsed_time", lambda sim: int(sim.drive_elapsed_time), "DRIVE"),
-    ("vehicle/drive/total_distance", lambda sim: int(sim.drive_total_distance), "DRIVE"),
-    ("vehicle/linear/speed", lambda sim: round(sim.linear_speed, 3), "VEHICLE"),
-    ("vehicle/linear/max_speed", lambda sim: round(sim.max_speed, 2), "VEHICLE"),
-    ("vehicle/operation/command", lambda sim: sim.command.value, "VEHICLE"),
-    ("vehicle/operation/state", lambda sim: sim.exec_state.value, "VEHICLE"),
-    ("vehicle/surface/state", lambda sim: sim.surface_state.value, "SURFACE"),
-    ("vehicle/surface/obstacle", lambda sim: sim.surface_obstacle.value, "OBSTACLE"),
-    ("vehicle/road/roll_angle", lambda sim: sim.road_roll_angle, "ROAD"),
-    ("vehicle/road/pitch_angle", lambda sim: sim.road_pitch_angle, "ROAD"),
-    ("vehicle/current_video/file_name", lambda sim: sim.current_video_file_name, "VIDEO"),
-)
+    INITIAL_CONNECT_TOPIC_SPECS = (
+        ("vehicle/battery/remain_amount", lambda sim: round(sim.battery_remain_amount, 1), "BATTERY"),
+        ("vehicle/drive/available_time", lambda sim: int(sim.drive_available_time), "DRIVE"),
+        ("vehicle/drive/elapsed_time", lambda sim: int(sim.drive_elapsed_time), "DRIVE"),
+        ("vehicle/drive/total_distance", lambda sim: int(sim.drive_total_distance), "DRIVE"),
+        ("vehicle/linear/speed", lambda sim: round(sim.linear_speed, 3), "VEHICLE"),
+        ("vehicle/linear/max_speed", lambda sim: round(sim.max_speed, 2), "VEHICLE"),
+        ("vehicle/operation/command", lambda sim: sim.command.value, "VEHICLE"),
+        ("vehicle/operation/state", lambda sim: sim.exec_state.value, "VEHICLE"),
+        ("vehicle/surface/state", lambda sim: sim.surface_state.value, "SURFACE"),
+        ("vehicle/surface/obstacle", lambda sim: sim.surface_obstacle.value, "OBSTACLE"),
+        ("vehicle/road/roll_angle", lambda sim: sim.road_roll_angle, "ROAD"),
+        ("vehicle/road/pitch_angle", lambda sim: sim.road_pitch_angle, "ROAD"),
+        ("vehicle/current_video/file_name", lambda sim: sim.current_video_file_name, "VIDEO"),
+    )
+
+    @classmethod
+    def iter_sensor_definitions_in_order(cls):
+        for sensor_def in cls.SENSOR_DEFINITIONS:
+            yield sensor_def
 
 _shutdown_flag = False
-
-
-def iter_sensor_definitions_in_order():
-    for sensor_def in SENSOR_DEFINITIONS:
-        yield sensor_def
 
 
 class MqttManager:
@@ -154,13 +155,13 @@ class MqttManager:
             client_id = self._extract_client_connect_id(client_connect_payload)
             print(f"[SETTINGS] Publishing initial settings (client_id={client_id})")
 
-            for sensor_def in iter_sensor_definitions_in_order():
+            for sensor_def in MqttConfig.iter_sensor_definitions_in_order():
                 sensor_id = sensor_def["id"]
-                self._publish(SENSOR_COUNT_TOPIC_TEMPLATE.format(sensor_id=sensor_id), sensor_def["count"])
+                self._publish(MqttConfig.SENSOR_COUNT_TOPIC_TEMPLATE.format(sensor_id=sensor_id), sensor_def["count"])
 
             # 센서 인터페이스 기준값
             obstacle_value = int(self.surface_obstacle.value)
-            for sensor_def in iter_sensor_definitions_in_order():
+            for sensor_def in MqttConfig.iter_sensor_definitions_in_order():
                 sensor_id = sensor_def["id"]
                 sensor_enabled = bool(sensor_def["enabled"])
                 supports_obstacle = sensor_id in ("ToF", "Lidar", "Camera")
@@ -189,13 +190,13 @@ class MqttManager:
                     for key, value in self.wheel_data.items():
                         self._publish(f"wheel/{wheel_id}/{key}", value)
 
-            for wheel_str_id, wheel_num_id in WHEEL_ID_MAPPING.items():
-                self._publish(WHEEL_ID_TOPIC_TEMPLATE.format(wheel_str_id=wheel_str_id), wheel_num_id)
+            for wheel_str_id, wheel_num_id in MqttConfig.WHEEL_ID_MAPPING.items():
+                self._publish(MqttConfig.WHEEL_ID_TOPIC_TEMPLATE.format(wheel_str_id=wheel_str_id), wheel_num_id)
 
-            for wheel_str_id in WHEEL_IDS:
-                self._publish(WHEEL_RADIUS_TOPIC_TEMPLATE.format(wheel_str_id=wheel_str_id), WHEEL_RADIUS_M)
+            for wheel_str_id in MqttConfig.WHEEL_IDS:
+                self._publish(MqttConfig.WHEEL_RADIUS_TOPIC_TEMPLATE.format(wheel_str_id=wheel_str_id), MqttConfig.WHEEL_RADIUS_M)
 
-            for topic, payload_resolver, log_tag in INITIAL_CONNECT_TOPIC_SPECS:
+            for topic, payload_resolver, log_tag in MqttConfig.INITIAL_CONNECT_TOPIC_SPECS:
                 payload = payload_resolver(self)
                 self._publish(topic, payload)
                 print(f"[{log_tag}] Published {topic} -> {payload}")

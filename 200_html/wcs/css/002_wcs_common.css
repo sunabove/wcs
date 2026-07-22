@@ -136,6 +136,18 @@
     cursor: pointer;
 }
 
+.mqtt-topic-sort-trigger {
+    cursor: pointer;
+    user-select: none;
+}
+
+.mqtt-topic-sort-trigger .mqtt-sort-indicator {
+    display: inline-block;
+    min-width: 0.85rem;
+    text-align: center;
+    color: #6c757d;
+}
+
 #mqtt-topic-history-table {
     table-layout: fixed;
     width: 100%;

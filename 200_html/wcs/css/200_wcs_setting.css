@@ -216,9 +216,9 @@
         text-shadow: 0 0 0.45rem rgba(59, 130, 246, 0.35);
     }
     60% {
-        color: #f59e0b;
+        color: #60a5fa;
         font-weight: 700;
-        text-shadow: 0 0 0.45rem rgba(245, 158, 11, 0.35);
+        text-shadow: 0 0 0.45rem rgba(96, 165, 250, 0.35);
     }
     100% {
         color: inherit;

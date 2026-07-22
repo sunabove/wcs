@@ -79,15 +79,15 @@ class MqttManager:
         try:
             self.client = mqtt.Client(
                 callback_api_version=mqtt.CallbackAPIVersion.VERSION2,
-                client_id="wcs_simulator",
+                client_id="wcs_manager",
             )
             print("[MQTT] Using paho-mqtt 2.0+ with callback API version 2")
         except (TypeError, AttributeError):
             try:
-                self.client = mqtt.Client(client_id="wcs_simulator")
+                self.client = mqtt.Client(client_id="wcs_manager")
                 print("[MQTT] Using paho-mqtt 1.6+ compatibility mode")
             except TypeError:
-                self.client = mqtt.Client("wcs_simulator")
+                self.client = mqtt.Client("wcs_manager")
                 print("[MQTT] Using paho-mqtt legacy compatibility mode")
 
         self.client.on_connect = self._on_connect

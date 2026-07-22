@@ -844,19 +844,29 @@ class MqttSimulator:
 
     # ===== Publish =====
     def _normalize_obstacle_sensor_payload(self, value):
-        """obstacle/sensors payload를 id,index,id,index CSV 문자열로 정규화한다."""
+        """obstacle/sensors payload를 [id, index, ...] JSON 배열 데이터로 정규화한다."""
         if value is None:
-            return ""
+            return []
 
         if isinstance(value, str):
             text = value.strip()
             if text == "":
-                return ""
+                return []
 
             try:
                 decoded = json.loads(text)
             except (TypeError, ValueError, json.JSONDecodeError):
-                return text
+                tokens = [part.strip() for part in text.split(",") if part.strip() != ""]
+                normalized = []
+                for idx, token in enumerate(tokens):
+                    if idx % 2 == 1:
+                        try:
+                            normalized.append(int(token))
+                        except ValueError:
+                            normalized.append(token)
+                    else:
+                        normalized.append(token)
+                return normalized
 
             return self._normalize_obstacle_sensor_payload(decoded)
 
@@ -864,8 +874,12 @@ class MqttSimulator:
             sensor_id = str(value.get("id", "")).strip()
             sensor_index = value.get("index", "")
             if sensor_id == "":
-                return ""
-            return f"{sensor_id},{sensor_index}"
+                return []
+            try:
+                sensor_index = int(sensor_index)
+            except (TypeError, ValueError):
+                pass
+            return [sensor_id, sensor_index]
 
         if isinstance(value, (list, tuple)):
             tokens = []
@@ -876,19 +890,22 @@ class MqttSimulator:
                     if sensor_id == "":
                         continue
                     tokens.append(sensor_id)
-                    tokens.append(str(sensor_index))
+                    try:
+                        sensor_index = int(sensor_index)
+                    except (TypeError, ValueError):
+                        pass
+                    tokens.append(sensor_index)
                 else:
-                    text = str(item).strip()
-                    if text != "":
-                        tokens.append(text)
-            return ",".join(tokens)
+                    tokens.append(item)
+            return tokens
 
-        return str(value)
+        return [value]
 
     def _publish(self, topic, value):
         # topic과 value만 직접 발행 (JSON 포장 없이)
         if topic == "obstacle/sensors":
-            payload = self._normalize_obstacle_sensor_payload(value)
+            normalized = self._normalize_obstacle_sensor_payload(value)
+            payload = json.dumps(normalized, ensure_ascii=False)
         else:
             payload = str(value)
         self.client.publish(topic, payload, retain=True)
@@ -1068,7 +1085,10 @@ class MqttSimulator:
                 continue
 
             tokens.append(sensor_id)
-            tokens.append(str(sensor_index))
+            try:
+                tokens.append(int(sensor_index))
+            except (TypeError, ValueError):
+                tokens.append(sensor_index)
 
         return tokens
 

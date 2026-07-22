@@ -34,12 +34,16 @@
                 <div id="mqtt-topic-history-empty" class="text-muted small p-2 d-none">표시할 이력이 없습니다.</div>
                 <div class="table-responsive">
                     <table class="table table-sm table-striped align-middle mb-0" id="mqtt-topic-history-table">
+                        <colgroup>
+                            <col style="width: 9rem;">
+                            <col >
+                            <col style="width: 9rem;">
+                        </colgroup>
                         <thead>
                             <tr>
-                                <th style="width: 9rem;">시간</th>
+                                <th>시간</th>
                                 <th>토픽</th>
                                 <th>값</th>
-                                <th style="width: 4.5rem;">QoS</th>
                             </tr>
                         </thead>
                         <tbody id="mqtt-topic-history-table-body"></tbody>

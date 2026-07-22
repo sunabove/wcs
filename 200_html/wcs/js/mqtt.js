@@ -216,7 +216,6 @@ class MqttClientManager {
             $('<td class="small text-nowrap"></td>').text(formattedTime).appendTo($row);
             $('<td class="small"></td>').text(String(entry.topic || '')).appendTo($row);
             $('<td class="small"></td>').text(String(entry.payload || '')).appendTo($row);
-            $('<td class="small text-end"></td>').text(String(entry.qos)).appendTo($row);
             $tbody.append($row);
         });
     }

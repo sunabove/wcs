@@ -1,16 +1,62 @@
 $(document).ready(function() {
     const pendingPublishTimers = {};
+    const vehicleDirectionWheelKeys = ['fl', 'fr', 'rl', 'rr'];
+    const vehicleCommandSpeedScale = {
+        0: 0.0,
+        1: 1.0,
+        2: 0.8,
+        3: 0.6,
+        4: 0.6,
+    };
     const vehicleButtonSelector = (typeof window.getVehicleDirectionButtonSelector === 'function')
         ? window.getVehicleDirectionButtonSelector()
         : '#vehicle-forward, #vehicle-backward, #vehicle-turn-left, #vehicle-turn-right, #vehicle-stop';
     let lastVehicleCurrSpeedMsSent = null;
     let lastVehicleDirectionCommandSent = null;
     let latestVehicleMaxSpeedKmh = 100.0;
+    let vehicleWheelRadiusReadyLogged = false;
     window.vehicleSpeedUiManualUntil = 0;
     window.suppressAutoStopUntil = 0;
     window.manualWheelTestActive = false;
     window.manualWheelTestWheel = null;
     window.vehicleDirectionCommandActive = false;
+
+    function getVehicleWheelRadiusByKey(wheelKey) {
+        const normalizedWheelKey = String(wheelKey || '').trim().toLowerCase();
+        const radius = Number(window.wheelRadiusById?.[normalizedWheelKey]);
+        if (!Number.isFinite(radius) || radius <= 0) {
+            return null;
+        }
+
+        return radius;
+    }
+
+    function hasAllVehicleWheelRadii() {
+        return vehicleDirectionWheelKeys.every((wheelKey) => getVehicleWheelRadiusByKey(wheelKey) !== null);
+    }
+
+    function getActiveVehicleCommandContext() {
+        const selectedButton = $(vehicleButtonSelector).filter('.active').first();
+        const selectedButtonId = selectedButton.length ? selectedButton.attr('id') : 'vehicle-stop';
+        const selectedCommand = (typeof window.getVehicleCommandByButtonId === 'function')
+            ? window.getVehicleCommandByButtonId(selectedButtonId)
+            : 0;
+        const selectedSpeedKmh = Number.parseFloat($('#vehicleCurrSpeedSlider').val()) || 0;
+
+        return {
+            selectedButtonId,
+            selectedCommand,
+            selectedSpeedKmh,
+        };
+    }
+
+    function syncVehicleWheelAngleSpeedsFromActiveCommand(reason = 'sync') {
+        const { selectedCommand, selectedSpeedKmh } = getActiveVehicleCommandContext();
+        const isPublished = publishVehicleWheelAngleSpeeds(selectedCommand, selectedSpeedKmh);
+        if (isPublished) {
+            console.log(`[Vehicle Test] 📏 휠 반경 수신 후 각속도 동기화: ${reason}, command=${selectedCommand}, speed=${selectedSpeedKmh.toFixed(1)} Km/h`);
+        }
+    }
 
     function cancelPendingPublish(topic) {
         if (pendingPublishTimers[topic]) {
@@ -80,6 +126,16 @@ $(document).ready(function() {
             if (topic === 'vehicle/linear/max_speed') {
                 updateVehicleCurrSpeedSliderMaxFromMqtt(topic, value);
             }
+
+            if (/^wheel\/(fl|fr|rl|rr)\/radius$/i.test(topic)) {
+                if (hasAllVehicleWheelRadii()) {
+                    if (!vehicleWheelRadiusReadyLogged) {
+                        console.log('[Vehicle Test] 📏 서버에서 휠 반경 4개 수신 완료');
+                        vehicleWheelRadiusReadyLogged = true;
+                    }
+                    syncVehicleWheelAngleSpeedsFromActiveCommand('wheel-radius-init');
+                }
+            }
         };
         window.vehicleTestInitMqttHooked = true;
     }
@@ -135,15 +191,71 @@ $(document).ready(function() {
         void speedKmh;
     }
 
+    function buildVehicleWheelAngleSpeedByCommand(command, speedKmh) {
+        const commandNumber = Number(command);
+        const baseSpeedMs = Math.max(0, Number(speedKmh) || 0) / 3.6;
+        const speedScale = vehicleCommandSpeedScale[commandNumber] ?? 1.0;
+        const effectiveSpeedMs = baseSpeedMs * speedScale;
+        const inPlaceTurn = commandNumber === 3 || commandNumber === 4;
+
+        return vehicleDirectionWheelKeys.reduce((accumulator, wheelKey) => {
+            const wheelRadiusM = getVehicleWheelRadiusByKey(wheelKey);
+            if (wheelRadiusM === null) {
+                accumulator[wheelKey] = null;
+                return accumulator;
+            }
+
+            const isLeftWheel = wheelKey === 'fl' || wheelKey === 'rl';
+            let signedSpeedMs = 0;
+
+            switch (commandNumber) {
+                case 1:
+                    signedSpeedMs = effectiveSpeedMs;
+                    break;
+                case 2:
+                    signedSpeedMs = -effectiveSpeedMs;
+                    break;
+                case 3:
+                    signedSpeedMs = isLeftWheel ? -effectiveSpeedMs : effectiveSpeedMs;
+                    break;
+                case 4:
+                    signedSpeedMs = isLeftWheel ? effectiveSpeedMs : -effectiveSpeedMs;
+                    break;
+                case 0:
+                default:
+                    signedSpeedMs = 0;
+                    break;
+            }
+
+            if (!inPlaceTurn && commandNumber !== 0) {
+                signedSpeedMs = commandNumber === 2 ? -Math.abs(signedSpeedMs) : Math.abs(signedSpeedMs);
+            }
+
+            accumulator[wheelKey] = Number((signedSpeedMs / wheelRadiusM).toFixed(3));
+            return accumulator;
+        }, {});
+    }
+
+    function publishVehicleWheelAngleSpeeds(command, speedKmh) {
+        const wheelAngleSpeedByKey = buildVehicleWheelAngleSpeedByCommand(command, speedKmh);
+
+        if (!hasAllVehicleWheelRadii()) {
+            console.warn('[Vehicle Test] 휠 반경 미수신 상태라 wheel/*/angle/speed 발행을 보류합니다.');
+            return false;
+        }
+
+        Object.entries(wheelAngleSpeedByKey).forEach(([wheelKey, angleSpeed]) => {
+            publishWhenConnected(`wheel/${wheelKey}/angle/speed`, angleSpeed);
+        });
+
+        return true;
+    }
+
     function publishSelectedVehicleCommandOnLoad() {
-        const selectedButton = $(vehicleButtonSelector).filter('.active').first();
-        const selectedButtonId = selectedButton.length ? selectedButton.attr('id') : 'vehicle-stop';
-        const selectedCommand = (typeof window.getVehicleCommandByButtonId === 'function')
-            ? window.getVehicleCommandByButtonId(selectedButtonId)
-            : 0;
-        const selectedSpeedKmh = Number.parseFloat($('#vehicleCurrSpeedSlider').val()) || 0;
+        const { selectedButtonId, selectedCommand, selectedSpeedKmh } = getActiveVehicleCommandContext();
 
         publishWhenConnected('vehicle/operation/command', selectedCommand);
+        publishVehicleWheelAngleSpeeds(selectedCommand, selectedSpeedKmh);
         applyVehicleCommandWheelHighlight(selectedCommand);
         applyVehicleDirectionAnimation(selectedCommand, selectedSpeedKmh);
         console.log(`[Vehicle Test] 📨 초기 방향 제어 명령 발행: vehicle/operation/command = ${selectedCommand} (${selectedButtonId})`);
@@ -273,6 +385,7 @@ $(document).ready(function() {
         lastVehicleCurrSpeedMsSent = roundedSpeedMs;
 
         publishWhenConnected(topic, command);
+    publishVehicleWheelAngleSpeeds(command, commandSpeedKmh);
         lastVehicleDirectionCommandSent = Number(command);
         console.log(`[Vehicle Test] ${icon} 차량 ${actionName} 명령 전송: ${topic} = ${command}, ${speedTopic} = ${roundedSpeedMs}`);
 
@@ -359,6 +472,7 @@ $(document).ready(function() {
             : 0;
         applyVehicleDirectionAnimation(selectedCommand, speedKmh);
         publishWhenConnected('vehicle/operation/command', selectedCommand);
+        publishVehicleWheelAngleSpeeds(selectedCommand, speedKmh);
 
         console.log(`[Vehicle Test] 🚀 현재 속도 설정 - ${speedKmh.toFixed(1)} Km/h (${roundedSpeedMs.toFixed(2)} m/s): ${topic} = ${roundedSpeedMs}`);
     });

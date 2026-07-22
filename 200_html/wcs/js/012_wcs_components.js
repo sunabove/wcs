@@ -22,7 +22,7 @@ const WCS_MQTT_HEADER_FALLBACK_HTML = [
     '    </div>',
     '</div>',
     '<div class="modal fade" id="mqtt-topic-history-modal" tabindex="-1" aria-labelledby="mqtt-topic-history-title" aria-hidden="true">',
-    '    <div class="modal-dialog modal-lg modal-dialog-scrollable mqtt-topic-history-dialog">',
+    '    <div class="modal-dialog modal-lg mqtt-topic-history-dialog">',
     '        <div class="modal-content mqtt-topic-history-content">',
     '            <div class="modal-header py-2">',
     '                <h5 class="modal-title" id="mqtt-topic-history-title">MQTT 토픽 이력</h5>',

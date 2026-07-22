@@ -180,6 +180,7 @@
 #mqtt-topic-history-modal .mqtt-topic-history-content {
     resize: vertical;
     overflow: hidden;
+    height: 16.5rem;
     min-height: 14rem;
     max-height: calc(100vh - 1rem);
     display: flex;

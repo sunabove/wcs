@@ -327,6 +327,24 @@ $(document).ready(function () {
         renderObstacleSensorSettings();
     }
 
+    function disableObstacleSensorSettings() {
+        OBSTACLE_SENSOR_DEFINITIONS.forEach((sensorDef) => {
+            upsertObstacleSensorSetting(sensorDef.id, {
+                count: sensorDef.count,
+                target: sensorDef.target,
+                enabled: false,
+            });
+
+            for (let sensorIndex = 0; sensorIndex < sensorDef.count; sensorIndex += 1) {
+                upsertObstacleSensorRowValue(sensorDef.id, sensorIndex, {
+                    enabled: false,
+                });
+            }
+        });
+
+        renderObstacleSensorSettings();
+    }
+
     function initializeObstacleSensorSettingsDefaults() {
         OBSTACLE_SENSOR_DEFINITIONS.forEach((sensorDef) => {
             if (!obstacleSensorSettingById[sensorDef.id]) {
@@ -984,6 +1002,11 @@ $(document).ready(function () {
 
     $('#reset-obstacle-sensor-settings').on('click', function () {
         resetObstacleSensorSettings();
+        publishObstacleSensorSettings();
+    });
+
+    $('#disable-obstacle-sensor-settings').on('click', function () {
+        disableObstacleSensorSettings();
         publishObstacleSensorSettings();
     });
 

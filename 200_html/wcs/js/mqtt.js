@@ -11,6 +11,10 @@ class MqttClientManager {
         this.lastUIUpdate = 0;
         this.receivedTopicCount = 0;
         this.publishedTopicCount = 0;
+        this.maxTopicHistorySize = 300;
+        this.receivedTopicHistory = [];
+        this.publishedTopicHistory = [];
+        this.bindTopicHistoryHandlers();
     }
 
     static getConsoleLogEnabled() {
@@ -137,6 +141,102 @@ class MqttClientManager {
         $('#mqtt-published-count').text(String(this.publishedTopicCount));
     }
 
+    bindTopicHistoryHandlers() {
+        const selector = '.mqtt-topic-history-trigger';
+
+        $(document)
+            .off('click.mqttTopicHistory', selector)
+            .on('click.mqttTopicHistory', selector, (event) => {
+                const historyType = String($(event.currentTarget).attr('data-history-type') || '').toLowerCase();
+                this.openTopicHistoryModal(historyType);
+            });
+
+        $(document)
+            .off('keydown.mqttTopicHistory', selector)
+            .on('keydown.mqttTopicHistory', selector, (event) => {
+                if (event.key !== 'Enter' && event.key !== ' ') {
+                    return;
+                }
+
+                event.preventDefault();
+                const historyType = String($(event.currentTarget).attr('data-history-type') || '').toLowerCase();
+                this.openTopicHistoryModal(historyType);
+            });
+    }
+
+    registerTopicHistory(type, topic, payload, qos) {
+        const historyType = String(type || '').toLowerCase();
+        const normalizedTopic = String(topic || '');
+        const normalizedPayload = String(payload || '');
+        const normalizedQos = Number.isFinite(Number(qos)) ? Number(qos) : '-';
+
+        const entry = {
+            time: new Date(),
+            topic: normalizedTopic,
+            payload: normalizedPayload,
+            qos: normalizedQos,
+        };
+
+        const targetHistory = historyType === 'published' ? this.publishedTopicHistory : this.receivedTopicHistory;
+        targetHistory.unshift(entry);
+        if (targetHistory.length > this.maxTopicHistorySize) {
+            targetHistory.length = this.maxTopicHistorySize;
+        }
+    }
+
+    openTopicHistoryModal(historyType) {
+        const normalizedType = historyType === 'published' ? 'published' : 'received';
+        const historyList = normalizedType === 'published' ? this.publishedTopicHistory : this.receivedTopicHistory;
+        const title = normalizedType === 'published' ? 'MQTT 발행 토픽 이력' : 'MQTT 수신 토픽 이력';
+
+        this.renderTopicHistoryRows(historyList, title);
+        this.showTopicHistoryModal();
+    }
+
+    renderTopicHistoryRows(historyList, title) {
+        $('#mqtt-topic-history-title').text(title);
+
+        const $tbody = $('#mqtt-topic-history-table-body');
+        const $empty = $('#mqtt-topic-history-empty');
+        $tbody.empty();
+
+        if (!Array.isArray(historyList) || historyList.length === 0) {
+            $empty.removeClass('d-none');
+            return;
+        }
+
+        $empty.addClass('d-none');
+
+        historyList.forEach((entry) => {
+            const formattedTime = entry.time instanceof Date
+                ? entry.time.toLocaleTimeString()
+                : String(entry.time || '');
+
+            const $row = $('<tr></tr>');
+            $('<td class="small text-nowrap"></td>').text(formattedTime).appendTo($row);
+            $('<td class="small"></td>').text(String(entry.topic || '')).appendTo($row);
+            $('<td class="small"></td>').text(String(entry.payload || '')).appendTo($row);
+            $('<td class="small text-end"></td>').text(String(entry.qos)).appendTo($row);
+            $tbody.append($row);
+        });
+    }
+
+    showTopicHistoryModal() {
+        const modalElement = document.getElementById('mqtt-topic-history-modal');
+        if (!modalElement) {
+            return;
+        }
+
+        if (window.bootstrap && typeof window.bootstrap.Modal === 'function') {
+            const modal = window.bootstrap.Modal.getOrCreateInstance(modalElement);
+            modal.show();
+            return;
+        }
+
+        // Bootstrap JS가 없는 경우 최소 표시 fallback
+        $(modalElement).addClass('show').css('display', 'block').attr('aria-hidden', 'false');
+    }
+
     renderConnectionStatus(options = {}) {
         const config = Object.assign({
             iconColor: '#d1d5db',
@@ -216,6 +316,7 @@ class MqttClientManager {
 
         if (shouldCountAsReceived) {
             this.receivedTopicCount += 1;
+            this.registerTopicHistory('received', topic, messageStr, '-');
         }
 
         if (!this.lastUIUpdate || Date.now() - this.lastUIUpdate > 100) {
@@ -345,6 +446,7 @@ class MqttClientManager {
 
             if (!err) {
                 this.publishedTopicCount += 1;
+                this.registerTopicHistory('published', topic, messageStr, qosValue);
                 $('#mqtt-published-badge')
                     .removeClass('bg-info bg-success bg-warning bg-primary bg-secondary')
                     .addClass('bg-primary');

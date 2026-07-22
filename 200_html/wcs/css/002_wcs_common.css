@@ -132,6 +132,15 @@
     white-space: nowrap;
 }
 
+.mqtt-topic-history-trigger {
+    cursor: pointer;
+}
+
+#mqtt-topic-history-table td {
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
 .top-header-row .nav,
 .top-header-row .nav-link,
 .top-header-row #mqtt-received-count,

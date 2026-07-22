@@ -203,8 +203,8 @@ class MqttClientManager {
 
         if (!this.lastUIUpdate || Date.now() - this.lastUIUpdate > 100) {
             const badgeColor = this.getBadgeColor(topic);
-            const badge = $('#mqtt-message-display .badge');
-            badge.removeClass('bg-info bg-success bg-warning bg-primary bg-secondary').addClass(badgeColor);
+            const receivedBadge = $('#mqtt-received-badge');
+            receivedBadge.removeClass('bg-info bg-success bg-warning bg-primary bg-secondary').addClass(badgeColor);
             this.updateTopicCounters();
             this.lastUIUpdate = Date.now();
         }
@@ -332,6 +332,9 @@ class MqttClientManager {
 
             if (!err) {
                 this.publishedTopicCount += 1;
+                $('#mqtt-published-badge')
+                    .removeClass('bg-info bg-success bg-warning bg-primary bg-secondary')
+                    .addClass('bg-primary');
                 this.updateTopicCounters();
                 MqttClientManager.log(`[MQTT] 📤 [${timestamp}] 메시지 전송성공 [QoS ${qosValue}]:`, topic, messageStr);
                 return;

@@ -127,6 +127,11 @@
     gap: 0.35rem;
 }
 
+.mqtt-counter-badge {
+    min-width: 0;
+    white-space: nowrap;
+}
+
 .top-header-row .nav,
 .top-header-row .nav-link,
 .top-header-row #mqtt-received-count,

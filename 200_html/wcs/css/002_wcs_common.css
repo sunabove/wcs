@@ -113,8 +113,8 @@
 }
 
 .mqtt-message-display-fixed {
-    width: 300px;
-    min-width: 300px;
+    width: auto;
+    min-width: 0;
     flex-shrink: 0;
 }
 

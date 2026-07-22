@@ -175,6 +175,28 @@
     scrollbar-gutter: stable;
 }
 
+#mqtt-topic-history-modal .modal-dialog {
+    height: calc(100vh - 2rem);
+}
+
+#mqtt-topic-history-modal .modal-content {
+    height: 100%;
+}
+
+#mqtt-topic-history-modal .modal-body {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    overflow: hidden;
+}
+
+#mqtt-topic-history-modal .mqtt-topic-history-table-wrap {
+    flex: 1 1 auto;
+    height: auto;
+    min-height: 0;
+    max-height: none;
+}
+
 #mqtt-topic-history-table thead th {
     position: sticky;
     top: 0;

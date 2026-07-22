@@ -166,9 +166,16 @@
 #mqtt-topic-history-table {
     table-layout: fixed;
     width: 100%;
-    min-height: 100%;
     border-collapse: separate;
     border-spacing: 0;
+}
+
+#mqtt-topic-history-table tbody td,
+#mqtt-topic-history-table tbody th {
+    padding-top: 0.35rem;
+    padding-bottom: 0.35rem;
+    line-height: 1.35;
+    vertical-align: middle;
 }
 
 .mqtt-topic-history-table-wrap {

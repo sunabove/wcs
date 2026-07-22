@@ -146,6 +146,7 @@ class MqttClientManager {
     bindTopicHistoryHandlers() {
         const selector = '.mqtt-topic-history-trigger';
         const sortSelector = '.mqtt-topic-sort-trigger';
+        const tabSelector = '.mqtt-topic-history-tab';
 
         $(document)
             .off('click.mqttTopicHistory', selector)
@@ -184,6 +185,59 @@ class MqttClientManager {
                 const sortKey = String($(event.currentTarget).attr('data-sort-key') || '').toLowerCase();
                 this.toggleTopicHistorySort(sortKey);
             });
+
+        $(document)
+            .off('click.mqttTopicTab', tabSelector)
+            .on('click.mqttTopicTab', tabSelector, (event) => {
+                const historyType = String($(event.currentTarget).attr('data-history-type') || '').toLowerCase();
+                this.switchTopicHistoryTab(historyType);
+            });
+
+        $(document)
+            .off('keydown.mqttTopicTab', tabSelector)
+            .on('keydown.mqttTopicTab', tabSelector, (event) => {
+                if (event.key !== 'Enter' && event.key !== ' ') {
+                    return;
+                }
+
+                event.preventDefault();
+                const historyType = String($(event.currentTarget).attr('data-history-type') || '').toLowerCase();
+                this.switchTopicHistoryTab(historyType);
+            });
+    }
+
+    normalizeHistoryType(historyType) {
+        return historyType === 'published' ? 'published' : 'received';
+    }
+
+    getTopicHistoryList(historyType) {
+        return historyType === 'published' ? this.publishedTopicHistory : this.receivedTopicHistory;
+    }
+
+    getTopicHistoryTitle(historyType) {
+        return historyType === 'published' ? 'MQTT 전송 토픽 이력' : 'MQTT 수신 토픽 이력';
+    }
+
+    updateTopicHistoryTabs() {
+        const currentType = this.normalizeHistoryType(this.currentHistoryType);
+
+        $('.mqtt-topic-history-tab').each(function () {
+            const $tab = $(this);
+            const tabType = String($tab.attr('data-history-type') || '').toLowerCase();
+            const isActive = tabType === currentType;
+            $tab.toggleClass('active', isActive);
+            $tab.attr('aria-selected', isActive ? 'true' : 'false');
+        });
+    }
+
+    switchTopicHistoryTab(historyType) {
+        const normalizedType = this.normalizeHistoryType(historyType);
+        this.currentHistoryType = normalizedType;
+        this.updateTopicHistoryTabs();
+
+        const historyList = this.getTopicHistoryList(normalizedType);
+        const title = this.getTopicHistoryTitle(normalizedType);
+        this.renderTopicHistoryRows(historyList, title);
     }
 
     toggleTopicHistorySort(sortKey) {
@@ -274,10 +328,11 @@ class MqttClientManager {
     }
 
     openTopicHistoryModal(historyType) {
-        const normalizedType = historyType === 'published' ? 'published' : 'received';
+        const normalizedType = this.normalizeHistoryType(historyType);
         this.currentHistoryType = normalizedType;
-        const historyList = normalizedType === 'published' ? this.publishedTopicHistory : this.receivedTopicHistory;
-        const title = normalizedType === 'published' ? 'MQTT 발행 토픽 이력' : 'MQTT 수신 토픽 이력';
+        this.updateTopicHistoryTabs();
+        const historyList = this.getTopicHistoryList(normalizedType);
+        const title = this.getTopicHistoryTitle(normalizedType);
 
         this.renderTopicHistoryRows(historyList, title);
         this.showTopicHistoryModal();

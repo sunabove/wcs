@@ -207,7 +207,7 @@ class MqttClientManager {
 
         $empty.addClass('d-none');
 
-        historyList.forEach((entry) => {
+        historyList.forEach((entry, index) => {
             const formattedTime = entry.time instanceof Date
                 ? entry.time.toLocaleTimeString('ko-KR', {
                     hour12: false,
@@ -218,6 +218,7 @@ class MqttClientManager {
                 : String(entry.time || '');
 
             const $row = $('<tr></tr>');
+            $('<td class="small text-end text-nowrap"></td>').text(String(index + 1)).appendTo($row);
             $('<td class="small text-nowrap text-center"></td>').text(formattedTime).appendTo($row);
             $('<td class="small"></td>').text(String(entry.topic || '')).appendTo($row);
             $('<td class="small text-end mqtt-topic-history-value-cell"></td>')

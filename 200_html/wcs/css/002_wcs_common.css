@@ -321,35 +321,19 @@
     background-color: #e9f2ff;
 }
 
-@keyframes mqtt-topic-history-row-received-foreground-blink {
+@keyframes mqtt-topic-history-row-live-foreground-blink {
     0%,
     100% {
         color: inherit;
-        text-shadow: none;
-        opacity: 1;
     }
-    15%,
-    35%,
-    55%,
-    75% {
-        color: #0a58ca;
-        text-shadow: 0 0 0.55rem rgba(10, 88, 202, 0.42);
-        opacity: 1;
-    }
-    25%,
-    45%,
-    65%,
-    85% {
-        color: #111827;
-        text-shadow: none;
-        opacity: 0.32;
+    50% {
+        color: #2b6cb0;
     }
 }
 
-#mqtt-topic-history-table tbody tr.mqtt-topic-history-row-received-blink > th,
-#mqtt-topic-history-table tbody tr.mqtt-topic-history-row-received-blink > td {
-    animation: mqtt-topic-history-row-received-foreground-blink 1.1s steps(1, end) 3;
-    font-weight: 700;
+#mqtt-topic-history-table tbody tr.mqtt-topic-history-row-live-blink > th,
+#mqtt-topic-history-table tbody tr.mqtt-topic-history-row-live-blink > td {
+    animation: mqtt-topic-history-row-live-foreground-blink 0.8s ease-in-out 2;
 }
 
 .top-header-row .nav,

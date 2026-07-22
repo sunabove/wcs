@@ -885,12 +885,11 @@ $(document).ready(function () {
             }
         };
 
-    $obstacleSensorValueTbody.on('change input', '.obstacle-sensor-row-value, .obstacle-sensor-row-confidence', function () {
-        const $row = $(this).closest('tr[data-sensor-id][data-sensor-index]');
+    function syncObstacleSensorRowControls($row) {
         const sensorId = String($row.attr('data-sensor-id') || '').trim();
         const sensorIndex = Number.parseInt($row.attr('data-sensor-index'), 10);
         if (!sensorId || !Number.isFinite(sensorIndex)) {
-            return;
+            return null;
         }
 
         const normalizedValue = normalizeSensorValueById(sensorId, $row.find('.obstacle-sensor-row-value').val());
@@ -906,7 +905,22 @@ $(document).ready(function () {
             confidence: normalizedConfidence,
         });
 
-        publishSingleObstacleSensorRow(sensorId, sensorIndex);
+        return { sensorId, sensorIndex };
+    }
+
+    $obstacleSensorValueTbody.on('input', '.obstacle-sensor-row-value, .obstacle-sensor-row-confidence', function () {
+        const $row = $(this).closest('tr[data-sensor-id][data-sensor-index]');
+        syncObstacleSensorRowControls($row);
+    });
+
+    $obstacleSensorValueTbody.on('change', '.obstacle-sensor-row-value, .obstacle-sensor-row-confidence', function () {
+        const $row = $(this).closest('tr[data-sensor-id][data-sensor-index]');
+        const syncResult = syncObstacleSensorRowControls($row);
+        if (!syncResult) {
+            return;
+        }
+
+        publishSingleObstacleSensorRow(syncResult.sensorId, syncResult.sensorIndex);
     });
 
     $obstacleSensorValueTbody.on('click', '.obstacle-sensor-row-state-toggle', function () {

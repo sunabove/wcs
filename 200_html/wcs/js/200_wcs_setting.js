@@ -425,6 +425,12 @@ $(document).ready(function () {
                 return;
             }
 
+            $row.find('[data-sensor-column="name"], [data-sensor-column="number"]').each(function () {
+                this.classList.remove('obstacle-sensor-publish-cell-blink');
+                void this.offsetWidth;
+                this.classList.add('obstacle-sensor-publish-cell-blink');
+            });
+
             $row.find('.obstacle-sensor-publish-text').each(function () {
                 this.classList.remove('obstacle-sensor-publish-blink');
                 void this.offsetWidth;

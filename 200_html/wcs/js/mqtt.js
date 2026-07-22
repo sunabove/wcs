@@ -513,8 +513,8 @@ class MqttClientManager {
 
             const shouldBlink = Number.isFinite(Number(entry.highlightUntil)) && Number(entry.highlightUntil) > now;
             const $row = $('<tr></tr>');
-            if (shouldBlink) {
-                $row.addClass('mqtt-topic-history-row-blink');
+            if (shouldBlink && this.currentHistoryType === 'received') {
+                $row.addClass('mqtt-topic-history-row-received-blink');
             }
             $('<td class="small text-end text-nowrap"></td>').text(String(index + 1)).appendTo($row);
             $('<td class="small text-nowrap text-center"></td>').text(formattedTime).appendTo($row);

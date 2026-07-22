@@ -313,21 +313,21 @@
     background-color: #e9f2ff;
 }
 
-@keyframes mqtt-topic-history-row-blink {
+@keyframes mqtt-topic-history-row-received-foreground-blink {
     0% {
-        background-color: #fff5cc;
+        color: #0b5ed7;
     }
     45% {
-        background-color: #fffdf2;
+        color: #212529;
     }
     100% {
-        background-color: transparent;
+        color: inherit;
     }
 }
 
-#mqtt-topic-history-table tbody tr.mqtt-topic-history-row-blink > th,
-#mqtt-topic-history-table tbody tr.mqtt-topic-history-row-blink > td {
-    animation: mqtt-topic-history-row-blink 0.42s ease-in-out 3;
+#mqtt-topic-history-table tbody tr.mqtt-topic-history-row-received-blink > th,
+#mqtt-topic-history-table tbody tr.mqtt-topic-history-row-received-blink > td {
+    animation: mqtt-topic-history-row-received-foreground-blink 0.46s ease-in-out 3;
 }
 
 .top-header-row .nav,

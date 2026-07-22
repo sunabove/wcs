@@ -136,9 +136,15 @@
     cursor: pointer;
 }
 
-#mqtt-topic-history-table td {
-    white-space: pre-wrap;
-    word-break: break-word;
+#mqtt-topic-history-table {
+    table-layout: fixed;
+    width: 100%;
+}
+
+#mqtt-topic-history-table .mqtt-topic-history-value-cell {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .top-header-row .nav,

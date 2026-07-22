@@ -2,7 +2,12 @@
 
 <div class="mqtt-status-message-inline d-flex flex-nowrap align-items-center border rounded-3 px-2 py-1">
     <div id="mqtt-status-container" class="d-flex flex-nowrap align-items-center me-2">
-        <!-- MQTT 상태가 여기에 동적으로 추가됩니다 -->
+        <div
+            id="mqtt-status-icon-map"
+            class="d-none"
+            data-icon-status="fas fa-wifi"
+        ></div>
+        <div id="mqtt-status-render-target" class="d-flex align-items-center"></div>
     </div>
     <div id="mqtt-message-display" class="d-flex flex-nowrap align-items-center mqtt-message-display-fixed">
         <div class="mqtt-message-row d-flex align-items-center w-100 text-truncate">

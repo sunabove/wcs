@@ -139,16 +139,35 @@ class MqttClientManager {
 
     renderConnectionStatus(options = {}) {
         const config = Object.assign({
-            background: '#6c757d',
-            iconClass: 'fas fa-question-circle',
+            iconColor: '#d1d5db',
             title: 'MQTT 상태',
             spin: false,
         }, options || {});
 
+        const iconClass = this.getStatusIconClass('fas fa-wifi');
         const spinClass = config.spin ? ' fa-spin' : '';
-        $('#mqtt-status-container').html(
-            `<div id="mqtt-status" class="badge fs-6 mqtt-status-icon-badge" title="${String(config.title)}" aria-label="${String(config.title)}" style="background:${String(config.background)}; color:white; padding:8px 10px; border-radius:999px; box-shadow:0 2px 5px rgba(0,0,0,0.2);"><i class="${String(config.iconClass)}${spinClass}"></i></div>`
-        );
+        const statusHtml = `<div id="mqtt-status" class="badge fs-6 mqtt-status-icon-badge d-inline-flex align-items-center justify-content-center" title="${String(config.title)}" aria-label="${String(config.title)}" style="background:#1f2937; color:${String(config.iconColor)}; width:2rem; height:2rem; padding:0; border-radius:50%; box-shadow:0 2px 5px rgba(0,0,0,0.2);"><i class="${String(iconClass)}${spinClass}"></i></div>`;
+        const $renderTarget = $('#mqtt-status-render-target');
+
+        if ($renderTarget.length > 0) {
+            $renderTarget.html(statusHtml);
+            return;
+        }
+
+        $('#mqtt-status-container').html(statusHtml);
+    }
+
+    getStatusIconClass(fallbackClass) {
+        const mapElement = document.getElementById('mqtt-status-icon-map');
+
+        if (mapElement && mapElement.dataset) {
+            const mappedClass = mapElement.dataset.iconStatus;
+            if (mappedClass && mappedClass.trim().length > 0) {
+                return mappedClass.trim();
+            }
+        }
+
+        return fallbackClass;
     }
 
     handleConnect(connack) {
@@ -163,8 +182,7 @@ class MqttClientManager {
             if (err) {
                 console.error('[MQTT] ❌ 전체 토픽 구독 실패:', err);
                 this.renderConnectionStatus({
-                    background: '#dc3545',
-                    iconClass: 'fas fa-exclamation-triangle',
+                    iconColor: '#ff6b6b',
                     title: 'MQTT 구독 실패',
                 });
                 return;
@@ -174,8 +192,7 @@ class MqttClientManager {
             MqttClientManager.log('[MQTT] 🎯 QoS 설정:', granted);
 
             this.renderConnectionStatus({
-                background: '#28a745',
-                iconClass: 'fas fa-wifi',
+                iconColor: '#4ade80',
                 title: 'MQTT 연결됨',
             });
             this.updateTopicCounters();
@@ -250,8 +267,7 @@ class MqttClientManager {
     handleError(err) {
         console.error('[MQTT] ❌ Mosquitto 연결 오류:', err);
         this.renderConnectionStatus({
-            background: '#dc3545',
-            iconClass: 'fas fa-exclamation-triangle',
+            iconColor: '#ff6b6b',
             title: 'Mosquitto 오류',
         });
         $('#mqtt-status').css('animation', 'blink 1s infinite');
@@ -264,8 +280,7 @@ class MqttClientManager {
     handleClose() {
         MqttClientManager.log('[MQTT] 🦟 Mosquitto 연결이 끊어졌습니다.');
         this.renderConnectionStatus({
-            background: '#fd7e14',
-            iconClass: 'fas fa-unlink',
+            iconColor: '#fbbf24',
             title: 'Mosquitto 끊어짐',
         });
     }
@@ -273,8 +288,7 @@ class MqttClientManager {
     handleReconnect() {
         MqttClientManager.log('[MQTT] 🔄 Mosquitto 재연결 시도중...');
         this.renderConnectionStatus({
-            background: '#17a2b8',
-            iconClass: 'fas fa-sync',
+            iconColor: '#60a5fa',
             title: 'Mosquitto 재연결 중',
             spin: true,
         });
@@ -283,8 +297,7 @@ class MqttClientManager {
     handleInitError(error) {
         console.error('[MQTT] ❌ Mosquitto 클라이언트 초기화 오류:', error);
         this.renderConnectionStatus({
-            background: '#dc3545',
-            iconClass: 'fas fa-times-circle',
+            iconColor: '#ff6b6b',
             title: 'Mosquitto 초기화 실패',
         });
     }

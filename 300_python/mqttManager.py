@@ -53,6 +53,12 @@ class MqttConfig:
     SENSOR_ENABLED_TOPIC_TEMPLATE = "sensor/{sensor_id}/enabled"
     WHEEL_ID_TOPIC_TEMPLATE = "wheel/{wheel_str_id}/id"
     WHEEL_RADIUS_TOPIC_TEMPLATE = "wheel/{wheel_str_id}/radius"
+    WHEEL_POWER_TOPIC_TEMPLATE = "wheel/{wheel_str_id}/power"
+    WHEEL_PID_P_TOPIC_TEMPLATE = "wheel/{wheel_str_id}/pid/p"
+    WHEEL_PID_I_TOPIC_TEMPLATE = "wheel/{wheel_str_id}/pid/i"
+    WHEEL_PID_D_TOPIC_TEMPLATE = "wheel/{wheel_str_id}/pid/d"
+    WHEEL_TOF_DISTANCE_TOPIC_TEMPLATE = "wheel/{wheel_str_id}/tof/distance"
+    WHEEL_AXIS_ANGLE_TOPIC_TEMPLATE = "wheel/{wheel_str_id}/axis/angle"
 
     INITIAL_CONNECT_TOPIC_SPECS = (
         ("vehicle/battery/remain_amount", lambda sim: round(sim.battery_remain_amount, 1), "BATTERY"),
@@ -117,6 +123,14 @@ class MqttManager:
         self.road_roll_angle = 0.0
         self.road_pitch_angle = 0.0
         self.current_video_file_name = ""
+
+        self.wheel_power_by_id = {wheel_id: 0.0 for wheel_id in MqttConfig.WHEEL_IDS}
+        self.wheel_pid_by_id = {
+            wheel_id: {"p": 0.0, "i": 0.0, "d": 0.0}
+            for wheel_id in MqttConfig.WHEEL_IDS
+        }
+        self.wheel_tof_distance_by_id = {wheel_id: 0.0 for wheel_id in MqttConfig.WHEEL_IDS}
+        self.wheel_axis_angle_by_id = {wheel_id: 0.0 for wheel_id in MqttConfig.WHEEL_IDS}
 
         # 선택적 외부 주입 데이터
         self.vehicle_data = {}
@@ -326,6 +340,22 @@ class MqttManager:
 
             for wheel_str_id in MqttConfig.WHEEL_IDS:
                 self._publish(MqttConfig.WHEEL_RADIUS_TOPIC_TEMPLATE.format(wheel_str_id=wheel_str_id), MqttConfig.WHEEL_RADIUS_M)
+
+            for wheel_str_id in MqttConfig.WHEEL_IDS:
+                wheel_power = float(self.wheel_power_by_id.get(wheel_str_id, 0.0))
+                wheel_pid = self.wheel_pid_by_id.get(wheel_str_id, {})
+                wheel_pid_p = float(wheel_pid.get("p", 0.0))
+                wheel_pid_i = float(wheel_pid.get("i", 0.0))
+                wheel_pid_d = float(wheel_pid.get("d", 0.0))
+                wheel_tof_distance = float(self.wheel_tof_distance_by_id.get(wheel_str_id, 0.0))
+                wheel_axis_angle = float(self.wheel_axis_angle_by_id.get(wheel_str_id, 0.0))
+
+                self._publish(MqttConfig.WHEEL_POWER_TOPIC_TEMPLATE.format(wheel_str_id=wheel_str_id), wheel_power)
+                self._publish(MqttConfig.WHEEL_PID_P_TOPIC_TEMPLATE.format(wheel_str_id=wheel_str_id), wheel_pid_p)
+                self._publish(MqttConfig.WHEEL_PID_I_TOPIC_TEMPLATE.format(wheel_str_id=wheel_str_id), wheel_pid_i)
+                self._publish(MqttConfig.WHEEL_PID_D_TOPIC_TEMPLATE.format(wheel_str_id=wheel_str_id), wheel_pid_d)
+                self._publish(MqttConfig.WHEEL_TOF_DISTANCE_TOPIC_TEMPLATE.format(wheel_str_id=wheel_str_id), wheel_tof_distance)
+                self._publish(MqttConfig.WHEEL_AXIS_ANGLE_TOPIC_TEMPLATE.format(wheel_str_id=wheel_str_id), wheel_axis_angle)
 
             for topic, payload_resolver, log_tag in MqttConfig.INITIAL_CONNECT_TOPIC_SPECS:
                 payload = payload_resolver(self)

@@ -1013,6 +1013,23 @@ class MqttSimulator:
 
         return sources
 
+    def _format_obstacle_sensor_sources_payload(self, sources):
+        """장애물 검출 센서 목록을 id,index,id,index 형태의 CSV 문자열로 변환한다."""
+        if not sources:
+            return ""
+
+        tokens = []
+        for source in sources:
+            sensor_id = str(source.get("id", "")).strip()
+            sensor_index = source.get("index", "")
+            if sensor_id == "":
+                continue
+
+            tokens.append(sensor_id)
+            tokens.append(str(sensor_index))
+
+        return ",".join(tokens)
+
     def _get_sensor_value(self, sensor_id, index):
         if sensor_id == "ToF":
             wheel_id = WHEEL_IDS[index % len(WHEEL_IDS)]
@@ -1091,8 +1108,9 @@ class MqttSimulator:
                 self._publish(f"{topic_prefix}/obstacle/confidence", obstacle_confidence)
 
         sources = self._build_obstacle_sensor_sources()
+        sensor_sources_payload = self._format_obstacle_sensor_sources_payload(sources)
         self._publish("obstacle", obstacle_value)
-        self._publish("obstacle/sensors", json.dumps(sources, ensure_ascii=False))
+        self._publish("obstacle/sensors", sensor_sources_payload)
 
         if self.surface_obstacle == SurfaceObstacle.NONE:
             total_confidence = 0.0

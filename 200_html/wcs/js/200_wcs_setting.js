@@ -348,6 +348,7 @@ $(document).ready(function () {
     }
 
     function publishObstacleSensorSettings() {
+        const publishedRowKeys = [];
         const settings = getOrderedObstacleSensorSettings();
         settings.forEach((sensorDef) => {
             window.WcsMqtt.sendMQTTMessage(`sensor/${sensorDef.id}/count`, sensorDef.count);
@@ -360,6 +361,8 @@ $(document).ready(function () {
                 return;
             }
 
+            publishedRowKeys.push(getSensorRowKey(row.id, row.index));
+
             const sensorValue = normalizeSensorValueById(row.id, row.value);
             const sensorConfidence = normalizeSensorConfidence(row.confidence);
 
@@ -369,6 +372,7 @@ $(document).ready(function () {
         });
 
         window.WcsMqtt.sendMQTTMessage('obstacle/sensor/settings', JSON.stringify(settings));
+        triggerObstacleSensorPublishBlink(publishedRowKeys);
     }
 
     function publishSingleObstacleSensorRow(sensorId, sensorIndex) {
@@ -388,10 +392,44 @@ $(document).ready(function () {
     }
 
     function publishObstacleSensorGroup(sensorId) {
+        const publishedRowKeys = [];
         getOrderedObstacleSensorRows().forEach((row) => {
             if (String(row.id) === String(sensorId)) {
+                publishedRowKeys.push(getSensorRowKey(row.id, row.index));
                 publishSingleObstacleSensorRow(row.id, row.index);
             }
+        });
+
+        triggerObstacleSensorPublishBlink(publishedRowKeys);
+    }
+
+    function triggerObstacleSensorPublishBlink(rowKeys) {
+        const uniqueRowKeys = Array.from(new Set(Array.isArray(rowKeys) ? rowKeys : []));
+        if (uniqueRowKeys.length === 0) {
+            return;
+        }
+
+        uniqueRowKeys.forEach((rowKey) => {
+            const [sensorId, sensorIndexText] = String(rowKey || '').split('#');
+            if (!sensorId || sensorIndexText === undefined) {
+                return;
+            }
+
+            const sensorIndex = Number.parseInt(sensorIndexText, 10);
+            if (!Number.isFinite(sensorIndex)) {
+                return;
+            }
+
+            const $row = $obstacleSensorValueTbody.find(`tr[data-sensor-id="${sensorId}"][data-sensor-index="${sensorIndex}"]`);
+            if ($row.length === 0) {
+                return;
+            }
+
+            $row.find('[data-sensor-column="name"], [data-sensor-column="number"], [data-sensor-column="index"]').each(function () {
+                this.classList.remove('obstacle-sensor-publish-blink');
+                void this.offsetWidth;
+                this.classList.add('obstacle-sensor-publish-blink');
+            });
         });
     }
 

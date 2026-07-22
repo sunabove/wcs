@@ -256,7 +256,6 @@ class MqttSimulator:
 
                         self.command = OperationCommand(command_value)
                         self.exec_state = VehicleExecState.STOP if self.command == OperationCommand.STOP else VehicleExecState.RUN
-                        self._apply_vehicle_command_wheel_state(publish=False)
 
                         command_names = {
                             OperationCommand.STOP: "정지",
@@ -292,7 +291,7 @@ class MqttSimulator:
                                     self.command = OperationCommand.STOP
                                     self.exec_state = VehicleExecState.STOP
                                     self.direction_control_speed_only_mode = True
-                                    self._apply_vehicle_command_wheel_state(publish=True)
+                                    self._reset_all_wheels_to_stop(publish=True)
                                     print(f"[WHEEL_TEST] 수동 바퀴 테스트 정지: {wheel_id.upper()}")
                                 else:
                                     self.manual_wheel_test_active = True
@@ -392,7 +391,6 @@ class MqttSimulator:
                             self.manual_wheel_test_wheel = None
                             self.manual_wheel_test_command = OperationCommand.STOP
                             self.direction_control_speed_only_mode = True
-                            self._apply_vehicle_command_wheel_state(publish=False)
                     else:
                         print(f"[SPEED] 잘못된 현재 속도 범위: {new_current_speed:.1f} m/s (허용: 0.0-27.8 m/s, 0-100 km/h)")
                 except ValueError:
@@ -423,7 +421,6 @@ class MqttSimulator:
                             self.manual_wheel_test_wheel = None
                             self.manual_wheel_test_command = OperationCommand.STOP
                             self.direction_control_speed_only_mode = True
-                            self._apply_vehicle_command_wheel_state(publish=False)
                     else:
                         print(f"[SPEED] 잘못된 최고 속도 범위: {new_max_speed:.1f} m/s (허용: 0.0-27.8 m/s, 0-100 km/h)")
                 except ValueError:
@@ -1153,71 +1150,23 @@ class MqttSimulator:
         )
     pass  # _publish_manual_wheel_simulation
 
-    def _apply_vehicle_command_wheel_state(self, publish=True):
-        """차량 방향 명령에 맞춰 휠 상태를 즉시 계산하고 필요 시 반영값을 발행한다."""
-        wheel_radius = WHEEL_RADIUS_M
-        base_speed = max(0.0, min(self.target_speed, self.max_speed))
-        command_speed_scale = {
-            OperationCommand.STOP: 0.0,
-            OperationCommand.FORWARD: 1.0,
-            OperationCommand.REVERSE: 0.8,
-            OperationCommand.TURN_LEFT: 0.6,
-            OperationCommand.TURN_RIGHT: 0.6,
-        }
-        effective_speed = base_speed * command_speed_scale.get(self.command, 1.0)
-        direction_sign = -1.0 if self.command == OperationCommand.REVERSE else 1.0
-        in_place_turn = self.command in [OperationCommand.TURN_LEFT, OperationCommand.TURN_RIGHT]
-
+    def _reset_all_wheels_to_stop(self, publish=True):
         for wid, wheel in self.wheels.items():
-            is_left_wheel = wid in ["fl", "rl"]
-
-            if self.command == OperationCommand.STOP:
-                wheel_speed = 0.0
-                axis_angle = 0.0
-                wheel_state = VehicleExecState.STOP
-            elif self.command == OperationCommand.TURN_LEFT:
-                # 제자리 좌회전(CCW): 좌측 바퀴 역회전, 우측 바퀴 정회전
-                wheel_speed = -effective_speed if is_left_wheel else effective_speed
-                axis_angle = 0.0
-                wheel_state = VehicleExecState.RUN
-            elif self.command == OperationCommand.TURN_RIGHT:
-                # 제자리 우회전(CW): 좌측 바퀴 정회전, 우측 바퀴 역회전
-                wheel_speed = effective_speed if is_left_wheel else -effective_speed
-                axis_angle = 0.0
-                wheel_state = VehicleExecState.RUN
-            else:
-                wheel_speed = effective_speed
-                axis_angle = 0.0
-                wheel_state = VehicleExecState.RUN
-
-            if not in_place_turn:
-                wheel_speed *= direction_sign
-            wheel_angle_speed = wheel_speed / wheel_radius if wheel_radius > 0 else 0.0
-
-            wheel["command"] = self.command
-            wheel["state"] = wheel_state
-            wheel["speed"] = wheel_speed
+            wheel["command"] = OperationCommand.STOP
+            wheel["state"] = VehicleExecState.STOP
+            wheel["speed"] = 0.0
             wheel["acc"] = 0.0
-            wheel["angle_speed"] = wheel_angle_speed
+            wheel["angle_speed"] = 0.0
             wheel["angle_acc"] = 0.0
-            wheel["axis_angle"] = axis_angle
+            wheel["axis_angle"] = 0.0
 
-            base = f"wheel/{wid}"
             if publish:
-                self._publish(f"{base}/angle/speed", round(wheel["angle_speed"], 3))
-            
-        self.current_speed = 0.0 if (self.command == OperationCommand.STOP or in_place_turn) else abs(effective_speed)
-        self.linear_speed = self.current_speed
-        self.linear_acc = 0.0
-        if self.command == OperationCommand.TURN_LEFT:
-            self.angle_speed = abs(effective_speed)
-        elif self.command == OperationCommand.TURN_RIGHT:
-            self.angle_speed = -abs(effective_speed)
-        else:
-            self.angle_speed = 0.0
-        self.angle_acc = 0.0
-
-    pass  # _apply_vehicle_command_wheel_state
+                base = f"wheel/{wid}"
+                self._publish(f"{base}/angle/speed", 0.0)
+                self._publish(f"{base}/linear/speed", 0.0)
+                self._publish(f"{base}/linear/acceleration", 0.0)
+                self._publish(f"{base}/operation/state", VehicleExecState.STOP.value)
+    pass  # _reset_all_wheels_to_stop
 
     def _publish_wheel_angle_speeds_only(self):
         for wid, wheel in self.wheels.items():

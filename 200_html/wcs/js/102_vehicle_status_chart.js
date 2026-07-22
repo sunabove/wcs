@@ -23,45 +23,44 @@ const vehicleSpeedHistoryState = {
     maxPoints: 30,
 };
 
-function createVirtualYAxisUnitTickPlugin(unitsByScaleId, pluginId) {
+function createXAxisEdgeUnitLabelPlugin(options, pluginId) {
     return {
         id: pluginId,
         afterDraw(chart) {
-            const { ctx, chartArea, scales } = chart;
-            if (!chartArea || !scales) {
+            const { ctx, scales } = chart;
+            if (!scales) {
                 return;
             }
 
-            const unitEntries = Object.entries(unitsByScaleId || {});
-            if (unitEntries.length === 0) {
+            const xScale = scales.x;
+            if (!xScale || !Array.isArray(xScale.ticks) || xScale.ticks.length === 0) {
                 return;
             }
+
+            const leftUnitText = String(options?.leftUnitText || '').trim();
+            const rightUnitText = String(options?.rightUnitText || '').trim();
+            if (!leftUnitText && !rightUnitText) {
+                return;
+            }
+
+            const firstTickX = xScale.getPixelForTick(0);
+            const lastTickX = xScale.getPixelForTick(xScale.ticks.length - 1);
+            const labelY = xScale.bottom + 16;
 
             ctx.save();
             ctx.fillStyle = '#6c757d';
-            ctx.strokeStyle = '#6c757d';
-            ctx.lineWidth = 1;
             ctx.font = '600 10px system-ui, -apple-system, "Segoe UI", sans-serif';
             ctx.textBaseline = 'middle';
 
-            unitEntries.forEach(([scaleId, unitText]) => {
-                const scale = scales[scaleId];
-                if (!scale) {
-                    return;
-                }
-
-                const x = (scale.left + scale.right) / 2;
-                const tickTop = chartArea.top - 1;
-                const tickBottom = chartArea.top + 3;
-
-                ctx.beginPath();
-                ctx.moveTo(x, tickTop);
-                ctx.lineTo(x, tickBottom);
-                ctx.stroke();
-
+            if (leftUnitText) {
                 ctx.textAlign = 'center';
-                ctx.fillText(unitText, x, chartArea.top - 16);
-            });
+                ctx.fillText(leftUnitText, firstTickX, labelY);
+            }
+
+            if (rightUnitText) {
+                ctx.textAlign = 'center';
+                ctx.fillText(rightUnitText, lastTickX, labelY);
+            }
 
             ctx.restore();
         },
@@ -81,17 +80,17 @@ function createRunInfoHistoryChart() {
         return;
     }
 
-    const runInfoVirtualUnitTickPlugin = createVirtualYAxisUnitTickPlugin(
+    const runInfoXAxisEdgeUnitLabelPlugin = createXAxisEdgeUnitLabelPlugin(
         {
-            yBattery: '%',
-            yTime: '분',
+            leftUnitText: '%',
+            rightUnitText: '분',
         },
-        'runInfoVirtualUnitTickPlugin'
+        'runInfoXAxisEdgeUnitLabelPlugin'
     );
 
     runInfoHistoryState.chart = new Chart(canvas, {
         type: 'line',
-        plugins: [runInfoVirtualUnitTickPlugin],
+        plugins: [runInfoXAxisEdgeUnitLabelPlugin],
         data: {
             labels: runInfoHistoryState.labels,
             datasets: [
@@ -143,7 +142,8 @@ function createRunInfoHistoryChart() {
             animation: false,
             layout: {
                 padding: {
-                    top: 34,
+                    top: 8,
+                    bottom: 18,
                 },
             },
             interaction: {
@@ -279,17 +279,17 @@ function createVehicleSpeedHistoryChart() {
         return;
     }
 
-    const vehicleSpeedVirtualUnitTickPlugin = createVirtualYAxisUnitTickPlugin(
+    const vehicleSpeedXAxisEdgeUnitLabelPlugin = createXAxisEdgeUnitLabelPlugin(
         {
-            ySpeed: 'km/h',
-            yAcceleration: 'm/s²',
+            leftUnitText: 'km/h',
+            rightUnitText: 'm/s²',
         },
-        'vehicleSpeedVirtualUnitTickPlugin'
+        'vehicleSpeedXAxisEdgeUnitLabelPlugin'
     );
 
     vehicleSpeedHistoryState.chart = new Chart(canvas, {
         type: 'line',
-        plugins: [vehicleSpeedVirtualUnitTickPlugin],
+        plugins: [vehicleSpeedXAxisEdgeUnitLabelPlugin],
         data: {
             labels: vehicleSpeedHistoryState.labels,
             datasets: [
@@ -331,7 +331,8 @@ function createVehicleSpeedHistoryChart() {
             animation: false,
             layout: {
                 padding: {
-                    top: 22,
+                    top: 8,
+                    bottom: 18,
                 },
             },
             interaction: {

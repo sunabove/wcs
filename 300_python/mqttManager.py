@@ -50,6 +50,7 @@ class MqttConfig:
     }
 
     SENSOR_COUNT_TOPIC_TEMPLATE = "sensor/{sensor_id}/count"
+    SENSOR_ENABLED_TOPIC_TEMPLATE = "sensor/{sensor_id}/enabled"
     WHEEL_ID_TOPIC_TEMPLATE = "wheel/{wheel_str_id}/id"
     WHEEL_RADIUS_TOPIC_TEMPLATE = "wheel/{wheel_str_id}/radius"
 
@@ -120,16 +121,136 @@ class MqttManager:
         # 선택적 외부 주입 데이터
         self.vehicle_data = {}
         self.wheel_data = {}
+        self.sensor_settings_by_id = {}
+        self.sensor_row_values_by_key = {}
+        self._initialize_sensor_state_cache()
 
         self.publish_count = 0
         self.running = True
         self.script_path = os.path.abspath(__file__)
         self.last_modified = os.path.getmtime(self.script_path) if os.path.exists(self.script_path) else 0
 
+    def _initialize_sensor_state_cache(self):
+        self.sensor_settings_by_id = {}
+        self.sensor_row_values_by_key = {}
+
+        for sensor_def in MqttConfig.iter_sensor_definitions_in_order():
+            sensor_id = sensor_def["id"]
+            sensor_count = max(1, int(sensor_def["count"]))
+            sensor_enabled = bool(sensor_def["enabled"])
+            self.sensor_settings_by_id[sensor_id] = {
+                "count": sensor_count,
+                "enabled": sensor_enabled,
+            }
+
+            for index in range(sensor_count):
+                self.sensor_row_values_by_key[self._build_sensor_row_key(sensor_id, index)] = self._build_default_sensor_row_value(
+                    sensor_id,
+                    sensor_enabled,
+                )
+
+    def _build_sensor_row_key(self, sensor_id, index):
+        return f"{sensor_id}#{int(index)}"
+
+    def _build_default_sensor_row_value(self, sensor_id, sensor_enabled):
+        obstacle_value = int(self.surface_obstacle.value)
+        supports_obstacle = sensor_id in ("ToF", "Lidar", "Camera")
+        return {
+            "state": 1 if sensor_enabled else 0,
+            "value": obstacle_value if sensor_id == "Camera" else 0,
+            "obstacle": obstacle_value if (sensor_enabled and supports_obstacle) else SurfaceObstacle.NONE.value,
+            "obstacle_confidence": 0.8 if (sensor_enabled and supports_obstacle and obstacle_value != SurfaceObstacle.NONE.value) else 0.0,
+        }
+
+    def _parse_bool_payload(self, payload):
+        payload_text = str(payload or "").strip().lower()
+        return payload_text in ("1", "true", "on", "yes")
+
+    def _parse_numeric_payload(self, payload):
+        text = str(payload or "").strip()
+        if text == "":
+            return 0
+        try:
+            numeric = float(text)
+        except (TypeError, ValueError):
+            return text
+
+        if numeric.is_integer():
+            return int(numeric)
+        return numeric
+
+    def _store_sensor_message(self, topic, payload):
+        topic_text = str(topic or "").strip()
+        if not topic_text.startswith("sensor/"):
+            return False
+
+        count_match = topic_text.split("/")
+        if len(count_match) == 3 and count_match[2] == "count":
+            sensor_id = count_match[1]
+            sensor_count = max(1, int(self._parse_numeric_payload(payload) or 1))
+            sensor_setting = self.sensor_settings_by_id.setdefault(sensor_id, {"count": sensor_count, "enabled": True})
+            sensor_setting["count"] = sensor_count
+            sensor_enabled = bool(sensor_setting.get("enabled", True))
+            for index in range(sensor_count):
+                row_key = self._build_sensor_row_key(sensor_id, index)
+                self.sensor_row_values_by_key.setdefault(row_key, self._build_default_sensor_row_value(sensor_id, sensor_enabled))
+            return True
+
+        if len(count_match) == 3 and count_match[2] == "enabled":
+            sensor_id = count_match[1]
+            sensor_enabled = self._parse_bool_payload(payload)
+            sensor_setting = self.sensor_settings_by_id.setdefault(sensor_id, {"count": 1, "enabled": sensor_enabled})
+            sensor_setting["enabled"] = sensor_enabled
+            sensor_count = max(1, int(sensor_setting.get("count", 1)))
+            for index in range(sensor_count):
+                row_key = self._build_sensor_row_key(sensor_id, index)
+                row_value = self.sensor_row_values_by_key.setdefault(row_key, self._build_default_sensor_row_value(sensor_id, sensor_enabled))
+                row_value.setdefault("state", 1 if sensor_enabled else 0)
+            return True
+
+        if len(count_match) < 4:
+            return False
+
+        sensor_id = count_match[1]
+        try:
+            sensor_index = int(count_match[2])
+        except (TypeError, ValueError):
+            return False
+
+        metric_name = "/".join(count_match[3:])
+        row_key = self._build_sensor_row_key(sensor_id, sensor_index)
+        sensor_setting = self.sensor_settings_by_id.setdefault(sensor_id, {"count": sensor_index + 1, "enabled": True})
+        sensor_setting["count"] = max(sensor_index + 1, int(sensor_setting.get("count", 1)))
+        row_value = self.sensor_row_values_by_key.setdefault(
+            row_key,
+            self._build_default_sensor_row_value(sensor_id, bool(sensor_setting.get("enabled", True))),
+        )
+
+        if metric_name == "state":
+            row_value["state"] = 1 if self._parse_bool_payload(payload) else 0
+            return True
+        if metric_name == "value":
+            row_value["value"] = self._parse_numeric_payload(payload)
+            return True
+        if metric_name == "obstacle":
+            row_value["obstacle"] = int(self._parse_numeric_payload(payload) or 0)
+            return True
+        if metric_name == "obstacle/confidence":
+            parsed_value = self._parse_numeric_payload(payload)
+            try:
+                row_value["obstacle_confidence"] = float(parsed_value)
+            except (TypeError, ValueError):
+                row_value["obstacle_confidence"] = 0.0
+            return True
+
+        return False
+
     def _on_connect(self, client, _userdata, _flags, reason_code, _properties=None):
         print("MQTT Connected:", reason_code)
         client.subscribe("client/connect")
+        client.subscribe("sensor/#")
         print("[MQTT] Subscribed to client/connect")
+        print("[MQTT] Subscribed to sensor/#")
 
     def _on_message(self, _client, _userdata, msg):
         try:
@@ -140,6 +261,10 @@ class MqttManager:
             if topic == "client/connect":
                 print("[CONNECT] Client connection detected - Publishing initial settings...")
                 self._publish_settings_on_client_connect(payload)
+                return
+
+            if self._store_sensor_message(topic, payload):
+                print(f"[SENSOR] Stored latest sensor topic: {topic}")
         except Exception as e:
             print(f"[MQTT] Message processing error: {e}")
 
@@ -159,26 +284,30 @@ class MqttManager:
 
             for sensor_def in MqttConfig.iter_sensor_definitions_in_order():
                 sensor_id = sensor_def["id"]
-                self._publish(MqttConfig.SENSOR_COUNT_TOPIC_TEMPLATE.format(sensor_id=sensor_id), sensor_def["count"])
+                sensor_setting = self.sensor_settings_by_id.get(sensor_id) or {
+                    "count": sensor_def["count"],
+                    "enabled": sensor_def["enabled"],
+                }
+                sensor_count = max(1, int(sensor_setting.get("count", sensor_def["count"])))
+                sensor_enabled = bool(sensor_setting.get("enabled", sensor_def["enabled"]))
+                self._publish(MqttConfig.SENSOR_COUNT_TOPIC_TEMPLATE.format(sensor_id=sensor_id), sensor_count)
+                self._publish(MqttConfig.SENSOR_ENABLED_TOPIC_TEMPLATE.format(sensor_id=sensor_id), 1 if sensor_enabled else 0)
 
-            # 센서 인터페이스 기준값
-            obstacle_value = int(self.surface_obstacle.value)
-            for sensor_def in MqttConfig.iter_sensor_definitions_in_order():
-                sensor_id = sensor_def["id"]
-                sensor_enabled = bool(sensor_def["enabled"])
-                supports_obstacle = sensor_id in ("ToF", "Lidar", "Camera")
-                for index in range(sensor_def["count"]):
+                for index in range(sensor_count):
                     topic_prefix = f"sensor/{sensor_id}/{index}"
-                    sensor_state = 1 if sensor_enabled else 0
-                    sensor_value = obstacle_value if sensor_id == "Camera" else 0
-                    sensor_obstacle = obstacle_value if (sensor_enabled and supports_obstacle) else SurfaceObstacle.NONE.value
-                    obstacle_confidence = 0.8 if (sensor_enabled and supports_obstacle and obstacle_value != SurfaceObstacle.NONE.value) else 0.0
+                    row_key = self._build_sensor_row_key(sensor_id, index)
+                    row_value = self.sensor_row_values_by_key.get(row_key) or self._build_default_sensor_row_value(sensor_id, sensor_enabled)
+                    sensor_state = int(row_value.get("state", 1 if sensor_enabled else 0))
+                    sensor_value = row_value.get("value", 0)
+                    sensor_obstacle = int(row_value.get("obstacle", SurfaceObstacle.NONE.value))
+                    obstacle_confidence = row_value.get("obstacle_confidence", 0.0)
 
                     self._publish(f"{topic_prefix}/state", sensor_state)
                     self._publish(f"{topic_prefix}/value", sensor_value)
                     self._publish(f"{topic_prefix}/obstacle", sensor_obstacle)
                     self._publish(f"{topic_prefix}/obstacle/confidence", obstacle_confidence)
 
+            obstacle_value = int(self.surface_obstacle.value)
             self._publish("obstacle", obstacle_value)
             self._publish("obstacle/sensors", [])
             self._publish("obstacle/confidence", 0.0 if obstacle_value == SurfaceObstacle.NONE.value else 0.8)

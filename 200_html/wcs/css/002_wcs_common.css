@@ -275,6 +275,23 @@
     background-color: #e9f2ff;
 }
 
+@keyframes mqtt-topic-history-row-blink {
+    0% {
+        background-color: #fff5cc;
+    }
+    45% {
+        background-color: #fffdf2;
+    }
+    100% {
+        background-color: transparent;
+    }
+}
+
+#mqtt-topic-history-table tbody tr.mqtt-topic-history-row-blink > th,
+#mqtt-topic-history-table tbody tr.mqtt-topic-history-row-blink > td {
+    animation: mqtt-topic-history-row-blink 0.42s ease-in-out 3;
+}
+
 .top-header-row .nav,
 .top-header-row .nav-link,
 .top-header-row #mqtt-received-count,

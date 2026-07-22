@@ -12,6 +12,7 @@ class MqttClientManager {
         this.receivedTopicCount = 0;
         this.publishedTopicCount = 0;
         this.maxTopicHistorySize = 300;
+        this.topicRowBlinkDurationMs = 1800;
         this.receivedTopicHistory = [];
         this.publishedTopicHistory = [];
         this.currentHistoryType = 'received';
@@ -403,6 +404,7 @@ class MqttClientManager {
             topic: normalizedTopic,
             payload: normalizedPayload,
             qos: normalizedQos,
+            highlightUntil: Date.now() + this.topicRowBlinkDurationMs,
         };
 
         const targetHistory = historyType === 'published' ? this.publishedTopicHistory : this.receivedTopicHistory;
@@ -490,6 +492,7 @@ class MqttClientManager {
 
         const filteredHistoryList = this.getFilteredTopicHistory(historyList, this.currentHistoryType);
         const sortedHistoryList = this.getSortedTopicHistory(filteredHistoryList);
+        const now = Date.now();
         $summary.text(`총 ${sortedHistoryList.length}건`);
 
         sortedHistoryList.forEach((entry, index) => {
@@ -497,7 +500,11 @@ class MqttClientManager {
                 ? `${String(entry.time.getHours()).padStart(2, '0')}:${String(entry.time.getMinutes()).padStart(2, '0')}:${String(entry.time.getSeconds()).padStart(2, '0')}.${String(entry.time.getMilliseconds()).padStart(3, '0')}`
                 : String(entry.time || '');
 
+            const shouldBlink = Number.isFinite(Number(entry.highlightUntil)) && Number(entry.highlightUntil) > now;
             const $row = $('<tr></tr>');
+            if (shouldBlink) {
+                $row.addClass('mqtt-topic-history-row-blink');
+            }
             $('<td class="small text-end text-nowrap"></td>').text(String(index + 1)).appendTo($row);
             $('<td class="small text-nowrap text-center"></td>').text(formattedTime).appendTo($row);
             $('<td class="small"></td>').text(String(entry.topic || '')).appendTo($row);

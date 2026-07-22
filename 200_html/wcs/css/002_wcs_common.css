@@ -167,7 +167,9 @@
 }
 
 .mqtt-topic-history-table-wrap {
+    height: 18rem;
     max-height: 18rem;
+    min-height: 18rem;
     overflow-y: auto;
     overflow-x: auto;
     scrollbar-gutter: stable;

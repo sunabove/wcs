@@ -63,6 +63,8 @@ WHEEL_ID_MAPPING = {
 
 SENSOR_COUNT_TOPIC_TEMPLATE = "sensor/{sensor_id}/count"
 SENSOR_TARGET_TOPIC_TEMPLATE = "sensor/{sensor_id}/target"
+WHEEL_ID_TOPIC_TEMPLATE = "wheel/{wheel_str_id}/id"
+WHEEL_RADIUS_TOPIC_TEMPLATE = "wheel/{wheel_str_id}/radius"
 INITIAL_CONNECT_TOPIC_SPECS = (
     ("vehicle/linear/speed", lambda sim: round(sim.linear_speed, 3), "VEHICLE"),
     ("vehicle/linear/max_speed", lambda sim: round(sim.max_speed, 2), "VEHICLE"),
@@ -443,8 +445,28 @@ class MqttSimulator:
             else:
                 print("[SETTINGS] No vehicle_data available to publish")
             
-            # 휠 토픽은 클라이언트가 직접 발행한다.
-            print("[SETTINGS] Wheel topic publish disabled (client-owned policy)")
+            # 초기 접속 시에는 휠 기준 정보를 전달한다. (주기 발행은 비활성)
+            if hasattr(self, 'wheel_data') and self.wheel_data:
+                for wheel_id in range(1, 5):
+                    for key, value in self.wheel_data.items():
+                        topic = f"wheel/{wheel_id}/{key}"
+                        payload = str(value)
+                        self._publish(topic, payload)
+                        print(f"[WHEEL_INIT] Published {topic} -> {payload}")
+            else:
+                print("[SETTINGS] No wheel_data available to publish")
+
+            for wheel_str_id, wheel_num_id in WHEEL_ID_MAPPING.items():
+                topic = WHEEL_ID_TOPIC_TEMPLATE.format(wheel_str_id=wheel_str_id)
+                payload = str(wheel_num_id)
+                self._publish(topic, payload)
+                print(f"[WHEEL_INIT] Published {topic} -> {payload}")
+
+            for wheel_str_id in WHEEL_IDS:
+                topic = WHEEL_RADIUS_TOPIC_TEMPLATE.format(wheel_str_id=wheel_str_id)
+                payload = str(WHEEL_RADIUS_M)
+                self._publish(topic, payload)
+                print(f"[WHEEL_INIT] Published {topic} -> {payload}")
 
             self._publish_initial_connect_topics()
             

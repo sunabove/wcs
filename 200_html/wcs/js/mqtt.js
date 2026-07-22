@@ -209,7 +209,12 @@ class MqttClientManager {
 
         historyList.forEach((entry) => {
             const formattedTime = entry.time instanceof Date
-                ? entry.time.toLocaleTimeString()
+                ? entry.time.toLocaleTimeString('ko-KR', {
+                    hour12: false,
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    second: '2-digit',
+                })
                 : String(entry.time || '');
 
             const $row = $('<tr></tr>');

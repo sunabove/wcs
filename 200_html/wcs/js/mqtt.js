@@ -242,7 +242,7 @@ class MqttClientManager {
             const $indicator = $header.find('.mqtt-sort-indicator');
 
             if (headerKey !== currentKey) {
-                $indicator.text('↕');
+                $indicator.text('');
                 return;
             }
 

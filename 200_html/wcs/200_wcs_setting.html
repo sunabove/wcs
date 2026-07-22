@@ -43,6 +43,7 @@
         }
     </script>
 
+    <script src="./js/012_wcs_components.js" defer></script>
     <script src="./js/010_wcs_common.js" defer></script>
     <script src="./js/mqtt.js" defer></script>
     <script src="./js/mqtt_process_01_status.js" defer></script>
@@ -93,21 +94,7 @@
                     </li>
                 </ul>
 
-                <!-- MQTT 상태 표시 영역 -->
-                <div id="mqtt-status-container" class="d-flex align-items-center me-3">
-                    <!-- MQTT 상태가 여기에 동적으로 추가됩니다 -->
-                </div>
-
-                <!-- 최근 MQTT 메시지 표시 영역 -->
-                <div id="mqtt-message-display" class="d-flex align-items-center" style="width: 300px; min-width: 300px; flex-shrink: 0;">
-                    <div class="badge bg-info text-dark fs-6 px-3 py-2 w-100 d-flex align-items-center" style="min-width: 0;">
-                        <i class="fas fa-envelope me-2 flex-shrink-0"></i>
-                        <div class="d-flex justify-content-between align-items-center w-100 text-truncate">
-                            <span id="mqtt-topic" class="fw-bold text-white">대기중</span>
-                            <span id="mqtt-value" class="text-white-50 flex-shrink-0">-</span>
-                        </div>
-                    </div>
-                </div>
+                <div id="mqtt-header-ui"></div>
 
             </div>
         </div>

@@ -97,6 +97,23 @@
     flex-wrap: nowrap !important;
 }
 
+.mqtt-header-ui {
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: center;
+}
+
+.mqtt-message-display-fixed {
+    width: 300px;
+    min-width: 300px;
+    flex-shrink: 0;
+}
+
+.mqtt-message-badge-wrap,
+.mqtt-message-row {
+    min-width: 0;
+}
+
 .top-header-row .nav,
 .top-header-row .nav-link,
 .top-header-row #mqtt-topic {

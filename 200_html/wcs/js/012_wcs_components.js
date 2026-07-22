@@ -1,6 +1,6 @@
 // shared UI components for WCS pages
 
-const WCS_MQTT_HEADER_COMPONENT_PATH = './020_component.html';
+const WCS_MQTT_HEADER_COMPONENT_PATH = './020_component_mqtt.html';
 const WCS_MQTT_HEADER_FALLBACK_HTML = [
     '<div class="mqtt-status-message-inline d-flex flex-nowrap align-items-center border rounded-3 px-2 py-1">',
     '    <div id="mqtt-status-container" class="d-flex flex-nowrap align-items-center me-3">',

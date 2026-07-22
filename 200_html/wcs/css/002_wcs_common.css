@@ -247,8 +247,15 @@
     position: sticky;
     bottom: 0;
     z-index: 2;
-    background: #f8f9fa;
+    background: #eef3f8;
     font-size: 0.82rem;
+    border-top: 2px solid #b8c4d1;
+    box-shadow: 0 -2px 6px rgba(23, 36, 50, 0.12);
+}
+
+#mqtt-topic-history-table tbody tr:last-child > th,
+#mqtt-topic-history-table tbody tr:last-child > td {
+    border-bottom: 1px solid #cfd8e3;
 }
 
 #mqtt-topic-history-table .mqtt-topic-history-value-cell {

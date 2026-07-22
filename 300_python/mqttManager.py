@@ -60,6 +60,7 @@ class MqttConfig:
         ("vehicle/drive/total_distance", lambda sim: int(sim.drive_total_distance), "DRIVE"),
         ("vehicle/linear/speed", lambda sim: round(sim.linear_speed, 3), "VEHICLE"),
         ("vehicle/linear/max_speed", lambda sim: round(sim.max_speed, 2), "VEHICLE"),
+        ("vehicle/linear/acceleration", lambda sim: round(sim.linear_acceleration, 3), "VEHICLE"),
         ("vehicle/operation/command", lambda sim: sim.command.value, "VEHICLE"),
         ("vehicle/operation/state", lambda sim: sim.exec_state.value, "VEHICLE"),
         ("vehicle/surface/state", lambda sim: sim.surface_state.value, "SURFACE"),
@@ -107,6 +108,7 @@ class MqttManager:
 
         self.linear_speed = 0.0
         self.max_speed = 13.9
+        self.linear_acceleration = 0.0
         self.command = OperationCommand.FORWARD
         self.exec_state = VehicleExecState.RUN
         self.surface_state = SurfaceState.ASPHALT

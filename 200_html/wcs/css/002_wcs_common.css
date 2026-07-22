@@ -227,6 +227,16 @@
     text-overflow: ellipsis;
 }
 
+#mqtt-topic-history-table tbody tr:not(.mqtt-topic-history-empty-row) > th,
+#mqtt-topic-history-table tbody tr:not(.mqtt-topic-history-empty-row) > td {
+    transition: background-color 0.14s ease-in-out;
+}
+
+#mqtt-topic-history-table tbody tr:not(.mqtt-topic-history-empty-row):hover > th,
+#mqtt-topic-history-table tbody tr:not(.mqtt-topic-history-empty-row):hover > td {
+    background-color: #e9f2ff;
+}
+
 .top-header-row .nav,
 .top-header-row .nav-link,
 .top-header-row #mqtt-received-count,

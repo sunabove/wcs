@@ -163,11 +163,11 @@
 }
 
 #mqtt-received-badge.mqtt-counter-badge-blink-received {
-    animation: mqtt-counter-badge-pulse-received 0.62s ease-out 3;
+    animation: mqtt-counter-badge-pulse-received 0.8s ease-out 3;
 }
 
 #mqtt-published-badge.mqtt-counter-badge-blink-published {
-    animation: mqtt-counter-badge-pulse-published 0.62s ease-out 3;
+    animation: mqtt-counter-badge-pulse-published 0.8s ease-out 3;
 }
 
 .mqtt-topic-history-trigger {
@@ -333,7 +333,7 @@
 
 #mqtt-topic-history-table tbody tr.mqtt-topic-history-row-received-blink > th,
 #mqtt-topic-history-table tbody tr.mqtt-topic-history-row-received-blink > td {
-    animation: mqtt-topic-history-row-received-foreground-blink 0.58s ease-in-out 4;
+    animation: mqtt-topic-history-row-received-foreground-blink 0.8s ease-in-out 4;
     color: #0a58ca !important;
 }
 

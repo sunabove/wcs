@@ -171,7 +171,7 @@
     width: 100%;
     height: auto;
     max-height: none;
-    min-height: 12rem;
+    min-height: 9.5rem;
     overflow-y: auto;
     overflow-x: auto;
     scrollbar-gutter: stable;
@@ -180,7 +180,7 @@
 #mqtt-topic-history-modal .mqtt-topic-history-content {
     resize: vertical;
     overflow: hidden;
-    min-height: 18rem;
+    min-height: 14rem;
     max-height: calc(100vh - 1rem);
     display: flex;
     flex-direction: column;

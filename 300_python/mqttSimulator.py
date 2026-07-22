@@ -256,7 +256,7 @@ class MqttSimulator:
 
                         self.command = OperationCommand(command_value)
                         self.exec_state = VehicleExecState.STOP if self.command == OperationCommand.STOP else VehicleExecState.RUN
-                        self._publish_vehicle_command_wheels_immediately(publish=False)
+                        self._apply_vehicle_command_wheel_state(publish=False)
 
                         command_names = {
                             OperationCommand.STOP: "정지",
@@ -292,7 +292,7 @@ class MqttSimulator:
                                     self.command = OperationCommand.STOP
                                     self.exec_state = VehicleExecState.STOP
                                     self.direction_control_speed_only_mode = True
-                                    self._publish_vehicle_command_wheels_immediately(publish=True)
+                                    self._apply_vehicle_command_wheel_state(publish=True)
                                     print(f"[WHEEL_TEST] 수동 바퀴 테스트 정지: {wheel_id.upper()}")
                                 else:
                                     self.manual_wheel_test_active = True
@@ -392,7 +392,7 @@ class MqttSimulator:
                             self.manual_wheel_test_wheel = None
                             self.manual_wheel_test_command = OperationCommand.STOP
                             self.direction_control_speed_only_mode = True
-                            self._publish_vehicle_command_wheels_immediately(publish=False)
+                            self._apply_vehicle_command_wheel_state(publish=False)
                     else:
                         print(f"[SPEED] 잘못된 현재 속도 범위: {new_current_speed:.1f} m/s (허용: 0.0-27.8 m/s, 0-100 km/h)")
                 except ValueError:
@@ -423,7 +423,7 @@ class MqttSimulator:
                             self.manual_wheel_test_wheel = None
                             self.manual_wheel_test_command = OperationCommand.STOP
                             self.direction_control_speed_only_mode = True
-                            self._publish_vehicle_command_wheels_immediately(publish=False)
+                            self._apply_vehicle_command_wheel_state(publish=False)
                     else:
                         print(f"[SPEED] 잘못된 최고 속도 범위: {new_max_speed:.1f} m/s (허용: 0.0-27.8 m/s, 0-100 km/h)")
                 except ValueError:
@@ -1153,8 +1153,8 @@ class MqttSimulator:
         )
     pass  # _publish_manual_wheel_simulation
 
-    def _publish_vehicle_command_wheels_immediately(self, publish=True):
-        """차량 방향 명령에 맞춰 휠 회전 속도만 즉시 발행"""
+    def _apply_vehicle_command_wheel_state(self, publish=True):
+        """차량 방향 명령에 맞춰 휠 상태를 즉시 계산하고 필요 시 반영값을 발행한다."""
         wheel_radius = WHEEL_RADIUS_M
         base_speed = max(0.0, min(self.target_speed, self.max_speed))
         command_speed_scale = {
@@ -1217,7 +1217,7 @@ class MqttSimulator:
             self.angle_speed = 0.0
         self.angle_acc = 0.0
 
-    pass  # _publish_vehicle_command_wheels_immediately
+    pass  # _apply_vehicle_command_wheel_state
 
     def _publish_wheel_angle_speeds_only(self):
         for wid, wheel in self.wheels.items():

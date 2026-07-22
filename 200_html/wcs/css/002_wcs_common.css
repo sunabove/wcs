@@ -159,6 +159,30 @@
     color: #212529;
 }
 
+#mqtt-topic-history-tabs .mqtt-topic-history-tab[data-history-type="received"] {
+    background-color: #eaf7ff;
+    border-color: #b9e2ff;
+    color: #0b5c8a;
+}
+
+#mqtt-topic-history-tabs .mqtt-topic-history-tab[data-history-type="received"].active {
+    background-color: #d9f0ff;
+    border-color: #8fd0ff;
+    color: #084b70;
+}
+
+#mqtt-topic-history-tabs .mqtt-topic-history-tab[data-history-type="published"] {
+    background-color: #f5f0ff;
+    border-color: #d7c7ff;
+    color: #5f43b2;
+}
+
+#mqtt-topic-history-tabs .mqtt-topic-history-tab[data-history-type="published"].active {
+    background-color: #eadeff;
+    border-color: #c2a7ff;
+    color: #4a2f99;
+}
+
 #mqtt-topic-history-table {
     table-layout: fixed;
     width: 100%;

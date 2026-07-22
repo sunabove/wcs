@@ -101,6 +101,15 @@
     display: flex;
     flex-wrap: nowrap;
     align-items: center;
+    min-width: 0;
+}
+
+.mqtt-status-message-inline {
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: center;
+    min-width: 0;
+    white-space: nowrap;
 }
 
 .mqtt-message-display-fixed {
@@ -127,4 +136,9 @@
 .top-header-row #mqtt-status-container,
 .top-header-row #mqtt-message-display {
     flex-wrap: nowrap;
+}
+
+.top-header-row .mqtt-status-message-inline,
+.top-header-row #mqtt-value {
+    white-space: nowrap;
 }

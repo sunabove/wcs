@@ -848,7 +848,10 @@ class MqttSimulator:
     # ===== Publish =====
     def _publish(self, topic, value):
         # topic과 value만 직접 발행 (JSON 포장 없이)
-        payload = str(value)
+        if topic == "obstacle/sensors" and isinstance(value, (list, tuple)):
+            payload = ",".join(str(item) for item in value)
+        else:
+            payload = str(value)
         self.client.publish(topic, payload, retain=True)
 
         if self._is_sensor_interface_topic(topic):
@@ -1014,9 +1017,9 @@ class MqttSimulator:
         return sources
 
     def _format_obstacle_sensor_sources_payload(self, sources):
-        """장애물 검출 센서 목록을 id,index,id,index 형태의 CSV 문자열로 변환한다."""
+        """장애물 검출 센서 목록을 [id, index, id, index, ...] 형태로 변환한다."""
         if not sources:
-            return ""
+            return []
 
         tokens = []
         for source in sources:
@@ -1028,7 +1031,7 @@ class MqttSimulator:
             tokens.append(sensor_id)
             tokens.append(str(sensor_index))
 
-        return ",".join(tokens)
+        return tokens
 
     def _get_sensor_value(self, sensor_id, index):
         if sensor_id == "ToF":

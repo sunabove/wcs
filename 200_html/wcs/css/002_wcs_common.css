@@ -139,12 +139,18 @@
 .mqtt-topic-sort-trigger {
     cursor: pointer;
     user-select: none;
+    position: relative;
+    padding-right: 1.25rem !important;
 }
 
 .mqtt-topic-sort-trigger .mqtt-sort-indicator {
-    display: inline-block;
-    min-width: 0.85rem;
-    text-align: center;
+    position: absolute;
+    right: 0.35rem;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 0.9rem;
+    line-height: 1;
+    text-align: right;
     color: #6c757d;
 }
 

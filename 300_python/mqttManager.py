@@ -32,11 +32,11 @@ class SurfaceObstacle(IntEnum):
 WHEEL_IDS = ["fl", "fr", "rr", "rl"]
 
 SENSOR_DEFINITIONS = [
-    {"id": "ToF", "count": 4, "target": "거리,장애물", "enabled": True},
-    {"id": "IMU", "count": 5, "target": "가속도,각속도", "enabled": True},
-    {"id": "Current", "count": 4, "target": "전류", "enabled": True},
-    {"id": "Camera", "count": 1, "target": "장애물", "enabled": True},
-    {"id": "Lidar", "count": 1, "target": "거리,장애물", "enabled": True},
+    {"id": "ToF", "count": 4, "enabled": True},
+    {"id": "IMU", "count": 5, "enabled": True},
+    {"id": "Current", "count": 4, "enabled": True},
+    {"id": "Camera", "count": 1, "enabled": True},
+    {"id": "Lidar", "count": 1, "enabled": True},
 ]
 
 WHEEL_RADIUS_M = 0.32
@@ -49,7 +49,6 @@ WHEEL_ID_MAPPING = {
 }
 
 SENSOR_COUNT_TOPIC_TEMPLATE = "sensor/{sensor_id}/count"
-SENSOR_TARGET_TOPIC_TEMPLATE = "sensor/{sensor_id}/target"
 WHEEL_ID_TOPIC_TEMPLATE = "wheel/{wheel_str_id}/id"
 WHEEL_RADIUS_TOPIC_TEMPLATE = "wheel/{wheel_str_id}/radius"
 
@@ -149,7 +148,6 @@ class MqttManager:
             for sensor_def in iter_sensor_definitions_in_order():
                 sensor_id = sensor_def["id"]
                 self._publish(SENSOR_COUNT_TOPIC_TEMPLATE.format(sensor_id=sensor_id), sensor_def["count"])
-                self._publish(SENSOR_TARGET_TOPIC_TEMPLATE.format(sensor_id=sensor_id), sensor_def["target"])
 
             # 센서 인터페이스 기준값
             obstacle_value = int(self.surface_obstacle.value)

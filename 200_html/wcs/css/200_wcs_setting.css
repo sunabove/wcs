@@ -178,11 +178,11 @@
 }
 
 .obstacle-sensor-publish-cell-blink {
-    animation: obstacle-sensor-publish-cell-background-blink 1.8s ease-in-out 2;
+    animation: obstacle-sensor-publish-cell-background-blink 1.8s ease-in-out 3;
 }
 
 .obstacle-sensor-publish-blink {
-    animation: obstacle-sensor-publish-foreground-blink 1.8s ease-in-out 2;
+    animation: obstacle-sensor-publish-foreground-blink 1.8s ease-in-out 3;
 }
 
 @keyframes obstacle-sensor-publish-cell-background-blink {
@@ -195,8 +195,8 @@
         box-shadow: inset 0 0 0 999px rgba(13, 110, 253, 0.10);
     }
     60% {
-        background-color: rgba(255, 193, 7, 0.24);
-        box-shadow: inset 0 0 0 999px rgba(255, 193, 7, 0.12);
+        background-color: rgba(96, 165, 250, 0.24);
+        box-shadow: inset 0 0 0 999px rgba(96, 165, 250, 0.12);
     }
     100% {
         background-color: inherit;

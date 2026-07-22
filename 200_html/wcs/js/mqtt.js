@@ -285,9 +285,11 @@ class MqttClientManager {
         this.updateTopicHistorySortIndicators();
 
         const $tbody = $('#mqtt-topic-history-table-body');
+        const $summary = $('#mqtt-topic-history-summary-count');
         $tbody.empty();
 
         if (!Array.isArray(historyList) || historyList.length === 0) {
+            $summary.text('총 0건');
             const $emptyRow = $('<tr class="mqtt-topic-history-empty-row"></tr>');
             $('<td class="small text-center text-muted py-3" colspan="4"></td>')
                 .text('표시할 이력이 없습니다.')
@@ -297,6 +299,7 @@ class MqttClientManager {
         }
 
         const sortedHistoryList = this.getSortedTopicHistory(historyList);
+        $summary.text(`총 ${sortedHistoryList.length}건`);
 
         sortedHistoryList.forEach((entry, index) => {
             const formattedTime = entry.time instanceof Date

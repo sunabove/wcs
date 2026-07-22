@@ -509,244 +509,6 @@ class MqttSimulator:
             print(f"[CLEANUP] 정리 중 오류: {e}")
     pass  # _cleanup
 
-    def _wrap_angle_delta(self, delta):
-        return (delta + math.pi) % (2 * math.pi) - math.pi
-
-    def _get_circular_hill_route_pose(self, distance_m):
-        route_distance = distance_m % self.route_loop_length_m
-        theta = (route_distance / self.route_loop_length_m) * (2 * math.pi)
-
-        wobble = self.route_wobble_m * math.sin(3 * theta)
-        radius = self.route_radius_m + wobble
-        x = self.route_center_x + radius * math.cos(theta)
-        y = self.route_center_y + radius * math.sin(theta)
-        z = self.route_hill_amplitude_m * math.sin(2 * theta)
-
-        wobble_derivative = 3 * self.route_wobble_m * math.cos(3 * theta)
-        dx_dtheta = (-radius * math.sin(theta)) + (wobble_derivative * math.cos(theta))
-        dy_dtheta = (radius * math.cos(theta)) + (wobble_derivative * math.sin(theta))
-        heading = math.atan2(dy_dtheta, dx_dtheta)
-
-        sector = int(theta / (math.pi / 2)) % 4
-        slope = (2 * self.route_hill_amplitude_m * math.cos(2 * theta)) / max(self.route_radius_m, 0.001)
-
-        return x, y, z, heading, sector, slope
-
-    def _update_vehicle(self):
-        """원형 고저차 경로를 따라 움직이는 차량 데이터 생성"""
-        self.elapsed_time += 1  # 초(s)
-
-        base_target_speed = min(self.route_base_speed_mps, self.max_speed, self.route_max_speed_mps)
-        self.target_speed = 0.0 if self.command == OperationCommand.STOP else base_target_speed
-        previous_speed = self.current_speed
-        previous_angle_speed = self.angle_speed
-        previous_heading = self.angle
-
-        route_target_speed = self.target_speed
-
-        command_speed_scale = {
-            OperationCommand.STOP: 0.0,
-            OperationCommand.FORWARD: 1.0,
-            OperationCommand.REVERSE: 0.8,
-            OperationCommand.TURN_LEFT: 0.6,
-            OperationCommand.TURN_RIGHT: 0.6,
-        }
-        route_target_speed *= command_speed_scale.get(self.command, 1.0)
-
-        route_distance = self.route_distance_m % self.route_loop_length_m
-        _, _, _, _, _, slope = self._get_circular_hill_route_pose(route_distance)
-        uphill_penalty = max(0.0, slope) * 1.2
-        downhill_bonus = max(0.0, -slope) * 0.6
-        route_target_speed = route_target_speed * (1.0 - min(uphill_penalty, 0.28) + min(downhill_bonus, 0.12))
-        if self.command == OperationCommand.STOP:
-            route_target_speed = 0.0
-        else:
-            route_target_speed = max(self.route_min_speed_mps, min(route_target_speed, self.route_max_speed_mps))
-
-        speed_diff = route_target_speed - self.current_speed
-        max_acceleration = 0.50 if speed_diff > 0 else 0.70
-        acceleration = max(-max_acceleration, min(max_acceleration, speed_diff))
-        acceleration += random.uniform(-0.04, 0.04)
-        acceleration += -slope * 0.12  # 오르막 감속, 내리막 가속
-
-        self.current_speed = max(0.0, self.current_speed + acceleration)
-        self.current_speed = min(self.current_speed, max(route_target_speed, 0.0))
-        self.current_session_distance += self.current_speed
-        self.total_distance += self.current_speed
-
-        self.route_distance_m = (self.route_distance_m + self.current_speed) % self.route_loop_length_m
-        self.pos_x, self.pos_y, self.pos_z, self.angle, _, slope = self._get_circular_hill_route_pose(self.route_distance_m)
-        heading_delta = self._wrap_angle_delta(self.angle - previous_heading)
-
-        self.linear_speed = self.current_speed + random.uniform(-0.05, 0.05)
-        self.linear_acc = self.current_speed - previous_speed
-        self.angle_speed = heading_delta
-        self.angle_acc = self.angle_speed - previous_angle_speed
-
-        # 배터리 소모 (원형 경사로 주행 특성)
-        base_consumption = 0.0025
-        speed_consumption = self.current_speed * 0.0010
-        accel_consumption = abs(self.linear_acc) * 0.0015
-        turn_consumption = abs(heading_delta) / math.pi * 0.0012
-        slope_consumption = abs(slope) * 0.0015
-        total_consumption = base_consumption + speed_consumption + accel_consumption + turn_consumption + slope_consumption
-        
-        self.battery_voltage -= total_consumption
-        self.battery_voltage = max(30.0, self.battery_voltage)  # 최소 전압 제한
-        
-        # 배터리 부족 시 성능 저하
-        battery_percent = (self.battery_voltage / self.battery_max_voltage) * 100
-        if battery_percent < 25:
-            self.target_speed *= 0.8  # 성능 저하
-            if battery_percent < 15:
-                self.exec_state = VehicleExecState.STOP
-                print(f"[CITY] 배터리 부족으로 차량 정지 ({battery_percent:.1f}%)")
-        
-        # 노면은 기본적으로 ASPHALT를 유지한다.
-        self.surface_state = SurfaceState.ASPHALT
-        
-        if self.command == OperationCommand.STOP:
-            self.exec_state = VehicleExecState.STOP if self.current_speed < 0.05 else VehicleExecState.RUN
-        else:
-            self.exec_state = VehicleExecState.RUN
-    pass  # _update_vehicle
-
-    def _update_wheels(self):
-        """시내 주행과 연동된 현실적인 바퀴 데이터 생성"""
-        wheel_radius = WHEEL_RADIUS_M
-
-        # 노면 상태에 따른 바퀴별 영향 (시내 도로 특성)
-        surface_effects = {
-            SurfaceState.ASPHALT: {"grip": 1.0, "vibration": 0.05, "power_loss": 1.0, "wear": 0.01},
-            SurfaceState.BLOCK: {"grip": 0.8, "vibration": 0.2, "power_loss": 1.2, "wear": 0.02},
-            SurfaceState.DIRT_ROAD: {"grip": 0.65, "vibration": 0.35, "power_loss": 1.4, "wear": 0.03},
-            SurfaceState.GRAVEL_ROAD: {"grip": 0.6, "vibration": 0.5, "power_loss": 1.5, "wear": 0.04}
-        }
-        
-        effect = surface_effects[self.surface_state]
-        
-        for wid, w in self.wheels.items():
-            # 차량의 제어 상태를 바퀴에 정확히 반영
-            if self.exec_state == VehicleExecState.RUN:
-                w["state"] = VehicleExecState.RUN
-                w["command"] = self.command
-            elif self.exec_state == VehicleExecState.STOP:
-                w["state"] = VehicleExecState.STOP  
-                w["command"] = OperationCommand.STOP
-            
-            # 바퀴별 위치 차이 (전후좌우 배치 반영)
-            wheel_positions = {
-                "fl": {"x_offset": 0.75, "y_offset": 0.4},   # Front Left (휠베이스 증가)
-                "fr": {"x_offset": 0.75, "y_offset": -0.4},  # Front Right  
-                "rl": {"x_offset": -0.75, "y_offset": 0.4},   # Rear Left
-                "rr": {"x_offset": -0.75, "y_offset": -0.4}   # Rear Right
-            }
-            
-            # 바퀴 위치를 차체 중심에서 오프셋 (시내 주행의 진동 반영)
-            pos = wheel_positions[wid]
-            vibration = effect["vibration"]
-            
-            w["x"] = self.pos_x + pos["x_offset"] + random.uniform(-vibration, vibration)
-            w["y"] = self.pos_y + pos["y_offset"] + random.uniform(-vibration, vibration)
-            w["z"] += random.uniform(-vibration/3, vibration/3)
-            
-            # 바퀴별 속도 차이 (시내 주행 특성: 좌우 속도 차이, 미끄러짐 등)
-            is_front_wheel = wid in ["fl", "fr"]
-            is_left_wheel = wid in ["fl", "rl"]
-            
-            # 기본 속도 연동
-            base_speed_factor = random.uniform(0.96, 1.04)  # 바퀴별 속도 차이
-
-            # 차량 명령에 따른 전/후진 부호
-            direction_sign = -1.0 if self.command == OperationCommand.REVERSE else 1.0
-
-            # 차량 명령에 따른 좌/우 회전 가중치
-            if self.command == OperationCommand.TURN_LEFT:
-                command_turn_factor = 0.75 if is_left_wheel else 1.25
-            elif self.command == OperationCommand.TURN_RIGHT:
-                command_turn_factor = 1.25 if is_left_wheel else 0.75
-            else:
-                command_turn_factor = 1.0
-            
-            # 회전시 좌우 바퀴 속도 차이 (디퍼렌셜 효과)
-            if abs(self.angle_speed) > 0.001:
-                turn_factor = 0.88 if self.angle_speed > 0 else 1.12
-            else:
-                turn_factor = 1.0
-                
-            # 최종 바퀴 속도
-            w["speed"] = self.current_speed * base_speed_factor * effect["grip"] * turn_factor * command_turn_factor * direction_sign
-            
-            # 노면에 따른 가속도 반영
-            w["acc"] = self.linear_acc * random.uniform(0.9, 1.1)
-            
-            # 바퀴 회전각 (속도에 비례하여 증가, 림 사이즈 고려)
-            if abs(w["speed"]) > 0.01:
-                rotation_speed = w["speed"] / wheel_radius  # rad/s
-                
-                # 미끄러짐 효과 (노면 상태에 따라)
-                slip_factor = 1.0 - (1.0 - effect["grip"]) * 0.1
-                w["angle"] += rotation_speed * slip_factor + random.uniform(-0.08, 0.08)
-                w["angle"] = w["angle"] % (2 * math.pi)  # 0~2π 범위로 정규화
-                w["angle_speed"] = rotation_speed * slip_factor
-            else:
-                w["angle_speed"] = 0
-            
-            w["angle_acc"] = w["acc"] / wheel_radius if wheel_radius > 0 else 0  # 각가속도
-            
-            # 스티어링 각도 (전륜에만 적용, 시내 주행 특성)
-            if is_front_wheel:
-                if self.command == OperationCommand.TURN_LEFT:
-                    w["axis_angle"] = math.pi / 8
-                elif self.command == OperationCommand.TURN_RIGHT:
-                    w["axis_angle"] = -math.pi / 8
-                elif self.command == OperationCommand.STOP:
-                    w["axis_angle"] = 0
-                elif self.command in [OperationCommand.FORWARD, OperationCommand.REVERSE]:
-                    w["axis_angle"] = random.uniform(-math.pi/48, math.pi/48)
-                else:
-                    w["axis_angle"] = random.uniform(-math.pi/24, math.pi/24) + random.uniform(-0.02, 0.02)
-            else:
-                w["axis_angle"] = 0  # 후륜은 고정
-            
-            # 토크와 전력 (시내 주행 특성 반영)
-            # 기본 토크: 가속도와 속도에 비례
-            base_torque = abs(w["speed"]) * 3.5 + abs(w["acc"]) * 2.0
-            
-            # 노면 저항과 전륜/후륜 차이
-            drive_factor = 1.2 if is_front_wheel else 0.8  # 전륜구동 특성
-            w["torque"] = base_torque * effect["power_loss"] * drive_factor + random.uniform(-1.0, 1.0)
-            w["torque"] = max(0, w["torque"])  # 음수 방지
-            
-            # 전력 = 토크 × 각속도 (W)
-            w["power"] = w["torque"] * abs(w["angle_speed"]) * 0.8  # 효율성 고려
-            w["power"] += random.uniform(-8, 8)  # 전력 변동
-            w["power"] = max(0, min(300, w["power"]))  # 0-300W 범위 (도시형 차량)
-            
-            # PID 제어 값 (노면 상태에 따라 조정)
-            target_speed_diff = self.target_speed - w["speed"]
-            w["pid_p"] = abs(target_speed_diff) * 0.5  # 비례 제어
-            w["pid_i"] += target_speed_diff * 0.01     # 적분 제어 (툄적)
-            w["pid_d"] = w["acc"] * 0.1                # 미분 제어
-            
-            # PID 값 제한
-            w["pid_p"] = max(0, min(1, w["pid_p"]))
-            w["pid_i"] = max(-0.5, min(0.5, w["pid_i"]))
-            w["pid_d"] = max(-1, min(1, w["pid_d"]))
-            
-            # ToF 센서 (전방 거리 감지, 현실적인 비선형 변화)
-            base_distance = random.uniform(0.5, 2.0)  # 기본 거리
-            
-            # 속도가 빠를수록 전방 감지 배리어 감소 (가상의 장애물 효과)
-            if self.current_speed > 1.5:
-                base_distance *= random.uniform(0.7, 1.0)
-            elif self.current_speed > 1.0:
-                base_distance *= random.uniform(0.8, 1.0)
-                
-            w["tof_distance"] = base_distance + random.uniform(-0.1, 0.1)
-            w["tof_calib"] = random.uniform(0.95, 1.05)  # 보정 계수
-    pass  # _update_wheels
-
     # ===== Publish =====
     def _normalize_obstacle_sensor_payload(self, value):
         """obstacle/sensors payload를 [id, index, ...] JSON 배열 데이터로 정규화한다."""
@@ -956,62 +718,6 @@ class MqttSimulator:
 
         return tokens
 
-    def _get_sensor_value(self, sensor_id, index):
-        if sensor_id == "ToF":
-            wheel_id = WHEEL_IDS[index % len(WHEEL_IDS)]
-            distance = self.wheels.get(wheel_id, {}).get("tof_distance", 0.0)
-            return round(max(0.05, float(distance)), 3)
-
-        if sensor_id == "Lidar":
-            min_distance = min(
-                max(0.05, float(self.wheels.get(wid, {}).get("tof_distance", 0.0)))
-                for wid in WHEEL_IDS
-            )
-            return round(min_distance + random.uniform(-0.03, 0.03), 3)
-
-        if sensor_id == "Current":
-            wheel_id = WHEEL_IDS[index % len(WHEEL_IDS)]
-            power = abs(float(self.wheels.get(wheel_id, {}).get("power", 0.0)))
-            voltage = max(1.0, float(self.battery_voltage))
-            return round(power / voltage, 3)
-
-        if sensor_id == "IMU":
-            if index == 0:
-                return round(self.linear_acc + random.uniform(-0.03, 0.03), 3)
-            if index == 1:
-                return round(self.angle_speed * 0.25 + random.uniform(-0.02, 0.02), 3)
-            if index == 2:
-                return round(9.81 + random.uniform(-0.08, 0.08), 3)
-            if index == 3:
-                return round(self.angle_speed + random.uniform(-0.02, 0.02), 3)
-            return round(self.road_roll_angle + random.uniform(-0.01, 0.01), 3)
-
-        if sensor_id == "Camera":
-            return int(self.surface_obstacle.value)
-
-        return 0
-
-    def _get_sensor_obstacle_confidence(self, sensor_id):
-        if self.surface_obstacle == SurfaceObstacle.NONE:
-            return 0.0
-
-        base_confidence_by_obstacle = {
-            SurfaceObstacle.STEP: 0.73,
-            SurfaceObstacle.POT_HOLE: 0.86,
-            SurfaceObstacle.ICE_ROAD: 0.81,
-        }
-        sensor_weight = {
-            "ToF": 0.88,
-            "Lidar": 0.92,
-            "Current": 0.40,
-            "IMU": 0.55,
-            "Camera": 0.95,
-        }
-
-        base_confidence = base_confidence_by_obstacle.get(self.surface_obstacle, 0.7)
-        weighted_confidence = base_confidence * sensor_weight.get(sensor_id, 0.5)
-        return round(max(0.0, min(0.99, weighted_confidence + random.uniform(-0.04, 0.04))), 3)
-
     def _publish_sensor_interfaces(self):
         obstacle_value = int(self.surface_obstacle.value)
 
@@ -1022,11 +728,14 @@ class MqttSimulator:
             for index in range(sensor_def["count"]):
                 topic_prefix = f"sensor/{sensor_id}/{index}"
                 sensor_state = 1 if sensor_enabled else 0
-                sensor_value = self._get_sensor_value(sensor_id, index)
+                if sensor_id == "Camera":
+                    sensor_value = obstacle_value
+                else:
+                    sensor_value = 0
 
                 supports_obstacle = sensor_id in ("ToF", "Lidar", "Camera")
                 sensor_obstacle = obstacle_value if (sensor_enabled and supports_obstacle) else SurfaceObstacle.NONE.value
-                obstacle_confidence = self._get_sensor_obstacle_confidence(sensor_id) if (sensor_enabled and supports_obstacle) else 0.0
+                obstacle_confidence = 0.8 if (sensor_enabled and supports_obstacle and obstacle_value != SurfaceObstacle.NONE.value) else 0.0
 
                 self._publish(f"{topic_prefix}/state", sensor_state)
                 self._publish(f"{topic_prefix}/value", sensor_value)
@@ -1041,8 +750,7 @@ class MqttSimulator:
         if self.surface_obstacle == SurfaceObstacle.NONE:
             total_confidence = 0.0
         else:
-            confidence_values = [self._get_sensor_obstacle_confidence(source["id"]) for source in sources]
-            total_confidence = round(sum(confidence_values) / len(confidence_values), 3) if confidence_values else 0.0
+            total_confidence = 0.8 if sources else 0.0
         self._publish("obstacle/confidence", total_confidence)
     pass  # _publish_sensor_interfaces
 
@@ -1092,13 +800,8 @@ class MqttSimulator:
                     print(f"[ROUTE STATUS] 발행 토픽: {self.publish_count}개 | 상태: {state_display} ({self.exec_state.value})")
                     print("-" * 70)
                 
-                if self.direction_control_speed_only_mode:
-                    # 차량 방향 제어 모드에서는 즉시 명령으로 설정된 상태를 유지한다.
-                    pass
-                else:
-                    # 주기 발행 없이 내부 시뮬레이션 상태만 갱신한다.
-                    self._update_vehicle()
-                    self._update_wheels()
+                # 시뮬레이션 함수 제거 정책: 상태 갱신 루프 없이 대기한다.
+                pass
     
                 loop_count += 1
                 time.sleep(1)

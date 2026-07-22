@@ -63,9 +63,6 @@ WHEEL_ID_MAPPING = {
 
 SENSOR_COUNT_TOPIC_TEMPLATE = "sensor/{sensor_id}/count"
 SENSOR_TARGET_TOPIC_TEMPLATE = "sensor/{sensor_id}/target"
-WHEEL_ID_TOPIC_TEMPLATE = "wheel/{wheel_str_id}/id"
-WHEEL_RADIUS_TOPIC_TEMPLATE = "wheel/{wheel_str_id}/radius"
-
 INITIAL_CONNECT_TOPIC_SPECS = (
     ("vehicle/linear/speed", lambda sim: round(sim.linear_speed, 3), "VEHICLE"),
     ("vehicle/linear/max_speed", lambda sim: round(sim.max_speed, 2), "VEHICLE"),
@@ -270,45 +267,8 @@ class MqttSimulator:
                 except ValueError:
                     print(f"[VEHICLE_CMD] 잘못된 차량 명령 형식: {payload}")
             elif topic.startswith("wheel/") and topic.endswith("/operation/command"):
-                try:
-                    parts = topic.split("/")
-                    if len(parts) == 4 and parts[0] == "wheel" and parts[2] == "operation" and parts[3] == "command":
-                        wheel_id = parts[1].lower()
-                        if wheel_id not in WHEEL_IDS:
-                            print(f"[WHEEL_TEST] 알 수 없는 wheel ID: {wheel_id}")
-                        else:
-                            command_value = int(payload)
-
-                            if command_value not in [OperationCommand.STOP.value, OperationCommand.FORWARD.value, OperationCommand.REVERSE.value]:
-                                print(f"[WHEEL_TEST] 지원하지 않는 바퀴 테스트 명령: {command_value}")
-                            else:
-                                command = OperationCommand(command_value)
-
-                                if command == OperationCommand.STOP:
-                                    self.manual_wheel_test_active = False
-                                    self.manual_wheel_test_wheel = None
-                                    self.manual_wheel_test_command = OperationCommand.STOP
-                                    self.command = OperationCommand.STOP
-                                    self.exec_state = VehicleExecState.STOP
-                                    self.direction_control_speed_only_mode = True
-                                    self._reset_all_wheels_to_stop(publish=True)
-                                    print(f"[WHEEL_TEST] 수동 바퀴 테스트 정지: {wheel_id.upper()}")
-                                else:
-                                    self.manual_wheel_test_active = True
-                                    self.manual_wheel_test_wheel = wheel_id
-                                    self.manual_wheel_test_command = command
-                                    self.direction_control_speed_only_mode = False
-                                    self._publish_manual_wheel_simulation(publish=False)
-
-                                    command_name = {
-                                        OperationCommand.FORWARD: "정회전",
-                                        OperationCommand.REVERSE: "역회전"
-                                    }[self.manual_wheel_test_command]
-                                    print(f"[WHEEL_TEST] 수동 바퀴 테스트 모드: {wheel_id.upper()} {command_name}")
-                    else:
-                        print(f"[WHEEL_TEST] 잘못된 토픽 형식: {topic}")
-                except ValueError:
-                    print(f"[WHEEL_TEST] 잘못된 operation/command 형식: {payload}")
+                # 휠 토픽은 클라이언트 직접 발행 방침으로 전환되어 시뮬레이터에서 처리하지 않는다.
+                print(f"[WHEEL_TEST] Ignored by simulator policy: {topic} -> {payload}")
             elif topic == "vehicle/surface/state":
                 try:
                     new_surface_state = int(payload)
@@ -426,51 +386,10 @@ class MqttSimulator:
                 except ValueError:
                     print(f"[SPEED] 잘못된 최고 속도 형식: {payload}")
             elif topic.endswith("/id_request"):
-                # wheel/{id}/id_request 처리
-                try:
-                    # 토픽에서 wheel ID 추출 (wheel/fl/id_request -> fl)
-                    parts = topic.split("/")
-                    if len(parts) == 3 and parts[0] == "wheel" and parts[2] == "id_request":
-                        wheel_str_id = parts[1]
-                        if wheel_str_id in WHEEL_ID_MAPPING:
-                            wheel_num_id = WHEEL_ID_MAPPING[wheel_str_id]
-                            response_topic = f"wheel/{wheel_str_id}/id"
-                            self._publish(response_topic, wheel_num_id)
-                            print(f"[WHEEL_ID_REQ] Wheel ID 요청 응답: {topic} -> {response_topic} = {wheel_num_id}")
-                        else:
-                            print(f"[WHEEL_ID_REQ] 알 수 없는 wheel ID: {wheel_str_id}")
-                    else:
-                        print(f"[WHEEL_ID_REQ] 잘못된 토픽 형식: {topic}")
-                except Exception as e:
-                    print(f"[WHEEL_ID_REQ] Wheel ID 요청 처리 오류: {e}")
+                # 휠 토픽은 클라이언트 직접 발행 방침으로 전환되어 응답 발행을 하지 않는다.
+                print(f"[WHEEL_ID_REQ] Ignored by simulator policy: {topic}")
             elif topic.split("/")[-1] == "id" and topic.startswith("wheel/"):
-                # wheel/{id}/id 처리 (수신)
-                try:
-                    # 토픽에서 wheel ID 추출 (wheel/fl/id -> fl)
-                    parts = topic.split("/")
-                    if len(parts) == 3 and parts[0] == "wheel" and parts[2] == "id":
-                        wheel_str_id = parts[1]
-                        if wheel_str_id in WHEEL_ID_MAPPING:
-                            try:
-                                new_wheel_num_id = int(payload)
-                                if 1 <= new_wheel_num_id <= 4:  # 1~4 범위 제한
-                                    old_id = WHEEL_ID_MAPPING[wheel_str_id]
-                                    if old_id != new_wheel_num_id:  # 실제로 값이 변경된 경우만 처리
-                                        WHEEL_ID_MAPPING[wheel_str_id] = new_wheel_num_id
-                                        print(f"[WHEEL_ID_SET] Wheel ID 변경: {wheel_str_id} {old_id} -> {new_wheel_num_id}")
-                                        print(f"[WHEEL_ID_SET] 새로운 ID는 다음 정기 발행에서 반영됩니다.")
-                                    else:
-                                        print(f"[WHEEL_ID_SET] Wheel ID 동일함: {wheel_str_id} = {new_wheel_num_id} (변경 없음)")
-                                else:
-                                    print(f"[WHEEL_ID_SET] 잘못된 ID 범위: {new_wheel_num_id} (허용: 1-4)")
-                            except ValueError:
-                                print(f"[WHEEL_ID_SET] 잘못된 ID 형식: {payload}")
-                        else:
-                            print(f"[WHEEL_ID_SET] 알 수 없는 wheel ID: {wheel_str_id}")
-                    else:
-                        print(f"[WHEEL_ID_SET] 잘못된 토픽 형식: {topic}")
-                except Exception as e:
-                    print(f"[WHEEL_ID_SET] Wheel ID 설정 처리 오류: {e}")
+                print(f"[WHEEL_ID_SET] Ignored by simulator policy: {topic} -> {payload}")
                 
         except Exception as e:
             print(f"[MQTT] Message processing error: {e}")
@@ -524,44 +443,8 @@ class MqttSimulator:
             else:
                 print("[SETTINGS] No vehicle_data available to publish")
             
-            # Wheel 설정 정보 publish (1~4번 각각)
-            if hasattr(self, 'wheel_data') and self.wheel_data:
-                for wheel_id in range(1, 5):  # 1부터 4까지
-                    for key, value in self.wheel_data.items():
-                        topic = f"wheel/{wheel_id}/{key}"
-                        payload = str(value)
-                        self._publish(topic, payload)
-                        print(f"[WHEEL] Published {topic} -> {payload}")
-            else:
-                print("[SETTINGS] No wheel_data available to publish")
-            
-            # Wheel ID 설정 정보 발행 (최초 클라이언트 초기 접속 시 1회)
-            if not self.wheel_id_initial_published:
-                print("[SETTINGS] Publishing wheel ID mappings...")
-                for wheel_str_id, wheel_num_id in WHEEL_ID_MAPPING.items():
-                    topic = WHEEL_ID_TOPIC_TEMPLATE.format(wheel_str_id=wheel_str_id)
-                    payload = str(wheel_num_id)
-                    self._publish(topic, payload)
-                    print(f"[WHEEL_ID] Published {topic} -> {payload}")
-                self.wheel_id_initial_published = True
-            else:
-                print("[SETTINGS] Wheel ID mappings already published once; skipping")
-
-            # Wheel 반지름 초기 정보 발행 (각 클라이언트 최초 접속 시 1회)
-            should_publish_wheel_radius = bool(client_id) and client_id not in self.wheel_radius_published_client_ids
-            if should_publish_wheel_radius:
-                print(f"[SETTINGS] Publishing wheel radius values for first client connect: {client_id}")
-                for wheel_str_id in WHEEL_IDS:
-                    topic = WHEEL_RADIUS_TOPIC_TEMPLATE.format(wheel_str_id=wheel_str_id)
-                    payload = str(WHEEL_RADIUS_M)
-                    self._publish(topic, payload)
-                    print(f"[WHEEL] Published {topic} -> {payload}")
-                self.wheel_radius_initial_published = True
-                self.wheel_radius_published_client_ids.add(client_id)
-            elif client_id:
-                print(f"[SETTINGS] Wheel radius values already published for client: {client_id}; skipping")
-            else:
-                print("[SETTINGS] Missing client_id in client/connect payload; skipping wheel radius publish")
+            # 휠 토픽은 클라이언트가 직접 발행한다.
+            print("[SETTINGS] Wheel topic publish disabled (client-owned policy)")
 
             self._publish_initial_connect_topics()
             
@@ -1013,47 +896,6 @@ class MqttSimulator:
         self._publish("vehicle/angle/acceleration", round(self.angle_acc, 3))  # rad/s²
     pass  # _publish_position
 
-    def _publish_wheels(self):
-        # SI 단위계: 각 바퀴별 데이터 발행
-        for wid, w in self.wheels.items():
-            base = f"wheel/{wid}"
-            
-            # 바퀴 ID 번호는 정기 발행에서 제외 (요청 시 또는 변경 시에만 발행)
-            # wheel_id_num = WHEEL_ID_MAPPING.get(wid, 0)
-            # self._publish(f"{base}/id", wheel_id_num)
-
-            # 위치: 미터(m)
-            self._publish(f"{base}/position/x", round(w["x"], 3))  # m
-            self._publish(f"{base}/position/y", round(w["y"], 3))  # m  
-            self._publish(f"{base}/position/z", round(w["z"], 3))  # m
-
-            # 선속도: m/s, 가속도: m/s²
-            self._publish(f"{base}/linear/speed", round(w["speed"], 3))  # m/s
-            self._publish(f"{base}/linear/acceleration", round(w["acc"], 3))  # m/s²
-
-            # 각도: radian, 각속도: rad/s, 각가속도: rad/s²
-            self._publish(f"{base}/angle/radian", round(w["angle"], 4))  # rad (바퀴 회전각)
-            self._publish(f"{base}/angle/speed", round(w["angle_speed"], 3))  # rad/s
-            self._publish(f"{base}/angle/acceleration", round(w["angle_acc"], 3))  # rad/s²
-            self._publish(f"{base}/axis/angle", round(w["axis_angle"], 4))  # rad (스티어링 각도)
-
-            # 토크: Nm, 전력: W
-            self._publish(f"{base}/torque", round(w["torque"], 2))  # Nm (뉴턴미터)
-            self._publish(f"{base}/power", round(w["power"], 1))  # W (와트)
-
-            # PID 제어값 (무차원)
-            self._publish(f"{base}/pid/p", round(w["pid_p"], 3))
-            self._publish(f"{base}/pid/i", round(w["pid_i"], 3))
-            self._publish(f"{base}/pid/d", round(w["pid_d"], 3))
-
-            # ToF 센서: 거리(m), 보정값(무차원)
-            self._publish(f"{base}/tof/distance", round(w["tof_distance"], 3))  # m
-            self._publish(f"{base}/tof/calibration", round(w["tof_calib"], 3))
-
-            # 운영 상태
-            self._publish(f"{base}/operation/state", w["state"].value)
-    pass  # _publish_wheels
-
     def _build_obstacle_sensor_sources(self):
         if self.surface_obstacle == SurfaceObstacle.NONE:
             return []
@@ -1182,77 +1024,6 @@ class MqttSimulator:
         self._publish("obstacle/confidence", total_confidence)
     pass  # _publish_sensor_interfaces
 
-    def _publish_manual_wheel_simulation(self, publish=True):
-        target_wheel = self.manual_wheel_test_wheel
-        if not self.manual_wheel_test_active or target_wheel not in self.wheels:
-            return
-
-        cmd = self.manual_wheel_test_command
-        if cmd == OperationCommand.FORWARD:
-            angular_speed = self.manual_wheel_test_angular_speed
-            state = VehicleExecState.RUN
-        elif cmd == OperationCommand.REVERSE:
-            angular_speed = -self.manual_wheel_test_angular_speed
-            state = VehicleExecState.RUN
-        else:
-            angular_speed = 0.0
-            state = VehicleExecState.STOP
-
-        for wid, wheel in self.wheels.items():
-            if wid == target_wheel:
-                wheel["command"] = cmd
-                wheel["state"] = state
-                wheel["angle_speed"] = angular_speed
-                wheel["angle_acc"] = 0.0
-                wheel["speed"] = 0.0
-                wheel["acc"] = 0.0
-                wheel["angle"] = (wheel["angle"] + angular_speed) % (2 * math.pi)
-            else:
-                wheel["command"] = OperationCommand.STOP
-                wheel["state"] = VehicleExecState.STOP
-                wheel["angle_speed"] = 0.0
-                wheel["angle_acc"] = 0.0
-                wheel["speed"] = 0.0
-                wheel["acc"] = 0.0
-
-            base = f"wheel/{wid}"
-            if publish:
-                self._publish(f"{base}/angle/radian", round(wheel["angle"], 4))
-                self._publish(f"{base}/angle/speed", round(wheel["angle_speed"], 3))
-                self._publish(f"{base}/angle/acceleration", round(wheel["angle_acc"], 3))
-                self._publish(f"{base}/linear/speed", round(wheel["speed"], 3))
-                self._publish(f"{base}/linear/acceleration", round(wheel["acc"], 3))
-                self._publish(f"{base}/operation/state", wheel["state"].value)
-
-        print(
-            f"[WHEEL_TEST] 발행: {target_wheel.upper()} command={cmd.value} "
-            f"angle_speed={angular_speed:.3f} rad/s"
-        )
-    pass  # _publish_manual_wheel_simulation
-
-    def _reset_all_wheels_to_stop(self, publish=True):
-        for wid, wheel in self.wheels.items():
-            wheel["command"] = OperationCommand.STOP
-            wheel["state"] = VehicleExecState.STOP
-            wheel["speed"] = 0.0
-            wheel["acc"] = 0.0
-            wheel["angle_speed"] = 0.0
-            wheel["angle_acc"] = 0.0
-            wheel["axis_angle"] = 0.0
-
-            if publish:
-                base = f"wheel/{wid}"
-                self._publish(f"{base}/angle/speed", 0.0)
-                self._publish(f"{base}/linear/speed", 0.0)
-                self._publish(f"{base}/linear/acceleration", 0.0)
-                self._publish(f"{base}/operation/state", VehicleExecState.STOP.value)
-    pass  # _reset_all_wheels_to_stop
-
-    def _publish_wheel_angle_speeds_only(self):
-        for wid, wheel in self.wheels.items():
-            self._publish(f"wheel/{wid}/angle/speed", round(wheel["angle_speed"], 3))
-    pass  # _publish_wheel_angle_speeds_only
-
     def run(self):
         self.client.connect(self.broker, self.port, 60)
         self.client.loop_start()
@@ -1299,10 +1070,7 @@ class MqttSimulator:
                     print(f"[ROUTE STATUS] 발행 토픽: {self.publish_count}개 | 상태: {state_display} ({self.exec_state.value})")
                     print("-" * 70)
                 
-                if self.manual_wheel_test_active:
-                    # 수동 휠 테스트는 내부 상태만 갱신하고, 발행은 초기 접속 시에만 수행한다.
-                    self._publish_manual_wheel_simulation(publish=False)
-                elif self.direction_control_speed_only_mode:
+                if self.direction_control_speed_only_mode:
                     # 차량 방향 제어 모드에서는 즉시 명령으로 설정된 상태를 유지한다.
                     pass
                 else:

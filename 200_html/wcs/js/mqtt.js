@@ -239,14 +239,22 @@ class MqttClientManager {
         $('.mqtt-topic-sort-trigger').each(function () {
             const $header = $(this);
             const headerKey = String($header.attr('data-sort-key') || '').toLowerCase();
-            const $indicator = $header.find('.mqtt-sort-indicator');
+            const $arrowUp = $header.find('.mqtt-sort-arrow-up');
+            const $arrowDown = $header.find('.mqtt-sort-arrow-down');
+
+            $arrowUp.removeClass('active');
+            $arrowDown.removeClass('active');
 
             if (headerKey !== currentKey) {
-                $indicator.text('');
                 return;
             }
 
-            $indicator.text(currentDirection === 'asc' ? '▲' : '▼');
+            if (currentDirection === 'asc') {
+                $arrowUp.addClass('active');
+                return;
+            }
+
+            $arrowDown.addClass('active');
         });
     }
 

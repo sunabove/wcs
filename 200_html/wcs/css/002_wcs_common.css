@@ -149,9 +149,23 @@
     top: 50%;
     transform: translateY(-50%);
     width: 0.9rem;
-    line-height: 1;
-    text-align: right;
+    display: inline-flex;
+    flex-direction: column;
+    align-items: flex-end;
+    justify-content: center;
+    line-height: 0.65;
     color: #6c757d;
+}
+
+.mqtt-topic-sort-trigger .mqtt-sort-arrow {
+    display: block;
+    font-size: 0.56rem;
+    opacity: 0.45;
+}
+
+.mqtt-topic-sort-trigger .mqtt-sort-arrow.active {
+    opacity: 1;
+    color: #212529;
 }
 
 #mqtt-topic-history-table {

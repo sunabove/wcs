@@ -253,8 +253,8 @@ $(document).ready(function () {
 
             const html = `
                 <tr class="${groupStyleClass}${groupStartClass}${rowDisabledClass}" data-sensor-id="${sensorLabel}" data-sensor-index="${row.index}">
-                    <td class="text-center fw-semibold" data-sensor-column="name">${sensorLabel}</td>
-                    <td class="text-center" data-sensor-column="number" data-sensor-column-index="${row.index}">${sensorNumber}</td>
+                    <td class="text-center fw-semibold" data-sensor-column="name"><span class="obstacle-sensor-publish-text">${sensorLabel}</span></td>
+                    <td class="text-center" data-sensor-column="number" data-sensor-column-index="${row.index}"><span class="obstacle-sensor-publish-text">${sensorNumber}</span></td>
                     <td class="text-center">
                         <button
                             type="button"
@@ -425,7 +425,7 @@ $(document).ready(function () {
                 return;
             }
 
-            $row.find('[data-sensor-column="name"], [data-sensor-column="number"], [data-sensor-column="index"]').each(function () {
+            $row.find('.obstacle-sensor-publish-text').each(function () {
                 this.classList.remove('obstacle-sensor-publish-blink');
                 void this.offsetWidth;
                 this.classList.add('obstacle-sensor-publish-blink');

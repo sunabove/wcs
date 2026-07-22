@@ -17,6 +17,8 @@ $(document).ready(function () {
     const obstacleSensorSettingById = {};
     const obstacleSensorRowValueByKey = {};
     const $obstacleSensorValueTbody = $('#obstacle-sensor-value-tbody');
+    const obstacleSensorPublishBlinkUntilByKey = {};
+    const OBSTACLE_SENSOR_PUBLISH_BLINK_TOTAL_MS = 6200;
     let isSampleVideosLoaded = false;
     let isSampleVideosLoading = false;
     let sampleVideoBrowserPath = 'video';
@@ -303,6 +305,8 @@ $(document).ready(function () {
             `;
             $obstacleSensorValueTbody.append(html);
         });
+
+        restoreObstacleSensorPublishBlinkState();
     }
 
     function resetObstacleSensorSettings() {
@@ -406,34 +410,71 @@ $(document).ready(function () {
             return;
         }
 
+        const blinkUntil = Date.now() + OBSTACLE_SENSOR_PUBLISH_BLINK_TOTAL_MS;
+
         uniqueRowKeys.forEach((rowKey) => {
-            const [sensorId, sensorIndexText] = String(rowKey || '').split('#');
-            if (!sensorId || sensorIndexText === undefined) {
-                return;
-            }
-
-            const sensorIndex = Number.parseInt(sensorIndexText, 10);
-            if (!Number.isFinite(sensorIndex)) {
-                return;
-            }
-
-            const $row = $obstacleSensorValueTbody.find(`tr[data-sensor-id="${sensorId}"][data-sensor-index="${sensorIndex}"]`);
-            if ($row.length === 0) {
-                return;
-            }
-
-            $row.find('[data-sensor-column="name"], [data-sensor-column="number"]').each(function () {
-                this.classList.remove('obstacle-sensor-publish-cell-blink');
-                void this.offsetWidth;
-                this.classList.add('obstacle-sensor-publish-cell-blink');
-            });
-
-            $row.find('.obstacle-sensor-publish-text').each(function () {
-                this.classList.remove('obstacle-sensor-publish-blink');
-                void this.offsetWidth;
-                this.classList.add('obstacle-sensor-publish-blink');
-            });
+            obstacleSensorPublishBlinkUntilByKey[rowKey] = blinkUntil;
+            applyObstacleSensorPublishBlinkToRowKey(rowKey);
         });
+    }
+
+    function restoreObstacleSensorPublishBlinkState() {
+        const now = Date.now();
+        Object.keys(obstacleSensorPublishBlinkUntilByKey).forEach((rowKey) => {
+            if ((obstacleSensorPublishBlinkUntilByKey[rowKey] || 0) <= now) {
+                delete obstacleSensorPublishBlinkUntilByKey[rowKey];
+                return;
+            }
+
+            applyObstacleSensorPublishBlinkToRowKey(rowKey);
+        });
+    }
+
+    function applyObstacleSensorPublishBlinkToRowKey(rowKey) {
+        const blinkUntil = obstacleSensorPublishBlinkUntilByKey[rowKey] || 0;
+        if (blinkUntil <= Date.now()) {
+            delete obstacleSensorPublishBlinkUntilByKey[rowKey];
+            return;
+        }
+
+        const remainingMs = Math.max(0, blinkUntil - Date.now());
+        const [sensorId, sensorIndexText] = String(rowKey || '').split('#');
+        if (!sensorId || sensorIndexText === undefined) {
+            return;
+        }
+
+        const sensorIndex = Number.parseInt(sensorIndexText, 10);
+        if (!Number.isFinite(sensorIndex)) {
+            return;
+        }
+
+        const $row = $obstacleSensorValueTbody.find(`tr[data-sensor-id="${sensorId}"][data-sensor-index="${sensorIndex}"]`);
+        if ($row.length === 0) {
+            return;
+        }
+
+        $row.find('[data-sensor-column="name"], [data-sensor-column="number"]').each(function () {
+            this.classList.remove('obstacle-sensor-publish-cell-blink');
+            void this.offsetWidth;
+            this.classList.add('obstacle-sensor-publish-cell-blink');
+        });
+
+        $row.find('.obstacle-sensor-publish-text').each(function () {
+            this.classList.remove('obstacle-sensor-publish-blink');
+            void this.offsetWidth;
+            this.classList.add('obstacle-sensor-publish-blink');
+        });
+
+        window.setTimeout(function () {
+            if ((obstacleSensorPublishBlinkUntilByKey[rowKey] || 0) > Date.now()) {
+                return;
+            }
+
+            delete obstacleSensorPublishBlinkUntilByKey[rowKey];
+            const $latestRow = $obstacleSensorValueTbody.find(`tr[data-sensor-id="${sensorId}"][data-sensor-index="${sensorIndex}"]`);
+            $latestRow.find('[data-sensor-column="name"], [data-sensor-column="number"]').removeClass('obstacle-sensor-publish-cell-blink');
+            $latestRow.find('.obstacle-sensor-publish-text').removeClass('obstacle-sensor-publish-blink');
+        }, remainingMs + 80);
     }
 
     function updateVehicleDirectionControlUi(command) {

@@ -57,6 +57,8 @@ class MqttConfig:
     WHEEL_PID_P_TOPIC_TEMPLATE = "wheel/{wheel_str_id}/pid/p"
     WHEEL_PID_I_TOPIC_TEMPLATE = "wheel/{wheel_str_id}/pid/i"
     WHEEL_PID_D_TOPIC_TEMPLATE = "wheel/{wheel_str_id}/pid/d"
+    WHEEL_RPM_TOPIC_TEMPLATE = "wheel/{wheel_str_id}/rpm"
+    WHEEL_SPEED_TOPIC_TEMPLATE = "wheel/{wheel_str_id}/speed"
     WHEEL_TOF_DISTANCE_TOPIC_TEMPLATE = "wheel/{wheel_str_id}/tof/distance"
     WHEEL_AXIS_ANGLE_TOPIC_TEMPLATE = "wheel/{wheel_str_id}/axis/angle"
 
@@ -129,6 +131,8 @@ class MqttManager:
             wheel_id: {"p": 0.0, "i": 0.0, "d": 0.0}
             for wheel_id in MqttConfig.WHEEL_IDS
         }
+        self.wheel_rpm_by_id = {wheel_id: 0.0 for wheel_id in MqttConfig.WHEEL_IDS}
+        self.wheel_speed_by_id = {wheel_id: 0.0 for wheel_id in MqttConfig.WHEEL_IDS}
         self.wheel_tof_distance_by_id = {wheel_id: 0.0 for wheel_id in MqttConfig.WHEEL_IDS}
         self.wheel_axis_angle_by_id = {wheel_id: 0.0 for wheel_id in MqttConfig.WHEEL_IDS}
 
@@ -347,6 +351,8 @@ class MqttManager:
                 wheel_pid_p = float(wheel_pid.get("p", 0.0))
                 wheel_pid_i = float(wheel_pid.get("i", 0.0))
                 wheel_pid_d = float(wheel_pid.get("d", 0.0))
+                wheel_rpm = float(self.wheel_rpm_by_id.get(wheel_str_id, 0.0))
+                wheel_speed = float(self.wheel_speed_by_id.get(wheel_str_id, 0.0))
                 wheel_tof_distance = float(self.wheel_tof_distance_by_id.get(wheel_str_id, 0.0))
                 wheel_axis_angle = float(self.wheel_axis_angle_by_id.get(wheel_str_id, 0.0))
 
@@ -354,6 +360,8 @@ class MqttManager:
                 self._publish(MqttConfig.WHEEL_PID_P_TOPIC_TEMPLATE.format(wheel_str_id=wheel_str_id), wheel_pid_p)
                 self._publish(MqttConfig.WHEEL_PID_I_TOPIC_TEMPLATE.format(wheel_str_id=wheel_str_id), wheel_pid_i)
                 self._publish(MqttConfig.WHEEL_PID_D_TOPIC_TEMPLATE.format(wheel_str_id=wheel_str_id), wheel_pid_d)
+                self._publish(MqttConfig.WHEEL_RPM_TOPIC_TEMPLATE.format(wheel_str_id=wheel_str_id), wheel_rpm)
+                self._publish(MqttConfig.WHEEL_SPEED_TOPIC_TEMPLATE.format(wheel_str_id=wheel_str_id), wheel_speed)
                 self._publish(MqttConfig.WHEEL_TOF_DISTANCE_TOPIC_TEMPLATE.format(wheel_str_id=wheel_str_id), wheel_tof_distance)
                 self._publish(MqttConfig.WHEEL_AXIS_ANGLE_TOPIC_TEMPLATE.format(wheel_str_id=wheel_str_id), wheel_axis_angle)
 

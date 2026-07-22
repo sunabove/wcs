@@ -162,39 +162,19 @@
 #mqtt-topic-history-table {
     table-layout: fixed;
     width: 100%;
+    min-height: 100%;
     border-collapse: separate;
     border-spacing: 0;
 }
 
 .mqtt-topic-history-table-wrap {
+    width: 100%;
     height: 18rem;
     max-height: 18rem;
     min-height: 18rem;
     overflow-y: auto;
     overflow-x: auto;
     scrollbar-gutter: stable;
-}
-
-#mqtt-topic-history-modal .modal-dialog {
-    height: calc(100vh - 2rem);
-}
-
-#mqtt-topic-history-modal .modal-content {
-    height: 100%;
-}
-
-#mqtt-topic-history-modal .modal-body {
-    display: flex;
-    flex-direction: column;
-    min-height: 0;
-    overflow: hidden;
-}
-
-#mqtt-topic-history-modal .mqtt-topic-history-table-wrap {
-    flex: 1 1 auto;
-    height: auto;
-    min-height: 0;
-    max-height: none;
 }
 
 #mqtt-topic-history-table thead th {

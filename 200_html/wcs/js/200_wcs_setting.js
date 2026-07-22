@@ -389,18 +389,15 @@ $(document).ready(function () {
         window.WcsMqtt.sendMQTTMessage(`sensor/${row.id}/${row.index}/value`, sensorValue);
         window.WcsMqtt.sendMQTTMessage(`sensor/${row.id}/${row.index}/obstacle/confidence`, sensorConfidence);
         window.WcsMqtt.sendMQTTMessage(`sensor/${row.id}/${row.index}/state`, enabled ? 1 : 0);
+        triggerObstacleSensorPublishBlink([rowKey]);
     }
 
     function publishObstacleSensorGroup(sensorId) {
-        const publishedRowKeys = [];
         getOrderedObstacleSensorRows().forEach((row) => {
             if (String(row.id) === String(sensorId)) {
-                publishedRowKeys.push(getSensorRowKey(row.id, row.index));
                 publishSingleObstacleSensorRow(row.id, row.index);
             }
         });
-
-        triggerObstacleSensorPublishBlink(publishedRowKeys);
     }
 
     function triggerObstacleSensorPublishBlink(rowKeys) {
@@ -908,6 +905,8 @@ $(document).ready(function () {
             value: normalizedValue,
             confidence: normalizedConfidence,
         });
+
+        publishSingleObstacleSensorRow(sensorId, sensorIndex);
     });
 
     $obstacleSensorValueTbody.on('click', '.obstacle-sensor-row-state-toggle', function () {

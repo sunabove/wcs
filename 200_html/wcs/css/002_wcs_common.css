@@ -139,6 +139,22 @@
 #mqtt-topic-history-table {
     table-layout: fixed;
     width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+}
+
+.mqtt-topic-history-table-wrap {
+    max-height: 18rem;
+    overflow-y: auto;
+    overflow-x: auto;
+    scrollbar-gutter: stable;
+}
+
+#mqtt-topic-history-table thead th {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    background: #f8f9fa;
 }
 
 #mqtt-topic-history-table .mqtt-topic-history-value-cell {

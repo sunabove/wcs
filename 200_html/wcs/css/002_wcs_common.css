@@ -315,19 +315,26 @@
 
 @keyframes mqtt-topic-history-row-received-foreground-blink {
     0% {
-        color: #0b5ed7;
+        color: #0a58ca;
+        text-shadow: 0 0 0.45rem rgba(10, 88, 202, 0.35);
+        font-weight: 700;
     }
-    45% {
+    50% {
         color: #212529;
+        text-shadow: none;
+        font-weight: 500;
     }
     100% {
         color: inherit;
+        text-shadow: none;
+        font-weight: inherit;
     }
 }
 
 #mqtt-topic-history-table tbody tr.mqtt-topic-history-row-received-blink > th,
 #mqtt-topic-history-table tbody tr.mqtt-topic-history-row-received-blink > td {
-    animation: mqtt-topic-history-row-received-foreground-blink 0.46s ease-in-out 3;
+    animation: mqtt-topic-history-row-received-foreground-blink 0.58s ease-in-out 4;
+    color: #0a58ca !important;
 }
 
 .top-header-row .nav,

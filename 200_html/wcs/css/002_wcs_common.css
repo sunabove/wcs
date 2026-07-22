@@ -188,6 +188,15 @@
     scrollbar-gutter: stable;
 }
 
+#mqtt-topic-history-modal {
+    pointer-events: none;
+}
+
+#mqtt-topic-history-modal .mqtt-topic-history-dialog,
+#mqtt-topic-history-modal .mqtt-topic-history-content {
+    pointer-events: auto;
+}
+
 #mqtt-topic-history-modal .mqtt-topic-history-content {
     resize: vertical;
     overflow: hidden;

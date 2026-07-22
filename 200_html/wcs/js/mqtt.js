@@ -160,6 +160,7 @@ class MqttClientManager {
         const sortSelector = '.mqtt-topic-sort-trigger';
         const tabSelector = '.mqtt-topic-history-tab';
         const filterSelector = '.mqtt-topic-filter-input';
+        const closeSelector = '#mqtt-topic-history-modal .btn-close';
 
         $(document)
             .off('click.mqttTopicHistory', selector)
@@ -232,6 +233,28 @@ class MqttClientManager {
                 const historyList = this.getTopicHistoryList(historyType);
                 const title = this.getTopicHistoryTitle(historyType);
                 this.renderTopicHistoryRows(historyList, title);
+            });
+
+        $(document)
+            .off('click.mqttTopicHistoryClose', closeSelector)
+            .on('click.mqttTopicHistoryClose', closeSelector, (event) => {
+                event.preventDefault();
+                const modalElement = document.getElementById('mqtt-topic-history-modal');
+                if (!modalElement) {
+                    return;
+                }
+
+                if (window.bootstrap && typeof window.bootstrap.Modal === 'function') {
+                    const modal = window.bootstrap.Modal.getOrCreateInstance(modalElement, {
+                        backdrop: false,
+                        keyboard: false,
+                        focus: false,
+                    });
+                    modal.hide();
+                    return;
+                }
+
+                $(modalElement).removeClass('show').css('display', 'none').attr('aria-hidden', 'true');
             });
     }
 
@@ -449,7 +472,11 @@ class MqttClientManager {
         }
 
         if (window.bootstrap && typeof window.bootstrap.Modal === 'function') {
-            const modal = window.bootstrap.Modal.getOrCreateInstance(modalElement);
+            const modal = window.bootstrap.Modal.getOrCreateInstance(modalElement, {
+                backdrop: false,
+                keyboard: false,
+                focus: false,
+            });
             modal.show();
             window.requestAnimationFrame(() => this.prepareTopicHistoryDialogForDrag());
             return;

@@ -178,12 +178,12 @@
 }
 
 .obstacle-sensor-publish-cell-blink {
-    animation: obstacle-sensor-publish-cell-background-blink 2s ease-out 3;
+    animation: obstacle-sensor-publish-cell-background-blink 2s ease-out 1;
     position: relative;
 }
 
 .obstacle-sensor-publish-blink {
-    animation: obstacle-sensor-publish-foreground-blink 2s ease-out 3;
+    animation: obstacle-sensor-publish-foreground-blink 2s ease-out 1;
 }
 
 @keyframes obstacle-sensor-publish-cell-background-blink {

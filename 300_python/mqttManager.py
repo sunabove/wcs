@@ -53,6 +53,10 @@ WHEEL_ID_TOPIC_TEMPLATE = "wheel/{wheel_str_id}/id"
 WHEEL_RADIUS_TOPIC_TEMPLATE = "wheel/{wheel_str_id}/radius"
 
 INITIAL_CONNECT_TOPIC_SPECS = (
+    ("vehicle/battery/remain_amount", lambda sim: round(sim.battery_remain_amount, 1), "BATTERY"),
+    ("vehicle/drive/available_time", lambda sim: int(sim.drive_available_time), "DRIVE"),
+    ("vehicle/drive/elapsed_time", lambda sim: int(sim.drive_elapsed_time), "DRIVE"),
+    ("vehicle/drive/total_distance", lambda sim: int(sim.drive_total_distance), "DRIVE"),
     ("vehicle/linear/speed", lambda sim: round(sim.linear_speed, 3), "VEHICLE"),
     ("vehicle/linear/max_speed", lambda sim: round(sim.max_speed, 2), "VEHICLE"),
     ("vehicle/operation/command", lambda sim: sim.command.value, "VEHICLE"),
@@ -95,6 +99,11 @@ class MqttManager:
         self.port = port
 
         # 초기 접속 시 전달할 기준 정보
+        self.battery_remain_amount = 100.0
+        self.drive_available_time = 0
+        self.drive_elapsed_time = 0
+        self.drive_total_distance = 0
+
         self.linear_speed = 0.0
         self.max_speed = 13.9
         self.command = OperationCommand.FORWARD

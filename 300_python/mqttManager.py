@@ -8,7 +8,6 @@ from enum import IntEnum
 
 import paho.mqtt.client as mqtt
 
-
 class OperationCommand(IntEnum):
     STOP = 0
     FORWARD = 1

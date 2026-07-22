@@ -9,6 +9,8 @@ class MqttClientManager {
         this.topicFormatter = options.topicFormatter || null;
         this.client = null;
         this.lastUIUpdate = 0;
+        this.receivedTopicCount = 0;
+        this.publishedTopicCount = 0;
     }
 
     static getConsoleLogEnabled() {
@@ -130,6 +132,25 @@ class MqttClientManager {
         this.client.on('reconnect', () => this.handleReconnect());
     }
 
+    updateTopicCounters() {
+        $('#mqtt-received-count').text(String(this.receivedTopicCount));
+        $('#mqtt-published-count').text(String(this.publishedTopicCount));
+    }
+
+    renderConnectionStatus(options = {}) {
+        const config = Object.assign({
+            background: '#6c757d',
+            iconClass: 'fas fa-question-circle',
+            title: 'MQTT 상태',
+            spin: false,
+        }, options || {});
+
+        const spinClass = config.spin ? ' fa-spin' : '';
+        $('#mqtt-status-container').html(
+            `<div id="mqtt-status" class="badge fs-6 mqtt-status-icon-badge" title="${String(config.title)}" aria-label="${String(config.title)}" style="background:${String(config.background)}; color:white; padding:8px 10px; border-radius:999px; box-shadow:0 2px 5px rgba(0,0,0,0.2);"><i class="${String(config.iconClass)}${spinClass}"></i></div>`
+        );
+    }
+
     handleConnect(connack) {
         MqttClientManager.log('[MQTT] ✅ Mosquitto 브로커 연결 성공');
         MqttClientManager.log('[MQTT] 🔗 연결 정보:', connack);
@@ -141,16 +162,23 @@ class MqttClientManager {
         this.client.subscribe('#', { qos: 1 }, (err, granted) => {
             if (err) {
                 console.error('[MQTT] ❌ 전체 토픽 구독 실패:', err);
-                $('#mqtt-status-container').html('<div id="mqtt-status" class="badge fs-6" style="background:#dc3545; color:white; padding:8px 12px; border-radius:5px; box-shadow:0 2px 5px rgba(0,0,0,0.2);"><i class="fas fa-exclamation-triangle" style="margin-right:5px;"></i>MQTT 구독 실패</div>');
+                this.renderConnectionStatus({
+                    background: '#dc3545',
+                    iconClass: 'fas fa-exclamation-triangle',
+                    title: 'MQTT 구독 실패',
+                });
                 return;
             }
 
             MqttClientManager.log('[MQTT] 📡 모든 토픽 구독 성공');
             MqttClientManager.log('[MQTT] 🎯 QoS 설정:', granted);
 
-            $('#mqtt-status-container').html('<div id="mqtt-status" class="badge fs-6" style="background:#28a745; color:white; padding:8px 12px; border-radius:5px; box-shadow:0 2px 5px rgba(0,0,0,0.2);"><i class="fas fa-wifi" style="margin-right:5px;"></i>MQTT 연결됨</div>');
-            $('#mqtt-topic').text('연결완료:');
-            $('#mqtt-value').text('모든 토픽 수신 대기중');
+            this.renderConnectionStatus({
+                background: '#28a745',
+                iconClass: 'fas fa-wifi',
+                title: 'MQTT 연결됨',
+            });
+            this.updateTopicCounters();
 
             setTimeout(() => {
                 this.publishClientConnectInfo();
@@ -161,7 +189,7 @@ class MqttClientManager {
     handleMessage(topic, message) {
         const messageStr = message.toString();
         const processedValue = this.parseValue(messageStr);
-        const shouldDisplayInMessagePanel = topic !== 'client/connect';
+        const shouldCountAsReceived = topic !== 'client/connect';
 
         if (topic.startsWith('vehicle/') || topic.startsWith('wheel/')) {
             MqttClientManager.log(`[MQTT] 📩 ${topic}: ${messageStr}`);
@@ -169,15 +197,15 @@ class MqttClientManager {
             MqttClientManager.log(`[MQTT] 📝 ${topic.split('/')[0]}/*: ${messageStr}`);
         }
 
-        if (shouldDisplayInMessagePanel && (!this.lastUIUpdate || Date.now() - this.lastUIUpdate > 100)) {
-            const processedValueText = this.formatTopicValue(topic, processedValue, messageStr);
-            $('#mqtt-topic').text(topic + ' :');
-            $('#mqtt-value').text(String(processedValueText));
+        if (shouldCountAsReceived) {
+            this.receivedTopicCount += 1;
+        }
 
+        if (!this.lastUIUpdate || Date.now() - this.lastUIUpdate > 100) {
             const badgeColor = this.getBadgeColor(topic);
             const badge = $('#mqtt-message-display .badge');
             badge.removeClass('bg-info bg-success bg-warning bg-primary bg-secondary').addClass(badgeColor);
-
+            this.updateTopicCounters();
             this.lastUIUpdate = Date.now();
         }
 
@@ -221,12 +249,12 @@ class MqttClientManager {
 
     handleError(err) {
         console.error('[MQTT] ❌ Mosquitto 연결 오류:', err);
-        $('#mqtt-status').css({
-            'background': '#dc3545',
-            'animation': 'blink 1s infinite'
-        }).html('<i class="fas fa-exclamation-triangle" style="margin-right:5px;"></i>Mosquitto 오류');
-        $('#mqtt-topic').text('연결오류:');
-        $('#mqtt-value').text('브로커에 연결할 수 없습니다');
+        this.renderConnectionStatus({
+            background: '#dc3545',
+            iconClass: 'fas fa-exclamation-triangle',
+            title: 'Mosquitto 오류',
+        });
+        $('#mqtt-status').css('animation', 'blink 1s infinite');
 
         if (err && err.message) {
             console.error('[MQTT] 에러 상세:', err.message);
@@ -235,21 +263,30 @@ class MqttClientManager {
 
     handleClose() {
         MqttClientManager.log('[MQTT] 🦟 Mosquitto 연결이 끊어졌습니다.');
-        $('#mqtt-status').css('background', '#fd7e14').html('<i class="fas fa-unlink" style="margin-right:5px;"></i>Mosquitto 끊어짐');
-        $('#mqtt-topic').text('연결끊어짐:');
-        $('#mqtt-value').text('브로커 연결이 끊어졌습니다');
+        this.renderConnectionStatus({
+            background: '#fd7e14',
+            iconClass: 'fas fa-unlink',
+            title: 'Mosquitto 끊어짐',
+        });
     }
 
     handleReconnect() {
         MqttClientManager.log('[MQTT] 🔄 Mosquitto 재연결 시도중...');
-        $('#mqtt-status').css('background', '#17a2b8').html('<i class="fas fa-sync fa-spin" style="margin-right:5px;"></i>Mosquitto 재연결 중...');
-        $('#mqtt-topic').text('재연결중:');
-        $('#mqtt-value').text('브로커 재연결 시도중...');
+        this.renderConnectionStatus({
+            background: '#17a2b8',
+            iconClass: 'fas fa-sync',
+            title: 'Mosquitto 재연결 중',
+            spin: true,
+        });
     }
 
     handleInitError(error) {
         console.error('[MQTT] ❌ Mosquitto 클라이언트 초기화 오류:', error);
-        $('#mqtt-status-container').html('<div class="badge fs-6" style="background:#dc3545; color:white; padding:8px 12px; border-radius:5px; box-shadow:0 2px 5px rgba(0,0,0,0.2);"><i class="fas fa-times-circle" style="margin-right:5px;"></i>Mosquitto 초기화 실패</div>');
+        this.renderConnectionStatus({
+            background: '#dc3545',
+            iconClass: 'fas fa-times-circle',
+            title: 'Mosquitto 초기화 실패',
+        });
     }
 
     publishClientConnectInfo() {
@@ -294,6 +331,8 @@ class MqttClientManager {
             const timestamp = new Date().toLocaleTimeString();
 
             if (!err) {
+                this.publishedTopicCount += 1;
+                this.updateTopicCounters();
                 MqttClientManager.log(`[MQTT] 📤 [${timestamp}] 메시지 전송성공 [QoS ${qosValue}]:`, topic, messageStr);
                 return;
             }

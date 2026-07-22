@@ -123,9 +123,14 @@
     min-width: 0;
 }
 
+.mqtt-message-row {
+    gap: 0.35rem;
+}
+
 .top-header-row .nav,
 .top-header-row .nav-link,
-.top-header-row #mqtt-topic {
+.top-header-row #mqtt-received-count,
+.top-header-row #mqtt-published-count {
     white-space: nowrap;
 }
 
@@ -139,6 +144,6 @@
 }
 
 .top-header-row .mqtt-status-message-inline,
-.top-header-row #mqtt-value {
+.top-header-row #mqtt-message-display {
     white-space: nowrap;
 }

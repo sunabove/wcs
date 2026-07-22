@@ -1,14 +1,20 @@
+<!-- MQTT 상태 및 메시지 표시 컴포넌트 -->
+
 <div class="mqtt-status-message-inline d-flex flex-nowrap align-items-center">
     <div id="mqtt-status-container" class="d-flex flex-nowrap align-items-center me-3">
         <!-- MQTT 상태가 여기에 동적으로 추가됩니다 -->
     </div>
     <div id="mqtt-message-display" class="d-flex flex-nowrap align-items-center mqtt-message-display-fixed">
         <div class="badge bg-info text-dark fs-6 px-3 py-2 w-100 d-flex align-items-center mqtt-message-badge-wrap">
-            <i class="fas fa-envelope me-2 flex-shrink-0"></i>
+            <i class="fas fa-chart-bar me-2 flex-shrink-0"></i>
             <div class="mqtt-message-row d-flex justify-content-between align-items-center w-100 text-truncate">
-                <span id="mqtt-topic" class="fw-bold text-white text-nowrap">대기중</span>
-                <span id="mqtt-value" class="text-white-50 flex-shrink-0 text-nowrap">-</span>
+                <span class="text-white-50 text-nowrap">수신</span>
+                <span id="mqtt-received-count" class="fw-bold text-white flex-shrink-0 text-nowrap">0</span>
+                <span class="text-white-50 text-nowrap ms-3">발행</span>
+                <span id="mqtt-published-count" class="fw-bold text-white flex-shrink-0 text-nowrap">0</span>
             </div>
         </div>
     </div>
 </div>
+
+<!-- // MQTT 상태 및 메시지 표시 컴포넌트 -->

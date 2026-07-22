@@ -116,12 +116,12 @@ class MqttManager:
         self.script_path = os.path.abspath(__file__)
         self.last_modified = os.path.getmtime(self.script_path) if os.path.exists(self.script_path) else 0
 
-    def _on_connect(self, client, userdata, flags, reason_code, properties=None):
+    def _on_connect(self, client, _userdata, _flags, reason_code, _properties=None):
         print("MQTT Connected:", reason_code)
         client.subscribe("client/connect")
         print("[MQTT] Subscribed to client/connect")
 
-    def _on_message(self, client, userdata, msg):
+    def _on_message(self, _client, _userdata, msg):
         try:
             topic = msg.topic
             payload = msg.payload.decode("utf-8")
@@ -274,7 +274,7 @@ class MqttManager:
         print("[MANAGER] 종료")
 
 
-def signal_handler(signum, frame):
+def signal_handler(signum, _frame):
     global _shutdown_flag
     print(f"\n[SIGNAL] Signal {signum} received - Graceful shutdown...")
     _shutdown_flag = True

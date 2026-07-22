@@ -20,6 +20,7 @@ class MqttClientManager {
             received: '',
             published: '',
         };
+        this.topicHistoryRenderQueued = false;
         this.topicHistoryDragState = {
             active: false,
             startX: 0,
@@ -409,6 +410,49 @@ class MqttClientManager {
         if (targetHistory.length > this.maxTopicHistorySize) {
             targetHistory.length = this.maxTopicHistorySize;
         }
+
+        this.requestLiveTopicHistoryRefresh(historyType);
+    }
+
+    isTopicHistoryModalOpen() {
+        const modalElement = document.getElementById('mqtt-topic-history-modal');
+        if (!modalElement) {
+            return false;
+        }
+
+        if (modalElement.classList.contains('show')) {
+            return true;
+        }
+
+        return $(modalElement).is(':visible');
+    }
+
+    requestLiveTopicHistoryRefresh(historyType) {
+        const normalizedType = this.normalizeHistoryType(historyType);
+        if (normalizedType !== this.currentHistoryType) {
+            return;
+        }
+
+        if (!this.isTopicHistoryModalOpen()) {
+            return;
+        }
+
+        if (this.topicHistoryRenderQueued) {
+            return;
+        }
+
+        this.topicHistoryRenderQueued = true;
+        window.requestAnimationFrame(() => {
+            this.topicHistoryRenderQueued = false;
+
+            if (!this.isTopicHistoryModalOpen()) {
+                return;
+            }
+
+            const historyList = this.getTopicHistoryList(this.currentHistoryType);
+            const title = this.getTopicHistoryTitle(this.currentHistoryType);
+            this.renderTopicHistoryRows(historyList, title);
+        });
     }
 
     openTopicHistoryModal(historyType) {

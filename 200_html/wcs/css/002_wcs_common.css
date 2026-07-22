@@ -136,14 +136,22 @@
     0% {
         box-shadow: 0 0 0 0 rgba(13, 202, 240, 0.55);
         filter: brightness(1);
+        transform: scale(1);
     }
-    45% {
+    35% {
+        box-shadow: 0 0 0 10px rgba(13, 202, 240, 0);
+        filter: brightness(1.28);
+        transform: scale(1.06);
+    }
+    70% {
         box-shadow: 0 0 0 8px rgba(13, 202, 240, 0);
-        filter: brightness(1.18);
+        filter: brightness(0.92);
+        transform: scale(0.98);
     }
     100% {
         box-shadow: 0 0 0 0 rgba(13, 202, 240, 0);
         filter: brightness(1);
+        transform: scale(1);
     }
 }
 
@@ -151,14 +159,22 @@
     0% {
         box-shadow: 0 0 0 0 rgba(108, 117, 125, 0.55);
         filter: brightness(1);
+        transform: scale(1);
     }
-    45% {
+    35% {
+        box-shadow: 0 0 0 10px rgba(108, 117, 125, 0);
+        filter: brightness(1.28);
+        transform: scale(1.06);
+    }
+    70% {
         box-shadow: 0 0 0 8px rgba(108, 117, 125, 0);
-        filter: brightness(1.18);
+        filter: brightness(0.92);
+        transform: scale(0.98);
     }
     100% {
         box-shadow: 0 0 0 0 rgba(108, 117, 125, 0);
         filter: brightness(1);
+        transform: scale(1);
     }
 }
 
@@ -317,24 +333,28 @@
     0% {
         color: #0a58ca;
         text-shadow: 0 0 0.45rem rgba(10, 88, 202, 0.35);
-        font-weight: 700;
+        opacity: 1;
     }
-    50% {
-        color: #212529;
+    35% {
+        color: #0a58ca;
+        text-shadow: 0 0 0.55rem rgba(10, 88, 202, 0.45);
+        opacity: 0.45;
+    }
+    70% {
+        color: #111827;
         text-shadow: none;
-        font-weight: 500;
+        opacity: 1;
     }
     100% {
         color: inherit;
         text-shadow: none;
-        font-weight: inherit;
+        opacity: 1;
     }
 }
 
 #mqtt-topic-history-table tbody tr.mqtt-topic-history-row-received-blink > th,
 #mqtt-topic-history-table tbody tr.mqtt-topic-history-row-received-blink > td {
     animation: mqtt-topic-history-row-received-foreground-blink 0.8s ease-in-out 4;
-    color: #0a58ca !important;
 }
 
 .top-header-row .nav,

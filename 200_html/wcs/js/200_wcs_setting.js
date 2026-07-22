@@ -387,8 +387,8 @@ $(document).ready(function () {
         const enabled = Boolean(row.enabled ?? true);
 
         window.WcsMqtt.sendMQTTMessage(`sensor/${row.id}/${row.index}/value`, sensorValue);
-        sendMQTTMessage(`sensor/${row.id}/${row.index}/obstacle/confidence`, sensorConfidence);
-        sendMQTTMessage(`sensor/${row.id}/${row.index}/state`, enabled ? 1 : 0);
+        window.WcsMqtt.sendMQTTMessage(`sensor/${row.id}/${row.index}/obstacle/confidence`, sensorConfidence);
+        window.WcsMqtt.sendMQTTMessage(`sensor/${row.id}/${row.index}/state`, enabled ? 1 : 0);
     }
 
     function publishObstacleSensorGroup(sensorId) {

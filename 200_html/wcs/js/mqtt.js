@@ -289,10 +289,13 @@ class MqttClientManager {
         $tbody.empty();
 
         if (!Array.isArray(historyList) || historyList.length === 0) {
+            const emptyMessage = this.currentHistoryType === 'published'
+                ? '전송 토픽이 없습니다.'
+                : '수신 토픽이 없습니다.';
             $summary.text('총 0건');
             const $emptyRow = $('<tr class="mqtt-topic-history-empty-row"></tr>');
             $('<td class="small text-center text-muted py-3" colspan="4"></td>')
-                .text('수신(전송) 토픽이 없습니다.')
+                .text(emptyMessage)
                 .appendTo($emptyRow);
             $tbody.append($emptyRow);
             return;

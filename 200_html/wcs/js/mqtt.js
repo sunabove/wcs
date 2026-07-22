@@ -218,9 +218,9 @@ class MqttClientManager {
                 : String(entry.time || '');
 
             const $row = $('<tr></tr>');
-            $('<td class="small text-nowrap"></td>').text(formattedTime).appendTo($row);
+            $('<td class="small text-nowrap text-center"></td>').text(formattedTime).appendTo($row);
             $('<td class="small"></td>').text(String(entry.topic || '')).appendTo($row);
-            $('<td class="small mqtt-topic-history-value-cell"></td>')
+            $('<td class="small text-end mqtt-topic-history-value-cell"></td>')
                 .text(String(entry.payload || ''))
                 .attr('title', String(entry.payload || ''))
                 .appendTo($row);

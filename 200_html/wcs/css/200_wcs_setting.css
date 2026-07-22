@@ -173,6 +173,22 @@
     border-top: 2px solid #9fb3c8;
 }
 
+.obstacle-sensor-publish-blink {
+    animation: obstacle-sensor-publish-foreground-blink 0.9s ease-in-out 2;
+}
+
+@keyframes obstacle-sensor-publish-foreground-blink {
+    0% {
+        color: inherit;
+    }
+    35% {
+        color: #0d6efd;
+    }
+    100% {
+        color: inherit;
+    }
+}
+
 @media (min-width: 768px) {
     .setting-section-title {
         flex: 0 0 33.3333%;

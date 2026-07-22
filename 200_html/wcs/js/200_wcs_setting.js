@@ -253,8 +253,8 @@ $(document).ready(function () {
 
             const html = `
                 <tr class="${groupStyleClass}${groupStartClass}${rowDisabledClass}" data-sensor-id="${sensorLabel}" data-sensor-index="${row.index}">
-                    <td class="text-center fw-semibold">${sensorLabel}</td>
-                    <td class="text-center">${sensorNumber}</td>
+                    <td class="text-center fw-semibold" data-sensor-column="name">${sensorLabel}</td>
+                    <td class="text-center" data-sensor-column="number" data-sensor-column-index="${row.index}">${sensorNumber}</td>
                     <td class="text-center">
                         <button
                             type="button"

@@ -1,6 +1,7 @@
 const runInfoHistoryState = {
     chart: null,
     labels: [],
+    firstPointAt: 0,
     latestValues: {
         batteryPercent: null,
         availableMinutes: null,
@@ -14,6 +15,7 @@ const runInfoHistoryState = {
 const vehicleSpeedHistoryState = {
     chart: null,
     labels: [],
+    firstPointAt: 0,
     latestValues: {
         speedKmh: null,
         maxSpeedKmh: null,
@@ -30,10 +32,10 @@ function createXAxisEdgeUnitLabelPlugin(options, pluginId) {
     };
 }
 
-function formatRunInfoChartTimeLabel(dateValue) {
-    const date = dateValue instanceof Date ? dateValue : new Date(Number(dateValue));
-    const minutes = String(date.getMinutes()).padStart(2, '0');
-    const seconds = String(date.getSeconds()).padStart(2, '0');
+function formatRunInfoChartTimeLabel(elapsedMs) {
+    const totalSeconds = Math.max(0, Math.floor(Number(elapsedMs) / 1000));
+    const minutes = String(Math.floor(totalSeconds / 60)).padStart(2, '0');
+    const seconds = String(totalSeconds % 60).padStart(2, '0');
     return `${minutes}:${seconds}`;
 }
 
@@ -143,7 +145,8 @@ function createRunInfoHistoryChart() {
                                 return runInfoXAxisRightUnitText;
                             }
 
-                            return formatRunInfoChartTimeLabel(Number(value));
+                            const basePointAt = runInfoHistoryState.firstPointAt || Number(value);
+                            return formatRunInfoChartTimeLabel(Number(value) - basePointAt);
                         },
                         maxRotation: 0,
                         autoSkip: false,
@@ -208,6 +211,10 @@ function pushRunInfoHistoryPoint(forcePush = false) {
         return;
     }
 
+    if (runInfoHistoryState.firstPointAt === 0) {
+        runInfoHistoryState.firstPointAt = now;
+    }
+
     runInfoHistoryState.lastPointAt = now;
     runInfoHistoryState.chart.data.datasets[0].data.push({ x: now, y: latest.batteryPercent });
     runInfoHistoryState.chart.data.datasets[1].data.push({ x: now, y: latest.availableMinutes });
@@ -218,6 +225,7 @@ function pushRunInfoHistoryPoint(forcePush = false) {
         runInfoHistoryState.chart.data.datasets.forEach((dataset) => {
             dataset.data.shift();
         });
+        runInfoHistoryState.firstPointAt = runInfoHistoryState.chart.data.datasets[0].data[0]?.x || 0;
     }
 
     runInfoHistoryState.chart.update('none');
@@ -344,7 +352,8 @@ function createVehicleSpeedHistoryChart() {
                                 return vehicleSpeedXAxisRightUnitText;
                             }
 
-                            return formatVehicleSpeedChartTimeLabel(Number(value));
+                            const basePointAt = vehicleSpeedHistoryState.firstPointAt || Number(value);
+                            return formatVehicleSpeedChartTimeLabel(Number(value) - basePointAt);
                         },
                         maxRotation: 0,
                         autoSkip: false,
@@ -402,6 +411,10 @@ function pushVehicleSpeedHistoryPoint(forcePush = false) {
         return;
     }
 
+    if (vehicleSpeedHistoryState.firstPointAt === 0) {
+        vehicleSpeedHistoryState.firstPointAt = now;
+    }
+
     vehicleSpeedHistoryState.lastPointAt = now;
     vehicleSpeedHistoryState.chart.data.datasets[0].data.push({ x: now, y: latest.speedKmh });
     vehicleSpeedHistoryState.chart.data.datasets[1].data.push({ x: now, y: latest.maxSpeedKmh });
@@ -411,6 +424,7 @@ function pushVehicleSpeedHistoryPoint(forcePush = false) {
         vehicleSpeedHistoryState.chart.data.datasets.forEach((dataset) => {
             dataset.data.shift();
         });
+        vehicleSpeedHistoryState.firstPointAt = vehicleSpeedHistoryState.chart.data.datasets[0].data[0]?.x || 0;
     }
 
     vehicleSpeedHistoryState.chart.update('none');

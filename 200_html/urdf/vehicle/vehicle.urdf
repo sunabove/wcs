@@ -197,7 +197,7 @@
   <joint name="ellipsoid_surface_to_ground" type="fixed">
     <parent link="ellipsoid_surface" />
     <child link="ground" />
-    <origin xyz="0 0 0.2975" rpy="0 0 1.5707963" />
+    <origin xyz="0 0 0.2975" rpy="0 0 0" />
   </joint>
 
   <!-- Ground patch under the vehicle (2x vehicle body length) -->

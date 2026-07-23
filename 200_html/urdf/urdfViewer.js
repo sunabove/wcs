@@ -655,8 +655,8 @@ class URDFViewer {
 
         const dialElement = document.createElement('div');
         dialElement.style.position = 'relative';
-        dialElement.style.width = '56px';
-        dialElement.style.height = '56px';
+        dialElement.style.width = '48px';
+        dialElement.style.height = '48px';
         dialElement.style.border = '1px solid rgba(34, 34, 34, 0.28)';
         dialElement.style.borderRadius = '999px';
         dialElement.style.background = 'rgba(245, 247, 250, 0.92)';
@@ -667,17 +667,17 @@ class URDFViewer {
         tickTop.style.left = '50%';
         tickTop.style.top = '2px';
         tickTop.style.transform = 'translateX(-50%)';
-        tickTop.style.fontSize = '10px';
+        tickTop.style.fontSize = '9px';
         tickTop.style.fontWeight = '700';
         tickTop.style.color = '#d9480f';
 
         const tickRight = document.createElement('div');
         tickRight.textContent = 'E';
         tickRight.style.position = 'absolute';
-        tickRight.style.right = '4px';
+        tickRight.style.right = '3px';
         tickRight.style.top = '50%';
         tickRight.style.transform = 'translateY(-50%)';
-        tickRight.style.fontSize = '9px';
+        tickRight.style.fontSize = '8px';
         tickRight.style.fontWeight = '700';
         tickRight.style.color = '#4b5563';
 
@@ -687,17 +687,17 @@ class URDFViewer {
         tickBottom.style.left = '50%';
         tickBottom.style.bottom = '2px';
         tickBottom.style.transform = 'translateX(-50%)';
-        tickBottom.style.fontSize = '9px';
+        tickBottom.style.fontSize = '8px';
         tickBottom.style.fontWeight = '700';
         tickBottom.style.color = '#4b5563';
 
         const tickLeft = document.createElement('div');
         tickLeft.textContent = 'W';
         tickLeft.style.position = 'absolute';
-        tickLeft.style.left = '4px';
+        tickLeft.style.left = '3px';
         tickLeft.style.top = '50%';
         tickLeft.style.transform = 'translateY(-50%)';
-        tickLeft.style.fontSize = '9px';
+        tickLeft.style.fontSize = '8px';
         tickLeft.style.fontWeight = '700';
         tickLeft.style.color = '#4b5563';
 
@@ -706,7 +706,7 @@ class URDFViewer {
         needleElement.style.left = '50%';
         needleElement.style.top = '50%';
         needleElement.style.width = '2px';
-        needleElement.style.height = '22px';
+        needleElement.style.height = '18px';
         needleElement.style.background = 'linear-gradient(180deg, #ef4444 0%, #1d4ed8 100%)';
         needleElement.style.transformOrigin = '50% calc(100% - 1px)';
         needleElement.style.transform = 'translate(-50%, -100%) rotate(0deg)';

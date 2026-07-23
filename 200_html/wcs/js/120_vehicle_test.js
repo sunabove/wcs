@@ -319,25 +319,11 @@ $(document).ready(function() {
 
         console.log(`[Vehicle Test] ${icon} ${selectedWheel.toUpperCase()} 바퀴 ${actionName} 명령 전송: ${topic} = ${command}`);
 
-        const originalOpacity = buttonElement.css('opacity');
-        const originalTransform = buttonElement.css('transform');
-
-        buttonElement
-            .css({
-                'opacity': '0.7',
-                'transform': 'scale(0.95)',
-                'transition': 'all 0.1s ease'
-            })
-            .addClass('shadow-lg');
-
+        // Add blink animation
+        buttonElement.addClass('button-blink');
         setTimeout(() => {
-            buttonElement
-                .css({
-                    'opacity': originalOpacity,
-                    'transform': originalTransform
-                })
-                .removeClass('shadow-lg');
-        }, 1000);
+            buttonElement.removeClass('button-blink');
+        }, 600);
     }
 
     function sendVehicleCommand(command, buttonElement, actionName, icon) {
@@ -385,29 +371,15 @@ $(document).ready(function() {
         lastVehicleCurrSpeedMsSent = roundedSpeedMs;
 
         publishWhenConnected(topic, command);
-    publishVehicleWheelAngleSpeeds(command, commandSpeedKmh);
+        publishVehicleWheelAngleSpeeds(command, commandSpeedKmh);
         lastVehicleDirectionCommandSent = Number(command);
         console.log(`[Vehicle Test] ${icon} 차량 ${actionName} 명령 전송: ${topic} = ${command}, ${speedTopic} = ${roundedSpeedMs}`);
 
-        const originalOpacity = buttonElement.css('opacity');
-        const originalTransform = buttonElement.css('transform');
-
-        buttonElement
-            .css({
-                'opacity': '0.7',
-                'transform': 'scale(0.95)',
-                'transition': 'all 0.1s ease'
-            })
-            .addClass('shadow-lg');
-
+        // Add blink animation
+        buttonElement.addClass('button-blink');
         setTimeout(() => {
-            buttonElement
-                .css({
-                    'opacity': originalOpacity,
-                    'transform': originalTransform
-                })
-                .removeClass('shadow-lg');
-        }, 1000);
+            buttonElement.removeClass('button-blink');
+        }, 600);
     }
 
     $('#test-clockwise').click(function() {

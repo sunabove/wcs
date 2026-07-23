@@ -11,3 +11,27 @@
 .speed-value-chip {
     width: 100px;
 }
+
+/* Button blink animation: 2 blinks */
+@keyframes buttonBlink {
+    0%, 100% {
+        background-color: inherit;
+        box-shadow: inherit;
+    }
+    25% {
+        background-color: #ffc107;
+        box-shadow: 0 0 10px rgba(255, 193, 7, 0.8);
+    }
+    50% {
+        background-color: inherit;
+        box-shadow: inherit;
+    }
+    75% {
+        background-color: #ffc107;
+        box-shadow: 0 0 10px rgba(255, 193, 7, 0.8);
+    }
+}
+
+.button-blink {
+    animation: buttonBlink 0.6s ease-in-out 1;
+}

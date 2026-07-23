@@ -26,9 +26,40 @@ const vehicleSpeedHistoryState = {
 };
 
 function createXAxisEdgeUnitLabelPlugin(options, pluginId) {
+    const leftUnitText = String(options?.leftUnitText || '');
+    const rightUnitText = String(options?.rightUnitText || '');
+
     return {
         id: pluginId,
-        afterDraw() {},
+        afterDraw(chart) {
+            if (!leftUnitText && !rightUnitText) {
+                return;
+            }
+
+            const { ctx, chartArea } = chart;
+            if (!ctx || !chartArea) {
+                return;
+            }
+
+            const labelY = Math.max(12, chartArea.top - 4);
+
+            ctx.save();
+            ctx.font = '600 11px sans-serif';
+            ctx.fillStyle = '#5f6b76';
+            ctx.textBaseline = 'bottom';
+
+            if (leftUnitText) {
+                ctx.textAlign = 'left';
+                ctx.fillText(leftUnitText, chartArea.left + 2, labelY);
+            }
+
+            if (rightUnitText) {
+                ctx.textAlign = 'right';
+                ctx.fillText(rightUnitText, chartArea.right - 2, labelY);
+            }
+
+            ctx.restore();
+        },
     };
 }
 

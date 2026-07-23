@@ -46,6 +46,7 @@ function createXAxisEdgeUnitLabelPlugin(options, pluginId) {
             const firstTickX = xScale.getPixelForTick(0);
             const lastTickX = xScale.getPixelForTick(xScale.ticks.length - 1);
             const labelY = xScale.bottom + 16;
+            const labelGap = 6;
 
             ctx.save();
             ctx.fillStyle = '#6c757d';
@@ -53,13 +54,13 @@ function createXAxisEdgeUnitLabelPlugin(options, pluginId) {
             ctx.textBaseline = 'middle';
 
             if (leftUnitText) {
-                ctx.textAlign = 'center';
-                ctx.fillText(leftUnitText, firstTickX, labelY);
+                ctx.textAlign = 'right';
+                ctx.fillText(leftUnitText, firstTickX - labelGap, labelY);
             }
 
             if (rightUnitText) {
-                ctx.textAlign = 'center';
-                ctx.fillText(rightUnitText, lastTickX, labelY);
+                ctx.textAlign = 'left';
+                ctx.fillText(rightUnitText, lastTickX + labelGap, labelY);
             }
 
             ctx.restore();

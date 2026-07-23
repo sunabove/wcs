@@ -215,9 +215,9 @@
     </visual>
 
     <visual>
-      <origin xyz="0 0 0.06" rpy="0 0 0" />
+      <origin xyz="0 0 0" rpy="0 0 0" />
       <geometry>
-        <sphere radius="0.05" />
+        <sphere radius="0.01" />
       </geometry>
       <material name="green" />
     </visual>

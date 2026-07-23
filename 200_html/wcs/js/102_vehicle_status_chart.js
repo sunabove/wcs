@@ -47,15 +47,19 @@ function createXAxisEdgeUnitLabelPlugin(options, pluginId) {
             const lastTickX = xScale.getPixelForTick(xScale.ticks.length - 1);
             const labelY = xScale.bottom + 16;
             const labelGap = 6;
+            const firstTickLabel = String(xScale.ticks[0]?.label || '').trim();
+            const combinedFirstTickLabel = leftUnitText
+                ? `${leftUnitText}${firstTickLabel ? ` ${firstTickLabel}` : ''}`
+                : firstTickLabel;
 
             ctx.save();
             ctx.fillStyle = '#6c757d';
             ctx.font = '600 10px system-ui, -apple-system, "Segoe UI", sans-serif';
             ctx.textBaseline = 'middle';
 
-            if (leftUnitText) {
-                ctx.textAlign = 'right';
-                ctx.fillText(leftUnitText, firstTickX - labelGap, labelY);
+            if (combinedFirstTickLabel) {
+                ctx.textAlign = 'left';
+                ctx.fillText(combinedFirstTickLabel, firstTickX, labelY);
             }
 
             if (rightUnitText) {
@@ -168,6 +172,13 @@ function createRunInfoHistoryChart() {
             scales: {
                 x: {
                     ticks: {
+                        callback(value, index, ticks) {
+                            if (index === 0) {
+                                return '';
+                            }
+
+                            return ticks?.[index]?.label ?? value;
+                        },
                         maxRotation: 0,
                         autoSkip: true,
                         maxTicksLimit: 6,
@@ -357,6 +368,13 @@ function createVehicleSpeedHistoryChart() {
             scales: {
                 x: {
                     ticks: {
+                        callback(value, index, ticks) {
+                            if (index === 0) {
+                                return '';
+                            }
+
+                            return ticks?.[index]?.label ?? value;
+                        },
                         maxRotation: 0,
                         autoSkip: true,
                         maxTicksLimit: 6,

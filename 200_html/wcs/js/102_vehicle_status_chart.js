@@ -58,7 +58,6 @@ function createRunInfoHistoryChart() {
         type: 'line',
         plugins: [runInfoXAxisEdgeUnitLabelPlugin],
         data: {
-            labels: runInfoHistoryState.labels,
             datasets: [
                 {
                     label: '배터리(%)',
@@ -132,7 +131,9 @@ function createRunInfoHistoryChart() {
             },
             scales: {
                 x: {
+                    type: 'linear',
                     ticks: {
+                        count: 4,
                         callback(value, index, ticks) {
                             if (index === 0) {
                                 return runInfoXAxisLeftUnitText;
@@ -142,7 +143,7 @@ function createRunInfoHistoryChart() {
                                 return runInfoXAxisRightUnitText;
                             }
 
-                            return ticks?.[index]?.label ?? value;
+                            return formatRunInfoChartTimeLabel(new Date(Number(value)));
                         },
                         maxRotation: 0,
                         autoSkip: false,
@@ -208,14 +209,12 @@ function pushRunInfoHistoryPoint(forcePush = false) {
     }
 
     runInfoHistoryState.lastPointAt = now;
-    runInfoHistoryState.labels.push(formatRunInfoChartTimeLabel(new Date(now)));
-    runInfoHistoryState.chart.data.datasets[0].data.push(latest.batteryPercent);
-    runInfoHistoryState.chart.data.datasets[1].data.push(latest.availableMinutes);
-    runInfoHistoryState.chart.data.datasets[2].data.push(latest.elapsedMinutes);
-    runInfoHistoryState.chart.data.datasets[3].data.push(latest.distanceKm);
+    runInfoHistoryState.chart.data.datasets[0].data.push({ x: now, y: latest.batteryPercent });
+    runInfoHistoryState.chart.data.datasets[1].data.push({ x: now, y: latest.availableMinutes });
+    runInfoHistoryState.chart.data.datasets[2].data.push({ x: now, y: latest.elapsedMinutes });
+    runInfoHistoryState.chart.data.datasets[3].data.push({ x: now, y: latest.distanceKm });
 
-    if (runInfoHistoryState.labels.length > runInfoHistoryState.maxPoints) {
-        runInfoHistoryState.labels.shift();
+    if (runInfoHistoryState.chart.data.datasets[0].data.length > runInfoHistoryState.maxPoints) {
         runInfoHistoryState.chart.data.datasets.forEach((dataset) => {
             dataset.data.shift();
         });
@@ -270,7 +269,6 @@ function createVehicleSpeedHistoryChart() {
         type: 'line',
         plugins: [vehicleSpeedXAxisEdgeUnitLabelPlugin],
         data: {
-            labels: vehicleSpeedHistoryState.labels,
             datasets: [
                 {
                     label: '현재 속도',
@@ -334,7 +332,9 @@ function createVehicleSpeedHistoryChart() {
             },
             scales: {
                 x: {
+                    type: 'linear',
                     ticks: {
+                        count: 4,
                         callback(value, index, ticks) {
                             if (index === 0) {
                                 return vehicleSpeedXAxisLeftUnitText;
@@ -344,7 +344,7 @@ function createVehicleSpeedHistoryChart() {
                                 return vehicleSpeedXAxisRightUnitText;
                             }
 
-                            return ticks?.[index]?.label ?? value;
+                            return formatVehicleSpeedChartTimeLabel(Number(value));
                         },
                         maxRotation: 0,
                         autoSkip: false,
@@ -403,13 +403,11 @@ function pushVehicleSpeedHistoryPoint(forcePush = false) {
     }
 
     vehicleSpeedHistoryState.lastPointAt = now;
-    vehicleSpeedHistoryState.labels.push(formatVehicleSpeedChartTimeLabel(new Date(now)));
-    vehicleSpeedHistoryState.chart.data.datasets[0].data.push(latest.speedKmh);
-    vehicleSpeedHistoryState.chart.data.datasets[1].data.push(latest.maxSpeedKmh);
-    vehicleSpeedHistoryState.chart.data.datasets[2].data.push(latest.accelerationKmhPerSec);
+    vehicleSpeedHistoryState.chart.data.datasets[0].data.push({ x: now, y: latest.speedKmh });
+    vehicleSpeedHistoryState.chart.data.datasets[1].data.push({ x: now, y: latest.maxSpeedKmh });
+    vehicleSpeedHistoryState.chart.data.datasets[2].data.push({ x: now, y: latest.accelerationKmhPerSec });
 
-    if (vehicleSpeedHistoryState.labels.length > vehicleSpeedHistoryState.maxPoints) {
-        vehicleSpeedHistoryState.labels.shift();
+    if (vehicleSpeedHistoryState.chart.data.datasets[0].data.length > vehicleSpeedHistoryState.maxPoints) {
         vehicleSpeedHistoryState.chart.data.datasets.forEach((dataset) => {
             dataset.data.shift();
         });

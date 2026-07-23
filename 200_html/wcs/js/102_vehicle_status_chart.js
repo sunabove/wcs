@@ -26,40 +26,7 @@ const vehicleSpeedHistoryState = {
 function createXAxisEdgeUnitLabelPlugin(options, pluginId) {
     return {
         id: pluginId,
-        afterDraw(chart) {
-            const { ctx, scales } = chart;
-            if (!scales) {
-                return;
-            }
-
-            const xScale = scales.x;
-            if (!xScale || !Array.isArray(xScale.ticks) || xScale.ticks.length === 0) {
-                return;
-            }
-
-            const leftUnitText = String(options?.leftUnitText || '').trim();
-            const rightUnitText = String(options?.rightUnitText || '').trim();
-            if (!leftUnitText && !rightUnitText) {
-                return;
-            }
-
-            const firstTickX = xScale.getPixelForTick(0);
-            const lastTickX = xScale.getPixelForTick(xScale.ticks.length - 1);
-            const labelY = xScale.bottom + 16;
-            const labelGap = 6;
-
-            ctx.save();
-            ctx.fillStyle = '#6c757d';
-            ctx.font = '600 10px system-ui, -apple-system, "Segoe UI", sans-serif';
-            ctx.textBaseline = 'middle';
-
-            if (rightUnitText) {
-                ctx.textAlign = 'left';
-                ctx.fillText(rightUnitText, lastTickX + labelGap, labelY);
-            }
-
-            ctx.restore();
-        },
+        afterDraw() {},
     };
 }
 
@@ -77,11 +44,12 @@ function createRunInfoHistoryChart() {
     }
 
     const runInfoXAxisLeftUnitText = '%';
+    const runInfoXAxisRightUnitText = '분';
 
     const runInfoXAxisEdgeUnitLabelPlugin = createXAxisEdgeUnitLabelPlugin(
         {
             leftUnitText: runInfoXAxisLeftUnitText,
-            rightUnitText: '분',
+            rightUnitText: runInfoXAxisRightUnitText,
         },
         'runInfoXAxisEdgeUnitLabelPlugin'
     );
@@ -168,6 +136,10 @@ function createRunInfoHistoryChart() {
                         callback(value, index, ticks) {
                             if (index === 0) {
                                 return runInfoXAxisLeftUnitText;
+                            }
+
+                            if (index === ticks.length - 1) {
+                                return runInfoXAxisRightUnitText;
                             }
 
                             return ticks?.[index]?.label ?? value;
@@ -285,11 +257,12 @@ function createVehicleSpeedHistoryChart() {
     }
 
     const vehicleSpeedXAxisLeftUnitText = 'km/h';
+    const vehicleSpeedXAxisRightUnitText = 'm/s²';
 
     const vehicleSpeedXAxisEdgeUnitLabelPlugin = createXAxisEdgeUnitLabelPlugin(
         {
             leftUnitText: vehicleSpeedXAxisLeftUnitText,
-            rightUnitText: 'm/s²',
+            rightUnitText: vehicleSpeedXAxisRightUnitText,
         },
         'vehicleSpeedXAxisEdgeUnitLabelPlugin'
     );
@@ -366,6 +339,10 @@ function createVehicleSpeedHistoryChart() {
                         callback(value, index, ticks) {
                             if (index === 0) {
                                 return vehicleSpeedXAxisLeftUnitText;
+                            }
+
+                            if (index === ticks.length - 1) {
+                                return vehicleSpeedXAxisRightUnitText;
                             }
 
                             return ticks?.[index]?.label ?? value;

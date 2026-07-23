@@ -741,7 +741,7 @@ class URDFViewer {
         group.add(ring);
 
         const globe = new THREE.LineSegments(
-            new THREE.WireframeGeometry(new THREE.SphereGeometry(0.76, 12, 10)),
+            new THREE.WireframeGeometry(new THREE.SphereGeometry(0.76, 8, 6)),
             new THREE.LineBasicMaterial({ color: 0x9ca3af, transparent: true, opacity: 0.75 })
         );
         group.add(globe);

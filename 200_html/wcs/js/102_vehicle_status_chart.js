@@ -25,6 +25,8 @@ const vehicleSpeedHistoryState = {
     maxPoints: 30,
 };
 
+const MIN_X_TICK_COUNT = 4;
+
 function createXAxisEdgeUnitLabelPlugin(options, pluginId) {
     const leftUnitText = String(options?.leftUnitText || '');
     const rightUnitText = String(options?.rightUnitText || '');
@@ -70,9 +72,35 @@ function formatRunInfoChartTimeLabel(elapsedMs) {
     return `${minutes}:${seconds}`;
 }
 
-function getUniqueTimeTickLabel(value, index, ticks, formatLabel) {
+function ensureLinearMinTicks(scale, minTickCount = MIN_X_TICK_COUNT) {
+    const tickCount = Math.max(2, Number(minTickCount) || 2);
+    const min = Number(scale?.min);
+    const max = Number(scale?.max);
+
+    if (!Number.isFinite(min) || !Number.isFinite(max) || max <= min) {
+        return;
+    }
+
+    const step = (max - min) / (tickCount - 1);
+    const ticks = [];
+    for (let i = 0; i < tickCount; i += 1) {
+        ticks.push({ value: min + (step * i) });
+    }
+
+    scale.ticks = ticks;
+}
+
+function getUniqueTimeTickLabel(value, index, ticks, formatLabel, leftEdgeLabel = '', rightEdgeLabel = '') {
+    const lastIndex = Math.max(0, ticks.length - 1);
+    if (index === 0) {
+        return leftEdgeLabel;
+    }
+    if (index === lastIndex) {
+        return rightEdgeLabel;
+    }
+
     const currentLabel = formatLabel(Number(value));
-    if (index <= 0) {
+    if (index <= 1) {
         return currentLabel;
     }
 
@@ -90,17 +118,9 @@ function createRunInfoHistoryChart() {
     const runInfoXAxisLeftUnitText = '%';
     const runInfoXAxisRightUnitText = '분';
 
-    const runInfoXAxisEdgeUnitLabelPlugin = createXAxisEdgeUnitLabelPlugin(
-        {
-            leftUnitText: runInfoXAxisLeftUnitText,
-            rightUnitText: runInfoXAxisRightUnitText,
-        },
-        'runInfoXAxisEdgeUnitLabelPlugin'
-    );
-
     runInfoHistoryState.chart = new Chart(canvas, {
         type: 'line',
-        plugins: [runInfoXAxisEdgeUnitLabelPlugin],
+        plugins: [],
         data: {
             datasets: [
                 {
@@ -176,10 +196,20 @@ function createRunInfoHistoryChart() {
             scales: {
                 x: {
                     type: 'linear',
+                    afterBuildTicks(scale) {
+                        ensureLinearMinTicks(scale, MIN_X_TICK_COUNT);
+                    },
                     ticks: {
-                        count: 4,
+                        count: MIN_X_TICK_COUNT,
                         callback(value, index, ticks) {
-                            return getUniqueTimeTickLabel(value, index, ticks, formatRunInfoChartTimeLabel);
+                            return getUniqueTimeTickLabel(
+                                value,
+                                index,
+                                ticks,
+                                formatRunInfoChartTimeLabel,
+                                runInfoXAxisLeftUnitText,
+                                runInfoXAxisRightUnitText
+                            );
                         },
                         maxRotation: 0,
                         autoSkip: false,
@@ -311,17 +341,9 @@ function createVehicleSpeedHistoryChart() {
     const vehicleSpeedXAxisLeftUnitText = 'km/h';
     const vehicleSpeedXAxisRightUnitText = 'm/s²';
 
-    const vehicleSpeedXAxisEdgeUnitLabelPlugin = createXAxisEdgeUnitLabelPlugin(
-        {
-            leftUnitText: vehicleSpeedXAxisLeftUnitText,
-            rightUnitText: vehicleSpeedXAxisRightUnitText,
-        },
-        'vehicleSpeedXAxisEdgeUnitLabelPlugin'
-    );
-
     vehicleSpeedHistoryState.chart = new Chart(canvas, {
         type: 'line',
-        plugins: [vehicleSpeedXAxisEdgeUnitLabelPlugin],
+        plugins: [],
         data: {
             datasets: [
                 {
@@ -387,10 +409,20 @@ function createVehicleSpeedHistoryChart() {
             scales: {
                 x: {
                     type: 'linear',
+                    afterBuildTicks(scale) {
+                        ensureLinearMinTicks(scale, MIN_X_TICK_COUNT);
+                    },
                     ticks: {
-                        count: 4,
+                        count: MIN_X_TICK_COUNT,
                         callback(value, index, ticks) {
-                            return getUniqueTimeTickLabel(value, index, ticks, formatVehicleSpeedChartTimeLabel);
+                            return getUniqueTimeTickLabel(
+                                value,
+                                index,
+                                ticks,
+                                formatVehicleSpeedChartTimeLabel,
+                                vehicleSpeedXAxisLeftUnitText,
+                                vehicleSpeedXAxisRightUnitText
+                            );
                         },
                         maxRotation: 0,
                         autoSkip: false,

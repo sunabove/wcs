@@ -142,7 +142,6 @@ class URDFViewer {
         );
         this.compassOverlayElement = null;
         this.compassNeedleElement = null;
-        this.compassHeadingTextElement = null;
         this.viewCubeOverlayElement = null;
         this.viewCubeCubeElement = null;
         this.viewCubeActiveFaceKey = null;
@@ -645,7 +644,7 @@ class URDFViewer {
         const panelElement = document.createElement('div');
         panelElement.style.position = 'absolute';
         panelElement.style.top = '10px';
-        panelElement.style.right = this.showAttitude ? '84px' : '10px';
+        panelElement.style.right = '10px';
         panelElement.style.zIndex = '13';
         panelElement.style.padding = '8px';
         panelElement.style.background = 'rgba(255, 255, 255, 0.9)';
@@ -730,21 +729,11 @@ class URDFViewer {
         dialElement.appendChild(needleElement);
         dialElement.appendChild(centerDotElement);
 
-        const headingTextElement = document.createElement('div');
-        headingTextElement.style.marginTop = '6px';
-        headingTextElement.style.textAlign = 'center';
-        headingTextElement.style.fontSize = '11px';
-        headingTextElement.style.fontWeight = '700';
-        headingTextElement.style.color = '#334155';
-        headingTextElement.textContent = '000°';
-
         panelElement.appendChild(dialElement);
-        panelElement.appendChild(headingTextElement);
 
         this.container.appendChild(panelElement);
         this.compassOverlayElement = panelElement;
         this.compassNeedleElement = needleElement;
-        this.compassHeadingTextElement = headingTextElement;
         this.updateCompassOverlay();
     }
 
@@ -1090,7 +1079,7 @@ class URDFViewer {
     }
 
     updateCompassOverlay() {
-        if (!this.compassNeedleElement || !this.compassHeadingTextElement || !this.camera || !this.controls) {
+        if (!this.compassNeedleElement || !this.camera || !this.controls) {
             return;
         }
 
@@ -1106,7 +1095,6 @@ class URDFViewer {
         const headingDeg = (THREE.MathUtils.radToDeg(headingRad) + 360) % 360;
 
         this.compassNeedleElement.style.transform = `translate(-50%, -100%) rotate(${headingDeg}deg)`;
-        this.compassHeadingTextElement.textContent = `${String(Math.round(headingDeg)).padStart(3, '0')}°`;
     }
 
     setupCameraAngleLogging() {

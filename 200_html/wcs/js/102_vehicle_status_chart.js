@@ -225,7 +225,7 @@ function pushRunInfoHistoryPoint(forcePush = false) {
     const lastDataIndex = runInfoDatasets[0].data.length - 1;
     const lastRunInfoPoint = lastDataIndex >= 0 ? runInfoDatasets[0].data[lastDataIndex] : null;
 
-    if (lastRunInfoPoint && Number(lastRunInfoPoint.x) === runInfoElapsedSecond) {
+    if (lastRunInfoPoint && Number(lastRunInfoPoint.x) === (runInfoElapsedSecond * 1000)) {
         runInfoDatasets[0].data[lastDataIndex].y = latest.batteryPercent;
         runInfoDatasets[1].data[lastDataIndex].y = latest.availableMinutes;
         runInfoDatasets[2].data[lastDataIndex].y = latest.elapsedMinutes;

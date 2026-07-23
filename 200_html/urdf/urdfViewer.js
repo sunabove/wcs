@@ -138,7 +138,7 @@ class URDFViewer {
         this.pitchNeedleElement = null;
         this.showCompass = this.parseBooleanAttribute(
             containerElement.getAttribute('showCompass'),
-            true
+            false
         );
         this.compassOverlayElement = null;
         this.compassNeedleElement = null;

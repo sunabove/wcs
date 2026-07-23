@@ -260,13 +260,18 @@ $(document).ready(function() {
         applyVehicleDirectionAnimation(selectedCommand, selectedSpeedKmh);
         console.log(`[Vehicle Test] 📨 초기 방향 제어 명령 발행: vehicle/operation/command = ${selectedCommand} (${selectedButtonId})`);
 
-        // Add blink animation to the selected button
+        // Blink the selected button by toggling classes 2 times
         const selectedButton = $(`#${selectedButtonId}`);
         if (selectedButton.length) {
-            selectedButton.addClass('button-blink');
-            setTimeout(() => {
-                selectedButton.removeClass('button-blink');
-            }, 600);
+            for (let i = 0; i < 4; i++) {
+                setTimeout(() => {
+                    if (i % 2 === 0) {
+                        selectedButton.removeClass('active text-white').addClass('text-black');
+                    } else {
+                        selectedButton.addClass('active text-white').removeClass('text-black');
+                    }
+                }, (i + 1) * 150);
+            }
         }
     }
 
@@ -328,11 +333,16 @@ $(document).ready(function() {
 
         console.log(`[Vehicle Test] ${icon} ${selectedWheel.toUpperCase()} 바퀴 ${actionName} 명령 전송: ${topic} = ${command}`);
 
-        // Add blink animation
-        buttonElement.addClass('button-blink');
-        setTimeout(() => {
-            buttonElement.removeClass('button-blink');
-        }, 600);
+        // Blink by toggling button classes 2 times
+        for (let i = 0; i < 4; i++) {
+            setTimeout(() => {
+                if (i % 2 === 0) {
+                    buttonElement.removeClass('active btn-secondary text-white').addClass('btn-outline-secondary text-black');
+                } else {
+                    buttonElement.removeClass('btn-outline-secondary text-black').addClass('active btn-secondary text-white');
+                }
+            }, (i + 1) * 150);
+        }
     }
 
     function sendVehicleCommand(command, buttonElement, actionName, icon) {
@@ -384,11 +394,16 @@ $(document).ready(function() {
         lastVehicleDirectionCommandSent = Number(command);
         console.log(`[Vehicle Test] ${icon} 차량 ${actionName} 명령 전송: ${topic} = ${command}, ${speedTopic} = ${roundedSpeedMs}`);
 
-        // Add blink animation
-        buttonElement.addClass('button-blink');
-        setTimeout(() => {
-            buttonElement.removeClass('button-blink');
-        }, 600);
+        // Blink by toggling button classes 2 times
+        for (let i = 0; i < 4; i++) {
+            setTimeout(() => {
+                if (i % 2 === 0) {
+                    buttonElement.removeClass('active text-white').addClass('text-black');
+                } else {
+                    buttonElement.addClass('active text-white').removeClass('text-black');
+                }
+            }, (i + 1) * 150);
+        }
     }
 
     $('#test-clockwise').click(function() {

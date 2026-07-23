@@ -99,14 +99,7 @@ function getUniqueTimeTickLabel(value, index, ticks, formatLabel, leftEdgeLabel 
         return rightEdgeLabel;
     }
 
-    const currentLabel = formatLabel(Number(value));
-    if (index <= 1) {
-        return currentLabel;
-    }
-
-    const previousTickValue = Number(ticks[index - 1]?.value);
-    const previousLabel = formatLabel(previousTickValue);
-    return currentLabel === previousLabel ? '' : currentLabel;
+    return formatLabel(Number(value));
 }
 
 function createRunInfoHistoryChart() {

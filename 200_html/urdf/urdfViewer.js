@@ -480,6 +480,37 @@ class URDFViewer {
         }
     }
 
+    blockOverlayPointerInteractions(overlayElement) {
+        if (!overlayElement) {
+            return;
+        }
+
+        const stopOverlayEvent = (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+        };
+
+        const blockedEvents = [
+            'pointerdown',
+            'pointermove',
+            'pointerup',
+            'pointercancel',
+            'mousedown',
+            'mousemove',
+            'mouseup',
+            'touchstart',
+            'touchmove',
+            'touchend',
+            'wheel',
+            'click',
+            'contextmenu',
+        ];
+
+        blockedEvents.forEach((eventName) => {
+            overlayElement.addEventListener(eventName, stopOverlayEvent, true);
+        });
+    }
+
     setupWheelInfoOverlay() {
         if (!this.container || this.wheelInfoOverlayElement) {
             return;
@@ -560,7 +591,7 @@ class URDFViewer {
         panelElement.style.border = '1px solid rgba(30, 30, 30, 0.2)';
         panelElement.style.borderRadius = '10px';
         panelElement.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.12)';
-        panelElement.style.pointerEvents = 'none';
+        panelElement.style.pointerEvents = 'auto';
         panelElement.style.width = 'auto';
 
         const dialElement = document.createElement('div');
@@ -629,6 +660,7 @@ class URDFViewer {
         dialElement.appendChild(centerDotElement);
 
         panelElement.appendChild(dialElement);
+        this.blockOverlayPointerInteractions(panelElement);
         this.container.appendChild(panelElement);
 
         this.attitudeOverlayElement = panelElement;
@@ -654,7 +686,7 @@ class URDFViewer {
         panelElement.style.border = '1px solid rgba(30, 30, 30, 0.2)';
         panelElement.style.borderRadius = '10px';
         panelElement.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.12)';
-        panelElement.style.pointerEvents = 'none';
+        panelElement.style.pointerEvents = 'auto';
 
         const viewportElement = document.createElement('div');
         viewportElement.style.position = 'relative';
@@ -691,6 +723,7 @@ class URDFViewer {
         compassScene.add(compassModelGroup);
 
         panelElement.appendChild(viewportElement);
+        this.blockOverlayPointerInteractions(panelElement);
 
         this.container.appendChild(panelElement);
         this.compassOverlayElement = panelElement;

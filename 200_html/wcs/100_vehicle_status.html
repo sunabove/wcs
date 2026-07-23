@@ -343,7 +343,7 @@
                                                     <div class="urdf-container w-100 h-100 overflow-hidden border border-1 vehicle-status-urdf-min-height" 
                                                         id="vehicle-urdf-viewer" 
                                                         urdf_="/urdf/vehicle/vehicle.urdf"
-                                                        urdf="/urdf/sw_02/urdf/ASSY.urdf"
+                                                        urdf="/urdf/sw_03/urdf/ASSY.urdf"
                                                         cameraPose="-0.622, 1.674, 0.566|0.215, -0.207, 0.559|0.033, 0.009, 0.999"
                                                         showAttitude="true"
                                                         showWheelInfo="true"
@@ -535,13 +535,13 @@
     </main>
 
     <template id="wheel-info-table-template">
-            <table class="table table-bordered table-striped m-0 wheel-info-table">
+        <table class="table table-bordered table-striped m-0 wheel-info-table">
             <colgroup>
                 <col width="33%">
                 <col>
             </colgroup>
 
-
+            <tbody>
                 <tr>
                     <th class="text-center wheel-info-body-cell" scope="row">Speed</th>
                     <td id="wheel/__WHEEL_KEY__/linear/speed" class="text-end wheel-info-body-cell"> __ km/h</td>
@@ -571,7 +571,9 @@
                     <td id="wheel/__WHEEL_KEY__/axis/angle" class="text-end wheel-info-body-cell"> __ °</td>
                 </tr>
             </tbody>
+
         </table>
+
     </template>
 
     <footer class="text-center py-4">

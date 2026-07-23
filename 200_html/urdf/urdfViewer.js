@@ -550,7 +550,7 @@ class URDFViewer {
         const panelElement = document.createElement('div');
         panelElement.style.position = 'absolute';
         panelElement.style.top = overlayTopPx;
-        panelElement.style.right = '10px';
+        panelElement.style.right = this.showCompass ? '84px' : '10px';
         panelElement.style.zIndex = '13';
         panelElement.style.padding = '8px';
         panelElement.style.background = 'rgba(255, 255, 255, 0.88)';

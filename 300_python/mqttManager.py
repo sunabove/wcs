@@ -270,8 +270,12 @@ class MqttManager:
         print("MQTT Connected:", reason_code)
         client.subscribe("client/connect")
         client.subscribe("sensor/#")
+        client.subscribe("wheel/#")
+        client.subscribe("vehicle/#")
         print("[MQTT] Subscribed to client/connect")
         print("[MQTT] Subscribed to sensor/#")
+        print("[MQTT] Subscribed to wheel/#")
+        print("[MQTT] Subscribed to vehicle/#")
 
     def _on_message(self, _client, _userdata, msg):
         try:
@@ -286,8 +290,122 @@ class MqttManager:
 
             if self._store_sensor_message(topic, payload):
                 print(f"[SENSOR] Stored latest sensor topic: {topic}")
+                return
+
+            if self._store_wheel_message(topic, payload):
+                print(f"[WHEEL] Stored latest wheel topic: {topic}")
+                return
+
+            if self._store_vehicle_message(topic, payload):
+                print(f"[VEHICLE] Stored latest vehicle topic: {topic}")
         except Exception as e:
             print(f"[MQTT] Message processing error: {e}")
+
+    def _store_wheel_message(self, topic, payload):
+        topic_text = str(topic or "").strip()
+        if not topic_text.startswith("wheel/"):
+            return False
+
+        parts = topic_text.split("/")
+        if len(parts) < 3:
+            return False
+
+        wheel_str_id = parts[1]
+        if wheel_str_id not in MqttConfig.WHEEL_IDS:
+            return False
+
+        metric = "/".join(parts[2:])
+
+        if metric == "angle/speed":
+            self.wheel_rpm_by_id[wheel_str_id] = self._parse_numeric_payload(payload)
+            return True
+        if metric == "linear/speed":
+            self.wheel_speed_by_id[wheel_str_id] = self._parse_numeric_payload(payload)
+            return True
+        if metric == "power":
+            self.wheel_power_by_id[wheel_str_id] = self._parse_numeric_payload(payload)
+            return True
+        if metric == "pid/p":
+            self.wheel_pid_by_id.setdefault(wheel_str_id, {})["p"] = self._parse_numeric_payload(payload)
+            return True
+        if metric == "pid/i":
+            self.wheel_pid_by_id.setdefault(wheel_str_id, {})["i"] = self._parse_numeric_payload(payload)
+            return True
+        if metric == "pid/d":
+            self.wheel_pid_by_id.setdefault(wheel_str_id, {})["d"] = self._parse_numeric_payload(payload)
+            return True
+        if metric == "tof/distance":
+            self.wheel_tof_distance_by_id[wheel_str_id] = self._parse_numeric_payload(payload)
+            return True
+        if metric == "axis/angle":
+            self.wheel_axis_angle_by_id[wheel_str_id] = self._parse_numeric_payload(payload)
+            return True
+
+        return False
+
+    def _store_vehicle_message(self, topic, payload):
+        topic_text = str(topic or "").strip()
+        if not topic_text.startswith("vehicle/"):
+            return False
+
+        metric = topic_text[len("vehicle/"):]
+
+        if metric == "operation/command":
+            try:
+                self.command = OperationCommand(int(self._parse_numeric_payload(payload)))
+            except (ValueError, KeyError):
+                pass
+            return True
+        if metric == "operation/state":
+            try:
+                self.exec_state = VehicleExecState(int(self._parse_numeric_payload(payload)))
+            except (ValueError, KeyError):
+                pass
+            return True
+        if metric == "linear/speed":
+            self.linear_speed = float(self._parse_numeric_payload(payload))
+            return True
+        if metric == "linear/max_speed":
+            self.max_speed = float(self._parse_numeric_payload(payload))
+            return True
+        if metric == "linear/acceleration":
+            self.linear_acceleration = float(self._parse_numeric_payload(payload))
+            return True
+        if metric == "battery/remain_amount":
+            self.battery_remain_amount = float(self._parse_numeric_payload(payload))
+            return True
+        if metric == "drive/available_time":
+            self.drive_available_time = int(self._parse_numeric_payload(payload))
+            return True
+        if metric == "drive/elapsed_time":
+            self.drive_elapsed_time = int(self._parse_numeric_payload(payload))
+            return True
+        if metric == "drive/total_distance":
+            self.drive_total_distance = int(self._parse_numeric_payload(payload))
+            return True
+        if metric == "surface/state":
+            try:
+                self.surface_state = SurfaceState(int(self._parse_numeric_payload(payload)))
+            except (ValueError, KeyError):
+                pass
+            return True
+        if metric == "surface/obstacle":
+            try:
+                self.surface_obstacle = SurfaceObstacle(int(self._parse_numeric_payload(payload)))
+            except (ValueError, KeyError):
+                pass
+            return True
+        if metric == "road/roll_angle":
+            self.road_roll_angle = float(self._parse_numeric_payload(payload))
+            return True
+        if metric == "road/pitch_angle":
+            self.road_pitch_angle = float(self._parse_numeric_payload(payload))
+            return True
+        if metric == "current_video/file_name":
+            self.current_video_file_name = str(payload or "").strip()
+            return True
+
+        return False
 
     def _extract_client_connect_id(self, payload):
         try:

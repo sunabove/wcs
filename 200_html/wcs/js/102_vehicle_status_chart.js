@@ -110,7 +110,7 @@ function createRunInfoHistoryChart() {
             layout: {
                 padding: {
                     top: 8,
-                    bottom: 12,
+                    bottom: 6,
                 },
             },
             interaction: {
@@ -317,7 +317,7 @@ function createVehicleSpeedHistoryChart() {
             layout: {
                 padding: {
                     top: 8,
-                    bottom: 12,
+                    bottom: 6,
                 },
             },
             interaction: {

@@ -113,7 +113,7 @@ class MqttManager:
         self.port = port
 
         # 초기 접속 시 전달할 기준 정보
-        self.battery_remain_amount = 100.0
+        self.battery_remain_amount = 0.0
         self.drive_available_time = 0
         self.drive_elapsed_time = 0
         self.drive_total_distance = 0

@@ -47,20 +47,11 @@ function createXAxisEdgeUnitLabelPlugin(options, pluginId) {
             const lastTickX = xScale.getPixelForTick(xScale.ticks.length - 1);
             const labelY = xScale.bottom + 16;
             const labelGap = 6;
-            const firstTickLabel = String(xScale.ticks[0]?.label || '').trim();
-            const combinedFirstTickLabel = leftUnitText
-                ? `${leftUnitText}${firstTickLabel ? ` ${firstTickLabel}` : ''}`
-                : firstTickLabel;
 
             ctx.save();
             ctx.fillStyle = '#6c757d';
             ctx.font = '600 10px system-ui, -apple-system, "Segoe UI", sans-serif';
             ctx.textBaseline = 'middle';
-
-            if (combinedFirstTickLabel) {
-                ctx.textAlign = 'left';
-                ctx.fillText(combinedFirstTickLabel, firstTickX, labelY);
-            }
 
             if (rightUnitText) {
                 ctx.textAlign = 'left';
@@ -174,7 +165,7 @@ function createRunInfoHistoryChart() {
                     ticks: {
                         callback(value, index, ticks) {
                             if (index === 0) {
-                                return '';
+                                return leftUnitText;
                             }
 
                             return ticks?.[index]?.label ?? value;
@@ -370,7 +361,7 @@ function createVehicleSpeedHistoryChart() {
                     ticks: {
                         callback(value, index, ticks) {
                             if (index === 0) {
-                                return '';
+                                return leftUnitText;
                             }
 
                             return ticks?.[index]?.label ?? value;

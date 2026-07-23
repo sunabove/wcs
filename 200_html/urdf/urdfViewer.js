@@ -657,6 +657,7 @@ class URDFViewer {
         dialElement.style.position = 'relative';
         dialElement.style.width = '48px';
         dialElement.style.height = '48px';
+        dialElement.style.margin = '4px auto';
         dialElement.style.border = '1px solid rgba(34, 34, 34, 0.28)';
         dialElement.style.borderRadius = '999px';
         dialElement.style.background = 'rgba(245, 247, 250, 0.92)';

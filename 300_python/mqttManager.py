@@ -73,8 +73,8 @@ class MqttConfig:
         ("vehicle/linear/speed", lambda mgr: round(mgr.linear_speed, 3), "VEHICLE"),
         ("vehicle/linear/max_speed", lambda mgr: round(mgr.max_speed, 2), "VEHICLE"),
         ("vehicle/linear/acceleration", lambda mgr: round(mgr.linear_acceleration, 3), "VEHICLE"),
-        ("vehicle/operation/command", lambda mgr: mgr.command.value, "VEHICLE"),
-        ("vehicle/operation/state", lambda mgr: mgr.exec_state.value, "VEHICLE"),
+        ("vehicle/operation/command", lambda mgr: mgr.operation_command.value, "VEHICLE"),
+        ("vehicle/operation/state", lambda mgr: mgr.operation_state.value, "VEHICLE"),
         ("vehicle/surface/state", lambda mgr: mgr.surface_state.value, "SURFACE"),
         ("vehicle/surface/obstacle", lambda mgr: mgr.surface_obstacle.value, "OBSTACLE"),
         ("vehicle/road/roll_angle", lambda mgr: mgr.road_roll_angle, "ROAD"),
@@ -292,17 +292,11 @@ class MqttManager:
                 else:
                     print("[CONNECT] Client connection detected - Publishing initial settings...")
                     self._publish_settings_on_client_connect(payload)
-                return
-
-            if self._store_sensor_message(topic, payload):
+            elif self._store_sensor_message(topic, payload):
                 print(f"[SENSOR] Stored latest sensor topic: {topic}")
-                return
-
-            if self._store_wheel_message(topic, payload):
+            elif self._store_wheel_message(topic, payload):
                 print(f"[WHEEL] Stored latest wheel topic: {topic}")
-                return
-
-            if self._store_vehicle_message(topic, payload):
+            elif self._store_vehicle_message(topic, payload):
                 print(f"[VEHICLE] Stored latest vehicle topic: {topic}")
         except Exception as e:
             print(f"[MQTT] Message processing error: {e}")
@@ -347,7 +341,8 @@ class MqttManager:
             self.wheel_axis_angle_by_id[wheel_str_id] = self._parse_numeric_payload(payload)
             return True
 
-        return False
+        # 유효한 휠 ID의 미처리 메트릭은 여기서 소비 (차량 명령 핸들러로 전달되지 않도록)
+        return True
 
     def _store_vehicle_message(self, topic, payload):
         topic_text = str(topic or "").strip()

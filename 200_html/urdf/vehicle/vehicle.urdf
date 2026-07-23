@@ -61,6 +61,14 @@
       <mass value="0.001" />
       <inertia ixx="1e-6" ixy="0" ixz="0" iyy="1e-6" iyz="0" izz="1e-6" />
     </inertial>
+
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <sphere radius="0.04" />
+      </geometry>
+      <material name="green" />
+    </visual>
   </link>
 
   <!-- Main body (car_frame style) -->
@@ -212,14 +220,6 @@
         <box size="2.00 1.80 0.005" />
       </geometry>
       <material name="ground_surface" />
-    </visual>
-
-    <visual>
-      <origin xyz="0 0 0" rpy="0 0 0" />
-      <geometry>
-        <sphere radius="0.04" />
-      </geometry>
-      <material name="green" />
     </visual>
   </link>
 

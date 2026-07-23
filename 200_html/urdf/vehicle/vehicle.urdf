@@ -7,7 +7,7 @@
   </material>
 
   <material name="body_light">
-    <color rgba="0.40 0.43 0.48 0.3" />
+    <color rgba="0.40 0.43 0.48 0.2" />
   </material>
 
   <material name="tire">
@@ -32,10 +32,6 @@
 
   <material name="rim">
     <color rgba="0.80 0.82 0.85 1.0" />
-  </material>
-
-  <material name="arrow_mark">
-    <color rgba="0.95 0.95 0.20 1.0" />
   </material>
 
   <material name="head_light">
@@ -113,40 +109,6 @@
       </geometry>
       <material name="rim" />
     </visual>
-
-    <!-- Top direction marker in right-arrow shape on the body surface -->
-    <visual>
-      <origin xyz="0.0716667 0 0.192" rpy="0 0 0" />
-      <geometry>
-        <box size="0.12 0.02 0.004" />
-      </geometry>
-      <material name="arrow_mark" />
-    </visual>
-
-    <visual>
-      <origin xyz="-0.0483333 0 0.192" rpy="0 0 0" />
-      <geometry>
-        <box size="0.12 0.02 0.004" />
-      </geometry>
-      <material name="arrow_mark" />
-    </visual>
-
-    <visual>
-      <origin xyz="0.1616667 0.03 0.192" rpy="0 0 -0.785398" />
-      <geometry>
-        <box size="0.10 0.02 0.004" />
-      </geometry>
-      <material name="arrow_mark" />
-    </visual>
-
-    <visual>
-      <origin xyz="0.1616667 -0.03 0.192" rpy="0 0 0.785398" />
-      <geometry>
-        <box size="0.10 0.02 0.004" />
-      </geometry>
-      <material name="arrow_mark" />
-    </visual>
-
 
     <!-- Front head lights -->
     <visual>

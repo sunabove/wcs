@@ -137,14 +137,6 @@ function createRunInfoHistoryChart() {
                     ticks: {
                         count: 4,
                         callback(value, index, ticks) {
-                            if (index === 0) {
-                                return runInfoXAxisLeftUnitText;
-                            }
-
-                            if (index === ticks.length - 1) {
-                                return runInfoXAxisRightUnitText;
-                            }
-
                             const basePointAt = runInfoHistoryState.firstPointAt || Number(value);
                             return formatRunInfoChartTimeLabel(Number(value) - basePointAt);
                         },
@@ -344,14 +336,6 @@ function createVehicleSpeedHistoryChart() {
                     ticks: {
                         count: 4,
                         callback(value, index, ticks) {
-                            if (index === 0) {
-                                return vehicleSpeedXAxisLeftUnitText;
-                            }
-
-                            if (index === ticks.length - 1) {
-                                return vehicleSpeedXAxisRightUnitText;
-                            }
-
                             const basePointAt = vehicleSpeedHistoryState.firstPointAt || Number(value);
                             return formatVehicleSpeedChartTimeLabel(Number(value) - basePointAt);
                         },

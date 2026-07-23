@@ -141,7 +141,10 @@ class URDFViewer {
             false
         );
         this.compassOverlayElement = null;
-        this.compassNeedleElement = null;
+        this.compassRenderer = null;
+        this.compassScene = null;
+        this.compassCamera = null;
+        this.compassModelGroup = null;
         this.viewCubeOverlayElement = null;
         this.viewCubeCubeElement = null;
         this.viewCubeActiveFaceKey = null;
@@ -653,89 +656,156 @@ class URDFViewer {
         panelElement.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.12)';
         panelElement.style.pointerEvents = 'none';
 
-        const dialElement = document.createElement('div');
-        dialElement.style.position = 'relative';
-        dialElement.style.width = '48px';
-        dialElement.style.height = '48px';
-        dialElement.style.margin = '0 auto';
-        dialElement.style.border = '1px solid rgba(34, 34, 34, 0.28)';
-        dialElement.style.borderRadius = '999px';
-        dialElement.style.background = 'rgba(245, 247, 250, 0.92)';
+        const viewportElement = document.createElement('div');
+        viewportElement.style.position = 'relative';
+        viewportElement.style.width = '48px';
+        viewportElement.style.height = '48px';
+        viewportElement.style.margin = '0 auto';
+        viewportElement.style.border = '1px solid rgba(34, 34, 34, 0.28)';
+        viewportElement.style.borderRadius = '999px';
+        viewportElement.style.background = 'rgba(245, 247, 250, 0.92)';
+        viewportElement.style.overflow = 'hidden';
 
-        const tickTop = document.createElement('div');
-        tickTop.textContent = 'N';
-        tickTop.style.position = 'absolute';
-        tickTop.style.left = '50%';
-        tickTop.style.top = '2px';
-        tickTop.style.transform = 'translateX(-50%)';
-        tickTop.style.fontSize = '9px';
-        tickTop.style.fontWeight = '700';
-        tickTop.style.color = '#d9480f';
+        const compassRenderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
+        compassRenderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+        compassRenderer.setSize(48, 48, false);
+        compassRenderer.setClearColor(0x000000, 0);
+        compassRenderer.domElement.style.width = '48px';
+        compassRenderer.domElement.style.height = '48px';
+        compassRenderer.domElement.style.display = 'block';
+        viewportElement.appendChild(compassRenderer.domElement);
 
-        const tickRight = document.createElement('div');
-        tickRight.textContent = 'E';
-        tickRight.style.position = 'absolute';
-        tickRight.style.right = '3px';
-        tickRight.style.top = '50%';
-        tickRight.style.transform = 'translateY(-50%)';
-        tickRight.style.fontSize = '8px';
-        tickRight.style.fontWeight = '700';
-        tickRight.style.color = '#4b5563';
+        const compassScene = new THREE.Scene();
+        const compassCamera = new THREE.PerspectiveCamera(32, 1, 0.1, 20);
+        compassCamera.position.set(0, 0, 4.2);
+        compassCamera.lookAt(0, 0, 0);
 
-        const tickBottom = document.createElement('div');
-        tickBottom.textContent = 'S';
-        tickBottom.style.position = 'absolute';
-        tickBottom.style.left = '50%';
-        tickBottom.style.bottom = '2px';
-        tickBottom.style.transform = 'translateX(-50%)';
-        tickBottom.style.fontSize = '8px';
-        tickBottom.style.fontWeight = '700';
-        tickBottom.style.color = '#4b5563';
+        const ambientLight = new THREE.AmbientLight(0xffffff, 1.1);
+        compassScene.add(ambientLight);
 
-        const tickLeft = document.createElement('div');
-        tickLeft.textContent = 'W';
-        tickLeft.style.position = 'absolute';
-        tickLeft.style.left = '3px';
-        tickLeft.style.top = '50%';
-        tickLeft.style.transform = 'translateY(-50%)';
-        tickLeft.style.fontSize = '8px';
-        tickLeft.style.fontWeight = '700';
-        tickLeft.style.color = '#4b5563';
+        const keyLight = new THREE.DirectionalLight(0xffffff, 0.7);
+        keyLight.position.set(2, 2, 3);
+        compassScene.add(keyLight);
 
-        const needleElement = document.createElement('div');
-        needleElement.style.position = 'absolute';
-        needleElement.style.left = '50%';
-        needleElement.style.top = '50%';
-        needleElement.style.width = '2px';
-        needleElement.style.height = '18px';
-        needleElement.style.background = 'linear-gradient(180deg, #ef4444 0%, #1d4ed8 100%)';
-        needleElement.style.transformOrigin = '50% calc(100% - 1px)';
-        needleElement.style.transform = 'translate(-50%, -100%) rotate(0deg)';
-        needleElement.style.borderRadius = '2px';
+        const compassModelGroup = this.createCompassModelGroup();
+        compassScene.add(compassModelGroup);
 
-        const centerDotElement = document.createElement('div');
-        centerDotElement.style.position = 'absolute';
-        centerDotElement.style.left = '50%';
-        centerDotElement.style.top = '50%';
-        centerDotElement.style.width = '6px';
-        centerDotElement.style.height = '6px';
-        centerDotElement.style.transform = 'translate(-50%, -50%)';
-        centerDotElement.style.background = '#111827';
-        centerDotElement.style.borderRadius = '999px';
-
-        dialElement.appendChild(tickTop);
-        dialElement.appendChild(tickRight);
-        dialElement.appendChild(tickBottom);
-        dialElement.appendChild(tickLeft);
-        dialElement.appendChild(needleElement);
-        dialElement.appendChild(centerDotElement);
-
-        panelElement.appendChild(dialElement);
+        panelElement.appendChild(viewportElement);
 
         this.container.appendChild(panelElement);
         this.compassOverlayElement = panelElement;
-        this.compassNeedleElement = needleElement;
+        this.compassRenderer = compassRenderer;
+        this.compassScene = compassScene;
+        this.compassCamera = compassCamera;
+        this.compassModelGroup = compassModelGroup;
         this.updateCompassOverlay();
+    }
+
+    createCompassCardinalSprite(text, colorHex = '#4b5563') {
+        const canvas = document.createElement('canvas');
+        canvas.width = 128;
+        canvas.height = 128;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+            return null;
+        }
+
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.font = 'bold 84px Arial';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillStyle = colorHex;
+        ctx.fillText(String(text || ''), canvas.width / 2, canvas.height / 2);
+
+        const texture = new THREE.CanvasTexture(canvas);
+        texture.needsUpdate = true;
+        const material = new THREE.SpriteMaterial({
+            map: texture,
+            transparent: true,
+            depthTest: false,
+            depthWrite: false,
+        });
+
+        const sprite = new THREE.Sprite(material);
+        sprite.scale.set(0.42, 0.42, 0.42);
+        return sprite;
+    }
+
+    createCompassModelGroup() {
+        const group = new THREE.Group();
+
+        const ring = new THREE.Mesh(
+            new THREE.TorusGeometry(1.04, 0.035, 10, 40),
+            new THREE.MeshBasicMaterial({ color: 0x8b98a9, transparent: true, opacity: 0.9 })
+        );
+        group.add(ring);
+
+        const globe = new THREE.LineSegments(
+            new THREE.WireframeGeometry(new THREE.SphereGeometry(0.76, 12, 10)),
+            new THREE.LineBasicMaterial({ color: 0x9ca3af, transparent: true, opacity: 0.75 })
+        );
+        group.add(globe);
+
+        const shaftNorth = new THREE.Mesh(
+            new THREE.CylinderGeometry(0.04, 0.04, 0.66, 10),
+            new THREE.MeshPhongMaterial({ color: 0xef4444, shininess: 80 })
+        );
+        shaftNorth.position.y = 0.33;
+        group.add(shaftNorth);
+
+        const tipNorth = new THREE.Mesh(
+            new THREE.ConeGeometry(0.1, 0.22, 12),
+            new THREE.MeshPhongMaterial({ color: 0xdc2626, shininess: 90 })
+        );
+        tipNorth.position.y = 0.77;
+        group.add(tipNorth);
+
+        const shaftSouth = new THREE.Mesh(
+            new THREE.CylinderGeometry(0.03, 0.03, 0.48, 10),
+            new THREE.MeshPhongMaterial({ color: 0x1d4ed8, shininess: 80 })
+        );
+        shaftSouth.position.y = -0.25;
+        group.add(shaftSouth);
+
+        const tipSouth = new THREE.Mesh(
+            new THREE.ConeGeometry(0.08, 0.18, 12),
+            new THREE.MeshPhongMaterial({ color: 0x1e40af, shininess: 90 })
+        );
+        tipSouth.position.y = -0.58;
+        tipSouth.rotation.z = Math.PI;
+        group.add(tipSouth);
+
+        const centerDot = new THREE.Mesh(
+            new THREE.SphereGeometry(0.08, 12, 10),
+            new THREE.MeshPhongMaterial({ color: 0x111827, shininess: 100 })
+        );
+        group.add(centerDot);
+
+        const labelNorth = this.createCompassCardinalSprite('N', '#d9480f');
+        if (labelNorth) {
+            labelNorth.position.set(0, 1.18, 0);
+            group.add(labelNorth);
+        }
+
+        const labelEast = this.createCompassCardinalSprite('E', '#4b5563');
+        if (labelEast) {
+            labelEast.position.set(1.18, 0, 0);
+            group.add(labelEast);
+        }
+
+        const labelSouth = this.createCompassCardinalSprite('S', '#4b5563');
+        if (labelSouth) {
+            labelSouth.position.set(0, -1.18, 0);
+            group.add(labelSouth);
+        }
+
+        const labelWest = this.createCompassCardinalSprite('W', '#4b5563');
+        if (labelWest) {
+            labelWest.position.set(-1.18, 0, 0);
+            group.add(labelWest);
+        }
+
+        return group;
     }
 
     setupViewCubeOverlay() {
@@ -1080,22 +1150,16 @@ class URDFViewer {
     }
 
     updateCompassOverlay() {
-        if (!this.compassNeedleElement || !this.camera || !this.controls) {
+        if (!this.compassRenderer || !this.compassScene || !this.compassCamera || !this.compassModelGroup || !this.camera) {
             return;
         }
 
-        const target = this.controls.target.clone();
-        const forward = target.sub(this.camera.position);
-        const planarForward = new THREE.Vector2(forward.x, forward.y);
-        if (planarForward.lengthSq() < 1e-10) {
-            return;
-        }
+        const cameraQuaternion = new THREE.Quaternion();
+        this.camera.getWorldQuaternion(cameraQuaternion);
 
-        // World +Y axis is used as north. Heading is clockwise from north.
-        const headingRad = Math.atan2(planarForward.x, planarForward.y);
-        const headingDeg = (THREE.MathUtils.radToDeg(headingRad) + 360) % 360;
-
-        this.compassNeedleElement.style.transform = `translate(-50%, -100%) rotate(${headingDeg}deg)`;
+        // Keep world north fixed and rotate the compass opposite to camera orientation.
+        this.compassModelGroup.quaternion.copy(cameraQuaternion).invert();
+        this.compassRenderer.render(this.compassScene, this.compassCamera);
     }
 
     setupCameraAngleLogging() {
@@ -2683,6 +2747,11 @@ class URDFViewer {
             this.camera.aspect = newWidth / newHeight;
             this.camera.updateProjectionMatrix();
             this.renderer.setSize(newWidth, newHeight);
+
+            if (this.compassRenderer) {
+                this.compassRenderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+                this.compassRenderer.setSize(48, 48, false);
+            }
         });
     }
 

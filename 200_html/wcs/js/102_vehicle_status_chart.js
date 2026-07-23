@@ -145,8 +145,7 @@ function createRunInfoHistoryChart() {
                             return ticks?.[index]?.label ?? value;
                         },
                         maxRotation: 0,
-                        autoSkip: true,
-                        maxTicksLimit: 6,
+                        autoSkip: false,
                     },
                     grid: {
                         color: 'rgba(173, 181, 189, 0.2)',
@@ -348,8 +347,7 @@ function createVehicleSpeedHistoryChart() {
                             return ticks?.[index]?.label ?? value;
                         },
                         maxRotation: 0,
-                        autoSkip: true,
-                        maxTicksLimit: 6,
+                        autoSkip: false,
                     },
                     grid: {
                         color: 'rgba(173, 181, 189, 0.2)',

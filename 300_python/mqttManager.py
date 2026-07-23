@@ -121,8 +121,8 @@ class MqttManager:
         self.linear_speed = 0.0
         self.max_speed = 13.9
         self.linear_acceleration = 0.0
-        self.command = OperationCommand.FORWARD
-        self.exec_state = VehicleExecState.RUN
+        self.operation_command = OperationCommand.FORWARD
+        self.operation_state = VehicleExecState.RUN
         self.surface_state = SurfaceState.ASPHALT
         self.surface_obstacle = SurfaceObstacle.NONE
         self.road_roll_angle = 0.0
@@ -148,6 +148,8 @@ class MqttManager:
 
         self.publish_count = 0
         self.running = True
+        self._init_ready = False
+        self._pending_connect_payloads = []
         self.script_path = os.path.abspath(__file__)
         self.last_modified = os.path.getmtime(self.script_path) if os.path.exists(self.script_path) else 0
 
@@ -268,14 +270,14 @@ class MqttManager:
 
     def _on_connect(self, client, _userdata, _flags, reason_code, _properties=None):
         print("MQTT Connected:", reason_code)
-        client.subscribe("client/connect")
         client.subscribe("sensor/#")
         client.subscribe("wheel/#")
         client.subscribe("vehicle/#")
-        print("[MQTT] Subscribed to client/connect")
+        client.subscribe("client/connect")
         print("[MQTT] Subscribed to sensor/#")
         print("[MQTT] Subscribed to wheel/#")
         print("[MQTT] Subscribed to vehicle/#")
+        print("[MQTT] Subscribed to client/connect")
 
     def _on_message(self, _client, _userdata, msg):
         try:
@@ -284,8 +286,12 @@ class MqttManager:
             print(f"[MQTT] Received: {topic} -> {payload}")
 
             if topic == "client/connect":
-                print("[CONNECT] Client connection detected - Publishing initial settings...")
-                self._publish_settings_on_client_connect(payload)
+                if not self._init_ready:
+                    self._pending_connect_payloads.append(payload)
+                    print("[CONNECT] Queued - waiting for initialization...")
+                else:
+                    print("[CONNECT] Client connection detected - Publishing initial settings...")
+                    self._publish_settings_on_client_connect(payload)
                 return
 
             if self._store_sensor_message(topic, payload):
@@ -352,13 +358,13 @@ class MqttManager:
 
         if metric == "operation/command":
             try:
-                self.command = OperationCommand(int(self._parse_numeric_payload(payload)))
+                self.operation_command = OperationCommand(int(self._parse_numeric_payload(payload)))
             except (ValueError, KeyError):
                 pass
             return True
         if metric == "operation/state":
             try:
-                self.exec_state = VehicleExecState(int(self._parse_numeric_payload(payload)))
+                self.operation_state = VehicleExecState(int(self._parse_numeric_payload(payload)))
             except (ValueError, KeyError):
                 pass
             return True
@@ -530,6 +536,15 @@ class MqttManager:
         print(f"[MONITOR] 파일 모니터링: {self.script_path}")
         print("[INFO] client/connect 기반 초기 정보 발행 전용 모드")
         print("-" * 70)
+
+        # retained 메시지 수신 대기 후 초기화 완료 처리
+        time.sleep(1.0)
+        self._init_ready = True
+        print("[MANAGER] 초기화 완료 - 클라이언트 연결 처리 시작")
+        for pending_payload in self._pending_connect_payloads:
+            print("[CONNECT] Processing queued client connection...")
+            self._publish_settings_on_client_connect(pending_payload)
+        self._pending_connect_payloads.clear()
 
         last_monitor_check_at = 0.0
         while self.running and not _shutdown_flag:

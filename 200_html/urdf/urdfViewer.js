@@ -734,36 +734,6 @@ class URDFViewer {
         this.updateCompassOverlay();
     }
 
-    createCompassCardinalSprite(text, colorHex = '#4b5563') {
-        const canvas = document.createElement('canvas');
-        canvas.width = 128;
-        canvas.height = 128;
-        const ctx = canvas.getContext('2d');
-        if (!ctx) {
-            return null;
-        }
-
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        ctx.font = 'bold 84px Arial';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillStyle = colorHex;
-        ctx.fillText(String(text || ''), canvas.width / 2, canvas.height / 2);
-
-        const texture = new THREE.CanvasTexture(canvas);
-        texture.needsUpdate = true;
-        const material = new THREE.SpriteMaterial({
-            map: texture,
-            transparent: true,
-            depthTest: false,
-            depthWrite: false,
-        });
-
-        const sprite = new THREE.Sprite(material);
-        sprite.scale.set(0.42, 0.42, 0.42);
-        return sprite;
-    }
-
     createCompassModelGroup() {
         const group = new THREE.Group();
 
@@ -814,29 +784,35 @@ class URDFViewer {
         );
         group.add(centerDot);
 
-        const labelNorth = this.createCompassCardinalSprite('N', '#d9480f');
-        if (labelNorth) {
-            labelNorth.position.set(0, 1.18, 0);
-            group.add(labelNorth);
-        }
+        const axisDefs = [
+            { dir: new THREE.Vector3(1, 0, 0), color: 0xff3333 },
+            { dir: new THREE.Vector3(0, 1, 0), color: 0x22aa22 },
+            { dir: new THREE.Vector3(0, 0, 1), color: 0x3366ff },
+        ];
 
-        const labelEast = this.createCompassCardinalSprite('E', '#4b5563');
-        if (labelEast) {
-            labelEast.position.set(1.18, 0, 0);
-            group.add(labelEast);
-        }
+        axisDefs.forEach((axisDef) => {
+            const axisLength = 1.0;
+            const coneHeight = 0.2;
+            const lineEnd = axisDef.dir.clone().multiplyScalar(axisLength - coneHeight);
+            const coneCenter = axisDef.dir.clone().multiplyScalar(axisLength - (coneHeight * 0.5));
 
-        const labelSouth = this.createCompassCardinalSprite('S', '#4b5563');
-        if (labelSouth) {
-            labelSouth.position.set(0, -1.18, 0);
-            group.add(labelSouth);
-        }
+            const axisLine = new THREE.Line(
+                new THREE.BufferGeometry().setFromPoints([
+                    new THREE.Vector3(0, 0, 0),
+                    lineEnd,
+                ]),
+                new THREE.LineBasicMaterial({ color: axisDef.color, transparent: true, opacity: 0.95 })
+            );
+            group.add(axisLine);
 
-        const labelWest = this.createCompassCardinalSprite('W', '#4b5563');
-        if (labelWest) {
-            labelWest.position.set(-1.18, 0, 0);
-            group.add(labelWest);
-        }
+            const axisCone = new THREE.Mesh(
+                new THREE.ConeGeometry(0.08, coneHeight, 12),
+                new THREE.MeshPhongMaterial({ color: axisDef.color, shininess: 90 })
+            );
+            axisCone.position.copy(coneCenter);
+            axisCone.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), axisDef.dir.clone().normalize());
+            group.add(axisCone);
+        });
 
         return group;
     }

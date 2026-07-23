@@ -770,8 +770,8 @@ class URDFViewer {
             const target = this.controls.target.clone();
             const offset = this.camera.position.clone().sub(target);
 
-            // Invert angle so dragging the cube feels like rotating the view around the model.
-            const rotation = new THREE.Quaternion().setFromAxisAngle(axisWorld, -angle);
+            // Use standard drag direction: pointer movement rotates the camera in the same arcball direction.
+            const rotation = new THREE.Quaternion().setFromAxisAngle(axisWorld, angle);
             offset.applyQuaternion(rotation);
             this.camera.up.applyQuaternion(rotation).normalize();
 

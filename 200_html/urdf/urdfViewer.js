@@ -136,6 +136,13 @@ class URDFViewer {
         this.attitudeOverlayElement = null;
         this.rollNeedleElement = null;
         this.pitchNeedleElement = null;
+        this.showCompass = this.parseBooleanAttribute(
+            containerElement.getAttribute('showCompass'),
+            true
+        );
+        this.compassOverlayElement = null;
+        this.compassNeedleElement = null;
+        this.compassHeadingTextElement = null;
         this.viewCubeOverlayElement = null;
         this.viewCubeCubeElement = null;
         this.viewCubeActiveFaceKey = null;
@@ -410,6 +417,9 @@ class URDFViewer {
         if (this.showAttitude) {
             this.setupAttitudeOverlay();
         }
+        if (this.showCompass) {
+            this.setupCompassOverlay();
+        }
         if (this.showWheelInfo) {
             this.setupWheelInfoOverlay();
         }
@@ -623,6 +633,119 @@ class URDFViewer {
         this.rollNeedleElement = rollNeedleElement;
         this.pitchNeedleElement = pitchNeedleElement;
         this.updateAttitudeOverlay();
+    }
+
+    setupCompassOverlay() {
+        if (!this.container || this.compassOverlayElement) {
+            return;
+        }
+
+        this.ensureContainerOverlayPositioning();
+
+        const panelElement = document.createElement('div');
+        panelElement.style.position = 'absolute';
+        panelElement.style.top = '10px';
+        panelElement.style.right = this.showAttitude ? '84px' : '10px';
+        panelElement.style.zIndex = '13';
+        panelElement.style.padding = '8px';
+        panelElement.style.background = 'rgba(255, 255, 255, 0.9)';
+        panelElement.style.border = '1px solid rgba(30, 30, 30, 0.2)';
+        panelElement.style.borderRadius = '10px';
+        panelElement.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.12)';
+        panelElement.style.pointerEvents = 'none';
+
+        const dialElement = document.createElement('div');
+        dialElement.style.position = 'relative';
+        dialElement.style.width = '56px';
+        dialElement.style.height = '56px';
+        dialElement.style.border = '1px solid rgba(34, 34, 34, 0.28)';
+        dialElement.style.borderRadius = '999px';
+        dialElement.style.background = 'rgba(245, 247, 250, 0.92)';
+
+        const tickTop = document.createElement('div');
+        tickTop.textContent = 'N';
+        tickTop.style.position = 'absolute';
+        tickTop.style.left = '50%';
+        tickTop.style.top = '2px';
+        tickTop.style.transform = 'translateX(-50%)';
+        tickTop.style.fontSize = '10px';
+        tickTop.style.fontWeight = '700';
+        tickTop.style.color = '#d9480f';
+
+        const tickRight = document.createElement('div');
+        tickRight.textContent = 'E';
+        tickRight.style.position = 'absolute';
+        tickRight.style.right = '4px';
+        tickRight.style.top = '50%';
+        tickRight.style.transform = 'translateY(-50%)';
+        tickRight.style.fontSize = '9px';
+        tickRight.style.fontWeight = '700';
+        tickRight.style.color = '#4b5563';
+
+        const tickBottom = document.createElement('div');
+        tickBottom.textContent = 'S';
+        tickBottom.style.position = 'absolute';
+        tickBottom.style.left = '50%';
+        tickBottom.style.bottom = '2px';
+        tickBottom.style.transform = 'translateX(-50%)';
+        tickBottom.style.fontSize = '9px';
+        tickBottom.style.fontWeight = '700';
+        tickBottom.style.color = '#4b5563';
+
+        const tickLeft = document.createElement('div');
+        tickLeft.textContent = 'W';
+        tickLeft.style.position = 'absolute';
+        tickLeft.style.left = '4px';
+        tickLeft.style.top = '50%';
+        tickLeft.style.transform = 'translateY(-50%)';
+        tickLeft.style.fontSize = '9px';
+        tickLeft.style.fontWeight = '700';
+        tickLeft.style.color = '#4b5563';
+
+        const needleElement = document.createElement('div');
+        needleElement.style.position = 'absolute';
+        needleElement.style.left = '50%';
+        needleElement.style.top = '50%';
+        needleElement.style.width = '2px';
+        needleElement.style.height = '22px';
+        needleElement.style.background = 'linear-gradient(180deg, #ef4444 0%, #1d4ed8 100%)';
+        needleElement.style.transformOrigin = '50% calc(100% - 1px)';
+        needleElement.style.transform = 'translate(-50%, -100%) rotate(0deg)';
+        needleElement.style.borderRadius = '2px';
+
+        const centerDotElement = document.createElement('div');
+        centerDotElement.style.position = 'absolute';
+        centerDotElement.style.left = '50%';
+        centerDotElement.style.top = '50%';
+        centerDotElement.style.width = '6px';
+        centerDotElement.style.height = '6px';
+        centerDotElement.style.transform = 'translate(-50%, -50%)';
+        centerDotElement.style.background = '#111827';
+        centerDotElement.style.borderRadius = '999px';
+
+        dialElement.appendChild(tickTop);
+        dialElement.appendChild(tickRight);
+        dialElement.appendChild(tickBottom);
+        dialElement.appendChild(tickLeft);
+        dialElement.appendChild(needleElement);
+        dialElement.appendChild(centerDotElement);
+
+        const headingTextElement = document.createElement('div');
+        headingTextElement.style.marginTop = '6px';
+        headingTextElement.style.textAlign = 'center';
+        headingTextElement.style.fontSize = '11px';
+        headingTextElement.style.fontWeight = '700';
+        headingTextElement.style.color = '#334155';
+        headingTextElement.textContent = '000°';
+
+        panelElement.appendChild(dialElement);
+        panelElement.appendChild(headingTextElement);
+
+        this.container.appendChild(panelElement);
+        this.compassOverlayElement = panelElement;
+        this.compassNeedleElement = needleElement;
+        this.compassHeadingTextElement = headingTextElement;
+        this.updateCompassOverlay();
     }
 
     setupViewCubeOverlay() {
@@ -966,6 +1089,26 @@ class URDFViewer {
         }
     }
 
+    updateCompassOverlay() {
+        if (!this.compassNeedleElement || !this.compassHeadingTextElement || !this.camera || !this.controls) {
+            return;
+        }
+
+        const target = this.controls.target.clone();
+        const forward = target.sub(this.camera.position);
+        const planarForward = new THREE.Vector2(forward.x, forward.y);
+        if (planarForward.lengthSq() < 1e-10) {
+            return;
+        }
+
+        // World +Y axis is used as north. Heading is clockwise from north.
+        const headingRad = Math.atan2(planarForward.x, planarForward.y);
+        const headingDeg = (THREE.MathUtils.radToDeg(headingRad) + 360) % 360;
+
+        this.compassNeedleElement.style.transform = `translate(-50%, -100%) rotate(${headingDeg}deg)`;
+        this.compassHeadingTextElement.textContent = `${String(Math.round(headingDeg)).padStart(3, '0')}°`;
+    }
+
     setupCameraAngleLogging() {
         if (this.cameraPosTextElement && this.cameraPosTextElement.length > 0) {
             this.cameraPosTextElement.off('click').on('click', (event) => {
@@ -994,6 +1137,7 @@ class URDFViewer {
         this.controls.addEventListener('change', () => {
             this.resetDirectionalLight(this.controls.target, this.directionalLightRadius);
             this.updateViewCubeOverlay();
+            this.updateCompassOverlay();
             if (this.isDragging) {
                 this.updateCameraToastOverlay();
                 this.showCameraToastOverlay();
@@ -2561,6 +2705,7 @@ class URDFViewer {
         this.applyWheelAnimation(deltaSec);
         requestAnimationFrame(() => this.animate());
         this.controls.update();
+        this.updateCompassOverlay();
         this.renderer.render(this.scene, this.camera);
     }
 }

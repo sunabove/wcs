@@ -137,8 +137,7 @@ function createRunInfoHistoryChart() {
                     ticks: {
                         count: 4,
                         callback(value, index, ticks) {
-                            const basePointAt = runInfoHistoryState.firstPointAt || Number(value);
-                            return formatRunInfoChartTimeLabel(Number(value) - basePointAt);
+                            return formatRunInfoChartTimeLabel(Number(value));
                         },
                         maxRotation: 0,
                         autoSkip: false,
@@ -208,10 +207,11 @@ function pushRunInfoHistoryPoint(forcePush = false) {
     }
 
     runInfoHistoryState.lastPointAt = now;
-    runInfoHistoryState.chart.data.datasets[0].data.push({ x: now, y: latest.batteryPercent });
-    runInfoHistoryState.chart.data.datasets[1].data.push({ x: now, y: latest.availableMinutes });
-    runInfoHistoryState.chart.data.datasets[2].data.push({ x: now, y: latest.elapsedMinutes });
-    runInfoHistoryState.chart.data.datasets[3].data.push({ x: now, y: latest.distanceKm });
+    const runInfoElapsedMs = now - runInfoHistoryState.firstPointAt;
+    runInfoHistoryState.chart.data.datasets[0].data.push({ x: runInfoElapsedMs, y: latest.batteryPercent });
+    runInfoHistoryState.chart.data.datasets[1].data.push({ x: runInfoElapsedMs, y: latest.availableMinutes });
+    runInfoHistoryState.chart.data.datasets[2].data.push({ x: runInfoElapsedMs, y: latest.elapsedMinutes });
+    runInfoHistoryState.chart.data.datasets[3].data.push({ x: runInfoElapsedMs, y: latest.distanceKm });
 
     if (runInfoHistoryState.chart.data.datasets[0].data.length > runInfoHistoryState.maxPoints) {
         runInfoHistoryState.chart.data.datasets.forEach((dataset) => {
@@ -336,8 +336,7 @@ function createVehicleSpeedHistoryChart() {
                     ticks: {
                         count: 4,
                         callback(value, index, ticks) {
-                            const basePointAt = vehicleSpeedHistoryState.firstPointAt || Number(value);
-                            return formatVehicleSpeedChartTimeLabel(Number(value) - basePointAt);
+                            return formatVehicleSpeedChartTimeLabel(Number(value));
                         },
                         maxRotation: 0,
                         autoSkip: false,
@@ -400,9 +399,10 @@ function pushVehicleSpeedHistoryPoint(forcePush = false) {
     }
 
     vehicleSpeedHistoryState.lastPointAt = now;
-    vehicleSpeedHistoryState.chart.data.datasets[0].data.push({ x: now, y: latest.speedKmh });
-    vehicleSpeedHistoryState.chart.data.datasets[1].data.push({ x: now, y: latest.maxSpeedKmh });
-    vehicleSpeedHistoryState.chart.data.datasets[2].data.push({ x: now, y: latest.accelerationKmhPerSec });
+    const vehicleSpeedElapsedMs = now - vehicleSpeedHistoryState.firstPointAt;
+    vehicleSpeedHistoryState.chart.data.datasets[0].data.push({ x: vehicleSpeedElapsedMs, y: latest.speedKmh });
+    vehicleSpeedHistoryState.chart.data.datasets[1].data.push({ x: vehicleSpeedElapsedMs, y: latest.maxSpeedKmh });
+    vehicleSpeedHistoryState.chart.data.datasets[2].data.push({ x: vehicleSpeedElapsedMs, y: latest.accelerationKmhPerSec });
 
     if (vehicleSpeedHistoryState.chart.data.datasets[0].data.length > vehicleSpeedHistoryState.maxPoints) {
         vehicleSpeedHistoryState.chart.data.datasets.forEach((dataset) => {

@@ -259,6 +259,15 @@ $(document).ready(function() {
         applyVehicleCommandWheelHighlight(selectedCommand);
         applyVehicleDirectionAnimation(selectedCommand, selectedSpeedKmh);
         console.log(`[Vehicle Test] 📨 초기 방향 제어 명령 발행: vehicle/operation/command = ${selectedCommand} (${selectedButtonId})`);
+
+        // Add blink animation to the selected button
+        const selectedButton = $(`#${selectedButtonId}`);
+        if (selectedButton.length) {
+            selectedButton.addClass('button-blink');
+            setTimeout(() => {
+                selectedButton.removeClass('button-blink');
+            }, 600);
+        }
     }
 
     publishSelectedVehicleCommandOnLoad();

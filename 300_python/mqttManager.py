@@ -51,32 +51,35 @@ class MqttConfig:
 
     SENSOR_COUNT_TOPIC_TEMPLATE = "sensor/{sensor_id}/count"
     SENSOR_ENABLED_TOPIC_TEMPLATE = "sensor/{sensor_id}/enabled"
-    WHEEL_ID_TOPIC_TEMPLATE = "wheel/{wheel_str_id}/id"
-    WHEEL_RADIUS_TOPIC_TEMPLATE = "wheel/{wheel_str_id}/radius"
-    WHEEL_POWER_TOPIC_TEMPLATE = "wheel/{wheel_str_id}/power"
-    WHEEL_PID_P_TOPIC_TEMPLATE = "wheel/{wheel_str_id}/pid/p"
-    WHEEL_PID_I_TOPIC_TEMPLATE = "wheel/{wheel_str_id}/pid/i"
-    WHEEL_PID_D_TOPIC_TEMPLATE = "wheel/{wheel_str_id}/pid/d"
-    WHEEL_RPM_TOPIC_TEMPLATE = "wheel/{wheel_str_id}/angle/speed"
-    WHEEL_SPEED_TOPIC_TEMPLATE = "wheel/{wheel_str_id}/linear/speed"
-    WHEEL_TOF_DISTANCE_TOPIC_TEMPLATE = "wheel/{wheel_str_id}/tof/distance"
-    WHEEL_AXIS_ANGLE_TOPIC_TEMPLATE = "wheel/{wheel_str_id}/axis/angle"
+
+    WHEEL_PUBLISH_SPECS = [
+        ("wheel/{wheel_str_id}/id",           lambda mgr, wid: MqttConfig.WHEEL_ID_MAPPING[wid]),
+        ("wheel/{wheel_str_id}/radius",       lambda mgr, wid: MqttConfig.WHEEL_RADIUS_M),
+        ("wheel/{wheel_str_id}/angle/speed",  lambda mgr, wid: float(mgr.wheel_rpm_by_id.get(wid, 0.0))),
+        ("wheel/{wheel_str_id}/linear/speed", lambda mgr, wid: float(mgr.wheel_speed_by_id.get(wid, 0.0))),
+        ("wheel/{wheel_str_id}/power",        lambda mgr, wid: float(mgr.wheel_power_by_id.get(wid, 0.0))),
+        ("wheel/{wheel_str_id}/pid/p",        lambda mgr, wid: float(mgr.wheel_pid_by_id.get(wid, {}).get("p", 0.0))),
+        ("wheel/{wheel_str_id}/pid/i",        lambda mgr, wid: float(mgr.wheel_pid_by_id.get(wid, {}).get("i", 0.0))),
+        ("wheel/{wheel_str_id}/pid/d",        lambda mgr, wid: float(mgr.wheel_pid_by_id.get(wid, {}).get("d", 0.0))),
+        ("wheel/{wheel_str_id}/tof/distance", lambda mgr, wid: float(mgr.wheel_tof_distance_by_id.get(wid, 0.0))),
+        ("wheel/{wheel_str_id}/axis/angle",   lambda mgr, wid: float(mgr.wheel_axis_angle_by_id.get(wid, 0.0))),
+    ]
 
     INITIAL_CONNECT_TOPIC_SPECS = (
-        ("vehicle/battery/remain_amount", lambda sim: round(sim.battery_remain_amount, 1), "BATTERY"),
-        ("vehicle/drive/available_time", lambda sim: int(sim.drive_available_time), "DRIVE"),
-        ("vehicle/drive/elapsed_time", lambda sim: int(sim.drive_elapsed_time), "DRIVE"),
-        ("vehicle/drive/total_distance", lambda sim: int(sim.drive_total_distance), "DRIVE"),
-        ("vehicle/linear/speed", lambda sim: round(sim.linear_speed, 3), "VEHICLE"),
-        ("vehicle/linear/max_speed", lambda sim: round(sim.max_speed, 2), "VEHICLE"),
-        ("vehicle/linear/acceleration", lambda sim: round(sim.linear_acceleration, 3), "VEHICLE"),
-        ("vehicle/operation/command", lambda sim: sim.command.value, "VEHICLE"),
-        ("vehicle/operation/state", lambda sim: sim.exec_state.value, "VEHICLE"),
-        ("vehicle/surface/state", lambda sim: sim.surface_state.value, "SURFACE"),
-        ("vehicle/surface/obstacle", lambda sim: sim.surface_obstacle.value, "OBSTACLE"),
-        ("vehicle/road/roll_angle", lambda sim: sim.road_roll_angle, "ROAD"),
-        ("vehicle/road/pitch_angle", lambda sim: sim.road_pitch_angle, "ROAD"),
-        ("vehicle/current_video/file_name", lambda sim: sim.current_video_file_name, "VIDEO"),
+        ("vehicle/battery/remain_amount", lambda mgr: round(mgr.battery_remain_amount, 1), "BATTERY"),
+        ("vehicle/drive/available_time", lambda mgr: int(mgr.drive_available_time), "DRIVE"),
+        ("vehicle/drive/elapsed_time", lambda mgr: int(mgr.drive_elapsed_time), "DRIVE"),
+        ("vehicle/drive/total_distance", lambda mgr: int(mgr.drive_total_distance), "DRIVE"),
+        ("vehicle/linear/speed", lambda mgr: round(mgr.linear_speed, 3), "VEHICLE"),
+        ("vehicle/linear/max_speed", lambda mgr: round(mgr.max_speed, 2), "VEHICLE"),
+        ("vehicle/linear/acceleration", lambda mgr: round(mgr.linear_acceleration, 3), "VEHICLE"),
+        ("vehicle/operation/command", lambda mgr: mgr.command.value, "VEHICLE"),
+        ("vehicle/operation/state", lambda mgr: mgr.exec_state.value, "VEHICLE"),
+        ("vehicle/surface/state", lambda mgr: mgr.surface_state.value, "SURFACE"),
+        ("vehicle/surface/obstacle", lambda mgr: mgr.surface_obstacle.value, "OBSTACLE"),
+        ("vehicle/road/roll_angle", lambda mgr: mgr.road_roll_angle, "ROAD"),
+        ("vehicle/road/pitch_angle", lambda mgr: mgr.road_pitch_angle, "ROAD"),
+        ("vehicle/current_video/file_name", lambda mgr: mgr.current_video_file_name, "VIDEO"),
     )
 
     @classmethod
@@ -339,31 +342,10 @@ class MqttManager:
                     for key, value in self.wheel_data.items():
                         self._publish(f"wheel/{wheel_id}/{key}", value)
 
-            for wheel_str_id, wheel_num_id in MqttConfig.WHEEL_ID_MAPPING.items():
-                self._publish(MqttConfig.WHEEL_ID_TOPIC_TEMPLATE.format(wheel_str_id=wheel_str_id), wheel_num_id)
-
             for wheel_str_id in MqttConfig.WHEEL_IDS:
-                self._publish(MqttConfig.WHEEL_RADIUS_TOPIC_TEMPLATE.format(wheel_str_id=wheel_str_id), MqttConfig.WHEEL_RADIUS_M)
-
-            for wheel_str_id in MqttConfig.WHEEL_IDS:
-                wheel_power = float(self.wheel_power_by_id.get(wheel_str_id, 0.0))
-                wheel_pid = self.wheel_pid_by_id.get(wheel_str_id, {})
-                wheel_pid_p = float(wheel_pid.get("p", 0.0))
-                wheel_pid_i = float(wheel_pid.get("i", 0.0))
-                wheel_pid_d = float(wheel_pid.get("d", 0.0))
-                wheel_rpm = float(self.wheel_rpm_by_id.get(wheel_str_id, 0.0))
-                wheel_speed = float(self.wheel_speed_by_id.get(wheel_str_id, 0.0))
-                wheel_tof_distance = float(self.wheel_tof_distance_by_id.get(wheel_str_id, 0.0))
-                wheel_axis_angle = float(self.wheel_axis_angle_by_id.get(wheel_str_id, 0.0))
-
-                self._publish(MqttConfig.WHEEL_POWER_TOPIC_TEMPLATE.format(wheel_str_id=wheel_str_id), wheel_power)
-                self._publish(MqttConfig.WHEEL_PID_P_TOPIC_TEMPLATE.format(wheel_str_id=wheel_str_id), wheel_pid_p)
-                self._publish(MqttConfig.WHEEL_PID_I_TOPIC_TEMPLATE.format(wheel_str_id=wheel_str_id), wheel_pid_i)
-                self._publish(MqttConfig.WHEEL_PID_D_TOPIC_TEMPLATE.format(wheel_str_id=wheel_str_id), wheel_pid_d)
-                self._publish(MqttConfig.WHEEL_RPM_TOPIC_TEMPLATE.format(wheel_str_id=wheel_str_id), wheel_rpm)
-                self._publish(MqttConfig.WHEEL_SPEED_TOPIC_TEMPLATE.format(wheel_str_id=wheel_str_id), wheel_speed)
-                self._publish(MqttConfig.WHEEL_TOF_DISTANCE_TOPIC_TEMPLATE.format(wheel_str_id=wheel_str_id), wheel_tof_distance)
-                self._publish(MqttConfig.WHEEL_AXIS_ANGLE_TOPIC_TEMPLATE.format(wheel_str_id=wheel_str_id), wheel_axis_angle)
+                for template, value_getter in MqttConfig.WHEEL_PUBLISH_SPECS:
+                    topic = template.format(wheel_str_id=wheel_str_id)
+                    self._publish(topic, value_getter(self, wheel_str_id))
 
             for topic, payload_resolver, log_tag in MqttConfig.INITIAL_CONNECT_TOPIC_SPECS:
                 payload = payload_resolver(self)

@@ -7,7 +7,7 @@
   </material>
 
   <material name="body_light">
-    <color rgba="0.40 0.43 0.48 0.8" />
+    <color rgba="0.40 0.43 0.48 0.9" />
   </material>
 
   <material name="tire">

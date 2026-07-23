@@ -3350,7 +3350,8 @@ function initURDFViewers() {
         if (viewer.showAudio === true) {
             // showAudio=true 페이지에서는 과거 localStorage의 OFF 값으로 영구 음소거되지 않게 ON을 우선한다.
             setVehicleAudioEnabled(true);
-        } else if (storageEnabled == null) {
+        } else {
+            // showAudio=false일 때는 명시적으로 음소거 (localStorage 값 무시)
             setVehicleAudioEnabled(false);
         }
     }

@@ -12,23 +12,19 @@
     width: 100px;
 }
 
-/* Button blink animation: 2 blinks */
+/* Button blink animation: 2 blinks with glow effect */
 @keyframes buttonBlink {
     0%, 100% {
-        background-color: inherit;
         box-shadow: inherit;
     }
     25% {
-        background-color: #ffc107;
-        box-shadow: 0 0 10px rgba(255, 193, 7, 0.8);
+        box-shadow: 0 0 15px rgba(255, 193, 7, 0.8), 0 0 25px rgba(255, 193, 7, 0.5);
     }
     50% {
-        background-color: inherit;
         box-shadow: inherit;
     }
     75% {
-        background-color: #ffc107;
-        box-shadow: 0 0 10px rgba(255, 193, 7, 0.8);
+        box-shadow: 0 0 15px rgba(255, 193, 7, 0.8), 0 0 25px rgba(255, 193, 7, 0.5);
     }
 }
 

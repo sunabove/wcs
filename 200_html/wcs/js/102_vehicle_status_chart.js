@@ -31,7 +31,7 @@ function createXAxisEdgeUnitLabelPlugin(options, pluginId) {
 }
 
 function formatRunInfoChartTimeLabel(dateValue) {
-    const date = dateValue instanceof Date ? dateValue : new Date();
+    const date = dateValue instanceof Date ? dateValue : new Date(Number(dateValue));
     const minutes = String(date.getMinutes()).padStart(2, '0');
     const seconds = String(date.getSeconds()).padStart(2, '0');
     return `${minutes}:${seconds}`;
@@ -143,7 +143,7 @@ function createRunInfoHistoryChart() {
                                 return runInfoXAxisRightUnitText;
                             }
 
-                            return formatRunInfoChartTimeLabel(new Date(Number(value)));
+                            return formatRunInfoChartTimeLabel(Number(value));
                         },
                         maxRotation: 0,
                         autoSkip: false,

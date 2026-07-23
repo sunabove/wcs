@@ -57,8 +57,8 @@ class MqttConfig:
     WHEEL_PID_P_TOPIC_TEMPLATE = "wheel/{wheel_str_id}/pid/p"
     WHEEL_PID_I_TOPIC_TEMPLATE = "wheel/{wheel_str_id}/pid/i"
     WHEEL_PID_D_TOPIC_TEMPLATE = "wheel/{wheel_str_id}/pid/d"
-    WHEEL_RPM_TOPIC_TEMPLATE = "wheel/{wheel_str_id}/rpm"
-    WHEEL_SPEED_TOPIC_TEMPLATE = "wheel/{wheel_str_id}/speed"
+    WHEEL_RPM_TOPIC_TEMPLATE = "wheel/{wheel_str_id}/angle/speed"
+    WHEEL_SPEED_TOPIC_TEMPLATE = "wheel/{wheel_str_id}/linear/speed"
     WHEEL_TOF_DISTANCE_TOPIC_TEMPLATE = "wheel/{wheel_str_id}/tof/distance"
     WHEEL_AXIS_ANGLE_TOPIC_TEMPLATE = "wheel/{wheel_str_id}/axis/angle"
 

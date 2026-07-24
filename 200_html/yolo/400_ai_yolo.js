@@ -94,6 +94,28 @@
         matchedButton.click();
     }
 
+    function showInputSourceTab(tabTarget) {
+        const normalizedTarget = String(tabTarget || '').trim();
+        if (!normalizedTarget || inputSourceTabButtons.length === 0) {
+            return;
+        }
+
+        const matchedButton = inputSourceTabButtons.find((button) => {
+            return String(button.getAttribute('data-bs-target') || '').trim() === normalizedTarget;
+        });
+
+        if (!matchedButton) {
+            return;
+        }
+
+        if (window.bootstrap && typeof window.bootstrap.Tab === 'function') {
+            window.bootstrap.Tab.getOrCreateInstance(matchedButton).show();
+            return;
+        }
+
+        matchedButton.click();
+    }
+
     function hasSelectedVideo() {
         const fileFromInput = fileInput.files && fileInput.files[0] ? fileInput.files[0] : null;
         return Boolean(selectedFile || fileFromInput || selectedServerFileName);
@@ -548,6 +570,62 @@
         setStatus('동영상 파일이 준비되었습니다. 동영상 업로드를 눌러주세요.', 'secondary');
     }
 
+    async function uploadSelectedVideo() {
+        if (uploadButton?.disabled) {
+            return;
+        }
+
+        const fileFromInput = fileInput.files && fileInput.files[0] ? fileInput.files[0] : null;
+        const file = selectedFile || fileFromInput;
+        if (!file) {
+            setStatus('업로드할 동영상 파일을 선택하세요.', 'warning');
+            return;
+        }
+
+        uploadButton.disabled = true;
+        setStatus('동영상 업로드 중...', 'info');
+
+        try {
+            const apiBase = await resolveApiBase();
+            const formData = new FormData();
+            formData.append('file', file);
+
+            const response = await fetch(`${apiBase}/fast/yolo/upload_video`, {
+                method: 'POST',
+                body: formData,
+            });
+
+            if (!response.ok) {
+                let errorMessage = `업로드 실패 (${response.status})`;
+                try {
+                    const errorBody = await response.json();
+                    if (errorBody && errorBody.detail) {
+                        errorMessage = String(errorBody.detail);
+                    }
+                } catch (_ignore) {
+                    // Keep default message.
+                }
+                throw new Error(errorMessage);
+            }
+
+            const result = await response.json();
+            addUploadedHistoryItem(result.display_name || file.name, result.file_name, file);
+            selectedServerFileName = String(result.file_name || '');
+            setSelectedFile(null);
+            syncInputWithFile(null);
+            renderUploadedHistory();
+            showInputSourceTab('#yolo-uploaded-source-pane');
+            setStatus('동영상 업로드 완료. 업로드 동영상 탭에서 선택되었습니다.', 'success');
+        } catch (error) {
+            const message = error && error.message ? error.message : String(error);
+            setStatus(`오류: ${message}`, 'danger');
+        } finally {
+            if (uploadButton) {
+                uploadButton.disabled = !selectedFile;
+            }
+        }
+    }
+
     async function runYoloDetect() {
         if (detectButton.disabled) {
             return;
@@ -655,7 +733,7 @@
                 return;
             }
 
-            runYoloDetect();
+            uploadSelectedVideo();
         });
     }
 

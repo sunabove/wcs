@@ -308,16 +308,23 @@
                     modelTypeElement.textContent = modelItem.modelType || 'YOLO 모델';
                 }
                 if (classCountElement) {
-                    classCountElement.textContent = `${modelItem.classCount}개`;
+                    classCountElement.classList.add('d-none');
+                    classCountElement.textContent = '';
                 }
                 if (classListElement) {
+                    const classBadges = [
+                        `<span class="badge text-bg-secondary" style="font-family: inherit; font-size: inherit;">${modelItem.classCount}개</span>`,
+                    ];
+
                     if (modelItem.classNames.length > 0) {
-                        classListElement.innerHTML = modelItem.classNames
-                            .map((className) => `<span class="badge text-bg-light border text-dark" style="font-family: inherit; font-size: inherit;">${className}</span>`)
-                            .join('');
+                        classBadges.push(
+                            ...modelItem.classNames.map((className) => `<span class="badge text-bg-light border text-dark" style="font-family: inherit; font-size: inherit;">${className}</span>`),
+                        );
                     } else {
-                        classListElement.innerHTML = '<span class="badge text-bg-light border text-dark" style="font-family: inherit; font-size: inherit;">-</span>';
+                        classBadges.push('<span class="badge text-bg-light border text-dark" style="font-family: inherit; font-size: inherit;">-</span>');
                     }
+
+                    classListElement.innerHTML = classBadges.join('');
                 }
 
                 pane.appendChild(templateClone);

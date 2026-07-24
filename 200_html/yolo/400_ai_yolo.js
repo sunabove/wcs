@@ -29,10 +29,13 @@
 
     const REALTIME_DETECT_DEBOUNCE_MS = 300;
     const INPUT_SOURCE_TAB_STORAGE_KEY = 'wcs.yolo.input_source_tab.v1';
+    const STATUS_ALERT_VARIANTS = ['alert-secondary', 'alert-info', 'alert-warning', 'alert-danger', 'alert-success', 'alert-primary'];
 
     function setStatus(message, type) {
         const alertType = type || 'secondary';
-        statusElement.className = `alert alert-${alertType} mb-0 py-1 px-2 small rounded-2`;
+        statusElement.classList.add('alert');
+        statusElement.classList.remove(...STATUS_ALERT_VARIANTS);
+        statusElement.classList.add(`alert-${alertType}`);
         statusElement.textContent = message;
     }
 

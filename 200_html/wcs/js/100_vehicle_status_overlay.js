@@ -249,10 +249,13 @@
     function readOverlayMediaHiddenState() {
         try {
             const rawValue = window.localStorage.getItem(OVERLAY_MEDIA_HIDDEN_STORAGE_KEY);
+            if (rawValue === null) {
+                return true;
+            }
             const normalized = String(rawValue || "").trim().toLowerCase();
             return normalized === "true" || normalized === "1" || normalized === "yes" || normalized === "on";
         } catch (error) {
-            return false;
+            return true;
         }
     }
 

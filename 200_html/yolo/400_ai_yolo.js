@@ -30,7 +30,7 @@
 
     function setStatus(message, type) {
         const alertType = type || 'secondary';
-        statusElement.className = `alert alert-${alertType} mt-3 mb-0`;
+        statusElement.className = `alert alert-${alertType} mb-0`;
         statusElement.textContent = message;
     }
 

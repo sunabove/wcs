@@ -148,6 +148,7 @@ class URDFViewer {
         this.compassDragState = null;
         this.compassArcballSensitivity = 1.0;
         this.compassDragActivateDistancePx = 3;
+        this.initialCameraPose = null;
         this.viewCubeOverlayElement = null;
         this.viewCubeCubeElement = null;
         this.viewCubeActiveFaceKey = null;
@@ -729,6 +730,12 @@ class URDFViewer {
             viewportElement.style.boxShadow = 'none';
         });
 
+        viewportElement.addEventListener('dblclick', (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            this.restoreInitialCameraPose();
+        }, true);
+
         const compassRenderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
         compassRenderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
         compassRenderer.setSize(48, 48, false);
@@ -1309,6 +1316,55 @@ class URDFViewer {
                 return;
             }
 
+            this.logCameraInfos(true);
+        };
+
+        requestAnimationFrame(step);
+    }
+
+    animateCameraToPoseWithTarget(nextPosition, nextTarget, nextUp, durationMs = 260) {
+        if (!this.camera || !this.controls || !nextPosition || !nextTarget || !nextUp) {
+            return;
+        }
+
+        const startPosition = this.camera.position.clone();
+        const startUp = this.camera.up.clone();
+        const startTarget = this.controls.target.clone();
+        const targetPosition = nextPosition.clone();
+        const targetUp = nextUp.clone().normalize();
+        const targetTarget = nextTarget.clone();
+        const startTimeMs = performance.now();
+
+        const easeInOut = (t) => {
+            return t < 0.5
+                ? 2 * t * t
+                : 1 - Math.pow(-2 * t + 2, 2) / 2;
+        };
+
+        const step = () => {
+            const elapsedMs = performance.now() - startTimeMs;
+            const progress = durationMs > 0 ? THREE.MathUtils.clamp(elapsedMs / durationMs, 0, 1) : 1;
+            const eased = easeInOut(progress);
+
+            this.camera.position.copy(startPosition.clone().lerp(targetPosition, eased));
+            this.camera.up.copy(startUp.clone().lerp(targetUp, eased).normalize());
+            this.controls.target.copy(startTarget.clone().lerp(targetTarget, eased));
+            this.camera.lookAt(this.controls.target);
+            this.controls.update();
+            this.updateCompassOverlay();
+            this.updateViewCubeOverlay();
+            this.resetDirectionalLight(this.controls.target, this.directionalLightRadius);
+
+            if (progress < 1) {
+                requestAnimationFrame(step);
+                return;
+            }
+
+            this.goalTarget.set(
+                this.controls.target.x,
+                this.controls.target.y + this.goalTargetVerticalOffset,
+                this.controls.target.z
+            );
             this.logCameraInfos(true);
         };
 
@@ -2615,6 +2671,34 @@ class URDFViewer {
         this.controls.update();
     }
 
+    snapshotInitialCameraPose() {
+        if (!this.camera || !this.controls) {
+            return;
+        }
+
+        this.initialCameraPose = {
+            position: this.camera.position.clone(),
+            target: this.controls.target.clone(),
+            up: this.camera.up.clone(),
+        };
+    }
+
+    restoreInitialCameraPose() {
+        if (!this.initialCameraPose || !this.camera || !this.controls) {
+            return;
+        }
+
+        this.overlayDragPanPixels = 0;
+        this.overlayZoomOutRatio = 0;
+
+        this.animateCameraToPoseWithTarget(
+            this.initialCameraPose.position,
+            this.initialCameraPose.target,
+            this.initialCameraPose.up,
+            260
+        );
+    }
+
     setGoalTargetVerticalOffset(offsetValue) {
         const numericOffset = Number(offsetValue);
         this.goalTargetVerticalOffset = Number.isFinite(numericOffset)
@@ -2796,6 +2880,7 @@ class URDFViewer {
                     this.controls.minDistance = currentCameraDist * 0.2;
                     this.controls.maxDistance = currentCameraDist * 8;
                     this.resetDirectionalLight(this.controls.target, radius);
+                    this.snapshotInitialCameraPose();
                     this.logCameraInfos(true);
                     this.markInitialCameraPoseReady();
 

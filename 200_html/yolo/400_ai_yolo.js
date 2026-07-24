@@ -3,6 +3,7 @@
 
     const fileInput = document.getElementById('yolo-video-file');
     const dropZone = document.getElementById('yolo-drop-zone');
+    const uploadButton = document.getElementById('yolo-upload-button');
     const selectedFileElement = document.getElementById('yolo-selected-file');
     const detectButton = document.getElementById('yolo-detect-btn');
     const confInput = document.getElementById('yolo-conf');
@@ -635,6 +636,12 @@
     dropZone.addEventListener('click', () => {
         fileInput.click();
     });
+
+    if (uploadButton) {
+        uploadButton.addEventListener('click', () => {
+            fileInput.click();
+        });
+    }
 
     dropZone.addEventListener('keydown', (event) => {
         if (event.key === 'Enter' || event.key === ' ') {

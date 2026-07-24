@@ -292,7 +292,7 @@
     <visual>
       <origin xyz="0 0 0" rpy="0 0 0" />
       <geometry>
-        <mesh filename="package://0724_urdf/meshes/car_frame.STL" />
+        <mesh filename="../meshes/car_frame.STL" />
       </geometry>
       <material name="car_frame_mat">
         <color rgba="0.894117647058823 0.894117647058823 0.894117647058823 1" />
@@ -301,7 +301,7 @@
     <collision>
       <origin xyz="0 0 0" rpy="0 0 0" />
       <geometry>
-        <mesh filename="package://0724_urdf/meshes/car_frame.STL" />
+        <mesh filename="../meshes/car_frame.STL" />
       </geometry>
     </collision>
   </link>
@@ -356,7 +356,7 @@
     <visual>
       <origin xyz="0 0 0" rpy="0 0 0" />
       <geometry>
-        <mesh filename="package://0724_urdf/meshes/swing_link.STL" />
+        <mesh filename="../meshes/swing_link.STL" />
       </geometry>
       <material name="swing_mat">
         <color rgba="0.894117647058823 0.894117647058823 0.894117647058823 1" />
@@ -365,7 +365,7 @@
     <collision>
       <origin xyz="0 0 0" rpy="0 0 0" />
       <geometry>
-        <mesh filename="package://0724_urdf/meshes/swing_link.STL" />
+        <mesh filename="../meshes/swing_link.STL" />
       </geometry>
     </collision>
   </link>
@@ -388,7 +388,7 @@
     <visual>
       <origin xyz="0 0 0" rpy="0 0 0" />
       <geometry>
-        <mesh filename="package://0724_urdf/meshes/wheel_fr.STL" />
+        <mesh filename="../meshes/wheel_fr.STL" />
       </geometry>
       <material name="green_wheel">
         <color rgba="0 1 0 1" />
@@ -397,7 +397,7 @@
     <collision>
       <origin xyz="0 0 0" rpy="0 0 0" />
       <geometry>
-        <mesh filename="package://0724_urdf/meshes/wheel_fr.STL" />
+        <mesh filename="../meshes/wheel_fr.STL" />
       </geometry>
     </collision>
   </link>
@@ -418,7 +418,7 @@
     <visual>
       <origin xyz="0 0 0" rpy="0 0 0" />
       <geometry>
-        <mesh filename="package://0724_urdf/meshes/tire_fr.STL" />
+        <mesh filename="../meshes/tire_fr.STL" />
       </geometry>
       <material name="purple_tire">
         <color rgba="0.796078431372549 0.623529411764706 1 1" />
@@ -427,7 +427,7 @@
     <collision>
       <origin xyz="0 0 0" rpy="0 0 0" />
       <geometry>
-        <mesh filename="package://0724_urdf/meshes/tire_fr.STL" />
+        <mesh filename="../meshes/tire_fr.STL" />
       </geometry>
     </collision>
   </link>
@@ -449,14 +449,14 @@
     <visual>
       <origin xyz="0 0 0" rpy="0 0 0" />
       <geometry>
-        <mesh filename="package://0724_urdf/meshes/wheel_fl.STL" />
+        <mesh filename="../meshes/wheel_fl.STL" />
       </geometry>
       <material name="green_wheel" />
     </visual>
     <collision>
       <origin xyz="0 0 0" rpy="0 0 0" />
       <geometry>
-        <mesh filename="package://0724_urdf/meshes/wheel_fl.STL" />
+        <mesh filename="../meshes/wheel_fl.STL" />
       </geometry>
     </collision>
   </link>
@@ -477,14 +477,14 @@
     <visual>
       <origin xyz="0 0 0" rpy="0 0 0" />
       <geometry>
-        <mesh filename="package://0724_urdf/meshes/tire_fl.STL" />
+        <mesh filename="../meshes/tire_fl.STL" />
       </geometry>
       <material name="purple_tire" />
     </visual>
     <collision>
       <origin xyz="0 0 0" rpy="0 0 0" />
       <geometry>
-        <mesh filename="package://0724_urdf/meshes/tire_fl.STL" />
+        <mesh filename="../meshes/tire_fl.STL" />
       </geometry>
     </collision>
   </link>
@@ -506,14 +506,14 @@
     <visual>
       <origin xyz="0 0 0" rpy="0 0 0" />
       <geometry>
-        <mesh filename="package://0724_urdf/meshes/wheel_rr.STL" />
+        <mesh filename="../meshes/wheel_rr.STL" />
       </geometry>
       <material name="green_wheel" />
     </visual>
     <collision>
       <origin xyz="0 0 0" rpy="0 0 0" />
       <geometry>
-        <mesh filename="package://0724_urdf/meshes/wheel_rr.STL" />
+        <mesh filename="../meshes/wheel_rr.STL" />
       </geometry>
     </collision>
   </link>
@@ -534,14 +534,14 @@
     <visual>
       <origin xyz="0 0 0" rpy="0 0 0" />
       <geometry>
-        <mesh filename="package://0724_urdf/meshes/tire_rr.STL" />
+        <mesh filename="../meshes/tire_rr.STL" />
       </geometry>
       <material name="purple_tire" />
     </visual>
     <collision>
       <origin xyz="0 0 0" rpy="0 0 0" />
       <geometry>
-        <mesh filename="package://0724_urdf/meshes/tire_rr.STL" />
+        <mesh filename="../meshes/tire_rr.STL" />
       </geometry>
     </collision>
   </link>
@@ -563,14 +563,14 @@
     <visual>
       <origin xyz="0 0 0" rpy="0 0 0" />
       <geometry>
-        <mesh filename="package://0724_urdf/meshes/wheel_rl.STL" />
+        <mesh filename="../meshes/wheel_rl.STL" />
       </geometry>
       <material name="green_wheel" />
     </visual>
     <collision>
       <origin xyz="0 0 0" rpy="0 0 0" />
       <geometry>
-        <mesh filename="package://0724_urdf/meshes/wheel_rl.STL" />
+        <mesh filename="../meshes/wheel_rl.STL" />
       </geometry>
     </collision>
   </link>
@@ -591,14 +591,14 @@
     <visual>
       <origin xyz="0 0 0" rpy="0 0 0" />
       <geometry>
-        <mesh filename="package://0724_urdf/meshes/tire_rl.STL" />
+        <mesh filename="../meshes/tire_rl.STL" />
       </geometry>
       <material name="purple_tire" />
     </visual>
     <collision>
       <origin xyz="0 0 0" rpy="0 0 0" />
       <geometry>
-        <mesh filename="package://0724_urdf/meshes/tire_rl.STL" />
+        <mesh filename="../meshes/tire_rl.STL" />
       </geometry>
     </collision>
   </link>

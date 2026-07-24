@@ -746,9 +746,9 @@ class URDFViewer {
         const globe = new THREE.Mesh(
             new THREE.SphereGeometry(0.76, 20, 16),
             new THREE.MeshPhongMaterial({
-                color: 0xe6f0ff,
+                color: 0x7fb3ff,
                 transparent: true,
-                opacity: 0.18,
+                opacity: 0.28,
                 shininess: 70,
                 side: THREE.DoubleSide,
                 depthWrite: false,

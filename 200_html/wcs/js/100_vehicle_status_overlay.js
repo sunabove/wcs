@@ -535,6 +535,15 @@
         }
     }
 
+    function toComparableVideoPath(pathValue) {
+        const normalized = normalizePath(pathValue);
+        if (!normalized) {
+            return "";
+        }
+
+        return normalized.replace(/^samples\//, "");
+    }
+
     function requestRoadDetectSessionCleanup(fileName) {
         const cleanupUrlCandidates = [];
 
@@ -854,12 +863,14 @@
 
         const requestedStreamPath = resolveRoadDetectStreamPath(normalizedFile);
         const currentStreamPath = extractRoadDetectStreamFilePathFromUrl(lastMediaSource);
+        const requestedComparablePath = toComparableVideoPath(requestedStreamPath);
+        const currentComparablePath = toComparableVideoPath(currentStreamPath);
         const hasCurrentVideoSource = !!String($video.attr("src") || "").trim();
         const isCurrentVideoVisible = $video.length > 0 && !$video.hasClass("d-none");
         const isSameVideoSelection = lastMediaType === "video"
-            && requestedStreamPath
-            && currentStreamPath
-            && requestedStreamPath === currentStreamPath;
+            && requestedComparablePath
+            && currentComparablePath
+            && requestedComparablePath === currentComparablePath;
 
         // Skip redundant stream URL refresh for the same file to preserve paused position.
         if (isSameVideoSelection && hasCurrentVideoSource && isCurrentVideoVisible) {

@@ -18,6 +18,7 @@
     const statusElement = document.getElementById('yolo-status');
     const statusTextElement = document.getElementById('yolo-status-text');
     const uploadProgressWrapElement = document.getElementById('yolo-upload-progress-wrap');
+    const uploadProgressLabelElement = document.getElementById('yolo-upload-progress-label');
     const uploadProgressBarElement = document.getElementById('yolo-upload-progress-bar');
     const inputVideoElement = document.getElementById('yolo-input-video');
     const outputVideoElement = document.getElementById('yolo-output-video');
@@ -48,7 +49,7 @@
         }
     }
 
-    function setUploadProgress(percent, show) {
+    function setUploadProgress(percent, show, labelText) {
         if (!uploadProgressWrapElement || !uploadProgressBarElement) {
             return;
         }
@@ -58,12 +59,33 @@
 
         uploadProgressBarElement.style.width = `${bounded}%`;
         uploadProgressBarElement.setAttribute('aria-valuenow', String(bounded));
+        if (uploadProgressLabelElement) {
+            uploadProgressLabelElement.textContent = String(labelText || `${bounded}%`);
+        }
 
         if (show) {
             uploadProgressWrapElement.classList.remove('d-none');
         } else {
             uploadProgressWrapElement.classList.add('d-none');
         }
+    }
+
+    function formatBytes(bytes) {
+        const value = Number(bytes);
+        if (!Number.isFinite(value) || value < 0) {
+            return '0 B';
+        }
+
+        const units = ['B', 'KB', 'MB', 'GB'];
+        let number = value;
+        let unitIndex = 0;
+        while (number >= 1024 && unitIndex < units.length - 1) {
+            number /= 1024;
+            unitIndex += 1;
+        }
+
+        const decimals = unitIndex === 0 ? 0 : 1;
+        return `${number.toFixed(decimals)} ${units[unitIndex]}`;
     }
 
     async function uploadVideoWithProgress(apiBase, file) {
@@ -77,11 +99,13 @@
 
             xhr.upload.onprogress = (event) => {
                 if (!event.lengthComputable) {
+                    setStatus('동영상 업로드 중...', 'info');
                     return;
                 }
 
                 const percent = (event.loaded / event.total) * 100;
-                setUploadProgress(percent, true);
+                const label = `${Math.round(percent)}% (${formatBytes(event.loaded)} / ${formatBytes(event.total)})`;
+                setUploadProgress(percent, true, label);
                 setStatus(`동영상 업로드 중... ${Math.round(percent)}%`, 'info');
             };
 
@@ -107,6 +131,8 @@
                     reject(new Error(detail));
                     return;
                 }
+
+                setUploadProgress(100, true, '100%');
 
                 resolve(responseJson || {});
             };
@@ -639,13 +665,15 @@
         }
 
         uploadButton.disabled = true;
-        setUploadProgress(0, true);
+        setUploadProgress(0, true, '0%');
         setStatus('동영상 업로드 중...', 'info');
 
+        let uploadSucceeded = false;
         try {
             const apiBase = await resolveApiBase();
             const result = await uploadVideoWithProgress(apiBase, file);
-            setUploadProgress(100, true);
+            setUploadProgress(100, true, '100%');
+            uploadSucceeded = true;
             addUploadedHistoryItem(
                 result.display_name || file.name,
                 result.file_name,
@@ -661,7 +689,13 @@
             const message = error && error.message ? error.message : String(error);
             setStatus(`오류: ${message}`, 'danger');
         } finally {
-            setUploadProgress(0, false);
+            if (uploadSucceeded) {
+                window.setTimeout(() => {
+                    setUploadProgress(0, false, '0%');
+                }, 900);
+            } else {
+                setUploadProgress(0, false, '0%');
+            }
             if (uploadButton) {
                 uploadButton.disabled = !selectedFile;
             }

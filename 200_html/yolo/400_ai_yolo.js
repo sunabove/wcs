@@ -217,6 +217,18 @@
         matchedButton.click();
     }
 
+    function syncInputSourceTabColor() {
+        if (inputSourceTabButtons.length === 0) {
+            return;
+        }
+
+        inputSourceTabButtons.forEach((button) => {
+            const isActive = button.classList.contains('active');
+            button.classList.toggle('text-primary', isActive);
+            button.classList.toggle('text-secondary', !isActive);
+        });
+    }
+
     function hasSelectedVideo() {
         const fileFromInput = fileInput.files && fileInput.files[0] ? fileInput.files[0] : null;
         return Boolean(selectedFile || fileFromInput || selectedServerFileName);
@@ -837,6 +849,7 @@
         button.addEventListener('shown.bs.tab', (event) => {
             const shownButton = event?.target || button;
             saveInputSourceTab(shownButton.getAttribute('data-bs-target'));
+            syncInputSourceTabColor();
         });
     });
 
@@ -847,6 +860,7 @@
 
     applyLoopOption();
     restoreInputSourceTab();
+    syncInputSourceTabColor();
 
     loadUploadedHistoryFromServer();
 })();

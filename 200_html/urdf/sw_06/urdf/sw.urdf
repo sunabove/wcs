@@ -1,0 +1,493 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- This URDF was automatically created by SolidWorks to URDF Exporter! Originally created by Stephen Brawner (brawner@gmail.com) 
+     Commit Version: 1.6.0-4-g7f85cfe  Build Version: 1.6.7995.38578
+     For more information, please see http://wiki.ros.org/sw_urdf_exporter -->
+<robot name="0724_urdf">
+
+  <!-- =================================================================== -->
+  <!-- ROOT LINK: ground_sphere (기준 구 - 원점 0,0,0)                     -->
+  <!-- =================================================================== -->
+  <link name="ground_sphere">
+    <inertial>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <mass value="0.1" />
+      <inertia ixx="0.0001" ixy="0" ixz="0" iyy="0.0001" iyz="0" izz="0.0001" />
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <sphere radius="0.03" />
+      </geometry>
+      <material name="green_material">
+        <color rgba="0.0 1.0 0.0 1.0" />
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <sphere radius="0.03" />
+      </geometry>
+    </collision>
+  </link>
+
+  <!-- =================================================================== -->
+  <!-- LINK: ellipsoid_surface (Z축 아래로 0.30m 이동)                     -->
+  <!-- =================================================================== -->
+  <link name="ellipsoid_surface">
+    <inertial>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <mass value="30.0" />
+      <inertia ixx="3.0" ixy="0" ixz="0" iyy="2.4" iyz="0" izz="5.0" />
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <box size="4.341 4.852 0.01" />
+      </geometry>
+      <material name="ellipsoid_mat">
+        <color rgba="0.2 0.4 0.8 0.5" />
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <box size="4.341 4.852 0.01" />
+      </geometry>
+    </collision>
+  </link>
+
+  <joint name="sphere_to_ellipsoid_joint" type="fixed">
+    <origin xyz="0 0 -0.30" rpy="0 0 0" />
+    <parent link="ground_sphere" />
+    <child link="ellipsoid_surface" />
+  </joint>
+
+  <!-- =================================================================== -->
+  <!-- LINK: ground (3.544m x 3.964m)                                      -->
+  <!-- =================================================================== -->
+  <link name="ground">
+    <inertial>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <mass value="10.0" />
+      <inertia ixx="0.818" ixy="0" ixz="0" iyy="0.654" iyz="0" izz="1.472" />
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <box size="3.544 3.964 0.01" />
+      </geometry>
+      <material name="ground_mat">
+        <color rgba="0.5 0.5 0.5 0.8" />
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <box size="3.544 3.964 0.01" />
+      </geometry>
+    </collision>
+  </link>
+
+  <!-- 부모 링크를 ellipsoid_surface로 변경하여 ground_sphere -> ellipsoid_surface -> ground 구조 형성 -->
+  <joint name="ellipsoid_to_ground_joint" type="fixed">
+    <origin xyz="0 0 0.30" rpy="0 0 0" />
+    <parent link="ellipsoid_surface" />
+    <child link="ground" />
+  </joint>
+
+  <!-- =================================================================== -->
+  <!-- ADDED: RECTANGULAR WOOD BAR (직사각형 각목 형태 나무막대)           -->
+  <!-- =================================================================== -->
+  <link name="obstacle_wood_bar">
+    <inertial>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <mass value="2.0" />
+      <inertia ixx="0.37" ixy="0" ixz="0" iyy="0.001" iyz="0" izz="0.37" />
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <!-- 폭 0.08m, 길이 1.5m, 높이 0.06m (바퀴 높이 절반) -->
+        <box size="0.08 1.5 0.06" />
+      </geometry>
+      <material name="wood_mat">
+        <color rgba="0.55 0.35 0.15 1.0" />
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <box size="0.08 1.5 0.06" />
+      </geometry>
+    </collision>
+  </link>
+
+  <joint name="ground_to_wood_bar_joint" type="fixed">
+    <origin xyz="1.2 0.0 0.035" rpy="0 0 0" />
+    <parent link="ground" />
+    <child link="obstacle_wood_bar" />
+  </joint>
+
+  <!-- =================================================================== -->
+  <!-- SINGLE ROCK OBSTACLE (단일 돌멩이 장애물)                           -->
+  <!-- =================================================================== -->
+  <link name="obstacle_rock_1">
+    <inertial>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <mass value="1.5" />
+      <inertia ixx="0.005" ixy="0" ixz="0" iyy="0.005" iyz="0" izz="0.005" />
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <box size="0.14 0.16 0.07" />
+      </geometry>
+      <material name="rock_mat_1">
+        <color rgba="0.38 0.35 0.32 1.0" />
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <box size="0.14 0.16 0.07" />
+      </geometry>
+    </collision>
+  </link>
+
+  <joint name="ground_to_rock_1_joint" type="fixed">
+    <origin xyz="0.7 0.3 0.04" rpy="0.1 0.15 0.3" />
+    <parent link="ground" />
+    <child link="obstacle_rock_1" />
+  </joint>
+
+  <!-- =================================================================== -->
+  <!-- CAR FRAME                                                           -->
+  <!-- =================================================================== -->
+  <link name="car_frame">
+    <inertial>
+      <origin xyz="-0.0699924818342827 4.77680336962046E-09 0.266986488786553" rpy="0 0 0" />
+      <mass value="4.36726752622487" />
+      <inertia ixx="0.120130237589006" ixy="2.47975489095435E-06" ixz="-3.27227207151588E-05" iyy="0.191286662671253" iyz="2.68105956435735E-10" izz="0.301245720968892" />
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="../meshes/car_frame.STL" />
+      </geometry>
+      <material name="car_frame_mat">
+        <color rgba="0.894117647058823 0.894117647058823 0.894117647058823 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="../meshes/car_frame.STL" />
+      </geometry>
+    </collision>
+  </link>
+
+  <joint name="ground_to_car_frame_joint" type="fixed">
+    <origin xyz="0 0 0.005" rpy="0 0 0" />
+    <parent link="ground" />
+    <child link="car_frame" />
+  </joint>
+
+  <!-- =================================================================== -->
+  <!-- LINK: RED SPHERE (전방 X축 배치)                                    -->
+  <!-- =================================================================== -->
+  <link name="front_target_sphere">
+    <inertial>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <mass value="0.05" />
+      <inertia ixx="0.00005" ixy="0" ixz="0" iyy="0.00005" iyz="0" izz="0.00005" />
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <sphere radius="0.05" />
+      </geometry>
+      <material name="red_material">
+        <color rgba="1.0 0.0 0.0 1.0" />
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <sphere radius="0.05" />
+      </geometry>
+    </collision>
+  </link>
+
+  <joint name="front_target_joint" type="fixed">
+    <origin xyz="0.6 0 0.3" rpy="0 0 0" />
+    <parent link="car_frame" />
+    <child link="front_target_sphere" />
+  </joint>
+
+  <!-- =================================================================== -->
+  <!-- SWING & WHEELS                                                      -->
+  <!-- =================================================================== -->
+  <link name="swing_link">
+    <inertial>
+      <origin xyz="2.89027833825533E-08 0.0605903676257634 0.00266440834148721" rpy="0 0 0" />
+      <mass value="1.44344385530309" />
+      <inertia ixx="0.00290322324922314" ixy="-5.3629396489287E-10" ixz="-2.47940935714728E-06" iyy="0.00598687173589356" iyz="3.64864367309232E-06" izz="0.00529337280538947" />
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="../meshes/swing_link.STL" />
+      </geometry>
+      <material name="swing_mat">
+        <color rgba="0.894117647058823 0.894117647058823 0.894117647058823 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="../meshes/swing_link.STL" />
+      </geometry>
+    </collision>
+  </link>
+
+  <joint name="swing_joint" type="revolute">
+    <origin xyz="0.226 0 0.19572" rpy="-1.5708 0 -1.5708" />
+    <parent link="car_frame" />
+    <child link="swing_link" />
+    <axis xyz="0 0 1" />
+    <limit lower="-0.2" upper="0.2" effort="10.0" velocity="1.0" />
+  </joint>
+
+  <!-- WHEEL FR & TIRE FR -->
+  <link name="wheel_fr">
+    <inertial>
+      <origin xyz="-0.00570311862923931 0.0422312078327481 -0.00829956160844914" rpy="0 0 0" />
+      <mass value="0.304138859926848" />
+      <inertia ixx="0.000395045316087024" ixy="-2.69138802125918E-06" ixz="-4.80158404940406E-07" iyy="0.000414316538014111" iyz="3.47729172120058E-06" izz="0.000760266253987474" />
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="../meshes/wheel_fr.STL" />
+      </geometry>
+      <material name="green_wheel">
+        <color rgba="0 1 0 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="../meshes/wheel_fr.STL" />
+      </geometry>
+    </collision>
+  </link>
+
+  <joint name="wheel_fr_joint" type="continuous">
+    <origin xyz="0.32225 0.1648 0.03" rpy="1.5708 -1.5108 1.5708" />
+    <parent link="swing_link" />
+    <child link="wheel_fr" />
+    <axis xyz="0 0 -1" />
+  </joint>
+
+  <link name="tire_fr">
+    <inertial>
+      <origin xyz="7.76422831502976E-05 0.00868726029411421 0.0001059050331738" rpy="0 0 0" />
+      <mass value="0.165142633558274" />
+      <inertia ixx="0.000463075796975926" ixy="-5.44937415188666E-09" ixz="7.50961713471071E-07" iyy="0.000907319831290129" iyz="-7.43304666822633E-09" izz="0.000463549564232601" />
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="../meshes/tire_fr.STL" />
+      </geometry>
+      <material name="purple_tire">
+        <color rgba="0.796078431372549 0.623529411764706 1 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="../meshes/tire_fr.STL" />
+      </geometry>
+    </collision>
+  </link>
+
+  <joint name="tire_fr_joint" type="continuous">
+    <origin xyz="-0.0064373 0.047566 0.003" rpy="-1.5708 0 -2.4469" />
+    <parent link="wheel_fr" />
+    <child link="tire_fr" />
+    <axis xyz="0 1 0" />
+  </joint>
+
+  <!-- WHEEL FL & TIRE FL -->
+  <link name="wheel_fl">
+    <inertial>
+      <origin xyz="-0.00570311862923928 0.0422312078327481 -0.00829956160844919" rpy="0 0 0" />
+      <mass value="0.304138859926847" />
+      <inertia ixx="0.000395045316087023" ixy="-2.69138802125915E-06" ixz="-4.80158404940521E-07" iyy="0.00041431653801411" iyz="3.47729172120065E-06" izz="0.000760266253987473" />
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="../meshes/wheel_fl.STL" />
+      </geometry>
+      <material name="green_wheel" />
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="../meshes/wheel_fl.STL" />
+      </geometry>
+    </collision>
+  </link>
+
+  <joint name="wheel_fl_joint" type="continuous">
+    <origin xyz="-0.32225 0.1648 0.03" rpy="-1.5708 1.5108 1.5708" />
+    <parent link="swing_link" />
+    <child link="wheel_fl" />
+    <axis xyz="0 0 1" />
+  </joint>
+
+  <link name="tire_fl">
+    <inertial>
+      <origin xyz="7.7642283151047E-05 0.00868726029411437 0.000105905033174342" rpy="0 0 0" />
+      <mass value="0.165142633558273" />
+      <inertia ixx="0.000463075796975928" ixy="-5.44937415162008E-09" ixz="7.5096171347E-07" iyy="0.000907319831290127" iyz="-7.43304666820223E-09" izz="0.000463549564232599" />
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="../meshes/tire_fl.STL" />
+      </geometry>
+      <material name="purple_tire" />
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="../meshes/tire_fl.STL" />
+      </geometry>
+    </collision>
+  </link>
+
+  <joint name="tire_fl_joint" type="continuous">
+    <origin xyz="-0.0064373 0.047566 0.003" rpy="-1.5708 0 -2.4469" />
+    <parent link="wheel_fl" />
+    <child link="tire_fl" />
+    <axis xyz="0 -1 0" />
+  </joint>
+
+  <!-- WHEEL RR & TIRE RR -->
+  <link name="wheel_rr">
+    <inertial>
+      <origin xyz="-0.00570311862923931 0.0422312078327481 -0.00829956160844908" rpy="0 0 0" />
+      <mass value="0.304138859926848" />
+      <inertia ixx="0.000395045316087024" ixy="-2.6913880212591E-06" ixz="-4.80158404939289E-07" iyy="0.000414316538014111" iyz="3.47729172120071E-06" izz="0.000760266253987474" />
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="../meshes/wheel_rr.STL" />
+      </geometry>
+      <material name="green_wheel" />
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="../meshes/wheel_rr.STL" />
+      </geometry>
+    </collision>
+  </link>
+
+  <joint name="wheel_rr_joint" type="continuous">
+    <origin xyz="-0.244 -0.32225 0.030922" rpy="1.5708 0.059958 0" />
+    <parent link="car_frame" />
+    <child link="wheel_rr" />
+    <axis xyz="0 0 -1" />
+  </joint>
+
+  <link name="tire_rr">
+    <inertial>
+      <origin xyz="7.76422831505197E-05 0.00868726029411432 0.00010590503317362" rpy="0 0 0" />
+      <mass value="0.165142633558276" />
+      <inertia ixx="0.00046307579697593" ixy="-5.44937415025454E-09" ixz="7.50961713472426E-07" iyy="0.000907319831290135" iyz="-7.43304666863456E-09" izz="0.000463549564232603" />
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="../meshes/tire_rr.STL" />
+      </geometry>
+      <material name="purple_tire" />
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="../meshes/tire_rr.STL" />
+      </geometry>
+    </collision>
+  </link>
+
+  <joint name="tire_rr_joint" type="continuous">
+    <origin xyz="-0.0064373 0.047566 0.003" rpy="-1.5708 0 -2.4469" />
+    <parent link="wheel_rr" />
+    <child link="tire_rr" />
+    <axis xyz="0 1 0" />
+  </joint>
+
+  <!-- WHEEL RL & TIRE RL -->
+  <link name="wheel_rl">
+    <inertial>
+      <origin xyz="-0.00570311862923939 0.0422312078327481 -0.00829956160844914" rpy="0 0 0" />
+      <mass value="0.304138859926847" />
+      <inertia ixx="0.000395045316087023" ixy="-2.6913880212591E-06" ixz="-4.80158404939232E-07" iyy="0.000414316538014111" iyz="3.47729172120071E-06" izz="0.000760266253987473" />
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="../meshes/wheel_rl.STL" />
+      </geometry>
+      <material name="green_wheel" />
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="../meshes/wheel_rl.STL" />
+      </geometry>
+    </collision>
+  </link>
+
+  <joint name="wheel_rl_joint" type="continuous">
+    <origin xyz="-0.244 0.32225 0.030922" rpy="1.5708 0.059958 -3.1416" />
+    <parent link="car_frame" />
+    <child link="wheel_rl" />
+    <axis xyz="0 0 1" />
+  </joint>
+
+  <link name="tire_rl">
+    <inertial>
+      <origin xyz="7.76422831503532E-05 0.00868726029411443 0.00010590503317405" rpy="0 0 0" />
+      <mass value="0.165142633558276" />
+      <inertia ixx="0.000463075796975933" ixy="-5.44937414973503E-09" ixz="7.50961713469743E-07" iyy="0.000907319831290136" iyz="-7.43304666839591E-09" izz="0.000463549564232602" />
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="../meshes/tire_rl.STL" />
+      </geometry>
+      <material name="purple_tire" />
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="../meshes/tire_rl.STL" />
+      </geometry>
+    </collision>
+  </link>
+
+  <joint name="tire_rl_joint" type="continuous">
+    <origin xyz="-0.0064373 0.047566 0.003" rpy="-1.5708 0 -2.4469" />
+    <parent link="wheel_rl" />
+    <child link="tire_rl" />
+    <axis xyz="0 -1 0" />
+  </joint>
+
+</robot>

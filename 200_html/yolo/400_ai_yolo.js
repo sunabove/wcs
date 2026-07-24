@@ -285,7 +285,10 @@
                     <ul class="list-group list-group-flush small">
                         <li class="list-group-item px-0 d-flex gap-2 align-items-start">
                             <span class="fw-semibold text-secondary flex-shrink-0" style="width: 72px;">파일</span>
-                            <span class="text-break">${modelItem.fileName} / ${modelItem.modelType || 'YOLO 모델'}</span>
+                            <span class="d-flex flex-wrap gap-1 align-items-center">
+                                <span class="badge text-bg-primary text-break">${modelItem.fileName}</span>
+                                <span class="badge text-bg-secondary">${modelItem.modelType || 'YOLO 모델'}</span>
+                            </span>
                         </li>
                         <li class="list-group-item px-0 d-flex gap-2 align-items-start">
                             <span class="fw-semibold text-secondary flex-shrink-0" style="width: 72px;">클래스</span>

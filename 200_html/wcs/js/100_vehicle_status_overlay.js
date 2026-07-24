@@ -169,16 +169,10 @@
 
     function updateVideoControlButtons() {
         if ($playToggleButton.length === 0 || $video.length === 0) {
-            if ($closeButton.length > 0) {
-                $closeButton.addClass("d-none");
-            }
             return;
         }
 
         if (mediaHiddenByUser) {
-            if ($closeButton.length > 0) {
-                $closeButton.addClass("d-none");
-            }
             $playToggleButton
                 .removeClass("d-none")
                 .prop("disabled", false)
@@ -192,9 +186,6 @@
         $playToggleButton.removeClass("d-none");
 
         if (lastMediaType === "image") {
-            if ($closeButton.length > 0) {
-                $closeButton.addClass("d-none");
-            }
             const hasImageSource = !!String(lastMediaSource || $image.attr("src") || "").trim();
             updateLoopToggleButton(hasImageSource);
             if (mediaPlaybackPaused) {
@@ -217,9 +208,6 @@
         const videoElement = $video[0];
         const isVideoVisible = !$video.hasClass("d-none");
         const hasVideoSource = !!String($video.attr("src") || "").trim();
-        if ($closeButton.length > 0) {
-            $closeButton.toggleClass("d-none", !(isVideoVisible && hasVideoSource));
-        }
         const isVideoReady = isVideoVisible && hasVideoSource;
         const isPaused = !isVideoReady || mediaPlaybackPaused || videoElement.paused || videoElement.ended;
 

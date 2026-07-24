@@ -143,7 +143,16 @@
 						<tr>
 							<th scope="row" class="text-center">상태</th>
 							<td>
-								<div id="yolo-status" class="alert alert-secondary mb-0 py-2 px-3 small rounded-2" style="line-height: 1.25;">대기 중</div>
+								<div id="yolo-status" class="alert alert-secondary mb-0 py-2 px-3 small rounded-2" style="line-height: 1.25;">
+									<div class="d-flex align-items-center justify-content-between gap-3">
+										<span id="yolo-status-text">대기 중</span>
+										<div id="yolo-upload-progress-wrap" class="d-none" style="width: 220px;">
+											<div class="progress" role="progressbar" aria-label="동영상 업로드 진행률" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" style="height: 10px;">
+												<div id="yolo-upload-progress-bar" class="progress-bar progress-bar-striped progress-bar-animated" style="width: 0%;"></div>
+											</div>
+										</div>
+									</div>
+								</div>
 							</td>
 						</tr>
 						<tr>

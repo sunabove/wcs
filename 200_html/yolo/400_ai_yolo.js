@@ -14,6 +14,8 @@
     const uploadedListElement = document.getElementById('yolo-uploaded-list');
     const uploadedEmptyElement = document.getElementById('yolo-uploaded-empty');
     const inputSourceTabButtons = Array.from(document.querySelectorAll('#yolo-input-source-tabs [data-bs-toggle="tab"]'));
+    const modelTabsElement = document.getElementById('yolo-model-tabs');
+    const modelTabContentElement = document.getElementById('yolo-model-tab-content');
 
     const statusElement = document.getElementById('yolo-status');
     const statusTextElement = document.getElementById('yolo-status-text');
@@ -30,6 +32,7 @@
     let realtimeDetectTimer = null;
     let pendingRealtimeDetect = false;
     let uploadedHistory = [];
+    let modelHistory = [];
     let selectedServerFileName = '';
 
     const REALTIME_DETECT_DEBOUNCE_MS = 300;
@@ -215,6 +218,90 @@
         }
 
         matchedButton.click();
+    }
+
+    function formatDateTime(value) {
+        const text = String(value || '').trim();
+        if (!text) {
+            return '-';
+        }
+
+        return text.replace('T', ' ');
+    }
+
+    function renderModelMetadataTabs() {
+        if (!modelTabsElement || !modelTabContentElement) {
+            return;
+        }
+
+        modelTabsElement.innerHTML = '';
+        modelTabContentElement.innerHTML = '';
+
+        if (modelHistory.length === 0) {
+            modelTabContentElement.innerHTML = '<div class="text-muted small">등록된 모델이 없습니다.</div>';
+            return;
+        }
+
+        const activeModel = modelHistory.find((item) => item.isDefault) || modelHistory[0];
+
+        modelHistory.forEach((modelItem, index) => {
+            const tabId = `yolo-model-tab-${index}`;
+            const paneId = `yolo-model-pane-${index}`;
+            const isActive = activeModel && activeModel.fileName === modelItem.fileName;
+
+            const li = document.createElement('li');
+            li.className = 'nav-item';
+            li.setAttribute('role', 'presentation');
+
+            const button = document.createElement('button');
+            button.className = `nav-link ${isActive ? 'active' : ''}`;
+            button.id = tabId;
+            button.type = 'button';
+            button.setAttribute('data-bs-toggle', 'tab');
+            button.setAttribute('data-bs-target', `#${paneId}`);
+            button.setAttribute('role', 'tab');
+            button.setAttribute('aria-controls', paneId);
+            button.setAttribute('aria-selected', String(isActive));
+            button.innerHTML = `
+                <span class="d-inline-flex align-items-center gap-1">
+                    <i class="bi bi-box-seam text-secondary" aria-hidden="true"></i>
+                    <span>${modelItem.displayName}</span>
+                    ${modelItem.isDefault ? '<span class="badge text-bg-primary ms-1">기본</span>' : ''}
+                </span>
+            `;
+
+            li.appendChild(button);
+            modelTabsElement.appendChild(li);
+
+            const pane = document.createElement('div');
+            pane.className = `tab-pane fade ${isActive ? 'show active' : ''}`;
+            pane.id = paneId;
+            pane.setAttribute('role', 'tabpanel');
+            pane.setAttribute('aria-labelledby', tabId);
+            pane.tabIndex = 0;
+
+            pane.innerHTML = `
+                <div class="row g-3 align-items-stretch">
+                    <div class="col-lg-6">
+                        <div class="border rounded p-3 h-100 bg-light">
+                            <div class="d-flex align-items-center justify-content-between gap-2 mb-2">
+                                <div class="fw-semibold">${modelItem.displayName}</div>
+                                <span class="badge text-bg-secondary">${modelItem.isDefault ? 'Default' : 'Model'}</span>
+                            </div>
+                            <div class="small text-muted mb-2">${modelItem.description || ''}</div>
+                            <dl class="row mb-0 small">
+                                <dt class="col-4">파일명</dt><dd class="col-8 mb-1">${modelItem.fileName}</dd>
+                                <dt class="col-4">경로</dt><dd class="col-8 mb-1 text-break">${modelItem.modelPath}</dd>
+                                <dt class="col-4">크기</dt><dd class="col-8 mb-1">${formatBytes(modelItem.size)}</dd>
+                                <dt class="col-4">수정일</dt><dd class="col-8 mb-0">${formatDateTime(modelItem.modifiedAt)}</dd>
+                            </dl>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            modelTabContentElement.appendChild(pane);
+        });
     }
 
     function syncInputSourceTabColor() {
@@ -475,6 +562,44 @@
             renderUploadedHistory();
         } catch (_ignore) {
             // Keep empty state when loading history fails.
+        }
+    }
+
+    async function loadModelMetadataFromServer() {
+        if (!modelTabsElement || !modelTabContentElement) {
+            return;
+        }
+
+        try {
+            const apiBase = await resolveApiBase();
+            const response = await fetch(`${apiBase}/fast/yolo/models`, {
+                method: 'GET',
+                cache: 'no-store',
+            });
+
+            if (!response.ok) {
+                modelHistory = [];
+                renderModelMetadataTabs();
+                return;
+            }
+
+            const body = await response.json();
+            const models = body && Array.isArray(body.models) ? body.models : [];
+
+            modelHistory = models.map((item) => ({
+                fileName: String(item.file_name || ''),
+                displayName: String(item.display_name || item.file_name || 'model'),
+                modelPath: String(item.model_path || ''),
+                size: Number(item.size || 0),
+                modifiedAt: String(item.modified_at || ''),
+                isDefault: Boolean(item.is_default),
+                description: String(item.description || ''),
+            }));
+
+            renderModelMetadataTabs();
+        } catch (_ignore) {
+            modelHistory = [];
+            renderModelMetadataTabs();
         }
     }
 
@@ -858,9 +983,14 @@
         renderUploadedHistory();
     }
 
+    if (modelTabsElement && modelTabContentElement) {
+        renderModelMetadataTabs();
+    }
+
     applyLoopOption();
     restoreInputSourceTab();
     syncInputSourceTabColor();
 
     loadUploadedHistoryFromServer();
+    loadModelMetadataFromServer();
 })();

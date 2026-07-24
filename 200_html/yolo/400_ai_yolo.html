@@ -108,56 +108,52 @@
 				<table class="table table-bordered align-middle mb-0">
 					<colgroup>
 						<col style="width: 120px;">
-						<col>
+						<col style="width: 66%;">
+						<col style="width: 34%;">
 					</colgroup>
 					<tbody>
 						<tr>
 							<th scope="row" class="text-center">입력</th>
 							<td>
-								<div class="row g-3 align-items-start">
-									<div class="col-lg-8">
-										<label for="yolo-video-file" class="form-label">동영상 파일</label>
-										<input id="yolo-video-file" class="form-control mb-2" type="file" accept="video/*">
-										<div id="yolo-drop-zone" role="button" tabindex="0" aria-label="동영상 드래그 업로드 영역">
-											<div class="fw-semibold">동영상을 여기로 드래그하세요</div>
-											<div class="small text-muted mt-1">또는 클릭해서 파일 선택</div>
-										</div>
-										<div class="small fw-semibold text-secondary mt-3 mb-1">업로드한 동영상</div>
-										<ul id="yolo-uploaded-list" class="list-group list-group-sm">
-											<li id="yolo-uploaded-empty" class="list-group-item small text-muted">업로드 이력 없음</li>
-										</ul>
-									</div>
-									<div class="col-lg-4">
-										<div class="border rounded bg-light p-3 h-100">
-											<div class="small fw-semibold text-secondary mb-2">옵션 설정</div>
-											<label for="yolo-conf" class="form-label d-flex justify-content-between align-items-center">
-												<span>Conf</span>
-												<span id="yolo-conf-value" class="badge text-bg-secondary">0.25</span>
-											</label>
-											<input id="yolo-conf" class="form-range mb-3" type="range" min="0" max="1" step="0.01" value="0.25">
-											<label for="yolo-iou" class="form-label d-flex justify-content-between align-items-center">
-												<span>IoU</span>
-												<span id="yolo-iou-value" class="badge text-bg-secondary">0.45</span>
-											</label>
-											<input id="yolo-iou" class="form-range mb-3" type="range" min="0" max="1" step="0.01" value="0.45">
-											<div class="d-grid">
-												<button id="yolo-detect-btn" class="btn btn-primary">검출 시작</button>
-											</div>
-										</div>
+								<label for="yolo-video-file" class="form-label">동영상 파일</label>
+								<input id="yolo-video-file" class="form-control mb-2" type="file" accept="video/*">
+								<div id="yolo-drop-zone" role="button" tabindex="0" aria-label="동영상 드래그 업로드 영역">
+									<div class="fw-semibold">동영상을 여기로 드래그하세요</div>
+									<div class="small text-muted mt-1">또는 클릭해서 파일 선택</div>
+								</div>
+								<div class="small fw-semibold text-secondary mt-3 mb-1">업로드한 동영상</div>
+								<ul id="yolo-uploaded-list" class="list-group list-group-sm">
+									<li id="yolo-uploaded-empty" class="list-group-item small text-muted">업로드 이력 없음</li>
+								</ul>
+							</td>
+							<td>
+								<div class="border rounded bg-light p-3 h-100">
+									<div class="small fw-semibold text-secondary mb-2">옵션 설정</div>
+									<label for="yolo-conf" class="form-label d-flex justify-content-between align-items-center">
+										<span>Conf</span>
+										<span id="yolo-conf-value" class="badge text-bg-secondary">0.25</span>
+									</label>
+									<input id="yolo-conf" class="form-range mb-3" type="range" min="0" max="1" step="0.01" value="0.25">
+									<label for="yolo-iou" class="form-label d-flex justify-content-between align-items-center">
+										<span>IoU</span>
+										<span id="yolo-iou-value" class="badge text-bg-secondary">0.45</span>
+									</label>
+									<input id="yolo-iou" class="form-range mb-3" type="range" min="0" max="1" step="0.01" value="0.45">
+									<div class="d-grid">
+										<button id="yolo-detect-btn" class="btn btn-primary">검출 시작</button>
 									</div>
 								</div>
-
 							</td>
 						</tr>
 						<tr>
 							<th scope="row" class="text-center">상태</th>
-							<td>
+							<td colspan="2">
 								<div id="yolo-status" class="alert alert-secondary mb-0">대기 중</div>
 							</td>
 						</tr>
 						<tr>
 							<th scope="row" class="text-center">출력</th>
-							<td>
+							<td colspan="2">
 								<div class="d-flex justify-content-between align-items-center mb-1">
 									<ul class="nav nav-tabs" id="yolo-video-tabs" role="tablist">
 										<li class="nav-item" role="presentation">

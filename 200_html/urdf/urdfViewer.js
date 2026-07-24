@@ -595,6 +595,7 @@ class URDFViewer {
         panelElement.style.borderRadius = '10px';
         panelElement.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.12)';
         panelElement.style.pointerEvents = 'auto';
+        panelElement.style.transition = 'box-shadow 140ms ease, transform 140ms ease, border-color 140ms ease';
         panelElement.style.width = 'auto';
 
         const dialElement = document.createElement('div');
@@ -700,6 +701,31 @@ class URDFViewer {
         viewportElement.style.borderRadius = '999px';
         viewportElement.style.background = 'rgba(245, 247, 250, 0.92)';
         viewportElement.style.overflow = 'hidden';
+        viewportElement.style.transition = 'box-shadow 140ms ease, border-color 140ms ease, background-color 140ms ease';
+
+        panelElement.addEventListener('mouseenter', () => {
+            panelElement.style.borderColor = 'rgba(54, 120, 255, 0.35)';
+            panelElement.style.boxShadow = '0 5px 14px rgba(37, 99, 235, 0.20)';
+            panelElement.style.transform = 'translateY(-1px)';
+        });
+
+        panelElement.addEventListener('mouseleave', () => {
+            panelElement.style.borderColor = 'rgba(30, 30, 30, 0.2)';
+            panelElement.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.12)';
+            panelElement.style.transform = 'translateY(0)';
+        });
+
+        viewportElement.addEventListener('mouseenter', () => {
+            viewportElement.style.borderColor = 'rgba(30, 90, 220, 0.55)';
+            viewportElement.style.background = 'rgba(234, 242, 255, 0.96)';
+            viewportElement.style.boxShadow = '0 0 0 2px rgba(59, 130, 246, 0.16) inset';
+        });
+
+        viewportElement.addEventListener('mouseleave', () => {
+            viewportElement.style.borderColor = 'rgba(34, 34, 34, 0.28)';
+            viewportElement.style.background = 'rgba(245, 247, 250, 0.92)';
+            viewportElement.style.boxShadow = 'none';
+        });
 
         const compassRenderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
         compassRenderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
@@ -975,6 +1001,19 @@ class URDFViewer {
         panelElement.style.boxShadow = '0 3px 10px rgba(0, 0, 0, 0.16)';
         panelElement.style.pointerEvents = 'auto';
         panelElement.style.userSelect = 'none';
+        panelElement.style.transition = 'box-shadow 140ms ease, transform 140ms ease, border-color 140ms ease';
+
+        panelElement.addEventListener('mouseenter', () => {
+            panelElement.style.borderColor = 'rgba(51, 102, 255, 0.35)';
+            panelElement.style.boxShadow = '0 6px 14px rgba(37, 99, 235, 0.22)';
+            panelElement.style.transform = 'translateY(-1px)';
+        });
+
+        panelElement.addEventListener('mouseleave', () => {
+            panelElement.style.borderColor = 'rgba(20, 20, 20, 0.2)';
+            panelElement.style.boxShadow = '0 3px 10px rgba(0, 0, 0, 0.16)';
+            panelElement.style.transform = 'translateY(0)';
+        });
 
         this.viewCubeButtonByFace = {};
 
@@ -1001,6 +1040,28 @@ class URDFViewer {
             buttonElement.style.padding = '0 4px';
             buttonElement.style.lineHeight = '1.1';
             buttonElement.style.whiteSpace = 'nowrap';
+            buttonElement.style.transition = 'background-color 120ms ease, color 120ms ease, border-color 120ms ease, box-shadow 120ms ease, transform 120ms ease';
+
+            const applyHoverOn = () => {
+                buttonElement.style.background = 'rgba(59, 130, 246, 0.16)';
+                buttonElement.style.borderColor = 'rgba(37, 99, 235, 0.78)';
+                buttonElement.style.color = '#0b2a66';
+                buttonElement.style.boxShadow = '0 1px 4px rgba(37, 99, 235, 0.26)';
+                buttonElement.style.transform = 'translateY(-1px)';
+            };
+
+            const applyHoverOff = () => {
+                buttonElement.style.background = 'rgba(255, 255, 255, 0.98)';
+                buttonElement.style.borderColor = 'rgba(32, 46, 66, 0.45)';
+                buttonElement.style.color = '#1f2937';
+                buttonElement.style.boxShadow = 'none';
+                buttonElement.style.transform = 'translateY(0)';
+            };
+
+            buttonElement.addEventListener('mouseenter', applyHoverOn);
+            buttonElement.addEventListener('mouseleave', applyHoverOff);
+            buttonElement.addEventListener('focus', applyHoverOn);
+            buttonElement.addEventListener('blur', applyHoverOff);
             buttonElement.addEventListener('click', (event) => {
                 event.preventDefault();
                 event.stopPropagation();

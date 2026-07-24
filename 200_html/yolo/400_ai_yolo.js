@@ -16,6 +16,9 @@
     const inputSourceTabButtons = Array.from(document.querySelectorAll('#yolo-input-source-tabs [data-bs-toggle="tab"]'));
 
     const statusElement = document.getElementById('yolo-status');
+    const statusTextElement = document.getElementById('yolo-status-text');
+    const uploadProgressWrapElement = document.getElementById('yolo-upload-progress-wrap');
+    const uploadProgressBarElement = document.getElementById('yolo-upload-progress-bar');
     const inputVideoElement = document.getElementById('yolo-input-video');
     const outputVideoElement = document.getElementById('yolo-output-video');
 
@@ -37,7 +40,79 @@
         statusElement.classList.add('alert');
         statusElement.classList.remove(...STATUS_ALERT_VARIANTS);
         statusElement.classList.add(`alert-${alertType}`);
-        statusElement.textContent = message;
+
+        if (statusTextElement) {
+            statusTextElement.textContent = message;
+        } else {
+            statusElement.textContent = message;
+        }
+    }
+
+    function setUploadProgress(percent, show) {
+        if (!uploadProgressWrapElement || !uploadProgressBarElement) {
+            return;
+        }
+
+        const numeric = Number.isFinite(Number(percent)) ? Number(percent) : 0;
+        const bounded = Math.max(0, Math.min(100, Math.round(numeric)));
+
+        uploadProgressBarElement.style.width = `${bounded}%`;
+        uploadProgressBarElement.setAttribute('aria-valuenow', String(bounded));
+
+        if (show) {
+            uploadProgressWrapElement.classList.remove('d-none');
+        } else {
+            uploadProgressWrapElement.classList.add('d-none');
+        }
+    }
+
+    async function uploadVideoWithProgress(apiBase, file) {
+        const formData = new FormData();
+        formData.append('file', file);
+
+        return new Promise((resolve, reject) => {
+            const xhr = new XMLHttpRequest();
+            xhr.open('POST', `${apiBase}/fast/yolo/upload_video`, true);
+            xhr.responseType = 'json';
+
+            xhr.upload.onprogress = (event) => {
+                if (!event.lengthComputable) {
+                    return;
+                }
+
+                const percent = (event.loaded / event.total) * 100;
+                setUploadProgress(percent, true);
+                setStatus(`동영상 업로드 중... ${Math.round(percent)}%`, 'info');
+            };
+
+            xhr.onerror = () => {
+                reject(new Error('업로드 네트워크 오류'));
+            };
+
+            xhr.onload = () => {
+                const status = Number(xhr.status || 0);
+                const ok = status >= 200 && status < 300;
+                const responseJson = xhr.response && typeof xhr.response === 'object'
+                    ? xhr.response
+                    : (() => {
+                        try {
+                            return xhr.responseText ? JSON.parse(xhr.responseText) : {};
+                        } catch (_ignore) {
+                            return {};
+                        }
+                    })();
+
+                if (!ok) {
+                    const detail = responseJson && responseJson.detail ? String(responseJson.detail) : `업로드 실패 (${status})`;
+                    reject(new Error(detail));
+                    return;
+                }
+
+                resolve(responseJson || {});
+            };
+
+            xhr.send(formData);
+        });
     }
 
     function toNumber(value, fallback) {
@@ -564,32 +639,13 @@
         }
 
         uploadButton.disabled = true;
+        setUploadProgress(0, true);
         setStatus('동영상 업로드 중...', 'info');
 
         try {
             const apiBase = await resolveApiBase();
-            const formData = new FormData();
-            formData.append('file', file);
-
-            const response = await fetch(`${apiBase}/fast/yolo/upload_video`, {
-                method: 'POST',
-                body: formData,
-            });
-
-            if (!response.ok) {
-                let errorMessage = `업로드 실패 (${response.status})`;
-                try {
-                    const errorBody = await response.json();
-                    if (errorBody && errorBody.detail) {
-                        errorMessage = String(errorBody.detail);
-                    }
-                } catch (_ignore) {
-                    // Keep default message.
-                }
-                throw new Error(errorMessage);
-            }
-
-            const result = await response.json();
+            const result = await uploadVideoWithProgress(apiBase, file);
+            setUploadProgress(100, true);
             addUploadedHistoryItem(
                 result.display_name || file.name,
                 result.file_name,
@@ -605,6 +661,7 @@
             const message = error && error.message ? error.message : String(error);
             setStatus(`오류: ${message}`, 'danger');
         } finally {
+            setUploadProgress(0, false);
             if (uploadButton) {
                 uploadButton.disabled = !selectedFile;
             }

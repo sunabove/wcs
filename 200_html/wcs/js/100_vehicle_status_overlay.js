@@ -857,7 +857,13 @@
 
         if (!normalizedFile) {
             requestRoadDetectSessionCleanupAll();
-            hideOverlay();
+            clearFirstFrameTimeout();
+            clearTemporaryStatusMessage();
+            hideAllMedia(true);
+            applyCollapsedOverlayLayout();
+            setCloseButtonToShowMode(true);
+            showOverlay();
+            updateVideoControlButtons();
             return;
         }
 

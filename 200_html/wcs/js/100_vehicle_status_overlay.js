@@ -62,6 +62,7 @@
     const FIRST_FRAME_TIMEOUT_MS = 10000;
     const LOADING_MESSAGE = "로딩중입니다.";
     const FIRST_FRAME_TIMEOUT_MESSAGE = "동영상이 로딩되지 않았습니다.";
+    const NO_SELECTED_VIDEO_MESSAGE = "현재 선택된 동영상이 없습니다.";
     const TEMPORARY_STATUS_MESSAGE_MS = 1800;
     const VIEWER_DRAG_PIXELS_RATIO = 0.47;
     const VIEWER_ZOOM_OUT_RATIO = 0.07;
@@ -385,6 +386,61 @@
             temporaryStatusHideTimerId = null;
             setOverlayStatus("", false);
         }, durationMs);
+    }
+
+    function getOrCreateOverlayToastContainer() {
+        let container = document.getElementById("road-detect-overlay-toast-container");
+        if (container) {
+            return container;
+        }
+
+        container = document.createElement("div");
+        container.id = "road-detect-overlay-toast-container";
+        container.className = "toast-container position-fixed p-2";
+        container.style.top = "14px";
+        container.style.left = "50%";
+        container.style.transform = "translateX(-50%)";
+        container.style.zIndex = "1100";
+        document.body.appendChild(container);
+        return container;
+    }
+
+    function showOverlayToast(message, styleType = "warning") {
+        const text = String(message || "").trim();
+        if (!text) {
+            return;
+        }
+
+        const type = String(styleType || "warning").toLowerCase();
+        const toastClass = type === "danger" ? "text-bg-danger" : (type === "success" ? "text-bg-success" : "text-bg-warning");
+        const container = getOrCreateOverlayToastContainer();
+        const toastElement = document.createElement("div");
+        toastElement.className = `toast align-items-center border-0 ${toastClass}`;
+        toastElement.setAttribute("role", "alert");
+        toastElement.setAttribute("aria-live", "assertive");
+        toastElement.setAttribute("aria-atomic", "true");
+
+        toastElement.innerHTML = `
+            <div class="d-flex">
+                <div class="toast-body">${text}</div>
+                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+            </div>
+        `;
+
+        container.appendChild(toastElement);
+
+        if (window.bootstrap && window.bootstrap.Toast) {
+            const toast = new window.bootstrap.Toast(toastElement, { delay: 2200 });
+            toastElement.addEventListener("hidden.bs.toast", function () {
+                toastElement.remove();
+            }, { once: true });
+            toast.show();
+            return;
+        }
+
+        setTimeout(function () {
+            toastElement.remove();
+        }, 2200);
     }
 
     function clearFirstFrameTimeout() {
@@ -1141,15 +1197,24 @@
     });
 
     $playToggleButton.on("click", function () {
+        const hasSelectedVideoFile = !!String(latestCurrentVideoFileName || "").trim();
+        const hasKnownMediaSource = !!String(lastMediaSource || "").trim();
+        const hasVideoSource = !!String($video.attr("src") || "").trim();
+        const hasImageSource = !!String($image.attr("src") || "").trim();
+        if (!hasSelectedVideoFile && !hasKnownMediaSource && !hasVideoSource && !hasImageSource) {
+            showOverlayToast(NO_SELECTED_VIDEO_MESSAGE, "warning");
+            return;
+        }
+
         if (mediaHiddenByUser) {
             restoreMediaAreaOnly();
             return;
         }
 
         const videoElement = $video[0];
-        const hasImageSource = !!String(lastMediaSource || "").trim();
+        const hasImageMediaSource = !!String(lastMediaSource || "").trim();
 
-        if (lastMediaType === "image" && hasImageSource) {
+        if (lastMediaType === "image" && hasImageMediaSource) {
             if (mediaPlaybackPaused) {
                 mediaPlaybackPaused = false;
                 setOverlayStatus("", false);

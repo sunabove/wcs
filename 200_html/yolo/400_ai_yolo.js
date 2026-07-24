@@ -283,17 +283,13 @@
             pane.innerHTML = `
                 <div class="border rounded p-3 h-100 bg-white">
                     <ul class="list-group list-group-flush small">
-                        <li class="list-group-item px-0 d-flex gap-2">
-                            <span class="fw-semibold text-secondary flex-shrink-0" style="width: 72px;">파일명</span>
-                            <span class="text-break">${modelItem.fileName}</span>
+                        <li class="list-group-item px-0 d-flex gap-2 align-items-start">
+                            <span class="fw-semibold text-secondary flex-shrink-0" style="width: 96px;">파일명 / 용도</span>
+                            <span class="text-break">${modelItem.fileName} / ${modelItem.modelType || 'YOLO 모델'}</span>
                         </li>
-                        <li class="list-group-item px-0 d-flex gap-2">
-                            <span class="fw-semibold text-secondary flex-shrink-0" style="width: 72px;">용도</span>
-                            <span class="text-break">${modelItem.modelType || 'YOLO 모델'}</span>
-                        </li>
-                        <li class="list-group-item px-0 d-flex gap-2">
-                            <span class="fw-semibold text-secondary flex-shrink-0" style="width: 72px;">클래스 이름들</span>
-                            <span class="text-break">${modelItem.classNames.length > 0 ? modelItem.classNames.join(', ') : '-'}</span>
+                        <li class="list-group-item px-0 d-flex gap-2 align-items-start">
+                            <span class="fw-semibold text-secondary flex-shrink-0" style="width: 96px;">클래스 갯수 / 이름들</span>
+                            <span class="text-break">${modelItem.classCount}개 / ${modelItem.classNames.length > 0 ? modelItem.classNames.join(', ') : '-'}</span>
                         </li>
                     </ul>
                 </div>

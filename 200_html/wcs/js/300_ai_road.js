@@ -2430,6 +2430,12 @@ $(function () {
             return;
         }
 
+        if ($detectedVideoPreview.length > 0 && $detectedVideoPreview[0]) {
+            try { $detectedVideoPreview[0].pause(); } catch (e) {}
+            try { $detectedVideoPreview[0].removeAttribute("src"); } catch (e) {}
+            try { $detectedVideoPreview[0].load(); } catch (e) {}
+        }
+
         setDetectedOutputShareUrl("", "");
 
         const detectType = getSelectedDetectType();

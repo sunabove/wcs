@@ -57,7 +57,67 @@
     const REALTIME_DETECT_DEBOUNCE_MS = 300;
     const INPUT_SOURCE_TAB_STORAGE_KEY = 'wcs.yolo.input_source_tab.v1';
     const MODEL_SELECTION_STORAGE_KEY = 'wcs.yolo.model_selection.v1';
+    const VIDEO_DETECT_OPTION_STORAGE_KEY = 'wcs.yolo.video_detect_option.v1';
     const STATUS_ALERT_VARIANTS = ['alert-secondary', 'alert-info', 'alert-warning', 'alert-danger', 'alert-success', 'alert-primary'];
+
+    function normalizeThresholdValue(value, fallbackValue) {
+        const numeric = toNumber(value, fallbackValue);
+        return Math.max(0, Math.min(1, numeric));
+    }
+
+    function readVideoDetectOptionMap() {
+        try {
+            const raw = window.localStorage.getItem(VIDEO_DETECT_OPTION_STORAGE_KEY);
+            if (!raw) {
+                return {};
+            }
+
+            const parsed = JSON.parse(raw);
+            return parsed && typeof parsed === 'object' ? parsed : {};
+        } catch (_ignore) {
+            return {};
+        }
+    }
+
+    function writeVideoDetectOptionMap(optionMap) {
+        try {
+            window.localStorage.setItem(VIDEO_DETECT_OPTION_STORAGE_KEY, JSON.stringify(optionMap || {}));
+        } catch (_ignore) {
+            // Ignore storage failures.
+        }
+    }
+
+    function saveDetectOptionsForSelectedVideo() {
+        const selectedVideoKey = String(selectedServerFileName || '').trim();
+        if (!selectedVideoKey) {
+            return;
+        }
+
+        const optionMap = readVideoDetectOptionMap();
+        optionMap[selectedVideoKey] = {
+            conf: normalizeThresholdValue(confInput.value, 0.25),
+            iou: normalizeThresholdValue(iouInput.value, 0.45),
+            savedAt: new Date().toISOString(),
+        };
+        writeVideoDetectOptionMap(optionMap);
+    }
+
+    function applyDetectOptionsForSelectedVideo() {
+        const selectedVideoKey = String(selectedServerFileName || '').trim();
+        if (!selectedVideoKey) {
+            return;
+        }
+
+        const optionMap = readVideoDetectOptionMap();
+        const savedOption = optionMap[selectedVideoKey];
+        if (!savedOption || typeof savedOption !== 'object') {
+            return;
+        }
+
+        confInput.value = String(normalizeThresholdValue(savedOption.conf, 0.25));
+        iouInput.value = String(normalizeThresholdValue(savedOption.iou, 0.45));
+        updateSliderValueLabels();
+    }
 
     function setStatus(message, type) {
         const alertType = type || 'secondary';
@@ -615,6 +675,7 @@
 
     function scheduleRealtimeDetect() {
         updateSliderValueLabels();
+        saveDetectOptionsForSelectedVideo();
 
         if (!hasSelectedVideo()) {
             return;
@@ -775,6 +836,7 @@
                 }
 
                 selectedServerFileName = item.serverFileName;
+                applyDetectOptionsForSelectedVideo();
                 setSelectedFile(null);
                 if (fileInput) {
                     fileInput.value = '';
@@ -1096,6 +1158,7 @@
                 buildAbsoluteUrl(apiBase, result.thumbnail_url)
             );
             selectedServerFileName = String(result.file_name || '');
+            applyDetectOptionsForSelectedVideo();
             setSelectedFile(null);
             syncInputWithFile(null);
             renderUploadedHistory();

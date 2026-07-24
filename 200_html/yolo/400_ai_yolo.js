@@ -82,13 +82,9 @@
 
         uploadProgressBarElement.style.width = `${bounded}%`;
         uploadProgressBarElement.setAttribute('aria-valuenow', String(bounded));
-        if (hasNumericProgress) {
-            uploadProgressBarElement.removeAttribute('aria-valuetext');
-        } else {
-            uploadProgressBarElement.setAttribute('aria-valuetext', String(labelText || '작업 중'));
-        }
+        uploadProgressBarElement.setAttribute('aria-valuetext', `${bounded}%`);
         if (uploadProgressLabelElement) {
-            uploadProgressLabelElement.textContent = String(labelText || (hasNumericProgress ? `${bounded}%` : '작업 중'));
+            uploadProgressLabelElement.textContent = `${bounded}%`;
         }
 
         uploadProgressWrapElement.classList.remove('d-none');

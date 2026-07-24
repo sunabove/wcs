@@ -77,7 +77,6 @@ def models():
                 task = str(getattr(model, 'task', '') or '').strip()
                 class_names = _normalize_names(getattr(model, 'names', {}))
             except Exception:
-                model = None
                 task = ''
                 class_names = []
 

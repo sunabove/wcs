@@ -284,17 +284,33 @@
                 <div class="row g-3 align-items-stretch">
                     <div class="col-lg-6">
                         <div class="border rounded p-3 h-100 bg-light">
-                            <div class="d-flex align-items-center justify-content-between gap-2 mb-2">
+                            <div class="d-flex align-items-center justify-content-between gap-2 mb-2 flex-wrap">
                                 <div class="fw-semibold">${modelItem.displayName}</div>
-                                <span class="badge text-bg-secondary">${modelItem.isDefault ? 'Default' : 'Model'}</span>
+                                <div class="d-flex flex-wrap gap-1">
+                                    <span class="badge text-bg-primary">${modelItem.modelType || 'YOLO 모델'}</span>
+                                    <span class="badge text-bg-secondary">${modelItem.isDefault ? 'Default' : 'Model'}</span>
+                                </div>
                             </div>
-                            <div class="small text-muted mb-2">${modelItem.description || ''}</div>
+                            <div class="small text-muted mb-3">${modelItem.description || ''}</div>
                             <dl class="row mb-0 small">
                                 <dt class="col-4">파일명</dt><dd class="col-8 mb-1">${modelItem.fileName}</dd>
                                 <dt class="col-4">경로</dt><dd class="col-8 mb-1 text-break">${modelItem.modelPath}</dd>
+                                <dt class="col-4">타입</dt><dd class="col-8 mb-1">${modelItem.task || 'unknown'}</dd>
+                                <dt class="col-4">클래스 수</dt><dd class="col-8 mb-1">${modelItem.classCount}</dd>
                                 <dt class="col-4">크기</dt><dd class="col-8 mb-1">${formatBytes(modelItem.size)}</dd>
                                 <dt class="col-4">수정일</dt><dd class="col-8 mb-0">${formatDateTime(modelItem.modifiedAt)}</dd>
                             </dl>
+                        </div>
+                    </div>
+                    <div class="col-lg-6">
+                        <div class="border rounded p-3 h-100 bg-white">
+                            <div class="d-flex align-items-center justify-content-between gap-2 mb-2">
+                                <div class="fw-semibold">클래스 이름</div>
+                                <span class="badge text-bg-secondary">${modelItem.classCount}개</span>
+                            </div>
+                            ${modelItem.classNames.length > 0
+                                ? `<ul class="list-group list-group-flush small">${modelItem.classNames.map((className, index) => `<li class="list-group-item px-0 py-1 d-flex align-items-center gap-2"><span class="badge text-bg-light border text-dark">${index + 1}</span><span>${className}</span></li>`).join('')}</ul>`
+                                : '<div class="text-muted small">클래스 이름 정보가 없습니다.</div>'}
                         </div>
                     </div>
                 </div>

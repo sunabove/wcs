@@ -398,14 +398,52 @@
         container.id = "road-detect-overlay-toast-container";
         container.className = "toast-container position-fixed p-2";
         container.style.top = "14px";
-        container.style.left = "50%";
-        container.style.transform = "translateX(-50%)";
+        container.style.left = "14px";
+        container.style.transform = "none";
         container.style.zIndex = "1100";
         document.body.appendChild(container);
         return container;
     }
 
-    function showOverlayToast(message, styleType = "warning") {
+    function positionOverlayToastContainerNearAnchor(container, anchorElement) {
+        if (!container) {
+            return;
+        }
+
+        const margin = 12;
+        const viewportWidth = window.innerWidth || document.documentElement.clientWidth || 0;
+        const viewportHeight = window.innerHeight || document.documentElement.clientHeight || 0;
+
+        if (!anchorElement || typeof anchorElement.getBoundingClientRect !== "function") {
+            container.style.top = `${margin}px`;
+            container.style.left = `${margin}px`;
+            container.style.transform = "none";
+            return;
+        }
+
+        const rect = anchorElement.getBoundingClientRect();
+        const estimatedWidth = 300;
+        const estimatedHeight = 64;
+
+        let left = rect.left;
+        let top = rect.bottom + margin;
+
+        if (left + estimatedWidth > viewportWidth - margin) {
+            left = Math.max(margin, viewportWidth - estimatedWidth - margin);
+        }
+        if (top + estimatedHeight > viewportHeight - margin) {
+            top = rect.top - estimatedHeight - margin;
+        }
+        if (top < margin) {
+            top = margin;
+        }
+
+        container.style.top = `${Math.round(top)}px`;
+        container.style.left = `${Math.round(left)}px`;
+        container.style.transform = "none";
+    }
+
+    function showOverlayToast(message, styleType = "warning", anchorElement = null) {
         const text = String(message || "").trim();
         if (!text) {
             return;
@@ -414,6 +452,7 @@
         const type = String(styleType || "warning").toLowerCase();
         const toastClass = type === "danger" ? "text-bg-danger" : (type === "success" ? "text-bg-success" : "text-bg-warning");
         const container = getOrCreateOverlayToastContainer();
+        positionOverlayToastContainerNearAnchor(container, anchorElement);
         const toastElement = document.createElement("div");
         toastElement.className = `toast align-items-center border-0 ${toastClass}`;
         toastElement.setAttribute("role", "alert");
@@ -1202,7 +1241,7 @@
         const hasVideoSource = !!String($video.attr("src") || "").trim();
         const hasImageSource = !!String($image.attr("src") || "").trim();
         if (!hasSelectedVideoFile && !hasKnownMediaSource && !hasVideoSource && !hasImageSource) {
-            showOverlayToast(NO_SELECTED_VIDEO_MESSAGE, "warning");
+            showOverlayToast(NO_SELECTED_VIDEO_MESSAGE, "warning", this);
             return;
         }
 

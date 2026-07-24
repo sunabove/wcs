@@ -7,38 +7,10 @@
 	<link rel="icon" href="/favicon.ico" type="image/x-icon">
 	<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
 	<style>
-		#yolo-drop-zone {
-			border: 2px dashed #9aa4b2;
-			border-radius: 10px;
-			background: #f8fafc;
-			padding: 14px;
-			text-align: center;
-			cursor: pointer;
-			transition: all 0.15s ease;
-			color: #334155;
-		}
-
 		#yolo-drop-zone.drag-active {
 			border-color: #0d6efd;
 			background: #e8f1ff;
 			box-shadow: inset 0 0 0 1px rgba(13, 110, 253, 0.2);
-		}
-
-		#yolo-selected-file {
-			font-size: 0.875rem;
-			color: #475569;
-		}
-
-		#yolo-uploaded-list {
-			display: flex;
-			flex-direction: row;
-			flex-wrap: nowrap;
-			gap: 0.5rem;
-			align-items: stretch;
-			overflow-x: auto;
-			overflow-y: hidden;
-			padding-bottom: 0.25rem;
-			white-space: nowrap;
 		}
 
 		#yolo-uploaded-list .list-group-item {
@@ -71,33 +43,6 @@
 			text-align: center;
 		}
 
-		.yolo-video-wrap {
-			text-align: center;
-		}
-
-		.yolo-video-player {
-			width: auto;
-			height: auto;
-			max-width: 100%;
-			max-height: 70vh;
-			display: inline-block;
-		}
-
-		#yolo-status {
-			margin: 0 !important;
-			padding: 0.35rem 0.55rem;
-			font-size: 0.9rem;
-			line-height: 1.25;
-			border-radius: 0.4rem;
-		}
-
-		.yolo-option-card {
-			min-height: 52px;
-		}
-
-		.yolo-option-button {
-			min-height: 52px;
-		}
 	</style>
 	<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js" defer></script>
 	<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
@@ -132,12 +77,12 @@
 							<td>
 								<label for="yolo-video-file" class="form-label">동영상 파일</label>
 								<input id="yolo-video-file" class="form-control mb-2" type="file" accept="video/*">
-								<div id="yolo-drop-zone" role="button" tabindex="0" aria-label="동영상 드래그 업로드 영역">
+								<div id="yolo-drop-zone" class="border border-2 rounded-3 bg-light p-3 text-center text-secondary" style="border-style: dashed; cursor: pointer; transition: all 0.15s ease; background: #f8fafc; color: #334155;" role="button" tabindex="0" aria-label="동영상 드래그 업로드 영역">
 									<div class="fw-semibold">동영상을 여기로 드래그하세요</div>
 									<div class="small text-muted mt-1">또는 클릭해서 파일 선택</div>
 								</div>
 								<div class="small fw-semibold text-secondary mt-3 mb-1">업로드한 동영상</div>
-								<ul id="yolo-uploaded-list" class="list-group list-group-sm">
+								<ul id="yolo-uploaded-list" class="list-group list-group-sm d-flex flex-row flex-nowrap gap-2 align-items-stretch overflow-auto pb-1" style="white-space: nowrap;">
 									<li id="yolo-uploaded-empty" class="list-group-item small text-muted">업로드 이력 없음</li>
 								</ul>
 							</td>
@@ -147,8 +92,8 @@
 							<td>
 								<div class="row g-3 align-items-stretch">
 									<div class="col-lg-5">
-										<div class="border rounded p-1 bg-white h-100 yolo-option-card">
-											<div class="d-flex align-items-center gap-2">
+										<div class="border rounded p-1 bg-white h-100 d-flex align-items-center">
+											<div class="d-flex align-items-center gap-2 w-100">
 												<label for="yolo-conf" class="form-label mb-0 small fw-semibold">Conf</label>
 												<input id="yolo-conf" class="form-range flex-grow-1 mb-0" type="range" min="0" max="1" step="0.01" value="0.25">
 												<span id="yolo-conf-value" class="badge text-bg-secondary">0.25</span>
@@ -156,8 +101,8 @@
 										</div>
 									</div>
 									<div class="col-lg-5">
-										<div class="border rounded p-1 bg-white h-100 yolo-option-card">
-											<div class="d-flex align-items-center gap-2">
+										<div class="border rounded p-1 bg-white h-100 d-flex align-items-center">
+											<div class="d-flex align-items-center gap-2 w-100">
 												<label for="yolo-iou" class="form-label mb-0 small fw-semibold">IoU</label>
 												<input id="yolo-iou" class="form-range flex-grow-1 mb-0" type="range" min="0" max="1" step="0.01" value="0.45">
 												<span id="yolo-iou-value" class="badge text-bg-secondary">0.45</span>
@@ -165,8 +110,8 @@
 										</div>
 									</div>
 									<div class="col-lg-2 d-grid">
-										<div class="border rounded p-1 bg-white h-100 d-grid yolo-option-card">
-											<button id="yolo-detect-btn" class="btn btn-primary h-100 yolo-option-button">검출 시작</button>
+										<div class="border rounded p-1 bg-white h-100 d-grid">
+											<button id="yolo-detect-btn" class="btn btn-primary h-100 w-100">검출 시작</button>
 										</div>
 									</div>
 								</div> 
@@ -175,7 +120,7 @@
 						<tr>
 							<th scope="row" class="text-center">상태</th>
 							<td>
-								<div id="yolo-status" class="alert alert-secondary mb-0">대기 중</div>
+								<div id="yolo-status" class="alert alert-secondary mb-0 py-1 px-2 small rounded-2" style="line-height: 1.25;">대기 중</div>
 							</td>
 						</tr>
 						<tr>
@@ -197,13 +142,13 @@
 								</div>
 								<div class="tab-content border border-top-0 rounded-bottom p-3 bg-white" id="yolo-video-tab-content">
 									<div class="tab-pane fade show active" id="yolo-input-pane" role="tabpanel" aria-labelledby="yolo-input-tab" tabindex="0">
-										<div class="yolo-video-wrap">
-											<video id="yolo-input-video" class="yolo-video-player border rounded" controls playsinline></video>
+										<div class="text-center">
+											<video id="yolo-input-video" class="border rounded d-inline-block mw-100" style="width: auto; height: auto; max-height: 70vh;" controls playsinline></video>
 										</div>
 									</div>
 									<div class="tab-pane fade" id="yolo-output-pane" role="tabpanel" aria-labelledby="yolo-output-tab" tabindex="0">
-										<div class="yolo-video-wrap">
-											<video id="yolo-output-video" class="yolo-video-player border rounded" controls playsinline></video>
+										<div class="text-center">
+											<video id="yolo-output-video" class="border rounded d-inline-block mw-100" style="width: auto; height: auto; max-height: 70vh;" controls playsinline></video>
 										</div>
 									</div>
 								</div>

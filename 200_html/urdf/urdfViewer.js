@@ -771,6 +771,7 @@ class URDFViewer {
         this.compassScene = compassScene;
         this.compassCamera = compassCamera;
         this.compassModelGroup = compassModelGroup;
+        this.updateCameraToastAnchorPosition();
         this.updateCompassOverlay();
     }
 
@@ -1503,6 +1504,28 @@ class URDFViewer {
 
         this.container.appendChild(toastElement);
         this.cameraToastElement = toastElement;
+        this.updateCameraToastAnchorPosition();
+    }
+
+    updateCameraToastAnchorPosition() {
+        if (!this.cameraToastElement) {
+            return;
+        }
+
+        if (this.showCompass && this.compassOverlayElement) {
+            const compassTopPx = Number.parseFloat(this.compassOverlayElement.style.top || '10') || 10;
+            const compassHeightPx = Number(this.compassOverlayElement.offsetHeight || 64);
+            const toastTopPx = compassTopPx + compassHeightPx + 8;
+
+            this.cameraToastElement.style.right = '10px';
+            this.cameraToastElement.style.top = `${toastTopPx}px`;
+            this.cameraToastElement.style.bottom = 'auto';
+            return;
+        }
+
+        this.cameraToastElement.style.right = '12px';
+        this.cameraToastElement.style.top = 'auto';
+        this.cameraToastElement.style.bottom = '12px';
     }
 
     updateCameraToastOverlay() {

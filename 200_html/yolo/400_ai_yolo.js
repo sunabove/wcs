@@ -272,8 +272,11 @@
             const thumb = document.createElement('img');
             thumb.className = 'yolo-uploaded-thumb';
             thumb.alt = item.name || 'thumbnail';
-            if (item.thumbnailUrl || item.thumbnailSource) {
-                thumb.src = item.thumbnailUrl || item.thumbnailSource;
+            const thumbnailSrc = item.thumbnailSource || item.thumbnailUrl;
+            if (thumbnailSrc) {
+                thumb.src = thumbnailSrc;
+            } else {
+                thumb.src = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="160" height="90"><rect width="100%" height="100%" fill="%23e9ecef"/><text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" fill="%236c757d" font-size="12">NO THUMB</text></svg>';
             }
 
             const meta = document.createElement('div');
@@ -308,48 +311,26 @@
         }
     }
 
-    function createThumbnailUrl(fileObject) {
-        if (!fileObject) {
-            return '';
-        }
-
-        try {
-            return URL.createObjectURL(fileObject);
-        } catch (_ignore) {
-            return '';
-        }
-    }
-
-    function addUploadedHistoryItem(fileNameHint, inputFilePath, fileObject) {
+    function addUploadedHistoryItem(fileNameHint, inputFilePath, thumbnailSource) {
         const displayName = basename(fileNameHint) || basename(inputFilePath) || 'unknown_video';
         const now = new Date();
         const hh = String(now.getHours()).padStart(2, '0');
         const mm = String(now.getMinutes()).padStart(2, '0');
         const ss = String(now.getSeconds()).padStart(2, '0');
-        const thumbnailUrl = createThumbnailUrl(fileObject);
 
         const duplicateIndex = uploadedHistory.findIndex(item => item.name === displayName);
         const record = {
             name: displayName,
             time: `${hh}:${mm}:${ss}`,
-            thumbnailUrl,
+            thumbnailUrl: '',
+            thumbnailSource: String(thumbnailSource || ''),
             serverFileName: String(inputFilePath || ''),
         };
         if (duplicateIndex >= 0) {
-            const old = uploadedHistory[duplicateIndex];
-            if (old && old.thumbnailUrl) {
-                URL.revokeObjectURL(old.thumbnailUrl);
-            }
             uploadedHistory.splice(duplicateIndex, 1);
         }
         uploadedHistory.unshift(record);
         if (uploadedHistory.length > 20) {
-            const removed = uploadedHistory.slice(20);
-            for (const item of removed) {
-                if (item && item.thumbnailUrl) {
-                    URL.revokeObjectURL(item.thumbnailUrl);
-                }
-            }
             uploadedHistory = uploadedHistory.slice(0, 20);
         }
 
@@ -609,7 +590,11 @@
             }
 
             const result = await response.json();
-            addUploadedHistoryItem(result.display_name || file.name, result.file_name, file);
+            addUploadedHistoryItem(
+                result.display_name || file.name,
+                result.file_name,
+                buildAbsoluteUrl(apiBase, result.thumbnail_url)
+            );
             selectedServerFileName = String(result.file_name || '');
             setSelectedFile(null);
             syncInputWithFile(null);

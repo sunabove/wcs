@@ -254,7 +254,7 @@
             li.setAttribute('role', 'presentation');
 
             const button = document.createElement('button');
-            button.className = `nav-link ${isActive ? 'active' : ''}`;
+            button.className = `nav-link ${isActive ? 'active text-primary' : 'text-secondary'}`;
             button.id = tabId;
             button.type = 'button';
             button.setAttribute('data-bs-toggle', 'tab');
@@ -299,6 +299,21 @@
             `;
 
             modelTabContentElement.appendChild(pane);
+        });
+
+        syncModelTabColor();
+    }
+
+    function syncModelTabColor() {
+        if (!modelTabsElement) {
+            return;
+        }
+
+        const modelTabButtons = Array.from(modelTabsElement.querySelectorAll('[data-bs-toggle="tab"]'));
+        modelTabButtons.forEach((button) => {
+            const isActive = button.classList.contains('active');
+            button.classList.toggle('text-primary', isActive);
+            button.classList.toggle('text-secondary', !isActive);
         });
     }
 
@@ -979,6 +994,12 @@
             syncInputSourceTabColor();
         });
     });
+
+    if (modelTabsElement) {
+        modelTabsElement.addEventListener('shown.bs.tab', () => {
+            syncModelTabColor();
+        });
+    }
 
     updateSliderValueLabels();
     if (uploadedEmptyElement) {

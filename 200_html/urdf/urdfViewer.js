@@ -2697,6 +2697,7 @@ class URDFViewer {
             this.initialCameraPose.up,
             260
         );
+        this.showCameraToastMessage('초기 위치로 복귀했습니다.', 1200);
     }
 
     setGoalTargetVerticalOffset(offsetValue) {

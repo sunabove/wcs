@@ -1264,6 +1264,14 @@
         applyCollapsedOverlayLayout();
         showOverlay();
     }
+    if (showVideoOverlayEnabled && $overlay.hasClass("d-none")) {
+        mediaHiddenByUser = true;
+        writeOverlayMediaHiddenState(true);
+        setCloseButtonToShowMode(true);
+        updateVideoControlButtons();
+        applyCollapsedOverlayLayout();
+        showOverlay();
+    }
     updateOverlayAudioHud();
     requestRoadDetectSessionCleanupAllOnLoad();
     setInterval(updateOverlayAudioHud, 400);

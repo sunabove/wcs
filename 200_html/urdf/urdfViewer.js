@@ -743,9 +743,15 @@ class URDFViewer {
         );
         group.add(ring);
 
-        const globe = new THREE.LineSegments(
-            new THREE.WireframeGeometry(new THREE.SphereGeometry(0.76, 8, 6)),
-            new THREE.LineBasicMaterial({ color: 0x9ca3af, transparent: true, opacity: 0.75 })
+        const globe = new THREE.Mesh(
+            new THREE.SphereGeometry(0.76, 20, 16),
+            new THREE.MeshPhongMaterial({
+                color: 0x9ca3af,
+                transparent: true,
+                opacity: 0.32,
+                shininess: 70,
+                side: THREE.DoubleSide,
+            })
         );
         group.add(globe);
 

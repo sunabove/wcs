@@ -476,6 +476,27 @@
         });
     }
 
+    function renderClassSelectionToggleButton(modelBadgesElement, modelItem, selectedClassNames) {
+        if (!modelBadgesElement) {
+            return;
+        }
+
+        const classNames = normalizeClassNameList(modelItem && modelItem.classNames);
+        if (classNames.length === 0) {
+            return;
+        }
+
+        const selectedCount = Array.isArray(selectedClassNames) ? selectedClassNames.length : 0;
+        const isAllSelected = selectedCount >= classNames.length;
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'btn btn-sm btn-outline-primary ms-auto px-2 py-0';
+        button.setAttribute('data-role', 'class-toggle-all');
+        button.setAttribute('data-model-key', getModelSelectionKey(modelItem));
+        button.textContent = isAllSelected ? '전체 해제' : '전체 선택';
+        modelBadgesElement.appendChild(button);
+    }
+
     function updateModelClassSelectionCount(paneElement, modelItem, selectedClassNames) {
         if (!paneElement) {
             return;
@@ -493,6 +514,11 @@
         }
 
         classCountElement.textContent = `클래스 ${selectedClassNames.length}/${totalCount}`;
+
+        const toggleAllButton = paneElement.querySelector('[data-role="class-toggle-all"]');
+        if (toggleAllButton) {
+            toggleAllButton.textContent = selectedClassNames.length >= totalCount ? '전체 해제' : '전체 선택';
+        }
     }
 
     function toggleClassNameSelection(modelKey, className) {
@@ -518,6 +544,42 @@
         }
 
         const nextSelection = classNames.filter((name) => selectedSet.has(name));
+        selectedClassNamesByModelKey[normalizedModelKey] = nextSelection;
+
+        const activePane = modelTabContentElement
+            ? modelTabContentElement.querySelector('.tab-pane.active, .tab-pane.show.active')
+            : null;
+
+        if (activePane) {
+            const selectedNow = new Set(nextSelection);
+            const toggleButtons = Array.from(activePane.querySelectorAll('[data-role="class-toggle"]'));
+            toggleButtons.forEach((button) => {
+                const buttonClassName = String(button.getAttribute('data-class-name') || '').trim();
+                applyClassToggleButtonState(button, selectedNow.has(buttonClassName));
+            });
+            updateModelClassSelectionCount(activePane, modelItem, nextSelection);
+        }
+    }
+
+    function toggleAllClassNameSelection(modelKey) {
+        const normalizedModelKey = String(modelKey || '').trim();
+        if (!normalizedModelKey) {
+            return;
+        }
+
+        const modelItem = modelHistory.find((item) => getModelSelectionKey(item) === normalizedModelKey);
+        if (!modelItem) {
+            return;
+        }
+
+        const classNames = normalizeClassNameList(modelItem.classNames);
+        if (classNames.length === 0) {
+            return;
+        }
+
+        const currentSelection = ensureModelClassSelection(modelItem);
+        const shouldSelectAll = currentSelection.length < classNames.length;
+        const nextSelection = shouldSelectAll ? classNames.slice() : [];
         selectedClassNamesByModelKey[normalizedModelKey] = nextSelection;
 
         const activePane = modelTabContentElement
@@ -616,6 +678,7 @@
                         : '클래스 0개';
                 }
                 renderClassToggleButtons(classListElement, modelItem, selectedClassNames);
+                renderClassSelectionToggleButton(modelBadgesElement, modelItem, selectedClassNames);
 
                 pane.appendChild(templateClone);
             } else {
@@ -1326,6 +1389,16 @@
 
     if (modelTabContentElement) {
         modelTabContentElement.addEventListener('click', (event) => {
+            const toggleAllButton = event.target && typeof event.target.closest === 'function'
+                ? event.target.closest('[data-role="class-toggle-all"]')
+                : null;
+            if (toggleAllButton) {
+                event.preventDefault();
+                const modelKey = toggleAllButton.getAttribute('data-model-key');
+                toggleAllClassNameSelection(modelKey);
+                return;
+            }
+
             const targetButton = event.target && typeof event.target.closest === 'function'
                 ? event.target.closest('[data-role="class-toggle"]')
                 : null;

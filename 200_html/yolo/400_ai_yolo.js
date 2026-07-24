@@ -263,8 +263,7 @@
                 }
 
                 renderUploadedHistory();
-                setStatus(`선택됨: ${item.name} (재검출 중...)`, 'info');
-                runYoloDetect();
+                setStatus(`선택됨: ${item.name}. 검출 시작을 눌러주세요.`, 'info');
             });
 
             uploadedListElement.appendChild(li);

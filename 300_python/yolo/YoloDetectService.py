@@ -2,6 +2,7 @@ from pathlib import Path
 from datetime import datetime
 
 from fastapi import APIRouter, File, Query, UploadFile
+from ultralytics import YOLO
 
 from config import BASE_DIR
 from yolo.YoloVideoConfig import YOLO_DEFAULT_MODEL
@@ -23,6 +24,35 @@ def _describe_model_file(path: Path) -> str:
     return "YOLO 모델"
 
 
+def _normalize_names(names) -> list[str]:
+    if isinstance(names, dict):
+        def _sort_key(item):
+            key = item[0]
+            text = str(key)
+            return (0, int(text)) if text.isdigit() else (1, text)
+
+        return [str(value) for _, value in sorted(names.items(), key=_sort_key)]
+
+    if isinstance(names, (list, tuple)):
+        return [str(value) for value in names]
+
+    return []
+
+
+def _describe_model_task(task: str, path: Path) -> str:
+    normalized = str(task or '').strip().lower()
+    stem = path.stem.lower()
+    if normalized == 'segment' or 'seg' in stem:
+        return '객체 분할'
+    if normalized == 'detect':
+        return '객체 검출'
+    if normalized == 'pose':
+        return '포즈 추정'
+    if normalized == 'classify':
+        return '이미지 분류'
+    return 'YOLO 모델'
+
+
 @router.get("/health")
 def health_check():
     return {
@@ -42,6 +72,15 @@ def models():
             if not path.is_file():
                 continue
 
+            try:
+                model = YOLO(str(path))
+                task = str(getattr(model, 'task', '') or '').strip()
+                class_names = _normalize_names(getattr(model, 'names', {}))
+            except Exception:
+                model = None
+                task = ''
+                class_names = []
+
             stat = path.stat()
             items.append(
                 {
@@ -52,6 +91,10 @@ def models():
                     "modified_at": datetime.fromtimestamp(stat.st_mtime).isoformat(timespec="seconds"),
                     "is_default": str(path.resolve()) == str(Path(YOLO_DEFAULT_MODEL).resolve()),
                     "description": _describe_model_file(path),
+                    "task": task or 'unknown',
+                    "model_type": _describe_model_task(task, path),
+                    "class_count": len(class_names),
+                    "class_names": class_names,
                 }
             )
 

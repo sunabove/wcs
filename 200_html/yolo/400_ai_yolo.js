@@ -590,18 +590,10 @@
             const formData = new FormData();
             formData.append('file', file);
 
-            let response = await fetch(`${apiBase}/fast/yolo/upload_video`, {
+            const response = await fetch(`${apiBase}/fast/yolo/upload_video`, {
                 method: 'POST',
                 body: formData,
             });
-
-            if (response.status === 404) {
-                const fallbackUrl = `${apiBase}/fast/yolo/detect_video_upload?upload_only=true`;
-                response = await fetch(fallbackUrl, {
-                    method: 'POST',
-                    body: formData,
-                });
-            }
 
             if (!response.ok) {
                 let errorMessage = `업로드 실패 (${response.status})`;
@@ -639,10 +631,12 @@
             return;
         }
 
-        const fileFromInput = fileInput.files && fileInput.files[0] ? fileInput.files[0] : null;
-        const file = selectedFile || fileFromInput;
-        if (!file && !selectedServerFileName) {
-            setStatus('동영상 파일을 선택하세요.', 'warning');
+        if (!selectedServerFileName) {
+            if (selectedFile) {
+                setStatus('선택한 파일은 아직 업로드되지 않았습니다. 먼저 동영상 업로드를 실행하세요.', 'warning');
+            } else {
+                setStatus('업로드 동영상을 선택하세요.', 'warning');
+            }
             return;
         }
 
@@ -654,22 +648,10 @@
 
         try {
             const apiBase = await resolveApiBase();
-            let response;
-
-            if (file) {
-                const formData = new FormData();
-                formData.append('file', file);
-                const url = `${apiBase}/fast/yolo/detect_video_upload?conf=${encodeURIComponent(conf)}&iou=${encodeURIComponent(iou)}`;
-                response = await fetch(url, {
-                    method: 'POST',
-                    body: formData,
-                });
-            } else {
-                const url = `${apiBase}/fast/yolo/detect_saved_video?file_name=${encodeURIComponent(selectedServerFileName)}&conf=${encodeURIComponent(conf)}&iou=${encodeURIComponent(iou)}`;
-                response = await fetch(url, {
-                    method: 'POST',
-                });
-            }
+            const url = `${apiBase}/fast/yolo/detect_saved_video?file_name=${encodeURIComponent(selectedServerFileName)}&conf=${encodeURIComponent(conf)}&iou=${encodeURIComponent(iou)}`;
+            const response = await fetch(url, {
+                method: 'POST',
+            });
 
             if (!response.ok) {
                 let errorMessage = `요청 실패 (${response.status})`;
@@ -685,12 +667,6 @@
             }
 
             const result = await response.json();
-
-            if (file) {
-                addUploadedHistoryItem(file.name, result.input_file, file);
-                selectedServerFileName = String(result.input_file || selectedServerFileName);
-                renderUploadedHistory();
-            }
 
             const inputUrl = await resolvePlayableVideoUrl(apiBase, result.input_url, true);
             const outputUrl = await resolvePlayableVideoUrl(apiBase, result.output_url, true);

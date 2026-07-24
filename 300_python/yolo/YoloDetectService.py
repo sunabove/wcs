@@ -20,15 +20,11 @@ def health_check():
 @router.post("/detect_video_upload")
 def detect_video_upload(
     file: UploadFile = File(...),
-    upload_only: bool = Query(False),
     conf: float = Query(0.25, ge=0.0, le=1.0),
     iou: float = Query(0.45, ge=0.0, le=1.0),
     max_det: int = Query(300, ge=1, le=2000),
     model_name: str = Query(YOLO_DEFAULT_MODEL),
 ):
-    if upload_only:
-        return _service.upload_video_only(upload_file=file)
-
     return _service.detect_uploaded_video(
         upload_file=file,
         conf=conf,

@@ -718,6 +718,12 @@ class URDFViewer {
             panelElement.style.transform = 'translateY(0)';
         });
 
+        panelElement.addEventListener('dblclick', (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            this.restoreInitialCameraPose();
+        }, true);
+
         viewportElement.addEventListener('mouseenter', () => {
             viewportElement.style.borderColor = 'rgba(30, 90, 220, 0.55)';
             viewportElement.style.background = 'rgba(234, 242, 255, 0.96)';
@@ -729,12 +735,6 @@ class URDFViewer {
             viewportElement.style.background = 'rgba(245, 247, 250, 0.92)';
             viewportElement.style.boxShadow = 'none';
         });
-
-        viewportElement.addEventListener('dblclick', (event) => {
-            event.preventDefault();
-            event.stopPropagation();
-            this.restoreInitialCameraPose();
-        }, true);
 
         const compassRenderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
         compassRenderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));

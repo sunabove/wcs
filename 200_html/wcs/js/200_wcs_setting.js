@@ -617,6 +617,49 @@ $(document).ready(function () {
             return normalized;
         };
 
+    function getVideoPathVariants(pathValue) {
+        const normalized = normalizePath(pathValue);
+        if (!normalized) {
+            return [];
+        }
+
+        const variants = new Set();
+        const addVariant = function (value) {
+            const safeValue = normalizePath(value);
+            if (safeValue) {
+                variants.add(safeValue);
+            }
+        };
+
+        addVariant(normalized);
+
+        const withoutSamplesPrefix = normalized.replace(/^samples\//, '');
+        addVariant(withoutSamplesPrefix);
+
+        const withoutVideoPrefix = withoutSamplesPrefix.replace(/^video\//, '');
+        addVariant(withoutVideoPrefix);
+
+        if (withoutVideoPrefix) {
+            addVariant('video/' + withoutVideoPrefix);
+            addVariant('samples/video/' + withoutVideoPrefix);
+        }
+
+        return Array.from(variants);
+    }
+
+    function isSameSelectedVideoPath(leftPath, rightPath) {
+        const leftVariants = getVideoPathVariants(leftPath);
+        const rightVariants = getVideoPathVariants(rightPath);
+        if (leftVariants.length === 0 || rightVariants.length === 0) {
+            return false;
+        }
+
+        const rightSet = new Set(rightVariants);
+        return leftVariants.some(function (candidate) {
+            return rightSet.has(candidate);
+        });
+    }
+
     function applyCurrentVideoHighlight() {
         if ($wcsSampleVideoPane.length === 0) {
             return;
@@ -632,7 +675,7 @@ $(document).ready(function () {
 
         $items.each(function () {
             const itemFileName = normalizePath($(this).attr('data-file-name'));
-            if (itemFileName === normalizedCurrent) {
+            if (isSameSelectedVideoPath(itemFileName, normalizedCurrent)) {
                 $(this).addClass('selected-sample');
             }
         });

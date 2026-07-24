@@ -49,6 +49,7 @@
     let modelHistory = [];
     let selectedServerFileName = '';
     let selectedModelPath = '';
+    let selectedModelFileName = '';
 
     const REALTIME_DETECT_DEBOUNCE_MS = 300;
     const INPUT_SOURCE_TAB_STORAGE_KEY = 'wcs.yolo.input_source_tab.v1';
@@ -252,22 +253,29 @@
     }
 
     function getSelectedModelItem() {
-        if (!selectedModelPath) {
+        if (!selectedModelPath && !selectedModelFileName) {
             return null;
         }
 
-        return modelHistory.find((item) => item.modelPath === selectedModelPath) || null;
+        return modelHistory.find((item) => {
+            return (selectedModelPath && item.modelPath === selectedModelPath)
+                || (selectedModelFileName && item.fileName === selectedModelFileName);
+        }) || null;
     }
 
-    function setSelectedModelPath(modelPath) {
+    function setSelectedModelSelection(modelPath, fileName) {
         const normalizedPath = String(modelPath || '').trim();
+        const normalizedFileName = String(fileName || '').trim();
         selectedModelPath = normalizedPath;
+        selectedModelFileName = normalizedFileName;
 
         try {
-            if (normalizedPath) {
+            if (normalizedPath || normalizedFileName) {
                 window.localStorage.setItem(MODEL_SELECTION_STORAGE_KEY, normalizedPath);
+                window.localStorage.setItem(`${MODEL_SELECTION_STORAGE_KEY}.file`, normalizedFileName);
             } else {
                 window.localStorage.removeItem(MODEL_SELECTION_STORAGE_KEY);
+                window.localStorage.removeItem(`${MODEL_SELECTION_STORAGE_KEY}.file`);
             }
         } catch (_ignore) {
             // Ignore storage failures.
@@ -277,8 +285,10 @@
     function restoreSelectedModelPath() {
         try {
             selectedModelPath = String(window.localStorage.getItem(MODEL_SELECTION_STORAGE_KEY) || '').trim();
+            selectedModelFileName = String(window.localStorage.getItem(`${MODEL_SELECTION_STORAGE_KEY}.file`) || '').trim();
         } catch (_ignore) {
             selectedModelPath = '';
+            selectedModelFileName = '';
         }
     }
 
@@ -291,13 +301,14 @@
         modelTabContentElement.innerHTML = '';
 
         if (modelHistory.length === 0) {
-            setSelectedModelPath('');
             modelTabContentElement.innerHTML = '<div class="text-muted small">등록된 모델이 없습니다.</div>';
             return;
         }
 
         const activeModel = getSelectedModelItem() || modelHistory.find((item) => item.isDefault) || modelHistory[0];
-        setSelectedModelPath(activeModel ? activeModel.modelPath : '');
+        if (activeModel) {
+            setSelectedModelSelection(activeModel.modelPath, activeModel.fileName);
+        }
 
         modelHistory.forEach((modelItem, index) => {
             const tabId = `yolo-model-tab-${index}`;
@@ -315,6 +326,7 @@
             button.setAttribute('data-bs-toggle', 'tab');
             button.setAttribute('data-bs-target', `#${paneId}`);
             button.setAttribute('data-model-path', modelItem.modelPath);
+            button.setAttribute('data-model-file-name', modelItem.fileName);
             button.setAttribute('role', 'tab');
             button.setAttribute('aria-controls', paneId);
             button.setAttribute('aria-selected', String(isActive));
@@ -1074,7 +1086,8 @@
         modelTabsElement.addEventListener('shown.bs.tab', (event) => {
             const shownButton = event?.target || null;
             const modelPath = shownButton ? shownButton.getAttribute('data-model-path') : '';
-            setSelectedModelPath(modelPath);
+            const modelFileName = shownButton ? shownButton.getAttribute('data-model-file-name') : '';
+            setSelectedModelSelection(modelPath, modelFileName);
             syncModelTabColor();
         });
     }

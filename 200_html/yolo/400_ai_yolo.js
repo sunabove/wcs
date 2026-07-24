@@ -17,6 +17,20 @@
     const modelTabsElement = document.getElementById('yolo-model-tabs');
     const modelTabContentElement = document.getElementById('yolo-model-tab-content');
 
+    function createModelPaneTemplate() {
+        const sourceElement = document.getElementById('yolo-model-pane-template');
+        if (!sourceElement) {
+            return null;
+        }
+
+        const templateElement = document.createElement('template');
+        templateElement.innerHTML = sourceElement.innerHTML;
+        sourceElement.remove();
+        return templateElement;
+    }
+
+    const modelPaneTemplate = createModelPaneTemplate();
+
     const statusElement = document.getElementById('yolo-status');
     const statusTextElement = document.getElementById('yolo-status-text');
     const uploadProgressWrapElement = document.getElementById('yolo-upload-progress-wrap');
@@ -280,23 +294,36 @@
             pane.setAttribute('aria-labelledby', tabId);
             pane.tabIndex = 0;
 
-            pane.innerHTML = `
-                <div class="border rounded p-3 h-100 bg-white">
-                    <ul class="list-group list-group-flush small">
-                        <li class="list-group-item px-0 d-flex gap-2 align-items-start">
-                            <span class="fw-semibold text-secondary flex-shrink-0" style="width: 72px;">파일</span>
-                            <span class="d-flex flex-wrap gap-1 align-items-center">
-                                <span class="badge text-bg-primary text-break" style="font-family: inherit; font-size: inherit;">${modelItem.fileName}</span>
-                                <span class="badge text-bg-secondary" style="font-family: inherit; font-size: inherit;">${modelItem.modelType || 'YOLO 모델'}</span>
-                            </span>
-                        </li>
-                        <li class="list-group-item px-0 d-flex gap-2 align-items-start">
-                            <span class="fw-semibold text-secondary flex-shrink-0" style="width: 72px;">클래스</span>
-                            <span class="text-break">${modelItem.classCount}개 / ${modelItem.classNames.length > 0 ? modelItem.classNames.join(', ') : '-'}</span>
-                        </li>
-                    </ul>
-                </div>
-            `;
+            if (modelPaneTemplate && modelPaneTemplate.content) {
+                const templateClone = modelPaneTemplate.content.cloneNode(true);
+                const fileNameElement = templateClone.querySelector('[data-role="file-name"]');
+                const modelTypeElement = templateClone.querySelector('[data-role="model-type"]');
+                const classCountElement = templateClone.querySelector('[data-role="class-count"]');
+                const classListElement = templateClone.querySelector('[data-role="class-list"]');
+
+                if (fileNameElement) {
+                    fileNameElement.textContent = modelItem.fileName;
+                }
+                if (modelTypeElement) {
+                    modelTypeElement.textContent = modelItem.modelType || 'YOLO 모델';
+                }
+                if (classCountElement) {
+                    classCountElement.textContent = `${modelItem.classCount}개`;
+                }
+                if (classListElement) {
+                    if (modelItem.classNames.length > 0) {
+                        classListElement.innerHTML = modelItem.classNames
+                            .map((className) => `<span class="badge text-bg-light border text-dark" style="font-family: inherit; font-size: inherit;">${className}</span>`)
+                            .join('');
+                    } else {
+                        classListElement.innerHTML = '<span class="badge text-bg-light border text-dark" style="font-family: inherit; font-size: inherit;">-</span>';
+                    }
+                }
+
+                pane.appendChild(templateClone);
+            } else {
+                pane.innerHTML = '<div class="text-muted small">모델 템플릿을 찾을 수 없습니다.</div>';
+            }
 
             modelTabContentElement.appendChild(pane);
         });

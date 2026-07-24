@@ -676,25 +676,6 @@
     function scheduleRealtimeDetect() {
         updateSliderValueLabels();
         saveDetectOptionsForSelectedVideo();
-
-        if (!hasSelectedVideo()) {
-            return;
-        }
-
-        if (realtimeDetectTimer) {
-            clearTimeout(realtimeDetectTimer);
-        }
-
-        realtimeDetectTimer = setTimeout(() => {
-            realtimeDetectTimer = null;
-
-            if (detectButton.disabled) {
-                pendingRealtimeDetect = true;
-                return;
-            }
-
-            runYoloDetect();
-        }, REALTIME_DETECT_DEBOUNCE_MS);
     }
 
     async function resolveApiBase() {
@@ -1259,11 +1240,6 @@
             setStatus(`오류: ${message}`, 'danger');
         } finally {
             detectButton.disabled = false;
-
-            if (pendingRealtimeDetect) {
-                pendingRealtimeDetect = false;
-                runYoloDetect();
-            }
         }
     }
 

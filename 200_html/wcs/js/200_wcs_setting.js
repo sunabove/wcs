@@ -28,6 +28,71 @@ $(document).ready(function () {
     let isDirectionInitSyncWindow = true;
     let pendingDirectionCommandValue = null;
     let pendingDirectionCommandTimer = null;
+    let videoPublishToastCounter = 0;
+
+    function sendMQTTMessage(topic, message, qos = 1) {
+        if (!window.WcsMqtt || typeof window.WcsMqtt.sendMQTTMessage !== 'function') {
+            console.error('[WCS Setting] MQTT sender is unavailable:', topic, message);
+            return false;
+        }
+
+        return window.WcsMqtt.sendMQTTMessage(topic, message, qos);
+    }
+
+    function getOrCreateToastContainer() {
+        let container = document.getElementById('wcs-setting-toast-container');
+        if (container) {
+            return container;
+        }
+
+        container = document.createElement('div');
+        container.id = 'wcs-setting-toast-container';
+        container.className = 'toast-container position-fixed top-0 end-0 p-3';
+        container.style.zIndex = '1080';
+        document.body.appendChild(container);
+        return container;
+    }
+
+    function showVideoPublishToast(published, fileName) {
+        const safeFileName = String(fileName || '').trim() || '(미선택)';
+        const title = published ? '동영상 선택 발행' : '동영상 선택 발행 실패';
+        const body = `vehicle/current_video/file_name: ${safeFileName}`;
+        const toastClass = published ? 'text-bg-success' : 'text-bg-danger';
+
+        const container = getOrCreateToastContainer();
+        const toastElement = document.createElement('div');
+        videoPublishToastCounter += 1;
+        toastElement.id = `wcs-setting-video-publish-toast-${videoPublishToastCounter}`;
+        toastElement.className = `toast align-items-center border-0 ${toastClass}`;
+        toastElement.setAttribute('role', 'alert');
+        toastElement.setAttribute('aria-live', 'assertive');
+        toastElement.setAttribute('aria-atomic', 'true');
+
+        toastElement.innerHTML = `
+            <div class="d-flex">
+                <div class="toast-body">
+                    <div class="fw-semibold mb-1">${title}</div>
+                    <div class="small">${body}</div>
+                </div>
+                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+            </div>
+        `;
+
+        container.appendChild(toastElement);
+
+        if (window.bootstrap && window.bootstrap.Toast) {
+            const toast = new window.bootstrap.Toast(toastElement, { delay: 2600 });
+            toastElement.addEventListener('hidden.bs.toast', function () {
+                toastElement.remove();
+            }, { once: true });
+            toast.show();
+            return;
+        }
+
+        window.setTimeout(function () {
+            toastElement.remove();
+        }, 2600);
+    }
 
     function updateVehicleMaxSpeedUi(speedKmh, shouldPublish = true) {
         const numericKmh = Number.parseFloat(speedKmh);
@@ -1170,7 +1235,8 @@ $(document).ready(function () {
         const selectedVideoFileName = String($(this).attr('data-file-name') || '').trim();
         if (selectedVideoFileName) {
             currentVideoFileName = normalizePath(selectedVideoFileName);
-            sendMQTTMessage('vehicle/current_video/file_name', selectedVideoFileName);
+            const published = sendMQTTMessage('vehicle/current_video/file_name', selectedVideoFileName);
+            showVideoPublishToast(Boolean(published), selectedVideoFileName);
         }
     });
 
@@ -1198,7 +1264,8 @@ $(document).ready(function () {
     $wcsSampleVideoPane.on('click', '.sample-video-clear-selection', function () {
         currentVideoFileName = '';
         applyCurrentVideoHighlight();
-        sendMQTTMessage('vehicle/current_video/file_name', '');
+        const published = sendMQTTMessage('vehicle/current_video/file_name', '');
+        showVideoPublishToast(Boolean(published), '');
     });
 
     $('#reset-vehicle-max-speed').on('click', function () {

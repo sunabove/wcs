@@ -145,6 +145,9 @@ class URDFViewer {
         this.compassScene = null;
         this.compassCamera = null;
         this.compassModelGroup = null;
+        this.compassDragState = null;
+        this.compassArcballSensitivity = 1.0;
+        this.compassDragActivateDistancePx = 3;
         this.viewCubeOverlayElement = null;
         this.viewCubeCubeElement = null;
         this.viewCubeActiveFaceKey = null;
@@ -724,6 +727,7 @@ class URDFViewer {
 
         panelElement.appendChild(viewportElement);
         this.blockOverlayPointerInteractions(panelElement);
+        this.setupCompassDragInteraction(panelElement, viewportElement);
 
         this.container.appendChild(panelElement);
         this.compassOverlayElement = panelElement;
@@ -732,6 +736,130 @@ class URDFViewer {
         this.compassCamera = compassCamera;
         this.compassModelGroup = compassModelGroup;
         this.updateCompassOverlay();
+    }
+
+    setupCompassDragInteraction(interactionElement, viewportElement) {
+        if (!interactionElement || !viewportElement) {
+            return;
+        }
+
+        viewportElement.style.cursor = 'grab';
+
+        const projectToArcball = (clientX, clientY) => {
+            const rect = viewportElement.getBoundingClientRect();
+            if (rect.width <= 0 || rect.height <= 0) {
+                return new THREE.Vector3(0, 0, 1);
+            }
+
+            const x = ((clientX - rect.left) / rect.width) * 2 - 1;
+            const y = -(((clientY - rect.top) / rect.height) * 2 - 1);
+            const lengthSq = x * x + y * y;
+
+            if (lengthSq > 1) {
+                const invLength = 1 / Math.sqrt(lengthSq);
+                return new THREE.Vector3(x * invLength, y * invLength, 0);
+            }
+
+            const z = Math.sqrt(Math.max(0, 1 - lengthSq));
+            return new THREE.Vector3(x, y, z).normalize();
+        };
+
+        const onPointerMove = (event) => {
+            if (!this.compassDragState || !this.controls || !this.camera) {
+                return;
+            }
+
+            const deltaX = event.clientX - this.compassDragState.lastClientX;
+            const deltaY = event.clientY - this.compassDragState.lastClientY;
+            this.compassDragState.lastClientX = event.clientX;
+            this.compassDragState.lastClientY = event.clientY;
+            this.compassDragState.totalMove += Math.hypot(deltaX, deltaY);
+            const nextArcball = projectToArcball(event.clientX, event.clientY);
+
+            if (this.compassDragState.totalMove <= this.compassDragActivateDistancePx) {
+                this.compassDragState.arcballVector = nextArcball;
+                return;
+            }
+
+            if (!this.compassDragState.isActivated) {
+                this.compassDragState.isActivated = true;
+                this.compassDragState.arcballVector = nextArcball;
+                return;
+            }
+
+            const previousArcball = this.compassDragState.arcballVector;
+            this.compassDragState.arcballVector = nextArcball;
+
+            const axisCamera = new THREE.Vector3().crossVectors(previousArcball, nextArcball);
+            if (axisCamera.lengthSq() < 1e-10) {
+                return;
+            }
+
+            const dot = THREE.MathUtils.clamp(previousArcball.dot(nextArcball), -1, 1);
+            const angle = Math.acos(dot) * this.compassArcballSensitivity;
+            if (!Number.isFinite(angle) || angle <= 1e-6) {
+                return;
+            }
+
+            axisCamera.normalize();
+            const axisWorld = axisCamera.clone().applyQuaternion(this.camera.quaternion).normalize();
+
+            const target = this.controls.target.clone();
+            const offset = this.camera.position.clone().sub(target);
+            const rotation = new THREE.Quaternion().setFromAxisAngle(axisWorld, angle);
+            offset.applyQuaternion(rotation);
+            this.camera.up.applyQuaternion(rotation).normalize();
+
+            this.camera.position.copy(target.clone().add(offset));
+            this.camera.lookAt(target);
+            this.controls.update();
+            this.updateCompassOverlay();
+            this.updateViewCubeOverlay();
+            this.resetDirectionalLight(this.controls.target, this.directionalLightRadius);
+            this.logCameraInfos(false);
+        };
+
+        const endDrag = () => {
+            if (!this.compassDragState) {
+                return;
+            }
+
+            const movedEnough = this.compassDragState.totalMove > this.compassDragActivateDistancePx;
+            this.compassDragState = null;
+            viewportElement.style.cursor = 'grab';
+
+            if (movedEnough) {
+                this.logCameraInfos(true);
+            }
+
+            window.removeEventListener('pointermove', onPointerMove, true);
+            window.removeEventListener('pointerup', endDrag, true);
+            window.removeEventListener('pointercancel', endDrag, true);
+            window.removeEventListener('blur', endDrag);
+        };
+
+        interactionElement.addEventListener('pointerdown', (event) => {
+            if (event.button !== 0 || !this.controls || !this.camera) {
+                return;
+            }
+
+            event.preventDefault();
+            event.stopPropagation();
+
+            viewportElement.style.cursor = 'grabbing';
+            this.compassDragState = {
+                lastClientX: event.clientX,
+                lastClientY: event.clientY,
+                totalMove: 0,
+                isActivated: false,
+                arcballVector: projectToArcball(event.clientX, event.clientY)
+            };
+
+            window.addEventListener('pointermove', onPointerMove, true);
+            window.addEventListener('pointerup', endDrag, true);
+            window.addEventListener('pointercancel', endDrag, true);
+            window.addEventListener('blur', endDrag);
+        }, true);
     }
 
     createCompassModelGroup() {

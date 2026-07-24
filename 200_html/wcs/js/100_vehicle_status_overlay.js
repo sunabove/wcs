@@ -220,9 +220,9 @@
         const videoElement = $video[0];
         const isVideoVisible = !$video.hasClass("d-none");
         const hasVideoSource = !!String($video.attr("src") || "").trim();
-        const isVideoFrameVisible = !mediaHiddenByUser && isVideoVisible && hasVideoSource;
+        const isVideoOutputAreaActive = !mediaHiddenByUser && isVideoVisible;
         if (hasCloseButton) {
-            $closeButton.prop("disabled", !isVideoFrameVisible);
+            $closeButton.prop("disabled", !isVideoOutputAreaActive);
         }
         const isVideoReady = isVideoVisible && hasVideoSource;
         const isPaused = !isVideoReady || mediaPlaybackPaused || videoElement.paused || videoElement.ended;

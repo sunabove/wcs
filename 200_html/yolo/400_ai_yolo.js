@@ -296,11 +296,15 @@
 
             if (modelPaneTemplate && modelPaneTemplate.content) {
                 const templateClone = modelPaneTemplate.content.cloneNode(true);
+                const modelBadgesElement = templateClone.querySelector('[data-role="model-badges"]');
                 const fileNameElement = templateClone.querySelector('[data-role="file-name"]');
                 const modelTypeElement = templateClone.querySelector('[data-role="model-type"]');
                 const classCountElement = templateClone.querySelector('[data-role="class-count"]');
                 const classListElement = templateClone.querySelector('[data-role="class-list"]');
 
+                if (modelBadgesElement) {
+                    modelBadgesElement.classList.add('align-items-center');
+                }
                 if (fileNameElement) {
                     fileNameElement.textContent = modelItem.fileName;
                 }
@@ -308,23 +312,14 @@
                     modelTypeElement.textContent = modelItem.modelType || 'YOLO 모델';
                 }
                 if (classCountElement) {
-                    classCountElement.classList.add('d-none');
-                    classCountElement.textContent = '';
+                    classCountElement.textContent = `${modelItem.classCount}개`;
                 }
                 if (classListElement) {
-                    const classBadges = [
-                        `<span class="badge text-bg-secondary" style="font-family: inherit; font-size: inherit;">${modelItem.classCount}개</span>`,
-                    ];
-
-                    if (modelItem.classNames.length > 0) {
-                        classBadges.push(
-                            ...modelItem.classNames.map((className) => `<span class="badge text-bg-light border text-dark" style="font-family: inherit; font-size: inherit;">${className}</span>`),
-                        );
-                    } else {
-                        classBadges.push('<span class="badge text-bg-light border text-dark" style="font-family: inherit; font-size: inherit;">-</span>');
-                    }
-
-                    classListElement.innerHTML = classBadges.join('');
+                    classListElement.innerHTML = modelItem.classNames.length > 0
+                        ? modelItem.classNames
+                            .map((className) => `<span class="badge text-bg-light border text-dark" style="font-family: inherit; font-size: inherit;">${className}</span>`)
+                            .join('')
+                        : '<span class="badge text-bg-light border text-dark" style="font-family: inherit; font-size: inherit;">-</span>';
                 }
 
                 pane.appendChild(templateClone);

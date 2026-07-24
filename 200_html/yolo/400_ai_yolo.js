@@ -72,13 +72,19 @@
             return;
         }
 
-        const numeric = Number.isFinite(Number(percent)) ? Number(percent) : 0;
+        const hasNumericProgress = Number.isFinite(Number(percent));
+        const numeric = hasNumericProgress ? Number(percent) : 100;
         const bounded = Math.max(0, Math.min(100, Math.round(numeric)));
 
         uploadProgressBarElement.style.width = `${bounded}%`;
         uploadProgressBarElement.setAttribute('aria-valuenow', String(bounded));
+        if (hasNumericProgress) {
+            uploadProgressBarElement.removeAttribute('aria-valuetext');
+        } else {
+            uploadProgressBarElement.setAttribute('aria-valuetext', String(labelText || '작업 중'));
+        }
         if (uploadProgressLabelElement) {
-            uploadProgressLabelElement.textContent = String(labelText || `${bounded}%`);
+            uploadProgressLabelElement.textContent = String(labelText || (hasNumericProgress ? `${bounded}%` : '작업 중'));
         }
 
         if (show) {
@@ -914,6 +920,7 @@
         const modelName = selectedModelItem ? selectedModelItem.modelPath : '';
 
         detectButton.disabled = true;
+        setUploadProgress(null, true, '검출 진행 중...');
         setStatus('YOLO 검출 진행 중...', 'info');
 
         try {
@@ -964,6 +971,7 @@
             setStatus(`오류: ${message}`, 'danger');
         } finally {
             detectButton.disabled = false;
+            setUploadProgress(0, false, '0%');
 
             if (pendingRealtimeDetect) {
                 pendingRealtimeDetect = false;

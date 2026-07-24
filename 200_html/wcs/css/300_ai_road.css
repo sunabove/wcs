@@ -63,6 +63,18 @@
     transform: translateY(-1px);
 }
 
+/* Keep sample video tab compact: one-row horizontal thumbnails without extra lower gap. */
+#input-sample-video-pane .sample-thumbnail-track {
+    display: flex;
+    gap: 0.5rem;
+    min-width: max-content;
+}
+
+#input-sample-video-pane .sample-thumbnail-item {
+    width: 170px;
+    flex: 0 0 170px;
+}
+
 .sample-thumbnail-item .sample-image-item.selected-sample .small,
 .sample-thumbnail-item .sample-video-item.selected-sample .small {
     background-color: #198754;

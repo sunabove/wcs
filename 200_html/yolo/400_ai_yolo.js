@@ -32,7 +32,7 @@
 
     function setStatus(message, type) {
         const alertType = type || 'secondary';
-        statusElement.className = `alert alert-${alertType} mb-0`;
+        statusElement.className = `alert alert-${alertType} mb-0 py-1 px-2 small rounded-2`;
         statusElement.textContent = message;
     }
 

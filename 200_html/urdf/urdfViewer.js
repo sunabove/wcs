@@ -2688,6 +2688,18 @@ class URDFViewer {
             return;
         }
 
+        const positionDiff = this.camera.position.distanceTo(this.initialCameraPose.position);
+        const targetDiff = this.controls.target.distanceTo(this.initialCameraPose.target);
+        const currentUp = this.camera.up.clone().normalize();
+        const initialUp = this.initialCameraPose.up.clone().normalize();
+        const upDot = THREE.MathUtils.clamp(currentUp.dot(initialUp), -1, 1);
+        const upAngle = Math.acos(upDot);
+
+        const isSamePose = positionDiff < 1e-4 && targetDiff < 1e-4 && upAngle < 1e-3;
+        if (isSamePose) {
+            return;
+        }
+
         this.overlayDragPanPixels = 0;
         this.overlayZoomOutRatio = 0;
 

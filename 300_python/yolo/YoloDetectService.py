@@ -34,6 +34,13 @@ def detect_video_upload(
     )
 
 
+@router.post("/upload_video")
+def upload_video(
+    file: UploadFile = File(...),
+):
+    return _service.upload_video_only(upload_file=file)
+
+
 @router.get("/uploaded_videos")
 def uploaded_videos(
     limit: int = Query(50, ge=1, le=500),

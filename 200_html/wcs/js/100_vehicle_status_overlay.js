@@ -218,11 +218,7 @@
         const videoElement = $video[0];
         const isVideoVisible = !$video.hasClass("d-none");
         const hasVideoSource = !!String($video.attr("src") || "").trim();
-        const isVideoFrameVisible = isVideoVisible
-            && hasVideoSource
-            && videoElement.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA
-            && videoElement.videoWidth > 0
-            && videoElement.videoHeight > 0;
+        const isVideoFrameVisible = !mediaHiddenByUser && lastMediaType === "video" && isVideoVisible && hasVideoSource;
         if (hasCloseButton) {
             $closeButton.prop("disabled", !isVideoFrameVisible);
         }

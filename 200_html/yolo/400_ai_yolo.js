@@ -89,11 +89,7 @@
             uploadProgressLabelElement.textContent = String(labelText || (hasNumericProgress ? `${bounded}%` : '작업 중'));
         }
 
-        if (show) {
-            uploadProgressWrapElement.classList.remove('d-none');
-        } else {
-            uploadProgressWrapElement.classList.add('d-none');
-        }
+        uploadProgressWrapElement.classList.remove('d-none');
     }
 
     function formatBytes(bytes) {

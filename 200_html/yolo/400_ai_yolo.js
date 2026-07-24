@@ -590,10 +590,18 @@
             const formData = new FormData();
             formData.append('file', file);
 
-            const response = await fetch(`${apiBase}/fast/yolo/upload_video`, {
+            let response = await fetch(`${apiBase}/fast/yolo/upload_video`, {
                 method: 'POST',
                 body: formData,
             });
+
+            if (response.status === 404) {
+                const fallbackUrl = `${apiBase}/fast/yolo/detect_video_upload?upload_only=true`;
+                response = await fetch(fallbackUrl, {
+                    method: 'POST',
+                    body: formData,
+                });
+            }
 
             if (!response.ok) {
                 let errorMessage = `업로드 실패 (${response.status})`;

@@ -668,12 +668,10 @@
         setUploadProgress(0, true, '0%');
         setStatus('동영상 업로드 중...', 'info');
 
-        let uploadSucceeded = false;
         try {
             const apiBase = await resolveApiBase();
             const result = await uploadVideoWithProgress(apiBase, file);
             setUploadProgress(100, true, '100%');
-            uploadSucceeded = true;
             addUploadedHistoryItem(
                 result.display_name || file.name,
                 result.file_name,
@@ -688,14 +686,8 @@
         } catch (error) {
             const message = error && error.message ? error.message : String(error);
             setStatus(`오류: ${message}`, 'danger');
+            setUploadProgress(0, false, '0%');
         } finally {
-            if (uploadSucceeded) {
-                window.setTimeout(() => {
-                    setUploadProgress(0, false, '0%');
-                }, 900);
-            } else {
-                setUploadProgress(0, false, '0%');
-            }
             if (uploadButton) {
                 uploadButton.disabled = !selectedFile;
             }

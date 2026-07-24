@@ -312,7 +312,7 @@
                     modelTypeElement.textContent = modelItem.modelType || 'YOLO 모델';
                 }
                 if (classCountElement) {
-                    classCountElement.textContent = `${modelItem.classCount}개`;
+                    classCountElement.textContent = `클래스 ${modelItem.classCount}개`;
                 }
                 if (classListElement) {
                     classListElement.innerHTML = modelItem.classNames.length > 0

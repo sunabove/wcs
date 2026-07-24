@@ -79,9 +79,11 @@
         const hasNumericProgress = Number.isFinite(Number(percent));
         const numeric = hasNumericProgress ? Number(percent) : 100;
         const bounded = Math.max(0, Math.min(100, Math.round(numeric)));
+        const isComplete = bounded >= 100;
 
         uploadProgressBarElement.style.width = `${bounded}%`;
         uploadProgressBarElement.setAttribute('aria-valuenow', String(bounded));
+        uploadProgressBarElement.classList.toggle('progress-bar-animated', !isComplete);
         uploadProgressBarElement.setAttribute('aria-valuetext', `${bounded}%`);
         if (uploadProgressLabelElement) {
             uploadProgressLabelElement.textContent = `${bounded}%`;

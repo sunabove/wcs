@@ -12,6 +12,7 @@
     const iouValueElement = document.getElementById('yolo-iou-value');
     const uploadedListElement = document.getElementById('yolo-uploaded-list');
     const uploadedEmptyElement = document.getElementById('yolo-uploaded-empty');
+    const inputSourceTabButtons = Array.from(document.querySelectorAll('#yolo-input-source-tabs [data-bs-toggle="tab"]'));
 
     const statusElement = document.getElementById('yolo-status');
     const inputVideoElement = document.getElementById('yolo-input-video');
@@ -27,6 +28,7 @@
     let selectedServerFileName = '';
 
     const REALTIME_DETECT_DEBOUNCE_MS = 300;
+    const INPUT_SOURCE_TAB_STORAGE_KEY = 'wcs.yolo.input_source_tab.v1';
 
     function setStatus(message, type) {
         const alertType = type || 'secondary';
@@ -41,6 +43,51 @@
 
     function formatParamValue(value, fallback) {
         return toNumber(value, fallback).toFixed(2);
+    }
+
+    function saveInputSourceTab(tabTarget) {
+        const normalizedTarget = String(tabTarget || '').trim();
+        if (!normalizedTarget) {
+            return;
+        }
+
+        try {
+            window.localStorage.setItem(INPUT_SOURCE_TAB_STORAGE_KEY, normalizedTarget);
+        } catch (_ignore) {
+            // Ignore storage failures.
+        }
+    }
+
+    function restoreInputSourceTab() {
+        if (inputSourceTabButtons.length === 0) {
+            return;
+        }
+
+        let savedTarget = '';
+        try {
+            savedTarget = String(window.localStorage.getItem(INPUT_SOURCE_TAB_STORAGE_KEY) || '').trim();
+        } catch (_ignore) {
+            savedTarget = '';
+        }
+
+        if (!savedTarget) {
+            return;
+        }
+
+        const matchedButton = inputSourceTabButtons.find((button) => {
+            return String(button.getAttribute('data-bs-target') || '').trim() === savedTarget;
+        });
+
+        if (!matchedButton) {
+            return;
+        }
+
+        if (window.bootstrap && typeof window.bootstrap.Tab === 'function') {
+            window.bootstrap.Tab.getOrCreateInstance(matchedButton).show();
+            return;
+        }
+
+        matchedButton.click();
     }
 
     function hasSelectedVideo() {
@@ -632,12 +679,20 @@
         loopToggleInput.addEventListener('change', applyLoopOption);
     }
 
+    inputSourceTabButtons.forEach((button) => {
+        button.addEventListener('shown.bs.tab', (event) => {
+            const shownButton = event?.target || button;
+            saveInputSourceTab(shownButton.getAttribute('data-bs-target'));
+        });
+    });
+
     updateSliderValueLabels();
     if (uploadedEmptyElement) {
         renderUploadedHistory();
     }
 
     applyLoopOption();
+    restoreInputSourceTab();
 
     loadUploadedHistoryFromServer();
 })();

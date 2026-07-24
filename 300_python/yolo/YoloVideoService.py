@@ -1,6 +1,4 @@
 import shutil
-import time
-import uuid
 import hashlib
 from datetime import datetime
 from pathlib import Path
@@ -52,8 +50,14 @@ class YoloVideoService:
 
     def _save_uploaded_video(self, upload_file: UploadFile) -> Path:
         suffix = self._safe_suffix(upload_file.filename)
-        job_id = f"{int(time.time() * 1000)}_{uuid.uuid4().hex[:8]}"
-        temp_path = YOLO_UPLOAD_DIR / f"{job_id}.uploading{suffix}"
+        YOLO_UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+
+        original_name = Path(str(upload_file.filename or "")).name.strip()
+        if not original_name:
+            original_name = f"uploaded{suffix}"
+
+        target_path = YOLO_UPLOAD_DIR / original_name
+        temp_path = YOLO_UPLOAD_DIR / f"{original_name}.uploading{suffix}"
 
         hasher = hashlib.sha256()
         written_size = 0
@@ -71,29 +75,10 @@ class YoloVideoService:
         finally:
             upload_file.file.close()
 
-        new_digest = hasher.hexdigest()
-
-        for existing_path in YOLO_UPLOAD_DIR.glob(f"*{suffix}"):
-            if not existing_path.is_file() or existing_path == temp_path:
-                continue
-
-            try:
-                if existing_path.stat().st_size != written_size:
-                    continue
-            except OSError:
-                continue
-
-            existing_digest = self._hash_file(existing_path)
-            if existing_digest == new_digest:
-                try:
-                    temp_path.unlink(missing_ok=True)
-                except OSError:
-                    pass
-                return existing_path
-
-        input_path = YOLO_UPLOAD_DIR / f"{job_id}{suffix}"
-        temp_path.replace(input_path)
-        return input_path
+        # Keep the original uploaded filename as the stored filename.
+        # If same name already exists, overwrite atomically.
+        temp_path.replace(target_path)
+        return target_path
 
     def _hash_file(self, file_path: Path) -> str:
         hasher = hashlib.sha256()

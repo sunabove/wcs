@@ -855,8 +855,16 @@
         }
         $image.attr("src", "").addClass("d-none");
 
-        if ($video[0] && typeof $video[0].pause === "function") {
-            $video[0].pause();
+        if ($video[0]) {
+            if (typeof $video[0].pause === "function") {
+                $video[0].pause();
+            }
+            if (typeof $video[0].removeAttribute === "function") {
+                $video[0].removeAttribute("src");
+            }
+            if (typeof $video[0].load === "function") {
+                $video[0].load();
+            }
         }
         $video.attr("src", "").addClass("d-none");
         updateVideoControlButtons();

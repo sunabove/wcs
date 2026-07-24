@@ -969,6 +969,10 @@
             return;
         }
 
+        if (outputVideoElement) {
+            outputVideoElement.pause();
+        }
+
         if (!selectedServerFileName) {
             if (selectedFile) {
                 setStatus('선택한 파일은 아직 업로드되지 않았습니다. 먼저 동영상 업로드를 실행하세요.', 'warning');

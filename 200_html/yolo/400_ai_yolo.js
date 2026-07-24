@@ -52,6 +52,7 @@
     let selectedServerFileName = '';
     let selectedModelPath = '';
     let selectedModelFileName = '';
+    const selectedClassNamesByModelKey = {};
 
     const REALTIME_DETECT_DEBOUNCE_MS = 300;
     const INPUT_SOURCE_TAB_STORAGE_KEY = 'wcs.yolo.input_source_tab.v1';
@@ -327,6 +328,153 @@
         }
     }
 
+    function getModelSelectionKey(modelItem) {
+        if (!modelItem) {
+            return '';
+        }
+
+        const byPath = String(modelItem.modelPath || '').trim();
+        if (byPath) {
+            return byPath;
+        }
+
+        return String(modelItem.fileName || '').trim();
+    }
+
+    function normalizeClassNameList(classNames) {
+        if (!Array.isArray(classNames)) {
+            return [];
+        }
+
+        return classNames
+            .map((name) => String(name || '').trim())
+            .filter((name) => name.length > 0);
+    }
+
+    function ensureModelClassSelection(modelItem) {
+        const modelKey = getModelSelectionKey(modelItem);
+        const classNames = normalizeClassNameList(modelItem && modelItem.classNames);
+
+        if (!modelKey || classNames.length === 0) {
+            return [];
+        }
+
+        const existingSelection = Array.isArray(selectedClassNamesByModelKey[modelKey])
+            ? selectedClassNamesByModelKey[modelKey]
+            : [];
+
+        const cleanedSelection = existingSelection.filter((name) => classNames.includes(name));
+        const nextSelection = cleanedSelection.length > 0 ? cleanedSelection : classNames.slice();
+        selectedClassNamesByModelKey[modelKey] = nextSelection;
+        return nextSelection;
+    }
+
+    function getSelectedClassNamesForModel(modelItem) {
+        const modelKey = getModelSelectionKey(modelItem);
+        if (!modelKey) {
+            return [];
+        }
+
+        const selectedList = ensureModelClassSelection(modelItem);
+        return selectedList.slice();
+    }
+
+    function applyClassToggleButtonState(buttonElement, isSelected) {
+        if (!buttonElement) {
+            return;
+        }
+
+        buttonElement.classList.toggle('btn-primary', isSelected);
+        buttonElement.classList.toggle('btn-outline-secondary', !isSelected);
+        buttonElement.setAttribute('aria-pressed', String(isSelected));
+    }
+
+    function renderClassToggleButtons(classListElement, modelItem, selectedClassNames) {
+        if (!classListElement) {
+            return;
+        }
+
+        const classNames = normalizeClassNameList(modelItem && modelItem.classNames);
+        if (classNames.length === 0) {
+            classListElement.innerHTML = '<span class="badge text-bg-light border text-dark flex-shrink-0" style="font-family: inherit; font-size: inherit;">-</span>';
+            return;
+        }
+
+        const selectedSet = new Set(selectedClassNames);
+        classListElement.innerHTML = '';
+
+        classNames.forEach((className) => {
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'btn btn-sm yolo-class-toggle-btn px-2 py-0';
+            button.setAttribute('data-role', 'class-toggle');
+            button.setAttribute('data-model-key', getModelSelectionKey(modelItem));
+            button.setAttribute('data-class-name', className);
+            button.textContent = className;
+            applyClassToggleButtonState(button, selectedSet.has(className));
+            classListElement.appendChild(button);
+        });
+    }
+
+    function updateModelClassSelectionCount(paneElement, modelItem, selectedClassNames) {
+        if (!paneElement) {
+            return;
+        }
+
+        const classCountElement = paneElement.querySelector('[data-role="class-count"]');
+        if (!classCountElement) {
+            return;
+        }
+
+        const totalCount = normalizeClassNameList(modelItem && modelItem.classNames).length;
+        if (totalCount <= 0) {
+            classCountElement.textContent = '클래스 0개';
+            return;
+        }
+
+        classCountElement.textContent = `클래스 ${selectedClassNames.length}/${totalCount}`;
+    }
+
+    function toggleClassNameSelection(modelKey, className) {
+        const normalizedModelKey = String(modelKey || '').trim();
+        const normalizedClassName = String(className || '').trim();
+        if (!normalizedModelKey || !normalizedClassName) {
+            return;
+        }
+
+        const modelItem = modelHistory.find((item) => getModelSelectionKey(item) === normalizedModelKey);
+        if (!modelItem) {
+            return;
+        }
+
+        const classNames = normalizeClassNameList(modelItem.classNames);
+        const selectedList = ensureModelClassSelection(modelItem);
+        const selectedSet = new Set(selectedList);
+
+        if (selectedSet.has(normalizedClassName)) {
+            selectedSet.delete(normalizedClassName);
+        } else {
+            selectedSet.add(normalizedClassName);
+        }
+
+        const nextSelection = classNames.filter((name) => selectedSet.has(name));
+        selectedClassNamesByModelKey[normalizedModelKey] = nextSelection;
+
+        const activePane = modelTabContentElement
+            ? modelTabContentElement.querySelector('.tab-pane.active, .tab-pane.show.active')
+            : null;
+
+        if (activePane) {
+            const selectedNow = new Set(nextSelection);
+            const toggleButtons = Array.from(activePane.querySelectorAll('[data-role="class-toggle"]'));
+            toggleButtons.forEach((button) => {
+                const buttonClassName = String(button.getAttribute('data-class-name') || '').trim();
+                applyClassToggleButtonState(button, selectedNow.has(buttonClassName));
+            });
+            updateModelClassSelectionCount(activePane, modelItem, nextSelection);
+        }
+    }
+
     function renderModelMetadataTabs() {
         if (!modelTabsElement || !modelTabContentElement) {
             return;
@@ -400,16 +548,14 @@
                 if (modelTypeElement) {
                     modelTypeElement.textContent = modelItem.modelType || 'YOLO 모델';
                 }
+                const selectedClassNames = getSelectedClassNamesForModel(modelItem);
                 if (classCountElement) {
-                    classCountElement.textContent = `클래스 ${modelItem.classCount}개`;
+                    const totalCount = normalizeClassNameList(modelItem.classNames).length;
+                    classCountElement.textContent = totalCount > 0
+                        ? `클래스 ${selectedClassNames.length}/${totalCount}`
+                        : '클래스 0개';
                 }
-                if (classListElement) {
-                    classListElement.innerHTML = modelItem.classNames.length > 0
-                        ? modelItem.classNames
-                            .map((className) => `<span class="badge text-bg-light border text-dark flex-shrink-0" style="font-family: inherit; font-size: inherit;">${className}</span>`)
-                            .join('')
-                        : '<span class="badge text-bg-light border text-dark flex-shrink-0" style="font-family: inherit; font-size: inherit;">-</span>';
-                }
+                renderClassToggleButtons(classListElement, modelItem, selectedClassNames);
 
                 pane.appendChild(templateClone);
             } else {
@@ -988,6 +1134,12 @@
         const iou = toNumber(iouInput.value, 0.45);
         const selectedModelItem = getSelectedModelItem();
         const modelName = selectedModelItem ? selectedModelItem.modelPath : '';
+        const selectedClassNames = selectedModelItem ? getSelectedClassNamesForModel(selectedModelItem) : [];
+
+        if (selectedModelItem && normalizeClassNameList(selectedModelItem.classNames).length > 0 && selectedClassNames.length === 0) {
+            setStatus('검출할 클래스를 1개 이상 선택하세요.', 'warning');
+            return;
+        }
 
         detectButton.disabled = true;
         startDetectProgressTicker();
@@ -995,7 +1147,8 @@
 
         try {
             const apiBase = await resolveApiBase();
-            const url = `${apiBase}/fast/yolo/detect_saved_video?file_name=${encodeURIComponent(selectedServerFileName)}&conf=${encodeURIComponent(conf)}&iou=${encodeURIComponent(iou)}&model_name=${encodeURIComponent(modelName)}`;
+            const classNamesParam = selectedClassNames.join(',');
+            const url = `${apiBase}/fast/yolo/detect_saved_video?file_name=${encodeURIComponent(selectedServerFileName)}&conf=${encodeURIComponent(conf)}&iou=${encodeURIComponent(iou)}&model_name=${encodeURIComponent(modelName)}&class_names=${encodeURIComponent(classNamesParam)}`;
             const response = await fetch(url, {
                 method: 'POST',
             });
@@ -1129,6 +1282,22 @@
             const modelFileName = shownButton ? shownButton.getAttribute('data-model-file-name') : '';
             setSelectedModelSelection(modelPath, modelFileName);
             syncModelTabColor();
+        });
+    }
+
+    if (modelTabContentElement) {
+        modelTabContentElement.addEventListener('click', (event) => {
+            const targetButton = event.target && typeof event.target.closest === 'function'
+                ? event.target.closest('[data-role="class-toggle"]')
+                : null;
+            if (!targetButton) {
+                return;
+            }
+
+            event.preventDefault();
+            const modelKey = targetButton.getAttribute('data-model-key');
+            const className = targetButton.getAttribute('data-class-name');
+            toggleClassNameSelection(modelKey, className);
         });
     }
 

@@ -610,6 +610,10 @@
                 modifiedAt: String(item.modified_at || ''),
                 isDefault: Boolean(item.is_default),
                 description: String(item.description || ''),
+                task: String(item.task || 'unknown'),
+                modelType: String(item.model_type || 'YOLO 모델'),
+                classCount: Number(item.class_count || 0),
+                classNames: Array.isArray(item.class_names) ? item.class_names.map((value) => String(value)) : [],
             }));
 
             renderModelMetadataTabs();

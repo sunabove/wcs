@@ -595,6 +595,7 @@ class URDFViewer {
         panelElement.style.borderRadius = '10px';
         panelElement.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.12)';
         panelElement.style.pointerEvents = 'auto';
+        panelElement.style.cursor = 'pointer';
         panelElement.style.transition = 'box-shadow 140ms ease, transform 140ms ease, border-color 140ms ease';
         panelElement.style.width = 'auto';
 
@@ -701,6 +702,7 @@ class URDFViewer {
         viewportElement.style.borderRadius = '999px';
         viewportElement.style.background = 'rgba(245, 247, 250, 0.92)';
         viewportElement.style.overflow = 'hidden';
+        viewportElement.style.cursor = 'pointer';
         viewportElement.style.transition = 'box-shadow 140ms ease, border-color 140ms ease, background-color 140ms ease';
 
         panelElement.addEventListener('mouseenter', () => {
@@ -769,7 +771,7 @@ class URDFViewer {
             return;
         }
 
-        viewportElement.style.cursor = 'grab';
+        viewportElement.style.cursor = 'pointer';
 
         const projectToArcball = (clientX, clientY) => {
             const rect = viewportElement.getBoundingClientRect();
@@ -852,7 +854,7 @@ class URDFViewer {
 
             const movedEnough = this.compassDragState.totalMove > this.compassDragActivateDistancePx;
             this.compassDragState = null;
-            viewportElement.style.cursor = 'grab';
+            viewportElement.style.cursor = 'pointer';
 
             if (movedEnough) {
                 this.logCameraInfos(true);

@@ -852,6 +852,23 @@
             return;
         }
 
+        const requestedStreamPath = resolveRoadDetectStreamPath(normalizedFile);
+        const currentStreamPath = extractRoadDetectStreamFilePathFromUrl(lastMediaSource);
+        const hasCurrentVideoSource = !!String($video.attr("src") || "").trim();
+        const isCurrentVideoVisible = $video.length > 0 && !$video.hasClass("d-none");
+        const isSameVideoSelection = lastMediaType === "video"
+            && requestedStreamPath
+            && currentStreamPath
+            && requestedStreamPath === currentStreamPath;
+
+        // Skip redundant stream URL refresh for the same file to preserve paused position.
+        if (isSameVideoSelection && hasCurrentVideoSource && isCurrentVideoVisible) {
+            applyCompactOverlayLayout();
+            showOverlay();
+            updateVideoControlButtons();
+            return;
+        }
+
         const streamUrl = buildRoadDetectStreamUrl(normalizedFile);
         if (!streamUrl) {
             return;

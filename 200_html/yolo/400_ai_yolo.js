@@ -317,9 +317,9 @@
                 if (classListElement) {
                     classListElement.innerHTML = modelItem.classNames.length > 0
                         ? modelItem.classNames
-                            .map((className) => `<span class="badge text-bg-light border text-dark" style="font-family: inherit; font-size: inherit;">${className}</span>`)
+                            .map((className) => `<span class="badge text-bg-light border text-dark flex-shrink-0" style="font-family: inherit; font-size: inherit;">${className}</span>`)
                             .join('')
-                        : '<span class="badge text-bg-light border text-dark" style="font-family: inherit; font-size: inherit;">-</span>';
+                        : '<span class="badge text-bg-light border text-dark flex-shrink-0" style="font-family: inherit; font-size: inherit;">-</span>';
                 }
 
                 pane.appendChild(templateClone);

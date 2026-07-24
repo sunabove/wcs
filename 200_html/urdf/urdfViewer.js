@@ -736,6 +736,7 @@ class URDFViewer {
         compassRenderer.domElement.style.width = '48px';
         compassRenderer.domElement.style.height = '48px';
         compassRenderer.domElement.style.display = 'block';
+        compassRenderer.domElement.style.cursor = 'pointer';
         viewportElement.appendChild(compassRenderer.domElement);
 
         const compassScene = new THREE.Scene();

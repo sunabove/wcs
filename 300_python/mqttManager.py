@@ -91,6 +91,8 @@ _shutdown_flag = False
 
 
 class MqttManager:
+    STATE_FILE_NAME = "mqtt_manager_state.json"
+
     def __init__(self, broker="localhost", port=1883):
         try:
             self.client = mqtt.Client(
@@ -152,6 +154,44 @@ class MqttManager:
         self._pending_connect_payloads = []
         self.script_path = os.path.abspath(__file__)
         self.last_modified = os.path.getmtime(self.script_path) if os.path.exists(self.script_path) else 0
+        self.state_file_path = os.path.join(os.path.dirname(self.script_path), self.STATE_FILE_NAME)
+        self._load_persistent_state()
+
+    def _load_persistent_state(self):
+        try:
+            if not os.path.exists(self.state_file_path):
+                return
+
+            with open(self.state_file_path, "r", encoding="utf-8") as state_file:
+                saved_state = json.load(state_file)
+
+            if not isinstance(saved_state, dict):
+                return
+
+            saved_video_file_name = str(saved_state.get("current_video_file_name") or "").strip()
+            self.current_video_file_name = saved_video_file_name
+            print(f"[STATE] Loaded current video file: {self.current_video_file_name}")
+        except Exception as e:
+            print(f"[STATE] Failed to load persistent state: {e}")
+
+    def _save_persistent_state(self):
+        state_payload = {
+            "current_video_file_name": str(self.current_video_file_name or "").strip(),
+        }
+
+        temp_state_file_path = f"{self.state_file_path}.tmp"
+        try:
+            with open(temp_state_file_path, "w", encoding="utf-8") as state_file:
+                json.dump(state_payload, state_file, ensure_ascii=False, indent=2)
+            os.replace(temp_state_file_path, self.state_file_path)
+            print(f"[STATE] Saved current video file: {state_payload['current_video_file_name']}")
+        except Exception as e:
+            print(f"[STATE] Failed to save persistent state: {e}")
+            try:
+                if os.path.exists(temp_state_file_path):
+                    os.remove(temp_state_file_path)
+            except Exception:
+                pass
 
     def _initialize_sensor_state_cache(self):
         self.sensor_settings_by_id = {}
@@ -403,7 +443,10 @@ class MqttManager:
             self.road_pitch_angle = float(self._parse_numeric_payload(payload))
             return True
         if metric == "current_video/file_name":
-            self.current_video_file_name = str(payload or "").strip()
+            next_video_file_name = str(payload or "").strip()
+            if self.current_video_file_name != next_video_file_name:
+                self.current_video_file_name = next_video_file_name
+                self._save_persistent_state()
             return True
 
         return False

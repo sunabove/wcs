@@ -48,6 +48,7 @@
     let uploadedHistory = [];
     let modelHistory = [];
     let selectedServerFileName = '';
+    let selectedModelPath = '';
 
     const REALTIME_DETECT_DEBOUNCE_MS = 300;
     const INPUT_SOURCE_TAB_STORAGE_KEY = 'wcs.yolo.input_source_tab.v1';
@@ -243,6 +244,19 @@
         return text.replace('T', ' ');
     }
 
+    function getSelectedModelItem() {
+        if (!selectedModelPath) {
+            return null;
+        }
+
+        return modelHistory.find((item) => item.modelPath === selectedModelPath) || null;
+    }
+
+    function setSelectedModelPath(modelPath) {
+        const normalizedPath = String(modelPath || '').trim();
+        selectedModelPath = normalizedPath;
+    }
+
     function renderModelMetadataTabs() {
         if (!modelTabsElement || !modelTabContentElement) {
             return;
@@ -252,11 +266,13 @@
         modelTabContentElement.innerHTML = '';
 
         if (modelHistory.length === 0) {
+            selectedModelPath = '';
             modelTabContentElement.innerHTML = '<div class="text-muted small">등록된 모델이 없습니다.</div>';
             return;
         }
 
-        const activeModel = modelHistory.find((item) => item.isDefault) || modelHistory[0];
+        const activeModel = getSelectedModelItem() || modelHistory.find((item) => item.isDefault) || modelHistory[0];
+        setSelectedModelPath(activeModel ? activeModel.modelPath : '');
 
         modelHistory.forEach((modelItem, index) => {
             const tabId = `yolo-model-tab-${index}`;
@@ -273,6 +289,7 @@
             button.type = 'button';
             button.setAttribute('data-bs-toggle', 'tab');
             button.setAttribute('data-bs-target', `#${paneId}`);
+            button.setAttribute('data-model-path', modelItem.modelPath);
             button.setAttribute('role', 'tab');
             button.setAttribute('aria-controls', paneId);
             button.setAttribute('aria-selected', String(isActive));
@@ -893,13 +910,15 @@
 
         const conf = toNumber(confInput.value, 0.25);
         const iou = toNumber(iouInput.value, 0.45);
+        const selectedModelItem = getSelectedModelItem();
+        const modelName = selectedModelItem ? selectedModelItem.modelPath : '';
 
         detectButton.disabled = true;
         setStatus('YOLO 검출 진행 중...', 'info');
 
         try {
             const apiBase = await resolveApiBase();
-            const url = `${apiBase}/fast/yolo/detect_saved_video?file_name=${encodeURIComponent(selectedServerFileName)}&conf=${encodeURIComponent(conf)}&iou=${encodeURIComponent(iou)}`;
+            const url = `${apiBase}/fast/yolo/detect_saved_video?file_name=${encodeURIComponent(selectedServerFileName)}&conf=${encodeURIComponent(conf)}&iou=${encodeURIComponent(iou)}&model_name=${encodeURIComponent(modelName)}`;
             const response = await fetch(url, {
                 method: 'POST',
             });
@@ -1025,7 +1044,10 @@
     });
 
     if (modelTabsElement) {
-        modelTabsElement.addEventListener('shown.bs.tab', () => {
+        modelTabsElement.addEventListener('shown.bs.tab', (event) => {
+            const shownButton = event?.target || null;
+            const modelPath = shownButton ? shownButton.getAttribute('data-model-path') : '';
+            setSelectedModelPath(modelPath);
             syncModelTabColor();
         });
     }

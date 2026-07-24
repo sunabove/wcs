@@ -181,7 +181,12 @@
         }
 
         if (mediaHiddenByUser) {
-            $playToggleButton.addClass("d-none");
+            $playToggleButton
+                .removeClass("d-none")
+                .prop("disabled", false)
+                .attr("title", "동영상 출력")
+                .attr("aria-label", "동영상 출력")
+                .html('<i class="bi bi-play-btn-fill" aria-hidden="true"></i>');
             updateLoopToggleButton(false);
             return;
         }
@@ -1095,6 +1100,11 @@
     });
 
     $playToggleButton.on("click", function () {
+        if (mediaHiddenByUser) {
+            restoreMediaAreaOnly();
+            return;
+        }
+
         const videoElement = $video[0];
         const hasImageSource = !!String(lastMediaSource || "").trim();
 

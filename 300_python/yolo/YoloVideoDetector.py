@@ -168,6 +168,31 @@ class YoloVideoDetector:
 
         return plotted
 
+    def _build_model_name_to_class_id_map(self, names) -> dict[str, int]:
+        mapping: dict[str, int] = {}
+
+        if isinstance(names, dict):
+            iterable = names.items()
+        elif isinstance(names, (list, tuple)):
+            iterable = enumerate(names)
+        else:
+            iterable = []
+
+        for key, value in iterable:
+            try:
+                class_id = int(key)
+            except (TypeError, ValueError):
+                continue
+
+            class_name = str(value or "").strip()
+            if not class_name:
+                continue
+
+            mapping[class_name] = class_id
+            mapping[class_name.lower()] = class_id
+
+        return mapping
+
     def detect_video_file(
         self,
         input_path: Path,
@@ -175,6 +200,7 @@ class YoloVideoDetector:
         iou: float = 0.45,
         max_det: int = 300,
         model_name: str = YOLO_DEFAULT_MODEL,
+        class_names: list[str] | None = None,
     ):
         resolved_input = Path(input_path).resolve()
         suffix = resolved_input.suffix.lower()
@@ -209,6 +235,31 @@ class YoloVideoDetector:
 
         start_time = time.time()
         model = self._get_model(model_name)
+        selected_class_ids = None
+        selected_class_names = [str(name or "").strip() for name in (class_names or []) if str(name or "").strip()]
+        if selected_class_names:
+            name_to_id = self._build_model_name_to_class_id_map(getattr(model, "names", {}))
+            selected_class_ids = []
+            unmatched_class_names = []
+
+            for class_name in selected_class_names:
+                class_id = name_to_id.get(class_name)
+                if class_id is None:
+                    class_id = name_to_id.get(class_name.lower())
+
+                if class_id is None:
+                    unmatched_class_names.append(class_name)
+                    continue
+
+                selected_class_ids.append(int(class_id))
+
+            selected_class_ids = sorted(set(selected_class_ids))
+            if not selected_class_ids:
+                raise ValueError("No valid class names were selected")
+
+            if unmatched_class_names:
+                raise ValueError(f"Unknown class names: {', '.join(unmatched_class_names)}")
+
         class_counts = {}
         processed_frames = 0
 
@@ -218,12 +269,18 @@ class YoloVideoDetector:
                 if not ok:
                     break
 
+                predict_kwargs = {
+                    "source": frame,
+                    "conf": conf,
+                    "iou": iou,
+                    "max_det": max_det,
+                    "verbose": False,
+                }
+                if selected_class_ids is not None:
+                    predict_kwargs["classes"] = selected_class_ids
+
                 result = model.predict(
-                    source=frame,
-                    conf=conf,
-                    iou=iou,
-                    max_det=max_det,
-                    verbose=False,
+                    **predict_kwargs,
                 )[0]
 
                 boxes = result.boxes

@@ -39,6 +39,15 @@ def _normalize_names(names) -> list[str]:
     return []
 
 
+def _parse_class_names_query(class_names: str) -> list[str]:
+    text = str(class_names or "").strip()
+    if not text:
+        return []
+
+    items = [segment.strip() for segment in text.split(",")]
+    return [item for item in items if item]
+
+
 def _describe_model_task(task: str, path: Path) -> str:
     normalized = str(task or '').strip().lower()
     stem = path.stem.lower()
@@ -107,6 +116,7 @@ def detect_video_upload(
     iou: float = Query(0.45, ge=0.0, le=1.0),
     max_det: int = Query(300, ge=1, le=2000),
     model_name: str = Query(YOLO_DEFAULT_MODEL),
+    class_names: str = Query(""),
 ):
     return _service.detect_uploaded_video(
         upload_file=file,
@@ -114,6 +124,7 @@ def detect_video_upload(
         iou=iou,
         max_det=max_det,
         model_name=model_name,
+        class_names=_parse_class_names_query(class_names),
     )
 
 
@@ -138,6 +149,7 @@ def detect_saved_video(
     iou: float = Query(0.45, ge=0.0, le=1.0),
     max_det: int = Query(300, ge=1, le=2000),
     model_name: str = Query(YOLO_DEFAULT_MODEL),
+    class_names: str = Query(""),
 ):
     return _service.detect_saved_video(
         file_name=file_name,
@@ -145,4 +157,5 @@ def detect_saved_video(
         iou=iou,
         max_det=max_det,
         model_name=model_name,
+        class_names=_parse_class_names_query(class_names),
     )

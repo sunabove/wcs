@@ -97,6 +97,7 @@ class YoloVideoService:
         iou: float = 0.45,
         max_det: int = 300,
         model_name: str = YOLO_DEFAULT_MODEL,
+        class_names: list[str] | None = None,
     ):
         input_path = self._save_uploaded_video(upload_file)
 
@@ -107,6 +108,7 @@ class YoloVideoService:
                 iou=iou,
                 max_det=max_det,
                 model_name=model_name,
+                class_names=class_names,
             )
         except FileNotFoundError as ex:
             raise HTTPException(status_code=404, detail=str(ex)) from ex
@@ -137,6 +139,7 @@ class YoloVideoService:
         iou: float = 0.45,
         max_det: int = 300,
         model_name: str = YOLO_DEFAULT_MODEL,
+        class_names: list[str] | None = None,
     ):
         input_path = self._resolve_uploaded_video_path(file_name)
 
@@ -147,6 +150,7 @@ class YoloVideoService:
                 iou=iou,
                 max_det=max_det,
                 model_name=model_name,
+                class_names=class_names,
             )
         except FileNotFoundError as ex:
             raise HTTPException(status_code=404, detail=str(ex)) from ex

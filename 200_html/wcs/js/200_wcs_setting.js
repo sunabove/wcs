@@ -47,19 +47,66 @@ $(document).ready(function () {
 
         container = document.createElement('div');
         container.id = 'wcs-setting-toast-container';
-        container.className = 'toast-container position-fixed top-0 end-0 p-3';
+        container.className = 'toast-container position-fixed p-2';
         container.style.zIndex = '1080';
         document.body.appendChild(container);
         return container;
     }
 
-    function showVideoPublishToast(published, fileName) {
+    function positionToastContainerNearAnchor(container, anchorElement) {
+        if (!container) {
+            return;
+        }
+
+        const margin = 12;
+        const defaultTop = margin;
+        const defaultRight = margin;
+        const viewportWidth = window.innerWidth || document.documentElement.clientWidth || 0;
+        const viewportHeight = window.innerHeight || document.documentElement.clientHeight || 0;
+
+        if (!anchorElement || typeof anchorElement.getBoundingClientRect !== 'function') {
+            container.style.top = `${defaultTop}px`;
+            container.style.left = '';
+            container.style.right = `${defaultRight}px`;
+            container.style.bottom = '';
+            return;
+        }
+
+        const rect = anchorElement.getBoundingClientRect();
+        const estimatedToastWidth = 320;
+        const estimatedToastHeight = 76;
+
+        let top = rect.top;
+        let left = rect.right + margin;
+
+        if (left + estimatedToastWidth > viewportWidth - margin) {
+            left = rect.left - estimatedToastWidth - margin;
+        }
+        if (left < margin) {
+            left = Math.max(margin, Math.min(viewportWidth - estimatedToastWidth - margin, rect.left));
+        }
+
+        if (top + estimatedToastHeight > viewportHeight - margin) {
+            top = viewportHeight - estimatedToastHeight - margin;
+        }
+        if (top < margin) {
+            top = margin;
+        }
+
+        container.style.top = `${Math.round(top)}px`;
+        container.style.left = `${Math.round(left)}px`;
+        container.style.right = '';
+        container.style.bottom = '';
+    }
+
+    function showVideoPublishToast(published, fileName, anchorElement) {
         const safeFileName = String(fileName || '').trim() || '(미선택)';
         const title = published ? '동영상 선택 발행' : '동영상 선택 발행 실패';
         const body = `vehicle/current_video/file_name: ${safeFileName}`;
         const toastClass = published ? 'text-bg-success' : 'text-bg-danger';
 
         const container = getOrCreateToastContainer();
+        positionToastContainerNearAnchor(container, anchorElement);
         const toastElement = document.createElement('div');
         videoPublishToastCounter += 1;
         toastElement.id = `wcs-setting-video-publish-toast-${videoPublishToastCounter}`;
@@ -1236,7 +1283,7 @@ $(document).ready(function () {
         if (selectedVideoFileName) {
             currentVideoFileName = normalizePath(selectedVideoFileName);
             const published = sendMQTTMessage('vehicle/current_video/file_name', selectedVideoFileName);
-            showVideoPublishToast(Boolean(published), selectedVideoFileName);
+            showVideoPublishToast(Boolean(published), selectedVideoFileName, this);
         }
     });
 
@@ -1265,7 +1312,7 @@ $(document).ready(function () {
         currentVideoFileName = '';
         applyCurrentVideoHighlight();
         const published = sendMQTTMessage('vehicle/current_video/file_name', '');
-        showVideoPublishToast(Boolean(published), '');
+        showVideoPublishToast(Boolean(published), '', this);
     });
 
     $('#reset-vehicle-max-speed').on('click', function () {

@@ -169,6 +169,8 @@
 
     function updateVideoControlButtons() {
         const hasCloseButton = $closeButton.length > 0;
+        const isImageVisible = $image.length > 0 && !$image.hasClass("d-none");
+        const hasImageSource = !!String($image.attr("src") || "").trim();
         if ($playToggleButton.length === 0 || $video.length === 0) {
             if (hasCloseButton) {
                 $closeButton.prop("disabled", true);
@@ -194,10 +196,10 @@
 
         if (lastMediaType === "image") {
             if (hasCloseButton) {
-                $closeButton.prop("disabled", true);
+                $closeButton.prop("disabled", !(isImageVisible && hasImageSource));
             }
-            const hasImageSource = !!String(lastMediaSource || $image.attr("src") || "").trim();
-            updateLoopToggleButton(hasImageSource);
+            const hasImageMediaSource = !!String(lastMediaSource || $image.attr("src") || "").trim();
+            updateLoopToggleButton(hasImageMediaSource);
             if (mediaPlaybackPaused) {
                 $playToggleButton
                     .prop("disabled", false)
@@ -218,7 +220,7 @@
         const videoElement = $video[0];
         const isVideoVisible = !$video.hasClass("d-none");
         const hasVideoSource = !!String($video.attr("src") || "").trim();
-        const isVideoFrameVisible = !mediaHiddenByUser && lastMediaType === "video" && isVideoVisible && hasVideoSource;
+        const isVideoFrameVisible = !mediaHiddenByUser && isVideoVisible && hasVideoSource;
         if (hasCloseButton) {
             $closeButton.prop("disabled", !isVideoFrameVisible);
         }

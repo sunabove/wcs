@@ -99,83 +99,97 @@
 </header>
 
 <main class="container my-4">
-	<div class="card shadow-sm mb-3">
-		<div class="card-header">
-			<h5 class="mb-0">입력 옵션</h5>
-		</div>
-		<div class="card-body">
-			<div class="row g-3 align-items-start">
-				<div class="col-md-4">
-					<label for="yolo-video-file" class="form-label">동영상 파일</label>
-					<input id="yolo-video-file" class="form-control mb-2" type="file" accept="video/*">
-					<div id="yolo-drop-zone" role="button" tabindex="0" aria-label="동영상 드래그 업로드 영역">
-						<div class="fw-semibold">동영상을 여기로 드래그하세요</div>
-						<div class="small text-muted mt-1">또는 클릭해서 파일 선택</div>
-					</div>
-					<div id="yolo-selected-file" class="small mt-2 text-muted">선택된 파일 없음</div>
-				</div>
-				<div class="col-md-8">
-					<div class="small fw-semibold text-secondary mb-1">업로드한 동영상</div>
-					<ul id="yolo-uploaded-list" class="list-group list-group-sm">
-						<li id="yolo-uploaded-empty" class="list-group-item small text-muted">업로드 이력 없음</li>
-					</ul>
-				</div>
-			</div>
-
-			<div class="row g-3 mt-1 align-items-end">
-				<div class="col-md-5">
-					<label for="yolo-conf" class="form-label d-flex justify-content-between align-items-center">
-						<span>Conf</span>
-						<span id="yolo-conf-value" class="badge text-bg-secondary">0.25</span>
-					</label>
-					<input id="yolo-conf" class="form-range" type="range" min="0" max="1" step="0.01" value="0.25">
-				</div>
-				<div class="col-md-5">
-					<label for="yolo-iou" class="form-label d-flex justify-content-between align-items-center">
-						<span>IoU</span>
-						<span id="yolo-iou-value" class="badge text-bg-secondary">0.45</span>
-					</label>
-					<input id="yolo-iou" class="form-range" type="range" min="0" max="1" step="0.01" value="0.45">
-				</div>
-				<div class="col-md-2 d-grid">
-					<button id="yolo-detect-btn" class="btn btn-primary">검출 시작</button>
-				</div>
-			</div>
-
-			<div id="yolo-status" class="alert alert-secondary mt-3 mb-0">대기 중</div>
-		</div>
-	</div>
-
 	<div class="card shadow-sm">
-		<div class="card-header d-flex justify-content-between align-items-center">
-			<h5 class="mb-0">출력</h5>
-			<div class="form-check form-switch mb-0 ms-2">
-				<input class="form-check-input" type="checkbox" role="switch" id="yolo-loop-toggle">
-				<label class="form-check-label small" for="yolo-loop-toggle">반복 재생</label>
-			</div>
+		<div class="card-header">
+			<h5 class="mb-0">YOLO 객체 검출</h5>
 		</div>
-		<div class="card-body">
-			<div class="d-flex justify-content-between align-items-center mb-1">
-				<ul class="nav nav-tabs" id="yolo-video-tabs" role="tablist">
-					<li class="nav-item" role="presentation">
-						<button class="nav-link active" id="yolo-input-tab" data-bs-toggle="tab" data-bs-target="#yolo-input-pane" type="button" role="tab" aria-controls="yolo-input-pane" aria-selected="true">📼 원본 영상</button>
-					</li>
-					<li class="nav-item" role="presentation">
-						<button class="nav-link" id="yolo-output-tab" data-bs-toggle="tab" data-bs-target="#yolo-output-pane" type="button" role="tab" aria-controls="yolo-output-pane" aria-selected="false">🎯 검출 영상</button>
-					</li>
-				</ul>
-			</div>
-			<div class="tab-content border border-top-0 rounded-bottom p-3 bg-white" id="yolo-video-tab-content">
-				<div class="tab-pane fade show active" id="yolo-input-pane" role="tabpanel" aria-labelledby="yolo-input-tab" tabindex="0">
-					<div class="yolo-video-wrap">
-						<video id="yolo-input-video" class="yolo-video-player border rounded" controls playsinline></video>
-					</div>
-				</div>
-				<div class="tab-pane fade" id="yolo-output-pane" role="tabpanel" aria-labelledby="yolo-output-tab" tabindex="0">
-					<div class="yolo-video-wrap">
-						<video id="yolo-output-video" class="yolo-video-player border rounded" controls playsinline></video>
-					</div>
-				</div>
+		<div class="card-body p-2">
+			<div class="table-responsive">
+				<table class="table table-bordered align-middle mb-0">
+					<colgroup>
+						<col style="width: 50%;">
+						<col style="width: 50%;">
+					</colgroup>
+					<thead>
+						<tr>
+							<th class="text-center">입력 옵션</th>
+							<th class="text-center">출력</th>
+						</tr>
+					</thead>
+					<tbody>
+						<tr>
+							<td>
+								<div class="row g-3 align-items-start">
+									<div class="col-12">
+										<label for="yolo-video-file" class="form-label">동영상 파일</label>
+										<input id="yolo-video-file" class="form-control mb-2" type="file" accept="video/*">
+										<div id="yolo-drop-zone" role="button" tabindex="0" aria-label="동영상 드래그 업로드 영역">
+											<div class="fw-semibold">동영상을 여기로 드래그하세요</div>
+											<div class="small text-muted mt-1">또는 클릭해서 파일 선택</div>
+										</div>
+										<div id="yolo-selected-file" class="small mt-2 text-muted">선택된 파일 없음</div>
+									</div>
+									<div class="col-12">
+										<div class="small fw-semibold text-secondary mb-1">업로드한 동영상</div>
+										<ul id="yolo-uploaded-list" class="list-group list-group-sm">
+											<li id="yolo-uploaded-empty" class="list-group-item small text-muted">업로드 이력 없음</li>
+										</ul>
+									</div>
+								</div>
+
+								<div class="row g-3 mt-1 align-items-end">
+									<div class="col-12">
+										<label for="yolo-conf" class="form-label d-flex justify-content-between align-items-center">
+											<span>Conf</span>
+											<span id="yolo-conf-value" class="badge text-bg-secondary">0.25</span>
+										</label>
+										<input id="yolo-conf" class="form-range" type="range" min="0" max="1" step="0.01" value="0.25">
+									</div>
+									<div class="col-12">
+										<label for="yolo-iou" class="form-label d-flex justify-content-between align-items-center">
+											<span>IoU</span>
+											<span id="yolo-iou-value" class="badge text-bg-secondary">0.45</span>
+										</label>
+										<input id="yolo-iou" class="form-range" type="range" min="0" max="1" step="0.01" value="0.45">
+									</div>
+									<div class="col-12 d-grid">
+										<button id="yolo-detect-btn" class="btn btn-primary">검출 시작</button>
+									</div>
+								</div>
+
+								<div id="yolo-status" class="alert alert-secondary mt-3 mb-0">대기 중</div>
+							</td>
+							<td>
+								<div class="d-flex justify-content-between align-items-center mb-1">
+									<ul class="nav nav-tabs" id="yolo-video-tabs" role="tablist">
+										<li class="nav-item" role="presentation">
+											<button class="nav-link active" id="yolo-input-tab" data-bs-toggle="tab" data-bs-target="#yolo-input-pane" type="button" role="tab" aria-controls="yolo-input-pane" aria-selected="true">📼 원본 영상</button>
+										</li>
+										<li class="nav-item" role="presentation">
+											<button class="nav-link" id="yolo-output-tab" data-bs-toggle="tab" data-bs-target="#yolo-output-pane" type="button" role="tab" aria-controls="yolo-output-pane" aria-selected="false">🎯 검출 영상</button>
+										</li>
+									</ul>
+									<div class="form-check form-switch mb-0 ms-2">
+										<input class="form-check-input" type="checkbox" role="switch" id="yolo-loop-toggle">
+										<label class="form-check-label small" for="yolo-loop-toggle">반복 재생</label>
+									</div>
+								</div>
+								<div class="tab-content border border-top-0 rounded-bottom p-3 bg-white" id="yolo-video-tab-content">
+									<div class="tab-pane fade show active" id="yolo-input-pane" role="tabpanel" aria-labelledby="yolo-input-tab" tabindex="0">
+										<div class="yolo-video-wrap">
+											<video id="yolo-input-video" class="yolo-video-player border rounded" controls playsinline></video>
+										</div>
+									</div>
+									<div class="tab-pane fade" id="yolo-output-pane" role="tabpanel" aria-labelledby="yolo-output-tab" tabindex="0">
+										<div class="yolo-video-wrap">
+											<video id="yolo-output-video" class="yolo-video-player border rounded" controls playsinline></video>
+										</div>
+									</div>
+								</div>
+							</td>
+						</tr>
+					</tbody>
+				</table>
 			</div>
 		</div>
 	</div>

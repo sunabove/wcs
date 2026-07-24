@@ -920,7 +920,7 @@
         const modelName = selectedModelItem ? selectedModelItem.modelPath : '';
 
         detectButton.disabled = true;
-        setUploadProgress(null, true, '검출 진행 중...');
+        setUploadProgress(0, true, '0%');
         setStatus('YOLO 검출 진행 중...', 'info');
 
         try {

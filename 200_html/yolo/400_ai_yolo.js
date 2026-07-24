@@ -52,6 +52,7 @@
 
     const REALTIME_DETECT_DEBOUNCE_MS = 300;
     const INPUT_SOURCE_TAB_STORAGE_KEY = 'wcs.yolo.input_source_tab.v1';
+    const MODEL_SELECTION_STORAGE_KEY = 'wcs.yolo.model_selection.v1';
     const STATUS_ALERT_VARIANTS = ['alert-secondary', 'alert-info', 'alert-warning', 'alert-danger', 'alert-success', 'alert-primary'];
 
     function setStatus(message, type) {
@@ -261,6 +262,24 @@
     function setSelectedModelPath(modelPath) {
         const normalizedPath = String(modelPath || '').trim();
         selectedModelPath = normalizedPath;
+
+        try {
+            if (normalizedPath) {
+                window.localStorage.setItem(MODEL_SELECTION_STORAGE_KEY, normalizedPath);
+            } else {
+                window.localStorage.removeItem(MODEL_SELECTION_STORAGE_KEY);
+            }
+        } catch (_ignore) {
+            // Ignore storage failures.
+        }
+    }
+
+    function restoreSelectedModelPath() {
+        try {
+            selectedModelPath = String(window.localStorage.getItem(MODEL_SELECTION_STORAGE_KEY) || '').trim();
+        } catch (_ignore) {
+            selectedModelPath = '';
+        }
     }
 
     function renderModelMetadataTabs() {
@@ -272,7 +291,7 @@
         modelTabContentElement.innerHTML = '';
 
         if (modelHistory.length === 0) {
-            selectedModelPath = '';
+            setSelectedModelPath('');
             modelTabContentElement.innerHTML = '<div class="text-muted small">등록된 모델이 없습니다.</div>';
             return;
         }
@@ -1064,6 +1083,8 @@
     if (uploadedEmptyElement) {
         renderUploadedHistory();
     }
+
+    restoreSelectedModelPath();
 
     if (modelTabsElement && modelTabContentElement) {
         renderModelMetadataTabs();

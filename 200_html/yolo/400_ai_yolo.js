@@ -175,6 +175,9 @@
     function setSelectedFile(file) {
         selectedFile = file || null;
         if (!selectedFileElement) {
+            if (uploadButton) {
+                uploadButton.disabled = !selectedFile;
+            }
             return;
         }
 
@@ -182,6 +185,10 @@
             selectedFileElement.textContent = `선택됨: ${selectedFile.name}`;
         } else {
             selectedFileElement.textContent = '선택된 파일 없음';
+        }
+
+        if (uploadButton) {
+            uploadButton.disabled = !selectedFile;
         }
     }
 
@@ -261,7 +268,7 @@
                 }
 
                 selectedServerFileName = item.serverFileName;
-                selectedFile = null;
+                setSelectedFile(null);
                 if (fileInput) {
                     fileInput.value = '';
                 }
@@ -533,7 +540,7 @@
         selectedServerFileName = '';
         syncInputWithFile(file);
         renderUploadedHistory();
-        setStatus('동영상 파일이 준비되었습니다. 검출 시작을 눌러주세요.', 'secondary');
+        setStatus('동영상 파일이 준비되었습니다. 동영상 업로드를 눌러주세요.', 'secondary');
     }
 
     async function runYoloDetect() {
@@ -639,7 +646,11 @@
 
     if (uploadButton) {
         uploadButton.addEventListener('click', () => {
-            fileInput.click();
+            if (uploadButton.disabled) {
+                return;
+            }
+
+            runYoloDetect();
         });
     }
 
@@ -678,7 +689,6 @@
         }
 
         handleChosenFile(file);
-        runYoloDetect();
     });
 
     detectButton.addEventListener('click', runYoloDetect);

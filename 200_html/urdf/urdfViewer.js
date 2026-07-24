@@ -751,6 +751,7 @@ class URDFViewer {
                 opacity: 0.18,
                 shininess: 70,
                 side: THREE.DoubleSide,
+                depthWrite: false,
             })
         );
         group.add(globe);

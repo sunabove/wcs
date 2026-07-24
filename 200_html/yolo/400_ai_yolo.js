@@ -174,6 +174,11 @@
 
     function setSelectedFile(file) {
         selectedFile = file || null;
+
+        if (dropZone) {
+            dropZone.classList.toggle('file-selected', Boolean(selectedFile));
+        }
+
         if (!selectedFileElement) {
             if (uploadButton) {
                 uploadButton.disabled = !selectedFile;

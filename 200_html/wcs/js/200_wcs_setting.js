@@ -793,17 +793,17 @@ $(document).ready(function () {
         });
     }
 
-    function moveSampleVideoSelectionControlsToBottom() {
+    function moveSampleVideoThumbnailsToBottom() {
         if ($wcsSampleVideoPane.length === 0) {
             return;
         }
 
-        const $controls = $wcsSampleVideoPane.children('.wcs-sample-video-selection-controls').first();
-        if ($controls.length === 0) {
+        const $thumbnailScroll = $wcsSampleVideoPane.children('.sample-thumbnail-scroll').first();
+        if ($thumbnailScroll.length === 0) {
             return;
         }
 
-        $controls.appendTo($wcsSampleVideoPane);
+        $thumbnailScroll.appendTo($wcsSampleVideoPane);
     }
 
     const buildFolderLabel = typeof window.wcsBuildFolderLabel === 'function'
@@ -971,7 +971,7 @@ $(document).ready(function () {
                 buildVideoThumbnailUrl: buildVideoThumbnailUrl,
                 onAfterRender: function () {
                     applyCurrentVideoHighlight();
-                    moveSampleVideoSelectionControlsToBottom();
+                    moveSampleVideoThumbnailsToBottom();
                 },
             });
         }
@@ -993,7 +993,7 @@ $(document).ready(function () {
             $wcsSampleVideoPane.append($header);
 
             if (!Array.isArray(fileNames) || fileNames.length === 0) {
-                moveSampleVideoSelectionControlsToBottom();
+                moveSampleVideoThumbnailsToBottom();
                 return;
             }
 
@@ -1040,7 +1040,7 @@ $(document).ready(function () {
             $scrollContainer.append($track);
             $wcsSampleVideoPane.append($scrollContainer);
             applyCurrentVideoHighlight();
-            moveSampleVideoSelectionControlsToBottom();
+            moveSampleVideoThumbnailsToBottom();
         };
 
     const loadSampleVideos = typeof window.wcsLoadSampleVideos === 'function'
@@ -1072,7 +1072,7 @@ $(document).ready(function () {
                 saveBrowserState: saveSampleVideoBrowserStateToStorage,
                 onLoaded: function () {
                     isSampleVideosLoaded = true;
-                    moveSampleVideoSelectionControlsToBottom();
+                    moveSampleVideoThumbnailsToBottom();
                 },
             });
         }

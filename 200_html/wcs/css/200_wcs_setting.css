@@ -199,6 +199,38 @@
     animation: obstacle-sensor-publish-foreground-blink 2s ease-out 1;
 }
 
+.runinfo-sim-panel {
+    transition: opacity 0.2s ease, filter 0.2s ease;
+}
+
+.runinfo-sim-panel.runinfo-sim-stopped {
+    opacity: 0.72;
+    filter: grayscale(0.45);
+}
+
+.runinfo-sim-panel.runinfo-sim-publish-blink input,
+.runinfo-sim-panel.runinfo-sim-publish-blink button,
+.runinfo-sim-panel.runinfo-sim-publish-blink .badge,
+.runinfo-sim-panel.runinfo-sim-publish-blink label,
+.runinfo-sim-panel.runinfo-sim-publish-blink .form-check {
+    animation: runinfo-sim-publish-blink 0.7s ease-out 1;
+}
+
+@keyframes runinfo-sim-publish-blink {
+    0% {
+        box-shadow: 0 0 0 0 rgba(25, 135, 84, 0);
+        background-color: transparent;
+    }
+    35% {
+        box-shadow: 0 0 0 2px rgba(25, 135, 84, 0.42);
+        background-color: rgba(25, 135, 84, 0.12);
+    }
+    100% {
+        box-shadow: 0 0 0 0 rgba(25, 135, 84, 0);
+        background-color: transparent;
+    }
+}
+
 @keyframes obstacle-sensor-publish-cell-background-blink {
     0% {
         background-color: transparent;

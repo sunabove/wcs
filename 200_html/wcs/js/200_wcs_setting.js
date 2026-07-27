@@ -51,6 +51,7 @@ $(document).ready(function () {
     let lastVehicleCurrSpeedMsSent = null;
     let lastVehicleDirectionCommandSent = null;
     let runInfoSimulationTimer = null;
+    let runInfoSimulationBlinkTimer = null;
     let videoPublishToastCounter = 0;
 
     const RUN_INFO_SIMULATION_DEFAULTS = {
@@ -82,6 +83,32 @@ $(document).ready(function () {
             .text(String(text || '').trim() || '정지')
             .toggleClass('text-bg-success', Boolean(isRunning))
             .toggleClass('text-bg-secondary', !Boolean(isRunning));
+
+        const $panel = $('#sim-runinfo-panel');
+        if ($panel.length > 0) {
+            $panel.toggleClass('runinfo-sim-stopped', !Boolean(isRunning));
+        }
+    }
+
+    function triggerRunInfoSimulationPublishBlink() {
+        const $panel = $('#sim-runinfo-panel');
+        if ($panel.length === 0) {
+            return;
+        }
+
+        $panel.removeClass('runinfo-sim-publish-blink');
+        void $panel[0].offsetWidth;
+        $panel.addClass('runinfo-sim-publish-blink');
+
+        if (runInfoSimulationBlinkTimer) {
+            clearTimeout(runInfoSimulationBlinkTimer);
+            runInfoSimulationBlinkTimer = null;
+        }
+
+        runInfoSimulationBlinkTimer = setTimeout(function () {
+            $panel.removeClass('runinfo-sim-publish-blink');
+            runInfoSimulationBlinkTimer = null;
+        }, 760);
     }
 
     function getRunInfoSimulationStateFromInputs() {
@@ -119,6 +146,7 @@ $(document).ready(function () {
         sendMQTTMessage('vehicle/drive/available_time', availableSec);
         sendMQTTMessage('vehicle/drive/elapsed_time', elapsedSec);
         sendMQTTMessage('vehicle/drive/total_distance', distanceM);
+        triggerRunInfoSimulationPublishBlink();
     }
 
     function stopRunInfoSimulation() {
@@ -126,6 +154,13 @@ $(document).ready(function () {
             clearInterval(runInfoSimulationTimer);
             runInfoSimulationTimer = null;
         }
+
+        if (runInfoSimulationBlinkTimer) {
+            clearTimeout(runInfoSimulationBlinkTimer);
+            runInfoSimulationBlinkTimer = null;
+        }
+
+        $('#sim-runinfo-panel').removeClass('runinfo-sim-publish-blink');
         updateRunInfoSimulationStateLabel('정지', false);
     }
 

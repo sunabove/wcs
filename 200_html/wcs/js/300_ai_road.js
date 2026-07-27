@@ -3491,7 +3491,7 @@ $(function () {
         startCameraLiveStream(cameraIndex, cameraName);
     });
 
-    $cameraTab.on("click", function () {
+    function handleCameraTabActivated() {
         if (!cameraStreamState || !cameraStreamState.sessionId) {
             $.ajax({
                 url: buildCameraDetectStreamCleanupAllUrl(),
@@ -3504,6 +3504,18 @@ $(function () {
         }
 
         loadCameraDevices(true);
+    }
+
+    $cameraTab.on("click", function () {
+        // When the tab is already active, Bootstrap won't fire shown.bs.tab.
+        // Keep click-based refresh only for this manual re-open case.
+        if ($(this).hasClass("active")) {
+            handleCameraTabActivated();
+        }
+    });
+
+    $cameraTab.on("shown.bs.tab", function () {
+        handleCameraTabActivated();
     });
 
     $detectTypeInputs.on("change.cameraLive", function () {

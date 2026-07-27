@@ -39,6 +39,79 @@
 			</div>
 		</div>
 
+		<div class="row g-2 mb-2">
+			<div class="col-12 col-lg-4">
+				<div class="h-100 d-flex flex-column gap-2 px-3 py-3 rounded border border-secondary bg-dark-subtle" id="wheel-animation-panel">
+					<div class="row g-2">
+						<div class="col-12 col-md-6">
+							<div class="d-flex align-items-center gap-2 px-3 py-2 rounded border bg-light h-100 text-dark">
+								<span class="small text-nowrap fw-semibold" style="min-width: 28px;">FL</span>
+								<input type="range" class="form-range m-0" id="wheel-speed-rpm-fl" min="-120" max="120" step="10" value="0">
+								<span class="small text-nowrap fw-semibold" id="wheel-speed-rpm-value-fl" style="min-width: 56px; text-align: right;">0 rpm</span>
+							</div>
+						</div>
+						<div class="col-12 col-md-6">
+							<div class="d-flex align-items-center gap-2 px-3 py-2 rounded border bg-light h-100 text-dark">
+								<span class="small text-nowrap fw-semibold" style="min-width: 28px;">FR</span>
+								<input type="range" class="form-range m-0" id="wheel-speed-rpm-fr" min="-120" max="120" step="10" value="0">
+								<span class="small text-nowrap fw-semibold" id="wheel-speed-rpm-value-fr" style="min-width: 56px; text-align: right;">0 rpm</span>
+							</div>
+						</div>
+						<div class="col-12 col-md-6">
+							<div class="d-flex align-items-center gap-2 px-3 py-2 rounded border bg-light h-100 text-dark">
+								<span class="small text-nowrap fw-semibold" style="min-width: 28px;">RL</span>
+								<input type="range" class="form-range m-0" id="wheel-speed-rpm-rl" min="-120" max="120" step="10" value="0">
+								<span class="small text-nowrap fw-semibold" id="wheel-speed-rpm-value-rl" style="min-width: 56px; text-align: right;">0 rpm</span>
+							</div>
+						</div>
+						<div class="col-12 col-md-6">
+							<div class="d-flex align-items-center gap-2 px-3 py-2 rounded border bg-light h-100 text-dark">
+								<span class="small text-nowrap fw-semibold" style="min-width: 28px;">RR</span>
+								<input type="range" class="form-range m-0" id="wheel-speed-rpm-rr" min="-120" max="120" step="10" value="0">
+								<span class="small text-nowrap fw-semibold" id="wheel-speed-rpm-value-rr" style="min-width: 56px; text-align: right;">0 rpm</span>
+							</div>
+						</div>
+					</div>
+				</div>
+			</div>
+
+			<div class="col-12 col-lg-4">
+				<div class="h-100 d-flex flex-column justify-content-center gap-2 px-3 py-3 rounded border border-secondary bg-dark-subtle" id="drive-control-panel">
+					<div class="d-flex justify-content-center align-items-center flex-wrap gap-2">
+						<button type="button" class="btn btn-outline-primary btn-sm" id="drive-btn-forward">전진</button>
+						<button type="button" class="btn btn-outline-secondary btn-sm" id="drive-btn-backward">후진</button>
+						<button type="button" class="btn btn-outline-primary btn-sm" id="drive-btn-left">좌회전</button>
+						<button type="button" class="btn btn-outline-primary btn-sm" id="drive-btn-right">우회전</button>
+						<button type="button" class="btn btn-outline-danger btn-sm" id="drive-btn-stop">정지</button>
+					</div>
+					<div class="d-flex justify-content-center align-items-center mt-2">
+						<div class="d-flex align-items-center gap-2 px-3 py-2 rounded border bg-light w-100 text-dark">
+							<span class="small text-nowrap fw-semibold">속도</span>
+							<input type="range" class="form-range m-0" id="drive-speed-kmh" min="0" max="30" step="1" value="0">
+							<span class="small text-nowrap fw-semibold" id="drive-speed-kmh-value" style="min-width: 60px; text-align: right;">0 km/h</span>
+						</div>
+					</div>
+				</div>
+			</div>
+
+			<div class="col-12 col-lg-4">
+				<div class="h-100 d-flex align-items-center justify-content-center px-3 py-3 rounded border border-secondary bg-dark-subtle" id="ramp-control-panel">
+					<div class="d-flex flex-column gap-2 w-100 align-items-center">
+						<div class="d-flex align-items-center gap-2">
+							<span class="small text-nowrap fw-semibold text-end" style="width: 60px;">Roll</span>
+							<input type="number" class="form-control form-control-sm text-end" id="road-roll-angle-deg" min="-30" max="30" step="1" value="0" style="width: 88px;">
+							<span class="small text-nowrap fw-semibold" id="road-roll-angle-deg-value" style="min-width: 40px; text-align: right;">0°</span>
+						</div>
+						<div class="d-flex align-items-center gap-2">
+							<span class="small text-nowrap fw-semibold text-end" style="width: 60px;">Pitch</span>
+							<input type="number" class="form-control form-control-sm text-end" id="road-pitch-angle-deg" min="-30" max="30" step="1" value="0" style="width: 88px;">
+							<span class="small text-nowrap fw-semibold" id="road-pitch-angle-deg-value" style="min-width: 40px; text-align: right;">0°</span>
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+
 		<div id="sim-container" class="border border-secondary rounded" style="width:100%; height:calc(100vh - 92px); min-height:420px;"></div>
 	</main>
 

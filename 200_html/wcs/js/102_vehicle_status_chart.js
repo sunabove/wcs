@@ -9,7 +9,7 @@ const runInfoHistoryState = {
         distanceKm: null,
     },
     lastPointAt: 0,
-    maxPoints: 30,
+    maxPoints: 240,
 };
 
 const vehicleSpeedHistoryState = {
@@ -22,10 +22,11 @@ const vehicleSpeedHistoryState = {
         accelerationKmhPerSec: null,
     },
     lastPointAt: 0,
-    maxPoints: 30,
+    maxPoints: 240,
 };
 
 const MIN_X_TICK_COUNT = 4;
+const HISTORY_WINDOW_MS = 60 * 1000;
 
 function createXAxisEdgeUnitLabelPlugin(options, pluginId) {
     const leftUnitText = String(options?.leftUnitText || '');
@@ -91,6 +92,35 @@ function ensureLinearMinTicks(scale, minTickCount = MIN_X_TICK_COUNT) {
 }
 
 function getUniqueTimeTickLabel(value, index, ticks, formatLabel, leftEdgeLabel = '', rightEdgeLabel = '') {
+        if (!Array.isArray(datasets) || datasets.length === 0) {
+            return;
+        }
+
+        const baseDataset = datasets[0];
+        if (!baseDataset || !Array.isArray(baseDataset.data) || baseDataset.data.length === 0) {
+            return;
+        }
+
+        const latestPoint = baseDataset.data[baseDataset.data.length - 1];
+        const latestX = Number(latestPoint?.x);
+        if (!Number.isFinite(latestX)) {
+            return;
+        }
+
+        const minX = latestX - Math.max(1000, Number(windowMs) || HISTORY_WINDOW_MS);
+        const firstKeepIndex = baseDataset.data.findIndex((point) => Number(point?.x) >= minX);
+        if (firstKeepIndex <= 0) {
+            return;
+        }
+
+        datasets.forEach((dataset) => {
+            if (!Array.isArray(dataset.data)) {
+                return;
+            }
+
+            dataset.data.splice(0, firstKeepIndex);
+        });
+    }
     const lastIndex = Math.max(0, ticks.length - 1);
     if (index === 0) {
         return leftEdgeLabel;
@@ -290,6 +320,8 @@ function pushRunInfoHistoryPoint(forcePush = false) {
         runInfoDatasets[2].data.push({ x: runInfoElapsedSecond * 1000, y: latest.elapsedMinutes });
         runInfoDatasets[3].data.push({ x: runInfoElapsedSecond * 1000, y: latest.distanceKm });
     }
+
+    trimDatasetsToRecentWindow(runInfoDatasets, HISTORY_WINDOW_MS);
 
     if (runInfoHistoryState.chart.data.datasets[0].data.length > runInfoHistoryState.maxPoints) {
         runInfoHistoryState.chart.data.datasets.forEach((dataset) => {
@@ -494,6 +526,8 @@ function pushVehicleSpeedHistoryPoint(forcePush = false) {
         vehicleSpeedDatasets[1].data.push({ x: vehicleSpeedElapsedSecond * 1000, y: latest.maxSpeedKmh });
         vehicleSpeedDatasets[2].data.push({ x: vehicleSpeedElapsedSecond * 1000, y: latest.accelerationKmhPerSec });
     }
+
+    trimDatasetsToRecentWindow(vehicleSpeedDatasets, HISTORY_WINDOW_MS);
 
     if (vehicleSpeedHistoryState.chart.data.datasets[0].data.length > vehicleSpeedHistoryState.maxPoints) {
         vehicleSpeedHistoryState.chart.data.datasets.forEach((dataset) => {

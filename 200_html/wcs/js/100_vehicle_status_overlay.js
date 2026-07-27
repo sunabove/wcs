@@ -67,6 +67,7 @@
     let pageExitCleanupRequested = false;
     let audioHudBlinkPhase = false;
     let temporaryStatusHideTimerId = null;
+    let hasStoredOverlayMediaHiddenState = false;
     const FIRST_FRAME_TIMEOUT_MS = 10000;
     const LOADING_MESSAGE = "로딩중입니다.";
     const FIRST_FRAME_TIMEOUT_MESSAGE = "동영상이 로딩되지 않았습니다.";
@@ -266,12 +267,14 @@
     function readOverlayMediaHiddenState() {
         try {
             const rawValue = window.localStorage.getItem(OVERLAY_MEDIA_HIDDEN_STORAGE_KEY);
+            hasStoredOverlayMediaHiddenState = rawValue !== null;
             if (rawValue === null) {
                 return true;
             }
             const normalized = String(rawValue || "").trim().toLowerCase();
             return normalized === "true" || normalized === "1" || normalized === "yes" || normalized === "on";
         } catch (error) {
+            hasStoredOverlayMediaHiddenState = false;
             return true;
         }
     }
@@ -1728,7 +1731,7 @@
         applyCollapsedOverlayLayout();
         showOverlay();
     }
-    if (showVideoOverlayEnabled && $overlay.hasClass("d-none")) {
+    if (showVideoOverlayEnabled && $overlay.hasClass("d-none") && !hasStoredOverlayMediaHiddenState) {
         mediaHiddenByUser = true;
         writeOverlayMediaHiddenState(true);
         setCloseButtonToShowMode(true);

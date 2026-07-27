@@ -216,6 +216,11 @@
     animation: runinfo-sim-publish-blink 0.7s ease-out 1;
 }
 
+.runinfo-sim-panel.runinfo-sim-publish-blink,
+.runinfo-sim-panel.runinfo-sim-publish-blink * {
+    animation: runinfo-sim-publish-text-blink 0.7s ease-out 1;
+}
+
 @keyframes runinfo-sim-publish-blink {
     0% {
         box-shadow: 0 0 0 0 rgba(25, 135, 84, 0);
@@ -228,6 +233,21 @@
     100% {
         box-shadow: 0 0 0 0 rgba(25, 135, 84, 0);
         background-color: transparent;
+    }
+}
+
+@keyframes runinfo-sim-publish-text-blink {
+    0% {
+        color: inherit;
+        text-shadow: none;
+    }
+    35% {
+        color: #0f5132;
+        text-shadow: 0 0 0.45rem rgba(25, 135, 84, 0.32);
+    }
+    100% {
+        color: inherit;
+        text-shadow: none;
     }
 }
 

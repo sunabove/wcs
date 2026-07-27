@@ -27,6 +27,8 @@ const vehicleSpeedHistoryState = {
 
 const MIN_X_TICK_COUNT = 4;
 const HISTORY_WINDOW_MS = 60 * 1000;
+const RUN_INFO_HISTORY_STORAGE_KEY = 'wcs.status.chart.runinfo.v1';
+const VEHICLE_SPEED_HISTORY_STORAGE_KEY = 'wcs.status.chart.speed.v1';
 
 function createXAxisEdgeUnitLabelPlugin(options, pluginId) {
     const leftUnitText = String(options?.leftUnitText || '');
@@ -92,35 +94,6 @@ function ensureLinearMinTicks(scale, minTickCount = MIN_X_TICK_COUNT) {
 }
 
 function getUniqueTimeTickLabel(value, index, ticks, formatLabel, leftEdgeLabel = '', rightEdgeLabel = '') {
-        if (!Array.isArray(datasets) || datasets.length === 0) {
-            return;
-        }
-
-        const baseDataset = datasets[0];
-        if (!baseDataset || !Array.isArray(baseDataset.data) || baseDataset.data.length === 0) {
-            return;
-        }
-
-        const latestPoint = baseDataset.data[baseDataset.data.length - 1];
-        const latestX = Number(latestPoint?.x);
-        if (!Number.isFinite(latestX)) {
-            return;
-        }
-
-        const minX = latestX - Math.max(1000, Number(windowMs) || HISTORY_WINDOW_MS);
-        const firstKeepIndex = baseDataset.data.findIndex((point) => Number(point?.x) >= minX);
-        if (firstKeepIndex <= 0) {
-            return;
-        }
-
-        datasets.forEach((dataset) => {
-            if (!Array.isArray(dataset.data)) {
-                return;
-            }
-
-            dataset.data.splice(0, firstKeepIndex);
-        });
-    }
     const lastIndex = Math.max(0, ticks.length - 1);
     if (index === 0) {
         return leftEdgeLabel;
@@ -130,6 +103,170 @@ function getUniqueTimeTickLabel(value, index, ticks, formatLabel, leftEdgeLabel 
     }
 
     return formatLabel(Number(value));
+}
+
+function readJsonFromStorage(key) {
+    try {
+        const rawValue = window.localStorage.getItem(key);
+        if (!rawValue) {
+            return null;
+        }
+
+        return JSON.parse(rawValue);
+    } catch (error) {
+        return null;
+    }
+}
+
+function writeJsonToStorage(key, value) {
+    try {
+        window.localStorage.setItem(key, JSON.stringify(value));
+    } catch (error) {
+        // Ignore storage failures.
+    }
+}
+
+function sanitizeHistoryPoint(point) {
+    const x = Number(point?.x);
+    const y = Number(point?.y);
+    if (!Number.isFinite(x) || !Number.isFinite(y)) {
+        return null;
+    }
+
+    return { x, y };
+}
+
+function sanitizeHistoryDataset(data) {
+    if (!Array.isArray(data)) {
+        return [];
+    }
+
+    return data
+        .map((point) => sanitizeHistoryPoint(point))
+        .filter((point) => point !== null);
+}
+
+function trimDatasetsToRecentWindow(datasets, windowMs = HISTORY_WINDOW_MS) {
+    if (!Array.isArray(datasets) || datasets.length === 0) {
+        return;
+    }
+
+    const baseDataset = datasets[0];
+    if (!baseDataset || !Array.isArray(baseDataset.data) || baseDataset.data.length === 0) {
+        return;
+    }
+
+    const latestPoint = baseDataset.data[baseDataset.data.length - 1];
+    const latestX = Number(latestPoint?.x);
+    if (!Number.isFinite(latestX)) {
+        return;
+    }
+
+    const minX = latestX - Math.max(1000, Number(windowMs) || HISTORY_WINDOW_MS);
+    const firstKeepIndex = baseDataset.data.findIndex((point) => Number(point?.x) >= minX);
+    if (firstKeepIndex <= 0) {
+        return;
+    }
+
+    datasets.forEach((dataset) => {
+        if (!Array.isArray(dataset.data)) {
+            return;
+        }
+
+        dataset.data.splice(0, firstKeepIndex);
+    });
+}
+
+function saveRunInfoHistoryToStorage() {
+    const chart = runInfoHistoryState.chart;
+    if (!chart || !Array.isArray(chart.data?.datasets)) {
+        return;
+    }
+
+    const payload = {
+        firstPointAt: Number(runInfoHistoryState.firstPointAt) || 0,
+        lastPointAt: Number(runInfoHistoryState.lastPointAt) || 0,
+        latestValues: runInfoHistoryState.latestValues,
+        datasets: chart.data.datasets.map((dataset) => sanitizeHistoryDataset(dataset.data)),
+        savedAt: Date.now(),
+    };
+
+    writeJsonToStorage(RUN_INFO_HISTORY_STORAGE_KEY, payload);
+}
+
+function restoreRunInfoHistoryFromStorage() {
+    const chart = runInfoHistoryState.chart;
+    if (!chart || !Array.isArray(chart.data?.datasets)) {
+        return;
+    }
+
+    const payload = readJsonFromStorage(RUN_INFO_HISTORY_STORAGE_KEY);
+    if (!payload || !Array.isArray(payload.datasets)) {
+        return;
+    }
+
+    chart.data.datasets.forEach((dataset, index) => {
+        dataset.data = sanitizeHistoryDataset(payload.datasets[index]);
+    });
+    trimDatasetsToRecentWindow(chart.data.datasets, HISTORY_WINDOW_MS);
+
+    runInfoHistoryState.firstPointAt = Number(payload.firstPointAt) || 0;
+    runInfoHistoryState.lastPointAt = Number(payload.lastPointAt) || 0;
+
+    if (payload.latestValues && typeof payload.latestValues === 'object') {
+        runInfoHistoryState.latestValues = {
+            ...runInfoHistoryState.latestValues,
+            ...payload.latestValues,
+        };
+    }
+
+    chart.update('none');
+}
+
+function saveVehicleSpeedHistoryToStorage() {
+    const chart = vehicleSpeedHistoryState.chart;
+    if (!chart || !Array.isArray(chart.data?.datasets)) {
+        return;
+    }
+
+    const payload = {
+        firstPointAt: Number(vehicleSpeedHistoryState.firstPointAt) || 0,
+        lastPointAt: Number(vehicleSpeedHistoryState.lastPointAt) || 0,
+        latestValues: vehicleSpeedHistoryState.latestValues,
+        datasets: chart.data.datasets.map((dataset) => sanitizeHistoryDataset(dataset.data)),
+        savedAt: Date.now(),
+    };
+
+    writeJsonToStorage(VEHICLE_SPEED_HISTORY_STORAGE_KEY, payload);
+}
+
+function restoreVehicleSpeedHistoryFromStorage() {
+    const chart = vehicleSpeedHistoryState.chart;
+    if (!chart || !Array.isArray(chart.data?.datasets)) {
+        return;
+    }
+
+    const payload = readJsonFromStorage(VEHICLE_SPEED_HISTORY_STORAGE_KEY);
+    if (!payload || !Array.isArray(payload.datasets)) {
+        return;
+    }
+
+    chart.data.datasets.forEach((dataset, index) => {
+        dataset.data = sanitizeHistoryDataset(payload.datasets[index]);
+    });
+    trimDatasetsToRecentWindow(chart.data.datasets, HISTORY_WINDOW_MS);
+
+    vehicleSpeedHistoryState.firstPointAt = Number(payload.firstPointAt) || 0;
+    vehicleSpeedHistoryState.lastPointAt = Number(payload.lastPointAt) || 0;
+
+    if (payload.latestValues && typeof payload.latestValues === 'object') {
+        vehicleSpeedHistoryState.latestValues = {
+            ...vehicleSpeedHistoryState.latestValues,
+            ...payload.latestValues,
+        };
+    }
+
+    chart.update('none');
 }
 
 function createRunInfoHistoryChart() {
@@ -279,6 +416,8 @@ function createRunInfoHistoryChart() {
             },
         },
     });
+
+    restoreRunInfoHistoryFromStorage();
 }
 
 function pushRunInfoHistoryPoint(forcePush = false) {
@@ -330,6 +469,7 @@ function pushRunInfoHistoryPoint(forcePush = false) {
     }
 
     runInfoHistoryState.chart.update('none');
+    saveRunInfoHistoryToStorage();
 }
 
 function updateRunInfoHistoryMetric(topic, value) {
@@ -487,6 +627,8 @@ function createVehicleSpeedHistoryChart() {
             },
         },
     });
+
+    restoreVehicleSpeedHistoryFromStorage();
 }
 
 function pushVehicleSpeedHistoryPoint(forcePush = false) {
@@ -536,6 +678,7 @@ function pushVehicleSpeedHistoryPoint(forcePush = false) {
     }
 
     vehicleSpeedHistoryState.chart.update('none');
+    saveVehicleSpeedHistoryToStorage();
 }
 
 function updateVehicleSpeedHistoryMetric(topic, value) {

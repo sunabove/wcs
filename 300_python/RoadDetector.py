@@ -2651,7 +2651,32 @@ class RoadDetector:
         except Exception:
             return detected
 
-        if frame_idx <= 0 or frame_total <= 0:
+        if frame_idx <= 0:
+            return detected
+
+        h, w = detected.shape[:2]
+
+        if frame_total <= 0:
+            time_label = f"Frame {frame_idx}"
+            (tw, th), _ = cv2.getTextSize(time_label, font_face, 0.62, 2)
+            pad_x = 10
+            pad_y = 6
+            box_w = tw + (pad_x * 2)
+            box_h = th + (pad_y * 2)
+            x1 = int((w - box_w) / 2)
+            y1 = int(h - box_h - 16)
+            x2 = int(x1 + box_w)
+            y2 = int(y1 + box_h)
+
+            overlay = detected.copy()
+            cv2.rectangle(overlay, (x1, y1), (x2, y2), (35, 35, 35), cv2.FILLED)
+            cv2.addWeighted(overlay, 0.45, detected, 0.55, 0, detected)
+            cv2.rectangle(detected, (x1, y1), (x2, y2), (220, 220, 220), 1)
+
+            tx = int(x1 + pad_x)
+            ty = int(y1 + pad_y + th)
+            cv2.putText(detected, time_label, (tx, ty), font_face, 0.62, (0, 0, 0), 3, cv2.LINE_AA)
+            cv2.putText(detected, time_label, (tx, ty), font_face, 0.62, (255, 255, 255), 2, cv2.LINE_AA)
             return detected
 
         frame_idx = max(1, min(frame_idx, frame_total))
@@ -2678,7 +2703,6 @@ class RoadDetector:
         else:
             fill_color = _lerp_bgr(c_high, c_end, (progress_ratio - 0.90) / 0.10)
 
-        h, w = detected.shape[:2]
         side_margin = max(12, int(w * 0.03))
         bar_w = max(120, w - (side_margin * 2))
         bar_h = max(10, int(h * 0.016))

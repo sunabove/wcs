@@ -36,6 +36,25 @@ function ensureLinearMinTicks(scale, minTickCount = MIN_X_TICK_COUNT) {
     scale.ticks = ticks;
 }
 
+function formatValueWithUnit(rawValue, unit = '') {
+    const numericValue = Number(rawValue);
+    if (!Number.isFinite(numericValue)) {
+        return unit ? `0${unit}` : '0';
+    }
+
+    const absValue = Math.abs(numericValue);
+    let valueText = '';
+    if (absValue >= 100) {
+        valueText = String(Math.round(numericValue));
+    } else if (absValue >= 10) {
+        valueText = String(Math.round(numericValue * 10) / 10);
+    } else {
+        valueText = String(Math.round(numericValue * 100) / 100);
+    }
+
+    return unit ? `${valueText}${unit}` : valueText;
+}
+
 function readJsonFromStorage(key) {
     try {
         const rawValue = window.localStorage.getItem(key);
@@ -96,12 +115,33 @@ class WcsHistoryChart {
         };
     }
 
+    buildScalesWithUnitCallbacks() {
+        const clonedScales = {};
+        Object.entries(this.scales || {}).forEach(([scaleKey, scaleConfig]) => {
+            const nextScale = { ...(scaleConfig || {}) };
+            const unit = String(nextScale.unit || '');
+            const nextTicks = { ...(nextScale.ticks || {}) };
+
+            if (unit && typeof nextTicks.callback !== 'function') {
+                nextTicks.callback = function (value) {
+                    return formatValueWithUnit(value, unit);
+                };
+            }
+
+            nextScale.ticks = nextTicks;
+            clonedScales[scaleKey] = nextScale;
+        });
+
+        return clonedScales;
+    }
+
     createChart() {
         const canvas = document.getElementById(this.canvasId);
         if (!canvas || typeof Chart !== 'function') {
             return;
         }
 
+        const resolvedScales = this.buildScalesWithUnitCallbacks();
         this.state.chart = new Chart(canvas, {
             type: 'line',
             plugins: [],
@@ -138,6 +178,17 @@ class WcsHistoryChart {
                             usePointStyle: true,
                         },
                     },
+                    tooltip: {
+                        callbacks: {
+                            label: (context) => {
+                                const datasetLabel = String(context.dataset?.label || '').trim();
+                                const yAxisId = String(context.dataset?.yAxisID || '');
+                                const unit = String(resolvedScales?.[yAxisId]?.unit || '');
+                                const valueText = formatValueWithUnit(context?.parsed?.y, unit);
+                                return datasetLabel ? `${datasetLabel}: ${valueText}` : valueText;
+                            },
+                        },
+                    },
                 },
                 scales: {
                     x: {
@@ -157,7 +208,7 @@ class WcsHistoryChart {
                             color: 'rgba(173, 181, 189, 0.2)',
                         },
                     },
-                    ...this.scales,
+                    ...resolvedScales,
                 },
             },
         });
@@ -407,6 +458,7 @@ class WcsChartManager {
                 yBattery: {
                     type: 'linear',
                     position: 'left',
+                    unit: '%',
                     min: 0,
                     max: 100,
                     ticks: {
@@ -419,6 +471,7 @@ class WcsChartManager {
                 yTime: {
                     type: 'linear',
                     position: 'right',
+                    unit: '분',
                     grace: '10%',
                     ticks: {
                         padding: 6,
@@ -433,6 +486,7 @@ class WcsChartManager {
                 yDistance: {
                     type: 'linear',
                     position: 'right',
+                    unit: 'km',
                     grace: '10%',
                     display: false,
                     grid: {
@@ -500,6 +554,7 @@ class WcsChartManager {
                 ySpeed: {
                     type: 'linear',
                     position: 'left',
+                    unit: 'km/h',
                     grace: '10%',
                     ticks: {
                         padding: 6,
@@ -514,6 +569,7 @@ class WcsChartManager {
                 yAcceleration: {
                     type: 'linear',
                     position: 'right',
+                    unit: 'km/h/s',
                     grace: '10%',
                     ticks: {
                         padding: 6,

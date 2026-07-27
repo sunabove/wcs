@@ -1322,6 +1322,7 @@
             return;
         }
         const normalizedSrc = String(src);
+        markOverlayMediaVisibleState();
         hideAllMedia();
         startFirstFrameWait();
         $image.attr("src", normalizedSrc).removeClass("d-none");
@@ -1384,6 +1385,7 @@
             return;
         }
 
+        markOverlayMediaVisibleState();
         hideAllMedia();
         startFirstFrameWait();
         $video.prop("loop", autoReplayEnabled);
@@ -1670,6 +1672,7 @@
     requestRoadDetectSessionCleanupAllOnLoad();
     const savedCurrentVideoSelection = readCurrentVideoSelectionState();
     if (savedCurrentVideoSelection) {
+        markOverlayMediaVisibleState();
         resolveAndShowCurrentVideo(savedCurrentVideoSelection);
     }
     setInterval(updateOverlayAudioHud, 400);

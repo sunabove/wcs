@@ -163,75 +163,6 @@
                             <tr>
                                 <th scope="row">
                                     <div class="d-flex align-items-center gap-2">
-                                        <i class="bi bi-camera-reels fs-5"></i>
-                                        <div class="ms-1">
-                                            <h5 class="mb-1">동영상 선택</h5>
-                                            <small class="text-muted d-block">장애물 검출 동영상을 선택합니다.</small>
-                                        </div>
-                                    </div>
-                                </th>
-                                <td>
-                                    <ul class="nav nav-tabs mb-1" id="wcs-video-input-tabs" role="tablist">
-                                        <li class="nav-item" role="presentation">
-                                            <button class="nav-link active" id="wcs-input-sample-video-tab" data-bs-toggle="tab" data-bs-target="#wcs-input-sample-video-pane" type="button" role="tab" aria-controls="wcs-input-sample-video-pane" aria-selected="true">
-                                                <i class="bi bi-camera-reels me-1"></i>샘플 동영상
-                                            </button>
-                                        </li>
-                                        <li class="nav-item" role="presentation">
-                                            <button class="nav-link" id="wcs-input-camera-tab" data-bs-toggle="tab" data-bs-target="#wcs-input-camera-pane" type="button" role="tab" aria-controls="wcs-input-camera-pane" aria-selected="false">
-                                                <i class="bi bi-camera-video me-1"></i>카메라 장치
-                                            </button>
-                                        </li>
-                                    </ul>
-                                    <div class="tab-content">
-                                        <div class="tab-pane fade show active" id="wcs-input-sample-video-pane" role="tabpanel" tabindex="0">
-                                            <div class="text-muted text-center py-3">샘플 동영상 목록</div>
-                                            <template id="wcs-sample-video-item-template">
-                                                <div class="sample-thumbnail-item">
-                                                    <button type="button" class="btn btn-outline-secondary w-100 p-2 h-100 sample-video-item" data-file-name="">
-                                                        <img
-                                                            src=""
-                                                            alt=""
-                                                            class="img-fluid rounded mb-1 sample-video-thumbnail"
-                                                            style="height: 120px; width: 100%; object-fit: cover;"
-                                                        >
-                                                        <video
-                                                            src=""
-                                                            class="img-fluid rounded mb-1"
-                                                            style="height: 120px; width: 100%; object-fit: cover;"
-                                                            hidden
-                                                            muted
-                                                            playsinline
-                                                            preload="metadata"
-                                                        ></video>
-                                                        <div class="small text-truncate" title=""></div>
-                                                    </button>
-                                                </div>
-                                            </template>
-                                        </div>
-                                        <div class="tab-pane fade" id="wcs-input-camera-pane" role="tabpanel" tabindex="0">
-                                            <div class="d-flex align-items-center gap-2 flex-nowrap overflow-auto">
-                                                <div id="wcs-camera-device-list" class="d-flex flex-nowrap gap-2 overflow-auto py-1">
-                                                    <div class="text-muted text-center py-2">카메라 장치 목록</div>
-                                                </div>
-                                                <button type="button" class="btn btn-sm btn-outline-danger wcs-camera-clear-selection flex-shrink-0">
-                                                    <i class="bi bi-x-circle me-1"></i>카메라 장치 미선택
-                                                </button>
-                                            </div>
-                                            <template id="wcs-camera-device-item-template">
-                                                <button type="button" class="btn btn-outline-secondary text-start wcs-camera-device-item" data-camera-index="" data-camera-name="">
-                                                    <div class="fw-semibold small camera-device-name"></div>
-                                                    <div class="small text-muted camera-device-detail"></div>
-                                                </button>
-                                            </template>
-                                        </div>
-                                    </div>
-                                </td>
-                            </tr>
-
-                            <tr>
-                                <th scope="row">
-                                    <div class="d-flex align-items-center gap-2">
                                         <i class="bi bi-sign-turn-right fs-5"></i>
                                         <div class="ms-1">
                                             <h5 class="mb-1">차량 방향 제어</h5>
@@ -337,6 +268,75 @@
                                         >
                                         <button type="button" class="btn btn-outline-secondary btn-sm setting-reset-btn" id="reset-vehicle-pitch-angle">Reset</button>
                                         <span id="vehicle-pitch-angle-value" class="badge text-bg-secondary setting-value-badge">0°</span>
+                                    </div>
+                                </td>
+                            </tr>
+
+                            <tr>
+                                <th scope="row">
+                                    <div class="d-flex align-items-center gap-2">
+                                        <i class="bi bi-camera-reels fs-5"></i>
+                                        <div class="ms-1">
+                                            <h5 class="mb-1">동영상 선택</h5>
+                                            <small class="text-muted d-block">장애물 검출 동영상을 선택합니다.</small>
+                                        </div>
+                                    </div>
+                                </th>
+                                <td>
+                                    <ul class="nav nav-tabs mb-1" id="wcs-video-input-tabs" role="tablist">
+                                        <li class="nav-item" role="presentation">
+                                            <button class="nav-link active" id="wcs-input-sample-video-tab" data-bs-toggle="tab" data-bs-target="#wcs-input-sample-video-pane" type="button" role="tab" aria-controls="wcs-input-sample-video-pane" aria-selected="true">
+                                                <i class="bi bi-camera-reels me-1"></i>샘플 동영상
+                                            </button>
+                                        </li>
+                                        <li class="nav-item" role="presentation">
+                                            <button class="nav-link" id="wcs-input-camera-tab" data-bs-toggle="tab" data-bs-target="#wcs-input-camera-pane" type="button" role="tab" aria-controls="wcs-input-camera-pane" aria-selected="false">
+                                                <i class="bi bi-camera-video me-1"></i>카메라 장치
+                                            </button>
+                                        </li>
+                                    </ul>
+                                    <div class="tab-content">
+                                        <div class="tab-pane fade show active" id="wcs-input-sample-video-pane" role="tabpanel" tabindex="0">
+                                            <div class="text-muted text-center py-3">샘플 동영상 목록</div>
+                                            <template id="wcs-sample-video-item-template">
+                                                <div class="sample-thumbnail-item">
+                                                    <button type="button" class="btn btn-outline-secondary w-100 p-2 h-100 sample-video-item" data-file-name="">
+                                                        <img
+                                                            src=""
+                                                            alt=""
+                                                            class="img-fluid rounded mb-1 sample-video-thumbnail"
+                                                            style="height: 120px; width: 100%; object-fit: cover;"
+                                                        >
+                                                        <video
+                                                            src=""
+                                                            class="img-fluid rounded mb-1"
+                                                            style="height: 120px; width: 100%; object-fit: cover;"
+                                                            hidden
+                                                            muted
+                                                            playsinline
+                                                            preload="metadata"
+                                                        ></video>
+                                                        <div class="small text-truncate" title=""></div>
+                                                    </button>
+                                                </div>
+                                            </template>
+                                        </div>
+                                        <div class="tab-pane fade" id="wcs-input-camera-pane" role="tabpanel" tabindex="0">
+                                            <div class="d-flex align-items-center gap-2 flex-nowrap overflow-auto">
+                                                <div id="wcs-camera-device-list" class="d-flex flex-nowrap gap-2 overflow-auto py-1">
+                                                    <div class="text-muted text-center py-2">카메라 장치 목록</div>
+                                                </div>
+                                                <button type="button" class="btn btn-sm btn-outline-danger wcs-camera-clear-selection flex-shrink-0">
+                                                    <i class="bi bi-x-circle me-1"></i>카메라 장치 미선택
+                                                </button>
+                                            </div>
+                                            <template id="wcs-camera-device-item-template">
+                                                <button type="button" class="btn btn-outline-secondary text-start wcs-camera-device-item" data-camera-index="" data-camera-name="">
+                                                    <div class="fw-semibold small camera-device-name"></div>
+                                                    <div class="small text-muted camera-device-detail"></div>
+                                                </button>
+                                            </template>
+                                        </div>
                                     </div>
                                 </td>
                             </tr>

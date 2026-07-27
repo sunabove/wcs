@@ -1,6 +1,8 @@
 $(document).ready(function () {
     const maxSpeedTopic = 'vehicle/linear/max_speed';
     const vehicleOperationCommandTopic = 'vehicle/operation/command';
+    const $wcsVideoInputTabs = $('#wcs-video-input-tabs');
+    const $wcsSampleVideoTab = $('#wcs-input-sample-video-tab');
     const $wcsSampleVideoPane = $('#wcs-input-sample-video-pane');
     const $wcsCameraPane = $('#wcs-input-camera-pane');
     const $wcsCameraTab = $('#wcs-input-camera-tab');
@@ -11,6 +13,7 @@ $(document).ready(function () {
     const wcsSampleVideoItemTemplate = document.getElementById('wcs-sample-video-item-template');
     const wcsCameraDeviceItemTemplate = document.getElementById('wcs-camera-device-item-template');
     const SAMPLE_VIDEO_BROWSER_STORAGE_KEY = 'wcs.setting.sample_video_browser.v1';
+    const VIDEO_INPUT_TAB_STORAGE_KEY = 'wcs.setting.video_input_tab.v1';
     const OBSTACLE_SENSOR_DEFINITIONS = [
         { id: 'ToF', count: 4, target: '거리,장애물', enabled: true },
         { id: 'IMU', count: 5, target: '가속도,각속도', enabled: true },
@@ -947,6 +950,47 @@ $(document).ready(function () {
         sampleVideoShowAllFiles = false;
     }
 
+    function saveSelectedVideoInputTabToStorage(tabId) {
+        if (!tabId || typeof window.localStorage === 'undefined') {
+            return;
+        }
+
+        try {
+            window.localStorage.setItem(VIDEO_INPUT_TAB_STORAGE_KEY, String(tabId));
+        } catch (error) {
+            // Ignore storage write errors.
+        }
+    }
+
+    function restoreSelectedVideoInputTabFromStorage() {
+        if ($wcsVideoInputTabs.length === 0 || typeof window.localStorage === 'undefined') {
+            return;
+        }
+
+        let tabId = '';
+        try {
+            tabId = String(window.localStorage.getItem(VIDEO_INPUT_TAB_STORAGE_KEY) || '').trim();
+        } catch (error) {
+            return;
+        }
+
+        if (!tabId) {
+            return;
+        }
+
+        const $tabButton = $('#' + tabId);
+        if ($tabButton.length === 0 || !$wcsVideoInputTabs.has($tabButton).length) {
+            return;
+        }
+
+        if (window.bootstrap && window.bootstrap.Tab && typeof window.bootstrap.Tab.getOrCreateInstance === 'function') {
+            window.bootstrap.Tab.getOrCreateInstance($tabButton[0]).show();
+            return;
+        }
+
+        $tabButton.trigger('click');
+    }
+
     function extractSampleVideoFiles(result) {
         if (Array.isArray(result)) {
             return result;
@@ -1468,6 +1512,11 @@ $(document).ready(function () {
         loadCameraDevices(false);
     });
 
+    $wcsVideoInputTabs.on('shown.bs.tab', "button[data-bs-toggle='tab']", function (event) {
+        const tabId = $(event.target).attr('id');
+        saveSelectedVideoInputTabToStorage(tabId);
+    });
+
     $('#reset-vehicle-max-speed').on('click', function () {
         updateVehicleMaxSpeedUi(50, true);
     });
@@ -1638,4 +1687,9 @@ $(document).ready(function () {
     restoreSampleVideoBrowserStateFromStorage();
     initializeObstacleSensorSettingsDefaults();
     ensureSampleVideosLoaded();
+    restoreSelectedVideoInputTabFromStorage();
+
+    if ($wcsSampleVideoTab.length > 0 && $wcsSampleVideoTab.hasClass('active')) {
+        saveSelectedVideoInputTabToStorage('wcs-input-sample-video-tab');
+    }
 });

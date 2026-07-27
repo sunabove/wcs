@@ -12,10 +12,21 @@ function alignToSecondTimestamp(timeMs) {
     return Math.floor(numericTime / 1000) * 1000;
 }
 
-function formatSequentialTickLabel(index, tickCount = MIN_X_TICK_COUNT) {
+function formatSequentialTickLabel(index, tickCount = MIN_X_TICK_COUNT, firstUnit = '', lastUnit = '') {
     const maxCount = Math.max(2, Number(tickCount) || MIN_X_TICK_COUNT);
     const safeIndex = Math.max(0, Math.min(maxCount - 1, Number(index) || 0));
-    return String(safeIndex + 1);
+    const baseLabel = String(safeIndex + 1);
+    const normalizedFirstUnit = String(firstUnit || '').trim();
+    const normalizedLastUnit = String(lastUnit || '').trim();
+
+    if (safeIndex === 0 && normalizedFirstUnit) {
+        return `${baseLabel} ${normalizedFirstUnit}`;
+    }
+    if (safeIndex === (maxCount - 1) && normalizedLastUnit) {
+        return `${baseLabel} ${normalizedLastUnit}`;
+    }
+
+    return baseLabel;
 }
 
 function ensureLinearMinTicks(scale, minTickCount = MIN_X_TICK_COUNT) {
@@ -104,6 +115,7 @@ class WcsHistoryChart {
         this.latestValueKeys = options.latestValueKeys;
         this.initialLatestValues = options.initialLatestValues;
         this.scales = options.scales;
+        this.xTickEdgeUnits = options.xTickEdgeUnits || { first: '', last: '' };
         this.metricUpdater = options.metricUpdater;
 
         this.state = {
@@ -119,14 +131,7 @@ class WcsHistoryChart {
         const clonedScales = {};
         Object.entries(this.scales || {}).forEach(([scaleKey, scaleConfig]) => {
             const nextScale = { ...(scaleConfig || {}) };
-            const unit = String(nextScale.unit || '');
             const nextTicks = { ...(nextScale.ticks || {}) };
-
-            if (unit && typeof nextTicks.callback !== 'function') {
-                nextTicks.callback = function (value) {
-                    return formatValueWithUnit(value, unit);
-                };
-            }
 
             nextScale.ticks = nextTicks;
             clonedScales[scaleKey] = nextScale;
@@ -142,6 +147,10 @@ class WcsHistoryChart {
         }
 
         const resolvedScales = this.buildScalesWithUnitCallbacks();
+        const xTickEdgeUnits = {
+            first: String(this.xTickEdgeUnits?.first || '').trim(),
+            last: String(this.xTickEdgeUnits?.last || '').trim(),
+        };
         this.state.chart = new Chart(canvas, {
             type: 'line',
             plugins: [],
@@ -199,7 +208,7 @@ class WcsHistoryChart {
                         ticks: {
                             count: MIN_X_TICK_COUNT,
                             callback(value, index, ticks) {
-                                return formatSequentialTickLabel(index, ticks?.length);
+                                return formatSequentialTickLabel(index, ticks?.length, xTickEdgeUnits.first, xTickEdgeUnits.last);
                             },
                             maxRotation: 0,
                             autoSkip: false,
@@ -389,6 +398,10 @@ class WcsChartManager {
         this.runInfoChart = new WcsHistoryChart({
             canvasId: 'run-info-history-chart',
             storageKey: RUN_INFO_HISTORY_STORAGE_KEY,
+            xTickEdgeUnits: {
+                first: '%',
+                last: '분',
+            },
             latestValueKeys: ['batteryPercent', 'availableMinutes', 'elapsedMinutes', 'distanceKm'],
             initialLatestValues: {
                 batteryPercent: null,
@@ -499,6 +512,10 @@ class WcsChartManager {
         this.vehicleSpeedChart = new WcsHistoryChart({
             canvasId: 'vehicle-speed-history-chart',
             storageKey: VEHICLE_SPEED_HISTORY_STORAGE_KEY,
+            xTickEdgeUnits: {
+                first: 'km/h',
+                last: 'km/h/s',
+            },
             latestValueKeys: ['speedKmh', 'maxSpeedKmh', 'accelerationKmhPerSec'],
             initialLatestValues: {
                 speedKmh: null,

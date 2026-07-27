@@ -183,15 +183,18 @@ class ChartRenderer:
             if int(x_min) <= int(v) <= int(x_max)
         })
 
-        y_axis_unit_label = "(cnt)"
+        first_y_axis_unit_label = "(cnt)"
+        second_y_axis_unit_label = "(%)"
         last_tick_index = len(x_ticks) - 1
         for tick_index, x_tick in enumerate(x_ticks):
             tick_x = self._map_chart_x(x_tick, x_min, x_max, chart_x1, chart_w)
             cv2.line(canvas, (tick_x, chart_y2), (tick_x, chart_y2 + 3), (120, 120, 120), 1, cv2.LINE_AA)
 
             label = str(int(x_tick))
-            if tick_index == 0 or tick_index == last_tick_index:
-                label = f"{label}{y_axis_unit_label}"
+            if tick_index == 0:
+                label = f"{label}{first_y_axis_unit_label}"
+            elif tick_index == last_tick_index:
+                label = f"{label}{second_y_axis_unit_label}"
 
             (text_w, text_h), baseline = cv2.getTextSize(label, font_face, 0.28, 1)
             label_x = max(chart_x1, min(chart_x2 - text_w, int(round(tick_x - (text_w / 2.0)))))

@@ -1740,7 +1740,6 @@
     requestRoadDetectSessionCleanupAllOnLoad();
     const savedCurrentVideoSelection = readCurrentVideoSelectionState();
     if (savedCurrentVideoSelection) {
-        markOverlayMediaVisibleState();
         resolveAndShowCurrentVideo(savedCurrentVideoSelection);
     }
     setInterval(updateOverlayAudioHud, 400);

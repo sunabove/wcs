@@ -122,27 +122,27 @@ class WcsHistoryChart {
             const nextTicks = { ...(nextScale.ticks || {}) };
             const unit = String(nextScale.unit || '').trim();
             const isYAxisScale = String(nextScale.axis || '').toLowerCase() === 'y' || String(scaleKey || '').toLowerCase().startsWith('y');
-
-            nextScale.ticks = nextTicks;
+            const baseTickCallback = typeof nextTicks.callback === 'function' ? nextTicks.callback : null;
 
             if (unit && isYAxisScale && nextScale.display !== false) {
-                nextScale.title = {
-                    ...(nextScale.title || {}),
-                    display: true,
-                    text: `(${unit})`,
-                    align: 'end',
-                    color: '#6c757d',
-                    padding: {
-                        top: 0,
-                        bottom: 0,
-                    },
-                    font: {
-                        size: 10,
-                        weight: '600',
-                    },
+                nextTicks.callback = function (value, index, ticks) {
+                    const baseLabel = baseTickCallback
+                        ? baseTickCallback.call(this, value, index, ticks)
+                        : formatValueWithUnit(value, '');
+
+                    const tickList = Array.isArray(ticks) ? ticks : [];
+                    const lowestTickValue = tickList.length > 0 ? Number(tickList[0]?.value) : NaN;
+                    const isLowestTick = Number.isFinite(lowestTickValue) && Number(value) === lowestTickValue;
+
+                    if (isLowestTick) {
+                        return [String(baseLabel), `(${unit})`];
+                    }
+
+                    return baseLabel;
                 };
             }
 
+            nextScale.ticks = nextTicks;
             clonedScales[scaleKey] = nextScale;
         });
 

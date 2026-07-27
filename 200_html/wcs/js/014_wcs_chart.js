@@ -31,7 +31,7 @@ function formatSequentialTickLabel(index, tickCount = MIN_X_TICK_COUNT, firstUni
     };
 
     if (safeIndex === 0 && normalizedFirstUnit) {
-        return `${baseLabel} ${wrapUnit(normalizedFirstUnit)}`;
+        return `${wrapUnit(normalizedFirstUnit)} ${baseLabel}`;
     }
     if (safeIndex === (maxCount - 1) && normalizedLastUnit) {
         return `${baseLabel} ${wrapUnit(normalizedLastUnit)}`;

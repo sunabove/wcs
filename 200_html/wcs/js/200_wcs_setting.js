@@ -793,6 +793,19 @@ $(document).ready(function () {
         });
     }
 
+    function moveSampleVideoSelectionControlsToBottom() {
+        if ($wcsSampleVideoPane.length === 0) {
+            return;
+        }
+
+        const $controls = $wcsSampleVideoPane.children('.wcs-sample-video-selection-controls').first();
+        if ($controls.length === 0) {
+            return;
+        }
+
+        $controls.appendTo($wcsSampleVideoPane);
+    }
+
     const buildFolderLabel = typeof window.wcsBuildFolderLabel === 'function'
         ? function (baseFolder, folderPath) {
             return window.wcsBuildFolderLabel(baseFolder, folderPath, {
@@ -810,7 +823,7 @@ $(document).ready(function () {
 
     const buildSampleBrowserHeader = typeof window.wcsBuildSampleBrowserHeader === 'function'
         ? function (baseFolder, currentFolderPath, showAllFiles) {
-            return window.wcsBuildSampleBrowserHeader({
+            const $header = window.wcsBuildSampleBrowserHeader({
                 baseFolder: baseFolder,
                 currentFolderPath: currentFolderPath,
                 showAllFiles: showAllFiles,
@@ -818,10 +831,12 @@ $(document).ready(function () {
                 clearSelectionLabel: '동영상 미선택',
                 showPathLabel: false,
             });
+            $header.addClass('wcs-sample-video-selection-controls mt-2');
+            return $header;
         }
         : function (baseFolder, currentFolderPath, showAllFiles) {
             const normalizedCurrent = normalizeSampleFolderPath(currentFolderPath, baseFolder);
-            const $header = $('<div class="d-flex flex-wrap align-items-center gap-2 mb-2"></div>');
+            const $header = $('<div class="d-flex flex-wrap align-items-center gap-2 mb-2 mt-2 wcs-sample-video-selection-controls"></div>');
             const $homeButton = $('<button type="button" class="btn btn-sm btn-outline-secondary sample-folder-home"><i class="bi bi-house-door me-1"></i>루트</button>')
                 .attr('data-base-folder', baseFolder);
             const $allFilesToggleWrap = $('<div class="form-check form-check-inline mb-0"></div>');
@@ -954,7 +969,10 @@ $(document).ready(function () {
                     return renderSampleFolderTiles(baseFolder, childFolders);
                 },
                 buildVideoThumbnailUrl: buildVideoThumbnailUrl,
-                onAfterRender: applyCurrentVideoHighlight,
+                onAfterRender: function () {
+                    applyCurrentVideoHighlight();
+                    moveSampleVideoSelectionControlsToBottom();
+                },
             });
         }
         : function (browserData, showAllFiles) {
@@ -965,13 +983,15 @@ $(document).ready(function () {
             const currentFolder = normalizeSampleFolderPath(browserData && browserData.current_folder, 'video');
             const childFolders = browserData && Array.isArray(browserData.folders) ? browserData.folders : [];
             const fileNames = browserData && Array.isArray(browserData.files) ? browserData.files : [];
+            const $header = buildSampleBrowserHeader('video', currentFolder, Boolean(showAllFiles));
 
-            $wcsSampleVideoPane.empty().append(buildSampleBrowserHeader('video', currentFolder, Boolean(showAllFiles)));
+            $wcsSampleVideoPane.empty();
             if (!showAllFiles) {
                 $wcsSampleVideoPane.append(renderSampleFolderTiles('video', childFolders));
             }
 
             if (!Array.isArray(fileNames) || fileNames.length === 0) {
+                $wcsSampleVideoPane.append($header);
                 return;
             }
 
@@ -1017,7 +1037,9 @@ $(document).ready(function () {
 
             $scrollContainer.append($track);
             $wcsSampleVideoPane.append($scrollContainer);
+            $wcsSampleVideoPane.append($header);
             applyCurrentVideoHighlight();
+            moveSampleVideoSelectionControlsToBottom();
         };
 
     const loadSampleVideos = typeof window.wcsLoadSampleVideos === 'function'
@@ -1049,6 +1071,7 @@ $(document).ready(function () {
                 saveBrowserState: saveSampleVideoBrowserStateToStorage,
                 onLoaded: function () {
                     isSampleVideosLoaded = true;
+                    moveSampleVideoSelectionControlsToBottom();
                 },
             });
         }

@@ -31,18 +31,12 @@ function initHeaderAiDropdown() {
     const toggles = document.querySelectorAll(selector);
 
     toggles.forEach(function (toggleElement) {
-        if (!toggleElement || toggleElement.dataset.wcsDropdownBound === 'true') {
+        if (!toggleElement) {
             return;
         }
 
-        toggleElement.dataset.wcsDropdownBound = 'true';
-        toggleElement.addEventListener('click', function (event) {
-            // Keep dropdown behavior stable across pages by avoiding duplicate document-level handlers.
-            event.preventDefault();
-            event.stopPropagation();
-            const dropdown = window.bootstrap.Dropdown.getOrCreateInstance(toggleElement);
-            dropdown.toggle();
-        });
+        // Ensure dropdown instance exists even in environments where data-api auto-init is flaky.
+        window.bootstrap.Dropdown.getOrCreateInstance(toggleElement);
     });
 }
 

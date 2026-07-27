@@ -22,6 +22,30 @@ function setHeaderMenuCss() {
     });
 }
 
+function initHeaderAiDropdown() {
+    if (!window.bootstrap || typeof window.bootstrap.Dropdown !== 'function') {
+        return;
+    }
+
+    const selector = 'header .nav-item.dropdown > .dropdown-toggle[data-bs-toggle="dropdown"]';
+    const toggles = document.querySelectorAll(selector);
+
+    toggles.forEach(function (toggleElement) {
+        if (!toggleElement || toggleElement.dataset.wcsDropdownBound === 'true') {
+            return;
+        }
+
+        toggleElement.dataset.wcsDropdownBound = 'true';
+        toggleElement.addEventListener('click', function (event) {
+            // Keep dropdown behavior stable across pages by avoiding duplicate document-level handlers.
+            event.preventDefault();
+            event.stopPropagation();
+            const dropdown = window.bootstrap.Dropdown.getOrCreateInstance(toggleElement);
+            dropdown.toggle();
+        });
+    });
+}
+
 function getVehicleDirectionButtonSelector() {
     return '#vehicle-forward, #vehicle-backward, #vehicle-turn-left, #vehicle-turn-right, #vehicle-stop';
 }
@@ -580,4 +604,5 @@ window.wcsEnsureSampleVideosLoaded = wcsEnsureSampleVideosLoaded;
 // 페이지 로드 시 실행 
 $(document).ready(function() {
     setHeaderMenuCss();
+    initHeaderAiDropdown();
 });

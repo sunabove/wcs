@@ -4,6 +4,7 @@
     const $playToggleButton = $("#road-detect-overlay-play-toggle");
     const $loopToggleButton = $("#road-detect-overlay-loop-toggle");
     const $status = $("#road-detect-overlay-status");
+    const $frameCounter = $("#road-detect-overlay-frame-counter");
     const $image = $("#road-detect-overlay-image");
     const $video = $("#road-detect-overlay-video");
     const $viewer = $("#vehicle-urdf-viewer");
@@ -405,6 +406,24 @@
         $status.toggleClass("d-none", !visible);
     }
 
+    function hideOverlayFrameCounter() {
+        if ($frameCounter.length === 0) {
+            return;
+        }
+        $frameCounter.addClass("d-none");
+    }
+
+    function showOverlayFrameCounter(frameNumber) {
+        if ($frameCounter.length === 0) {
+            return;
+        }
+
+        const parsedFrame = Number(frameNumber);
+        const safeFrameNumber = Number.isFinite(parsedFrame) ? Math.max(0, Math.floor(parsedFrame)) : 0;
+        $frameCounter.text("현재 프레임: " + safeFrameNumber);
+        $frameCounter.removeClass("d-none");
+    }
+
     function clearTemporaryStatusMessage() {
         if (temporaryStatusHideTimerId !== null) {
             clearTimeout(temporaryStatusHideTimerId);
@@ -680,6 +699,7 @@
         const sessionToCleanup = String(cameraOverlaySessionId || "");
         cameraOverlaySessionId = "";
         cameraOverlaySelectionKey = "";
+        hideOverlayFrameCounter();
 
         if (!sendCleanup || !sessionToCleanup) {
             return;
@@ -738,6 +758,7 @@
             applyCompactOverlayLayout();
             showOverlay();
             showImageSource("data:image/jpeg;base64," + frameB64);
+            showOverlayFrameCounter(result.frame_number);
 
             // Avoid appending cache-busting query to data URLs in image auto-replay path.
             if (cameraOverlaySessionId) {
@@ -768,6 +789,7 @@
             markOverlayMediaVisibleState();
             applyCompactOverlayLayout();
             showOverlay();
+            showOverlayFrameCounter(0);
             return;
         }
 
@@ -793,6 +815,7 @@
             markOverlayMediaVisibleState();
             applyCompactOverlayLayout();
             showOverlay();
+            showOverlayFrameCounter(0);
             requestCameraOverlayNextFrame();
         }).fail(function () {
             setOverlayStatus(FIRST_FRAME_TIMEOUT_MESSAGE, true);
@@ -1269,6 +1292,7 @@
             return;
         }
 
+        hideOverlayFrameCounter();
         stopCameraOverlayStream(true);
 
         const requestedStreamPath = resolveRoadDetectStreamPath(normalizedFile);
@@ -1301,6 +1325,7 @@
     }
 
     function hideAllMedia(resetMemory = true) {
+        hideOverlayFrameCounter();
         if (resetMemory) {
             lastMediaType = "";
             lastMediaSource = "";

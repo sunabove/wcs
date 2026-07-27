@@ -75,6 +75,26 @@ function formatRunInfoChartTimeLabel(elapsedMs) {
     return `${minutes}:${seconds}`;
 }
 
+function alignToSecondTimestamp(timeMs) {
+    const numericTime = Number(timeMs);
+    if (!Number.isFinite(numericTime)) {
+        return 0;
+    }
+
+    return Math.floor(numericTime / 1000) * 1000;
+}
+
+function formatSecondsFromNowLabel(pointX, axisMaxX) {
+    const numericPointX = Number(pointX);
+    const numericAxisMaxX = Number(axisMaxX);
+    if (!Number.isFinite(numericPointX) || !Number.isFinite(numericAxisMaxX)) {
+        return '0초';
+    }
+
+    const deltaSeconds = Math.max(0, Math.round((numericAxisMaxX - numericPointX) / 1000));
+    return `${deltaSeconds}초`;
+}
+
 function ensureLinearMinTicks(scale, minTickCount = MIN_X_TICK_COUNT) {
     const tickCount = Math.max(2, Number(minTickCount) || 2);
     const min = Number(scale?.min);
@@ -162,7 +182,9 @@ function trimDatasetsToRecentWindow(datasets, windowMs = HISTORY_WINDOW_MS) {
         return;
     }
 
-    const minX = latestX - Math.max(1000, Number(windowMs) || HISTORY_WINDOW_MS);
+    const nowX = alignToSecondTimestamp(Date.now());
+    const referenceMaxX = Math.max(latestX, nowX);
+    const minX = referenceMaxX - Math.max(1000, Number(windowMs) || HISTORY_WINDOW_MS);
     const firstKeepIndex = baseDataset.data.findIndex((point) => Number(point?.x) >= minX);
     if (firstKeepIndex <= 0) {
         return;
@@ -189,7 +211,8 @@ function applyFixedHistoryWindowToXAxis(chart, windowMs = HISTORY_WINDOW_MS) {
     const latestX = hasData ? Number(baseDataset.data[baseDataset.data.length - 1]?.x) : 0;
     const safeLatestX = Number.isFinite(latestX) ? latestX : 0;
 
-    const maxX = Math.max(windowMs, safeLatestX);
+    const nowX = alignToSecondTimestamp(Date.now());
+    const maxX = Math.max(windowMs, safeLatestX, nowX);
     const minX = maxX - windowMs;
     xScale.min = minX;
     xScale.max = maxX;
@@ -293,9 +316,6 @@ function createRunInfoHistoryChart() {
         return;
     }
 
-    const runInfoXAxisLeftUnitText = '%';
-    const runInfoXAxisRightUnitText = '분';
-
     runInfoHistoryState.chart = new Chart(canvas, {
         type: 'line',
         plugins: [],
@@ -380,14 +400,8 @@ function createRunInfoHistoryChart() {
                     ticks: {
                         count: MIN_X_TICK_COUNT,
                         callback(value, index, ticks) {
-                            return getUniqueTimeTickLabel(
-                                value,
-                                index,
-                                ticks,
-                                formatRunInfoChartTimeLabel,
-                                runInfoXAxisLeftUnitText,
-                                runInfoXAxisRightUnitText
-                            );
+                            const axisMaxX = Number(ticks?.[ticks.length - 1]?.value);
+                            return formatSecondsFromNowLabel(value, axisMaxX);
                         },
                         maxRotation: 0,
                         autoSkip: false,
@@ -461,23 +475,22 @@ function pushRunInfoHistoryPoint(forcePush = false) {
     }
 
     runInfoHistoryState.lastPointAt = now;
-    const runInfoElapsedMs = now - runInfoHistoryState.firstPointAt;
-    const runInfoElapsedSecond = Math.max(0, Math.floor(runInfoElapsedMs / 1000));
+    const runInfoPointAt = alignToSecondTimestamp(now);
 
     const runInfoDatasets = runInfoHistoryState.chart.data.datasets;
     const lastDataIndex = runInfoDatasets[0].data.length - 1;
     const lastRunInfoPoint = lastDataIndex >= 0 ? runInfoDatasets[0].data[lastDataIndex] : null;
 
-    if (lastRunInfoPoint && Number(lastRunInfoPoint.x) === (runInfoElapsedSecond * 1000)) {
+    if (lastRunInfoPoint && Number(lastRunInfoPoint.x) === runInfoPointAt) {
         runInfoDatasets[0].data[lastDataIndex].y = latest.batteryPercent;
         runInfoDatasets[1].data[lastDataIndex].y = latest.availableMinutes;
         runInfoDatasets[2].data[lastDataIndex].y = latest.elapsedMinutes;
         runInfoDatasets[3].data[lastDataIndex].y = latest.distanceKm;
     } else {
-        runInfoDatasets[0].data.push({ x: runInfoElapsedSecond * 1000, y: latest.batteryPercent });
-        runInfoDatasets[1].data.push({ x: runInfoElapsedSecond * 1000, y: latest.availableMinutes });
-        runInfoDatasets[2].data.push({ x: runInfoElapsedSecond * 1000, y: latest.elapsedMinutes });
-        runInfoDatasets[3].data.push({ x: runInfoElapsedSecond * 1000, y: latest.distanceKm });
+        runInfoDatasets[0].data.push({ x: runInfoPointAt, y: latest.batteryPercent });
+        runInfoDatasets[1].data.push({ x: runInfoPointAt, y: latest.availableMinutes });
+        runInfoDatasets[2].data.push({ x: runInfoPointAt, y: latest.elapsedMinutes });
+        runInfoDatasets[3].data.push({ x: runInfoPointAt, y: latest.distanceKm });
     }
 
     trimDatasetsToRecentWindow(runInfoDatasets, HISTORY_WINDOW_MS);
@@ -523,9 +536,6 @@ function createVehicleSpeedHistoryChart() {
     if (!canvas || typeof Chart !== 'function') {
         return;
     }
-
-    const vehicleSpeedXAxisLeftUnitText = 'km/h';
-    const vehicleSpeedXAxisRightUnitText = 'm/s²';
 
     vehicleSpeedHistoryState.chart = new Chart(canvas, {
         type: 'line',
@@ -601,14 +611,8 @@ function createVehicleSpeedHistoryChart() {
                     ticks: {
                         count: MIN_X_TICK_COUNT,
                         callback(value, index, ticks) {
-                            return getUniqueTimeTickLabel(
-                                value,
-                                index,
-                                ticks,
-                                formatVehicleSpeedChartTimeLabel,
-                                vehicleSpeedXAxisLeftUnitText,
-                                vehicleSpeedXAxisRightUnitText
-                            );
+                            const axisMaxX = Number(ticks?.[ticks.length - 1]?.value);
+                            return formatSecondsFromNowLabel(value, axisMaxX);
                         },
                         maxRotation: 0,
                         autoSkip: false,
@@ -675,21 +679,20 @@ function pushVehicleSpeedHistoryPoint(forcePush = false) {
     }
 
     vehicleSpeedHistoryState.lastPointAt = now;
-    const vehicleSpeedElapsedMs = now - vehicleSpeedHistoryState.firstPointAt;
-    const vehicleSpeedElapsedSecond = Math.max(0, Math.floor(vehicleSpeedElapsedMs / 1000));
+    const vehicleSpeedPointAt = alignToSecondTimestamp(now);
 
     const vehicleSpeedDatasets = vehicleSpeedHistoryState.chart.data.datasets;
     const lastDataIndex = vehicleSpeedDatasets[0].data.length - 1;
     const lastVehicleSpeedPoint = lastDataIndex >= 0 ? vehicleSpeedDatasets[0].data[lastDataIndex] : null;
 
-    if (lastVehicleSpeedPoint && Number(lastVehicleSpeedPoint.x) === (vehicleSpeedElapsedSecond * 1000)) {
+    if (lastVehicleSpeedPoint && Number(lastVehicleSpeedPoint.x) === vehicleSpeedPointAt) {
         vehicleSpeedDatasets[0].data[lastDataIndex].y = latest.speedKmh;
         vehicleSpeedDatasets[1].data[lastDataIndex].y = latest.maxSpeedKmh;
         vehicleSpeedDatasets[2].data[lastDataIndex].y = latest.accelerationKmhPerSec;
     } else {
-        vehicleSpeedDatasets[0].data.push({ x: vehicleSpeedElapsedSecond * 1000, y: latest.speedKmh });
-        vehicleSpeedDatasets[1].data.push({ x: vehicleSpeedElapsedSecond * 1000, y: latest.maxSpeedKmh });
-        vehicleSpeedDatasets[2].data.push({ x: vehicleSpeedElapsedSecond * 1000, y: latest.accelerationKmhPerSec });
+        vehicleSpeedDatasets[0].data.push({ x: vehicleSpeedPointAt, y: latest.speedKmh });
+        vehicleSpeedDatasets[1].data.push({ x: vehicleSpeedPointAt, y: latest.maxSpeedKmh });
+        vehicleSpeedDatasets[2].data.push({ x: vehicleSpeedPointAt, y: latest.accelerationKmhPerSec });
     }
 
     trimDatasetsToRecentWindow(vehicleSpeedDatasets, HISTORY_WINDOW_MS);

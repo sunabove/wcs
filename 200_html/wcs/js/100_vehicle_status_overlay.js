@@ -52,6 +52,12 @@
     let lastMediaSource = "";
     let lastMediaAspectRatio = 16 / 9;
     let cleanupRequest = null;
+    let cameraOverlaySessionId = "";
+    let cameraOverlaySelectionKey = "";
+    let cameraOverlayPollTimerId = null;
+    let cameraOverlayNextRequest = null;
+    let cameraOverlayCleanupRequest = null;
+    let cameraOverlayInitRequest = null;
     let firstFrameTimeoutId = null;
     let firstFrameRequestToken = 0;
     let lastImageFrameAt = 0;
@@ -593,6 +599,187 @@
             });
         };
 
+    function buildCameraDetectStreamInitUrl(cameraIndex) {
+        return "/fast/camera_detect_stream_init?" + $.param({
+            camera_index: Number(cameraIndex),
+            detect_type: "road_type",
+            remove_noisy_masks: true,
+            show_detect_stats: true,
+            include_pothole: true,
+            pothole_conf: 0.45,
+            mqtt_publish: true,
+            t: Date.now(),
+        });
+    }
+
+    function buildCameraDetectStreamNextUrl(sessionId) {
+        return "/fast/camera_detect_stream_next/" + encodeURIComponent(String(sessionId || "")) + "?" + $.param({ t: Date.now() });
+    }
+
+    function buildCameraDetectStreamCleanupUrl(sessionId) {
+        return "/fast/camera_detect_stream_cleanup/" + encodeURIComponent(String(sessionId || ""));
+    }
+
+    function parseCameraSelection(value) {
+        const text = normalizePath(value).toLowerCase();
+        const matched = text.match(/^camera_(\d+)$/);
+        if (!matched) {
+            return null;
+        }
+
+        const cameraIndex = Number(matched[1]);
+        if (!Number.isFinite(cameraIndex) || cameraIndex < 0) {
+            return null;
+        }
+
+        return {
+            key: text,
+            index: cameraIndex,
+        };
+    }
+
+    function clearCameraOverlayPoll() {
+        if (cameraOverlayPollTimerId !== null) {
+            clearTimeout(cameraOverlayPollTimerId);
+            cameraOverlayPollTimerId = null;
+        }
+    }
+
+    function stopCameraOverlayStream(sendCleanup = true) {
+        clearCameraOverlayPoll();
+
+        if (cameraOverlayNextRequest && typeof cameraOverlayNextRequest.abort === "function") {
+            cameraOverlayNextRequest.abort();
+        }
+        cameraOverlayNextRequest = null;
+
+        if (cameraOverlayInitRequest && typeof cameraOverlayInitRequest.abort === "function") {
+            cameraOverlayInitRequest.abort();
+        }
+        cameraOverlayInitRequest = null;
+
+        const sessionToCleanup = String(cameraOverlaySessionId || "");
+        cameraOverlaySessionId = "";
+        cameraOverlaySelectionKey = "";
+
+        if (!sendCleanup || !sessionToCleanup) {
+            return;
+        }
+
+        if (cameraOverlayCleanupRequest && typeof cameraOverlayCleanupRequest.abort === "function") {
+            cameraOverlayCleanupRequest.abort();
+        }
+
+        cameraOverlayCleanupRequest = $.ajax({
+            url: buildCameraDetectStreamCleanupUrl(sessionToCleanup),
+            method: "POST",
+            timeout: 3000,
+        }).always(function () {
+            cameraOverlayCleanupRequest = null;
+        });
+    }
+
+    function scheduleCameraOverlayNextPoll(delayMs) {
+        clearCameraOverlayPoll();
+        cameraOverlayPollTimerId = setTimeout(function () {
+            requestCameraOverlayNextFrame();
+        }, Math.max(30, Number(delayMs) || 80));
+    }
+
+    function requestCameraOverlayNextFrame() {
+        const sessionId = String(cameraOverlaySessionId || "");
+        if (!sessionId || mediaHiddenByUser) {
+            return;
+        }
+
+        if (cameraOverlayNextRequest && typeof cameraOverlayNextRequest.abort === "function") {
+            cameraOverlayNextRequest.abort();
+        }
+
+        cameraOverlayNextRequest = $.ajax({
+            url: buildCameraDetectStreamNextUrl(sessionId),
+            method: "GET",
+            timeout: 5000,
+        }).done(function (result) {
+            if (sessionId !== String(cameraOverlaySessionId || "")) {
+                return;
+            }
+
+            if (!result || result.has_next === false) {
+                scheduleCameraOverlayNextPoll(180);
+                return;
+            }
+
+            const frameB64 = String(result.frame_detected || result.frame_original || "").trim();
+            if (!frameB64) {
+                scheduleCameraOverlayNextPoll(90);
+                return;
+            }
+
+            applyCompactOverlayLayout();
+            showOverlay();
+            showImageSource("data:image/jpeg;base64," + frameB64);
+
+            // Avoid appending cache-busting query to data URLs in image auto-replay path.
+            if (cameraOverlaySessionId) {
+                lastMediaSource = "";
+            }
+
+            const fps = Number(result.fps || 0);
+            const intervalMs = fps > 0 ? Math.round(1000 / fps) : 80;
+            scheduleCameraOverlayNextPoll(intervalMs);
+        }).fail(function () {
+            if (sessionId !== String(cameraOverlaySessionId || "")) {
+                return;
+            }
+            scheduleCameraOverlayNextPoll(250);
+        }).always(function () {
+            cameraOverlayNextRequest = null;
+        });
+    }
+
+    function startCameraOverlayStream(cameraSelection) {
+        const selection = cameraSelection || null;
+        if (!selection || !Number.isFinite(selection.index)) {
+            return;
+        }
+
+        const selectionKey = String(selection.key || "");
+        if (selectionKey && selectionKey === cameraOverlaySelectionKey && cameraOverlaySessionId) {
+            applyCompactOverlayLayout();
+            showOverlay();
+            return;
+        }
+
+        stopCameraOverlayStream(true);
+        cameraOverlaySelectionKey = selectionKey;
+
+        cameraOverlayInitRequest = $.ajax({
+            url: buildCameraDetectStreamInitUrl(selection.index),
+            method: "POST",
+            timeout: 5000,
+        }).done(function (result) {
+            const sessionId = String(result && result.session_id ? result.session_id : "").trim();
+            if (!sessionId) {
+                setOverlayStatus(FIRST_FRAME_TIMEOUT_MESSAGE, true);
+                return;
+            }
+
+            if (cameraOverlaySelectionKey !== selectionKey) {
+                return;
+            }
+
+            cameraOverlaySessionId = sessionId;
+            applyCompactOverlayLayout();
+            showOverlay();
+            requestCameraOverlayNextFrame();
+        }).fail(function () {
+            setOverlayStatus(FIRST_FRAME_TIMEOUT_MESSAGE, true);
+        }).always(function () {
+            cameraOverlayInitRequest = null;
+        });
+    }
+
     function buildRoadDetectStreamCleanupUrlByPath(filePath) {
         const normalizedPath = normalizePath(filePath);
         if (!normalizedPath) {
@@ -640,6 +827,8 @@
     }
 
     function requestRoadDetectSessionCleanup(fileName) {
+        stopCameraOverlayStream(true);
+
         const cleanupUrlCandidates = [];
 
         const byFileNameUrl = buildRoadDetectStreamCleanupUrl(fileName || latestCurrentVideoFileName);
@@ -684,9 +873,18 @@
         }).fail(function () {
             // Ignore startup cleanup failures; overlay can still work without this.
         });
+
+        $.ajax({
+            url: "/fast/camera_detect_stream_cleanup_all",
+            method: "POST",
+            timeout: 3000,
+        }).fail(function () {
+            // Ignore startup cleanup failures; overlay can still work without this.
+        });
     }
 
     function requestRoadDetectSessionCleanupAll() {
+        stopCameraOverlayStream(true);
         requestRoadDetectSessionCleanupAllOnLoad();
     }
 
@@ -700,6 +898,16 @@
         }
 
         if (!latestCurrentVideoFileName) {
+            return;
+        }
+
+        if (parseCameraSelection(latestCurrentVideoFileName)) {
+            const nowForCamera = Date.now();
+            if ((nowForCamera - lastImageReplayAttemptAt) < IMAGE_STREAM_REPLAY_COOLDOWN_MS) {
+                return;
+            }
+            lastImageReplayAttemptAt = nowForCamera;
+            resolveAndShowCurrentVideo(latestCurrentVideoFileName);
             return;
         }
 
@@ -741,6 +949,11 @@
         }
 
         mediaPlaybackPaused = false;
+
+        if (parseCameraSelection(latestCurrentVideoFileName)) {
+            resolveAndShowCurrentVideo(latestCurrentVideoFileName);
+            return;
+        }
 
         if (lastMediaType === "image" && lastMediaSource) {
             const cacheBustSeparator = lastMediaSource.includes("?") ? "&" : "?";
@@ -941,6 +1154,7 @@
 
         const normalizedFile = normalizePath(fileName);
         latestCurrentVideoFileName = normalizedFile;
+        const cameraSelection = parseCameraSelection(normalizedFile);
 
         // 사용자가 미디어 영역을 숨긴 상태에서는 자동으로 다시 열지 않는다.
         if (mediaHiddenByUser) {
@@ -951,6 +1165,7 @@
         }
 
         if (!normalizedFile) {
+            stopCameraOverlayStream(true);
             requestRoadDetectSessionCleanupAll();
             clearFirstFrameTimeout();
             clearTemporaryStatusMessage();
@@ -961,6 +1176,13 @@
             updateVideoControlButtons();
             return;
         }
+
+        if (cameraSelection) {
+            startCameraOverlayStream(cameraSelection);
+            return;
+        }
+
+        stopCameraOverlayStream(true);
 
         const requestedStreamPath = resolveRoadDetectStreamPath(normalizedFile);
         const currentStreamPath = extractRoadDetectStreamFilePathFromUrl(lastMediaSource);
@@ -1023,6 +1245,7 @@
     }
 
     function hideOverlay() {
+        stopCameraOverlayStream(true);
         requestRoadDetectSessionCleanup(latestCurrentVideoFileName);
         setCloseButtonToShowMode(mediaHiddenByUser);
         hideAllMedia(true);
@@ -1031,6 +1254,7 @@
     }
 
     function hideMediaAreaOnly() {
+        stopCameraOverlayStream(true);
         requestRoadDetectSessionCleanup(latestCurrentVideoFileName);
         clearFirstFrameTimeout();
         clearTemporaryStatusMessage();

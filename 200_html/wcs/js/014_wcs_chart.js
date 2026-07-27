@@ -143,8 +143,29 @@ class WcsHistoryChart {
         Object.entries(this.scales || {}).forEach(([scaleKey, scaleConfig]) => {
             const nextScale = { ...(scaleConfig || {}) };
             const nextTicks = { ...(nextScale.ticks || {}) };
+            const unit = String(nextScale.unit || '').trim();
+            const isYAxisScale = String(nextScale.axis || '').toLowerCase() === 'y' || String(scaleKey || '').toLowerCase().startsWith('y');
 
             nextScale.ticks = nextTicks;
+
+            if (unit && isYAxisScale && nextScale.display !== false) {
+                nextScale.title = {
+                    ...(nextScale.title || {}),
+                    display: true,
+                    text: `(${unit})`,
+                    align: 'end',
+                    color: '#6c757d',
+                    padding: {
+                        top: 0,
+                        bottom: 0,
+                    },
+                    font: {
+                        size: 10,
+                        weight: '600',
+                    },
+                };
+            }
+
             clonedScales[scaleKey] = nextScale;
         });
 

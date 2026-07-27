@@ -12,6 +12,15 @@ $(document).ready(function () {
         : '#vehicle-forward, #vehicle-backward, #vehicle-turn-left, #vehicle-turn-right, #vehicle-stop';
     const wcsSampleVideoItemTemplate = document.getElementById('wcs-sample-video-item-template');
     const wcsCameraDeviceItemTemplate = document.getElementById('wcs-camera-device-item-template');
+    const pendingPublishTimers = {};
+    const vehicleDirectionWheelKeys = ['fl', 'fr', 'rl', 'rr'];
+    const vehicleCommandSpeedScale = {
+        0: 0.0,
+        1: 1.0,
+        2: 0.8,
+        3: 0.6,
+        4: 0.6,
+    };
     const SAMPLE_VIDEO_BROWSER_STORAGE_KEY = 'wcs.setting.sample_video_browser.v1';
     const VIDEO_INPUT_TAB_STORAGE_KEY = 'wcs.setting.video_input_tab.v1';
     const CURRENT_VIDEO_SELECTION_STORAGE_KEY = 'wcs.vehicle.current_video_file_name.v1';
@@ -39,6 +48,8 @@ $(document).ready(function () {
     let isDirectionInitSyncWindow = true;
     let pendingDirectionCommandValue = null;
     let pendingDirectionCommandTimer = null;
+    let lastVehicleCurrSpeedMsSent = null;
+    let lastVehicleDirectionCommandSent = null;
     let videoPublishToastCounter = 0;
 
     function sendMQTTMessage(topic, message, qos = 1) {
@@ -637,21 +648,143 @@ $(document).ready(function () {
     }
 
     function updateVehicleDirectionControlUi(command) {
+        if (typeof window.syncVehicleDirectionButtons === 'function') {
+            const synced = window.syncVehicleDirectionButtons(command, vehicleDirectionButtonSelector);
+            if (synced) {
+                return;
+            }
+        }
+
         const activeButtonId = (typeof window.getVehicleButtonIdByCommand === 'function')
             ? window.getVehicleButtonIdByCommand(command)
             : 'vehicle-stop';
 
         $(vehicleDirectionButtonSelector)
-            .removeClass('active btn-secondary text-white')
-            .addClass('btn-outline-secondary text-black');
+            .removeClass('active text-white')
+            .addClass('text-black');
 
         $('#' + activeButtonId)
-            .removeClass('btn-outline-secondary text-black')
-            .addClass('active btn-secondary text-white');
+            .addClass('active text-white')
+            .removeClass('text-black');
+    }
+
+    function getVehicleWheelRadiusByKey(wheelKey) {
+        const normalizedWheelKey = String(wheelKey || '').trim().toLowerCase();
+        const radius = Number(window.wheelRadiusById?.[normalizedWheelKey]);
+        if (!Number.isFinite(radius) || radius <= 0) {
+            return null;
+        }
+
+        return radius;
+    }
+
+    function hasAllVehicleWheelRadii() {
+        return vehicleDirectionWheelKeys.every((wheelKey) => getVehicleWheelRadiusByKey(wheelKey) !== null);
+    }
+
+    function cancelPendingPublish(topic) {
+        if (pendingPublishTimers[topic]) {
+            clearTimeout(pendingPublishTimers[topic]);
+            pendingPublishTimers[topic] = null;
+        }
+    }
+
+    function publishWhenConnected(topic, payload, retries = 20, intervalMs = 250) {
+        cancelPendingPublish(topic);
+
+        const isConnected = Boolean(window.mqttClient && window.mqttClient.connected);
+        if (isConnected) {
+            sendMQTTMessage(topic, payload, 1);
+            return;
+        }
+
+        if (retries <= 0) {
+            return;
+        }
+
+        pendingPublishTimers[topic] = setTimeout(function () {
+            pendingPublishTimers[topic] = null;
+            publishWhenConnected(topic, payload, retries - 1, intervalMs);
+        }, intervalMs);
+    }
+
+    function buildVehicleWheelAngleSpeedByCommand(command, speedKmh) {
+        const commandNumber = Number(command);
+        const baseSpeedMs = Math.max(0, Number(speedKmh) || 0) / 3.6;
+        const speedScale = vehicleCommandSpeedScale[commandNumber] ?? 1.0;
+        const effectiveSpeedMs = baseSpeedMs * speedScale;
+        const inPlaceTurn = commandNumber === 3 || commandNumber === 4;
+
+        return vehicleDirectionWheelKeys.reduce((accumulator, wheelKey) => {
+            const wheelRadiusM = getVehicleWheelRadiusByKey(wheelKey);
+            if (wheelRadiusM === null) {
+                accumulator[wheelKey] = null;
+                return accumulator;
+            }
+
+            const isLeftWheel = wheelKey === 'fl' || wheelKey === 'rl';
+            let signedSpeedMs = 0;
+
+            switch (commandNumber) {
+                case 1:
+                    signedSpeedMs = effectiveSpeedMs;
+                    break;
+                case 2:
+                    signedSpeedMs = -effectiveSpeedMs;
+                    break;
+                case 3:
+                    signedSpeedMs = isLeftWheel ? -effectiveSpeedMs : effectiveSpeedMs;
+                    break;
+                case 4:
+                    signedSpeedMs = isLeftWheel ? effectiveSpeedMs : -effectiveSpeedMs;
+                    break;
+                case 0:
+                default:
+                    signedSpeedMs = 0;
+                    break;
+            }
+
+            if (!inPlaceTurn && commandNumber !== 0) {
+                signedSpeedMs = commandNumber === 2 ? -Math.abs(signedSpeedMs) : Math.abs(signedSpeedMs);
+            }
+
+            accumulator[wheelKey] = Number((signedSpeedMs / wheelRadiusM).toFixed(3));
+            return accumulator;
+        }, {});
+    }
+
+    function publishVehicleWheelAngleSpeeds(command, speedKmh) {
+        const wheelAngleSpeedByKey = buildVehicleWheelAngleSpeedByCommand(command, speedKmh);
+
+        if (!hasAllVehicleWheelRadii()) {
+            return false;
+        }
+
+        Object.entries(wheelAngleSpeedByKey).forEach(function ([wheelKey, angleSpeed]) {
+            publishWhenConnected(`wheel/${wheelKey}/angle/speed`, angleSpeed);
+        });
+
+        return true;
     }
 
     function sendVehicleDirectionCommand(command) {
         const numericCommand = Number(command);
+        const latestSpeedMs = Number(window.latestVehicleLinearSpeedMs);
+        const sliderMaxKmh = Number.parseFloat($('#vehicle-max-speed').val());
+        const effectiveMaxKmh = Number.isFinite(sliderMaxKmh) ? Math.max(0, sliderMaxKmh) : 0;
+
+        let commandSpeedKmh = Number.isFinite(latestSpeedMs)
+            ? Math.max(0, latestSpeedMs * 3.6)
+            : 0;
+
+        if (numericCommand !== 0 && commandSpeedKmh <= 0 && effectiveMaxKmh > 0) {
+            commandSpeedKmh = Number((effectiveMaxKmh * 0.1).toFixed(1));
+        }
+
+        const speedMs = commandSpeedKmh / 3.6;
+        const roundedSpeedMs = Number(speedMs.toFixed(2));
+        const sameCommand = Number(lastVehicleDirectionCommandSent) === Number(numericCommand);
+        const sameSpeed = lastVehicleCurrSpeedMsSent !== null && Math.abs(roundedSpeedMs - lastVehicleCurrSpeedMsSent) < 0.0001;
 
         isDirectionInitSyncWindow = false;
         if (pendingDirectionCommandTimer) {
@@ -665,8 +798,18 @@ $(document).ready(function () {
             window.suppressAutoStopUntil = Date.now() + 1500;
         }
 
-        updateVehicleDirectionControlUi(command);
-        sendMQTTMessage(vehicleOperationCommandTopic, numericCommand, 1);
+        updateVehicleDirectionControlUi(numericCommand);
+
+        if (sameCommand && sameSpeed) {
+            return;
+        }
+
+        publishWhenConnected('vehicle/linear/speed', roundedSpeedMs);
+        lastVehicleCurrSpeedMsSent = roundedSpeedMs;
+
+        publishWhenConnected(vehicleOperationCommandTopic, numericCommand);
+        publishVehicleWheelAngleSpeeds(numericCommand, commandSpeedKmh);
+        lastVehicleDirectionCommandSent = Number(numericCommand);
     }
 
     function handleVehicleDirectionUpdate(value) {
@@ -1653,6 +1796,13 @@ $(document).ready(function () {
                 }
             }
 
+            if (topic === 'vehicle/linear/speed') {
+                const numericMs = Number.parseFloat(value);
+                if (Number.isFinite(numericMs)) {
+                    lastVehicleCurrSpeedMsSent = Number(numericMs.toFixed(2));
+                }
+            }
+
             if (topic === 'vehicle/surface/state') {
                 const normalized = String(value).trim();
                 if ($(`#surface-state option[value="${normalized}"]`).length > 0) {
@@ -1735,6 +1885,10 @@ $(document).ready(function () {
             }
 
             if (topic === vehicleOperationCommandTopic) {
+                const parsedCommand = Number.parseInt(value, 10);
+                if (Number.isFinite(parsedCommand)) {
+                    lastVehicleDirectionCommandSent = parsedCommand;
+                }
                 handleVehicleDirectionUpdate(value);
             }
 

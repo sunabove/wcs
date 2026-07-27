@@ -232,33 +232,6 @@
                             <tr>
                                 <th scope="row">
                                     <div class="d-flex align-items-center gap-2">
-                                        <i class="bi bi-speedometer2 fs-5"></i>
-                                        <div class="ms-1">
-                                            <h5 class="mb-1">차량 최고 속도 설정</h5>
-                                            <small class="text-muted d-block">차량의 최고 속도 제한값을 조절합니다.</small>
-                                        </div>
-                                    </div>
-                                </th>
-                                <td>
-                                    <div class="d-flex align-items-center gap-2">
-                                        <input
-                                            type="range"
-                                            class="form-range mb-0"
-                                            id="vehicle-max-speed"
-                                            min="0"
-                                            max="100"
-                                            step="1"
-                                            value="50"
-                                        >
-                                        <button type="button" class="btn btn-outline-secondary btn-sm setting-reset-btn" id="reset-vehicle-max-speed">Reset</button>
-                                        <span id="vehicle-max-speed-value" class="badge text-bg-secondary setting-value-badge">50 Km/h</span>
-                                    </div>
-                                </td>
-                            </tr>
-
-                            <tr>
-                                <th scope="row">
-                                    <div class="d-flex align-items-center gap-2">
                                         <i class="bi bi-sign-turn-right fs-5"></i>
                                         <div class="ms-1">
                                             <h5 class="mb-1">차량 방향 제어</h5>
@@ -283,6 +256,33 @@
                                         <button type="button" class="btn btn-outline-secondary text-black fw-bold wcs-direction-btn wcs-direction-stop-btn" id="vehicle-stop">
                                             <i class="bi bi-stop-circle me-2"></i>정지
                                         </button>
+                                    </div>
+                                </td>
+                            </tr>
+
+                            <tr>
+                                <th scope="row">
+                                    <div class="d-flex align-items-center gap-2">
+                                        <i class="bi bi-speedometer2 fs-5"></i>
+                                        <div class="ms-1">
+                                            <h5 class="mb-1">차량 최고 속도 설정</h5>
+                                            <small class="text-muted d-block">차량의 최고 속도 제한값을 조절합니다.</small>
+                                        </div>
+                                    </div>
+                                </th>
+                                <td>
+                                    <div class="d-flex align-items-center gap-2">
+                                        <input
+                                            type="range"
+                                            class="form-range mb-0"
+                                            id="vehicle-max-speed"
+                                            min="0"
+                                            max="100"
+                                            step="1"
+                                            value="50"
+                                        >
+                                        <button type="button" class="btn btn-outline-secondary btn-sm setting-reset-btn" id="reset-vehicle-max-speed">Reset</button>
+                                        <span id="vehicle-max-speed-value" class="badge text-bg-secondary setting-value-badge">50 Km/h</span>
                                     </div>
                                 </td>
                             </tr>

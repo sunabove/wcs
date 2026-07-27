@@ -138,7 +138,7 @@ async def camera_detect_stream_init_service(
     camera_name: str = Query(""),
     remove_noisy_masks: bool = Query(True),
     show_detect_stats: bool = Query(False),
-    show_time_bar: bool = Query(False),
+    show_time_bar: bool = Query(True),
     include_pothole: bool = Query(False),
     pothole_conf: float = Query(0.5, ge=0.0, le=1.0),
     mqtt_publish: bool = Query(False),

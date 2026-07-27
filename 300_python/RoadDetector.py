@@ -1292,7 +1292,7 @@ class RoadDetector:
         x1, y1, x2, y2 = [int(v) for v in roi]
         roi_path.write_text(f"{x1},{y1},{x2},{y2}\n", encoding="utf-8")
 
-    def camera_detect_stream_init(self, camera_index: int, detect_type: str = "road", camera_name: str = "", remove_noisy_masks: bool = True, show_detect_stats: bool = False, show_time_bar: bool = False, include_pothole: bool = False, pothole_conf: float = DEFAULT_POTHOLE_CONF, mqtt_publish: bool = False) -> dict:
+    def camera_detect_stream_init(self, camera_index: int, detect_type: str = "road", camera_name: str = "", remove_noisy_masks: bool = True, show_detect_stats: bool = False, show_time_bar: bool = True, include_pothole: bool = False, pothole_conf: float = DEFAULT_POTHOLE_CONF, mqtt_publish: bool = False) -> dict:
         self._clear_global_stream_stop_requested()
 
         session_id = f"camera_{camera_index}"
@@ -1375,7 +1375,7 @@ class RoadDetector:
         pothole_conf = float(session.get("pothole_conf", self.DEFAULT_POTHOLE_CONF))
         remove_noisy_masks = bool(session.get("remove_noisy_masks", True))
         show_detect_stats = bool(session.get("show_detect_stats", False))
-        show_time_bar = bool(session.get("show_time_bar", False))
+        show_time_bar = bool(session.get("show_time_bar", True))
         detect_enabled = bool(session.get("detect_enabled", True))
         mqtt_publish = bool(session.get("mqtt_publish", False))
         stats_history = session.get("stats_history")

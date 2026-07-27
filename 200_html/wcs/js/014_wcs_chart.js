@@ -1,79 +1,7 @@
-const runInfoHistoryState = {
-    chart: null,
-    labels: [],
-    firstPointAt: 0,
-    latestValues: {
-        batteryPercent: null,
-        availableMinutes: null,
-        elapsedMinutes: null,
-        distanceKm: null,
-    },
-    lastPointAt: 0,
-    maxPoints: 240,
-};
-
-const vehicleSpeedHistoryState = {
-    chart: null,
-    labels: [],
-    firstPointAt: 0,
-    latestValues: {
-        speedKmh: null,
-        maxSpeedKmh: null,
-        accelerationKmhPerSec: null,
-    },
-    lastPointAt: 0,
-    maxPoints: 240,
-};
-
 const MIN_X_TICK_COUNT = 10;
 const HISTORY_WINDOW_MS = 20 * 1000;
 const RUN_INFO_HISTORY_STORAGE_KEY = 'wcs.status.chart.runinfo.v1';
 const VEHICLE_SPEED_HISTORY_STORAGE_KEY = 'wcs.status.chart.speed.v1';
-
-function createXAxisEdgeUnitLabelPlugin(options, pluginId) {
-    const leftUnitText = String(options?.leftUnitText || '');
-    const rightUnitText = String(options?.rightUnitText || '');
-
-    return {
-        id: pluginId,
-        afterDraw(chart) {
-            if (!leftUnitText && !rightUnitText) {
-                return;
-            }
-
-            const { ctx, chartArea } = chart;
-            if (!ctx || !chartArea) {
-                return;
-            }
-
-            const labelY = Math.max(12, chartArea.top - 4);
-
-            ctx.save();
-            ctx.font = '600 11px sans-serif';
-            ctx.fillStyle = '#5f6b76';
-            ctx.textBaseline = 'bottom';
-
-            if (leftUnitText) {
-                ctx.textAlign = 'left';
-                ctx.fillText(leftUnitText, chartArea.left + 2, labelY);
-            }
-
-            if (rightUnitText) {
-                ctx.textAlign = 'right';
-                ctx.fillText(rightUnitText, chartArea.right - 2, labelY);
-            }
-
-            ctx.restore();
-        },
-    };
-}
-
-function formatRunInfoChartTimeLabel(elapsedMs) {
-    const totalSeconds = Math.max(0, Math.floor(Number(elapsedMs) / 1000));
-    const minutes = String(Math.floor(totalSeconds / 60)).padStart(2, '0');
-    const seconds = String(totalSeconds % 60).padStart(2, '0');
-    return `${minutes}:${seconds}`;
-}
 
 function alignToSecondTimestamp(timeMs) {
     const numericTime = Number(timeMs);
@@ -82,17 +10,6 @@ function alignToSecondTimestamp(timeMs) {
     }
 
     return Math.floor(numericTime / 1000) * 1000;
-}
-
-function formatSecondsFromNowLabel(pointX, axisMaxX) {
-    const numericPointX = Number(pointX);
-    const numericAxisMaxX = Number(axisMaxX);
-    if (!Number.isFinite(numericPointX) || !Number.isFinite(numericAxisMaxX)) {
-        return '0초';
-    }
-
-    const deltaSeconds = Math.max(0, Math.round((numericAxisMaxX - numericPointX) / 1000));
-    return `${deltaSeconds}초`;
 }
 
 function formatSequentialTickLabel(index, tickCount = MIN_X_TICK_COUNT) {
@@ -117,18 +34,6 @@ function ensureLinearMinTicks(scale, minTickCount = MIN_X_TICK_COUNT) {
     }
 
     scale.ticks = ticks;
-}
-
-function getUniqueTimeTickLabel(value, index, ticks, formatLabel, leftEdgeLabel = '', rightEdgeLabel = '') {
-    const lastIndex = Math.max(0, ticks.length - 1);
-    if (index === 0) {
-        return leftEdgeLabel;
-    }
-    if (index === lastIndex) {
-        return rightEdgeLabel;
-    }
-
-    return formatLabel(Number(value));
 }
 
 function readJsonFromStorage(key) {
@@ -172,164 +77,297 @@ function sanitizeHistoryDataset(data) {
         .filter((point) => point !== null);
 }
 
-function trimDatasetsToRecentWindow(datasets, windowMs = HISTORY_WINDOW_MS) {
-    if (!Array.isArray(datasets) || datasets.length === 0) {
-        return;
+class WcsHistoryChart {
+    constructor(options) {
+        this.canvasId = options.canvasId;
+        this.storageKey = options.storageKey;
+        this.datasetConfigs = options.datasetConfigs;
+        this.latestValueKeys = options.latestValueKeys;
+        this.initialLatestValues = options.initialLatestValues;
+        this.scales = options.scales;
+        this.metricUpdater = options.metricUpdater;
+
+        this.state = {
+            chart: null,
+            firstPointAt: 0,
+            lastPointAt: 0,
+            maxPoints: 240,
+            latestValues: { ...this.initialLatestValues },
+        };
     }
 
-    const baseDataset = datasets[0];
-    if (!baseDataset || !Array.isArray(baseDataset.data) || baseDataset.data.length === 0) {
-        return;
-    }
-
-    const latestPoint = baseDataset.data[baseDataset.data.length - 1];
-    const latestX = Number(latestPoint?.x);
-    if (!Number.isFinite(latestX)) {
-        return;
-    }
-
-    const nowX = alignToSecondTimestamp(Date.now());
-    const referenceMaxX = Math.max(latestX, nowX);
-    const minX = referenceMaxX - Math.max(1000, Number(windowMs) || HISTORY_WINDOW_MS);
-    const firstKeepIndex = baseDataset.data.findIndex((point) => Number(point?.x) >= minX);
-    if (firstKeepIndex <= 0) {
-        return;
-    }
-
-    datasets.forEach((dataset) => {
-        if (!Array.isArray(dataset.data)) {
+    createChart() {
+        const canvas = document.getElementById(this.canvasId);
+        if (!canvas || typeof Chart !== 'function') {
             return;
         }
 
-        dataset.data.splice(0, firstKeepIndex);
-    });
-}
+        this.state.chart = new Chart(canvas, {
+            type: 'line',
+            plugins: [],
+            data: {
+                datasets: this.datasetConfigs.map((config) => ({
+                    ...config,
+                    data: [],
+                })),
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                animation: false,
+                layout: {
+                    padding: {
+                        top: 8,
+                        bottom: 6,
+                    },
+                },
+                interaction: {
+                    mode: 'index',
+                    intersect: false,
+                },
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: {
+                            boxWidth: 8,
+                            boxHeight: 8,
+                            font: {
+                                size: 10,
+                            },
+                            padding: 10,
+                            usePointStyle: true,
+                        },
+                    },
+                },
+                scales: {
+                    x: {
+                        type: 'linear',
+                        afterBuildTicks(scale) {
+                            ensureLinearMinTicks(scale, MIN_X_TICK_COUNT);
+                        },
+                        ticks: {
+                            count: MIN_X_TICK_COUNT,
+                            callback(value, index, ticks) {
+                                return formatSequentialTickLabel(index, ticks?.length);
+                            },
+                            maxRotation: 0,
+                            autoSkip: false,
+                        },
+                        grid: {
+                            color: 'rgba(173, 181, 189, 0.2)',
+                        },
+                    },
+                    ...this.scales,
+                },
+            },
+        });
 
-function applyFixedHistoryWindowToXAxis(chart, windowMs = HISTORY_WINDOW_MS) {
-    const xScale = chart?.options?.scales?.x;
-    const datasets = chart?.data?.datasets;
-    if (!xScale || !Array.isArray(datasets) || datasets.length === 0) {
-        return;
+        this.restoreFromStorage();
+        this.applyFixedHistoryWindowToXAxis();
+        this.state.chart.update('none');
     }
 
-    const baseDataset = datasets[0];
-    const hasData = Array.isArray(baseDataset?.data) && baseDataset.data.length > 0;
-    const latestX = hasData ? Number(baseDataset.data[baseDataset.data.length - 1]?.x) : 0;
-    const safeLatestX = Number.isFinite(latestX) ? latestX : 0;
+    updateMetric(topic, value) {
+        const numericValue = Number(value);
+        if (!Number.isFinite(numericValue)) {
+            return;
+        }
 
-    const nowX = alignToSecondTimestamp(Date.now());
-    const maxX = Math.max(windowMs, safeLatestX, nowX);
-    const minX = maxX - windowMs;
-    xScale.min = minX;
-    xScale.max = maxX;
-}
+        const isUpdated = this.metricUpdater(topic, numericValue, this.state.latestValues);
+        if (!isUpdated) {
+            return;
+        }
 
-function saveRunInfoHistoryToStorage() {
-    const chart = runInfoHistoryState.chart;
-    if (!chart || !Array.isArray(chart.data?.datasets)) {
-        return;
+        this.pushHistoryPoint();
     }
 
-    const payload = {
-        firstPointAt: Number(runInfoHistoryState.firstPointAt) || 0,
-        lastPointAt: Number(runInfoHistoryState.lastPointAt) || 0,
-        latestValues: runInfoHistoryState.latestValues,
-        datasets: chart.data.datasets.map((dataset) => sanitizeHistoryDataset(dataset.data)),
-        savedAt: Date.now(),
-    };
+    pushHistoryPoint(forcePush = false) {
+        if (!this.state.chart) {
+            return;
+        }
 
-    writeJsonToStorage(RUN_INFO_HISTORY_STORAGE_KEY, payload);
-}
+        const hasAnyValue = Object.values(this.state.latestValues).some((value) => Number.isFinite(value));
+        if (!hasAnyValue) {
+            return;
+        }
 
-function restoreRunInfoHistoryFromStorage() {
-    const chart = runInfoHistoryState.chart;
-    if (!chart || !Array.isArray(chart.data?.datasets)) {
-        return;
+        const now = Date.now();
+        if (!forcePush && this.state.lastPointAt > 0 && (now - this.state.lastPointAt) < 900) {
+            return;
+        }
+
+        if (this.state.firstPointAt === 0) {
+            this.state.firstPointAt = now;
+        }
+
+        this.state.lastPointAt = now;
+        const pointX = alignToSecondTimestamp(now);
+
+        const datasets = this.state.chart.data.datasets;
+        const lastDataIndex = datasets[0].data.length - 1;
+        const lastPoint = lastDataIndex >= 0 ? datasets[0].data[lastDataIndex] : null;
+
+        if (lastPoint && Number(lastPoint.x) === pointX) {
+            this.latestValueKeys.forEach((key, datasetIndex) => {
+                datasets[datasetIndex].data[lastDataIndex].y = this.state.latestValues[key];
+            });
+        } else {
+            this.latestValueKeys.forEach((key, datasetIndex) => {
+                datasets[datasetIndex].data.push({ x: pointX, y: this.state.latestValues[key] });
+            });
+        }
+
+        this.trimDatasetsToRecentWindow();
+
+        if (datasets[0].data.length > this.state.maxPoints) {
+            datasets.forEach((dataset) => {
+                dataset.data.shift();
+            });
+        }
+
+        this.applyFixedHistoryWindowToXAxis();
+        this.state.chart.update('none');
+        this.saveToStorage();
     }
 
-    const payload = readJsonFromStorage(RUN_INFO_HISTORY_STORAGE_KEY);
-    if (!payload || !Array.isArray(payload.datasets)) {
-        return;
+    trimDatasetsToRecentWindow(windowMs = HISTORY_WINDOW_MS) {
+        const datasets = this.state.chart?.data?.datasets;
+        if (!Array.isArray(datasets) || datasets.length === 0) {
+            return;
+        }
+
+        const baseDataset = datasets[0];
+        if (!baseDataset || !Array.isArray(baseDataset.data) || baseDataset.data.length === 0) {
+            return;
+        }
+
+        const latestPoint = baseDataset.data[baseDataset.data.length - 1];
+        const latestX = Number(latestPoint?.x);
+        if (!Number.isFinite(latestX)) {
+            return;
+        }
+
+        const nowX = alignToSecondTimestamp(Date.now());
+        const referenceMaxX = Math.max(latestX, nowX);
+        const minX = referenceMaxX - Math.max(1000, Number(windowMs) || HISTORY_WINDOW_MS);
+
+        const firstKeepIndex = baseDataset.data.findIndex((point) => Number(point?.x) >= minX);
+        if (firstKeepIndex <= 0) {
+            return;
+        }
+
+        datasets.forEach((dataset) => {
+            if (!Array.isArray(dataset.data)) {
+                return;
+            }
+
+            dataset.data.splice(0, firstKeepIndex);
+        });
     }
 
-    chart.data.datasets.forEach((dataset, index) => {
-        dataset.data = sanitizeHistoryDataset(payload.datasets[index]);
-    });
-    trimDatasetsToRecentWindow(chart.data.datasets, HISTORY_WINDOW_MS);
+    applyFixedHistoryWindowToXAxis(windowMs = HISTORY_WINDOW_MS) {
+        const chart = this.state.chart;
+        const xScale = chart?.options?.scales?.x;
+        const datasets = chart?.data?.datasets;
+        if (!xScale || !Array.isArray(datasets) || datasets.length === 0) {
+            return;
+        }
 
-    runInfoHistoryState.firstPointAt = Number(payload.firstPointAt) || 0;
-    runInfoHistoryState.lastPointAt = Number(payload.lastPointAt) || 0;
+        const baseDataset = datasets[0];
+        const hasData = Array.isArray(baseDataset?.data) && baseDataset.data.length > 0;
+        const latestX = hasData ? Number(baseDataset.data[baseDataset.data.length - 1]?.x) : 0;
+        const safeLatestX = Number.isFinite(latestX) ? latestX : 0;
 
-    if (payload.latestValues && typeof payload.latestValues === 'object') {
-        runInfoHistoryState.latestValues = {
-            ...runInfoHistoryState.latestValues,
-            ...payload.latestValues,
+        const nowX = alignToSecondTimestamp(Date.now());
+        const maxX = Math.max(windowMs, safeLatestX, nowX);
+        const minX = maxX - windowMs;
+        xScale.min = minX;
+        xScale.max = maxX;
+    }
+
+    saveToStorage() {
+        const chart = this.state.chart;
+        if (!chart || !Array.isArray(chart.data?.datasets)) {
+            return;
+        }
+
+        const payload = {
+            firstPointAt: Number(this.state.firstPointAt) || 0,
+            lastPointAt: Number(this.state.lastPointAt) || 0,
+            latestValues: this.state.latestValues,
+            datasets: chart.data.datasets.map((dataset) => sanitizeHistoryDataset(dataset.data)),
+            savedAt: Date.now(),
         };
+
+        writeJsonToStorage(this.storageKey, payload);
     }
 
-    chart.update('none');
+    restoreFromStorage() {
+        const chart = this.state.chart;
+        if (!chart || !Array.isArray(chart.data?.datasets)) {
+            return;
+        }
+
+        const payload = readJsonFromStorage(this.storageKey);
+        if (!payload || !Array.isArray(payload.datasets)) {
+            return;
+        }
+
+        chart.data.datasets.forEach((dataset, index) => {
+            dataset.data = sanitizeHistoryDataset(payload.datasets[index]);
+        });
+
+        this.trimDatasetsToRecentWindow(HISTORY_WINDOW_MS);
+
+        this.state.firstPointAt = Number(payload.firstPointAt) || 0;
+        this.state.lastPointAt = Number(payload.lastPointAt) || 0;
+
+        if (payload.latestValues && typeof payload.latestValues === 'object') {
+            this.state.latestValues = {
+                ...this.state.latestValues,
+                ...payload.latestValues,
+            };
+        }
+
+        chart.update('none');
+    }
 }
 
-function saveVehicleSpeedHistoryToStorage() {
-    const chart = vehicleSpeedHistoryState.chart;
-    if (!chart || !Array.isArray(chart.data?.datasets)) {
-        return;
-    }
+class WcsChartManager {
+    constructor() {
+        this.runInfoChart = new WcsHistoryChart({
+            canvasId: 'run-info-history-chart',
+            storageKey: RUN_INFO_HISTORY_STORAGE_KEY,
+            latestValueKeys: ['batteryPercent', 'availableMinutes', 'elapsedMinutes', 'distanceKm'],
+            initialLatestValues: {
+                batteryPercent: null,
+                availableMinutes: null,
+                elapsedMinutes: null,
+                distanceKm: null,
+            },
+            metricUpdater(topic, numericValue, latestValues) {
+                if (topic === 'vehicle/battery/remain_amount') {
+                    latestValues.batteryPercent = numericValue;
+                    return true;
+                }
+                if (topic === 'vehicle/drive/available_time') {
+                    latestValues.availableMinutes = numericValue / 60;
+                    return true;
+                }
+                if (topic === 'vehicle/drive/elapsed_time') {
+                    latestValues.elapsedMinutes = numericValue / 60;
+                    return true;
+                }
+                if (topic === 'vehicle/drive/total_distance') {
+                    latestValues.distanceKm = numericValue / 1000;
+                    return true;
+                }
 
-    const payload = {
-        firstPointAt: Number(vehicleSpeedHistoryState.firstPointAt) || 0,
-        lastPointAt: Number(vehicleSpeedHistoryState.lastPointAt) || 0,
-        latestValues: vehicleSpeedHistoryState.latestValues,
-        datasets: chart.data.datasets.map((dataset) => sanitizeHistoryDataset(dataset.data)),
-        savedAt: Date.now(),
-    };
-
-    writeJsonToStorage(VEHICLE_SPEED_HISTORY_STORAGE_KEY, payload);
-}
-
-function restoreVehicleSpeedHistoryFromStorage() {
-    const chart = vehicleSpeedHistoryState.chart;
-    if (!chart || !Array.isArray(chart.data?.datasets)) {
-        return;
-    }
-
-    const payload = readJsonFromStorage(VEHICLE_SPEED_HISTORY_STORAGE_KEY);
-    if (!payload || !Array.isArray(payload.datasets)) {
-        return;
-    }
-
-    chart.data.datasets.forEach((dataset, index) => {
-        dataset.data = sanitizeHistoryDataset(payload.datasets[index]);
-    });
-    trimDatasetsToRecentWindow(chart.data.datasets, HISTORY_WINDOW_MS);
-
-    vehicleSpeedHistoryState.firstPointAt = Number(payload.firstPointAt) || 0;
-    vehicleSpeedHistoryState.lastPointAt = Number(payload.lastPointAt) || 0;
-
-    if (payload.latestValues && typeof payload.latestValues === 'object') {
-        vehicleSpeedHistoryState.latestValues = {
-            ...vehicleSpeedHistoryState.latestValues,
-            ...payload.latestValues,
-        };
-    }
-
-    chart.update('none');
-}
-
-function createRunInfoHistoryChart() {
-    const canvas = document.getElementById('run-info-history-chart');
-    if (!canvas || typeof Chart !== 'function') {
-        return;
-    }
-
-    runInfoHistoryState.chart = new Chart(canvas, {
-        type: 'line',
-        plugins: [],
-        data: {
-            datasets: [
+                return false;
+            },
+            datasetConfigs: [
                 {
                     label: '배터리(%)',
-                    data: [],
                     borderColor: '#2f9e44',
                     backgroundColor: 'rgba(47, 158, 68, 0.12)',
                     yAxisID: 'yBattery',
@@ -339,7 +377,6 @@ function createRunInfoHistoryChart() {
                 },
                 {
                     label: '주행가능',
-                    data: [],
                     borderColor: '#1c7ed6',
                     backgroundColor: 'rgba(28, 126, 214, 0.12)',
                     yAxisID: 'yTime',
@@ -349,7 +386,6 @@ function createRunInfoHistoryChart() {
                 },
                 {
                     label: '주행시간',
-                    data: [],
                     borderColor: '#f08c00',
                     backgroundColor: 'rgba(240, 140, 0, 0.12)',
                     yAxisID: 'yTime',
@@ -359,7 +395,6 @@ function createRunInfoHistoryChart() {
                 },
                 {
                     label: '주행거리',
-                    data: [],
                     borderColor: '#6741d9',
                     backgroundColor: 'rgba(103, 65, 217, 0.12)',
                     yAxisID: 'yDistance',
@@ -368,53 +403,7 @@ function createRunInfoHistoryChart() {
                     borderWidth: 2,
                 },
             ],
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            animation: false,
-            layout: {
-                padding: {
-                    top: 8,
-                    bottom: 6,
-                },
-            },
-            interaction: {
-                mode: 'index',
-                intersect: false,
-            },
-            plugins: {
-                legend: {
-                    position: 'bottom',
-                    labels: {
-                        boxWidth: 8,
-                        boxHeight: 8,
-                        font: {
-                            size: 10,
-                        },
-                        padding: 10,
-                        usePointStyle: true,
-                    },
-                },
-            },
             scales: {
-                x: {
-                    type: 'linear',
-                    afterBuildTicks(scale) {
-                        ensureLinearMinTicks(scale, MIN_X_TICK_COUNT);
-                    },
-                    ticks: {
-                        count: MIN_X_TICK_COUNT,
-                        callback(value, index, ticks) {
-                            return formatSequentialTickLabel(index, ticks?.length);
-                        },
-                        maxRotation: 0,
-                        autoSkip: false,
-                    },
-                    grid: {
-                        color: 'rgba(173, 181, 189, 0.2)',
-                    },
-                },
                 yBattery: {
                     type: 'linear',
                     position: 'left',
@@ -451,105 +440,36 @@ function createRunInfoHistoryChart() {
                     },
                 },
             },
-        },
-    });
-
-    restoreRunInfoHistoryFromStorage();
-    applyFixedHistoryWindowToXAxis(runInfoHistoryState.chart, HISTORY_WINDOW_MS);
-    runInfoHistoryState.chart.update('none');
-}
-
-function pushRunInfoHistoryPoint(forcePush = false) {
-    if (!runInfoHistoryState.chart) {
-        return;
-    }
-
-    const latest = runInfoHistoryState.latestValues;
-    const hasAnyValue = Object.values(latest).some((value) => Number.isFinite(value));
-    if (!hasAnyValue) {
-        return;
-    }
-
-    const now = Date.now();
-    if (!forcePush && runInfoHistoryState.lastPointAt > 0 && (now - runInfoHistoryState.lastPointAt) < 900) {
-        return;
-    }
-
-    if (runInfoHistoryState.firstPointAt === 0) {
-        runInfoHistoryState.firstPointAt = now;
-    }
-
-    runInfoHistoryState.lastPointAt = now;
-    const runInfoPointAt = alignToSecondTimestamp(now);
-
-    const runInfoDatasets = runInfoHistoryState.chart.data.datasets;
-    const lastDataIndex = runInfoDatasets[0].data.length - 1;
-    const lastRunInfoPoint = lastDataIndex >= 0 ? runInfoDatasets[0].data[lastDataIndex] : null;
-
-    if (lastRunInfoPoint && Number(lastRunInfoPoint.x) === runInfoPointAt) {
-        runInfoDatasets[0].data[lastDataIndex].y = latest.batteryPercent;
-        runInfoDatasets[1].data[lastDataIndex].y = latest.availableMinutes;
-        runInfoDatasets[2].data[lastDataIndex].y = latest.elapsedMinutes;
-        runInfoDatasets[3].data[lastDataIndex].y = latest.distanceKm;
-    } else {
-        runInfoDatasets[0].data.push({ x: runInfoPointAt, y: latest.batteryPercent });
-        runInfoDatasets[1].data.push({ x: runInfoPointAt, y: latest.availableMinutes });
-        runInfoDatasets[2].data.push({ x: runInfoPointAt, y: latest.elapsedMinutes });
-        runInfoDatasets[3].data.push({ x: runInfoPointAt, y: latest.distanceKm });
-    }
-
-    trimDatasetsToRecentWindow(runInfoDatasets, HISTORY_WINDOW_MS);
-
-    if (runInfoHistoryState.chart.data.datasets[0].data.length > runInfoHistoryState.maxPoints) {
-        runInfoHistoryState.chart.data.datasets.forEach((dataset) => {
-            dataset.data.shift();
         });
-    }
 
-    applyFixedHistoryWindowToXAxis(runInfoHistoryState.chart, HISTORY_WINDOW_MS);
-    runInfoHistoryState.chart.update('none');
-    saveRunInfoHistoryToStorage();
-}
+        this.vehicleSpeedChart = new WcsHistoryChart({
+            canvasId: 'vehicle-speed-history-chart',
+            storageKey: VEHICLE_SPEED_HISTORY_STORAGE_KEY,
+            latestValueKeys: ['speedKmh', 'maxSpeedKmh', 'accelerationKmhPerSec'],
+            initialLatestValues: {
+                speedKmh: null,
+                maxSpeedKmh: null,
+                accelerationKmhPerSec: null,
+            },
+            metricUpdater(topic, numericValue, latestValues) {
+                if (topic === 'vehicle/linear/speed') {
+                    latestValues.speedKmh = numericValue * 3.6;
+                    return true;
+                }
+                if (topic === 'vehicle/linear/max_speed') {
+                    latestValues.maxSpeedKmh = numericValue * 3.6;
+                    return true;
+                }
+                if (topic.includes('/acceleration')) {
+                    latestValues.accelerationKmhPerSec = numericValue * 3.6;
+                    return true;
+                }
 
-function updateRunInfoHistoryMetric(topic, value) {
-    const numericValue = Number(value);
-    if (!Number.isFinite(numericValue)) {
-        return;
-    }
-
-    if (topic === 'vehicle/battery/remain_amount') {
-        runInfoHistoryState.latestValues.batteryPercent = numericValue;
-    } else if (topic === 'vehicle/drive/available_time') {
-        runInfoHistoryState.latestValues.availableMinutes = numericValue / 60;
-    } else if (topic === 'vehicle/drive/elapsed_time') {
-        runInfoHistoryState.latestValues.elapsedMinutes = numericValue / 60;
-    } else if (topic === 'vehicle/drive/total_distance') {
-        runInfoHistoryState.latestValues.distanceKm = numericValue / 1000;
-    } else {
-        return;
-    }
-
-    pushRunInfoHistoryPoint();
-}
-
-function formatVehicleSpeedChartTimeLabel(dateValue) {
-    return formatRunInfoChartTimeLabel(dateValue);
-}
-
-function createVehicleSpeedHistoryChart() {
-    const canvas = document.getElementById('vehicle-speed-history-chart');
-    if (!canvas || typeof Chart !== 'function') {
-        return;
-    }
-
-    vehicleSpeedHistoryState.chart = new Chart(canvas, {
-        type: 'line',
-        plugins: [],
-        data: {
-            datasets: [
+                return false;
+            },
+            datasetConfigs: [
                 {
                     label: '현재 속도',
-                    data: [],
                     borderColor: '#228be6',
                     backgroundColor: 'rgba(34, 139, 230, 0.12)',
                     yAxisID: 'ySpeed',
@@ -559,7 +479,6 @@ function createVehicleSpeedHistoryChart() {
                 },
                 {
                     label: '최고 속도',
-                    data: [],
                     borderColor: '#12b886',
                     backgroundColor: 'rgba(18, 184, 134, 0.12)',
                     yAxisID: 'ySpeed',
@@ -569,7 +488,6 @@ function createVehicleSpeedHistoryChart() {
                 },
                 {
                     label: '가속도',
-                    data: [],
                     borderColor: '#f08c00',
                     backgroundColor: 'rgba(240, 140, 0, 0.12)',
                     yAxisID: 'yAcceleration',
@@ -578,53 +496,7 @@ function createVehicleSpeedHistoryChart() {
                     borderWidth: 2,
                 },
             ],
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            animation: false,
-            layout: {
-                padding: {
-                    top: 8,
-                    bottom: 6,
-                },
-            },
-            interaction: {
-                mode: 'index',
-                intersect: false,
-            },
-            plugins: {
-                legend: {
-                    position: 'bottom',
-                    labels: {
-                        boxWidth: 8,
-                        boxHeight: 8,
-                        font: {
-                            size: 10,
-                        },
-                        padding: 10,
-                        usePointStyle: true,
-                    },
-                },
-            },
             scales: {
-                x: {
-                    type: 'linear',
-                    afterBuildTicks(scale) {
-                        ensureLinearMinTicks(scale, MIN_X_TICK_COUNT);
-                    },
-                    ticks: {
-                        count: MIN_X_TICK_COUNT,
-                        callback(value, index, ticks) {
-                            return formatSequentialTickLabel(index, ticks?.length);
-                        },
-                        maxRotation: 0,
-                        autoSkip: false,
-                    },
-                    grid: {
-                        color: 'rgba(173, 181, 189, 0.2)',
-                    },
-                },
                 ySpeed: {
                     type: 'linear',
                     position: 'left',
@@ -654,79 +526,45 @@ function createVehicleSpeedHistoryChart() {
                     },
                 },
             },
-        },
-    });
-
-    restoreVehicleSpeedHistoryFromStorage();
-    applyFixedHistoryWindowToXAxis(vehicleSpeedHistoryState.chart, HISTORY_WINDOW_MS);
-    vehicleSpeedHistoryState.chart.update('none');
-}
-
-function pushVehicleSpeedHistoryPoint(forcePush = false) {
-    if (!vehicleSpeedHistoryState.chart) {
-        return;
-    }
-
-    const latest = vehicleSpeedHistoryState.latestValues;
-    const hasAnyValue = Object.values(latest).some((value) => Number.isFinite(value));
-    if (!hasAnyValue) {
-        return;
-    }
-
-    const now = Date.now();
-    if (!forcePush && vehicleSpeedHistoryState.lastPointAt > 0 && (now - vehicleSpeedHistoryState.lastPointAt) < 900) {
-        return;
-    }
-
-    if (vehicleSpeedHistoryState.firstPointAt === 0) {
-        vehicleSpeedHistoryState.firstPointAt = now;
-    }
-
-    vehicleSpeedHistoryState.lastPointAt = now;
-    const vehicleSpeedPointAt = alignToSecondTimestamp(now);
-
-    const vehicleSpeedDatasets = vehicleSpeedHistoryState.chart.data.datasets;
-    const lastDataIndex = vehicleSpeedDatasets[0].data.length - 1;
-    const lastVehicleSpeedPoint = lastDataIndex >= 0 ? vehicleSpeedDatasets[0].data[lastDataIndex] : null;
-
-    if (lastVehicleSpeedPoint && Number(lastVehicleSpeedPoint.x) === vehicleSpeedPointAt) {
-        vehicleSpeedDatasets[0].data[lastDataIndex].y = latest.speedKmh;
-        vehicleSpeedDatasets[1].data[lastDataIndex].y = latest.maxSpeedKmh;
-        vehicleSpeedDatasets[2].data[lastDataIndex].y = latest.accelerationKmhPerSec;
-    } else {
-        vehicleSpeedDatasets[0].data.push({ x: vehicleSpeedPointAt, y: latest.speedKmh });
-        vehicleSpeedDatasets[1].data.push({ x: vehicleSpeedPointAt, y: latest.maxSpeedKmh });
-        vehicleSpeedDatasets[2].data.push({ x: vehicleSpeedPointAt, y: latest.accelerationKmhPerSec });
-    }
-
-    trimDatasetsToRecentWindow(vehicleSpeedDatasets, HISTORY_WINDOW_MS);
-
-    if (vehicleSpeedHistoryState.chart.data.datasets[0].data.length > vehicleSpeedHistoryState.maxPoints) {
-        vehicleSpeedHistoryState.chart.data.datasets.forEach((dataset) => {
-            dataset.data.shift();
         });
     }
 
-    applyFixedHistoryWindowToXAxis(vehicleSpeedHistoryState.chart, HISTORY_WINDOW_MS);
-    vehicleSpeedHistoryState.chart.update('none');
-    saveVehicleSpeedHistoryToStorage();
+    createRunInfoHistoryChart() {
+        this.runInfoChart.createChart();
+    }
+
+    createVehicleSpeedHistoryChart() {
+        this.vehicleSpeedChart.createChart();
+    }
+
+    updateRunInfoHistoryMetric(topic, value) {
+        this.runInfoChart.updateMetric(topic, value);
+    }
+
+    updateVehicleSpeedHistoryMetric(topic, value) {
+        this.vehicleSpeedChart.updateMetric(topic, value);
+    }
+}
+
+const wcsChartManager = new WcsChartManager();
+
+function createRunInfoHistoryChart() {
+    wcsChartManager.createRunInfoHistoryChart();
+}
+
+function createVehicleSpeedHistoryChart() {
+    wcsChartManager.createVehicleSpeedHistoryChart();
+}
+
+function updateRunInfoHistoryMetric(topic, value) {
+    wcsChartManager.updateRunInfoHistoryMetric(topic, value);
 }
 
 function updateVehicleSpeedHistoryMetric(topic, value) {
-    const numericValue = Number(value);
-    if (!Number.isFinite(numericValue)) {
-        return;
-    }
-
-    if (topic === 'vehicle/linear/speed') {
-        vehicleSpeedHistoryState.latestValues.speedKmh = numericValue * 3.6;
-    } else if (topic === 'vehicle/linear/max_speed') {
-        vehicleSpeedHistoryState.latestValues.maxSpeedKmh = numericValue * 3.6;
-    } else if (topic.includes('/acceleration')) {
-        vehicleSpeedHistoryState.latestValues.accelerationKmhPerSec = numericValue * 3.6;
-    } else {
-        return;
-    }
-
-    pushVehicleSpeedHistoryPoint();
+    wcsChartManager.updateVehicleSpeedHistoryMetric(topic, value);
 }
+
+window.createRunInfoHistoryChart = createRunInfoHistoryChart;
+window.createVehicleSpeedHistoryChart = createVehicleSpeedHistoryChart;
+window.updateRunInfoHistoryMetric = updateRunInfoHistoryMetric;
+window.updateVehicleSpeedHistoryMetric = updateVehicleSpeedHistoryMetric;

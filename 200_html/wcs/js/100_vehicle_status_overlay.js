@@ -1507,18 +1507,27 @@
         }
 
         if (topicText === "ai/road/overlay/image_url") {
+            if (mediaHiddenByUser) {
+                return;
+            }
             applyDefaultOverlayLayout();
             showImageSource(String(value || ""));
             return;
         }
 
         if (topicText === "ai/road/overlay/video_url") {
+            if (mediaHiddenByUser) {
+                return;
+            }
             applyDefaultOverlayLayout();
             showVideoSource(String(value || ""));
             return;
         }
 
         if (topicText === "ai/road/overlay/frame_b64") {
+            if (mediaHiddenByUser) {
+                return;
+            }
             applyDefaultOverlayLayout();
             const base64 = String(value || "").trim();
             if (!base64) {
@@ -1562,6 +1571,8 @@
         const hasKnownMediaSource = !!String(lastMediaSource || "").trim();
         const hasVideoSource = !!String($video.attr("src") || "").trim();
         const hasImageSource = !!String($image.attr("src") || "").trim();
+        const cameraSelection = parseCameraSelection(latestCurrentVideoFileName);
+        const isCameraSelectionActive = !!cameraSelection;
         if (!hasSelectedVideoFile && !hasKnownMediaSource && !hasVideoSource && !hasImageSource) {
             showOverlayToast(NO_SELECTED_VIDEO_MESSAGE, "warning", this);
             return;
@@ -1573,14 +1584,16 @@
         }
 
         const videoElement = $video[0];
-        const hasImageMediaSource = !!String(lastMediaSource || "").trim();
+        const hasImageMediaSource = !!String(lastMediaSource || "").trim() || isCameraSelectionActive;
 
         if (lastMediaType === "image" && hasImageMediaSource) {
             if (mediaPlaybackPaused) {
                 mediaPlaybackPaused = false;
                 setOverlayStatus("", false);
 
-                if (latestCurrentVideoFileName) {
+                if (isCameraSelectionActive && cameraSelection) {
+                    startCameraOverlayStream(cameraSelection);
+                } else if (latestCurrentVideoFileName) {
                     resolveAndShowCurrentVideo(latestCurrentVideoFileName);
                 } else {
                     const cacheBustSeparator = lastMediaSource.includes("?") ? "&" : "?";
@@ -1588,8 +1601,12 @@
                 }
             } else {
                 mediaPlaybackPaused = true;
-                freezeCurrentImageFrameForPause();
-                requestRoadDetectSessionCleanup(latestCurrentVideoFileName);
+                if (isCameraSelectionActive) {
+                    stopCameraOverlayStream(true);
+                } else {
+                    freezeCurrentImageFrameForPause();
+                    requestRoadDetectSessionCleanup(latestCurrentVideoFileName);
+                }
                 setOverlayStatus("일시 정지", true);
             }
             updateVideoControlButtons();

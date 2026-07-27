@@ -14,6 +14,7 @@ $(document).ready(function () {
     const wcsCameraDeviceItemTemplate = document.getElementById('wcs-camera-device-item-template');
     const SAMPLE_VIDEO_BROWSER_STORAGE_KEY = 'wcs.setting.sample_video_browser.v1';
     const VIDEO_INPUT_TAB_STORAGE_KEY = 'wcs.setting.video_input_tab.v1';
+    const CURRENT_VIDEO_SELECTION_STORAGE_KEY = 'wcs.vehicle.current_video_file_name.v1';
     const OBSTACLE_SENSOR_DEFINITIONS = [
         { id: 'ToF', count: 4, target: '거리,장애물', enabled: true },
         { id: 'IMU', count: 5, target: '가속도,각속도', enabled: true },
@@ -1012,6 +1013,18 @@ $(document).ready(function () {
         }
     }
 
+    function saveCurrentVideoSelectionToStorage(value) {
+        if (typeof window.localStorage === 'undefined') {
+            return;
+        }
+
+        try {
+            window.localStorage.setItem(CURRENT_VIDEO_SELECTION_STORAGE_KEY, String(value || '').trim());
+        } catch (error) {
+            // Ignore storage write errors.
+        }
+    }
+
     function restoreSelectedVideoInputTabFromStorage() {
         if ($wcsVideoInputTabs.length === 0 || typeof window.localStorage === 'undefined') {
             return;
@@ -1511,6 +1524,7 @@ $(document).ready(function () {
             currentVideoFileName = normalizePath(selectedVideoFileName);
             currentCameraDeviceIndex = null;
             applyCurrentCameraHighlight();
+            saveCurrentVideoSelectionToStorage(selectedVideoFileName);
             const published = sendMQTTMessage('vehicle/current_video/file_name', selectedVideoFileName);
             showVideoPublishToast(Boolean(published), selectedVideoFileName, this);
         }
@@ -1540,6 +1554,7 @@ $(document).ready(function () {
     $wcsSampleVideoPane.on('click', '.sample-video-clear-selection', function () {
         currentVideoFileName = '';
         applyCurrentVideoHighlight();
+        saveCurrentVideoSelectionToStorage('');
         const published = sendMQTTMessage('vehicle/current_video/file_name', '');
         showVideoPublishToast(Boolean(published), '', this);
     });
@@ -1559,6 +1574,7 @@ $(document).ready(function () {
         $wcsCameraPane.find('.wcs-camera-device-item.active').removeClass('active');
         $(this).addClass('active');
 
+        saveCurrentVideoSelectionToStorage(currentVideoValue);
         const published = sendMQTTMessage('vehicle/current_video/file_name', currentVideoValue);
         showVideoPublishToast(Boolean(published), currentVideoValue, this);
     });
@@ -1569,6 +1585,7 @@ $(document).ready(function () {
         applyCurrentVideoHighlight();
         $wcsCameraPane.find('.wcs-camera-device-item.active').removeClass('active');
 
+        saveCurrentVideoSelectionToStorage('');
         const published = sendMQTTMessage('vehicle/current_video/file_name', '');
         showVideoPublishToast(Boolean(published), '', this);
     });
@@ -1662,6 +1679,7 @@ $(document).ready(function () {
 
                 applyCurrentVideoHighlight();
                 applyCurrentCameraHighlight();
+                saveCurrentVideoSelectionToStorage(value);
             }
 
             const sensorCountMatch = String(topic || '').match(/^sensor\/([^/]+)\/count$/);

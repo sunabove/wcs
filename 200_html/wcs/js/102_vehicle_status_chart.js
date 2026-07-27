@@ -25,7 +25,7 @@ const vehicleSpeedHistoryState = {
     maxPoints: 240,
 };
 
-const MIN_X_TICK_COUNT = 4;
+const MIN_X_TICK_COUNT = 20;
 const HISTORY_WINDOW_MS = 20 * 1000;
 const RUN_INFO_HISTORY_STORAGE_KEY = 'wcs.status.chart.runinfo.v1';
 const VEHICLE_SPEED_HISTORY_STORAGE_KEY = 'wcs.status.chart.speed.v1';
@@ -93,6 +93,12 @@ function formatSecondsFromNowLabel(pointX, axisMaxX) {
 
     const deltaSeconds = Math.max(0, Math.round((numericAxisMaxX - numericPointX) / 1000));
     return `${deltaSeconds}초`;
+}
+
+function formatSequentialTickLabel(index, tickCount = MIN_X_TICK_COUNT) {
+    const maxCount = Math.max(2, Number(tickCount) || MIN_X_TICK_COUNT);
+    const safeIndex = Math.max(0, Math.min(maxCount - 1, Number(index) || 0));
+    return String(safeIndex + 1);
 }
 
 function ensureLinearMinTicks(scale, minTickCount = MIN_X_TICK_COUNT) {
@@ -400,8 +406,7 @@ function createRunInfoHistoryChart() {
                     ticks: {
                         count: MIN_X_TICK_COUNT,
                         callback(value, index, ticks) {
-                            const axisMaxX = Number(ticks?.[ticks.length - 1]?.value);
-                            return formatSecondsFromNowLabel(value, axisMaxX);
+                            return formatSequentialTickLabel(index, ticks?.length);
                         },
                         maxRotation: 0,
                         autoSkip: false,
@@ -611,8 +616,7 @@ function createVehicleSpeedHistoryChart() {
                     ticks: {
                         count: MIN_X_TICK_COUNT,
                         callback(value, index, ticks) {
-                            const axisMaxX = Number(ticks?.[ticks.length - 1]?.value);
-                            return formatSecondsFromNowLabel(value, axisMaxX);
+                            return formatSequentialTickLabel(index, ticks?.length);
                         },
                         maxRotation: 0,
                         autoSkip: false,

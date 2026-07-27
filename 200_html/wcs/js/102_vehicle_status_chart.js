@@ -26,7 +26,7 @@ const vehicleSpeedHistoryState = {
 };
 
 const MIN_X_TICK_COUNT = 4;
-const HISTORY_WINDOW_MS = 60 * 1000;
+const HISTORY_WINDOW_MS = 20 * 1000;
 const RUN_INFO_HISTORY_STORAGE_KEY = 'wcs.status.chart.runinfo.v1';
 const VEHICLE_SPEED_HISTORY_STORAGE_KEY = 'wcs.status.chart.speed.v1';
 
@@ -175,6 +175,24 @@ function trimDatasetsToRecentWindow(datasets, windowMs = HISTORY_WINDOW_MS) {
 
         dataset.data.splice(0, firstKeepIndex);
     });
+}
+
+function applyFixedHistoryWindowToXAxis(chart, windowMs = HISTORY_WINDOW_MS) {
+    const xScale = chart?.options?.scales?.x;
+    const datasets = chart?.data?.datasets;
+    if (!xScale || !Array.isArray(datasets) || datasets.length === 0) {
+        return;
+    }
+
+    const baseDataset = datasets[0];
+    const hasData = Array.isArray(baseDataset?.data) && baseDataset.data.length > 0;
+    const latestX = hasData ? Number(baseDataset.data[baseDataset.data.length - 1]?.x) : 0;
+    const safeLatestX = Number.isFinite(latestX) ? latestX : 0;
+
+    const maxX = Math.max(windowMs, safeLatestX);
+    const minX = maxX - windowMs;
+    xScale.min = minX;
+    xScale.max = maxX;
 }
 
 function saveRunInfoHistoryToStorage() {
@@ -418,6 +436,8 @@ function createRunInfoHistoryChart() {
     });
 
     restoreRunInfoHistoryFromStorage();
+    applyFixedHistoryWindowToXAxis(runInfoHistoryState.chart, HISTORY_WINDOW_MS);
+    runInfoHistoryState.chart.update('none');
 }
 
 function pushRunInfoHistoryPoint(forcePush = false) {
@@ -468,6 +488,7 @@ function pushRunInfoHistoryPoint(forcePush = false) {
         });
     }
 
+    applyFixedHistoryWindowToXAxis(runInfoHistoryState.chart, HISTORY_WINDOW_MS);
     runInfoHistoryState.chart.update('none');
     saveRunInfoHistoryToStorage();
 }
@@ -629,6 +650,8 @@ function createVehicleSpeedHistoryChart() {
     });
 
     restoreVehicleSpeedHistoryFromStorage();
+    applyFixedHistoryWindowToXAxis(vehicleSpeedHistoryState.chart, HISTORY_WINDOW_MS);
+    vehicleSpeedHistoryState.chart.update('none');
 }
 
 function pushVehicleSpeedHistoryPoint(forcePush = false) {
@@ -677,6 +700,7 @@ function pushVehicleSpeedHistoryPoint(forcePush = false) {
         });
     }
 
+    applyFixedHistoryWindowToXAxis(vehicleSpeedHistoryState.chart, HISTORY_WINDOW_MS);
     vehicleSpeedHistoryState.chart.update('none');
     saveVehicleSpeedHistoryToStorage();
 }

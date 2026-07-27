@@ -733,6 +733,13 @@ $(document).ready(function () {
         return '/fast/camera/devices';
     }
 
+    function buildCurrentVideoValueFromCamera(index, name) {
+        const numericIndex = Number(index);
+        const safeName = String(name || '').trim();
+        const label = safeName || (Number.isFinite(numericIndex) ? ('Camera ' + numericIndex) : 'Camera');
+        return 'camera:' + label;
+    }
+
     const normalizeSampleFolderPath = typeof window.wcsNormalizeSampleFolderPath === 'function'
         ? window.wcsNormalizeSampleFolderPath
         : function (folderPath, baseFolder) {
@@ -1498,14 +1505,23 @@ $(document).ready(function () {
             return;
         }
 
+        const cameraName = String($(this).attr('data-camera-name') || ('Camera ' + index));
+        const currentVideoValue = buildCurrentVideoValueFromCamera(index, cameraName);
+
         currentCameraDeviceIndex = index;
         $wcsCameraPane.find('.wcs-camera-device-item.active').removeClass('active');
         $(this).addClass('active');
+
+        const published = sendMQTTMessage('vehicle/current_video/file_name', currentVideoValue);
+        showVideoPublishToast(Boolean(published), currentVideoValue, this);
     });
 
     $wcsCameraPane.on('click', '.wcs-camera-clear-selection', function () {
         currentCameraDeviceIndex = null;
         $wcsCameraPane.find('.wcs-camera-device-item.active').removeClass('active');
+
+        const published = sendMQTTMessage('vehicle/current_video/file_name', '');
+        showVideoPublishToast(Boolean(published), '', this);
     });
 
     $wcsCameraTab.on('shown.bs.tab', function () {

@@ -25,7 +25,7 @@ const vehicleSpeedHistoryState = {
     maxPoints: 240,
 };
 
-const MIN_X_TICK_COUNT = 20;
+const MIN_X_TICK_COUNT = 10;
 const HISTORY_WINDOW_MS = 20 * 1000;
 const RUN_INFO_HISTORY_STORAGE_KEY = 'wcs.status.chart.runinfo.v1';
 const VEHICLE_SPEED_HISTORY_STORAGE_KEY = 'wcs.status.chart.speed.v1';

@@ -64,6 +64,7 @@
     let lastImageFrameAt = 0;
     let lastImageReplayAttemptAt = 0;
     let imageStreamNeedsReplay = false;
+    let pageExitCleanupRequested = false;
     let audioHudBlinkPhase = false;
     let temporaryStatusHideTimerId = null;
     const FIRST_FRAME_TIMEOUT_MS = 10000;
@@ -913,6 +914,70 @@
         requestRoadDetectSessionCleanupAllOnLoad();
     }
 
+    function sendCleanupBeacon(url) {
+        if (!url) {
+            return false;
+        }
+
+        try {
+            if (navigator && typeof navigator.sendBeacon === "function") {
+                const payload = new Blob([""], { type: "text/plain" });
+                return navigator.sendBeacon(url, payload);
+            }
+        } catch (error) {
+            // Ignore beacon failures.
+        }
+
+        return false;
+    }
+
+    function requestCleanupOnPageExit() {
+        if (pageExitCleanupRequested) {
+            return;
+        }
+        pageExitCleanupRequested = true;
+
+        // Stop local polling/timers immediately.
+        stopCameraOverlayStream(false);
+        clearFirstFrameTimeout();
+        clearTemporaryStatusMessage();
+
+        const roadCleanupUrl = "/fast/road_detect_stream_cleanup_all?" + $.param({ t: Date.now() });
+        const cameraCleanupUrl = "/fast/camera_detect_stream_cleanup_all";
+
+        const roadBeaconSent = sendCleanupBeacon(roadCleanupUrl);
+        const cameraBeaconSent = sendCleanupBeacon(cameraCleanupUrl);
+
+        // Fallback when beacon is unavailable or rejected.
+        if (!roadBeaconSent) {
+            try {
+                fetch(roadCleanupUrl, {
+                    method: "POST",
+                    keepalive: true,
+                    credentials: "same-origin",
+                }).catch(function () {
+                    // Ignore unload-time cleanup failures.
+                });
+            } catch (error) {
+                // Ignore unload-time cleanup failures.
+            }
+        }
+
+        if (!cameraBeaconSent) {
+            try {
+                fetch(cameraCleanupUrl, {
+                    method: "POST",
+                    keepalive: true,
+                    credentials: "same-origin",
+                }).catch(function () {
+                    // Ignore unload-time cleanup failures.
+                });
+            } catch (error) {
+                // Ignore unload-time cleanup failures.
+            }
+        }
+    }
+
     function attemptImageStreamAutoReplay() {
         if (!autoReplayEnabled || mediaHiddenByUser || mediaPlaybackPaused) {
             return;
@@ -1651,6 +1716,9 @@
             applyVehicleViewerZoomByOverlayMode();
         }
     });
+
+    window.addEventListener("pagehide", requestCleanupOnPageExit, { capture: true });
+    window.addEventListener("beforeunload", requestCleanupOnPageExit, { capture: true });
 
     mediaHiddenByUser = readOverlayMediaHiddenState();
     autoReplayEnabled = readOverlayAutoReplayState();

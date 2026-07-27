@@ -87,11 +87,22 @@
                             WCS Setting
                         </a>
                     </li>
-                    <li>
-                        <a href="/road/300_ai_road.html" class="nav-link px-2 text-white">
+                    <li class="nav-item dropdown">
+                        <a
+                            href="#"
+                            class="nav-link px-2 text-white dropdown-toggle"
+                            role="button"
+                            data-bs-toggle="dropdown"
+                            aria-expanded="false"
+                        >
                             <i class="bi bi-robot me-2"></i>
-                            AI &nbsp;
+                            AI
                         </a>
+                        <ul class="dropdown-menu dropdown-menu-end">
+                            <li><a class="dropdown-item" href="/road/300_ai_road.html">road detection</a></li>
+                            <li><a class="dropdown-item" href="/yolo/400_ai_yolo.html">yolo</a></li>
+                            <li><a class="dropdown-item" href="/sam2/500_ai_sam2.html">sam</a></li>
+                        </ul>
                     </li>
                 </ul>
 

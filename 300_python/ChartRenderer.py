@@ -183,23 +183,29 @@ class ChartRenderer:
             if int(x_min) <= int(v) <= int(x_max)
         })
 
-        first_y_axis_unit_label = "(cnt)"
-        second_y_axis_unit_label = "(%)"
+        first_y_axis_unit_label = "cnt"
+        second_y_axis_unit_label = "%"
         last_tick_index = len(x_ticks) - 1
         for tick_index, x_tick in enumerate(x_ticks):
             tick_x = self._map_chart_x(x_tick, x_min, x_max, chart_x1, chart_w)
             cv2.line(canvas, (tick_x, chart_y2), (tick_x, chart_y2 + 3), (120, 120, 120), 1, cv2.LINE_AA)
 
             label = str(int(x_tick))
-            if tick_index == 0:
-                label = f"{label}{first_y_axis_unit_label}"
-            elif tick_index == last_tick_index:
-                label = f"{label}{second_y_axis_unit_label}"
+            is_first_tick = tick_index == 0
+            is_last_tick = tick_index == last_tick_index
+            if is_first_tick and is_last_tick:
+                label = f"{label} {first_y_axis_unit_label}/{second_y_axis_unit_label}"
+            elif is_first_tick:
+                label = f"{label} {first_y_axis_unit_label}"
+            elif is_last_tick:
+                label = f"{label} {second_y_axis_unit_label}"
 
-            (text_w, text_h), baseline = cv2.getTextSize(label, font_face, 0.28, 1)
+            label_scale = 0.34 if (is_first_tick or is_last_tick) else 0.28
+            label_thickness = 2 if (is_first_tick or is_last_tick) else 1
+            (text_w, text_h), baseline = cv2.getTextSize(label, font_face, label_scale, label_thickness)
             label_x = max(chart_x1, min(chart_x2 - text_w, int(round(tick_x - (text_w / 2.0)))))
             label_y = min(canvas_h - 2, chart_y2 + text_h + 10)
-            cv2.putText(canvas, label, (label_x, label_y), font_face, 0.28, (190, 190, 190), 1, cv2.LINE_AA)
+            cv2.putText(canvas, label, (label_x, label_y), font_face, label_scale, (220, 220, 220), label_thickness, cv2.LINE_AA)
 
         current_x_px = self._map_chart_x(current_x, x_min, x_max, chart_x1, chart_w)
         cv2.line(canvas, (current_x_px, chart_y1), (current_x_px, chart_y2), (255, 230, 0), 1, cv2.LINE_AA)

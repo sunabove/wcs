@@ -173,50 +173,44 @@
                                 </th>
                                 <td>
                                     <div id="sim-runinfo-panel" class="runinfo-sim-panel">
-                                    <div class="row g-2">
-                                        <div class="col-6 col-lg-3">
+                                    <div class="row row-cols-2 row-cols-lg-5 g-2">
+                                        <div class="col">
                                             <label for="sim-battery-remain-amount" class="form-label small mb-1">배터리 잔량(%)</label>
                                             <input type="number" class="form-control form-control-sm text-end" id="sim-battery-remain-amount" min="0" max="100" step="0.1" value="95">
                                         </div>
-                                        <div class="col-6 col-lg-3">
+                                        <div class="col">
                                             <label for="sim-drive-available-time-min" class="form-label small mb-1">주행 가능 시간(분)</label>
                                             <input type="number" class="form-control form-control-sm text-end" id="sim-drive-available-time-min" min="0" step="1" value="180">
                                         </div>
-                                        <div class="col-6 col-lg-3">
+                                        <div class="col">
                                             <label for="sim-drive-elapsed-time-min" class="form-label small mb-1">운행 시간(분)</label>
                                             <input type="number" class="form-control form-control-sm text-end" id="sim-drive-elapsed-time-min" min="0" step="1" value="0">
                                         </div>
-                                        <div class="col-6 col-lg-3">
+                                        <div class="col">
                                             <label for="sim-drive-total-distance-km" class="form-label small mb-1">운행 거리(km)</label>
                                             <input type="number" class="form-control form-control-sm text-end" id="sim-drive-total-distance-km" min="0" step="0.1" value="0">
                                         </div>
-                                    </div>
-
-                                    <div class="row g-2 mt-1">
-                                        <div class="col-6 col-lg-3">
+                                        <div class="col">
                                             <label for="sim-runinfo-speed-kmh" class="form-label small mb-1">현재 속도(km/h)</label>
                                             <input type="number" class="form-control form-control-sm text-end" id="sim-runinfo-speed-kmh" min="0" max="120" step="0.1" value="8">
                                         </div>
-                                        <div class="col-6 col-lg-3">
+                                        <div class="col">
                                             <label for="sim-runinfo-max-speed-kmh" class="form-label small mb-1">최고 속도(km/h)</label>
                                             <input type="number" class="form-control form-control-sm text-end" id="sim-runinfo-max-speed-kmh" min="0" max="200" step="0.1" value="30">
                                         </div>
-                                        <div class="col-6 col-lg-3">
+                                        <div class="col">
                                             <label for="sim-runinfo-acceleration-ms2" class="form-label small mb-1">가속도(m/s²)</label>
                                             <input type="number" class="form-control form-control-sm text-end" id="sim-runinfo-acceleration-ms2" min="-10" max="10" step="0.1" value="0.3">
                                         </div>
-                                        <div class="col-6 col-lg-3">
+                                        <div class="col">
                                             <label for="sim-runinfo-battery-drain-per-hour" class="form-label small mb-1">배터리 소모(%/h)</label>
                                             <input type="number" class="form-control form-control-sm text-end" id="sim-runinfo-battery-drain-per-hour" min="0" max="100" step="0.1" value="3">
                                         </div>
-                                    </div>
-
-                                    <div class="row g-2 mt-1">
-                                        <div class="col-6 col-lg-3">
+                                        <div class="col">
                                             <label for="sim-runinfo-interval-sec" class="form-label small mb-1">발행 주기(초)</label>
                                             <input type="number" class="form-control form-control-sm text-end" id="sim-runinfo-interval-sec" min="1" max="60" step="1" value="2">
                                         </div>
-                                        <div class="col-6 col-lg-3 d-flex align-items-end">
+                                        <div class="col d-flex align-items-end">
                                             <div class="form-check mb-1">
                                                 <input class="form-check-input" type="checkbox" id="sim-runinfo-auto-step" checked>
                                                 <label class="form-check-label small" for="sim-runinfo-auto-step">틱마다 값 자동 변화</label>

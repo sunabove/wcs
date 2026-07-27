@@ -736,8 +736,16 @@ $(document).ready(function () {
     function buildCurrentVideoValueFromCamera(index, name) {
         const numericIndex = Number(index);
         const safeName = String(name || '').trim();
-        const label = safeName || (Number.isFinite(numericIndex) ? ('Camera ' + numericIndex) : 'Camera');
-        return 'camera:' + label;
+        if (Number.isFinite(numericIndex) && numericIndex >= 0) {
+            return 'camera_' + numericIndex;
+        }
+
+        // Keep a deterministic fallback without spaces/special chars.
+        const normalizedName = safeName
+            .toLowerCase()
+            .replace(/[^a-z0-9]+/g, '_')
+            .replace(/^_+|_+$/g, '');
+        return normalizedName ? ('camera_' + normalizedName) : 'camera_0';
     }
 
     const normalizeSampleFolderPath = typeof window.wcsNormalizeSampleFolderPath === 'function'

@@ -580,17 +580,23 @@
             return normalizedPath;
         };
 
+    const DEFAULT_ROAD_DETECT_OPTIONS = Object.freeze({
+        detect_type: "road_type",
+        remove_noisy_masks: true,
+        include_pothole: true,
+        pothole_conf: 0.45,
+        mqtt_publish: true,
+    });
+
+    function buildRoadDetectQueryOptions(extraOptions) {
+        const options = Object.assign({}, DEFAULT_ROAD_DETECT_OPTIONS, extraOptions || {});
+        options.t = Date.now();
+        return options;
+    }
+
     const buildRoadDetectStreamUrl = typeof window.wcsBuildRoadDetectStreamUrl === "function"
         ? function (fileName) {
-            return window.wcsBuildRoadDetectStreamUrl(fileName, {
-                detect_type: "road_type",
-                remove_noisy_masks: true,
-                show_time_bar: true,
-                include_pothole: true,
-                pothole_conf: 0.45,
-                mqtt_publish: true,
-                t: Date.now(),
-            });
+            return window.wcsBuildRoadDetectStreamUrl(fileName, buildRoadDetectQueryOptions({ show_time_bar: true }));
         }
         : function (fileName) {
             const streamPath = resolveRoadDetectStreamPath(fileName);
@@ -599,15 +605,7 @@
                 return "";
             }
 
-            return "/fast/road_detect_stream/" + encodedPath + "?" + $.param({
-                detect_type: "road_type",
-                remove_noisy_masks: true,
-                show_time_bar: true,
-                include_pothole: true,
-                pothole_conf: 0.45,
-                mqtt_publish: true,
-                t: Date.now(),
-            });
+            return "/fast/road_detect_stream/" + encodedPath + "?" + $.param(buildRoadDetectQueryOptions({ show_time_bar: true }));
         };
 
     const buildRoadDetectStreamCleanupUrl = typeof window.wcsBuildRoadDetectStreamCleanupUrl === "function"
@@ -627,16 +625,10 @@
         };
 
     function buildCameraDetectStreamInitUrl(cameraIndex) {
-        return "/fast/camera_detect_stream_init?" + $.param({
+        return "/fast/camera_detect_stream_init?" + $.param(buildRoadDetectQueryOptions({
             camera_index: Number(cameraIndex),
-            detect_type: "road_type",
-            remove_noisy_masks: true,
             show_detect_stats: false,
-            include_pothole: true,
-            pothole_conf: 0.45,
-            mqtt_publish: true,
-            t: Date.now(),
-        });
+        }));
     }
 
     function buildCameraDetectStreamNextUrl(sessionId) {

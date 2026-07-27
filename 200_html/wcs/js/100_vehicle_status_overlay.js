@@ -631,7 +631,7 @@
             camera_index: Number(cameraIndex),
             detect_type: "road_type",
             remove_noisy_masks: true,
-            show_detect_stats: true,
+            show_detect_stats: false,
             include_pothole: true,
             pothole_conf: 0.45,
             mqtt_publish: true,

@@ -2657,7 +2657,7 @@ class RoadDetector:
         h, w = detected.shape[:2]
 
         if frame_total <= 0:
-            time_label = f"{frame_idx}"
+            time_label = f"{int(frame_idx):5d}"
             (tw, th), _ = cv2.getTextSize(time_label, font_face, 0.62, 2)
             pad_x = 10
             pad_y = 6

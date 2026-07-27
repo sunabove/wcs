@@ -122,24 +122,29 @@ class WcsHistoryChart {
             const nextTicks = { ...(nextScale.ticks || {}) };
             const unit = String(nextScale.unit || '').trim();
             const isYAxisScale = String(nextScale.axis || '').toLowerCase() === 'y' || String(scaleKey || '').toLowerCase().startsWith('y');
+            const baseTickCallback = typeof nextTicks.callback === 'function' ? nextTicks.callback : null;
 
             nextScale.ticks = nextTicks;
 
             if (unit && isYAxisScale && nextScale.display !== false) {
+                nextTicks.callback = function (value, index, ticks) {
+                    const tickList = Array.isArray(ticks) ? ticks : [];
+                    const highestTickValue = tickList.length > 0 ? Number(tickList[tickList.length - 1]?.value) : NaN;
+                    const numericValue = Number(value);
+                    if (Number.isFinite(highestTickValue) && Number.isFinite(numericValue) && numericValue === highestTickValue) {
+                        return `(${unit})`;
+                    }
+
+                    if (baseTickCallback) {
+                        return baseTickCallback.call(this, value, index, ticks);
+                    }
+
+                    return formatValueWithUnit(value, '');
+                };
+
                 nextScale.title = {
                     ...(nextScale.title || {}),
-                    display: true,
-                    text: `(${unit})`,
-                    align: 'end',
-                    color: '#6c757d',
-                    padding: {
-                        top: 0,
-                        bottom: 0,
-                    },
-                    font: {
-                        size: 10,
-                        weight: '600',
-                    },
+                    display: false,
                 };
             }
 

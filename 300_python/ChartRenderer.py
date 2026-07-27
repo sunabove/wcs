@@ -175,37 +175,24 @@ class ChartRenderer:
             class_line_colors[class_name] = class_bgr
             self._draw_chart_series(canvas, x_vals, class_vals, class_bgr, x_min, x_max, chart_x1, chart_w, y_max, chart_y2, chart_h, 1)
 
-        x_ticks = [int(v) for v in self._uniform_ticks(x_min, x_max, target_ticks=4)]
-        x_ticks.extend([int(x_min), int(x_max)])
-        x_ticks = sorted({
-            int(v)
-            for v in x_ticks
-            if int(x_min) <= int(v) <= int(x_max)
-        })
-
-        first_y_axis_unit_label = "cnt"
-        second_y_axis_unit_label = "%"
-        last_tick_index = len(x_ticks) - 1
-        for tick_index, x_tick in enumerate(x_ticks):
+        x_ticks = self._uniform_ticks(x_min, x_max, target_ticks=4)
+        for x_tick in x_ticks:
             tick_x = self._map_chart_x(x_tick, x_min, x_max, chart_x1, chart_w)
             cv2.line(canvas, (tick_x, chart_y2), (tick_x, chart_y2 + 3), (120, 120, 120), 1, cv2.LINE_AA)
-
             label = str(int(x_tick))
-            is_first_tick = tick_index == 0
-            is_last_tick = tick_index == last_tick_index
-            if is_first_tick and is_last_tick:
-                label = f"{label} {first_y_axis_unit_label}/{second_y_axis_unit_label}"
-            elif is_first_tick:
-                label = f"{label} {first_y_axis_unit_label}"
-            elif is_last_tick:
-                label = f"{label} {second_y_axis_unit_label}"
-
-            label_scale = 0.34 if (is_first_tick or is_last_tick) else 0.28
-            label_thickness = 2 if (is_first_tick or is_last_tick) else 1
-            (text_w, text_h), baseline = cv2.getTextSize(label, font_face, label_scale, label_thickness)
+            (text_w, text_h), baseline = cv2.getTextSize(label, font_face, 0.28, 1)
             label_x = max(chart_x1, min(chart_x2 - text_w, int(round(tick_x - (text_w / 2.0)))))
             label_y = min(canvas_h - 2, chart_y2 + text_h + 10)
-            cv2.putText(canvas, label, (label_x, label_y), font_face, label_scale, (220, 220, 220), label_thickness, cv2.LINE_AA)
+            cv2.putText(canvas, label, (label_x, label_y), font_face, 0.28, (190, 190, 190), 1, cv2.LINE_AA)
+
+        if int(x_max) not in x_ticks:
+            end_tick_x = self._map_chart_x(int(x_max), x_min, x_max, chart_x1, chart_w)
+            cv2.line(canvas, (end_tick_x, chart_y2), (end_tick_x, chart_y2 + 3), (120, 120, 120), 1, cv2.LINE_AA)
+            label = str(int(x_max))
+            (text_w, text_h), baseline = cv2.getTextSize(label, font_face, 0.28, 1)
+            label_x = max(chart_x1, min(chart_x2 - text_w, int(round(end_tick_x - (text_w / 2.0)))))
+            label_y = min(canvas_h - 2, chart_y2 + text_h + 10)
+            cv2.putText(canvas, label, (label_x, label_y), font_face, 0.28, (190, 190, 190), 1, cv2.LINE_AA)
 
         current_x_px = self._map_chart_x(current_x, x_min, x_max, chart_x1, chart_w)
         cv2.line(canvas, (current_x_px, chart_y1), (current_x_px, chart_y2), (255, 230, 0), 1, cv2.LINE_AA)

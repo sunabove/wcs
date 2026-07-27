@@ -50,7 +50,120 @@ $(document).ready(function () {
     let pendingDirectionCommandTimer = null;
     let lastVehicleCurrSpeedMsSent = null;
     let lastVehicleDirectionCommandSent = null;
+    let runInfoSimulationTimer = null;
     let videoPublishToastCounter = 0;
+
+    const RUN_INFO_SIMULATION_DEFAULTS = {
+        batteryPercent: 95,
+        availableMinutes: 180,
+        elapsedMinutes: 0,
+        distanceKm: 0,
+        intervalSec: 2,
+        speedKmh: 8,
+        batteryDrainPerHour: 3,
+        autoStep: true,
+    };
+
+    function clampNumber(value, min, max, fallback = 0) {
+        const numericValue = Number.parseFloat(value);
+        if (!Number.isFinite(numericValue)) {
+            return fallback;
+        }
+        return Math.max(min, Math.min(max, numericValue));
+    }
+
+    function updateRunInfoSimulationStateLabel(text, isRunning = false) {
+        const $state = $('#sim-runinfo-state');
+        if ($state.length === 0) {
+            return;
+        }
+
+        $state
+            .text(String(text || '').trim() || '정지')
+            .toggleClass('text-bg-success', Boolean(isRunning))
+            .toggleClass('text-bg-secondary', !Boolean(isRunning));
+    }
+
+    function getRunInfoSimulationStateFromInputs() {
+        return {
+            batteryPercent: clampNumber($('#sim-battery-remain-amount').val(), 0, 100, RUN_INFO_SIMULATION_DEFAULTS.batteryPercent),
+            availableMinutes: clampNumber($('#sim-drive-available-time-min').val(), 0, 100000, RUN_INFO_SIMULATION_DEFAULTS.availableMinutes),
+            elapsedMinutes: clampNumber($('#sim-drive-elapsed-time-min').val(), 0, 100000, RUN_INFO_SIMULATION_DEFAULTS.elapsedMinutes),
+            distanceKm: clampNumber($('#sim-drive-total-distance-km').val(), 0, 1000000, RUN_INFO_SIMULATION_DEFAULTS.distanceKm),
+        };
+    }
+
+    function getRunInfoSimulationOptionsFromInputs() {
+        return {
+            intervalSec: clampNumber($('#sim-runinfo-interval-sec').val(), 1, 60, RUN_INFO_SIMULATION_DEFAULTS.intervalSec),
+            speedKmh: clampNumber($('#sim-runinfo-speed-kmh').val(), 0, 120, RUN_INFO_SIMULATION_DEFAULTS.speedKmh),
+            batteryDrainPerHour: clampNumber($('#sim-runinfo-battery-drain-per-hour').val(), 0, 100, RUN_INFO_SIMULATION_DEFAULTS.batteryDrainPerHour),
+            autoStep: $('#sim-runinfo-auto-step').is(':checked'),
+        };
+    }
+
+    function writeRunInfoSimulationStateToInputs(state) {
+        $('#sim-battery-remain-amount').val(Number(state.batteryPercent).toFixed(1));
+        $('#sim-drive-available-time-min').val(Math.round(Number(state.availableMinutes)));
+        $('#sim-drive-elapsed-time-min').val(Math.round(Number(state.elapsedMinutes)));
+        $('#sim-drive-total-distance-km').val(Number(state.distanceKm).toFixed(2));
+    }
+
+    function publishRunInfoSimulationState(state) {
+        const availableSec = Math.round(Math.max(0, Number(state.availableMinutes) * 60));
+        const elapsedSec = Math.round(Math.max(0, Number(state.elapsedMinutes) * 60));
+        const distanceM = Math.round(Math.max(0, Number(state.distanceKm) * 1000));
+        const batteryPercent = Number(Math.max(0, Math.min(100, Number(state.batteryPercent))).toFixed(1));
+
+        sendMQTTMessage('vehicle/battery/remain_amount', batteryPercent);
+        sendMQTTMessage('vehicle/drive/available_time', availableSec);
+        sendMQTTMessage('vehicle/drive/elapsed_time', elapsedSec);
+        sendMQTTMessage('vehicle/drive/total_distance', distanceM);
+    }
+
+    function stopRunInfoSimulation() {
+        if (runInfoSimulationTimer) {
+            clearInterval(runInfoSimulationTimer);
+            runInfoSimulationTimer = null;
+        }
+        updateRunInfoSimulationStateLabel('정지', false);
+    }
+
+    function restoreRunInfoSimulationDefaults() {
+        $('#sim-battery-remain-amount').val(RUN_INFO_SIMULATION_DEFAULTS.batteryPercent);
+        $('#sim-drive-available-time-min').val(RUN_INFO_SIMULATION_DEFAULTS.availableMinutes);
+        $('#sim-drive-elapsed-time-min').val(RUN_INFO_SIMULATION_DEFAULTS.elapsedMinutes);
+        $('#sim-drive-total-distance-km').val(RUN_INFO_SIMULATION_DEFAULTS.distanceKm);
+        $('#sim-runinfo-interval-sec').val(RUN_INFO_SIMULATION_DEFAULTS.intervalSec);
+        $('#sim-runinfo-speed-kmh').val(RUN_INFO_SIMULATION_DEFAULTS.speedKmh);
+        $('#sim-runinfo-battery-drain-per-hour').val(RUN_INFO_SIMULATION_DEFAULTS.batteryDrainPerHour);
+        $('#sim-runinfo-auto-step').prop('checked', RUN_INFO_SIMULATION_DEFAULTS.autoStep);
+    }
+
+    function startRunInfoSimulation() {
+        stopRunInfoSimulation();
+
+        let state = getRunInfoSimulationStateFromInputs();
+        const options = getRunInfoSimulationOptionsFromInputs();
+        const intervalMs = Math.round(options.intervalSec * 1000);
+
+        const tick = function () {
+            if (options.autoStep) {
+                const elapsedMinutesDelta = options.intervalSec / 60;
+                state.elapsedMinutes = Math.max(0, state.elapsedMinutes + elapsedMinutesDelta);
+                state.availableMinutes = Math.max(0, state.availableMinutes - elapsedMinutesDelta);
+                state.distanceKm = Math.max(0, state.distanceKm + (options.speedKmh * options.intervalSec / 3600));
+                state.batteryPercent = Math.max(0, state.batteryPercent - (options.batteryDrainPerHour * options.intervalSec / 3600));
+            }
+
+            writeRunInfoSimulationStateToInputs(state);
+            publishRunInfoSimulationState(state);
+        };
+
+        tick();
+        runInfoSimulationTimer = setInterval(tick, intervalMs);
+        updateRunInfoSimulationStateLabel(`${options.intervalSec}초 주기 동작중`, true);
+    }
 
     function sendMQTTMessage(topic, message, qos = 1) {
         if (!window.WcsMqtt || typeof window.WcsMqtt.sendMQTTMessage !== 'function') {
@@ -1906,6 +2019,26 @@ $(document).ready(function () {
         sendMQTTMessage('vehicle/surface/obstacle', obstacleValue);
     });
 
+    $('#sim-runinfo-start').on('click', function () {
+        startRunInfoSimulation();
+    });
+
+    $('#sim-runinfo-stop').on('click', function () {
+        stopRunInfoSimulation();
+    });
+
+    $('#sim-runinfo-publish-once').on('click', function () {
+        const state = getRunInfoSimulationStateFromInputs();
+        writeRunInfoSimulationStateToInputs(state);
+        publishRunInfoSimulationState(state);
+        updateRunInfoSimulationStateLabel('1회 발행 완료', false);
+    });
+
+    $('#sim-runinfo-reset').on('click', function () {
+        stopRunInfoSimulation();
+        restoreRunInfoSimulationDefaults();
+    });
+
     $('#vehicle-roll-angle').on('input', function () {
         updateVehicleRollAngleUi($(this).val(), false);
     });
@@ -1932,10 +2065,15 @@ $(document).ready(function () {
 
     restoreSampleVideoBrowserStateFromStorage();
     initializeObstacleSensorSettingsDefaults();
+    restoreRunInfoSimulationDefaults();
     ensureSampleVideosLoaded();
     restoreSelectedVideoInputTabFromStorage();
 
     if ($wcsSampleVideoTab.length > 0 && $wcsSampleVideoTab.hasClass('active')) {
         saveSelectedVideoInputTabToStorage('wcs-input-sample-video-tab');
     }
+
+    window.addEventListener('beforeunload', function () {
+        stopRunInfoSimulation();
+    });
 });

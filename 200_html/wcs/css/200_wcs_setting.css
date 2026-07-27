@@ -203,9 +203,20 @@
     transition: opacity 0.2s ease, filter 0.2s ease;
 }
 
-.runinfo-sim-panel.runinfo-sim-stopped {
+.runinfo-sim-panel.runinfo-sim-stopped .form-control,
+.runinfo-sim-panel.runinfo-sim-stopped .form-check-label,
+.runinfo-sim-panel.runinfo-sim-stopped label,
+.runinfo-sim-panel.runinfo-sim-stopped .badge,
+.runinfo-sim-panel.runinfo-sim-stopped #sim-runinfo-stop,
+.runinfo-sim-panel.runinfo-sim-stopped #sim-runinfo-publish-once,
+.runinfo-sim-panel.runinfo-sim-stopped #sim-runinfo-reset {
+    filter: grayscale(0.65);
     opacity: 0.72;
-    filter: grayscale(0.45);
+}
+
+.runinfo-sim-panel.runinfo-sim-stopped #sim-runinfo-start {
+    filter: none;
+    opacity: 1;
 }
 
 .runinfo-sim-panel.runinfo-sim-publish-blink input,

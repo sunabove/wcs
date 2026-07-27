@@ -74,6 +74,7 @@ $(document).ready(function () {
     }
 
     function updateRunInfoSimulationStateLabel(text, isRunning = false) {
+        const running = Boolean(isRunning);
         const $state = $('#sim-runinfo-state');
         if ($state.length === 0) {
             return;
@@ -81,12 +82,30 @@ $(document).ready(function () {
 
         $state
             .text(String(text || '').trim() || '정지')
-            .toggleClass('text-bg-success', Boolean(isRunning))
-            .toggleClass('text-bg-secondary', !Boolean(isRunning));
+            .toggleClass('text-bg-success', running)
+            .toggleClass('text-bg-secondary', !running);
+
+        const $startButton = $('#sim-runinfo-start');
+        const $stopButton = $('#sim-runinfo-stop');
+
+        if ($startButton.length > 0) {
+            $startButton
+                .prop('disabled', running)
+                .toggleClass('btn-warning', !running)
+                .toggleClass('text-dark', !running)
+                .toggleClass('btn-primary', running);
+        }
+
+        if ($stopButton.length > 0) {
+            $stopButton
+                .prop('disabled', !running)
+                .toggleClass('btn-outline-secondary', !running)
+                .toggleClass('btn-outline-danger', running);
+        }
 
         const $panel = $('#sim-runinfo-panel');
         if ($panel.length > 0) {
-            $panel.toggleClass('runinfo-sim-stopped', !Boolean(isRunning));
+            $panel.toggleClass('runinfo-sim-stopped', !running);
         }
     }
 

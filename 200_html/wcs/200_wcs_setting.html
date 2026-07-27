@@ -260,13 +260,13 @@
                                             </template>
                                         </div>
                                         <div class="tab-pane fade" id="wcs-input-camera-pane" role="tabpanel" tabindex="0">
-                                            <div class="d-flex justify-content-end mb-2">
-                                                <button type="button" class="btn btn-sm btn-outline-danger wcs-camera-clear-selection">
+                                            <div class="d-flex align-items-center gap-2 flex-nowrap">
+                                                <div id="wcs-camera-device-list" class="d-flex flex-nowrap gap-2 overflow-auto flex-grow-1 py-1">
+                                                    <div class="text-muted text-center py-2">카메라 장치 목록</div>
+                                                </div>
+                                                <button type="button" class="btn btn-sm btn-outline-danger wcs-camera-clear-selection flex-shrink-0">
                                                     <i class="bi bi-x-circle me-1"></i>카메라 장치 미선택
                                                 </button>
-                                            </div>
-                                            <div id="wcs-camera-device-list" class="d-flex flex-wrap gap-2">
-                                                <div class="text-muted text-center py-3 w-100">카메라 장치 목록</div>
                                             </div>
                                             <template id="wcs-camera-device-item-template">
                                                 <button type="button" class="btn btn-outline-secondary text-start wcs-camera-device-item" data-camera-index="" data-camera-name="">

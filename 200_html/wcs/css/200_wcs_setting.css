@@ -46,6 +46,7 @@
 
 .wcs-camera-device-item {
     min-width: 180px;
+    flex-shrink: 0;
 }
 
 .wcs-camera-device-item.active {

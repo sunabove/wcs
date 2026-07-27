@@ -1159,7 +1159,7 @@ $(document).ready(function () {
 
         const items = Array.isArray(devices) ? devices : [];
         if (items.length === 0) {
-            $wcsCameraDeviceList.html('<div class="text-muted text-center py-3 w-100">열 수 있는 카메라 장치가 없습니다.</div>');
+            $wcsCameraDeviceList.html('<div class="text-muted text-center py-2">열 수 있는 카메라 장치가 없습니다.</div>');
             return;
         }
 
@@ -1168,7 +1168,7 @@ $(document).ready(function () {
             return;
         }
 
-        const $track = $('<div class="d-flex flex-wrap gap-2 w-100"></div>');
+        const $track = $('<div class="d-flex flex-nowrap gap-2"></div>');
 
         items.forEach(function (item) {
             const index = Number(item && item.index);
@@ -1210,7 +1210,7 @@ $(document).ready(function () {
         });
 
         if ($track.children().length === 0) {
-            $wcsCameraDeviceList.html('<div class="text-muted text-center py-3 w-100">열 수 있는 카메라 장치가 없습니다.</div>');
+            $wcsCameraDeviceList.html('<div class="text-muted text-center py-2">열 수 있는 카메라 장치가 없습니다.</div>');
             return;
         }
 
@@ -1231,7 +1231,7 @@ $(document).ready(function () {
         }
 
         isCameraDevicesLoading = true;
-        $wcsCameraDeviceList.html('<div class="text-muted text-center py-3 w-100">카메라 장치를 확인하는 중...</div>');
+        $wcsCameraDeviceList.html('<div class="text-muted text-center py-2">카메라 장치를 확인하는 중...</div>');
 
         $.ajax({
             url: buildCameraDevicesUrl(),
@@ -1244,7 +1244,7 @@ $(document).ready(function () {
             isCameraDevicesLoaded = true;
         }).fail(function (jqXHR) {
             console.error('Camera device list error:', jqXHR.status, jqXHR.responseText);
-            $wcsCameraDeviceList.html('<div class="text-danger text-center py-3 w-100">카메라 장치 목록을 불러오지 못했습니다.</div>');
+            $wcsCameraDeviceList.html('<div class="text-danger text-center py-2">카메라 장치 목록을 불러오지 못했습니다.</div>');
         }).always(function () {
             isCameraDevicesLoading = false;
         });

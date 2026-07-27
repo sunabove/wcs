@@ -61,6 +61,8 @@ $(document).ready(function () {
         distanceKm: 0,
         intervalSec: 2,
         speedKmh: 8,
+        maxSpeedKmh: 30,
+        accelerationMs2: 0.3,
         batteryDrainPerHour: 3,
         autoStep: true,
     };
@@ -143,6 +145,8 @@ $(document).ready(function () {
         return {
             intervalSec: clampNumber($('#sim-runinfo-interval-sec').val(), 1, 60, RUN_INFO_SIMULATION_DEFAULTS.intervalSec),
             speedKmh: clampNumber($('#sim-runinfo-speed-kmh').val(), 0, 120, RUN_INFO_SIMULATION_DEFAULTS.speedKmh),
+            maxSpeedKmh: clampNumber($('#sim-runinfo-max-speed-kmh').val(), 0, 200, RUN_INFO_SIMULATION_DEFAULTS.maxSpeedKmh),
+            accelerationMs2: clampNumber($('#sim-runinfo-acceleration-ms2').val(), -10, 10, RUN_INFO_SIMULATION_DEFAULTS.accelerationMs2),
             batteryDrainPerHour: clampNumber($('#sim-runinfo-battery-drain-per-hour').val(), 0, 100, RUN_INFO_SIMULATION_DEFAULTS.batteryDrainPerHour),
             autoStep: $('#sim-runinfo-auto-step').is(':checked'),
         };
@@ -155,16 +159,22 @@ $(document).ready(function () {
         $('#sim-drive-total-distance-km').val(Number(state.distanceKm).toFixed(2));
     }
 
-    function publishRunInfoSimulationState(state) {
+    function publishRunInfoSimulationState(state, options = {}) {
         const availableSec = Math.round(Math.max(0, Number(state.availableMinutes) * 60));
         const elapsedSec = Math.round(Math.max(0, Number(state.elapsedMinutes) * 60));
         const distanceM = Math.round(Math.max(0, Number(state.distanceKm) * 1000));
         const batteryPercent = Number(Math.max(0, Math.min(100, Number(state.batteryPercent))).toFixed(1));
+        const currentSpeedMs = Number((Math.max(0, Number(options.speedKmh) || 0) / 3.6).toFixed(3));
+        const maxSpeedMs = Number((Math.max(0, Number(options.maxSpeedKmh) || 0) / 3.6).toFixed(3));
+        const accelerationMs2 = Number((Number(options.accelerationMs2) || 0).toFixed(3));
 
         sendMQTTMessage('vehicle/battery/remain_amount', batteryPercent);
         sendMQTTMessage('vehicle/drive/available_time', availableSec);
         sendMQTTMessage('vehicle/drive/elapsed_time', elapsedSec);
         sendMQTTMessage('vehicle/drive/total_distance', distanceM);
+        sendMQTTMessage('vehicle/linear/speed', currentSpeedMs);
+        sendMQTTMessage('vehicle/linear/max_speed', maxSpeedMs);
+        sendMQTTMessage('vehicle/linear/acceleration', accelerationMs2);
         triggerRunInfoSimulationPublishBlink();
     }
 
@@ -190,6 +200,8 @@ $(document).ready(function () {
         $('#sim-drive-total-distance-km').val(RUN_INFO_SIMULATION_DEFAULTS.distanceKm);
         $('#sim-runinfo-interval-sec').val(RUN_INFO_SIMULATION_DEFAULTS.intervalSec);
         $('#sim-runinfo-speed-kmh').val(RUN_INFO_SIMULATION_DEFAULTS.speedKmh);
+        $('#sim-runinfo-max-speed-kmh').val(RUN_INFO_SIMULATION_DEFAULTS.maxSpeedKmh);
+        $('#sim-runinfo-acceleration-ms2').val(RUN_INFO_SIMULATION_DEFAULTS.accelerationMs2);
         $('#sim-runinfo-battery-drain-per-hour').val(RUN_INFO_SIMULATION_DEFAULTS.batteryDrainPerHour);
         $('#sim-runinfo-auto-step').prop('checked', RUN_INFO_SIMULATION_DEFAULTS.autoStep);
     }
@@ -211,7 +223,7 @@ $(document).ready(function () {
             }
 
             writeRunInfoSimulationStateToInputs(state);
-            publishRunInfoSimulationState(state);
+            publishRunInfoSimulationState(state, options);
         };
 
         tick();
@@ -2083,8 +2095,9 @@ $(document).ready(function () {
 
     $('#sim-runinfo-publish-once').on('click', function () {
         const state = getRunInfoSimulationStateFromInputs();
+        const options = getRunInfoSimulationOptionsFromInputs();
         writeRunInfoSimulationStateToInputs(state);
-        publishRunInfoSimulationState(state);
+        publishRunInfoSimulationState(state, options);
         updateRunInfoSimulationStateLabel('1회 발행 완료', false);
     });
 

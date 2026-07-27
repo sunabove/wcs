@@ -10,6 +10,7 @@
     const VEHICLE_AUDIO_STORAGE_KEY = "wcs.vehicle.showAudio";
     const OVERLAY_MEDIA_HIDDEN_STORAGE_KEY = "wcs.status.overlay.media_hidden";
     const OVERLAY_AUTO_REPLAY_STORAGE_KEY = "wcs.status.overlay.auto_replay";
+    const CURRENT_VIDEO_SELECTION_STORAGE_KEY = "wcs.vehicle.current_video_file_name.v1";
 
     if ($overlay.length === 0 || $image.length === 0 || $video.length === 0) {
         return;
@@ -295,6 +296,22 @@
     function writeOverlayAutoReplayState(enabled) {
         try {
             window.localStorage.setItem(OVERLAY_AUTO_REPLAY_STORAGE_KEY, enabled ? "true" : "false");
+        } catch (error) {
+            // Ignore storage write failures.
+        }
+    }
+
+    function readCurrentVideoSelectionState() {
+        try {
+            return String(window.localStorage.getItem(CURRENT_VIDEO_SELECTION_STORAGE_KEY) || "").trim();
+        } catch (error) {
+            return "";
+        }
+    }
+
+    function writeCurrentVideoSelectionState(value) {
+        try {
+            window.localStorage.setItem(CURRENT_VIDEO_SELECTION_STORAGE_KEY, String(value || "").trim());
         } catch (error) {
             // Ignore storage write failures.
         }
@@ -1394,6 +1411,7 @@
         const topicText = String(topic || "").trim();
 
         if (topicText === "vehicle/current_video/file_name") {
+            writeCurrentVideoSelectionState(value);
             resolveAndShowCurrentVideo(value);
             return;
         }
@@ -1640,6 +1658,10 @@
     }
     updateOverlayAudioHud();
     requestRoadDetectSessionCleanupAllOnLoad();
+    const savedCurrentVideoSelection = readCurrentVideoSelectionState();
+    if (savedCurrentVideoSelection) {
+        resolveAndShowCurrentVideo(savedCurrentVideoSelection);
+    }
     setInterval(updateOverlayAudioHud, 400);
     setInterval(attemptImageStreamAutoReplay, 500);
 })();

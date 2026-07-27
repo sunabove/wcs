@@ -317,6 +317,12 @@
         }
     }
 
+    function markOverlayMediaVisibleState() {
+        mediaHiddenByUser = false;
+        writeOverlayMediaHiddenState(false);
+        setCloseButtonToShowMode(false);
+    }
+
     function isAudioEnabledForOverlay() {
         if (typeof window.isVehicleAudioEnabled === "function") {
             try {
@@ -763,6 +769,7 @@
 
         const selectionKey = String(selection.key || "");
         if (selectionKey && selectionKey === cameraOverlaySelectionKey && cameraOverlaySessionId) {
+            markOverlayMediaVisibleState();
             applyCompactOverlayLayout();
             showOverlay();
             return;
@@ -787,6 +794,7 @@
             }
 
             cameraOverlaySessionId = sessionId;
+            markOverlayMediaVisibleState();
             applyCompactOverlayLayout();
             showOverlay();
             requestCameraOverlayNextFrame();
@@ -1193,6 +1201,8 @@
             updateVideoControlButtons();
             return;
         }
+
+        markOverlayMediaVisibleState();
 
         if (cameraSelection) {
             startCameraOverlayStream(cameraSelection);

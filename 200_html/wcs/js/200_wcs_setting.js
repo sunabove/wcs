@@ -2,10 +2,14 @@ $(document).ready(function () {
     const maxSpeedTopic = 'vehicle/linear/max_speed';
     const vehicleOperationCommandTopic = 'vehicle/operation/command';
     const $wcsSampleVideoPane = $('#wcs-input-sample-video-pane');
+    const $wcsCameraPane = $('#wcs-input-camera-pane');
+    const $wcsCameraTab = $('#wcs-input-camera-tab');
+    const $wcsCameraDeviceList = $('#wcs-camera-device-list');
     const vehicleDirectionButtonSelector = (typeof window.getVehicleDirectionButtonSelector === 'function')
         ? window.getVehicleDirectionButtonSelector()
         : '#vehicle-forward, #vehicle-backward, #vehicle-turn-left, #vehicle-turn-right, #vehicle-stop';
     const wcsSampleVideoItemTemplate = document.getElementById('wcs-sample-video-item-template');
+    const wcsCameraDeviceItemTemplate = document.getElementById('wcs-camera-device-item-template');
     const SAMPLE_VIDEO_BROWSER_STORAGE_KEY = 'wcs.setting.sample_video_browser.v1';
     const OBSTACLE_SENSOR_DEFINITIONS = [
         { id: 'ToF', count: 4, target: '거리,장애물', enabled: true },
@@ -22,9 +26,12 @@ $(document).ready(function () {
     const OBSTACLE_SENSOR_PUBLISH_BLINK_TOTAL_MS = 6200;
     let isSampleVideosLoaded = false;
     let isSampleVideosLoading = false;
+    let isCameraDevicesLoaded = false;
+    let isCameraDevicesLoading = false;
     let sampleVideoBrowserPath = 'video';
     let sampleVideoShowAllFiles = false;
     let currentVideoFileName = '';
+    let currentCameraDeviceIndex = null;
     let isDirectionInitSyncWindow = true;
     let pendingDirectionCommandValue = null;
     let pendingDirectionCommandTimer = null;
@@ -719,6 +726,10 @@ $(document).ready(function () {
             return '/fast/samples/' + encodePathForRoute(folderName);
         };
 
+    function buildCameraDevicesUrl() {
+        return '/fast/camera/devices';
+    }
+
     const normalizeSampleFolderPath = typeof window.wcsNormalizeSampleFolderPath === 'function'
         ? window.wcsNormalizeSampleFolderPath
         : function (folderPath, baseFolder) {
@@ -1141,6 +1152,104 @@ $(document).ready(function () {
             }
         };
 
+    function renderCameraDeviceList(devices) {
+        if ($wcsCameraDeviceList.length === 0) {
+            return;
+        }
+
+        const items = Array.isArray(devices) ? devices : [];
+        if (items.length === 0) {
+            $wcsCameraDeviceList.html('<div class="text-muted text-center py-3 w-100">열 수 있는 카메라 장치가 없습니다.</div>');
+            return;
+        }
+
+        if (!wcsCameraDeviceItemTemplate || !wcsCameraDeviceItemTemplate.content) {
+            $wcsCameraDeviceList.html('<div class="text-danger text-center py-3 w-100">카메라 템플릿을 찾지 못했습니다.</div>');
+            return;
+        }
+
+        const $track = $('<div class="d-flex flex-wrap gap-2 w-100"></div>');
+
+        items.forEach(function (item) {
+            const index = Number(item && item.index);
+            if (!Number.isFinite(index) || index < 0) {
+                return;
+            }
+
+            const name = String((item && item.name) || ('Camera ' + index));
+            const width = Number((item && item.width) || 0);
+            const height = Number((item && item.height) || 0);
+            const fps = Number((item && item.fps) || 0);
+            const details = [];
+
+            if (width > 0 && height > 0) {
+                details.push(width + 'x' + height);
+            }
+            if (fps > 0) {
+                details.push(fps.toFixed(1) + ' fps');
+            }
+
+            const node = wcsCameraDeviceItemTemplate.content.firstElementChild.cloneNode(true);
+            const button = node;
+            const nameNode = node.querySelector('.camera-device-name');
+            const detailNode = node.querySelector('.camera-device-detail');
+
+            if (button) {
+                button.setAttribute('data-camera-index', String(index));
+                button.setAttribute('data-camera-name', name);
+                button.classList.toggle('active', Number(currentCameraDeviceIndex) === index);
+            }
+            if (nameNode) {
+                nameNode.textContent = name;
+            }
+            if (detailNode) {
+                detailNode.textContent = details.join(' / ') || '열림 확인';
+            }
+
+            $track.append(node);
+        });
+
+        if ($track.children().length === 0) {
+            $wcsCameraDeviceList.html('<div class="text-muted text-center py-3 w-100">열 수 있는 카메라 장치가 없습니다.</div>');
+            return;
+        }
+
+        $wcsCameraDeviceList.empty().append($track);
+    }
+
+    function loadCameraDevices(forceReload) {
+        if ($wcsCameraDeviceList.length === 0) {
+            return;
+        }
+
+        if (isCameraDevicesLoading) {
+            return;
+        }
+
+        if (!forceReload && isCameraDevicesLoaded) {
+            return;
+        }
+
+        isCameraDevicesLoading = true;
+        $wcsCameraDeviceList.html('<div class="text-muted text-center py-3 w-100">카메라 장치를 확인하는 중...</div>');
+
+        $.ajax({
+            url: buildCameraDevicesUrl(),
+            method: 'GET'
+        }).done(function (result) {
+            const devices = Array.isArray(result)
+                ? result
+                : (result && Array.isArray(result.devices) ? result.devices : []);
+            renderCameraDeviceList(devices);
+            isCameraDevicesLoaded = true;
+        }).fail(function (jqXHR) {
+            console.error('Camera device list error:', jqXHR.status, jqXHR.responseText);
+            $wcsCameraDeviceList.html('<div class="text-danger text-center py-3 w-100">카메라 장치 목록을 불러오지 못했습니다.</div>');
+        }).always(function () {
+            isCameraDevicesLoading = false;
+        });
+    }
+
     function syncObstacleSensorRowControls($row) {
         const sensorId = String($row.attr('data-sensor-id') || '').trim();
         const sensorIndex = Number.parseInt($row.attr('data-sensor-index'), 10);
@@ -1337,6 +1446,26 @@ $(document).ready(function () {
         applyCurrentVideoHighlight();
         const published = sendMQTTMessage('vehicle/current_video/file_name', '');
         showVideoPublishToast(Boolean(published), '', this);
+    });
+
+    $wcsCameraPane.on('click', '.wcs-camera-device-item', function () {
+        const index = Number($(this).attr('data-camera-index'));
+        if (!Number.isFinite(index) || index < 0) {
+            return;
+        }
+
+        currentCameraDeviceIndex = index;
+        $wcsCameraPane.find('.wcs-camera-device-item.active').removeClass('active');
+        $(this).addClass('active');
+    });
+
+    $wcsCameraPane.on('click', '.wcs-camera-clear-selection', function () {
+        currentCameraDeviceIndex = null;
+        $wcsCameraPane.find('.wcs-camera-device-item.active').removeClass('active');
+    });
+
+    $wcsCameraTab.on('shown.bs.tab', function () {
+        loadCameraDevices(false);
     });
 
     $('#reset-vehicle-max-speed').on('click', function () {

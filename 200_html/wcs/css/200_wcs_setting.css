@@ -44,6 +44,16 @@
     background-color: rgba(13, 110, 253, 0.16);
 }
 
+.wcs-camera-device-item {
+    min-width: 180px;
+}
+
+.wcs-camera-device-item.active {
+    border-color: var(--bs-primary) !important;
+    box-shadow: 0 0 0 0.18rem rgba(13, 110, 253, 0.2);
+    background-color: rgba(13, 110, 253, 0.16);
+}
+
 .wcs-setting-table {
     width: 100%;
     table-layout: fixed;

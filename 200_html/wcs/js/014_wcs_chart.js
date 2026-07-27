@@ -18,12 +18,23 @@ function formatSequentialTickLabel(index, tickCount = MIN_X_TICK_COUNT, firstUni
     const baseLabel = String(safeIndex + 1);
     const normalizedFirstUnit = String(firstUnit || '').trim();
     const normalizedLastUnit = String(lastUnit || '').trim();
+    const wrapUnit = (unitText) => {
+        if (!unitText) {
+            return '';
+        }
+
+        if (unitText.startsWith('(') && unitText.endsWith(')')) {
+            return unitText;
+        }
+
+        return `(${unitText})`;
+    };
 
     if (safeIndex === 0 && normalizedFirstUnit) {
-        return `${baseLabel} ${normalizedFirstUnit}`;
+        return `${baseLabel} ${wrapUnit(normalizedFirstUnit)}`;
     }
     if (safeIndex === (maxCount - 1) && normalizedLastUnit) {
-        return `${baseLabel} ${normalizedLastUnit}`;
+        return `${baseLabel} ${wrapUnit(normalizedLastUnit)}`;
     }
 
     return baseLabel;

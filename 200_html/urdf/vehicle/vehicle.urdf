@@ -343,6 +343,28 @@
     <dynamics damping="0.05" friction="0.02" />
   </joint>
 
+  <link name="gear_fl">
+    <visual>
+      <origin xyz="0 0 0" rpy="1.5707963 0 0" />
+      <geometry>
+        <cylinder radius="0.055" length="0.065" />
+      </geometry>
+      <material name="rim" />
+    </visual>
+
+    <inertial>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <mass value="0.12" />
+      <inertia ixx="0.00015" ixy="0" ixz="0" iyy="0.00010" iyz="0" izz="0.00015" />
+    </inertial>
+  </link>
+
+  <joint name="joint_gear_fl" type="fixed">
+    <parent link="wheel_fl" />
+    <child link="gear_fl" />
+    <origin xyz="0 0 0" rpy="0 0 0" />
+  </joint>
+
   <!-- Front-right wheel -->
   <link name="wheel_fr">
     <visual>
@@ -477,6 +499,28 @@
     <origin xyz="0.33 -0.40 0.06" rpy="0 0 0" />
     <axis xyz="0 1 0" />
     <dynamics damping="0.05" friction="0.02" />
+  </joint>
+
+  <link name="gear_fr">
+    <visual>
+      <origin xyz="0 0 0" rpy="1.5707963 0 0" />
+      <geometry>
+        <cylinder radius="0.055" length="0.065" />
+      </geometry>
+      <material name="rim" />
+    </visual>
+
+    <inertial>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <mass value="0.12" />
+      <inertia ixx="0.00015" ixy="0" ixz="0" iyy="0.00010" iyz="0" izz="0.00015" />
+    </inertial>
+  </link>
+
+  <joint name="joint_gear_fr" type="fixed">
+    <parent link="wheel_fr" />
+    <child link="gear_fr" />
+    <origin xyz="0 0 0" rpy="0 0 0" />
   </joint>
 
   <!-- Rear-left wheel -->
@@ -615,6 +659,28 @@
     <dynamics damping="0.05" friction="0.02" />
   </joint>
 
+  <link name="gear_rl">
+    <visual>
+      <origin xyz="0 0 0" rpy="1.5707963 0 0" />
+      <geometry>
+        <cylinder radius="0.055" length="0.065" />
+      </geometry>
+      <material name="rim" />
+    </visual>
+
+    <inertial>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <mass value="0.12" />
+      <inertia ixx="0.00015" ixy="0" ixz="0" iyy="0.00010" iyz="0" izz="0.00015" />
+    </inertial>
+  </link>
+
+  <joint name="joint_gear_rl" type="fixed">
+    <parent link="wheel_rl" />
+    <child link="gear_rl" />
+    <origin xyz="0 0 0" rpy="0 0 0" />
+  </joint>
+
   <!-- Rear-right wheel -->
   <link name="wheel_rr">
     <visual>
@@ -749,6 +815,28 @@
     <origin xyz="-0.33 -0.40 0.06" rpy="0 0 0" />
     <axis xyz="0 1 0" />
     <dynamics damping="0.05" friction="0.02" />
+  </joint>
+
+  <link name="gear_rr">
+    <visual>
+      <origin xyz="0 0 0" rpy="1.5707963 0 0" />
+      <geometry>
+        <cylinder radius="0.055" length="0.065" />
+      </geometry>
+      <material name="rim" />
+    </visual>
+
+    <inertial>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <mass value="0.12" />
+      <inertia ixx="0.00015" ixy="0" ixz="0" iyy="0.00010" iyz="0" izz="0.00015" />
+    </inertial>
+  </link>
+
+  <joint name="joint_gear_rr" type="fixed">
+    <parent link="wheel_rr" />
+    <child link="gear_rr" />
+    <origin xyz="0 0 0" rpy="0 0 0" />
   </joint>
 
   <!-- Optional wheel-ground friction tuning for Gazebo -->

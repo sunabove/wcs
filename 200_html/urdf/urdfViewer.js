@@ -396,7 +396,11 @@ class URDFViewer {
 
         // Renderer 생성
         this.renderer = new THREE.WebGLRenderer({ antialias: true });
-        this.renderer.setSize(width, height);
+        // Keep canvas size tied to container CSS to avoid cumulative inline-height growth on resize.
+        this.renderer.setSize(width, height, false);
+        this.renderer.domElement.style.width = '100%';
+        this.renderer.domElement.style.height = '100%';
+        this.renderer.domElement.style.display = 'block';
         this.renderer.shadowMap.enabled = true;
         this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
         this.container.appendChild(this.renderer.domElement);
@@ -3102,12 +3106,14 @@ class URDFViewer {
     setupResizeHandler() {
         window.addEventListener('resize', () => {
             const newRect = this.container.getBoundingClientRect();
-            const newWidth = newRect.width;
-            const newHeight = newRect.height;
+            const newWidth = Math.max(newRect.width, 1);
+            const newHeight = Math.max(newRect.height, 1);
             
             this.camera.aspect = newWidth / newHeight;
             this.camera.updateProjectionMatrix();
-            this.renderer.setSize(newWidth, newHeight);
+            this.renderer.setSize(newWidth, newHeight, false);
+            this.renderer.domElement.style.width = '100%';
+            this.renderer.domElement.style.height = '100%';
 
             if (this.compassRenderer) {
                 this.compassRenderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));

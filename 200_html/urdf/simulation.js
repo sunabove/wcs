@@ -27,12 +27,8 @@ class RapierDriveSimulation {
         this.hasFailed = false;
         this.lastStepTimeMs = 0;
         this.isKeyboardControlEnabled = true;
-        this.keyState = {
-            ArrowUp: false,
-            ArrowDown: false,
-            ArrowLeft: false,
-            ArrowRight: false
-        };
+        this.pendingKeyboardNudgeX = 0;
+        this.pendingKeyboardNudgeY = 0;
     }
 
     findSimulationViewer() {
@@ -134,50 +130,46 @@ class RapierDriveSimulation {
             return;
         }
 
-        const handledKeys = new Set(['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight']);
+        const nudgeByKey = {
+            ArrowUp: { x: 1, y: 0 },
+            ArrowDown: { x: -1, y: 0 },
+            ArrowLeft: { x: 0, y: 1 },
+            ArrowRight: { x: 0, y: -1 }
+        };
 
         window.addEventListener('keydown', (event) => {
-            if (!handledKeys.has(event.key)) {
+            const nudge = nudgeByKey[event.key];
+            if (!nudge) {
                 return;
             }
 
-            this.keyState[event.key] = true;
+            this.pendingKeyboardNudgeX += nudge.x;
+            this.pendingKeyboardNudgeY += nudge.y;
             event.preventDefault();
         }, { passive: false });
-
-        window.addEventListener('keyup', (event) => {
-            if (!handledKeys.has(event.key)) {
-                return;
-            }
-
-            this.keyState[event.key] = false;
-            event.preventDefault();
-        }, { passive: false });
-
-        window.addEventListener('blur', () => {
-            this.keyState.ArrowUp = false;
-            this.keyState.ArrowDown = false;
-            this.keyState.ArrowLeft = false;
-            this.keyState.ArrowRight = false;
-        });
     }
 
     getKeyboardDriveState() {
-        const up = this.keyState.ArrowUp === true;
-        const down = this.keyState.ArrowDown === true;
-        const left = this.keyState.ArrowLeft === true;
-        const right = this.keyState.ArrowRight === true;
+        const moveX = this.pendingKeyboardNudgeX;
+        const moveY = this.pendingKeyboardNudgeY;
+        const isActive = moveX !== 0 || moveY !== 0;
 
-        const moveX = (up ? 1 : 0) + (down ? -1 : 0);
-        const moveY = (left ? 1 : 0) + (right ? -1 : 0);
-        const magnitude = Math.hypot(moveX, moveY);
-        const isActive = magnitude > 0;
+        this.pendingKeyboardNudgeX = 0;
+        this.pendingKeyboardNudgeY = 0;
 
         return {
             isActive,
-            moveX: isActive ? moveX / magnitude : 0,
-            moveY: isActive ? moveY / magnitude : 0
+            moveX,
+            moveY
         };
+    }
+
+    getKeyboardNudgeDistance() {
+        const halfWidth = Number(this.vehicleHalfExtents?.y);
+        const fullWidth = Number.isFinite(halfWidth) && halfWidth > 0
+            ? halfWidth * 2
+            : 0.5;
+        return fullWidth / 10;
     }
 
     updateSpeedSliderVisual(sliderElement) {
@@ -493,9 +485,13 @@ class RapierDriveSimulation {
 
         const currentLinearVelocity = this.body.linvel();
         if (keyboardState.isActive) {
-            const velocityX = clampedSpeed * keyboardMoveX;
-            const velocityY = clampedSpeed * keyboardMoveY;
-            this.body.setLinvel(new this.rapier.Vector3(velocityX, velocityY, currentLinearVelocity.z), true);
+            const position = this.body.translation();
+            const nudgeDistance = this.getKeyboardNudgeDistance();
+            const nextX = position.x + (keyboardMoveX * nudgeDistance);
+            const nextY = position.y + (keyboardMoveY * nudgeDistance);
+
+            this.body.setTranslation(new this.rapier.Vector3(nextX, nextY, position.z), true);
+            this.body.setLinvel(new this.rapier.Vector3(0, 0, currentLinearVelocity.z), true);
             this.body.setAngvel(new this.rapier.Vector3(0, 0, 0), true);
         } else {
             const bodyRotation = this.body.rotation();

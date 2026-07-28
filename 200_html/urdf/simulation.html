@@ -1,690 +1,158 @@
 <!DOCTYPE html>
-<html lang="ko">
+<html lang="en">
+
 <head>
-	<meta charset="UTF-8">
-	<meta name="viewport" content="width=device-width, initial-scale=1">
-	<title>Rapier Physics Simulation</title>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>URDF Viewer</title>
+    <link rel="icon" href="/favicon.ico" type="image/x-icon" />
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
 
-	<link rel="icon" href="/favicon.ico" type="image/x-icon">
-	<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
 
-	<script type="importmap">
-	{
-		"imports": {
-			"three": "https://cdn.jsdelivr.net/npm/three@0.160/build/three.module.js",
-			"three/examples/jsm/": "https://cdn.jsdelivr.net/npm/three@0.160/examples/jsm/",
-			"RapierPhysics": "https://cdn.jsdelivr.net/npm/three@0.160/addons/physics/RapierPhysics.js",
-			"RAPIER": "https://cdn.jsdelivr.net/npm/@dimforge/rapier3d-compat@0.14.0/rapier.es.js"
-		}
-	}
-	</script>
+    <!-- Import map for module resolution -->
+    <script type="importmap">
+        {
+        "imports": {
+                "three": "https://cdn.jsdelivr.net/npm/three@0.160/build/three.module.js",
+                "three/examples/jsm/": "https://cdn.jsdelivr.net/npm/three@0.160/examples/jsm/",
+                "three-csg-ts": "https://esm.sh/three-csg-ts@3.2.0?external=three",
+                "urdf-loader": "https://cdn.jsdelivr.net/npm/urdf-loader@0.12.3/src/URDFLoader.js",
+                "RapierPhysics": "https://cdn.jsdelivr.net/npm/three@0.160/addons/physics/RapierPhysics.js"
+            }
+        }
+    </script>
+    <script type="module" src="urdfViewer.js"></script>
+
 </head>
 
-<body class="bg-dark text-light">
-	<main class="container-fluid py-2">
-		<div class="row g-2 align-items-center mb-2">
-			<div class="col-12 col-lg-7">
-				<div class="d-flex flex-wrap gap-2">
-					<button id="spawn-box" type="button" class="btn btn-sm btn-primary">Box 추가</button>
-					<button id="spawn-ball" type="button" class="btn btn-sm btn-info text-dark">Ball 추가</button>
-					<button id="reset-scene" type="button" class="btn btn-sm btn-outline-light">초기화</button>
-					<button id="toggle-gravity" type="button" class="btn btn-sm btn-warning text-dark">중력 OFF</button>
-				</div>
-			</div>
-			<div class="col-12 col-lg-5">
-				<div class="d-flex justify-content-lg-end align-items-center gap-2 flex-wrap mb-1">
-					<div class="small text-secondary text-lg-end" id="sim-stats">RigidBodies: 0 | Gravity: ON</div>
-					<a href="./urdfViewer.html" class="btn btn-sm btn-outline-light">URDF Viewer</a>
-				</div>
-			</div>
-		</div>
+<body class="bg-light" style="margin: 0; padding: 0; font-family: Arial, sans-serif;">
+    <div class="container-fluid py-3" style="padding-left: 20px; padding-right: 20px;">
+        <div class="d-flex justify-content-end mb-2">
+            <a href="./urdfViewer.html" class="btn btn-sm btn-outline-dark">URDF Viewer</a>
+        </div>
+        <div class="row justify-content-center">
+            <div class="col-12 col-xxl-10">
+                <div class="card shadow-sm border-0 rounded-4 overflow-hidden">
+                    <div class="card-body p-0">
+                        <div class="robot-container urdf-container w-100 rounded-4 overflow-hidden border border-dark border-2" 
+                            id="robot-container-1" 
+                            urdf="/urdf/vehicle/vehicle.urdf"
+                            urdf__="/urdf/sw_01/ASSY.urdf"
+                            urdf="/urdf/sw_02/urdf/ASSY.urdf"
+                            cameraPose="2.077, 0.543, 1.324|0.396, -0.086, 0.315|-0.505, -0.039, 0.862"
+                            showAttitude="true"
+                            showViewCube="true"
+                            style="min-height: 70vh;"
+                        > 
+                        </div>
+                    </div>
+                </div>
+
+                <div class="alert alert-dark d-flex justify-content-between align-items-center mt-3 mb-0 py-2 px-3" id="camera-angle-panel" 
+                    role="status" style="width: fit-content; margin-left: auto; margin-right: auto; min-width: 280px;">
+                    <span id="camera-pos-text" class="text-center" style="white-space: pre-wrap; cursor: pointer;">0.000, 0.000, 0.000|0.000, 0.000, 0.000|0.000, 1.000, 0.000</span>
+                </div>
+
+                <div class="mt-3 mb-0" id="control-panels-row">
+                    <div class="row g-3">
+                        <div class="col-12 col-lg-4">
+                            <div class="h-100 d-flex flex-column gap-2 px-3 py-3 rounded border bg-white" id="wheel-animation-panel">
+                                <div class="row g-2">
+                                    <div class="col-12 col-md-6">
+                                        <div class="d-flex align-items-center gap-2 px-3 py-2 rounded border bg-light h-100">
+                                            <span class="small text-nowrap fw-semibold" style="min-width: 28px;">FL</span>
+                                            <input type="range" class="form-range m-0" id="wheel-speed-rpm-fl" min="-120" max="120" step="10" value="0" oninput="setWheelAnimationByKey('fl', this.value)">
+                                            <span class="small text-nowrap fw-semibold" id="wheel-speed-rpm-value-fl" style="min-width: 56px; text-align: right;">0 rpm</span>
+                                        </div>
+                                    </div>
+                                    <div class="col-12 col-md-6">
+                                        <div class="d-flex align-items-center gap-2 px-3 py-2 rounded border bg-light h-100">
+                                            <span class="small text-nowrap fw-semibold" style="min-width: 28px;">FR</span>
+                                            <input type="range" class="form-range m-0" id="wheel-speed-rpm-fr" min="-120" max="120" step="10" value="0" oninput="setWheelAnimationByKey('fr', this.value)">
+                                            <span class="small text-nowrap fw-semibold" id="wheel-speed-rpm-value-fr" style="min-width: 56px; text-align: right;">0 rpm</span>
+                                        </div>
+                                    </div>
+                                    <div class="col-12 col-md-6">
+                                        <div class="d-flex align-items-center gap-2 px-3 py-2 rounded border bg-light h-100">
+                                            <span class="small text-nowrap fw-semibold" style="min-width: 28px;">RL</span>
+                                            <input type="range" class="form-range m-0" id="wheel-speed-rpm-rl" min="-120" max="120" step="10" value="0" oninput="setWheelAnimationByKey('rl', this.value)">
+                                            <span class="small text-nowrap fw-semibold" id="wheel-speed-rpm-value-rl" style="min-width: 56px; text-align: right;">0 rpm</span>
+                                        </div>
+                                    </div>
+                                    <div class="col-12 col-md-6">
+                                        <div class="d-flex align-items-center gap-2 px-3 py-2 rounded border bg-light h-100">
+                                            <span class="small text-nowrap fw-semibold" style="min-width: 28px;">RR</span>
+                                            <input type="range" class="form-range m-0" id="wheel-speed-rpm-rr" min="-120" max="120" step="10" value="0" oninput="setWheelAnimationByKey('rr', this.value)">
+                                            <span class="small text-nowrap fw-semibold" id="wheel-speed-rpm-value-rr" style="min-width: 56px; text-align: right;">0 rpm</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-12 col-lg-4">
+                            <div class="h-100 d-flex flex-column justify-content-center gap-2 px-3 py-3 rounded border bg-white" id="drive-control-panel">
+                                <div class="d-flex justify-content-center align-items-center flex-wrap gap-2">
+                                    <button type="button" class="btn btn-outline-primary btn-sm" id="drive-btn-forward" onclick="setDriveMode('forward')">전진</button>
+                                    <button type="button" class="btn btn-outline-secondary btn-sm" id="drive-btn-backward" onclick="setDriveMode('backward')">후진</button>
+                                    <button type="button" class="btn btn-outline-primary btn-sm" id="drive-btn-left" onclick="setDriveMode('left')">좌회전</button>
+                                    <button type="button" class="btn btn-outline-primary btn-sm" id="drive-btn-right" onclick="setDriveMode('right')">우회전</button>
+                                    <button type="button" class="btn btn-outline-danger btn-sm" id="drive-btn-stop" onclick="setDriveMode('stop')">정지</button>
+                                </div>
+                                <div class="d-flex justify-content-center align-items-center mt-2">
+                                    <div class="d-flex align-items-center gap-2 px-3 py-2 rounded border bg-light w-100">
+                                        <span class="small text-nowrap fw-semibold">속도</span>
+                                        <input type="range" class="form-range m-0" id="drive-speed-kmh" min="0" max="30" step="1" value="0" oninput="$('#drive-speed-kmh-value').text(this.value + ' km/h'); setDriveSpeedKmh(this.value)">
+                                        <span class="small text-nowrap fw-semibold" id="drive-speed-kmh-value" style="min-width: 60px; text-align: right;">0 km/h</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-12 col-lg-4">
+                            <div class="h-100 d-flex align-items-center justify-content-center px-3 py-3 rounded border bg-white" id="ramp-control-panel">
+                                <div class="d-flex flex-column gap-2 w-100 align-items-center">
+                                    <div class="d-flex align-items-center gap-2">
+                                        <span class="small text-nowrap fw-semibold text-end" style="width: 60px;">Roll</span>
+                                        <input
+                                            type="number"
+                                            class="form-control form-control-sm text-end"
+                                            id="road-roll-angle-deg"
+                                            min="-30"
+                                            max="30"
+                                            step="1"
+                                            value="0"
+                                            style="width: 88px;"
+                                            oninput="setRoadRollAngleDeg(this.value)"
+                                        >
+                                        <span class="small text-nowrap fw-semibold" id="road-roll-angle-deg-value" style="min-width: 40px; text-align: right;">0°</span>
+                                    </div>
+                                    <div class="d-flex align-items-center gap-2">
+                                        <span class="small text-nowrap fw-semibold text-end" style="width: 60px;">Pitch</span>
+                                        <input
+                                            type="number"
+                                            class="form-control form-control-sm text-end"
+                                            id="road-pitch-angle-deg"
+                                            min="-30"
+                                            max="30"
+                                            step="1"
+                                            value="0"
+                                            style="width: 88px;"
+                                            oninput="setRoadPitchAngleDeg(this.value)"
+                                        >
+                                        <span class="small text-nowrap fw-semibold" id="road-pitch-angle-deg-value" style="min-width: 40px; text-align: right;">0°</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+            </div>
+        </div>
+    </div>
 
-		<div class="row g-2 mb-2">
-			<div class="col-12 col-lg-4">
-				<div class="h-100 d-flex flex-column gap-2 px-3 py-3 rounded border border-secondary bg-dark-subtle" id="wheel-animation-panel">
-					<div class="row g-2">
-						<div class="col-12 col-md-6">
-							<div class="d-flex align-items-center gap-2 px-3 py-2 rounded border bg-light h-100 text-dark">
-								<span class="small text-nowrap fw-semibold" style="min-width: 28px;">FL</span>
-								<input type="range" class="form-range m-0" id="wheel-speed-rpm-fl" min="-120" max="120" step="10" value="0">
-								<span class="small text-nowrap fw-semibold" id="wheel-speed-rpm-value-fl" style="min-width: 56px; text-align: right;">0 rpm</span>
-							</div>
-						</div>
-						<div class="col-12 col-md-6">
-							<div class="d-flex align-items-center gap-2 px-3 py-2 rounded border bg-light h-100 text-dark">
-								<span class="small text-nowrap fw-semibold" style="min-width: 28px;">FR</span>
-								<input type="range" class="form-range m-0" id="wheel-speed-rpm-fr" min="-120" max="120" step="10" value="0">
-								<span class="small text-nowrap fw-semibold" id="wheel-speed-rpm-value-fr" style="min-width: 56px; text-align: right;">0 rpm</span>
-							</div>
-						</div>
-						<div class="col-12 col-md-6">
-							<div class="d-flex align-items-center gap-2 px-3 py-2 rounded border bg-light h-100 text-dark">
-								<span class="small text-nowrap fw-semibold" style="min-width: 28px;">RL</span>
-								<input type="range" class="form-range m-0" id="wheel-speed-rpm-rl" min="-120" max="120" step="10" value="0">
-								<span class="small text-nowrap fw-semibold" id="wheel-speed-rpm-value-rl" style="min-width: 56px; text-align: right;">0 rpm</span>
-							</div>
-						</div>
-						<div class="col-12 col-md-6">
-							<div class="d-flex align-items-center gap-2 px-3 py-2 rounded border bg-light h-100 text-dark">
-								<span class="small text-nowrap fw-semibold" style="min-width: 28px;">RR</span>
-								<input type="range" class="form-range m-0" id="wheel-speed-rpm-rr" min="-120" max="120" step="10" value="0">
-								<span class="small text-nowrap fw-semibold" id="wheel-speed-rpm-value-rr" style="min-width: 56px; text-align: right;">0 rpm</span>
-							</div>
-						</div>
-					</div>
-				</div>
-			</div>
-
-			<div class="col-12 col-lg-4">
-				<div class="h-100 d-flex flex-column justify-content-center gap-2 px-3 py-3 rounded border border-secondary bg-dark-subtle" id="drive-control-panel">
-					<div class="d-flex justify-content-center align-items-center flex-wrap gap-2">
-						<button type="button" class="btn btn-outline-primary btn-sm" id="drive-btn-forward">전진</button>
-						<button type="button" class="btn btn-outline-secondary btn-sm" id="drive-btn-backward">후진</button>
-						<button type="button" class="btn btn-outline-primary btn-sm" id="drive-btn-left">좌회전</button>
-						<button type="button" class="btn btn-outline-primary btn-sm" id="drive-btn-right">우회전</button>
-						<button type="button" class="btn btn-outline-danger btn-sm" id="drive-btn-stop">정지</button>
-					</div>
-					<div class="d-flex justify-content-center align-items-center mt-2">
-						<div class="d-flex align-items-center gap-2 px-3 py-2 rounded border bg-light w-100 text-dark">
-							<span class="small text-nowrap fw-semibold">속도</span>
-							<input type="range" class="form-range m-0" id="drive-speed-kmh" min="0" max="30" step="1" value="0">
-							<span class="small text-nowrap fw-semibold" id="drive-speed-kmh-value" style="min-width: 60px; text-align: right;">0 km/h</span>
-						</div>
-					</div>
-				</div>
-			</div>
-
-			<div class="col-12 col-lg-4">
-				<div class="h-100 d-flex align-items-center justify-content-center px-3 py-3 rounded border border-secondary bg-dark-subtle" id="ramp-control-panel">
-					<div class="d-flex flex-column gap-2 w-100 align-items-center">
-						<div class="d-flex align-items-center gap-2">
-							<span class="small text-nowrap fw-semibold text-end" style="width: 60px;">Roll</span>
-							<input type="number" class="form-control form-control-sm text-end" id="road-roll-angle-deg" min="-30" max="30" step="1" value="0" style="width: 88px;">
-							<span class="small text-nowrap fw-semibold" id="road-roll-angle-deg-value" style="min-width: 40px; text-align: right;">0°</span>
-						</div>
-						<div class="d-flex align-items-center gap-2">
-							<span class="small text-nowrap fw-semibold text-end" style="width: 60px;">Pitch</span>
-							<input type="number" class="form-control form-control-sm text-end" id="road-pitch-angle-deg" min="-30" max="30" step="1" value="0" style="width: 88px;">
-							<span class="small text-nowrap fw-semibold" id="road-pitch-angle-deg-value" style="min-width: 40px; text-align: right;">0°</span>
-						</div>
-					</div>
-				</div>
-			</div>
-		</div>
-
-		<div id="sim-container" class="border border-secondary rounded" style="width:100%; height:calc(100vh - 92px); min-height:420px;"></div>
-	</main>
-
-	<script type="module">
-		import * as THREE from 'three';
-		import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
-		import RAPIER from 'RAPIER';
-
-		const container = document.getElementById('sim-container');
-		const statsLabel = document.getElementById('sim-stats');
-		const spawnBoxButton = document.getElementById('spawn-box');
-		const spawnBallButton = document.getElementById('spawn-ball');
-		const resetButton = document.getElementById('reset-scene');
-		const gravityButton = document.getElementById('toggle-gravity');
-		const driveSpeedInput = document.getElementById('drive-speed-kmh');
-		const driveSpeedValueLabel = document.getElementById('drive-speed-kmh-value');
-		const driveButtons = {
-			forward: document.getElementById('drive-btn-forward'),
-			backward: document.getElementById('drive-btn-backward'),
-			left: document.getElementById('drive-btn-left'),
-			right: document.getElementById('drive-btn-right'),
-			stop: document.getElementById('drive-btn-stop'),
-		};
-		const rollInput = document.getElementById('road-roll-angle-deg');
-		const pitchInput = document.getElementById('road-pitch-angle-deg');
-		const rollValueLabel = document.getElementById('road-roll-angle-deg-value');
-		const pitchValueLabel = document.getElementById('road-pitch-angle-deg-value');
-		const wheelControls = {
-			fl: {
-				input: document.getElementById('wheel-speed-rpm-fl'),
-				label: document.getElementById('wheel-speed-rpm-value-fl'),
-			},
-			fr: {
-				input: document.getElementById('wheel-speed-rpm-fr'),
-				label: document.getElementById('wheel-speed-rpm-value-fr'),
-			},
-			rl: {
-				input: document.getElementById('wheel-speed-rpm-rl'),
-				label: document.getElementById('wheel-speed-rpm-value-rl'),
-			},
-			rr: {
-				input: document.getElementById('wheel-speed-rpm-rr'),
-				label: document.getElementById('wheel-speed-rpm-value-rr'),
-			},
-		};
-
-		const scene = new THREE.Scene();
-		scene.background = new THREE.Color(0x101418);
-		scene.fog = new THREE.Fog(0x101418, 35, 120);
-
-		const camera = new THREE.PerspectiveCamera(60, 1, 0.1, 300);
-		camera.position.set(12, 12, 18);
-
-		const renderer = new THREE.WebGLRenderer({ antialias: true });
-		renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
-		renderer.shadowMap.enabled = true;
-		renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-		container.appendChild(renderer.domElement);
-
-		const controls = new OrbitControls(camera, renderer.domElement);
-		controls.enableDamping = true;
-		controls.dampingFactor = 0.07;
-		controls.target.set(0, 2, 0);
-
-		const ambient = new THREE.AmbientLight(0xffffff, 0.35);
-		scene.add(ambient);
-
-		const sun = new THREE.DirectionalLight(0xffffff, 1.05);
-		sun.position.set(18, 26, 10);
-		sun.castShadow = true;
-		sun.shadow.mapSize.set(2048, 2048);
-		sun.shadow.camera.near = 1;
-		sun.shadow.camera.far = 100;
-		sun.shadow.camera.left = -30;
-		sun.shadow.camera.right = 30;
-		sun.shadow.camera.top = 30;
-		sun.shadow.camera.bottom = -30;
-		scene.add(sun);
-
-		const grid = new THREE.GridHelper(80, 80, 0x3b3f45, 0x2b2f35);
-		grid.position.y = 0.001;
-		scene.add(grid);
-
-		const rampGeometry = new THREE.BoxGeometry(40, 1, 40);
-		const groundMaterial = new THREE.MeshStandardMaterial({
-			color: 0x6f7784,
-			metalness: 0.1,
-			roughness: 0.85,
-		});
-		const rampMesh = new THREE.Mesh(rampGeometry, groundMaterial);
-		rampMesh.position.set(0, -0.5, 0);
-		rampMesh.receiveShadow = true;
-		rampMesh.castShadow = false;
-		scene.add(rampMesh);
-
-		function resizeRenderer() {
-			const width = Math.max(320, container.clientWidth || window.innerWidth);
-			const height = Math.max(260, container.clientHeight || window.innerHeight);
-			renderer.setSize(width, height, false);
-			camera.aspect = width / height;
-			camera.updateProjectionMatrix();
-		}
-
-		window.addEventListener('resize', resizeRenderer);
-		resizeRenderer();
-
-		await RAPIER.init();
-
-		let gravityEnabled = true;
-		const world = new RAPIER.World({ x: 0, y: -9.81, z: 0 });
-		const rigidEntries = [];
-		const clock = new THREE.Clock();
-		const kmhToRpmFactor = 4;
-		const wheelKeys = ['fl', 'fr', 'rl', 'rr'];
-
-		const vehicleState = {
-			rigidBody: null,
-			mesh: null,
-			wheelMeshes: {},
-			wheelOffsets: {
-				fl: new THREE.Vector3(-0.95, -0.42, 1.35),
-				fr: new THREE.Vector3(0.95, -0.42, 1.35),
-				rl: new THREE.Vector3(-0.95, -0.42, -1.35),
-				rr: new THREE.Vector3(0.95, -0.42, -1.35),
-			},
-			wheelRpmByKey: {
-				fl: 0,
-				fr: 0,
-				rl: 0,
-				rr: 0,
-			},
-			wheelAngleByKey: {
-				fl: 0,
-				fr: 0,
-				rl: 0,
-				rr: 0,
-			},
-			driveMode: 'stop',
-			driveSpeedKmh: 0,
-			roadRollAngleDeg: 0,
-			roadPitchAngleDeg: 0,
-		};
-
-		const staticGroundBody = world.createRigidBody(RAPIER.RigidBodyDesc.fixed().setTranslation(0, -0.5, 0));
-		const groundColliderDesc = RAPIER.ColliderDesc.cuboid(20, 0.5, 20)
-			.setFriction(0.8)
-			.setRestitution(0.05);
-		world.createCollider(groundColliderDesc, staticGroundBody);
-
-		function updateRampTransform() {
-			const rollRad = THREE.MathUtils.degToRad(vehicleState.roadRollAngleDeg);
-			const pitchRad = THREE.MathUtils.degToRad(vehicleState.roadPitchAngleDeg);
-
-			rampMesh.rotation.set(pitchRad, 0, rollRad, 'XYZ');
-			const q = new THREE.Quaternion().setFromEuler(new THREE.Euler(pitchRad, 0, rollRad, 'XYZ'));
-			staticGroundBody.setRotation({ x: q.x, y: q.y, z: q.z, w: q.w }, true);
-			staticGroundBody.setTranslation({ x: 0, y: -0.5, z: 0 }, true);
-		}
-
-		function randomInRange(min, max) {
-			return min + (Math.random() * (max - min));
-		}
-
-		function createDynamicRigidBody(mesh, colliderDesc, position) {
-			mesh.castShadow = true;
-			mesh.receiveShadow = true;
-			mesh.position.copy(position);
-			scene.add(mesh);
-
-			const rbDesc = RAPIER.RigidBodyDesc.dynamic()
-				.setTranslation(position.x, position.y, position.z)
-				.setLinvel(0, 0, 0)
-				.setAngvel(0, 0, 0);
-
-			const rigidBody = world.createRigidBody(rbDesc);
-			world.createCollider(colliderDesc, rigidBody);
-
-			rigidEntries.push({ mesh, rigidBody });
-			updateStats();
-		}
-
-		function createVehicleIfNeeded() {
-			if (vehicleState.rigidBody) {
-				return;
-			}
-
-			const bodyGeometry = new THREE.BoxGeometry(2.2, 0.7, 3.2);
-			const bodyMaterial = new THREE.MeshStandardMaterial({ color: 0x2f7fd3, metalness: 0.2, roughness: 0.45 });
-			const bodyMesh = new THREE.Mesh(bodyGeometry, bodyMaterial);
-			bodyMesh.castShadow = true;
-			bodyMesh.receiveShadow = true;
-			scene.add(bodyMesh);
-
-			const rbDesc = RAPIER.RigidBodyDesc.dynamic()
-				.setTranslation(0, 2.1, 0)
-				.setLinearDamping(0.35)
-				.setAngularDamping(0.45)
-				.setCanSleep(false);
-			const rigidBody = world.createRigidBody(rbDesc);
-			const collider = RAPIER.ColliderDesc.cuboid(1.1, 0.35, 1.6)
-				.setDensity(2.8)
-				.setFriction(0.95)
-				.setRestitution(0.05);
-			world.createCollider(collider, rigidBody);
-
-			const wheelGeometry = new THREE.CylinderGeometry(0.36, 0.36, 0.24, 18);
-			const wheelMaterial = new THREE.MeshStandardMaterial({ color: 0x1f2329, metalness: 0.25, roughness: 0.62 });
-			for (const key of wheelKeys) {
-				const wheelMesh = new THREE.Mesh(wheelGeometry, wheelMaterial.clone());
-				wheelMesh.rotation.z = Math.PI / 2;
-				wheelMesh.castShadow = true;
-				wheelMesh.receiveShadow = true;
-				scene.add(wheelMesh);
-				vehicleState.wheelMeshes[key] = wheelMesh;
-			}
-
-			vehicleState.mesh = bodyMesh;
-			vehicleState.rigidBody = rigidBody;
-		}
-
-		function spawnBox() {
-			const sx = randomInRange(0.45, 1.1);
-			const sy = randomInRange(0.45, 1.1);
-			const sz = randomInRange(0.45, 1.1);
-
-			const mesh = new THREE.Mesh(
-				new THREE.BoxGeometry(sx, sy, sz),
-				new THREE.MeshStandardMaterial({
-					color: new THREE.Color().setHSL(Math.random(), 0.65, 0.56),
-					metalness: 0.1,
-					roughness: 0.65,
-				})
-			);
-
-			const collider = RAPIER.ColliderDesc.cuboid(sx / 2, sy / 2, sz / 2)
-				.setDensity(1.0)
-				.setFriction(0.62)
-				.setRestitution(0.22);
-
-			createDynamicRigidBody(
-				mesh,
-				collider,
-				new THREE.Vector3(randomInRange(-6, 6), randomInRange(8, 16), randomInRange(-6, 6))
-			);
-		}
-
-		function spawnBall() {
-			const radius = randomInRange(0.28, 0.78);
-			const mesh = new THREE.Mesh(
-				new THREE.SphereGeometry(radius, 24, 16),
-				new THREE.MeshStandardMaterial({
-					color: new THREE.Color().setHSL(Math.random(), 0.72, 0.58),
-					metalness: 0.18,
-					roughness: 0.42,
-				})
-			);
-
-			const collider = RAPIER.ColliderDesc.ball(radius)
-				.setDensity(0.9)
-				.setFriction(0.5)
-				.setRestitution(0.65);
-
-			createDynamicRigidBody(
-				mesh,
-				collider,
-				new THREE.Vector3(randomInRange(-6, 6), randomInRange(8, 16), randomInRange(-6, 6))
-			);
-		}
-
-		function destroyRigidBodies() {
-			for (const entry of rigidEntries) {
-				world.removeRigidBody(entry.rigidBody);
-				scene.remove(entry.mesh);
-				entry.mesh.geometry.dispose();
-				if (Array.isArray(entry.mesh.material)) {
-					entry.mesh.material.forEach((material) => material.dispose());
-				} else if (entry.mesh.material) {
-					entry.mesh.material.dispose();
-				}
-			}
-			rigidEntries.length = 0;
-			updateStats();
-		}
-
-		function resetVehiclePose() {
-			if (!vehicleState.rigidBody) {
-				return;
-			}
-			vehicleState.rigidBody.setTranslation({ x: 0, y: 2.1, z: 0 }, true);
-			vehicleState.rigidBody.setRotation({ x: 0, y: 0, z: 0, w: 1 }, true);
-			vehicleState.rigidBody.setLinvel({ x: 0, y: 0, z: 0 }, true);
-			vehicleState.rigidBody.setAngvel({ x: 0, y: 0, z: 0 }, true);
-		}
-
-		function resetSimulation() {
-			destroyRigidBodies();
-			createVehicleIfNeeded();
-			resetVehiclePose();
-			for (let i = 0; i < 6; i += 1) {
-				spawnBox();
-			}
-			for (let i = 0; i < 4; i += 1) {
-				spawnBall();
-			}
-		}
-
-		function updateStats() {
-			if (!statsLabel) {
-				return;
-			}
-			statsLabel.textContent = `RigidBodies: ${rigidEntries.length + (vehicleState.rigidBody ? 1 : 0)} | Mode: ${vehicleState.driveMode.toUpperCase()} | Speed: ${Math.round(vehicleState.driveSpeedKmh)} km/h | Gravity: ${gravityEnabled ? 'ON' : 'OFF'}`;
-		}
-
-		function setWheelAnimationByKey(key, rpm) {
-			const normalizedKey = String(key || '').trim().toLowerCase();
-			if (!wheelKeys.includes(normalizedKey)) {
-				return;
-			}
-
-			const numericRpm = Number(rpm);
-			const safeRpm = Number.isFinite(numericRpm) ? Math.max(-240, Math.min(240, numericRpm)) : 0;
-			vehicleState.wheelRpmByKey[normalizedKey] = safeRpm;
-
-			const control = wheelControls[normalizedKey];
-			if (control?.input) {
-				control.input.value = String(Math.round(safeRpm));
-			}
-			if (control?.label) {
-				control.label.textContent = `${Math.round(safeRpm)} rpm`;
-			}
-		}
-
-		function syncWheelControlsFromState() {
-			for (const key of wheelKeys) {
-				setWheelAnimationByKey(key, vehicleState.wheelRpmByKey[key]);
-			}
-		}
-
-		function updateDriveButtonsUI() {
-			Object.entries(driveButtons).forEach(([mode, button]) => {
-				if (!button) {
-					return;
-				}
-				const isActive = vehicleState.driveMode === mode;
-				button.classList.toggle('active', isActive);
-			});
-		}
-
-		function applyDriveRpmFromMode(mode, speedKmh) {
-			const baseRpm = Number(speedKmh) * kmhToRpmFactor;
-			if (mode === 'forward') {
-				wheelKeys.forEach((key) => setWheelAnimationByKey(key, baseRpm));
-				return;
-			}
-			if (mode === 'backward') {
-				wheelKeys.forEach((key) => setWheelAnimationByKey(key, -baseRpm));
-				return;
-			}
-			if (mode === 'left') {
-				setWheelAnimationByKey('fl', -baseRpm);
-				setWheelAnimationByKey('rl', -baseRpm);
-				setWheelAnimationByKey('fr', baseRpm);
-				setWheelAnimationByKey('rr', baseRpm);
-				return;
-			}
-			if (mode === 'right') {
-				setWheelAnimationByKey('fl', baseRpm);
-				setWheelAnimationByKey('rl', baseRpm);
-				setWheelAnimationByKey('fr', -baseRpm);
-				setWheelAnimationByKey('rr', -baseRpm);
-				return;
-			}
-			wheelKeys.forEach((key) => setWheelAnimationByKey(key, 0));
-		}
-
-		function setDriveMode(mode) {
-			const normalizedMode = ['forward', 'backward', 'left', 'right', 'stop'].includes(String(mode || '').trim().toLowerCase())
-				? String(mode).trim().toLowerCase()
-				: 'stop';
-			vehicleState.driveMode = normalizedMode;
-			applyDriveRpmFromMode(vehicleState.driveMode, vehicleState.driveSpeedKmh);
-			updateDriveButtonsUI();
-			updateStats();
-		}
-
-		function setDriveSpeedKmh(kmh) {
-			const numericSpeed = Number(kmh);
-			const safeSpeed = Number.isFinite(numericSpeed) ? Math.max(0, Math.min(30, numericSpeed)) : 0;
-			vehicleState.driveSpeedKmh = safeSpeed;
-			if (driveSpeedInput) {
-				driveSpeedInput.value = String(Math.round(safeSpeed));
-			}
-			if (driveSpeedValueLabel) {
-				driveSpeedValueLabel.textContent = `${Math.round(safeSpeed)} km/h`;
-			}
-			applyDriveRpmFromMode(vehicleState.driveMode, vehicleState.driveSpeedKmh);
-			updateStats();
-		}
-
-		function setRoadRollAngleDeg(angleDeg) {
-			const value = Number(angleDeg);
-			const safe = Number.isFinite(value) ? Math.max(-30, Math.min(30, value)) : 0;
-			vehicleState.roadRollAngleDeg = safe;
-			if (rollInput) {
-				rollInput.value = String(Math.round(safe));
-			}
-			if (rollValueLabel) {
-				rollValueLabel.textContent = `${Math.round(safe)}°`;
-			}
-			updateRampTransform();
-		}
-
-		function setRoadPitchAngleDeg(angleDeg) {
-			const value = Number(angleDeg);
-			const safe = Number.isFinite(value) ? Math.max(-30, Math.min(30, value)) : 0;
-			vehicleState.roadPitchAngleDeg = safe;
-			if (pitchInput) {
-				pitchInput.value = String(Math.round(safe));
-			}
-			if (pitchValueLabel) {
-				pitchValueLabel.textContent = `${Math.round(safe)}°`;
-			}
-			updateRampTransform();
-		}
-
-		function setGravityEnabled(enabled) {
-			gravityEnabled = Boolean(enabled);
-			world.gravity = gravityEnabled
-				? new RAPIER.Vector3(0, -9.81, 0)
-				: new RAPIER.Vector3(0, 0, 0);
-			if (gravityButton) {
-				gravityButton.textContent = gravityEnabled ? '중력 OFF' : '중력 ON';
-			}
-			updateStats();
-		}
-
-		function applyVehiclePhysicsControl() {
-			if (!vehicleState.rigidBody || !vehicleState.mesh) {
-				return;
-			}
-
-			const bodyRotation = vehicleState.rigidBody.rotation();
-			const q = new THREE.Quaternion(bodyRotation.x, bodyRotation.y, bodyRotation.z, bodyRotation.w);
-			const forward = new THREE.Vector3(0, 0, 1).applyQuaternion(q).normalize();
-			const turnAxis = new THREE.Vector3(0, 1, 0);
-			const forceBase = vehicleState.driveSpeedKmh * 120;
-
-			if (vehicleState.driveMode === 'forward') {
-				vehicleState.rigidBody.addForce({ x: forward.x * forceBase, y: forward.y * forceBase, z: forward.z * forceBase }, true);
-			} else if (vehicleState.driveMode === 'backward') {
-				vehicleState.rigidBody.addForce({ x: -forward.x * forceBase, y: -forward.y * forceBase, z: -forward.z * forceBase }, true);
-			} else if (vehicleState.driveMode === 'left') {
-				vehicleState.rigidBody.addTorque({ x: turnAxis.x * 95, y: turnAxis.y * 95, z: turnAxis.z * 95 }, true);
-			} else if (vehicleState.driveMode === 'right') {
-				vehicleState.rigidBody.addTorque({ x: -turnAxis.x * 95, y: -turnAxis.y * 95, z: -turnAxis.z * 95 }, true);
-			} else {
-				const lv = vehicleState.rigidBody.linvel();
-				const av = vehicleState.rigidBody.angvel();
-				vehicleState.rigidBody.setLinvel({ x: lv.x * 0.92, y: lv.y, z: lv.z * 0.92 }, true);
-				vehicleState.rigidBody.setAngvel({ x: av.x * 0.84, y: av.y * 0.84, z: av.z * 0.84 }, true);
-			}
-		}
-
-		function syncVehicleVisuals(deltaSec) {
-			if (!vehicleState.rigidBody || !vehicleState.mesh) {
-				return;
-			}
-
-			const translation = vehicleState.rigidBody.translation();
-			const rotation = vehicleState.rigidBody.rotation();
-			vehicleState.mesh.position.set(translation.x, translation.y, translation.z);
-			vehicleState.mesh.quaternion.set(rotation.x, rotation.y, rotation.z, rotation.w);
-
-			for (const key of wheelKeys) {
-				const wheelMesh = vehicleState.wheelMeshes[key];
-				if (!wheelMesh) {
-					continue;
-				}
-
-				const offset = vehicleState.wheelOffsets[key].clone().applyQuaternion(vehicleState.mesh.quaternion);
-				wheelMesh.position.copy(vehicleState.mesh.position).add(offset);
-				wheelMesh.quaternion.copy(vehicleState.mesh.quaternion);
-
-				const rpm = Number(vehicleState.wheelRpmByKey[key]) || 0;
-				const angularSpeed = (rpm * Math.PI * 2) / 60;
-				vehicleState.wheelAngleByKey[key] += angularSpeed * deltaSec;
-				wheelMesh.rotateX(vehicleState.wheelAngleByKey[key]);
-			}
-
-			if (translation.y < -20) {
-				resetVehiclePose();
-			}
-		}
-
-		spawnBoxButton?.addEventListener('click', spawnBox);
-		spawnBallButton?.addEventListener('click', spawnBall);
-		resetButton?.addEventListener('click', resetSimulation);
-		gravityButton?.addEventListener('click', () => setGravityEnabled(!gravityEnabled));
-
-		Object.entries(wheelControls).forEach(([key, control]) => {
-			control.input?.addEventListener('input', function onWheelInput() {
-				setWheelAnimationByKey(key, this.value);
-			});
-		});
-
-		driveButtons.forward?.addEventListener('click', () => setDriveMode('forward'));
-		driveButtons.backward?.addEventListener('click', () => setDriveMode('backward'));
-		driveButtons.left?.addEventListener('click', () => setDriveMode('left'));
-		driveButtons.right?.addEventListener('click', () => setDriveMode('right'));
-		driveButtons.stop?.addEventListener('click', () => setDriveMode('stop'));
-
-		driveSpeedInput?.addEventListener('input', function onDriveSpeedInput() {
-			setDriveSpeedKmh(this.value);
-		});
-
-		rollInput?.addEventListener('input', function onRollInput() {
-			setRoadRollAngleDeg(this.value);
-		});
-
-		pitchInput?.addEventListener('input', function onPitchInput() {
-			setRoadPitchAngleDeg(this.value);
-		});
-
-		window.setWheelAnimationByKey = setWheelAnimationByKey;
-		window.setDriveMode = setDriveMode;
-		window.setDriveSpeedKmh = setDriveSpeedKmh;
-		window.setRoadRollAngleDeg = setRoadRollAngleDeg;
-		window.setRoadPitchAngleDeg = setRoadPitchAngleDeg;
-
-		resetSimulation();
-		setGravityEnabled(true);
-		setDriveSpeedKmh(0);
-		setDriveMode('stop');
-		setRoadRollAngleDeg(0);
-		setRoadPitchAngleDeg(0);
-		syncWheelControlsFromState();
-		updateDriveButtonsUI();
-
-		function animate() {
-			const delta = Math.min(clock.getDelta(), 1 / 30);
-			applyVehiclePhysicsControl();
-			world.timestep = delta;
-			world.step();
-
-			for (const entry of rigidEntries) {
-				const translation = entry.rigidBody.translation();
-				const rotation = entry.rigidBody.rotation();
-
-				entry.mesh.position.set(translation.x, translation.y, translation.z);
-				entry.mesh.quaternion.set(rotation.x, rotation.y, rotation.z, rotation.w);
-
-				if (translation.y < -30) {
-					entry.rigidBody.setTranslation(
-						{
-							x: randomInRange(-5, 5),
-							y: randomInRange(10, 16),
-							z: randomInRange(-5, 5),
-						},
-						true
-					);
-					entry.rigidBody.setLinvel({ x: 0, y: 0, z: 0 }, true);
-					entry.rigidBody.setAngvel({ x: 0, y: 0, z: 0 }, true);
-				}
-			}
-
-			syncVehicleVisuals(delta);
-
-			controls.update();
-			renderer.render(scene, camera);
-			requestAnimationFrame(animate);
-		}
-
-		animate();
-	</script>
 </body>
+
 </html>

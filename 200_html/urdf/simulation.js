@@ -3,7 +3,7 @@ import * as THREE from 'three';
 const RAPIER_CDN = 'https://cdn.skypack.dev/@dimforge/rapier3d-compat@0.11.2';
 const SIM_SPEED_STORAGE_KEY = 'wcs.simulation.driveSpeedKmh';
 const SIM_SPEED_DEFAULT_KMH = 10;
-const SIM_SPEED_MAX_KMH = 40;
+const SIM_SPEED_MAX_KMH = 20;
 
 class RapierDriveSimulation {
     constructor() {

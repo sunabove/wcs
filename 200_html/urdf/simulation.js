@@ -940,6 +940,28 @@ class RapierDriveSimulation {
         this.carFrame.quaternion.set(previousPose.qx, previousPose.qy, previousPose.qz, previousPose.qw).normalize();
     }
 
+    applyAntiStuckTranslation(previousPose, commandedVelocityX, commandedVelocityY, deltaSec, hasMoveCommand, hasObstacleContact) {
+        if (!this.body || !this.rapier || !previousPose || !hasMoveCommand || hasObstacleContact) {
+            return;
+        }
+
+        const commandedSpeed = Math.hypot(commandedVelocityX, commandedVelocityY);
+        if (commandedSpeed < 1e-3) {
+            return;
+        }
+
+        const currentPosition = this.body.translation();
+        const movedDistance = Math.hypot(currentPosition.x - previousPose.x, currentPosition.y - previousPose.y);
+        const expectedDistance = commandedSpeed * Math.max(deltaSec, 0);
+
+        // If physics barely moved on a clear drive command, apply direct XY displacement fallback.
+        if (expectedDistance > 1e-4 && movedDistance < expectedDistance * 0.2) {
+            const nextX = previousPose.x + (commandedVelocityX * deltaSec);
+            const nextY = previousPose.y + (commandedVelocityY * deltaSec);
+            this.body.setTranslation(new this.rapier.Vector3(nextX, nextY, currentPosition.z), true);
+        }
+    }
+
     setUprightRotationLockEnabled(isEnabled) {
         if (!this.body) {
             return;
@@ -1191,6 +1213,15 @@ class RapierDriveSimulation {
             const keepZVelocity = hasObstacleContact ? currentVelocity.z : Math.min(0, currentVelocity.z);
             this.body.setLinvel(new this.rapier.Vector3(commandedVelocityX, commandedVelocityY, keepZVelocity), true);
         }
+
+        this.applyAntiStuckTranslation(
+            previousPose,
+            commandedVelocityX,
+            commandedVelocityY,
+            deltaSec,
+            hasMoveCommand,
+            hasObstacleContact
+        );
 
         const isMoveCommandActive = keyboardState.isActive || throttleSign !== 0;
         if (this.blockMotionOnObstacleContact && hasObstacleContact && isMoveCommandActive) {

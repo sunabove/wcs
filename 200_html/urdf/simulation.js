@@ -20,7 +20,23 @@ class RapierDriveSimulation {
         this.vehicleHalfExtents = null;
         this.groundZ = 0;
         this.urdfObstacleLinkNames = ['obstacle_rock_01', 'obstacle_rock_02', 'obstacle_rock', 'rock_obstacle'];
-        this.urdfObstacleLinkNamePatterns = [/^obstacle/i, /^wall/i, /^rock_obstacle/i];
+        this.urdfObstacleLinkNamePatterns = [
+            /^obstacle/i,
+            /^wall/i,
+            /^rock_obstacle/i,
+            /^step/i,
+            /^curb/i,
+            /^pothole/i,
+            /^soil/i,
+            /^dirt/i,
+            /^gravel/i,
+            /^bump/i,
+            /^ditch/i,
+            /^단차/i,
+            /^포트홀/i,
+            /^흙/i,
+            /^자갈/i
+        ];
         this.passUnderObstacleNamePatterns = [/pass_under/i, /underbody/i];
         this.maxSpeedMps = 100 / 3.6;
         this.maxYawRateRad = THREE.MathUtils.degToRad(80);

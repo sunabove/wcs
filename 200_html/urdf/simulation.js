@@ -42,7 +42,7 @@ class RapierDriveSimulation {
         this.passUnderObstacleNamePatterns = [/pass_under/i, /underbody/i];
         this.maxSpeedMps = 100 / 3.6;
         this.maxYawRateRad = THREE.MathUtils.degToRad(80);
-        this.visualCollisionMinPenetrationMeters = 0.02;
+        this.enableVisualCollisionFallback = false;
         this.isInitializing = false;
         this.isReady = false;
         this.hasFailed = false;
@@ -944,7 +944,9 @@ class RapierDriveSimulation {
 
         this.carFrame.position.set(nextPosition.x, nextPosition.y, nextPosition.z);
         this.carFrame.quaternion.set(nextRotation.x, nextRotation.y, nextRotation.z, nextRotation.w).normalize();
-        this.rollbackIfVisualCollisionMiss(previousPose);
+        if (this.enableVisualCollisionFallback) {
+            this.rollbackIfVisualCollisionMiss(previousPose);
+        }
     }
 
     async runLoop() {

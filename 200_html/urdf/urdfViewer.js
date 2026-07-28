@@ -2447,8 +2447,8 @@ class URDFViewer {
             return;
         }
 
-        const labelScale = 0.06;
-        const fontPx = 84;
+        const labelScale = 0.09;
+        const fontPx = 112;
 
         this.axisLabelSprites.forEach(sprite => {
             if (sprite) {

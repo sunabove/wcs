@@ -10,6 +10,8 @@ class RapierDriveSimulation {
         this.body = null;
         this.carFrame = null;
         this.fixedLocalZ = 0;
+        this.initialPosition = null;
+        this.initialQuaternion = null;
         this.maxSpeedMps = 3.5;
         this.maxYawRateRad = THREE.MathUtils.degToRad(80);
         this.isInitializing = false;
@@ -98,6 +100,8 @@ class RapierDriveSimulation {
             this.body = body;
             this.carFrame = carFrame;
             this.fixedLocalZ = initialPosition.z;
+            this.initialPosition = initialPosition.clone();
+            this.initialQuaternion = initialQuaternion.clone();
             this.isReady = true;
             this.hasFailed = false;
 
@@ -181,6 +185,87 @@ class RapierDriveSimulation {
     start() {
         requestAnimationFrame(() => this.runLoop());
     }
+
+    resetUiStates() {
+        if (typeof window.setDriveMode === 'function') {
+            window.setDriveMode('stop');
+        }
+
+        if (typeof window.setDriveSpeedKmh === 'function') {
+            window.setDriveSpeedKmh(0);
+        }
+
+        const speedSlider = document.getElementById('drive-speed-kmh');
+        if (speedSlider) {
+            speedSlider.value = '0';
+        }
+
+        const speedLabel = document.getElementById('drive-speed-kmh-value');
+        if (speedLabel) {
+            speedLabel.textContent = '0 km/h';
+        }
+
+        if (typeof window.setRoadRollAngleDeg === 'function') {
+            window.setRoadRollAngleDeg(0);
+        }
+
+        if (typeof window.setRoadPitchAngleDeg === 'function') {
+            window.setRoadPitchAngleDeg(0);
+        }
+
+        const rollInput = document.getElementById('road-roll-angle-deg');
+        if (rollInput) {
+            rollInput.value = '0';
+        }
+
+        const pitchInput = document.getElementById('road-pitch-angle-deg');
+        if (pitchInput) {
+            pitchInput.value = '0';
+        }
+
+        const wheelKeys = ['fl', 'fr', 'rl', 'rr'];
+        wheelKeys.forEach((key) => {
+            if (typeof window.setWheelAnimationByKey === 'function') {
+                window.setWheelAnimationByKey(key, 0);
+            }
+        });
+    }
+
+    resetPhysicalState() {
+        if (!this.isReady || !this.body || !this.carFrame || !this.rapier || !this.initialPosition || !this.initialQuaternion) {
+            return;
+        }
+
+        this.body.setTranslation(
+            new this.rapier.Vector3(this.initialPosition.x, this.initialPosition.y, this.initialPosition.z),
+            true
+        );
+        this.body.setRotation(this.initialQuaternion, true);
+        this.body.setLinvel(new this.rapier.Vector3(0, 0, 0), true);
+        this.body.setAngvel(new this.rapier.Vector3(0, 0, 0), true);
+
+        this.carFrame.position.copy(this.initialPosition);
+        this.carFrame.quaternion.copy(this.initialQuaternion);
+    }
+
+    async reset() {
+        this.resetUiStates();
+
+        if (!this.viewer) {
+            this.viewer = this.findSimulationViewer();
+        }
+
+        if (this.viewer && !this.isReady && !this.hasFailed) {
+            await this.ensureRapierInitialized();
+        }
+
+        this.resetPhysicalState();
+    }
 }
 
-new RapierDriveSimulation().start();
+const rapierDriveSimulation = new RapierDriveSimulation();
+rapierDriveSimulation.start();
+
+globalThis.resetSimulation = function() {
+    rapierDriveSimulation.reset();
+};

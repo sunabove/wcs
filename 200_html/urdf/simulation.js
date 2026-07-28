@@ -514,6 +514,49 @@ class RapierDriveSimulation {
         });
     }
 
+    getWheelGeometryStats(carFrame, linkMap) {
+        if (!carFrame || !linkMap) {
+            return null;
+        }
+
+        const wheelLinkNames = ['wheel_fl', 'wheel_fr', 'wheel_rl', 'wheel_rr'];
+        const wheelHeights = [];
+        const wheelRadii = [];
+
+        wheelLinkNames.forEach((wheelLinkName) => {
+            const wheelLink = linkMap[wheelLinkName];
+            if (!wheelLink) {
+                return;
+            }
+
+            wheelLink.updateWorldMatrix(true, true);
+            const wheelBounds = new THREE.Box3().setFromObject(wheelLink);
+            if (wheelBounds.isEmpty()) {
+                return;
+            }
+
+            const centerWorld = wheelBounds.getCenter(new THREE.Vector3());
+            const centerLocal = carFrame.worldToLocal(centerWorld.clone());
+            const wheelSize = wheelBounds.getSize(new THREE.Vector3());
+            const wheelRadius = Math.max(wheelSize.x * 0.5, wheelSize.z * 0.5, 0.05);
+
+            wheelHeights.push(centerLocal.z);
+            wheelRadii.push(wheelRadius);
+        });
+
+        if (wheelHeights.length === 0 || wheelRadii.length === 0) {
+            return null;
+        }
+
+        const avgWheelCenterZ = wheelHeights.reduce((sum, value) => sum + value, 0) / wheelHeights.length;
+        const avgWheelRadius = wheelRadii.reduce((sum, value) => sum + value, 0) / wheelRadii.length;
+
+        return {
+            avgWheelCenterZ,
+            avgWheelRadius
+        };
+    }
+
     updateObstacleContactState() {
         if (!this.world || this.vehicleColliders.length === 0 || this.obstacleColliders.length === 0) {
             return;
@@ -590,10 +633,20 @@ class RapierDriveSimulation {
             const localCenter = carFrame.worldToLocal(worldCenter.clone());
             const halfX = Math.max((size.x || 0.6) * 0.5, 0.12);
             const halfY = Math.max((size.y || 0.4) * 0.5, 0.10);
-            const halfZ = Math.max((size.z || 0.25) * 0.5, 0.06);
+
+            const bboxMinLocalZ = localCenter.z - Math.max((size.z || 0.25) * 0.5, 0.06);
+            const bboxMaxLocalZ = localCenter.z + Math.max((size.z || 0.25) * 0.5, 0.06);
+            const wheelStats = this.getWheelGeometryStats(carFrame, linkMap);
+            const minChassisZFromWheels = wheelStats
+                ? wheelStats.avgWheelCenterZ + (wheelStats.avgWheelRadius * 0.30)
+                : bboxMinLocalZ;
+            const adjustedMinLocalZ = Math.max(bboxMinLocalZ, minChassisZFromWheels);
+            const adjustedMaxLocalZ = Math.max(adjustedMinLocalZ + 0.12, bboxMaxLocalZ);
+            const halfZ = Math.max((adjustedMaxLocalZ - adjustedMinLocalZ) * 0.5, 0.06);
+            const adjustedCenterZ = (adjustedMaxLocalZ + adjustedMinLocalZ) * 0.5;
 
             const colliderDesc = RAPIER.ColliderDesc.cuboid(halfX, halfY, halfZ)
-                .setTranslation(localCenter.x, localCenter.y, localCenter.z)
+                .setTranslation(localCenter.x, localCenter.y, adjustedCenterZ)
                 .setFriction(1.1)
                 .setRestitution(0.04);
             this.vehicleCollider = world.createCollider(colliderDesc, body);

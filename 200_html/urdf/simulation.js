@@ -21,6 +21,7 @@ class RapierDriveSimulation {
         this.vehicleLocalMinZ = null;
         this.wheelLocalMinZ = null;
         this.groundContactLocalMinZ = null;
+        this.groundContactBiasMeters = 0;
         this.groundZ = 0;
         this.urdfObstacleLinkNames = ['obstacle_rock_01', 'obstacle_rock_02', 'obstacle_rock', 'rock_obstacle'];
         this.urdfObstacleLinkNamePatterns = [
@@ -525,7 +526,9 @@ class RapierDriveSimulation {
         }
 
         const translation = this.body.translation();
-        const minAllowedZ = this.groundZ - this.groundContactLocalMinZ;
+        const groundBasedMinZ = this.groundZ - this.groundContactLocalMinZ - this.groundContactBiasMeters;
+        const initialBasedMinZ = Number.isFinite(this.initialPosition?.z) ? this.initialPosition.z : groundBasedMinZ;
+        const minAllowedZ = Math.min(groundBasedMinZ, initialBasedMinZ);
         if (translation.z < minAllowedZ) {
             this.body.setTranslation(new this.rapier.Vector3(translation.x, translation.y, minAllowedZ), true);
 
@@ -652,7 +655,7 @@ class RapierDriveSimulation {
         }
 
         const translation = this.body.translation();
-        const targetZ = this.groundZ - this.groundContactLocalMinZ;
+        const targetZ = this.groundZ - this.groundContactLocalMinZ - this.groundContactBiasMeters;
         this.body.setTranslation(new this.rapier.Vector3(translation.x, translation.y, targetZ), true);
     }
 
@@ -769,11 +772,6 @@ class RapierDriveSimulation {
             this.initialQuaternion = initialQuaternion.clone();
             this.vehicleHalfExtents = { x: halfX, y: halfY, z: halfZ };
             this.addGroundCollider();
-            this.alignVehicleWheelContactToGround();
-
-            const alignedTranslation = this.body.translation();
-            this.initialPosition.set(alignedTranslation.x, alignedTranslation.y, alignedTranslation.z);
-            this.carFrame.position.copy(this.initialPosition);
 
             this.clampVehicleAboveGround();
             this.addObstacleColliderFromUrdf();
@@ -950,11 +948,9 @@ class RapierDriveSimulation {
         this.body.setRotation(this.initialQuaternion, true);
         this.body.setLinvel(new this.rapier.Vector3(0, 0, 0), true);
         this.body.setAngvel(new this.rapier.Vector3(0, 0, 0), true);
-        this.alignVehicleWheelContactToGround();
         this.isVehicleObstacleContact = false;
 
-        const alignedTranslation = this.body.translation();
-        this.carFrame.position.set(alignedTranslation.x, alignedTranslation.y, alignedTranslation.z);
+        this.carFrame.position.copy(this.initialPosition);
         this.carFrame.quaternion.copy(this.initialQuaternion);
     }
 

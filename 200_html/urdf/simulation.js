@@ -180,6 +180,25 @@ class RapierDriveSimulation {
         };
     }
 
+    updateSpeedSliderVisual(sliderElement) {
+        if (!sliderElement) {
+            return;
+        }
+
+        const minValue = Number.parseFloat(sliderElement.min);
+        const maxValue = Number.parseFloat(sliderElement.max);
+        const currentValue = Number.parseFloat(sliderElement.value);
+
+        if (!Number.isFinite(minValue) || !Number.isFinite(maxValue) || maxValue <= minValue || !Number.isFinite(currentValue)) {
+            sliderElement.style.setProperty('--slider-percent', '0%');
+            return;
+        }
+
+        const clampedValue = Math.max(minValue, Math.min(maxValue, currentValue));
+        const percent = ((clampedValue - minValue) / (maxValue - minValue)) * 100;
+        sliderElement.style.setProperty('--slider-percent', `${percent}%`);
+    }
+
     initializeSpeedSliderPreference() {
         const speedSlider = document.getElementById('drive-speed-kmh');
         const speedLabel = document.getElementById('drive-speed-kmh-value');
@@ -206,6 +225,7 @@ class RapierDriveSimulation {
         }
 
         speedSlider.value = String(initialSpeed);
+        this.updateSpeedSliderVisual(speedSlider);
         if (speedLabel) {
             speedLabel.textContent = `${initialSpeed} km/h`;
         }
@@ -526,6 +546,7 @@ class RapierDriveSimulation {
         const speedLabel = document.getElementById('drive-speed-kmh-value');
         if (speedInput) {
             speedInput.value = String(SIM_SPEED_DEFAULT_KMH);
+            this.updateSpeedSliderVisual(speedInput);
         }
         if (speedLabel) {
             speedLabel.textContent = `${SIM_SPEED_DEFAULT_KMH} km/h`;

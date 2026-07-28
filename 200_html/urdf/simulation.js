@@ -177,21 +177,31 @@ class RapierDriveSimulation {
         return hasMesh ? bounds : fallbackBounds;
     }
 
+    normalizeLinkName(linkName) {
+        if (!linkName) {
+            return '';
+        }
+
+        return String(linkName)
+            .split(/[:/]/)
+            .filter(Boolean)
+            .pop()
+            .toLowerCase();
+    }
+
     getObstacleLinkNamesFromMap(linkMap) {
         if (!linkMap) {
             return [];
         }
 
         const names = new Set();
-
-        this.urdfObstacleLinkNames.forEach((name) => {
-            if (linkMap[name]) {
-                names.add(name);
-            }
-        });
+        const targetNames = new Set(this.urdfObstacleLinkNames.map((name) => String(name).toLowerCase()));
 
         Object.keys(linkMap).forEach((name) => {
-            const matched = this.urdfObstacleLinkNamePatterns.some((pattern) => pattern.test(name));
+            const normalizedName = this.normalizeLinkName(name);
+            const matchedByExactName = targetNames.has(String(name).toLowerCase()) || targetNames.has(normalizedName);
+            const matchedByPattern = this.urdfObstacleLinkNamePatterns.some((pattern) => pattern.test(name) || pattern.test(normalizedName));
+            const matched = matchedByExactName || matchedByPattern;
             if (matched) {
                 names.add(name);
             }
@@ -466,9 +476,10 @@ class RapierDriveSimulation {
             const halfX = Math.max(size.x * 0.5, 0.02);
             const halfY = Math.max(size.y * 0.5, 0.02);
             const halfZ = Math.max(size.z * 0.5, 0.02);
-            const isPassUnderTagged = this.passUnderObstacleNamePatterns.some((pattern) => pattern.test(obstacleLinkName));
+            const normalizedObstacleName = this.normalizeLinkName(obstacleLinkName);
+            const isPassUnderTagged = this.passUnderObstacleNamePatterns.some((pattern) => pattern.test(obstacleLinkName) || pattern.test(normalizedObstacleName));
 
-            const isPotholeObstacle = /^pothole/i.test(obstacleLinkName);
+            const isPotholeObstacle = /^pothole/i.test(obstacleLinkName) || /^pothole/i.test(normalizedObstacleName);
             const clampedCenterZ = !isPotholeObstacle
                 ? Math.max(center.z, this.groundZ + halfZ)
                 : center.z;
@@ -703,7 +714,8 @@ class RapierDriveSimulation {
                 .setTranslation(initialPosition.x, initialPosition.y, initialPosition.z)
                 .setRotation(initialQuaternion)
                 .setLinearDamping(2.2)
-                .setAngularDamping(3.2);
+                .setAngularDamping(3.2)
+                .setCcdEnabled(true);
 
             const body = world.createRigidBody(rigidBodyDesc);
 

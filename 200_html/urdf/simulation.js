@@ -598,6 +598,17 @@ class RapierDriveSimulation {
             window.setDriveMode('stop');
         }
 
+        this.resetRoadAttitude();
+
+        const wheelKeys = ['fl', 'fr', 'rl', 'rr'];
+        wheelKeys.forEach((key) => {
+            if (typeof window.setWheelAnimationByKey === 'function') {
+                window.setWheelAnimationByKey(key, 0);
+            }
+        });
+    }
+
+    resetRoadAttitude() {
         if (typeof window.setRoadRollAngleDeg === 'function') {
             window.setRoadRollAngleDeg(0);
         }
@@ -615,13 +626,6 @@ class RapierDriveSimulation {
         if (pitchInput) {
             pitchInput.value = '0';
         }
-
-        const wheelKeys = ['fl', 'fr', 'rl', 'rr'];
-        wheelKeys.forEach((key) => {
-            if (typeof window.setWheelAnimationByKey === 'function') {
-                window.setWheelAnimationByKey(key, 0);
-            }
-        });
     }
 
     resetPhysicalState() {
@@ -667,4 +671,8 @@ globalThis.resetSimulation = function() {
 
 globalThis.resetSimulationSpeed = function() {
     rapierDriveSimulation.resetSpeedSliderToDefault();
+};
+
+globalThis.resetSimulationAttitude = function() {
+    rapierDriveSimulation.resetRoadAttitude();
 };

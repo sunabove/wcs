@@ -20,6 +20,14 @@ class RapierDriveSimulation {
         this.isReady = false;
         this.hasFailed = false;
         this.lastStepTimeMs = 0;
+        this.isKeyboardControlEnabled = true;
+        this.keyState = {
+            ArrowUp: false,
+            ArrowDown: false,
+            ArrowLeft: false,
+            ArrowRight: false
+        };
+        this.defaultKeyboardSpeedKmh = 8;
     }
 
     findSimulationViewer() {
@@ -47,6 +55,56 @@ class RapierDriveSimulation {
             2 * (quaternion.w * quaternion.z + quaternion.x * quaternion.y),
             1 - 2 * (quaternion.y * quaternion.y + quaternion.z * quaternion.z)
         );
+    }
+
+    attachKeyboardControls() {
+        if (!this.isKeyboardControlEnabled) {
+            return;
+        }
+
+        const handledKeys = new Set(['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight']);
+
+        window.addEventListener('keydown', (event) => {
+            if (!handledKeys.has(event.key)) {
+                return;
+            }
+
+            this.keyState[event.key] = true;
+            event.preventDefault();
+        }, { passive: false });
+
+        window.addEventListener('keyup', (event) => {
+            if (!handledKeys.has(event.key)) {
+                return;
+            }
+
+            this.keyState[event.key] = false;
+            event.preventDefault();
+        }, { passive: false });
+
+        window.addEventListener('blur', () => {
+            this.keyState.ArrowUp = false;
+            this.keyState.ArrowDown = false;
+            this.keyState.ArrowLeft = false;
+            this.keyState.ArrowRight = false;
+        });
+    }
+
+    getKeyboardDriveState() {
+        const up = this.keyState.ArrowUp === true;
+        const down = this.keyState.ArrowDown === true;
+        const left = this.keyState.ArrowLeft === true;
+        const right = this.keyState.ArrowRight === true;
+
+        const throttleSign = (up ? 1 : 0) + (down ? -1 : 0);
+        const steerSign = (left ? 1 : 0) + (right ? -1 : 0);
+        const isActive = throttleSign !== 0 || steerSign !== 0;
+
+        return {
+            isActive,
+            throttleSign: Math.max(-1, Math.min(1, throttleSign)),
+            steerSign: Math.max(-1, Math.min(1, steerSign))
+        };
     }
 
     addGroundCollider() {
@@ -189,24 +247,40 @@ class RapierDriveSimulation {
         const deltaSec = Math.min((now - this.lastStepTimeMs) / 1000, 0.1);
         this.lastStepTimeMs = now;
 
-        const driveMode = String(this.viewer.driveMode || 'stop');
-        const speedMps = Math.max(Number(this.viewer.driveSpeedKmh) || 0, 0) / 3.6;
-        const clampedSpeed = Math.min(speedMps, this.maxSpeedMps);
+        const keyboardState = this.getKeyboardDriveState();
 
         let throttleSign = 0;
         let steerSign = 0;
+        let driveSpeedKmh = Math.max(Number(this.viewer.driveSpeedKmh) || 0, 0);
 
-        if (driveMode === 'forward') {
-            throttleSign = 1;
-        } else if (driveMode === 'backward') {
-            throttleSign = -1;
-        } else if (driveMode === 'left') {
-            throttleSign = 0.65;
-            steerSign = 1;
-        } else if (driveMode === 'right') {
-            throttleSign = 0.65;
-            steerSign = -1;
+        if (keyboardState.isActive) {
+            throttleSign = keyboardState.throttleSign;
+            steerSign = keyboardState.steerSign;
+            if (driveSpeedKmh <= 0) {
+                driveSpeedKmh = this.defaultKeyboardSpeedKmh;
+            }
+
+            // Left/right only input rotates the vehicle while still allowing slight positional movement.
+            if (throttleSign === 0 && steerSign !== 0) {
+                throttleSign = 0.25;
+            }
+        } else {
+            const driveMode = String(this.viewer.driveMode || 'stop');
+            if (driveMode === 'forward') {
+                throttleSign = 1;
+            } else if (driveMode === 'backward') {
+                throttleSign = -1;
+            } else if (driveMode === 'left') {
+                throttleSign = 0.65;
+                steerSign = 1;
+            } else if (driveMode === 'right') {
+                throttleSign = 0.65;
+                steerSign = -1;
+            }
         }
+
+        const speedMps = driveSpeedKmh / 3.6;
+        const clampedSpeed = Math.min(speedMps, this.maxSpeedMps);
 
         const bodyRotation = this.body.rotation();
         const yaw = this.extractYawFromQuaternion(bodyRotation);
@@ -243,6 +317,7 @@ class RapierDriveSimulation {
     }
 
     start() {
+        this.attachKeyboardControls();
         requestAnimationFrame(() => this.runLoop());
     }
 

@@ -214,23 +214,10 @@
       </geometry>
       <material name="obstacle_rock" />
     </visual>
-    <visual>
-      <origin xyz="0.10 0 0.11" rpy="0 0 0" />
-      <geometry>
-        <box size="0.24 0.34 0.06" />
-      </geometry>
-      <material name="obstacle_rock" />
-    </visual>
     <collision>
       <origin xyz="0 0 0.04" rpy="0 0 0" />
       <geometry>
         <box size="0.44 0.34 0.08" />
-      </geometry>
-    </collision>
-    <collision>
-      <origin xyz="0.10 0 0.11" rpy="0 0 0" />
-      <geometry>
-        <box size="0.24 0.34 0.06" />
       </geometry>
     </collision>
   </link>

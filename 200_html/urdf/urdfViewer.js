@@ -3277,7 +3277,14 @@ function setDriveSpeedKmh(kmh) {
         return;
     }
 
-    const mode = window.activeURDFViewer.driveMode || 'forward';
+    const mode = window.activeURDFViewer.driveMode || 'stop';
+
+    if (mode === 'stop') {
+        // Keep the configured speed for the next drive command, but do not move while stopped.
+        window.activeURDFViewer.driveSpeedKmh = normalizedKmh;
+        return;
+    }
+
     window.activeURDFViewer.applyDriveMode(mode, normalizedKmh);
 }
 

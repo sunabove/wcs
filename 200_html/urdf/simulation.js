@@ -18,6 +18,7 @@ class RapierDriveSimulation {
         this.initialPosition = null;
         this.initialQuaternion = null;
         this.vehicleHalfExtents = null;
+        this.vehicleLocalMinZ = null;
         this.groundZ = 0;
         this.urdfObstacleLinkNames = ['obstacle_rock_01', 'obstacle_rock_02', 'obstacle_rock', 'rock_obstacle'];
         this.urdfObstacleLinkNamePatterns = [
@@ -102,17 +103,7 @@ class RapierDriveSimulation {
         const obstacleLinkNames = this.getObstacleLinkNamesFromMap(linkMap);
         const obstacleRoots = obstacleLinkNames.map((name) => linkMap[name]).filter(Boolean);
 
-        const excludedRoots = [
-            linkMap.wheel_fl,
-            linkMap.wheel_fr,
-            linkMap.wheel_rl,
-            linkMap.wheel_rr,
-            linkMap.pinion_fl,
-            linkMap.pinion_fr,
-            linkMap.pinion_rl,
-            linkMap.pinion_rr,
-            ...obstacleRoots
-        ].filter(Boolean);
+        const excludedRoots = [...obstacleRoots].filter(Boolean);
 
         const bounds = new THREE.Box3();
         let hasMesh = false;
@@ -451,10 +442,15 @@ class RapierDriveSimulation {
             const isPassUnderTagged = this.passUnderObstacleNamePatterns.some((pattern) => pattern.test(obstacleLinkName));
             const shouldPassUnderChassis = isPassUnderTagged || (isLowerThanChassisBottom && isNarrowerThanWheelTrack);
 
+            const isPotholeObstacle = /^pothole/i.test(obstacleLinkName);
+            const clampedCenterZ = !isPotholeObstacle
+                ? Math.max(center.z, this.groundZ + halfZ)
+                : center.z;
+
             const obstacleBodyDesc = this.rapier.RigidBodyDesc.fixed().setTranslation(
                 center.x,
                 center.y,
-                center.z
+                clampedCenterZ
             );
             const obstacleBody = this.world.createRigidBody(obstacleBodyDesc);
             const obstacleColliderDesc = this.rapier.ColliderDesc.cuboid(halfX, halfY, halfZ)
@@ -477,6 +473,21 @@ class RapierDriveSimulation {
             this.obstacleColliders.push(obstacleCollider);
             console.log(`[URDF][Simulation] obstacle collider created from URDF link: ${obstacleLinkName}`);
         });
+    }
+
+    clampVehicleAboveGround() {
+        if (!this.body || !Number.isFinite(this.groundZ) || !Number.isFinite(this.vehicleLocalMinZ)) {
+            return;
+        }
+
+        const translation = this.body.translation();
+        const minAllowedZ = this.groundZ - this.vehicleLocalMinZ;
+        if (translation.z < minAllowedZ) {
+            this.body.setTranslation(new this.rapier.Vector3(translation.x, translation.y, minAllowedZ), true);
+
+            const velocity = this.body.linvel();
+            this.body.setLinvel(new this.rapier.Vector3(velocity.x, velocity.y, Math.max(0, velocity.z)), true);
+        }
     }
 
     addWheelCollidersFromUrdf(body, carFrame, linkMap) {
@@ -636,6 +647,7 @@ class RapierDriveSimulation {
 
             const bboxMinLocalZ = localCenter.z - Math.max((size.z || 0.25) * 0.5, 0.06);
             const bboxMaxLocalZ = localCenter.z + Math.max((size.z || 0.25) * 0.5, 0.06);
+            this.vehicleLocalMinZ = bboxMinLocalZ;
             const wheelStats = this.getWheelGeometryStats(carFrame, linkMap);
             const minChassisZFromWheels = wheelStats
                 ? wheelStats.avgWheelCenterZ + (wheelStats.avgWheelRadius * 0.30)
@@ -661,6 +673,7 @@ class RapierDriveSimulation {
             this.initialQuaternion = initialQuaternion.clone();
             this.vehicleHalfExtents = { x: halfX, y: halfY, z: halfZ };
             this.addGroundCollider();
+            this.clampVehicleAboveGround();
             this.addObstacleColliderFromUrdf();
             this.isReady = true;
             this.hasFailed = false;
@@ -746,6 +759,7 @@ class RapierDriveSimulation {
 
         this.world.timestep = Math.max(Math.min(deltaSec, 1 / 30), 1 / 240);
         this.world.step();
+        this.clampVehicleAboveGround();
 
         if (keyboardState.isActive && lockedRotation) {
             this.body.setRotation(lockedRotation, true);

@@ -274,6 +274,31 @@ class RapierDriveSimulation {
         speedSlider.addEventListener('change', persistSpeed);
     }
 
+    resetSpeedSliderToDefault() {
+        const speedSlider = document.getElementById('drive-speed-kmh');
+        const speedLabel = document.getElementById('drive-speed-kmh-value');
+        if (!speedSlider) {
+            return;
+        }
+
+        speedSlider.value = String(SIM_SPEED_DEFAULT_KMH);
+        this.updateSpeedSliderVisual(speedSlider);
+
+        if (speedLabel) {
+            speedLabel.textContent = `${SIM_SPEED_DEFAULT_KMH} km/h`;
+        }
+
+        if (typeof window.setDriveSpeedKmh === 'function') {
+            window.setDriveSpeedKmh(SIM_SPEED_DEFAULT_KMH);
+        }
+
+        try {
+            window.localStorage.setItem(SIM_SPEED_STORAGE_KEY, String(SIM_SPEED_DEFAULT_KMH));
+        } catch (error) {
+            // Ignore storage failures and continue runtime behavior.
+        }
+    }
+
     addGroundCollider() {
         if (!this.world || !this.rapier || !this.initialPosition || !this.vehicleHalfExtents) {
             return;
@@ -573,24 +598,6 @@ class RapierDriveSimulation {
             window.setDriveMode('stop');
         }
 
-        const speedInput = document.getElementById('drive-speed-kmh');
-        const speedLabel = document.getElementById('drive-speed-kmh-value');
-        if (speedInput) {
-            speedInput.value = String(SIM_SPEED_DEFAULT_KMH);
-            this.updateSpeedSliderVisual(speedInput);
-        }
-        if (speedLabel) {
-            speedLabel.textContent = `${SIM_SPEED_DEFAULT_KMH} km/h`;
-        }
-        if (typeof window.setDriveSpeedKmh === 'function') {
-            window.setDriveSpeedKmh(SIM_SPEED_DEFAULT_KMH);
-        }
-        try {
-            window.localStorage.setItem(SIM_SPEED_STORAGE_KEY, String(SIM_SPEED_DEFAULT_KMH));
-        } catch (error) {
-            // Ignore storage failures and continue runtime behavior.
-        }
-
         if (typeof window.setRoadRollAngleDeg === 'function') {
             window.setRoadRollAngleDeg(0);
         }
@@ -656,4 +663,8 @@ rapierDriveSimulation.start();
 
 globalThis.resetSimulation = function() {
     rapierDriveSimulation.reset();
+};
+
+globalThis.resetSimulationSpeed = function() {
+    rapierDriveSimulation.resetSpeedSliderToDefault();
 };

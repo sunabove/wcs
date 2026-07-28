@@ -609,17 +609,24 @@ class RapierDriveSimulation {
     }
 
     resetRoadAttitude() {
+        this.resetRoadRoll();
+        this.resetRoadPitch();
+    }
+
+    resetRoadRoll() {
         if (typeof window.setRoadRollAngleDeg === 'function') {
             window.setRoadRollAngleDeg(0);
-        }
-
-        if (typeof window.setRoadPitchAngleDeg === 'function') {
-            window.setRoadPitchAngleDeg(0);
         }
 
         const rollInput = document.getElementById('road-roll-angle-deg');
         if (rollInput) {
             rollInput.value = '0';
+        }
+    }
+
+    resetRoadPitch() {
+        if (typeof window.setRoadPitchAngleDeg === 'function') {
+            window.setRoadPitchAngleDeg(0);
         }
 
         const pitchInput = document.getElementById('road-pitch-angle-deg');
@@ -675,4 +682,12 @@ globalThis.resetSimulationSpeed = function() {
 
 globalThis.resetSimulationAttitude = function() {
     rapierDriveSimulation.resetRoadAttitude();
+};
+
+globalThis.resetSimulationRoll = function() {
+    rapierDriveSimulation.resetRoadRoll();
+};
+
+globalThis.resetSimulationPitch = function() {
+    rapierDriveSimulation.resetRoadPitch();
 };

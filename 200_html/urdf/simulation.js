@@ -31,11 +31,7 @@ class RapierDriveSimulation {
             /^dirt/i,
             /^gravel/i,
             /^bump/i,
-            /^ditch/i,
-            /^단차/i,
-            /^포트홀/i,
-            /^흙/i,
-            /^자갈/i
+            /^ditch/i
         ];
         this.passUnderObstacleNamePatterns = [/pass_under/i, /underbody/i];
         this.maxSpeedMps = 100 / 3.6;

@@ -734,7 +734,7 @@ class RapierDriveSimulation {
     }
 
     getAverageSignedWheelRpm() {
-        const viewer = this.viewer;
+        const viewer = this.getDriveSourceViewer();
         if (!viewer) {
             return null;
         }
@@ -772,15 +772,34 @@ class RapierDriveSimulation {
         return rpmSum / signedRpms.length;
     }
 
+    getDriveSourceViewer() {
+        const byId = window.urdfViewersById?.['robot-container-1'] || null;
+        if (byId) {
+            return byId;
+        }
+
+        const vehicleViewer = window.urdfViewersById?.['vehicle-urdf-viewer'] || null;
+        if (vehicleViewer) {
+            return vehicleViewer;
+        }
+
+        if (this.viewer) {
+            return this.viewer;
+        }
+
+        return window.activeURDFViewer || null;
+    }
+
     getCommandedDriveSpeedMps() {
+        const driveViewer = this.getDriveSourceViewer();
         const avgSignedWheelRpm = this.getAverageSignedWheelRpm();
-        if (Number.isFinite(avgSignedWheelRpm)) {
+        if (Number.isFinite(avgSignedWheelRpm) && Math.abs(avgSignedWheelRpm) > 0.1) {
             const wheelAngularSpeedRadPerSec = Math.abs(avgSignedWheelRpm) * (Math.PI * 2 / 60);
             const speedByWheel = wheelAngularSpeedRadPerSec * Math.max(this.wheelEffectiveRadiusMeters, 0.05);
             return speedByWheel;
         }
 
-        const driveSpeedKmh = Math.max(Number(this.viewer?.driveSpeedKmh) || 0, 0);
+        const driveSpeedKmh = Math.max(Number(driveViewer?.driveSpeedKmh) || 0, 0);
         return driveSpeedKmh / 3.6;
     }
 
@@ -1070,6 +1089,7 @@ class RapierDriveSimulation {
         this.lastStepTimeMs = now;
 
         const keyboardState = this.getKeyboardDriveState();
+        const driveViewer = this.getDriveSourceViewer();
 
         let throttleSign = 0;
         let steerSign = 0;
@@ -1079,7 +1099,7 @@ class RapierDriveSimulation {
             keyboardMoveX = keyboardState.moveX;
             keyboardMoveY = keyboardState.moveY;
         } else {
-            const driveMode = String(this.viewer.driveMode || 'stop');
+            const driveMode = String(driveViewer?.driveMode || this.viewer?.driveMode || 'stop');
             if (driveMode === 'forward') {
                 throttleSign = 1;
             } else if (driveMode === 'backward') {

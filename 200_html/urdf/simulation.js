@@ -456,10 +456,10 @@ class RapierDriveSimulation {
             } else if (driveMode === 'backward') {
                 throttleSign = -1;
             } else if (driveMode === 'left') {
-                throttleSign = 0.65;
+                throttleSign = 0;
                 steerSign = 1;
             } else if (driveMode === 'right') {
-                throttleSign = 0.65;
+                throttleSign = 0;
                 steerSign = -1;
             }
         }

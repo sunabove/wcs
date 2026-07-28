@@ -466,6 +466,7 @@ class RapierDriveSimulation {
 
         const speedMps = driveSpeedKmh / 3.6;
         const clampedSpeed = Math.min(speedMps, this.maxSpeedMps);
+        const effectiveSteerSign = clampedSpeed > 1e-3 ? steerSign : 0;
 
         const bodyRotation = this.body.rotation();
         const yaw = this.extractYawFromQuaternion(bodyRotation);
@@ -475,7 +476,7 @@ class RapierDriveSimulation {
         const velocityY = Math.sin(yaw) * clampedSpeed * throttleSign;
 
         this.body.setLinvel(new this.rapier.Vector3(velocityX, velocityY, currentLinearVelocity.z), true);
-        this.body.setAngvel(new this.rapier.Vector3(0, 0, this.maxYawRateRad * steerSign), true);
+        this.body.setAngvel(new this.rapier.Vector3(0, 0, this.maxYawRateRad * effectiveSteerSign), true);
 
         this.world.timestep = Math.max(Math.min(deltaSec, 1 / 30), 1 / 240);
         this.world.step();

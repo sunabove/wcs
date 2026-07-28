@@ -689,27 +689,29 @@ class RapierDriveSimulation {
         this.body.setTranslation(new this.rapier.Vector3(translation.x, translation.y, targetZ), true);
     }
 
-    snapVehicleDownToGroundIfFloating(maxDropMeters = 0.4, toleranceMeters = 0.002) {
-        if (!this.body || !this.rapier) {
+    alignVehicleToGroundByWheelGap(linkMap, toleranceMeters = 0.001) {
+        if (!this.body || !this.rapier || !linkMap || !Number.isFinite(this.groundZ)) {
             return;
         }
 
-        const targetZ = this.getGroundContactTargetZ();
-        if (!Number.isFinite(targetZ)) {
+        const measuredWheelWorldMinZ = this.getWheelWorldMinZ(linkMap);
+        if (!Number.isFinite(measuredWheelWorldMinZ)) {
+            return;
+        }
+
+        const wheelGroundGap = measuredWheelWorldMinZ - this.groundZ;
+        if (Math.abs(wheelGroundGap) <= toleranceMeters) {
             return;
         }
 
         const translation = this.body.translation();
-        const floatingDistance = translation.z - targetZ;
-        if (floatingDistance <= toleranceMeters) {
-            return;
-        }
+        const alignedZ = translation.z - wheelGroundGap;
+        this.body.setTranslation(new this.rapier.Vector3(translation.x, translation.y, alignedZ), true);
 
-        if (floatingDistance > maxDropMeters) {
-            return;
-        }
+        // Keep local contact baseline in sync after explicit correction.
+        this.groundContactLocalMinZ = measuredWheelWorldMinZ - wheelGroundGap - alignedZ;
+        this.wheelLocalMinZ = this.groundContactLocalMinZ;
 
-        this.body.setTranslation(new this.rapier.Vector3(translation.x, translation.y, targetZ), true);
         const velocity = this.body.linvel();
         this.body.setLinvel(new this.rapier.Vector3(velocity.x, velocity.y, Math.min(0, velocity.z)), true);
     }
@@ -848,7 +850,7 @@ class RapierDriveSimulation {
             this.vehicleHalfExtents = { x: halfX, y: halfY, z: halfZ };
             this.addGroundCollider();
             this.calibrateGroundContactLocalMinZ(linkMap);
-            this.snapVehicleDownToGroundIfFloating();
+            this.alignVehicleToGroundByWheelGap(linkMap);
 
             this.clampVehicleAboveGround();
             this.addObstacleColliderFromUrdf();
@@ -1054,8 +1056,8 @@ class RapierDriveSimulation {
         const linkMap = this.viewer?.robotModel?.links || null;
         if (linkMap) {
             this.calibrateGroundContactLocalMinZ(linkMap);
+            this.alignVehicleToGroundByWheelGap(linkMap);
         }
-        this.snapVehicleDownToGroundIfFloating();
 
         const currentPosition = this.body.translation();
         const currentRotation = this.body.rotation();

@@ -1232,14 +1232,48 @@ class URDFViewer {
             return;
         }
 
-        const target = this.controls.target.clone();
-        const currentDistance = this.camera.position.distanceTo(target);
-        const cameraDistance = Number.isFinite(currentDistance) && currentDistance > 0.001
-            ? currentDistance
-            : 3;
+        const focusBounds = this.getPrimaryFocusBounds();
+        const nextTarget = focusBounds.center;
+        const nextDistance = this.calculateFitDistanceForFace(
+            focusBounds.size,
+            faceKey,
+            this.cameraFitMarginRatio
+        );
+        const nextPosition = nextTarget.clone().add(faceVectors.direction.multiplyScalar(nextDistance));
 
-        const nextPosition = target.clone().add(faceVectors.direction.multiplyScalar(cameraDistance));
-        this.animateCameraToPose(nextPosition, faceVectors.up, 220);
+        this.animateCameraToPoseWithTarget(nextPosition, nextTarget, faceVectors.up, 240);
+    }
+
+    getPrimaryFocusBounds() {
+        const fallbackTarget = this.controls?.target?.clone?.() || new THREE.Vector3(0, 0, 0);
+        const fallbackSize = new THREE.Vector3(1, 1, 1);
+
+        if (!this.robotModel) {
+            return {
+                center: fallbackTarget,
+                size: fallbackSize
+            };
+        }
+
+        const linkMap = this.robotModel.links || {};
+        const carFrame = linkMap.car_frame || null;
+        const focusRoot = carFrame || this.robotModel;
+        const bbox = new THREE.Box3().setFromObject(focusRoot);
+
+        if (bbox.isEmpty()) {
+            return {
+                center: fallbackTarget,
+                size: fallbackSize
+            };
+        }
+
+        const center = bbox.getCenter(new THREE.Vector3());
+        const size = bbox.getSize(new THREE.Vector3());
+
+        return {
+            center,
+            size
+        };
     }
 
     getCameraVectorsByFace(faceKey) {

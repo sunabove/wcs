@@ -3,6 +3,7 @@ import * as THREE from 'three';
 const RAPIER_CDN = 'https://cdn.skypack.dev/@dimforge/rapier3d-compat@0.11.2';
 const SIM_SPEED_STORAGE_KEY = 'wcs.simulation.driveSpeedKmh';
 const SIM_SPEED_DEFAULT_KMH = 10;
+const SIM_SPEED_MAX_KMH = 40;
 
 class RapierDriveSimulation {
     constructor() {
@@ -39,7 +40,7 @@ class RapierDriveSimulation {
             /^ditch/i
         ];
         this.passUnderObstacleNamePatterns = [/pass_under/i, /underbody/i];
-        this.maxSpeedMps = 100 / 3.6;
+        this.maxSpeedMps = SIM_SPEED_MAX_KMH / 3.6;
         this.maxYawRateRad = THREE.MathUtils.degToRad(80);
         this.isInitializing = false;
         this.isReady = false;
@@ -348,7 +349,7 @@ class RapierDriveSimulation {
             if (!Number.isFinite(numeric)) {
                 return fallbackValue;
             }
-            return Math.max(0, Math.min(100, numeric));
+            return Math.max(0, Math.min(SIM_SPEED_MAX_KMH, numeric));
         };
 
         let initialSpeed = SIM_SPEED_DEFAULT_KMH;

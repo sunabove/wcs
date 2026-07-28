@@ -153,7 +153,7 @@
                                 <div class="d-flex justify-content-center align-items-center mt-2">
                                     <div class="d-flex align-items-center gap-2 px-3 py-2 rounded border bg-light w-100">
                                         <span class="small text-nowrap fw-semibold">속도</span>
-                                        <input type="range" class="form-range m-0" id="drive-speed-kmh" min="0" max="100" step="1" value="10" oninput="this.style.setProperty('--slider-percent', (((this.value - this.min) * 100) / (this.max - this.min)) + '%'); $('#drive-speed-kmh-value').text(this.value + ' km/h'); setDriveSpeedKmh(this.value)">
+                                        <input type="range" class="form-range m-0" id="drive-speed-kmh" min="0" max="40" step="1" value="10" oninput="this.style.setProperty('--slider-percent', (((this.value - this.min) * 100) / (this.max - this.min)) + '%'); $('#drive-speed-kmh-value').text(this.value + ' km/h'); setDriveSpeedKmh(this.value)">
                                         <span class="small text-nowrap fw-semibold" id="drive-speed-kmh-value" style="min-width: 60px; text-align: right;">10 km/h</span>
                                         <button type="button" class="btn btn-outline-secondary btn-sm py-0 px-2 text-nowrap flex-shrink-0 small" id="drive-speed-reset" onclick="resetSimulationSpeed()">초기화</button>
                                     </div>

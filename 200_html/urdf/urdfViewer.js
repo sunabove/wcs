@@ -2395,9 +2395,11 @@ class URDFViewer {
         const sizeY = Math.max(Number(modelSizeVec3.y) || 0, 0.001);
         const sizeZ = Math.max(Number(modelSizeVec3.z) || 0, 0.001);
 
-        const axisLengthX = sizeX * this.axisLengthScaleRatio * this.axisLengthExtraRatio;
-        const axisLengthY = sizeY * this.axisLengthScaleRatio * this.axisLengthExtraRatio;
-        const axisLengthZ = sizeZ * this.axisLengthScaleRatio * this.axisLengthExtraRatio;
+        const absoluteRange = Math.max(Math.abs(sizeX), Math.abs(sizeY), Math.abs(sizeZ), 0.001);
+        const axisLength = absoluteRange * this.axisLengthExtraRatio;
+        const axisLengthX = axisLength;
+        const axisLengthY = axisLength;
+        const axisLengthZ = axisLength;
 
         this.updateAxisLineLength('x', axisLengthX);
         this.updateAxisLineLength('y', axisLengthY);

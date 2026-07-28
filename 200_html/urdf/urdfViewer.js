@@ -2162,6 +2162,26 @@ class URDFViewer {
                 const keyJointSuffix = `${key}_joint`;
                 const keyTokenRegex = new RegExp(`(^|[_/.-])${key}([_/.-]|$)`, 'i');
                 const canonicalWheelJointName = `wheel_${key}_joint`;
+                const canonicalLower = canonicalWheelJointName.toLowerCase();
+
+                // 1) wheel_${key}_joint 를 최우선으로 직접 탐색한다.
+                const preferredJointName = jointNames.find(name => {
+                    const lower = String(name || '').toLowerCase();
+                    return (
+                        lower === canonicalLower ||
+                        lower.endsWith(`/${canonicalLower}`) ||
+                        lower.endsWith(`.${canonicalLower}`) ||
+                        lower.endsWith(`_${canonicalLower}`)
+                    );
+                });
+
+                if (preferredJointName) {
+                    joint = jointMap[preferredJointName] || null;
+                }
+
+                if (joint) {
+                    // 최우선 후보를 찾았으면 추가 매칭을 생략한다.
+                } else {
                 const candidateJointName = jointNames
                     .filter(name => (
                         name === expectedJointName ||
@@ -2202,6 +2222,7 @@ class URDFViewer {
 
                 if (candidateJointName) {
                     joint = jointMap[candidateJointName];
+                }
                 }
             }
 

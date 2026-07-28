@@ -43,6 +43,8 @@ class URDFViewer {
         this.axisLengthExtraRatio = 0.625;
         this.axisLabelSprites = [];
         this.axisLabelScaleRatio = 0.10;
+        this.axisLabelNearOriginRatio = 0.06;
+        this.axisLabelMinOffset = 0.03;
         this.referenceToggleStep = 0;
         this.directionalLight = null;
         this.directionalLightRadius = 1;
@@ -2370,10 +2372,11 @@ class URDFViewer {
         const lengthX = Math.max(Number(axisLengths?.x) || 0, 0.001);
         const lengthY = Math.max(Number(axisLengths?.y) || 0, 0.001);
         const lengthZ = Math.max(Number(axisLengths?.z) || 0, 0.001);
-        const margin = Math.max(Math.max(lengthX, lengthY, lengthZ) * 0.05, 0.06);
-        const xLabel = this.createAxisLabel('X', '#ff3333', new THREE.Vector3(lengthX + margin, 0, 0));
-        const yLabel = this.createAxisLabel('Y', '#22aa22', new THREE.Vector3(0, lengthY + margin, 0));
-        const zLabel = this.createAxisLabel('Z', '#3366ff', new THREE.Vector3(0, 0, lengthZ + margin));
+        const maxAxisLength = Math.max(lengthX, lengthY, lengthZ);
+        const nearOriginOffset = Math.max(maxAxisLength * this.axisLabelNearOriginRatio, this.axisLabelMinOffset);
+        const xLabel = this.createAxisLabel('X', '#ff3333', new THREE.Vector3(nearOriginOffset, 0, 0));
+        const yLabel = this.createAxisLabel('Y', '#22aa22', new THREE.Vector3(0, nearOriginOffset, 0));
+        const zLabel = this.createAxisLabel('Z', '#3366ff', new THREE.Vector3(0, 0, nearOriginOffset));
 
         xLabel.visible = false;
         yLabel.visible = false;
@@ -2403,11 +2406,12 @@ class URDFViewer {
         this.updateAxisLineLength('y', axisLengthY);
         this.updateAxisLineLength('z', axisLengthZ);
 
-        const margin = Math.max(Math.max(axisLengthX, axisLengthY, axisLengthZ) * 0.05, 0.06);
+        const maxAxisLength = Math.max(axisLengthX, axisLengthY, axisLengthZ);
+        const nearOriginOffset = Math.max(maxAxisLength * this.axisLabelNearOriginRatio, this.axisLabelMinOffset);
         if (this.axisLabelSprites.length >= 3) {
-            this.axisLabelSprites[0].position.set(axisLengthX + margin, 0, 0);
-            this.axisLabelSprites[1].position.set(0, axisLengthY + margin, 0);
-            this.axisLabelSprites[2].position.set(0, 0, axisLengthZ + margin);
+            this.axisLabelSprites[0].position.set(nearOriginOffset, 0, 0);
+            this.axisLabelSprites[1].position.set(0, nearOriginOffset, 0);
+            this.axisLabelSprites[2].position.set(0, 0, nearOriginOffset);
         }
     }
 
@@ -2443,14 +2447,8 @@ class URDFViewer {
             return;
         }
 
-        const sizeX = Number.isFinite(modelSizeVec3.x) ? modelSizeVec3.x : 0;
-        const sizeY = Number.isFinite(modelSizeVec3.y) ? modelSizeVec3.y : 0;
-        const sizeZ = Number.isFinite(modelSizeVec3.z) ? modelSizeVec3.z : 0;
-        // Use the largest model dimension as the baseline so "10%" remains consistent
-        // regardless of the model's aspect ratio.
-        const maxDimension = Math.max(sizeX, sizeY, sizeZ, 0.001);
-        const labelScale = maxDimension * this.axisLabelScaleRatio;
-        const fontPx = Math.max(96, Math.min(240, Math.round(220 * (this.axisLabelScaleRatio / 0.10))));
+        const labelScale = 0.06;
+        const fontPx = 84;
 
         this.axisLabelSprites.forEach(sprite => {
             if (sprite) {

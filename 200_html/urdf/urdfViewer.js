@@ -1234,11 +1234,10 @@ class URDFViewer {
 
         const focusBounds = this.getPrimaryFocusBounds();
         const nextTarget = focusBounds.center;
-        const nextDistance = this.calculateFitDistanceForFace(
-            focusBounds.size,
-            faceKey,
-            this.cameraFitMarginRatio
-        );
+        const currentDistanceFromChassisCenter = this.camera.position.distanceTo(nextTarget);
+        const nextDistance = Number.isFinite(currentDistanceFromChassisCenter) && currentDistanceFromChassisCenter > 0.001
+            ? currentDistanceFromChassisCenter
+            : this.calculateFitDistanceForFace(focusBounds.size, faceKey, this.cameraFitMarginRatio);
         const nextPosition = nextTarget.clone().add(faceVectors.direction.multiplyScalar(nextDistance));
 
         this.animateCameraToPoseWithTarget(nextPosition, nextTarget, faceVectors.up, 240);

@@ -10,6 +10,9 @@ class RapierDriveSimulation {
         this.rapier = null;
         this.world = null;
         this.body = null;
+        this.vehicleCollider = null;
+        this.obstacleCollider = null;
+        this.isVehicleObstacleContact = false;
         this.carFrame = null;
         this.initialPosition = null;
         this.initialQuaternion = null;
@@ -316,9 +319,28 @@ class RapierDriveSimulation {
             });
         }
 
-        this.world.createCollider(obstacleColliderDesc, obstacleBody);
+        this.obstacleCollider = this.world.createCollider(obstacleColliderDesc, obstacleBody);
 
         console.log(`[URDF][Simulation] obstacle collider created from URDF link: ${obstacleLinkName}`);
+    }
+
+    updateObstacleContactState() {
+        if (!this.world || !this.vehicleCollider || !this.obstacleCollider) {
+            return;
+        }
+
+        let hasContact = false;
+
+        if (typeof this.world.contactPair === 'function') {
+            this.world.contactPair(this.vehicleCollider, this.obstacleCollider, () => {
+                hasContact = true;
+            });
+        }
+
+        if (hasContact !== this.isVehicleObstacleContact) {
+            this.isVehicleObstacleContact = hasContact;
+            console.log(`[URDF][Simulation] vehicle-obstacle contact: ${hasContact ? 'ON' : 'OFF'}`);
+        }
     }
 
     async ensureRapierInitialized() {
@@ -378,7 +400,7 @@ class RapierDriveSimulation {
                 .setTranslation(localCenter.x, localCenter.y, localCenter.z)
                 .setFriction(1.1)
                 .setRestitution(0.04);
-            world.createCollider(colliderDesc, body);
+            this.vehicleCollider = world.createCollider(colliderDesc, body);
 
             this.rapier = RAPIER;
             this.world = world;
@@ -457,6 +479,7 @@ class RapierDriveSimulation {
 
         this.world.timestep = Math.max(Math.min(deltaSec, 1 / 30), 1 / 240);
         this.world.step();
+        this.updateObstacleContactState();
 
         const nextPosition = this.body.translation();
         const nextRotation = this.body.rotation();
@@ -544,6 +567,7 @@ class RapierDriveSimulation {
         this.body.setRotation(this.initialQuaternion, true);
         this.body.setLinvel(new this.rapier.Vector3(0, 0, 0), true);
         this.body.setAngvel(new this.rapier.Vector3(0, 0, 0), true);
+        this.isVehicleObstacleContact = false;
 
         this.carFrame.position.copy(this.initialPosition);
         this.carFrame.quaternion.copy(this.initialQuaternion);

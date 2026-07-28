@@ -40,6 +40,7 @@ class URDFViewer {
             z: null
         };
         this.axisLengthScaleRatio = 0.55;
+        this.axisLengthExtraRatio = 1.25;
         this.axisLabelSprites = [];
         this.axisLabelScaleRatio = 0.10;
         this.referenceToggleStep = 0;
@@ -2394,9 +2395,9 @@ class URDFViewer {
         const sizeY = Math.max(Number(modelSizeVec3.y) || 0, 0.001);
         const sizeZ = Math.max(Number(modelSizeVec3.z) || 0, 0.001);
 
-        const axisLengthX = sizeX * this.axisLengthScaleRatio;
-        const axisLengthY = sizeY * this.axisLengthScaleRatio;
-        const axisLengthZ = sizeZ * this.axisLengthScaleRatio;
+        const axisLengthX = sizeX * this.axisLengthScaleRatio * this.axisLengthExtraRatio;
+        const axisLengthY = sizeY * this.axisLengthScaleRatio * this.axisLengthExtraRatio;
+        const axisLengthZ = sizeZ * this.axisLengthScaleRatio * this.axisLengthExtraRatio;
 
         this.updateAxisLineLength('x', axisLengthX);
         this.updateAxisLineLength('y', axisLengthY);

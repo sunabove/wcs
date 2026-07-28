@@ -96,6 +96,43 @@ class RapierDriveSimulation {
         return false;
     }
 
+    computeLinkOwnBounds(linkObject, linkMap) {
+        if (!linkObject) {
+            return null;
+        }
+
+        const otherLinkRoots = Object.values(linkMap || {}).filter((root) => root && root !== linkObject);
+        const bounds = new THREE.Box3();
+        let hasMesh = false;
+
+        linkObject.updateWorldMatrix(true, true);
+
+        linkObject.traverse((node) => {
+            if (!node || !node.isMesh || !node.geometry) {
+                return;
+            }
+
+            const belongsToOtherLink = otherLinkRoots.some((root) => node === root || this.isDescendantObject3D(node, root));
+            if (belongsToOtherLink) {
+                return;
+            }
+
+            if (!node.geometry.boundingBox) {
+                node.geometry.computeBoundingBox();
+            }
+
+            if (!node.geometry.boundingBox) {
+                return;
+            }
+
+            const meshBounds = node.geometry.boundingBox.clone().applyMatrix4(node.matrixWorld);
+            bounds.union(meshBounds);
+            hasMesh = true;
+        });
+
+        return hasMesh ? bounds : null;
+    }
+
     computeChassisBounds(carFrame, linkMap) {
         const fallbackBounds = new THREE.Box3().setFromObject(carFrame);
         if (!carFrame || !linkMap) {
@@ -382,8 +419,8 @@ class RapierDriveSimulation {
 
         if (groundLink) {
             groundLink.updateWorldMatrix(true, true);
-            const groundBounds = new THREE.Box3().setFromObject(groundLink);
-            if (!groundBounds.isEmpty()) {
+            const groundBounds = this.computeLinkOwnBounds(groundLink, linkMap);
+            if (groundBounds && !groundBounds.isEmpty()) {
                 this.groundZ = groundBounds.max.z;
             } else {
                 const groundWorldPos = new THREE.Vector3();

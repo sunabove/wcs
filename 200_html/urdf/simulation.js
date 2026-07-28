@@ -481,7 +481,7 @@ class RapierDriveSimulation {
         const groundBodyDesc = this.rapier.RigidBodyDesc.fixed().setTranslation(0, 0, groundCenterZ);
         const groundBody = this.world.createRigidBody(groundBodyDesc);
         const groundColliderDesc = this.rapier.ColliderDesc.cuboid(30, 30, groundHalfThickness)
-            .setFriction(1.2)
+            .setFriction(0.25)
             .setRestitution(0.02);
         this.world.createCollider(groundColliderDesc, groundBody);
     }
@@ -936,7 +936,7 @@ class RapierDriveSimulation {
 
             const colliderDesc = RAPIER.ColliderDesc.cuboid(halfX, halfY, halfZ)
                 .setTranslation(localCenter.x, localCenter.y, adjustedCenterZ)
-                .setFriction(1.1)
+                .setFriction(0.15)
                 .setRestitution(0.04);
             this.vehicleCollider = world.createCollider(colliderDesc, body);
             this.vehicleColliders = [this.vehicleCollider];
@@ -1013,6 +1013,8 @@ class RapierDriveSimulation {
         const clampedSpeed = Math.min(speedMps, this.maxSpeedMps);
         const effectiveSteerSign = clampedSpeed > 1e-3 ? steerSign : 0;
         const wasObstacleContact = this.isVehicleObstacleContact;
+        let commandedVelocityX = 0;
+        let commandedVelocityY = 0;
 
         if (this.keepUprightOnFlatGround) {
             this.setUprightRotationLockEnabled(!wasObstacleContact);
@@ -1039,6 +1041,8 @@ class RapierDriveSimulation {
             const targetVelocityY = keyboardMoveY * clampedSpeed;
             const velocityX = currentLinearVelocity.x + ((targetVelocityX - currentLinearVelocity.x) * velocitySmoothingAlpha);
             const velocityY = currentLinearVelocity.y + ((targetVelocityY - currentLinearVelocity.y) * velocitySmoothingAlpha);
+            commandedVelocityX = targetVelocityX;
+            commandedVelocityY = targetVelocityY;
 
             const nextVelocityZ = wasObstacleContact ? currentLinearVelocity.z : Math.min(0, currentLinearVelocity.z);
             this.body.setLinvel(new this.rapier.Vector3(velocityX, velocityY, nextVelocityZ), true);
@@ -1049,6 +1053,8 @@ class RapierDriveSimulation {
             const currentAngularVelocity = this.body.angvel();
             const velocityX = Math.cos(yaw) * clampedSpeed * throttleSign;
             const velocityY = Math.sin(yaw) * clampedSpeed * throttleSign;
+            commandedVelocityX = velocityX;
+            commandedVelocityY = velocityY;
 
             const nextVelocityZ = wasObstacleContact ? currentLinearVelocity.z : Math.min(0, currentLinearVelocity.z);
             this.body.setLinvel(new this.rapier.Vector3(velocityX, velocityY, nextVelocityZ), true);
@@ -1073,6 +1079,13 @@ class RapierDriveSimulation {
         const hasObstacleContact = this.updateObstacleContactState();
         if (this.keepUprightOnFlatGround) {
             this.setUprightRotationLockEnabled(!hasObstacleContact);
+        }
+
+        const hasMoveCommand = keyboardState.isActive || throttleSign !== 0;
+        if (hasMoveCommand && !hasObstacleContact) {
+            const currentVelocity = this.body.linvel();
+            const keepZVelocity = hasObstacleContact ? currentVelocity.z : Math.min(0, currentVelocity.z);
+            this.body.setLinvel(new this.rapier.Vector3(commandedVelocityX, commandedVelocityY, keepZVelocity), true);
         }
 
         const isMoveCommandActive = keyboardState.isActive || throttleSign !== 0;

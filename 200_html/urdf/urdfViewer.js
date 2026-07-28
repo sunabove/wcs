@@ -106,6 +106,16 @@ class URDFViewer {
             rl: 0,
             rr: 0
         };
+        this.wheelVisualAngularSpeedRadByKey = {
+            fl: 0,
+            fr: 0,
+            rl: 0,
+            rr: 0
+        };
+        this.wheelVisualAngularSpeedCapRad = 20;
+        this.wheelVisualCompressionK = 8;
+        this.wheelVisualSmoothingHz = 12;
+        this.wheelVisualMaxStepRadPerFrame = Math.PI / 8;
         this.wheelRuntimeTargetByKey = {
             fl: null,
             fr: null,
@@ -1891,6 +1901,24 @@ class URDFViewer {
         this.clearWheelHighlights();
     }
 
+    toVisualWheelAngularSpeedRad(targetAngularSpeedRad) {
+        const numericTarget = Number(targetAngularSpeedRad);
+        if (!Number.isFinite(numericTarget) || Math.abs(numericTarget) <= 1e-8) {
+            return 0;
+        }
+
+        const sign = numericTarget >= 0 ? 1 : -1;
+        const absTarget = Math.abs(numericTarget);
+        const omegaCap = Math.max(Number(this.wheelVisualAngularSpeedCapRad) || 0, 0.001);
+        const compressionK = Math.max(Number(this.wheelVisualCompressionK) || 0, 0.001);
+
+        // 1) Hard cap for extreme values, 2) nonlinear compression for readability at high speed.
+        const capped = Math.min(absTarget, omegaCap * 4);
+        const compressed = omegaCap * (1 - Math.exp(-capped / compressionK));
+
+        return sign * Math.min(compressed, omegaCap);
+    }
+
     applyWheelAnimation(deltaSec) {
         if (!this.robotModel) {
             return;
@@ -1903,12 +1931,28 @@ class URDFViewer {
             }
 
             const wheelAngularSpeedRad = this.wheelAngularSpeedRadByKey[key] || 0;
-            if (Math.abs(wheelAngularSpeedRad) <= 0) {
+            const wheelDirection = this.wheelDirectionSignByKey[key] || 1;
+            const targetAngularSpeedRad = wheelDirection * wheelAngularSpeedRad;
+            const visualTargetAngularSpeedRad = this.toVisualWheelAngularSpeedRad(targetAngularSpeedRad);
+
+            const smoothingHz = Math.max(Number(this.wheelVisualSmoothingHz) || 0, 0);
+            const alpha = smoothingHz > 0
+                ? (1 - Math.exp(-smoothingHz * Math.max(deltaSec, 0)))
+                : 1;
+            const currentVisualAngularSpeedRad = Number(this.wheelVisualAngularSpeedRadByKey[key]) || 0;
+            const nextVisualAngularSpeedRad = currentVisualAngularSpeedRad
+                + (visualTargetAngularSpeedRad - currentVisualAngularSpeedRad) * alpha;
+            this.wheelVisualAngularSpeedRadByKey[key] = nextVisualAngularSpeedRad;
+
+            const maxStepRad = Math.max(Number(this.wheelVisualMaxStepRadPerFrame) || 0, 0.001);
+            const rawAngleStep = nextVisualAngularSpeedRad * deltaSec;
+            const clampedAngleStep = THREE.MathUtils.clamp(rawAngleStep, -maxStepRad, maxStepRad);
+
+            if (Math.abs(clampedAngleStep) <= 1e-10) {
                 return;
             }
 
-            const wheelDirection = this.wheelDirectionSignByKey[key] || 1;
-            this.wheelAngles[key] += wheelDirection * wheelAngularSpeedRad * deltaSec;
+            this.wheelAngles[key] += clampedAngleStep;
 
             if (runtimeTarget.type === 'joint') {
                 runtimeTarget.ref.setJointValue(this.wheelAngles[key]);

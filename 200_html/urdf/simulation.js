@@ -56,6 +56,73 @@ class RapierDriveSimulation {
         );
     }
 
+    isDescendantObject3D(childObject, ancestorObject) {
+        if (!childObject || !ancestorObject || childObject === ancestorObject) {
+            return false;
+        }
+
+        let current = childObject.parent;
+        while (current) {
+            if (current === ancestorObject) {
+                return true;
+            }
+            current = current.parent;
+        }
+
+        return false;
+    }
+
+    computeChassisBounds(carFrame, linkMap) {
+        const fallbackBounds = new THREE.Box3().setFromObject(carFrame);
+        if (!carFrame || !linkMap) {
+            return fallbackBounds;
+        }
+
+        const excludedRoots = [
+            linkMap.wheel_fl,
+            linkMap.wheel_fr,
+            linkMap.wheel_rl,
+            linkMap.wheel_rr,
+            linkMap.pinion_fl,
+            linkMap.pinion_fr,
+            linkMap.pinion_rl,
+            linkMap.pinion_rr,
+            linkMap.obstacle_rock_01,
+            linkMap.obstacle_rock,
+            linkMap.rock_obstacle
+        ].filter(Boolean);
+
+        const bounds = new THREE.Box3();
+        let hasMesh = false;
+
+        carFrame.updateWorldMatrix(true, true);
+
+        carFrame.traverse((node) => {
+            if (!node || !node.isMesh || !node.geometry) {
+                return;
+            }
+
+            const isExcluded = excludedRoots.some((root) => node === root || this.isDescendantObject3D(node, root));
+            if (isExcluded) {
+                return;
+            }
+
+            if (!node.geometry.boundingBox) {
+                node.geometry.computeBoundingBox();
+            }
+
+            if (!node.geometry.boundingBox) {
+                return;
+            }
+
+            const meshBounds = node.geometry.boundingBox.clone().applyMatrix4(node.matrixWorld);
+            bounds.union(meshBounds);
+            hasMesh = true;
+        });
+
+        return hasMesh ? bounds : fallbackBounds;
+    }
+
     attachKeyboardControls() {
         if (!this.isKeyboardControlEnabled) {
             return;
@@ -112,7 +179,18 @@ class RapierDriveSimulation {
         }
 
         const groundHalfThickness = 0.2;
-        this.groundZ = this.initialPosition.z - this.vehicleHalfExtents.z - 0.01;
+        const linkMap = this.viewer?.robotModel?.links || {};
+        const groundLink = linkMap.ground || linkMap.ground_link || linkMap.ground_patch || null;
+
+        if (groundLink) {
+            groundLink.updateWorldMatrix(true, true);
+            const groundWorldPos = new THREE.Vector3();
+            groundLink.getWorldPosition(groundWorldPos);
+            this.groundZ = groundWorldPos.z;
+        } else {
+            this.groundZ = this.initialPosition.z - this.vehicleHalfExtents.z - 0.01;
+        }
+
         const groundCenterZ = this.groundZ - groundHalfThickness;
         const groundBodyDesc = this.rapier.RigidBodyDesc.fixed().setTranslation(0, 0, groundCenterZ);
         const groundBody = this.world.createRigidBody(groundBodyDesc);
@@ -197,13 +275,16 @@ class RapierDriveSimulation {
 
             const body = world.createRigidBody(rigidBodyDesc);
 
-            const bbox = new THREE.Box3().setFromObject(carFrame);
+            const bbox = this.computeChassisBounds(carFrame, linkMap);
             const size = bbox.getSize(new THREE.Vector3());
+            const worldCenter = bbox.getCenter(new THREE.Vector3());
+            const localCenter = carFrame.worldToLocal(worldCenter.clone());
             const halfX = Math.max((size.x || 0.6) * 0.5, 0.12);
             const halfY = Math.max((size.y || 0.4) * 0.5, 0.10);
             const halfZ = Math.max((size.z || 0.25) * 0.5, 0.06);
 
             const colliderDesc = RAPIER.ColliderDesc.cuboid(halfX, halfY, halfZ)
+                .setTranslation(localCenter.x, localCenter.y, localCenter.z)
                 .setFriction(1.1)
                 .setRestitution(0.04);
             world.createCollider(colliderDesc, body);

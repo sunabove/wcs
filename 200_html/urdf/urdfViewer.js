@@ -40,7 +40,7 @@ class URDFViewer {
             z: null
         };
         this.axisLengthScaleRatio = 0.55;
-        this.axisLengthExtraRatio = 1.25;
+        this.axisLengthExtraRatio = 0.625;
         this.axisLabelSprites = [];
         this.axisLabelScaleRatio = 0.10;
         this.referenceToggleStep = 0;

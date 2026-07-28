@@ -832,9 +832,15 @@ class RapierDriveSimulation {
                 .setRotation(initialQuaternion)
                 .setLinearDamping(2.2)
                 .setAngularDamping(3.2)
+                // Keep the vehicle upright: allow yaw only, block roll/pitch.
+                .setEnabledRotations(false, false, true)
                 .setCcdEnabled(true);
 
             const body = world.createRigidBody(rigidBodyDesc);
+
+            if (typeof body.setEnabledRotations === 'function') {
+                body.setEnabledRotations(false, false, true, true);
+            }
 
             const bbox = this.computeChassisBounds(carFrame, linkMap);
             const size = bbox.getSize(new THREE.Vector3());

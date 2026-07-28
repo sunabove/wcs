@@ -592,7 +592,9 @@ class RapierDriveSimulation {
         const effectiveSteerSign = clampedSpeed > 1e-3 ? steerSign : 0;
 
         const currentLinearVelocity = this.body.linvel();
+        let lockedRotation = null;
         if (keyboardState.isActive) {
+            lockedRotation = this.body.rotation();
             const velocitySmoothingAlpha = 1 - Math.exp(-12 * deltaSec);
             const targetVelocityX = keyboardMoveX * clampedSpeed;
             const targetVelocityY = keyboardMoveY * clampedSpeed;
@@ -613,6 +615,12 @@ class RapierDriveSimulation {
 
         this.world.timestep = Math.max(Math.min(deltaSec, 1 / 30), 1 / 240);
         this.world.step();
+
+        if (keyboardState.isActive && lockedRotation) {
+            this.body.setRotation(lockedRotation, true);
+            this.body.setAngvel(new this.rapier.Vector3(0, 0, 0), true);
+        }
+
         this.updateObstacleContactState();
 
         const nextPosition = this.body.translation();

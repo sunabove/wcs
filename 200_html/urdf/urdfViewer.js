@@ -89,10 +89,10 @@ class URDFViewer {
         this.driveSpeedKmh = 0;
         this.kmhToRpmFactor = 4;
         this.wheelJointNameByKey = {
-            fl: 'joint_fl',
-            fr: 'joint_fr',
-            rl: 'joint_rl',
-            rr: 'joint_rr'
+            fl: 'wheel_fl_joint',
+            fr: 'wheel_fr_joint',
+            rl: 'wheel_rl_joint',
+            rr: 'wheel_rr_joint'
         };
         this.wheelLinkNameByKey = {
             fl: 'wheel_fl',

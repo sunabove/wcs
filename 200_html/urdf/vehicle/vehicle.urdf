@@ -23,7 +23,7 @@
   </material>
 
   <material name="obstacle_rock">
-    <color rgba="0.45 0.47 0.52 1.0" />
+    <color rgba="0.86 0.20 0.20 0.7" />
   </material>
 
   <material name="green">

@@ -201,7 +201,7 @@ class RapierDriveSimulation {
     }
 
     addObstacleColliderFromUrdf() {
-        if (!this.world || !this.rapier || !this.viewer?.robotModel) {
+        if (!this.world || !this.rapier || !this.viewer?.robotModel || !this.carFrame) {
             return;
         }
 
@@ -222,6 +222,27 @@ class RapierDriveSimulation {
         const halfY = Math.max(size.y * 0.5, 0.02);
         const halfZ = Math.max(size.z * 0.5, 0.02);
 
+        const chassisBounds = this.computeChassisBounds(this.carFrame, linkMap);
+        const chassisBottomZ = chassisBounds.min.z;
+        const obstacleTopZ = bbox.max.z;
+
+        const leftWheel = linkMap.wheel_fl || linkMap.wheel_rl || null;
+        const rightWheel = linkMap.wheel_fr || linkMap.wheel_rr || null;
+        let wheelTrackWidth = 0;
+        if (leftWheel && rightWheel) {
+            const leftPos = new THREE.Vector3();
+            const rightPos = new THREE.Vector3();
+            leftWheel.getWorldPosition(leftPos);
+            rightWheel.getWorldPosition(rightPos);
+            wheelTrackWidth = Math.abs(leftPos.y - rightPos.y);
+        }
+
+        const isLowerThanChassisBottom = obstacleTopZ <= (chassisBottomZ - 0.005);
+        const isNarrowerThanWheelTrack = wheelTrackWidth > 0
+            ? size.y <= (wheelTrackWidth - 0.03)
+            : false;
+        const shouldPassUnderChassis = isLowerThanChassisBottom && isNarrowerThanWheelTrack;
+
         const obstacleBodyDesc = this.rapier.RigidBodyDesc.fixed().setTranslation(
             center.x,
             center.y,
@@ -231,6 +252,18 @@ class RapierDriveSimulation {
         const obstacleColliderDesc = this.rapier.ColliderDesc.cuboid(halfX, halfY, halfZ)
             .setFriction(1.4)
             .setRestitution(0.02);
+
+        if (shouldPassUnderChassis && typeof obstacleColliderDesc.setSensor === 'function') {
+            obstacleColliderDesc.setSensor(true);
+            console.log('[URDF][Simulation] obstacle treated as pass-under sensor:', {
+                obstacleLinkName,
+                obstacleTopZ,
+                chassisBottomZ,
+                obstacleWidth: size.y,
+                wheelTrackWidth
+            });
+        }
+
         this.world.createCollider(obstacleColliderDesc, obstacleBody);
 
         console.log(`[URDF][Simulation] obstacle collider created from URDF link: ${obstacleLinkName}`);

@@ -983,10 +983,9 @@ class RapierDriveSimulation {
             return;
         }
 
-        if (typeof this.body.lockRotations === 'function') {
-            this.body.lockRotations(isEnabled, true);
-            this.isUprightRotationLockActive = isEnabled;
-        }
+        // Some Rapier builds expose only lockRotations(lockAll), which cannot keep yaw free.
+        // In that case, skip runtime upright-lock toggling to preserve steering rotation.
+        this.isUprightRotationLockActive = false;
     }
 
     async ensureRapierInitialized() {
@@ -1030,14 +1029,17 @@ class RapierDriveSimulation {
             const body = world.createRigidBody(rigidBodyDesc);
 
             // Keep the vehicle upright with API-compatible fallbacks across Rapier versions.
+            let hasSelectiveRotationLock = false;
             if (typeof body.setEnabledRotations === 'function') {
                 body.setEnabledRotations(false, false, true, true);
+                hasSelectiveRotationLock = true;
             } else if (typeof body.restrictRotations === 'function') {
                 body.restrictRotations(false, false, true, true);
-            } else if (typeof body.lockRotations === 'function') {
-                body.lockRotations(false, true);
+                hasSelectiveRotationLock = true;
+            } else {
+                console.warn('[URDF][Simulation] selective rotation lock API unavailable; steering yaw kept enabled.');
             }
-            this.isUprightRotationLockActive = true;
+            this.isUprightRotationLockActive = hasSelectiveRotationLock;
 
             const bbox = this.computeChassisBounds(carFrame, linkMap);
             const size = bbox.getSize(new THREE.Vector3());

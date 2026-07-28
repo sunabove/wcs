@@ -58,6 +58,9 @@ class RapierDriveSimulation {
         this.physicsFixedTimeStepSec = 1 / 60;
         this.maxPhysicsCatchupSteps = 4;
         this.hasLoggedGroundDiagnostics = false;
+        this.enableRuntimeDiagnostics = true;
+        this.runtimeDiagnosticsIntervalSec = 1;
+        this.runtimeDiagnosticsElapsedSec = 0;
         this.isKeyboardControlEnabled = true;
         this.keyHoldState = {
             ArrowUp: 0,
@@ -746,6 +749,10 @@ class RapierDriveSimulation {
 
     getAverageSignedWheelRpm() {
         const viewer = this.getDriveSourceViewer();
+        return this.getAverageSignedWheelRpmForViewer(viewer);
+    }
+
+    getAverageSignedWheelRpmForViewer(viewer) {
         if (!viewer) {
             return null;
         }
@@ -781,6 +788,27 @@ class RapierDriveSimulation {
 
         const rpmSum = signedRpms.reduce((sum, rpm) => sum + rpm, 0);
         return rpmSum / signedRpms.length;
+    }
+
+    getViewerActivityScore(viewer) {
+        if (!viewer) {
+            return -1;
+        }
+
+        const mode = String(viewer?.driveMode || '').toLowerCase();
+        const avgRpm = this.getAverageSignedWheelRpmForViewer(viewer);
+        const speedKmh = Math.max(Number(viewer?.driveSpeedKmh) || 0, 0);
+
+        let score = 0;
+        if (mode && mode !== 'stop') {
+            score += 100;
+        }
+        if (Number.isFinite(avgRpm)) {
+            score += Math.min(Math.abs(avgRpm), 200);
+        }
+        score += Math.min(speedKmh, 50);
+
+        return score;
     }
 
     getWheelSideSignedRpm() {
@@ -831,26 +859,37 @@ class RapierDriveSimulation {
     }
 
     getDriveSourceViewer() {
+        const candidates = [];
         const byId = window.urdfViewersById?.['robot-container-1'] || null;
-        if (byId) {
-            return byId;
-        }
-
         const vehicleViewer = window.urdfViewersById?.['vehicle-urdf-viewer'] || null;
-        if (vehicleViewer) {
-            return vehicleViewer;
+        const activeViewer = window.activeURDFViewer || null;
+
+        [byId, vehicleViewer, this.viewer, activeViewer].forEach((viewer) => {
+            if (viewer && !candidates.includes(viewer)) {
+                candidates.push(viewer);
+            }
+        });
+
+        if (candidates.length === 0) {
+            return null;
         }
 
-        if (this.viewer) {
-            return this.viewer;
+        let bestViewer = candidates[0];
+        let bestScore = this.getViewerActivityScore(bestViewer);
+        for (let i = 1; i < candidates.length; i += 1) {
+            const score = this.getViewerActivityScore(candidates[i]);
+            if (score > bestScore) {
+                bestScore = score;
+                bestViewer = candidates[i];
+            }
         }
 
-        return window.activeURDFViewer || null;
+        return bestViewer;
     }
 
     getCommandedDriveSpeedMps() {
         const driveViewer = this.getDriveSourceViewer();
-        const avgSignedWheelRpm = this.getAverageSignedWheelRpm();
+        const avgSignedWheelRpm = this.getAverageSignedWheelRpmForViewer(driveViewer);
         const speedBySlider = Math.max(Number(driveViewer?.driveSpeedKmh) || 0, 0) / 3.6;
 
         if (Number.isFinite(avgSignedWheelRpm) && Math.abs(avgSignedWheelRpm) > 0.1) {
@@ -1024,6 +1063,46 @@ class RapierDriveSimulation {
         // Some Rapier builds expose only lockRotations(lockAll), which cannot keep yaw free.
         // In that case, skip runtime upright-lock toggling to preserve steering rotation.
         this.isUprightRotationLockActive = false;
+    }
+
+    maybeLogRuntimeDiagnostics(deltaSec, driveViewer, clampedSpeed, throttleSign, steerSign, hasObstacleContact) {
+        if (!this.enableRuntimeDiagnostics || !this.body) {
+            return;
+        }
+
+        this.runtimeDiagnosticsElapsedSec += Math.max(deltaSec, 0);
+        if (this.runtimeDiagnosticsElapsedSec < this.runtimeDiagnosticsIntervalSec) {
+            return;
+        }
+        this.runtimeDiagnosticsElapsedSec = 0;
+
+        const bodyPos = this.body.translation();
+        const bodyVel = this.body.linvel();
+        const avgRpm = this.getAverageSignedWheelRpmForViewer(driveViewer);
+        const driveMode = String(driveViewer?.driveMode || 'n/a');
+        const driveSpeedKmh = Number(driveViewer?.driveSpeedKmh);
+        const sourceId = String(driveViewer?.container?.id || 'unknown');
+        console.log('[URDF][Simulation][diag]', {
+            sourceId,
+            driveMode,
+            driveSpeedKmh: Number.isFinite(driveSpeedKmh) ? Number(driveSpeedKmh.toFixed(3)) : null,
+            avgSignedWheelRpm: Number.isFinite(avgRpm) ? Number(avgRpm.toFixed(3)) : null,
+            clampedSpeedMps: Number(clampedSpeed.toFixed(4)),
+            throttleSign,
+            steerSign,
+            hasObstacleContact,
+            pos: {
+                x: Number(bodyPos.x.toFixed(4)),
+                y: Number(bodyPos.y.toFixed(4)),
+                z: Number(bodyPos.z.toFixed(4))
+            },
+            vel: {
+                x: Number(bodyVel.x.toFixed(4)),
+                y: Number(bodyVel.y.toFixed(4)),
+                z: Number(bodyVel.z.toFixed(4))
+            },
+            groundZ: Number.isFinite(this.groundZ) ? Number(this.groundZ.toFixed(4)) : null
+        });
     }
 
     async ensureRapierInitialized() {
@@ -1259,6 +1338,15 @@ class RapierDriveSimulation {
         if (this.keepUprightOnFlatGround) {
             this.setUprightRotationLockEnabled(!hasObstacleContact);
         }
+
+        this.maybeLogRuntimeDiagnostics(
+            deltaSec,
+            driveViewer,
+            clampedSpeed,
+            throttleSign,
+            steerSign,
+            hasObstacleContact
+        );
 
         const hasMoveCommand = keyboardState.isActive || throttleSign !== 0;
         if (hasMoveCommand && !hasObstacleContact) {

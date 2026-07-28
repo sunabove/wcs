@@ -2110,13 +2110,44 @@ class URDFViewer {
                 const keySuffix = `_${key}`;
                 const keyJointSuffix = `${key}_joint`;
                 const keyTokenRegex = new RegExp(`(^|[_/.-])${key}([_/.-]|$)`, 'i');
-                const candidateJointName = jointNames.find(name => (
-                    name === expectedJointName ||
-                    name.endsWith(expectedJointName) ||
-                    name.endsWith(keySuffix) ||
-                    name.endsWith(keyJointSuffix) ||
-                    (name.toLowerCase().includes('joint') && keyTokenRegex.test(name))
-                ));
+                const canonicalWheelJointName = `wheel_${key}_joint`;
+                const candidateJointName = jointNames
+                    .filter(name => (
+                        name === expectedJointName ||
+                        name.endsWith(expectedJointName) ||
+                        name.endsWith(keySuffix) ||
+                        name.endsWith(keyJointSuffix) ||
+                        (name.toLowerCase().includes('joint') && keyTokenRegex.test(name))
+                    ))
+                    .sort((a, b) => {
+                        const score = (name) => {
+                            const lower = String(name || '').toLowerCase();
+                            const canonical = canonicalWheelJointName.toLowerCase();
+                            const isInner = lower.includes('inner');
+
+                            if (lower === canonical) {
+                                return 0;
+                            }
+                            if (lower.endsWith(`/${canonical}`) || lower.endsWith(`.${canonical}`) || lower.endsWith(`_${canonical}`)) {
+                                return 1;
+                            }
+                            if (lower.includes(`wheel_${key}`) && !isInner) {
+                                return 2;
+                            }
+                            if (lower.endsWith(keyJointSuffix.toLowerCase()) && !isInner) {
+                                return 3;
+                            }
+                            if (lower.endsWith(expectedJointName.toLowerCase())) {
+                                return 4;
+                            }
+                            if (isInner) {
+                                return 8;
+                            }
+                            return 6;
+                        };
+
+                        return score(a) - score(b);
+                    })[0];
 
                 if (candidateJointName) {
                     joint = jointMap[candidateJointName];

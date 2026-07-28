@@ -2397,7 +2397,7 @@ class URDFViewer {
 
         const axisLengthX = sizeX * this.axisLengthExtraRatio;
         const axisLengthY = sizeY * this.axisLengthExtraRatio;
-        const axisLengthZ = sizeZ * this.axisLengthExtraRatio;
+        const axisLengthZ = sizeZ * this.axisLengthExtraRatio * 2;
 
         this.updateAxisLineLength('x', axisLengthX);
         this.updateAxisLineLength('y', axisLengthY);

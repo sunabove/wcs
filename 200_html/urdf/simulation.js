@@ -27,7 +27,6 @@ class RapierDriveSimulation {
             ArrowLeft: false,
             ArrowRight: false
         };
-        this.defaultKeyboardSpeedKmh = 8;
     }
 
     findSimulationViewer() {
@@ -256,14 +255,6 @@ class RapierDriveSimulation {
         if (keyboardState.isActive) {
             throttleSign = keyboardState.throttleSign;
             steerSign = keyboardState.steerSign;
-            if (driveSpeedKmh <= 0) {
-                driveSpeedKmh = this.defaultKeyboardSpeedKmh;
-            }
-
-            // Left/right only input rotates the vehicle while still allowing slight positional movement.
-            if (throttleSign === 0 && steerSign !== 0) {
-                throttleSign = 0.25;
-            }
         } else {
             const driveMode = String(this.viewer.driveMode || 'stop');
             if (driveMode === 'forward') {

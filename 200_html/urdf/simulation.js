@@ -42,6 +42,7 @@ class RapierDriveSimulation {
         this.passUnderObstacleNamePatterns = [/pass_under/i, /underbody/i];
         this.maxSpeedMps = 100 / 3.6;
         this.maxYawRateRad = THREE.MathUtils.degToRad(80);
+        this.enableWheelPhysicsColliders = false;
         this.isInitializing = false;
         this.isReady = false;
         this.hasFailed = false;
@@ -585,6 +586,13 @@ class RapierDriveSimulation {
             const velocity = this.body.linvel();
             this.body.setLinvel(new this.rapier.Vector3(velocity.x, velocity.y, Math.max(0, velocity.z)), true);
         }
+
+        // Keep startup stance: do not allow vertical lift above the initial body z.
+        if (Number.isFinite(this.initialPosition?.z) && translation.z > this.initialPosition.z) {
+            this.body.setTranslation(new this.rapier.Vector3(translation.x, translation.y, this.initialPosition.z), true);
+            const velocity = this.body.linvel();
+            this.body.setLinvel(new this.rapier.Vector3(velocity.x, velocity.y, Math.min(0, velocity.z)), true);
+        }
     }
 
     addWheelCollidersFromUrdf(body, carFrame, linkMap) {
@@ -769,10 +777,9 @@ class RapierDriveSimulation {
 
         if (linkMap) {
             this.calibrateGroundContactLocalMinZ(linkMap);
-            this.alignVehicleToGroundByWheelGap(linkMap);
         }
 
-        this.clampVehicleAboveGround();
+        // Respect URDF-authored initial pose; do not forcibly move body on startup.
         this.body.setLinvel(new this.rapier.Vector3(0, 0, 0), true);
         this.body.setAngvel(new this.rapier.Vector3(0, 0, 0), true);
         this.syncCarFrameFromBody();
@@ -902,7 +909,9 @@ class RapierDriveSimulation {
                 .setRestitution(0.04);
             this.vehicleCollider = world.createCollider(colliderDesc, body);
             this.vehicleColliders = [this.vehicleCollider];
-            this.addWheelCollidersFromUrdf(body, carFrame, linkMap);
+            if (this.enableWheelPhysicsColliders) {
+                this.addWheelCollidersFromUrdf(body, carFrame, linkMap);
+            }
 
             this.rapier = RAPIER;
             this.world = world;
@@ -914,9 +923,6 @@ class RapierDriveSimulation {
             this.addGroundCollider();
             this.enforceWheelGroundContactAtLoad(linkMap);
             this.addObstacleColliderFromUrdf();
-
-            const alignedPosition = this.body.translation();
-            this.initialPosition.set(alignedPosition.x, alignedPosition.y, alignedPosition.z);
             this.isReady = true;
             this.hasFailed = false;
 
@@ -998,7 +1004,7 @@ class RapierDriveSimulation {
             const velocityX = currentLinearVelocity.x + ((targetVelocityX - currentLinearVelocity.x) * velocitySmoothingAlpha);
             const velocityY = currentLinearVelocity.y + ((targetVelocityY - currentLinearVelocity.y) * velocitySmoothingAlpha);
 
-            this.body.setLinvel(new this.rapier.Vector3(velocityX, velocityY, currentLinearVelocity.z), true);
+            this.body.setLinvel(new this.rapier.Vector3(velocityX, velocityY, Math.min(0, currentLinearVelocity.z)), true);
             this.body.setAngvel(new this.rapier.Vector3(0, 0, 0), true);
         } else {
             const bodyRotation = this.body.rotation();
@@ -1007,7 +1013,7 @@ class RapierDriveSimulation {
             const velocityX = Math.cos(yaw) * clampedSpeed * throttleSign;
             const velocityY = Math.sin(yaw) * clampedSpeed * throttleSign;
 
-            this.body.setLinvel(new this.rapier.Vector3(velocityX, velocityY, currentLinearVelocity.z), true);
+            this.body.setLinvel(new this.rapier.Vector3(velocityX, velocityY, Math.min(0, currentLinearVelocity.z)), true);
             this.body.setAngvel(new this.rapier.Vector3(currentAngularVelocity.x, currentAngularVelocity.y, this.maxYawRateRad * effectiveSteerSign), true);
         }
 

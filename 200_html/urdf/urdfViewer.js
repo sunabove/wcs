@@ -112,6 +112,10 @@ class URDFViewer {
             rl: 0,
             rr: 0
         };
+        this.enableWheelVisualFilter = this.parseBooleanAttribute(
+            containerElement.getAttribute('wheelVisualFilter'),
+            true
+        );
         this.wheelVisualAngularSpeedCapRad = 20;
         this.wheelVisualCompressionK = 8;
         this.wheelVisualSmoothingHz = 12;
@@ -1919,6 +1923,10 @@ class URDFViewer {
         return sign * Math.min(compressed, omegaCap);
     }
 
+    setWheelVisualFilterEnabled(enabled) {
+        this.enableWheelVisualFilter = enabled !== false;
+    }
+
     applyWheelAnimation(deltaSec) {
         if (!this.robotModel) {
             return;
@@ -1933,20 +1941,27 @@ class URDFViewer {
             const wheelAngularSpeedRad = this.wheelAngularSpeedRadByKey[key] || 0;
             const wheelDirection = this.wheelDirectionSignByKey[key] || 1;
             const targetAngularSpeedRad = wheelDirection * wheelAngularSpeedRad;
-            const visualTargetAngularSpeedRad = this.toVisualWheelAngularSpeedRad(targetAngularSpeedRad);
+            let clampedAngleStep = targetAngularSpeedRad * deltaSec;
 
-            const smoothingHz = Math.max(Number(this.wheelVisualSmoothingHz) || 0, 0);
-            const alpha = smoothingHz > 0
-                ? (1 - Math.exp(-smoothingHz * Math.max(deltaSec, 0)))
-                : 1;
-            const currentVisualAngularSpeedRad = Number(this.wheelVisualAngularSpeedRadByKey[key]) || 0;
-            const nextVisualAngularSpeedRad = currentVisualAngularSpeedRad
-                + (visualTargetAngularSpeedRad - currentVisualAngularSpeedRad) * alpha;
-            this.wheelVisualAngularSpeedRadByKey[key] = nextVisualAngularSpeedRad;
+            if (this.enableWheelVisualFilter) {
+                const visualTargetAngularSpeedRad = this.toVisualWheelAngularSpeedRad(targetAngularSpeedRad);
 
-            const maxStepRad = Math.max(Number(this.wheelVisualMaxStepRadPerFrame) || 0, 0.001);
-            const rawAngleStep = nextVisualAngularSpeedRad * deltaSec;
-            const clampedAngleStep = THREE.MathUtils.clamp(rawAngleStep, -maxStepRad, maxStepRad);
+                const smoothingHz = Math.max(Number(this.wheelVisualSmoothingHz) || 0, 0);
+                const alpha = smoothingHz > 0
+                    ? (1 - Math.exp(-smoothingHz * Math.max(deltaSec, 0)))
+                    : 1;
+                const currentVisualAngularSpeedRad = Number(this.wheelVisualAngularSpeedRadByKey[key]) || 0;
+                const nextVisualAngularSpeedRad = currentVisualAngularSpeedRad
+                    + (visualTargetAngularSpeedRad - currentVisualAngularSpeedRad) * alpha;
+                this.wheelVisualAngularSpeedRadByKey[key] = nextVisualAngularSpeedRad;
+
+                const maxStepRad = Math.max(Number(this.wheelVisualMaxStepRadPerFrame) || 0, 0.001);
+                const rawAngleStep = nextVisualAngularSpeedRad * deltaSec;
+                clampedAngleStep = THREE.MathUtils.clamp(rawAngleStep, -maxStepRad, maxStepRad);
+            } else {
+                // Physical-mode rendering path: use raw signed angular velocity without visual compression.
+                this.wheelVisualAngularSpeedRadByKey[key] = targetAngularSpeedRad;
+            }
 
             if (Math.abs(clampedAngleStep) <= 1e-10) {
                 return;
@@ -3340,6 +3355,15 @@ function getWheelAnimationTargetViewer() {
 }
 
 globalThis.setWheelAnimationByKey = setWheelAnimationByKey;
+
+globalThis.setWheelVisualFilterEnabled = function(enabled, viewerId = 'vehicle-urdf-viewer') {
+    const viewer = window.urdfViewersById?.[viewerId] || window.activeURDFViewer || null;
+    if (!viewer || typeof viewer.setWheelVisualFilterEnabled !== 'function') {
+        return;
+    }
+
+    viewer.setWheelVisualFilterEnabled(enabled);
+};
 
 globalThis.setWheelViewerKey = function(key) {
     window.pendingWheelViewerKey = String(key || '').trim().toLowerCase();

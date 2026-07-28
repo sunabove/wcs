@@ -382,9 +382,14 @@ class RapierDriveSimulation {
 
         if (groundLink) {
             groundLink.updateWorldMatrix(true, true);
-            const groundWorldPos = new THREE.Vector3();
-            groundLink.getWorldPosition(groundWorldPos);
-            this.groundZ = groundWorldPos.z;
+            const groundBounds = new THREE.Box3().setFromObject(groundLink);
+            if (!groundBounds.isEmpty()) {
+                this.groundZ = groundBounds.max.z;
+            } else {
+                const groundWorldPos = new THREE.Vector3();
+                groundLink.getWorldPosition(groundWorldPos);
+                this.groundZ = groundWorldPos.z;
+            }
         } else {
             this.groundZ = this.initialPosition.z - this.vehicleHalfExtents.z - 0.01;
         }
@@ -695,12 +700,12 @@ class RapierDriveSimulation {
             const bboxMaxLocalZ = localCenter.z + Math.max((size.z || 0.25) * 0.5, 0.06);
             this.vehicleLocalMinZ = bboxMinLocalZ;
             this.wheelLocalMinZ = this.getWheelLocalMinZ(carFrame, linkMap);
-            if (Number.isFinite(this.vehicleLocalMinZ) && Number.isFinite(this.wheelLocalMinZ)) {
-                this.groundContactLocalMinZ = Math.max(this.vehicleLocalMinZ, this.wheelLocalMinZ);
-            } else if (Number.isFinite(this.wheelLocalMinZ)) {
+            if (Number.isFinite(this.wheelLocalMinZ)) {
                 this.groundContactLocalMinZ = this.wheelLocalMinZ;
-            } else {
+            } else if (Number.isFinite(this.vehicleLocalMinZ)) {
                 this.groundContactLocalMinZ = this.vehicleLocalMinZ;
+            } else {
+                this.groundContactLocalMinZ = null;
             }
             const wheelStats = this.getWheelGeometryStats(carFrame, linkMap);
             const minChassisZFromWheels = wheelStats

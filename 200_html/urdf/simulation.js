@@ -22,6 +22,7 @@ class RapierDriveSimulation {
         this.urdfObstacleLinkNames = ['obstacle_rock_01', 'obstacle_rock_02', 'obstacle_rock', 'rock_obstacle'];
         this.urdfObstacleLinkNamePatterns = [
             /^obstacle/i,
+            /^ostacle/i,
             /^wall/i,
             /^rock_obstacle/i,
             /^step/i,
@@ -581,12 +582,6 @@ class RapierDriveSimulation {
                 .setLinearDamping(2.2)
                 .setAngularDamping(3.2);
 
-            if (typeof rigidBodyDesc.setEnabledRotations === 'function') {
-                rigidBodyDesc.setEnabledRotations(false, false, true);
-            } else if (typeof rigidBodyDesc.enabledRotations === 'function') {
-                rigidBodyDesc.enabledRotations(false, false, true);
-            }
-
             const body = world.createRigidBody(rigidBodyDesc);
 
             const bbox = this.computeChassisBounds(carFrame, linkMap);
@@ -688,11 +683,12 @@ class RapierDriveSimulation {
         } else {
             const bodyRotation = this.body.rotation();
             const yaw = this.extractYawFromQuaternion(bodyRotation);
+            const currentAngularVelocity = this.body.angvel();
             const velocityX = Math.cos(yaw) * clampedSpeed * throttleSign;
             const velocityY = Math.sin(yaw) * clampedSpeed * throttleSign;
 
             this.body.setLinvel(new this.rapier.Vector3(velocityX, velocityY, currentLinearVelocity.z), true);
-            this.body.setAngvel(new this.rapier.Vector3(0, 0, this.maxYawRateRad * effectiveSteerSign), true);
+            this.body.setAngvel(new this.rapier.Vector3(currentAngularVelocity.x, currentAngularVelocity.y, this.maxYawRateRad * effectiveSteerSign), true);
         }
 
         this.world.timestep = Math.max(Math.min(deltaSec, 1 / 30), 1 / 240);

@@ -11,15 +11,15 @@ class RapierDriveSimulation {
         this.world = null;
         this.body = null;
         this.vehicleCollider = null;
-        this.obstacleCollider = null;
+        this.obstacleColliders = [];
         this.isVehicleObstacleContact = false;
         this.carFrame = null;
         this.initialPosition = null;
         this.initialQuaternion = null;
         this.vehicleHalfExtents = null;
         this.groundZ = 0;
-        this.urdfObstacleLinkNames = ['obstacle_rock_01', 'obstacle_rock', 'rock_obstacle'];
-        this.passUnderObstacleNamePatterns = [/^obstacle_rock/i, /pass_under/i, /underbody/i];
+        this.urdfObstacleLinkNames = ['obstacle_rock_01', 'obstacle_rock_02', 'obstacle_rock', 'rock_obstacle'];
+        this.passUnderObstacleNamePatterns = [/pass_under/i, /underbody/i];
         this.maxSpeedMps = 100 / 3.6;
         this.maxYawRateRad = THREE.MathUtils.degToRad(80);
         this.isInitializing = false;
@@ -332,25 +332,15 @@ class RapierDriveSimulation {
         }
 
         const linkMap = this.viewer.robotModel.links || {};
-        const obstacleLinkName = this.urdfObstacleLinkNames.find((name) => !!linkMap[name]);
-        if (!obstacleLinkName) {
+        const obstacleLinkNames = this.urdfObstacleLinkNames.filter((name) => !!linkMap[name]);
+        if (obstacleLinkNames.length === 0) {
             console.warn('[URDF][Simulation] URDF obstacle link not found. Expected one of:', this.urdfObstacleLinkNames);
             return;
         }
 
-        const obstacleLink = linkMap[obstacleLinkName];
-        obstacleLink.updateWorldMatrix(true, true);
-
-        const bbox = new THREE.Box3().setFromObject(obstacleLink);
-        const center = bbox.getCenter(new THREE.Vector3());
-        const size = bbox.getSize(new THREE.Vector3());
-        const halfX = Math.max(size.x * 0.5, 0.02);
-        const halfY = Math.max(size.y * 0.5, 0.02);
-        const halfZ = Math.max(size.z * 0.5, 0.02);
-
+        this.obstacleColliders = [];
         const chassisBounds = this.computeChassisBounds(this.carFrame, linkMap);
         const chassisBottomZ = chassisBounds.min.z;
-        const obstacleTopZ = bbox.max.z;
 
         const leftWheel = linkMap.wheel_fl || linkMap.wheel_rl || null;
         const rightWheel = linkMap.wheel_fr || linkMap.wheel_rr || null;
@@ -363,50 +353,68 @@ class RapierDriveSimulation {
             wheelTrackWidth = Math.abs(leftPos.y - rightPos.y);
         }
 
-        const isLowerThanChassisBottom = obstacleTopZ <= (chassisBottomZ - 0.005);
-        const isNarrowerThanWheelTrack = wheelTrackWidth > 0
-            ? size.y <= (wheelTrackWidth - 0.03)
-            : false;
-        const isPassUnderTagged = this.passUnderObstacleNamePatterns.some((pattern) => pattern.test(obstacleLinkName));
-        const shouldPassUnderChassis = isPassUnderTagged || (isLowerThanChassisBottom && isNarrowerThanWheelTrack);
+        obstacleLinkNames.forEach((obstacleLinkName) => {
+            const obstacleLink = linkMap[obstacleLinkName];
+            obstacleLink.updateWorldMatrix(true, true);
 
-        const obstacleBodyDesc = this.rapier.RigidBodyDesc.fixed().setTranslation(
-            center.x,
-            center.y,
-            center.z
-        );
-        const obstacleBody = this.world.createRigidBody(obstacleBodyDesc);
-        const obstacleColliderDesc = this.rapier.ColliderDesc.cuboid(halfX, halfY, halfZ)
-            .setFriction(1.4)
-            .setRestitution(0.02);
+            const bbox = new THREE.Box3().setFromObject(obstacleLink);
+            const center = bbox.getCenter(new THREE.Vector3());
+            const size = bbox.getSize(new THREE.Vector3());
+            const halfX = Math.max(size.x * 0.5, 0.02);
+            const halfY = Math.max(size.y * 0.5, 0.02);
+            const halfZ = Math.max(size.z * 0.5, 0.02);
+            const obstacleTopZ = bbox.max.z;
 
-        if (shouldPassUnderChassis && typeof obstacleColliderDesc.setSensor === 'function') {
-            obstacleColliderDesc.setSensor(true);
-            console.log('[URDF][Simulation] obstacle treated as pass-under sensor:', {
-                obstacleLinkName,
-                isPassUnderTagged,
-                obstacleTopZ,
-                chassisBottomZ,
-                obstacleWidth: size.y,
-                wheelTrackWidth
-            });
-        }
+            const isLowerThanChassisBottom = obstacleTopZ <= (chassisBottomZ - 0.005);
+            const isNarrowerThanWheelTrack = wheelTrackWidth > 0
+                ? size.y <= (wheelTrackWidth - 0.03)
+                : false;
+            const isPassUnderTagged = this.passUnderObstacleNamePatterns.some((pattern) => pattern.test(obstacleLinkName));
+            const shouldPassUnderChassis = isPassUnderTagged || (isLowerThanChassisBottom && isNarrowerThanWheelTrack);
 
-        this.obstacleCollider = this.world.createCollider(obstacleColliderDesc, obstacleBody);
+            const obstacleBodyDesc = this.rapier.RigidBodyDesc.fixed().setTranslation(
+                center.x,
+                center.y,
+                center.z
+            );
+            const obstacleBody = this.world.createRigidBody(obstacleBodyDesc);
+            const obstacleColliderDesc = this.rapier.ColliderDesc.cuboid(halfX, halfY, halfZ)
+                .setFriction(1.4)
+                .setRestitution(0.02);
 
-        console.log(`[URDF][Simulation] obstacle collider created from URDF link: ${obstacleLinkName}`);
+            if (shouldPassUnderChassis && typeof obstacleColliderDesc.setSensor === 'function') {
+                obstacleColliderDesc.setSensor(true);
+                console.log('[URDF][Simulation] obstacle treated as pass-under sensor:', {
+                    obstacleLinkName,
+                    isPassUnderTagged,
+                    obstacleTopZ,
+                    chassisBottomZ,
+                    obstacleWidth: size.y,
+                    wheelTrackWidth
+                });
+            }
+
+            const obstacleCollider = this.world.createCollider(obstacleColliderDesc, obstacleBody);
+            this.obstacleColliders.push(obstacleCollider);
+            console.log(`[URDF][Simulation] obstacle collider created from URDF link: ${obstacleLinkName}`);
+        });
     }
 
     updateObstacleContactState() {
-        if (!this.world || !this.vehicleCollider || !this.obstacleCollider) {
+        if (!this.world || !this.vehicleCollider || this.obstacleColliders.length === 0) {
             return;
         }
 
         let hasContact = false;
 
         if (typeof this.world.contactPair === 'function') {
-            this.world.contactPair(this.vehicleCollider, this.obstacleCollider, () => {
-                hasContact = true;
+            this.obstacleColliders.forEach((obstacleCollider) => {
+                if (hasContact) {
+                    return;
+                }
+                this.world.contactPair(this.vehicleCollider, obstacleCollider, () => {
+                    hasContact = true;
+                });
             });
         }
 
@@ -545,13 +553,11 @@ class RapierDriveSimulation {
 
         const currentLinearVelocity = this.body.linvel();
         if (keyboardState.isActive) {
-            const position = this.body.translation();
             const nudgeDistance = this.getKeyboardNudgeDistance();
-            const nextX = position.x + (keyboardMoveX * nudgeDistance);
-            const nextY = position.y + (keyboardMoveY * nudgeDistance);
+            const velocityX = (keyboardMoveX * nudgeDistance) / Math.max(deltaSec, 1 / 240);
+            const velocityY = (keyboardMoveY * nudgeDistance) / Math.max(deltaSec, 1 / 240);
 
-            this.body.setTranslation(new this.rapier.Vector3(nextX, nextY, position.z), true);
-            this.body.setLinvel(new this.rapier.Vector3(0, 0, currentLinearVelocity.z), true);
+            this.body.setLinvel(new this.rapier.Vector3(velocityX, velocityY, currentLinearVelocity.z), true);
             this.body.setAngvel(new this.rapier.Vector3(0, 0, 0), true);
         } else {
             const bodyRotation = this.body.rotation();

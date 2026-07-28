@@ -47,6 +47,9 @@ class RapierDriveSimulation {
         this.blockMotionOnObstacleContact = false;
         this.keepUprightOnFlatGround = true;
         this.isUprightRotationLockActive = false;
+        this.groundPenetrationToleranceMeters = 0.003;
+        this.maxLiftWithoutObstacleMeters = 0.03;
+        this.maxLiftWithObstacleMeters = 0.28;
         this.isInitializing = false;
         this.isReady = false;
         this.hasFailed = false;
@@ -581,20 +584,25 @@ class RapierDriveSimulation {
         }
 
         const translation = this.body.translation();
+        const velocity = this.body.linvel();
         const groundBasedMinZ = this.groundZ - this.groundContactLocalMinZ - this.groundContactBiasMeters;
-        const initialBasedMinZ = Number.isFinite(this.initialPosition?.z) ? this.initialPosition.z : groundBasedMinZ;
-        const minAllowedZ = Math.min(groundBasedMinZ, initialBasedMinZ);
+        const minAllowedZ = groundBasedMinZ - this.groundPenetrationToleranceMeters;
+        const baseReferenceZ = Number.isFinite(this.initialPosition?.z)
+            ? Math.max(this.initialPosition.z, groundBasedMinZ)
+            : groundBasedMinZ;
+        const maxLiftMeters = this.isVehicleObstacleContact
+            ? this.maxLiftWithObstacleMeters
+            : this.maxLiftWithoutObstacleMeters;
+        const maxAllowedZ = baseReferenceZ + Math.max(maxLiftMeters, 0);
+
         if (translation.z < minAllowedZ) {
             this.body.setTranslation(new this.rapier.Vector3(translation.x, translation.y, minAllowedZ), true);
-
-            const velocity = this.body.linvel();
             this.body.setLinvel(new this.rapier.Vector3(velocity.x, velocity.y, Math.max(0, velocity.z)), true);
+            return;
         }
 
-        // Keep startup stance: do not allow vertical lift above the initial body z.
-        if (!this.isVehicleObstacleContact && Number.isFinite(this.initialPosition?.z) && translation.z > this.initialPosition.z) {
-            this.body.setTranslation(new this.rapier.Vector3(translation.x, translation.y, this.initialPosition.z), true);
-            const velocity = this.body.linvel();
+        if (translation.z > maxAllowedZ) {
+            this.body.setTranslation(new this.rapier.Vector3(translation.x, translation.y, maxAllowedZ), true);
             this.body.setLinvel(new this.rapier.Vector3(velocity.x, velocity.y, Math.min(0, velocity.z)), true);
         }
     }

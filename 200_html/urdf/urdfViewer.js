@@ -82,7 +82,7 @@ class URDFViewer {
             rl: 1,
             rr: 1
         };
-        this.driveMode = 'forward';
+        this.driveMode = 'stop';
         this.driveSpeedKmh = 0;
         this.kmhToRpmFactor = 4;
         this.wheelJointNameByKey = {

@@ -27,8 +27,12 @@ class RapierDriveSimulation {
         this.hasFailed = false;
         this.lastStepTimeMs = 0;
         this.isKeyboardControlEnabled = true;
-        this.pendingKeyboardNudgeX = 0;
-        this.pendingKeyboardNudgeY = 0;
+        this.pendingArrowKeyCounts = {
+            ArrowUp: 0,
+            ArrowDown: 0,
+            ArrowLeft: 0,
+            ArrowRight: 0
+        };
     }
 
     findSimulationViewer() {
@@ -130,32 +134,63 @@ class RapierDriveSimulation {
             return;
         }
 
-        const nudgeByKey = {
-            ArrowUp: { x: 1, y: 0 },
-            ArrowDown: { x: -1, y: 0 },
-            ArrowLeft: { x: 0, y: 1 },
-            ArrowRight: { x: 0, y: -1 }
-        };
+        const handledKeys = new Set(['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight']);
 
         window.addEventListener('keydown', (event) => {
-            const nudge = nudgeByKey[event.key];
-            if (!nudge) {
+            if (!handledKeys.has(event.key)) {
                 return;
             }
 
-            this.pendingKeyboardNudgeX += nudge.x;
-            this.pendingKeyboardNudgeY += nudge.y;
+            this.pendingArrowKeyCounts[event.key] += 1;
             event.preventDefault();
         }, { passive: false });
     }
 
+    isFrontFacingViewActive() {
+        const faceKey = String(this.viewer?.viewCubeActiveFaceKey || '').toLowerCase();
+        if (faceKey) {
+            return faceKey === 'front';
+        }
+
+        const camera = this.viewer?.camera || null;
+        const target = this.viewer?.controls?.target || null;
+        if (!camera || !target) {
+            return false;
+        }
+
+        const cameraOffset = camera.position.clone().sub(target);
+        if (cameraOffset.lengthSq() < 1e-8) {
+            return false;
+        }
+
+        const direction = cameraOffset.normalize();
+        const absX = Math.abs(direction.x);
+        const absY = Math.abs(direction.y);
+        const absZ = Math.abs(direction.z);
+
+        if (absX >= absY && absX >= absZ) {
+            return direction.x >= 0;
+        }
+
+        return false;
+    }
+
     getKeyboardDriveState() {
-        const moveX = this.pendingKeyboardNudgeX;
-        const moveY = this.pendingKeyboardNudgeY;
+        const upCount = this.pendingArrowKeyCounts.ArrowUp;
+        const downCount = this.pendingArrowKeyCounts.ArrowDown;
+        const leftCount = this.pendingArrowKeyCounts.ArrowLeft;
+        const rightCount = this.pendingArrowKeyCounts.ArrowRight;
+
+        const moveX = upCount - downCount;
+        const lateralBase = leftCount - rightCount;
+        const lateralSign = this.isFrontFacingViewActive() ? -1 : 1;
+        const moveY = lateralBase * lateralSign;
         const isActive = moveX !== 0 || moveY !== 0;
 
-        this.pendingKeyboardNudgeX = 0;
-        this.pendingKeyboardNudgeY = 0;
+        this.pendingArrowKeyCounts.ArrowUp = 0;
+        this.pendingArrowKeyCounts.ArrowDown = 0;
+        this.pendingArrowKeyCounts.ArrowLeft = 0;
+        this.pendingArrowKeyCounts.ArrowRight = 0;
 
         return {
             isActive,

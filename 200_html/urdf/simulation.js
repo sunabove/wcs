@@ -21,6 +21,7 @@ class RapierDriveSimulation {
         this.vehicleHalfExtents = null;
         this.vehicleLocalMinZ = null;
         this.wheelLocalMinZ = null;
+        this.wheelEffectiveRadiusMeters = 0.16;
         this.groundContactLocalMinZ = null;
         this.groundContactBiasMeters = 0;
         this.groundZ = 0;
@@ -699,6 +700,90 @@ class RapierDriveSimulation {
         return Number.isFinite(minWheelWorldZ) ? minWheelWorldZ : null;
     }
 
+    estimateWheelEffectiveRadiusMeters(carFrame, linkMap) {
+        if (!carFrame || !linkMap) {
+            return;
+        }
+
+        const wheelLinkNames = ['wheel_fl', 'wheel_fr', 'wheel_rl', 'wheel_rr'];
+        const radii = [];
+
+        wheelLinkNames.forEach((wheelLinkName) => {
+            const wheelLink = this.findLinkByName(linkMap, wheelLinkName);
+            if (!wheelLink) {
+                return;
+            }
+
+            wheelLink.updateWorldMatrix(true, true);
+            const wheelBounds = new THREE.Box3().setFromObject(wheelLink);
+            if (wheelBounds.isEmpty()) {
+                return;
+            }
+
+            const size = wheelBounds.getSize(new THREE.Vector3());
+            const radius = Math.max(size.x * 0.5, size.z * 0.5, 0.05);
+            radii.push(radius);
+        });
+
+        if (radii.length === 0) {
+            return;
+        }
+
+        const avgRadius = radii.reduce((sum, radius) => sum + radius, 0) / radii.length;
+        this.wheelEffectiveRadiusMeters = Math.max(avgRadius, 0.05);
+    }
+
+    getAverageSignedWheelRpm() {
+        const viewer = this.viewer;
+        if (!viewer) {
+            return null;
+        }
+
+        const wheelKeys = ['fl', 'fr', 'rl', 'rr'];
+        const signedRpms = [];
+
+        wheelKeys.forEach((key) => {
+            let signedRpm = null;
+            if (typeof viewer.getSignedWheelRpm === 'function') {
+                const value = Number(viewer.getSignedWheelRpm(key));
+                if (Number.isFinite(value)) {
+                    signedRpm = value;
+                }
+            }
+
+            if (!Number.isFinite(signedRpm)) {
+                const rpm = Number(viewer?.wheelSpeedRpmByKey?.[key]);
+                const sign = Number(viewer?.wheelDirectionSignByKey?.[key]);
+                if (Number.isFinite(rpm)) {
+                    signedRpm = rpm * (Number.isFinite(sign) ? sign : 1);
+                }
+            }
+
+            if (Number.isFinite(signedRpm)) {
+                signedRpms.push(signedRpm);
+            }
+        });
+
+        if (signedRpms.length === 0) {
+            return null;
+        }
+
+        const rpmSum = signedRpms.reduce((sum, rpm) => sum + rpm, 0);
+        return rpmSum / signedRpms.length;
+    }
+
+    getCommandedDriveSpeedMps() {
+        const avgSignedWheelRpm = this.getAverageSignedWheelRpm();
+        if (Number.isFinite(avgSignedWheelRpm)) {
+            const wheelAngularSpeedRadPerSec = Math.abs(avgSignedWheelRpm) * (Math.PI * 2 / 60);
+            const speedByWheel = wheelAngularSpeedRadPerSec * Math.max(this.wheelEffectiveRadiusMeters, 0.05);
+            return speedByWheel;
+        }
+
+        const driveSpeedKmh = Math.max(Number(this.viewer?.driveSpeedKmh) || 0, 0);
+        return driveSpeedKmh / 3.6;
+    }
+
     calibrateGroundContactLocalMinZ(linkMap) {
         if (!this.body || !Number.isFinite(this.groundZ)) {
             return;
@@ -923,6 +1008,7 @@ class RapierDriveSimulation {
             const bboxMinLocalZ = localCenter.z - Math.max((size.z || 0.25) * 0.5, 0.06);
             const bboxMaxLocalZ = localCenter.z + Math.max((size.z || 0.25) * 0.5, 0.06);
             this.vehicleLocalMinZ = bboxMinLocalZ;
+            this.estimateWheelEffectiveRadiusMeters(carFrame, linkMap);
             this.wheelLocalMinZ = this.getWheelLocalMinZ(carFrame, linkMap);
             if (Number.isFinite(this.wheelLocalMinZ)) {
                 this.groundContactLocalMinZ = this.wheelLocalMinZ;
@@ -989,8 +1075,6 @@ class RapierDriveSimulation {
         let steerSign = 0;
         let keyboardMoveX = 0;
         let keyboardMoveY = 0;
-        let driveSpeedKmh = Math.max(Number(this.viewer.driveSpeedKmh) || 0, 0);
-
         if (keyboardState.isActive) {
             keyboardMoveX = keyboardState.moveX;
             keyboardMoveY = keyboardState.moveY;
@@ -1009,7 +1093,7 @@ class RapierDriveSimulation {
             }
         }
 
-        const speedMps = driveSpeedKmh / 3.6;
+        const speedMps = this.getCommandedDriveSpeedMps();
         const clampedSpeed = Math.min(speedMps, this.maxSpeedMps);
         const effectiveSteerSign = clampedSpeed > 1e-3 ? steerSign : 0;
         const wasObstacleContact = this.isVehicleObstacleContact;

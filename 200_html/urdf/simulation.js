@@ -14,6 +14,7 @@ class RapierDriveSimulation {
         this.vehicleHalfExtents = null;
         this.groundZ = 0;
         this.urdfObstacleLinkNames = ['obstacle_rock_01', 'obstacle_rock', 'rock_obstacle'];
+        this.passUnderObstacleNamePatterns = [/^obstacle_rock/i, /pass_under/i, /underbody/i];
         this.maxSpeedMps = 100 / 3.6;
         this.maxYawRateRad = THREE.MathUtils.degToRad(80);
         this.isInitializing = false;
@@ -241,7 +242,8 @@ class RapierDriveSimulation {
         const isNarrowerThanWheelTrack = wheelTrackWidth > 0
             ? size.y <= (wheelTrackWidth - 0.03)
             : false;
-        const shouldPassUnderChassis = isLowerThanChassisBottom && isNarrowerThanWheelTrack;
+        const isPassUnderTagged = this.passUnderObstacleNamePatterns.some((pattern) => pattern.test(obstacleLinkName));
+        const shouldPassUnderChassis = isPassUnderTagged || (isLowerThanChassisBottom && isNarrowerThanWheelTrack);
 
         const obstacleBodyDesc = this.rapier.RigidBodyDesc.fixed().setTranslation(
             center.x,
@@ -257,6 +259,7 @@ class RapierDriveSimulation {
             obstacleColliderDesc.setSensor(true);
             console.log('[URDF][Simulation] obstacle treated as pass-under sensor:', {
                 obstacleLinkName,
+                isPassUnderTagged,
                 obstacleTopZ,
                 chassisBottomZ,
                 obstacleWidth: size.y,

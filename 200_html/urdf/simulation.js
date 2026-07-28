@@ -42,7 +42,6 @@ class RapierDriveSimulation {
         this.passUnderObstacleNamePatterns = [/pass_under/i, /underbody/i];
         this.maxSpeedMps = 100 / 3.6;
         this.maxYawRateRad = THREE.MathUtils.degToRad(80);
-        this.enableVisualCollisionFallback = false;
         this.isInitializing = false;
         this.isReady = false;
         this.hasFailed = false;
@@ -594,49 +593,6 @@ class RapierDriveSimulation {
         }
     }
 
-    getWheelGeometryStats(carFrame, linkMap) {
-        if (!carFrame || !linkMap) {
-            return null;
-        }
-
-        const wheelLinkNames = ['wheel_fl', 'wheel_fr', 'wheel_rl', 'wheel_rr'];
-        const wheelHeights = [];
-        const wheelRadii = [];
-
-        wheelLinkNames.forEach((wheelLinkName) => {
-            const wheelLink = this.findLinkByName(linkMap, wheelLinkName);
-            if (!wheelLink) {
-                return;
-            }
-
-            wheelLink.updateWorldMatrix(true, true);
-            const wheelBounds = new THREE.Box3().setFromObject(wheelLink);
-            if (wheelBounds.isEmpty()) {
-                return;
-            }
-
-            const centerWorld = wheelBounds.getCenter(new THREE.Vector3());
-            const centerLocal = carFrame.worldToLocal(centerWorld.clone());
-            const wheelSize = wheelBounds.getSize(new THREE.Vector3());
-            const wheelRadius = Math.max(wheelSize.x * 0.5, wheelSize.z * 0.5, 0.05);
-
-            wheelHeights.push(centerLocal.z);
-            wheelRadii.push(wheelRadius);
-        });
-
-        if (wheelHeights.length === 0 || wheelRadii.length === 0) {
-            return null;
-        }
-
-        const avgWheelCenterZ = wheelHeights.reduce((sum, value) => sum + value, 0) / wheelHeights.length;
-        const avgWheelRadius = wheelRadii.reduce((sum, value) => sum + value, 0) / wheelRadii.length;
-
-        return {
-            avgWheelCenterZ,
-            avgWheelRadius
-        };
-    }
-
     getWheelLocalMinZ(carFrame, linkMap) {
         if (!carFrame || !linkMap) {
             return null;
@@ -671,14 +627,50 @@ class RapierDriveSimulation {
         return Math.min(...minValues);
     }
 
+    getGroundContactTargetZ() {
+        if (!Number.isFinite(this.groundZ) || !Number.isFinite(this.groundContactLocalMinZ)) {
+            return null;
+        }
+
+        return this.groundZ - this.groundContactLocalMinZ - this.groundContactBiasMeters;
+    }
+
     alignVehicleWheelContactToGround() {
         if (!this.body || !Number.isFinite(this.groundZ) || !Number.isFinite(this.groundContactLocalMinZ)) {
             return;
         }
 
         const translation = this.body.translation();
-        const targetZ = this.groundZ - this.groundContactLocalMinZ - this.groundContactBiasMeters;
+        const targetZ = this.getGroundContactTargetZ();
+        if (!Number.isFinite(targetZ)) {
+            return;
+        }
         this.body.setTranslation(new this.rapier.Vector3(translation.x, translation.y, targetZ), true);
+    }
+
+    snapVehicleDownToGroundIfFloating(maxDropMeters = 0.12, toleranceMeters = 0.002) {
+        if (!this.body || !this.rapier) {
+            return;
+        }
+
+        const targetZ = this.getGroundContactTargetZ();
+        if (!Number.isFinite(targetZ)) {
+            return;
+        }
+
+        const translation = this.body.translation();
+        const floatingDistance = translation.z - targetZ;
+        if (floatingDistance <= toleranceMeters) {
+            return;
+        }
+
+        if (floatingDistance > maxDropMeters) {
+            return;
+        }
+
+        this.body.setTranslation(new this.rapier.Vector3(translation.x, translation.y, targetZ), true);
+        const velocity = this.body.linvel();
+        this.body.setLinvel(new this.rapier.Vector3(velocity.x, velocity.y, Math.min(0, velocity.z)), true);
     }
 
     updateObstacleContactState() {
@@ -726,74 +718,6 @@ class RapierDriveSimulation {
 
         this.carFrame.position.set(previousPose.x, previousPose.y, previousPose.z);
         this.carFrame.quaternion.set(previousPose.qx, previousPose.qy, previousPose.qz, previousPose.qw).normalize();
-    }
-
-    isVehicleOverlappingObstacleVisualBounds() {
-        const linkMap = this.viewer?.robotModel?.links || null;
-        if (!this.carFrame || !linkMap) {
-            return false;
-        }
-
-        this.carFrame.updateWorldMatrix(true, true);
-        const vehicleBounds = this.computeChassisBounds(this.carFrame, linkMap);
-        if (!vehicleBounds || vehicleBounds.isEmpty()) {
-            return false;
-        }
-
-        const obstacleNames = this.getObstacleLinkNamesFromMap(linkMap);
-        for (let i = 0; i < obstacleNames.length; i += 1) {
-            const obstacleName = obstacleNames[i];
-            const normalizedName = this.normalizeLinkName(obstacleName);
-            const isPothole = /^pothole/i.test(obstacleName) || /^pothole/i.test(normalizedName);
-            if (isPothole) {
-                continue;
-            }
-
-            const obstacleLink = linkMap[obstacleName];
-            if (!obstacleLink) {
-                continue;
-            }
-
-            obstacleLink.updateWorldMatrix(true, true);
-            const obstacleBounds = this.computeLinkOwnBounds(obstacleLink, linkMap) || new THREE.Box3().setFromObject(obstacleLink);
-            if (!obstacleBounds || obstacleBounds.isEmpty()) {
-                continue;
-            }
-
-            const overlapX = Math.min(vehicleBounds.max.x, obstacleBounds.max.x) - Math.max(vehicleBounds.min.x, obstacleBounds.min.x);
-            const overlapY = Math.min(vehicleBounds.max.y, obstacleBounds.max.y) - Math.max(vehicleBounds.min.y, obstacleBounds.min.y);
-            const overlapZ = Math.min(vehicleBounds.max.z, obstacleBounds.max.z) - Math.max(vehicleBounds.min.z, obstacleBounds.min.z);
-
-            const hasSufficientPenetration = overlapX > this.visualCollisionMinPenetrationMeters
-                && overlapY > this.visualCollisionMinPenetrationMeters
-                && overlapZ > this.visualCollisionMinPenetrationMeters;
-
-            if (hasSufficientPenetration) {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    rollbackIfVisualCollisionMiss(previousPose) {
-        if (!previousPose || !this.body || !this.rapier || !this.carFrame) {
-            return;
-        }
-
-        const overlapped = this.isVehicleOverlappingObstacleVisualBounds();
-        if (!overlapped) {
-            return;
-        }
-
-        this.body.setTranslation(new this.rapier.Vector3(previousPose.x, previousPose.y, previousPose.z), true);
-        this.body.setRotation({ x: previousPose.qx, y: previousPose.qy, z: previousPose.qz, w: previousPose.qw }, true);
-        this.body.setLinvel(new this.rapier.Vector3(0, 0, 0), true);
-        this.body.setAngvel(new this.rapier.Vector3(0, 0, 0), true);
-
-        this.carFrame.position.set(previousPose.x, previousPose.y, previousPose.z);
-        this.carFrame.quaternion.set(previousPose.qx, previousPose.qy, previousPose.qz, previousPose.qw).normalize();
-        this.isVehicleObstacleContact = true;
     }
 
     async ensureRapierInitialized() {
@@ -882,6 +806,7 @@ class RapierDriveSimulation {
             this.initialQuaternion = initialQuaternion.clone();
             this.vehicleHalfExtents = { x: halfX, y: halfY, z: halfZ };
             this.addGroundCollider();
+            this.snapVehicleDownToGroundIfFloating();
 
             this.clampVehicleAboveGround();
             this.addObstacleColliderFromUrdf();
@@ -1007,9 +932,6 @@ class RapierDriveSimulation {
 
         this.carFrame.position.set(nextPosition.x, nextPosition.y, nextPosition.z);
         this.carFrame.quaternion.set(nextRotation.x, nextRotation.y, nextRotation.z, nextRotation.w).normalize();
-        if (this.enableVisualCollisionFallback) {
-            this.rollbackIfVisualCollisionMiss(previousPose);
-        }
     }
 
     async runLoop() {
@@ -1087,8 +1009,12 @@ class RapierDriveSimulation {
         this.body.setAngvel(new this.rapier.Vector3(0, 0, 0), true);
         this.isVehicleObstacleContact = false;
 
-        this.carFrame.position.copy(this.initialPosition);
-        this.carFrame.quaternion.copy(this.initialQuaternion);
+        this.snapVehicleDownToGroundIfFloating();
+
+        const currentPosition = this.body.translation();
+        const currentRotation = this.body.rotation();
+        this.carFrame.position.set(currentPosition.x, currentPosition.y, currentPosition.z);
+        this.carFrame.quaternion.set(currentRotation.x, currentRotation.y, currentRotation.z, currentRotation.w).normalize();
     }
 
     async reset() {

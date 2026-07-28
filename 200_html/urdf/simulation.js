@@ -489,6 +489,23 @@ class RapierDriveSimulation {
             window.setDriveMode('stop');
         }
 
+        const speedInput = document.getElementById('drive-speed-kmh');
+        const speedLabel = document.getElementById('drive-speed-kmh-value');
+        if (speedInput) {
+            speedInput.value = String(SIM_SPEED_DEFAULT_KMH);
+        }
+        if (speedLabel) {
+            speedLabel.textContent = `${SIM_SPEED_DEFAULT_KMH} km/h`;
+        }
+        if (typeof window.setDriveSpeedKmh === 'function') {
+            window.setDriveSpeedKmh(SIM_SPEED_DEFAULT_KMH);
+        }
+        try {
+            window.localStorage.setItem(SIM_SPEED_STORAGE_KEY, String(SIM_SPEED_DEFAULT_KMH));
+        } catch (error) {
+            // Ignore storage failures and continue runtime behavior.
+        }
+
         if (typeof window.setRoadRollAngleDeg === 'function') {
             window.setRoadRollAngleDeg(0);
         }

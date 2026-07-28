@@ -46,6 +46,7 @@ class RapierDriveSimulation {
         this.isReady = false;
         this.hasFailed = false;
         this.lastStepTimeMs = 0;
+        this.hasLoggedGroundDiagnostics = false;
         this.isKeyboardControlEnabled = true;
         this.keyHoldState = {
             ArrowUp: 0,
@@ -453,7 +454,10 @@ class RapierDriveSimulation {
 
         const groundHalfThickness = 0.2;
         const linkMap = this.viewer?.robotModel?.links || {};
-        const groundLink = linkMap.ground || linkMap.ground_link || linkMap.ground_patch || null;
+        const groundLink = this.findLinkByName(linkMap, 'ground')
+            || this.findLinkByName(linkMap, 'ground_link')
+            || this.findLinkByName(linkMap, 'ground_patch')
+            || null;
 
         if (groundLink) {
             groundLink.updateWorldMatrix(true, true);
@@ -476,6 +480,37 @@ class RapierDriveSimulation {
             .setFriction(1.2)
             .setRestitution(0.02);
         this.world.createCollider(groundColliderDesc, groundBody);
+    }
+
+    logWheelGroundDiagnosticsOnce(linkMap, stage = 'runtime') {
+        if (this.hasLoggedGroundDiagnostics) {
+            return;
+        }
+
+        if (!this.body || !Number.isFinite(this.groundZ)) {
+            return;
+        }
+
+        const wheelMinZ = this.getWheelWorldMinZ(linkMap);
+        if (!Number.isFinite(wheelMinZ)) {
+            console.warn('[URDF][Simulation] wheel-ground diagnostics skipped: wheel bounds unavailable');
+            this.hasLoggedGroundDiagnostics = true;
+            return;
+        }
+
+        const bodyZ = this.body.translation().z;
+        const gap = wheelMinZ - this.groundZ;
+        console.log('[URDF][Simulation] wheel-ground diagnostics', {
+            stage,
+            groundZ: Number(this.groundZ.toFixed(6)),
+            wheelMinZ: Number(wheelMinZ.toFixed(6)),
+            wheelGroundGap: Number(gap.toFixed(6)),
+            bodyZ: Number(bodyZ.toFixed(6)),
+            groundContactLocalMinZ: Number.isFinite(this.groundContactLocalMinZ)
+                ? Number(this.groundContactLocalMinZ.toFixed(6))
+                : null
+        });
+        this.hasLoggedGroundDiagnostics = true;
     }
 
     addObstacleColliderFromUrdf() {
@@ -741,6 +776,7 @@ class RapierDriveSimulation {
         this.body.setLinvel(new this.rapier.Vector3(0, 0, 0), true);
         this.body.setAngvel(new this.rapier.Vector3(0, 0, 0), true);
         this.syncCarFrameFromBody();
+        this.logWheelGroundDiagnosticsOnce(linkMap, 'enforceWheelGroundContactAtLoad');
     }
 
     updateObstacleContactState() {
@@ -1070,6 +1106,8 @@ class RapierDriveSimulation {
         if (!this.isReady || !this.body || !this.carFrame || !this.rapier || !this.initialPosition || !this.initialQuaternion) {
             return;
         }
+
+        this.hasLoggedGroundDiagnostics = false;
 
         this.body.setTranslation(
             new this.rapier.Vector3(this.initialPosition.x, this.initialPosition.y, this.initialPosition.z),

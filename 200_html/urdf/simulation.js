@@ -27,7 +27,7 @@ class RapierDriveSimulation {
         this.hasFailed = false;
         this.lastStepTimeMs = 0;
         this.isKeyboardControlEnabled = true;
-        this.pendingArrowKeyCounts = {
+        this.keyHoldState = {
             ArrowUp: 0,
             ArrowDown: 0,
             ArrowLeft: 0,
@@ -167,9 +167,25 @@ class RapierDriveSimulation {
                 return;
             }
 
-            this.pendingArrowKeyCounts[event.key] += 1;
+            this.keyHoldState[event.key] = 1;
             event.preventDefault();
         }, { passive: false });
+
+        window.addEventListener('keyup', (event) => {
+            if (!handledKeys.has(event.key)) {
+                return;
+            }
+
+            this.keyHoldState[event.key] = 0;
+            event.preventDefault();
+        }, { passive: false });
+
+        window.addEventListener('blur', () => {
+            this.keyHoldState.ArrowUp = 0;
+            this.keyHoldState.ArrowDown = 0;
+            this.keyHoldState.ArrowLeft = 0;
+            this.keyHoldState.ArrowRight = 0;
+        });
     }
 
     isFrontFacingViewActive() {
@@ -202,25 +218,23 @@ class RapierDriveSimulation {
     }
 
     getKeyboardDriveState() {
-        const upCount = this.pendingArrowKeyCounts.ArrowUp;
-        const downCount = this.pendingArrowKeyCounts.ArrowDown;
-        const leftCount = this.pendingArrowKeyCounts.ArrowLeft;
-        const rightCount = this.pendingArrowKeyCounts.ArrowRight;
+        const upPressed = this.keyHoldState.ArrowUp === 1;
+        const downPressed = this.keyHoldState.ArrowDown === 1;
+        const leftPressed = this.keyHoldState.ArrowLeft === 1;
+        const rightPressed = this.keyHoldState.ArrowRight === 1;
 
-        const moveX = upCount - downCount;
-        const lateralBase = leftCount - rightCount;
+        const moveX = (upPressed ? 1 : 0) - (downPressed ? 1 : 0);
+        const lateralBase = (leftPressed ? 1 : 0) - (rightPressed ? 1 : 0);
         const lateralSign = this.isFrontFacingViewActive() ? -1 : 1;
-        const moveY = lateralBase * lateralSign;
+        const moveYRaw = lateralBase * lateralSign;
+        const magnitude = Math.hypot(moveX, moveYRaw);
+        const moveY = magnitude > 0 ? moveYRaw / magnitude : 0;
+        const normalizedMoveX = magnitude > 0 ? moveX / magnitude : 0;
         const isActive = moveX !== 0 || moveY !== 0;
-
-        this.pendingArrowKeyCounts.ArrowUp = 0;
-        this.pendingArrowKeyCounts.ArrowDown = 0;
-        this.pendingArrowKeyCounts.ArrowLeft = 0;
-        this.pendingArrowKeyCounts.ArrowRight = 0;
 
         return {
             isActive,
-            moveX,
+            moveX: normalizedMoveX,
             moveY
         };
     }
@@ -579,9 +593,11 @@ class RapierDriveSimulation {
 
         const currentLinearVelocity = this.body.linvel();
         if (keyboardState.isActive) {
-            const nudgeDistance = this.getKeyboardNudgeDistance();
-            const velocityX = (keyboardMoveX * nudgeDistance) / Math.max(deltaSec, 1 / 240);
-            const velocityY = (keyboardMoveY * nudgeDistance) / Math.max(deltaSec, 1 / 240);
+            const velocitySmoothingAlpha = 1 - Math.exp(-12 * deltaSec);
+            const targetVelocityX = keyboardMoveX * clampedSpeed;
+            const targetVelocityY = keyboardMoveY * clampedSpeed;
+            const velocityX = currentLinearVelocity.x + ((targetVelocityX - currentLinearVelocity.x) * velocitySmoothingAlpha);
+            const velocityY = currentLinearVelocity.y + ((targetVelocityY - currentLinearVelocity.y) * velocitySmoothingAlpha);
 
             this.body.setLinvel(new this.rapier.Vector3(velocityX, velocityY, currentLinearVelocity.z), true);
             this.body.setAngvel(new this.rapier.Vector3(0, 0, 0), true);

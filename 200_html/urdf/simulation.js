@@ -19,6 +19,7 @@ class RapierDriveSimulation {
         this.initialQuaternion = null;
         this.vehicleHalfExtents = null;
         this.vehicleLocalMinZ = null;
+        this.wheelLocalMinZ = null;
         this.groundZ = 0;
         this.urdfObstacleLinkNames = ['obstacle_rock_01', 'obstacle_rock_02', 'obstacle_rock', 'rock_obstacle'];
         this.urdfObstacleLinkNamePatterns = [
@@ -568,6 +569,50 @@ class RapierDriveSimulation {
         };
     }
 
+    getWheelLocalMinZ(carFrame, linkMap) {
+        if (!carFrame || !linkMap) {
+            return null;
+        }
+
+        const wheelLinkNames = ['wheel_fl', 'wheel_fr', 'wheel_rl', 'wheel_rr'];
+        const minValues = [];
+
+        wheelLinkNames.forEach((wheelLinkName) => {
+            const wheelLink = linkMap[wheelLinkName];
+            if (!wheelLink) {
+                return;
+            }
+
+            wheelLink.updateWorldMatrix(true, true);
+            const wheelBounds = new THREE.Box3().setFromObject(wheelLink);
+            if (wheelBounds.isEmpty()) {
+                return;
+            }
+
+            const centerWorld = wheelBounds.getCenter(new THREE.Vector3());
+            const centerLocal = carFrame.worldToLocal(centerWorld.clone());
+            const wheelSize = wheelBounds.getSize(new THREE.Vector3());
+            const wheelRadius = Math.max(wheelSize.x * 0.5, wheelSize.z * 0.5, 0.05);
+            minValues.push(centerLocal.z - wheelRadius);
+        });
+
+        if (minValues.length === 0) {
+            return null;
+        }
+
+        return Math.min(...minValues);
+    }
+
+    alignVehicleWheelContactToGround() {
+        if (!this.body || !Number.isFinite(this.groundZ) || !Number.isFinite(this.wheelLocalMinZ)) {
+            return;
+        }
+
+        const translation = this.body.translation();
+        const targetZ = this.groundZ - this.wheelLocalMinZ;
+        this.body.setTranslation(new this.rapier.Vector3(translation.x, translation.y, targetZ), true);
+    }
+
     updateObstacleContactState() {
         if (!this.world || this.vehicleColliders.length === 0 || this.obstacleColliders.length === 0) {
             return;
@@ -648,6 +693,7 @@ class RapierDriveSimulation {
             const bboxMinLocalZ = localCenter.z - Math.max((size.z || 0.25) * 0.5, 0.06);
             const bboxMaxLocalZ = localCenter.z + Math.max((size.z || 0.25) * 0.5, 0.06);
             this.vehicleLocalMinZ = bboxMinLocalZ;
+            this.wheelLocalMinZ = this.getWheelLocalMinZ(carFrame, linkMap);
             const wheelStats = this.getWheelGeometryStats(carFrame, linkMap);
             const minChassisZFromWheels = wheelStats
                 ? wheelStats.avgWheelCenterZ + (wheelStats.avgWheelRadius * 0.30)
@@ -673,6 +719,12 @@ class RapierDriveSimulation {
             this.initialQuaternion = initialQuaternion.clone();
             this.vehicleHalfExtents = { x: halfX, y: halfY, z: halfZ };
             this.addGroundCollider();
+            this.alignVehicleWheelContactToGround();
+
+            const alignedTranslation = this.body.translation();
+            this.initialPosition.set(alignedTranslation.x, alignedTranslation.y, alignedTranslation.z);
+            this.carFrame.position.copy(this.initialPosition);
+
             this.clampVehicleAboveGround();
             this.addObstacleColliderFromUrdf();
             this.isReady = true;
@@ -848,9 +900,11 @@ class RapierDriveSimulation {
         this.body.setRotation(this.initialQuaternion, true);
         this.body.setLinvel(new this.rapier.Vector3(0, 0, 0), true);
         this.body.setAngvel(new this.rapier.Vector3(0, 0, 0), true);
+        this.alignVehicleWheelContactToGround();
         this.isVehicleObstacleContact = false;
 
-        this.carFrame.position.copy(this.initialPosition);
+        const alignedTranslation = this.body.translation();
+        this.carFrame.position.set(alignedTranslation.x, alignedTranslation.y, alignedTranslation.z);
         this.carFrame.quaternion.copy(this.initialQuaternion);
     }
 

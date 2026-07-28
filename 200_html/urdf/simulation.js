@@ -273,6 +273,12 @@ class RapierDriveSimulation {
                 .setLinearDamping(2.2)
                 .setAngularDamping(3.2);
 
+            if (typeof rigidBodyDesc.setEnabledRotations === 'function') {
+                rigidBodyDesc.setEnabledRotations(false, false, true);
+            } else if (typeof rigidBodyDesc.enabledRotations === 'function') {
+                rigidBodyDesc.enabledRotations(false, false, true);
+            }
+
             const body = world.createRigidBody(rigidBodyDesc);
 
             const bbox = this.computeChassisBounds(carFrame, linkMap);
@@ -357,13 +363,12 @@ class RapierDriveSimulation {
         const bodyRotation = this.body.rotation();
         const yaw = this.extractYawFromQuaternion(bodyRotation);
         const currentLinearVelocity = this.body.linvel();
-        const currentAngularVelocity = this.body.angvel();
 
         const velocityX = Math.cos(yaw) * clampedSpeed * throttleSign;
         const velocityY = Math.sin(yaw) * clampedSpeed * throttleSign;
 
         this.body.setLinvel(new this.rapier.Vector3(velocityX, velocityY, currentLinearVelocity.z), true);
-        this.body.setAngvel(new this.rapier.Vector3(currentAngularVelocity.x, currentAngularVelocity.y, this.maxYawRateRad * steerSign), true);
+        this.body.setAngvel(new this.rapier.Vector3(0, 0, this.maxYawRateRad * steerSign), true);
 
         this.world.timestep = Math.max(Math.min(deltaSec, 1 / 30), 1 / 240);
         this.world.step();

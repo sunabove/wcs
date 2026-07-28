@@ -126,6 +126,7 @@
                                             oninput="setRoadRollAngleDeg(this.value)"
                                         >
                                         <span class="small text-nowrap fw-semibold" id="road-roll-angle-deg-value" style="min-width: 40px; text-align: right;">0°</span>
+                                        <button type="button" class="btn btn-outline-secondary btn-sm text-nowrap flex-shrink-0 small" id="road-roll-reset" onclick="document.getElementById('road-roll-angle-deg').value='0'; setRoadRollAngleDeg(0)">초기화</button>
                                     </div>
                                     <div class="d-flex align-items-center gap-2">
                                         <span class="small text-nowrap fw-semibold text-end" style="width: 60px;">Pitch</span>
@@ -140,6 +141,7 @@
                                             oninput="setRoadPitchAngleDeg(this.value)"
                                         >
                                         <span class="small text-nowrap fw-semibold" id="road-pitch-angle-deg-value" style="min-width: 40px; text-align: right;">0°</span>
+                                        <button type="button" class="btn btn-outline-secondary btn-sm text-nowrap flex-shrink-0 small" id="road-pitch-reset" onclick="document.getElementById('road-pitch-angle-deg').value='0'; setRoadPitchAngleDeg(0)">초기화</button>
                                     </div>
                                 </div>
                             </div>

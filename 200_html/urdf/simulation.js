@@ -651,7 +651,7 @@ class RapierDriveSimulation {
 
     updateObstacleContactState() {
         if (!this.world || this.vehicleColliders.length === 0 || this.obstacleColliders.length === 0) {
-            return;
+            return false;
         }
 
         let hasContact = false;
@@ -678,6 +678,22 @@ class RapierDriveSimulation {
             this.isVehicleObstacleContact = hasContact;
             console.log(`[URDF][Simulation] vehicle-obstacle contact: ${hasContact ? 'ON' : 'OFF'}`);
         }
+
+        return hasContact;
+    }
+
+    rollbackToPreviousPose(previousPose) {
+        if (!previousPose || !this.body || !this.rapier || !this.carFrame) {
+            return;
+        }
+
+        this.body.setTranslation(new this.rapier.Vector3(previousPose.x, previousPose.y, previousPose.z), true);
+        this.body.setRotation({ x: previousPose.qx, y: previousPose.qy, z: previousPose.qz, w: previousPose.qw }, true);
+        this.body.setLinvel(new this.rapier.Vector3(0, 0, 0), true);
+        this.body.setAngvel(new this.rapier.Vector3(0, 0, 0), true);
+
+        this.carFrame.position.set(previousPose.x, previousPose.y, previousPose.z);
+        this.carFrame.quaternion.set(previousPose.qx, previousPose.qy, previousPose.qz, previousPose.qw).normalize();
     }
 
     isVehicleOverlappingObstacleVisualBounds() {
@@ -937,7 +953,13 @@ class RapierDriveSimulation {
             this.body.setAngvel(new this.rapier.Vector3(0, 0, 0), true);
         }
 
-        this.updateObstacleContactState();
+        const hasObstacleContact = this.updateObstacleContactState();
+
+        const isMoveCommandActive = keyboardState.isActive || throttleSign !== 0;
+        if (hasObstacleContact && isMoveCommandActive) {
+            this.rollbackToPreviousPose(previousPose);
+            return;
+        }
 
         const nextPosition = this.body.translation();
         const nextRotation = this.body.rotation();

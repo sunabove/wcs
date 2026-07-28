@@ -80,23 +80,20 @@ class RapierDriveSimulation {
         const obstacleLink = linkMap[obstacleLinkName];
         obstacleLink.updateWorldMatrix(true, true);
 
-        const obstacleWorldPos = new THREE.Vector3();
-        const obstacleWorldQuat = new THREE.Quaternion();
-        obstacleLink.getWorldPosition(obstacleWorldPos);
-        obstacleLink.getWorldQuaternion(obstacleWorldQuat);
-
         const bbox = new THREE.Box3().setFromObject(obstacleLink);
+        const center = bbox.getCenter(new THREE.Vector3());
         const size = bbox.getSize(new THREE.Vector3());
-        const radius = Math.max(size.x, size.y, size.z) * 0.5;
-        const safeRadius = Math.max(radius, 0.03);
+        const halfX = Math.max(size.x * 0.5, 0.02);
+        const halfY = Math.max(size.y * 0.5, 0.02);
+        const halfZ = Math.max(size.z * 0.5, 0.02);
 
         const obstacleBodyDesc = this.rapier.RigidBodyDesc.fixed().setTranslation(
-            obstacleWorldPos.x,
-            obstacleWorldPos.y,
-            obstacleWorldPos.z
+            center.x,
+            center.y,
+            center.z
         );
         const obstacleBody = this.world.createRigidBody(obstacleBodyDesc);
-        const obstacleColliderDesc = this.rapier.ColliderDesc.ball(safeRadius)
+        const obstacleColliderDesc = this.rapier.ColliderDesc.cuboid(halfX, halfY, halfZ)
             .setFriction(1.4)
             .setRestitution(0.02);
         this.world.createCollider(obstacleColliderDesc, obstacleBody);

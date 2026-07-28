@@ -205,19 +205,32 @@
     <origin xyz="0 0 0.1025" rpy="0 0 0" />
   </joint>
 
-  <!-- Simulation obstacle (fixed rock) -->
+  <!-- Simulation obstacle (fixed curb / step) -->
   <link name="obstacle_rock_01">
     <visual>
-      <origin xyz="0 0 0" rpy="0 0 0" />
+      <origin xyz="0 0 0.04" rpy="0 0 0" />
       <geometry>
-        <sphere radius="0.14" />
+        <box size="0.44 0.34 0.08" />
+      </geometry>
+      <material name="obstacle_rock" />
+    </visual>
+    <visual>
+      <origin xyz="0.10 0 0.11" rpy="0 0 0" />
+      <geometry>
+        <box size="0.24 0.34 0.06" />
       </geometry>
       <material name="obstacle_rock" />
     </visual>
     <collision>
-      <origin xyz="0 0 0" rpy="0 0 0" />
+      <origin xyz="0 0 0.04" rpy="0 0 0" />
       <geometry>
-        <sphere radius="0.14" />
+        <box size="0.44 0.34 0.08" />
+      </geometry>
+    </collision>
+    <collision>
+      <origin xyz="0.10 0 0.11" rpy="0 0 0" />
+      <geometry>
+        <box size="0.24 0.34 0.06" />
       </geometry>
     </collision>
   </link>
@@ -225,7 +238,7 @@
   <joint name="obstacle_rock_01_joint" type="fixed">
     <parent link="ground" />
     <child link="obstacle_rock_01" />
-    <origin xyz="1.10 0.00 0.14" rpy="0 0 0" />
+    <origin xyz="1.10 0.00 0.00" rpy="0 0 0" />
   </joint>
 
   <joint name="base_to_ellipsoid_surface" type="fixed">

@@ -22,6 +22,10 @@
     <color rgba="0.18 0.18 0.18 1.0" />
   </material>
 
+  <material name="obstacle_rock">
+    <color rgba="0.45 0.47 0.52 1.0" />
+  </material>
+
   <material name="green">
     <color rgba="0.00 1.00 0.00 1.0" />
   </material>
@@ -199,6 +203,29 @@
     <parent link="ground" />
     <child link="car_frame" />
     <origin xyz="0 0 0.1025" rpy="0 0 0" />
+  </joint>
+
+  <!-- Simulation obstacle (fixed rock) -->
+  <link name="obstacle_rock_01">
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <sphere radius="0.14" />
+      </geometry>
+      <material name="obstacle_rock" />
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <sphere radius="0.14" />
+      </geometry>
+    </collision>
+  </link>
+
+  <joint name="obstacle_rock_01_joint" type="fixed">
+    <parent link="ground" />
+    <child link="obstacle_rock_01" />
+    <origin xyz="1.10 0.00 0.14" rpy="0 0 0" />
   </joint>
 
   <joint name="base_to_ellipsoid_surface" type="fixed">

@@ -13,10 +13,7 @@ class RapierDriveSimulation {
         this.initialQuaternion = null;
         this.vehicleHalfExtents = null;
         this.groundZ = 0;
-        this.rockRadius = 0.14;
-        this.rockDistanceAhead = 1.4;
-        this.rockLateralOffset = 0;
-        this.rockMesh = null;
+        this.urdfObstacleLinkNames = ['obstacle_rock_01', 'obstacle_rock', 'rock_obstacle'];
         this.maxSpeedMps = 3.5;
         this.maxYawRateRad = THREE.MathUtils.degToRad(80);
         this.isInitializing = false;
@@ -52,10 +49,6 @@ class RapierDriveSimulation {
         );
     }
 
-    getForwardDirectionByYaw(yawRad) {
-        return new THREE.Vector3(Math.cos(yawRad), Math.sin(yawRad), 0).normalize();
-    }
-
     addGroundCollider() {
         if (!this.world || !this.rapier || !this.initialPosition || !this.vehicleHalfExtents) {
             return;
@@ -72,39 +65,43 @@ class RapierDriveSimulation {
         this.world.createCollider(groundColliderDesc, groundBody);
     }
 
-    addRockObstacle() {
-        if (!this.world || !this.rapier || !this.initialPosition || !this.initialQuaternion || !this.viewer?.scene) {
+    addObstacleColliderFromUrdf() {
+        if (!this.world || !this.rapier || !this.viewer?.robotModel) {
             return;
         }
 
-        const initialYaw = this.extractYawFromQuaternion(this.initialQuaternion);
-        const forward = this.getForwardDirectionByYaw(initialYaw);
-        const lateral = new THREE.Vector3(-forward.y, forward.x, 0);
+        const linkMap = this.viewer.robotModel.links || {};
+        const obstacleLinkName = this.urdfObstacleLinkNames.find((name) => !!linkMap[name]);
+        if (!obstacleLinkName) {
+            console.warn('[URDF][Simulation] URDF obstacle link not found. Expected one of:', this.urdfObstacleLinkNames);
+            return;
+        }
 
-        const rockCenter = this.initialPosition.clone()
-            .add(forward.multiplyScalar(this.rockDistanceAhead))
-            .add(lateral.multiplyScalar(this.rockLateralOffset));
-        rockCenter.z = this.groundZ + this.rockRadius;
+        const obstacleLink = linkMap[obstacleLinkName];
+        obstacleLink.updateWorldMatrix(true, true);
 
-        const rockBodyDesc = this.rapier.RigidBodyDesc.fixed().setTranslation(rockCenter.x, rockCenter.y, rockCenter.z);
-        const rockBody = this.world.createRigidBody(rockBodyDesc);
-        const rockColliderDesc = this.rapier.ColliderDesc.ball(this.rockRadius)
+        const obstacleWorldPos = new THREE.Vector3();
+        const obstacleWorldQuat = new THREE.Quaternion();
+        obstacleLink.getWorldPosition(obstacleWorldPos);
+        obstacleLink.getWorldQuaternion(obstacleWorldQuat);
+
+        const bbox = new THREE.Box3().setFromObject(obstacleLink);
+        const size = bbox.getSize(new THREE.Vector3());
+        const radius = Math.max(size.x, size.y, size.z) * 0.5;
+        const safeRadius = Math.max(radius, 0.03);
+
+        const obstacleBodyDesc = this.rapier.RigidBodyDesc.fixed().setTranslation(
+            obstacleWorldPos.x,
+            obstacleWorldPos.y,
+            obstacleWorldPos.z
+        );
+        const obstacleBody = this.world.createRigidBody(obstacleBodyDesc);
+        const obstacleColliderDesc = this.rapier.ColliderDesc.ball(safeRadius)
             .setFriction(1.4)
             .setRestitution(0.02);
-        this.world.createCollider(rockColliderDesc, rockBody);
+        this.world.createCollider(obstacleColliderDesc, obstacleBody);
 
-        const rockGeometry = new THREE.IcosahedronGeometry(this.rockRadius, 1);
-        const rockMaterial = new THREE.MeshStandardMaterial({
-            color: 0x7d7f87,
-            roughness: 0.95,
-            metalness: 0.02,
-            flatShading: true
-        });
-        this.rockMesh = new THREE.Mesh(rockGeometry, rockMaterial);
-        this.rockMesh.position.copy(rockCenter);
-        this.rockMesh.castShadow = true;
-        this.rockMesh.receiveShadow = true;
-        this.viewer.scene.add(this.rockMesh);
+        console.log(`[URDF][Simulation] obstacle collider created from URDF link: ${obstacleLinkName}`);
     }
 
     async ensureRapierInitialized() {
@@ -117,7 +114,7 @@ class RapierDriveSimulation {
         }
 
         const linkMap = this.viewer.robotModel.links || {};
-        const carFrame = linkMap.car_frame || null;
+        const carFrame = linkMap.car_frame || linkMap.base_link || null;
         if (!carFrame) {
             return;
         }
@@ -165,11 +162,11 @@ class RapierDriveSimulation {
             this.initialQuaternion = initialQuaternion.clone();
             this.vehicleHalfExtents = { x: halfX, y: halfY, z: halfZ };
             this.addGroundCollider();
-            this.addRockObstacle();
+            this.addObstacleColliderFromUrdf();
             this.isReady = true;
             this.hasFailed = false;
 
-            console.log('[URDF][Simulation] Rapier direction control with obstacle initialized');
+            console.log('[URDF][Simulation] Rapier direction control with URDF obstacle initialized');
         } catch (error) {
             this.hasFailed = true;
             console.warn('[URDF][Simulation] Rapier initialization failed:', error);

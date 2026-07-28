@@ -20,6 +20,7 @@ class RapierDriveSimulation {
         this.vehicleHalfExtents = null;
         this.groundZ = 0;
         this.urdfObstacleLinkNames = ['obstacle_rock_01', 'obstacle_rock_02', 'obstacle_rock', 'rock_obstacle'];
+        this.urdfObstacleLinkNamePatterns = [/^obstacle/i, /^wall/i, /^rock_obstacle/i];
         this.passUnderObstacleNamePatterns = [/pass_under/i, /underbody/i];
         this.maxSpeedMps = 100 / 3.6;
         this.maxYawRateRad = THREE.MathUtils.degToRad(80);
@@ -85,6 +86,9 @@ class RapierDriveSimulation {
             return fallbackBounds;
         }
 
+        const obstacleLinkNames = this.getObstacleLinkNamesFromMap(linkMap);
+        const obstacleRoots = obstacleLinkNames.map((name) => linkMap[name]).filter(Boolean);
+
         const excludedRoots = [
             linkMap.wheel_fl,
             linkMap.wheel_fr,
@@ -94,9 +98,7 @@ class RapierDriveSimulation {
             linkMap.pinion_fr,
             linkMap.pinion_rl,
             linkMap.pinion_rr,
-            linkMap.obstacle_rock_01,
-            linkMap.obstacle_rock,
-            linkMap.rock_obstacle
+            ...obstacleRoots
         ].filter(Boolean);
 
         const bounds = new THREE.Box3();
@@ -128,6 +130,29 @@ class RapierDriveSimulation {
         });
 
         return hasMesh ? bounds : fallbackBounds;
+    }
+
+    getObstacleLinkNamesFromMap(linkMap) {
+        if (!linkMap) {
+            return [];
+        }
+
+        const names = new Set();
+
+        this.urdfObstacleLinkNames.forEach((name) => {
+            if (linkMap[name]) {
+                names.add(name);
+            }
+        });
+
+        Object.keys(linkMap).forEach((name) => {
+            const matched = this.urdfObstacleLinkNamePatterns.some((pattern) => pattern.test(name));
+            if (matched) {
+                names.add(name);
+            }
+        });
+
+        return Array.from(names);
     }
 
     attachKeyboardControls() {
@@ -373,7 +398,7 @@ class RapierDriveSimulation {
         }
 
         const linkMap = this.viewer.robotModel.links || {};
-        const obstacleLinkNames = this.urdfObstacleLinkNames.filter((name) => !!linkMap[name]);
+        const obstacleLinkNames = this.getObstacleLinkNamesFromMap(linkMap);
         if (obstacleLinkNames.length === 0) {
             console.warn('[URDF][Simulation] URDF obstacle link not found. Expected one of:', this.urdfObstacleLinkNames);
             return;

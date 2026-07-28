@@ -190,6 +190,32 @@ class RapierDriveSimulation {
             .toLowerCase();
     }
 
+    findLinkByName(linkMap, targetName) {
+        if (!linkMap || !targetName) {
+            return null;
+        }
+
+        if (linkMap[targetName]) {
+            return linkMap[targetName];
+        }
+
+        const normalizedTarget = this.normalizeLinkName(targetName);
+        const entries = Object.entries(linkMap);
+        for (let i = 0; i < entries.length; i += 1) {
+            const [name, link] = entries[i];
+            if (!link) {
+                continue;
+            }
+
+            const normalizedName = this.normalizeLinkName(name);
+            if (normalizedName === normalizedTarget) {
+                return link;
+            }
+        }
+
+        return null;
+    }
+
     getObstacleLinkNamesFromMap(linkMap) {
         if (!linkMap) {
             return [];
@@ -533,9 +559,10 @@ class RapierDriveSimulation {
         }
 
         const wheelLinkNames = ['wheel_fl', 'wheel_fr', 'wheel_rl', 'wheel_rr'];
+        let createdWheelColliderCount = 0;
 
         wheelLinkNames.forEach((wheelLinkName) => {
-            const wheelLink = linkMap[wheelLinkName];
+            const wheelLink = this.findLinkByName(linkMap, wheelLinkName);
             if (!wheelLink) {
                 return;
             }
@@ -559,7 +586,12 @@ class RapierDriveSimulation {
 
             const wheelCollider = this.world.createCollider(wheelColliderDesc, body);
             this.vehicleColliders.push(wheelCollider);
+            createdWheelColliderCount += 1;
         });
+
+        if (createdWheelColliderCount === 0) {
+            console.warn('[URDF][Simulation] Wheel colliders were not created. Check wheel link names in URDF.');
+        }
     }
 
     getWheelGeometryStats(carFrame, linkMap) {
@@ -572,7 +604,7 @@ class RapierDriveSimulation {
         const wheelRadii = [];
 
         wheelLinkNames.forEach((wheelLinkName) => {
-            const wheelLink = linkMap[wheelLinkName];
+            const wheelLink = this.findLinkByName(linkMap, wheelLinkName);
             if (!wheelLink) {
                 return;
             }
@@ -614,7 +646,7 @@ class RapierDriveSimulation {
         const minValues = [];
 
         wheelLinkNames.forEach((wheelLinkName) => {
-            const wheelLink = linkMap[wheelLinkName];
+            const wheelLink = this.findLinkByName(linkMap, wheelLinkName);
             if (!wheelLink) {
                 return;
             }
@@ -774,7 +806,7 @@ class RapierDriveSimulation {
         }
 
         const linkMap = this.viewer.robotModel.links || {};
-        const carFrame = linkMap.car_frame || linkMap.base_link || null;
+        const carFrame = this.findLinkByName(linkMap, 'car_frame') || this.findLinkByName(linkMap, 'base_link') || null;
         if (!carFrame) {
             return;
         }
@@ -822,14 +854,8 @@ class RapierDriveSimulation {
             } else {
                 this.groundContactLocalMinZ = null;
             }
-            const wheelStats = this.getWheelGeometryStats(carFrame, linkMap);
-            const minChassisZFromWheels = wheelStats
-                ? wheelStats.avgWheelCenterZ + (wheelStats.avgWheelRadius * 0.30)
-                : bboxMinLocalZ;
-            const adjustedMinLocalZ = Math.max(bboxMinLocalZ, minChassisZFromWheels);
-            const adjustedMaxLocalZ = Math.max(adjustedMinLocalZ + 0.12, bboxMaxLocalZ);
-            const halfZ = Math.max((adjustedMaxLocalZ - adjustedMinLocalZ) * 0.5, 0.06);
-            const adjustedCenterZ = (adjustedMaxLocalZ + adjustedMinLocalZ) * 0.5;
+            const halfZ = Math.max((bboxMaxLocalZ - bboxMinLocalZ) * 0.5, 0.06);
+            const adjustedCenterZ = (bboxMaxLocalZ + bboxMinLocalZ) * 0.5;
 
             const colliderDesc = RAPIER.ColliderDesc.cuboid(halfX, halfY, halfZ)
                 .setTranslation(localCenter.x, localCenter.y, adjustedCenterZ)
@@ -944,9 +970,15 @@ class RapierDriveSimulation {
             this.body.setAngvel(new this.rapier.Vector3(currentAngularVelocity.x, currentAngularVelocity.y, this.maxYawRateRad * effectiveSteerSign), true);
         }
 
-        this.world.timestep = Math.max(Math.min(deltaSec, 1 / 30), 1 / 240);
-        this.world.step();
-        this.clampVehicleAboveGround();
+        const simulationDelta = Math.max(deltaSec, 1 / 240);
+        const maxSubStepSec = 1 / 120;
+        const stepCount = Math.max(1, Math.ceil(simulationDelta / maxSubStepSec));
+        const subStepSec = simulationDelta / stepCount;
+        for (let stepIndex = 0; stepIndex < stepCount; stepIndex += 1) {
+            this.world.timestep = subStepSec;
+            this.world.step();
+            this.clampVehicleAboveGround();
+        }
 
         if (keyboardState.isActive && lockedRotation) {
             this.body.setRotation(lockedRotation, true);

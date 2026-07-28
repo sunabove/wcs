@@ -716,6 +716,33 @@ class RapierDriveSimulation {
         this.body.setLinvel(new this.rapier.Vector3(velocity.x, velocity.y, Math.min(0, velocity.z)), true);
     }
 
+    syncCarFrameFromBody() {
+        if (!this.body || !this.carFrame) {
+            return;
+        }
+
+        const position = this.body.translation();
+        const rotation = this.body.rotation();
+        this.carFrame.position.set(position.x, position.y, position.z);
+        this.carFrame.quaternion.set(rotation.x, rotation.y, rotation.z, rotation.w).normalize();
+    }
+
+    enforceWheelGroundContactAtLoad(linkMap) {
+        if (!this.body || !this.rapier) {
+            return;
+        }
+
+        if (linkMap) {
+            this.calibrateGroundContactLocalMinZ(linkMap);
+            this.alignVehicleToGroundByWheelGap(linkMap);
+        }
+
+        this.clampVehicleAboveGround();
+        this.body.setLinvel(new this.rapier.Vector3(0, 0, 0), true);
+        this.body.setAngvel(new this.rapier.Vector3(0, 0, 0), true);
+        this.syncCarFrameFromBody();
+    }
+
     updateObstacleContactState() {
         if (!this.world || this.vehicleColliders.length === 0 || this.obstacleColliders.length === 0) {
             return false;
@@ -849,11 +876,11 @@ class RapierDriveSimulation {
             this.initialQuaternion = initialQuaternion.clone();
             this.vehicleHalfExtents = { x: halfX, y: halfY, z: halfZ };
             this.addGroundCollider();
-            this.calibrateGroundContactLocalMinZ(linkMap);
-            this.alignVehicleToGroundByWheelGap(linkMap);
-
-            this.clampVehicleAboveGround();
+            this.enforceWheelGroundContactAtLoad(linkMap);
             this.addObstacleColliderFromUrdf();
+
+            const alignedPosition = this.body.translation();
+            this.initialPosition.set(alignedPosition.x, alignedPosition.y, alignedPosition.z);
             this.isReady = true;
             this.hasFailed = false;
 
@@ -1054,15 +1081,7 @@ class RapierDriveSimulation {
         this.isVehicleObstacleContact = false;
 
         const linkMap = this.viewer?.robotModel?.links || null;
-        if (linkMap) {
-            this.calibrateGroundContactLocalMinZ(linkMap);
-            this.alignVehicleToGroundByWheelGap(linkMap);
-        }
-
-        const currentPosition = this.body.translation();
-        const currentRotation = this.body.rotation();
-        this.carFrame.position.set(currentPosition.x, currentPosition.y, currentPosition.z);
-        this.carFrame.quaternion.set(currentRotation.x, currentRotation.y, currentRotation.z, currentRotation.w).normalize();
+        this.enforceWheelGroundContactAtLoad(linkMap);
     }
 
     async reset() {

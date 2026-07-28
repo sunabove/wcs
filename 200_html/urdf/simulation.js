@@ -135,9 +135,35 @@ class RapierDriveSimulation {
         }
 
         const handledKeys = new Set(['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight']);
+        const driveModeByArrowKey = {
+            ArrowUp: 'forward',
+            ArrowDown: 'backward',
+            ArrowLeft: 'left',
+            ArrowRight: 'right'
+        };
 
         window.addEventListener('keydown', (event) => {
+            const isSpaceKey = event.code === 'Space' || event.key === ' ' || event.key === 'Spacebar';
+            if (isSpaceKey) {
+                if (event.ctrlKey) {
+                    this.reset();
+                } else if (typeof window.setDriveMode === 'function') {
+                    window.setDriveMode('stop');
+                }
+                event.preventDefault();
+                return;
+            }
+
             if (!handledKeys.has(event.key)) {
+                return;
+            }
+
+            if (event.ctrlKey) {
+                const nextDriveMode = driveModeByArrowKey[event.key] || null;
+                if (nextDriveMode && typeof window.setDriveMode === 'function') {
+                    window.setDriveMode(nextDriveMode);
+                }
+                event.preventDefault();
                 return;
             }
 

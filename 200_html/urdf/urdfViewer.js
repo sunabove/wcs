@@ -3252,15 +3252,6 @@ function setDriveMode(mode) {
     let speedKmh = speedInput.length > 0 ? Number.parseFloat(speedInput.val()) : 0;
     speedKmh = Number.isFinite(speedKmh) ? Math.max(speedKmh, 0) : 0;
 
-    const requiresAutoSpeed = mode === 'forward' || mode === 'backward' || mode === 'left' || mode === 'right';
-    if (requiresAutoSpeed && speedKmh === 0) {
-        speedKmh = 10;
-        if (speedInput.length > 0) {
-            speedInput.val(String(speedKmh));
-        }
-        $('#drive-speed-kmh-value').text(`${speedKmh} km/h`);
-    }
-
     window.activeURDFViewer.applyDriveMode(mode, speedKmh);
     updateDriveModeButtons(mode);
 }

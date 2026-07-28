@@ -42,6 +42,7 @@ class RapierDriveSimulation {
         this.passUnderObstacleNamePatterns = [/pass_under/i, /underbody/i];
         this.maxSpeedMps = 100 / 3.6;
         this.maxYawRateRad = THREE.MathUtils.degToRad(80);
+        this.visualCollisionMinPenetrationMeters = 0.02;
         this.isInitializing = false;
         this.isReady = false;
         this.hasFailed = false;
@@ -711,7 +712,15 @@ class RapierDriveSimulation {
                 continue;
             }
 
-            if (vehicleBounds.intersectsBox(obstacleBounds)) {
+            const overlapX = Math.min(vehicleBounds.max.x, obstacleBounds.max.x) - Math.max(vehicleBounds.min.x, obstacleBounds.min.x);
+            const overlapY = Math.min(vehicleBounds.max.y, obstacleBounds.max.y) - Math.max(vehicleBounds.min.y, obstacleBounds.min.y);
+            const overlapZ = Math.min(vehicleBounds.max.z, obstacleBounds.max.z) - Math.max(vehicleBounds.min.z, obstacleBounds.min.z);
+
+            const hasSufficientPenetration = overlapX > this.visualCollisionMinPenetrationMeters
+                && overlapY > this.visualCollisionMinPenetrationMeters
+                && overlapZ > this.visualCollisionMinPenetrationMeters;
+
+            if (hasSufficientPenetration) {
                 return true;
             }
         }

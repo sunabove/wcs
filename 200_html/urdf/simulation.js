@@ -40,7 +40,7 @@ class RapierDriveSimulation {
             /^ditch/i
         ];
         this.passUnderObstacleNamePatterns = [/pass_under/i, /underbody/i];
-        this.maxSpeedMps = SIM_SPEED_MAX_KMH / 3.6;
+        this.maxSpeedMps = 100 / 3.6;
         this.maxYawRateRad = THREE.MathUtils.degToRad(80);
         this.isInitializing = false;
         this.isReady = false;

@@ -9,9 +9,14 @@ class RapierDriveSimulation {
         this.world = null;
         this.body = null;
         this.carFrame = null;
-        this.fixedLocalZ = 0;
         this.initialPosition = null;
         this.initialQuaternion = null;
+        this.vehicleHalfExtents = null;
+        this.groundZ = 0;
+        this.rockRadius = 0.14;
+        this.rockDistanceAhead = 1.4;
+        this.rockLateralOffset = 0;
+        this.rockMesh = null;
         this.maxSpeedMps = 3.5;
         this.maxYawRateRad = THREE.MathUtils.degToRad(80);
         this.isInitializing = false;
@@ -47,6 +52,61 @@ class RapierDriveSimulation {
         );
     }
 
+    getForwardDirectionByYaw(yawRad) {
+        return new THREE.Vector3(Math.cos(yawRad), Math.sin(yawRad), 0).normalize();
+    }
+
+    addGroundCollider() {
+        if (!this.world || !this.rapier || !this.initialPosition || !this.vehicleHalfExtents) {
+            return;
+        }
+
+        const groundHalfThickness = 0.2;
+        this.groundZ = this.initialPosition.z - this.vehicleHalfExtents.z - 0.01;
+        const groundCenterZ = this.groundZ - groundHalfThickness;
+        const groundBodyDesc = this.rapier.RigidBodyDesc.fixed().setTranslation(0, 0, groundCenterZ);
+        const groundBody = this.world.createRigidBody(groundBodyDesc);
+        const groundColliderDesc = this.rapier.ColliderDesc.cuboid(30, 30, groundHalfThickness)
+            .setFriction(1.2)
+            .setRestitution(0.02);
+        this.world.createCollider(groundColliderDesc, groundBody);
+    }
+
+    addRockObstacle() {
+        if (!this.world || !this.rapier || !this.initialPosition || !this.initialQuaternion || !this.viewer?.scene) {
+            return;
+        }
+
+        const initialYaw = this.extractYawFromQuaternion(this.initialQuaternion);
+        const forward = this.getForwardDirectionByYaw(initialYaw);
+        const lateral = new THREE.Vector3(-forward.y, forward.x, 0);
+
+        const rockCenter = this.initialPosition.clone()
+            .add(forward.multiplyScalar(this.rockDistanceAhead))
+            .add(lateral.multiplyScalar(this.rockLateralOffset));
+        rockCenter.z = this.groundZ + this.rockRadius;
+
+        const rockBodyDesc = this.rapier.RigidBodyDesc.fixed().setTranslation(rockCenter.x, rockCenter.y, rockCenter.z);
+        const rockBody = this.world.createRigidBody(rockBodyDesc);
+        const rockColliderDesc = this.rapier.ColliderDesc.ball(this.rockRadius)
+            .setFriction(1.4)
+            .setRestitution(0.02);
+        this.world.createCollider(rockColliderDesc, rockBody);
+
+        const rockGeometry = new THREE.IcosahedronGeometry(this.rockRadius, 1);
+        const rockMaterial = new THREE.MeshStandardMaterial({
+            color: 0x7d7f87,
+            roughness: 0.95,
+            metalness: 0.02,
+            flatShading: true
+        });
+        this.rockMesh = new THREE.Mesh(rockGeometry, rockMaterial);
+        this.rockMesh.position.copy(rockCenter);
+        this.rockMesh.castShadow = true;
+        this.rockMesh.receiveShadow = true;
+        this.viewer.scene.add(this.rockMesh);
+    }
+
     async ensureRapierInitialized() {
         if (this.isReady || this.isInitializing || this.hasFailed) {
             return;
@@ -74,15 +134,15 @@ class RapierDriveSimulation {
 
             await RAPIER.init();
 
-            const world = new RAPIER.World(new RAPIER.Vector3(0, 0, 0));
+            const world = new RAPIER.World(new RAPIER.Vector3(0, 0, -9.81));
             const initialPosition = carFrame.position.clone();
             const initialQuaternion = carFrame.quaternion.clone();
 
             const rigidBodyDesc = RAPIER.RigidBodyDesc.dynamic()
                 .setTranslation(initialPosition.x, initialPosition.y, initialPosition.z)
                 .setRotation(initialQuaternion)
-                .setLinearDamping(8.0)
-                .setAngularDamping(10.0);
+                .setLinearDamping(2.2)
+                .setAngularDamping(3.2);
 
             const body = world.createRigidBody(rigidBodyDesc);
 
@@ -92,20 +152,24 @@ class RapierDriveSimulation {
             const halfY = Math.max((size.y || 0.4) * 0.5, 0.10);
             const halfZ = Math.max((size.z || 0.25) * 0.5, 0.06);
 
-            const colliderDesc = RAPIER.ColliderDesc.cuboid(halfX, halfY, halfZ).setRestitution(0.05);
+            const colliderDesc = RAPIER.ColliderDesc.cuboid(halfX, halfY, halfZ)
+                .setFriction(1.1)
+                .setRestitution(0.04);
             world.createCollider(colliderDesc, body);
 
             this.rapier = RAPIER;
             this.world = world;
             this.body = body;
             this.carFrame = carFrame;
-            this.fixedLocalZ = initialPosition.z;
             this.initialPosition = initialPosition.clone();
             this.initialQuaternion = initialQuaternion.clone();
+            this.vehicleHalfExtents = { x: halfX, y: halfY, z: halfZ };
+            this.addGroundCollider();
+            this.addRockObstacle();
             this.isReady = true;
             this.hasFailed = false;
 
-            console.log('[URDF][Simulation] Rapier direction control initialized');
+            console.log('[URDF][Simulation] Rapier direction control with obstacle initialized');
         } catch (error) {
             this.hasFailed = true;
             console.warn('[URDF][Simulation] Rapier initialization failed:', error);
@@ -152,12 +216,14 @@ class RapierDriveSimulation {
 
         const bodyRotation = this.body.rotation();
         const yaw = this.extractYawFromQuaternion(bodyRotation);
+        const currentLinearVelocity = this.body.linvel();
+        const currentAngularVelocity = this.body.angvel();
 
         const velocityX = Math.cos(yaw) * clampedSpeed * throttleSign;
         const velocityY = Math.sin(yaw) * clampedSpeed * throttleSign;
 
-        this.body.setLinvel(new this.rapier.Vector3(velocityX, velocityY, 0), true);
-        this.body.setAngvel(new this.rapier.Vector3(0, 0, this.maxYawRateRad * steerSign), true);
+        this.body.setLinvel(new this.rapier.Vector3(velocityX, velocityY, currentLinearVelocity.z), true);
+        this.body.setAngvel(new this.rapier.Vector3(currentAngularVelocity.x, currentAngularVelocity.y, this.maxYawRateRad * steerSign), true);
 
         this.world.timestep = Math.max(Math.min(deltaSec, 1 / 30), 1 / 240);
         this.world.step();
@@ -165,7 +231,7 @@ class RapierDriveSimulation {
         const nextPosition = this.body.translation();
         const nextRotation = this.body.rotation();
 
-        this.carFrame.position.set(nextPosition.x, nextPosition.y, this.fixedLocalZ);
+        this.carFrame.position.set(nextPosition.x, nextPosition.y, nextPosition.z);
         this.carFrame.quaternion.set(nextRotation.x, nextRotation.y, nextRotation.z, nextRotation.w).normalize();
     }
 
@@ -250,6 +316,7 @@ class RapierDriveSimulation {
 
     async reset() {
         this.resetUiStates();
+        this.lastStepTimeMs = 0;
 
         if (!this.viewer) {
             this.viewer = this.findSimulationViewer();

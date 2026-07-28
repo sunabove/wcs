@@ -168,14 +168,15 @@ class RapierDriveSimulation {
         const left = this.keyState.ArrowLeft === true;
         const right = this.keyState.ArrowRight === true;
 
-        const throttleSign = (up ? 1 : 0) + (down ? -1 : 0);
-        const steerSign = (left ? 1 : 0) + (right ? -1 : 0);
-        const isActive = throttleSign !== 0 || steerSign !== 0;
+        const moveX = (up ? 1 : 0) + (down ? -1 : 0);
+        const moveY = (left ? 1 : 0) + (right ? -1 : 0);
+        const magnitude = Math.hypot(moveX, moveY);
+        const isActive = magnitude > 0;
 
         return {
             isActive,
-            throttleSign: Math.max(-1, Math.min(1, throttleSign)),
-            steerSign: Math.max(-1, Math.min(1, steerSign))
+            moveX: isActive ? moveX / magnitude : 0,
+            moveY: isActive ? moveY / magnitude : 0
         };
     }
 
@@ -444,11 +445,13 @@ class RapierDriveSimulation {
 
         let throttleSign = 0;
         let steerSign = 0;
+        let keyboardMoveX = 0;
+        let keyboardMoveY = 0;
         let driveSpeedKmh = Math.max(Number(this.viewer.driveSpeedKmh) || 0, 0);
 
         if (keyboardState.isActive) {
-            throttleSign = keyboardState.throttleSign;
-            steerSign = keyboardState.steerSign;
+            keyboardMoveX = keyboardState.moveX;
+            keyboardMoveY = keyboardState.moveY;
         } else {
             const driveMode = String(this.viewer.driveMode || 'stop');
             if (driveMode === 'forward') {
@@ -468,15 +471,21 @@ class RapierDriveSimulation {
         const clampedSpeed = Math.min(speedMps, this.maxSpeedMps);
         const effectiveSteerSign = clampedSpeed > 1e-3 ? steerSign : 0;
 
-        const bodyRotation = this.body.rotation();
-        const yaw = this.extractYawFromQuaternion(bodyRotation);
         const currentLinearVelocity = this.body.linvel();
+        if (keyboardState.isActive) {
+            const velocityX = clampedSpeed * keyboardMoveX;
+            const velocityY = clampedSpeed * keyboardMoveY;
+            this.body.setLinvel(new this.rapier.Vector3(velocityX, velocityY, currentLinearVelocity.z), true);
+            this.body.setAngvel(new this.rapier.Vector3(0, 0, 0), true);
+        } else {
+            const bodyRotation = this.body.rotation();
+            const yaw = this.extractYawFromQuaternion(bodyRotation);
+            const velocityX = Math.cos(yaw) * clampedSpeed * throttleSign;
+            const velocityY = Math.sin(yaw) * clampedSpeed * throttleSign;
 
-        const velocityX = Math.cos(yaw) * clampedSpeed * throttleSign;
-        const velocityY = Math.sin(yaw) * clampedSpeed * throttleSign;
-
-        this.body.setLinvel(new this.rapier.Vector3(velocityX, velocityY, currentLinearVelocity.z), true);
-        this.body.setAngvel(new this.rapier.Vector3(0, 0, this.maxYawRateRad * effectiveSteerSign), true);
+            this.body.setLinvel(new this.rapier.Vector3(velocityX, velocityY, currentLinearVelocity.z), true);
+            this.body.setAngvel(new this.rapier.Vector3(0, 0, this.maxYawRateRad * effectiveSteerSign), true);
+        }
 
         this.world.timestep = Math.max(Math.min(deltaSec, 1 / 30), 1 / 240);
         this.world.step();

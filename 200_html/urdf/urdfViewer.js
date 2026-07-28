@@ -182,6 +182,7 @@ class URDFViewer {
         );
         this.wheelInfoOverlayElement = null;
         this.urdfPath = containerElement.getAttribute('urdf') || '/urdf/vehicle/vehicle.urdf';
+        this.forceWheelLinkRotation = /\/sw_07\//i.test(this.urdfPath);
         const rawCameraPose = containerElement.getAttribute('cameraPose');
         const rawCameraPosition = containerElement.getAttribute('cameraPosition');
         const rawCameraTarget = containerElement.getAttribute('cameraTarget');
@@ -1916,11 +1917,61 @@ class URDFViewer {
             }
 
             if (runtimeTarget.type === 'link') {
-                const rotationAxis = this.viewerWheelKey ? 'x' : 'y';
-                const rotationSign = this.viewerWheelKey ? -1 : 1;
+                const rotationAxis = runtimeTarget.axis || (this.viewerWheelKey ? 'x' : 'y');
+                const rotationSign = Number.isFinite(runtimeTarget.rotationSign)
+                    ? runtimeTarget.rotationSign
+                    : (this.viewerWheelKey ? -1 : 1);
                 runtimeTarget.ref.rotation[rotationAxis] = this.wheelAngles[key] * rotationSign;
             }
         });
+    }
+
+    resolveLinkRotationInfoFromJoint(joint) {
+        const axisCandidates = [
+            joint?.axis,
+            joint?.jointAxis,
+            joint?.urdfJoint?.axis,
+            joint?.urdfNode?.axis,
+        ];
+
+        for (const axisCandidate of axisCandidates) {
+            let x = NaN;
+            let y = NaN;
+            let z = NaN;
+
+            if (Array.isArray(axisCandidate) && axisCandidate.length >= 3) {
+                x = Number(axisCandidate[0]);
+                y = Number(axisCandidate[1]);
+                z = Number(axisCandidate[2]);
+            } else if (axisCandidate && typeof axisCandidate === 'object') {
+                x = Number(axisCandidate.x);
+                y = Number(axisCandidate.y);
+                z = Number(axisCandidate.z);
+            }
+
+            if (!Number.isFinite(x) || !Number.isFinite(y) || !Number.isFinite(z)) {
+                continue;
+            }
+
+            const axisEntries = [
+                { axis: 'x', value: x },
+                { axis: 'y', value: y },
+                { axis: 'z', value: z },
+            ];
+
+            axisEntries.sort((a, b) => Math.abs(b.value) - Math.abs(a.value));
+            const dominant = axisEntries[0];
+            if (!dominant || Math.abs(dominant.value) < 1e-6) {
+                continue;
+            }
+
+            return {
+                axis: dominant.axis,
+                rotationSign: dominant.value >= 0 ? 1 : -1,
+            };
+        }
+
+        return null;
     }
 
     applyRoadAttitudeAngles() {
@@ -2155,6 +2206,28 @@ class URDFViewer {
             }
 
             if (joint && typeof joint.setJointValue === 'function') {
+                const expectedLinkName = this.wheelLinkNameByKey[key];
+                const link = linkMap[expectedLinkName] || null;
+
+                if (this.forceWheelLinkRotation && link) {
+                    const linkRotationInfo = this.resolveLinkRotationInfoFromJoint(joint)
+                        || { axis: this.viewerWheelKey ? 'x' : 'y', rotationSign: this.viewerWheelKey ? -1 : 1 };
+
+                    this.wheelRuntimeTargetByKey[key] = {
+                        type: 'link',
+                        ref: link,
+                        axis: linkRotationInfo.axis,
+                        rotationSign: linkRotationInfo.rotationSign,
+                    };
+                    console.log(
+                        `[URDF] ${key.toUpperCase()} sw_07 링크 회전 강제 적용:`,
+                        expectedLinkName,
+                        `axis=${linkRotationInfo.axis}`,
+                        `sign=${linkRotationInfo.rotationSign}`
+                    );
+                    return;
+                }
+
                 this.wheelRuntimeTargetByKey[key] = {
                     type: 'joint',
                     ref: joint
@@ -2166,9 +2239,13 @@ class URDFViewer {
             const expectedLinkName = this.wheelLinkNameByKey[key];
             const link = linkMap[expectedLinkName] || null;
             if (link) {
+                const linkRotationInfo = this.resolveLinkRotationInfoFromJoint(joint)
+                    || { axis: this.viewerWheelKey ? 'x' : 'y', rotationSign: this.viewerWheelKey ? -1 : 1 };
                 this.wheelRuntimeTargetByKey[key] = {
                     type: 'link',
-                    ref: link
+                    ref: link,
+                    axis: linkRotationInfo.axis,
+                    rotationSign: linkRotationInfo.rotationSign,
                 };
                 console.warn(`[URDF] ${key.toUpperCase()} 조인트 미발견. 링크 회전 폴백 사용:`, expectedLinkName);
                 return;

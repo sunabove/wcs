@@ -182,7 +182,6 @@ class URDFViewer {
         );
         this.wheelInfoOverlayElement = null;
         this.urdfPath = containerElement.getAttribute('urdf') || '/urdf/vehicle/vehicle.urdf';
-        this.forceWheelLinkRotation = /\/sw_07\//i.test(this.urdfPath);
         const rawCameraPose = containerElement.getAttribute('cameraPose');
         const rawCameraPosition = containerElement.getAttribute('cameraPosition');
         const rawCameraTarget = containerElement.getAttribute('cameraTarget');
@@ -2229,25 +2228,6 @@ class URDFViewer {
             if (joint && typeof joint.setJointValue === 'function') {
                 const expectedLinkName = this.wheelLinkNameByKey[key];
                 const link = linkMap[expectedLinkName] || null;
-
-                if (this.forceWheelLinkRotation && link) {
-                    const linkRotationInfo = this.resolveLinkRotationInfoFromJoint(joint)
-                        || { axis: this.viewerWheelKey ? 'x' : 'y', rotationSign: this.viewerWheelKey ? -1 : 1 };
-
-                    this.wheelRuntimeTargetByKey[key] = {
-                        type: 'link',
-                        ref: link,
-                        axis: linkRotationInfo.axis,
-                        rotationSign: linkRotationInfo.rotationSign,
-                    };
-                    console.log(
-                        `[URDF] ${key.toUpperCase()} sw_07 링크 회전 강제 적용:`,
-                        expectedLinkName,
-                        `axis=${linkRotationInfo.axis}`,
-                        `sign=${linkRotationInfo.rotationSign}`
-                    );
-                    return;
-                }
 
                 this.wheelRuntimeTargetByKey[key] = {
                     type: 'joint',

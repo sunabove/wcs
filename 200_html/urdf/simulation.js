@@ -317,20 +317,6 @@ class RapierDriveSimulation {
             window.setDriveMode('stop');
         }
 
-        if (typeof window.setDriveSpeedKmh === 'function') {
-            window.setDriveSpeedKmh(0);
-        }
-
-        const speedSlider = document.getElementById('drive-speed-kmh');
-        if (speedSlider) {
-            speedSlider.value = '0';
-        }
-
-        const speedLabel = document.getElementById('drive-speed-kmh-value');
-        if (speedLabel) {
-            speedLabel.textContent = '0 km/h';
-        }
-
         if (typeof window.setRoadRollAngleDeg === 'function') {
             window.setRoadRollAngleDeg(0);
         }

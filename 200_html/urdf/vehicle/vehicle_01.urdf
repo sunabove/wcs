@@ -335,85 +335,11 @@
     </inertial>
   </link>
 
-  <!-- Front-left hub gear (visible from outer side) -->
-  <link name="gear_fl">
-    <visual>
-      <origin xyz="0 0.065 0" rpy="1.5707963 0 0" />
-      <geometry>
-        <cylinder radius="0.055" length="0.022" />
-      </geometry>
-      <material name="rim" />
-    </visual>
-
-    <visual>
-      <origin xyz="0.06100 0.065 0.00000" rpy="0 0 0" />
-      <geometry>
-        <box size="0.012 0.022 0.010" />
-      </geometry>
-      <material name="tread_mark" />
-    </visual>
-
-    <visual>
-      <origin xyz="0.03050 0.065 0.05283" rpy="0 1.0471976 0" />
-      <geometry>
-        <box size="0.012 0.022 0.010" />
-      </geometry>
-      <material name="tread_mark" />
-    </visual>
-
-    <visual>
-      <origin xyz="-0.03050 0.065 0.05283" rpy="0 2.0943951 0" />
-      <geometry>
-        <box size="0.012 0.022 0.010" />
-      </geometry>
-      <material name="tread_mark" />
-    </visual>
-
-    <visual>
-      <origin xyz="-0.06100 0.065 0.00000" rpy="0 3.1415927 0" />
-      <geometry>
-        <box size="0.012 0.022 0.010" />
-      </geometry>
-      <material name="tread_mark" />
-    </visual>
-
-    <visual>
-      <origin xyz="-0.03050 0.065 -0.05283" rpy="0 -2.0943951 0" />
-      <geometry>
-        <box size="0.012 0.022 0.010" />
-      </geometry>
-      <material name="tread_mark" />
-    </visual>
-
-    <visual>
-      <origin xyz="0.03050 0.065 -0.05283" rpy="0 -1.0471976 0" />
-      <geometry>
-        <box size="0.012 0.022 0.010" />
-      </geometry>
-      <material name="tread_mark" />
-    </visual>
-
-    <inertial>
-      <origin xyz="0 0 0" rpy="0 0 0" />
-      <mass value="0.08" />
-      <inertia ixx="0.00008" ixy="0" ixz="0" iyy="0.00005" iyz="0" izz="0.00008" />
-    </inertial>
-  </link>
-
-  <joint name="joint_gear_fl" type="continuous">
-    <parent link="car_frame" />
-    <child link="gear_fl" />
-    <origin xyz="0.33 0.40 0.06" rpy="0 0 0" />
-    <axis xyz="0 1 0" />
-    <dynamics damping="0.03" friction="0.01" />
-  </joint>
-
   <joint name="joint_fl" type="continuous">
     <parent link="car_frame" />
     <child link="wheel_fl" />
     <origin xyz="0.33 0.40 0.06" rpy="0 0 0" />
     <axis xyz="0 1 0" />
-    <mimic joint="joint_gear_fl" multiplier="1.0" offset="0.0" />
     <dynamics damping="0.05" friction="0.02" />
   </joint>
 
@@ -545,85 +471,11 @@
     </inertial>
   </link>
 
-  <!-- Front-right hub gear (visible from outer side) -->
-  <link name="gear_fr">
-    <visual>
-      <origin xyz="0 -0.065 0" rpy="1.5707963 0 0" />
-      <geometry>
-        <cylinder radius="0.055" length="0.022" />
-      </geometry>
-      <material name="rim" />
-    </visual>
-
-    <visual>
-      <origin xyz="0.06100 -0.065 0.00000" rpy="0 0 0" />
-      <geometry>
-        <box size="0.012 0.022 0.010" />
-      </geometry>
-      <material name="tread_mark" />
-    </visual>
-
-    <visual>
-      <origin xyz="0.03050 -0.065 0.05283" rpy="0 1.0471976 0" />
-      <geometry>
-        <box size="0.012 0.022 0.010" />
-      </geometry>
-      <material name="tread_mark" />
-    </visual>
-
-    <visual>
-      <origin xyz="-0.03050 -0.065 0.05283" rpy="0 2.0943951 0" />
-      <geometry>
-        <box size="0.012 0.022 0.010" />
-      </geometry>
-      <material name="tread_mark" />
-    </visual>
-
-    <visual>
-      <origin xyz="-0.06100 -0.065 0.00000" rpy="0 3.1415927 0" />
-      <geometry>
-        <box size="0.012 0.022 0.010" />
-      </geometry>
-      <material name="tread_mark" />
-    </visual>
-
-    <visual>
-      <origin xyz="-0.03050 -0.065 -0.05283" rpy="0 -2.0943951 0" />
-      <geometry>
-        <box size="0.012 0.022 0.010" />
-      </geometry>
-      <material name="tread_mark" />
-    </visual>
-
-    <visual>
-      <origin xyz="0.03050 -0.065 -0.05283" rpy="0 -1.0471976 0" />
-      <geometry>
-        <box size="0.012 0.022 0.010" />
-      </geometry>
-      <material name="tread_mark" />
-    </visual>
-
-    <inertial>
-      <origin xyz="0 0 0" rpy="0 0 0" />
-      <mass value="0.08" />
-      <inertia ixx="0.00008" ixy="0" ixz="0" iyy="0.00005" iyz="0" izz="0.00008" />
-    </inertial>
-  </link>
-
-  <joint name="joint_gear_fr" type="continuous">
-    <parent link="car_frame" />
-    <child link="gear_fr" />
-    <origin xyz="0.33 -0.40 0.06" rpy="0 0 0" />
-    <axis xyz="0 1 0" />
-    <dynamics damping="0.03" friction="0.01" />
-  </joint>
-
   <joint name="joint_fr" type="continuous">
     <parent link="car_frame" />
     <child link="wheel_fr" />
     <origin xyz="0.33 -0.40 0.06" rpy="0 0 0" />
     <axis xyz="0 1 0" />
-    <mimic joint="joint_gear_fr" multiplier="1.0" offset="0.0" />
     <dynamics damping="0.05" friction="0.02" />
   </joint>
 
@@ -755,85 +607,11 @@
     </inertial>
   </link>
 
-  <!-- Rear-left hub gear (visible from outer side) -->
-  <link name="gear_rl">
-    <visual>
-      <origin xyz="0 0.065 0" rpy="1.5707963 0 0" />
-      <geometry>
-        <cylinder radius="0.055" length="0.022" />
-      </geometry>
-      <material name="rim" />
-    </visual>
-
-    <visual>
-      <origin xyz="0.06100 0.065 0.00000" rpy="0 0 0" />
-      <geometry>
-        <box size="0.012 0.022 0.010" />
-      </geometry>
-      <material name="tread_mark" />
-    </visual>
-
-    <visual>
-      <origin xyz="0.03050 0.065 0.05283" rpy="0 1.0471976 0" />
-      <geometry>
-        <box size="0.012 0.022 0.010" />
-      </geometry>
-      <material name="tread_mark" />
-    </visual>
-
-    <visual>
-      <origin xyz="-0.03050 0.065 0.05283" rpy="0 2.0943951 0" />
-      <geometry>
-        <box size="0.012 0.022 0.010" />
-      </geometry>
-      <material name="tread_mark" />
-    </visual>
-
-    <visual>
-      <origin xyz="-0.06100 0.065 0.00000" rpy="0 3.1415927 0" />
-      <geometry>
-        <box size="0.012 0.022 0.010" />
-      </geometry>
-      <material name="tread_mark" />
-    </visual>
-
-    <visual>
-      <origin xyz="-0.03050 0.065 -0.05283" rpy="0 -2.0943951 0" />
-      <geometry>
-        <box size="0.012 0.022 0.010" />
-      </geometry>
-      <material name="tread_mark" />
-    </visual>
-
-    <visual>
-      <origin xyz="0.03050 0.065 -0.05283" rpy="0 -1.0471976 0" />
-      <geometry>
-        <box size="0.012 0.022 0.010" />
-      </geometry>
-      <material name="tread_mark" />
-    </visual>
-
-    <inertial>
-      <origin xyz="0 0 0" rpy="0 0 0" />
-      <mass value="0.08" />
-      <inertia ixx="0.00008" ixy="0" ixz="0" iyy="0.00005" iyz="0" izz="0.00008" />
-    </inertial>
-  </link>
-
-  <joint name="joint_gear_rl" type="continuous">
-    <parent link="car_frame" />
-    <child link="gear_rl" />
-    <origin xyz="-0.33 0.40 0.06" rpy="0 0 0" />
-    <axis xyz="0 1 0" />
-    <dynamics damping="0.03" friction="0.01" />
-  </joint>
-
   <joint name="joint_rl" type="continuous">
     <parent link="car_frame" />
     <child link="wheel_rl" />
     <origin xyz="-0.33 0.40 0.06" rpy="0 0 0" />
     <axis xyz="0 1 0" />
-    <mimic joint="joint_gear_rl" multiplier="1.0" offset="0.0" />
     <dynamics damping="0.05" friction="0.02" />
   </joint>
 
@@ -965,85 +743,11 @@
     </inertial>
   </link>
 
-  <!-- Rear-right hub gear (visible from outer side) -->
-  <link name="gear_rr">
-    <visual>
-      <origin xyz="0 -0.065 0" rpy="1.5707963 0 0" />
-      <geometry>
-        <cylinder radius="0.055" length="0.022" />
-      </geometry>
-      <material name="rim" />
-    </visual>
-
-    <visual>
-      <origin xyz="0.06100 -0.065 0.00000" rpy="0 0 0" />
-      <geometry>
-        <box size="0.012 0.022 0.010" />
-      </geometry>
-      <material name="tread_mark" />
-    </visual>
-
-    <visual>
-      <origin xyz="0.03050 -0.065 0.05283" rpy="0 1.0471976 0" />
-      <geometry>
-        <box size="0.012 0.022 0.010" />
-      </geometry>
-      <material name="tread_mark" />
-    </visual>
-
-    <visual>
-      <origin xyz="-0.03050 -0.065 0.05283" rpy="0 2.0943951 0" />
-      <geometry>
-        <box size="0.012 0.022 0.010" />
-      </geometry>
-      <material name="tread_mark" />
-    </visual>
-
-    <visual>
-      <origin xyz="-0.06100 -0.065 0.00000" rpy="0 3.1415927 0" />
-      <geometry>
-        <box size="0.012 0.022 0.010" />
-      </geometry>
-      <material name="tread_mark" />
-    </visual>
-
-    <visual>
-      <origin xyz="-0.03050 -0.065 -0.05283" rpy="0 -2.0943951 0" />
-      <geometry>
-        <box size="0.012 0.022 0.010" />
-      </geometry>
-      <material name="tread_mark" />
-    </visual>
-
-    <visual>
-      <origin xyz="0.03050 -0.065 -0.05283" rpy="0 -1.0471976 0" />
-      <geometry>
-        <box size="0.012 0.022 0.010" />
-      </geometry>
-      <material name="tread_mark" />
-    </visual>
-
-    <inertial>
-      <origin xyz="0 0 0" rpy="0 0 0" />
-      <mass value="0.08" />
-      <inertia ixx="0.00008" ixy="0" ixz="0" iyy="0.00005" iyz="0" izz="0.00008" />
-    </inertial>
-  </link>
-
-  <joint name="joint_gear_rr" type="continuous">
-    <parent link="car_frame" />
-    <child link="gear_rr" />
-    <origin xyz="-0.33 -0.40 0.06" rpy="0 0 0" />
-    <axis xyz="0 1 0" />
-    <dynamics damping="0.03" friction="0.01" />
-  </joint>
-
   <joint name="joint_rr" type="continuous">
     <parent link="car_frame" />
     <child link="wheel_rr" />
     <origin xyz="-0.33 -0.40 0.06" rpy="0 0 0" />
     <axis xyz="0 1 0" />
-    <mimic joint="joint_gear_rr" multiplier="1.0" offset="0.0" />
     <dynamics damping="0.05" friction="0.02" />
   </joint>
 

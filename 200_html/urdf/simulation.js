@@ -783,6 +783,53 @@ class RapierDriveSimulation {
         return rpmSum / signedRpms.length;
     }
 
+    getWheelSideSignedRpm() {
+        const viewer = this.getDriveSourceViewer();
+        if (!viewer) {
+            return null;
+        }
+
+        const wheelGroups = {
+            left: ['fl', 'rl'],
+            right: ['fr', 'rr']
+        };
+
+        const readSignedRpm = (key) => {
+            if (typeof viewer.getSignedWheelRpm === 'function') {
+                const value = Number(viewer.getSignedWheelRpm(key));
+                if (Number.isFinite(value)) {
+                    return value;
+                }
+            }
+
+            const rpm = Number(viewer?.wheelSpeedRpmByKey?.[key]);
+            const sign = Number(viewer?.wheelDirectionSignByKey?.[key]);
+            if (Number.isFinite(rpm)) {
+                return rpm * (Number.isFinite(sign) ? sign : 1);
+            }
+
+            return null;
+        };
+
+        const avgGroup = (keys) => {
+            const values = keys
+                .map((key) => readSignedRpm(key))
+                .filter((value) => Number.isFinite(value));
+            if (values.length === 0) {
+                return null;
+            }
+            return values.reduce((sum, value) => sum + value, 0) / values.length;
+        };
+
+        const left = avgGroup(wheelGroups.left);
+        const right = avgGroup(wheelGroups.right);
+        if (!Number.isFinite(left) || !Number.isFinite(right)) {
+            return null;
+        }
+
+        return { left, right };
+    }
+
     getDriveSourceViewer() {
         const byId = window.urdfViewersById?.['robot-container-1'] || null;
         if (byId) {
@@ -804,14 +851,15 @@ class RapierDriveSimulation {
     getCommandedDriveSpeedMps() {
         const driveViewer = this.getDriveSourceViewer();
         const avgSignedWheelRpm = this.getAverageSignedWheelRpm();
+        const speedBySlider = Math.max(Number(driveViewer?.driveSpeedKmh) || 0, 0) / 3.6;
+
         if (Number.isFinite(avgSignedWheelRpm) && Math.abs(avgSignedWheelRpm) > 0.1) {
             const wheelAngularSpeedRadPerSec = Math.abs(avgSignedWheelRpm) * (Math.PI * 2 / 60);
             const speedByWheel = wheelAngularSpeedRadPerSec * Math.max(this.wheelEffectiveRadiusMeters, 0.05);
-            return speedByWheel;
+            return Math.max(speedByWheel, speedBySlider);
         }
 
-        const driveSpeedKmh = Math.max(Number(driveViewer?.driveSpeedKmh) || 0, 0);
-        return driveSpeedKmh / 3.6;
+        return speedBySlider;
     }
 
     calibrateGroundContactLocalMinZ(linkMap) {
@@ -895,6 +943,7 @@ class RapierDriveSimulation {
 
         if (linkMap) {
             this.calibrateGroundContactLocalMinZ(linkMap);
+            this.alignVehicleToGroundByWheelGap(linkMap);
         }
 
         // Respect URDF-authored initial pose; do not forcibly move body on startup.
@@ -1123,6 +1172,18 @@ class RapierDriveSimulation {
             } else if (driveMode === 'right') {
                 throttleSign = 0;
                 steerSign = -1;
+            } else {
+                const wheelSides = this.getWheelSideSignedRpm();
+                if (wheelSides) {
+                    const avgSignedRpm = (wheelSides.left + wheelSides.right) * 0.5;
+                    const rpmDiff = wheelSides.right - wheelSides.left;
+                    if (Math.abs(avgSignedRpm) > 0.2) {
+                        throttleSign = avgSignedRpm > 0 ? 1 : -1;
+                    }
+                    if (Math.abs(rpmDiff) > 0.2) {
+                        steerSign = rpmDiff > 0 ? 1 : -1;
+                    }
+                }
             }
         }
 

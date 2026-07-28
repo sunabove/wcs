@@ -1,6 +1,8 @@
 import * as THREE from 'three';
 
 const RAPIER_CDN = 'https://cdn.skypack.dev/@dimforge/rapier3d-compat@0.11.2';
+const SIM_SPEED_STORAGE_KEY = 'wcs.simulation.driveSpeedKmh';
+const SIM_SPEED_DEFAULT_KMH = 20;
 
 class RapierDriveSimulation {
     constructor() {
@@ -172,6 +174,53 @@ class RapierDriveSimulation {
             throttleSign: Math.max(-1, Math.min(1, throttleSign)),
             steerSign: Math.max(-1, Math.min(1, steerSign))
         };
+    }
+
+    initializeSpeedSliderPreference() {
+        const speedSlider = document.getElementById('drive-speed-kmh');
+        const speedLabel = document.getElementById('drive-speed-kmh-value');
+        if (!speedSlider) {
+            return;
+        }
+
+        const parseSpeed = (rawValue, fallbackValue) => {
+            const numeric = Number.parseFloat(rawValue);
+            if (!Number.isFinite(numeric)) {
+                return fallbackValue;
+            }
+            return Math.max(0, Math.min(100, numeric));
+        };
+
+        let initialSpeed = SIM_SPEED_DEFAULT_KMH;
+        try {
+            const storedValue = window.localStorage.getItem(SIM_SPEED_STORAGE_KEY);
+            if (storedValue != null) {
+                initialSpeed = parseSpeed(storedValue, SIM_SPEED_DEFAULT_KMH);
+            }
+        } catch (error) {
+            initialSpeed = SIM_SPEED_DEFAULT_KMH;
+        }
+
+        speedSlider.value = String(initialSpeed);
+        if (speedLabel) {
+            speedLabel.textContent = `${initialSpeed} km/h`;
+        }
+
+        if (typeof window.setDriveSpeedKmh === 'function') {
+            window.setDriveSpeedKmh(initialSpeed);
+        }
+
+        const persistSpeed = () => {
+            const normalizedSpeed = parseSpeed(speedSlider.value, SIM_SPEED_DEFAULT_KMH);
+            try {
+                window.localStorage.setItem(SIM_SPEED_STORAGE_KEY, String(normalizedSpeed));
+            } catch (error) {
+                // Ignore storage failures and continue runtime behavior.
+            }
+        };
+
+        speedSlider.addEventListener('input', persistSpeed);
+        speedSlider.addEventListener('change', persistSpeed);
     }
 
     addGroundCollider() {
@@ -430,6 +479,7 @@ class RapierDriveSimulation {
     }
 
     start() {
+        this.initializeSpeedSliderPreference();
         this.attachKeyboardControls();
         requestAnimationFrame(() => this.runLoop());
     }

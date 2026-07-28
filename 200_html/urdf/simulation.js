@@ -43,6 +43,9 @@ class RapierDriveSimulation {
         this.maxSpeedMps = 100 / 3.6;
         this.maxYawRateRad = THREE.MathUtils.degToRad(80);
         this.enableWheelPhysicsColliders = false;
+        this.blockMotionOnObstacleContact = false;
+        this.keepUprightOnFlatGround = true;
+        this.isUprightRotationLockActive = false;
         this.isInitializing = false;
         this.isReady = false;
         this.hasFailed = false;
@@ -588,7 +591,7 @@ class RapierDriveSimulation {
         }
 
         // Keep startup stance: do not allow vertical lift above the initial body z.
-        if (Number.isFinite(this.initialPosition?.z) && translation.z > this.initialPosition.z) {
+        if (!this.isVehicleObstacleContact && Number.isFinite(this.initialPosition?.z) && translation.z > this.initialPosition.z) {
             this.body.setTranslation(new this.rapier.Vector3(translation.x, translation.y, this.initialPosition.z), true);
             const velocity = this.body.linvel();
             this.body.setLinvel(new this.rapier.Vector3(velocity.x, velocity.y, Math.min(0, velocity.z)), true);
@@ -833,6 +836,33 @@ class RapierDriveSimulation {
         this.carFrame.quaternion.set(previousPose.qx, previousPose.qy, previousPose.qz, previousPose.qw).normalize();
     }
 
+    setUprightRotationLockEnabled(isEnabled) {
+        if (!this.body) {
+            return;
+        }
+
+        if (this.isUprightRotationLockActive === isEnabled) {
+            return;
+        }
+
+        if (typeof this.body.setEnabledRotations === 'function') {
+            this.body.setEnabledRotations(!isEnabled, !isEnabled, true, true);
+            this.isUprightRotationLockActive = isEnabled;
+            return;
+        }
+
+        if (typeof this.body.restrictRotations === 'function') {
+            this.body.restrictRotations(!isEnabled, !isEnabled, true, true);
+            this.isUprightRotationLockActive = isEnabled;
+            return;
+        }
+
+        if (typeof this.body.lockRotations === 'function') {
+            this.body.lockRotations(isEnabled, true);
+            this.isUprightRotationLockActive = isEnabled;
+        }
+    }
+
     async ensureRapierInitialized() {
         if (this.isReady || this.isInitializing || this.hasFailed) {
             return;
@@ -881,6 +911,7 @@ class RapierDriveSimulation {
             } else if (typeof body.lockRotations === 'function') {
                 body.lockRotations(false, true);
             }
+            this.isUprightRotationLockActive = true;
 
             const bbox = this.computeChassisBounds(carFrame, linkMap);
             const size = bbox.getSize(new THREE.Vector3());
@@ -981,6 +1012,11 @@ class RapierDriveSimulation {
         const speedMps = driveSpeedKmh / 3.6;
         const clampedSpeed = Math.min(speedMps, this.maxSpeedMps);
         const effectiveSteerSign = clampedSpeed > 1e-3 ? steerSign : 0;
+        const wasObstacleContact = this.isVehicleObstacleContact;
+
+        if (this.keepUprightOnFlatGround) {
+            this.setUprightRotationLockEnabled(!wasObstacleContact);
+        }
 
         const previousTranslation = this.body.translation();
         const previousRotation = this.body.rotation();
@@ -1004,7 +1040,8 @@ class RapierDriveSimulation {
             const velocityX = currentLinearVelocity.x + ((targetVelocityX - currentLinearVelocity.x) * velocitySmoothingAlpha);
             const velocityY = currentLinearVelocity.y + ((targetVelocityY - currentLinearVelocity.y) * velocitySmoothingAlpha);
 
-            this.body.setLinvel(new this.rapier.Vector3(velocityX, velocityY, Math.min(0, currentLinearVelocity.z)), true);
+            const nextVelocityZ = wasObstacleContact ? currentLinearVelocity.z : Math.min(0, currentLinearVelocity.z);
+            this.body.setLinvel(new this.rapier.Vector3(velocityX, velocityY, nextVelocityZ), true);
             this.body.setAngvel(new this.rapier.Vector3(0, 0, 0), true);
         } else {
             const bodyRotation = this.body.rotation();
@@ -1013,7 +1050,8 @@ class RapierDriveSimulation {
             const velocityX = Math.cos(yaw) * clampedSpeed * throttleSign;
             const velocityY = Math.sin(yaw) * clampedSpeed * throttleSign;
 
-            this.body.setLinvel(new this.rapier.Vector3(velocityX, velocityY, Math.min(0, currentLinearVelocity.z)), true);
+            const nextVelocityZ = wasObstacleContact ? currentLinearVelocity.z : Math.min(0, currentLinearVelocity.z);
+            this.body.setLinvel(new this.rapier.Vector3(velocityX, velocityY, nextVelocityZ), true);
             this.body.setAngvel(new this.rapier.Vector3(currentAngularVelocity.x, currentAngularVelocity.y, this.maxYawRateRad * effectiveSteerSign), true);
         }
 
@@ -1027,15 +1065,18 @@ class RapierDriveSimulation {
             this.clampVehicleAboveGround();
         }
 
-        if (keyboardState.isActive && lockedRotation) {
+        if (keyboardState.isActive && lockedRotation && !wasObstacleContact) {
             this.body.setRotation(lockedRotation, true);
             this.body.setAngvel(new this.rapier.Vector3(0, 0, 0), true);
         }
 
         const hasObstacleContact = this.updateObstacleContactState();
+        if (this.keepUprightOnFlatGround) {
+            this.setUprightRotationLockEnabled(!hasObstacleContact);
+        }
 
         const isMoveCommandActive = keyboardState.isActive || throttleSign !== 0;
-        if (hasObstacleContact && isMoveCommandActive) {
+        if (this.blockMotionOnObstacleContact && hasObstacleContact && isMoveCommandActive) {
             this.rollbackToPreviousPose(previousPose);
             return;
         }

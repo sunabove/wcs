@@ -14,7 +14,7 @@ class RapierDriveSimulation {
         this.vehicleHalfExtents = null;
         this.groundZ = 0;
         this.urdfObstacleLinkNames = ['obstacle_rock_01', 'obstacle_rock', 'rock_obstacle'];
-        this.maxSpeedMps = 3.5;
+        this.maxSpeedMps = 100 / 3.6;
         this.maxYawRateRad = THREE.MathUtils.degToRad(80);
         this.isInitializing = false;
         this.isReady = false;

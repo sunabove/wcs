@@ -20,6 +20,7 @@ class RapierDriveSimulation {
         this.vehicleHalfExtents = null;
         this.vehicleLocalMinZ = null;
         this.wheelLocalMinZ = null;
+        this.groundContactLocalMinZ = null;
         this.groundZ = 0;
         this.urdfObstacleLinkNames = ['obstacle_rock_01', 'obstacle_rock_02', 'obstacle_rock', 'rock_obstacle'];
         this.urdfObstacleLinkNamePatterns = [
@@ -477,12 +478,12 @@ class RapierDriveSimulation {
     }
 
     clampVehicleAboveGround() {
-        if (!this.body || !Number.isFinite(this.groundZ) || !Number.isFinite(this.vehicleLocalMinZ)) {
+        if (!this.body || !Number.isFinite(this.groundZ) || !Number.isFinite(this.groundContactLocalMinZ)) {
             return;
         }
 
         const translation = this.body.translation();
-        const minAllowedZ = this.groundZ - this.vehicleLocalMinZ;
+        const minAllowedZ = this.groundZ - this.groundContactLocalMinZ;
         if (translation.z < minAllowedZ) {
             this.body.setTranslation(new this.rapier.Vector3(translation.x, translation.y, minAllowedZ), true);
 
@@ -604,12 +605,12 @@ class RapierDriveSimulation {
     }
 
     alignVehicleWheelContactToGround() {
-        if (!this.body || !Number.isFinite(this.groundZ) || !Number.isFinite(this.wheelLocalMinZ)) {
+        if (!this.body || !Number.isFinite(this.groundZ) || !Number.isFinite(this.groundContactLocalMinZ)) {
             return;
         }
 
         const translation = this.body.translation();
-        const targetZ = this.groundZ - this.wheelLocalMinZ;
+        const targetZ = this.groundZ - this.groundContactLocalMinZ;
         this.body.setTranslation(new this.rapier.Vector3(translation.x, translation.y, targetZ), true);
     }
 
@@ -694,6 +695,13 @@ class RapierDriveSimulation {
             const bboxMaxLocalZ = localCenter.z + Math.max((size.z || 0.25) * 0.5, 0.06);
             this.vehicleLocalMinZ = bboxMinLocalZ;
             this.wheelLocalMinZ = this.getWheelLocalMinZ(carFrame, linkMap);
+            if (Number.isFinite(this.vehicleLocalMinZ) && Number.isFinite(this.wheelLocalMinZ)) {
+                this.groundContactLocalMinZ = Math.max(this.vehicleLocalMinZ, this.wheelLocalMinZ);
+            } else if (Number.isFinite(this.wheelLocalMinZ)) {
+                this.groundContactLocalMinZ = this.wheelLocalMinZ;
+            } else {
+                this.groundContactLocalMinZ = this.vehicleLocalMinZ;
+            }
             const wheelStats = this.getWheelGeometryStats(carFrame, linkMap);
             const minChassisZFromWheels = wheelStats
                 ? wheelStats.avgWheelCenterZ + (wheelStats.avgWheelRadius * 0.30)

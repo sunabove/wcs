@@ -627,6 +627,47 @@ class RapierDriveSimulation {
         return Math.min(...minValues);
     }
 
+    getWheelWorldMinZ(linkMap) {
+        if (!linkMap) {
+            return null;
+        }
+
+        const wheelLinkNames = ['wheel_fl', 'wheel_fr', 'wheel_rl', 'wheel_rr'];
+        let minWheelWorldZ = Number.POSITIVE_INFINITY;
+
+        wheelLinkNames.forEach((wheelLinkName) => {
+            const wheelLink = this.findLinkByName(linkMap, wheelLinkName);
+            if (!wheelLink) {
+                return;
+            }
+
+            wheelLink.updateWorldMatrix(true, true);
+            const wheelBounds = new THREE.Box3().setFromObject(wheelLink);
+            if (wheelBounds.isEmpty()) {
+                return;
+            }
+
+            minWheelWorldZ = Math.min(minWheelWorldZ, wheelBounds.min.z);
+        });
+
+        return Number.isFinite(minWheelWorldZ) ? minWheelWorldZ : null;
+    }
+
+    calibrateGroundContactLocalMinZ(linkMap) {
+        if (!this.body || !Number.isFinite(this.groundZ)) {
+            return;
+        }
+
+        const measuredWheelWorldMinZ = this.getWheelWorldMinZ(linkMap);
+        if (!Number.isFinite(measuredWheelWorldMinZ)) {
+            return;
+        }
+
+        const translation = this.body.translation();
+        this.groundContactLocalMinZ = measuredWheelWorldMinZ - translation.z;
+        this.wheelLocalMinZ = this.groundContactLocalMinZ;
+    }
+
     getGroundContactTargetZ() {
         if (!Number.isFinite(this.groundZ) || !Number.isFinite(this.groundContactLocalMinZ)) {
             return null;
@@ -648,7 +689,7 @@ class RapierDriveSimulation {
         this.body.setTranslation(new this.rapier.Vector3(translation.x, translation.y, targetZ), true);
     }
 
-    snapVehicleDownToGroundIfFloating(maxDropMeters = 0.12, toleranceMeters = 0.002) {
+    snapVehicleDownToGroundIfFloating(maxDropMeters = 0.4, toleranceMeters = 0.002) {
         if (!this.body || !this.rapier) {
             return;
         }
@@ -806,6 +847,7 @@ class RapierDriveSimulation {
             this.initialQuaternion = initialQuaternion.clone();
             this.vehicleHalfExtents = { x: halfX, y: halfY, z: halfZ };
             this.addGroundCollider();
+            this.calibrateGroundContactLocalMinZ(linkMap);
             this.snapVehicleDownToGroundIfFloating();
 
             this.clampVehicleAboveGround();
@@ -1009,6 +1051,10 @@ class RapierDriveSimulation {
         this.body.setAngvel(new this.rapier.Vector3(0, 0, 0), true);
         this.isVehicleObstacleContact = false;
 
+        const linkMap = this.viewer?.robotModel?.links || null;
+        if (linkMap) {
+            this.calibrateGroundContactLocalMinZ(linkMap);
+        }
         this.snapVehicleDownToGroundIfFloating();
 
         const currentPosition = this.body.translation();

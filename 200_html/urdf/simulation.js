@@ -679,6 +679,66 @@ class RapierDriveSimulation {
         }
     }
 
+    isVehicleOverlappingObstacleVisualBounds() {
+        const linkMap = this.viewer?.robotModel?.links || null;
+        if (!this.carFrame || !linkMap) {
+            return false;
+        }
+
+        this.carFrame.updateWorldMatrix(true, true);
+        const vehicleBounds = this.computeChassisBounds(this.carFrame, linkMap);
+        if (!vehicleBounds || vehicleBounds.isEmpty()) {
+            return false;
+        }
+
+        const obstacleNames = this.getObstacleLinkNamesFromMap(linkMap);
+        for (let i = 0; i < obstacleNames.length; i += 1) {
+            const obstacleName = obstacleNames[i];
+            const normalizedName = this.normalizeLinkName(obstacleName);
+            const isPothole = /^pothole/i.test(obstacleName) || /^pothole/i.test(normalizedName);
+            if (isPothole) {
+                continue;
+            }
+
+            const obstacleLink = linkMap[obstacleName];
+            if (!obstacleLink) {
+                continue;
+            }
+
+            obstacleLink.updateWorldMatrix(true, true);
+            const obstacleBounds = this.computeLinkOwnBounds(obstacleLink, linkMap) || new THREE.Box3().setFromObject(obstacleLink);
+            if (!obstacleBounds || obstacleBounds.isEmpty()) {
+                continue;
+            }
+
+            if (vehicleBounds.intersectsBox(obstacleBounds)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    rollbackIfVisualCollisionMiss(previousPose) {
+        if (!previousPose || !this.body || !this.rapier || !this.carFrame) {
+            return;
+        }
+
+        const overlapped = this.isVehicleOverlappingObstacleVisualBounds();
+        if (!overlapped) {
+            return;
+        }
+
+        this.body.setTranslation(new this.rapier.Vector3(previousPose.x, previousPose.y, previousPose.z), true);
+        this.body.setRotation({ x: previousPose.qx, y: previousPose.qy, z: previousPose.qz, w: previousPose.qw }, true);
+        this.body.setLinvel(new this.rapier.Vector3(0, 0, 0), true);
+        this.body.setAngvel(new this.rapier.Vector3(0, 0, 0), true);
+
+        this.carFrame.position.set(previousPose.x, previousPose.y, previousPose.z);
+        this.carFrame.quaternion.set(previousPose.qx, previousPose.qy, previousPose.qz, previousPose.qw).normalize();
+        this.isVehicleObstacleContact = true;
+    }
+
     async ensureRapierInitialized() {
         if (this.isReady || this.isInitializing || this.hasFailed) {
             return;
@@ -824,6 +884,18 @@ class RapierDriveSimulation {
         const clampedSpeed = Math.min(speedMps, this.maxSpeedMps);
         const effectiveSteerSign = clampedSpeed > 1e-3 ? steerSign : 0;
 
+        const previousTranslation = this.body.translation();
+        const previousRotation = this.body.rotation();
+        const previousPose = {
+            x: previousTranslation.x,
+            y: previousTranslation.y,
+            z: previousTranslation.z,
+            qx: previousRotation.x,
+            qy: previousRotation.y,
+            qz: previousRotation.z,
+            qw: previousRotation.w
+        };
+
         const currentLinearVelocity = this.body.linvel();
         let lockedRotation = null;
         if (keyboardState.isActive) {
@@ -863,6 +935,7 @@ class RapierDriveSimulation {
 
         this.carFrame.position.set(nextPosition.x, nextPosition.y, nextPosition.z);
         this.carFrame.quaternion.set(nextRotation.x, nextRotation.y, nextRotation.z, nextRotation.w).normalize();
+        this.rollbackIfVisualCollisionMiss(previousPose);
     }
 
     async runLoop() {

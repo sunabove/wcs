@@ -2275,9 +2275,11 @@ class RapierDriveSimulation {
             if (this.hasActivatedDynamicGroundClamp) {
                 this.clampVehicleAboveGround();
             }
-            this.syncCarFrameFromBody();
-            this.wheelZChartElapsedSec += this.physicsFixedTimeStepSec;
-            this.sampleWheelCenterZForChart(this.wheelZChartElapsedSec);
+            if (hasDriveCommand) {
+                this.syncCarFrameFromBody();
+                this.wheelZChartElapsedSec += this.physicsFixedTimeStepSec;
+                this.sampleWheelCenterZForChart(this.wheelZChartElapsedSec);
+            }
             this.physicsAccumulatorSec -= this.physicsFixedTimeStepSec;
             stepIndex += 1;
         }

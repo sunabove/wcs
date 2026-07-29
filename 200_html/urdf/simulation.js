@@ -1475,9 +1475,18 @@ class RapierDriveSimulation {
             // Keep the chassis collider above wheel contact plane so low obstacles can pass under the body.
             let colliderMinLocalZ = rawBboxMinLocalZ;
             let colliderMaxLocalZ = rawBboxMaxLocalZ;
+            const underbodyBaselineLocalZ = 0;
             if (Number.isFinite(this.wheelLocalMinZ)) {
-                const minPassThroughZ = this.wheelLocalMinZ + Math.max(Number(this.underbodyPassThroughClearanceMeters) || 0, 0);
+                const minPassThroughZ = Math.max(
+                    this.wheelLocalMinZ + Math.max(Number(this.underbodyPassThroughClearanceMeters) || 0, 0),
+                    underbodyBaselineLocalZ
+                );
                 colliderMinLocalZ = Math.max(colliderMinLocalZ, minPassThroughZ);
+                if ((colliderMaxLocalZ - colliderMinLocalZ) < 0.04) {
+                    colliderMaxLocalZ = colliderMinLocalZ + 0.04;
+                }
+            } else {
+                colliderMinLocalZ = Math.max(colliderMinLocalZ, underbodyBaselineLocalZ);
                 if ((colliderMaxLocalZ - colliderMinLocalZ) < 0.04) {
                     colliderMaxLocalZ = colliderMinLocalZ + 0.04;
                 }

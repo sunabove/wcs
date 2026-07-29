@@ -58,6 +58,7 @@ class RapierDriveSimulation {
         this.keepUprightOnFlatGround = true;
         this.isUprightRotationLockActive = false;
         this.groundPenetrationToleranceMeters = 0.003;
+        this.bodyGroundClampActivationMarginMeters = 0.004;
         this.wheelGroundHardClampOffsetMeters = 0.001;
         this.wheelGroundClampActivationMarginMeters = 0.003;
         this.flatGroundSnapDistanceMeters = 0.01;
@@ -1723,15 +1724,16 @@ class RapierDriveSimulation {
             : this.maxLiftWithoutObstacleMeters;
         const maxAllowedZ = baseReferenceZ + Math.max(maxLiftMeters, 0);
 
-        if (!isOverHole && translation.z < minAllowedZ) {
+        const clampActivationMargin = Math.max(Number(this.bodyGroundClampActivationMarginMeters) || 0, 0);
+        if (!isOverHole && translation.z < (minAllowedZ - clampActivationMargin)) {
             this.body.setTranslation(new this.rapier.Vector3(translation.x, translation.y, minAllowedZ), true);
-            this.body.setLinvel(new this.rapier.Vector3(velocity.x, velocity.y, Math.max(0, velocity.z)), true);
+            this.body.setLinvel(new this.rapier.Vector3(velocity.x, velocity.y, 0), true);
             return;
         }
 
         if (translation.z > maxAllowedZ) {
             this.body.setTranslation(new this.rapier.Vector3(translation.x, translation.y, maxAllowedZ), true);
-            this.body.setLinvel(new this.rapier.Vector3(velocity.x, velocity.y, Math.min(0, velocity.z)), true);
+            this.body.setLinvel(new this.rapier.Vector3(velocity.x, velocity.y, 0), true);
         }
     }
 
@@ -1775,7 +1777,7 @@ class RapierDriveSimulation {
         const translation = this.body.translation();
         const velocity = this.body.linvel();
         this.body.setTranslation(new this.rapier.Vector3(translation.x, translation.y, translation.z + liftAmount), true);
-        this.body.setLinvel(new this.rapier.Vector3(velocity.x, velocity.y, Math.max(0, velocity.z)), true);
+        this.body.setLinvel(new this.rapier.Vector3(velocity.x, velocity.y, 0), true);
         return true;
     }
 

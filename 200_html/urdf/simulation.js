@@ -78,12 +78,15 @@ class RapierDriveSimulation {
             return;
         }
 
+        let hasHookedAnyCommand = false;
+
         const originalSetDriveMode = globalThis.setDriveMode;
         if (typeof originalSetDriveMode === 'function') {
             globalThis.setDriveMode = (mode) => {
                 this.commandedDriveMode = String(mode || 'stop');
                 return originalSetDriveMode(mode);
             };
+            hasHookedAnyCommand = true;
         }
 
         const originalSetDriveSpeedKmh = globalThis.setDriveSpeedKmh;
@@ -95,9 +98,11 @@ class RapierDriveSimulation {
                 }
                 return originalSetDriveSpeedKmh(kmh);
             };
+            hasHookedAnyCommand = true;
         }
 
-        this.hasInstalledDriveCommandHooks = true;
+        // Keep retrying on later frames until command functions are available and wrapped.
+        this.hasInstalledDriveCommandHooks = hasHookedAnyCommand;
     }
 
     syncInitialDriveStateFromUi() {
@@ -909,32 +914,18 @@ class RapierDriveSimulation {
     }
 
     getDriveSourceViewer() {
-        const candidates = [];
+        if (this.viewer) {
+            return this.viewer;
+        }
+
         const byId = window.urdfViewersById?.['robot-container-1'] || null;
-        const vehicleViewer = window.urdfViewersById?.['vehicle-urdf-viewer'] || null;
-        const activeViewer = window.activeURDFViewer || null;
-
-        [byId, vehicleViewer, this.viewer, activeViewer].forEach((viewer) => {
-            if (viewer && !candidates.includes(viewer)) {
-                candidates.push(viewer);
-            }
-        });
-
-        if (candidates.length === 0) {
-            return null;
+        if (byId) {
+            return byId;
         }
 
-        let bestViewer = candidates[0];
-        let bestScore = this.getViewerActivityScore(bestViewer);
-        for (let i = 1; i < candidates.length; i += 1) {
-            const score = this.getViewerActivityScore(candidates[i]);
-            if (score > bestScore) {
-                bestScore = score;
-                bestViewer = candidates[i];
-            }
-        }
-
-        return bestViewer;
+        return window.activeURDFViewer
+            || window.urdfViewersById?.['vehicle-urdf-viewer']
+            || null;
     }
 
     getCommandedDriveSpeedMps() {
@@ -1425,6 +1416,9 @@ class RapierDriveSimulation {
     }
 
     async runLoop() {
+        // If command APIs are bound after this module starts, retry hook installation.
+        this.installDriveCommandHooks();
+
         if (!this.viewer) {
             this.viewer = this.findSimulationViewer();
         }

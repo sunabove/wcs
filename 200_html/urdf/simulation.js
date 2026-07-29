@@ -2400,7 +2400,8 @@ class RapierDriveSimulation {
         let commandedVelocityY = 0;
 
         if (this.keepUprightOnFlatGround) {
-            this.setUprightRotationLockEnabled(!wasObstacleContact);
+            // Keep upright only when idling on flat ground; allow roll/pitch while driving.
+            this.setUprightRotationLockEnabled(!wasObstacleContact && !hasDriveCommand);
         }
 
         const previousTranslation = this.body.translation();
@@ -2469,7 +2470,8 @@ class RapierDriveSimulation {
 
         const hasObstacleContact = this.updateObstacleContactState();
         if (this.keepUprightOnFlatGround) {
-            this.setUprightRotationLockEnabled(!hasObstacleContact);
+            const shouldKeepUpright = !hasObstacleContact && !hasDriveCommand;
+            this.setUprightRotationLockEnabled(shouldKeepUpright);
         }
 
         this.maybeLogRuntimeDiagnostics(

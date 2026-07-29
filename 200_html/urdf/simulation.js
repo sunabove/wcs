@@ -306,8 +306,24 @@ class RapierDriveSimulation {
 
         const obstacleLinkNames = this.getObstacleLinkNamesFromMap(linkMap);
         const obstacleRoots = obstacleLinkNames.map((name) => linkMap[name]).filter(Boolean);
-
         const excludedRoots = [...obstacleRoots].filter(Boolean);
+        const ignoredChassisLinkNames = [
+            'wheel_fl',
+            'wheel_fr',
+            'wheel_rl',
+            'wheel_rr',
+            'gear_fl',
+            'gear_fr',
+            'gear_rl',
+            'gear_rr'
+        ];
+
+        ignoredChassisLinkNames.forEach((name) => {
+            const ignoredRoot = this.findLinkByName(linkMap, name);
+            if (ignoredRoot && !excludedRoots.includes(ignoredRoot)) {
+                excludedRoots.push(ignoredRoot);
+            }
+        });
 
         const bounds = new THREE.Box3();
         let hasMesh = false;

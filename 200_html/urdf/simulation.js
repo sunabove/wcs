@@ -1163,10 +1163,9 @@ class RapierDriveSimulation {
 
         if (linkMap) {
             this.calibrateGroundContactLocalMinZ(linkMap);
-            this.alignVehicleToGroundByWheelGap(linkMap);
         }
 
-        // Respect URDF-authored initial pose; do not forcibly move body on startup.
+        // Respect URDF-authored initial pose; keep startup pose identical to viewer page.
         this.body.setLinvel(new this.rapier.Vector3(0, 0, 0), true);
         this.body.setAngvel(new this.rapier.Vector3(0, 0, 0), true);
         this.syncCarFrameFromBody();

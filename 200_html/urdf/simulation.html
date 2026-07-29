@@ -71,6 +71,53 @@
             background: #ffffff;
             box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
         }
+
+        #simulation-visual-speed-scale {
+            --slider-percent: 27.2727%;
+            height: 0.5rem;
+            border-radius: 999px;
+            background: linear-gradient(
+                to right,
+                #198754 0%,
+                #198754 var(--slider-percent),
+                #d9efe3 var(--slider-percent),
+                #d9efe3 100%
+            );
+            appearance: none;
+            -webkit-appearance: none;
+        }
+
+        #simulation-visual-speed-scale::-webkit-slider-runnable-track {
+            height: 0.5rem;
+            border-radius: 999px;
+            background: transparent;
+        }
+
+        #simulation-visual-speed-scale::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 1rem;
+            height: 1rem;
+            margin-top: -0.25rem;
+            border: 2px solid #146c43;
+            border-radius: 50%;
+            background: #ffffff;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+        }
+
+        #simulation-visual-speed-scale::-moz-range-track {
+            height: 0.5rem;
+            border-radius: 999px;
+            background: transparent;
+        }
+
+        #simulation-visual-speed-scale::-moz-range-thumb {
+            width: 1rem;
+            height: 1rem;
+            border: 2px solid #146c43;
+            border-radius: 50%;
+            background: #ffffff;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+        }
     </style>
 
 </head>
@@ -158,6 +205,14 @@
                                         <input type="range" class="form-range m-0" id="drive-speed-kmh" min="0" max="20" step="1" value="10" oninput="this.style.setProperty('--slider-percent', (((this.value - this.min) * 100) / (this.max - this.min)) + '%'); $('#drive-speed-kmh-value').text(this.value + ' km/h'); setSimulationDriveSpeedKmh(this.value)">
                                         <span class="small text-nowrap fw-semibold" id="drive-speed-kmh-value" style="min-width: 60px; text-align: right;">10 km/h</span>
                                         <button type="button" class="btn btn-outline-secondary btn-sm py-0 px-2 text-nowrap flex-shrink-0 small" id="drive-speed-reset" onclick="resetSimulationSpeed()">초기화</button>
+                                    </div>
+                                </div>
+                                <div class="d-flex justify-content-center align-items-center mt-2">
+                                    <div class="d-flex align-items-center gap-2 px-3 py-2 rounded border bg-light w-100">
+                                        <span class="small text-nowrap fw-semibold">배속</span>
+                                        <input type="range" class="form-range m-0" id="simulation-visual-speed-scale" min="0.25" max="3" step="0.05" value="1" oninput="this.style.setProperty('--slider-percent', (((this.value - this.min) * 100) / (this.max - this.min)) + '%'); $('#simulation-visual-speed-scale-value').text(Number(this.value).toFixed(2) + 'x'); setSimulationVisualSpeed(this.value)">
+                                        <span class="small text-nowrap fw-semibold" id="simulation-visual-speed-scale-value" style="min-width: 56px; text-align: right;">1.00x</span>
+                                        <button type="button" class="btn btn-outline-secondary btn-sm py-0 px-2 text-nowrap flex-shrink-0 small" id="simulation-visual-speed-reset" onclick="resetSimulationVisualSpeed()">초기화</button>
                                     </div>
                                 </div>
                             </div>

@@ -4,6 +4,10 @@ const RAPIER_CDN = 'https://cdn.skypack.dev/@dimforge/rapier3d-compat@0.11.2';
 const SIM_SPEED_STORAGE_KEY = 'wcs.simulation.driveSpeedKmh';
 const SIM_SPEED_DEFAULT_KMH = 10;
 const SIM_SPEED_MAX_KMH = 20;
+const SIM_VISUAL_SPEED_STORAGE_KEY = 'wcs.simulation.visualSpeedScale';
+const SIM_VISUAL_SPEED_DEFAULT_SCALE = 1;
+const SIM_VISUAL_SPEED_MIN_SCALE = 0.25;
+const SIM_VISUAL_SPEED_MAX_SCALE = 3;
 
 class RapierDriveSimulation {
     constructor() {
@@ -78,6 +82,7 @@ class RapierDriveSimulation {
         this.hasInstalledDriveCommandHooks = false;
         this.hasActivatedSimulationMotion = false;
         this.hasActivatedDynamicGroundClamp = false;
+        this.visualSpeedScale = SIM_VISUAL_SPEED_DEFAULT_SCALE;
         this.debugPanelElement = null;
         this.debugTextElement = null;
         this.debugStatusUpdateIntervalSec = 0.2;
@@ -113,6 +118,7 @@ class RapierDriveSimulation {
         const driveMode = String(this.commandedDriveMode || driveViewer?.driveMode || this.viewer?.driveMode || 'stop');
         const speedKmh = Number(this.commandedSpeedKmh);
         const speedMps = this.getCommandedDriveSpeedMps();
+        const visualSpeedScale = Number(this.visualSpeedScale);
         const isReady = this.isReady ? 'Y' : 'N';
         const isFailed = this.hasFailed ? 'Y' : 'N';
         const hookState = this.hasInstalledDriveCommandHooks ? 'Y' : 'N';
@@ -138,6 +144,7 @@ class RapierDriveSimulation {
             `activeViewer=${activeViewerId}`,
             `simulationViewer=${simulationViewerId}`,
             `driveViewer=${driveViewerId}`,
+            `visualSpeed=${Number.isFinite(visualSpeedScale) ? visualSpeedScale.toFixed(2) : 'NaN'}x`,
             `mode=${driveMode} speedKmh=${Number.isFinite(speedKmh) ? speedKmh.toFixed(1) : 'NaN'} speedMps=${Number.isFinite(speedMps) ? speedMps.toFixed(3) : 'NaN'}`,
             bodySummary,
             obstacleSummary
@@ -613,6 +620,82 @@ class RapierDriveSimulation {
 
         speedSlider.addEventListener('input', persistSpeed);
         speedSlider.addEventListener('change', persistSpeed);
+    }
+
+    normalizeVisualSpeedScale(rawValue) {
+        const numericValue = Number.parseFloat(rawValue);
+        if (!Number.isFinite(numericValue)) {
+            return SIM_VISUAL_SPEED_DEFAULT_SCALE;
+        }
+
+        return Math.max(SIM_VISUAL_SPEED_MIN_SCALE, Math.min(SIM_VISUAL_SPEED_MAX_SCALE, numericValue));
+    }
+
+    applyVisualSpeedScale(value) {
+        const normalizedScale = this.normalizeVisualSpeedScale(value);
+        this.visualSpeedScale = normalizedScale;
+
+        const speedSlider = document.getElementById('simulation-visual-speed-scale');
+        const speedLabel = document.getElementById('simulation-visual-speed-scale-value');
+        if (speedSlider) {
+            speedSlider.value = String(normalizedScale);
+            this.updateSpeedSliderVisual(speedSlider);
+        }
+        if (speedLabel) {
+            speedLabel.textContent = `${normalizedScale.toFixed(2)}x`;
+        }
+
+        try {
+            window.localStorage.setItem(SIM_VISUAL_SPEED_STORAGE_KEY, String(normalizedScale));
+        } catch (error) {
+            // Ignore storage failures and continue runtime behavior.
+        }
+    }
+
+    initializeVisualSpeedSliderPreference() {
+        const speedSlider = document.getElementById('simulation-visual-speed-scale');
+        const speedLabel = document.getElementById('simulation-visual-speed-scale-value');
+        if (!speedSlider) {
+            return;
+        }
+
+        let initialScale = SIM_VISUAL_SPEED_DEFAULT_SCALE;
+        try {
+            const storedValue = window.localStorage.getItem(SIM_VISUAL_SPEED_STORAGE_KEY);
+            if (storedValue != null) {
+                initialScale = this.normalizeVisualSpeedScale(storedValue);
+            }
+        } catch (error) {
+            initialScale = SIM_VISUAL_SPEED_DEFAULT_SCALE;
+        }
+
+        speedSlider.value = String(initialScale);
+        this.updateSpeedSliderVisual(speedSlider);
+        if (speedLabel) {
+            speedLabel.textContent = `${initialScale.toFixed(2)}x`;
+        }
+
+        this.visualSpeedScale = initialScale;
+
+        const persistScale = () => {
+            const normalizedScale = this.normalizeVisualSpeedScale(speedSlider.value);
+            this.visualSpeedScale = normalizedScale;
+            if (speedLabel) {
+                speedLabel.textContent = `${normalizedScale.toFixed(2)}x`;
+            }
+            try {
+                window.localStorage.setItem(SIM_VISUAL_SPEED_STORAGE_KEY, String(normalizedScale));
+            } catch (error) {
+                // Ignore storage failures and continue runtime behavior.
+            }
+        };
+
+        speedSlider.addEventListener('input', persistScale);
+        speedSlider.addEventListener('change', persistScale);
+    }
+
+    resetVisualSpeedSliderToDefault() {
+        this.applyVisualSpeedScale(SIM_VISUAL_SPEED_DEFAULT_SCALE);
     }
 
     resetSpeedSliderToDefault() {
@@ -1599,6 +1682,7 @@ class RapierDriveSimulation {
 
         const deltaSec = Math.min((now - this.lastStepTimeMs) / 1000, 0.1);
         this.lastStepTimeMs = now;
+        const effectiveDeltaSec = Math.min(deltaSec * this.visualSpeedScale, 0.25);
 
         const keyboardState = this.getKeyboardDriveState();
         const driveViewer = this.getDriveSourceViewer();
@@ -1684,7 +1768,7 @@ class RapierDriveSimulation {
         let lockedRotation = null;
         if (keyboardState.isActive) {
             lockedRotation = this.body.rotation();
-            const velocitySmoothingAlpha = 1 - Math.exp(-12 * deltaSec);
+            const velocitySmoothingAlpha = 1 - Math.exp(-12 * effectiveDeltaSec);
             const targetVelocityX = keyboardMoveX * clampedSpeed;
             const targetVelocityY = keyboardMoveY * clampedSpeed;
             const velocityX = currentLinearVelocity.x + ((targetVelocityX - currentLinearVelocity.x) * velocitySmoothingAlpha);
@@ -1710,7 +1794,7 @@ class RapierDriveSimulation {
         }
 
         // Follow the fixed-step update style from three.js Rapier vehicle controller example.
-        this.physicsAccumulatorSec = Math.min(this.physicsAccumulatorSec + deltaSec, this.physicsFixedTimeStepSec * this.maxPhysicsCatchupSteps);
+        this.physicsAccumulatorSec = Math.min(this.physicsAccumulatorSec + effectiveDeltaSec, this.physicsFixedTimeStepSec * this.maxPhysicsCatchupSteps);
         let stepIndex = 0;
         while (this.physicsAccumulatorSec >= this.physicsFixedTimeStepSec && stepIndex < this.maxPhysicsCatchupSteps) {
             this.world.timestep = this.physicsFixedTimeStepSec;
@@ -1733,7 +1817,7 @@ class RapierDriveSimulation {
         }
 
         this.maybeLogRuntimeDiagnostics(
-            deltaSec,
+            effectiveDeltaSec,
             driveViewer,
             clampedSpeed,
             throttleSign,
@@ -1781,6 +1865,7 @@ class RapierDriveSimulation {
     start() {
         this.initDebugPanel();
         this.initializeSpeedSliderPreference();
+        this.initializeVisualSpeedSliderPreference();
         this.attachKeyboardControls();
         this.installDriveCommandHooks();
         this.syncInitialDriveStateFromUi();
@@ -1880,6 +1965,10 @@ globalThis.resetSimulationSpeed = function() {
     rapierDriveSimulation.resetSpeedSliderToDefault();
 };
 
+globalThis.resetSimulationVisualSpeed = function() {
+    rapierDriveSimulation.resetVisualSpeedSliderToDefault();
+};
+
 globalThis.resetSimulationAttitude = function() {
     rapierDriveSimulation.resetRoadAttitude();
 };
@@ -1898,4 +1987,8 @@ globalThis.setSimulationDriveMode = function(mode) {
 
 globalThis.setSimulationDriveSpeedKmh = function(kmh) {
     rapierDriveSimulation.applyDriveSpeedCommand(kmh);
+};
+
+globalThis.setSimulationVisualSpeed = function(scale) {
+    rapierDriveSimulation.applyVisualSpeedScale(scale);
 };

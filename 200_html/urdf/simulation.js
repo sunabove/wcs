@@ -68,6 +68,36 @@ class RapierDriveSimulation {
             ArrowLeft: 0,
             ArrowRight: 0
         };
+        this.commandedDriveMode = 'stop';
+        this.commandedSpeedKmh = SIM_SPEED_DEFAULT_KMH;
+        this.hasInstalledDriveCommandHooks = false;
+    }
+
+    installDriveCommandHooks() {
+        if (this.hasInstalledDriveCommandHooks) {
+            return;
+        }
+
+        const originalSetDriveMode = globalThis.setDriveMode;
+        if (typeof originalSetDriveMode === 'function') {
+            globalThis.setDriveMode = (mode) => {
+                this.commandedDriveMode = String(mode || 'stop');
+                return originalSetDriveMode(mode);
+            };
+        }
+
+        const originalSetDriveSpeedKmh = globalThis.setDriveSpeedKmh;
+        if (typeof originalSetDriveSpeedKmh === 'function') {
+            globalThis.setDriveSpeedKmh = (kmh) => {
+                const numericKmh = Number.parseFloat(kmh);
+                if (Number.isFinite(numericKmh)) {
+                    this.commandedSpeedKmh = Math.max(0, numericKmh);
+                }
+                return originalSetDriveSpeedKmh(kmh);
+            };
+        }
+
+        this.hasInstalledDriveCommandHooks = true;
     }
 
     findSimulationViewer() {
@@ -888,6 +918,7 @@ class RapierDriveSimulation {
     }
 
     getCommandedDriveSpeedMps() {
+        const fallbackByHook = Math.max(Number(this.commandedSpeedKmh) || 0, 0) / 3.6;
         const driveViewer = this.getDriveSourceViewer();
         const avgSignedWheelRpm = this.getAverageSignedWheelRpmForViewer(driveViewer);
         const speedBySlider = Math.max(Number(driveViewer?.driveSpeedKmh) || 0, 0) / 3.6;
@@ -895,10 +926,10 @@ class RapierDriveSimulation {
         if (Number.isFinite(avgSignedWheelRpm) && Math.abs(avgSignedWheelRpm) > 0.1) {
             const wheelAngularSpeedRadPerSec = Math.abs(avgSignedWheelRpm) * (Math.PI * 2 / 60);
             const speedByWheel = wheelAngularSpeedRadPerSec * Math.max(this.wheelEffectiveRadiusMeters, 0.05);
-            return Math.max(speedByWheel, speedBySlider);
+            return Math.max(speedByWheel, speedBySlider, fallbackByHook);
         }
 
-        return speedBySlider;
+        return Math.max(speedBySlider, fallbackByHook);
     }
 
     calibrateGroundContactLocalMinZ(linkMap) {
@@ -1240,7 +1271,12 @@ class RapierDriveSimulation {
             keyboardMoveX = keyboardState.moveX;
             keyboardMoveY = keyboardState.moveY;
         } else {
-            const driveMode = String(driveViewer?.driveMode || this.viewer?.driveMode || 'stop');
+            const driveMode = String(
+                this.commandedDriveMode
+                || driveViewer?.driveMode
+                || this.viewer?.driveMode
+                || 'stop'
+            );
             if (driveMode === 'forward') {
                 throttleSign = 1;
             } else if (driveMode === 'backward') {
@@ -1384,6 +1420,7 @@ class RapierDriveSimulation {
     start() {
         this.initializeSpeedSliderPreference();
         this.attachKeyboardControls();
+        this.installDriveCommandHooks();
         requestAnimationFrame(() => this.runLoop());
     }
 

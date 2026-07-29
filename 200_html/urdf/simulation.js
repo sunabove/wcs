@@ -749,12 +749,22 @@ class RapierDriveSimulation {
                 .setFriction(1.4)
                 .setRestitution(0.02);
 
+            const obstacleTopZ = clampedCenterZ + halfZ;
+            const wheelContactPlaneZ = this.getWheelContactPlaneZ();
+            const passThroughClearance = Math.max(Number(this.underbodyPassThroughClearanceMeters) || 0, 0);
+            const isUnderbodyPassThroughByHeight = Number.isFinite(wheelContactPlaneZ)
+                && obstacleTopZ <= (wheelContactPlaneZ + passThroughClearance);
+
             // Only explicitly tagged links are sensors; generic obstacles must physically collide.
-            if (isPassUnderTagged && typeof obstacleColliderDesc.setSensor === 'function') {
+            if ((isPassUnderTagged || isUnderbodyPassThroughByHeight) && typeof obstacleColliderDesc.setSensor === 'function') {
                 obstacleColliderDesc.setSensor(true);
                 console.log('[URDF][Simulation] obstacle treated as pass-under sensor:', {
                     obstacleLinkName,
-                    isPassUnderTagged
+                    isPassUnderTagged,
+                    isUnderbodyPassThroughByHeight,
+                    obstacleTopZ: Number(obstacleTopZ.toFixed(4)),
+                    wheelContactPlaneZ: Number.isFinite(wheelContactPlaneZ) ? Number(wheelContactPlaneZ.toFixed(4)) : null,
+                    passThroughClearance: Number(passThroughClearance.toFixed(4))
                 });
             }
 
@@ -766,7 +776,7 @@ class RapierDriveSimulation {
                 halfExtents: { x: halfX, y: halfY, z: halfZ },
                 linkName: obstacleLinkName,
                 normalizedLinkName: normalizedObstacleName,
-                isSensor: Boolean(isPassUnderTagged)
+                isSensor: Boolean(isPassUnderTagged || isUnderbodyPassThroughByHeight)
             });
             console.log(`[URDF][Simulation] obstacle collider created from URDF link: ${obstacleLinkName}`);
         });

@@ -158,7 +158,7 @@ class RapierDriveSimulation {
         title.className = 'small fw-semibold text-primary';
         title.style.lineHeight = '1.1';
         title.style.marginBottom = '4px';
-        title.textContent = 'Wheel Center Z [cm] (last 20s)';
+        title.textContent = 'Wheel (Center Z - Radius) [cm] (last 20s)';
 
         const canvas = document.createElement('canvas');
         canvas.width = 344;
@@ -217,9 +217,15 @@ class RapierDriveSimulation {
             }
 
             wheelLink.updateWorldMatrix(true, true);
-            const centerWorld = new THREE.Vector3();
-            wheelLink.getWorldPosition(centerWorld);
-            const zValue = Number(centerWorld.z);
+            const wheelBounds = new THREE.Box3().setFromObject(wheelLink);
+            if (wheelBounds.isEmpty()) {
+                return;
+            }
+
+            const centerWorld = wheelBounds.getCenter(new THREE.Vector3());
+            const wheelSize = wheelBounds.getSize(new THREE.Vector3());
+            const wheelRadius = Math.max(wheelSize.x * 0.5, wheelSize.z * 0.5, 0.05);
+            const zValue = Number(centerWorld.z - wheelRadius);
 
             if (!Number.isFinite(zValue)) {
                 return;

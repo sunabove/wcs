@@ -322,7 +322,7 @@ class RapierDriveSimulation {
         const height = cssHeight;
         ctx.clearRect(0, 0, width, height);
 
-        const margin = { left: 38, right: 72, top: 12, bottom: 24 };
+        const margin = { left: 38, right: 12, top: 12, bottom: 24 };
         const plotWidth = width - margin.left - margin.right;
         const plotHeight = height - margin.top - margin.bottom;
 
@@ -541,7 +541,7 @@ class RapierDriveSimulation {
         });
 
         const legendKeys = ['fl', 'fr', 'rl', 'rr'];
-        const legendX = width - margin.right + 8;
+        const legendX = margin.left + plotWidth - 50;
         const legendStartY = margin.top + 14;
         const legendRowHeight = 18;
         ctx.font = '13px Segoe UI';

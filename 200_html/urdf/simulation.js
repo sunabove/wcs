@@ -155,15 +155,16 @@ class RapierDriveSimulation {
         overlay.style.height = '190px';
         overlay.style.background = 'rgba(255, 255, 255, 0.92)';
         overlay.style.backdropFilter = 'blur(2px)';
-        overlay.style.pointerEvents = 'none';
+        overlay.style.pointerEvents = 'auto';
         overlay.style.zIndex = '15';
         overlay.style.padding = '8px 8px 6px 8px';
+        overlay.style.touchAction = 'none';
 
         const title = document.createElement('div');
         title.className = 'small fw-semibold text-primary';
         title.style.lineHeight = '1.1';
         title.style.marginBottom = '4px';
-        title.textContent = 'Wheel (Center Z - Radius) [cm] (last 20s)';
+        title.textContent = 'Wheel Z position';
 
         const canvas = document.createElement('canvas');
         canvas.width = 344;
@@ -174,6 +175,17 @@ class RapierDriveSimulation {
 
         overlay.appendChild(title);
         overlay.appendChild(canvas);
+
+        const blockViewerInteraction = (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+        };
+
+        ['pointerdown', 'pointermove', 'pointerup', 'mousedown', 'mousemove', 'mouseup', 'click', 'dblclick', 'wheel', 'touchstart', 'touchmove', 'touchend'].forEach((eventName) => {
+            overlay.addEventListener(eventName, blockViewerInteraction, { passive: false });
+            canvas.addEventListener(eventName, blockViewerInteraction, { passive: false });
+        });
+
         container.appendChild(overlay);
 
         this.wheelZChartOverlayElement = overlay;
@@ -400,12 +412,6 @@ class RapierDriveSimulation {
             const z = maxZ - (maxZ - minZ) * ratio;
             const y = margin.top + plotHeight * ratio;
             ctx.fillText(String(Math.round(z * 100)), 2, y + 3);
-        }
-
-        if (!hasVisibleSamples) {
-            ctx.fillStyle = '#6c757d';
-            ctx.font = '12px Segoe UI';
-            ctx.fillText('Collecting wheel data...', margin.left + 8, margin.top + 20);
         }
 
         Object.keys(this.wheelZChartHistoryByKey).forEach((wheelKey) => {

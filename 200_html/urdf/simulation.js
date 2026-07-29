@@ -34,7 +34,7 @@ class RapierDriveSimulation {
         this.groundContactBiasMeters = 0;
         this.groundZ = 0;
         this.holeRegions = [];
-        this.underbodyPassThroughClearanceMeters = 0.09;
+        this.underbodyPassThroughClearanceMeters = 0.06;
         this.urdfObstacleLinkNames = ['obstacle_rock_01', 'obstacle_rock_02', 'obstacle_rock', 'rock_obstacle'];
         this.urdfObstacleLinkNamePatterns = [
             /^obstacle/i,
@@ -53,7 +53,7 @@ class RapierDriveSimulation {
         this.passUnderObstacleNamePatterns = [/pass_under/i, /underbody/i];
         this.maxSpeedMps = 100 / 3.6;
         this.maxYawRateRad = THREE.MathUtils.degToRad(80);
-        this.enableWheelPhysicsColliders = false;
+        this.enableWheelPhysicsColliders = true;
         this.blockMotionOnObstacleContact = false;
         this.keepUprightOnFlatGround = true;
         this.isUprightRotationLockActive = false;
@@ -1680,6 +1680,34 @@ class RapierDriveSimulation {
         return gapX <= tolerance && gapY <= tolerance && gapZ <= tolerance;
     }
 
+    isVehicleNearObstacleContact(extraMarginMeters = 0.08) {
+        const vehicleCenter = this.getVehicleColliderWorldCenter();
+        if (!vehicleCenter || !Array.isArray(this.obstacleColliderInfos) || this.obstacleColliderInfos.length === 0) {
+            return false;
+        }
+
+        const vx = Number(this.vehicleColliderHalfExtents?.x) || 0;
+        const vy = Number(this.vehicleColliderHalfExtents?.y) || 0;
+        const margin = Math.max(Number(extraMarginMeters) || 0, 0);
+
+        return this.obstacleColliderInfos.some((obstacleInfo) => {
+            if (!obstacleInfo || obstacleInfo.isSensor || !obstacleInfo.center || !obstacleInfo.halfExtents) {
+                return false;
+            }
+
+            const ox = obstacleInfo.halfExtents.x;
+            const oy = obstacleInfo.halfExtents.y;
+            const obstacleTopZ = obstacleInfo.center.z + obstacleInfo.halfExtents.z;
+            if (Number.isFinite(this.groundZ) && obstacleTopZ <= (this.groundZ + 0.003)) {
+                return false;
+            }
+
+            const gapX = Math.abs(vehicleCenter.x - obstacleInfo.center.x) - (vx + ox);
+            const gapY = Math.abs(vehicleCenter.y - obstacleInfo.center.y) - (vy + oy);
+            return gapX <= margin && gapY <= margin;
+        });
+    }
+
     isObstacleBelowWheelContactPlane(obstacleInfo) {
         if (!this.body || !obstacleInfo?.center || !obstacleInfo?.halfExtents) {
             return false;
@@ -1795,7 +1823,7 @@ class RapierDriveSimulation {
             return;
         }
 
-        if (this.isVehicleObstacleContact || this.isVehicleOverHoleRegion()) {
+        if (this.isVehicleObstacleContact || this.isVehicleOverHoleRegion() || this.isVehicleNearObstacleContact()) {
             return;
         }
 
@@ -2578,9 +2606,11 @@ class RapierDriveSimulation {
         let commandedVelocityX = 0;
         let commandedVelocityY = 0;
 
+        const isNearObstacleContact = this.isVehicleNearObstacleContact();
+
         if (this.keepUprightOnFlatGround) {
             // Keep roll/pitch locked on flat-road driving; only unlock near obstacles or holes.
-            const shouldKeepUpright = !wasObstacleContact && !this.isVehicleOverHoleRegion();
+            const shouldKeepUpright = !wasObstacleContact && !this.isVehicleOverHoleRegion() && !isNearObstacleContact;
             this.setUprightRotationLockEnabled(shouldKeepUpright);
         }
 
@@ -2662,7 +2692,7 @@ class RapierDriveSimulation {
 
         const hasObstacleContact = this.updateObstacleContactState();
         if (this.keepUprightOnFlatGround) {
-            const shouldKeepUpright = !hasObstacleContact && !this.isVehicleOverHoleRegion();
+            const shouldKeepUpright = !hasObstacleContact && !this.isVehicleOverHoleRegion() && !this.isVehicleNearObstacleContact();
             this.setUprightRotationLockEnabled(shouldKeepUpright);
         }
 

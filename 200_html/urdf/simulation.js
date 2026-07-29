@@ -22,6 +22,7 @@ class RapierDriveSimulation {
         this.obstacleColliders = [];
         this.obstacleColliderInfos = [];
         this.obstacleContactSurfaceToleranceMeters = 0.008;
+        this.obstacleApproachDisableSnapDistanceMeters = 0.05;
         this.isVehicleObstacleContact = false;
         this.carFrame = null;
         this.initialPosition = null;
@@ -1680,6 +1681,34 @@ class RapierDriveSimulation {
         return gapX <= tolerance && gapY <= tolerance && gapZ <= tolerance;
     }
 
+    isVehicleNearObstacleSupportZone() {
+        const vehicleCenter = this.getVehicleColliderWorldCenter();
+        const wheelContactPlaneZ = this.getWheelContactPlaneZ();
+        if (!vehicleCenter || !Number.isFinite(wheelContactPlaneZ) || !Array.isArray(this.obstacleColliderInfos)) {
+            return false;
+        }
+
+        const vx = this.vehicleColliderHalfExtents.x;
+        const vy = this.vehicleColliderHalfExtents.y;
+        const approachMargin = Math.max(Number(this.obstacleApproachDisableSnapDistanceMeters) || 0, 0);
+        const verticalTolerance = Math.max(Number(this.obstacleContactSurfaceToleranceMeters) || 0, 0);
+
+        return this.obstacleColliderInfos.some((obstacleInfo) => {
+            if (!obstacleInfo?.center || !obstacleInfo?.halfExtents || obstacleInfo.isSensor) {
+                return false;
+            }
+
+            const obstacleTopZ = obstacleInfo.center.z + obstacleInfo.halfExtents.z;
+            if (obstacleTopZ < (wheelContactPlaneZ - verticalTolerance)) {
+                return false;
+            }
+
+            const gapX = Math.abs(vehicleCenter.x - obstacleInfo.center.x) - (vx + obstacleInfo.halfExtents.x);
+            const gapY = Math.abs(vehicleCenter.y - obstacleInfo.center.y) - (vy + obstacleInfo.halfExtents.y);
+            return gapX <= approachMargin && gapY <= approachMargin;
+        });
+    }
+
     isObstacleBelowWheelContactPlane(obstacleInfo) {
         if (!this.body || !obstacleInfo?.center || !obstacleInfo?.halfExtents) {
             return false;
@@ -1759,7 +1788,7 @@ class RapierDriveSimulation {
             return false;
         }
 
-        if (this.isVehicleObstacleContact || this.isVehicleOverHoleRegion()) {
+        if (this.isVehicleObstacleContact || this.isVehicleOverHoleRegion() || this.isVehicleNearObstacleSupportZone()) {
             return false;
         }
 

@@ -1799,6 +1799,10 @@ class RapierDriveSimulation {
             return;
         }
 
+        if (!this.isBodyNearFlatGroundSupport()) {
+            return;
+        }
+
         const targetZ = this.getGroundContactTargetZ();
         if (!Number.isFinite(targetZ)) {
             return;
@@ -2598,6 +2602,7 @@ class RapierDriveSimulation {
 
         const currentLinearVelocity = this.body.linvel();
         const currentAngularVelocity = this.body.angvel();
+        const isNearFlatGroundSupport = this.isBodyNearFlatGroundSupport();
         let lockedRotation = null;
         if (keyboardState.isActive) {
             lockedRotation = this.body.rotation();
@@ -2611,7 +2616,7 @@ class RapierDriveSimulation {
 
             const nextVelocityZ = wasObstacleContact
                 ? currentLinearVelocity.z
-                : (this.isBodyNearFlatGroundSupport() ? 0 : Math.min(0, currentLinearVelocity.z));
+                : (isNearFlatGroundSupport ? 0 : currentLinearVelocity.z);
             this.body.setLinvel(new this.rapier.Vector3(velocityX, velocityY, nextVelocityZ), true);
             this.body.setAngvel(new this.rapier.Vector3(
                 wasObstacleContact ? currentAngularVelocity.x : 0,
@@ -2628,7 +2633,7 @@ class RapierDriveSimulation {
 
             const nextVelocityZ = wasObstacleContact
                 ? currentLinearVelocity.z
-                : (this.isBodyNearFlatGroundSupport() ? 0 : Math.min(0, currentLinearVelocity.z));
+                : (isNearFlatGroundSupport ? 0 : currentLinearVelocity.z);
             this.body.setLinvel(new this.rapier.Vector3(velocityX, velocityY, nextVelocityZ), true);
             this.body.setAngvel(new this.rapier.Vector3(currentAngularVelocity.x, currentAngularVelocity.y, this.maxYawRateRad * effectiveSteerSign), true);
         }
@@ -2685,7 +2690,7 @@ class RapierDriveSimulation {
         const hasMoveCommand = keyboardState.isActive || throttleSign !== 0;
         if (hasMoveCommand && !hasObstacleContact) {
             const currentVelocity = this.body.linvel();
-            const keepZVelocity = hasObstacleContact ? currentVelocity.z : Math.min(0, currentVelocity.z);
+            const keepZVelocity = this.isBodyNearFlatGroundSupport() ? 0 : currentVelocity.z;
             this.body.setLinvel(new this.rapier.Vector3(commandedVelocityX, commandedVelocityY, keepZVelocity), true);
         }
 

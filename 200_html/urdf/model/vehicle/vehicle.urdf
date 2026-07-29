@@ -283,7 +283,7 @@
     <visual>
       <origin xyz="0 0 -0.025" rpy="0 0 0" />
       <geometry>
-        <box size="0.16 0.34 0.05" />
+        <box size="0.32 1.20 0.05" />
       </geometry>
       <material name="hole_yellow" />
     </visual>
@@ -292,7 +292,7 @@
   <joint name="hole_01_joint" type="fixed">
     <parent link="ground" />
     <child link="hole_01" />
-    <origin xyz="3.88 0.40 0.00" rpy="0 0 0" />
+    <origin xyz="3.88 0.00 0.00" rpy="0 0 0" />
   </joint>
 
   <joint name="ground_to_ellipsoid_surface" type="fixed">

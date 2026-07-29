@@ -16,6 +16,9 @@ class RapierDriveSimulation {
         this.obstacleColliders = [];
         this.isVehicleObstacleContact = false;
         this.carFrame = null;
+        this.renderRoot = null;
+        this.renderRootOffsetLocal = null;
+        this.renderRootRotationOffset = null;
         this.initialPosition = null;
         this.initialQuaternion = null;
         this.vehicleHalfExtents = null;
@@ -1013,8 +1016,53 @@ class RapierDriveSimulation {
 
         const position = this.body.translation();
         const rotation = this.body.rotation();
+
+        if (this.renderRoot && this.renderRootOffsetLocal && this.renderRootRotationOffset) {
+            const bodyQuat = new THREE.Quaternion(rotation.x, rotation.y, rotation.z, rotation.w).normalize();
+            const rootQuat = bodyQuat.clone().multiply(this.renderRootRotationOffset).normalize();
+            const rotatedOffset = this.renderRootOffsetLocal.clone().applyQuaternion(bodyQuat);
+
+            this.renderRoot.position.set(
+                position.x + rotatedOffset.x,
+                position.y + rotatedOffset.y,
+                position.z + rotatedOffset.z
+            );
+            this.renderRoot.quaternion.copy(rootQuat);
+            this.renderRoot.updateMatrixWorld(true);
+        }
+
         this.carFrame.position.set(position.x, position.y, position.z);
         this.carFrame.quaternion.set(rotation.x, rotation.y, rotation.z, rotation.w).normalize();
+        this.carFrame.updateMatrixWorld(true);
+    }
+
+    initializeRenderSyncAnchors(carFrame) {
+        const robotModel = this.viewer?.robotModel || null;
+        this.renderRoot = robotModel;
+        this.renderRootOffsetLocal = new THREE.Vector3(0, 0, 0);
+        this.renderRootRotationOffset = new THREE.Quaternion();
+
+        if (!robotModel || !carFrame) {
+            return;
+        }
+
+        robotModel.updateWorldMatrix(true, true);
+        carFrame.updateWorldMatrix(true, true);
+
+        const carWorldPos = new THREE.Vector3();
+        const rootWorldPos = new THREE.Vector3();
+        carFrame.getWorldPosition(carWorldPos);
+        robotModel.getWorldPosition(rootWorldPos);
+
+        const localOffset = rootWorldPos.clone();
+        carFrame.worldToLocal(localOffset);
+        this.renderRootOffsetLocal = localOffset;
+
+        const carWorldQuat = new THREE.Quaternion();
+        const rootWorldQuat = new THREE.Quaternion();
+        carFrame.getWorldQuaternion(carWorldQuat);
+        robotModel.getWorldQuaternion(rootWorldQuat);
+        this.renderRootRotationOffset = carWorldQuat.clone().invert().multiply(rootWorldQuat).normalize();
     }
 
     enforceWheelGroundContactAtLoad(linkMap) {
@@ -1236,6 +1284,7 @@ class RapierDriveSimulation {
             this.world = world;
             this.body = body;
             this.carFrame = carFrame;
+            this.initializeRenderSyncAnchors(carFrame);
             this.initialPosition = initialPosition.clone();
             this.initialQuaternion = initialQuaternion.clone();
             this.vehicleHalfExtents = { x: halfX, y: halfY, z: halfZ };

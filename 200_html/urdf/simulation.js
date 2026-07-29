@@ -440,6 +440,43 @@ class RapierDriveSimulation {
         return Array.from(names);
     }
 
+    isTextInputElement(targetElement) {
+        if (!targetElement || typeof targetElement !== 'object') {
+            return false;
+        }
+
+        const tagName = String(targetElement.tagName || '').toLowerCase();
+        return tagName === 'input' || tagName === 'textarea' || tagName === 'select' || Boolean(targetElement.isContentEditable);
+    }
+
+    togglePause(forcePaused = null) {
+        const nextPausedState = (typeof forcePaused === 'boolean')
+            ? forcePaused
+            : !this.isPaused;
+
+        if (this.isPaused === nextPausedState) {
+            return;
+        }
+
+        this.isPaused = nextPausedState;
+        this.lastStepTimeMs = 0;
+
+        if (this.isPaused) {
+            this.keyHoldState.ArrowUp = 0;
+            this.keyHoldState.ArrowDown = 0;
+            this.keyHoldState.ArrowLeft = 0;
+            this.keyHoldState.ArrowRight = 0;
+
+            if (this.body && this.rapier) {
+                this.body.setLinvel(new this.rapier.Vector3(0, 0, 0), true);
+                this.body.setAngvel(new this.rapier.Vector3(0, 0, 0), true);
+            }
+        }
+
+        this.updateDebugPanel(this.debugStatusUpdateIntervalSec);
+        console.log(`[URDF][Simulation] ${this.isPaused ? 'Paused' : 'Resumed'}`);
+    }
+
     attachKeyboardControls() {
         if (!this.isKeyboardControlEnabled) {
             return;
@@ -454,12 +491,16 @@ class RapierDriveSimulation {
         };
 
         window.addEventListener('keydown', (event) => {
+            if (this.isTextInputElement(event.target)) {
+                return;
+            }
+
             const isSpaceKey = event.code === 'Space' || event.key === ' ' || event.key === 'Spacebar';
             if (isSpaceKey) {
                 if (event.ctrlKey) {
                     this.reset();
-                } else if (typeof window.setDriveMode === 'function') {
-                    window.setDriveMode('stop');
+                } else {
+                    this.togglePause();
                 }
                 event.preventDefault();
                 return;
@@ -1817,6 +1858,11 @@ class RapierDriveSimulation {
         }
 
         const now = performance.now();
+        if (this.isPaused) {
+            this.lastStepTimeMs = now;
+            return;
+        }
+
         if (!this.lastStepTimeMs) {
             this.lastStepTimeMs = now;
         }
@@ -2015,6 +2061,8 @@ class RapierDriveSimulation {
     }
 
     resetUiStates() {
+        this.togglePause(false);
+
         if (typeof window.setDriveMode === 'function') {
             window.setDriveMode('stop');
         }

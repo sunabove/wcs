@@ -490,7 +490,7 @@ class RapierDriveSimulation {
             }
 
             // Keep visual spacing readable by rendering a decimated subset.
-            const minPixelGap = 3;
+            const minPixelGap = 12;
             const targetPointCount = Math.max(Math.floor(plotWidth / minPixelGap), 1);
             const minTimeGapSec = effectiveWindowSec / targetPointCount;
             const renderSamples = [];

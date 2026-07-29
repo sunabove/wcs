@@ -283,6 +283,21 @@ class RapierDriveSimulation {
 
         let minZ = Math.min(...visibleSamples.map((sample) => sample.z));
         let maxZ = Math.max(...visibleSamples.map((sample) => sample.z));
+
+        const maxHoleDepthMeters = (Array.isArray(this.holeRegions) ? this.holeRegions : []).reduce((maxDepth, holeRegion) => {
+            const floorZ = Number(holeRegion?.floorZ);
+            if (!Number.isFinite(floorZ) || !Number.isFinite(this.groundZ)) {
+                return maxDepth;
+            }
+
+            const depth = Math.max(this.groundZ - floorZ, 0);
+            return Math.max(maxDepth, depth);
+        }, 0);
+        if (maxHoleDepthMeters > 0 && Number.isFinite(this.groundZ)) {
+            const holeMinZ = this.groundZ - maxHoleDepthMeters;
+            minZ = Math.min(minZ, holeMinZ);
+        }
+
         if ((maxZ - minZ) < 0.001) {
             maxZ += 0.0005;
             minZ -= 0.0005;
@@ -331,6 +346,7 @@ class RapierDriveSimulation {
         }
 
         const zTicks = 4;
+        ctx.fillText('cm', 8, 10);
         for (let i = 0; i <= zTicks; i += 1) {
             const ratio = i / zTicks;
             const z = maxZ - (maxZ - minZ) * ratio;

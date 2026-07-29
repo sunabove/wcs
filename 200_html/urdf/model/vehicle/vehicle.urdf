@@ -30,6 +30,10 @@
     <color rgba="0.20 0.42 0.90 0.7" />
   </material>
 
+  <material name="obstacle_rock_orange">
+    <color rgba="0.95 0.52 0.12 0.8" />
+  </material>
+
   <material name="green">
     <color rgba="0.00 1.00 0.00 1.0" />
   </material>
@@ -204,7 +208,7 @@
   </joint>
 
   <!-- Simulation obstacle (fixed curb / step) -->
-  <link name="obstacle_rock_01">
+  <link name="obstacle_rock_02">
     <visual>
       <origin xyz="0 0 0.04" rpy="0 0 0" />
       <geometry>
@@ -220,13 +224,35 @@
     </collision>
   </link>
 
+  <joint name="obstacle_rock_02_joint" type="fixed">
+    <parent link="ground" />
+    <child link="obstacle_rock_02" />
+    <origin xyz="1.88 0.40 0.00" rpy="0 0 0" />
+  </joint>
+
+  <link name="obstacle_rock_01">
+    <visual>
+      <origin xyz="0 0 0.04" rpy="0 0 0" />
+      <geometry>
+        <box size="0.24 0.34 0.08" />
+      </geometry>
+      <material name="obstacle_rock_orange" />
+    </visual>
+    <collision>
+      <origin xyz="0 0 0.04" rpy="0 0 0" />
+      <geometry>
+        <box size="0.44 0.34 0.08" />
+      </geometry>
+    </collision>
+  </link>
+
   <joint name="obstacle_rock_01_joint" type="fixed">
     <parent link="ground" />
     <child link="obstacle_rock_01" />
-    <origin xyz="0.88 0.40 0.00" rpy="0 0 0" />
+    <origin xyz="0.88 0.00 0.00" rpy="0 0 0" />
   </joint>
 
-  <link name="obstacle_rock_02">
+  <link name="obstacle_rock_03">
     <visual>
       <origin xyz="0 0 0.04" rpy="0 0 0" />
       <geometry>
@@ -242,10 +268,10 @@
     </collision>
   </link>
 
-  <joint name="obstacle_rock_02_joint" type="fixed">
+  <joint name="obstacle_rock_03_joint" type="fixed">
     <parent link="ground" />
-    <child link="obstacle_rock_02" />
-    <origin xyz="1.68 0.0 0.00" rpy="0 0 0" />
+    <child link="obstacle_rock_03" />
+    <origin xyz="2.88 0.0 0.00" rpy="0 0 0" />
   </joint>
 
   <joint name="ground_to_ellipsoid_surface" type="fixed">

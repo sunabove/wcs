@@ -53,7 +53,7 @@ class RapierDriveSimulation {
         this.passUnderObstacleNamePatterns = [/pass_under/i, /underbody/i];
         this.maxSpeedMps = 100 / 3.6;
         this.maxYawRateRad = THREE.MathUtils.degToRad(80);
-        this.enableWheelPhysicsColliders = true;
+        this.enableWheelPhysicsColliders = false;
         this.blockMotionOnObstacleContact = false;
         this.keepUprightOnFlatGround = true;
         this.isUprightRotationLockActive = false;
@@ -62,6 +62,7 @@ class RapierDriveSimulation {
         this.wheelGroundHardClampOffsetMeters = 0.001;
         this.wheelGroundClampActivationMarginMeters = 0.003;
         this.flatGroundSnapDistanceMeters = 0.01;
+        this.flatGroundVerticalVelocitySnapThresholdMps = 0.35;
         this.maxLiftWithoutObstacleMeters = 0.03;
         this.maxLiftWithObstacleMeters = 0.28;
         this.isInitializing = false;
@@ -1752,6 +1753,27 @@ class RapierDriveSimulation {
         return Math.abs(translation.z - groundBasedMinZ) <= snapDistance;
     }
 
+    stabilizeFlatGroundVerticalMotion() {
+        if (!this.body || !this.rapier) {
+            return;
+        }
+
+        if (!this.isBodyNearFlatGroundSupport()) {
+            return;
+        }
+
+        const velocity = this.body.linvel();
+        const angularVelocity = this.body.angvel();
+        const threshold = Math.max(Number(this.flatGroundVerticalVelocitySnapThresholdMps) || 0, 0);
+
+        if (Math.abs(velocity.z) <= threshold) {
+            this.body.setLinvel(new this.rapier.Vector3(velocity.x, velocity.y, 0), true);
+        }
+
+        // Reduce small roll/pitch oscillations while preserving steering yaw.
+        this.body.setAngvel(new this.rapier.Vector3(angularVelocity.x * 0.75, angularVelocity.y * 0.75, angularVelocity.z), true);
+    }
+
     enforceMeasuredWheelGroundLimit(linkMap) {
         if (!this.body || !this.rapier || !linkMap || !Number.isFinite(this.groundZ)) {
             return false;
@@ -2575,6 +2597,7 @@ class RapierDriveSimulation {
             if (adjustedByWheelClamp) {
                 this.syncCarFrameFromBody();
             }
+            this.stabilizeFlatGroundVerticalMotion();
             if (hasDriveCommand) {
                 this.wheelZChartElapsedSec += this.physicsFixedTimeStepSec;
                 this.sampleWheelCenterZForChart(this.wheelZChartElapsedSec);

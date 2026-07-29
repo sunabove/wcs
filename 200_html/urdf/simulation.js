@@ -182,6 +182,43 @@ class RapierDriveSimulation {
         }
     }
 
+    applyDriveModeCommand(mode) {
+        const normalizedMode = String(mode || 'stop');
+        this.commandedDriveMode = normalizedMode;
+
+        if (typeof globalThis.setDriveMode === 'function') {
+            globalThis.setDriveMode(normalizedMode);
+            return;
+        }
+
+        const viewer = this.getDriveSourceViewer() || this.viewer;
+        if (viewer && typeof viewer.applyDriveMode === 'function') {
+            const speedKmh = Math.max(Number(this.commandedSpeedKmh) || 0, 0);
+            viewer.applyDriveMode(normalizedMode, speedKmh);
+        }
+    }
+
+    applyDriveSpeedCommand(kmh) {
+        const numericKmh = Number.parseFloat(kmh);
+        const normalizedKmh = Number.isFinite(numericKmh) ? Math.max(0, numericKmh) : 0;
+        this.commandedSpeedKmh = normalizedKmh;
+
+        if (typeof globalThis.setDriveSpeedKmh === 'function') {
+            globalThis.setDriveSpeedKmh(normalizedKmh);
+            return;
+        }
+
+        const viewer = this.getDriveSourceViewer() || this.viewer;
+        if (!viewer) {
+            return;
+        }
+
+        viewer.driveSpeedKmh = normalizedKmh;
+        if (viewer.driveMode && viewer.driveMode !== 'stop' && typeof viewer.applyDriveMode === 'function') {
+            viewer.applyDriveMode(viewer.driveMode, normalizedKmh);
+        }
+    }
+
     findSimulationViewer() {
         const viewerById = window.urdfViewersById?.['robot-container-1'] || null;
         if (viewerById) {
@@ -1645,4 +1682,12 @@ globalThis.resetSimulationRoll = function() {
 
 globalThis.resetSimulationPitch = function() {
     rapierDriveSimulation.resetRoadPitch();
+};
+
+globalThis.setSimulationDriveMode = function(mode) {
+    rapierDriveSimulation.applyDriveModeCommand(mode);
+};
+
+globalThis.setSimulationDriveSpeedKmh = function(kmh) {
+    rapierDriveSimulation.applyDriveSpeedCommand(kmh);
 };

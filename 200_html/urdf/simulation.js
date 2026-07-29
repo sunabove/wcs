@@ -1503,8 +1503,8 @@ class RapierDriveSimulation {
         this.body.setAngvel(new this.rapier.Vector3(0, 0, 0), true);
         this.isVehicleObstacleContact = false;
 
-        const linkMap = this.viewer?.robotModel?.links || null;
-        this.enforceWheelGroundContactAtLoad(linkMap);
+        // On reset, always return to the URDF-authored pose without extra ground alignment offsets.
+        this.syncCarFrameFromBody();
     }
 
     async reset() {

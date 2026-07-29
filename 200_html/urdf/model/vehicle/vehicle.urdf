@@ -210,16 +210,16 @@
   <!-- Simulation obstacle (fixed curb / step) -->
   <link name="obstacle_rock_02">
     <visual>
-      <origin xyz="0 0 0.04" rpy="0 0 0" />
+      <origin xyz="0 0 0.025" rpy="0 0 0" />
       <geometry>
-        <box size="0.24 0.34 0.08" />
+        <box size="0.24 0.34 0.05" />
       </geometry>
       <material name="obstacle_rock" />
     </visual>
     <collision>
-      <origin xyz="0 0 0.04" rpy="0 0 0" />
+      <origin xyz="0 0 0.025" rpy="0 0 0" />
       <geometry>
-        <box size="0.44 0.34 0.08" />
+        <box size="0.44 0.34 0.05" />
       </geometry>
     </collision>
   </link>
@@ -232,16 +232,16 @@
 
   <link name="obstacle_rock_01">
     <visual>
-      <origin xyz="0 0 0.04" rpy="0 0 0" />
+      <origin xyz="0 0 0.025" rpy="0 0 0" />
       <geometry>
-        <box size="0.24 0.34 0.08" />
+        <box size="0.24 0.34 0.05" />
       </geometry>
       <material name="obstacle_rock_orange" />
     </visual>
     <collision>
-      <origin xyz="0 0 0.04" rpy="0 0 0" />
+      <origin xyz="0 0 0.025" rpy="0 0 0" />
       <geometry>
-        <box size="0.44 0.34 0.08" />
+        <box size="0.44 0.34 0.05" />
       </geometry>
     </collision>
   </link>
@@ -254,16 +254,16 @@
 
   <link name="obstacle_rock_03">
     <visual>
-      <origin xyz="0 0 0.04" rpy="0 0 0" />
+      <origin xyz="0 0 0.025" rpy="0 0 0" />
       <geometry>
-        <box size="0.44 1.20 0.08" />
+        <box size="0.44 1.20 0.05" />
       </geometry>
       <material name="obstacle_rock_blue" />
     </visual>
     <collision>
-      <origin xyz="0 0 0.04" rpy="0 0 0" />
+      <origin xyz="0 0 0.025" rpy="0 0 0" />
       <geometry>
-        <box size="0.44 0.60 0.08" />
+        <box size="0.44 0.60 0.05" />
       </geometry>
     </collision>
   </link>

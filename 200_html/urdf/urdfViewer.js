@@ -196,7 +196,11 @@ class URDFViewer {
         );
         this.wheelInfoOverlayElement = null;
         this.wheelInfoToggleButtonElement = null;
+        this.wheelInfoOverlayStorageKey = this.getWheelInfoOverlayStorageKey();
         this.isWheelInfoOverlayVisible = this.showWheelInfo;
+        if (this.showWheelInfo) {
+            this.isWheelInfoOverlayVisible = this.loadWheelInfoOverlayVisibleState();
+        }
         this.urdfPath = containerElement.getAttribute('urdf') || '/urdf/vehicle/vehicle.urdf';
         const rawCameraPose = containerElement.getAttribute('cameraPose');
         const rawCameraPosition = containerElement.getAttribute('cameraPosition');
@@ -287,6 +291,48 @@ class URDFViewer {
         }
 
         return fallbackValue;
+    }
+
+    getWheelInfoOverlayStorageKey() {
+        const containerId = String(this.container?.id || '').trim();
+        if (containerId) {
+            return `wcs.urdf.wheel_info_visible.${containerId}`;
+        }
+
+        const containerClassName = String(this.container?.className || '').trim().replace(/\s+/g, '_');
+        if (containerClassName) {
+            return `wcs.urdf.wheel_info_visible.class_${containerClassName}`;
+        }
+
+        return 'wcs.urdf.wheel_info_visible.default';
+    }
+
+    loadWheelInfoOverlayVisibleState() {
+        if (!this.wheelInfoOverlayStorageKey || typeof window.localStorage === 'undefined') {
+            return this.showWheelInfo;
+        }
+
+        try {
+            const savedValue = window.localStorage.getItem(this.wheelInfoOverlayStorageKey);
+            if (savedValue == null) {
+                return this.showWheelInfo;
+            }
+            return this.parseBooleanAttribute(savedValue, this.showWheelInfo);
+        } catch (error) {
+            return this.showWheelInfo;
+        }
+    }
+
+    saveWheelInfoOverlayVisibleState() {
+        if (!this.wheelInfoOverlayStorageKey || typeof window.localStorage === 'undefined') {
+            return;
+        }
+
+        try {
+            window.localStorage.setItem(this.wheelInfoOverlayStorageKey, this.isWheelInfoOverlayVisible ? '1' : '0');
+        } catch (error) {
+            // Ignore storage write errors in restricted browser modes.
+        }
     }
 
     parseViewerWheelKey(containerId) {

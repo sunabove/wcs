@@ -379,6 +379,50 @@ class RapierDriveSimulation {
         const toX = (t) => margin.left + ((t - minTimeSec) / effectiveWindowSec) * plotWidth;
         const toY = (z) => margin.top + ((maxZ - z) / (maxZ - minZ)) * plotHeight;
 
+        const desiredTickCount = Math.max(3, Math.min(8, Math.round(plotWidth / 78)));
+        const computeNiceStepSeconds = (spanSec, desiredCount) => {
+            const safeSpanSec = Math.max(Number(spanSec) || 0, 1e-6);
+            const safeDesiredCount = Math.max(Number(desiredCount) || 1, 1);
+            const roughStep = safeSpanSec / safeDesiredCount;
+            const magnitude = Math.pow(10, Math.floor(Math.log10(roughStep)));
+            const normalized = roughStep / magnitude;
+            let niceNormalized = 1;
+            if (normalized <= 1) {
+                niceNormalized = 1;
+            } else if (normalized <= 2) {
+                niceNormalized = 2;
+            } else if (normalized <= 5) {
+                niceNormalized = 5;
+            } else {
+                niceNormalized = 10;
+            }
+            return niceNormalized * magnitude;
+        };
+
+        const xStepSec = computeNiceStepSeconds(effectiveWindowSec, desiredTickCount);
+        const xTickStartSec = Math.ceil(minTimeSec / xStepSec) * xStepSec;
+        const xTickValuesSec = [];
+        for (let t = xTickStartSec; t <= (windowEndSec + (xStepSec * 0.5)); t += xStepSec) {
+            xTickValuesSec.push(t);
+        }
+        if (xTickValuesSec.length === 0) {
+            xTickValuesSec.push(minTimeSec, windowEndSec);
+        }
+
+        const formatXAxisTimeLabel = (timeSec) => {
+            const absSpanSec = Math.max(effectiveWindowSec, 1e-6);
+            if (absSpanSec >= 3600) {
+                return `${(timeSec / 3600).toFixed(1)}h`;
+            }
+            if (absSpanSec >= 120) {
+                return `${(timeSec / 60).toFixed(1)}m`;
+            }
+            if (absSpanSec < 10) {
+                return `${timeSec.toFixed(1)}s`;
+            }
+            return `${timeSec.toFixed(0)}s`;
+        };
+
         ctx.strokeStyle = '#d6deea';
         ctx.lineWidth = 1;
         for (let i = 0; i <= 4; i += 1) {
@@ -388,14 +432,13 @@ class RapierDriveSimulation {
             ctx.lineTo(margin.left + plotWidth, gy);
             ctx.stroke();
         }
-        const xTickCount = 4;
-        for (let i = 0; i <= xTickCount; i += 1) {
-            const gx = margin.left + (i / xTickCount) * plotWidth;
+        xTickValuesSec.forEach((tickTimeSec) => {
+            const gx = toX(tickTimeSec);
             ctx.beginPath();
             ctx.moveTo(gx, margin.top);
             ctx.lineTo(gx, margin.top + plotHeight);
             ctx.stroke();
-        }
+        });
 
         ctx.strokeStyle = '#495057';
         ctx.lineWidth = 1.2;
@@ -410,16 +453,15 @@ class RapierDriveSimulation {
 
         ctx.fillStyle = '#5f6b7a';
         ctx.font = '11px Segoe UI';
-        for (let i = 0; i <= xTickCount; i += 1) {
-            if (i === 0) {
-                continue;
+        xTickValuesSec.forEach((tickTimeSec, tickIndex) => {
+            if (tickIndex === 0) {
+                return;
             }
-            const ratio = i / xTickCount;
-            const labelX = margin.left + ratio * plotWidth;
-            const timeAtTick = minTimeSec + (effectiveWindowSec * ratio);
-            const label = `${timeAtTick.toFixed(0)}s`;
+
+            const labelX = toX(tickTimeSec);
+            const label = formatXAxisTimeLabel(tickTimeSec);
             ctx.fillText(label, labelX - 12, margin.top + plotHeight + 16);
-        }
+        });
 
         const zTicks = intervalCount;
         ctx.fillText('cm', 8, 10);

@@ -325,15 +325,13 @@ class RapierDriveSimulation {
             rawSamples.push(...samples);
         });
 
-        const hasRawSamples = rawSamples.length > 0;
-        const maxSampleTimeSec = hasRawSamples ? Math.max(...rawSamples.map((sample) => sample.t)) : nowSec;
-        const minSampleTimeSec = hasRawSamples ? Math.min(...rawSamples.map((sample) => sample.t)) : Math.max(nowSec - this.wheelZChartWindowSec, 0);
-        const collectedSpanSec = Math.max(maxSampleTimeSec - minSampleTimeSec, this.physicsFixedTimeStepSec);
-        const effectiveWindowSec = hasRawSamples
-            ? Math.min(this.wheelZChartWindowSec, collectedSpanSec)
-            : this.wheelZChartWindowSec;
-        const windowEndSec = hasRawSamples ? maxSampleTimeSec : nowSec;
-        const minTimeSec = Math.max(windowEndSec - effectiveWindowSec, 0);
+        const maxMeasuredCount = 20;
+        const uniqueSampleTimesSec = Array.from(new Set(rawSamples.map((sample) => sample.t))).sort((a, b) => a - b);
+        const recentSampleTimesSec = uniqueSampleTimesSec.slice(-maxMeasuredCount);
+        const hasRecentSamples = recentSampleTimesSec.length > 0;
+        const minTimeSec = hasRecentSamples ? recentSampleTimesSec[0] : Math.max(nowSec - this.wheelZChartWindowSec, 0);
+        const windowEndSec = hasRecentSamples ? recentSampleTimesSec[recentSampleTimesSec.length - 1] : nowSec;
+        const effectiveWindowSec = Math.max(windowEndSec - minTimeSec, this.physicsFixedTimeStepSec);
 
         const visibleSamples = rawSamples.filter((sample) => sample.t >= minTimeSec && sample.t <= windowEndSec);
 

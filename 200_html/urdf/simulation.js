@@ -483,7 +483,8 @@ class RapierDriveSimulation {
                 return;
             }
 
-            ctx.strokeStyle = this.wheelChartColorByKey[wheelKey] || '#222';
+            const seriesColor = this.wheelChartColorByKey[wheelKey] || '#222';
+            ctx.strokeStyle = seriesColor;
             ctx.lineWidth = 1.7;
             ctx.beginPath();
             samples.forEach((sample, index) => {
@@ -496,6 +497,15 @@ class RapierDriveSimulation {
                 }
             });
             ctx.stroke();
+
+            ctx.fillStyle = seriesColor;
+            samples.forEach((sample) => {
+                const x = toX(sample.t);
+                const y = toY(sample.z);
+                ctx.beginPath();
+                ctx.arc(x, y, 1.8, 0, Math.PI * 2);
+                ctx.fill();
+            });
         });
 
         const legendKeys = ['fl', 'fr', 'rl', 'rr'];

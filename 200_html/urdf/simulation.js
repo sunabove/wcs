@@ -2345,8 +2345,8 @@ class RapierDriveSimulation {
             const rigidBodyDesc = RAPIER.RigidBodyDesc.dynamic()
                 .setTranslation(initialPosition.x, initialPosition.y, initialPosition.z)
                 .setRotation(initialQuaternion)
-                .setLinearDamping(2.2)
-                .setAngularDamping(3.2)
+                .setLinearDamping(3.8)
+                .setAngularDamping(6.0)
                 .setCcdEnabled(true);
 
             const body = world.createRigidBody(rigidBodyDesc);
@@ -2533,8 +2533,9 @@ class RapierDriveSimulation {
         let commandedVelocityY = 0;
 
         if (this.keepUprightOnFlatGround) {
-            // Keep upright only when idling on flat ground; allow roll/pitch while driving.
-            this.setUprightRotationLockEnabled(!wasObstacleContact && !hasDriveCommand);
+            // Keep roll/pitch locked on flat-road driving; only unlock near obstacles or holes.
+            const shouldKeepUpright = !wasObstacleContact && !this.isVehicleOverHoleRegion();
+            this.setUprightRotationLockEnabled(shouldKeepUpright);
         }
 
         const previousTranslation = this.body.translation();
@@ -2613,7 +2614,7 @@ class RapierDriveSimulation {
 
         const hasObstacleContact = this.updateObstacleContactState();
         if (this.keepUprightOnFlatGround) {
-            const shouldKeepUpright = !hasObstacleContact && !hasDriveCommand;
+            const shouldKeepUpright = !hasObstacleContact && !this.isVehicleOverHoleRegion();
             this.setUprightRotationLockEnabled(shouldKeepUpright);
         }
 

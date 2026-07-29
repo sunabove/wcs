@@ -59,7 +59,7 @@
   </material>
 
   <!-- Root link kept for compatibility -->
-  <link name="base_link">
+  <link name="origin">
     <inertial>
       <origin xyz="0 0 0" rpy="0 0 0" />
       <mass value="0.001" />
@@ -176,10 +176,10 @@
     </inertial>
   </link>
 
-  <joint name="ellipsoid_surface_to_ground" type="fixed">
-    <parent link="ellipsoid_surface" />
+  <joint name="origin_to_ground" type="fixed">
+    <parent link="origin" />
     <child link="ground" />
-    <origin xyz="0 0 0.3000" rpy="0 0 0" />
+    <origin xyz="0 0 0" rpy="0 0 0" />
   </joint>
 
   <!-- Ground patch under the vehicle (2x vehicle body length) -->
@@ -254,8 +254,8 @@
     <origin xyz="1.48 0.0 0.00" rpy="0 0 0" />
   </joint>
 
-  <joint name="base_to_ellipsoid_surface" type="fixed">
-    <parent link="base_link" />
+  <joint name="ground_to_ellipsoid_surface" type="fixed">
+    <parent link="ground" />
     <child link="ellipsoid_surface" />
     <origin xyz="0 0 -0.3000" rpy="0 0 0" />
   </joint>

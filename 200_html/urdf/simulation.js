@@ -200,6 +200,7 @@ class RapierDriveSimulation {
         }
 
         const linkMap = this.viewer.robotModel.links || {};
+        const wheelRadiusMeters = Math.max(Number(this.wheelEffectiveRadiusMeters) || 0.16, 0.05);
         Object.entries(this.wheelLinkNameByKey).forEach(([wheelKey, wheelLinkName]) => {
             const wheelLink = this.findLinkByName(linkMap, wheelLinkName);
             if (!wheelLink) {
@@ -207,15 +208,9 @@ class RapierDriveSimulation {
             }
 
             wheelLink.updateWorldMatrix(true, true);
-            const wheelBounds = new THREE.Box3().setFromObject(wheelLink);
-            if (wheelBounds.isEmpty()) {
-                return;
-            }
-
-            const centerWorld = wheelBounds.getCenter(new THREE.Vector3());
-            const wheelSize = wheelBounds.getSize(new THREE.Vector3());
-            const wheelRadius = Math.max(wheelSize.x * 0.5, wheelSize.z * 0.5, 0.05);
-            const zValue = Number(centerWorld.z - wheelRadius);
+            const centerWorld = new THREE.Vector3();
+            wheelLink.getWorldPosition(centerWorld);
+            const zValue = Number(centerWorld.z - wheelRadiusMeters);
 
             if (!Number.isFinite(zValue)) {
                 return;

@@ -671,8 +671,8 @@ class URDFViewer {
 
         const isVisible = this.isWheelInfoOverlayVisible;
         this.wheelInfoToggleButtonElement.innerHTML = isVisible
-            ? '<i class="bi bi-disc-fill" aria-hidden="true"></i>'
-            : '<i class="bi bi-disc" aria-hidden="true"></i>';
+            ? '<i class="bi bi-gear-fill" aria-hidden="true"></i>'
+            : '<i class="bi bi-gear" aria-hidden="true"></i>';
         this.wheelInfoToggleButtonElement.setAttribute('aria-pressed', isVisible ? 'true' : 'false');
         this.wheelInfoToggleButtonElement.setAttribute('aria-label', isVisible ? '휠 정보 숨기기' : '휠 정보 표시');
         this.wheelInfoToggleButtonElement.title = isVisible ? '휠 정보 숨기기' : '휠 정보 표시';

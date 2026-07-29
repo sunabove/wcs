@@ -79,7 +79,7 @@ class RapierDriveSimulation {
         if (Array.isArray(window.urdfViewers)) {
             const matched = window.urdfViewers.find((viewer) => {
                 const urdfPath = String(viewer?.urdfPath || '');
-                return urdfPath.includes('/vehicle/vehicle.urdf');
+                return urdfPath.includes('/model/vehicle/vehicle.urdf');
             });
 
             if (matched) {

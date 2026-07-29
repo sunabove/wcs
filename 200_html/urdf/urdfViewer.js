@@ -201,7 +201,7 @@ class URDFViewer {
         if (this.showWheelInfo) {
             this.isWheelInfoOverlayVisible = this.loadWheelInfoOverlayVisibleState();
         }
-        this.urdfPath = containerElement.getAttribute('urdf') || '/urdf/vehicle/vehicle.urdf';
+        this.urdfPath = containerElement.getAttribute('urdf') || '/urdf/model/vehicle/vehicle.urdf';
         const rawCameraPose = containerElement.getAttribute('cameraPose');
         const rawCameraPosition = containerElement.getAttribute('cameraPosition');
         const rawCameraTarget = containerElement.getAttribute('cameraTarget');
@@ -3467,7 +3467,7 @@ function getWheelAnimationTargetViewer() {
     if (Array.isArray(window.urdfViewers)) {
         const vehicleViewer = window.urdfViewers.find(viewer => {
             const urdfPath = String(viewer?.urdfPath || '');
-            return urdfPath.includes('/vehicle/vehicle.urdf');
+            return urdfPath.includes('/model/vehicle/vehicle.urdf');
         });
 
         if (vehicleViewer) {
@@ -3642,7 +3642,7 @@ function getRoadAttitudeTargetViewer() {
     if (Array.isArray(window.urdfViewers)) {
         const matchedViewer = window.urdfViewers.find(viewer => {
             const urdfPath = String(viewer?.urdfPath || '');
-            return urdfPath.includes('/vehicle/vehicle.urdf');
+            return urdfPath.includes('/model/vehicle/vehicle.urdf');
         });
 
         if (matchedViewer) {

@@ -176,7 +176,7 @@ class RapierDriveSimulation {
     }
 
     trimWheelZChartHistory(nowSec) {
-        const minTimeSec = nowSec - this.wheelZChartWindowSec;
+        const minTimeSec = Math.max(nowSec - this.wheelZChartWindowSec, 0);
         Object.keys(this.wheelZChartHistoryByKey).forEach((key) => {
             const samples = this.wheelZChartHistoryByKey[key];
             if (!Array.isArray(samples) || samples.length === 0) {
@@ -331,7 +331,8 @@ class RapierDriveSimulation {
         ctx.font = '11px Segoe UI';
         for (let sec = 0; sec <= this.wheelZChartWindowSec; sec += 5) {
             const labelX = margin.left + (sec / this.wheelZChartWindowSec) * plotWidth;
-            const label = `${-this.wheelZChartWindowSec + sec}s`;
+            const timeAtTick = minTimeSec + sec;
+            const label = `${timeAtTick.toFixed(0)}s`;
             ctx.fillText(label, labelX - 12, margin.top + plotHeight + 16);
         }
 

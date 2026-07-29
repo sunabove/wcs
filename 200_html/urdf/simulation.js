@@ -342,6 +342,17 @@ class RapierDriveSimulation {
         minZ -= zPadding;
         maxZ += zPadding;
 
+        // Snap Y-axis to integer centimeter intervals for stable, easy-to-read labels.
+        const intervalCount = 4;
+        const rawMinCm = minZ * 100;
+        const rawMaxCm = maxZ * 100;
+        const spanCm = Math.max(rawMaxCm - rawMinCm, 1);
+        const stepCm = Math.max(1, Math.ceil(spanCm / intervalCount));
+        const minCmAligned = Math.floor(rawMinCm / stepCm) * stepCm;
+        const maxCmAligned = minCmAligned + (stepCm * intervalCount);
+        minZ = minCmAligned / 100;
+        maxZ = maxCmAligned / 100;
+
         const toX = (t) => margin.left + ((t - minTimeSec) / this.wheelZChartWindowSec) * plotWidth;
         const toY = (z) => margin.top + ((maxZ - z) / (maxZ - minZ)) * plotHeight;
 
@@ -382,13 +393,13 @@ class RapierDriveSimulation {
             ctx.fillText(label, labelX - 12, margin.top + plotHeight + 16);
         }
 
-        const zTicks = 4;
+        const zTicks = intervalCount;
         ctx.fillText('cm', 8, 10);
         for (let i = 0; i <= zTicks; i += 1) {
             const ratio = i / zTicks;
             const z = maxZ - (maxZ - minZ) * ratio;
             const y = margin.top + plotHeight * ratio;
-            ctx.fillText((z * 100).toFixed(1), 2, y + 3);
+            ctx.fillText(String(Math.round(z * 100)), 2, y + 3);
         }
 
         if (!hasVisibleSamples) {

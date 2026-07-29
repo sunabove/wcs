@@ -195,6 +195,8 @@ class URDFViewer {
             false
         );
         this.wheelInfoOverlayElement = null;
+        this.wheelInfoToggleButtonElement = null;
+        this.isWheelInfoOverlayVisible = this.showWheelInfo;
         this.urdfPath = containerElement.getAttribute('urdf') || '/urdf/vehicle/vehicle.urdf';
         const rawCameraPose = containerElement.getAttribute('cameraPose');
         const rawCameraPosition = containerElement.getAttribute('cameraPosition');
@@ -598,6 +600,38 @@ class URDFViewer {
 
         this.container.appendChild(overlayElement);
         this.wheelInfoOverlayElement = overlayElement;
+        this.setWheelInfoOverlayVisible(this.isWheelInfoOverlayVisible);
+    }
+
+    setWheelInfoOverlayVisible(isVisible) {
+        this.isWheelInfoOverlayVisible = !!isVisible;
+
+        if (this.wheelInfoOverlayElement) {
+            this.wheelInfoOverlayElement.style.display = this.isWheelInfoOverlayVisible ? '' : 'none';
+        }
+
+        this.updateWheelInfoToggleButtonState();
+    }
+
+    toggleWheelInfoOverlayVisible() {
+        this.setWheelInfoOverlayVisible(!this.isWheelInfoOverlayVisible);
+    }
+
+    updateWheelInfoToggleButtonState() {
+        if (!this.wheelInfoToggleButtonElement) {
+            return;
+        }
+
+        const isVisible = this.isWheelInfoOverlayVisible;
+        this.wheelInfoToggleButtonElement.setAttribute('aria-pressed', isVisible ? 'true' : 'false');
+        this.wheelInfoToggleButtonElement.title = isVisible ? '휠 정보 숨기기' : '휠 정보 표시';
+        this.wheelInfoToggleButtonElement.style.background = isVisible
+            ? 'rgba(37, 99, 235, 0.12)'
+            : 'rgba(255, 255, 255, 0.98)';
+        this.wheelInfoToggleButtonElement.style.borderColor = isVisible
+            ? 'rgba(37, 99, 235, 0.75)'
+            : 'rgba(32, 46, 66, 0.45)';
+        this.wheelInfoToggleButtonElement.style.color = isVisible ? '#0b2a66' : '#1f2937';
     }
 
     setupAttitudeOverlay() {
@@ -1020,11 +1054,18 @@ class URDFViewer {
         // Match overlay widgets with road video overlay vertical start.
         const overlayTopPx = '10px';
 
+        const wrapperElement = document.createElement('div');
+        wrapperElement.style.position = 'absolute';
+        wrapperElement.style.top = overlayTopPx;
+        wrapperElement.style.left = '10px';
+        wrapperElement.style.zIndex = '16';
+        wrapperElement.style.display = 'inline-flex';
+        wrapperElement.style.alignItems = 'flex-start';
+        wrapperElement.style.columnGap = '6px';
+        wrapperElement.style.pointerEvents = 'none';
+
         const panelElement = document.createElement('div');
-        panelElement.style.position = 'absolute';
-        panelElement.style.top = overlayTopPx;
-        panelElement.style.left = '10px';
-        panelElement.style.zIndex = '16';
+        panelElement.style.position = 'relative';
         panelElement.style.width = 'auto';
         panelElement.style.padding = '8px';
         panelElement.style.background = 'rgba(255, 255, 255, 0.92)';
@@ -1111,9 +1152,54 @@ class URDFViewer {
         gridElement.appendChild(createFaceButton('bottom', 'D', 'Down (-Z)'));
 
         panelElement.appendChild(gridElement);
+        wrapperElement.appendChild(panelElement);
 
-        this.container.appendChild(panelElement);
-        this.viewCubeOverlayElement = panelElement;
+        if (this.showWheelInfo) {
+            const wheelToggleButtonElement = document.createElement('button');
+            wheelToggleButtonElement.type = 'button';
+            wheelToggleButtonElement.textContent = 'WHEEL';
+            wheelToggleButtonElement.setAttribute('aria-label', '휠 정보 오버레이 토글');
+            wheelToggleButtonElement.style.pointerEvents = 'auto';
+            wheelToggleButtonElement.style.height = '32px';
+            wheelToggleButtonElement.style.padding = '0 10px';
+            wheelToggleButtonElement.style.marginTop = '8px';
+            wheelToggleButtonElement.style.border = '1px solid rgba(32, 46, 66, 0.45)';
+            wheelToggleButtonElement.style.borderRadius = '8px';
+            wheelToggleButtonElement.style.fontSize = '11px';
+            wheelToggleButtonElement.style.fontWeight = '700';
+            wheelToggleButtonElement.style.letterSpacing = '0.03em';
+            wheelToggleButtonElement.style.lineHeight = '1';
+            wheelToggleButtonElement.style.cursor = 'pointer';
+            wheelToggleButtonElement.style.userSelect = 'none';
+            wheelToggleButtonElement.style.transition = 'background-color 120ms ease, color 120ms ease, border-color 120ms ease, box-shadow 120ms ease, transform 120ms ease';
+
+            const applyHoverOn = () => {
+                wheelToggleButtonElement.style.boxShadow = '0 2px 6px rgba(37, 99, 235, 0.2)';
+                wheelToggleButtonElement.style.transform = 'translateY(-1px)';
+            };
+
+            const applyHoverOff = () => {
+                wheelToggleButtonElement.style.boxShadow = 'none';
+                wheelToggleButtonElement.style.transform = 'translateY(0)';
+            };
+
+            wheelToggleButtonElement.addEventListener('mouseenter', applyHoverOn);
+            wheelToggleButtonElement.addEventListener('mouseleave', applyHoverOff);
+            wheelToggleButtonElement.addEventListener('focus', applyHoverOn);
+            wheelToggleButtonElement.addEventListener('blur', applyHoverOff);
+            wheelToggleButtonElement.addEventListener('click', (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                this.toggleWheelInfoOverlayVisible();
+            });
+
+            this.wheelInfoToggleButtonElement = wheelToggleButtonElement;
+            this.updateWheelInfoToggleButtonState();
+            wrapperElement.appendChild(wheelToggleButtonElement);
+        }
+
+        this.container.appendChild(wrapperElement);
+        this.viewCubeOverlayElement = wrapperElement;
         this.viewCubeCubeElement = null;
         this.updateViewCubeOverlay();
     }

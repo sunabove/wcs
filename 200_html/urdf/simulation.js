@@ -30,6 +30,7 @@ class RapierDriveSimulation {
         this.groundContactBiasMeters = 0;
         this.groundZ = 0;
         this.underbodyPassThroughClearanceMeters = 0.09;
+        this.underbodyPassThroughObstacleNamePatterns = [/obstacle_rock_01/i];
         this.urdfObstacleLinkNames = ['obstacle_rock_01', 'obstacle_rock_02', 'obstacle_rock', 'rock_obstacle'];
         this.urdfObstacleLinkNamePatterns = [
             /^obstacle/i,
@@ -118,10 +119,19 @@ class RapierDriveSimulation {
         const hookState = this.hasInstalledDriveCommandHooks ? 'Y' : 'N';
 
         let bodySummary = 'body=unavailable';
+        let obstacleSummary = 'wheelPlaneZ=n/a rock01TopZ=n/a underbodyGap=n/a';
         if (this.body) {
             const pos = this.body.translation();
             const vel = this.body.linvel();
             bodySummary = `pos=(${pos.x.toFixed(3)}, ${pos.y.toFixed(3)}, ${pos.z.toFixed(3)}) vel=(${vel.x.toFixed(3)}, ${vel.y.toFixed(3)}, ${vel.z.toFixed(3)})`;
+
+            const wheelContactPlaneZ = this.getWheelContactPlaneZ();
+            const obstacleRock01TopZ = this.getObstacleTopZByName('obstacle_rock_01');
+            const gap = Number.isFinite(wheelContactPlaneZ) && Number.isFinite(obstacleRock01TopZ)
+                ? (wheelContactPlaneZ - obstacleRock01TopZ)
+                : null;
+
+            obstacleSummary = `wheelPlaneZ=${Number.isFinite(wheelContactPlaneZ) ? wheelContactPlaneZ.toFixed(3) : 'n/a'} rock01TopZ=${Number.isFinite(obstacleRock01TopZ) ? obstacleRock01TopZ.toFixed(3) : 'n/a'} underbodyGap=${Number.isFinite(gap) ? gap.toFixed(3) : 'n/a'}`;
         }
 
         this.debugTextElement.textContent = [
@@ -130,7 +140,8 @@ class RapierDriveSimulation {
             `simulationViewer=${simulationViewerId}`,
             `driveViewer=${driveViewerId}`,
             `mode=${driveMode} speedKmh=${Number.isFinite(speedKmh) ? speedKmh.toFixed(1) : 'NaN'} speedMps=${Number.isFinite(speedMps) ? speedMps.toFixed(3) : 'NaN'}`,
-            bodySummary
+            bodySummary,
+            obstacleSummary
         ].join('\n');
     }
 
@@ -754,6 +765,8 @@ class RapierDriveSimulation {
                 collider: obstacleCollider,
                 center: new THREE.Vector3(center.x, center.y, clampedCenterZ),
                 halfExtents: { x: halfX, y: halfY, z: halfZ },
+                linkName: obstacleLinkName,
+                normalizedLinkName: normalizedObstacleName,
                 isSensor: Boolean(isPassUnderTagged)
             });
             console.log(`[URDF][Simulation] obstacle collider created from URDF link: ${obstacleLinkName}`);
@@ -818,6 +831,42 @@ class RapierDriveSimulation {
         const clearance = Math.max(Number(this.underbodyPassThroughClearanceMeters) || 0, 0);
 
         return obstacleTopZ <= (wheelContactPlaneZ + clearance);
+    }
+
+    isObstacleAllowedUnderbodyPassThrough(obstacleInfo) {
+        if (!obstacleInfo) {
+            return false;
+        }
+
+        const linkName = String(obstacleInfo.linkName || '');
+        const normalizedName = String(obstacleInfo.normalizedLinkName || this.normalizeLinkName(linkName));
+        return this.underbodyPassThroughObstacleNamePatterns.some((pattern) => pattern.test(linkName) || pattern.test(normalizedName));
+    }
+
+    getWheelContactPlaneZ() {
+        if (!this.body || !Number.isFinite(this.wheelLocalMinZ)) {
+            return null;
+        }
+
+        return this.body.translation().z + this.wheelLocalMinZ;
+    }
+
+    getObstacleTopZByName(targetName) {
+        const target = this.normalizeLinkName(targetName);
+        const info = this.obstacleColliderInfos.find((item) => {
+            if (!item) {
+                return false;
+            }
+
+            const normalizedName = String(item.normalizedLinkName || this.normalizeLinkName(item.linkName || ''));
+            return normalizedName === target;
+        });
+
+        if (!info?.center || !info?.halfExtents) {
+            return null;
+        }
+
+        return info.center.z + info.halfExtents.z;
     }
 
     clampVehicleAboveGround() {
@@ -1257,7 +1306,8 @@ class RapierDriveSimulation {
                             return;
                         }
 
-                        if (this.isObstacleBelowWheelContactPlane(obstacleInfo)) {
+                        if (this.isObstacleAllowedUnderbodyPassThrough(obstacleInfo)
+                            && this.isObstacleBelowWheelContactPlane(obstacleInfo)) {
                             return;
                         }
 

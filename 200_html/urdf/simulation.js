@@ -59,6 +59,8 @@ class RapierDriveSimulation {
         this.isUprightRotationLockActive = false;
         this.groundPenetrationToleranceMeters = 0.003;
         this.wheelGroundHardClampOffsetMeters = 0.001;
+        this.wheelGroundClampActivationMarginMeters = 0.003;
+        this.flatGroundSnapDistanceMeters = 0.01;
         this.maxLiftWithoutObstacleMeters = 0.03;
         this.maxLiftWithObstacleMeters = 0.28;
         this.isInitializing = false;
@@ -1404,7 +1406,7 @@ class RapierDriveSimulation {
             const groundBody = this.world.createRigidBody(groundBodyDesc);
             const groundColliderDesc = this.rapier.ColliderDesc.cuboid(halfX, halfY, halfZ)
                 .setFriction(friction)
-                .setRestitution(0.02);
+                .setRestitution(0.0);
             this.world.createCollider(groundColliderDesc, groundBody);
         };
 
@@ -1733,6 +1735,21 @@ class RapierDriveSimulation {
         }
     }
 
+    isBodyNearFlatGroundSupport() {
+        if (!this.body || !Number.isFinite(this.groundZ) || !Number.isFinite(this.groundContactLocalMinZ)) {
+            return false;
+        }
+
+        if (this.isVehicleObstacleContact || this.isVehicleOverHoleRegion()) {
+            return false;
+        }
+
+        const translation = this.body.translation();
+        const groundBasedMinZ = this.groundZ - this.groundContactLocalMinZ - this.groundContactBiasMeters;
+        const snapDistance = Math.max(Number(this.flatGroundSnapDistanceMeters) || 0, 0);
+        return Math.abs(translation.z - groundBasedMinZ) <= snapDistance;
+    }
+
     enforceMeasuredWheelGroundLimit(linkMap) {
         if (!this.body || !this.rapier || !linkMap || !Number.isFinite(this.groundZ)) {
             return false;
@@ -1748,11 +1765,13 @@ class RapierDriveSimulation {
         }
 
         const minAllowedWheelZ = this.groundZ - Math.max(Number(this.groundPenetrationToleranceMeters) || 0, 0);
-        if (measuredWheelMinZ >= minAllowedWheelZ) {
+        const penetrationDepth = minAllowedWheelZ - measuredWheelMinZ;
+        const activationMargin = Math.max(Number(this.wheelGroundClampActivationMarginMeters) || 0, 0);
+        if (penetrationDepth <= activationMargin) {
             return false;
         }
 
-        const liftAmount = (minAllowedWheelZ - measuredWheelMinZ) + Math.max(Number(this.wheelGroundHardClampOffsetMeters) || 0, 0);
+        const liftAmount = penetrationDepth + Math.max(Number(this.wheelGroundHardClampOffsetMeters) || 0, 0);
         const translation = this.body.translation();
         const velocity = this.body.linvel();
         this.body.setTranslation(new this.rapier.Vector3(translation.x, translation.y, translation.z + liftAmount), true);
@@ -1789,7 +1808,7 @@ class RapierDriveSimulation {
             const wheelColliderDesc = this.rapier.ColliderDesc.ball(approxRadius)
                 .setTranslation(localCenter.x, localCenter.y, localCenter.z)
                 .setFriction(1.6)
-                .setRestitution(0.01);
+                .setRestitution(0.0);
 
             const wheelCollider = this.world.createCollider(wheelColliderDesc, body);
             this.vehicleColliders.push(wheelCollider);
@@ -2371,7 +2390,7 @@ class RapierDriveSimulation {
             const colliderDesc = RAPIER.ColliderDesc.cuboid(halfX, halfY, halfZ)
                 .setTranslation(localCenter.x, localCenter.y, adjustedCenterZ)
                 .setFriction(0.15)
-                .setRestitution(0.04);
+                .setRestitution(0.0);
             this.vehicleCollider = world.createCollider(colliderDesc, body);
             this.vehicleColliderLocalCenter.set(localCenter.x, localCenter.y, adjustedCenterZ);
             this.vehicleColliderHalfExtents = { x: halfX, y: halfY, z: halfZ };
@@ -2518,7 +2537,9 @@ class RapierDriveSimulation {
             commandedVelocityX = targetVelocityX;
             commandedVelocityY = targetVelocityY;
 
-            const nextVelocityZ = wasObstacleContact ? currentLinearVelocity.z : Math.min(0, currentLinearVelocity.z);
+            const nextVelocityZ = wasObstacleContact
+                ? currentLinearVelocity.z
+                : (this.isBodyNearFlatGroundSupport() ? 0 : Math.min(0, currentLinearVelocity.z));
             this.body.setLinvel(new this.rapier.Vector3(velocityX, velocityY, nextVelocityZ), true);
             this.body.setAngvel(new this.rapier.Vector3(0, 0, 0), true);
         } else {
@@ -2530,7 +2551,9 @@ class RapierDriveSimulation {
             commandedVelocityX = velocityX;
             commandedVelocityY = velocityY;
 
-            const nextVelocityZ = wasObstacleContact ? currentLinearVelocity.z : Math.min(0, currentLinearVelocity.z);
+            const nextVelocityZ = wasObstacleContact
+                ? currentLinearVelocity.z
+                : (this.isBodyNearFlatGroundSupport() ? 0 : Math.min(0, currentLinearVelocity.z));
             this.body.setLinvel(new this.rapier.Vector3(velocityX, velocityY, nextVelocityZ), true);
             this.body.setAngvel(new this.rapier.Vector3(currentAngularVelocity.x, currentAngularVelocity.y, this.maxYawRateRad * effectiveSteerSign), true);
         }

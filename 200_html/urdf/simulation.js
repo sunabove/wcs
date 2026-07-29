@@ -1459,9 +1459,9 @@ class RapierDriveSimulation {
             const halfY = Math.max((size.y || 0.4) * 0.5 - chassisMarginY, 0.08);
 
             const halfZBase = Math.max((size.z || 0.25) * 0.5 - chassisMarginZ, 0.04);
-            const bboxMinLocalZ = localCenter.z - halfZBase;
-            const bboxMaxLocalZ = localCenter.z + halfZBase;
-            this.vehicleLocalMinZ = bboxMinLocalZ;
+            const rawBboxMinLocalZ = localCenter.z - halfZBase;
+            const rawBboxMaxLocalZ = localCenter.z + halfZBase;
+            this.vehicleLocalMinZ = rawBboxMinLocalZ;
             this.estimateWheelEffectiveRadiusMeters(carFrame, linkMap);
             this.wheelLocalMinZ = this.getWheelLocalMinZ(carFrame, linkMap);
             if (Number.isFinite(this.wheelLocalMinZ)) {
@@ -1471,8 +1471,20 @@ class RapierDriveSimulation {
             } else {
                 this.groundContactLocalMinZ = null;
             }
-            const halfZ = Math.max((bboxMaxLocalZ - bboxMinLocalZ) * 0.5, 0.04);
-            const adjustedCenterZ = (bboxMaxLocalZ + bboxMinLocalZ) * 0.5;
+
+            // Keep the chassis collider above wheel contact plane so low obstacles can pass under the body.
+            let colliderMinLocalZ = rawBboxMinLocalZ;
+            let colliderMaxLocalZ = rawBboxMaxLocalZ;
+            if (Number.isFinite(this.wheelLocalMinZ)) {
+                const minPassThroughZ = this.wheelLocalMinZ + Math.max(Number(this.underbodyPassThroughClearanceMeters) || 0, 0);
+                colliderMinLocalZ = Math.max(colliderMinLocalZ, minPassThroughZ);
+                if ((colliderMaxLocalZ - colliderMinLocalZ) < 0.04) {
+                    colliderMaxLocalZ = colliderMinLocalZ + 0.04;
+                }
+            }
+
+            const halfZ = Math.max((colliderMaxLocalZ - colliderMinLocalZ) * 0.5, 0.04);
+            const adjustedCenterZ = (colliderMaxLocalZ + colliderMinLocalZ) * 0.5;
 
             const colliderDesc = RAPIER.ColliderDesc.cuboid(halfX, halfY, halfZ)
                 .setTranslation(localCenter.x, localCenter.y, adjustedCenterZ)

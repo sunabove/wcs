@@ -80,6 +80,7 @@ class RapierDriveSimulation {
         };
         this.commandedDriveMode = 'stop';
         this.commandedSpeedKmh = SIM_SPEED_DEFAULT_KMH;
+        this.isPaused = false;
         this.hasInstalledDriveCommandHooks = false;
         this.hasActivatedSimulationMotion = false;
         this.hasActivatedDynamicGroundClamp = false;
@@ -122,6 +123,7 @@ class RapierDriveSimulation {
         const visualSpeedScale = Number(this.visualSpeedScale);
         const isReady = this.isReady ? 'Y' : 'N';
         const isFailed = this.hasFailed ? 'Y' : 'N';
+        const isPaused = this.isPaused ? 'Y' : 'N';
         const hookState = this.hasInstalledDriveCommandHooks ? 'Y' : 'N';
 
         let bodySummary = 'body=unavailable';
@@ -141,7 +143,7 @@ class RapierDriveSimulation {
         }
 
         this.debugTextElement.textContent = [
-            `ready=${isReady} failed=${isFailed} hooks=${hookState}`,
+            `ready=${isReady} failed=${isFailed} paused=${isPaused} hooks=${hookState}`,
             `activeViewer=${activeViewerId}`,
             `simulationViewer=${simulationViewerId}`,
             `driveViewer=${driveViewerId}`,

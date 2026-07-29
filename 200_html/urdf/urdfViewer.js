@@ -1213,7 +1213,7 @@ class URDFViewer {
             wheelToggleButtonElement.style.height = '32px';
             wheelToggleButtonElement.style.width = '32px';
             wheelToggleButtonElement.style.padding = '0';
-            wheelToggleButtonElement.style.marginTop = '8px';
+            wheelToggleButtonElement.style.marginTop = '0';
             wheelToggleButtonElement.style.border = '1px solid rgba(32, 46, 66, 0.45)';
             wheelToggleButtonElement.style.borderRadius = '8px';
             wheelToggleButtonElement.style.display = 'inline-flex';

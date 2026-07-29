@@ -34,6 +34,7 @@ class URDFViewer {
         this.robotModel = null;
         this.xyGridHelper = null;
         this.axesHelper = null;
+        this.axesRootGroup = null;
         this.axisLineByKey = {
             x: null,
             y: null,
@@ -2619,6 +2620,11 @@ class URDFViewer {
     }
 
     createAxisGuides(axisLengths) {
+        if (!this.axesRootGroup) {
+            this.axesRootGroup = new THREE.Group();
+            this.scene.add(this.axesRootGroup);
+        }
+
         const lengthX = Math.max(Number(axisLengths?.x) || 0, 0.001);
         const lengthY = Math.max(Number(axisLengths?.y) || 0, 0.001);
         const lengthZ = Math.max(Number(axisLengths?.z) || 0, 0.001);
@@ -2634,7 +2640,7 @@ class URDFViewer {
         axesGroup.add(yLine);
         axesGroup.add(zLine);
 
-        this.scene.add(axesGroup);
+        this.axesRootGroup.add(axesGroup);
         this.axesHelper = axesGroup;
         this.axisLineByKey = {
             x: xLine,
@@ -2665,6 +2671,11 @@ class URDFViewer {
 
 
     addAxisLabels(axisLengths) {
+        if (!this.axesRootGroup) {
+            this.axesRootGroup = new THREE.Group();
+            this.scene.add(this.axesRootGroup);
+        }
+
         const lengthX = Math.max(Number(axisLengths?.x) || 0, 0.001);
         const lengthY = Math.max(Number(axisLengths?.y) || 0, 0.001);
         const lengthZ = Math.max(Number(axisLengths?.z) || 0, 0.001);
@@ -2678,9 +2689,9 @@ class URDFViewer {
         yLabel.visible = false;
         zLabel.visible = false;
 
-        this.scene.add(xLabel);
-        this.scene.add(yLabel);
-        this.scene.add(zLabel);
+        this.axesRootGroup.add(xLabel);
+        this.axesRootGroup.add(yLabel);
+        this.axesRootGroup.add(zLabel);
 
         this.axisLabelSprites = [xLabel, yLabel, zLabel];
     }
@@ -2752,6 +2763,24 @@ class URDFViewer {
                 this.redrawAxisLabelSpriteFont(sprite, fontPx);
             }
         });
+    }
+
+    updateAxisAnchorFromModel() {
+        if (!this.axesRootGroup) {
+            return;
+        }
+
+        const linkMap = this.robotModel?.links || null;
+        const anchorLink = linkMap?.origin || linkMap?.base_link || null;
+        if (!anchorLink) {
+            this.axesRootGroup.position.set(0, 0, 0);
+            return;
+        }
+
+        const anchorPosition = new THREE.Vector3();
+        anchorLink.updateWorldMatrix(true, false);
+        anchorLink.getWorldPosition(anchorPosition);
+        this.axesRootGroup.position.copy(anchorPosition);
     }
 
     setReferenceGuidesVisible(isVisible) {
@@ -3420,6 +3449,7 @@ class URDFViewer {
         this.lastFrameTimeMs = now;
 
         this.applyWheelAnimation(deltaSec);
+        this.updateAxisAnchorFromModel();
         requestAnimationFrame(() => this.animate());
         this.controls.update();
         this.updateCompassOverlay();

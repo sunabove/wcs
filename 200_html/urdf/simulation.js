@@ -437,7 +437,10 @@ class RapierDriveSimulation {
         });
 
         const legendKeys = ['fl', 'fr', 'rl', 'rr'];
-        let legendX = margin.left;
+        const legendItemWidth = 46;
+        const legendTotalWidth = legendKeys.length * legendItemWidth;
+        const legendCenterX = margin.left + (plotWidth * 0.5);
+        let legendX = legendCenterX - (legendTotalWidth * 0.5);
         const legendY = 10;
         ctx.font = '11px Segoe UI';
         legendKeys.forEach((wheelKey) => {
@@ -445,7 +448,7 @@ class RapierDriveSimulation {
             ctx.fillRect(legendX, legendY - 7, 9, 3);
             ctx.fillStyle = '#334155';
             ctx.fillText(wheelKey.toUpperCase(), legendX + 12, legendY);
-            legendX += 46;
+            legendX += legendItemWidth;
         });
     }
 

@@ -13,7 +13,11 @@ class RapierDriveSimulation {
         this.body = null;
         this.vehicleCollider = null;
         this.vehicleColliders = [];
+        this.vehicleColliderLocalCenter = new THREE.Vector3(0, 0, 0);
+        this.vehicleColliderHalfExtents = { x: 0.1, y: 0.1, z: 0.1 };
         this.obstacleColliders = [];
+        this.obstacleColliderInfos = [];
+        this.obstacleContactSurfaceToleranceMeters = 0.008;
         this.isVehicleObstacleContact = false;
         this.carFrame = null;
         this.initialPosition = null;
@@ -704,6 +708,7 @@ class RapierDriveSimulation {
         }
 
         this.obstacleColliders = [];
+        this.obstacleColliderInfos = [];
 
         obstacleLinkNames.forEach((obstacleLinkName) => {
             const obstacleLink = linkMap[obstacleLinkName];
@@ -744,8 +749,57 @@ class RapierDriveSimulation {
 
             const obstacleCollider = this.world.createCollider(obstacleColliderDesc, obstacleBody);
             this.obstacleColliders.push(obstacleCollider);
+            this.obstacleColliderInfos.push({
+                collider: obstacleCollider,
+                center: center.clone(),
+                halfExtents: { x: halfX, y: halfY, z: halfZ },
+                isSensor: Boolean(isPassUnderTagged)
+            });
             console.log(`[URDF][Simulation] obstacle collider created from URDF link: ${obstacleLinkName}`);
         });
+    }
+
+    getVehicleColliderWorldCenter() {
+        if (!this.body) {
+            return null;
+        }
+
+        const bodyPosition = this.body.translation();
+        const bodyRotation = this.body.rotation();
+        const bodyQuat = new THREE.Quaternion(
+            bodyRotation.x,
+            bodyRotation.y,
+            bodyRotation.z,
+            bodyRotation.w
+        ).normalize();
+        const centerOffset = this.vehicleColliderLocalCenter.clone().applyQuaternion(bodyQuat);
+
+        return new THREE.Vector3(
+            bodyPosition.x + centerOffset.x,
+            bodyPosition.y + centerOffset.y,
+            bodyPosition.z + centerOffset.z
+        );
+    }
+
+    isVehicleAabbTouchingObstacle(obstacleInfo) {
+        const vehicleCenter = this.getVehicleColliderWorldCenter();
+        if (!vehicleCenter || !obstacleInfo?.center || !obstacleInfo?.halfExtents) {
+            return false;
+        }
+
+        const vx = this.vehicleColliderHalfExtents.x;
+        const vy = this.vehicleColliderHalfExtents.y;
+        const vz = this.vehicleColliderHalfExtents.z;
+        const ox = obstacleInfo.halfExtents.x;
+        const oy = obstacleInfo.halfExtents.y;
+        const oz = obstacleInfo.halfExtents.z;
+        const tolerance = Math.max(Number(this.obstacleContactSurfaceToleranceMeters) || 0, 0);
+
+        const gapX = Math.abs(vehicleCenter.x - obstacleInfo.center.x) - (vx + ox);
+        const gapY = Math.abs(vehicleCenter.y - obstacleInfo.center.y) - (vy + oy);
+        const gapZ = Math.abs(vehicleCenter.z - obstacleInfo.center.z) - (vz + oz);
+
+        return gapX <= tolerance && gapY <= tolerance && gapZ <= tolerance;
     }
 
     clampVehicleAboveGround() {
@@ -1150,6 +1204,12 @@ class RapierDriveSimulation {
         }
 
         let hasContact = false;
+        const obstacleInfoByCollider = new Map();
+        this.obstacleColliderInfos.forEach((info) => {
+            if (info?.collider) {
+                obstacleInfoByCollider.set(info.collider, info);
+            }
+        });
 
         if (typeof this.world.contactPair === 'function') {
             this.vehicleColliders.forEach((vehicleCollider) => {
@@ -1162,8 +1222,15 @@ class RapierDriveSimulation {
                         return;
                     }
 
+                    const obstacleInfo = obstacleInfoByCollider.get(obstacleCollider) || null;
+                    if (obstacleInfo?.isSensor) {
+                        return;
+                    }
+
                     this.world.contactPair(vehicleCollider, obstacleCollider, () => {
-                        hasContact = true;
+                        if (!obstacleInfo || this.isVehicleAabbTouchingObstacle(obstacleInfo)) {
+                            hasContact = true;
+                        }
                     });
                 });
             });
@@ -1341,6 +1408,8 @@ class RapierDriveSimulation {
                 .setFriction(0.15)
                 .setRestitution(0.04);
             this.vehicleCollider = world.createCollider(colliderDesc, body);
+            this.vehicleColliderLocalCenter.set(localCenter.x, localCenter.y, adjustedCenterZ);
+            this.vehicleColliderHalfExtents = { x: halfX, y: halfY, z: halfZ };
             this.vehicleColliders = [this.vehicleCollider];
             if (this.enableWheelPhysicsColliders) {
                 this.addWheelCollidersFromUrdf(body, carFrame, linkMap);

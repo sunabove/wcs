@@ -1314,11 +1314,15 @@ class RapierDriveSimulation {
             const size = bbox.getSize(new THREE.Vector3());
             const worldCenter = bbox.getCenter(new THREE.Vector3());
             const localCenter = carFrame.worldToLocal(worldCenter.clone());
-            const halfX = Math.max((size.x || 0.6) * 0.5, 0.12);
-            const halfY = Math.max((size.y || 0.4) * 0.5, 0.10);
+            const chassisMarginX = 0.08;
+            const chassisMarginY = 0.05;
+            const chassisMarginZ = 0.02;
+            const halfX = Math.max((size.x || 0.6) * 0.5 - chassisMarginX, 0.10);
+            const halfY = Math.max((size.y || 0.4) * 0.5 - chassisMarginY, 0.08);
 
-            const bboxMinLocalZ = localCenter.z - Math.max((size.z || 0.25) * 0.5, 0.06);
-            const bboxMaxLocalZ = localCenter.z + Math.max((size.z || 0.25) * 0.5, 0.06);
+            const halfZBase = Math.max((size.z || 0.25) * 0.5 - chassisMarginZ, 0.04);
+            const bboxMinLocalZ = localCenter.z - halfZBase;
+            const bboxMaxLocalZ = localCenter.z + halfZBase;
             this.vehicleLocalMinZ = bboxMinLocalZ;
             this.estimateWheelEffectiveRadiusMeters(carFrame, linkMap);
             this.wheelLocalMinZ = this.getWheelLocalMinZ(carFrame, linkMap);
@@ -1329,7 +1333,7 @@ class RapierDriveSimulation {
             } else {
                 this.groundContactLocalMinZ = null;
             }
-            const halfZ = Math.max((bboxMaxLocalZ - bboxMinLocalZ) * 0.5, 0.06);
+            const halfZ = Math.max((bboxMaxLocalZ - bboxMinLocalZ) * 0.5, 0.04);
             const adjustedCenterZ = (bboxMaxLocalZ + bboxMinLocalZ) * 0.5;
 
             const colliderDesc = RAPIER.ColliderDesc.cuboid(halfX, halfY, halfZ)

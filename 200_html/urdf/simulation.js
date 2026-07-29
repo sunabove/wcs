@@ -1818,15 +1818,12 @@ class RapierDriveSimulation {
         }
 
         const translation = this.body.translation();
-        const deltaZ = targetZ - translation.z;
-        if (Math.abs(deltaZ) < 1e-5) {
+        if (Math.abs(targetZ - translation.z) < 1e-6) {
             return;
         }
 
-        // Limit per-step correction to avoid visible snap near obstacle transitions.
-        const maxStepCorrection = 0.004;
-        const correction = THREE.MathUtils.clamp(deltaZ, -maxStepCorrection, maxStepCorrection);
-        this.body.setTranslation(new this.rapier.Vector3(translation.x, translation.y, translation.z + correction), true);
+        // Hard-lock vertical ride height on flat road to suppress persistent jitter.
+        this.body.setTranslation(new this.rapier.Vector3(translation.x, translation.y, targetZ), true);
 
         const velocity = this.body.linvel();
         this.body.setLinvel(new this.rapier.Vector3(velocity.x, velocity.y, 0), true);
@@ -1834,6 +1831,10 @@ class RapierDriveSimulation {
 
     enforceMeasuredWheelGroundLimit(linkMap) {
         if (!this.body || !this.rapier || !linkMap || !Number.isFinite(this.groundZ)) {
+            return false;
+        }
+
+        if (!this.isVehicleObstacleContact && !this.isVehicleOverHoleRegion()) {
             return false;
         }
 

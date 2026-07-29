@@ -256,7 +256,7 @@ class RapierDriveSimulation {
         ctx.fillStyle = '#ffffff';
         ctx.fillRect(0, 0, width, height);
 
-        const minTimeSec = nowSec - this.wheelZChartWindowSec;
+        const minTimeSec = Math.max(nowSec - this.wheelZChartWindowSec, 0);
         const visibleSamples = [];
         Object.keys(this.wheelZChartHistoryByKey).forEach((wheelKey) => {
             const samples = this.wheelZChartHistoryByKey[wheelKey] || [];
@@ -264,15 +264,9 @@ class RapierDriveSimulation {
             visibleSamples.push(...filtered);
         });
 
-        if (visibleSamples.length === 0) {
-            ctx.fillStyle = '#6c757d';
-            ctx.font = '12px Segoe UI';
-            ctx.fillText('Collecting wheel center Z data...', margin.left, margin.top + 20);
-            return;
-        }
-
-        let minZ = Math.min(...visibleSamples.map((sample) => sample.z));
-        let maxZ = Math.max(...visibleSamples.map((sample) => sample.z));
+        const hasVisibleSamples = visibleSamples.length > 0;
+        let minZ = hasVisibleSamples ? Math.min(...visibleSamples.map((sample) => sample.z)) : Number.POSITIVE_INFINITY;
+        let maxZ = hasVisibleSamples ? Math.max(...visibleSamples.map((sample) => sample.z)) : Number.NEGATIVE_INFINITY;
 
         const maxHoleDepthMeters = (Array.isArray(this.holeRegions) ? this.holeRegions : []).reduce((maxDepth, holeRegion) => {
             const floorZ = Number(holeRegion?.floorZ);
@@ -286,6 +280,14 @@ class RapierDriveSimulation {
         if (maxHoleDepthMeters > 0 && Number.isFinite(this.groundZ)) {
             const holeMinZ = this.groundZ - maxHoleDepthMeters;
             minZ = Math.min(minZ, holeMinZ);
+            if (!hasVisibleSamples) {
+                maxZ = Number.isFinite(this.groundZ) ? this.groundZ : Math.max(maxZ, holeMinZ + 0.05);
+            }
+        }
+
+        if (!Number.isFinite(minZ) || !Number.isFinite(maxZ)) {
+            minZ = 0;
+            maxZ = 0.05;
         }
 
         if ((maxZ - minZ) < 0.001) {
@@ -343,6 +345,12 @@ class RapierDriveSimulation {
             const z = maxZ - (maxZ - minZ) * ratio;
             const y = margin.top + plotHeight * ratio;
             ctx.fillText((z * 100).toFixed(1), 2, y + 3);
+        }
+
+        if (!hasVisibleSamples) {
+            ctx.fillStyle = '#6c757d';
+            ctx.font = '12px Segoe UI';
+            ctx.fillText('Collecting wheel data...', margin.left + 8, margin.top + 20);
         }
 
         Object.keys(this.wheelZChartHistoryByKey).forEach((wheelKey) => {

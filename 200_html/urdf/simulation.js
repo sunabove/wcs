@@ -2610,10 +2610,11 @@ class RapierDriveSimulation {
         const wasObstacleContact = this.updateObstacleContactState();
         let commandedVelocityX = 0;
         let commandedVelocityY = 0;
+        const isNearFlatGroundSupport = this.isBodyNearFlatGroundSupport();
 
         if (this.keepUprightOnFlatGround) {
             // Keep roll/pitch locked on flat-road driving; only unlock near obstacles or holes.
-            const shouldKeepUpright = !wasObstacleContact && !this.isVehicleOverHoleRegion();
+            const shouldKeepUpright = isNearFlatGroundSupport;
             this.setUprightRotationLockEnabled(shouldKeepUpright);
         }
 
@@ -2631,7 +2632,6 @@ class RapierDriveSimulation {
 
         const currentLinearVelocity = this.body.linvel();
         const currentAngularVelocity = this.body.angvel();
-        const isNearFlatGroundSupport = this.isBodyNearFlatGroundSupport();
         let lockedRotation = null;
         if (keyboardState.isActive) {
             lockedRotation = this.body.rotation();
@@ -2648,8 +2648,8 @@ class RapierDriveSimulation {
                 : (isNearFlatGroundSupport ? 0 : currentLinearVelocity.z);
             this.body.setLinvel(new this.rapier.Vector3(velocityX, velocityY, nextVelocityZ), true);
             this.body.setAngvel(new this.rapier.Vector3(
-                wasObstacleContact ? currentAngularVelocity.x : 0,
-                wasObstacleContact ? currentAngularVelocity.y : 0,
+                isNearFlatGroundSupport ? 0 : currentAngularVelocity.x,
+                isNearFlatGroundSupport ? 0 : currentAngularVelocity.y,
                 0
             ), true);
         } else {
@@ -2696,14 +2696,14 @@ class RapierDriveSimulation {
             stepIndex += 1;
         }
 
-        if (keyboardState.isActive && lockedRotation && !this.isVehicleObstacleContact) {
+        if (keyboardState.isActive && lockedRotation && this.isBodyNearFlatGroundSupport()) {
             this.body.setRotation(lockedRotation, true);
             this.body.setAngvel(new this.rapier.Vector3(0, 0, 0), true);
         }
 
         const hasObstacleContact = this.updateObstacleContactState();
         if (this.keepUprightOnFlatGround) {
-            const shouldKeepUpright = !hasObstacleContact && !this.isVehicleOverHoleRegion();
+            const shouldKeepUpright = this.isBodyNearFlatGroundSupport();
             this.setUprightRotationLockEnabled(shouldKeepUpright);
         }
 

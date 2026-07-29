@@ -3,7 +3,7 @@ import * as THREE from 'three';
 const RAPIER_CDN = 'https://cdn.skypack.dev/@dimforge/rapier3d-compat@0.11.2';
 const SIM_SPEED_STORAGE_KEY = 'wcs.simulation.driveSpeedKmh';
 const SIM_SPEED_DEFAULT_KMH = 10;
-const SIM_SPEED_MAX_KMH = 20;
+const SIM_SPEED_MAX_KMH = 30;
 const SIM_VISUAL_SPEED_STORAGE_KEY = 'wcs.simulation.visualSpeedScale';
 const SIM_VISUAL_SPEED_DEFAULT_SCALE = 0.5;
 const SIM_VISUAL_SPEED_MIN_SCALE = 0.1;
@@ -1165,12 +1165,19 @@ class RapierDriveSimulation {
             return;
         }
 
+        const sliderMin = Number.parseFloat(speedSlider.min);
+        const sliderMax = Number.parseFloat(speedSlider.max);
+        const effectiveMin = Number.isFinite(sliderMin) ? sliderMin : 0;
+        const effectiveMax = Number.isFinite(sliderMax) && sliderMax >= effectiveMin
+            ? sliderMax
+            : SIM_SPEED_MAX_KMH;
+
         const parseSpeed = (rawValue, fallbackValue) => {
             const numeric = Number.parseFloat(rawValue);
             if (!Number.isFinite(numeric)) {
                 return fallbackValue;
             }
-            return Math.max(0, Math.min(SIM_SPEED_MAX_KMH, numeric));
+            return Math.max(effectiveMin, Math.min(effectiveMax, numeric));
         };
 
         let initialSpeed = SIM_SPEED_DEFAULT_KMH;

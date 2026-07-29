@@ -183,9 +183,9 @@
   <!-- Ground patch under the vehicle (2x vehicle body length) -->
   <link name="ground">
     <visual>
-      <origin xyz="0 0 -0.0025" rpy="0 0 0" />
+      <origin xyz="0 0 -0.25" rpy="0 0 0" />
       <geometry>
-        <box size="10.40 2.80 0.005" />
+        <box size="10.40 2.80 0.50" />
       </geometry>
       <material name="ground_surface" />
     </visual>
@@ -294,7 +294,7 @@
   <joint name="ground_to_ellipsoid_surface" type="fixed">
     <parent link="ground" />
     <child link="ellipsoid_surface" />
-    <origin xyz="0 0 -0.3000" rpy="0 0 0" />
+    <origin xyz="0 0 -0.5005" rpy="0 0 0" />
   </joint>
 
   <!-- Front-left wheel -->

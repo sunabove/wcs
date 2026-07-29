@@ -158,7 +158,7 @@ class RapierDriveSimulation {
         title.className = 'small fw-semibold text-primary';
         title.style.lineHeight = '1.1';
         title.style.marginBottom = '4px';
-        title.textContent = 'Wheel Center Z (last 20s)';
+        title.textContent = 'Wheel Center Z [cm] (last 20s)';
 
         const canvas = document.createElement('canvas');
         canvas.width = 344;
@@ -329,7 +329,7 @@ class RapierDriveSimulation {
             const ratio = i / zTicks;
             const z = maxZ - (maxZ - minZ) * ratio;
             const y = margin.top + plotHeight * ratio;
-            ctx.fillText(z.toFixed(3), 2, y + 3);
+            ctx.fillText((z * 100).toFixed(1), 2, y + 3);
         }
 
         Object.keys(this.wheelZChartHistoryByKey).forEach((wheelKey) => {

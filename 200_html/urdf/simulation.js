@@ -89,6 +89,30 @@ class RapierDriveSimulation {
         this.debugTextElement = null;
         this.debugStatusUpdateIntervalSec = 0.2;
         this.debugStatusElapsedSec = 0;
+        this.wheelZChartOverlayElement = null;
+        this.wheelZChartCanvasElement = null;
+        this.wheelZChartContext = null;
+        this.wheelZChartWindowSec = 20;
+        this.wheelZChartSampleIntervalSec = 0.1;
+        this.wheelZChartLastSampleTimeSec = null;
+        this.wheelZChartHistoryByKey = {
+            fl: [],
+            fr: [],
+            rl: [],
+            rr: []
+        };
+        this.wheelChartColorByKey = {
+            fl: '#0d6efd',
+            fr: '#dc3545',
+            rl: '#198754',
+            rr: '#fd7e14'
+        };
+        this.wheelLinkNameByKey = {
+            fl: 'wheel_fl',
+            fr: 'wheel_fr',
+            rl: 'wheel_rl',
+            rr: 'wheel_rr'
+        };
     }
 
     initDebugPanel() {
@@ -100,6 +124,247 @@ class RapierDriveSimulation {
 
         this.debugPanelElement.style.display = 'block';
         this.debugTextElement.textContent = '초기화 중...';
+    }
+
+    ensureWheelZChartOverlay() {
+        if (this.wheelZChartOverlayElement && this.wheelZChartCanvasElement && this.wheelZChartContext) {
+            return;
+        }
+
+        const container = this.viewer?.container || null;
+        if (!container) {
+            return;
+        }
+
+        const containerStyle = window.getComputedStyle(container);
+        if (containerStyle.position === 'static') {
+            container.style.position = 'relative';
+        }
+
+        const overlay = document.createElement('div');
+        overlay.id = 'wheel-z-chart-overlay';
+        overlay.className = 'position-absolute border border-primary-subtle rounded-3 shadow-sm';
+        overlay.style.right = '12px';
+        overlay.style.bottom = '12px';
+        overlay.style.width = 'min(360px, 84vw)';
+        overlay.style.height = '190px';
+        overlay.style.background = 'rgba(255, 255, 255, 0.92)';
+        overlay.style.backdropFilter = 'blur(2px)';
+        overlay.style.pointerEvents = 'none';
+        overlay.style.zIndex = '15';
+        overlay.style.padding = '8px 8px 6px 8px';
+
+        const title = document.createElement('div');
+        title.className = 'small fw-semibold text-primary';
+        title.style.lineHeight = '1.1';
+        title.style.marginBottom = '4px';
+        title.textContent = 'Wheel Center Z (last 20s)';
+
+        const canvas = document.createElement('canvas');
+        canvas.width = 344;
+        canvas.height = 154;
+        canvas.style.width = '100%';
+        canvas.style.height = '154px';
+        canvas.style.display = 'block';
+
+        overlay.appendChild(title);
+        overlay.appendChild(canvas);
+        container.appendChild(overlay);
+
+        this.wheelZChartOverlayElement = overlay;
+        this.wheelZChartCanvasElement = canvas;
+        this.wheelZChartContext = canvas.getContext('2d');
+    }
+
+    trimWheelZChartHistory(nowSec) {
+        const minTimeSec = nowSec - this.wheelZChartWindowSec;
+        Object.keys(this.wheelZChartHistoryByKey).forEach((key) => {
+            const samples = this.wheelZChartHistoryByKey[key];
+            if (!Array.isArray(samples) || samples.length === 0) {
+                return;
+            }
+
+            let keepIndex = 0;
+            while (keepIndex < samples.length && samples[keepIndex].t < minTimeSec) {
+                keepIndex += 1;
+            }
+
+            if (keepIndex > 0) {
+                this.wheelZChartHistoryByKey[key] = samples.slice(keepIndex);
+            }
+        });
+    }
+
+    sampleWheelCenterZForChart(nowSec) {
+        if (!this.viewer?.robotModel?.links) {
+            return;
+        }
+
+        if (!Number.isFinite(this.wheelZChartLastSampleTimeSec)) {
+            this.wheelZChartLastSampleTimeSec = nowSec;
+        }
+
+        if ((nowSec - this.wheelZChartLastSampleTimeSec) < this.wheelZChartSampleIntervalSec) {
+            return;
+        }
+        this.wheelZChartLastSampleTimeSec = nowSec;
+
+        const linkMap = this.viewer.robotModel.links || {};
+        Object.entries(this.wheelLinkNameByKey).forEach(([wheelKey, wheelLinkName]) => {
+            const wheelLink = this.findLinkByName(linkMap, wheelLinkName);
+            if (!wheelLink) {
+                return;
+            }
+
+            wheelLink.updateWorldMatrix(true, true);
+            const centerWorld = new THREE.Vector3();
+            wheelLink.getWorldPosition(centerWorld);
+            const zValue = Number(centerWorld.z);
+
+            if (!Number.isFinite(zValue)) {
+                return;
+            }
+
+            this.wheelZChartHistoryByKey[wheelKey].push({ t: nowSec, z: zValue });
+        });
+
+        this.trimWheelZChartHistory(nowSec);
+    }
+
+    renderWheelZChart(nowSec) {
+        const ctx = this.wheelZChartContext;
+        const canvas = this.wheelZChartCanvasElement;
+        if (!ctx || !canvas) {
+            return;
+        }
+
+        const dpr = Math.max(window.devicePixelRatio || 1, 1);
+        const cssWidth = Math.max(Math.floor(canvas.clientWidth || 344), 120);
+        const cssHeight = Math.max(Math.floor(canvas.clientHeight || 154), 90);
+        const targetWidth = Math.floor(cssWidth * dpr);
+        const targetHeight = Math.floor(cssHeight * dpr);
+        if (canvas.width !== targetWidth || canvas.height !== targetHeight) {
+            canvas.width = targetWidth;
+            canvas.height = targetHeight;
+        }
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+        const width = cssWidth;
+        const height = cssHeight;
+        ctx.clearRect(0, 0, width, height);
+
+        const margin = { left: 38, right: 10, top: 12, bottom: 24 };
+        const plotWidth = width - margin.left - margin.right;
+        const plotHeight = height - margin.top - margin.bottom;
+
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, width, height);
+
+        const minTimeSec = nowSec - this.wheelZChartWindowSec;
+        const visibleSamples = [];
+        Object.keys(this.wheelZChartHistoryByKey).forEach((wheelKey) => {
+            const samples = this.wheelZChartHistoryByKey[wheelKey] || [];
+            const filtered = samples.filter((sample) => sample.t >= minTimeSec && sample.t <= nowSec);
+            visibleSamples.push(...filtered);
+        });
+
+        if (visibleSamples.length === 0) {
+            ctx.fillStyle = '#6c757d';
+            ctx.font = '12px Segoe UI';
+            ctx.fillText('Collecting wheel center Z data...', margin.left, margin.top + 20);
+            return;
+        }
+
+        let minZ = Math.min(...visibleSamples.map((sample) => sample.z));
+        let maxZ = Math.max(...visibleSamples.map((sample) => sample.z));
+        if ((maxZ - minZ) < 0.001) {
+            maxZ += 0.0005;
+            minZ -= 0.0005;
+        }
+        const zPadding = (maxZ - minZ) * 0.12;
+        minZ -= zPadding;
+        maxZ += zPadding;
+
+        const toX = (t) => margin.left + ((t - minTimeSec) / this.wheelZChartWindowSec) * plotWidth;
+        const toY = (z) => margin.top + ((maxZ - z) / (maxZ - minZ)) * plotHeight;
+
+        ctx.strokeStyle = '#d6deea';
+        ctx.lineWidth = 1;
+        for (let i = 0; i <= 4; i += 1) {
+            const gy = margin.top + (plotHeight / 4) * i;
+            ctx.beginPath();
+            ctx.moveTo(margin.left, gy);
+            ctx.lineTo(margin.left + plotWidth, gy);
+            ctx.stroke();
+        }
+        for (let sec = 0; sec <= this.wheelZChartWindowSec; sec += 5) {
+            const gx = margin.left + (sec / this.wheelZChartWindowSec) * plotWidth;
+            ctx.beginPath();
+            ctx.moveTo(gx, margin.top);
+            ctx.lineTo(gx, margin.top + plotHeight);
+            ctx.stroke();
+        }
+
+        ctx.strokeStyle = '#495057';
+        ctx.lineWidth = 1.2;
+        ctx.beginPath();
+        ctx.moveTo(margin.left, margin.top + plotHeight);
+        ctx.lineTo(margin.left + plotWidth, margin.top + plotHeight);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(margin.left, margin.top);
+        ctx.lineTo(margin.left, margin.top + plotHeight);
+        ctx.stroke();
+
+        ctx.fillStyle = '#5f6b7a';
+        ctx.font = '11px Segoe UI';
+        for (let sec = 0; sec <= this.wheelZChartWindowSec; sec += 5) {
+            const labelX = margin.left + (sec / this.wheelZChartWindowSec) * plotWidth;
+            const label = `${-this.wheelZChartWindowSec + sec}s`;
+            ctx.fillText(label, labelX - 12, margin.top + plotHeight + 16);
+        }
+
+        const zTicks = 4;
+        for (let i = 0; i <= zTicks; i += 1) {
+            const ratio = i / zTicks;
+            const z = maxZ - (maxZ - minZ) * ratio;
+            const y = margin.top + plotHeight * ratio;
+            ctx.fillText(z.toFixed(3), 2, y + 3);
+        }
+
+        Object.keys(this.wheelZChartHistoryByKey).forEach((wheelKey) => {
+            const samples = (this.wheelZChartHistoryByKey[wheelKey] || [])
+                .filter((sample) => sample.t >= minTimeSec && sample.t <= nowSec);
+            if (samples.length < 2) {
+                return;
+            }
+
+            ctx.strokeStyle = this.wheelChartColorByKey[wheelKey] || '#222';
+            ctx.lineWidth = 1.7;
+            ctx.beginPath();
+            samples.forEach((sample, index) => {
+                const x = toX(sample.t);
+                const y = toY(sample.z);
+                if (index === 0) {
+                    ctx.moveTo(x, y);
+                } else {
+                    ctx.lineTo(x, y);
+                }
+            });
+            ctx.stroke();
+        });
+
+        const legendKeys = ['fl', 'fr', 'rl', 'rr'];
+        let legendX = margin.left;
+        const legendY = 10;
+        ctx.font = '11px Segoe UI';
+        legendKeys.forEach((wheelKey) => {
+            ctx.fillStyle = this.wheelChartColorByKey[wheelKey] || '#222';
+            ctx.fillRect(legendX, legendY - 7, 9, 3);
+            ctx.fillStyle = '#334155';
+            ctx.fillText(wheelKey.toUpperCase(), legendX + 12, legendY);
+            legendX += 46;
+        });
     }
 
     updateDebugPanel(deltaSec = 0) {
@@ -2040,11 +2305,18 @@ class RapierDriveSimulation {
             this.viewer = this.findSimulationViewer();
         }
 
+        if (this.viewer) {
+            this.ensureWheelZChartOverlay();
+        }
+
         if (this.viewer && !this.isReady && !this.hasFailed) {
             await this.ensureRapierInitialized();
         }
 
         this.stepSimulation();
+        const nowSec = performance.now() / 1000;
+        this.sampleWheelCenterZForChart(nowSec);
+        this.renderWheelZChart(nowSec);
         this.updateDebugPanel(this.physicsFixedTimeStepSec);
         requestAnimationFrame(() => this.runLoop());
     }
@@ -2108,6 +2380,11 @@ class RapierDriveSimulation {
         if (!this.isReady || !this.body || !this.carFrame || !this.rapier || !this.initialPosition || !this.initialQuaternion) {
             return;
         }
+
+        Object.keys(this.wheelZChartHistoryByKey).forEach((key) => {
+            this.wheelZChartHistoryByKey[key] = [];
+        });
+        this.wheelZChartLastSampleTimeSec = null;
 
         this.hasLoggedGroundDiagnostics = false;
 

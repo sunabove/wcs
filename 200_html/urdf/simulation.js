@@ -74,6 +74,7 @@ class RapierDriveSimulation {
         this.commandedDriveMode = 'stop';
         this.commandedSpeedKmh = SIM_SPEED_DEFAULT_KMH;
         this.hasInstalledDriveCommandHooks = false;
+        this.hasActivatedSimulationMotion = false;
         this.hasActivatedDynamicGroundClamp = false;
         this.debugPanelElement = null;
         this.debugTextElement = null;
@@ -1458,6 +1459,17 @@ class RapierDriveSimulation {
         const effectiveSteerSign = clampedSpeed > 1e-3 ? steerSign : 0;
         const hasDriveCommand = keyboardState.isActive || throttleSign !== 0 || steerSign !== 0;
         if (hasDriveCommand) {
+            this.hasActivatedSimulationMotion = true;
+        }
+
+        if (!this.hasActivatedSimulationMotion) {
+            this.body.setLinvel(new this.rapier.Vector3(0, 0, 0), true);
+            this.body.setAngvel(new this.rapier.Vector3(0, 0, 0), true);
+            this.syncCarFrameFromBody();
+            return;
+        }
+
+        if (hasDriveCommand) {
             this.hasActivatedDynamicGroundClamp = true;
         }
         const wasObstacleContact = this.isVehicleObstacleContact;
@@ -1645,6 +1657,7 @@ class RapierDriveSimulation {
         this.body.setLinvel(new this.rapier.Vector3(0, 0, 0), true);
         this.body.setAngvel(new this.rapier.Vector3(0, 0, 0), true);
         this.isVehicleObstacleContact = false;
+        this.hasActivatedSimulationMotion = false;
         this.hasActivatedDynamicGroundClamp = false;
 
         // On reset, always return to the URDF-authored pose without extra ground alignment offsets.

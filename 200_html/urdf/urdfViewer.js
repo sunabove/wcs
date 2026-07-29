@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import URDFLoader from 'urdf-loader';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+import { CSG } from 'three-csg-ts';
 
 const $ = window.jQuery;
 const VEHICLE_AUDIO_STORAGE_KEY = 'wcs.vehicle.showAudio';
@@ -194,6 +195,14 @@ class URDFViewer {
         this.showViewCube = this.parseBooleanAttribute(
             containerElement.getAttribute('showViewCube'),
             false
+        );
+        this.enableGroundHoleCarving = this.parseBooleanAttribute(
+            containerElement.getAttribute('enableGroundHoleCarving'),
+            true
+        );
+        this.hideHoleCuttersAfterCarving = this.parseBooleanAttribute(
+            containerElement.getAttribute('hideHoleCuttersAfterCarving'),
+            true
         );
         this.wheelInfoOverlayElement = null;
         this.wheelInfoToggleButtonElement = null;
@@ -3228,6 +3237,7 @@ class URDFViewer {
 
                 this.scene.add(robot);
                 this.robotModel = robot;
+                this.applyGroundHoleCarvingByCSG();
                 this.carFrameAlertMaterials = [];
                 this.isCarFrameAlertActive = false;
                 this.resolveWheelAnimationTargets();
@@ -3290,6 +3300,139 @@ class URDFViewer {
                 console.error('[URDF] ❌ URDF 로드 실패:', error);
             }
         );
+    }
+
+    createWorldSpaceMeshFromSource(sourceMesh) {
+        if (!sourceMesh || !sourceMesh.isMesh || !sourceMesh.geometry) {
+            return null;
+        }
+
+        const worldGeometry = sourceMesh.geometry.clone();
+        worldGeometry.applyMatrix4(sourceMesh.matrixWorld);
+        worldGeometry.computeVertexNormals();
+
+        const sourceMaterial = Array.isArray(sourceMesh.material)
+            ? sourceMesh.material[0]
+            : sourceMesh.material;
+        const worldMaterial = sourceMaterial?.clone
+            ? sourceMaterial.clone()
+            : new THREE.MeshStandardMaterial({ color: 0x777777 });
+
+        const worldMesh = new THREE.Mesh(worldGeometry, worldMaterial);
+        worldMesh.matrixAutoUpdate = false;
+        worldMesh.matrix.identity();
+        worldMesh.updateMatrix();
+        worldMesh.updateMatrixWorld(true);
+        return worldMesh;
+    }
+
+    disposeTemporaryMesh(mesh) {
+        if (!mesh) {
+            return;
+        }
+
+        if (mesh.geometry) {
+            mesh.geometry.dispose();
+        }
+
+        if (Array.isArray(mesh.material)) {
+            mesh.material.forEach(material => material?.dispose?.());
+        } else if (mesh.material?.dispose) {
+            mesh.material.dispose();
+        }
+    }
+
+    applyGroundHoleCarvingByCSG() {
+        if (!this.enableGroundHoleCarving || !this.robotModel) {
+            return;
+        }
+
+        const linkMap = this.robotModel.links || {};
+        const groundLinkKeys = ['ground', 'ground_patch'].filter(key => !!linkMap[key]);
+        const holeLinkKeys = Object.keys(linkMap).filter(key => /hole|pothole/i.test(key));
+
+        if (groundLinkKeys.length === 0 || holeLinkKeys.length === 0) {
+            return;
+        }
+
+        const cutterMeshes = [];
+        holeLinkKeys.forEach(linkKey => {
+            const holeLink = linkMap[linkKey];
+            if (!holeLink) {
+                return;
+            }
+
+            holeLink.updateWorldMatrix(true, true);
+            holeLink.traverse(node => {
+                if (!node || !node.isMesh || !node.geometry) {
+                    return;
+                }
+
+                const cutterMesh = this.createWorldSpaceMeshFromSource(node);
+                if (cutterMesh) {
+                    cutterMeshes.push(cutterMesh);
+                }
+            });
+        });
+
+        if (cutterMeshes.length === 0) {
+            return;
+        }
+
+        let carvedMeshCount = 0;
+        groundLinkKeys.forEach(linkKey => {
+            const groundLink = linkMap[linkKey];
+            if (!groundLink) {
+                return;
+            }
+
+            groundLink.updateWorldMatrix(true, true);
+            groundLink.traverse(node => {
+                if (!node || !node.isMesh || !node.geometry) {
+                    return;
+                }
+
+                let resultMesh = this.createWorldSpaceMeshFromSource(node);
+                if (!resultMesh) {
+                    return;
+                }
+
+                cutterMeshes.forEach(cutterMesh => {
+                    const previousResultMesh = resultMesh;
+                    resultMesh = CSG.subtract(resultMesh, cutterMesh);
+                    this.disposeTemporaryMesh(previousResultMesh);
+                });
+
+                const localGeometry = resultMesh.geometry.clone();
+                const inverseWorld = new THREE.Matrix4().copy(node.matrixWorld).invert();
+                localGeometry.applyMatrix4(inverseWorld);
+                localGeometry.computeVertexNormals();
+                localGeometry.computeBoundingBox();
+                localGeometry.computeBoundingSphere();
+
+                node.geometry.dispose();
+                node.geometry = localGeometry;
+                node.updateMatrixWorld(true);
+
+                this.disposeTemporaryMesh(resultMesh);
+                carvedMeshCount += 1;
+            });
+        });
+
+        cutterMeshes.forEach(mesh => this.disposeTemporaryMesh(mesh));
+
+        if (this.hideHoleCuttersAfterCarving) {
+            holeLinkKeys.forEach(linkKey => {
+                const holeLink = linkMap[linkKey];
+                if (holeLink) {
+                    holeLink.visible = false;
+                }
+            });
+        }
+
+        if (carvedMeshCount > 0) {
+            console.log(`[URDF] ✅ CSG ground carving applied with ${cutterMeshes.length} cutter(s).`);
+        }
     }
 
     resolveWheelHighlightTargets() {

@@ -81,6 +81,7 @@ class RapierDriveSimulation {
         this.commandedDriveMode = 'stop';
         this.commandedSpeedKmh = SIM_SPEED_DEFAULT_KMH;
         this.isPaused = false;
+        this.pauseStateSnapshot = null;
         this.hasInstalledDriveCommandHooks = false;
         this.hasActivatedSimulationMotion = false;
         this.hasActivatedDynamicGroundClamp = false;
@@ -913,6 +914,36 @@ class RapierDriveSimulation {
         return tagName === 'input' || tagName === 'textarea' || tagName === 'select' || Boolean(targetElement.isContentEditable);
     }
 
+    getSignedWheelRpmSnapshotByKey(viewer) {
+        if (!viewer) {
+            return null;
+        }
+
+        const wheelKeys = ['fl', 'fr', 'rl', 'rr'];
+        const snapshot = {};
+        wheelKeys.forEach((key) => {
+            let signedRpm = null;
+            if (typeof viewer.getSignedWheelRpm === 'function') {
+                const value = Number(viewer.getSignedWheelRpm(key));
+                if (Number.isFinite(value)) {
+                    signedRpm = value;
+                }
+            }
+
+            if (!Number.isFinite(signedRpm)) {
+                const rpm = Number(viewer?.wheelSpeedRpmByKey?.[key]);
+                const sign = Number(viewer?.wheelDirectionSignByKey?.[key]);
+                if (Number.isFinite(rpm)) {
+                    signedRpm = rpm * (Number.isFinite(sign) ? sign : 1);
+                }
+            }
+
+            snapshot[key] = Number.isFinite(signedRpm) ? signedRpm : 0;
+        });
+
+        return snapshot;
+    }
+
     togglePause(forcePaused = null) {
         const nextPausedState = (typeof forcePaused === 'boolean')
             ? forcePaused
@@ -926,15 +957,46 @@ class RapierDriveSimulation {
         this.lastStepTimeMs = 0;
 
         if (this.isPaused) {
+            const driveViewer = this.getDriveSourceViewer();
+            const snapshotDriveMode = String(this.commandedDriveMode || driveViewer?.driveMode || this.viewer?.driveMode || 'stop');
+            const snapshotSpeedKmh = Math.max(Number(this.commandedSpeedKmh) || Number(driveViewer?.driveSpeedKmh) || 0, 0);
+            this.pauseStateSnapshot = {
+                driveMode: snapshotDriveMode,
+                speedKmh: snapshotSpeedKmh,
+                wheelSignedRpmByKey: this.getSignedWheelRpmSnapshotByKey(driveViewer)
+            };
+
             this.keyHoldState.ArrowUp = 0;
             this.keyHoldState.ArrowDown = 0;
             this.keyHoldState.ArrowLeft = 0;
             this.keyHoldState.ArrowRight = 0;
 
+            // Pause mode should freeze visual wheel rotation as well.
+            this.applyDriveModeCommand('stop');
+            ['fl', 'fr', 'rl', 'rr'].forEach((key) => {
+                if (typeof globalThis.setWheelAnimationByKey === 'function') {
+                    globalThis.setWheelAnimationByKey(key, 0);
+                }
+            });
+
             if (this.body && this.rapier) {
                 this.body.setLinvel(new this.rapier.Vector3(0, 0, 0), true);
                 this.body.setAngvel(new this.rapier.Vector3(0, 0, 0), true);
             }
+        } else if (this.pauseStateSnapshot) {
+            const snapshot = this.pauseStateSnapshot;
+            this.applyDriveSpeedCommand(snapshot.speedKmh);
+            this.applyDriveModeCommand(snapshot.driveMode);
+
+            if (snapshot.driveMode === 'stop' && snapshot.wheelSignedRpmByKey) {
+                Object.entries(snapshot.wheelSignedRpmByKey).forEach(([key, signedRpm]) => {
+                    if (typeof globalThis.setWheelAnimationByKey === 'function') {
+                        globalThis.setWheelAnimationByKey(key, signedRpm);
+                    }
+                });
+            }
+
+            this.pauseStateSnapshot = null;
         }
 
         this.updateDebugPanel(this.debugStatusUpdateIntervalSec);

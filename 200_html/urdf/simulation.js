@@ -757,6 +757,10 @@ class RapierDriveSimulation {
     }
 
     computeLinkOwnBounds(linkObject, linkMap) {
+        return this.computeLinkOwnBoundsWithMeshFilter(linkObject, linkMap, null);
+    }
+
+    computeLinkOwnBoundsWithMeshFilter(linkObject, linkMap, meshFilter) {
         if (!linkObject) {
             return null;
         }
@@ -769,6 +773,10 @@ class RapierDriveSimulation {
 
         linkObject.traverse((node) => {
             if (!node || !node.isMesh || !node.geometry) {
+                return;
+            }
+
+            if (typeof meshFilter === 'function' && !meshFilter(node)) {
                 return;
             }
 
@@ -791,6 +799,27 @@ class RapierDriveSimulation {
         });
 
         return hasMesh ? bounds : null;
+    }
+
+    computeGroundBoundsPreferCollision(linkObject, linkMap) {
+        if (!linkObject) {
+            return null;
+        }
+
+        const collisionBounds = this.computeLinkOwnBoundsWithMeshFilter(linkObject, linkMap, (node) => {
+            const nodeName = String(node?.name || '').toLowerCase();
+            const parentName = String(node?.parent?.name || '').toLowerCase();
+            const userDataType = String(node?.userData?.type || '').toLowerCase();
+            const userDataTag = String(node?.userData?.urdfTag || '').toLowerCase();
+            const hint = `${nodeName} ${parentName} ${userDataType} ${userDataTag}`;
+            return hint.includes('collision');
+        });
+
+        if (collisionBounds && !collisionBounds.isEmpty()) {
+            return collisionBounds;
+        }
+
+        return this.computeLinkOwnBounds(linkObject, linkMap);
     }
 
     computeChassisBounds(carFrame, linkMap) {
@@ -1315,7 +1344,7 @@ class RapierDriveSimulation {
 
         if (groundLink) {
             groundLink.updateWorldMatrix(true, true);
-            groundBounds = this.computeLinkOwnBounds(groundLink, linkMap);
+            groundBounds = this.computeGroundBoundsPreferCollision(groundLink, linkMap);
             if (groundBounds && !groundBounds.isEmpty()) {
                 this.groundZ = groundBounds.max.z;
             } else {

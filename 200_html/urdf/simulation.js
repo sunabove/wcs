@@ -541,19 +541,21 @@ class RapierDriveSimulation {
         });
 
         const legendKeys = ['fl', 'fr', 'rl', 'rr'];
-        const legendItemWidth = 46;
+        const legendItemWidth = 56;
         const legendTotalWidth = legendKeys.length * legendItemWidth;
         const legendCenterX = margin.left + (plotWidth * 0.5);
         let legendX = legendCenterX - (legendTotalWidth * 0.5);
-        const legendY = 10;
-        ctx.font = '11px Segoe UI';
+        const legendY = 12;
+        ctx.font = '13px Segoe UI';
+        ctx.textBaseline = 'middle';
         legendKeys.forEach((wheelKey) => {
             ctx.fillStyle = this.wheelChartColorByKey[wheelKey] || '#222';
-            ctx.fillRect(legendX, legendY - 7, 9, 3);
+            ctx.fillRect(legendX, legendY - 4, 14, 6);
             ctx.fillStyle = '#334155';
-            ctx.fillText(wheelKey.toUpperCase(), legendX + 12, legendY);
+            ctx.fillText(wheelKey.toUpperCase(), legendX + 19, legendY);
             legendX += legendItemWidth;
         });
+        ctx.textBaseline = 'alphabetic';
     }
 
     updateDebugPanel(deltaSec = 0) {

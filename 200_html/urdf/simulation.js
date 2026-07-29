@@ -93,8 +93,7 @@ class RapierDriveSimulation {
         this.wheelZChartCanvasElement = null;
         this.wheelZChartContext = null;
         this.wheelZChartWindowSec = 20;
-        this.wheelZChartSampleIntervalSec = 0.1;
-        this.wheelZChartLastSampleTimeSec = null;
+        this.wheelZChartElapsedSec = 0;
         this.wheelZChartHistoryByKey = {
             fl: [],
             fr: [],
@@ -199,15 +198,6 @@ class RapierDriveSimulation {
         if (!this.viewer?.robotModel?.links) {
             return;
         }
-
-        if (!Number.isFinite(this.wheelZChartLastSampleTimeSec)) {
-            this.wheelZChartLastSampleTimeSec = nowSec;
-        }
-
-        if ((nowSec - this.wheelZChartLastSampleTimeSec) < this.wheelZChartSampleIntervalSec) {
-            return;
-        }
-        this.wheelZChartLastSampleTimeSec = nowSec;
 
         const linkMap = this.viewer.robotModel.links || {};
         Object.entries(this.wheelLinkNameByKey).forEach(([wheelKey, wheelLinkName]) => {
@@ -2276,6 +2266,9 @@ class RapierDriveSimulation {
             if (this.hasActivatedDynamicGroundClamp) {
                 this.clampVehicleAboveGround();
             }
+            this.syncCarFrameFromBody();
+            this.wheelZChartElapsedSec += this.physicsFixedTimeStepSec;
+            this.sampleWheelCenterZForChart(this.wheelZChartElapsedSec);
             this.physicsAccumulatorSec -= this.physicsFixedTimeStepSec;
             stepIndex += 1;
         }
@@ -2336,9 +2329,7 @@ class RapierDriveSimulation {
         }
 
         this.stepSimulation();
-        const nowSec = performance.now() / 1000;
-        this.sampleWheelCenterZForChart(nowSec);
-        this.renderWheelZChart(nowSec);
+        this.renderWheelZChart(this.wheelZChartElapsedSec);
         this.updateDebugPanel(this.physicsFixedTimeStepSec);
         requestAnimationFrame(() => this.runLoop());
     }
@@ -2406,7 +2397,7 @@ class RapierDriveSimulation {
         Object.keys(this.wheelZChartHistoryByKey).forEach((key) => {
             this.wheelZChartHistoryByKey[key] = [];
         });
-        this.wheelZChartLastSampleTimeSec = null;
+        this.wheelZChartElapsedSec = 0;
 
         this.hasLoggedGroundDiagnostics = false;
 

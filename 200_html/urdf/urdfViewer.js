@@ -677,12 +677,12 @@ class URDFViewer {
         this.wheelInfoToggleButtonElement.setAttribute('aria-label', isVisible ? '휠 정보 숨기기' : '휠 정보 표시');
         this.wheelInfoToggleButtonElement.title = isVisible ? '휠 정보 숨기기' : '휠 정보 표시';
         this.wheelInfoToggleButtonElement.style.background = isVisible
-            ? 'rgba(37, 99, 235, 0.12)'
-            : 'rgba(255, 255, 255, 0.98)';
+            ? 'rgba(255, 255, 255, 0.98)'
+            : 'rgba(229, 231, 235, 0.96)';
         this.wheelInfoToggleButtonElement.style.borderColor = isVisible
-            ? 'rgba(37, 99, 235, 0.75)'
-            : 'rgba(32, 46, 66, 0.45)';
-        this.wheelInfoToggleButtonElement.style.color = isVisible ? '#0b2a66' : '#1f2937';
+            ? 'rgba(32, 46, 66, 0.45)'
+            : 'rgba(107, 114, 128, 0.85)';
+        this.wheelInfoToggleButtonElement.style.color = isVisible ? '#1f2937' : '#6b7280';
     }
 
     setupAttitudeOverlay() {
@@ -1224,22 +1224,7 @@ class URDFViewer {
             wheelToggleButtonElement.style.lineHeight = '1';
             wheelToggleButtonElement.style.cursor = 'pointer';
             wheelToggleButtonElement.style.userSelect = 'none';
-            wheelToggleButtonElement.style.transition = 'background-color 120ms ease, color 120ms ease, border-color 120ms ease, box-shadow 120ms ease, transform 120ms ease';
-
-            const applyHoverOn = () => {
-                wheelToggleButtonElement.style.boxShadow = '0 2px 6px rgba(37, 99, 235, 0.2)';
-                wheelToggleButtonElement.style.transform = 'translateY(-1px)';
-            };
-
-            const applyHoverOff = () => {
-                wheelToggleButtonElement.style.boxShadow = 'none';
-                wheelToggleButtonElement.style.transform = 'translateY(0)';
-            };
-
-            wheelToggleButtonElement.addEventListener('mouseenter', applyHoverOn);
-            wheelToggleButtonElement.addEventListener('mouseleave', applyHoverOff);
-            wheelToggleButtonElement.addEventListener('focus', applyHoverOn);
-            wheelToggleButtonElement.addEventListener('blur', applyHoverOff);
+            wheelToggleButtonElement.style.transition = 'background-color 120ms ease, color 120ms ease, border-color 120ms ease';
             wheelToggleButtonElement.addEventListener('click', (event) => {
                 event.preventDefault();
                 event.stopPropagation();

@@ -164,6 +164,7 @@ class RapierDriveSimulation {
         title.className = 'small fw-semibold text-primary';
         title.style.lineHeight = '1.1';
         title.style.marginBottom = '4px';
+        title.style.textAlign = 'center';
         title.textContent = 'Wheel Z position';
 
         const canvas = document.createElement('canvas');

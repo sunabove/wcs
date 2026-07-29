@@ -70,8 +70,8 @@ class RapierDriveSimulation {
         this.hasFailed = false;
         this.lastStepTimeMs = 0;
         this.physicsAccumulatorSec = 0;
-        this.physicsFixedTimeStepSec = 1 / 60;
-        this.maxPhysicsCatchupSteps = 4;
+        this.physicsFixedTimeStepSec = 1 / 90;
+        this.maxPhysicsCatchupSteps = 6;
         this.hasLoggedGroundDiagnostics = false;
         this.enableRuntimeDiagnostics = true;
         this.runtimeDiagnosticsIntervalSec = 1;
@@ -1774,6 +1774,35 @@ class RapierDriveSimulation {
         this.body.setAngvel(new this.rapier.Vector3(angularVelocity.x * 0.75, angularVelocity.y * 0.75, angularVelocity.z), true);
     }
 
+    enforceFlatGroundRideHeight() {
+        if (!this.body || !this.rapier) {
+            return;
+        }
+
+        if (this.isVehicleObstacleContact || this.isVehicleOverHoleRegion()) {
+            return;
+        }
+
+        const targetZ = this.getGroundContactTargetZ();
+        if (!Number.isFinite(targetZ)) {
+            return;
+        }
+
+        const translation = this.body.translation();
+        const deltaZ = targetZ - translation.z;
+        if (Math.abs(deltaZ) < 1e-5) {
+            return;
+        }
+
+        // Limit per-step correction to avoid visible snap near obstacle transitions.
+        const maxStepCorrection = 0.004;
+        const correction = THREE.MathUtils.clamp(deltaZ, -maxStepCorrection, maxStepCorrection);
+        this.body.setTranslation(new this.rapier.Vector3(translation.x, translation.y, translation.z + correction), true);
+
+        const velocity = this.body.linvel();
+        this.body.setLinvel(new this.rapier.Vector3(velocity.x, velocity.y, 0), true);
+    }
+
     enforceMeasuredWheelGroundLimit(linkMap) {
         if (!this.body || !this.rapier || !linkMap || !Number.isFinite(this.groundZ)) {
             return false;
@@ -2599,6 +2628,8 @@ class RapierDriveSimulation {
                 this.syncCarFrameFromBody();
             }
             this.stabilizeFlatGroundVerticalMotion();
+            this.enforceFlatGroundRideHeight();
+            this.syncCarFrameFromBody();
             if (hasDriveCommand) {
                 this.wheelZChartElapsedSec += this.physicsFixedTimeStepSec;
                 this.sampleWheelCenterZForChart(this.wheelZChartElapsedSec);

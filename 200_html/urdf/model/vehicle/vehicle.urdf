@@ -212,7 +212,7 @@
   <joint name="ground_to_car_frame" type="fixed">
     <parent link="ground" />
     <child link="car_frame" />
-    <origin xyz="0 0 0.1025" rpy="0 0 0" />
+    <origin xyz="0 0 0.10" rpy="0 0 0" />
   </joint>
 
   <!-- Simulation obstacle (fixed curb / step) -->

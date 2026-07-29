@@ -489,11 +489,29 @@ class RapierDriveSimulation {
                 return;
             }
 
+            // Keep visual spacing readable by rendering a decimated subset.
+            const minPixelGap = 3;
+            const targetPointCount = Math.max(Math.floor(plotWidth / minPixelGap), 1);
+            const minTimeGapSec = effectiveWindowSec / targetPointCount;
+            const renderSamples = [];
+            let lastAcceptedTimeSec = Number.NEGATIVE_INFINITY;
+            for (let i = 0; i < samples.length; i += 1) {
+                const sample = samples[i];
+                const isLast = i === (samples.length - 1);
+                if ((sample.t - lastAcceptedTimeSec) >= minTimeGapSec || isLast) {
+                    renderSamples.push(sample);
+                    lastAcceptedTimeSec = sample.t;
+                }
+            }
+            if (renderSamples.length < 2) {
+                return;
+            }
+
             const seriesColor = this.wheelChartColorByKey[wheelKey] || '#222';
             ctx.strokeStyle = seriesColor;
             ctx.lineWidth = 1.7;
             ctx.beginPath();
-            samples.forEach((sample, index) => {
+            renderSamples.forEach((sample, index) => {
                 const x = toX(sample.t);
                 const y = toY(sample.z);
                 if (index === 0) {
@@ -505,7 +523,7 @@ class RapierDriveSimulation {
             ctx.stroke();
 
             ctx.fillStyle = seriesColor;
-            samples.forEach((sample) => {
+            renderSamples.forEach((sample) => {
                 const x = toX(sample.t);
                 const y = toY(sample.z);
                 const markerSize = 5.0;

@@ -400,6 +400,9 @@ class RapierDriveSimulation {
         ctx.fillStyle = '#5f6b7a';
         ctx.font = '11px Segoe UI';
         for (let sec = 0; sec <= this.wheelZChartWindowSec; sec += 5) {
+            if (sec === 0) {
+                continue;
+            }
             const labelX = margin.left + (sec / this.wheelZChartWindowSec) * plotWidth;
             const timeAtTick = minTimeSec + sec;
             const label = `${timeAtTick.toFixed(0)}s`;

@@ -322,7 +322,7 @@ class RapierDriveSimulation {
         const height = cssHeight;
         ctx.clearRect(0, 0, width, height);
 
-        const margin = { left: 38, right: 10, top: 12, bottom: 24 };
+        const margin = { left: 38, right: 72, top: 12, bottom: 24 };
         const plotWidth = width - margin.left - margin.right;
         const plotHeight = height - margin.top - margin.bottom;
 
@@ -541,19 +541,17 @@ class RapierDriveSimulation {
         });
 
         const legendKeys = ['fl', 'fr', 'rl', 'rr'];
-        const legendItemWidth = 56;
-        const legendTotalWidth = legendKeys.length * legendItemWidth;
-        const legendCenterX = margin.left + (plotWidth * 0.5);
-        let legendX = legendCenterX - (legendTotalWidth * 0.5);
-        const legendY = 12;
+        const legendX = width - margin.right + 8;
+        const legendStartY = margin.top + 14;
+        const legendRowHeight = 18;
         ctx.font = '13px Segoe UI';
         ctx.textBaseline = 'middle';
-        legendKeys.forEach((wheelKey) => {
+        legendKeys.forEach((wheelKey, index) => {
+            const legendY = legendStartY + (legendRowHeight * index);
             ctx.fillStyle = this.wheelChartColorByKey[wheelKey] || '#222';
             ctx.fillRect(legendX, legendY - 4, 14, 6);
             ctx.fillStyle = '#334155';
             ctx.fillText(wheelKey.toUpperCase(), legendX + 19, legendY);
-            legendX += legendItemWidth;
         });
         ctx.textBaseline = 'alphabetic';
     }

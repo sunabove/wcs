@@ -651,6 +651,7 @@ class URDFViewer {
 
     setWheelInfoOverlayVisible(isVisible) {
         this.isWheelInfoOverlayVisible = !!isVisible;
+        this.saveWheelInfoOverlayVisibleState();
 
         if (this.wheelInfoOverlayElement) {
             this.wheelInfoOverlayElement.style.display = this.isWheelInfoOverlayVisible ? '' : 'none';
@@ -669,7 +670,11 @@ class URDFViewer {
         }
 
         const isVisible = this.isWheelInfoOverlayVisible;
+        this.wheelInfoToggleButtonElement.innerHTML = isVisible
+            ? '<i class="bi bi-eye-fill" aria-hidden="true"></i>'
+            : '<i class="bi bi-eye-slash-fill" aria-hidden="true"></i>';
         this.wheelInfoToggleButtonElement.setAttribute('aria-pressed', isVisible ? 'true' : 'false');
+        this.wheelInfoToggleButtonElement.setAttribute('aria-label', isVisible ? '휠 정보 숨기기' : '휠 정보 표시');
         this.wheelInfoToggleButtonElement.title = isVisible ? '휠 정보 숨기기' : '휠 정보 표시';
         this.wheelInfoToggleButtonElement.style.background = isVisible
             ? 'rgba(37, 99, 235, 0.12)'
@@ -1203,17 +1208,19 @@ class URDFViewer {
         if (this.showWheelInfo) {
             const wheelToggleButtonElement = document.createElement('button');
             wheelToggleButtonElement.type = 'button';
-            wheelToggleButtonElement.textContent = 'WHEEL';
             wheelToggleButtonElement.setAttribute('aria-label', '휠 정보 오버레이 토글');
             wheelToggleButtonElement.style.pointerEvents = 'auto';
             wheelToggleButtonElement.style.height = '32px';
-            wheelToggleButtonElement.style.padding = '0 10px';
+            wheelToggleButtonElement.style.width = '32px';
+            wheelToggleButtonElement.style.padding = '0';
             wheelToggleButtonElement.style.marginTop = '8px';
             wheelToggleButtonElement.style.border = '1px solid rgba(32, 46, 66, 0.45)';
             wheelToggleButtonElement.style.borderRadius = '8px';
-            wheelToggleButtonElement.style.fontSize = '11px';
+            wheelToggleButtonElement.style.display = 'inline-flex';
+            wheelToggleButtonElement.style.alignItems = 'center';
+            wheelToggleButtonElement.style.justifyContent = 'center';
+            wheelToggleButtonElement.style.fontSize = '14px';
             wheelToggleButtonElement.style.fontWeight = '700';
-            wheelToggleButtonElement.style.letterSpacing = '0.03em';
             wheelToggleButtonElement.style.lineHeight = '1';
             wheelToggleButtonElement.style.cursor = 'pointer';
             wheelToggleButtonElement.style.userSelect = 'none';

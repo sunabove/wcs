@@ -62,6 +62,10 @@
     <color rgba="0.10 0.10 0.10 1.0" />
   </material>
 
+  <material name="hole_yellow">
+    <color rgba="1.00 0.92 0.16 0.9" />
+  </material>
+
   <!-- Root link kept for compatibility -->
   <link name="origin">
     <visual>
@@ -281,7 +285,7 @@
       <geometry>
         <box size="0.44 0.34 0.05" />
       </geometry>
-      <material name="text_black" />
+      <material name="hole_yellow" />
     </visual>
   </link>
 

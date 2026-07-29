@@ -33,6 +33,7 @@ class RapierDriveSimulation {
         this.groundContactLocalMinZ = null;
         this.groundContactBiasMeters = 0;
         this.groundZ = 0;
+        this.holeRegions = [];
         this.underbodyPassThroughClearanceMeters = 0.09;
         this.urdfObstacleLinkNames = ['obstacle_rock_01', 'obstacle_rock_02', 'obstacle_rock', 'rock_obstacle'];
         this.urdfObstacleLinkNamePatterns = [
@@ -729,15 +730,18 @@ class RapierDriveSimulation {
         }
 
         const groundHalfThickness = 0.2;
+        const holeFloorHalfThickness = 0.03;
+        const minGroundPatchHalfExtent = 0.02;
         const linkMap = this.viewer?.robotModel?.links || {};
         const groundLink = this.findLinkByName(linkMap, 'ground')
             || this.findLinkByName(linkMap, 'ground_link')
             || this.findLinkByName(linkMap, 'ground_patch')
             || null;
+        let groundBounds = null;
 
         if (groundLink) {
             groundLink.updateWorldMatrix(true, true);
-            const groundBounds = this.computeLinkOwnBounds(groundLink, linkMap);
+            groundBounds = this.computeLinkOwnBounds(groundLink, linkMap);
             if (groundBounds && !groundBounds.isEmpty()) {
                 this.groundZ = groundBounds.max.z;
             } else {
@@ -749,13 +753,147 @@ class RapierDriveSimulation {
             this.groundZ = this.initialPosition.z - this.vehicleHalfExtents.z - 0.01;
         }
 
+        const fallbackGroundSize = 60;
+        const groundMinX = (groundBounds && !groundBounds.isEmpty()) ? groundBounds.min.x : -fallbackGroundSize * 0.5;
+        const groundMaxX = (groundBounds && !groundBounds.isEmpty()) ? groundBounds.max.x : fallbackGroundSize * 0.5;
+        const groundMinY = (groundBounds && !groundBounds.isEmpty()) ? groundBounds.min.y : -fallbackGroundSize * 0.5;
+        const groundMaxY = (groundBounds && !groundBounds.isEmpty()) ? groundBounds.max.y : fallbackGroundSize * 0.5;
+
+        const holeLinkNames = Object.keys(linkMap).filter((name) => /hole|pothole/i.test(name));
+        const holeRegions = [];
+        holeLinkNames.forEach((holeLinkName) => {
+            const holeLink = linkMap[holeLinkName];
+            if (!holeLink) {
+                return;
+            }
+
+            holeLink.updateWorldMatrix(true, true);
+            const holeBounds = new THREE.Box3().setFromObject(holeLink);
+            if (holeBounds.isEmpty()) {
+                return;
+            }
+
+            const clampedMinX = Math.max(holeBounds.min.x, groundMinX);
+            const clampedMaxX = Math.min(holeBounds.max.x, groundMaxX);
+            const clampedMinY = Math.max(holeBounds.min.y, groundMinY);
+            const clampedMaxY = Math.min(holeBounds.max.y, groundMaxY);
+
+            if ((clampedMaxX - clampedMinX) <= 1e-4 || (clampedMaxY - clampedMinY) <= 1e-4) {
+                return;
+            }
+
+            holeRegions.push({
+                minX: clampedMinX,
+                maxX: clampedMaxX,
+                minY: clampedMinY,
+                maxY: clampedMaxY,
+                floorZ: holeBounds.min.z
+            });
+        });
+
+        this.holeRegions = holeRegions;
+
+        const subtractRect = (rect, cutRect) => {
+            const overlapMinX = Math.max(rect.minX, cutRect.minX);
+            const overlapMaxX = Math.min(rect.maxX, cutRect.maxX);
+            const overlapMinY = Math.max(rect.minY, cutRect.minY);
+            const overlapMaxY = Math.min(rect.maxY, cutRect.maxY);
+
+            if (overlapMinX >= overlapMaxX || overlapMinY >= overlapMaxY) {
+                return [rect];
+            }
+
+            const out = [];
+            if (rect.minX < overlapMinX) {
+                out.push({ minX: rect.minX, maxX: overlapMinX, minY: rect.minY, maxY: rect.maxY });
+            }
+            if (overlapMaxX < rect.maxX) {
+                out.push({ minX: overlapMaxX, maxX: rect.maxX, minY: rect.minY, maxY: rect.maxY });
+            }
+            if (rect.minY < overlapMinY) {
+                out.push({ minX: overlapMinX, maxX: overlapMaxX, minY: rect.minY, maxY: overlapMinY });
+            }
+            if (overlapMaxY < rect.maxY) {
+                out.push({ minX: overlapMinX, maxX: overlapMaxX, minY: overlapMaxY, maxY: rect.maxY });
+            }
+
+            return out;
+        };
+
+        let groundPatches = [{ minX: groundMinX, maxX: groundMaxX, minY: groundMinY, maxY: groundMaxY }];
+        holeRegions.forEach((holeRegion) => {
+            const nextPatches = [];
+            groundPatches.forEach((patch) => {
+                nextPatches.push(...subtractRect(patch, holeRegion));
+            });
+            groundPatches = nextPatches;
+        });
+
+        const createFixedCuboidCollider = (centerX, centerY, centerZ, halfX, halfY, halfZ, friction = 0.25) => {
+            const groundBodyDesc = this.rapier.RigidBodyDesc.fixed().setTranslation(centerX, centerY, centerZ);
+            const groundBody = this.world.createRigidBody(groundBodyDesc);
+            const groundColliderDesc = this.rapier.ColliderDesc.cuboid(halfX, halfY, halfZ)
+                .setFriction(friction)
+                .setRestitution(0.02);
+            this.world.createCollider(groundColliderDesc, groundBody);
+        };
+
         const groundCenterZ = this.groundZ - groundHalfThickness;
-        const groundBodyDesc = this.rapier.RigidBodyDesc.fixed().setTranslation(0, 0, groundCenterZ);
-        const groundBody = this.world.createRigidBody(groundBodyDesc);
-        const groundColliderDesc = this.rapier.ColliderDesc.cuboid(30, 30, groundHalfThickness)
-            .setFriction(0.25)
-            .setRestitution(0.02);
-        this.world.createCollider(groundColliderDesc, groundBody);
+        groundPatches.forEach((patch) => {
+            const width = patch.maxX - patch.minX;
+            const depth = patch.maxY - patch.minY;
+            const halfX = width * 0.5;
+            const halfY = depth * 0.5;
+            if (halfX < minGroundPatchHalfExtent || halfY < minGroundPatchHalfExtent) {
+                return;
+            }
+
+            const centerX = (patch.minX + patch.maxX) * 0.5;
+            const centerY = (patch.minY + patch.maxY) * 0.5;
+            createFixedCuboidCollider(centerX, centerY, groundCenterZ, halfX, halfY, groundHalfThickness, 0.25);
+        });
+
+        holeRegions.forEach((holeRegion) => {
+            const holeHalfX = (holeRegion.maxX - holeRegion.minX) * 0.5;
+            const holeHalfY = (holeRegion.maxY - holeRegion.minY) * 0.5;
+            if (holeHalfX < minGroundPatchHalfExtent || holeHalfY < minGroundPatchHalfExtent) {
+                return;
+            }
+
+            const holeCenterX = (holeRegion.minX + holeRegion.maxX) * 0.5;
+            const holeCenterY = (holeRegion.minY + holeRegion.maxY) * 0.5;
+            const holeFloorCenterZ = holeRegion.floorZ - holeFloorHalfThickness;
+            createFixedCuboidCollider(holeCenterX, holeCenterY, holeFloorCenterZ, holeHalfX, holeHalfY, holeFloorHalfThickness, 0.5);
+        });
+    }
+
+    isVehicleOverHoleRegion() {
+        if (!this.body || !Array.isArray(this.holeRegions) || this.holeRegions.length === 0) {
+            return false;
+        }
+
+        const translation = this.body.translation();
+        const halfX = Number.isFinite(this.vehicleColliderHalfExtents?.x)
+            ? this.vehicleColliderHalfExtents.x
+            : Math.max(Number(this.vehicleHalfExtents?.x) || 0.2, 0.05);
+        const halfY = Number.isFinite(this.vehicleColliderHalfExtents?.y)
+            ? this.vehicleColliderHalfExtents.y
+            : Math.max(Number(this.vehicleHalfExtents?.y) || 0.2, 0.05);
+
+        const vehicleMinX = translation.x - halfX;
+        const vehicleMaxX = translation.x + halfX;
+        const vehicleMinY = translation.y - halfY;
+        const vehicleMaxY = translation.y + halfY;
+
+        return this.holeRegions.some((holeRegion) => {
+            if (!holeRegion) {
+                return false;
+            }
+
+            const overlapX = vehicleMaxX >= holeRegion.minX && vehicleMinX <= holeRegion.maxX;
+            const overlapY = vehicleMaxY >= holeRegion.minY && vehicleMinY <= holeRegion.maxY;
+            return overlapX && overlapY;
+        });
     }
 
     logWheelGroundDiagnosticsOnce(linkMap, stage = 'runtime') {
@@ -1002,6 +1140,7 @@ class RapierDriveSimulation {
 
         const translation = this.body.translation();
         const velocity = this.body.linvel();
+        const isOverHole = this.isVehicleOverHoleRegion();
         const groundBasedMinZ = this.groundZ - this.groundContactLocalMinZ - this.groundContactBiasMeters;
         const minAllowedZ = groundBasedMinZ - this.groundPenetrationToleranceMeters;
         const baseReferenceZ = Number.isFinite(this.initialPosition?.z)
@@ -1012,7 +1151,7 @@ class RapierDriveSimulation {
             : this.maxLiftWithoutObstacleMeters;
         const maxAllowedZ = baseReferenceZ + Math.max(maxLiftMeters, 0);
 
-        if (translation.z < minAllowedZ) {
+        if (!isOverHole && translation.z < minAllowedZ) {
             this.body.setTranslation(new this.rapier.Vector3(translation.x, translation.y, minAllowedZ), true);
             this.body.setLinvel(new this.rapier.Vector3(velocity.x, velocity.y, Math.max(0, velocity.z)), true);
             return;

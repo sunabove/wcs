@@ -313,13 +313,23 @@ class RapierDriveSimulation {
         ctx.fillStyle = '#ffffff';
         ctx.fillRect(0, 0, width, height);
 
-        const minTimeSec = Math.max(nowSec - this.wheelZChartWindowSec, 0);
-        const visibleSamples = [];
+        const rawSamples = [];
         Object.keys(this.wheelZChartHistoryByKey).forEach((wheelKey) => {
             const samples = this.wheelZChartHistoryByKey[wheelKey] || [];
-            const filtered = samples.filter((sample) => sample.t >= minTimeSec && sample.t <= nowSec);
-            visibleSamples.push(...filtered);
+            rawSamples.push(...samples);
         });
+
+        const hasRawSamples = rawSamples.length > 0;
+        const maxSampleTimeSec = hasRawSamples ? Math.max(...rawSamples.map((sample) => sample.t)) : nowSec;
+        const minSampleTimeSec = hasRawSamples ? Math.min(...rawSamples.map((sample) => sample.t)) : Math.max(nowSec - this.wheelZChartWindowSec, 0);
+        const collectedSpanSec = Math.max(maxSampleTimeSec - minSampleTimeSec, this.physicsFixedTimeStepSec);
+        const effectiveWindowSec = hasRawSamples
+            ? Math.min(this.wheelZChartWindowSec, collectedSpanSec)
+            : this.wheelZChartWindowSec;
+        const windowEndSec = hasRawSamples ? maxSampleTimeSec : nowSec;
+        const minTimeSec = Math.max(windowEndSec - effectiveWindowSec, 0);
+
+        const visibleSamples = rawSamples.filter((sample) => sample.t >= minTimeSec && sample.t <= windowEndSec);
 
         const hasVisibleSamples = visibleSamples.length > 0;
         let minZ = hasVisibleSamples ? Math.min(...visibleSamples.map((sample) => sample.z)) : Number.POSITIVE_INFINITY;
@@ -366,7 +376,7 @@ class RapierDriveSimulation {
         minZ = minCmAligned / 100;
         maxZ = maxCmAligned / 100;
 
-        const toX = (t) => margin.left + ((t - minTimeSec) / this.wheelZChartWindowSec) * plotWidth;
+        const toX = (t) => margin.left + ((t - minTimeSec) / effectiveWindowSec) * plotWidth;
         const toY = (z) => margin.top + ((maxZ - z) / (maxZ - minZ)) * plotHeight;
 
         ctx.strokeStyle = '#d6deea';
@@ -378,8 +388,9 @@ class RapierDriveSimulation {
             ctx.lineTo(margin.left + plotWidth, gy);
             ctx.stroke();
         }
-        for (let sec = 0; sec <= this.wheelZChartWindowSec; sec += 5) {
-            const gx = margin.left + (sec / this.wheelZChartWindowSec) * plotWidth;
+        const xTickCount = 4;
+        for (let i = 0; i <= xTickCount; i += 1) {
+            const gx = margin.left + (i / xTickCount) * plotWidth;
             ctx.beginPath();
             ctx.moveTo(gx, margin.top);
             ctx.lineTo(gx, margin.top + plotHeight);
@@ -399,12 +410,13 @@ class RapierDriveSimulation {
 
         ctx.fillStyle = '#5f6b7a';
         ctx.font = '11px Segoe UI';
-        for (let sec = 0; sec <= this.wheelZChartWindowSec; sec += 5) {
-            if (sec === 0) {
+        for (let i = 0; i <= xTickCount; i += 1) {
+            if (i === 0) {
                 continue;
             }
-            const labelX = margin.left + (sec / this.wheelZChartWindowSec) * plotWidth;
-            const timeAtTick = minTimeSec + sec;
+            const ratio = i / xTickCount;
+            const labelX = margin.left + ratio * plotWidth;
+            const timeAtTick = minTimeSec + (effectiveWindowSec * ratio);
             const label = `${timeAtTick.toFixed(0)}s`;
             ctx.fillText(label, labelX - 12, margin.top + plotHeight + 16);
         }
@@ -424,7 +436,7 @@ class RapierDriveSimulation {
 
         Object.keys(this.wheelZChartHistoryByKey).forEach((wheelKey) => {
             const samples = (this.wheelZChartHistoryByKey[wheelKey] || [])
-                .filter((sample) => sample.t >= minTimeSec && sample.t <= nowSec);
+                .filter((sample) => sample.t >= minTimeSec && sample.t <= windowEndSec);
             if (samples.length < 2) {
                 return;
             }

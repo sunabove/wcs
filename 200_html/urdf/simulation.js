@@ -58,6 +58,7 @@ class RapierDriveSimulation {
         this.keepUprightOnFlatGround = true;
         this.isUprightRotationLockActive = false;
         this.groundPenetrationToleranceMeters = 0.003;
+        this.wheelGroundHardClampOffsetMeters = 0.001;
         this.maxLiftWithoutObstacleMeters = 0.03;
         this.maxLiftWithObstacleMeters = 0.28;
         this.isInitializing = false;
@@ -1732,6 +1733,33 @@ class RapierDriveSimulation {
         }
     }
 
+    enforceMeasuredWheelGroundLimit(linkMap) {
+        if (!this.body || !this.rapier || !linkMap || !Number.isFinite(this.groundZ)) {
+            return false;
+        }
+
+        if (this.isVehicleOverHoleRegion()) {
+            return false;
+        }
+
+        const measuredWheelMinZ = this.getWheelWorldMinZ(linkMap);
+        if (!Number.isFinite(measuredWheelMinZ)) {
+            return false;
+        }
+
+        const minAllowedWheelZ = this.groundZ - Math.max(Number(this.groundPenetrationToleranceMeters) || 0, 0);
+        if (measuredWheelMinZ >= minAllowedWheelZ) {
+            return false;
+        }
+
+        const liftAmount = (minAllowedWheelZ - measuredWheelMinZ) + Math.max(Number(this.wheelGroundHardClampOffsetMeters) || 0, 0);
+        const translation = this.body.translation();
+        const velocity = this.body.linvel();
+        this.body.setTranslation(new this.rapier.Vector3(translation.x, translation.y, translation.z + liftAmount), true);
+        this.body.setLinvel(new this.rapier.Vector3(velocity.x, velocity.y, Math.max(0, velocity.z)), true);
+        return true;
+    }
+
     addWheelCollidersFromUrdf(body, carFrame, linkMap) {
         if (!this.world || !this.rapier || !body || !carFrame || !linkMap) {
             return;
@@ -2509,6 +2537,7 @@ class RapierDriveSimulation {
 
         // Follow the fixed-step update style from three.js Rapier vehicle controller example.
         this.physicsAccumulatorSec = Math.min(this.physicsAccumulatorSec + effectiveDeltaSec, this.physicsFixedTimeStepSec * this.maxPhysicsCatchupSteps);
+        const linkMap = this.viewer?.robotModel?.links || null;
         let stepIndex = 0;
         while (this.physicsAccumulatorSec >= this.physicsFixedTimeStepSec && stepIndex < this.maxPhysicsCatchupSteps) {
             this.world.timestep = this.physicsFixedTimeStepSec;
@@ -2516,8 +2545,12 @@ class RapierDriveSimulation {
             if (this.hasActivatedDynamicGroundClamp) {
                 this.clampVehicleAboveGround();
             }
-            if (hasDriveCommand) {
+            this.syncCarFrameFromBody();
+            const adjustedByWheelClamp = this.enforceMeasuredWheelGroundLimit(linkMap);
+            if (adjustedByWheelClamp) {
                 this.syncCarFrameFromBody();
+            }
+            if (hasDriveCommand) {
                 this.wheelZChartElapsedSec += this.physicsFixedTimeStepSec;
                 this.sampleWheelCenterZForChart(this.wheelZChartElapsedSec);
             }

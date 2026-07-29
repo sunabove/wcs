@@ -6,8 +6,11 @@ const SIM_SPEED_DEFAULT_KMH = 10;
 const SIM_SPEED_MAX_KMH = 40;
 const SIM_VISUAL_SPEED_STORAGE_KEY = 'wcs.simulation.visualSpeedScale';
 const SIM_VISUAL_SPEED_DEFAULT_SCALE = 0.5;
-const SIM_VISUAL_SPEED_MIN_SCALE = 0.1;
-const SIM_VISUAL_SPEED_MAX_SCALE = 1.5;
+const SIM_VISUAL_SPEED_MIN_SCALE = 1 / 30;
+const SIM_VISUAL_SPEED_MAX_SCALE = 1;
+const SIM_VISUAL_SPEED_LEGACY_MAX_SCALE = 1.5;
+const SIM_VISUAL_SPEED_MIN_DENOMINATOR = 1;
+const SIM_VISUAL_SPEED_MAX_DENOMINATOR = 30;
 
 class RapierDriveSimulation {
     constructor() {
@@ -598,7 +601,7 @@ class RapierDriveSimulation {
             `activeViewer=${activeViewerId}`,
             `simulationViewer=${simulationViewerId}`,
             `driveViewer=${driveViewerId}`,
-            `visualSpeed=${Number.isFinite(visualSpeedScale) ? visualSpeedScale.toFixed(2) : 'NaN'}x`,
+            `visualSpeed=${Number.isFinite(visualSpeedScale) ? this.formatVisualSpeedScaleLabel(visualSpeedScale) : 'NaN'}`,
             `mode=${driveMode} speedKmh=${Number.isFinite(speedKmh) ? speedKmh.toFixed(1) : 'NaN'} speedMps=${Number.isFinite(speedMps) ? speedMps.toFixed(3) : 'NaN'}`,
             bodySummary,
             obstacleSummary
@@ -1220,7 +1223,38 @@ class RapierDriveSimulation {
             return SIM_VISUAL_SPEED_DEFAULT_SCALE;
         }
 
+        if (numericValue > SIM_VISUAL_SPEED_LEGACY_MAX_SCALE) {
+            const denominator = Math.max(
+                SIM_VISUAL_SPEED_MIN_DENOMINATOR,
+                Math.min(SIM_VISUAL_SPEED_MAX_DENOMINATOR, Math.round(numericValue))
+            );
+            return 1 / denominator;
+        }
+
         return Math.max(SIM_VISUAL_SPEED_MIN_SCALE, Math.min(SIM_VISUAL_SPEED_MAX_SCALE, numericValue));
+    }
+
+    normalizeVisualSpeedSliderValue(rawValue) {
+        const numericValue = Number.parseFloat(rawValue);
+        if (!Number.isFinite(numericValue)) {
+            return Math.round(1 / SIM_VISUAL_SPEED_DEFAULT_SCALE);
+        }
+
+        return Math.max(
+            SIM_VISUAL_SPEED_MIN_DENOMINATOR,
+            Math.min(SIM_VISUAL_SPEED_MAX_DENOMINATOR, Math.round(numericValue))
+        );
+    }
+
+    getVisualSpeedSliderValueFromScale(scale) {
+        const normalizedScale = this.normalizeVisualSpeedScale(scale);
+        const denominator = Math.round(1 / Math.max(normalizedScale, SIM_VISUAL_SPEED_MIN_SCALE));
+        return this.normalizeVisualSpeedSliderValue(denominator);
+    }
+
+    formatVisualSpeedScaleLabel(scale) {
+        const denominator = this.getVisualSpeedSliderValueFromScale(scale);
+        return denominator <= 1 ? '1x' : `1/${denominator}x`;
     }
 
     applyVisualSpeedScale(value) {
@@ -1230,11 +1264,11 @@ class RapierDriveSimulation {
         const speedSlider = document.getElementById('simulation-visual-speed-scale');
         const speedLabel = document.getElementById('simulation-visual-speed-scale-value');
         if (speedSlider) {
-            speedSlider.value = String(normalizedScale);
+            speedSlider.value = String(this.getVisualSpeedSliderValueFromScale(normalizedScale));
             this.updateSpeedSliderVisual(speedSlider);
         }
         if (speedLabel) {
-            speedLabel.textContent = `${normalizedScale.toFixed(2)}x`;
+            speedLabel.textContent = this.formatVisualSpeedScaleLabel(normalizedScale);
         }
 
         try {
@@ -1261,10 +1295,10 @@ class RapierDriveSimulation {
             initialScale = SIM_VISUAL_SPEED_DEFAULT_SCALE;
         }
 
-        speedSlider.value = String(initialScale);
+        speedSlider.value = String(this.getVisualSpeedSliderValueFromScale(initialScale));
         this.updateSpeedSliderVisual(speedSlider);
         if (speedLabel) {
-            speedLabel.textContent = `${initialScale.toFixed(2)}x`;
+            speedLabel.textContent = this.formatVisualSpeedScaleLabel(initialScale);
         }
 
         this.visualSpeedScale = initialScale;
@@ -1273,7 +1307,7 @@ class RapierDriveSimulation {
             const normalizedScale = this.normalizeVisualSpeedScale(speedSlider.value);
             this.visualSpeedScale = normalizedScale;
             if (speedLabel) {
-                speedLabel.textContent = `${normalizedScale.toFixed(2)}x`;
+                speedLabel.textContent = this.formatVisualSpeedScaleLabel(normalizedScale);
             }
             try {
                 window.localStorage.setItem(SIM_VISUAL_SPEED_STORAGE_KEY, String(normalizedScale));

@@ -30,7 +30,6 @@ class RapierDriveSimulation {
         this.groundContactBiasMeters = 0;
         this.groundZ = 0;
         this.underbodyPassThroughClearanceMeters = 0.09;
-        this.underbodyPassThroughObstacleNamePatterns = [/obstacle_rock_01/i];
         this.urdfObstacleLinkNames = ['obstacle_rock_01', 'obstacle_rock_02', 'obstacle_rock', 'rock_obstacle'];
         this.urdfObstacleLinkNamePatterns = [
             /^obstacle/i,
@@ -833,16 +832,6 @@ class RapierDriveSimulation {
         return obstacleTopZ <= (wheelContactPlaneZ + clearance);
     }
 
-    isObstacleAllowedUnderbodyPassThrough(obstacleInfo) {
-        if (!obstacleInfo) {
-            return false;
-        }
-
-        const linkName = String(obstacleInfo.linkName || '');
-        const normalizedName = String(obstacleInfo.normalizedLinkName || this.normalizeLinkName(linkName));
-        return this.underbodyPassThroughObstacleNamePatterns.some((pattern) => pattern.test(linkName) || pattern.test(normalizedName));
-    }
-
     getWheelContactPlaneZ() {
         if (!this.body || !Number.isFinite(this.wheelLocalMinZ)) {
             return null;
@@ -1306,8 +1295,7 @@ class RapierDriveSimulation {
                             return;
                         }
 
-                        if (this.isObstacleAllowedUnderbodyPassThrough(obstacleInfo)
-                            && this.isObstacleBelowWheelContactPlane(obstacleInfo)) {
+                        if (this.isObstacleBelowWheelContactPlane(obstacleInfo)) {
                             return;
                         }
 

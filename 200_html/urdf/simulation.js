@@ -2574,7 +2574,7 @@ class RapierDriveSimulation {
         if (hasDriveCommand) {
             this.hasActivatedDynamicGroundClamp = true;
         }
-        const wasObstacleContact = this.isVehicleObstacleContact;
+        const wasObstacleContact = this.updateObstacleContactState();
         let commandedVelocityX = 0;
         let commandedVelocityY = 0;
 
@@ -2597,6 +2597,7 @@ class RapierDriveSimulation {
         };
 
         const currentLinearVelocity = this.body.linvel();
+        const currentAngularVelocity = this.body.angvel();
         let lockedRotation = null;
         if (keyboardState.isActive) {
             lockedRotation = this.body.rotation();
@@ -2612,11 +2613,14 @@ class RapierDriveSimulation {
                 ? currentLinearVelocity.z
                 : (this.isBodyNearFlatGroundSupport() ? 0 : Math.min(0, currentLinearVelocity.z));
             this.body.setLinvel(new this.rapier.Vector3(velocityX, velocityY, nextVelocityZ), true);
-            this.body.setAngvel(new this.rapier.Vector3(0, 0, 0), true);
+            this.body.setAngvel(new this.rapier.Vector3(
+                wasObstacleContact ? currentAngularVelocity.x : 0,
+                wasObstacleContact ? currentAngularVelocity.y : 0,
+                0
+            ), true);
         } else {
             const bodyRotation = this.body.rotation();
             const yaw = this.extractYawFromQuaternion(bodyRotation);
-            const currentAngularVelocity = this.body.angvel();
             const velocityX = Math.cos(yaw) * clampedSpeed * throttleSign;
             const velocityY = Math.sin(yaw) * clampedSpeed * throttleSign;
             commandedVelocityX = velocityX;
@@ -2636,11 +2640,14 @@ class RapierDriveSimulation {
         while (this.physicsAccumulatorSec >= this.physicsFixedTimeStepSec && stepIndex < this.maxPhysicsCatchupSteps) {
             this.world.timestep = this.physicsFixedTimeStepSec;
             this.world.step();
+            const hasObstacleContactNow = this.updateObstacleContactState();
             if (this.hasActivatedDynamicGroundClamp) {
                 this.clampVehicleAboveGround();
             }
             this.syncCarFrameFromBody();
-            const adjustedByWheelClamp = this.enforceMeasuredWheelGroundLimit(linkMap);
+            const adjustedByWheelClamp = hasObstacleContactNow
+                ? this.enforceMeasuredWheelGroundLimit(linkMap)
+                : false;
             if (adjustedByWheelClamp) {
                 this.syncCarFrameFromBody();
             }
@@ -2655,7 +2662,7 @@ class RapierDriveSimulation {
             stepIndex += 1;
         }
 
-        if (keyboardState.isActive && lockedRotation && !wasObstacleContact) {
+        if (keyboardState.isActive && lockedRotation && !this.isVehicleObstacleContact) {
             this.body.setRotation(lockedRotation, true);
             this.body.setAngvel(new this.rapier.Vector3(0, 0, 0), true);
         }

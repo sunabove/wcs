@@ -112,6 +112,12 @@ class RapierDriveSimulation {
             rl: 'wheel_rl',
             rr: 'wheel_rr'
         };
+        this.wheelRadiusMetersByKey = {
+            fl: null,
+            fr: null,
+            rl: null,
+            rr: null
+        };
     }
 
     initDebugPanel() {

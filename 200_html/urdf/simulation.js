@@ -504,16 +504,15 @@ class RapierDriveSimulation {
             });
             ctx.stroke();
 
-            const dotColor = this.wheelDotColorByKey[wheelKey] || seriesColor;
-            ctx.fillStyle = dotColor;
+            ctx.fillStyle = seriesColor;
             samples.forEach((sample) => {
                 const x = toX(sample.t);
                 const y = toY(sample.z);
-                const markerSize = 2.8;
+                const markerSize = 5.0;
                 ctx.beginPath();
                 if (wheelKey === 'fl') {
                     // Circle marker
-                    ctx.arc(x, y, 1.8, 0, Math.PI * 2);
+                    ctx.arc(x, y, markerSize * 0.5, 0, Math.PI * 2);
                 } else if (wheelKey === 'fr') {
                     // Square marker
                     ctx.rect(x - markerSize * 0.5, y - markerSize * 0.5, markerSize, markerSize);

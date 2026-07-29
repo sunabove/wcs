@@ -100,6 +100,26 @@ class RapierDriveSimulation {
         this.hasInstalledDriveCommandHooks = true;
     }
 
+    syncInitialDriveStateFromUi() {
+        const speedInput = document.getElementById('drive-speed-kmh');
+        const initialSpeedKmh = speedInput
+            ? Number.parseFloat(speedInput.value)
+            : SIM_SPEED_DEFAULT_KMH;
+
+        this.commandedDriveMode = 'stop';
+        this.commandedSpeedKmh = Number.isFinite(initialSpeedKmh)
+            ? Math.max(0, initialSpeedKmh)
+            : SIM_SPEED_DEFAULT_KMH;
+
+        if (typeof globalThis.setDriveSpeedKmh === 'function') {
+            globalThis.setDriveSpeedKmh(this.commandedSpeedKmh);
+        }
+
+        if (typeof globalThis.setDriveMode === 'function') {
+            globalThis.setDriveMode('stop');
+        }
+    }
+
     findSimulationViewer() {
         const viewerById = window.urdfViewersById?.['robot-container-1'] || null;
         if (viewerById) {
@@ -1421,6 +1441,7 @@ class RapierDriveSimulation {
         this.initializeSpeedSliderPreference();
         this.attachKeyboardControls();
         this.installDriveCommandHooks();
+        this.syncInitialDriveStateFromUi();
         requestAnimationFrame(() => this.runLoop());
     }
 

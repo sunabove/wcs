@@ -14,10 +14,6 @@
     <color rgba="0.06 0.06 0.06 1.0" />
   </material>
 
-  <material name="tire_tread_texture">
-    <texture filename="textures/tire_tread.svg" />
-  </material>
-
   <material name="tread_mark">
     <color rgba="0.32 0.33 0.36 1.0" />
   </material>
@@ -312,7 +308,103 @@
       <geometry>
         <cylinder radius="0.16" length="0.10" />
       </geometry>
-      <material name="tire_tread_texture" />
+      <material name="tire" />
+    </visual>
+
+    <visual>
+      <origin xyz="0.15700 0 0.00000" rpy="0 0 0" />
+      <geometry>
+        <box size="0.014 0.096 0.022" />
+      </geometry>
+      <material name="tread_mark" />
+    </visual>
+
+    <visual>
+      <origin xyz="0.13597 0 0.07850" rpy="0 0.5235988 0" />
+      <geometry>
+        <box size="0.014 0.096 0.022" />
+      </geometry>
+      <material name="tread_mark" />
+    </visual>
+
+    <visual>
+      <origin xyz="0.07850 0 0.13597" rpy="0 1.0471976 0" />
+      <geometry>
+        <box size="0.014 0.096 0.022" />
+      </geometry>
+      <material name="tread_mark" />
+    </visual>
+
+    <visual>
+      <origin xyz="0.00000 0 0.15700" rpy="0 1.5707963 0" />
+      <geometry>
+        <box size="0.014 0.096 0.022" />
+      </geometry>
+      <material name="tread_mark" />
+    </visual>
+
+    <visual>
+      <origin xyz="-0.07850 0 0.13597" rpy="0 2.0943951 0" />
+      <geometry>
+        <box size="0.014 0.096 0.022" />
+      </geometry>
+      <material name="tread_mark" />
+    </visual>
+
+    <visual>
+      <origin xyz="-0.13597 0 0.07850" rpy="0 2.6179939 0" />
+      <geometry>
+        <box size="0.014 0.096 0.022" />
+      </geometry>
+      <material name="tread_mark" />
+    </visual>
+
+    <visual>
+      <origin xyz="-0.15700 0 0.00000" rpy="0 3.1415927 0" />
+      <geometry>
+        <box size="0.014 0.096 0.022" />
+      </geometry>
+      <material name="tread_mark" />
+    </visual>
+
+    <visual>
+      <origin xyz="-0.13597 0 -0.07850" rpy="0 -2.6179939 0" />
+      <geometry>
+        <box size="0.014 0.096 0.022" />
+      </geometry>
+      <material name="tread_mark" />
+    </visual>
+
+    <visual>
+      <origin xyz="-0.07850 0 -0.13597" rpy="0 -2.0943951 0" />
+      <geometry>
+        <box size="0.014 0.096 0.022" />
+      </geometry>
+      <material name="tread_mark" />
+    </visual>
+
+    <visual>
+      <origin xyz="0.00000 0 -0.15700" rpy="0 -1.5707963 0" />
+      <geometry>
+        <box size="0.014 0.096 0.022" />
+      </geometry>
+      <material name="tread_mark" />
+    </visual>
+
+    <visual>
+      <origin xyz="0.07850 0 -0.13597" rpy="0 -1.0471976 0" />
+      <geometry>
+        <box size="0.014 0.096 0.022" />
+      </geometry>
+      <material name="tread_mark" />
+    </visual>
+
+    <visual>
+      <origin xyz="0.13597 0 -0.07850" rpy="0 -0.5235988 0" />
+      <geometry>
+        <box size="0.014 0.096 0.022" />
+      </geometry>
+      <material name="tread_mark" />
     </visual>
 
     <visual>
@@ -426,7 +518,103 @@
       <geometry>
         <cylinder radius="0.16" length="0.10" />
       </geometry>
-      <material name="tire_tread_texture" />
+      <material name="tire" />
+    </visual>
+
+    <visual>
+      <origin xyz="0.15700 0 0.00000" rpy="0 0 0" />
+      <geometry>
+        <box size="0.014 0.096 0.022" />
+      </geometry>
+      <material name="tread_mark" />
+    </visual>
+
+    <visual>
+      <origin xyz="0.13597 0 0.07850" rpy="0 0.5235988 0" />
+      <geometry>
+        <box size="0.014 0.096 0.022" />
+      </geometry>
+      <material name="tread_mark" />
+    </visual>
+
+    <visual>
+      <origin xyz="0.07850 0 0.13597" rpy="0 1.0471976 0" />
+      <geometry>
+        <box size="0.014 0.096 0.022" />
+      </geometry>
+      <material name="tread_mark" />
+    </visual>
+
+    <visual>
+      <origin xyz="0.00000 0 0.15700" rpy="0 1.5707963 0" />
+      <geometry>
+        <box size="0.014 0.096 0.022" />
+      </geometry>
+      <material name="tread_mark" />
+    </visual>
+
+    <visual>
+      <origin xyz="-0.07850 0 0.13597" rpy="0 2.0943951 0" />
+      <geometry>
+        <box size="0.014 0.096 0.022" />
+      </geometry>
+      <material name="tread_mark" />
+    </visual>
+
+    <visual>
+      <origin xyz="-0.13597 0 0.07850" rpy="0 2.6179939 0" />
+      <geometry>
+        <box size="0.014 0.096 0.022" />
+      </geometry>
+      <material name="tread_mark" />
+    </visual>
+
+    <visual>
+      <origin xyz="-0.15700 0 0.00000" rpy="0 3.1415927 0" />
+      <geometry>
+        <box size="0.014 0.096 0.022" />
+      </geometry>
+      <material name="tread_mark" />
+    </visual>
+
+    <visual>
+      <origin xyz="-0.13597 0 -0.07850" rpy="0 -2.6179939 0" />
+      <geometry>
+        <box size="0.014 0.096 0.022" />
+      </geometry>
+      <material name="tread_mark" />
+    </visual>
+
+    <visual>
+      <origin xyz="-0.07850 0 -0.13597" rpy="0 -2.0943951 0" />
+      <geometry>
+        <box size="0.014 0.096 0.022" />
+      </geometry>
+      <material name="tread_mark" />
+    </visual>
+
+    <visual>
+      <origin xyz="0.00000 0 -0.15700" rpy="0 -1.5707963 0" />
+      <geometry>
+        <box size="0.014 0.096 0.022" />
+      </geometry>
+      <material name="tread_mark" />
+    </visual>
+
+    <visual>
+      <origin xyz="0.07850 0 -0.13597" rpy="0 -1.0471976 0" />
+      <geometry>
+        <box size="0.014 0.096 0.022" />
+      </geometry>
+      <material name="tread_mark" />
+    </visual>
+
+    <visual>
+      <origin xyz="0.13597 0 -0.07850" rpy="0 -0.5235988 0" />
+      <geometry>
+        <box size="0.014 0.096 0.022" />
+      </geometry>
+      <material name="tread_mark" />
     </visual>
 
     <visual>
@@ -540,7 +728,103 @@
       <geometry>
         <cylinder radius="0.16" length="0.10" />
       </geometry>
-      <material name="tire_tread_texture" />
+      <material name="tire" />
+    </visual>
+
+    <visual>
+      <origin xyz="0.15700 0 0.00000" rpy="0 0 0" />
+      <geometry>
+        <box size="0.014 0.096 0.022" />
+      </geometry>
+      <material name="tread_mark" />
+    </visual>
+
+    <visual>
+      <origin xyz="0.13597 0 0.07850" rpy="0 0.5235988 0" />
+      <geometry>
+        <box size="0.014 0.096 0.022" />
+      </geometry>
+      <material name="tread_mark" />
+    </visual>
+
+    <visual>
+      <origin xyz="0.07850 0 0.13597" rpy="0 1.0471976 0" />
+      <geometry>
+        <box size="0.014 0.096 0.022" />
+      </geometry>
+      <material name="tread_mark" />
+    </visual>
+
+    <visual>
+      <origin xyz="0.00000 0 0.15700" rpy="0 1.5707963 0" />
+      <geometry>
+        <box size="0.014 0.096 0.022" />
+      </geometry>
+      <material name="tread_mark" />
+    </visual>
+
+    <visual>
+      <origin xyz="-0.07850 0 0.13597" rpy="0 2.0943951 0" />
+      <geometry>
+        <box size="0.014 0.096 0.022" />
+      </geometry>
+      <material name="tread_mark" />
+    </visual>
+
+    <visual>
+      <origin xyz="-0.13597 0 0.07850" rpy="0 2.6179939 0" />
+      <geometry>
+        <box size="0.014 0.096 0.022" />
+      </geometry>
+      <material name="tread_mark" />
+    </visual>
+
+    <visual>
+      <origin xyz="-0.15700 0 0.00000" rpy="0 3.1415927 0" />
+      <geometry>
+        <box size="0.014 0.096 0.022" />
+      </geometry>
+      <material name="tread_mark" />
+    </visual>
+
+    <visual>
+      <origin xyz="-0.13597 0 -0.07850" rpy="0 -2.6179939 0" />
+      <geometry>
+        <box size="0.014 0.096 0.022" />
+      </geometry>
+      <material name="tread_mark" />
+    </visual>
+
+    <visual>
+      <origin xyz="-0.07850 0 -0.13597" rpy="0 -2.0943951 0" />
+      <geometry>
+        <box size="0.014 0.096 0.022" />
+      </geometry>
+      <material name="tread_mark" />
+    </visual>
+
+    <visual>
+      <origin xyz="0.00000 0 -0.15700" rpy="0 -1.5707963 0" />
+      <geometry>
+        <box size="0.014 0.096 0.022" />
+      </geometry>
+      <material name="tread_mark" />
+    </visual>
+
+    <visual>
+      <origin xyz="0.07850 0 -0.13597" rpy="0 -1.0471976 0" />
+      <geometry>
+        <box size="0.014 0.096 0.022" />
+      </geometry>
+      <material name="tread_mark" />
+    </visual>
+
+    <visual>
+      <origin xyz="0.13597 0 -0.07850" rpy="0 -0.5235988 0" />
+      <geometry>
+        <box size="0.014 0.096 0.022" />
+      </geometry>
+      <material name="tread_mark" />
     </visual>
 
     <visual>
@@ -654,7 +938,103 @@
       <geometry>
         <cylinder radius="0.16" length="0.10" />
       </geometry>
-      <material name="tire_tread_texture" />
+      <material name="tire" />
+    </visual>
+
+    <visual>
+      <origin xyz="0.15700 0 0.00000" rpy="0 0 0" />
+      <geometry>
+        <box size="0.014 0.096 0.022" />
+      </geometry>
+      <material name="tread_mark" />
+    </visual>
+
+    <visual>
+      <origin xyz="0.13597 0 0.07850" rpy="0 0.5235988 0" />
+      <geometry>
+        <box size="0.014 0.096 0.022" />
+      </geometry>
+      <material name="tread_mark" />
+    </visual>
+
+    <visual>
+      <origin xyz="0.07850 0 0.13597" rpy="0 1.0471976 0" />
+      <geometry>
+        <box size="0.014 0.096 0.022" />
+      </geometry>
+      <material name="tread_mark" />
+    </visual>
+
+    <visual>
+      <origin xyz="0.00000 0 0.15700" rpy="0 1.5707963 0" />
+      <geometry>
+        <box size="0.014 0.096 0.022" />
+      </geometry>
+      <material name="tread_mark" />
+    </visual>
+
+    <visual>
+      <origin xyz="-0.07850 0 0.13597" rpy="0 2.0943951 0" />
+      <geometry>
+        <box size="0.014 0.096 0.022" />
+      </geometry>
+      <material name="tread_mark" />
+    </visual>
+
+    <visual>
+      <origin xyz="-0.13597 0 0.07850" rpy="0 2.6179939 0" />
+      <geometry>
+        <box size="0.014 0.096 0.022" />
+      </geometry>
+      <material name="tread_mark" />
+    </visual>
+
+    <visual>
+      <origin xyz="-0.15700 0 0.00000" rpy="0 3.1415927 0" />
+      <geometry>
+        <box size="0.014 0.096 0.022" />
+      </geometry>
+      <material name="tread_mark" />
+    </visual>
+
+    <visual>
+      <origin xyz="-0.13597 0 -0.07850" rpy="0 -2.6179939 0" />
+      <geometry>
+        <box size="0.014 0.096 0.022" />
+      </geometry>
+      <material name="tread_mark" />
+    </visual>
+
+    <visual>
+      <origin xyz="-0.07850 0 -0.13597" rpy="0 -2.0943951 0" />
+      <geometry>
+        <box size="0.014 0.096 0.022" />
+      </geometry>
+      <material name="tread_mark" />
+    </visual>
+
+    <visual>
+      <origin xyz="0.00000 0 -0.15700" rpy="0 -1.5707963 0" />
+      <geometry>
+        <box size="0.014 0.096 0.022" />
+      </geometry>
+      <material name="tread_mark" />
+    </visual>
+
+    <visual>
+      <origin xyz="0.07850 0 -0.13597" rpy="0 -1.0471976 0" />
+      <geometry>
+        <box size="0.014 0.096 0.022" />
+      </geometry>
+      <material name="tread_mark" />
+    </visual>
+
+    <visual>
+      <origin xyz="0.13597 0 -0.07850" rpy="0 -0.5235988 0" />
+      <geometry>
+        <box size="0.014 0.096 0.022" />
+      </geometry>
+      <material name="tread_mark" />
     </visual>
 
     <visual>

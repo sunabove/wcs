@@ -712,6 +712,7 @@ class RapierDriveSimulation {
         }
 
         const linkMap = this.viewer.robotModel.links || {};
+        const wheelLateralBands = this.getWheelLateralContactBands(linkMap);
         const obstacleLinkNames = this.getObstacleLinkNamesFromMap(linkMap);
         if (obstacleLinkNames.length === 0) {
             console.warn('[URDF][Simulation] URDF obstacle link not found. Expected one of:', this.urdfObstacleLinkNames);
@@ -754,14 +755,25 @@ class RapierDriveSimulation {
             const passThroughClearance = Math.max(Number(this.underbodyPassThroughClearanceMeters) || 0, 0);
             const isUnderbodyPassThroughByHeight = Number.isFinite(wheelContactPlaneZ)
                 && obstacleTopZ <= (wheelContactPlaneZ + passThroughClearance);
+            const obstacleMinY = center.y - halfY;
+            const obstacleMaxY = center.y + halfY;
+            const overlapsWheelBand = wheelLateralBands.some((band) => {
+                if (!band) {
+                    return false;
+                }
+
+                return obstacleMaxY >= band.minY && obstacleMinY <= band.maxY;
+            });
+            const isUnderbodyPassThrough = isUnderbodyPassThroughByHeight && !overlapsWheelBand;
 
             // Only explicitly tagged links are sensors; generic obstacles must physically collide.
-            if ((isPassUnderTagged || isUnderbodyPassThroughByHeight) && typeof obstacleColliderDesc.setSensor === 'function') {
+            if ((isPassUnderTagged || isUnderbodyPassThrough) && typeof obstacleColliderDesc.setSensor === 'function') {
                 obstacleColliderDesc.setSensor(true);
                 console.log('[URDF][Simulation] obstacle treated as pass-under sensor:', {
                     obstacleLinkName,
                     isPassUnderTagged,
                     isUnderbodyPassThroughByHeight,
+                    overlapsWheelBand,
                     obstacleTopZ: Number(obstacleTopZ.toFixed(4)),
                     wheelContactPlaneZ: Number.isFinite(wheelContactPlaneZ) ? Number(wheelContactPlaneZ.toFixed(4)) : null,
                     passThroughClearance: Number(passThroughClearance.toFixed(4))
@@ -776,10 +788,42 @@ class RapierDriveSimulation {
                 halfExtents: { x: halfX, y: halfY, z: halfZ },
                 linkName: obstacleLinkName,
                 normalizedLinkName: normalizedObstacleName,
-                isSensor: Boolean(isPassUnderTagged || isUnderbodyPassThroughByHeight)
+                isSensor: Boolean(isPassUnderTagged || isUnderbodyPassThrough)
             });
             console.log(`[URDF][Simulation] obstacle collider created from URDF link: ${obstacleLinkName}`);
         });
+    }
+
+    getWheelLateralContactBands(linkMap) {
+        if (!linkMap) {
+            return [];
+        }
+
+        const wheelLinkNames = ['wheel_fl', 'wheel_fr', 'wheel_rl', 'wheel_rr'];
+        const bands = [];
+
+        wheelLinkNames.forEach((wheelLinkName) => {
+            const wheelLink = this.findLinkByName(linkMap, wheelLinkName);
+            if (!wheelLink) {
+                return;
+            }
+
+            wheelLink.updateWorldMatrix(true, true);
+            const wheelBounds = new THREE.Box3().setFromObject(wheelLink);
+            if (wheelBounds.isEmpty()) {
+                return;
+            }
+
+            const wheelCenter = wheelBounds.getCenter(new THREE.Vector3());
+            const wheelSize = wheelBounds.getSize(new THREE.Vector3());
+            const wheelRadius = Math.max(wheelSize.x * 0.5, wheelSize.z * 0.5, 0.05);
+            bands.push({
+                minY: wheelCenter.y - wheelRadius,
+                maxY: wheelCenter.y + wheelRadius
+            });
+        });
+
+        return bands;
     }
 
     getVehicleColliderWorldCenter() {

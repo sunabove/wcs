@@ -239,12 +239,22 @@ class RapierDriveSimulation {
         }
 
         const linkMap = this.viewer.robotModel.links || {};
-        const wheelRadiusMeters = Math.max(Number(this.wheelEffectiveRadiusMeters) || 0.16, 0.05);
         Object.entries(this.wheelLinkNameByKey).forEach(([wheelKey, wheelLinkName]) => {
             const wheelLink = this.findLinkByName(linkMap, wheelLinkName);
             if (!wheelLink) {
                 return;
             }
+
+            if (!Number.isFinite(this.wheelRadiusMetersByKey[wheelKey])) {
+                const extractedRadius = this.extractWheelRadiusMetersFromLink(wheelLink);
+                if (Number.isFinite(extractedRadius)) {
+                    this.wheelRadiusMetersByKey[wheelKey] = extractedRadius;
+                }
+            }
+
+            const wheelRadiusMeters = Number.isFinite(this.wheelRadiusMetersByKey[wheelKey])
+                ? this.wheelRadiusMetersByKey[wheelKey]
+                : Math.max(Number(this.wheelEffectiveRadiusMeters) || 0.16, 0.05);
 
             wheelLink.updateWorldMatrix(true, true);
             const centerWorld = new THREE.Vector3();
@@ -2443,6 +2453,9 @@ class RapierDriveSimulation {
             this.wheelZChartHistoryByKey[key] = [];
         });
         this.wheelZChartElapsedSec = 0;
+        Object.keys(this.wheelRadiusMetersByKey).forEach((key) => {
+            this.wheelRadiusMetersByKey[key] = null;
+        });
 
         this.hasLoggedGroundDiagnostics = false;
 

@@ -2579,7 +2579,7 @@ class RapierDriveSimulation {
 
         const deltaSec = Math.min((now - this.lastStepTimeMs) / 1000, 0.1);
         this.lastStepTimeMs = now;
-        const effectiveDeltaSec = Math.min(deltaSec * this.visualSpeedScale, 0.25);
+        const effectiveDeltaSec = deltaSec;
 
         const keyboardState = this.getKeyboardDriveState();
         const driveViewer = this.getDriveSourceViewer();
@@ -2723,7 +2723,8 @@ class RapierDriveSimulation {
             this.enforceFlatGroundRideHeight();
             this.syncCarFrameFromBody();
             if (hasDriveCommand) {
-                this.wheelZChartElapsedSec += this.physicsFixedTimeStepSec;
+                const chartTimeScale = Number.isFinite(this.visualSpeedScale) ? this.visualSpeedScale : 1;
+                this.wheelZChartElapsedSec += this.physicsFixedTimeStepSec * chartTimeScale;
                 this.sampleWheelCenterZForChart(this.wheelZChartElapsedSec);
             }
             this.physicsAccumulatorSec -= this.physicsFixedTimeStepSec;

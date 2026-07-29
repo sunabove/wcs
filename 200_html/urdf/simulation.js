@@ -5,9 +5,9 @@ const SIM_SPEED_STORAGE_KEY = 'wcs.simulation.driveSpeedKmh';
 const SIM_SPEED_DEFAULT_KMH = 10;
 const SIM_SPEED_MAX_KMH = 20;
 const SIM_VISUAL_SPEED_STORAGE_KEY = 'wcs.simulation.visualSpeedScale';
-const SIM_VISUAL_SPEED_DEFAULT_SCALE = 1;
-const SIM_VISUAL_SPEED_MIN_SCALE = 0.25;
-const SIM_VISUAL_SPEED_MAX_SCALE = 3;
+const SIM_VISUAL_SPEED_DEFAULT_SCALE = 0.5;
+const SIM_VISUAL_SPEED_MIN_SCALE = 0.1;
+const SIM_VISUAL_SPEED_MAX_SCALE = 1.5;
 
 class RapierDriveSimulation {
     constructor() {

@@ -389,31 +389,11 @@ class RapierDriveSimulation {
         const toX = (t) => margin.left + ((t - minTimeSec) / effectiveWindowSec) * plotWidth;
         const toY = (z) => margin.top + ((maxZ - z) / (maxZ - minZ)) * plotHeight;
 
-        const desiredTickCount = Math.max(3, Math.min(8, Math.round(plotWidth / 78)));
-        const computeNiceStepSeconds = (spanSec, desiredCount) => {
-            const safeSpanSec = Math.max(Number(spanSec) || 0, 1e-6);
-            const safeDesiredCount = Math.max(Number(desiredCount) || 1, 1);
-            const roughStep = safeSpanSec / safeDesiredCount;
-            const magnitude = Math.pow(10, Math.floor(Math.log10(roughStep)));
-            const normalized = roughStep / magnitude;
-            let niceNormalized = 1;
-            if (normalized <= 1) {
-                niceNormalized = 1;
-            } else if (normalized <= 2) {
-                niceNormalized = 2;
-            } else if (normalized <= 5) {
-                niceNormalized = 5;
-            } else {
-                niceNormalized = 10;
-            }
-            return niceNormalized * magnitude;
-        };
-
-        const xStepSec = computeNiceStepSeconds(effectiveWindowSec, desiredTickCount);
-        const xTickStartSec = Math.ceil(minTimeSec / xStepSec) * xStepSec;
+        const maxTickCount = 8;
+        const xStepSec = effectiveWindowSec / Math.max(maxTickCount - 1, 1);
         const xTickValuesSec = [];
-        for (let t = xTickStartSec; t <= (windowEndSec + (xStepSec * 0.5)); t += xStepSec) {
-            xTickValuesSec.push(t);
+        for (let i = 0; i < maxTickCount; i += 1) {
+            xTickValuesSec.push(minTimeSec + (xStepSec * i));
         }
         if (xTickValuesSec.length === 0) {
             xTickValuesSec.push(minTimeSec, windowEndSec);

@@ -1,2559 +1,1490 @@
-﻿
 import * as THREE from 'three';
 
-const RAPIER_CDN =
-    'https://cdn.skypack.dev/@dimforge/rapier3d-compat@0.11.2';
-
+const RAPIER_CDN = 'https://cdn.skypack.dev/@dimforge/rapier3d-compat@0.11.2';
+const SIM_SPEED_STORAGE_KEY = 'wcs.simulation.driveSpeedKmh';
 const SIM_SPEED_DEFAULT_KMH = 10;
 const SIM_SPEED_MAX_KMH = 20;
 
-const DEG2RAD = Math.PI / 180;
-
-const FIXED_TIME_STEP = 1 / 60;
-const MAX_SUB_STEPS = 4;
-
-const DEFAULT_VEHICLE_MASS = 120.0;
-const DEFAULT_GRAVITY = 9.81;
-
-const DEFAULT_WHEEL_RADIUS = 0.16;
-
-const DEFAULT_ENGINE_FORCE = 1800.0;
-const DEFAULT_BRAKE_FORCE = 3500.0;
-const DEFAULT_ROLLING_RESISTANCE = 25.0;
-
-const DEFAULT_MAX_STEER_DEG = 35.0;
-const DEFAULT_MAX_STEER_RATE = 120.0;
-
-const DEFAULT_MAX_SPEED =
-    SIM_SPEED_MAX_KMH / 3.6;
-
-function clamp(value, min, max)
-{
-    return Math.max(min, Math.min(max, value));
-}
-
-function moveTowards(current, target, delta)
-{
-    if (current < target)
-    {
-        return Math.min(current + delta, target);
-    }
-
-    if (current > target)
-    {
-        return Math.max(current - delta, target);
-    }
-
-    return current;
-}
-
-function sign(value)
-{
-    if (value > 0)
-    {
-        return 1;
-    }
-
-    if (value < 0)
-    {
-        return -1;
-    }
-
-    return 0;
-}
-
-class VehicleInput
-{
-    constructor()
-    {
-        this.throttle = 0.0;
-        this.brake = 0.0;
-        this.steer = 0.0;
-    }
-
-    reset()
-    {
-        this.throttle = 0.0;
-        this.brake = 0.0;
-        this.steer = 0.0;
-    }
-}
-
-function setSliderVisualPercent(inputElement)
-{
-    if (!inputElement) {
-        return;
-    }
-
-    const minValue = Number.parseFloat(inputElement.min);
-    const maxValue = Number.parseFloat(inputElement.max);
-    const currentValue = Number.parseFloat(inputElement.value);
-    if (!Number.isFinite(minValue) || !Number.isFinite(maxValue) || maxValue <= minValue || !Number.isFinite(currentValue)) {
-        inputElement.style.setProperty('--slider-percent', '0%');
-        return;
-    }
-
-    const clampedValue = Math.max(minValue, Math.min(maxValue, currentValue));
-    const percent = ((clampedValue - minValue) / (maxValue - minValue)) * 100;
-    inputElement.style.setProperty('--slider-percent', `${percent}%`);
-}
-
-globalThis.resetSimulation = function () {
-    if (typeof globalThis.setDriveMode === 'function') {
-        globalThis.setDriveMode('stop');
-    }
-
-    if (typeof globalThis.setRoadRollAngleDeg === 'function') {
-        globalThis.setRoadRollAngleDeg(0);
-    }
-
-    if (typeof globalThis.setRoadPitchAngleDeg === 'function') {
-        globalThis.setRoadPitchAngleDeg(0);
-    }
-};
-
-globalThis.resetSimulationSpeed = function () {
-    const speedInput = document.getElementById('drive-speed-kmh');
-    if (speedInput) {
-        speedInput.value = String(SIM_SPEED_DEFAULT_KMH);
-        setSliderVisualPercent(speedInput);
-    }
-
-    const speedLabel = document.getElementById('drive-speed-kmh-value');
-    if (speedLabel) {
-        speedLabel.textContent = `${SIM_SPEED_DEFAULT_KMH} km/h`;
-    }
-
-    if (typeof globalThis.setDriveSpeedKmh === 'function') {
-        globalThis.setDriveSpeedKmh(SIM_SPEED_DEFAULT_KMH);
-    }
-};
-
-globalThis.resetSimulationRoll = function () {
-    if (typeof globalThis.setRoadRollAngleDeg === 'function') {
-        globalThis.setRoadRollAngleDeg(0);
-    }
-};
-
-globalThis.resetSimulationPitch = function () {
-    if (typeof globalThis.setRoadPitchAngleDeg === 'function') {
-        globalThis.setRoadPitchAngleDeg(0);
-    }
-};
-
-globalThis.resetSimulationAttitude = function () {
-    globalThis.resetSimulationRoll();
-    globalThis.resetSimulationPitch();
-};
-
-class VehicleState
-{
-    constructor()
-    {
-        this.speed = 0.0;
-
-        this.engineForce = 0.0;
-
-        this.brakeForce = 0.0;
-
-        this.rollingForce = 0.0;
-
-        this.steerAngle = 0.0;
-
-        this.leftForce = 0.0;
-
-        this.rightForce = 0.0;
-
-        this.velocity =
-            new THREE.Vector3();
-
-        this.acceleration =
-            new THREE.Vector3();
-    }
-
-    clearForces()
-    {
-        this.engineForce = 0.0;
-
-        this.brakeForce = 0.0;
-
-        this.rollingForce = 0.0;
-
-        this.leftForce = 0.0;
-
-        this.rightForce = 0.0;
-    }
-}
-
-class VehiclePhysicsBase
-{
-    constructor()
-    {
-        this.mass =
-            DEFAULT_VEHICLE_MASS;
-
-        this.gravity =
-            DEFAULT_GRAVITY;
-
-        this.wheelRadius =
-            DEFAULT_WHEEL_RADIUS;
-
-        this.maxSpeed =
-            DEFAULT_MAX_SPEED;
-
-        this.maxEngineForce =
-            DEFAULT_ENGINE_FORCE;
-
-        this.maxBrakeForce =
-            DEFAULT_BRAKE_FORCE;
-
-        this.rollingResistance =
-            DEFAULT_ROLLING_RESISTANCE;
-
-        this.maxSteerAngle =
-            DEFAULT_MAX_STEER_DEG * DEG2RAD;
-
-        this.maxSteerRate =
-            DEFAULT_MAX_STEER_RATE * DEG2RAD;
-
-        this.input =
-            new VehicleInput();
-
-        this.state =
-            new VehicleState();
-    }
-
-    reset()
-    {
-        this.input.reset();
-
-        this.state =
-            new VehicleState();
-    }
-}
-
-
-
-class VehiclePhysics
-{
-    constructor()
-    {
-        this.mass = DEFAULT_VEHICLE_MASS;
-        this.gravity = DEFAULT_GRAVITY;
-
-        this.wheelRadius = DEFAULT_WHEEL_RADIUS;
-
-        this.maxSpeed = DEFAULT_MAX_SPEED;
-
-        this.maxEngineForce = DEFAULT_ENGINE_FORCE;
-        this.maxBrakeForce = DEFAULT_BRAKE_FORCE;
-
-        this.rollingResistance = DEFAULT_ROLLING_RESISTANCE;
-
-        this.maxSteerAngle =
-            DEFAULT_MAX_STEER_DEG * DEG2RAD;
-
-        this.maxSteerRate =
-            DEFAULT_MAX_STEER_RATE * DEG2RAD;
-
-        this.input = new VehicleInput();
-
-        this.state = new VehicleState();
-    }
-
-    reset()
-    {
-        this.input.reset();
-        this.state = new VehicleState();
-    }
-
-    //--------------------------------------------------
-    // Input
-    //--------------------------------------------------
-
-    setThrottle(value)
-    {
-        this.input.throttle =
-            clamp(value, -1.0, 1.0);
-    }
-
-    setBrake(value)
-    {
-        this.input.brake =
-            clamp(value, 0.0, 1.0);
-    }
-
-    setSteering(value)
-    {
-        this.input.steer =
-            clamp(value, -1.0, 1.0);
-    }
-
-    //--------------------------------------------------
-    // Speed
-    //--------------------------------------------------
-
-    updateSpeed(body)
-    {
-        const vel = body.linvel();
-
-        this.state.velocity.set(
-            vel.x,
-            vel.y,
-            vel.z
-        );
-
-        this.state.speed =
-            this.state.velocity.length();
-    }
-
-    //--------------------------------------------------
-    // Engine
-    //--------------------------------------------------
-
-    updateEngineForce()
-    {
-        const throttle =
-            this.input.throttle;
-
-        const ratio =
-            1.0 -
-            clamp(
-                this.state.speed /
-                this.maxSpeed,
-                0.0,
-                1.0
-            );
-
-        this.state.engineForce =
-            throttle *
-            this.maxEngineForce *
-            ratio;
-    }
-
-    //--------------------------------------------------
-    // Brake
-    //--------------------------------------------------
-
-    updateBrakeForce()
-    {
-        this.state.brakeForce =
-            this.input.brake *
-            this.maxBrakeForce;
-    }
-
-    //--------------------------------------------------
-    // Rolling Resistance
-    //--------------------------------------------------
-
-    updateRollingResistance()
-    {
-        if (this.state.speed < 0.02)
-        {
-            this.state.rollingForce = 0;
-            return;
-        }
-
-        this.state.rollingForce =
-            this.rollingResistance *
-            sign(this.state.speed);
-    }
-
-    //--------------------------------------------------
-    // Steering
-    //--------------------------------------------------
-
-    updateSteering(dt)
-    {
-        const targetAngle =
-            this.input.steer *
-            this.maxSteerAngle;
-
-        this.state.steerAngle =
-            moveTowards(
-                this.state.steerAngle,
-                targetAngle,
-                this.maxSteerRate * dt
-            );
-    }
-
-    //--------------------------------------------------
-    // Differential
-    //--------------------------------------------------
-
-    updateDifferential()
-    {
-        const steerRatio =
-            Math.abs(
-                this.state.steerAngle /
-                this.maxSteerAngle
-            );
-
-        const inside =
-            1.0 - steerRatio * 0.15;
-
-        const outside =
-            1.0 + steerRatio * 0.15;
-
-        if (this.state.steerAngle > 0)
-        {
-            this.state.leftForce =
-                this.state.engineForce *
-                inside;
-
-            this.state.rightForce =
-                this.state.engineForce *
-                outside;
-        }
-        else
-        {
-            this.state.leftForce =
-                this.state.engineForce *
-                outside;
-
-            this.state.rightForce =
-                this.state.engineForce *
-                inside;
-        }
-    }
-
-    //--------------------------------------------------
-    // Total Force
-    //--------------------------------------------------
-
-    computeDriveForce()
-    {
-        return (
-            this.state.engineForce
-            - this.state.brakeForce
-            - this.state.rollingForce
-        );
-    }
-
-    //--------------------------------------------------
-    // Main Update
-    //--------------------------------------------------
-
-    update(body, dt)
-    {
-        this.state.clearForces();
-
-        this.updateSpeed(body);
-
-        this.updateEngineForce();
-
-        this.updateBrakeForce();
-
-        this.updateRollingResistance();
-
-        this.updateSteering(dt);
-
-        this.updateDifferential();
-    }
-}
-
-
-
-// RapierDriveSimulation
-
-export class RapierDriveSimulation
-{
-    constructor(viewer)
-    {
-        this.viewer = viewer;
-
+class RapierDriveSimulation {
+    constructor() {
+        this.viewer = null;
+        this.rapier = null;
         this.world = null;
-
-        this.vehicleBody = null;
-
+        this.body = null;
         this.vehicleCollider = null;
-
-        this.vehiclePhysics =
-            new VehiclePhysics();
-
-        this.clock =
-            new THREE.Clock();
-
-        this.accumulator = 0.0;
-
-        this.fixedStep =
-            FIXED_TIME_STEP;
-
-        this.keys =
-        {
-            forward : false,
-            backward : false,
-            left : false,
-            right : false,
-            brake : false
-        };
-
-        this.tmpForward =
-            new THREE.Vector3();
-
-        this.tmpRight =
-            new THREE.Vector3();
-
-        this.tmpUp =
-            new THREE.Vector3();
-
-        this.tmpQuat =
-            new THREE.Quaternion();
-
-        this.tmpEuler =
-            new THREE.Euler();
-
-        this.tmpForce =
-            new THREE.Vector3();
-
-        this.tmpTorque =
-            new THREE.Vector3();
-    }
-
-    //--------------------------------------------------
-    // Rapier
-    //--------------------------------------------------
-
-    async initialize()
-    {
-        const module =
-            await import(RAPIER_CDN);
-
-        await module.init();
-
-        this.RAPIER = module;
-
-        this.world =
-            new module.World(
-                {
-                    x : 0,
-                    y : -9.81,
-                    z : 0
-                });
-
-        this.createGround();
-    }
-
-    createGround()
-    {
-        if (!this.world || !this.RAPIER) {
-            return;
-        }
-
-        const groundBodyDesc = this.RAPIER.RigidBodyDesc.fixed();
-        const groundBody = this.world.createRigidBody(groundBodyDesc);
-        const groundColliderDesc = this.RAPIER.ColliderDesc.cuboid(200, 0.1, 200);
-        this.world.createCollider(groundColliderDesc, groundBody);
-    }
-
-    updateDiagnostics()
-    {
-        // Placeholder: keep frame update stable even when diagnostics UI is absent.
-    }
-
-    //--------------------------------------------------
-    // Vehicle
-    //--------------------------------------------------
-
-    attachVehicle(body)
-    {
-        this.vehicleBody = body;
-    }
-
-    //--------------------------------------------------
-    // Keyboard
-    //--------------------------------------------------
-
-    keyDown(code)
-    {
-        switch(code)
-        {
-        case "KeyW":
-        case "ArrowUp":
-            this.keys.forward = true;
-            break;
-
-        case "KeyS":
-        case "ArrowDown":
-            this.keys.backward = true;
-            break;
-
-        case "KeyA":
-        case "ArrowLeft":
-            this.keys.left = true;
-            break;
-
-        case "KeyD":
-        case "ArrowRight":
-            this.keys.right = true;
-            break;
-
-        case "Space":
-            this.keys.brake = true;
-            break;
-        }
-    }
-
-    keyUp(code)
-    {
-        switch(code)
-        {
-        case "KeyW":
-        case "ArrowUp":
-            this.keys.forward = false;
-            break;
-
-        case "KeyS":
-        case "ArrowDown":
-            this.keys.backward = false;
-            break;
-
-        case "KeyA":
-        case "ArrowLeft":
-            this.keys.left = false;
-            break;
-
-        case "KeyD":
-        case "ArrowRight":
-            this.keys.right = false;
-            break;
-
-        case "Space":
-            this.keys.brake = false;
-            break;
-        }
-    }
-
-    //--------------------------------------------------
-    // Driver Input
-    //--------------------------------------------------
-
-    updateInput()
-    {
-        let throttle = 0.0;
-
-        if (this.keys.forward)
-        {
-            throttle += 1.0;
-        }
-
-        if (this.keys.backward)
-        {
-            throttle -= 1.0;
-        }
-
-        let steer = 0.0;
-
-        if (this.keys.left)
-        {
-            steer += 1.0;
-        }
-
-        if (this.keys.right)
-        {
-            steer -= 1.0;
-        }
-
-        const brake =
-            this.keys.brake ? 1.0 : 0.0;
-
-        this.vehiclePhysics.setThrottle(
-            throttle);
-
-        this.vehiclePhysics.setBrake(
-            brake);
-
-        this.vehiclePhysics.setSteering(
-            steer);
-    }
-
-
-
-// Force / Torque Application
-
-    //--------------------------------------------------
-    // Vehicle Axis
-    //--------------------------------------------------
-
-    updateVehicleAxes()
-    {
-        if (!this.vehicleBody)
-        {
-            return;
-        }
-
-        const rot =
-            this.vehicleBody.rotation();
-
-        this.tmpQuat.set(
-            rot.x,
-            rot.y,
-            rot.z,
-            rot.w
-        );
-
-        this.tmpForward
-            .set(0, 0, 1)
-            .applyQuaternion(this.tmpQuat)
-            .normalize();
-
-        this.tmpRight
-            .set(1, 0, 0)
-            .applyQuaternion(this.tmpQuat)
-            .normalize();
-
-        this.tmpUp
-            .set(0, 1, 0)
-            .applyQuaternion(this.tmpQuat)
-            .normalize();
-    }
-
-    //--------------------------------------------------
-    // Engine Force
-    //--------------------------------------------------
-
-    applyEngineForce()
-    {
-        const force =
-            this.vehiclePhysics.state.engineForce;
-
-        if (Math.abs(force) < 0.001)
-        {
-            return;
-        }
-
-        this.tmpForce
-            .copy(this.tmpForward)
-            .multiplyScalar(force);
-
-        this.vehicleBody.addForce(
-            {
-                x : this.tmpForce.x,
-                y : this.tmpForce.y,
-                z : this.tmpForce.z
-            },
-            true
-        );
-    }
-
-    //--------------------------------------------------
-    // Brake Force
-    //--------------------------------------------------
-
-    applyBrakeForce()
-    {
-        const brake =
-            this.vehiclePhysics.state.brakeForce;
-
-        if (brake <= 0.0)
-        {
-            return;
-        }
-
-        const vel =
-            this.vehiclePhysics.state.velocity;
-
-        if (vel.lengthSq() < 0.00001)
-        {
-            return;
-        }
-
-        this.tmpForce
-            .copy(vel)
-            .normalize()
-            .multiplyScalar(-brake);
-
-        this.vehicleBody.addForce(
-            {
-                x : this.tmpForce.x,
-                y : this.tmpForce.y,
-                z : this.tmpForce.z
-            },
-            true
-        );
-    }
-
-    //--------------------------------------------------
-    // Rolling Resistance
-    //--------------------------------------------------
-
-    applyRollingResistance()
-    {
-        const rr =
-            this.vehiclePhysics.state.rollingForce;
-
-        if (rr <= 0.0)
-        {
-            return;
-        }
-
-        const vel =
-            this.vehiclePhysics.state.velocity;
-
-        if (vel.lengthSq() < 0.00001)
-        {
-            return;
-        }
-
-        this.tmpForce
-            .copy(vel)
-            .normalize()
-            .multiplyScalar(-rr);
-
-        this.vehicleBody.addForce(
-            {
-                x : this.tmpForce.x,
-                y : this.tmpForce.y,
-                z : this.tmpForce.z
-            },
-            true
-        );
-    }
-
-    //--------------------------------------------------
-    // Steering Torque
-    //--------------------------------------------------
-
-    applySteeringTorque()
-    {
-        const angle =
-            this.vehiclePhysics.state.steerAngle;
-
-        if (Math.abs(angle) < 0.0001)
-        {
-            return;
-        }
-
-        const speed =
-            this.vehiclePhysics.state.speed;
-
-        if (speed < 0.1)
-        {
-            return;
-        }
-
-        const gain =
-            THREE.MathUtils.clamp(
-                speed / 2.0,
-                0.2,
-                1.0
-            );
-
-        const yawTorque =
-            angle * 800.0 * gain;
-
-        this.tmpTorque.set(
-            0,
-            yawTorque,
-            0
-        );
-
-        this.vehicleBody.addTorque(
-            {
-                x : this.tmpTorque.x,
-                y : this.tmpTorque.y,
-                z : this.tmpTorque.z
-            },
-            true
-        );
-    }
-
-
-// Fixed Step Simulation
-
-    //--------------------------------------------------
-    // Fixed Simulation
-    //--------------------------------------------------
-
-    stepSimulation(deltaTime)
-    {
-        if (!this.world)
-        {
-            return;
-        }
-
-        if (!this.vehicleBody)
-        {
-            this.world.step();
-            return;
-        }
-
-        //--------------------------------------------------
-        // Clamp Frame Time
-        //--------------------------------------------------
-
-        deltaTime =
-            Math.min(deltaTime, 0.05);
-
-        this.accumulator += deltaTime;
-
-        //--------------------------------------------------
-        // Fixed Time Step
-        //--------------------------------------------------
-
-        let stepCount = 0;
-
-        while (
-            this.accumulator >= this.fixedStep &&
-            stepCount < MAX_SUB_STEPS)
-        {
-            this.simulationStep(
-                this.fixedStep);
-
-            this.accumulator -=
-                this.fixedStep;
-
-            stepCount++;
-        }
-    }
-
-    //--------------------------------------------------
-    // One Physics Step
-    //--------------------------------------------------
-
-    simulationStep(dt)
-    {
-        this.updateVehiclePhysics(dt);
-
-        //--------------------------------------------------
-        // Physics
-        //--------------------------------------------------
-
-        this.world.step();
-
-        //--------------------------------------------------
-        // Sync Mesh
-        //--------------------------------------------------
-
-        this.updateVehicleMesh();
-
-        //--------------------------------------------------
-        // HUD
-        //--------------------------------------------------
-
-        this.updateDiagnostics();
-    }
-
-    //--------------------------------------------------
-    // Vehicle Mesh
-    //--------------------------------------------------
-
-    updateVehicleMesh()
-    {
-        if (!this.viewer)
-        {
-            return;
-        }
-
-        if (!this.viewer.robot)
-        {
-            return;
-        }
-
-        const body =
-            this.vehicleBody;
-
-        const pos =
-            body.translation();
-
-        const rot =
-            body.rotation();
-
-        this.viewer.robot.position.set(
-            pos.x,
-            pos.y,
-            pos.z
-        );
-
-        this.viewer.robot.quaternion.set(
-            rot.x,
-            rot.y,
-            rot.z,
-            rot.w
-        );
-    }
-
-    //--------------------------------------------------
-    // Reset
-    //--------------------------------------------------
-
-    resetVehicle()
-    {
-        if (!this.vehicleBody)
-        {
-            return;
-        }
-
-        this.vehicleBody.setTranslation(
-            {
-                x : 0,
-                y : 0.5,
-                z : 0
-            },
-            true
-        );
-
-        this.vehicleBody.setRotation(
-            {
-                x : 0,
-                y : 0,
-                z : 0,
-                w : 1
-            },
-            true
-        );
-
-        this.vehicleBody.setLinvel(
-            {
-                x : 0,
-                y : 0,
-                z : 0
-            },
-            true
-        );
-
-        this.vehicleBody.setAngvel(
-            {
-                x : 0,
-                y : 0,
-                z : 0
-            },
-            true
-        );
-
-        this.vehiclePhysics.reset();
-    }
-
-
-// Wheel Contact (RayCast)
-
-    //--------------------------------------------------
-    // Wheel Contact
-    //--------------------------------------------------
-
-    createWheelContactSystem()
-    {
-        this.wheels =
-        [
-            {
-                name : "frontLeft",
-                local :
-                    new THREE.Vector3(-0.35, -0.15, 0.55),
-                contact : false,
-                distance : 0,
-                hitPoint : new THREE.Vector3(),
-                hitNormal : new THREE.Vector3()
-            },
-
-            {
-                name : "frontRight",
-                local :
-                    new THREE.Vector3(0.35, -0.15, 0.55),
-                contact : false,
-                distance : 0,
-                hitPoint : new THREE.Vector3(),
-                hitNormal : new THREE.Vector3()
-            },
-
-            {
-                name : "rearLeft",
-                local :
-                    new THREE.Vector3(-0.35, -0.15, -0.55),
-                contact : false,
-                distance : 0,
-                hitPoint : new THREE.Vector3(),
-                hitNormal : new THREE.Vector3()
-            },
-
-            {
-                name : "rearRight",
-                local :
-                    new THREE.Vector3(0.35, -0.15, -0.55),
-                contact : false,
-                distance : 0,
-                hitPoint : new THREE.Vector3(),
-                hitNormal : new THREE.Vector3()
-            }
+        this.vehicleColliders = [];
+        this.obstacleColliders = [];
+        this.isVehicleObstacleContact = false;
+        this.carFrame = null;
+        this.initialPosition = null;
+        this.initialQuaternion = null;
+        this.vehicleHalfExtents = null;
+        this.vehicleLocalMinZ = null;
+        this.wheelLocalMinZ = null;
+        this.wheelEffectiveRadiusMeters = 0.16;
+        this.groundContactLocalMinZ = null;
+        this.groundContactBiasMeters = 0;
+        this.groundZ = 0;
+        this.urdfObstacleLinkNames = ['obstacle_rock_01', 'obstacle_rock_02', 'obstacle_rock', 'rock_obstacle'];
+        this.urdfObstacleLinkNamePatterns = [
+            /^obstacle/i,
+            /^ostacle/i,
+            /^wall/i,
+            /^rock_obstacle/i,
+            /^step/i,
+            /^curb/i,
+            /^pothole/i,
+            /^soil/i,
+            /^dirt/i,
+            /^gravel/i,
+            /^bump/i,
+            /^ditch/i
         ];
-
-        this.contactCount = 0;
+        this.passUnderObstacleNamePatterns = [/pass_under/i, /underbody/i];
+        this.maxSpeedMps = 100 / 3.6;
+        this.maxYawRateRad = THREE.MathUtils.degToRad(80);
+        this.enableWheelPhysicsColliders = false;
+        this.blockMotionOnObstacleContact = false;
+        this.keepUprightOnFlatGround = true;
+        this.isUprightRotationLockActive = false;
+        this.groundPenetrationToleranceMeters = 0.003;
+        this.maxLiftWithoutObstacleMeters = 0.03;
+        this.maxLiftWithObstacleMeters = 0.28;
+        this.isInitializing = false;
+        this.isReady = false;
+        this.hasFailed = false;
+        this.lastStepTimeMs = 0;
+        this.physicsAccumulatorSec = 0;
+        this.physicsFixedTimeStepSec = 1 / 60;
+        this.maxPhysicsCatchupSteps = 4;
+        this.hasLoggedGroundDiagnostics = false;
+        this.enableRuntimeDiagnostics = true;
+        this.runtimeDiagnosticsIntervalSec = 1;
+        this.runtimeDiagnosticsElapsedSec = 0;
+        this.isKeyboardControlEnabled = true;
+        this.keyHoldState = {
+            ArrowUp: 0,
+            ArrowDown: 0,
+            ArrowLeft: 0,
+            ArrowRight: 0
+        };
     }
 
-    //--------------------------------------------------
-    // World Position
-    //--------------------------------------------------
-
-    getWheelWorldPosition(wheel)
-    {
-        const bodyPos =
-            this.vehicleBody.translation();
-
-        wheel.world =
-            wheel.local.clone()
-                .applyQuaternion(this.tmpQuat)
-                .add(
-                    new THREE.Vector3(
-                        bodyPos.x,
-                        bodyPos.y,
-                        bodyPos.z
-                    )
-                );
-    }
-
-    //--------------------------------------------------
-    // Ray Cast
-    //--------------------------------------------------
-
-    raycastWheel(wheel)
-    {
-        this.getWheelWorldPosition(wheel);
-
-        const origin =
-        {
-            x : wheel.world.x,
-            y : wheel.world.y,
-            z : wheel.world.z
-        };
-
-        const direction =
-        {
-            x : 0,
-            y : -1,
-            z : 0
-        };
-
-        const ray =
-            new this.RAPIER.Ray(
-                origin,
-                direction
-            );
-
-        const maxDistance =
-            this.vehiclePhysics.wheelRadius + 0.25;
-
-        const hit =
-            this.world.castRay(
-                ray,
-                maxDistance,
-                true
-            );
-
-        if (!hit)
-        {
-            wheel.contact = false;
-            wheel.distance = maxDistance;
-            return;
+    findSimulationViewer() {
+        const viewerById = window.urdfViewersById?.['robot-container-1'] || null;
+        if (viewerById) {
+            return viewerById;
         }
 
-        wheel.contact = true;
+        if (Array.isArray(window.urdfViewers)) {
+            const matched = window.urdfViewers.find((viewer) => {
+                const urdfPath = String(viewer?.urdfPath || '');
+                return urdfPath.includes('/model/vehicle/vehicle.urdf');
+            });
 
-        wheel.distance =
-            hit.timeOfImpact;
+            if (matched) {
+                return matched;
+            }
+        }
 
-        wheel.hitPoint.set(
-            origin.x,
-            origin.y - hit.timeOfImpact,
-            origin.z
+        return window.activeURDFViewer || null;
+    }
+
+    extractYawFromQuaternion(quaternion) {
+        return Math.atan2(
+            2 * (quaternion.w * quaternion.z + quaternion.x * quaternion.y),
+            1 - 2 * (quaternion.y * quaternion.y + quaternion.z * quaternion.z)
         );
     }
 
-    //--------------------------------------------------
-    // Update Contact
-    //--------------------------------------------------
+    isDescendantObject3D(childObject, ancestorObject) {
+        if (!childObject || !ancestorObject || childObject === ancestorObject) {
+            return false;
+        }
 
-    updateWheelContacts()
-    {
-        this.contactCount = 0;
-
-        for (const wheel of this.wheels)
-        {
-            this.raycastWheel(wheel);
-
-            if (wheel.contact)
-            {
-                this.contactCount++;
+        let current = childObject.parent;
+        while (current) {
+            if (current === ancestorObject) {
+                return true;
             }
-        }
-    }
-
-    //--------------------------------------------------
-    // Ground Ratio
-    //--------------------------------------------------
-
-    getGroundContactRatio()
-    {
-        return this.contactCount / 4.0;
-    }
-
-    //--------------------------------------------------
-    // Grounded?
-    //--------------------------------------------------
-
-    isGrounded()
-    {
-        return this.contactCount > 0;
-    }
-
-    //--------------------------------------------------
-    // Engine Correction
-    //--------------------------------------------------
-
-    applyGroundCorrection()
-    {
-        const ratio =
-            this.getGroundContactRatio();
-
-        this.vehiclePhysics.state.engineForce *=
-            ratio;
-
-        if (ratio < 0.25)
-        {
-            this.vehiclePhysics.state.brakeForce *=
-                0.2;
-        }
-    }
-
-
-
-// Suspension (Spring + Damper)
-
-    //--------------------------------------------------
-    // Suspension Parameters
-    //--------------------------------------------------
-
-    createSuspension()
-    {
-        this.suspension =
-        {
-            springLength : 0.25,
-
-            wheelRadius :
-                this.vehiclePhysics.wheelRadius,
-
-            springK : 32000.0,
-
-            damperC : 4200.0,
-
-            maxForce : 45000.0
-        };
-
-        for (const wheel of this.wheels)
-        {
-            wheel.lastCompression = 0.0;
-            wheel.compression = 0.0;
-            wheel.springForce = 0.0;
-            wheel.damperForce = 0.0;
-            wheel.totalForce = 0.0;
-        }
-    }
-
-    //--------------------------------------------------
-    // Spring Compression
-    //--------------------------------------------------
-
-    updateSuspensionCompression(wheel)
-    {
-        if (!wheel.contact)
-        {
-            wheel.lastCompression =
-                wheel.compression;
-
-            wheel.compression = 0.0;
-
-            return;
+            current = current.parent;
         }
 
-        const restLength =
-            this.suspension.springLength;
-
-        const travel =
-            wheel.distance -
-            this.suspension.wheelRadius;
-
-        wheel.lastCompression =
-            wheel.compression;
-
-        wheel.compression =
-            clamp(
-                restLength - travel,
-                0.0,
-                restLength
-            );
+        return false;
     }
 
-    //--------------------------------------------------
-    // Spring Force
-    //--------------------------------------------------
-
-    computeSpringForce(wheel)
-    {
-        wheel.springForce =
-            wheel.compression *
-            this.suspension.springK;
-    }
-
-    //--------------------------------------------------
-    // Damper Force
-    //--------------------------------------------------
-
-    computeDamperForce(wheel, dt)
-    {
-        const velocity =
-            (wheel.compression -
-             wheel.lastCompression) / dt;
-
-        wheel.damperForce =
-            velocity *
-            this.suspension.damperC;
-    }
-
-    //--------------------------------------------------
-    // Total Suspension Force
-    //--------------------------------------------------
-
-    computeSuspensionForce(wheel)
-    {
-        wheel.totalForce =
-            wheel.springForce -
-            wheel.damperForce;
-
-        wheel.totalForce =
-            clamp(
-                wheel.totalForce,
-                0.0,
-                this.suspension.maxForce
-            );
-    }
-
-    //--------------------------------------------------
-    // Apply Force
-    //--------------------------------------------------
-
-    applySuspensionForce(wheel)
-    {
-        if (!wheel.contact)
-        {
-            return;
+    computeLinkOwnBounds(linkObject, linkMap) {
+        if (!linkObject) {
+            return null;
         }
 
-        this.tmpForce
-            .copy(this.tmpUp)
-            .multiplyScalar(
-                wheel.totalForce
-            );
+        const otherLinkRoots = Object.values(linkMap || {}).filter((root) => root && root !== linkObject);
+        const bounds = new THREE.Box3();
+        let hasMesh = false;
 
-        this.vehicleBody.addForceAtPoint(
-        {
-            x : this.tmpForce.x,
-            y : this.tmpForce.y,
-            z : this.tmpForce.z
-        },
-        {
-            x : wheel.hitPoint.x,
-            y : wheel.hitPoint.y,
-            z : wheel.hitPoint.z
-        },
-        true);
+        linkObject.updateWorldMatrix(true, true);
+
+        linkObject.traverse((node) => {
+            if (!node || !node.isMesh || !node.geometry) {
+                return;
+            }
+
+            const belongsToOtherLink = otherLinkRoots.some((root) => node === root || this.isDescendantObject3D(node, root));
+            if (belongsToOtherLink) {
+                return;
+            }
+
+            if (!node.geometry.boundingBox) {
+                node.geometry.computeBoundingBox();
+            }
+
+            if (!node.geometry.boundingBox) {
+                return;
+            }
+
+            const meshBounds = node.geometry.boundingBox.clone().applyMatrix4(node.matrixWorld);
+            bounds.union(meshBounds);
+            hasMesh = true;
+        });
+
+        return hasMesh ? bounds : null;
     }
 
-
-// Rapier Suspension
-// Force + Torque (r x F)
-
-    //--------------------------------------------------
-    // Apply Suspension
-    //--------------------------------------------------
-
-    applySuspension()
-    {
-        for (const wheel of this.wheels)
-        {
-            this.updateSuspensionCompression(
-                wheel);
-
-            this.computeSpringForce(
-                wheel);
-
-            this.computeDamperForce(
-                wheel,
-                this.fixedStep);
-
-            this.computeSuspensionForce(
-                wheel);
-
-            this.applyWheelForce(
-                wheel);
-        }
-    }
-
-    //--------------------------------------------------
-    // Force At Wheel
-    //--------------------------------------------------
-
-    applyWheelForce(wheel)
-    {
-        if (!wheel.contact)
-        {
-            return;
+    computeChassisBounds(carFrame, linkMap) {
+        const fallbackBounds = new THREE.Box3().setFromObject(carFrame);
+        if (!carFrame || !linkMap) {
+            return fallbackBounds;
         }
 
-        //------------------------------------------
-        // Force
-        //------------------------------------------
+        const obstacleLinkNames = this.getObstacleLinkNamesFromMap(linkMap);
+        const obstacleRoots = obstacleLinkNames.map((name) => linkMap[name]).filter(Boolean);
 
-        this.tmpForce
-            .copy(this.tmpUp)
-            .multiplyScalar(
-                wheel.totalForce);
+        const excludedRoots = [...obstacleRoots].filter(Boolean);
 
-        //------------------------------------------
-        // Body Center
-        //------------------------------------------
+        const bounds = new THREE.Box3();
+        let hasMesh = false;
 
-        const bodyPos =
-            this.vehicleBody.translation();
+        carFrame.updateWorldMatrix(true, true);
 
-        const center =
-            new THREE.Vector3(
-                bodyPos.x,
-                bodyPos.y,
-                bodyPos.z);
+        carFrame.traverse((node) => {
+            if (!node || !node.isMesh || !node.geometry) {
+                return;
+            }
 
-        //------------------------------------------
-        // r = Wheel - Center
-        //------------------------------------------
+            const isExcluded = excludedRoots.some((root) => node === root || this.isDescendantObject3D(node, root));
+            if (isExcluded) {
+                return;
+            }
 
-        const r =
-            wheel.hitPoint.clone()
-                .sub(center);
+            if (!node.geometry.boundingBox) {
+                node.geometry.computeBoundingBox();
+            }
 
-        //------------------------------------------
-        // ? = r 횞 F
-        //------------------------------------------
+            if (!node.geometry.boundingBox) {
+                return;
+            }
 
-        this.tmpTorque
-            .copy(r)
-            .cross(this.tmpForce);
+            const meshBounds = node.geometry.boundingBox.clone().applyMatrix4(node.matrixWorld);
+            bounds.union(meshBounds);
+            hasMesh = true;
+        });
 
-        //------------------------------------------
-        // Apply Force
-        //------------------------------------------
-
-        this.vehicleBody.addForce(
-        {
-            x : this.tmpForce.x,
-            y : this.tmpForce.y,
-            z : this.tmpForce.z
-        },
-        true);
-
-        //------------------------------------------
-        // Apply Torque
-        //------------------------------------------
-
-        this.vehicleBody.addTorque(
-        {
-            x : this.tmpTorque.x,
-            y : this.tmpTorque.y,
-            z : this.tmpTorque.z
-        },
-        true);
+        return hasMesh ? bounds : fallbackBounds;
     }
 
-
-// Tire Model
-// Longitudinal / Lateral Slip
-
-    //--------------------------------------------------
-    // Tire Parameters
-    //--------------------------------------------------
-
-    createTireModel()
-    {
-        this.tire =
-        {
-            mu : 0.90,
-
-            longitudinalStiffness : 9.0,
-
-            lateralStiffness : 7.0,
-
-            maxSlipRatio : 0.25,
-
-            maxSlipAngle : 15.0 * DEG2RAD
-        };
-
-        for (const wheel of this.wheels)
-        {
-            wheel.forwardSpeed = 0.0;
-            wheel.sideSpeed = 0.0;
-
-            wheel.slipRatio = 0.0;
-            wheel.slipAngle = 0.0;
-
-            wheel.longitudinalForce = 0.0;
-            wheel.lateralForce = 0.0;
-        }
-    }
-
-    //--------------------------------------------------
-    // Wheel Velocity
-    //--------------------------------------------------
-
-    updateWheelVelocity(wheel)
-    {
-        const vel =
-            this.vehiclePhysics.state.velocity;
-
-        wheel.forwardSpeed =
-            vel.dot(this.tmpForward);
-
-        wheel.sideSpeed =
-            vel.dot(this.tmpRight);
-    }
-
-    //--------------------------------------------------
-    // Longitudinal Slip
-    //--------------------------------------------------
-
-    computeSlipRatio(wheel)
-    {
-        const desiredSpeed =
-            this.vehiclePhysics.input.throttle *
-            this.vehiclePhysics.maxSpeed;
-
-        const denom =
-            Math.max(
-                Math.abs(wheel.forwardSpeed),
-                0.5);
-
-        wheel.slipRatio =
-            (desiredSpeed -
-             wheel.forwardSpeed) / denom;
-
-        wheel.slipRatio =
-            clamp(
-                wheel.slipRatio,
-                -this.tire.maxSlipRatio,
-                 this.tire.maxSlipRatio);
-    }
-
-    //--------------------------------------------------
-    // Lateral Slip
-    //--------------------------------------------------
-
-    computeSlipAngle(wheel)
-    {
-        wheel.slipAngle =
-            Math.atan2(
-                wheel.sideSpeed,
-                Math.abs(wheel.forwardSpeed) + 0.01);
-
-        wheel.slipAngle =
-            clamp(
-                wheel.slipAngle,
-                -this.tire.maxSlipAngle,
-                 this.tire.maxSlipAngle);
-    }
-
-    //--------------------------------------------------
-    // Longitudinal Tire Force
-    //--------------------------------------------------
-
-    computeLongitudinalForce(wheel)
-    {
-        wheel.longitudinalForce =
-            wheel.slipRatio *
-            this.tire.longitudinalStiffness *
-            wheel.totalForce;
-
-        const limit =
-            wheel.totalForce *
-            this.tire.mu;
-
-        wheel.longitudinalForce =
-            clamp(
-                wheel.longitudinalForce,
-                -limit,
-                 limit);
-    }
-
-    //--------------------------------------------------
-    // Lateral Tire Force
-    //--------------------------------------------------
-
-    computeLateralForce(wheel)
-    {
-        wheel.lateralForce =
-            wheel.slipAngle *
-            this.tire.lateralStiffness *
-            wheel.totalForce;
-
-        const limit =
-            wheel.totalForce *
-            this.tire.mu;
-
-        wheel.lateralForce =
-            clamp(
-                wheel.lateralForce,
-                -limit,
-                 limit);
-    }
-
-
-// Tire Force Application
-
-    //--------------------------------------------------
-    // Friction Circle
-    //--------------------------------------------------
-
-    applyFrictionCircle(wheel)
-    {
-        const limit =
-            wheel.totalForce *
-            this.tire.mu;
-
-        const fx =
-            wheel.longitudinalForce;
-
-        const fy =
-            wheel.lateralForce;
-
-        const magnitude =
-            Math.sqrt(
-                fx * fx +
-                fy * fy);
-
-        if (magnitude <= limit)
-        {
-            return;
+    normalizeLinkName(linkName) {
+        if (!linkName) {
+            return '';
         }
 
-        const scale =
-            limit / magnitude;
-
-        wheel.longitudinalForce *= scale;
-        wheel.lateralForce *= scale;
+        return String(linkName)
+            .split(/[:/]/)
+            .filter(Boolean)
+            .pop()
+            .toLowerCase();
     }
 
-    //--------------------------------------------------
-    // Tire Force Vector
-    //--------------------------------------------------
-
-    buildTireForce(wheel)
-    {
-        this.tmpForce
-            .set(0, 0, 0);
-
-        //--------------------------------------
-        // Longitudinal
-        //--------------------------------------
-
-        this.tmpForce.add(
-            this.tmpForward
-                .clone()
-                .multiplyScalar(
-                    wheel.longitudinalForce));
-
-        //--------------------------------------
-        // Lateral
-        //--------------------------------------
-
-        this.tmpForce.add(
-            this.tmpRight
-                .clone()
-                .multiplyScalar(
-                    -wheel.lateralForce));
-    }
-
-    //--------------------------------------------------
-    // Tire Torque
-    //--------------------------------------------------
-
-    buildTireTorque(wheel)
-    {
-        const bodyPos =
-            this.vehicleBody.translation();
-
-        const center =
-            new THREE.Vector3(
-                bodyPos.x,
-                bodyPos.y,
-                bodyPos.z);
-
-        const arm =
-            wheel.hitPoint.clone()
-                .sub(center);
-
-        this.tmpTorque
-            .copy(arm)
-            .cross(this.tmpForce);
-    }
-
-    //--------------------------------------------------
-    // Apply Tire Force
-    //--------------------------------------------------
-
-    applyTireForce(wheel)
-    {
-        if (!wheel.contact)
-        {
-            return;
+    findLinkByName(linkMap, targetName) {
+        if (!linkMap || !targetName) {
+            return null;
         }
 
-        this.applyFrictionCircle(
-            wheel);
+        if (linkMap[targetName]) {
+            return linkMap[targetName];
+        }
 
-        this.buildTireForce(
-            wheel);
-
-        this.buildTireTorque(
-            wheel);
-
-        //--------------------------------------
-        // Force
-        //--------------------------------------
-
-        this.vehicleBody.addForce(
-        {
-            x : this.tmpForce.x,
-            y : this.tmpForce.y,
-            z : this.tmpForce.z
-        },
-        true);
-
-        //--------------------------------------
-        // Torque
-        //--------------------------------------
-
-        this.vehicleBody.addTorque(
-        {
-            x : this.tmpTorque.x,
-            y : this.tmpTorque.y,
-            z : this.tmpTorque.z
-        },
-        true);
-    }
-
-    //--------------------------------------------------
-    // Tire Update
-    //--------------------------------------------------
-
-    updateTires()
-    {
-        for (const wheel of this.wheels)
-        {
-            if (!wheel.contact)
-            {
+        const normalizedTarget = this.normalizeLinkName(targetName);
+        const entries = Object.entries(linkMap);
+        for (let i = 0; i < entries.length; i += 1) {
+            const [name, link] = entries[i];
+            if (!link) {
                 continue;
             }
 
-            this.updateWheelVelocity(
-                wheel);
-
-            this.computeSlipRatio(
-                wheel);
-
-            this.computeSlipAngle(
-                wheel);
-
-            this.computeLongitudinalForce(
-                wheel);
-
-            this.computeLateralForce(
-                wheel);
-
-            this.applyTireForce(
-                wheel);
-        }
-    }
-
-
-
-// Drive Train
-// Wheel Rotation / Drive Mode / Differential
-
-    //--------------------------------------------------
-    // Drive Train
-    //--------------------------------------------------
-
-    createDriveTrain()
-    {
-        this.driveTrain =
-        {
-            mode : "4WD",
-
-            differential : "OPEN",
-
-            wheelBase : 1.10,
-
-            trackWidth : 0.70,
-
-            wheelInertia : 0.18,
-
-            maxWheelSpeed : 120.0
-        };
-
-        for (const wheel of this.wheels)
-        {
-            wheel.drive = true;
-
-            wheel.angularVelocity = 0.0;
-
-            wheel.rotation = 0.0;
-
-            wheel.driveTorque = 0.0;
-
-            wheel.brakeTorque = 0.0;
-        }
-
-        this.setDriveMode(
-            this.driveTrain.mode);
-    }
-
-    //--------------------------------------------------
-    // Drive Mode
-    //--------------------------------------------------
-
-    setDriveMode(mode)
-    {
-        this.driveTrain.mode = mode;
-
-        for (const wheel of this.wheels)
-        {
-            wheel.drive = false;
-        }
-
-        switch(mode)
-        {
-        case "FWD":
-
-            this.wheels[0].drive = true;
-            this.wheels[1].drive = true;
-            break;
-
-        case "RWD":
-
-            this.wheels[2].drive = true;
-            this.wheels[3].drive = true;
-            break;
-
-        default:
-
-            for (const wheel of this.wheels)
-            {
-                wheel.drive = true;
+            const normalizedName = this.normalizeLinkName(name);
+            if (normalizedName === normalizedTarget) {
+                return link;
             }
-
-            break;
         }
+
+        return null;
     }
 
-    //--------------------------------------------------
-    // Differential
-    //--------------------------------------------------
+    getObstacleLinkNamesFromMap(linkMap) {
+        if (!linkMap) {
+            return [];
+        }
 
-    updateDifferential()
-    {
-        const totalTorque =
-            this.vehiclePhysics.state.engineForce *
-            this.vehiclePhysics.wheelRadius;
+        const names = new Set();
+        const targetNames = new Set(this.urdfObstacleLinkNames.map((name) => String(name).toLowerCase()));
 
-        const driveWheels =
-            this.wheels.filter(
-                w => w.drive);
+        Object.keys(linkMap).forEach((name) => {
+            const normalizedName = this.normalizeLinkName(name);
+            const matchedByExactName = targetNames.has(String(name).toLowerCase()) || targetNames.has(normalizedName);
+            const matchedByPattern = this.urdfObstacleLinkNamePatterns.some((pattern) => pattern.test(name) || pattern.test(normalizedName));
+            const matched = matchedByExactName || matchedByPattern;
+            if (matched) {
+                names.add(name);
+            }
+        });
 
-        if (driveWheels.length === 0)
-        {
+        return Array.from(names);
+    }
+
+    attachKeyboardControls() {
+        if (!this.isKeyboardControlEnabled) {
             return;
         }
 
-        switch(this.driveTrain.differential)
-        {
-        //------------------------------------------
-        // OPEN
-        //------------------------------------------
+        const handledKeys = new Set(['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight']);
+        const driveModeByArrowKey = {
+            ArrowUp: 'forward',
+            ArrowDown: 'backward',
+            ArrowLeft: 'left',
+            ArrowRight: 'right'
+        };
 
-        case "OPEN":
-
-            for (const wheel of driveWheels)
-            {
-                wheel.driveTorque =
-                    totalTorque /
-                    driveWheels.length;
+        window.addEventListener('keydown', (event) => {
+            const isSpaceKey = event.code === 'Space' || event.key === ' ' || event.key === 'Spacebar';
+            if (isSpaceKey) {
+                if (event.ctrlKey) {
+                    this.reset();
+                } else if (typeof window.setDriveMode === 'function') {
+                    window.setDriveMode('stop');
+                }
+                event.preventDefault();
+                return;
             }
 
-            break;
-
-        //------------------------------------------
-        // LOCKED
-        //------------------------------------------
-
-        case "LOCKED":
-
-            const avg =
-                driveWheels.reduce(
-                    (s, w) =>
-                        s + w.angularVelocity,
-                    0) /
-                driveWheels.length;
-
-            for (const wheel of driveWheels)
-            {
-                wheel.angularVelocity = avg;
-
-                wheel.driveTorque =
-                    totalTorque /
-                    driveWheels.length;
+            if (!handledKeys.has(event.key)) {
+                return;
             }
 
-            break;
-
-        //------------------------------------------
-        // LSD
-        //------------------------------------------
-
-        case "LSD":
-
-            const maxSlip = 8.0;
-
-            for (const wheel of driveWheels)
-            {
-                const slip =
-                    Math.abs(
-                        wheel.angularVelocity -
-                        this.vehiclePhysics.state.speed);
-
-                const gain =
-                    clamp(
-                        1.0 -
-                        slip /
-                        maxSlip,
-                        0.3,
-                        1.0);
-
-                wheel.driveTorque =
-                    gain *
-                    totalTorque /
-                    driveWheels.length;
+            if (event.ctrlKey) {
+                const nextDriveMode = driveModeByArrowKey[event.key] || null;
+                if (nextDriveMode && typeof window.setDriveMode === 'function') {
+                    window.setDriveMode(nextDriveMode);
+                }
+                event.preventDefault();
+                return;
             }
 
-            break;
-        }
+            this.keyHoldState[event.key] = 1;
+            event.preventDefault();
+        }, { passive: false });
+
+        window.addEventListener('keyup', (event) => {
+            if (!handledKeys.has(event.key)) {
+                return;
+            }
+
+            this.keyHoldState[event.key] = 0;
+            event.preventDefault();
+        }, { passive: false });
+
+        window.addEventListener('blur', () => {
+            this.keyHoldState.ArrowUp = 0;
+            this.keyHoldState.ArrowDown = 0;
+            this.keyHoldState.ArrowLeft = 0;
+            this.keyHoldState.ArrowRight = 0;
+        });
     }
 
-    //--------------------------------------------------
-    // Wheel Rotation
-    //--------------------------------------------------
-
-    updateWheelRotation(dt)
-    {
-        for (const wheel of this.wheels)
-        {
-            const alpha =
-                wheel.driveTorque /
-                this.driveTrain.wheelInertia;
-
-            wheel.angularVelocity +=
-                alpha * dt;
-
-            wheel.angularVelocity =
-                clamp(
-                    wheel.angularVelocity,
-                    -this.driveTrain.maxWheelSpeed,
-                     this.driveTrain.maxWheelSpeed);
-
-            wheel.rotation +=
-                wheel.angularVelocity * dt;
+    isFrontFacingViewActive() {
+        const faceKey = String(this.viewer?.viewCubeActiveFaceKey || '').toLowerCase();
+        if (faceKey) {
+            return faceKey === 'front';
         }
+
+        const camera = this.viewer?.camera || null;
+        const target = this.viewer?.controls?.target || null;
+        if (!camera || !target) {
+            return false;
+        }
+
+        const cameraOffset = camera.position.clone().sub(target);
+        if (cameraOffset.lengthSq() < 1e-8) {
+            return false;
+        }
+
+        const direction = cameraOffset.normalize();
+        const absX = Math.abs(direction.x);
+        const absY = Math.abs(direction.y);
+        const absZ = Math.abs(direction.z);
+
+        if (absX >= absY && absX >= absZ) {
+            return direction.x >= 0;
+        }
+
+        return false;
     }
 
+    getKeyboardDriveState() {
+        const upPressed = this.keyHoldState.ArrowUp === 1;
+        const downPressed = this.keyHoldState.ArrowDown === 1;
+        const leftPressed = this.keyHoldState.ArrowLeft === 1;
+        const rightPressed = this.keyHoldState.ArrowRight === 1;
 
-// ABS / TCS / Stability Assist
+        const moveX = (upPressed ? 1 : 0) - (downPressed ? 1 : 0);
+        const lateralBase = (leftPressed ? 1 : 0) - (rightPressed ? 1 : 0);
+        const lateralSign = this.isFrontFacingViewActive() ? -1 : 1;
+        const moveYRaw = lateralBase * lateralSign;
+        const magnitude = Math.hypot(moveX, moveYRaw);
+        const moveY = magnitude > 0 ? moveYRaw / magnitude : 0;
+        const normalizedMoveX = magnitude > 0 ? moveX / magnitude : 0;
+        const isActive = moveX !== 0 || moveY !== 0;
 
-    //--------------------------------------------------
-    // Driver Assist
-    //--------------------------------------------------
-
-    createDriverAssist()
-    {
-        this.driverAssist =
-        {
-            absEnabled : true,
-
-            tcsEnabled : true,
-
-            espEnabled : true,
-
-            absSlip : 0.18,
-
-            tcsSlip : 0.12,
-
-            yawGain : 1800.0
+        return {
+            isActive,
+            moveX: normalizedMoveX,
+            moveY
         };
     }
 
-    //--------------------------------------------------
-    // Wheel Slip
-    //--------------------------------------------------
-
-    updateWheelSlip(wheel)
-    {
-        const vehicleSpeed =
-            Math.max(
-                this.vehiclePhysics.state.speed,
-                0.1);
-
-        const wheelSpeed =
-            Math.abs(
-                wheel.angularVelocity *
-                this.vehiclePhysics.wheelRadius);
-
-        wheel.slip =
-            (wheelSpeed -
-             vehicleSpeed) /
-            vehicleSpeed;
+    getKeyboardNudgeDistance() {
+        const halfWidth = Number(this.vehicleHalfExtents?.y);
+        const fullWidth = Number.isFinite(halfWidth) && halfWidth > 0
+            ? halfWidth * 2
+            : 0.5;
+        return fullWidth / 10;
     }
 
-    //--------------------------------------------------
-    // Traction Control
-    //--------------------------------------------------
-
-    applyTractionControl(wheel)
-    {
-        if (!this.driverAssist.tcsEnabled)
-        {
+    updateSpeedSliderVisual(sliderElement) {
+        if (!sliderElement) {
             return;
         }
 
-        if (!wheel.drive)
-        {
+        const minValue = Number.parseFloat(sliderElement.min);
+        const maxValue = Number.parseFloat(sliderElement.max);
+        const currentValue = Number.parseFloat(sliderElement.value);
+
+        if (!Number.isFinite(minValue) || !Number.isFinite(maxValue) || maxValue <= minValue || !Number.isFinite(currentValue)) {
+            sliderElement.style.setProperty('--slider-percent', '0%');
             return;
         }
 
-        if (wheel.slip <
-            this.driverAssist.tcsSlip)
-        {
-            return;
-        }
-
-        const excess =
-            wheel.slip -
-            this.driverAssist.tcsSlip;
-
-        const gain =
-            clamp(
-                1.0 -
-                excess * 2.0,
-                0.25,
-                1.0);
-
-        wheel.driveTorque *= gain;
+        const clampedValue = Math.max(minValue, Math.min(maxValue, currentValue));
+        const percent = ((clampedValue - minValue) / (maxValue - minValue)) * 100;
+        sliderElement.style.setProperty('--slider-percent', `${percent}%`);
     }
 
-    //--------------------------------------------------
-    // Anti-lock Brake
-    //--------------------------------------------------
-
-    applyABS(wheel)
-    {
-        if (!this.driverAssist.absEnabled)
-        {
+    initializeSpeedSliderPreference() {
+        const speedSlider = document.getElementById('drive-speed-kmh');
+        const speedLabel = document.getElementById('drive-speed-kmh-value');
+        if (!speedSlider) {
             return;
         }
 
-        if (this.vehiclePhysics.input.brake <= 0)
-        {
-            return;
+        const parseSpeed = (rawValue, fallbackValue) => {
+            const numeric = Number.parseFloat(rawValue);
+            if (!Number.isFinite(numeric)) {
+                return fallbackValue;
+            }
+            return Math.max(0, Math.min(SIM_SPEED_MAX_KMH, numeric));
+        };
+
+        let initialSpeed = SIM_SPEED_DEFAULT_KMH;
+        try {
+            const storedValue = window.localStorage.getItem(SIM_SPEED_STORAGE_KEY);
+            if (storedValue != null) {
+                initialSpeed = parseSpeed(storedValue, SIM_SPEED_DEFAULT_KMH);
+            }
+        } catch (error) {
+            initialSpeed = SIM_SPEED_DEFAULT_KMH;
         }
 
-        if (wheel.slip >
-            this.driverAssist.absSlip)
-        {
-            return;
+        speedSlider.value = String(initialSpeed);
+        this.updateSpeedSliderVisual(speedSlider);
+        if (speedLabel) {
+            speedLabel.textContent = `${initialSpeed} km/h`;
         }
 
-        const deficit =
-            this.driverAssist.absSlip -
-            wheel.slip;
-
-        const gain =
-            clamp(
-                1.0 -
-                deficit * 3.0,
-                0.2,
-                1.0);
-
-        wheel.brakeTorque *= gain;
-    }
-
-    //--------------------------------------------------
-    // Electronic Stability Assist
-    //--------------------------------------------------
-
-    applyESP()
-    {
-        if (!this.driverAssist.espEnabled)
-        {
-            return;
+        if (typeof window.setDriveSpeedKmh === 'function') {
+            window.setDriveSpeedKmh(initialSpeed);
         }
 
-        const ang =
-            this.vehicleBody.angvel();
-
-        const desiredYaw =
-            this.vehiclePhysics.state.steerAngle *
-            this.vehiclePhysics.state.speed;
-
-        const yawError =
-            desiredYaw - ang.y;
-
-        this.vehicleBody.addTorque(
-        {
-            x : 0,
-            y : yawError *
-                this.driverAssist.yawGain,
-            z : 0
-        },
-        true);
-    }
-
-    //--------------------------------------------------
-    // Driver Assist Update
-    //--------------------------------------------------
-
-    updateDriverAssist()
-    {
-        for (const wheel of this.wheels)
-        {
-            this.updateWheelSlip(
-                wheel);
-
-            this.applyTractionControl(
-                wheel);
-
-            this.applyABS(
-                wheel);
-        }
-
-        this.applyESP();
-    }
-
-
-
-// Surface Material System
-
-    //--------------------------------------------------
-    // Surface Materials
-    //--------------------------------------------------
-
-    createSurfaceDatabase()
-    {
-        this.surfaceTable =
-        {
-            asphalt :
-            {
-                friction : 0.95,
-                rollingResistance : 22.0,
-                damping : 1.0
-            },
-
-            concrete :
-            {
-                friction : 0.90,
-                rollingResistance : 24.0,
-                damping : 1.0
-            },
-
-            gravel :
-            {
-                friction : 0.72,
-                rollingResistance : 40.0,
-                damping : 1.15
-            },
-
-            dirt :
-            {
-                friction : 0.63,
-                rollingResistance : 55.0,
-                damping : 1.20
-            },
-
-            grass :
-            {
-                friction : 0.55,
-                rollingResistance : 70.0,
-                damping : 1.30
-            },
-
-            mud :
-            {
-                friction : 0.40,
-                rollingResistance : 120.0,
-                damping : 1.55
-            },
-
-            sand :
-            {
-                friction : 0.36,
-                rollingResistance : 180.0,
-                damping : 1.80
-            },
-
-            wet :
-            {
-                friction : 0.45,
-                rollingResistance : 40.0,
-                damping : 1.10
-            },
-
-            ice :
-            {
-                friction : 0.08,
-                rollingResistance : 8.0,
-                damping : 0.90
+        const persistSpeed = () => {
+            const normalizedSpeed = parseSpeed(speedSlider.value, SIM_SPEED_DEFAULT_KMH);
+            try {
+                window.localStorage.setItem(SIM_SPEED_STORAGE_KEY, String(normalizedSpeed));
+            } catch (error) {
+                // Ignore storage failures and continue runtime behavior.
             }
         };
 
-        this.defaultSurface =
-            "asphalt";
+        speedSlider.addEventListener('input', persistSpeed);
+        speedSlider.addEventListener('change', persistSpeed);
     }
 
-    //--------------------------------------------------
-    // Material Name
-    //--------------------------------------------------
-
-    getSurfaceName(collider)
-    {
-        if (!collider)
-        {
-            return this.defaultSurface;
-        }
-
-        const obj =
-            collider.userData;
-
-        if (!obj)
-        {
-            return this.defaultSurface;
-        }
-
-        if (!obj.surface)
-        {
-            return this.defaultSurface;
-        }
-
-        return obj.surface;
-    }
-
-    //--------------------------------------------------
-    // Surface Data
-    //--------------------------------------------------
-
-    getSurfaceData(name)
-    {
-        if (this.surfaceTable[name])
-        {
-            return this.surfaceTable[name];
-        }
-
-        return this.surfaceTable[
-            this.defaultSurface];
-    }
-
-    //--------------------------------------------------
-    // Wheel Surface
-    //--------------------------------------------------
-
-    updateWheelSurface(wheel)
-    {
-        const collider =
-            wheel.hitCollider;
-
-        const surface =
-            this.getSurfaceName(
-                collider);
-
-        wheel.surface = surface;
-
-        wheel.surfaceData =
-            this.getSurfaceData(
-                surface);
-    }
-
-    //--------------------------------------------------
-    // Tire Parameter
-    //--------------------------------------------------
-
-    updateWheelFriction(wheel)
-    {
-        if (!wheel.surfaceData)
-        {
+    resetSpeedSliderToDefault() {
+        const speedSlider = document.getElementById('drive-speed-kmh');
+        const speedLabel = document.getElementById('drive-speed-kmh-value');
+        if (!speedSlider) {
             return;
         }
 
-        this.tire.mu =
-            wheel.surfaceData.friction;
+        speedSlider.value = String(SIM_SPEED_DEFAULT_KMH);
+        this.updateSpeedSliderVisual(speedSlider);
+
+        if (speedLabel) {
+            speedLabel.textContent = `${SIM_SPEED_DEFAULT_KMH} km/h`;
+        }
+
+        if (typeof window.setDriveSpeedKmh === 'function') {
+            window.setDriveSpeedKmh(SIM_SPEED_DEFAULT_KMH);
+        }
+
+        try {
+            window.localStorage.setItem(SIM_SPEED_STORAGE_KEY, String(SIM_SPEED_DEFAULT_KMH));
+        } catch (error) {
+            // Ignore storage failures and continue runtime behavior.
+        }
     }
 
-    //--------------------------------------------------
-    // Rolling Resistance
-    //--------------------------------------------------
-
-    updateWheelRollingResistance(
-        wheel)
-    {
-        if (!wheel.surfaceData)
-        {
+    addGroundCollider() {
+        if (!this.world || !this.rapier || !this.initialPosition || !this.vehicleHalfExtents) {
             return;
         }
 
-        wheel.rollingResistance =
-            wheel.surfaceData
-                .rollingResistance;
+        const groundHalfThickness = 0.2;
+        const linkMap = this.viewer?.robotModel?.links || {};
+        const groundLink = this.findLinkByName(linkMap, 'ground')
+            || this.findLinkByName(linkMap, 'ground_link')
+            || this.findLinkByName(linkMap, 'ground_patch')
+            || null;
+
+        if (groundLink) {
+            groundLink.updateWorldMatrix(true, true);
+            const groundBounds = this.computeLinkOwnBounds(groundLink, linkMap);
+            if (groundBounds && !groundBounds.isEmpty()) {
+                this.groundZ = groundBounds.max.z;
+            } else {
+                const groundWorldPos = new THREE.Vector3();
+                groundLink.getWorldPosition(groundWorldPos);
+                this.groundZ = groundWorldPos.z;
+            }
+        } else {
+            this.groundZ = this.initialPosition.z - this.vehicleHalfExtents.z - 0.01;
+        }
+
+        const groundCenterZ = this.groundZ - groundHalfThickness;
+        const groundBodyDesc = this.rapier.RigidBodyDesc.fixed().setTranslation(0, 0, groundCenterZ);
+        const groundBody = this.world.createRigidBody(groundBodyDesc);
+        const groundColliderDesc = this.rapier.ColliderDesc.cuboid(30, 30, groundHalfThickness)
+            .setFriction(0.25)
+            .setRestitution(0.02);
+        this.world.createCollider(groundColliderDesc, groundBody);
     }
 
-
-
-// Per Wheel Surface Model
-
-    //--------------------------------------------------
-    // Wheel Surface State
-    //--------------------------------------------------
-
-    initializeWheelSurface(wheel)
-    {
-        wheel.surfaceName =
-            this.defaultSurface;
-
-        wheel.friction =
-            this.surfaceTable[
-                this.defaultSurface
-            ].friction;
-
-        wheel.rollingResistance =
-            this.surfaceTable[
-                this.defaultSurface
-            ].rollingResistance;
-
-        wheel.surfaceDamping =
-            this.surfaceTable[
-                this.defaultSurface
-            ].damping;
-    }
-
-    //--------------------------------------------------
-    // Surface Update
-    //--------------------------------------------------
-
-    updateWheelSurfaceState(wheel)
-    {
-        if (!wheel.contact)
-        {
-            this.initializeWheelSurface(
-                wheel);
-
+    logWheelGroundDiagnosticsOnce(linkMap, stage = 'runtime') {
+        if (this.hasLoggedGroundDiagnostics) {
             return;
         }
 
-        this.updateWheelSurface(
-            wheel);
-
-        const data =
-            wheel.surfaceData;
-
-        wheel.friction =
-            data.friction;
-
-        wheel.rollingResistance =
-            data.rollingResistance;
-
-        wheel.surfaceDamping =
-            data.damping;
-    }
-
-    //--------------------------------------------------
-    // Tire Force
-    //--------------------------------------------------
-
-    computeWheelLongitudinalForce(
-        wheel)
-    {
-        wheel.longitudinalForce =
-            wheel.slipRatio *
-            this.tire.longitudinalStiffness *
-            wheel.totalForce;
-
-        const limit =
-            wheel.totalForce *
-            wheel.friction;
-
-        wheel.longitudinalForce =
-            clamp(
-                wheel.longitudinalForce,
-                -limit,
-                 limit);
-    }
-
-    //--------------------------------------------------
-    // Lateral Force
-    //--------------------------------------------------
-
-    computeWheelLateralForce(
-        wheel)
-    {
-        wheel.lateralForce =
-            wheel.slipAngle *
-            this.tire.lateralStiffness *
-            wheel.totalForce;
-
-        const limit =
-            wheel.totalForce *
-            wheel.friction;
-
-        wheel.lateralForce =
-            clamp(
-                wheel.lateralForce,
-                -limit,
-                 limit);
-    }
-
-    //--------------------------------------------------
-    // Wheel Rolling Resistance
-    //--------------------------------------------------
-
-    applyWheelRollingResistance(
-        wheel)
-    {
-        if (!wheel.contact)
-        {
+        if (!this.body || !Number.isFinite(this.groundZ)) {
             return;
         }
 
-        const vel =
-            this.vehiclePhysics.state.velocity;
-
-        if (vel.lengthSq() < 0.001)
-        {
+        const wheelMinZ = this.getWheelWorldMinZ(linkMap);
+        if (!Number.isFinite(wheelMinZ)) {
+            console.warn('[URDF][Simulation] wheel-ground diagnostics skipped: wheel bounds unavailable');
+            this.hasLoggedGroundDiagnostics = true;
             return;
         }
 
-        const force =
-            wheel.rollingResistance;
-
-        this.tmpForce
-            .copy(vel)
-            .normalize()
-            .multiplyScalar(
-                -force);
-
-        this.vehicleBody.addForce(
-        {
-            x : this.tmpForce.x,
-            y : this.tmpForce.y,
-            z : this.tmpForce.z
-        },
-        true);
+        const bodyZ = this.body.translation().z;
+        const gap = wheelMinZ - this.groundZ;
+        console.log('[URDF][Simulation] wheel-ground diagnostics', {
+            stage,
+            groundZ: Number(this.groundZ.toFixed(6)),
+            wheelMinZ: Number(wheelMinZ.toFixed(6)),
+            wheelGroundGap: Number(gap.toFixed(6)),
+            bodyZ: Number(bodyZ.toFixed(6)),
+            groundContactLocalMinZ: Number.isFinite(this.groundContactLocalMinZ)
+                ? Number(this.groundContactLocalMinZ.toFixed(6))
+                : null
+        });
+        this.hasLoggedGroundDiagnostics = true;
     }
 
-    //--------------------------------------------------
-    // Surface Update
-    //--------------------------------------------------
+    addObstacleColliderFromUrdf() {
+        if (!this.world || !this.rapier || !this.viewer?.robotModel || !this.carFrame) {
+            return;
+        }
 
-    updateSurfacePhysics()
-    {
-        for (const wheel of this.wheels)
-        {
-            this.updateWheelSurfaceState(
-                wheel);
+        const linkMap = this.viewer.robotModel.links || {};
+        const obstacleLinkNames = this.getObstacleLinkNamesFromMap(linkMap);
+        if (obstacleLinkNames.length === 0) {
+            console.warn('[URDF][Simulation] URDF obstacle link not found. Expected one of:', this.urdfObstacleLinkNames);
+            return;
+        }
 
-            this.applyWheelRollingResistance(
-                wheel);
+        this.obstacleColliders = [];
+
+        obstacleLinkNames.forEach((obstacleLinkName) => {
+            const obstacleLink = linkMap[obstacleLinkName];
+            obstacleLink.updateWorldMatrix(true, true);
+
+            const bbox = new THREE.Box3().setFromObject(obstacleLink);
+            const center = bbox.getCenter(new THREE.Vector3());
+            const size = bbox.getSize(new THREE.Vector3());
+            const halfX = Math.max(size.x * 0.5, 0.02);
+            const halfY = Math.max(size.y * 0.5, 0.02);
+            const halfZ = Math.max(size.z * 0.5, 0.02);
+            const normalizedObstacleName = this.normalizeLinkName(obstacleLinkName);
+            const isPassUnderTagged = this.passUnderObstacleNamePatterns.some((pattern) => pattern.test(obstacleLinkName) || pattern.test(normalizedObstacleName));
+
+            const isPotholeObstacle = /^pothole/i.test(obstacleLinkName) || /^pothole/i.test(normalizedObstacleName);
+            const clampedCenterZ = !isPotholeObstacle
+                ? Math.max(center.z, this.groundZ + halfZ)
+                : center.z;
+
+            const obstacleBodyDesc = this.rapier.RigidBodyDesc.fixed().setTranslation(
+                center.x,
+                center.y,
+                clampedCenterZ
+            );
+            const obstacleBody = this.world.createRigidBody(obstacleBodyDesc);
+            const obstacleColliderDesc = this.rapier.ColliderDesc.cuboid(halfX, halfY, halfZ)
+                .setFriction(1.4)
+                .setRestitution(0.02);
+
+            // Only explicitly tagged links are sensors; generic obstacles must physically collide.
+            if (isPassUnderTagged && typeof obstacleColliderDesc.setSensor === 'function') {
+                obstacleColliderDesc.setSensor(true);
+                console.log('[URDF][Simulation] obstacle treated as pass-under sensor:', {
+                    obstacleLinkName,
+                    isPassUnderTagged
+                });
+            }
+
+            const obstacleCollider = this.world.createCollider(obstacleColliderDesc, obstacleBody);
+            this.obstacleColliders.push(obstacleCollider);
+            console.log(`[URDF][Simulation] obstacle collider created from URDF link: ${obstacleLinkName}`);
+        });
+    }
+
+    clampVehicleAboveGround() {
+        if (!this.body || !Number.isFinite(this.groundZ) || !Number.isFinite(this.groundContactLocalMinZ)) {
+            return;
+        }
+
+        const translation = this.body.translation();
+        const velocity = this.body.linvel();
+        const groundBasedMinZ = this.groundZ - this.groundContactLocalMinZ - this.groundContactBiasMeters;
+        const minAllowedZ = groundBasedMinZ - this.groundPenetrationToleranceMeters;
+        const baseReferenceZ = Number.isFinite(this.initialPosition?.z)
+            ? Math.max(this.initialPosition.z, groundBasedMinZ)
+            : groundBasedMinZ;
+        const maxLiftMeters = this.isVehicleObstacleContact
+            ? this.maxLiftWithObstacleMeters
+            : this.maxLiftWithoutObstacleMeters;
+        const maxAllowedZ = baseReferenceZ + Math.max(maxLiftMeters, 0);
+
+        if (translation.z < minAllowedZ) {
+            this.body.setTranslation(new this.rapier.Vector3(translation.x, translation.y, minAllowedZ), true);
+            this.body.setLinvel(new this.rapier.Vector3(velocity.x, velocity.y, Math.max(0, velocity.z)), true);
+            return;
+        }
+
+        if (translation.z > maxAllowedZ) {
+            this.body.setTranslation(new this.rapier.Vector3(translation.x, translation.y, maxAllowedZ), true);
+            this.body.setLinvel(new this.rapier.Vector3(velocity.x, velocity.y, Math.min(0, velocity.z)), true);
         }
     }
 
-    //--------------------------------------------------
-    // Vehicle Update
-    //--------------------------------------------------
+    addWheelCollidersFromUrdf(body, carFrame, linkMap) {
+        if (!this.world || !this.rapier || !body || !carFrame || !linkMap) {
+            return;
+        }
 
-    updateVehiclePhysics(dt)
-    {
-        this.updateInput();
+        const wheelLinkNames = ['wheel_fl', 'wheel_fr', 'wheel_rl', 'wheel_rr'];
+        let createdWheelColliderCount = 0;
 
-        this.vehiclePhysics.update(
-            this.vehicleBody,
-            dt);
+        wheelLinkNames.forEach((wheelLinkName) => {
+            const wheelLink = this.findLinkByName(linkMap, wheelLinkName);
+            if (!wheelLink) {
+                return;
+            }
 
-        this.updateVehicleAxes();
+            wheelLink.updateWorldMatrix(true, true);
 
-        //------------------------------------
-        // Contact
-        //------------------------------------
+            const wheelBounds = new THREE.Box3().setFromObject(wheelLink);
+            if (wheelBounds.isEmpty()) {
+                return;
+            }
 
-        this.updateWheelContacts();
+            const centerWorld = wheelBounds.getCenter(new THREE.Vector3());
+            const size = wheelBounds.getSize(new THREE.Vector3());
+            const approxRadius = Math.max(size.x * 0.5, size.z * 0.5, 0.05);
+            const localCenter = carFrame.worldToLocal(centerWorld.clone());
 
-        //------------------------------------
-        // Surface
-        //------------------------------------
+            const wheelColliderDesc = this.rapier.ColliderDesc.ball(approxRadius)
+                .setTranslation(localCenter.x, localCenter.y, localCenter.z)
+                .setFriction(1.6)
+                .setRestitution(0.01);
 
-        this.updateSurfacePhysics();
+            const wheelCollider = this.world.createCollider(wheelColliderDesc, body);
+            this.vehicleColliders.push(wheelCollider);
+            createdWheelColliderCount += 1;
+        });
 
-        //------------------------------------
-        // Ground
-        //------------------------------------
-
-        this.applyGroundCorrection();
-
-        //------------------------------------
-        // Suspension
-        //------------------------------------
-
-        this.applySuspension();
-
-        //------------------------------------
-        // Differential
-        //------------------------------------
-
-        this.updateDifferential();
-
-        //------------------------------------
-        // Wheel Rotation
-        //------------------------------------
-
-        this.updateWheelRotation(dt);
-
-        //------------------------------------
-        // Driver Assist
-        //------------------------------------
-
-        this.updateDriverAssist();
-
-        //------------------------------------
-        // Tire
-        //------------------------------------
-
-        this.updateTires();
-
-        //------------------------------------
-        // Engine
-        //------------------------------------
-
-        this.applyEngineForce();
-
-        //------------------------------------
-        // Brake
-        //------------------------------------
-
-        this.applyBrakeForce();
-
-        //------------------------------------
-        // Steering
-        //------------------------------------
-
-        this.applySteeringTorque();
+        if (createdWheelColliderCount === 0) {
+            console.warn('[URDF][Simulation] Wheel colliders were not created. Check wheel link names in URDF.');
+        }
     }
 
+    getWheelLocalMinZ(carFrame, linkMap) {
+        if (!carFrame || !linkMap) {
+            return null;
+        }
 
+        const wheelLinkNames = ['wheel_fl', 'wheel_fr', 'wheel_rl', 'wheel_rr'];
+        const minValues = [];
+
+        wheelLinkNames.forEach((wheelLinkName) => {
+            const wheelLink = this.findLinkByName(linkMap, wheelLinkName);
+            if (!wheelLink) {
+                return;
+            }
+
+            wheelLink.updateWorldMatrix(true, true);
+            const wheelBounds = new THREE.Box3().setFromObject(wheelLink);
+            if (wheelBounds.isEmpty()) {
+                return;
+            }
+
+            const centerWorld = wheelBounds.getCenter(new THREE.Vector3());
+            const centerLocal = carFrame.worldToLocal(centerWorld.clone());
+            const wheelSize = wheelBounds.getSize(new THREE.Vector3());
+            const wheelRadius = Math.max(wheelSize.x * 0.5, wheelSize.z * 0.5, 0.05);
+            minValues.push(centerLocal.z - wheelRadius);
+        });
+
+        if (minValues.length === 0) {
+            return null;
+        }
+
+        return Math.min(...minValues);
+    }
+
+    getWheelWorldMinZ(linkMap) {
+        if (!linkMap) {
+            return null;
+        }
+
+        const wheelLinkNames = ['wheel_fl', 'wheel_fr', 'wheel_rl', 'wheel_rr'];
+        let minWheelWorldZ = Number.POSITIVE_INFINITY;
+
+        wheelLinkNames.forEach((wheelLinkName) => {
+            const wheelLink = this.findLinkByName(linkMap, wheelLinkName);
+            if (!wheelLink) {
+                return;
+            }
+
+            wheelLink.updateWorldMatrix(true, true);
+            const wheelBounds = new THREE.Box3().setFromObject(wheelLink);
+            if (wheelBounds.isEmpty()) {
+                return;
+            }
+
+            minWheelWorldZ = Math.min(minWheelWorldZ, wheelBounds.min.z);
+        });
+
+        return Number.isFinite(minWheelWorldZ) ? minWheelWorldZ : null;
+    }
+
+    estimateWheelEffectiveRadiusMeters(carFrame, linkMap) {
+        if (!carFrame || !linkMap) {
+            return;
+        }
+
+        const wheelLinkNames = ['wheel_fl', 'wheel_fr', 'wheel_rl', 'wheel_rr'];
+        const radii = [];
+
+        wheelLinkNames.forEach((wheelLinkName) => {
+            const wheelLink = this.findLinkByName(linkMap, wheelLinkName);
+            if (!wheelLink) {
+                return;
+            }
+
+            wheelLink.updateWorldMatrix(true, true);
+            const wheelBounds = new THREE.Box3().setFromObject(wheelLink);
+            if (wheelBounds.isEmpty()) {
+                return;
+            }
+
+            const size = wheelBounds.getSize(new THREE.Vector3());
+            const radius = Math.max(size.x * 0.5, size.z * 0.5, 0.05);
+            radii.push(radius);
+        });
+
+        if (radii.length === 0) {
+            return;
+        }
+
+        const avgRadius = radii.reduce((sum, radius) => sum + radius, 0) / radii.length;
+        this.wheelEffectiveRadiusMeters = Math.max(avgRadius, 0.05);
+    }
+
+    getAverageSignedWheelRpm() {
+        const viewer = this.getDriveSourceViewer();
+        return this.getAverageSignedWheelRpmForViewer(viewer);
+    }
+
+    getAverageSignedWheelRpmForViewer(viewer) {
+        if (!viewer) {
+            return null;
+        }
+
+        const wheelKeys = ['fl', 'fr', 'rl', 'rr'];
+        const signedRpms = [];
+
+        wheelKeys.forEach((key) => {
+            let signedRpm = null;
+            if (typeof viewer.getSignedWheelRpm === 'function') {
+                const value = Number(viewer.getSignedWheelRpm(key));
+                if (Number.isFinite(value)) {
+                    signedRpm = value;
+                }
+            }
+
+            if (!Number.isFinite(signedRpm)) {
+                const rpm = Number(viewer?.wheelSpeedRpmByKey?.[key]);
+                const sign = Number(viewer?.wheelDirectionSignByKey?.[key]);
+                if (Number.isFinite(rpm)) {
+                    signedRpm = rpm * (Number.isFinite(sign) ? sign : 1);
+                }
+            }
+
+            if (Number.isFinite(signedRpm)) {
+                signedRpms.push(signedRpm);
+            }
+        });
+
+        if (signedRpms.length === 0) {
+            return null;
+        }
+
+        const rpmSum = signedRpms.reduce((sum, rpm) => sum + rpm, 0);
+        return rpmSum / signedRpms.length;
+    }
+
+    getViewerActivityScore(viewer) {
+        if (!viewer) {
+            return -1;
+        }
+
+        const mode = String(viewer?.driveMode || '').toLowerCase();
+        const avgRpm = this.getAverageSignedWheelRpmForViewer(viewer);
+        const speedKmh = Math.max(Number(viewer?.driveSpeedKmh) || 0, 0);
+
+        let score = 0;
+        if (mode && mode !== 'stop') {
+            score += 100;
+        }
+        if (Number.isFinite(avgRpm)) {
+            score += Math.min(Math.abs(avgRpm), 200);
+        }
+        score += Math.min(speedKmh, 50);
+
+        return score;
+    }
+
+    getWheelSideSignedRpm() {
+        const viewer = this.getDriveSourceViewer();
+        if (!viewer) {
+            return null;
+        }
+
+        const wheelGroups = {
+            left: ['fl', 'rl'],
+            right: ['fr', 'rr']
+        };
+
+        const readSignedRpm = (key) => {
+            if (typeof viewer.getSignedWheelRpm === 'function') {
+                const value = Number(viewer.getSignedWheelRpm(key));
+                if (Number.isFinite(value)) {
+                    return value;
+                }
+            }
+
+            const rpm = Number(viewer?.wheelSpeedRpmByKey?.[key]);
+            const sign = Number(viewer?.wheelDirectionSignByKey?.[key]);
+            if (Number.isFinite(rpm)) {
+                return rpm * (Number.isFinite(sign) ? sign : 1);
+            }
+
+            return null;
+        };
+
+        const avgGroup = (keys) => {
+            const values = keys
+                .map((key) => readSignedRpm(key))
+                .filter((value) => Number.isFinite(value));
+            if (values.length === 0) {
+                return null;
+            }
+            return values.reduce((sum, value) => sum + value, 0) / values.length;
+        };
+
+        const left = avgGroup(wheelGroups.left);
+        const right = avgGroup(wheelGroups.right);
+        if (!Number.isFinite(left) || !Number.isFinite(right)) {
+            return null;
+        }
+
+        return { left, right };
+    }
+
+    getDriveSourceViewer() {
+        const candidates = [];
+        const byId = window.urdfViewersById?.['robot-container-1'] || null;
+        const vehicleViewer = window.urdfViewersById?.['vehicle-urdf-viewer'] || null;
+        const activeViewer = window.activeURDFViewer || null;
+
+        [byId, vehicleViewer, this.viewer, activeViewer].forEach((viewer) => {
+            if (viewer && !candidates.includes(viewer)) {
+                candidates.push(viewer);
+            }
+        });
+
+        if (candidates.length === 0) {
+            return null;
+        }
+
+        let bestViewer = candidates[0];
+        let bestScore = this.getViewerActivityScore(bestViewer);
+        for (let i = 1; i < candidates.length; i += 1) {
+            const score = this.getViewerActivityScore(candidates[i]);
+            if (score > bestScore) {
+                bestScore = score;
+                bestViewer = candidates[i];
+            }
+        }
+
+        return bestViewer;
+    }
+
+    getCommandedDriveSpeedMps() {
+        const driveViewer = this.getDriveSourceViewer();
+        const avgSignedWheelRpm = this.getAverageSignedWheelRpmForViewer(driveViewer);
+        const speedBySlider = Math.max(Number(driveViewer?.driveSpeedKmh) || 0, 0) / 3.6;
+
+        if (Number.isFinite(avgSignedWheelRpm) && Math.abs(avgSignedWheelRpm) > 0.1) {
+            const wheelAngularSpeedRadPerSec = Math.abs(avgSignedWheelRpm) * (Math.PI * 2 / 60);
+            const speedByWheel = wheelAngularSpeedRadPerSec * Math.max(this.wheelEffectiveRadiusMeters, 0.05);
+            return Math.max(speedByWheel, speedBySlider);
+        }
+
+        return speedBySlider;
+    }
+
+    calibrateGroundContactLocalMinZ(linkMap) {
+        if (!this.body || !Number.isFinite(this.groundZ)) {
+            return;
+        }
+
+        const measuredWheelWorldMinZ = this.getWheelWorldMinZ(linkMap);
+        if (!Number.isFinite(measuredWheelWorldMinZ)) {
+            return;
+        }
+
+        const translation = this.body.translation();
+        this.groundContactLocalMinZ = measuredWheelWorldMinZ - translation.z;
+        this.wheelLocalMinZ = this.groundContactLocalMinZ;
+    }
+
+    getGroundContactTargetZ() {
+        if (!Number.isFinite(this.groundZ) || !Number.isFinite(this.groundContactLocalMinZ)) {
+            return null;
+        }
+
+        return this.groundZ - this.groundContactLocalMinZ - this.groundContactBiasMeters;
+    }
+
+    alignVehicleWheelContactToGround() {
+        if (!this.body || !Number.isFinite(this.groundZ) || !Number.isFinite(this.groundContactLocalMinZ)) {
+            return;
+        }
+
+        const translation = this.body.translation();
+        const targetZ = this.getGroundContactTargetZ();
+        if (!Number.isFinite(targetZ)) {
+            return;
+        }
+        this.body.setTranslation(new this.rapier.Vector3(translation.x, translation.y, targetZ), true);
+    }
+
+    alignVehicleToGroundByWheelGap(linkMap, toleranceMeters = 0.001) {
+        if (!this.body || !this.rapier || !linkMap || !Number.isFinite(this.groundZ)) {
+            return;
+        }
+
+        const measuredWheelWorldMinZ = this.getWheelWorldMinZ(linkMap);
+        if (!Number.isFinite(measuredWheelWorldMinZ)) {
+            return;
+        }
+
+        const wheelGroundGap = measuredWheelWorldMinZ - this.groundZ;
+        if (Math.abs(wheelGroundGap) <= toleranceMeters) {
+            return;
+        }
+
+        const translation = this.body.translation();
+        const alignedZ = translation.z - wheelGroundGap;
+        this.body.setTranslation(new this.rapier.Vector3(translation.x, translation.y, alignedZ), true);
+
+        // Keep local contact baseline in sync after explicit correction.
+        this.groundContactLocalMinZ = measuredWheelWorldMinZ - wheelGroundGap - alignedZ;
+        this.wheelLocalMinZ = this.groundContactLocalMinZ;
+
+        const velocity = this.body.linvel();
+        this.body.setLinvel(new this.rapier.Vector3(velocity.x, velocity.y, Math.min(0, velocity.z)), true);
+    }
+
+    syncCarFrameFromBody() {
+        if (!this.body || !this.carFrame) {
+            return;
+        }
+
+        const position = this.body.translation();
+        const rotation = this.body.rotation();
+        this.carFrame.position.set(position.x, position.y, position.z);
+        this.carFrame.quaternion.set(rotation.x, rotation.y, rotation.z, rotation.w).normalize();
+    }
+
+    enforceWheelGroundContactAtLoad(linkMap) {
+        if (!this.body || !this.rapier) {
+            return;
+        }
+
+        if (linkMap) {
+            this.calibrateGroundContactLocalMinZ(linkMap);
+            this.alignVehicleToGroundByWheelGap(linkMap);
+        }
+
+        // Respect URDF-authored initial pose; do not forcibly move body on startup.
+        this.body.setLinvel(new this.rapier.Vector3(0, 0, 0), true);
+        this.body.setAngvel(new this.rapier.Vector3(0, 0, 0), true);
+        this.syncCarFrameFromBody();
+        this.logWheelGroundDiagnosticsOnce(linkMap, 'enforceWheelGroundContactAtLoad');
+    }
+
+    updateObstacleContactState() {
+        if (!this.world || this.vehicleColliders.length === 0 || this.obstacleColliders.length === 0) {
+            return false;
+        }
+
+        let hasContact = false;
+
+        if (typeof this.world.contactPair === 'function') {
+            this.vehicleColliders.forEach((vehicleCollider) => {
+                if (hasContact) {
+                    return;
+                }
+
+                this.obstacleColliders.forEach((obstacleCollider) => {
+                    if (hasContact) {
+                        return;
+                    }
+
+                    this.world.contactPair(vehicleCollider, obstacleCollider, () => {
+                        hasContact = true;
+                    });
+                });
+            });
+        }
+
+        if (hasContact !== this.isVehicleObstacleContact) {
+            this.isVehicleObstacleContact = hasContact;
+            console.log(`[URDF][Simulation] vehicle-obstacle contact: ${hasContact ? 'ON' : 'OFF'}`);
+        }
+
+        return hasContact;
+    }
+
+    rollbackToPreviousPose(previousPose) {
+        if (!previousPose || !this.body || !this.rapier || !this.carFrame) {
+            return;
+        }
+
+        this.body.setTranslation(new this.rapier.Vector3(previousPose.x, previousPose.y, previousPose.z), true);
+        this.body.setRotation({ x: previousPose.qx, y: previousPose.qy, z: previousPose.qz, w: previousPose.qw }, true);
+        this.body.setLinvel(new this.rapier.Vector3(0, 0, 0), true);
+        this.body.setAngvel(new this.rapier.Vector3(0, 0, 0), true);
+
+        this.carFrame.position.set(previousPose.x, previousPose.y, previousPose.z);
+        this.carFrame.quaternion.set(previousPose.qx, previousPose.qy, previousPose.qz, previousPose.qw).normalize();
+    }
+
+    setUprightRotationLockEnabled(isEnabled) {
+        if (!this.body) {
+            return;
+        }
+
+        if (this.isUprightRotationLockActive === isEnabled) {
+            return;
+        }
+
+        if (typeof this.body.setEnabledRotations === 'function') {
+            this.body.setEnabledRotations(!isEnabled, !isEnabled, true, true);
+            this.isUprightRotationLockActive = isEnabled;
+            return;
+        }
+
+        if (typeof this.body.restrictRotations === 'function') {
+            this.body.restrictRotations(!isEnabled, !isEnabled, true, true);
+            this.isUprightRotationLockActive = isEnabled;
+            return;
+        }
+
+        // Some Rapier builds expose only lockRotations(lockAll), which cannot keep yaw free.
+        // In that case, skip runtime upright-lock toggling to preserve steering rotation.
+        this.isUprightRotationLockActive = false;
+    }
+
+    maybeLogRuntimeDiagnostics(deltaSec, driveViewer, clampedSpeed, throttleSign, steerSign, hasObstacleContact) {
+        if (!this.enableRuntimeDiagnostics || !this.body) {
+            return;
+        }
+
+        this.runtimeDiagnosticsElapsedSec += Math.max(deltaSec, 0);
+        if (this.runtimeDiagnosticsElapsedSec < this.runtimeDiagnosticsIntervalSec) {
+            return;
+        }
+        this.runtimeDiagnosticsElapsedSec = 0;
+
+        const bodyPos = this.body.translation();
+        const bodyVel = this.body.linvel();
+        const avgRpm = this.getAverageSignedWheelRpmForViewer(driveViewer);
+        const driveMode = String(driveViewer?.driveMode || 'n/a');
+        const driveSpeedKmh = Number(driveViewer?.driveSpeedKmh);
+        const sourceId = String(driveViewer?.container?.id || 'unknown');
+        console.log('[URDF][Simulation][diag]', {
+            sourceId,
+            driveMode,
+            driveSpeedKmh: Number.isFinite(driveSpeedKmh) ? Number(driveSpeedKmh.toFixed(3)) : null,
+            avgSignedWheelRpm: Number.isFinite(avgRpm) ? Number(avgRpm.toFixed(3)) : null,
+            clampedSpeedMps: Number(clampedSpeed.toFixed(4)),
+            throttleSign,
+            steerSign,
+            hasObstacleContact,
+            pos: {
+                x: Number(bodyPos.x.toFixed(4)),
+                y: Number(bodyPos.y.toFixed(4)),
+                z: Number(bodyPos.z.toFixed(4))
+            },
+            vel: {
+                x: Number(bodyVel.x.toFixed(4)),
+                y: Number(bodyVel.y.toFixed(4)),
+                z: Number(bodyVel.z.toFixed(4))
+            },
+            groundZ: Number.isFinite(this.groundZ) ? Number(this.groundZ.toFixed(4)) : null
+        });
+    }
+
+    async ensureRapierInitialized() {
+        if (this.isReady || this.isInitializing || this.hasFailed) {
+            return;
+        }
+
+        if (!this.viewer?.robotModel) {
+            return;
+        }
+
+        const linkMap = this.viewer.robotModel.links || {};
+        const carFrame = this.findLinkByName(linkMap, 'car_frame') || this.findLinkByName(linkMap, 'base_link') || null;
+        if (!carFrame) {
+            return;
+        }
+
+        this.isInitializing = true;
+
+        try {
+            const rapierModule = await import(RAPIER_CDN);
+            const RAPIER = rapierModule?.default || rapierModule;
+
+            if (!RAPIER || typeof RAPIER.init !== 'function') {
+                throw new Error('RAPIER init function not found');
+            }
+
+            await RAPIER.init();
+
+            const world = new RAPIER.World(new RAPIER.Vector3(0, 0, -9.81));
+            const initialPosition = carFrame.position.clone();
+            const initialQuaternion = carFrame.quaternion.clone();
+
+            const rigidBodyDesc = RAPIER.RigidBodyDesc.dynamic()
+                .setTranslation(initialPosition.x, initialPosition.y, initialPosition.z)
+                .setRotation(initialQuaternion)
+                .setLinearDamping(2.2)
+                .setAngularDamping(3.2)
+                .setCcdEnabled(true);
+
+            const body = world.createRigidBody(rigidBodyDesc);
+
+            // Keep the vehicle upright with API-compatible fallbacks across Rapier versions.
+            let hasSelectiveRotationLock = false;
+            if (typeof body.setEnabledRotations === 'function') {
+                body.setEnabledRotations(false, false, true, true);
+                hasSelectiveRotationLock = true;
+            } else if (typeof body.restrictRotations === 'function') {
+                body.restrictRotations(false, false, true, true);
+                hasSelectiveRotationLock = true;
+            } else {
+                console.warn('[URDF][Simulation] selective rotation lock API unavailable; steering yaw kept enabled.');
+            }
+            this.isUprightRotationLockActive = hasSelectiveRotationLock;
+
+            const bbox = this.computeChassisBounds(carFrame, linkMap);
+            const size = bbox.getSize(new THREE.Vector3());
+            const worldCenter = bbox.getCenter(new THREE.Vector3());
+            const localCenter = carFrame.worldToLocal(worldCenter.clone());
+            const halfX = Math.max((size.x || 0.6) * 0.5, 0.12);
+            const halfY = Math.max((size.y || 0.4) * 0.5, 0.10);
+
+            const bboxMinLocalZ = localCenter.z - Math.max((size.z || 0.25) * 0.5, 0.06);
+            const bboxMaxLocalZ = localCenter.z + Math.max((size.z || 0.25) * 0.5, 0.06);
+            this.vehicleLocalMinZ = bboxMinLocalZ;
+            this.estimateWheelEffectiveRadiusMeters(carFrame, linkMap);
+            this.wheelLocalMinZ = this.getWheelLocalMinZ(carFrame, linkMap);
+            if (Number.isFinite(this.wheelLocalMinZ)) {
+                this.groundContactLocalMinZ = this.wheelLocalMinZ;
+            } else if (Number.isFinite(this.vehicleLocalMinZ)) {
+                this.groundContactLocalMinZ = this.vehicleLocalMinZ;
+            } else {
+                this.groundContactLocalMinZ = null;
+            }
+            const halfZ = Math.max((bboxMaxLocalZ - bboxMinLocalZ) * 0.5, 0.06);
+            const adjustedCenterZ = (bboxMaxLocalZ + bboxMinLocalZ) * 0.5;
+
+            const colliderDesc = RAPIER.ColliderDesc.cuboid(halfX, halfY, halfZ)
+                .setTranslation(localCenter.x, localCenter.y, adjustedCenterZ)
+                .setFriction(0.15)
+                .setRestitution(0.04);
+            this.vehicleCollider = world.createCollider(colliderDesc, body);
+            this.vehicleColliders = [this.vehicleCollider];
+            if (this.enableWheelPhysicsColliders) {
+                this.addWheelCollidersFromUrdf(body, carFrame, linkMap);
+            }
+
+            this.rapier = RAPIER;
+            this.world = world;
+            this.body = body;
+            this.carFrame = carFrame;
+            this.initialPosition = initialPosition.clone();
+            this.initialQuaternion = initialQuaternion.clone();
+            this.vehicleHalfExtents = { x: halfX, y: halfY, z: halfZ };
+            this.addGroundCollider();
+            this.enforceWheelGroundContactAtLoad(linkMap);
+            this.addObstacleColliderFromUrdf();
+            this.isReady = true;
+            this.hasFailed = false;
+
+            console.log('[URDF][Simulation] Rapier direction control with URDF obstacle initialized');
+        } catch (error) {
+            this.hasFailed = true;
+            console.warn('[URDF][Simulation] Rapier initialization failed:', error);
+        } finally {
+            this.isInitializing = false;
+        }
+    }
+
+    stepSimulation() {
+        if (!this.isReady) {
+            return;
+        }
+
+        if (!this.viewer || !this.rapier || !this.world || !this.body || !this.carFrame) {
+            return;
+        }
+
+        const now = performance.now();
+        if (!this.lastStepTimeMs) {
+            this.lastStepTimeMs = now;
+        }
+
+        const deltaSec = Math.min((now - this.lastStepTimeMs) / 1000, 0.1);
+        this.lastStepTimeMs = now;
+
+        const keyboardState = this.getKeyboardDriveState();
+        const driveViewer = this.getDriveSourceViewer();
+
+        let throttleSign = 0;
+        let steerSign = 0;
+        let keyboardMoveX = 0;
+        let keyboardMoveY = 0;
+        if (keyboardState.isActive) {
+            keyboardMoveX = keyboardState.moveX;
+            keyboardMoveY = keyboardState.moveY;
+        } else {
+            const driveMode = String(driveViewer?.driveMode || this.viewer?.driveMode || 'stop');
+            if (driveMode === 'forward') {
+                throttleSign = 1;
+            } else if (driveMode === 'backward') {
+                throttleSign = -1;
+            } else if (driveMode === 'left') {
+                throttleSign = 0;
+                steerSign = 1;
+            } else if (driveMode === 'right') {
+                throttleSign = 0;
+                steerSign = -1;
+            } else {
+                const wheelSides = this.getWheelSideSignedRpm();
+                if (wheelSides) {
+                    const avgSignedRpm = (wheelSides.left + wheelSides.right) * 0.5;
+                    const rpmDiff = wheelSides.right - wheelSides.left;
+                    if (Math.abs(avgSignedRpm) > 0.2) {
+                        throttleSign = avgSignedRpm > 0 ? 1 : -1;
+                    }
+                    if (Math.abs(rpmDiff) > 0.2) {
+                        steerSign = rpmDiff > 0 ? 1 : -1;
+                    }
+                }
+            }
+        }
+
+        const speedMps = this.getCommandedDriveSpeedMps();
+        const clampedSpeed = Math.min(speedMps, this.maxSpeedMps);
+        const effectiveSteerSign = clampedSpeed > 1e-3 ? steerSign : 0;
+        const wasObstacleContact = this.isVehicleObstacleContact;
+        let commandedVelocityX = 0;
+        let commandedVelocityY = 0;
+
+        if (this.keepUprightOnFlatGround) {
+            this.setUprightRotationLockEnabled(!wasObstacleContact);
+        }
+
+        const previousTranslation = this.body.translation();
+        const previousRotation = this.body.rotation();
+        const previousPose = {
+            x: previousTranslation.x,
+            y: previousTranslation.y,
+            z: previousTranslation.z,
+            qx: previousRotation.x,
+            qy: previousRotation.y,
+            qz: previousRotation.z,
+            qw: previousRotation.w
+        };
+
+        const currentLinearVelocity = this.body.linvel();
+        let lockedRotation = null;
+        if (keyboardState.isActive) {
+            lockedRotation = this.body.rotation();
+            const velocitySmoothingAlpha = 1 - Math.exp(-12 * deltaSec);
+            const targetVelocityX = keyboardMoveX * clampedSpeed;
+            const targetVelocityY = keyboardMoveY * clampedSpeed;
+            const velocityX = currentLinearVelocity.x + ((targetVelocityX - currentLinearVelocity.x) * velocitySmoothingAlpha);
+            const velocityY = currentLinearVelocity.y + ((targetVelocityY - currentLinearVelocity.y) * velocitySmoothingAlpha);
+            commandedVelocityX = targetVelocityX;
+            commandedVelocityY = targetVelocityY;
+
+            const nextVelocityZ = wasObstacleContact ? currentLinearVelocity.z : Math.min(0, currentLinearVelocity.z);
+            this.body.setLinvel(new this.rapier.Vector3(velocityX, velocityY, nextVelocityZ), true);
+            this.body.setAngvel(new this.rapier.Vector3(0, 0, 0), true);
+        } else {
+            const bodyRotation = this.body.rotation();
+            const yaw = this.extractYawFromQuaternion(bodyRotation);
+            const currentAngularVelocity = this.body.angvel();
+            const velocityX = Math.cos(yaw) * clampedSpeed * throttleSign;
+            const velocityY = Math.sin(yaw) * clampedSpeed * throttleSign;
+            commandedVelocityX = velocityX;
+            commandedVelocityY = velocityY;
+
+            const nextVelocityZ = wasObstacleContact ? currentLinearVelocity.z : Math.min(0, currentLinearVelocity.z);
+            this.body.setLinvel(new this.rapier.Vector3(velocityX, velocityY, nextVelocityZ), true);
+            this.body.setAngvel(new this.rapier.Vector3(currentAngularVelocity.x, currentAngularVelocity.y, this.maxYawRateRad * effectiveSteerSign), true);
+        }
+
+        // Follow the fixed-step update style from three.js Rapier vehicle controller example.
+        this.physicsAccumulatorSec = Math.min(this.physicsAccumulatorSec + deltaSec, this.physicsFixedTimeStepSec * this.maxPhysicsCatchupSteps);
+        let stepIndex = 0;
+        while (this.physicsAccumulatorSec >= this.physicsFixedTimeStepSec && stepIndex < this.maxPhysicsCatchupSteps) {
+            this.world.timestep = this.physicsFixedTimeStepSec;
+            this.world.step();
+            this.clampVehicleAboveGround();
+            this.physicsAccumulatorSec -= this.physicsFixedTimeStepSec;
+            stepIndex += 1;
+        }
+
+        if (keyboardState.isActive && lockedRotation && !wasObstacleContact) {
+            this.body.setRotation(lockedRotation, true);
+            this.body.setAngvel(new this.rapier.Vector3(0, 0, 0), true);
+        }
+
+        const hasObstacleContact = this.updateObstacleContactState();
+        if (this.keepUprightOnFlatGround) {
+            this.setUprightRotationLockEnabled(!hasObstacleContact);
+        }
+
+        this.maybeLogRuntimeDiagnostics(
+            deltaSec,
+            driveViewer,
+            clampedSpeed,
+            throttleSign,
+            steerSign,
+            hasObstacleContact
+        );
+
+        const hasMoveCommand = keyboardState.isActive || throttleSign !== 0;
+        if (hasMoveCommand && !hasObstacleContact) {
+            const currentVelocity = this.body.linvel();
+            const keepZVelocity = hasObstacleContact ? currentVelocity.z : Math.min(0, currentVelocity.z);
+            this.body.setLinvel(new this.rapier.Vector3(commandedVelocityX, commandedVelocityY, keepZVelocity), true);
+        }
+
+        const isMoveCommandActive = keyboardState.isActive || throttleSign !== 0;
+        if (this.blockMotionOnObstacleContact && hasObstacleContact && isMoveCommandActive) {
+            this.rollbackToPreviousPose(previousPose);
+            return;
+        }
+
+        const nextPosition = this.body.translation();
+        const nextRotation = this.body.rotation();
+
+        this.carFrame.position.set(nextPosition.x, nextPosition.y, nextPosition.z);
+        this.carFrame.quaternion.set(nextRotation.x, nextRotation.y, nextRotation.z, nextRotation.w).normalize();
+    }
+
+    async runLoop() {
+        if (!this.viewer) {
+            this.viewer = this.findSimulationViewer();
+        }
+
+        if (this.viewer && !this.isReady && !this.hasFailed) {
+            await this.ensureRapierInitialized();
+        }
+
+        this.stepSimulation();
+        requestAnimationFrame(() => this.runLoop());
+    }
+
+    start() {
+        this.initializeSpeedSliderPreference();
+        this.attachKeyboardControls();
+        requestAnimationFrame(() => this.runLoop());
+    }
+
+    resetUiStates() {
+        if (typeof window.setDriveMode === 'function') {
+            window.setDriveMode('stop');
+        }
+
+        this.resetRoadAttitude();
+
+        const wheelKeys = ['fl', 'fr', 'rl', 'rr'];
+        wheelKeys.forEach((key) => {
+            if (typeof window.setWheelAnimationByKey === 'function') {
+                window.setWheelAnimationByKey(key, 0);
+            }
+        });
+    }
+
+    resetRoadAttitude() {
+        this.resetRoadRoll();
+        this.resetRoadPitch();
+    }
+
+    resetRoadRoll() {
+        if (typeof window.setRoadRollAngleDeg === 'function') {
+            window.setRoadRollAngleDeg(0);
+        }
+
+        const rollInput = document.getElementById('road-roll-angle-deg');
+        if (rollInput) {
+            rollInput.value = '0';
+        }
+    }
+
+    resetRoadPitch() {
+        if (typeof window.setRoadPitchAngleDeg === 'function') {
+            window.setRoadPitchAngleDeg(0);
+        }
+
+        const pitchInput = document.getElementById('road-pitch-angle-deg');
+        if (pitchInput) {
+            pitchInput.value = '0';
+        }
+    }
+
+    resetPhysicalState() {
+        if (!this.isReady || !this.body || !this.carFrame || !this.rapier || !this.initialPosition || !this.initialQuaternion) {
+            return;
+        }
+
+        this.hasLoggedGroundDiagnostics = false;
+
+        this.body.setTranslation(
+            new this.rapier.Vector3(this.initialPosition.x, this.initialPosition.y, this.initialPosition.z),
+            true
+        );
+        this.body.setRotation(this.initialQuaternion, true);
+        this.body.setLinvel(new this.rapier.Vector3(0, 0, 0), true);
+        this.body.setAngvel(new this.rapier.Vector3(0, 0, 0), true);
+        this.isVehicleObstacleContact = false;
+
+        const linkMap = this.viewer?.robotModel?.links || null;
+        this.enforceWheelGroundContactAtLoad(linkMap);
+    }
+
+    async reset() {
+        this.resetUiStates();
+        this.lastStepTimeMs = 0;
+        this.physicsAccumulatorSec = 0;
+
+        if (!this.viewer) {
+            this.viewer = this.findSimulationViewer();
+        }
+
+        if (this.viewer && !this.isReady && !this.hasFailed) {
+            await this.ensureRapierInitialized();
+        }
+
+        this.resetPhysicalState();
+    }
 }
 
+const rapierDriveSimulation = new RapierDriveSimulation();
+rapierDriveSimulation.start();
 
+globalThis.resetSimulation = function() {
+    rapierDriveSimulation.reset();
+};
+
+globalThis.resetSimulationSpeed = function() {
+    rapierDriveSimulation.resetSpeedSliderToDefault();
+};
+
+globalThis.resetSimulationAttitude = function() {
+    rapierDriveSimulation.resetRoadAttitude();
+};
+
+globalThis.resetSimulationRoll = function() {
+    rapierDriveSimulation.resetRoadRoll();
+};
+
+globalThis.resetSimulationPitch = function() {
+    rapierDriveSimulation.resetRoadPitch();
+};

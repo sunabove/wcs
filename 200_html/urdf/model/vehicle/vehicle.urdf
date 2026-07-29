@@ -305,8 +305,8 @@
     <origin xyz="3.88 0.00 0.00" rpy="0 0 0" />
   </joint>
 
-  <joint name="ground_to_ellipsoid_surface" type="fixed">
-    <parent link="ground" />
+  <joint name="origin_to_ellipsoid_surface" type="fixed">
+    <parent link="origin" />
     <child link="ellipsoid_surface" />
     <origin xyz="0 0 -0.5005" rpy="0 0 0" />
   </joint>

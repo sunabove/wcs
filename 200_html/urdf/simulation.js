@@ -408,12 +408,16 @@ class RapierDriveSimulation {
 
         const zTicks = intervalCount;
         ctx.fillText('cm', 8, 10);
+        ctx.textAlign = 'right';
+        ctx.textBaseline = 'middle';
         for (let i = 0; i <= zTicks; i += 1) {
             const ratio = i / zTicks;
             const z = maxZ - (maxZ - minZ) * ratio;
             const y = margin.top + plotHeight * ratio;
-            ctx.fillText(String(Math.round(z * 100)), 2, y + 3);
+            ctx.fillText(String(Math.round(z * 100)), margin.left - 4, y);
         }
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'alphabetic';
 
         Object.keys(this.wheelZChartHistoryByKey).forEach((wheelKey) => {
             const samples = (this.wheelZChartHistoryByKey[wheelKey] || [])

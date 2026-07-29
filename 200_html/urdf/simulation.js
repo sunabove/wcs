@@ -74,6 +74,7 @@ class RapierDriveSimulation {
         this.commandedDriveMode = 'stop';
         this.commandedSpeedKmh = SIM_SPEED_DEFAULT_KMH;
         this.hasInstalledDriveCommandHooks = false;
+        this.hasActivatedDynamicGroundClamp = false;
         this.debugPanelElement = null;
         this.debugTextElement = null;
         this.debugStatusUpdateIntervalSec = 0.2;
@@ -1455,6 +1456,10 @@ class RapierDriveSimulation {
         const speedMps = this.getCommandedDriveSpeedMps();
         const clampedSpeed = Math.min(speedMps, this.maxSpeedMps);
         const effectiveSteerSign = clampedSpeed > 1e-3 ? steerSign : 0;
+        const hasDriveCommand = keyboardState.isActive || throttleSign !== 0 || steerSign !== 0;
+        if (hasDriveCommand) {
+            this.hasActivatedDynamicGroundClamp = true;
+        }
         const wasObstacleContact = this.isVehicleObstacleContact;
         let commandedVelocityX = 0;
         let commandedVelocityY = 0;
@@ -1510,7 +1515,9 @@ class RapierDriveSimulation {
         while (this.physicsAccumulatorSec >= this.physicsFixedTimeStepSec && stepIndex < this.maxPhysicsCatchupSteps) {
             this.world.timestep = this.physicsFixedTimeStepSec;
             this.world.step();
-            this.clampVehicleAboveGround();
+            if (this.hasActivatedDynamicGroundClamp) {
+                this.clampVehicleAboveGround();
+            }
             this.physicsAccumulatorSec -= this.physicsFixedTimeStepSec;
             stepIndex += 1;
         }
@@ -1638,6 +1645,7 @@ class RapierDriveSimulation {
         this.body.setLinvel(new this.rapier.Vector3(0, 0, 0), true);
         this.body.setAngvel(new this.rapier.Vector3(0, 0, 0), true);
         this.isVehicleObstacleContact = false;
+        this.hasActivatedDynamicGroundClamp = false;
 
         // On reset, always return to the URDF-authored pose without extra ground alignment offsets.
         this.syncCarFrameFromBody();

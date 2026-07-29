@@ -74,6 +74,60 @@ class RapierDriveSimulation {
         this.commandedDriveMode = 'stop';
         this.commandedSpeedKmh = SIM_SPEED_DEFAULT_KMH;
         this.hasInstalledDriveCommandHooks = false;
+        this.debugPanelElement = null;
+        this.debugTextElement = null;
+        this.debugStatusUpdateIntervalSec = 0.2;
+        this.debugStatusElapsedSec = 0;
+    }
+
+    initDebugPanel() {
+        this.debugPanelElement = document.getElementById('simulation-debug-panel');
+        this.debugTextElement = document.getElementById('simulation-debug-text');
+        if (!this.debugPanelElement || !this.debugTextElement) {
+            return;
+        }
+
+        this.debugPanelElement.style.display = 'block';
+        this.debugTextElement.textContent = '초기화 중...';
+    }
+
+    updateDebugPanel(deltaSec = 0) {
+        if (!this.debugTextElement) {
+            return;
+        }
+
+        this.debugStatusElapsedSec += Math.max(Number(deltaSec) || 0, 0);
+        if (this.debugStatusElapsedSec < this.debugStatusUpdateIntervalSec) {
+            return;
+        }
+        this.debugStatusElapsedSec = 0;
+
+        const activeViewerId = String(window.activeURDFViewer?.container?.id || 'null');
+        const simulationViewerId = String(this.viewer?.container?.id || 'null');
+        const driveViewer = this.getDriveSourceViewer();
+        const driveViewerId = String(driveViewer?.container?.id || 'null');
+        const driveMode = String(this.commandedDriveMode || driveViewer?.driveMode || this.viewer?.driveMode || 'stop');
+        const speedKmh = Number(this.commandedSpeedKmh);
+        const speedMps = this.getCommandedDriveSpeedMps();
+        const isReady = this.isReady ? 'Y' : 'N';
+        const isFailed = this.hasFailed ? 'Y' : 'N';
+        const hookState = this.hasInstalledDriveCommandHooks ? 'Y' : 'N';
+
+        let bodySummary = 'body=unavailable';
+        if (this.body) {
+            const pos = this.body.translation();
+            const vel = this.body.linvel();
+            bodySummary = `pos=(${pos.x.toFixed(3)}, ${pos.y.toFixed(3)}, ${pos.z.toFixed(3)}) vel=(${vel.x.toFixed(3)}, ${vel.y.toFixed(3)}, ${vel.z.toFixed(3)})`;
+        }
+
+        this.debugTextElement.textContent = [
+            `ready=${isReady} failed=${isFailed} hooks=${hookState}`,
+            `activeViewer=${activeViewerId}`,
+            `simulationViewer=${simulationViewerId}`,
+            `driveViewer=${driveViewerId}`,
+            `mode=${driveMode} speedKmh=${Number.isFinite(speedKmh) ? speedKmh.toFixed(1) : 'NaN'} speedMps=${Number.isFinite(speedMps) ? speedMps.toFixed(3) : 'NaN'}`,
+            bodySummary
+        ].join('\n');
     }
 
     installDriveCommandHooks() {
@@ -1477,14 +1531,17 @@ class RapierDriveSimulation {
         }
 
         this.stepSimulation();
+        this.updateDebugPanel(this.physicsFixedTimeStepSec);
         requestAnimationFrame(() => this.runLoop());
     }
 
     start() {
+        this.initDebugPanel();
         this.initializeSpeedSliderPreference();
         this.attachKeyboardControls();
         this.installDriveCommandHooks();
         this.syncInitialDriveStateFromUi();
+        this.updateDebugPanel(this.debugStatusUpdateIntervalSec);
         requestAnimationFrame(() => this.runLoop());
     }
 

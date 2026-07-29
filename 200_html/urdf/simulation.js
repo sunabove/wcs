@@ -200,6 +200,39 @@ class RapierDriveSimulation {
         });
     }
 
+    extractWheelRadiusMetersFromLink(wheelLink) {
+        if (!wheelLink) {
+            return null;
+        }
+
+        let detectedRadiusMeters = null;
+
+        wheelLink.traverse((node) => {
+            if (!node?.isMesh || !node.geometry) {
+                return;
+            }
+
+            const geometryType = String(node.geometry.type || '');
+            const geometryParams = node.geometry.parameters || {};
+            const hasCylinderRadius = Number.isFinite(geometryParams.radiusTop) && Number.isFinite(geometryParams.radiusBottom);
+            if (!geometryType.includes('Cylinder') || !hasCylinderRadius) {
+                return;
+            }
+
+            const worldScale = new THREE.Vector3(1, 1, 1);
+            node.getWorldScale(worldScale);
+            const maxScale = Math.max(Math.abs(worldScale.x), Math.abs(worldScale.y), Math.abs(worldScale.z), 1e-6);
+            const candidateRadius = Math.max(geometryParams.radiusTop, geometryParams.radiusBottom) * maxScale;
+            if (!Number.isFinite(candidateRadius) || candidateRadius <= 0) {
+                return;
+            }
+
+            detectedRadiusMeters = Math.max(detectedRadiusMeters || 0, candidateRadius);
+        });
+
+        return Number.isFinite(detectedRadiusMeters) ? detectedRadiusMeters : null;
+    }
+
     sampleWheelCenterZForChart(nowSec) {
         if (!this.viewer?.robotModel?.links) {
             return;

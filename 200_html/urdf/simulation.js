@@ -106,6 +106,12 @@ class RapierDriveSimulation {
             rl: '#198754',
             rr: '#fd7e14'
         };
+        this.wheelDotColorByKey = {
+            fl: '#7fb3ff',
+            fr: '#ff8d9a',
+            rl: '#63c78d',
+            rr: '#ffb36b'
+        };
         this.wheelLinkNameByKey = {
             fl: 'wheel_fl',
             fr: 'wheel_fr',
@@ -498,12 +504,33 @@ class RapierDriveSimulation {
             });
             ctx.stroke();
 
-            ctx.fillStyle = seriesColor;
+            const dotColor = this.wheelDotColorByKey[wheelKey] || seriesColor;
+            ctx.fillStyle = dotColor;
             samples.forEach((sample) => {
                 const x = toX(sample.t);
                 const y = toY(sample.z);
+                const markerSize = 2.8;
                 ctx.beginPath();
-                ctx.arc(x, y, 1.8, 0, Math.PI * 2);
+                if (wheelKey === 'fl') {
+                    // Circle marker
+                    ctx.arc(x, y, 1.8, 0, Math.PI * 2);
+                } else if (wheelKey === 'fr') {
+                    // Square marker
+                    ctx.rect(x - markerSize * 0.5, y - markerSize * 0.5, markerSize, markerSize);
+                } else if (wheelKey === 'rl') {
+                    // Triangle marker
+                    ctx.moveTo(x, y - markerSize * 0.7);
+                    ctx.lineTo(x + markerSize * 0.65, y + markerSize * 0.5);
+                    ctx.lineTo(x - markerSize * 0.65, y + markerSize * 0.5);
+                    ctx.closePath();
+                } else {
+                    // Diamond marker (rr)
+                    ctx.moveTo(x, y - markerSize * 0.8);
+                    ctx.lineTo(x + markerSize * 0.8, y);
+                    ctx.lineTo(x, y + markerSize * 0.8);
+                    ctx.lineTo(x - markerSize * 0.8, y);
+                    ctx.closePath();
+                }
                 ctx.fill();
             });
         });

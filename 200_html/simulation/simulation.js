@@ -26,8 +26,8 @@ class RapierDriveSimulation {
         this.obstacleColliderInfos = [];
         this.obstacleContactSurfaceToleranceMeters = 0.008;
         this.obstacleApproachDisableSnapDistanceMeters = 0.05;
-        this.obstacleDepenetrationEpsilonMeters = 0.002;
-        this.obstacleDepenetrationMaxIterations = 3;
+        this.obstacleDepenetrationEpsilonMeters = 0.004;
+        this.obstacleDepenetrationMaxIterations = 6;
         this.isVehicleObstacleContact = false;
         this.carFrame = null;
         this.initialPosition = null;
@@ -40,7 +40,7 @@ class RapierDriveSimulation {
         this.groundContactBiasMeters = 0;
         this.groundZ = 0;
         this.holeRegions = [];
-        this.underbodyPassThroughClearanceMeters = 0.06;
+        this.underbodyPassThroughClearanceMeters = 0.01;
         this.urdfObstacleLinkNames = ['obstacle_rock_01', 'obstacle_rock_02', 'obstacle_rock', 'rock_obstacle'];
         this.urdfObstacleLinkNamePatterns = [
             /^obstacle/i,
@@ -67,12 +67,14 @@ class RapierDriveSimulation {
         this.bodyGroundClampActivationMarginMeters = 0.004;
         this.wheelGroundHardClampOffsetMeters = 0.001;
         this.wheelGroundClampActivationMarginMeters = 0.003;
-        this.postObstacleGroundReattachToleranceMeters = 0.01;
-        this.postObstacleGroundReattachBlend = 0.45;
+        this.postObstacleGroundReattachToleranceMeters = 0.001;
+        this.postObstacleGroundReattachBlend = 1.0;
+        this.postObstacleGroundRecoverDurationSec = 0.35;
+        this.postObstacleGroundRecoverRemainingSec = 0;
         this.flatGroundSnapDistanceMeters = 0.01;
         this.flatGroundVerticalVelocitySnapThresholdMps = 0.35;
         this.maxLiftWithoutObstacleMeters = 0.03;
-        this.maxLiftWithObstacleMeters = 0.28;
+        this.maxLiftWithObstacleMeters = 0.14;
         this.isInitializing = false;
         this.isReady = false;
         this.hasFailed = false;
@@ -145,7 +147,7 @@ class RapierDriveSimulation {
             rl: null,
             rr: null
         };
-        this.wheelColliderInflationMeters = 0.02;
+        this.wheelColliderInflationMeters = 0.03;
     }
 
     initDebugPanel() {
@@ -2055,7 +2057,7 @@ class RapierDriveSimulation {
         const obstacleTopZ = obstacleInfo.center.z + obstacleInfo.halfExtents.z;
         const clearance = Math.max(Number(this.underbodyPassThroughClearanceMeters) || 0, 0);
 
-        return obstacleTopZ <= (wheelContactPlaneZ + clearance);
+        return obstacleTopZ <= (wheelContactPlaneZ - clearance);
     }
 
     getWheelContactPlaneZ() {
@@ -2219,25 +2221,39 @@ class RapierDriveSimulation {
             return false;
         }
 
-        if (this.isVehicleObstacleContact || this.isVehicleOverHoleRegion() || this.isVehicleNearObstacleSupportZone()) {
+        if (this.isVehicleObstacleContact || this.isVehicleOverHoleRegion()) {
             return false;
         }
 
-        const targetZ = this.getGroundContactTargetZ();
-        if (!Number.isFinite(targetZ)) {
+        const measuredWheelMinZ = this.getWheelWorldMinZ(linkMap);
+        if (!Number.isFinite(measuredWheelMinZ)) {
             return false;
         }
 
         const translation = this.body.translation();
         const velocity = this.body.linvel();
-        const floatHeight = translation.z - targetZ;
+        const wheelGroundGap = measuredWheelMinZ - this.groundZ;
         const tolerance = Math.max(Number(this.postObstacleGroundReattachToleranceMeters) || 0, 0);
-        if (floatHeight <= tolerance) {
+
+        // Keep reattaching for a short period after obstacle contact ends.
+        const inRecoverWindow = (Number(this.postObstacleGroundRecoverRemainingSec) || 0) > 0;
+        if (wheelGroundGap <= tolerance && !inRecoverWindow) {
             return false;
         }
 
+        if (!inRecoverWindow && this.isVehicleNearObstacleSupportZone()) {
+            return false;
+        }
+
+        const maxDropPerStep = 0.06;
         const blend = THREE.MathUtils.clamp(Number(this.postObstacleGroundReattachBlend) || 0, 0.1, 1);
-        const nextZ = targetZ + (floatHeight * (1 - blend));
+        const desiredDrop = Math.max(wheelGroundGap * blend, 0);
+        const appliedDrop = Math.min(desiredDrop, maxDropPerStep);
+        if (appliedDrop <= 1e-6) {
+            return false;
+        }
+
+        const nextZ = translation.z - appliedDrop;
         this.body.setTranslation(new this.rapier.Vector3(translation.x, translation.y, nextZ), true);
         this.body.setLinvel(new this.rapier.Vector3(velocity.x, velocity.y, Math.min(0, velocity.z)), true);
         return true;
@@ -2652,10 +2668,6 @@ class RapierDriveSimulation {
                             return;
                         }
 
-                        if (this.isObstacleBelowWheelContactPlane(obstacleInfo)) {
-                            return;
-                        }
-
                         if (this.isVehicleAabbTouchingObstacle(obstacleInfo)) {
                             hasContact = true;
                         }
@@ -2829,24 +2841,11 @@ class RapierDriveSimulation {
                 this.groundContactLocalMinZ = null;
             }
 
-            // Keep the chassis collider above wheel contact plane so low obstacles can pass under the body.
+            // Keep full chassis vertical span in collider to avoid artificial floating after obstacle traversal.
             let colliderMinLocalZ = rawBboxMinLocalZ;
             let colliderMaxLocalZ = rawBboxMaxLocalZ;
-            const underbodyBaselineLocalZ = 0;
-            if (Number.isFinite(this.wheelLocalMinZ)) {
-                const minPassThroughZ = Math.max(
-                    this.wheelLocalMinZ + Math.max(Number(this.underbodyPassThroughClearanceMeters) || 0, 0),
-                    underbodyBaselineLocalZ
-                );
-                colliderMinLocalZ = Math.max(colliderMinLocalZ, minPassThroughZ);
-                if ((colliderMaxLocalZ - colliderMinLocalZ) < 0.04) {
-                    colliderMaxLocalZ = colliderMinLocalZ + 0.04;
-                }
-            } else {
-                colliderMinLocalZ = Math.max(colliderMinLocalZ, underbodyBaselineLocalZ);
-                if ((colliderMaxLocalZ - colliderMinLocalZ) < 0.04) {
-                    colliderMaxLocalZ = colliderMinLocalZ + 0.04;
-                }
+            if ((colliderMaxLocalZ - colliderMinLocalZ) < 0.04) {
+                colliderMaxLocalZ = colliderMinLocalZ + 0.04;
             }
 
             const halfZ = Math.max((colliderMaxLocalZ - colliderMinLocalZ) * 0.5, 0.04);
@@ -3037,6 +3036,14 @@ class RapierDriveSimulation {
             this.world.timestep = this.physicsFixedTimeStepSec;
             this.world.step();
             let hasObstacleContactNow = this.updateObstacleContactState();
+            if (hasObstacleContactNow) {
+                this.postObstacleGroundRecoverRemainingSec = Math.max(Number(this.postObstacleGroundRecoverDurationSec) || 0, 0);
+            } else {
+                this.postObstacleGroundRecoverRemainingSec = Math.max(
+                    0,
+                    (Number(this.postObstacleGroundRecoverRemainingSec) || 0) - this.physicsFixedTimeStepSec
+                );
+            }
             const resolvedInterpenetration = this.resolveVehicleObstacleInterpenetration();
             if (resolvedInterpenetration) {
                 hasObstacleContactNow = this.updateObstacleContactState();

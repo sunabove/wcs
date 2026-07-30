@@ -208,6 +208,10 @@ class URDFViewer {
         this.wheelInfoToggleButtonElement = null;
         this.wheelInfoOverlayStorageKey = this.getWheelInfoOverlayStorageKey();
         this.isWheelInfoOverlayVisible = this.showWheelInfo;
+        this.carFrameOpacitySliderElement = null;
+        this.carFrameOpacityValueElement = null;
+        this.carFrameOpacityStorageKey = this.getCarFrameOpacityStorageKey();
+        this.carFrameOpacity = this.loadCarFrameOpacity();
         if (this.showWheelInfo) {
             this.isWheelInfoOverlayVisible = this.loadWheelInfoOverlayVisibleState();
         }
@@ -343,6 +347,107 @@ class URDFViewer {
         } catch (error) {
             // Ignore storage write errors in restricted browser modes.
         }
+    }
+
+    getCarFrameOpacityStorageKey() {
+        const containerId = String(this.container?.id || '').trim();
+        if (containerId) {
+            return `wcs.urdf.car_frame_opacity.${containerId}`;
+        }
+
+        const containerClassName = String(this.container?.className || '').trim().replace(/\s+/g, '_');
+        if (containerClassName) {
+            return `wcs.urdf.car_frame_opacity.class_${containerClassName}`;
+        }
+
+        return 'wcs.urdf.car_frame_opacity.default';
+    }
+
+    loadCarFrameOpacity() {
+        const fallbackOpacity = 1;
+        if (!this.carFrameOpacityStorageKey || typeof window.localStorage === 'undefined') {
+            return fallbackOpacity;
+        }
+
+        try {
+            const savedValue = window.localStorage.getItem(this.carFrameOpacityStorageKey);
+            if (savedValue == null) {
+                return fallbackOpacity;
+            }
+
+            const parsedValue = Number.parseFloat(savedValue);
+            if (!Number.isFinite(parsedValue)) {
+                return fallbackOpacity;
+            }
+
+            return THREE.MathUtils.clamp(parsedValue, 0.1, 1);
+        } catch (error) {
+            return fallbackOpacity;
+        }
+    }
+
+    saveCarFrameOpacity() {
+        if (!this.carFrameOpacityStorageKey || typeof window.localStorage === 'undefined') {
+            return;
+        }
+
+        try {
+            window.localStorage.setItem(this.carFrameOpacityStorageKey, String(this.carFrameOpacity));
+        } catch (error) {
+            // Ignore storage write errors in restricted browser modes.
+        }
+    }
+
+    updateCarFrameOpacityControlState() {
+        if (this.carFrameOpacitySliderElement) {
+            const sliderValue = Math.round(THREE.MathUtils.clamp(this.carFrameOpacity, 0.1, 1) * 100);
+            this.carFrameOpacitySliderElement.value = String(sliderValue);
+            this.carFrameOpacitySliderElement.style.setProperty('--slider-percent', `${sliderValue}%`);
+        }
+
+        if (this.carFrameOpacityValueElement) {
+            const percentValue = Math.round(THREE.MathUtils.clamp(this.carFrameOpacity, 0.1, 1) * 100);
+            this.carFrameOpacityValueElement.textContent = `${percentValue}%`;
+        }
+    }
+
+    applyCarFrameOpacity(opacityValue) {
+        if (!this.robotModel) {
+            return;
+        }
+
+        const linkMap = this.robotModel.links || {};
+        const carFrame = linkMap.car_frame || null;
+        if (!carFrame) {
+            return;
+        }
+
+        const opacity = THREE.MathUtils.clamp(Number(opacityValue), 0.1, 1);
+        carFrame.traverse((object) => {
+            if (!object || !object.isMesh || !object.material) {
+                return;
+            }
+
+            const materials = Array.isArray(object.material) ? object.material : [object.material];
+            materials.forEach((material) => {
+                if (!material) {
+                    return;
+                }
+
+                material.transparent = opacity < 1;
+                material.opacity = opacity;
+                material.depthWrite = opacity >= 1;
+                material.needsUpdate = true;
+            });
+        });
+    }
+
+    setCarFrameOpacity(opacityValue) {
+        const opacity = THREE.MathUtils.clamp(Number(opacityValue), 0.1, 1);
+        this.carFrameOpacity = opacity;
+        this.saveCarFrameOpacity();
+        this.applyCarFrameOpacity(opacity);
+        this.updateCarFrameOpacityControlState();
     }
 
     parseViewerWheelKey(containerId) {
@@ -1244,6 +1349,55 @@ class URDFViewer {
             this.wheelInfoToggleButtonElement = wheelToggleButtonElement;
             this.updateWheelInfoToggleButtonState();
             wrapperElement.appendChild(wheelToggleButtonElement);
+
+            const opacityControlElement = document.createElement('div');
+            opacityControlElement.style.display = 'inline-flex';
+            opacityControlElement.style.alignItems = 'center';
+            opacityControlElement.style.gap = '6px';
+            opacityControlElement.style.height = '32px';
+            opacityControlElement.style.padding = '0 8px';
+            opacityControlElement.style.border = '1px solid rgba(32, 46, 66, 0.45)';
+            opacityControlElement.style.borderRadius = '8px';
+            opacityControlElement.style.background = 'rgba(255, 255, 255, 0.96)';
+            opacityControlElement.style.pointerEvents = 'auto';
+
+            const opacityLabelElement = document.createElement('span');
+            opacityLabelElement.className = 'small fw-semibold text-nowrap';
+            opacityLabelElement.textContent = '투명도';
+            opacityLabelElement.style.color = '#1f2937';
+
+            const opacitySliderElement = document.createElement('input');
+            opacitySliderElement.type = 'range';
+            opacitySliderElement.min = '10';
+            opacitySliderElement.max = '100';
+            opacitySliderElement.step = '1';
+            opacitySliderElement.className = 'form-range m-0';
+            opacitySliderElement.style.width = '96px';
+            opacitySliderElement.style.cursor = 'pointer';
+            opacitySliderElement.setAttribute('aria-label', 'car_frame 내부 요소 투명도');
+
+            const opacityValueElement = document.createElement('span');
+            opacityValueElement.className = 'small fw-semibold text-nowrap';
+            opacityValueElement.style.minWidth = '42px';
+            opacityValueElement.style.textAlign = 'right';
+            opacityValueElement.style.color = '#1f2937';
+
+            opacitySliderElement.value = String(Math.round(this.carFrameOpacity * 100));
+            opacityValueElement.textContent = `${Math.round(this.carFrameOpacity * 100)}%`;
+            opacitySliderElement.style.setProperty('--slider-percent', `${Math.round(this.carFrameOpacity * 100)}%`);
+
+            opacitySliderElement.addEventListener('input', (event) => {
+                const nextValue = Number.parseFloat(event.target.value);
+                this.setCarFrameOpacity(nextValue / 100);
+            });
+
+            this.carFrameOpacitySliderElement = opacitySliderElement;
+            this.carFrameOpacityValueElement = opacityValueElement;
+
+            opacityControlElement.appendChild(opacityLabelElement);
+            opacityControlElement.appendChild(opacitySliderElement);
+            opacityControlElement.appendChild(opacityValueElement);
+            wrapperElement.appendChild(opacityControlElement);
         }
 
         this.container.appendChild(wrapperElement);
@@ -3237,6 +3391,7 @@ class URDFViewer {
                 this.applyGroundHoleCarvingByCSG();
                 this.carFrameAlertMaterials = [];
                 this.isCarFrameAlertActive = false;
+                this.applyCarFrameOpacity(this.carFrameOpacity);
                 this.resolveWheelAnimationTargets();
                 this.resolveWheelHighlightTargets();
                 this.applyRoadAttitudeAngles();

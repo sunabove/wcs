@@ -192,6 +192,10 @@ class URDFViewer {
             containerElement.getAttribute('showAudio'),
             false
         );
+        this.showTransparency = this.parseBooleanAttribute(
+            containerElement.getAttribute('showTransparency'),
+            false
+        );
         this.showViewCube = this.parseBooleanAttribute(
             containerElement.getAttribute('showViewCube'),
             false
@@ -211,7 +215,7 @@ class URDFViewer {
         this.carFrameOpacitySliderElement = null;
         this.carFrameOpacityValueElement = null;
         this.carFrameOpacityStorageKey = this.getCarFrameOpacityStorageKey();
-        this.carFrameOpacity = this.loadCarFrameOpacity();
+        this.carFrameOpacity = this.showTransparency ? this.loadCarFrameOpacity() : 1;
         if (this.showWheelInfo) {
             this.isWheelInfoOverlayVisible = this.loadWheelInfoOverlayVisibleState();
         }
@@ -450,6 +454,10 @@ class URDFViewer {
     }
 
     setCarFrameOpacity(opacityValue) {
+        if (!this.showTransparency) {
+            return;
+        }
+
         const opacity = THREE.MathUtils.clamp(Number(opacityValue), 0.1, 1);
         this.carFrameOpacity = opacity;
         this.saveCarFrameOpacity();
@@ -1360,7 +1368,9 @@ class URDFViewer {
             this.wheelInfoToggleButtonElement = wheelToggleButtonElement;
             this.updateWheelInfoToggleButtonState();
             wrapperElement.appendChild(wheelToggleButtonElement);
+        }
 
+        if (this.showTransparency) {
             const opacityControlElement = document.createElement('div');
             opacityControlElement.style.display = 'inline-flex';
             opacityControlElement.style.alignItems = 'center';
@@ -3407,8 +3417,10 @@ class URDFViewer {
                 this.applyGroundHoleCarvingByCSG();
                 this.carFrameAlertMaterials = [];
                 this.isCarFrameAlertActive = false;
-                this.applyCarFrameOpacity(this.carFrameOpacity);
-                this.updateCarFrameOpacityControlState();
+                if (this.showTransparency) {
+                    this.applyCarFrameOpacity(this.carFrameOpacity);
+                    this.updateCarFrameOpacityControlState();
+                }
                 this.resolveWheelAnimationTargets();
                 this.resolveWheelHighlightTargets();
                 this.applyRoadAttitudeAngles();

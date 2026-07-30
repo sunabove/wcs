@@ -1233,9 +1233,9 @@ class URDFViewer {
         wrapperElement.style.left = '10px';
         wrapperElement.style.zIndex = '16';
         wrapperElement.style.display = 'inline-flex';
-        wrapperElement.style.flexDirection = 'column';
+        wrapperElement.style.flexDirection = 'row';
         wrapperElement.style.alignItems = 'flex-start';
-        wrapperElement.style.rowGap = '6px';
+        wrapperElement.style.columnGap = '6px';
         wrapperElement.style.pointerEvents = 'none';
 
         const panelElement = document.createElement('div');

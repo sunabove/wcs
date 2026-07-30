@@ -1637,17 +1637,14 @@ class URDFViewer {
         this.controls.addEventListener('end', () => {
             this.isDragging = false;
             this.logCameraInfos(true);
-            this.hideCameraToastOverlayLater();
+            this.updateCameraToastOverlay();
+            this.showCameraToastOverlay();
         });
 
         this.controls.addEventListener('change', () => {
             this.resetDirectionalLight(this.controls.target, this.directionalLightRadius);
             this.updateViewCubeOverlay();
             this.updateCompassOverlay();
-            if (this.isDragging) {
-                this.updateCameraToastOverlay();
-                this.showCameraToastOverlay();
-            }
             this.logCameraInfos(false);
         });
     }

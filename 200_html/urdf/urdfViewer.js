@@ -384,6 +384,12 @@ class URDFViewer {
                 return fallbackOpacity;
             }
 
+            // Backward compatibility: accept legacy percent-like values (e.g. 42, "42%")
+            // as well as normalized values (0.1~1.0).
+            if (parsedValue > 1) {
+                return THREE.MathUtils.clamp(parsedValue / 100, 0.1, 1);
+            }
+
             return THREE.MathUtils.clamp(parsedValue, 0.1, 1);
         } catch (error) {
             return fallbackOpacity;

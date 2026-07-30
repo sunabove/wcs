@@ -60,13 +60,15 @@ class RapierDriveSimulation {
         this.maxSpeedMps = 100 / 3.6;
         this.maxYawRateRad = THREE.MathUtils.degToRad(80);
         this.enableWheelPhysicsColliders = true;
-        this.blockMotionOnObstacleContact = false;
+        this.blockMotionOnObstacleContact = true;
         this.keepUprightOnFlatGround = true;
         this.isUprightRotationLockActive = false;
         this.groundPenetrationToleranceMeters = 0.003;
         this.bodyGroundClampActivationMarginMeters = 0.004;
         this.wheelGroundHardClampOffsetMeters = 0.001;
         this.wheelGroundClampActivationMarginMeters = 0.003;
+        this.postObstacleGroundReattachToleranceMeters = 0.01;
+        this.postObstacleGroundReattachBlend = 0.45;
         this.flatGroundSnapDistanceMeters = 0.01;
         this.flatGroundVerticalVelocitySnapThresholdMps = 0.35;
         this.maxLiftWithoutObstacleMeters = 0.03;
@@ -143,6 +145,7 @@ class RapierDriveSimulation {
             rl: null,
             rr: null
         };
+        this.wheelColliderInflationMeters = 0.02;
     }
 
     initDebugPanel() {
@@ -2211,6 +2214,35 @@ class RapierDriveSimulation {
         return true;
     }
 
+    settleVehicleToGroundAfterObstacle(linkMap) {
+        if (!this.body || !this.rapier || !linkMap || !Number.isFinite(this.groundZ)) {
+            return false;
+        }
+
+        if (this.isVehicleObstacleContact || this.isVehicleOverHoleRegion() || this.isVehicleNearObstacleSupportZone()) {
+            return false;
+        }
+
+        const targetZ = this.getGroundContactTargetZ();
+        if (!Number.isFinite(targetZ)) {
+            return false;
+        }
+
+        const translation = this.body.translation();
+        const velocity = this.body.linvel();
+        const floatHeight = translation.z - targetZ;
+        const tolerance = Math.max(Number(this.postObstacleGroundReattachToleranceMeters) || 0, 0);
+        if (floatHeight <= tolerance) {
+            return false;
+        }
+
+        const blend = THREE.MathUtils.clamp(Number(this.postObstacleGroundReattachBlend) || 0, 0.1, 1);
+        const nextZ = targetZ + (floatHeight * (1 - blend));
+        this.body.setTranslation(new this.rapier.Vector3(translation.x, translation.y, nextZ), true);
+        this.body.setLinvel(new this.rapier.Vector3(velocity.x, velocity.y, Math.min(0, velocity.z)), true);
+        return true;
+    }
+
     addWheelCollidersFromUrdf(body, carFrame, linkMap) {
         if (!this.world || !this.rapier || !body || !carFrame || !linkMap) {
             return;
@@ -2234,7 +2266,8 @@ class RapierDriveSimulation {
 
             const centerWorld = wheelBounds.getCenter(new THREE.Vector3());
             const size = wheelBounds.getSize(new THREE.Vector3());
-            const approxRadius = Math.max(size.x * 0.5, size.z * 0.5, 0.05);
+            const inflation = Math.max(Number(this.wheelColliderInflationMeters) || 0, 0);
+            const approxRadius = Math.max(size.x * 0.5, size.z * 0.5, 0.05) + inflation;
             const localCenter = carFrame.worldToLocal(centerWorld.clone());
 
             const wheelColliderDesc = this.rapier.ColliderDesc.ball(approxRadius)
@@ -3020,6 +3053,10 @@ class RapierDriveSimulation {
                 ? this.enforceMeasuredWheelGroundLimit(linkMap)
                 : false;
             if (adjustedByWheelClamp) {
+                this.syncCarFrameFromBody();
+            }
+            const adjustedByGroundReattach = this.settleVehicleToGroundAfterObstacle(linkMap);
+            if (adjustedByGroundReattach) {
                 this.syncCarFrameFromBody();
             }
             this.stabilizeFlatGroundVerticalMotion();

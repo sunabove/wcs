@@ -470,6 +470,9 @@ class RapierDriveSimulation {
         ctx.textAlign = 'left';
         ctx.textBaseline = 'alphabetic';
 
+        // Small per-wheel Y pixel offset so lines stay visible when values are identical.
+        const yPixelOffsetByKey = { fl: -2, fr: -1, rl: 1, rr: 2 };
+
         Object.keys(this.wheelZChartHistoryByKey).forEach((wheelKey) => {
             const samples = (this.wheelZChartHistoryByKey[wheelKey] || [])
                 .filter((sample) => sample.t >= minTimeSec && sample.t <= windowEndSec);
@@ -495,13 +498,14 @@ class RapierDriveSimulation {
                 return;
             }
 
+            const yOffset = yPixelOffsetByKey[wheelKey] || 0;
             const seriesColor = this.wheelChartColorByKey[wheelKey] || '#222';
             ctx.strokeStyle = seriesColor;
             ctx.lineWidth = 1.7;
             ctx.beginPath();
             renderSamples.forEach((sample, index) => {
                 const x = toX(sample.t);
-                const y = toY(sample.z);
+                const y = toY(sample.z) + yOffset;
                 if (index === 0) {
                     ctx.moveTo(x, y);
                 } else {
@@ -513,7 +517,7 @@ class RapierDriveSimulation {
             ctx.fillStyle = seriesColor;
             renderSamples.forEach((sample) => {
                 const x = toX(sample.t);
-                const y = toY(sample.z);
+                const y = toY(sample.z) + yOffset;
                 const markerSize = 5.0;
                 ctx.beginPath();
                 if (wheelKey === 'fl') {

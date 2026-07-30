@@ -214,6 +214,7 @@ class URDFViewer {
         this.isWheelInfoOverlayVisible = this.showWheelInfo;
         this.carFrameOpacitySliderElement = null;
         this.carFrameOpacityValueElement = null;
+        this.carFrameOpacitySyncTimerIds = [];
         this.carFrameOpacityStorageKey = this.getCarFrameOpacityStorageKey();
         this.carFrameOpacity = this.showTransparency ? this.loadCarFrameOpacity() : 1;
         if (this.showWheelInfo) {
@@ -498,6 +499,44 @@ class URDFViewer {
         this.saveCarFrameOpacity();
         this.applyCarFrameOpacity(opacity);
         this.updateCarFrameOpacityControlState();
+    }
+
+    clearCarFrameOpacitySyncTimers() {
+        if (!Array.isArray(this.carFrameOpacitySyncTimerIds) || this.carFrameOpacitySyncTimerIds.length === 0) {
+            return;
+        }
+
+        this.carFrameOpacitySyncTimerIds.forEach((timerId) => {
+            try {
+                clearTimeout(timerId);
+            } catch (error) {
+                // Ignore timeout cleanup errors.
+            }
+        });
+        this.carFrameOpacitySyncTimerIds = [];
+    }
+
+    scheduleInitialCarFrameOpacitySync() {
+        if (!this.showTransparency) {
+            return;
+        }
+
+        this.clearCarFrameOpacitySyncTimers();
+
+        // Mesh-based URDFs (e.g. STL) can finish material creation after loader callback.
+        // Re-apply opacity a few times so initial transparency reflects persisted values.
+        const retryDelayMs = [0, 120, 320, 750, 1400];
+        retryDelayMs.forEach((delayMs) => {
+            const timerId = setTimeout(() => {
+                if (!this.showTransparency || !this.robotModel) {
+                    return;
+                }
+
+                this.applyCarFrameOpacity(this.carFrameOpacity);
+                this.updateCarFrameOpacityControlState();
+            }, delayMs);
+            this.carFrameOpacitySyncTimerIds.push(timerId);
+        });
     }
 
     parseViewerWheelKey(containerId) {
@@ -3457,8 +3496,7 @@ class URDFViewer {
                 this.applyRoadAttitudeAngles();
 
                 if (this.showTransparency) {
-                    this.applyCarFrameOpacity(this.carFrameOpacity);
-                    this.updateCarFrameOpacityControlState();
+                    this.scheduleInitialCarFrameOpacitySync();
                 }
 
                 if (this.container.id === 'vehicle-urdf-viewer' && Array.isArray(window.pendingVehicleWheelHighlightKeys) && window.pendingVehicleWheelHighlightKeys.length > 0) {

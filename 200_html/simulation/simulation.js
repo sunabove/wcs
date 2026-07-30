@@ -195,7 +195,7 @@ class RapierDriveSimulation {
         title.className = 'small fw-semibold text-primary';
         title.style.lineHeight = '1.1';
         title.style.textAlign = 'left';
-        title.textContent = 'Wheel Z position';
+        title.textContent = 'Wheel Z Position';
 
         const toggleButton = document.createElement('button');
         toggleButton.type = 'button';

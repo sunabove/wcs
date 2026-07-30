@@ -182,8 +182,8 @@ class RapierDriveSimulation {
 
         const buttonDock = document.createElement('div');
         buttonDock.style.position = 'absolute';
-        buttonDock.style.top = '0';
-        buttonDock.style.right = '0';
+        buttonDock.style.top = '4px';
+        buttonDock.style.right = '4px';
         buttonDock.style.width = '28px';
         buttonDock.style.height = '28px';
         buttonDock.style.pointerEvents = 'none';

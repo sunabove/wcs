@@ -411,19 +411,26 @@ class URDFViewer {
         }
     }
 
-    applyCarFrameOpacity(opacityValue) {
+    getCarFrameOpacityTargetRoot() {
         if (!this.robotModel) {
-            return;
+            return null;
         }
 
         const linkMap = this.robotModel.links || {};
-        const carFrame = linkMap.car_frame || null;
-        if (!carFrame) {
+        return linkMap.car_frame
+            || linkMap.base_link
+            || linkMap.chassis
+            || this.robotModel;
+    }
+
+    applyCarFrameOpacity(opacityValue) {
+        const targetRoot = this.getCarFrameOpacityTargetRoot();
+        if (!targetRoot) {
             return;
         }
 
         const opacity = THREE.MathUtils.clamp(Number(opacityValue), 0.1, 1);
-        carFrame.traverse((object) => {
+        targetRoot.traverse((object) => {
             if (!object || !object.isMesh || !object.material) {
                 return;
             }

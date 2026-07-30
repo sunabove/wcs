@@ -187,14 +187,16 @@ class RapierDriveSimulation {
         panel.style.touchAction = 'none';
 
         const titleRow = document.createElement('div');
-        titleRow.className = 'd-flex align-items-center justify-content-between gap-2';
+        titleRow.className = 'd-flex align-items-center justify-content-center gap-2';
         titleRow.style.marginBottom = '4px';
         titleRow.style.position = 'relative';
 
         const title = document.createElement('div');
         title.className = 'small fw-semibold text-primary';
         title.style.lineHeight = '1.1';
-        title.style.textAlign = 'left';
+        title.style.flex = '1 1 auto';
+        title.style.textAlign = 'center';
+        title.style.paddingRight = '36px';
         title.textContent = 'Wheel Z Position';
 
         const toggleButton = document.createElement('button');
@@ -207,6 +209,10 @@ class RapierDriveSimulation {
         toggleButton.style.display = 'inline-flex';
         toggleButton.style.alignItems = 'center';
         toggleButton.style.justifyContent = 'center';
+        toggleButton.style.position = 'absolute';
+        toggleButton.style.right = '0';
+        toggleButton.style.top = '50%';
+        toggleButton.style.transform = 'translateY(-50%)';
         toggleButton.style.pointerEvents = 'auto';
         toggleButton.style.whiteSpace = 'nowrap';
         toggleButton.style.borderRadius = '999px';
@@ -322,10 +328,10 @@ class RapierDriveSimulation {
 
     getWheelZChartToggleButtonIconSvg(isVisible) {
         if (isVisible) {
-            return '<svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true" focusable="false" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M1.5 8s2.5-4.5 6.5-4.5S14.5 8 14.5 8s-2.5 4.5-6.5 4.5S1.5 8 1.5 8Z" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/><circle cx="8" cy="8" r="2.2" stroke="currentColor" stroke-width="1.4"/></svg>';
+            return '<svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true" focusable="false" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M2 12.5V3.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><path d="M2 12.5H14" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><path d="M3 11L6 9L8.5 10.5L13 5.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><circle cx="3" cy="11" r="0.85" fill="currentColor"/><circle cx="6" cy="9" r="0.85" fill="currentColor"/><circle cx="8.5" cy="10.5" r="0.85" fill="currentColor"/><circle cx="13" cy="5.5" r="0.85" fill="currentColor"/></svg>';
         }
 
-        return '<svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true" focusable="false" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M2 2l12 12" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><path d="M1.5 8s2.5-4.5 6.5-4.5c1.2 0 2.29.28 3.24.73" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M14.5 8s-2.5 4.5-6.5 4.5C6.76 12.5 5.67 12.22 4.72 11.77" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+        return '<svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true" focusable="false" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M2 12.5V3.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><path d="M2 12.5H14" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><path d="M3 10.5L6.2 8.5L8.6 9.8L12.8 4.8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><circle cx="3" cy="10.5" r="0.85" fill="currentColor"/><circle cx="6.2" cy="8.5" r="0.85" fill="currentColor"/><circle cx="8.6" cy="9.8" r="0.85" fill="currentColor"/><circle cx="12.8" cy="4.8" r="0.85" fill="currentColor"/></svg>';
     }
 
     trimWheelZChartHistory(nowSec) {

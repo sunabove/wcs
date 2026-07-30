@@ -1732,7 +1732,17 @@ class URDFViewer {
             : this.calculateFitDistanceForFace(focusBounds.size, faceKey, this.cameraFitMarginRatio);
         const nextPosition = nextTarget.clone().add(faceVectors.direction.multiplyScalar(nextDistance));
 
-        this.animateCameraToPoseWithTarget(nextPosition, nextTarget, faceVectors.up, 240);
+        this.animateCameraToPoseWithTarget(
+            nextPosition,
+            nextTarget,
+            faceVectors.up,
+            240,
+            () => {
+                this.saveCurrentCameraPoseToStorage();
+                this.updateCameraToastOverlay();
+                this.showCameraToastOverlay();
+            }
+        );
     }
 
     getPrimaryFocusBounds() {
@@ -1848,7 +1858,7 @@ class URDFViewer {
         requestAnimationFrame(step);
     }
 
-    animateCameraToPoseWithTarget(nextPosition, nextTarget, nextUp, durationMs = 260) {
+    animateCameraToPoseWithTarget(nextPosition, nextTarget, nextUp, durationMs = 260, onComplete = null) {
         if (!this.camera || !this.controls || !nextPosition || !nextTarget || !nextUp) {
             return;
         }
@@ -1892,6 +1902,10 @@ class URDFViewer {
                 this.controls.target.z
             );
             this.logCameraInfos(true);
+
+            if (typeof onComplete === 'function') {
+                onComplete();
+            }
         };
 
         requestAnimationFrame(step);

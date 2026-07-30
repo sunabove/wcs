@@ -101,6 +101,7 @@ class RapierDriveSimulation {
         this.debugStatusElapsedSec = 0;
         this.wheelZChartOverlayElement = null;
         this.wheelZChartPanelElement = null;
+        this.wheelZChartBodyElement = null;
         this.wheelZChartToggleButtonElement = null;
         this.wheelZChartCanvasElement = null;
         this.wheelZChartContext = null;
@@ -175,21 +176,10 @@ class RapierDriveSimulation {
         overlay.style.pointerEvents = 'none';
         overlay.style.zIndex = '15';
 
-        const toggleButton = document.createElement('button');
-        toggleButton.type = 'button';
-        toggleButton.className = 'btn btn-sm btn-outline-primary shadow-sm';
-        toggleButton.style.position = 'absolute';
-        toggleButton.style.top = '-14px';
-        toggleButton.style.right = '-2px';
-        toggleButton.style.zIndex = '16';
-        toggleButton.style.pointerEvents = 'auto';
-        toggleButton.style.whiteSpace = 'nowrap';
-        toggleButton.style.padding = '0.2rem 0.55rem';
-
         const panel = document.createElement('div');
         panel.className = 'border border-primary-subtle rounded-3 shadow-sm';
         panel.style.width = '100%';
-        panel.style.height = '190px';
+        panel.style.minHeight = '48px';
         panel.style.background = 'rgba(255, 255, 255, 0.92)';
         panel.style.backdropFilter = 'blur(2px)';
         panel.style.pointerEvents = 'auto';
@@ -199,12 +189,31 @@ class RapierDriveSimulation {
         const titleRow = document.createElement('div');
         titleRow.className = 'd-flex align-items-center justify-content-between gap-2';
         titleRow.style.marginBottom = '4px';
+        titleRow.style.position = 'relative';
 
         const title = document.createElement('div');
         title.className = 'small fw-semibold text-primary';
         title.style.lineHeight = '1.1';
         title.style.textAlign = 'left';
         title.textContent = 'Wheel Z position';
+
+        const toggleButton = document.createElement('button');
+        toggleButton.type = 'button';
+        toggleButton.className = 'btn btn-sm btn-outline-primary shadow-sm';
+        toggleButton.style.flex = '0 0 auto';
+        toggleButton.style.width = '28px';
+        toggleButton.style.height = '28px';
+        toggleButton.style.padding = '0';
+        toggleButton.style.display = 'inline-flex';
+        toggleButton.style.alignItems = 'center';
+        toggleButton.style.justifyContent = 'center';
+        toggleButton.style.pointerEvents = 'auto';
+        toggleButton.style.whiteSpace = 'nowrap';
+        toggleButton.style.borderRadius = '999px';
+        toggleButton.style.borderWidth = '1px';
+        toggleButton.style.lineHeight = '1';
+        toggleButton.style.overflow = 'hidden';
+        toggleButton.innerHTML = this.getWheelZChartToggleButtonIconSvg(this.isWheelZChartVisible);
 
         const canvas = document.createElement('canvas');
         canvas.width = 344;
@@ -213,10 +222,14 @@ class RapierDriveSimulation {
         canvas.style.height = '154px';
         canvas.style.display = 'block';
 
+        const body = document.createElement('div');
+        body.style.display = 'block';
+        body.appendChild(canvas);
+
         titleRow.appendChild(title);
+        titleRow.appendChild(toggleButton);
         panel.appendChild(titleRow);
-        panel.appendChild(canvas);
-        overlay.appendChild(toggleButton);
+        panel.appendChild(body);
         overlay.appendChild(panel);
 
         const blockViewerInteraction = (event) => {
@@ -233,6 +246,7 @@ class RapierDriveSimulation {
 
         this.wheelZChartOverlayElement = overlay;
         this.wheelZChartPanelElement = panel;
+        this.wheelZChartBodyElement = body;
         this.wheelZChartToggleButtonElement = toggleButton;
         this.wheelZChartCanvasElement = canvas;
         this.wheelZChartContext = canvas.getContext('2d');
@@ -280,14 +294,19 @@ class RapierDriveSimulation {
         }
 
         const isVisible = this.isWheelZChartVisible;
-        this.wheelZChartToggleButtonElement.textContent = isVisible ? '휠 차트 숨기기' : '휠 차트 표시';
+        this.wheelZChartToggleButtonElement.innerHTML = this.getWheelZChartToggleButtonIconSvg(isVisible);
         this.wheelZChartToggleButtonElement.setAttribute('aria-pressed', isVisible ? 'true' : 'false');
         this.wheelZChartToggleButtonElement.setAttribute('aria-label', isVisible ? '휠 차트 숨기기' : '휠 차트 표시');
+        this.wheelZChartToggleButtonElement.title = isVisible ? '휠 차트 숨기기' : '휠 차트 표시';
     }
 
     updateWheelZChartVisibility() {
+        if (this.wheelZChartBodyElement) {
+            this.wheelZChartBodyElement.style.display = this.isWheelZChartVisible ? 'block' : 'none';
+        }
+
         if (this.wheelZChartPanelElement) {
-            this.wheelZChartPanelElement.style.display = this.isWheelZChartVisible ? 'block' : 'none';
+            this.wheelZChartPanelElement.style.opacity = this.isWheelZChartVisible ? '1' : '0.96';
         }
 
         this.updateWheelZChartToggleButtonState();
@@ -299,6 +318,14 @@ class RapierDriveSimulation {
             : !this.isWheelZChartVisible;
         this.saveWheelZChartVisibleState();
         this.updateWheelZChartVisibility();
+    }
+
+    getWheelZChartToggleButtonIconSvg(isVisible) {
+        if (isVisible) {
+            return '<svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true" focusable="false" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M1.5 8s2.5-4.5 6.5-4.5S14.5 8 14.5 8s-2.5 4.5-6.5 4.5S1.5 8 1.5 8Z" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/><circle cx="8" cy="8" r="2.2" stroke="currentColor" stroke-width="1.4"/></svg>';
+        }
+
+        return '<svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true" focusable="false" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M2 2l12 12" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><path d="M1.5 8s2.5-4.5 6.5-4.5c1.2 0 2.29.28 3.24.73" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M14.5 8s-2.5 4.5-6.5 4.5C6.76 12.5 5.67 12.22 4.72 11.77" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>';
     }
 
     trimWheelZChartHistory(nowSec) {

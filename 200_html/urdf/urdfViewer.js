@@ -1233,8 +1233,9 @@ class URDFViewer {
         wrapperElement.style.left = '10px';
         wrapperElement.style.zIndex = '16';
         wrapperElement.style.display = 'inline-flex';
+        wrapperElement.style.flexDirection = 'column';
         wrapperElement.style.alignItems = 'flex-start';
-        wrapperElement.style.columnGap = '6px';
+        wrapperElement.style.rowGap = '6px';
         wrapperElement.style.pointerEvents = 'none';
 
         const panelElement = document.createElement('div');
@@ -1367,6 +1368,9 @@ class URDFViewer {
             opacityControlElement.style.borderRadius = '8px';
             opacityControlElement.style.background = 'rgba(255, 255, 255, 0.96)';
             opacityControlElement.style.pointerEvents = 'auto';
+            opacityControlElement.style.position = 'relative';
+            opacityControlElement.style.zIndex = '17';
+            opacityControlElement.style.alignSelf = 'flex-start';
 
             const opacityLabelElement = document.createElement('span');
             opacityLabelElement.className = 'small fw-semibold text-nowrap';
@@ -1381,6 +1385,8 @@ class URDFViewer {
             opacitySliderElement.className = 'form-range m-0';
             opacitySliderElement.style.width = '96px';
             opacitySliderElement.style.cursor = 'pointer';
+            opacitySliderElement.style.pointerEvents = 'auto';
+            opacitySliderElement.style.touchAction = 'pan-y';
             opacitySliderElement.setAttribute('aria-label', 'car_frame 내부 요소 투명도');
 
             const opacityValueElement = document.createElement('span');

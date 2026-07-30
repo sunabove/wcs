@@ -3408,6 +3408,7 @@ class URDFViewer {
                 this.carFrameAlertMaterials = [];
                 this.isCarFrameAlertActive = false;
                 this.applyCarFrameOpacity(this.carFrameOpacity);
+                this.updateCarFrameOpacityControlState();
                 this.resolveWheelAnimationTargets();
                 this.resolveWheelHighlightTargets();
                 this.applyRoadAttitudeAngles();

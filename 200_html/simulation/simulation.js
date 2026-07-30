@@ -102,6 +102,7 @@ class RapierDriveSimulation {
         this.wheelZChartOverlayElement = null;
         this.wheelZChartPanelElement = null;
         this.wheelZChartBodyElement = null;
+        this.wheelZChartTitleRowElement = null;
         this.wheelZChartToggleButtonElement = null;
         this.wheelZChartCanvasElement = null;
         this.wheelZChartContext = null;
@@ -190,13 +191,14 @@ class RapierDriveSimulation {
         titleRow.className = 'd-flex align-items-center justify-content-center gap-2';
         titleRow.style.marginBottom = '4px';
         titleRow.style.position = 'relative';
+        titleRow.style.minHeight = '28px';
+        titleRow.style.paddingRight = '36px';
 
         const title = document.createElement('div');
         title.className = 'small fw-semibold text-primary';
         title.style.lineHeight = '1.1';
-        title.style.flex = '1 1 auto';
         title.style.textAlign = 'center';
-        title.style.paddingRight = '36px';
+        title.style.width = '100%';
         title.textContent = 'Wheel Z Position';
 
         const toggleButton = document.createElement('button');
@@ -253,6 +255,7 @@ class RapierDriveSimulation {
         this.wheelZChartOverlayElement = overlay;
         this.wheelZChartPanelElement = panel;
         this.wheelZChartBodyElement = body;
+        this.wheelZChartTitleRowElement = titleRow;
         this.wheelZChartToggleButtonElement = toggleButton;
         this.wheelZChartCanvasElement = canvas;
         this.wheelZChartContext = canvas.getContext('2d');
@@ -307,12 +310,21 @@ class RapierDriveSimulation {
     }
 
     updateWheelZChartVisibility() {
+        const isVisible = this.isWheelZChartVisible;
+
+        if (this.wheelZChartTitleRowElement) {
+            this.wheelZChartTitleRowElement.style.marginBottom = isVisible ? '4px' : '0';
+            this.wheelZChartTitleRowElement.style.justifyContent = isVisible ? 'center' : 'center';
+            this.wheelZChartTitleRowElement.style.minHeight = isVisible ? '28px' : '34px';
+            this.wheelZChartTitleRowElement.style.paddingRight = isVisible ? '36px' : '38px';
+        }
+
         if (this.wheelZChartBodyElement) {
-            this.wheelZChartBodyElement.style.display = this.isWheelZChartVisible ? 'block' : 'none';
+            this.wheelZChartBodyElement.style.display = isVisible ? 'block' : 'none';
         }
 
         if (this.wheelZChartPanelElement) {
-            this.wheelZChartPanelElement.style.opacity = this.isWheelZChartVisible ? '1' : '0.96';
+            this.wheelZChartPanelElement.style.opacity = isVisible ? '1' : '0.96';
         }
 
         this.updateWheelZChartToggleButtonState();

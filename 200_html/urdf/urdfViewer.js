@@ -427,10 +427,39 @@ class URDFViewer {
         }
 
         const linkMap = this.robotModel.links || {};
-        return linkMap.car_frame
-            || linkMap.base_link
-            || linkMap.chassis
-            || this.robotModel;
+        const candidateRoots = [
+            linkMap.car_frame,
+            linkMap.base_link,
+            linkMap.chassis,
+            this.robotModel,
+        ].filter(Boolean);
+
+        const hasRenderableMesh = (rootObject) => {
+            if (!rootObject || typeof rootObject.traverse !== 'function') {
+                return false;
+            }
+
+            let found = false;
+            rootObject.traverse((object) => {
+                if (found) {
+                    return;
+                }
+
+                if (object && object.isMesh && object.material) {
+                    found = true;
+                }
+            });
+
+            return found;
+        };
+
+        for (const candidate of candidateRoots) {
+            if (hasRenderableMesh(candidate)) {
+                return candidate;
+            }
+        }
+
+        return candidateRoots[0] || null;
     }
 
     applyCarFrameOpacity(opacityValue) {

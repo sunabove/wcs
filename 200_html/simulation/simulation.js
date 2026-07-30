@@ -40,7 +40,7 @@ class RapierDriveSimulation {
         this.groundContactBiasMeters = 0;
         this.groundZ = 0;
         this.holeRegions = [];
-        this.underbodyPassThroughClearanceMeters = 0.01;
+        this.underbodyPassThroughClearanceMeters = 0.02;
         this.urdfObstacleLinkNames = ['obstacle_rock_01', 'obstacle_rock_02', 'obstacle_rock', 'rock_obstacle'];
         this.urdfObstacleLinkNamePatterns = [
             /^obstacle/i,
@@ -60,7 +60,7 @@ class RapierDriveSimulation {
         this.maxSpeedMps = 100 / 3.6;
         this.maxYawRateRad = THREE.MathUtils.degToRad(80);
         this.enableWheelPhysicsColliders = true;
-        this.blockMotionOnObstacleContact = true;
+        this.blockMotionOnObstacleContact = false;
         this.keepUprightOnFlatGround = true;
         this.isUprightRotationLockActive = false;
         this.groundPenetrationToleranceMeters = 0.003;
@@ -68,13 +68,13 @@ class RapierDriveSimulation {
         this.wheelGroundHardClampOffsetMeters = 0.001;
         this.wheelGroundClampActivationMarginMeters = 0.003;
         this.postObstacleGroundReattachToleranceMeters = 0.001;
-        this.postObstacleGroundReattachBlend = 1.0;
+        this.postObstacleGroundReattachBlend = 0.75;
         this.postObstacleGroundRecoverDurationSec = 0.35;
         this.postObstacleGroundRecoverRemainingSec = 0;
         this.flatGroundSnapDistanceMeters = 0.01;
         this.flatGroundVerticalVelocitySnapThresholdMps = 0.35;
         this.maxLiftWithoutObstacleMeters = 0.03;
-        this.maxLiftWithObstacleMeters = 0.14;
+        this.maxLiftWithObstacleMeters = 0.24;
         this.isInitializing = false;
         this.isReady = false;
         this.hasFailed = false;
@@ -147,7 +147,7 @@ class RapierDriveSimulation {
             rl: null,
             rr: null
         };
-        this.wheelColliderInflationMeters = 0.03;
+        this.wheelColliderInflationMeters = 0.012;
     }
 
     initDebugPanel() {
@@ -2057,7 +2057,7 @@ class RapierDriveSimulation {
         const obstacleTopZ = obstacleInfo.center.z + obstacleInfo.halfExtents.z;
         const clearance = Math.max(Number(this.underbodyPassThroughClearanceMeters) || 0, 0);
 
-        return obstacleTopZ <= (wheelContactPlaneZ - clearance);
+        return obstacleTopZ <= (wheelContactPlaneZ + clearance);
     }
 
     getWheelContactPlaneZ() {
@@ -2668,6 +2668,10 @@ class RapierDriveSimulation {
                             return;
                         }
 
+                        if (this.isObstacleBelowWheelContactPlane(obstacleInfo)) {
+                            return;
+                        }
+
                         if (this.isVehicleAabbTouchingObstacle(obstacleInfo)) {
                             hasContact = true;
                         }
@@ -2841,9 +2845,13 @@ class RapierDriveSimulation {
                 this.groundContactLocalMinZ = null;
             }
 
-            // Keep full chassis vertical span in collider to avoid artificial floating after obstacle traversal.
+            // Allow low obstacles to pass under the body by trimming the lower part of chassis collider.
             let colliderMinLocalZ = rawBboxMinLocalZ;
             let colliderMaxLocalZ = rawBboxMaxLocalZ;
+            if (Number.isFinite(this.wheelLocalMinZ)) {
+                const minPassThroughZ = this.wheelLocalMinZ + Math.max(Number(this.underbodyPassThroughClearanceMeters) || 0, 0);
+                colliderMinLocalZ = Math.max(colliderMinLocalZ, minPassThroughZ);
+            }
             if ((colliderMaxLocalZ - colliderMinLocalZ) < 0.04) {
                 colliderMaxLocalZ = colliderMinLocalZ + 0.04;
             }
@@ -3050,7 +3058,7 @@ class RapierDriveSimulation {
             }
             if (hasObstacleContactNow) {
                 const velocity = this.body.linvel();
-                this.body.setLinvel(new this.rapier.Vector3(0, 0, velocity.z), true);
+                this.body.setLinvel(new this.rapier.Vector3(velocity.x * 0.55, velocity.y * 0.55, velocity.z), true);
             }
             if (this.hasActivatedDynamicGroundClamp) {
                 this.clampVehicleAboveGround();
@@ -3104,7 +3112,7 @@ class RapierDriveSimulation {
             this.body.setLinvel(new this.rapier.Vector3(commandedVelocityX, commandedVelocityY, keepZVelocity), true);
         } else if (hasObstacleContact) {
             const currentVelocity = this.body.linvel();
-            this.body.setLinvel(new this.rapier.Vector3(0, 0, currentVelocity.z), true);
+            this.body.setLinvel(new this.rapier.Vector3(currentVelocity.x * 0.7, currentVelocity.y * 0.7, currentVelocity.z), true);
         }
 
         const isMoveCommandActive = keyboardState.isActive || throttleSign !== 0;

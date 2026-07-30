@@ -1230,14 +1230,11 @@ class URDFViewer {
         const wrapperElement = document.createElement('div');
         wrapperElement.style.position = 'absolute';
         wrapperElement.style.top = overlayTopPx;
-        wrapperElement.style.left = 'auto';
-        wrapperElement.style.right = '10px';
-        wrapperElement.style.width = 'calc(100% - 20px)';
+        wrapperElement.style.left = '10px';
         wrapperElement.style.zIndex = '1000';
         wrapperElement.style.display = 'inline-flex';
         wrapperElement.style.flexDirection = 'row';
         wrapperElement.style.alignItems = 'flex-start';
-        wrapperElement.style.justifyContent = 'flex-end';
         wrapperElement.style.columnGap = '6px';
         wrapperElement.style.pointerEvents = 'auto';
 

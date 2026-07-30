@@ -100,10 +100,14 @@ class RapierDriveSimulation {
         this.debugStatusUpdateIntervalSec = 0.2;
         this.debugStatusElapsedSec = 0;
         this.wheelZChartOverlayElement = null;
+        this.wheelZChartPanelElement = null;
+        this.wheelZChartToggleButtonElement = null;
         this.wheelZChartCanvasElement = null;
         this.wheelZChartContext = null;
         this.wheelZChartWindowSec = 20;
         this.wheelZChartElapsedSec = 0;
+        this.wheelZChartVisibleStorageKey = 'wcs.simulation.wheelZChartVisible';
+        this.isWheelZChartVisible = this.loadWheelZChartVisibleState();
         this.wheelZChartHistoryByKey = {
             fl: [],
             fr: [],
@@ -164,23 +168,42 @@ class RapierDriveSimulation {
 
         const overlay = document.createElement('div');
         overlay.id = 'wheel-z-chart-overlay';
-        overlay.className = 'position-absolute border border-primary-subtle rounded-3 shadow-sm';
+        overlay.className = 'position-absolute';
         overlay.style.right = '12px';
         overlay.style.bottom = '12px';
         overlay.style.width = 'min(360px, 84vw)';
-        overlay.style.height = '190px';
-        overlay.style.background = 'rgba(255, 255, 255, 0.92)';
-        overlay.style.backdropFilter = 'blur(2px)';
-        overlay.style.pointerEvents = 'auto';
+        overlay.style.pointerEvents = 'none';
         overlay.style.zIndex = '15';
-        overlay.style.padding = '8px 8px 6px 8px';
-        overlay.style.touchAction = 'none';
+
+        const toggleButton = document.createElement('button');
+        toggleButton.type = 'button';
+        toggleButton.className = 'btn btn-sm btn-outline-primary shadow-sm';
+        toggleButton.style.position = 'absolute';
+        toggleButton.style.top = '-14px';
+        toggleButton.style.right = '-2px';
+        toggleButton.style.zIndex = '16';
+        toggleButton.style.pointerEvents = 'auto';
+        toggleButton.style.whiteSpace = 'nowrap';
+        toggleButton.style.padding = '0.2rem 0.55rem';
+
+        const panel = document.createElement('div');
+        panel.className = 'border border-primary-subtle rounded-3 shadow-sm';
+        panel.style.width = '100%';
+        panel.style.height = '190px';
+        panel.style.background = 'rgba(255, 255, 255, 0.92)';
+        panel.style.backdropFilter = 'blur(2px)';
+        panel.style.pointerEvents = 'auto';
+        panel.style.padding = '8px 8px 6px 8px';
+        panel.style.touchAction = 'none';
+
+        const titleRow = document.createElement('div');
+        titleRow.className = 'd-flex align-items-center justify-content-between gap-2';
+        titleRow.style.marginBottom = '4px';
 
         const title = document.createElement('div');
         title.className = 'small fw-semibold text-primary';
         title.style.lineHeight = '1.1';
-        title.style.marginBottom = '4px';
-        title.style.textAlign = 'center';
+        title.style.textAlign = 'left';
         title.textContent = 'Wheel Z position';
 
         const canvas = document.createElement('canvas');
@@ -190,8 +213,11 @@ class RapierDriveSimulation {
         canvas.style.height = '154px';
         canvas.style.display = 'block';
 
-        overlay.appendChild(title);
-        overlay.appendChild(canvas);
+        titleRow.appendChild(title);
+        panel.appendChild(titleRow);
+        panel.appendChild(canvas);
+        overlay.appendChild(toggleButton);
+        overlay.appendChild(panel);
 
         const blockViewerInteraction = (event) => {
             event.preventDefault();
@@ -206,8 +232,73 @@ class RapierDriveSimulation {
         container.appendChild(overlay);
 
         this.wheelZChartOverlayElement = overlay;
+        this.wheelZChartPanelElement = panel;
+        this.wheelZChartToggleButtonElement = toggleButton;
         this.wheelZChartCanvasElement = canvas;
         this.wheelZChartContext = canvas.getContext('2d');
+        toggleButton.addEventListener('click', (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            this.toggleWheelZChartVisible();
+        });
+
+        this.updateWheelZChartVisibility();
+    }
+
+    loadWheelZChartVisibleState() {
+        try {
+            if (typeof window.localStorage === 'undefined') {
+                return true;
+            }
+
+            const savedValue = window.localStorage.getItem(this.wheelZChartVisibleStorageKey);
+            if (savedValue == null) {
+                return true;
+            }
+
+            return savedValue === '1' || savedValue === 'true';
+        } catch (error) {
+            return true;
+        }
+    }
+
+    saveWheelZChartVisibleState() {
+        try {
+            if (typeof window.localStorage === 'undefined') {
+                return;
+            }
+
+            window.localStorage.setItem(this.wheelZChartVisibleStorageKey, this.isWheelZChartVisible ? '1' : '0');
+        } catch (error) {
+            // Ignore storage failures in restricted browser modes.
+        }
+    }
+
+    updateWheelZChartToggleButtonState() {
+        if (!this.wheelZChartToggleButtonElement) {
+            return;
+        }
+
+        const isVisible = this.isWheelZChartVisible;
+        this.wheelZChartToggleButtonElement.textContent = isVisible ? '휠 차트 숨기기' : '휠 차트 표시';
+        this.wheelZChartToggleButtonElement.setAttribute('aria-pressed', isVisible ? 'true' : 'false');
+        this.wheelZChartToggleButtonElement.setAttribute('aria-label', isVisible ? '휠 차트 숨기기' : '휠 차트 표시');
+    }
+
+    updateWheelZChartVisibility() {
+        if (this.wheelZChartPanelElement) {
+            this.wheelZChartPanelElement.style.display = this.isWheelZChartVisible ? 'block' : 'none';
+        }
+
+        this.updateWheelZChartToggleButtonState();
+    }
+
+    toggleWheelZChartVisible(forceVisible = null) {
+        this.isWheelZChartVisible = typeof forceVisible === 'boolean'
+            ? forceVisible
+            : !this.isWheelZChartVisible;
+        this.saveWheelZChartVisibleState();
+        this.updateWheelZChartVisibility();
     }
 
     trimWheelZChartHistory(nowSec) {
@@ -303,7 +394,7 @@ class RapierDriveSimulation {
     renderWheelZChart(nowSec) {
         const ctx = this.wheelZChartContext;
         const canvas = this.wheelZChartCanvasElement;
-        if (!ctx || !canvas) {
+        if (!ctx || !canvas || !this.isWheelZChartVisible) {
             return;
         }
 

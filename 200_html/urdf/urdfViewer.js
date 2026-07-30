@@ -217,6 +217,7 @@ class URDFViewer {
         this.carFrameOpacitySyncTimerIds = [];
         this.carFrameOpacityStorageKey = this.getCarFrameOpacityStorageKey();
         this.carFrameOpacity = this.showTransparency ? this.loadCarFrameOpacity() : 1;
+        this.cameraPoseStorageKey = this.getCameraPoseStorageKey();
         if (this.showWheelInfo) {
             this.isWheelInfoOverlayVisible = this.loadWheelInfoOverlayVisibleState();
         }
@@ -226,23 +227,29 @@ class URDFViewer {
         const rawCameraTarget = containerElement.getAttribute('cameraTarget');
         const rawCameraUp = containerElement.getAttribute('cameraUp');
         const parsedCameraPose = this.parseCameraPose(rawCameraPose);
+        const parsedSavedCameraPose = parsedCameraPose == null
+            ? this.loadSavedCameraPose()
+            : null;
+        const effectiveCameraPose = parsedCameraPose || parsedSavedCameraPose;
         this.hasCustomCameraPose = parsedCameraPose != null;
-        this.hasCustomCameraPosition = this.hasCustomCameraPose || (rawCameraPosition != null && String(rawCameraPosition).trim().length > 0);
-        this.hasCustomCameraTarget = this.hasCustomCameraPose || (rawCameraTarget != null && String(rawCameraTarget).trim().length > 0);
-        this.hasCustomCameraUp = this.hasCustomCameraPose || (rawCameraUp != null && String(rawCameraUp).trim().length > 0);
+        this.hasStoredCameraPose = parsedSavedCameraPose != null;
+        this.hasAnyPoseSource = effectiveCameraPose != null;
+        this.hasCustomCameraPosition = this.hasAnyPoseSource || (rawCameraPosition != null && String(rawCameraPosition).trim().length > 0);
+        this.hasCustomCameraTarget = this.hasAnyPoseSource || (rawCameraTarget != null && String(rawCameraTarget).trim().length > 0);
+        this.hasCustomCameraUp = this.hasAnyPoseSource || (rawCameraUp != null && String(rawCameraUp).trim().length > 0);
         this.cameraFitMarginRatio = 0.05;
-        this.cameraPosition = this.hasCustomCameraPose
-            ? parsedCameraPose.position.clone()
+        this.cameraPosition = this.hasAnyPoseSource
+            ? effectiveCameraPose.position.clone()
             : this.hasCustomCameraPosition
             ? this.parseVector3Attribute(rawCameraPosition, new THREE.Vector3(4, 4, 8))
             : new THREE.Vector3(4, 4, 8);
-        this.cameraTarget = this.hasCustomCameraPose
-            ? parsedCameraPose.target.clone()
+        this.cameraTarget = this.hasAnyPoseSource
+            ? effectiveCameraPose.target.clone()
             : this.hasCustomCameraTarget
             ? this.parseVector3Attribute(rawCameraTarget, new THREE.Vector3(0, 0, 0))
             : new THREE.Vector3(0, 0, 0);
-        this.cameraUp = this.hasCustomCameraPose
-            ? parsedCameraPose.up.clone()
+        this.cameraUp = this.hasAnyPoseSource
+            ? effectiveCameraPose.up.clone()
             : this.hasCustomCameraUp
             ? this.parseUpVector(rawCameraUp)
             : new THREE.Vector3(0, 1, 0);
@@ -293,6 +300,80 @@ class URDFViewer {
             target,
             up
         };
+    }
+
+    getCameraPoseStorageKey() {
+        const containerId = String(this.container?.id || '').trim();
+        if (containerId) {
+            return `wcs.urdf.camera_pose.${containerId}`;
+        }
+
+        const containerClassName = String(this.container?.className || '').trim().replace(/\s+/g, '_');
+        if (containerClassName) {
+            return `wcs.urdf.camera_pose.class_${containerClassName}`;
+        }
+
+        return 'wcs.urdf.camera_pose.default';
+    }
+
+    loadSavedCameraPose() {
+        if (!this.cameraPoseStorageKey || typeof window.localStorage === 'undefined') {
+            return null;
+        }
+
+        try {
+            const savedValue = window.localStorage.getItem(this.cameraPoseStorageKey);
+            if (!savedValue) {
+                return null;
+            }
+
+            return this.parseCameraPose(savedValue);
+        } catch (error) {
+            return null;
+        }
+    }
+
+    getCurrentCameraPoseValueText() {
+        if (!this.camera || !this.controls) {
+            return null;
+        }
+
+        const formatPositionValue = (value) => {
+            const numberValue = Number(value);
+            if (!Number.isFinite(numberValue)) {
+                return '0.000';
+            }
+            return numberValue.toFixed(3);
+        };
+
+        const px = formatPositionValue(this.camera.position.x);
+        const py = formatPositionValue(this.camera.position.y);
+        const pz = formatPositionValue(this.camera.position.z);
+        const tx = formatPositionValue(this.controls.target.x);
+        const ty = formatPositionValue(this.controls.target.y);
+        const tz = formatPositionValue(this.controls.target.z);
+        const ux = formatPositionValue(this.camera.up.x);
+        const uy = formatPositionValue(this.camera.up.y);
+        const uz = formatPositionValue(this.camera.up.z);
+
+        return `${px}, ${py}, ${pz}|${tx}, ${ty}, ${tz}|${ux}, ${uy}, ${uz}`;
+    }
+
+    saveCurrentCameraPoseToStorage() {
+        if (!this.cameraPoseStorageKey || typeof window.localStorage === 'undefined') {
+            return;
+        }
+
+        const poseText = this.getCurrentCameraPoseValueText();
+        if (!poseText) {
+            return;
+        }
+
+        try {
+            window.localStorage.setItem(this.cameraPoseStorageKey, poseText);
+        } catch (error) {
+            // Ignore storage write errors in restricted browser modes.
+        }
     }
 
     parseBooleanAttribute(rawValue, fallbackValue) {
@@ -1177,6 +1258,7 @@ class URDFViewer {
 
             if (movedEnough) {
                 this.logCameraInfos(true);
+                this.saveCurrentCameraPoseToStorage();
             }
 
             window.removeEventListener('pointermove', onPointerMove, true);
@@ -1601,6 +1683,7 @@ class URDFViewer {
             if (movedEnough) {
                 this.viewCubeIgnoreFaceClickUntilMs = performance.now() + 300;
                 this.logCameraInfos(true);
+                this.saveCurrentCameraPoseToStorage();
             }
             window.removeEventListener('pointermove', onPointerMove, true);
             window.removeEventListener('pointerup', endDrag, true);
@@ -1891,6 +1974,7 @@ class URDFViewer {
         this.controls.addEventListener('end', () => {
             this.isDragging = false;
             this.logCameraInfos(true);
+            this.saveCurrentCameraPoseToStorage();
             this.updateCameraToastOverlay();
             this.showCameraToastOverlay();
         });
@@ -3235,6 +3319,11 @@ class URDFViewer {
                 return;
             }
 
+            if (this.mainOrbitDragState.isActivated || this.mainOrbitDragState.totalMove > this.mainOrbitDragActivateDistancePx) {
+                this.logCameraInfos(true);
+                this.saveCurrentCameraPoseToStorage();
+            }
+
             this.mainOrbitDragState = null;
         };
 
@@ -3522,9 +3611,9 @@ class URDFViewer {
                     if (this.hasCustomCameraPosition) {
                         console.log('[URDF] cameraPose 지정됨: 사용자 카메라 위치 유지');
                     } else {
-                        const fitDistance = this.calculateFitDistanceForFace(size, 'top', this.cameraFitMarginRatio);
-                        this.setCameraFromFace(center, fitDistance, 'top');
-                        console.log('[URDF] cameraPose 미지정: top view 자동 피팅 카메라 적용 (마진 5%)');
+                        const fitDistance = this.calculateFitDistanceForFace(size, 'front', this.cameraFitMarginRatio);
+                        this.setCameraFromFace(center, fitDistance, 'front');
+                        console.log('[URDF] cameraPose/저장 포즈 미지정: front view 자동 피팅 카메라 적용 (마진 5%)');
                     }
 
                     const poseTarget = this.hasCustomCameraTarget ? this.cameraTarget.clone() : center.clone();

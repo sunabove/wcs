@@ -1231,12 +1231,12 @@ class URDFViewer {
         wrapperElement.style.position = 'absolute';
         wrapperElement.style.top = overlayTopPx;
         wrapperElement.style.left = '10px';
-        wrapperElement.style.zIndex = '16';
+        wrapperElement.style.zIndex = '1000';
         wrapperElement.style.display = 'inline-flex';
         wrapperElement.style.flexDirection = 'row';
         wrapperElement.style.alignItems = 'flex-start';
         wrapperElement.style.columnGap = '6px';
-        wrapperElement.style.pointerEvents = 'none';
+        wrapperElement.style.pointerEvents = 'auto';
 
         const panelElement = document.createElement('div');
         panelElement.style.position = 'relative';
@@ -1248,6 +1248,7 @@ class URDFViewer {
         panelElement.style.boxShadow = '0 3px 10px rgba(0, 0, 0, 0.16)';
         panelElement.style.pointerEvents = 'auto';
         panelElement.style.userSelect = 'none';
+        panelElement.style.zIndex = '1001';
         panelElement.style.transition = 'box-shadow 140ms ease, transform 140ms ease, border-color 140ms ease';
 
         panelElement.addEventListener('mouseenter', () => {
@@ -1333,6 +1334,8 @@ class URDFViewer {
             wheelToggleButtonElement.type = 'button';
             wheelToggleButtonElement.setAttribute('aria-label', '휠 정보 오버레이 토글');
             wheelToggleButtonElement.style.pointerEvents = 'auto';
+            wheelToggleButtonElement.style.position = 'relative';
+            wheelToggleButtonElement.style.zIndex = '1002';
             wheelToggleButtonElement.style.height = '32px';
             wheelToggleButtonElement.style.width = '32px';
             wheelToggleButtonElement.style.padding = '0';
@@ -1369,7 +1372,7 @@ class URDFViewer {
             opacityControlElement.style.background = 'rgba(255, 255, 255, 0.96)';
             opacityControlElement.style.pointerEvents = 'auto';
             opacityControlElement.style.position = 'relative';
-            opacityControlElement.style.zIndex = '17';
+            opacityControlElement.style.zIndex = '1002';
             opacityControlElement.style.alignSelf = 'flex-start';
 
             const opacityLabelElement = document.createElement('span');

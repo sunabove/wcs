@@ -1764,8 +1764,6 @@ class RapierDriveSimulation {
             const obstacleTopZ = clampedCenterZ + halfZ;
             const wheelContactPlaneZ = this.getWheelContactPlaneZ();
             const passThroughClearance = Math.max(Number(this.underbodyPassThroughClearanceMeters) || 0, 0);
-            const isUnderbodyPassThroughByHeight = Number.isFinite(wheelContactPlaneZ)
-                && obstacleTopZ <= (wheelContactPlaneZ + passThroughClearance);
             const obstacleMinY = center.y - halfY;
             const obstacleMaxY = center.y + halfY;
             const overlapsWheelBand = wheelLateralBands.some((band) => {
@@ -1775,10 +1773,14 @@ class RapierDriveSimulation {
 
                 return obstacleMaxY >= band.minY && obstacleMinY <= band.maxY;
             });
-            const isUnderbodyPassThrough = isUnderbodyPassThroughByHeight && !overlapsWheelBand;
+
+            // Do not auto-convert low obstacles to sensors.
+            // Automatic conversion can disable wheel collision and cause visual penetration.
+            const isUnderbodyPassThroughByHeight = false;
+            const isUnderbodyPassThrough = false;
 
             // Only explicitly tagged links are sensors; generic obstacles must physically collide.
-            if ((isPassUnderTagged || isUnderbodyPassThrough) && typeof obstacleColliderDesc.setSensor === 'function') {
+            if (isPassUnderTagged && typeof obstacleColliderDesc.setSensor === 'function') {
                 obstacleColliderDesc.setSensor(true);
                 console.log('[URDF][Simulation] obstacle treated as pass-under sensor:', {
                     obstacleLinkName,
@@ -1799,7 +1801,7 @@ class RapierDriveSimulation {
                 halfExtents: { x: halfX, y: halfY, z: halfZ },
                 linkName: obstacleLinkName,
                 normalizedLinkName: normalizedObstacleName,
-                isSensor: Boolean(isPassUnderTagged || isUnderbodyPassThrough)
+                isSensor: Boolean(isPassUnderTagged)
             });
             console.log(`[URDF][Simulation] obstacle collider created from URDF link: ${obstacleLinkName}`);
         });

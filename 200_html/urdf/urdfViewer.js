@@ -3423,13 +3423,14 @@ class URDFViewer {
                 this.applyGroundHoleCarvingByCSG();
                 this.carFrameAlertMaterials = [];
                 this.isCarFrameAlertActive = false;
+                this.resolveWheelAnimationTargets();
+                this.resolveWheelHighlightTargets();
+                this.applyRoadAttitudeAngles();
+
                 if (this.showTransparency) {
                     this.applyCarFrameOpacity(this.carFrameOpacity);
                     this.updateCarFrameOpacityControlState();
                 }
-                this.resolveWheelAnimationTargets();
-                this.resolveWheelHighlightTargets();
-                this.applyRoadAttitudeAngles();
 
                 if (this.container.id === 'vehicle-urdf-viewer' && Array.isArray(window.pendingVehicleWheelHighlightKeys) && window.pendingVehicleWheelHighlightKeys.length > 0) {
                     this.applyWheelHighlightByKeys(window.pendingVehicleWheelHighlightKeys);

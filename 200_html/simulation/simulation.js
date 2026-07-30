@@ -103,6 +103,7 @@ class RapierDriveSimulation {
         this.wheelZChartPanelElement = null;
         this.wheelZChartBodyElement = null;
         this.wheelZChartTitleRowElement = null;
+        this.wheelZChartTitleElement = null;
         this.wheelZChartToggleButtonElement = null;
         this.wheelZChartCanvasElement = null;
         this.wheelZChartContext = null;
@@ -256,6 +257,7 @@ class RapierDriveSimulation {
         this.wheelZChartPanelElement = panel;
         this.wheelZChartBodyElement = body;
         this.wheelZChartTitleRowElement = titleRow;
+        this.wheelZChartTitleElement = title;
         this.wheelZChartToggleButtonElement = toggleButton;
         this.wheelZChartCanvasElement = canvas;
         this.wheelZChartContext = canvas.getContext('2d');
@@ -314,9 +316,13 @@ class RapierDriveSimulation {
 
         if (this.wheelZChartTitleRowElement) {
             this.wheelZChartTitleRowElement.style.marginBottom = isVisible ? '4px' : '0';
-            this.wheelZChartTitleRowElement.style.justifyContent = isVisible ? 'center' : 'center';
-            this.wheelZChartTitleRowElement.style.minHeight = isVisible ? '28px' : '34px';
-            this.wheelZChartTitleRowElement.style.paddingRight = isVisible ? '36px' : '38px';
+            this.wheelZChartTitleRowElement.style.justifyContent = 'center';
+            this.wheelZChartTitleRowElement.style.minHeight = isVisible ? '28px' : '28px';
+            this.wheelZChartTitleRowElement.style.paddingRight = isVisible ? '36px' : '0';
+        }
+
+        if (this.wheelZChartTitleElement) {
+            this.wheelZChartTitleElement.style.display = isVisible ? 'block' : 'none';
         }
 
         if (this.wheelZChartBodyElement) {

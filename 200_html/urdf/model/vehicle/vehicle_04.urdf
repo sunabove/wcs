@@ -343,10 +343,10 @@
     </inertial>
   </link>
 
-  <!-- Front-left hub gear (internal wheel gear) -->
+  <!-- Front-left hub gear (visible from outer side) -->
   <link name="gear_fl">
     <visual>
-      <origin xyz="0 0 0" rpy="1.5707963 0 0" />
+      <origin xyz="0 0.065 0" rpy="1.5707963 0 0" />
       <geometry>
         <cylinder radius="0.055" length="0.022" />
       </geometry>
@@ -354,7 +354,7 @@
     </visual>
 
     <visual>
-      <origin xyz="0.06100 0.00000 0.00000" rpy="0 0 0" />
+      <origin xyz="0.06100 0.065 0.00000" rpy="0 0 0" />
       <geometry>
         <box size="0.012 0.022 0.010" />
       </geometry>
@@ -362,7 +362,7 @@
     </visual>
 
     <visual>
-      <origin xyz="0.03050 0.00000 0.05283" rpy="0 1.0471976 0" />
+      <origin xyz="0.03050 0.065 0.05283" rpy="0 1.0471976 0" />
       <geometry>
         <box size="0.012 0.022 0.010" />
       </geometry>
@@ -370,7 +370,7 @@
     </visual>
 
     <visual>
-      <origin xyz="-0.03050 0.00000 0.05283" rpy="0 2.0943951 0" />
+      <origin xyz="-0.03050 0.065 0.05283" rpy="0 2.0943951 0" />
       <geometry>
         <box size="0.012 0.022 0.010" />
       </geometry>
@@ -378,7 +378,7 @@
     </visual>
 
     <visual>
-      <origin xyz="-0.06100 0.00000 0.00000" rpy="0 3.1415927 0" />
+      <origin xyz="-0.06100 0.065 0.00000" rpy="0 3.1415927 0" />
       <geometry>
         <box size="0.012 0.022 0.010" />
       </geometry>
@@ -386,7 +386,7 @@
     </visual>
 
     <visual>
-      <origin xyz="-0.03050 0.00000 -0.05283" rpy="0 -2.0943951 0" />
+      <origin xyz="-0.03050 0.065 -0.05283" rpy="0 -2.0943951 0" />
       <geometry>
         <box size="0.012 0.022 0.010" />
       </geometry>
@@ -394,7 +394,7 @@
     </visual>
 
     <visual>
-      <origin xyz="0.03050 0.00000 -0.05283" rpy="0 -1.0471976 0" />
+      <origin xyz="0.03050 0.065 -0.05283" rpy="0 -1.0471976 0" />
       <geometry>
         <box size="0.012 0.022 0.010" />
       </geometry>
@@ -457,10 +457,10 @@
     </inertial>
   </link>
 
-  <!-- Front-right hub gear (internal wheel gear) -->
+  <!-- Front-right hub gear (visible from outer side) -->
   <link name="gear_fr">
     <visual>
-      <origin xyz="0 0 0" rpy="1.5707963 0 0" />
+      <origin xyz="0 -0.065 0" rpy="1.5707963 0 0" />
       <geometry>
         <cylinder radius="0.055" length="0.022" />
       </geometry>
@@ -468,7 +468,7 @@
     </visual>
 
     <visual>
-      <origin xyz="0.06100 0.00000 0.00000" rpy="0 0 0" />
+      <origin xyz="0.06100 -0.065 0.00000" rpy="0 0 0" />
       <geometry>
         <box size="0.012 0.022 0.010" />
       </geometry>
@@ -476,7 +476,7 @@
     </visual>
 
     <visual>
-      <origin xyz="0.03050 0.00000 0.05283" rpy="0 1.0471976 0" />
+      <origin xyz="0.03050 -0.065 0.05283" rpy="0 1.0471976 0" />
       <geometry>
         <box size="0.012 0.022 0.010" />
       </geometry>
@@ -484,7 +484,7 @@
     </visual>
 
     <visual>
-      <origin xyz="-0.03050 0.00000 0.05283" rpy="0 2.0943951 0" />
+      <origin xyz="-0.03050 -0.065 0.05283" rpy="0 2.0943951 0" />
       <geometry>
         <box size="0.012 0.022 0.010" />
       </geometry>
@@ -492,7 +492,7 @@
     </visual>
 
     <visual>
-      <origin xyz="-0.06100 0.00000 0.00000" rpy="0 3.1415927 0" />
+      <origin xyz="-0.06100 -0.065 0.00000" rpy="0 3.1415927 0" />
       <geometry>
         <box size="0.012 0.022 0.010" />
       </geometry>
@@ -500,7 +500,7 @@
     </visual>
 
     <visual>
-      <origin xyz="-0.03050 0.00000 -0.05283" rpy="0 -2.0943951 0" />
+      <origin xyz="-0.03050 -0.065 -0.05283" rpy="0 -2.0943951 0" />
       <geometry>
         <box size="0.012 0.022 0.010" />
       </geometry>
@@ -508,7 +508,7 @@
     </visual>
 
     <visual>
-      <origin xyz="0.03050 0.00000 -0.05283" rpy="0 -1.0471976 0" />
+      <origin xyz="0.03050 -0.065 -0.05283" rpy="0 -1.0471976 0" />
       <geometry>
         <box size="0.012 0.022 0.010" />
       </geometry>
@@ -571,10 +571,10 @@
     </inertial>
   </link>
 
-  <!-- Rear-left hub gear (internal wheel gear) -->
+  <!-- Rear-left hub gear (visible from outer side) -->
   <link name="gear_rl">
     <visual>
-      <origin xyz="0 0 0" rpy="1.5707963 0 0" />
+      <origin xyz="0 0.065 0" rpy="1.5707963 0 0" />
       <geometry>
         <cylinder radius="0.055" length="0.022" />
       </geometry>
@@ -582,7 +582,7 @@
     </visual>
 
     <visual>
-      <origin xyz="0.06100 0.00000 0.00000" rpy="0 0 0" />
+      <origin xyz="0.06100 0.065 0.00000" rpy="0 0 0" />
       <geometry>
         <box size="0.012 0.022 0.010" />
       </geometry>
@@ -590,7 +590,7 @@
     </visual>
 
     <visual>
-      <origin xyz="0.03050 0.00000 0.05283" rpy="0 1.0471976 0" />
+      <origin xyz="0.03050 0.065 0.05283" rpy="0 1.0471976 0" />
       <geometry>
         <box size="0.012 0.022 0.010" />
       </geometry>
@@ -598,7 +598,7 @@
     </visual>
 
     <visual>
-      <origin xyz="-0.03050 0.00000 0.05283" rpy="0 2.0943951 0" />
+      <origin xyz="-0.03050 0.065 0.05283" rpy="0 2.0943951 0" />
       <geometry>
         <box size="0.012 0.022 0.010" />
       </geometry>
@@ -606,7 +606,7 @@
     </visual>
 
     <visual>
-      <origin xyz="-0.06100 0.00000 0.00000" rpy="0 3.1415927 0" />
+      <origin xyz="-0.06100 0.065 0.00000" rpy="0 3.1415927 0" />
       <geometry>
         <box size="0.012 0.022 0.010" />
       </geometry>
@@ -614,7 +614,7 @@
     </visual>
 
     <visual>
-      <origin xyz="-0.03050 0.00000 -0.05283" rpy="0 -2.0943951 0" />
+      <origin xyz="-0.03050 0.065 -0.05283" rpy="0 -2.0943951 0" />
       <geometry>
         <box size="0.012 0.022 0.010" />
       </geometry>
@@ -622,7 +622,7 @@
     </visual>
 
     <visual>
-      <origin xyz="0.03050 0.00000 -0.05283" rpy="0 -1.0471976 0" />
+      <origin xyz="0.03050 0.065 -0.05283" rpy="0 -1.0471976 0" />
       <geometry>
         <box size="0.012 0.022 0.010" />
       </geometry>
@@ -685,10 +685,10 @@
     </inertial>
   </link>
 
-  <!-- Rear-right hub gear (internal wheel gear) -->
+  <!-- Rear-right hub gear (visible from outer side) -->
   <link name="gear_rr">
     <visual>
-      <origin xyz="0 0 0" rpy="1.5707963 0 0" />
+      <origin xyz="0 -0.065 0" rpy="1.5707963 0 0" />
       <geometry>
         <cylinder radius="0.055" length="0.022" />
       </geometry>
@@ -696,7 +696,7 @@
     </visual>
 
     <visual>
-      <origin xyz="0.06100 0.00000 0.00000" rpy="0 0 0" />
+      <origin xyz="0.06100 -0.065 0.00000" rpy="0 0 0" />
       <geometry>
         <box size="0.012 0.022 0.010" />
       </geometry>
@@ -704,7 +704,7 @@
     </visual>
 
     <visual>
-      <origin xyz="0.03050 0.00000 0.05283" rpy="0 1.0471976 0" />
+      <origin xyz="0.03050 -0.065 0.05283" rpy="0 1.0471976 0" />
       <geometry>
         <box size="0.012 0.022 0.010" />
       </geometry>
@@ -712,7 +712,7 @@
     </visual>
 
     <visual>
-      <origin xyz="-0.03050 0.00000 0.05283" rpy="0 2.0943951 0" />
+      <origin xyz="-0.03050 -0.065 0.05283" rpy="0 2.0943951 0" />
       <geometry>
         <box size="0.012 0.022 0.010" />
       </geometry>
@@ -720,7 +720,7 @@
     </visual>
 
     <visual>
-      <origin xyz="-0.06100 0.00000 0.00000" rpy="0 3.1415927 0" />
+      <origin xyz="-0.06100 -0.065 0.00000" rpy="0 3.1415927 0" />
       <geometry>
         <box size="0.012 0.022 0.010" />
       </geometry>
@@ -728,7 +728,7 @@
     </visual>
 
     <visual>
-      <origin xyz="-0.03050 0.00000 -0.05283" rpy="0 -2.0943951 0" />
+      <origin xyz="-0.03050 -0.065 -0.05283" rpy="0 -2.0943951 0" />
       <geometry>
         <box size="0.012 0.022 0.010" />
       </geometry>
@@ -736,7 +736,7 @@
     </visual>
 
     <visual>
-      <origin xyz="0.03050 0.00000 -0.05283" rpy="0 -1.0471976 0" />
+      <origin xyz="0.03050 -0.065 -0.05283" rpy="0 -1.0471976 0" />
       <geometry>
         <box size="0.012 0.022 0.010" />
       </geometry>

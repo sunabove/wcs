@@ -471,7 +471,7 @@ class RapierDriveSimulation {
         ctx.textBaseline = 'alphabetic';
 
         // Small per-wheel Y pixel offset so lines stay visible when values are identical.
-        const yPixelOffsetByKey = { fl: -2, fr: -1, rl: 1, rr: 2 };
+        const yPixelOffsetByKey = { fl: -1.5, fr: -0.5, rl: 0.5, rr: 1.5 };
 
         Object.keys(this.wheelZChartHistoryByKey).forEach((wheelKey) => {
             const samples = (this.wheelZChartHistoryByKey[wheelKey] || [])

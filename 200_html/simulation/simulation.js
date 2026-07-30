@@ -175,8 +175,19 @@ class RapierDriveSimulation {
         overlay.style.right = '12px';
         overlay.style.bottom = '12px';
         overlay.style.width = 'min(360px, 84vw)';
+        overlay.style.minHeight = '32px';
+        overlay.style.overflow = 'visible';
         overlay.style.pointerEvents = 'none';
         overlay.style.zIndex = '15';
+
+        const buttonDock = document.createElement('div');
+        buttonDock.style.position = 'absolute';
+        buttonDock.style.top = '0';
+        buttonDock.style.right = '0';
+        buttonDock.style.width = '28px';
+        buttonDock.style.height = '28px';
+        buttonDock.style.pointerEvents = 'none';
+        buttonDock.style.zIndex = '16';
 
         const panel = document.createElement('div');
         panel.className = 'border border-primary-subtle rounded-3 shadow-sm';
@@ -238,7 +249,8 @@ class RapierDriveSimulation {
         titleRow.appendChild(title);
         panel.appendChild(titleRow);
         panel.appendChild(body);
-        overlay.appendChild(toggleButton);
+        buttonDock.appendChild(toggleButton);
+        overlay.appendChild(buttonDock);
         overlay.appendChild(panel);
 
         const blockViewerInteraction = (event) => {

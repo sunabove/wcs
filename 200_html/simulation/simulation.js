@@ -193,7 +193,7 @@ class RapierDriveSimulation {
         titleRow.style.marginBottom = '4px';
         titleRow.style.position = 'relative';
         titleRow.style.minHeight = '28px';
-        titleRow.style.paddingRight = '36px';
+        titleRow.style.paddingRight = '0';
 
         const title = document.createElement('div');
         title.className = 'small fw-semibold text-primary';
@@ -236,9 +236,9 @@ class RapierDriveSimulation {
         body.appendChild(canvas);
 
         titleRow.appendChild(title);
-        titleRow.appendChild(toggleButton);
         panel.appendChild(titleRow);
         panel.appendChild(body);
+        overlay.appendChild(toggleButton);
         overlay.appendChild(panel);
 
         const blockViewerInteraction = (event) => {
@@ -314,11 +314,17 @@ class RapierDriveSimulation {
     updateWheelZChartVisibility() {
         const isVisible = this.isWheelZChartVisible;
 
+        if (this.wheelZChartToggleButtonElement) {
+            this.wheelZChartToggleButtonElement.style.top = isVisible ? '50%' : '0';
+            this.wheelZChartToggleButtonElement.style.transform = isVisible ? 'translateY(-50%)' : 'translateY(0)';
+            this.wheelZChartToggleButtonElement.style.right = isVisible ? '0' : '0';
+        }
+
         if (this.wheelZChartTitleRowElement) {
             this.wheelZChartTitleRowElement.style.marginBottom = isVisible ? '4px' : '0';
             this.wheelZChartTitleRowElement.style.justifyContent = 'center';
-            this.wheelZChartTitleRowElement.style.minHeight = isVisible ? '28px' : '28px';
-            this.wheelZChartTitleRowElement.style.paddingRight = isVisible ? '36px' : '0';
+            this.wheelZChartTitleRowElement.style.minHeight = isVisible ? '28px' : '0';
+            this.wheelZChartTitleRowElement.style.paddingRight = '0';
         }
 
         if (this.wheelZChartTitleElement) {
@@ -330,7 +336,8 @@ class RapierDriveSimulation {
         }
 
         if (this.wheelZChartPanelElement) {
-            this.wheelZChartPanelElement.style.opacity = isVisible ? '1' : '0.96';
+            this.wheelZChartPanelElement.style.display = isVisible ? 'block' : 'none';
+            this.wheelZChartPanelElement.style.opacity = '1';
         }
 
         this.updateWheelZChartToggleButtonState();

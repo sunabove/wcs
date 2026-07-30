@@ -1,9 +1,10 @@
 import * as THREE from 'three';
 
 const RAPIER_CDN = 'https://cdn.skypack.dev/@dimforge/rapier3d-compat@0.11.2';
-const SIM_SPEED_STORAGE_KEY = 'wcs.simulation.driveSpeedKmh';
-const SIM_SPEED_DEFAULT_KMH = 10;
-const SIM_SPEED_MAX_KMH = 40;
+const SIM_SPEED_STORAGE_KEY = 'wcs.simulation.driveSpeedMps';
+const SIM_SPEED_LEGACY_STORAGE_KEY = 'wcs.simulation.driveSpeedKmh';
+const SIM_SPEED_DEFAULT_MPS = 2.8;
+const SIM_SPEED_MAX_MPS = 11.1;
 const SIM_VISUAL_SPEED_STORAGE_KEY = 'wcs.simulation.visualSpeedScale';
 const SIM_VISUAL_SPEED_DEFAULT_SCALE = 0.5;
 const SIM_VISUAL_SPEED_MIN_SCALE = 1 / 30;
@@ -94,7 +95,7 @@ class RapierDriveSimulation {
             ArrowRight: 0
         };
         this.commandedDriveMode = 'stop';
-        this.commandedSpeedKmh = SIM_SPEED_DEFAULT_KMH;
+        this.commandedSpeedMps = SIM_SPEED_DEFAULT_MPS;
         this.isPaused = false;
         this.pauseStateSnapshot = null;
         this.hasInstalledDriveCommandHooks = false;
@@ -148,6 +149,31 @@ class RapierDriveSimulation {
             rr: null
         };
         this.wheelColliderInflationMeters = 0.012;
+    }
+
+    kmhToMps(kmh) {
+        const numeric = Number.parseFloat(kmh);
+        if (!Number.isFinite(numeric)) {
+            return 0;
+        }
+
+        return numeric / 3.6;
+    }
+
+    mpsToKmh(mps) {
+        const numeric = Number.parseFloat(mps);
+        if (!Number.isFinite(numeric)) {
+            return 0;
+        }
+
+        return numeric * 3.6;
+    }
+
+    normalizeDriveSpeedMps(rawValue, fallbackValue = SIM_SPEED_DEFAULT_MPS) {
+        const numeric = Number.parseFloat(rawValue);
+        const base = Number.isFinite(numeric) ? numeric : fallbackValue;
+        const clamped = Math.max(0, Math.min(SIM_SPEED_MAX_MPS, base));
+        return Math.round(clamped * 10) / 10;
     }
 
     initDebugPanel() {
@@ -744,7 +770,8 @@ class RapierDriveSimulation {
         const driveViewer = this.getDriveSourceViewer();
         const driveViewerId = String(driveViewer?.container?.id || 'null');
         const driveMode = String(this.commandedDriveMode || driveViewer?.driveMode || this.viewer?.driveMode || 'stop');
-        const speedKmh = Number(this.commandedSpeedKmh);
+        const speedMpsInput = Number(this.commandedSpeedMps);
+        const speedKmhInput = this.mpsToKmh(speedMpsInput);
         const speedMps = this.getCommandedDriveSpeedMps();
         const visualSpeedScale = Number(this.visualSpeedScale);
         const isReady = this.isReady ? 'Y' : 'N';
@@ -774,7 +801,7 @@ class RapierDriveSimulation {
             `simulationViewer=${simulationViewerId}`,
             `driveViewer=${driveViewerId}`,
             `visualSpeed=${Number.isFinite(visualSpeedScale) ? this.formatVisualSpeedScaleLabel(visualSpeedScale) : 'NaN'}`,
-            `mode=${driveMode} speedKmh=${Number.isFinite(speedKmh) ? speedKmh.toFixed(1) : 'NaN'} speedMps=${Number.isFinite(speedMps) ? speedMps.toFixed(3) : 'NaN'}`,
+            `mode=${driveMode} inputMps=${Number.isFinite(speedMpsInput) ? speedMpsInput.toFixed(1) : 'NaN'} inputKmh=${Number.isFinite(speedKmhInput) ? speedKmhInput.toFixed(1) : 'NaN'} speedMps=${Number.isFinite(speedMps) ? speedMps.toFixed(3) : 'NaN'}`,
             bodySummary,
             obstacleSummary
         ].join('\n');
@@ -801,7 +828,7 @@ class RapierDriveSimulation {
             globalThis.setDriveSpeedKmh = (kmh) => {
                 const numericKmh = Number.parseFloat(kmh);
                 if (Number.isFinite(numericKmh)) {
-                    this.commandedSpeedKmh = Math.max(0, numericKmh);
+                    this.commandedSpeedMps = this.normalizeDriveSpeedMps(this.kmhToMps(numericKmh), SIM_SPEED_DEFAULT_MPS);
                 }
                 return originalSetDriveSpeedKmh(kmh);
             };
@@ -813,18 +840,16 @@ class RapierDriveSimulation {
     }
 
     syncInitialDriveStateFromUi() {
-        const speedInput = document.getElementById('drive-speed-kmh');
-        const initialSpeedKmh = speedInput
+        const speedInput = document.getElementById('drive-speed-mps');
+        const initialSpeedMps = speedInput
             ? Number.parseFloat(speedInput.value)
-            : SIM_SPEED_DEFAULT_KMH;
+            : SIM_SPEED_DEFAULT_MPS;
 
         this.commandedDriveMode = 'stop';
-        this.commandedSpeedKmh = Number.isFinite(initialSpeedKmh)
-            ? Math.max(0, initialSpeedKmh)
-            : SIM_SPEED_DEFAULT_KMH;
+        this.commandedSpeedMps = this.normalizeDriveSpeedMps(initialSpeedMps, SIM_SPEED_DEFAULT_MPS);
 
         if (typeof globalThis.setDriveSpeedKmh === 'function') {
-            globalThis.setDriveSpeedKmh(this.commandedSpeedKmh);
+            globalThis.setDriveSpeedKmh(this.mpsToKmh(this.commandedSpeedMps));
         }
 
         if (typeof globalThis.setDriveMode === 'function') {
@@ -843,18 +868,17 @@ class RapierDriveSimulation {
 
         const viewer = this.getDriveSourceViewer() || this.viewer;
         if (viewer && typeof viewer.applyDriveMode === 'function') {
-            const speedKmh = Math.max(Number(this.commandedSpeedKmh) || 0, 0);
+            const speedKmh = Math.max(this.mpsToKmh(this.commandedSpeedMps), 0);
             viewer.applyDriveMode(normalizedMode, speedKmh);
         }
     }
 
-    applyDriveSpeedCommand(kmh) {
-        const numericKmh = Number.parseFloat(kmh);
-        const normalizedKmh = Number.isFinite(numericKmh) ? Math.max(0, numericKmh) : 0;
-        this.commandedSpeedKmh = normalizedKmh;
+    applyDriveSpeedCommandMps(mps) {
+        const normalizedMps = this.normalizeDriveSpeedMps(mps, 0);
+        this.commandedSpeedMps = normalizedMps;
 
         if (typeof globalThis.setDriveSpeedKmh === 'function') {
-            globalThis.setDriveSpeedKmh(normalizedKmh);
+            globalThis.setDriveSpeedKmh(this.mpsToKmh(normalizedMps));
             return;
         }
 
@@ -863,10 +887,15 @@ class RapierDriveSimulation {
             return;
         }
 
+        const normalizedKmh = this.mpsToKmh(normalizedMps);
         viewer.driveSpeedKmh = normalizedKmh;
         if (viewer.driveMode && viewer.driveMode !== 'stop' && typeof viewer.applyDriveMode === 'function') {
             viewer.applyDriveMode(viewer.driveMode, normalizedKmh);
         }
+    }
+
+    applyDriveSpeedCommandKmh(kmh) {
+        this.applyDriveSpeedCommandMps(this.kmhToMps(kmh));
     }
 
     findSimulationViewer() {
@@ -1149,10 +1178,15 @@ class RapierDriveSimulation {
         if (this.isPaused) {
             const driveViewer = this.getDriveSourceViewer();
             const snapshotDriveMode = String(this.commandedDriveMode || driveViewer?.driveMode || this.viewer?.driveMode || 'stop');
-            const snapshotSpeedKmh = Math.max(Number(this.commandedSpeedKmh) || Number(driveViewer?.driveSpeedKmh) || 0, 0);
+            const snapshotSpeedMps = this.normalizeDriveSpeedMps(
+                Number.isFinite(Number(this.commandedSpeedMps))
+                    ? this.commandedSpeedMps
+                    : this.kmhToMps(Number(driveViewer?.driveSpeedKmh) || 0),
+                SIM_SPEED_DEFAULT_MPS
+            );
             this.pauseStateSnapshot = {
                 driveMode: snapshotDriveMode,
-                speedKmh: snapshotSpeedKmh,
+                speedMps: snapshotSpeedMps,
                 wheelSignedRpmByKey: this.getSignedWheelRpmSnapshotByKey(driveViewer)
             };
 
@@ -1175,7 +1209,7 @@ class RapierDriveSimulation {
             }
         } else if (this.pauseStateSnapshot) {
             const snapshot = this.pauseStateSnapshot;
-            this.applyDriveSpeedCommand(snapshot.speedKmh);
+            this.applyDriveSpeedCommandMps(snapshot.speedMps);
             this.applyDriveModeCommand(snapshot.driveMode);
 
             if (snapshot.driveMode === 'stop' && snapshot.wheelSignedRpmByKey) {
@@ -1335,8 +1369,9 @@ class RapierDriveSimulation {
     }
 
     initializeSpeedSliderPreference() {
-        const speedSlider = document.getElementById('drive-speed-kmh');
-        const speedLabel = document.getElementById('drive-speed-kmh-value');
+        const speedSlider = document.getElementById('drive-speed-mps');
+        const speedLabel = document.getElementById('drive-speed-mps-value');
+        const speedInput = document.getElementById('drive-speed-mps-input');
         if (!speedSlider) {
             return;
         }
@@ -1346,38 +1381,53 @@ class RapierDriveSimulation {
         const effectiveMin = Number.isFinite(sliderMin) ? sliderMin : 0;
         const effectiveMax = Number.isFinite(sliderMax) && sliderMax >= effectiveMin
             ? sliderMax
-            : SIM_SPEED_MAX_KMH;
+            : SIM_SPEED_MAX_MPS;
 
         const parseSpeed = (rawValue, fallbackValue) => {
             const numeric = Number.parseFloat(rawValue);
             if (!Number.isFinite(numeric)) {
                 return fallbackValue;
             }
-            return Math.max(effectiveMin, Math.min(effectiveMax, numeric));
+            const clamped = Math.max(effectiveMin, Math.min(effectiveMax, numeric));
+            return Math.round(clamped * 10) / 10;
         };
 
-        let initialSpeed = SIM_SPEED_DEFAULT_KMH;
+        let initialSpeed = SIM_SPEED_DEFAULT_MPS;
         try {
             const storedValue = window.localStorage.getItem(SIM_SPEED_STORAGE_KEY);
             if (storedValue != null) {
-                initialSpeed = parseSpeed(storedValue, SIM_SPEED_DEFAULT_KMH);
+                initialSpeed = parseSpeed(storedValue, SIM_SPEED_DEFAULT_MPS);
+            } else {
+                const legacyKmhValue = window.localStorage.getItem(SIM_SPEED_LEGACY_STORAGE_KEY);
+                if (legacyKmhValue != null) {
+                    initialSpeed = parseSpeed(this.kmhToMps(legacyKmhValue), SIM_SPEED_DEFAULT_MPS);
+                }
             }
         } catch (error) {
-            initialSpeed = SIM_SPEED_DEFAULT_KMH;
+            initialSpeed = SIM_SPEED_DEFAULT_MPS;
         }
 
-        speedSlider.value = String(initialSpeed);
+        speedSlider.value = initialSpeed.toFixed(1);
         this.updateSpeedSliderVisual(speedSlider);
+        if (speedInput) {
+            speedInput.value = initialSpeed.toFixed(1);
+        }
         if (speedLabel) {
-            speedLabel.textContent = `${initialSpeed} km/h`;
+            speedLabel.textContent = `${initialSpeed.toFixed(1)} m/s`;
         }
 
-        if (typeof window.setDriveSpeedKmh === 'function') {
-            window.setDriveSpeedKmh(initialSpeed);
-        }
+        this.applyDriveSpeedCommandMps(initialSpeed);
 
         const persistSpeed = () => {
-            const normalizedSpeed = parseSpeed(speedSlider.value, SIM_SPEED_DEFAULT_KMH);
+            const normalizedSpeed = parseSpeed(speedSlider.value, SIM_SPEED_DEFAULT_MPS);
+            speedSlider.value = normalizedSpeed.toFixed(1);
+            if (speedInput) {
+                speedInput.value = normalizedSpeed.toFixed(1);
+            }
+            if (speedLabel) {
+                speedLabel.textContent = `${normalizedSpeed.toFixed(1)} m/s`;
+            }
+            this.applyDriveSpeedCommandMps(normalizedSpeed);
             try {
                 window.localStorage.setItem(SIM_SPEED_STORAGE_KEY, String(normalizedSpeed));
             } catch (error) {
@@ -1387,6 +1437,22 @@ class RapierDriveSimulation {
 
         speedSlider.addEventListener('input', persistSpeed);
         speedSlider.addEventListener('change', persistSpeed);
+        if (speedInput) {
+            speedInput.addEventListener('input', () => {
+                const normalizedSpeed = parseSpeed(speedInput.value, SIM_SPEED_DEFAULT_MPS);
+                speedSlider.value = normalizedSpeed.toFixed(1);
+                this.updateSpeedSliderVisual(speedSlider);
+                if (speedLabel) {
+                    speedLabel.textContent = `${normalizedSpeed.toFixed(1)} m/s`;
+                }
+                this.applyDriveSpeedCommandMps(normalizedSpeed);
+                try {
+                    window.localStorage.setItem(SIM_SPEED_STORAGE_KEY, String(normalizedSpeed));
+                } catch (error) {
+                    // Ignore storage failures and continue runtime behavior.
+                }
+            });
+        }
     }
 
     normalizeVisualSpeedScale(rawValue) {
@@ -1497,25 +1563,27 @@ class RapierDriveSimulation {
     }
 
     resetSpeedSliderToDefault() {
-        const speedSlider = document.getElementById('drive-speed-kmh');
-        const speedLabel = document.getElementById('drive-speed-kmh-value');
+        const speedSlider = document.getElementById('drive-speed-mps');
+        const speedLabel = document.getElementById('drive-speed-mps-value');
+        const speedInput = document.getElementById('drive-speed-mps-input');
         if (!speedSlider) {
             return;
         }
 
-        speedSlider.value = String(SIM_SPEED_DEFAULT_KMH);
+        speedSlider.value = SIM_SPEED_DEFAULT_MPS.toFixed(1);
         this.updateSpeedSliderVisual(speedSlider);
+        if (speedInput) {
+            speedInput.value = SIM_SPEED_DEFAULT_MPS.toFixed(1);
+        }
 
         if (speedLabel) {
-            speedLabel.textContent = `${SIM_SPEED_DEFAULT_KMH} km/h`;
+            speedLabel.textContent = `${SIM_SPEED_DEFAULT_MPS.toFixed(1)} m/s`;
         }
 
-        if (typeof window.setDriveSpeedKmh === 'function') {
-            window.setDriveSpeedKmh(SIM_SPEED_DEFAULT_KMH);
-        }
+        this.applyDriveSpeedCommandMps(SIM_SPEED_DEFAULT_MPS);
 
         try {
-            window.localStorage.setItem(SIM_SPEED_STORAGE_KEY, String(SIM_SPEED_DEFAULT_KMH));
+            window.localStorage.setItem(SIM_SPEED_STORAGE_KEY, String(SIM_SPEED_DEFAULT_MPS));
         } catch (error) {
             // Ignore storage failures and continue runtime behavior.
         }
@@ -2521,7 +2589,7 @@ class RapierDriveSimulation {
     }
 
     getCommandedDriveSpeedMps() {
-        const fallbackByHook = Math.max(Number(this.commandedSpeedKmh) || 0, 0) / 3.6;
+        const fallbackByHook = Math.max(Number(this.commandedSpeedMps) || 0, 0);
         const driveViewer = this.getDriveSourceViewer();
         const avgSignedWheelRpm = this.getAverageSignedWheelRpmForViewer(driveViewer);
         const speedBySlider = Math.max(Number(driveViewer?.driveSpeedKmh) || 0, 0) / 3.6;
@@ -3283,8 +3351,12 @@ globalThis.setSimulationDriveMode = function(mode) {
     rapierDriveSimulation.applyDriveModeCommand(mode);
 };
 
+globalThis.setSimulationDriveSpeedMps = function(mps) {
+    rapierDriveSimulation.applyDriveSpeedCommandMps(mps);
+};
+
 globalThis.setSimulationDriveSpeedKmh = function(kmh) {
-    rapierDriveSimulation.applyDriveSpeedCommand(kmh);
+    rapierDriveSimulation.applyDriveSpeedCommandKmh(kmh);
 };
 
 globalThis.setSimulationVisualSpeed = function(scale) {

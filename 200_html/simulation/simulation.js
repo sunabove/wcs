@@ -2028,6 +2028,148 @@ class RapierDriveSimulation {
         return boundsList;
     }
 
+    getWorldObbForObject(object3D) {
+        if (!object3D) {
+            return null;
+        }
+
+        object3D.updateWorldMatrix(true, true);
+        const worldBounds = new THREE.Box3().setFromObject(object3D);
+        if (!worldBounds || worldBounds.isEmpty()) {
+            return null;
+        }
+
+        const center = worldBounds.getCenter(new THREE.Vector3());
+        const size = worldBounds.getSize(new THREE.Vector3());
+        const halfExtents = new THREE.Vector3(size.x * 0.5, size.y * 0.5, size.z * 0.5);
+        const quaternion = new THREE.Quaternion();
+        object3D.getWorldQuaternion(quaternion);
+        const rotationMatrix = new THREE.Matrix4().makeRotationFromQuaternion(quaternion);
+        const e = rotationMatrix.elements;
+
+        const axisX = new THREE.Vector3(e[0], e[1], e[2]).normalize();
+        const axisY = new THREE.Vector3(e[4], e[5], e[6]).normalize();
+        const axisZ = new THREE.Vector3(e[8], e[9], e[10]).normalize();
+
+        return {
+            center,
+            halfExtents,
+            axes: [axisX, axisY, axisZ]
+        };
+    }
+
+    getVehicleCollisionObbs(linkMap = null) {
+        const effectiveLinkMap = linkMap || this.viewer?.robotModel?.links || null;
+        const obbs = [];
+
+        if (!effectiveLinkMap) {
+            return obbs;
+        }
+
+        if (this.carFrame) {
+            const chassisBounds = this.computeChassisBounds(this.carFrame, effectiveLinkMap);
+            if (chassisBounds && !chassisBounds.isEmpty()) {
+                const chassisObb = this.getWorldObbForObject(this.carFrame);
+                if (chassisObb) {
+                    chassisObb.center.copy(chassisBounds.getCenter(new THREE.Vector3()));
+                    chassisObb.halfExtents.copy(chassisBounds.getSize(new THREE.Vector3()).multiplyScalar(0.5));
+                    obbs.push(chassisObb);
+                }
+            }
+
+            ['wheel_fl', 'wheel_fr', 'wheel_rl', 'wheel_rr'].forEach((wheelName) => {
+                const wheelLink = this.findLinkByName(effectiveLinkMap, wheelName);
+                if (!wheelLink) {
+                    return;
+                }
+
+                const wheelObb = this.getWorldObbForObject(wheelLink);
+                if (wheelObb) {
+                    obbs.push(wheelObb);
+                }
+            });
+        }
+
+        return obbs;
+    }
+
+    getObstacleCollisionObb(obstacleInfo, linkMap = null) {
+        if (!obstacleInfo) {
+            return null;
+        }
+
+        const effectiveLinkMap = linkMap || this.viewer?.robotModel?.links || null;
+        const obstacleObject = obstacleInfo.linkObject
+            || (effectiveLinkMap ? this.findLinkByName(effectiveLinkMap, obstacleInfo.linkName) : null)
+            || null;
+
+        if (obstacleObject) {
+            return this.getWorldObbForObject(obstacleObject);
+        }
+
+        if (obstacleInfo.center && obstacleInfo.halfExtents) {
+            return {
+                center: obstacleInfo.center.clone(),
+                halfExtents: new THREE.Vector3(obstacleInfo.halfExtents.x, obstacleInfo.halfExtents.y, obstacleInfo.halfExtents.z),
+                axes: [
+                    new THREE.Vector3(1, 0, 0),
+                    new THREE.Vector3(0, 1, 0),
+                    new THREE.Vector3(0, 0, 1)
+                ]
+            };
+        }
+
+        return null;
+    }
+
+    obbIntersects(obbA, obbB, contactMarginMeters = 0) {
+        if (!obbA || !obbB) {
+            return false;
+        }
+
+        const margin = Math.max(Number(contactMarginMeters) || 0, 0);
+        const centerOffset = obbB.center.clone().sub(obbA.center);
+        const axesToTest = [];
+
+        obbA.axes.forEach((axisA) => {
+            obbB.axes.forEach((axisB) => {
+                const crossAxis = axisA.clone().cross(axisB);
+                if (crossAxis.lengthSq() > 1e-8) {
+                    crossAxis.normalize();
+                    axesToTest.push(crossAxis);
+                }
+            });
+        });
+
+        [...obbA.axes, ...obbB.axes].forEach((axis) => {
+            if (axis && axis.lengthSq() > 1e-8) {
+                const normalizedAxis = axis.clone().normalize();
+                axesToTest.push(normalizedAxis);
+            }
+        });
+
+        for (let i = 0; i < axesToTest.length; i += 1) {
+            const axis = axesToTest[i];
+            if (!axis || axis.lengthSq() <= 1e-8) {
+                continue;
+            }
+
+            const radiusA = obbA.halfExtents.x * Math.abs(axis.dot(obbA.axes[0]))
+                + obbA.halfExtents.y * Math.abs(axis.dot(obbA.axes[1]))
+                + obbA.halfExtents.z * Math.abs(axis.dot(obbA.axes[2]));
+            const radiusB = obbB.halfExtents.x * Math.abs(axis.dot(obbB.axes[0]))
+                + obbB.halfExtents.y * Math.abs(axis.dot(obbB.axes[1]))
+                + obbB.halfExtents.z * Math.abs(axis.dot(obbB.axes[2]));
+            const projectedCenterOffset = Math.abs(centerOffset.dot(axis));
+
+            if (projectedCenterOffset > (radiusA + radiusB + margin)) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
     getVehicleColliderWorldCenter() {
         if (!this.body) {
             return null;

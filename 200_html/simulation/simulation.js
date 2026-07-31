@@ -2529,6 +2529,31 @@ class RapierDriveSimulation {
         return obstacleContactInfo ? { obstacleInfo: obstacleContactInfo } : null;
     }
 
+    isObstacleInFrontForClimb(obstacleInfo = null) {
+        if (!this.body || !obstacleInfo?.center) {
+            return false;
+        }
+
+        const bodyPosition = this.body.translation();
+        const bodyRotation = this.body.rotation();
+        const yaw = this.extractYawFromQuaternion(bodyRotation);
+        const forwardX = Math.cos(yaw);
+        const forwardY = Math.sin(yaw);
+        const dx = obstacleInfo.center.x - bodyPosition.x;
+        const dy = obstacleInfo.center.y - bodyPosition.y;
+        const alongForward = dx * forwardX + dy * forwardY;
+        const lateralOffset = Math.abs(dx * forwardY - dy * forwardX);
+        const distance = Math.hypot(dx, dy);
+        const obstacleTopZ = obstacleInfo.center.z + obstacleInfo.halfExtents.z;
+        const wheelPlaneZ = bodyPosition.z + (Number.isFinite(this.wheelLocalMinZ) ? this.wheelLocalMinZ : 0);
+        const verticalGap = obstacleTopZ - wheelPlaneZ;
+
+        return alongForward > 0.03
+            && distance < 0.6
+            && lateralOffset < 0.25
+            && verticalGap > 0.02;
+    }
+
     getObstacleClimbTargetZ(obstacleInfo = null) {
         if (!this.body || !Number.isFinite(this.wheelLocalMinZ) || !Array.isArray(this.obstacleColliderInfos)) {
             return null;
@@ -2569,8 +2594,8 @@ class RapierDriveSimulation {
         }
 
         const forwardSpeed = Math.hypot(velocity.x, velocity.y);
-        const maxLiftPerStep = 0.008 + Math.min(forwardSpeed * 0.004, 0.012);
-        const liftAmount = Math.min(Math.max(targetGap * 0.16, 0.0015), maxLiftPerStep);
+        const maxLiftPerStep = 0.012 + Math.min(forwardSpeed * 0.008, 0.028);
+        const liftAmount = Math.min(Math.max(targetGap * 0.45, 0.006), maxLiftPerStep);
         if (liftAmount <= 1e-6) {
             return;
         }
@@ -3650,7 +3675,8 @@ class RapierDriveSimulation {
         }
         const wasObstacleContact = this.updateObstacleContactState();
         const obstacleApproach = this.getObstacleApproachInfo();
-        this.isVehicleObstacleContact = Boolean(wasObstacleContact);
+        const isObstacleApproachForClimb = this.isObstacleInFrontForClimb(obstacleApproach?.obstacleInfo || null);
+        this.isVehicleObstacleContact = Boolean(wasObstacleContact || isObstacleApproachForClimb);
         let commandedVelocityX = 0;
         let commandedVelocityY = 0;
         const isNearFlatGroundSupport = this.isBodyNearFlatGroundSupport();
@@ -3722,7 +3748,8 @@ class RapierDriveSimulation {
             this.world.timestep = this.physicsFixedTimeStepSec;
             this.world.step();
             let hasObstacleContactNow = this.updateObstacleContactState();
-            if (hasObstacleContactNow) {
+            const isClimbingApproach = this.isObstacleInFrontForClimb(obstacleApproach?.obstacleInfo || null);
+            if (hasObstacleContactNow || isClimbingApproach) {
                 this.postObstacleGroundRecoverRemainingSec = Math.max(Number(this.postObstacleGroundRecoverDurationSec) || 0, 0);
             } else {
                 this.postObstacleGroundRecoverRemainingSec = Math.max(
@@ -3737,7 +3764,7 @@ class RapierDriveSimulation {
             if (hasObstacleContactNow && obstacleApproach?.obstacleInfo) {
                 this.applyObstacleContactImpulse(this.physicsFixedTimeStepSec, obstacleApproach.obstacleInfo);
             }
-            if (hasObstacleContactNow) {
+            if (hasObstacleContactNow || isClimbingApproach) {
                 this.applyObstacleClimbLift(true, this.physicsFixedTimeStepSec, obstacleApproach?.obstacleInfo);
             } else {
                 const velocity = this.body.linvel();
@@ -3782,7 +3809,8 @@ class RapierDriveSimulation {
         }
 
         const hasObstacleContact = this.updateObstacleContactState();
-        this.isVehicleObstacleContact = hasObstacleContact;
+        const isClimbingApproachAfterStep = this.isObstacleInFrontForClimb(obstacleApproach?.obstacleInfo || null);
+        this.isVehicleObstacleContact = Boolean(hasObstacleContact || isClimbingApproachAfterStep);
         if (this.keepUprightOnFlatGround) {
             const shouldKeepUpright = this.isBodyNearFlatGroundSupport();
             this.setUprightRotationLockEnabled(shouldKeepUpright);

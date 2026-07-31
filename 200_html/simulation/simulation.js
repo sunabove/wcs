@@ -1898,7 +1898,7 @@ class RapierDriveSimulation {
 
         let effectiveHalfX = Math.max(halfX, 0.001);
         let effectiveHalfY = Math.max(halfY, 0.001);
-        let effectiveHalfZ = Math.max(halfZ, 0.01);
+        let effectiveHalfZ = Math.max(halfZ, 0.005);
         let friction = 1.4;
         let restitution = 0.02;
 
@@ -1925,13 +1925,13 @@ class RapierDriveSimulation {
         } else if (isHemisphereLike) {
             effectiveHalfX = Math.max(effectiveHalfX, 0.06);
             effectiveHalfY = Math.max(effectiveHalfY, 0.06);
-            effectiveHalfZ = Math.max(effectiveHalfZ, 0.04);
+            effectiveHalfZ = Math.max(effectiveHalfZ, 0.02);
             friction = 0.25;
             restitution = 0.0;
         } else if (isBarLike) {
             effectiveHalfX = Math.max(effectiveHalfX, 0.04);
             effectiveHalfY = Math.max(effectiveHalfY, 0.75);
-            effectiveHalfZ = Math.max(effectiveHalfZ, 0.03);
+            effectiveHalfZ = Math.max(effectiveHalfZ, 0.015);
             friction = 0.35;
             restitution = 0.0;
         } else {
@@ -1940,7 +1940,7 @@ class RapierDriveSimulation {
                 friction = 0.6;
                 restitution = 0.0;
             } else if (maxExtent < 0.08) {
-                effectiveHalfZ = Math.max(effectiveHalfZ, 0.015);
+                effectiveHalfZ = Math.max(effectiveHalfZ, 0.008);
                 friction = 0.4;
                 restitution = 0.0;
             }
@@ -2580,7 +2580,7 @@ class RapierDriveSimulation {
             return null;
         }
 
-        return wheelBottomZ + 0.01;
+        return wheelBottomZ + 0.002;
     }
 
     applyObstacleClimbLift(hasObstacleContactNow, effectiveDeltaSec, obstacleInfo = null) {

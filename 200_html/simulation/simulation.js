@@ -2172,6 +2172,25 @@ class RapierDriveSimulation {
         return adjusted;
     }
 
+    getVehicleFrontProbePoint() {
+        if (!this.body) {
+            return null;
+        }
+
+        const bodyTranslation = this.body.translation();
+        const bodyRotation = this.body.rotation();
+        const yaw = this.extractYawFromQuaternion(bodyRotation);
+        const forwardX = Math.cos(yaw);
+        const forwardY = Math.sin(yaw);
+        const probeDistance = Math.max((this.vehicleColliderHalfExtents?.x || 0.18) + 0.12, 0.18);
+
+        return {
+            x: bodyTranslation.x + (forwardX * probeDistance),
+            y: bodyTranslation.y + (forwardY * probeDistance),
+            z: bodyTranslation.z + 0.02
+        };
+    }
+
     getObstacleApproachInfo() {
         if (!this.body || !Array.isArray(this.obstacleColliderInfos)) {
             return null;
@@ -2186,13 +2205,10 @@ class RapierDriveSimulation {
             ? this.wheelLocalMinZ
             : (Number.isFinite(this.vehicleLocalMinZ) ? this.vehicleLocalMinZ : 0);
         const wheelContactPlaneZ = bodyTranslation.z + localMinZ;
-        const vehicleHalfExtents = this.getVehicleColliderWorldAabbHalfExtents() || { x: 0.18, y: 0.18, z: 0.08 };
-        const probeDistance = Math.max((vehicleHalfExtents.x || 0.18) + 0.12, 0.18);
-        const probePoint = {
-            x: bodyTranslation.x + (forwardX * probeDistance),
-            y: bodyTranslation.y + (forwardY * probeDistance),
-            z: bodyTranslation.z + 0.02
-        };
+        const probePoint = this.getVehicleFrontProbePoint();
+        if (!probePoint) {
+            return null;
+        }
 
         let bestApproach = null;
         let bestScore = Infinity;
@@ -2209,17 +2225,17 @@ class RapierDriveSimulation {
             const obstacleTopZ = obstacleInfo.center.z + obstacleInfo.halfExtents.z;
             const obstacleBottomZ = obstacleInfo.center.z - obstacleInfo.halfExtents.z;
             const lateralMargin = Math.max(Number(this.obstacleContactSurfaceToleranceMeters) || 0, 0) + 0.04;
-            const verticalMargin = 0.06;
+            const verticalMargin = 0.08;
             const isWithinObstacleBox = probePoint.x >= (obstacleMinX - lateralMargin)
                 && probePoint.x <= (obstacleMaxX + lateralMargin)
                 && probePoint.y >= (obstacleMinY - lateralMargin)
                 && probePoint.y <= (obstacleMaxY + lateralMargin);
             const isVerticalAligned = probePoint.z <= (obstacleTopZ + verticalMargin)
                 && probePoint.z >= (obstacleBottomZ - verticalMargin);
-            const isAboveWheelContactPlane = obstacleTopZ >= (wheelContactPlaneZ - 0.02);
+            const isTallEnough = obstacleTopZ >= (wheelContactPlaneZ - 0.03);
             const isNearBase = obstacleBottomZ <= (bodyTranslation.z + 0.08) && obstacleBottomZ >= (bodyTranslation.z - 0.08);
 
-            if (!(isWithinObstacleBox && isVerticalAligned && (isAboveWheelContactPlane || isNearBase))) {
+            if (!(isWithinObstacleBox && isVerticalAligned && (isTallEnough || isNearBase))) {
                 return;
             }
 
@@ -2227,7 +2243,8 @@ class RapierDriveSimulation {
             const dy = obstacleInfo.center.y - bodyTranslation.y;
             const aheadDistance = dx * forwardX + dy * forwardY;
             const lateralDistance = Math.abs(dx * forwardY - dy * forwardX);
-            const score = Math.max(0.01, aheadDistance) + (lateralDistance * 2.0);
+            const speed = Math.hypot(this.body.linvel().x, this.body.linvel().y);
+            const score = Math.max(0.01, aheadDistance) + (lateralDistance * 2.0) + Math.max(0, 0.08 - speed);
             if (score >= bestScore) {
                 return;
             }
@@ -2279,17 +2296,18 @@ class RapierDriveSimulation {
         const translation = this.body.translation();
         const velocity = this.body.linvel();
         const targetGap = climbTargetZ - translation.z;
-        const liftAmount = Math.min(Math.max(targetGap * 0.45, 0.0), 0.012 + (effectiveDeltaSec * 0.006));
+        const liftAmount = Math.min(Math.max(targetGap * 0.75, 0.0), 0.018 + (effectiveDeltaSec * 0.008));
         if (liftAmount <= 1e-6) {
             return;
         }
 
-        const nextZ = translation.z + liftAmount;
+        const nextZ = Math.min(translation.z + liftAmount, climbTargetZ);
+        const speed = Math.hypot(velocity.x, velocity.y);
         this.body.setTranslation(new this.rapier.Vector3(translation.x, translation.y, nextZ), true);
         this.body.setLinvel(new this.rapier.Vector3(
-            velocity.x * 0.85,
-            velocity.y * 0.85,
-            Math.max(velocity.z, 0.03)
+            velocity.x * 0.8,
+            velocity.y * 0.8,
+            Math.max(velocity.z, Math.min(0.04, speed * 0.2))
         ), true);
     }
 

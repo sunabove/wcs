@@ -2546,8 +2546,12 @@ class RapierDriveSimulation {
             const gapX = Math.abs(vehicleCenter.x - obstacleInfo.center.x) - (vehicleHalfExtents.x + obstacleInfo.halfExtents.x);
             const gapY = Math.abs(vehicleCenter.y - obstacleInfo.center.y) - (vehicleHalfExtents.y + obstacleInfo.halfExtents.y);
             const obstacleTopZ = obstacleInfo.center.z + obstacleInfo.halfExtents.z;
+            const obstacleBottomZ = obstacleInfo.center.z - obstacleInfo.halfExtents.z;
+            const vehicleBottomZ = vehicleCenter.z - vehicleHalfExtents.z;
             const verticalGap = obstacleTopZ - vehicleCenter.z;
-            const isRelevant = gapX <= 0.02 && gapY <= 0.02 && verticalGap >= -0.01 && verticalGap <= 0.025;
+            const canReachInZ = obstacleBottomZ <= vehicleBottomZ + 0.03 && obstacleTopZ >= vehicleBottomZ - 0.01;
+            const isOverlappingInXY = gapX <= 0.0 && gapY <= 0.0;
+            const isRelevant = isOverlappingInXY && canReachInZ && verticalGap >= -0.01 && verticalGap <= 0.025;
             if (!isRelevant) {
                 return;
             }
@@ -2633,13 +2637,16 @@ class RapierDriveSimulation {
             }
 
             const obstacleTopZ = obstacleInfo.center.z + obstacleInfo.halfExtents.z;
-            if (obstacleTopZ < (wheelContactPlaneZ - verticalTolerance)) {
+            const obstacleBottomZ = obstacleInfo.center.z - obstacleInfo.halfExtents.z;
+            const wheelBottomZ = wheelContactPlaneZ - verticalTolerance;
+            if (obstacleTopZ < wheelBottomZ || obstacleBottomZ > wheelContactPlaneZ + 0.02) {
                 return false;
             }
 
             const gapX = Math.abs(vehicleCenter.x - obstacleInfo.center.x) - (vx + obstacleInfo.halfExtents.x);
             const gapY = Math.abs(vehicleCenter.y - obstacleInfo.center.y) - (vy + obstacleInfo.halfExtents.y);
-            return gapX <= approachMargin && gapY <= approachMargin;
+            const isOverlappingInXY = gapX <= 0.0 && gapY <= 0.0;
+            return isOverlappingInXY && gapX <= approachMargin && gapY <= approachMargin;
         });
     }
 

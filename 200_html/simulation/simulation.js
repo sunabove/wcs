@@ -1147,6 +1147,11 @@ class RapierDriveSimulation {
 
         Object.keys(linkMap).forEach((name) => {
             const normalizedName = this.normalizeLinkName(name);
+            const isOriginObject = /(^|[_-])origin($|[_-])/i.test(name) || /(^|[_-])origin($|[_-])/i.test(normalizedName);
+            if (isOriginObject) {
+                return;
+            }
+
             const matchedByExactName = targetNames.has(String(name).toLowerCase()) || targetNames.has(normalizedName);
             const matchedByPattern = this.urdfObstacleLinkNamePatterns.some((pattern) => pattern.test(name) || pattern.test(normalizedName));
             const matched = matchedByExactName || matchedByPattern;
@@ -1854,6 +1859,7 @@ class RapierDriveSimulation {
             const halfY = Math.max(size.y * 0.5 + 0.08, 0.12);
             const halfZ = Math.max(size.z * 0.5 + 0.08, 0.12);
             const normalizedObstacleName = this.normalizeLinkName(obstacleLinkName);
+            const isOriginObject = /(^|[_-])origin($|[_-])/i.test(obstacleLinkName) || /(^|[_-])origin($|[_-])/i.test(normalizedObstacleName);
             const isPassUnderTagged = this.passUnderObstacleNamePatterns.some((pattern) => pattern.test(obstacleLinkName) || pattern.test(normalizedObstacleName));
 
             const isPotholeObstacle = /^pothole/i.test(obstacleLinkName) || /^pothole/i.test(normalizedObstacleName);
@@ -1901,6 +1907,10 @@ class RapierDriveSimulation {
                     wheelContactPlaneZ: Number.isFinite(wheelContactPlaneZ) ? Number(wheelContactPlaneZ.toFixed(4)) : null,
                     passThroughClearance: Number(passThroughClearance.toFixed(4))
                 });
+            }
+
+            if (isOriginObject) {
+                return;
             }
 
             const obstacleCollider = this.world.createCollider(obstacleColliderDesc, obstacleBody);

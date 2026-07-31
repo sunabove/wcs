@@ -21,6 +21,20 @@ class RapierDriveSimulation {
         this.body = null;
         this.vehicleCollider = null;
         this.vehicleColliders = [];
+        this.wheelColliders = [];
+        this.wheelCollidersByKey = {
+            fl: null,
+            fr: null,
+            rl: null,
+            rr: null
+        };
+        this.wheelGroundContactState = {
+            fl: false,
+            fr: false,
+            rl: false,
+            rr: false
+        };
+        this.groundColliders = [];
         this.vehicleColliderLocalCenter = new THREE.Vector3(0, 0, 0);
         this.vehicleColliderHalfExtents = { x: 0.1, y: 0.1, z: 0.1 };
         this.obstacleColliders = [];
@@ -775,6 +789,7 @@ class RapierDriveSimulation {
 
         let bodySummary = 'body=unavailable';
         let obstacleSummary = 'wheelPlaneZ=n/a rock01TopZ=n/a underbodyGap=n/a';
+        let wheelGroundSummary = 'wheelGround=n/a';
         if (this.body) {
             const pos = this.body.translation();
             const vel = this.body.linvel();
@@ -787,6 +802,8 @@ class RapierDriveSimulation {
                 : null;
 
             obstacleSummary = `wheelPlaneZ=${Number.isFinite(wheelContactPlaneZ) ? wheelContactPlaneZ.toFixed(3) : 'n/a'} rock01TopZ=${Number.isFinite(obstacleRock01TopZ) ? obstacleRock01TopZ.toFixed(3) : 'n/a'} underbodyGap=${Number.isFinite(gap) ? gap.toFixed(3) : 'n/a'}`;
+            const wheelState = Object.entries(this.wheelGroundContactState || {}).map(([key, isContacting]) => `${key}${isContacting ? 'Y' : 'N'}`).join(' ');
+            wheelGroundSummary = `wheelGround=${wheelState}`;
         }
 
         this.debugTextElement.textContent = [
@@ -797,7 +814,9 @@ class RapierDriveSimulation {
             `visualSpeed=${Number.isFinite(visualSpeedScale) ? this.formatVisualSpeedScaleLabel(visualSpeedScale) : 'NaN'}`,
             `mode=${driveMode} inputMps=${Number.isFinite(speedMpsInput) ? speedMpsInput.toFixed(1) : 'NaN'} inputKmh=${Number.isFinite(speedKmhInput) ? speedKmhInput.toFixed(1) : 'NaN'} speedMps=${Number.isFinite(speedMps) ? speedMps.toFixed(3) : 'NaN'}`,
             bodySummary,
-            obstacleSummary
+            obstacleSummary,
+            wheelGroundSummary,
+            `obstacleContact=${this.isVehicleObstacleContact ? 'Y' : 'N'}`
         ].join('\n');
     }
 
@@ -1727,7 +1746,8 @@ class RapierDriveSimulation {
             const groundColliderDesc = this.rapier.ColliderDesc.cuboid(halfX, halfY, halfZ)
                 .setFriction(friction)
                 .setRestitution(0.0);
-            this.world.createCollider(groundColliderDesc, groundBody);
+            const groundCollider = this.world.createCollider(groundColliderDesc, groundBody);
+            this.groundColliders.push(groundCollider);
         };
 
         const groundCenterZ = this.groundZ - groundHalfThickness;
@@ -2750,6 +2770,17 @@ class RapierDriveSimulation {
 
             const wheelCollider = this.world.createCollider(wheelColliderDesc, body);
             this.vehicleColliders.push(wheelCollider);
+            this.wheelColliders.push(wheelCollider);
+            const wheelKeyByLinkName = {
+                wheel_fl: 'fl',
+                wheel_fr: 'fr',
+                wheel_rl: 'rl',
+                wheel_rr: 'rr'
+            };
+            const wheelKey = wheelKeyByLinkName[wheelLinkName] || null;
+            if (wheelKey) {
+                this.wheelCollidersByKey[wheelKey] = wheelCollider;
+            }
             createdWheelColliderCount += 1;
         });
 
@@ -3339,16 +3370,17 @@ class RapierDriveSimulation {
         }
     }
 
-    applyDriveForces(effectiveDeltaSec, targetVelocityX, targetVelocityY, throttleSign, steerSign, clampedSpeed) {
+    applyDriveForces(effectiveDeltaSec, targetVelocityX, targetVelocityY, throttleSign, steerSign, clampedSpeed, wheelGroundContactCount = 0) {
         if (!this.body || !this.rapier) {
             return;
         }
 
+        const tractionScale = wheelGroundContactCount > 0 ? 1 : 0.35;
         const currentLinearVelocity = this.body.linvel();
         const currentAngularVelocity = this.body.angvel();
         const velocityErrorX = targetVelocityX - currentLinearVelocity.x;
         const velocityErrorY = targetVelocityY - currentLinearVelocity.y;
-        const accelerationImpulseScale = Math.max(0.25 + (Math.max(clampedSpeed, 0) * 0.08), 0.3);
+        const accelerationImpulseScale = Math.max(0.25 + (Math.max(clampedSpeed, 0) * 0.08), 0.3) * tractionScale;
         const impulseX = velocityErrorX * accelerationImpulseScale * effectiveDeltaSec;
         const impulseY = velocityErrorY * accelerationImpulseScale * effectiveDeltaSec;
 
@@ -3356,26 +3388,26 @@ class RapierDriveSimulation {
 
         const currentSpeed = Math.hypot(currentLinearVelocity.x, currentLinearVelocity.y);
         if (currentSpeed > 0.001) {
-            const dragScale = Math.min(0.08 + currentSpeed * 0.08, 0.22) * effectiveDeltaSec;
+            const dragScale = Math.min(0.08 + currentSpeed * 0.08, 0.22) * tractionScale * effectiveDeltaSec;
             this.body.applyImpulse(new this.rapier.Vector3(-currentLinearVelocity.x * dragScale, -currentLinearVelocity.y * dragScale, 0), true);
         }
 
         if (Math.abs(throttleSign) < 1e-6 && Math.abs(steerSign) < 1e-6) {
-            this.body.applyImpulse(new this.rapier.Vector3(-currentLinearVelocity.x * 0.04 * effectiveDeltaSec, -currentLinearVelocity.y * 0.04 * effectiveDeltaSec, 0), true);
+            this.body.applyImpulse(new this.rapier.Vector3(-currentLinearVelocity.x * 0.04 * tractionScale * effectiveDeltaSec, -currentLinearVelocity.y * 0.04 * tractionScale * effectiveDeltaSec, 0), true);
         }
 
-        const steeringTorque = (Number.isFinite(steerSign) ? steerSign : 0) * 0.012 * effectiveDeltaSec;
+        const steeringTorque = (Number.isFinite(steerSign) ? steerSign : 0) * 0.012 * tractionScale * effectiveDeltaSec;
         if (Math.abs(steeringTorque) > 1e-6) {
             this.body.applyTorqueImpulse(new this.rapier.Vector3(0, 0, steeringTorque), true);
         }
 
         if (Math.abs(currentAngularVelocity.z) > 0.001 && Math.abs(steerSign) < 1e-6) {
-            const yawDampingTorque = -currentAngularVelocity.z * 0.06 * effectiveDeltaSec;
+            const yawDampingTorque = -currentAngularVelocity.z * 0.06 * tractionScale * effectiveDeltaSec;
             this.body.applyTorqueImpulse(new this.rapier.Vector3(0, 0, yawDampingTorque), true);
         }
     }
 
-    applyGroundSupportForces(effectiveDeltaSec) {
+    applyGroundSupportForces(effectiveDeltaSec, wheelGroundContactCount = 0) {
         if (!this.body || !this.rapier || !Number.isFinite(this.groundZ) || !Number.isFinite(this.groundContactLocalMinZ)) {
             return;
         }
@@ -3388,16 +3420,17 @@ class RapierDriveSimulation {
 
         const gap = targetZ - translation.z;
         const currentVelocityZ = this.body.linvel().z;
+        const supportStrength = wheelGroundContactCount > 0 ? 1 : 0.25;
         if (gap > 0.002) {
-            const supportImpulse = Math.min(gap * 1.8 + 0.04, 0.8) * effectiveDeltaSec;
+            const supportImpulse = Math.min(gap * 1.8 + 0.04, 0.8) * supportStrength * effectiveDeltaSec;
             this.body.applyImpulse(new this.rapier.Vector3(0, 0, supportImpulse), true);
         } else if (gap < -0.001) {
-            const dampingImpulse = Math.min(Math.abs(gap) * 1.6, 0.4) * effectiveDeltaSec;
+            const dampingImpulse = Math.min(Math.abs(gap) * 1.6, 0.4) * supportStrength * effectiveDeltaSec;
             this.body.applyImpulse(new this.rapier.Vector3(0, 0, -dampingImpulse), true);
         }
 
         if (Math.abs(currentVelocityZ) > 0.01 && Math.abs(gap) < 0.01) {
-            this.body.applyImpulse(new this.rapier.Vector3(0, 0, -currentVelocityZ * 0.45 * effectiveDeltaSec), true);
+            this.body.applyImpulse(new this.rapier.Vector3(0, 0, -currentVelocityZ * 0.45 * supportStrength * effectiveDeltaSec), true);
         }
     }
 
@@ -3413,11 +3446,15 @@ class RapierDriveSimulation {
         const dz = bodyCenter.z - obstacleCenter.z;
         const length = Math.max(Math.hypot(dx, dy, dz), 1e-4);
         const pushStrength = 0.16 * effectiveDeltaSec;
-        this.body.applyImpulse(new this.rapier.Vector3(
+        const pushVector = new this.rapier.Vector3(
             (dx / length) * pushStrength,
             (dy / length) * pushStrength,
             (dz / length) * pushStrength
-        ), true);
+        );
+        this.body.applyImpulse(pushVector, true);
+
+        const yawTorque = ((dx / length) * 0.005) * effectiveDeltaSec;
+        this.body.applyTorqueImpulse(new this.rapier.Vector3(0, 0, yawTorque), true);
     }
 
     stepSimulation() {
@@ -3494,6 +3531,7 @@ class RapierDriveSimulation {
         const speedMps = this.getCommandedDriveSpeedMps();
         const clampedSpeed = Math.min(speedMps, this.maxSpeedMps);
         const effectiveSteerSign = clampedSpeed > 1e-3 ? steerSign : 0;
+        const wheelGroundContactCount = this.updateWheelGroundContactState();
         const hasDriveCommand = keyboardState.isActive || throttleSign !== 0 || steerSign !== 0;
         if (hasDriveCommand) {
             this.hasActivatedSimulationMotion = true;
@@ -3578,8 +3616,8 @@ class RapierDriveSimulation {
         const linkMap = this.viewer?.robotModel?.links || null;
         let stepIndex = 0;
         while (this.physicsAccumulatorSec >= this.physicsFixedTimeStepSec && stepIndex < this.maxPhysicsCatchupSteps) {
-            this.applyDriveForces(this.physicsFixedTimeStepSec, targetVelocityX, targetVelocityY, throttleSign, effectiveSteerSign, clampedSpeed);
-            this.applyGroundSupportForces(this.physicsFixedTimeStepSec);
+            this.applyDriveForces(this.physicsFixedTimeStepSec, targetVelocityX, targetVelocityY, throttleSign, effectiveSteerSign, clampedSpeed, wheelGroundContactCount);
+            this.applyGroundSupportForces(this.physicsFixedTimeStepSec, wheelGroundContactCount);
             this.world.timestep = this.physicsFixedTimeStepSec;
             this.world.step();
             let hasObstacleContactNow = this.updateObstacleContactState();

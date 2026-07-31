@@ -79,6 +79,9 @@ class RapierDriveSimulation {
         this.postObstacleGroundReattachBlend = 0.75;
         this.postObstacleGroundRecoverDurationSec = 0.35;
         this.postObstacleGroundRecoverRemainingSec = 0;
+        this.suspensionSpringStrength = 92;
+        this.suspensionDamping = 10.5;
+        this.suspensionRestLength = 0.02;
         this.flatGroundSnapDistanceMeters = 0.01;
         this.flatGroundVerticalVelocitySnapThresholdMps = 0.35;
         this.maxLiftWithoutObstacleMeters = 0.03;
@@ -3514,24 +3517,21 @@ class RapierDriveSimulation {
         }
 
         const translation = this.body.translation();
+        const velocity = this.body.linvel();
         const targetZ = this.getGroundContactTargetZ();
         if (!Number.isFinite(targetZ)) {
             return;
         }
 
         const gap = targetZ - translation.z;
-        const currentVelocityZ = this.body.linvel().z;
+        const currentVelocityZ = velocity.z;
         const supportStrength = wheelGroundContactCount > 0 ? 1 : 0.25;
-        if (gap > 0.002) {
-            const supportImpulse = Math.min(gap * 1.8 + 0.04, 0.8) * supportStrength * effectiveDeltaSec;
-            this.body.applyImpulse(new this.rapier.Vector3(0, 0, supportImpulse), true);
-        } else if (gap < -0.001) {
-            const dampingImpulse = Math.min(Math.abs(gap) * 1.6, 0.4) * supportStrength * effectiveDeltaSec;
-            this.body.applyImpulse(new this.rapier.Vector3(0, 0, -dampingImpulse), true);
-        }
+        const springForce = gap * this.suspensionSpringStrength * supportStrength;
+        const dampingForce = -currentVelocityZ * this.suspensionDamping * supportStrength;
+        const netImpulse = (springForce + dampingForce) * effectiveDeltaSec;
 
-        if (Math.abs(currentVelocityZ) > 0.01 && Math.abs(gap) < 0.01) {
-            this.body.applyImpulse(new this.rapier.Vector3(0, 0, -currentVelocityZ * 0.45 * supportStrength * effectiveDeltaSec), true);
+        if (Math.abs(netImpulse) > 1e-6) {
+            this.body.applyImpulse(new this.rapier.Vector3(0, 0, netImpulse), true);
         }
     }
 

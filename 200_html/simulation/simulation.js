@@ -229,7 +229,7 @@ class RapierDriveSimulation {
         panel.style.background = 'rgba(255, 255, 255, 0.92)';
         panel.style.backdropFilter = 'blur(2px)';
         panel.style.pointerEvents = 'auto';
-        panel.style.padding = '28px 8px 6px 8px';
+        panel.style.padding = '0';
         panel.style.position = 'relative';
         panel.style.touchAction = 'none';
 

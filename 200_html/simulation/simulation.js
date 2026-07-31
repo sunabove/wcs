@@ -3484,7 +3484,7 @@ class RapierDriveSimulation {
         const currentAngularVelocity = this.body.angvel();
         const velocityErrorX = targetVelocityX - currentLinearVelocity.x;
         const velocityErrorY = targetVelocityY - currentLinearVelocity.y;
-        const accelerationImpulseScale = Math.max(0.006 + (Math.max(clampedSpeed, 0) * 0.002), 0.008) * tractionScale;
+        const accelerationImpulseScale = Math.max(0.25 + (Math.max(clampedSpeed, 0) * 0.08), 0.3) * tractionScale;
         const impulseX = velocityErrorX * accelerationImpulseScale * effectiveDeltaSec;
         const impulseY = velocityErrorY * accelerationImpulseScale * effectiveDeltaSec;
 
@@ -3492,17 +3492,17 @@ class RapierDriveSimulation {
 
         const currentSpeed = Math.hypot(currentLinearVelocity.x, currentLinearVelocity.y);
         if (currentSpeed > 0.001) {
-            const dragScale = Math.min(0.01 + currentSpeed * 0.008, 0.04) * tractionScale * effectiveDeltaSec;
+            const dragScale = Math.min(0.08 + currentSpeed * 0.08, 0.22) * tractionScale * effectiveDeltaSec;
             this.body.applyImpulse(new this.rapier.Vector3(-currentLinearVelocity.x * dragScale, -currentLinearVelocity.y * dragScale, 0), true);
         }
 
-        const steeringTorque = (Number.isFinite(steerSign) ? steerSign : 0) * 0.0025 * tractionScale * effectiveDeltaSec;
+        const steeringTorque = (Number.isFinite(steerSign) ? steerSign : 0) * 0.012 * tractionScale * effectiveDeltaSec;
         if (Math.abs(steeringTorque) > 1e-6) {
             this.body.applyTorqueImpulse(new this.rapier.Vector3(0, 0, steeringTorque), true);
         }
 
         if (Math.abs(currentAngularVelocity.z) > 0.001 && Math.abs(steerSign) < 1e-6) {
-            const yawDampingTorque = -currentAngularVelocity.z * 0.02 * tractionScale * effectiveDeltaSec;
+            const yawDampingTorque = -currentAngularVelocity.z * 0.06 * tractionScale * effectiveDeltaSec;
             this.body.applyTorqueImpulse(new this.rapier.Vector3(0, 0, yawDampingTorque), true);
         }
     }

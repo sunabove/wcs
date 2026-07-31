@@ -2080,7 +2080,7 @@ class RapierDriveSimulation {
             return lateralGapX <= exitMargin && lateralGapY <= exitMargin && verticalGap <= 0.12 && verticalGap >= -0.06;
         }
 
-        return isBaseAligned && isMovingTowardObstacle;
+        return false;
     }
 
     resolveVehicleObstacleInterpenetration() {
@@ -3286,6 +3286,12 @@ class RapierDriveSimulation {
             }
             if (hasObstacleContactNow) {
                 this.applyObstacleClimbLift(true, effectiveDeltaSec, obstacleApproach?.obstacleInfo);
+            } else {
+                const velocity = this.body.linvel();
+                const approachSpeed = Math.hypot(velocity.x, velocity.y);
+                if (approachSpeed > 0.02) {
+                    this.body.setLinvel(new this.rapier.Vector3(velocity.x * 0.92, velocity.y * 0.92, velocity.z), true);
+                }
             }
             if (hasObstacleContactNow) {
                 const velocity = this.body.linvel();

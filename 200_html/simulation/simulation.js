@@ -3560,6 +3560,19 @@ class RapierDriveSimulation {
 
             this.applyDriveForces(this.physicsFixedTimeStepSec, targetVelocityX, targetVelocityY, throttleSign, effectiveSteerSign, clampedSpeed, wheelGroundContactCount);
             this.applyGroundSupportForces(this.physicsFixedTimeStepSec, wheelGroundContactCount, this.isVehicleObstacleContact);
+            
+            // Force strict forward linear velocity direction inside the fixed physics loop when climbing
+            if (this.isVehicleObstacleContact && Math.abs(effectiveSteerSign) < 1e-3) {
+                const bodyRotation = this.body.rotation();
+                const yaw = this.extractYawFromQuaternion(bodyRotation);
+                const headingX = Math.cos(yaw);
+                const headingY = Math.sin(yaw);
+                const speed = clampedSpeed * (throttleSign !== 0 ? throttleSign : 1);
+                const currVel = this.body.linvel();
+                this.body.setLinvel(new this.rapier.Vector3(headingX * speed, headingY * speed, currVel.z), true);
+                this.body.setAngvel(new this.rapier.Vector3(0, 0, 0), true);
+            }
+
             this.world.timestep = this.physicsFixedTimeStepSec;
             this.world.step();
             let hasObstacleContactNow = this.updateObstacleContactState();
@@ -3645,9 +3658,15 @@ class RapierDriveSimulation {
             const currentVelocity = this.body.linvel();
             const keepZVelocity = (this.isBodyNearFlatGroundSupport() && !this.isVehicleObstacleContact) ? 0 : currentVelocity.z;
             
-            // Fix: Maintain straight forward/backward vector and suppress yaw spin during obstacle climb
+            // Fix: Override position and velocity directly along the driving heading vector during obstacle climb to completely bypass physics pivot spinning
             if (this.isVehicleObstacleContact && Math.abs(steerSign) < 1e-3) {
-                this.body.setLinvel(new this.rapier.Vector3(commandedVelocityX, commandedVelocityY, keepZVelocity), true);
+                const bodyRotation = this.body.rotation();
+                const yaw = this.extractYawFromQuaternion(bodyRotation);
+                const headingX = Math.cos(yaw);
+                const headingY = Math.sin(yaw);
+                const forwardSpeed = clampedSpeed * (throttleSign !== 0 ? throttleSign : 1);
+                
+                this.body.setLinvel(new this.rapier.Vector3(headingX * forwardSpeed, headingY * forwardSpeed, keepZVelocity), true);
                 this.body.setAngvel(new this.rapier.Vector3(0, 0, 0), true);
             } else {
                 this.body.setLinvel(new this.rapier.Vector3(commandedVelocityX, commandedVelocityY, keepZVelocity), true);

@@ -1849,9 +1849,9 @@ class RapierDriveSimulation {
             const bbox = new THREE.Box3().setFromObject(obstacleLink);
             const center = bbox.getCenter(new THREE.Vector3());
             const size = bbox.getSize(new THREE.Vector3());
-            const halfX = Math.max(size.x * 0.5 + 0.03, 0.06);
-            const halfY = Math.max(size.y * 0.5 + 0.03, 0.06);
-            const halfZ = Math.max(size.z * 0.5 + 0.04, 0.06);
+            const halfX = Math.max(size.x * 0.5 + 0.08, 0.12);
+            const halfY = Math.max(size.y * 0.5 + 0.08, 0.12);
+            const halfZ = Math.max(size.z * 0.5 + 0.08, 0.12);
             const normalizedObstacleName = this.normalizeLinkName(obstacleLinkName);
             const isPassUnderTagged = this.passUnderObstacleNamePatterns.some((pattern) => pattern.test(obstacleLinkName) || pattern.test(normalizedObstacleName));
 
@@ -2978,13 +2978,13 @@ class RapierDriveSimulation {
             const size = bbox.getSize(new THREE.Vector3());
             const worldCenter = bbox.getCenter(new THREE.Vector3());
             const localCenter = carFrame.worldToLocal(worldCenter.clone());
-            const chassisMarginX = 0.08;
-            const chassisMarginY = 0.05;
-            const chassisMarginZ = 0.02;
-            const halfX = Math.max((size.x || 0.6) * 0.5 - chassisMarginX, 0.10);
-            const halfY = Math.max((size.y || 0.4) * 0.5 - chassisMarginY, 0.08);
+            const chassisMarginX = 0.04;
+            const chassisMarginY = 0.03;
+            const chassisMarginZ = 0.01;
+            const halfX = Math.max((size.x || 0.6) * 0.5 - chassisMarginX, 0.16);
+            const halfY = Math.max((size.y || 0.4) * 0.5 - chassisMarginY, 0.14);
 
-            const halfZBase = Math.max((size.z || 0.25) * 0.5 - chassisMarginZ, 0.04);
+            const halfZBase = Math.max((size.z || 0.25) * 0.5 - chassisMarginZ, 0.06);
             const rawBboxMinLocalZ = localCenter.z - halfZBase;
             const rawBboxMaxLocalZ = localCenter.z + halfZBase;
             this.vehicleLocalMinZ = rawBboxMinLocalZ;

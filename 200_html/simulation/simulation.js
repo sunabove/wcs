@@ -85,6 +85,9 @@ class RapierDriveSimulation {
         this.lastStepTimeMs = 0;
         this.physicsAccumulatorSec = 0;
         this.physicsFixedTimeStepSec = 1 / 90;
+        this.lastVelocitySnapshot = null;
+        this.contactStrengthMetric = 0;
+        this.accelerationMetric = 0;
         this.maxPhysicsCatchupSteps = 6;
         this.hasLoggedGroundDiagnostics = false;
         this.enableRuntimeDiagnostics = true;
@@ -790,6 +793,7 @@ class RapierDriveSimulation {
         let bodySummary = 'body=unavailable';
         let obstacleSummary = 'wheelPlaneZ=n/a rock01TopZ=n/a underbodyGap=n/a';
         let wheelGroundSummary = 'wheelGround=n/a';
+        let metricsSummary = 'metrics: contact=0 accel=0';
         if (this.body) {
             const pos = this.body.translation();
             const vel = this.body.linvel();
@@ -804,6 +808,23 @@ class RapierDriveSimulation {
             obstacleSummary = `wheelPlaneZ=${Number.isFinite(wheelContactPlaneZ) ? wheelContactPlaneZ.toFixed(3) : 'n/a'} rock01TopZ=${Number.isFinite(obstacleRock01TopZ) ? obstacleRock01TopZ.toFixed(3) : 'n/a'} underbodyGap=${Number.isFinite(gap) ? gap.toFixed(3) : 'n/a'}`;
             const wheelState = Object.entries(this.wheelGroundContactState || {}).map(([key, isContacting]) => `${key}${isContacting ? 'Y' : 'N'}`).join(' ');
             wheelGroundSummary = `wheelGround=${wheelState}`;
+
+            const groundContactCount = Object.values(this.wheelGroundContactState || {}).filter(Boolean).length;
+            const obstacleContactStrength = this.isVehicleObstacleContact ? 1 : 0;
+            const contactStrengthMetric = Math.min(1, obstacleContactStrength + (groundContactCount / 4));
+            this.contactStrengthMetric = contactStrengthMetric;
+
+            const currentVelocity = this.body.linvel();
+            if (this.lastVelocitySnapshot) {
+                const deltaVx = currentVelocity.x - this.lastVelocitySnapshot.x;
+                const deltaVy = currentVelocity.y - this.lastVelocitySnapshot.y;
+                const deltaVz = currentVelocity.z - this.lastVelocitySnapshot.z;
+                const accelMagnitude = Math.hypot(deltaVx, deltaVy, deltaVz) / Math.max(Number(deltaSec) || 0.016, 0.001);
+                this.accelerationMetric = Math.min(4, accelMagnitude);
+            }
+            this.lastVelocitySnapshot = { x: currentVelocity.x, y: currentVelocity.y, z: currentVelocity.z };
+
+            metricsSummary = `metrics: contact=${contactStrengthMetric.toFixed(2)} accel=${this.accelerationMetric.toFixed(2)}`;
         }
 
         const statusLine = `status: ready=${isReady} failed=${isFailed} paused=${isPaused} hooks=${hookState}`;
@@ -819,6 +840,7 @@ class RapierDriveSimulation {
             bodySummary,
             obstacleSummary,
             wheelGroundSummary,
+            metricsSummary,
             `contact: obstacle=${this.isVehicleObstacleContact ? 'Y' : 'N'}`
         ].join('\n');
     }

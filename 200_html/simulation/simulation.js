@@ -43,22 +43,8 @@ class RapierDriveSimulation {
         this.groundZ = 0;
         this.holeRegions = [];
         this.underbodyPassThroughClearanceMeters = 0.02;
-        this.urdfObstacleLinkNames = ['obstacle_rock_01', 'obstacle_rock_02', 'obstacle_rock', 'rock_obstacle', 'obstacle_rock_1'];
-        this.urdfObstacleLinkNamePatterns = [
-            /^obstacle/i,
-            /^ostacle/i,
-            /^wall/i,
-            /^rock_obstacle/i,
-            /^rock_1$/i,
-            /^step/i,
-            /^curb/i,
-            /^pothole/i,
-            /^soil/i,
-            /^dirt/i,
-            /^gravel/i,
-            /^bump/i,
-            /^ditch/i
-        ];
+        this.urdfObstacleLinkNames = ['obstacle_rock_1'];
+        this.urdfObstacleLinkNamePatterns = [];
         this.passUnderObstacleNamePatterns = [/pass_under/i, /underbody/i];
         this.maxSpeedMps = 100 / 3.6;
         this.maxYawRateRad = THREE.MathUtils.degToRad(80);
@@ -1156,9 +1142,7 @@ class RapierDriveSimulation {
             }
 
             const matchedByExactName = targetNames.has(String(name).toLowerCase()) || targetNames.has(normalizedName);
-            const matchedByPattern = this.urdfObstacleLinkNamePatterns.some((pattern) => pattern.test(name) || pattern.test(normalizedName));
-            const matched = matchedByExactName || matchedByPattern;
-            if (matched) {
+            if (matchedByExactName) {
                 names.add(name);
             }
         });

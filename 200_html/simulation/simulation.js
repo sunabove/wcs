@@ -2541,13 +2541,14 @@ class RapierDriveSimulation {
         }
 
         const obstacleTopZ = targetObstacle.center.z + targetObstacle.halfExtents.z;
-        const wheelBottomZ = obstacleTopZ - (Number.isFinite(this.wheelLocalMinZ) ? this.wheelLocalMinZ : 0);
-        const verticalGap = wheelBottomZ - translation.z;
-        if (verticalGap <= 0) {
+        const wheelBottomWorldZ = obstacleTopZ + 0.008;
+        const targetBodyZ = wheelBottomWorldZ - this.wheelLocalMinZ;
+        const verticalGap = targetBodyZ - translation.z;
+        if (verticalGap <= 0.002) {
             return null;
         }
 
-        return wheelBottomZ + 0.002;
+        return targetBodyZ;
     }
 
     applyObstacleClimbLift(hasObstacleContactNow, effectiveDeltaSec, obstacleInfo = null) {
@@ -2563,18 +2564,20 @@ class RapierDriveSimulation {
         const translation = this.body.translation();
         const velocity = this.body.linvel();
         const targetGap = climbTargetZ - translation.z;
-        if (targetGap <= 0.003) {
+        if (targetGap <= 0.002) {
             return;
         }
 
-        const liftAmount = Math.min(Math.max(targetGap * 0.18, 0.0), 0.006 + (effectiveDeltaSec * 0.002));
+        const forwardSpeed = Math.hypot(velocity.x, velocity.y);
+        const maxLiftPerStep = 0.012 + Math.min(forwardSpeed * 0.008, 0.024);
+        const liftAmount = Math.min(Math.max(targetGap * 0.3, 0.003), maxLiftPerStep);
         if (liftAmount <= 1e-6) {
             return;
         }
 
         const nextZ = Math.min(translation.z + liftAmount, climbTargetZ);
         this.body.setTranslation(new this.rapier.Vector3(translation.x, translation.y, nextZ), true);
-        this.body.setLinvel(new this.rapier.Vector3(velocity.x, velocity.y, Math.max(velocity.z, 0.2)), true);
+        this.body.setLinvel(new this.rapier.Vector3(velocity.x, velocity.y, Math.max(velocity.z, 0.03)), true);
     }
 
     isVehicleNearObstacleSupportZone() {
@@ -3468,8 +3471,12 @@ class RapierDriveSimulation {
         }
     }
 
-    applyGroundSupportForces(effectiveDeltaSec, wheelGroundContactCount = 0) {
+    applyGroundSupportForces(effectiveDeltaSec, wheelGroundContactCount = 0, suppressForObstacleContact = false) {
         if (!this.body || !this.rapier || !Number.isFinite(this.groundZ) || !Number.isFinite(this.groundContactLocalMinZ)) {
+            return;
+        }
+
+        if (suppressForObstacleContact) {
             return;
         }
 
@@ -3711,7 +3718,7 @@ class RapierDriveSimulation {
         let stepIndex = 0;
         while (this.physicsAccumulatorSec >= this.physicsFixedTimeStepSec && stepIndex < this.maxPhysicsCatchupSteps) {
             this.applyDriveForces(this.physicsFixedTimeStepSec, targetVelocityX, targetVelocityY, throttleSign, effectiveSteerSign, clampedSpeed, wheelGroundContactCount);
-            this.applyGroundSupportForces(this.physicsFixedTimeStepSec, wheelGroundContactCount);
+            this.applyGroundSupportForces(this.physicsFixedTimeStepSec, wheelGroundContactCount, this.isVehicleObstacleContact);
             this.world.timestep = this.physicsFixedTimeStepSec;
             this.world.step();
             let hasObstacleContactNow = this.updateObstacleContactState();
@@ -3731,7 +3738,7 @@ class RapierDriveSimulation {
                 this.applyObstacleContactImpulse(this.physicsFixedTimeStepSec, obstacleApproach.obstacleInfo);
             }
             if (hasObstacleContactNow) {
-                this.applyObstacleClimbLift(true, effectiveDeltaSec, obstacleApproach?.obstacleInfo);
+                this.applyObstacleClimbLift(true, this.physicsFixedTimeStepSec, obstacleApproach?.obstacleInfo);
             } else {
                 const velocity = this.body.linvel();
                 const approachSpeed = Math.hypot(velocity.x, velocity.y);

@@ -22,18 +22,6 @@ class RapierDriveSimulation {
         this.vehicleCollider = null;
         this.vehicleColliders = [];
         this.wheelColliders = [];
-        this.wheelBodiesByKey = {
-            fl: null,
-            fr: null,
-            rl: null,
-            rr: null
-        };
-        this.wheelJointsByKey = {
-            fl: null,
-            fr: null,
-            rl: null,
-            rr: null
-        };
         this.wheelCollidersByKey = {
             fl: null,
             fr: null,
@@ -76,10 +64,6 @@ class RapierDriveSimulation {
         this.maxSpeedMps = 100 / 3.6;
         this.maxYawRateRad = THREE.MathUtils.degToRad(80);
         this.enableWheelPhysicsColliders = true;
-        this.enableRagdollPhysics = true;
-        this.physicsArchitecture = 'ragdoll';
-        this.ragdollPhysicsNodes = [];
-        this.ragdollJointInfos = [];
         this.blockMotionOnObstacleContact = false;
         this.keepUprightOnFlatGround = true;
         this.isUprightRotationLockActive = false;
@@ -91,9 +75,6 @@ class RapierDriveSimulation {
         this.postObstacleGroundReattachBlend = 0.75;
         this.postObstacleGroundRecoverDurationSec = 0.35;
         this.postObstacleGroundRecoverRemainingSec = 0;
-        this.suspensionSpringStrength = 92;
-        this.suspensionDamping = 10.5;
-        this.suspensionRestLength = 0.02;
         this.flatGroundSnapDistanceMeters = 0.01;
         this.flatGroundVerticalVelocitySnapThresholdMps = 0.35;
         this.maxLiftWithoutObstacleMeters = 0.03;
@@ -3190,41 +3171,6 @@ class RapierDriveSimulation {
         this.body.setLinvel(new this.rapier.Vector3(velocity.x, velocity.y, Math.min(0, velocity.z)), true);
     }
 
-    syncWheelLinksFromPhysicsBodies(linkMap) {
-        if (!this.carFrame || !this.body || !linkMap) {
-            return;
-        }
-
-        const wheelLinkNames = ['wheel_fl', 'wheel_fr', 'wheel_rl', 'wheel_rr'];
-        const wheelKeyByLinkName = {
-            wheel_fl: 'fl',
-            wheel_fr: 'fr',
-            wheel_rl: 'rl',
-            wheel_rr: 'rr'
-        };
-
-        wheelLinkNames.forEach((wheelLinkName) => {
-            const wheelLink = this.findLinkByName(linkMap, wheelLinkName);
-            const wheelKey = wheelKeyByLinkName[wheelLinkName] || null;
-            const wheelBody = wheelKey ? this.wheelBodiesByKey?.[wheelKey] || null : null;
-            if (!wheelLink || !wheelBody) {
-                return;
-            }
-
-            const worldPosition = wheelBody.translation();
-            const worldRotation = wheelBody.rotation();
-            const worldQuaternion = new THREE.Quaternion(worldRotation.x, worldRotation.y, worldRotation.z, worldRotation.w).normalize();
-            const localPosition = this.carFrame.worldToLocal(new THREE.Vector3(worldPosition.x, worldPosition.y, worldPosition.z));
-            const parentWorldQuaternion = new THREE.Quaternion();
-            this.carFrame.getWorldQuaternion(parentWorldQuaternion);
-            const localQuaternion = parentWorldQuaternion.clone().invert().multiply(worldQuaternion);
-
-            wheelLink.position.copy(localPosition);
-            wheelLink.quaternion.copy(localQuaternion).normalize();
-            wheelLink.updateMatrixWorld(true);
-        });
-    }
-
     syncCarFrameFromBody() {
         if (!this.body || !this.carFrame) {
             return;
@@ -3236,8 +3182,6 @@ class RapierDriveSimulation {
         this.carFrame.position.set(position.x, position.y, position.z);
         this.carFrame.quaternion.set(rotation.x, rotation.y, rotation.z, rotation.w).normalize();
         this.carFrame.updateMatrixWorld(true);
-        const linkMap = this.viewer?.robotModel?.links || null;
-        this.syncWheelLinksFromPhysicsBodies(linkMap);
     }
 
     enforceWheelGroundContactAtLoad(linkMap) {
@@ -3469,19 +3413,6 @@ class RapierDriveSimulation {
         };
     }
 
-    createRagdollVehiclePhysics(rapier, world, initialPosition, initialQuaternion, carFrame, linkMap) {
-        const setup = this.createVehiclePhysicsBody(rapier, world, initialPosition, initialQuaternion, carFrame, linkMap);
-        this.physicsArchitecture = 'ragdoll';
-        this.ragdollPhysicsNodes = [{
-            key: 'chassis',
-            body: setup.body,
-            collider: setup.vehicleCollider,
-            role: 'root'
-        }];
-        this.ragdollJointInfos = [];
-        return setup;
-    }
-
     async ensureRapierInitialized() {
         if (this.isReady || this.isInitializing || this.hasFailed) {
             return;
@@ -3512,9 +3443,7 @@ class RapierDriveSimulation {
             const world = new RAPIER.World(new RAPIER.Vector3(0, 0, -9.81));
             const initialPosition = carFrame.position.clone();
             const initialQuaternion = carFrame.quaternion.clone();
-            const bodySetup = this.enableRagdollPhysics
-                ? this.createRagdollVehiclePhysics(RAPIER, world, initialPosition, initialQuaternion, carFrame, linkMap)
-                : this.createVehiclePhysicsBody(RAPIER, world, initialPosition, initialQuaternion, carFrame, linkMap);
+            const bodySetup = this.createVehiclePhysicsBody(RAPIER, world, initialPosition, initialQuaternion, carFrame, linkMap);
 
             const body = bodySetup.body;
             const vehicleCollider = bodySetup.vehicleCollider;
@@ -3536,7 +3465,7 @@ class RapierDriveSimulation {
             this.isReady = true;
             this.hasFailed = false;
 
-            console.log(`[URDF][Simulation] Rapier ${this.physicsArchitecture} initialization complete`);
+            console.log('[URDF][Simulation] Rapier direction control with URDF obstacle initialized');
         } catch (error) {
             this.hasFailed = true;
             console.warn('[URDF][Simulation] Rapier initialization failed:', error);
@@ -3549,8 +3478,6 @@ class RapierDriveSimulation {
         if (!this.body || !this.rapier) {
             return;
         }
-
-        this.applyWheelDriveForces(effectiveDeltaSec, throttleSign, steerSign, clampedSpeed, wheelGroundContactCount);
 
         const tractionScale = wheelGroundContactCount > 0 ? 1 : 0.35;
         const currentLinearVelocity = this.body.linvel();
@@ -3602,51 +3529,6 @@ class RapierDriveSimulation {
         if (Math.abs(netImpulse) > 1e-6) {
             this.body.applyImpulse(new this.rapier.Vector3(0, 0, netImpulse), true);
         }
-    }
-
-    applyWheelDriveForces(effectiveDeltaSec, throttleSign, steerSign, clampedSpeed, wheelGroundContactCount = 0) {
-        if (!this.rapier || !this.world || !this.body) {
-            return;
-        }
-
-        const wheelKeys = ['fl', 'fr', 'rl', 'rr'];
-        const tractionScale = wheelGroundContactCount > 0 ? 1 : 0.35;
-        const driveScale = Math.max(0, Math.min(Number(clampedSpeed) || 0, this.maxSpeedMps)) * 0.04;
-        const wheelAxisByKey = {
-            fl: 'x',
-            fr: 'x',
-            rl: 'x',
-            rr: 'x'
-        };
-
-        wheelKeys.forEach((wheelKey) => {
-            const wheelBody = this.wheelBodiesByKey?.[wheelKey] || null;
-            if (!wheelBody) {
-                return;
-            }
-
-            const isGroundContact = Boolean(this.wheelGroundContactState?.[wheelKey]);
-            const contactMultiplier = isGroundContact ? 1 : 0.25;
-            const driveTorque = throttleSign * driveScale * tractionScale * contactMultiplier * effectiveDeltaSec;
-            if (Math.abs(driveTorque) > 1e-6) {
-                const axis = wheelAxisByKey[wheelKey] || 'x';
-                const torqueVector = new this.rapier.Vector3(axis === 'x' ? driveTorque : 0, axis === 'y' ? driveTorque : 0, axis === 'z' ? driveTorque : 0);
-                wheelBody.applyTorqueImpulse(torqueVector, true);
-            }
-
-            if (Math.abs(throttleSign) < 1e-6) {
-                const currentAngularVelocity = wheelBody.angvel();
-                const dampingTorque = -currentAngularVelocity.x * 0.16 * effectiveDeltaSec;
-                if (Math.abs(dampingTorque) > 1e-6) {
-                    wheelBody.applyTorqueImpulse(new this.rapier.Vector3(dampingTorque, 0, 0), true);
-                }
-            }
-
-            if (Math.abs(steerSign) > 1e-6 && ['fl', 'fr'].includes(wheelKey)) {
-                const steerTorque = steerSign * 0.002 * effectiveDeltaSec;
-                wheelBody.applyTorqueImpulse(new this.rapier.Vector3(0, 0, steerTorque), true);
-            }
-        });
     }
 
     applyObstacleContactImpulse(effectiveDeltaSec, obstacleInfo = null) {

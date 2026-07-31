@@ -493,14 +493,17 @@ class RapierDriveSimulation {
             wheelLink.updateWorldMatrix(true, true);
             const centerWorld = new THREE.Vector3();
             wheelLink.getWorldPosition(centerWorld);
-            // Wheel chart reports the bottom-of-wheel height: wheel center Z minus wheel radius.
             const wheelBottomZ = Number(centerWorld.z - wheelRadiusMeters);
+            const groundReferenceZ = Number.isFinite(this.groundZ) ? Number(this.groundZ) : 0;
+            // Wheel chart reports the wheel-bottom clearance above the ground surface.
+            // On flat ground this should stay at 0 or above.
+            const wheelBottomHeightAboveGround = Math.max(0, wheelBottomZ - groundReferenceZ);
 
-            if (!Number.isFinite(wheelBottomZ)) {
+            if (!Number.isFinite(wheelBottomHeightAboveGround)) {
                 return;
             }
 
-            this.wheelZChartHistoryByKey[wheelKey].push({ t: nowSec, z: wheelBottomZ });
+            this.wheelZChartHistoryByKey[wheelKey].push({ t: nowSec, z: wheelBottomHeightAboveGround });
         });
 
         this.trimWheelZChartHistory(nowSec);

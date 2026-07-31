@@ -1,22 +1,29 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="256" height="64" viewBox="0 0 256 64">
-  <rect width="256" height="64" fill="#121212"/>
-  <g fill="#2c2c2c">
-    <rect x="0" y="0" width="10" height="64"/>
-    <rect x="20" y="0" width="10" height="64"/>
-    <rect x="40" y="0" width="10" height="64"/>
-    <rect x="60" y="0" width="10" height="64"/>
-    <rect x="80" y="0" width="10" height="64"/>
-    <rect x="100" y="0" width="10" height="64"/>
-    <rect x="120" y="0" width="10" height="64"/>
-    <rect x="140" y="0" width="10" height="64"/>
-    <rect x="160" y="0" width="10" height="64"/>
-    <rect x="180" y="0" width="10" height="64"/>
-    <rect x="200" y="0" width="10" height="64"/>
-    <rect x="220" y="0" width="10" height="64"/>
-    <rect x="240" y="0" width="10" height="64"/>
+  <rect width="256" height="64" fill="#0a0a0a"/>
+  <rect x="0" y="0" width="256" height="64" fill="#111111"/>
+
+  <g fill="#f2f2f2">
+    <rect x="0" y="0" width="42" height="64"/>
+    <rect x="84" y="0" width="42" height="64"/>
+    <rect x="168" y="0" width="42" height="64"/>
+    <rect x="252" y="0" width="4" height="64"/>
   </g>
-  <g stroke="#080808" stroke-width="2" opacity="0.6">
-    <line x1="0" y1="20" x2="256" y2="20"/>
-    <line x1="0" y1="44" x2="256" y2="44"/>
+
+  <g fill="#2b2b2b">
+    <rect x="42" y="0" width="10" height="64"/>
+    <rect x="126" y="0" width="10" height="64"/>
+    <rect x="210" y="0" width="10" height="64"/>
+  </g>
+
+  <g stroke="#6f6f6f" stroke-width="3" opacity="0.95">
+    <line x1="18" y1="0" x2="18" y2="64"/>
+    <line x1="102" y1="0" x2="102" y2="64"/>
+    <line x1="186" y1="0" x2="186" y2="64"/>
+  </g>
+
+  <g stroke="#050505" stroke-width="6" opacity="0.9">
+    <line x1="0" y1="12" x2="256" y2="12"/>
+    <line x1="0" y1="32" x2="256" y2="32"/>
+    <line x1="0" y1="52" x2="256" y2="52"/>
   </g>
 </svg>

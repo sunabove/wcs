@@ -3187,7 +3187,8 @@ class RapierDriveSimulation {
             }
             if (hasObstacleContactNow) {
                 const velocity = this.body.linvel();
-                this.body.setLinvel(new this.rapier.Vector3(velocity.x * 0.55, velocity.y * 0.55, velocity.z), true);
+                const dampingFactor = 0.2;
+                this.body.setLinvel(new this.rapier.Vector3(velocity.x * dampingFactor, velocity.y * dampingFactor, velocity.z), true);
             }
             if (this.hasActivatedDynamicGroundClamp) {
                 this.clampVehicleAboveGround();
@@ -3241,7 +3242,12 @@ class RapierDriveSimulation {
             this.body.setLinvel(new this.rapier.Vector3(commandedVelocityX, commandedVelocityY, keepZVelocity), true);
         } else if (hasObstacleContact) {
             const currentVelocity = this.body.linvel();
-            this.body.setLinvel(new this.rapier.Vector3(currentVelocity.x * 0.7, currentVelocity.y * 0.7, currentVelocity.z), true);
+            const stopVelocity = Math.abs(currentVelocity.x) < 0.01 && Math.abs(currentVelocity.y) < 0.01;
+            this.body.setLinvel(new this.rapier.Vector3(
+                stopVelocity ? 0 : currentVelocity.x * 0.15,
+                stopVelocity ? 0 : currentVelocity.y * 0.15,
+                currentVelocity.z
+            ), true);
         }
 
         const isMoveCommandActive = keyboardState.isActive || throttleSign !== 0;

@@ -2526,44 +2526,7 @@ class RapierDriveSimulation {
             return isContacting;
         });
 
-        if (obstacleContactInfo) {
-            return { obstacleInfo: obstacleContactInfo };
-        }
-
-        const vehicleCenter = this.getVehicleColliderWorldCenter();
-        const vehicleHalfExtents = this.getVehicleColliderWorldAabbHalfExtents();
-        if (!vehicleCenter || !vehicleHalfExtents) {
-            return null;
-        }
-
-        let bestInfo = null;
-        let bestScore = Number.POSITIVE_INFINITY;
-        this.obstacleColliderInfos.forEach((obstacleInfo) => {
-            if (!obstacleInfo || obstacleInfo.isSensor || !obstacleInfo.center || !obstacleInfo.halfExtents) {
-                return;
-            }
-
-            const gapX = Math.abs(vehicleCenter.x - obstacleInfo.center.x) - (vehicleHalfExtents.x + obstacleInfo.halfExtents.x);
-            const gapY = Math.abs(vehicleCenter.y - obstacleInfo.center.y) - (vehicleHalfExtents.y + obstacleInfo.halfExtents.y);
-            const obstacleTopZ = obstacleInfo.center.z + obstacleInfo.halfExtents.z;
-            const obstacleBottomZ = obstacleInfo.center.z - obstacleInfo.halfExtents.z;
-            const vehicleBottomZ = vehicleCenter.z - vehicleHalfExtents.z;
-            const verticalGap = obstacleTopZ - vehicleCenter.z;
-            const canReachInZ = obstacleBottomZ <= vehicleBottomZ + 0.005 && obstacleTopZ >= vehicleBottomZ - 0.005;
-            const isOverlappingInXY = gapX <= 0.0 && gapY <= 0.0;
-            const isRelevant = isOverlappingInXY && canReachInZ && verticalGap >= -0.002 && verticalGap <= 0.008;
-            if (!isRelevant) {
-                return;
-            }
-
-            const score = (Math.max(gapX, 0) * 1.5) + (Math.max(gapY, 0) * 1.5) + Math.max(Math.abs(verticalGap), 0.0);
-            if (score < bestScore) {
-                bestScore = score;
-                bestInfo = obstacleInfo;
-            }
-        });
-
-        return bestInfo ? { obstacleInfo: bestInfo } : null;
+        return obstacleContactInfo ? { obstacleInfo: obstacleContactInfo } : null;
     }
 
     getObstacleClimbTargetZ(obstacleInfo = null) {
@@ -2615,39 +2578,7 @@ class RapierDriveSimulation {
     }
 
     isVehicleNearObstacleSupportZone() {
-        const vehicleCenter = this.getVehicleColliderWorldCenter();
-        const wheelContactPlaneZ = this.getWheelContactPlaneZ();
-        if (!vehicleCenter || !Number.isFinite(wheelContactPlaneZ) || !Array.isArray(this.obstacleColliderInfos)) {
-            return false;
-        }
-
-        const vehicleHalfExtents = this.getVehicleColliderWorldAabbHalfExtents();
-        if (!vehicleHalfExtents) {
-            return false;
-        }
-
-        const vx = vehicleHalfExtents.x;
-        const vy = vehicleHalfExtents.y;
-        const approachMargin = Math.max(Number(this.obstacleApproachDisableSnapDistanceMeters) || 0, 0);
-        const verticalTolerance = Math.max(Number(this.obstacleContactSurfaceToleranceMeters) || 0, 0);
-
-        return this.obstacleColliderInfos.some((obstacleInfo) => {
-            if (!obstacleInfo?.center || !obstacleInfo?.halfExtents || obstacleInfo.isSensor) {
-                return false;
-            }
-
-            const obstacleTopZ = obstacleInfo.center.z + obstacleInfo.halfExtents.z;
-            const obstacleBottomZ = obstacleInfo.center.z - obstacleInfo.halfExtents.z;
-            const wheelBottomZ = wheelContactPlaneZ - verticalTolerance;
-            if (obstacleTopZ < wheelBottomZ || obstacleBottomZ > wheelContactPlaneZ + 0.005) {
-                return false;
-            }
-
-            const gapX = Math.abs(vehicleCenter.x - obstacleInfo.center.x) - (vx + obstacleInfo.halfExtents.x);
-            const gapY = Math.abs(vehicleCenter.y - obstacleInfo.center.y) - (vy + obstacleInfo.halfExtents.y);
-            const isOverlappingInXY = gapX <= 0.0 && gapY <= 0.0;
-            return isOverlappingInXY && gapX <= approachMargin && gapY <= approachMargin;
-        });
+        return false;
     }
 
     isObstacleBelowWheelContactPlane(obstacleInfo) {

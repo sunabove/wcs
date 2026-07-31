@@ -2187,6 +2187,12 @@ class RapierDriveSimulation {
             : (Number.isFinite(this.vehicleLocalMinZ) ? this.vehicleLocalMinZ : 0);
         const wheelContactPlaneZ = bodyTranslation.z + localMinZ;
         const vehicleHalfExtents = this.getVehicleColliderWorldAabbHalfExtents() || { x: 0.18, y: 0.18, z: 0.08 };
+        const probeDistance = Math.max((vehicleHalfExtents.x || 0.18) + 0.12, 0.18);
+        const probePoint = {
+            x: bodyTranslation.x + (forwardX * probeDistance),
+            y: bodyTranslation.y + (forwardY * probeDistance),
+            z: bodyTranslation.z + 0.02
+        };
 
         let bestApproach = null;
         let bestScore = Infinity;
@@ -2196,25 +2202,32 @@ class RapierDriveSimulation {
                 return;
             }
 
+            const obstacleMinX = obstacleInfo.center.x - obstacleInfo.halfExtents.x;
+            const obstacleMaxX = obstacleInfo.center.x + obstacleInfo.halfExtents.x;
+            const obstacleMinY = obstacleInfo.center.y - obstacleInfo.halfExtents.y;
+            const obstacleMaxY = obstacleInfo.center.y + obstacleInfo.halfExtents.y;
             const obstacleTopZ = obstacleInfo.center.z + obstacleInfo.halfExtents.z;
             const obstacleBottomZ = obstacleInfo.center.z - obstacleInfo.halfExtents.z;
+            const lateralMargin = Math.max(Number(this.obstacleContactSurfaceToleranceMeters) || 0, 0) + 0.04;
+            const verticalMargin = 0.06;
+            const isWithinObstacleBox = probePoint.x >= (obstacleMinX - lateralMargin)
+                && probePoint.x <= (obstacleMaxX + lateralMargin)
+                && probePoint.y >= (obstacleMinY - lateralMargin)
+                && probePoint.y <= (obstacleMaxY + lateralMargin);
+            const isVerticalAligned = probePoint.z <= (obstacleTopZ + verticalMargin)
+                && probePoint.z >= (obstacleBottomZ - verticalMargin);
+            const isAboveWheelContactPlane = obstacleTopZ >= (wheelContactPlaneZ - 0.02);
+            const isNearBase = obstacleBottomZ <= (bodyTranslation.z + 0.08) && obstacleBottomZ >= (bodyTranslation.z - 0.08);
+
+            if (!(isWithinObstacleBox && isVerticalAligned && (isAboveWheelContactPlane || isNearBase))) {
+                return;
+            }
+
             const dx = obstacleInfo.center.x - bodyTranslation.x;
             const dy = obstacleInfo.center.y - bodyTranslation.y;
             const aheadDistance = dx * forwardX + dy * forwardY;
             const lateralDistance = Math.abs(dx * forwardY - dy * forwardX);
-            const verticalGap = obstacleTopZ - wheelContactPlaneZ;
-            const lateralGapX = Math.abs(bodyTranslation.x - obstacleInfo.center.x) - ((vehicleHalfExtents?.x || 0) + obstacleInfo.halfExtents.x);
-            const lateralGapY = Math.abs(bodyTranslation.y - obstacleInfo.center.y) - ((vehicleHalfExtents?.y || 0) + obstacleInfo.halfExtents.y);
-            const isInFront = aheadDistance > 0.02 && aheadDistance < 0.45;
-            const isLaterallyAligned = lateralGapX <= 0.16 && lateralGapY <= 0.16;
-            const isInVerticalRange = verticalGap <= 0.12 && verticalGap >= -0.04;
-            const isNearBase = obstacleBottomZ <= (bodyTranslation.z + 0.06) && obstacleBottomZ >= (bodyTranslation.z - 0.08);
-
-            if (!((isInFront && isLaterallyAligned && isInVerticalRange) || (isInFront && isNearBase && isLaterallyAligned))) {
-                return;
-            }
-
-            const score = aheadDistance + (lateralDistance * 1.8) + Math.max(0, verticalGap * 0.8);
+            const score = Math.max(0.01, aheadDistance) + (lateralDistance * 2.0);
             if (score >= bestScore) {
                 return;
             }
@@ -2224,7 +2237,7 @@ class RapierDriveSimulation {
                 obstacleInfo,
                 aheadDistance,
                 lateralDistance,
-                verticalGap,
+                verticalGap: obstacleTopZ - wheelContactPlaneZ,
                 shouldClimb: true
             };
         });
@@ -3265,6 +3278,7 @@ class RapierDriveSimulation {
         }
         const wasObstacleContact = this.updateObstacleContactState();
         const obstacleApproach = this.getObstacleApproachInfo();
+        this.isVehicleObstacleContact = Boolean(wasObstacleContact || obstacleApproach?.shouldClimb);
         let commandedVelocityX = 0;
         let commandedVelocityY = 0;
         const isNearFlatGroundSupport = this.isBodyNearFlatGroundSupport();
@@ -3384,6 +3398,7 @@ class RapierDriveSimulation {
         }
 
         const hasObstacleContact = this.updateObstacleContactState() || Boolean(obstacleApproach?.shouldClimb);
+        this.isVehicleObstacleContact = hasObstacleContact;
         if (this.keepUprightOnFlatGround) {
             const shouldKeepUpright = this.isBodyNearFlatGroundSupport();
             this.setUprightRotationLockEnabled(shouldKeepUpright);

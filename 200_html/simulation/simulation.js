@@ -2568,7 +2568,7 @@ class RapierDriveSimulation {
         const velocity = this.body.linvel();
         const isOverHole = this.isVehicleOverHoleRegion();
         const groundBasedMinZ = this.groundZ - this.groundContactLocalMinZ - this.groundContactBiasMeters;
-        const minAllowedZ = groundBasedMinZ - this.groundPenetrationToleranceMeters;
+        const minAllowedZ = groundBasedMinZ - Math.max(this.groundPenetrationToleranceMeters, 0.002);
         const baseReferenceZ = Number.isFinite(this.initialPosition?.z)
             ? Math.max(this.initialPosition.z, groundBasedMinZ)
             : groundBasedMinZ;
@@ -2674,7 +2674,7 @@ class RapierDriveSimulation {
             return false;
         }
 
-        const minAllowedWheelZ = this.groundZ - Math.max(Number(this.groundPenetrationToleranceMeters) || 0, 0);
+        const minAllowedWheelZ = this.groundZ - Math.max(Number(this.groundPenetrationToleranceMeters) || 0, 0.002);
         const penetrationDepth = minAllowedWheelZ - measuredWheelMinZ;
         const activationMargin = Math.max(Number(this.wheelGroundClampActivationMarginMeters) || 0, 0);
         if (penetrationDepth <= activationMargin) {
@@ -3019,7 +3019,9 @@ class RapierDriveSimulation {
         }
 
         const translation = this.body.translation();
-        this.groundContactLocalMinZ = measuredWheelWorldMinZ - translation.z;
+        const wheelGroundGap = measuredWheelWorldMinZ - this.groundZ;
+        const minWheelGroundGap = Math.max(wheelGroundGap, 0.002);
+        this.groundContactLocalMinZ = (this.groundZ + minWheelGroundGap) - translation.z;
         this.wheelLocalMinZ = this.groundContactLocalMinZ;
     }
 
@@ -3060,11 +3062,11 @@ class RapierDriveSimulation {
         }
 
         const translation = this.body.translation();
-        const alignedZ = translation.z - wheelGroundGap;
+        const alignedZ = translation.z - Math.max(wheelGroundGap, 0.002);
         this.body.setTranslation(new this.rapier.Vector3(translation.x, translation.y, alignedZ), true);
 
         // Keep local contact baseline in sync after explicit correction.
-        this.groundContactLocalMinZ = measuredWheelWorldMinZ - wheelGroundGap - alignedZ;
+        this.groundContactLocalMinZ = measuredWheelWorldMinZ - alignedZ;
         this.wheelLocalMinZ = this.groundContactLocalMinZ;
 
         const velocity = this.body.linvel();

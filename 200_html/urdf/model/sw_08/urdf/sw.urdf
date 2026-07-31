@@ -97,7 +97,7 @@
   <!-- =================================================================== -->
   <!-- ROBOT BASE LINK: ground의 자식으로 연결 -->
   <!-- =================================================================== -->
-  <link name="base_link">
+  <link name="car_frame">
     <inertial>
       <origin
         xyz="-0.0699924818342818 4.77680331115076E-09 0.266986488786554"
@@ -137,10 +137,10 @@
     </collision>
   </link>
 
-  <joint name="ground_to_base_link_joint" type="fixed">
+  <joint name="ground_to_car_frame_joint" type="fixed">
     <origin xyz="0 0 0.005" rpy="0 0 0" />
     <parent link="ground" />
-    <child link="base_link" />
+    <child link="car_frame" />
   </joint>
 
   <!-- =================================================================== -->
@@ -170,7 +170,7 @@
   </link>
 
   <joint name="ground_to_hemisphere_joint" type="fixed">
-    <origin xyz="0.0 -1.0 0.005" rpy="0 0 0" />
+    <origin xyz="1.55 0.0 0.005" rpy="0 0 0" />
     <parent link="ground" />
     <child link="obstacle_hemisphere" />
   </joint>
@@ -282,7 +282,7 @@
       xyz="0.226 0 0.19572"
       rpy="-1.5708 0 -1.5708" />
     <parent
-      link="base_link" />
+      link="car_frame" />
     <child
       link="swing_Link" />
     <axis
@@ -658,7 +658,7 @@
       xyz="-0.244 -0.32225 0.030922"
       rpy="1.5708 0.059958 0" />
     <parent
-      link="base_link" />
+      link="car_frame" />
     <child
       link="inner_gear_rr" />
     <axis
@@ -711,7 +711,7 @@
       xyz="-0.244 -0.32225 0.030922"
       rpy="1.5708 0.059958 0" />
     <parent
-      link="base_link" />
+      link="car_frame" />
     <child
       link="inner_wheel_rr" />
     <axis
@@ -817,7 +817,7 @@
       xyz="-0.244 0.32225 0.030922"
       rpy="1.5708 0.059958 -3.1416" />
     <parent
-      link="base_link" />
+      link="car_frame" />
     <child
       link="inner_gear_rl" />
     <axis
@@ -870,7 +870,7 @@
       xyz="-0.244 0.32225 0.030922"
       rpy="1.5708 0.059958 -3.1416" />
     <parent
-      link="base_link" />
+      link="car_frame" />
     <child
       link="inner_wheel_rl" />
     <axis

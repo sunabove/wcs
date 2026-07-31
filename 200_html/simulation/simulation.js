@@ -2472,20 +2472,20 @@ class RapierDriveSimulation {
                 let nextVelY = currentVelocity.y;
                 let nextVelZ = currentVelocity.z;
 
-                const pushAmount = Math.max(pushDistance + epsilon + 0.01, 0.01);
+                const pushAmount = Math.max(pushDistance + epsilon, 0.002);
 
                 if (axis === 'x') {
                     const direction = deltaX >= 0 ? 1 : -1;
                     nextX += direction * pushAmount;
-                    nextVelX = 0;
+                    nextVelX = currentVelocity.x * 0.2;
                 } else if (axis === 'y') {
                     const direction = deltaY >= 0 ? 1 : -1;
                     nextY += direction * pushAmount;
-                    nextVelY = 0;
+                    nextVelY = currentVelocity.y * 0.2;
                 } else {
                     const direction = deltaZ >= 0 ? 1 : -1;
-                    nextZ += direction * pushAmount;
-                    nextVelZ = direction > 0 ? Math.max(0, nextVelZ) : Math.min(0, nextVelZ);
+                    nextZ += direction * pushAmount * 0.35;
+                    nextVelZ = currentVelocity.z * 0.4;
                 }
 
                 this.body.setTranslation(new this.rapier.Vector3(nextX, nextY, nextZ), true);
@@ -2569,15 +2569,15 @@ class RapierDriveSimulation {
         }
 
         const forwardSpeed = Math.hypot(velocity.x, velocity.y);
-        const maxLiftPerStep = 0.012 + Math.min(forwardSpeed * 0.008, 0.024);
-        const liftAmount = Math.min(Math.max(targetGap * 0.3, 0.003), maxLiftPerStep);
+        const maxLiftPerStep = 0.008 + Math.min(forwardSpeed * 0.004, 0.012);
+        const liftAmount = Math.min(Math.max(targetGap * 0.16, 0.0015), maxLiftPerStep);
         if (liftAmount <= 1e-6) {
             return;
         }
 
         const nextZ = Math.min(translation.z + liftAmount, climbTargetZ);
         this.body.setTranslation(new this.rapier.Vector3(translation.x, translation.y, nextZ), true);
-        this.body.setLinvel(new this.rapier.Vector3(velocity.x, velocity.y, Math.max(velocity.z, 0.03)), true);
+        this.body.setLinvel(new this.rapier.Vector3(velocity.x, velocity.y, Math.max(velocity.z * 0.35, 0.01)), true);
     }
 
     isVehicleNearObstacleSupportZone() {
@@ -3513,15 +3513,15 @@ class RapierDriveSimulation {
         const dy = bodyCenter.y - obstacleCenter.y;
         const dz = bodyCenter.z - obstacleCenter.z;
         const length = Math.max(Math.hypot(dx, dy, dz), 1e-4);
-        const pushStrength = 0.16 * effectiveDeltaSec;
+        const pushStrength = 0.035 * effectiveDeltaSec;
         const pushVector = new this.rapier.Vector3(
             (dx / length) * pushStrength,
             (dy / length) * pushStrength,
-            (dz / length) * pushStrength
+            0
         );
         this.body.applyImpulse(pushVector, true);
 
-        const yawTorque = ((dx / length) * 0.005) * effectiveDeltaSec;
+        const yawTorque = ((dx / length) * 0.0012) * effectiveDeltaSec;
         this.body.applyTorqueImpulse(new this.rapier.Vector3(0, 0, yawTorque), true);
     }
 

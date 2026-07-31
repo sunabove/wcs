@@ -3576,7 +3576,13 @@ class RapierDriveSimulation {
 
         const wheelKeys = ['fl', 'fr', 'rl', 'rr'];
         const tractionScale = wheelGroundContactCount > 0 ? 1 : 0.35;
-        const driveScale = Math.max(0, Math.min(Number(clampedSpeed) || 0, this.maxSpeedMps)) * 0.035;
+        const driveScale = Math.max(0, Math.min(Number(clampedSpeed) || 0, this.maxSpeedMps)) * 0.04;
+        const wheelAxisByKey = {
+            fl: 'x',
+            fr: 'x',
+            rl: 'x',
+            rr: 'x'
+        };
 
         wheelKeys.forEach((wheelKey) => {
             const wheelBody = this.wheelBodiesByKey?.[wheelKey] || null;
@@ -3588,20 +3594,21 @@ class RapierDriveSimulation {
             const contactMultiplier = isGroundContact ? 1 : 0.25;
             const driveTorque = throttleSign * driveScale * tractionScale * contactMultiplier * effectiveDeltaSec;
             if (Math.abs(driveTorque) > 1e-6) {
-                const torqueVector = new this.rapier.Vector3(driveTorque, 0, 0);
+                const axis = wheelAxisByKey[wheelKey] || 'x';
+                const torqueVector = new this.rapier.Vector3(axis === 'x' ? driveTorque : 0, axis === 'y' ? driveTorque : 0, axis === 'z' ? driveTorque : 0);
                 wheelBody.applyTorqueImpulse(torqueVector, true);
             }
 
             if (Math.abs(throttleSign) < 1e-6) {
                 const currentAngularVelocity = wheelBody.angvel();
-                const dampingTorque = -currentAngularVelocity.x * 0.18 * effectiveDeltaSec;
+                const dampingTorque = -currentAngularVelocity.x * 0.16 * effectiveDeltaSec;
                 if (Math.abs(dampingTorque) > 1e-6) {
                     wheelBody.applyTorqueImpulse(new this.rapier.Vector3(dampingTorque, 0, 0), true);
                 }
             }
 
             if (Math.abs(steerSign) > 1e-6 && ['fl', 'fr'].includes(wheelKey)) {
-                const steerTorque = steerSign * 0.0025 * effectiveDeltaSec;
+                const steerTorque = steerSign * 0.002 * effectiveDeltaSec;
                 wheelBody.applyTorqueImpulse(new this.rapier.Vector3(0, 0, steerTorque), true);
             }
         });

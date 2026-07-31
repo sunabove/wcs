@@ -3205,18 +3205,12 @@ class RapierDriveSimulation {
 
             const body = world.createRigidBody(rigidBodyDesc);
 
-            // Keep the vehicle upright with API-compatible fallbacks across Rapier versions.
-            let hasSelectiveRotationLock = false;
-            if (typeof body.setEnabledRotations === 'function') {
-                body.setEnabledRotations(false, false, true, true);
-                hasSelectiveRotationLock = true;
-            } else if (typeof body.restrictRotations === 'function') {
-                body.restrictRotations(false, false, true, true);
-                hasSelectiveRotationLock = true;
-            } else {
-                console.warn('[URDF][Simulation] selective rotation lock API unavailable; steering yaw kept enabled.');
-            }
-            this.isUprightRotationLockActive = hasSelectiveRotationLock;
+// Keep the vehicle strictly upright (lock roll/pitch X, Y axes permanently, enable only Yaw Z axis)
+        if (typeof body.setEnabledRotations === 'function') {
+            body.setEnabledRotations(false, false, true, true);
+        } else if (typeof body.restrictRotations === 'function') {
+            body.restrictRotations(false, false, true, true);
+        }
 
             const bbox = this.computeChassisBounds(carFrame, linkMap);
             const size = bbox.getSize(new THREE.Vector3());
@@ -3496,9 +3490,8 @@ class RapierDriveSimulation {
         const isNearFlatGroundSupport = this.isBodyNearFlatGroundSupport();
 
         if (this.keepUprightOnFlatGround) {
-            // Keep roll/pitch locked on flat-road driving; only unlock near obstacles or holes.
-            const shouldKeepUpright = isNearFlatGroundSupport;
-            this.setUprightRotationLockEnabled(shouldKeepUpright);
+            // Always enforce upright rotation lock (Roll / Pitch locked to zero) to prevent rollover on obstacles.
+            this.setUprightRotationLockEnabled(true);
         }
 
         const previousTranslation = this.body.translation();
@@ -3629,8 +3622,7 @@ class RapierDriveSimulation {
         const isClimbingApproachAfterStep = this.isObstacleInFrontForClimb(obstacleApproach?.obstacleInfo || null);
         this.isVehicleObstacleContact = Boolean(hasObstacleContact || isClimbingApproachAfterStep);
         if (this.keepUprightOnFlatGround) {
-            const shouldKeepUpright = this.isBodyNearFlatGroundSupport();
-            this.setUprightRotationLockEnabled(shouldKeepUpright);
+            this.setUprightRotationLockEnabled(true);
         }
 
         this.maybeLogRuntimeDiagnostics(

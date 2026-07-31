@@ -38,6 +38,7 @@ class RapierDriveSimulation {
         this.vehicleLocalMinZ = null;
         this.wheelLocalMinZ = null;
         this.wheelEffectiveRadiusMeters = 0.16;
+        this.wheelColliderInflationMeters = 0.0;
         this.groundContactLocalMinZ = null;
         this.groundContactBiasMeters = 0;
         this.groundZ = 0;
@@ -1842,9 +1843,9 @@ class RapierDriveSimulation {
             const actualBounds = this.computeLinkOwnBounds(obstacleLink, linkMap) || fallbackBounds;
             const center = actualBounds.getCenter(new THREE.Vector3());
             const size = actualBounds.getSize(new THREE.Vector3());
-            const halfX = Math.max(size.x * 0.5 + 0.08, 0.12);
-            const halfY = Math.max(size.y * 0.5 + 0.08, 0.12);
-            const halfZ = Math.max(size.z * 0.5 + 0.08, 0.12);
+            const halfX = Math.max(size.x * 0.5, 0.001);
+            const halfY = Math.max(size.y * 0.5, 0.001);
+            const halfZ = Math.max(size.z * 0.5, 0.001);
             const normalizedObstacleName = this.normalizeLinkName(obstacleLinkName);
             const isOriginObject = /(^|[_-])origin($|[_-])/i.test(obstacleLinkName) || /(^|[_-])origin($|[_-])/i.test(normalizedObstacleName);
             const isPassUnderTagged = this.passUnderObstacleNamePatterns.some((pattern) => pattern.test(obstacleLinkName) || pattern.test(normalizedObstacleName));

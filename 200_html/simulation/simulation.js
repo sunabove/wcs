@@ -2172,14 +2172,23 @@ class RapierDriveSimulation {
         return adjusted;
     }
 
-    getObstacleClimbTargetZ() {
-        if (!this.body || !Number.isFinite(this.wheelLocalMinZ) || !Array.isArray(this.obstacleColliderInfos)) {
+    getObstacleApproachInfo() {
+        if (!this.body || !Array.isArray(this.obstacleColliderInfos)) {
             return null;
         }
 
         const bodyTranslation = this.body.translation();
-        const wheelContactPlaneZ = bodyTranslation.z + this.wheelLocalMinZ;
-        let bestTargetZ = null;
+        const bodyRotation = this.body.rotation();
+        const yaw = this.extractYawFromQuaternion(bodyRotation);
+        const forwardX = Math.cos(yaw);
+        const forwardY = Math.sin(yaw);
+        const localMinZ = Number.isFinite(this.wheelLocalMinZ)
+            ? this.wheelLocalMinZ
+            : (Number.isFinite(this.vehicleLocalMinZ) ? this.vehicleLocalMinZ : 0);
+        const wheelContactPlaneZ = bodyTranslation.z + localMinZ;
+        const vehicleHalfExtents = this.getVehicleColliderWorldAabbHalfExtents() || { x: 0.18, y: 0.18, z: 0.08 };
+
+        let bestApproach = null;
         let bestScore = Infinity;
 
         this.obstacleColliderInfos.forEach((obstacleInfo) => {
@@ -2188,31 +2197,68 @@ class RapierDriveSimulation {
             }
 
             const obstacleTopZ = obstacleInfo.center.z + obstacleInfo.halfExtents.z;
+            const obstacleBottomZ = obstacleInfo.center.z - obstacleInfo.halfExtents.z;
+            const dx = obstacleInfo.center.x - bodyTranslation.x;
+            const dy = obstacleInfo.center.y - bodyTranslation.y;
+            const aheadDistance = dx * forwardX + dy * forwardY;
+            const lateralDistance = Math.abs(dx * forwardY - dy * forwardX);
             const verticalGap = obstacleTopZ - wheelContactPlaneZ;
-            if (verticalGap < 0) {
+            const lateralGapX = Math.abs(bodyTranslation.x - obstacleInfo.center.x) - ((vehicleHalfExtents?.x || 0) + obstacleInfo.halfExtents.x);
+            const lateralGapY = Math.abs(bodyTranslation.y - obstacleInfo.center.y) - ((vehicleHalfExtents?.y || 0) + obstacleInfo.halfExtents.y);
+            const isInFront = aheadDistance > 0.02 && aheadDistance < 0.45;
+            const isLaterallyAligned = lateralGapX <= 0.16 && lateralGapY <= 0.16;
+            const isInVerticalRange = verticalGap <= 0.12 && verticalGap >= -0.04;
+            const isNearBase = obstacleBottomZ <= (bodyTranslation.z + 0.06) && obstacleBottomZ >= (bodyTranslation.z - 0.08);
+
+            if (!((isInFront && isLaterallyAligned && isInVerticalRange) || (isInFront && isNearBase && isLaterallyAligned))) {
                 return;
             }
 
-            const lateralGapX = Math.abs(bodyTranslation.x - obstacleInfo.center.x);
-            const lateralGapY = Math.abs(bodyTranslation.y - obstacleInfo.center.y);
-            const approachScore = lateralGapX + lateralGapY;
-            if (approachScore >= bestScore) {
+            const score = aheadDistance + (lateralDistance * 1.8) + Math.max(0, verticalGap * 0.8);
+            if (score >= bestScore) {
                 return;
             }
 
-            bestScore = approachScore;
-            bestTargetZ = obstacleTopZ + 0.02;
+            bestScore = score;
+            bestApproach = {
+                obstacleInfo,
+                aheadDistance,
+                lateralDistance,
+                verticalGap,
+                shouldClimb: true
+            };
         });
 
-        return Number.isFinite(bestTargetZ) ? bestTargetZ : null;
+        return bestApproach;
     }
 
-    applyObstacleClimbLift(hasObstacleContactNow, effectiveDeltaSec) {
+    getObstacleClimbTargetZ(obstacleInfo = null) {
+        if (!this.body || !Number.isFinite(this.wheelLocalMinZ) || !Array.isArray(this.obstacleColliderInfos)) {
+            return null;
+        }
+
+        const bodyTranslation = this.body.translation();
+        const wheelContactPlaneZ = bodyTranslation.z + this.wheelLocalMinZ;
+        const targetObstacle = obstacleInfo || this.getObstacleApproachInfo()?.obstacleInfo || null;
+        if (!targetObstacle?.center || !targetObstacle?.halfExtents) {
+            return null;
+        }
+
+        const obstacleTopZ = targetObstacle.center.z + targetObstacle.halfExtents.z;
+        const verticalGap = obstacleTopZ - wheelContactPlaneZ;
+        if (verticalGap <= 0) {
+            return null;
+        }
+
+        return obstacleTopZ + 0.02;
+    }
+
+    applyObstacleClimbLift(hasObstacleContactNow, effectiveDeltaSec, obstacleInfo = null) {
         if (!this.body || !this.rapier || !hasObstacleContactNow) {
             return;
         }
 
-        const climbTargetZ = this.getObstacleClimbTargetZ();
+        const climbTargetZ = this.getObstacleClimbTargetZ(obstacleInfo);
         if (!Number.isFinite(climbTargetZ)) {
             return;
         }
@@ -2220,7 +2266,7 @@ class RapierDriveSimulation {
         const translation = this.body.translation();
         const velocity = this.body.linvel();
         const targetGap = climbTargetZ - translation.z;
-        const liftAmount = Math.min(Math.max(targetGap * 0.35, 0.0), 0.015 + (effectiveDeltaSec * 0.008));
+        const liftAmount = Math.min(Math.max(targetGap * 0.45, 0.0), 0.012 + (effectiveDeltaSec * 0.006));
         if (liftAmount <= 1e-6) {
             return;
         }
@@ -2228,9 +2274,9 @@ class RapierDriveSimulation {
         const nextZ = translation.z + liftAmount;
         this.body.setTranslation(new this.rapier.Vector3(translation.x, translation.y, nextZ), true);
         this.body.setLinvel(new this.rapier.Vector3(
-            velocity.x * 0.7,
-            velocity.y * 0.7,
-            Math.max(velocity.z, 0.05)
+            velocity.x * 0.85,
+            velocity.y * 0.85,
+            Math.max(velocity.z, 0.03)
         ), true);
     }
 
@@ -3218,6 +3264,7 @@ class RapierDriveSimulation {
             this.hasActivatedDynamicGroundClamp = true;
         }
         const wasObstacleContact = this.updateObstacleContactState();
+        const obstacleApproach = this.getObstacleApproachInfo();
         let commandedVelocityX = 0;
         let commandedVelocityY = 0;
         const isNearFlatGroundSupport = this.isBodyNearFlatGroundSupport();
@@ -3297,7 +3344,10 @@ class RapierDriveSimulation {
             if (resolvedInterpenetration) {
                 hasObstacleContactNow = this.updateObstacleContactState();
             }
-            this.applyObstacleClimbLift(hasObstacleContactNow, effectiveDeltaSec);
+            if (obstacleApproach?.shouldClimb) {
+                hasObstacleContactNow = true;
+            }
+            this.applyObstacleClimbLift(hasObstacleContactNow, effectiveDeltaSec, obstacleApproach?.obstacleInfo);
             if (hasObstacleContactNow) {
                 const velocity = this.body.linvel();
                 const dampingFactor = 0.2;
@@ -3333,7 +3383,7 @@ class RapierDriveSimulation {
             this.body.setAngvel(new this.rapier.Vector3(0, 0, 0), true);
         }
 
-        const hasObstacleContact = this.updateObstacleContactState();
+        const hasObstacleContact = this.updateObstacleContactState() || Boolean(obstacleApproach?.shouldClimb);
         if (this.keepUprightOnFlatGround) {
             const shouldKeepUpright = this.isBodyNearFlatGroundSupport();
             this.setUprightRotationLockEnabled(shouldKeepUpright);

@@ -25,10 +25,10 @@ class RapierDriveSimulation {
         this.vehicleColliderHalfExtents = { x: 0.1, y: 0.1, z: 0.1 };
         this.obstacleColliders = [];
         this.obstacleColliderInfos = [];
-        this.obstacleContactSurfaceToleranceMeters = 0.008;
+        this.obstacleContactSurfaceToleranceMeters = 0.012;
         this.obstacleApproachDisableSnapDistanceMeters = 0.05;
-        this.obstacleDepenetrationEpsilonMeters = 0.004;
-        this.obstacleDepenetrationMaxIterations = 6;
+        this.obstacleDepenetrationEpsilonMeters = 0.015;
+        this.obstacleDepenetrationMaxIterations = 8;
         this.isVehicleObstacleContact = false;
         this.carFrame = null;
         this.initialPosition = null;
@@ -1969,6 +1969,28 @@ class RapierDriveSimulation {
         );
     }
 
+    getVehicleObstacleSeparationBounds() {
+        const vehicleCenter = this.getVehicleColliderWorldCenter();
+        if (!vehicleCenter) {
+            return null;
+        }
+
+        const baseHalfExtents = this.getVehicleColliderWorldAabbHalfExtents() || { x: 0, y: 0, z: 0 };
+        const wheelRadiusBuffer = Math.max(
+            (Number(this.wheelEffectiveRadiusMeters) || 0.16) + (Number(this.wheelColliderInflationMeters) || 0.012),
+            0.12
+        );
+
+        return {
+            center: vehicleCenter,
+            halfExtents: {
+                x: (Number(baseHalfExtents.x) || 0) + wheelRadiusBuffer * 0.65,
+                y: (Number(baseHalfExtents.y) || 0) + wheelRadiusBuffer * 0.65,
+                z: (Number(baseHalfExtents.z) || 0) + Math.max(wheelRadiusBuffer * 0.35, 0.04)
+            }
+        };
+    }
+
     getVehicleColliderWorldAabbHalfExtents() {
         if (!this.body || !this.vehicleColliderHalfExtents) {
             return null;
@@ -2032,8 +2054,9 @@ class RapierDriveSimulation {
         let adjusted = false;
 
         for (let iteration = 0; iteration < maxIterations; iteration += 1) {
-            const vehicleCenter = this.getVehicleColliderWorldCenter();
-            const vehicleHalfExtents = this.getVehicleColliderWorldAabbHalfExtents();
+            const separationBounds = this.getVehicleObstacleSeparationBounds();
+            const vehicleCenter = separationBounds?.center;
+            const vehicleHalfExtents = separationBounds?.halfExtents;
             if (!vehicleCenter || !vehicleHalfExtents) {
                 break;
             }
@@ -2059,15 +2082,12 @@ class RapierDriveSimulation {
                 }
 
                 let axis = 'x';
-                let pushDistance = penetrationX;
+                let pushDistance = Math.min(penetrationX, penetrationY, penetrationZ);
                 if (penetrationY < pushDistance) {
                     axis = 'y';
                     pushDistance = penetrationY;
                 }
-
-                // Prefer horizontal depenetration; allow vertical only when clearly the smallest overlap axis.
-                const minHorizontalPenetration = Math.min(penetrationX, penetrationY);
-                if (penetrationZ < (minHorizontalPenetration * 0.6)) {
+                if (penetrationZ < pushDistance) {
                     axis = 'z';
                     pushDistance = penetrationZ;
                 }
@@ -2081,17 +2101,19 @@ class RapierDriveSimulation {
                 let nextVelY = currentVelocity.y;
                 let nextVelZ = currentVelocity.z;
 
+                const pushAmount = Math.max(pushDistance + epsilon + 0.01, 0.01);
+
                 if (axis === 'x') {
                     const direction = deltaX >= 0 ? 1 : -1;
-                    nextX += direction * (pushDistance + epsilon);
+                    nextX += direction * pushAmount;
                     nextVelX = 0;
                 } else if (axis === 'y') {
                     const direction = deltaY >= 0 ? 1 : -1;
-                    nextY += direction * (pushDistance + epsilon);
+                    nextY += direction * pushAmount;
                     nextVelY = 0;
                 } else {
                     const direction = deltaZ >= 0 ? 1 : -1;
-                    nextZ += direction * (pushDistance + epsilon);
+                    nextZ += direction * pushAmount;
                     nextVelZ = direction > 0 ? Math.max(0, nextVelZ) : Math.min(0, nextVelZ);
                 }
 

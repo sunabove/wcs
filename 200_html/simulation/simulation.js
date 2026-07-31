@@ -116,6 +116,8 @@ class RapierDriveSimulation {
         this.wheelZChartContext = null;
         this.wheelZChartWindowSec = 20;
         this.wheelZChartElapsedSec = 0;
+        this.wheelZChartRenderIntervalSec = 0.25;
+        this.wheelZChartLastRenderTimeMs = null;
         this.wheelZChartVisibleStorageKey = 'wcs.simulation.wheelZChartVisible';
         this.isWheelZChartVisible = this.loadWheelZChartVisibleState();
         this.wheelZChartHistoryByKey = {
@@ -3216,7 +3218,19 @@ class RapierDriveSimulation {
         }
 
         this.stepSimulation();
-        this.renderWheelZChart(this.wheelZChartElapsedSec);
+
+        const nowMs = typeof performance !== 'undefined' && typeof performance.now === 'function'
+            ? performance.now()
+            : null;
+        const shouldRenderWheelChart = this.wheelZChartLastRenderTimeMs === null
+            || (nowMs !== null && (nowMs - this.wheelZChartLastRenderTimeMs) >= (this.wheelZChartRenderIntervalSec * 1000));
+        if (shouldRenderWheelChart) {
+            this.renderWheelZChart(this.wheelZChartElapsedSec);
+            if (nowMs !== null) {
+                this.wheelZChartLastRenderTimeMs = nowMs;
+            }
+        }
+
         this.updateDebugPanel(this.physicsFixedTimeStepSec);
         requestAnimationFrame(() => this.runLoop());
     }

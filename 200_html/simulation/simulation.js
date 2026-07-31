@@ -3339,6 +3339,87 @@ class RapierDriveSimulation {
         }
     }
 
+    applyDriveForces(effectiveDeltaSec, targetVelocityX, targetVelocityY, throttleSign, steerSign, clampedSpeed) {
+        if (!this.body || !this.rapier) {
+            return;
+        }
+
+        const currentLinearVelocity = this.body.linvel();
+        const currentAngularVelocity = this.body.angvel();
+        const velocityErrorX = targetVelocityX - currentLinearVelocity.x;
+        const velocityErrorY = targetVelocityY - currentLinearVelocity.y;
+        const accelerationImpulseScale = Math.max(0.25 + (Math.max(clampedSpeed, 0) * 0.08), 0.3);
+        const impulseX = velocityErrorX * accelerationImpulseScale * effectiveDeltaSec;
+        const impulseY = velocityErrorY * accelerationImpulseScale * effectiveDeltaSec;
+
+        this.body.applyImpulse(new this.rapier.Vector3(impulseX, impulseY, 0), true);
+
+        const currentSpeed = Math.hypot(currentLinearVelocity.x, currentLinearVelocity.y);
+        if (currentSpeed > 0.001) {
+            const dragScale = Math.min(0.08 + currentSpeed * 0.08, 0.22) * effectiveDeltaSec;
+            this.body.applyImpulse(new this.rapier.Vector3(-currentLinearVelocity.x * dragScale, -currentLinearVelocity.y * dragScale, 0), true);
+        }
+
+        if (Math.abs(throttleSign) < 1e-6 && Math.abs(steerSign) < 1e-6) {
+            this.body.applyImpulse(new this.rapier.Vector3(-currentLinearVelocity.x * 0.04 * effectiveDeltaSec, -currentLinearVelocity.y * 0.04 * effectiveDeltaSec, 0), true);
+        }
+
+        const steeringTorque = (Number.isFinite(steerSign) ? steerSign : 0) * 0.012 * effectiveDeltaSec;
+        if (Math.abs(steeringTorque) > 1e-6) {
+            this.body.applyTorqueImpulse(new this.rapier.Vector3(0, 0, steeringTorque), true);
+        }
+
+        if (Math.abs(currentAngularVelocity.z) > 0.001 && Math.abs(steerSign) < 1e-6) {
+            const yawDampingTorque = -currentAngularVelocity.z * 0.06 * effectiveDeltaSec;
+            this.body.applyTorqueImpulse(new this.rapier.Vector3(0, 0, yawDampingTorque), true);
+        }
+    }
+
+    applyGroundSupportForces(effectiveDeltaSec) {
+        if (!this.body || !this.rapier || !Number.isFinite(this.groundZ) || !Number.isFinite(this.groundContactLocalMinZ)) {
+            return;
+        }
+
+        const translation = this.body.translation();
+        const targetZ = this.getGroundContactTargetZ();
+        if (!Number.isFinite(targetZ)) {
+            return;
+        }
+
+        const gap = targetZ - translation.z;
+        const currentVelocityZ = this.body.linvel().z;
+        if (gap > 0.002) {
+            const supportImpulse = Math.min(gap * 1.8 + 0.04, 0.8) * effectiveDeltaSec;
+            this.body.applyImpulse(new this.rapier.Vector3(0, 0, supportImpulse), true);
+        } else if (gap < -0.001) {
+            const dampingImpulse = Math.min(Math.abs(gap) * 1.6, 0.4) * effectiveDeltaSec;
+            this.body.applyImpulse(new this.rapier.Vector3(0, 0, -dampingImpulse), true);
+        }
+
+        if (Math.abs(currentVelocityZ) > 0.01 && Math.abs(gap) < 0.01) {
+            this.body.applyImpulse(new this.rapier.Vector3(0, 0, -currentVelocityZ * 0.45 * effectiveDeltaSec), true);
+        }
+    }
+
+    applyObstacleContactImpulse(effectiveDeltaSec, obstacleInfo = null) {
+        if (!this.body || !this.rapier || !obstacleInfo?.center) {
+            return;
+        }
+
+        const bodyCenter = this.getVehicleColliderWorldCenter();
+        const obstacleCenter = obstacleInfo.center;
+        const dx = bodyCenter.x - obstacleCenter.x;
+        const dy = bodyCenter.y - obstacleCenter.y;
+        const dz = bodyCenter.z - obstacleCenter.z;
+        const length = Math.max(Math.hypot(dx, dy, dz), 1e-4);
+        const pushStrength = 0.16 * effectiveDeltaSec;
+        this.body.applyImpulse(new this.rapier.Vector3(
+            (dx / length) * pushStrength,
+            (dy / length) * pushStrength,
+            (dz / length) * pushStrength
+        ), true);
+    }
+
     stepSimulation() {
         if (!this.isReady) {
             return;
@@ -3456,11 +3537,13 @@ class RapierDriveSimulation {
         const currentLinearVelocity = this.body.linvel();
         const currentAngularVelocity = this.body.angvel();
         let lockedRotation = null;
+        let targetVelocityX = 0;
+        let targetVelocityY = 0;
         if (keyboardState.isActive) {
             lockedRotation = this.body.rotation();
             const velocitySmoothingAlpha = 1 - Math.exp(-12 * effectiveDeltaSec);
-            const targetVelocityX = keyboardMoveX * clampedSpeed;
-            const targetVelocityY = keyboardMoveY * clampedSpeed;
+            targetVelocityX = keyboardMoveX * clampedSpeed;
+            targetVelocityY = keyboardMoveY * clampedSpeed;
             const velocityX = currentLinearVelocity.x + ((targetVelocityX - currentLinearVelocity.x) * velocitySmoothingAlpha);
             const velocityY = currentLinearVelocity.y + ((targetVelocityY - currentLinearVelocity.y) * velocitySmoothingAlpha);
             commandedVelocityX = targetVelocityX;
@@ -3478,15 +3561,15 @@ class RapierDriveSimulation {
         } else {
             const bodyRotation = this.body.rotation();
             const yaw = this.extractYawFromQuaternion(bodyRotation);
-            const velocityX = Math.cos(yaw) * clampedSpeed * throttleSign;
-            const velocityY = Math.sin(yaw) * clampedSpeed * throttleSign;
-            commandedVelocityX = velocityX;
-            commandedVelocityY = velocityY;
+            targetVelocityX = Math.cos(yaw) * clampedSpeed * throttleSign;
+            targetVelocityY = Math.sin(yaw) * clampedSpeed * throttleSign;
+            commandedVelocityX = targetVelocityX;
+            commandedVelocityY = targetVelocityY;
 
             const nextVelocityZ = wasObstacleContact
                 ? currentLinearVelocity.z
                 : (isNearFlatGroundSupport ? 0 : currentLinearVelocity.z);
-            this.body.setLinvel(new this.rapier.Vector3(velocityX, velocityY, nextVelocityZ), true);
+            this.body.setLinvel(new this.rapier.Vector3(currentLinearVelocity.x, currentLinearVelocity.y, nextVelocityZ), true);
             this.body.setAngvel(new this.rapier.Vector3(currentAngularVelocity.x, currentAngularVelocity.y, this.maxYawRateRad * effectiveSteerSign), true);
         }
 
@@ -3495,6 +3578,8 @@ class RapierDriveSimulation {
         const linkMap = this.viewer?.robotModel?.links || null;
         let stepIndex = 0;
         while (this.physicsAccumulatorSec >= this.physicsFixedTimeStepSec && stepIndex < this.maxPhysicsCatchupSteps) {
+            this.applyDriveForces(this.physicsFixedTimeStepSec, targetVelocityX, targetVelocityY, throttleSign, effectiveSteerSign, clampedSpeed);
+            this.applyGroundSupportForces(this.physicsFixedTimeStepSec);
             this.world.timestep = this.physicsFixedTimeStepSec;
             this.world.step();
             let hasObstacleContactNow = this.updateObstacleContactState();
@@ -3509,6 +3594,9 @@ class RapierDriveSimulation {
             const resolvedInterpenetration = this.resolveVehicleObstacleInterpenetration();
             if (resolvedInterpenetration) {
                 hasObstacleContactNow = this.updateObstacleContactState();
+            }
+            if (hasObstacleContactNow && obstacleApproach?.obstacleInfo) {
+                this.applyObstacleContactImpulse(this.physicsFixedTimeStepSec, obstacleApproach.obstacleInfo);
             }
             if (hasObstacleContactNow) {
                 this.applyObstacleClimbLift(true, effectiveDeltaSec, obstacleApproach?.obstacleInfo);

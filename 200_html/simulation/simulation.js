@@ -229,15 +229,21 @@ class RapierDriveSimulation {
         panel.style.background = 'rgba(255, 255, 255, 0.92)';
         panel.style.backdropFilter = 'blur(2px)';
         panel.style.pointerEvents = 'auto';
-        panel.style.padding = '8px 8px 6px 8px';
+        panel.style.padding = '28px 8px 6px 8px';
+        panel.style.position = 'relative';
         panel.style.touchAction = 'none';
 
         const titleRow = document.createElement('div');
         titleRow.className = 'd-flex align-items-center justify-content-center gap-2';
-        titleRow.style.marginBottom = '4px';
-        titleRow.style.position = 'relative';
-        titleRow.style.minHeight = '28px';
-        titleRow.style.paddingRight = '0';
+        titleRow.style.marginBottom = '0';
+        titleRow.style.position = 'absolute';
+        titleRow.style.top = '8px';
+        titleRow.style.left = '50%';
+        titleRow.style.transform = 'translateX(-50%)';
+        titleRow.style.minHeight = '20px';
+        titleRow.style.padding = '0 36px 0 8px';
+        titleRow.style.width = 'calc(100% - 16px)';
+        titleRow.style.zIndex = '3';
 
         const title = document.createElement('div');
         title.className = 'small fw-semibold text-primary';

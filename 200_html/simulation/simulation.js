@@ -2133,6 +2133,68 @@ class RapierDriveSimulation {
         return adjusted;
     }
 
+    getObstacleClimbTargetZ() {
+        if (!this.body || !Number.isFinite(this.wheelLocalMinZ) || !Array.isArray(this.obstacleColliderInfos)) {
+            return null;
+        }
+
+        const bodyTranslation = this.body.translation();
+        const wheelContactPlaneZ = bodyTranslation.z + this.wheelLocalMinZ;
+        let bestTargetZ = null;
+        let bestScore = Infinity;
+
+        this.obstacleColliderInfos.forEach((obstacleInfo) => {
+            if (!obstacleInfo?.center || !obstacleInfo?.halfExtents || obstacleInfo.isSensor) {
+                return;
+            }
+
+            const obstacleTopZ = obstacleInfo.center.z + obstacleInfo.halfExtents.z;
+            const verticalGap = obstacleTopZ - wheelContactPlaneZ;
+            if (verticalGap < 0) {
+                return;
+            }
+
+            const lateralGapX = Math.abs(bodyTranslation.x - obstacleInfo.center.x);
+            const lateralGapY = Math.abs(bodyTranslation.y - obstacleInfo.center.y);
+            const approachScore = lateralGapX + lateralGapY;
+            if (approachScore >= bestScore) {
+                return;
+            }
+
+            bestScore = approachScore;
+            bestTargetZ = obstacleTopZ + 0.02;
+        });
+
+        return Number.isFinite(bestTargetZ) ? bestTargetZ : null;
+    }
+
+    applyObstacleClimbLift(hasObstacleContactNow, effectiveDeltaSec) {
+        if (!this.body || !this.rapier || !hasObstacleContactNow) {
+            return;
+        }
+
+        const climbTargetZ = this.getObstacleClimbTargetZ();
+        if (!Number.isFinite(climbTargetZ)) {
+            return;
+        }
+
+        const translation = this.body.translation();
+        const velocity = this.body.linvel();
+        const targetGap = climbTargetZ - translation.z;
+        const liftAmount = Math.min(Math.max(targetGap * 0.65, 0.0), 0.04 + (effectiveDeltaSec * 0.02));
+        if (liftAmount <= 1e-6) {
+            return;
+        }
+
+        const nextZ = translation.z + liftAmount;
+        this.body.setTranslation(new this.rapier.Vector3(translation.x, translation.y, nextZ), true);
+        this.body.setLinvel(new this.rapier.Vector3(
+            velocity.x,
+            velocity.y,
+            Math.max(velocity.z, 0.25)
+        ), true);
+    }
+
     isVehicleNearObstacleSupportZone() {
         const vehicleCenter = this.getVehicleColliderWorldCenter();
         const wheelContactPlaneZ = this.getWheelContactPlaneZ();
@@ -2180,7 +2242,7 @@ class RapierDriveSimulation {
         const obstacleTopZ = obstacleInfo.center.z + obstacleInfo.halfExtents.z;
         const clearance = Math.max(Number(this.underbodyPassThroughClearanceMeters) || 0, 0);
 
-        return obstacleTopZ <= (wheelContactPlaneZ + clearance);
+        return obstacleTopZ < (wheelContactPlaneZ - clearance);
     }
 
     getWheelContactPlaneZ() {
@@ -3185,6 +3247,7 @@ class RapierDriveSimulation {
             if (resolvedInterpenetration) {
                 hasObstacleContactNow = this.updateObstacleContactState();
             }
+            this.applyObstacleClimbLift(hasObstacleContactNow, effectiveDeltaSec);
             if (hasObstacleContactNow) {
                 const velocity = this.body.linvel();
                 const dampingFactor = 0.2;

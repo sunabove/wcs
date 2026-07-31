@@ -43,12 +43,13 @@ class RapierDriveSimulation {
         this.groundZ = 0;
         this.holeRegions = [];
         this.underbodyPassThroughClearanceMeters = 0.02;
-        this.urdfObstacleLinkNames = ['obstacle_rock_01', 'obstacle_rock_02', 'obstacle_rock', 'rock_obstacle'];
+        this.urdfObstacleLinkNames = ['obstacle_rock_01', 'obstacle_rock_02', 'obstacle_rock', 'rock_obstacle', 'obstacle_rock_1'];
         this.urdfObstacleLinkNamePatterns = [
             /^obstacle/i,
             /^ostacle/i,
             /^wall/i,
             /^rock_obstacle/i,
+            /^rock_1$/i,
             /^step/i,
             /^curb/i,
             /^pothole/i,
@@ -1148,7 +1149,9 @@ class RapierDriveSimulation {
         Object.keys(linkMap).forEach((name) => {
             const normalizedName = this.normalizeLinkName(name);
             const isOriginObject = /(^|[_-])origin($|[_-])/i.test(name) || /(^|[_-])origin($|[_-])/i.test(normalizedName);
-            if (isOriginObject) {
+            const isVehicleStructure = /(^|[_-])(car_frame|base_link|wheel|gear|swing|inner_wheel|inner_gear|chassis)(_|$)/i.test(name)
+                || /(^|[_-])(car_frame|base_link|wheel|gear|swing|inner_wheel|inner_gear|chassis)(_|$)/i.test(normalizedName);
+            if (isOriginObject || isVehicleStructure) {
                 return;
             }
 

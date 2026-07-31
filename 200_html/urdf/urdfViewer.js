@@ -89,6 +89,7 @@ class URDFViewer {
         };
         this.driveMode = 'stop';
         this.driveSpeedKmh = 0;
+        this.driveAnimationPoseSnapshot = null;
         this.kmhToRpmFactor = 4;
         this.wheelJointNameByKey = {
             fl: 'wheel_fl_joint',
@@ -2267,6 +2268,37 @@ class URDFViewer {
         }
     }
 
+    captureDriveAnimationPoseSnapshot() {
+        if (!this.robotModel) {
+            return;
+        }
+
+        const carFrame = this.robotModel.links?.car_frame || this.robotModel.links?.base_link || this.robotModel.root || null;
+        if (!carFrame) {
+            return;
+        }
+
+        this.driveAnimationPoseSnapshot = {
+            position: carFrame.position.clone(),
+            quaternion: carFrame.quaternion.clone()
+        };
+    }
+
+    restoreDriveAnimationPoseSnapshot() {
+        if (!this.robotModel) {
+            return;
+        }
+
+        const carFrame = this.robotModel.links?.car_frame || this.robotModel.links?.base_link || this.robotModel.root || null;
+        if (!carFrame || !this.driveAnimationPoseSnapshot) {
+            return;
+        }
+
+        carFrame.position.copy(this.driveAnimationPoseSnapshot.position);
+        carFrame.quaternion.copy(this.driveAnimationPoseSnapshot.quaternion).normalize();
+        carFrame.updateMatrixWorld(true);
+    }
+
     setWheelSpeedRpm(key, rpm) {
         const numericRpm = Number.parseFloat(rpm);
         const directionSign = Number.isFinite(numericRpm) && numericRpm < 0 ? -1 : 1;
@@ -2274,6 +2306,7 @@ class URDFViewer {
             ? Math.max(Math.abs(numericRpm), 0)
             : this.wheelSpeedRpmByKey[key];
 
+        this.captureDriveAnimationPoseSnapshot();
         this.setWheelDirectionSign(key, directionSign);
 
         this.wheelSpeedRpmByKey[key] = normalizedRpm;
@@ -2288,6 +2321,8 @@ class URDFViewer {
         if (valueElement && valueElement.length > 0) {
             valueElement.text(`${this.formatRpmText(this.getSignedWheelRpm(key))} rpm`);
         }
+
+        this.restoreDriveAnimationPoseSnapshot();
     }
 
     setWheelDirectionSign(key, sign) {
@@ -2302,6 +2337,7 @@ class URDFViewer {
         this.driveMode = mode;
         this.driveSpeedKmh = Number.isFinite(Number(speedKmh)) ? Math.max(Number(speedKmh), 0) : this.driveSpeedKmh;
 
+        this.captureDriveAnimationPoseSnapshot();
         const baseRpm = this.convertKmhToRpm(this.driveSpeedKmh);
 
         if (mode === 'forward') {
@@ -2367,6 +2403,8 @@ class URDFViewer {
             this.setWheelSpeedRpm('rr', 0);
             this.updateWheelHighlightsByDriveDirection();
         }
+
+        this.restoreDriveAnimationPoseSnapshot();
     }
 
     updateWheelHighlightsByDriveDirection() {

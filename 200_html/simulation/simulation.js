@@ -2416,92 +2416,9 @@ class RapierDriveSimulation {
     }
 
     resolveVehicleObstacleInterpenetration() {
-        if (!this.body || !this.rapier || !Array.isArray(this.obstacleColliderInfos) || this.obstacleColliderInfos.length === 0) {
-            return false;
-        }
-
-        const epsilon = Math.max(Number(this.obstacleDepenetrationEpsilonMeters) || 0, 0);
-        const maxIterations = Math.max(Math.floor(Number(this.obstacleDepenetrationMaxIterations) || 0), 1);
-        let adjusted = false;
-
-        for (let iteration = 0; iteration < maxIterations; iteration += 1) {
-            const separationBounds = this.getVehicleObstacleSeparationBounds();
-            const vehicleCenter = separationBounds?.center;
-            const vehicleHalfExtents = separationBounds?.halfExtents;
-            if (!vehicleCenter || !vehicleHalfExtents) {
-                break;
-            }
-
-            let separatedInThisIteration = false;
-
-            for (let i = 0; i < this.obstacleColliderInfos.length; i += 1) {
-                const obstacleInfo = this.obstacleColliderInfos[i];
-                if (!obstacleInfo || obstacleInfo.isSensor || !obstacleInfo.center || !obstacleInfo.halfExtents) {
-                    continue;
-                }
-
-                const deltaX = vehicleCenter.x - obstacleInfo.center.x;
-                const deltaY = vehicleCenter.y - obstacleInfo.center.y;
-                const deltaZ = vehicleCenter.z - obstacleInfo.center.z;
-
-                const penetrationX = (vehicleHalfExtents.x + obstacleInfo.halfExtents.x) - Math.abs(deltaX);
-                const penetrationY = (vehicleHalfExtents.y + obstacleInfo.halfExtents.y) - Math.abs(deltaY);
-                const penetrationZ = (vehicleHalfExtents.z + obstacleInfo.halfExtents.z) - Math.abs(deltaZ);
-
-                if (penetrationX <= 0 || penetrationY <= 0 || penetrationZ <= 0) {
-                    continue;
-                }
-
-                let axis = 'x';
-                let pushDistance = Math.min(penetrationX, penetrationY, penetrationZ);
-                if (penetrationY < pushDistance) {
-                    axis = 'y';
-                    pushDistance = penetrationY;
-                }
-                if (penetrationZ < pushDistance) {
-                    axis = 'z';
-                    pushDistance = penetrationZ;
-                }
-
-                const currentTranslation = this.body.translation();
-                const currentVelocity = this.body.linvel();
-                let nextX = currentTranslation.x;
-                let nextY = currentTranslation.y;
-                let nextZ = currentTranslation.z;
-                let nextVelX = currentVelocity.x;
-                let nextVelY = currentVelocity.y;
-                let nextVelZ = currentVelocity.z;
-
-                const pushAmount = Math.max(pushDistance + epsilon, 0.002);
-
-                if (axis === 'x') {
-                    const direction = deltaX >= 0 ? 1 : -1;
-                    nextX += direction * pushAmount;
-                    nextVelX = currentVelocity.x;
-                } else if (axis === 'y') {
-                    const direction = deltaY >= 0 ? 1 : -1;
-                    nextY += direction * pushAmount;
-                    nextVelY = currentVelocity.y;
-                } else {
-                    const direction = deltaZ >= 0 ? 1 : -1;
-                    nextZ += direction * pushAmount;
-                    nextVelZ = Math.max(currentVelocity.z, 0.05);
-                }
-
-                this.body.setTranslation(new this.rapier.Vector3(nextX, nextY, nextZ), true);
-                this.body.setLinvel(new this.rapier.Vector3(nextVelX, nextVelY, nextVelZ), true);
-
-                adjusted = true;
-                separatedInThisIteration = true;
-                break;
-            }
-
-            if (!separatedInThisIteration) {
-                break;
-            }
-        }
-
-        return adjusted;
+        // Disabled artificial position/velocity snapping.
+        // Let Rapier's physics engine handle rigid body contacts naturally.
+        return false;
     }
 
     getObstacleApproachInfo() {
@@ -2593,16 +2510,9 @@ class RapierDriveSimulation {
             return;
         }
 
-        const forwardSpeed = Math.hypot(velocity.x, velocity.y);
-        const maxLiftPerStep = 0.02 + Math.min(forwardSpeed * 0.015, 0.04);
-        const liftAmount = Math.min(Math.max(targetGap * 0.6, 0.01), maxLiftPerStep);
-        if (liftAmount <= 1e-6) {
-            return;
-        }
-
-        const nextZ = Math.min(translation.z + liftAmount, climbTargetZ);
-        this.body.setTranslation(new this.rapier.Vector3(translation.x, translation.y, nextZ), true);
-        this.body.setLinvel(new this.rapier.Vector3(velocity.x, velocity.y, Math.max(velocity.z * 0.5, 0.05)), true);
+        // Apply smooth upward impulse instead of hard teleporting setTranslation
+        const liftImpulse = Math.min(targetGap * 1.5, 0.08) * effectiveDeltaSec;
+        this.body.applyImpulse(new this.rapier.Vector3(0, 0, liftImpulse), true);
     }
 
     isVehicleNearObstacleSupportZone() {

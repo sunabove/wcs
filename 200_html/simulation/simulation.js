@@ -2020,11 +2020,42 @@ class RapierDriveSimulation {
     }
 
     isVehicleAabbTouchingObstacle(obstacleInfo) {
-        return false;
+        if (!this.body || !obstacleInfo?.center || !obstacleInfo?.halfExtents) {
+            return false;
+        }
+
+        const vehicleCenter = this.getVehicleColliderWorldCenter();
+        const vehicleHalfExtents = this.getVehicleColliderWorldAabbHalfExtents();
+        if (!vehicleCenter || !vehicleHalfExtents) {
+            return false;
+        }
+
+        const gapX = Math.abs(vehicleCenter.x - obstacleInfo.center.x) - (vehicleHalfExtents.x + obstacleInfo.halfExtents.x);
+        const gapY = Math.abs(vehicleCenter.y - obstacleInfo.center.y) - (vehicleHalfExtents.y + obstacleInfo.halfExtents.y);
+        const gapZ = Math.abs(vehicleCenter.z - obstacleInfo.center.z) - (vehicleHalfExtents.z + obstacleInfo.halfExtents.z);
+        return gapX <= 0.04 && gapY <= 0.04 && gapZ <= 0.08;
     }
 
     isVehicleNearObstacleSurface(obstacleInfo) {
-        return false;
+        if (!this.body || !obstacleInfo?.center || !obstacleInfo?.halfExtents) {
+            return false;
+        }
+
+        const vehicleCenter = this.getVehicleColliderWorldCenter();
+        if (!vehicleCenter) {
+            return false;
+        }
+
+        const vehicleHalfExtents = this.getVehicleColliderWorldAabbHalfExtents();
+        if (!vehicleHalfExtents) {
+            return false;
+        }
+
+        const obstacleTopZ = obstacleInfo.center.z + obstacleInfo.halfExtents.z;
+        const verticalGap = obstacleTopZ - vehicleCenter.z;
+        const gapX = Math.abs(vehicleCenter.x - obstacleInfo.center.x) - (vehicleHalfExtents.x + obstacleInfo.halfExtents.x);
+        const gapY = Math.abs(vehicleCenter.y - obstacleInfo.center.y) - (vehicleHalfExtents.y + obstacleInfo.halfExtents.y);
+        return gapX <= 0.06 && gapY <= 0.06 && verticalGap >= -0.05 && verticalGap <= 0.08;
     }
 
     resolveVehicleObstacleInterpenetration() {
@@ -2117,7 +2148,40 @@ class RapierDriveSimulation {
     }
 
     getObstacleApproachInfo() {
-        return null;
+        if (!this.body || !Array.isArray(this.obstacleColliderInfos)) {
+            return null;
+        }
+
+        const vehicleCenter = this.getVehicleColliderWorldCenter();
+        const vehicleHalfExtents = this.getVehicleColliderWorldAabbHalfExtents();
+        if (!vehicleCenter || !vehicleHalfExtents) {
+            return null;
+        }
+
+        let bestInfo = null;
+        let bestScore = Number.POSITIVE_INFINITY;
+        this.obstacleColliderInfos.forEach((obstacleInfo) => {
+            if (!obstacleInfo || obstacleInfo.isSensor || !obstacleInfo.center || !obstacleInfo.halfExtents) {
+                return;
+            }
+
+            const gapX = Math.abs(vehicleCenter.x - obstacleInfo.center.x) - (vehicleHalfExtents.x + obstacleInfo.halfExtents.x);
+            const gapY = Math.abs(vehicleCenter.y - obstacleInfo.center.y) - (vehicleHalfExtents.y + obstacleInfo.halfExtents.y);
+            const obstacleTopZ = obstacleInfo.center.z + obstacleInfo.halfExtents.z;
+            const verticalGap = obstacleTopZ - vehicleCenter.z;
+            const isRelevant = gapX <= 0.12 && gapY <= 0.12 && verticalGap >= -0.08 && verticalGap <= 0.16;
+            if (!isRelevant) {
+                return;
+            }
+
+            const score = (Math.max(gapX, 0) * 1.5) + (Math.max(gapY, 0) * 1.5) + Math.max(Math.abs(verticalGap), 0.0);
+            if (score < bestScore) {
+                bestScore = score;
+                bestInfo = obstacleInfo;
+            }
+        });
+
+        return bestInfo ? { obstacleInfo: bestInfo } : null;
     }
 
     getObstacleClimbTargetZ(obstacleInfo = null) {
@@ -2154,13 +2218,14 @@ class RapierDriveSimulation {
         const translation = this.body.translation();
         const velocity = this.body.linvel();
         const targetGap = climbTargetZ - translation.z;
-        const liftAmount = Math.min(Math.max(targetGap * 0.75, 0.0), 0.018 + (effectiveDeltaSec * 0.008));
+        const liftAmount = Math.min(Math.max(targetGap * 0.75, 0.0), 0.024 + (effectiveDeltaSec * 0.012));
         if (liftAmount <= 1e-6) {
             return;
         }
 
         const nextZ = Math.min(translation.z + liftAmount, climbTargetZ);
         this.body.setTranslation(new this.rapier.Vector3(translation.x, translation.y, nextZ), true);
+        this.body.setLinvel(new this.rapier.Vector3(velocity.x, velocity.y, Math.max(velocity.z, 0.8)), true);
     }
 
     isVehicleNearObstacleSupportZone() {
@@ -2809,26 +2874,27 @@ class RapierDriveSimulation {
                         return;
                     }
 
+                    let pairHasContact = false;
                     this.world.contactPair(vehicleCollider, obstacleCollider, () => {
-                        const isChassisCollider = vehicleCollider === this.vehicleCollider;
-                        if (!isChassisCollider) {
-                            hasContact = true;
-                            return;
-                        }
-
-                        if (!obstacleInfo) {
-                            hasContact = true;
-                            return;
-                        }
-
-                        if (this.isObstacleBelowWheelContactPlane(obstacleInfo)) {
-                            return;
-                        }
-
-                        if (this.isVehicleAabbTouchingObstacle(obstacleInfo) || this.isVehicleNearObstacleSurface(obstacleInfo)) {
-                            hasContact = true;
-                        }
+                        pairHasContact = true;
                     });
+
+                    if (pairHasContact) {
+                        hasContact = true;
+                        return;
+                    }
+
+                    if (!obstacleInfo) {
+                        return;
+                    }
+
+                    if (this.isObstacleBelowWheelContactPlane(obstacleInfo)) {
+                        return;
+                    }
+
+                    if (this.isVehicleAabbTouchingObstacle(obstacleInfo) || this.isVehicleNearObstacleSurface(obstacleInfo)) {
+                        hasContact = true;
+                    }
                 });
             });
         }

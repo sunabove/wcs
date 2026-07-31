@@ -2549,9 +2549,9 @@ class RapierDriveSimulation {
             const obstacleBottomZ = obstacleInfo.center.z - obstacleInfo.halfExtents.z;
             const vehicleBottomZ = vehicleCenter.z - vehicleHalfExtents.z;
             const verticalGap = obstacleTopZ - vehicleCenter.z;
-            const canReachInZ = obstacleBottomZ <= vehicleBottomZ + 0.03 && obstacleTopZ >= vehicleBottomZ - 0.01;
+            const canReachInZ = obstacleBottomZ <= vehicleBottomZ + 0.005 && obstacleTopZ >= vehicleBottomZ - 0.005;
             const isOverlappingInXY = gapX <= 0.0 && gapY <= 0.0;
-            const isRelevant = isOverlappingInXY && canReachInZ && verticalGap >= -0.01 && verticalGap <= 0.025;
+            const isRelevant = isOverlappingInXY && canReachInZ && verticalGap >= -0.002 && verticalGap <= 0.008;
             if (!isRelevant) {
                 return;
             }
@@ -2639,7 +2639,7 @@ class RapierDriveSimulation {
             const obstacleTopZ = obstacleInfo.center.z + obstacleInfo.halfExtents.z;
             const obstacleBottomZ = obstacleInfo.center.z - obstacleInfo.halfExtents.z;
             const wheelBottomZ = wheelContactPlaneZ - verticalTolerance;
-            if (obstacleTopZ < wheelBottomZ || obstacleBottomZ > wheelContactPlaneZ + 0.02) {
+            if (obstacleTopZ < wheelBottomZ || obstacleBottomZ > wheelContactPlaneZ + 0.005) {
                 return false;
             }
 

@@ -3743,12 +3743,15 @@ class RapierDriveSimulation {
         const linkMap = this.viewer?.robotModel?.links || null;
         let stepIndex = 0;
         while (this.physicsAccumulatorSec >= this.physicsFixedTimeStepSec && stepIndex < this.maxPhysicsCatchupSteps) {
+            const currentObstacleApproach = this.getObstacleApproachInfo();
+            const currentClimbApproach = this.isObstacleInFrontForClimb(currentObstacleApproach?.obstacleInfo || null);
+
             this.applyDriveForces(this.physicsFixedTimeStepSec, targetVelocityX, targetVelocityY, throttleSign, effectiveSteerSign, clampedSpeed, wheelGroundContactCount);
             this.applyGroundSupportForces(this.physicsFixedTimeStepSec, wheelGroundContactCount, this.isVehicleObstacleContact);
             this.world.timestep = this.physicsFixedTimeStepSec;
             this.world.step();
             let hasObstacleContactNow = this.updateObstacleContactState();
-            const isClimbingApproach = this.isObstacleInFrontForClimb(obstacleApproach?.obstacleInfo || null);
+            const isClimbingApproach = currentClimbApproach || this.isObstacleInFrontForClimb(currentObstacleApproach?.obstacleInfo || null);
             if (hasObstacleContactNow || isClimbingApproach) {
                 this.postObstacleGroundRecoverRemainingSec = Math.max(Number(this.postObstacleGroundRecoverDurationSec) || 0, 0);
             } else {
@@ -3765,7 +3768,7 @@ class RapierDriveSimulation {
                 this.applyObstacleContactImpulse(this.physicsFixedTimeStepSec, obstacleApproach.obstacleInfo);
             }
             if (hasObstacleContactNow || isClimbingApproach) {
-                this.applyObstacleClimbLift(true, this.physicsFixedTimeStepSec, obstacleApproach?.obstacleInfo);
+                this.applyObstacleClimbLift(true, this.physicsFixedTimeStepSec, currentObstacleApproach?.obstacleInfo);
             } else {
                 const velocity = this.body.linvel();
                 const approachSpeed = Math.hypot(velocity.x, velocity.y);

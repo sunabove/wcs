@@ -2172,94 +2172,8 @@ class RapierDriveSimulation {
         return adjusted;
     }
 
-    getVehicleFrontProbePoint() {
-        if (!this.body) {
-            return null;
-        }
-
-        const bodyTranslation = this.body.translation();
-        const bodyRotation = this.body.rotation();
-        const yaw = this.extractYawFromQuaternion(bodyRotation);
-        const forwardX = Math.cos(yaw);
-        const forwardY = Math.sin(yaw);
-        const probeDistance = Math.max((this.vehicleColliderHalfExtents?.x || 0.18) + 0.12, 0.18);
-
-        return {
-            x: bodyTranslation.x + (forwardX * probeDistance),
-            y: bodyTranslation.y + (forwardY * probeDistance),
-            z: bodyTranslation.z + 0.02
-        };
-    }
-
     getObstacleApproachInfo() {
-        if (!this.body || !Array.isArray(this.obstacleColliderInfos)) {
-            return null;
-        }
-
-        const bodyTranslation = this.body.translation();
-        const bodyRotation = this.body.rotation();
-        const yaw = this.extractYawFromQuaternion(bodyRotation);
-        const forwardX = Math.cos(yaw);
-        const forwardY = Math.sin(yaw);
-        const localMinZ = Number.isFinite(this.wheelLocalMinZ)
-            ? this.wheelLocalMinZ
-            : (Number.isFinite(this.vehicleLocalMinZ) ? this.vehicleLocalMinZ : 0);
-        const wheelContactPlaneZ = bodyTranslation.z + localMinZ;
-        const probePoint = this.getVehicleFrontProbePoint();
-        if (!probePoint) {
-            return null;
-        }
-
-        let bestApproach = null;
-        let bestScore = Infinity;
-
-        this.obstacleColliderInfos.forEach((obstacleInfo) => {
-            if (!obstacleInfo?.center || !obstacleInfo?.halfExtents || obstacleInfo.isSensor) {
-                return;
-            }
-
-            const obstacleMinX = obstacleInfo.center.x - obstacleInfo.halfExtents.x;
-            const obstacleMaxX = obstacleInfo.center.x + obstacleInfo.halfExtents.x;
-            const obstacleMinY = obstacleInfo.center.y - obstacleInfo.halfExtents.y;
-            const obstacleMaxY = obstacleInfo.center.y + obstacleInfo.halfExtents.y;
-            const obstacleTopZ = obstacleInfo.center.z + obstacleInfo.halfExtents.z;
-            const obstacleBottomZ = obstacleInfo.center.z - obstacleInfo.halfExtents.z;
-            const lateralMargin = Math.max(Number(this.obstacleContactSurfaceToleranceMeters) || 0, 0) + 0.04;
-            const verticalMargin = 0.08;
-            const isWithinObstacleBox = probePoint.x >= (obstacleMinX - lateralMargin)
-                && probePoint.x <= (obstacleMaxX + lateralMargin)
-                && probePoint.y >= (obstacleMinY - lateralMargin)
-                && probePoint.y <= (obstacleMaxY + lateralMargin);
-            const isVerticalAligned = probePoint.z <= (obstacleTopZ + verticalMargin)
-                && probePoint.z >= (obstacleBottomZ - verticalMargin);
-            const isTallEnough = obstacleTopZ >= (wheelContactPlaneZ - 0.03);
-            const isNearBase = obstacleBottomZ <= (bodyTranslation.z + 0.08) && obstacleBottomZ >= (bodyTranslation.z - 0.08);
-
-            if (!(isWithinObstacleBox && isVerticalAligned && (isTallEnough || isNearBase))) {
-                return;
-            }
-
-            const dx = obstacleInfo.center.x - bodyTranslation.x;
-            const dy = obstacleInfo.center.y - bodyTranslation.y;
-            const aheadDistance = dx * forwardX + dy * forwardY;
-            const lateralDistance = Math.abs(dx * forwardY - dy * forwardX);
-            const speed = Math.hypot(this.body.linvel().x, this.body.linvel().y);
-            const score = Math.max(0.01, aheadDistance) + (lateralDistance * 2.0) + Math.max(0, 0.08 - speed);
-            if (score >= bestScore) {
-                return;
-            }
-
-            bestScore = score;
-            bestApproach = {
-                obstacleInfo,
-                aheadDistance,
-                lateralDistance,
-                verticalGap: obstacleTopZ - wheelContactPlaneZ,
-                shouldClimb: true
-            };
-        });
-
-        return bestApproach;
+        return null;
     }
 
     getObstacleClimbTargetZ(obstacleInfo = null) {
@@ -2267,9 +2181,8 @@ class RapierDriveSimulation {
             return null;
         }
 
-        const bodyTranslation = this.body.translation();
-        const wheelContactPlaneZ = bodyTranslation.z + this.wheelLocalMinZ;
-        const targetObstacle = obstacleInfo || this.getObstacleApproachInfo()?.obstacleInfo || null;
+        const translation = this.body.translation();
+        const targetObstacle = obstacleInfo || null;
         if (!targetObstacle?.center || !targetObstacle?.halfExtents) {
             return null;
         }
@@ -2303,13 +2216,7 @@ class RapierDriveSimulation {
         }
 
         const nextZ = Math.min(translation.z + liftAmount, climbTargetZ);
-        const speed = Math.hypot(velocity.x, velocity.y);
         this.body.setTranslation(new this.rapier.Vector3(translation.x, translation.y, nextZ), true);
-        this.body.setLinvel(new this.rapier.Vector3(
-            velocity.x * 0.8,
-            velocity.y * 0.8,
-            Math.max(velocity.z, Math.min(0.04, speed * 0.2))
-        ), true);
     }
 
     isVehicleNearObstacleSupportZone() {
@@ -3297,7 +3204,7 @@ class RapierDriveSimulation {
         }
         const wasObstacleContact = this.updateObstacleContactState();
         const obstacleApproach = this.getObstacleApproachInfo();
-        this.isVehicleObstacleContact = Boolean(wasObstacleContact || obstacleApproach?.shouldClimb);
+        this.isVehicleObstacleContact = Boolean(wasObstacleContact);
         let commandedVelocityX = 0;
         let commandedVelocityY = 0;
         const isNearFlatGroundSupport = this.isBodyNearFlatGroundSupport();
@@ -3377,10 +3284,9 @@ class RapierDriveSimulation {
             if (resolvedInterpenetration) {
                 hasObstacleContactNow = this.updateObstacleContactState();
             }
-            if (obstacleApproach?.shouldClimb) {
-                hasObstacleContactNow = true;
+            if (hasObstacleContactNow) {
+                this.applyObstacleClimbLift(true, effectiveDeltaSec, obstacleApproach?.obstacleInfo);
             }
-            this.applyObstacleClimbLift(hasObstacleContactNow, effectiveDeltaSec, obstacleApproach?.obstacleInfo);
             if (hasObstacleContactNow) {
                 const velocity = this.body.linvel();
                 const dampingFactor = 0.2;
@@ -3416,7 +3322,7 @@ class RapierDriveSimulation {
             this.body.setAngvel(new this.rapier.Vector3(0, 0, 0), true);
         }
 
-        const hasObstacleContact = this.updateObstacleContactState() || Boolean(obstacleApproach?.shouldClimb);
+        const hasObstacleContact = this.updateObstacleContactState();
         this.isVehicleObstacleContact = hasObstacleContact;
         if (this.keepUprightOnFlatGround) {
             const shouldKeepUpright = this.isBodyNearFlatGroundSupport();

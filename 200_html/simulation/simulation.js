@@ -864,6 +864,10 @@ class RapierDriveSimulation {
 
     stopSimulationMotion() {
         if (this.body && this.rapier) {
+            const translation = this.body.translation();
+            const rotation = this.body.rotation();
+            this.body.setTranslation(new this.rapier.Vector3(translation.x, translation.y, translation.z), true);
+            this.body.setRotation({ x: rotation.x, y: rotation.y, z: rotation.z, w: rotation.w }, true);
             this.body.setLinvel(new this.rapier.Vector3(0, 0, 0), true);
             this.body.setAngvel(new this.rapier.Vector3(0, 0, 0), true);
         }

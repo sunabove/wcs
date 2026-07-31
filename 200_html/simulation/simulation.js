@@ -2594,15 +2594,15 @@ class RapierDriveSimulation {
         }
 
         const forwardSpeed = Math.hypot(velocity.x, velocity.y);
-        const maxLiftPerStep = 0.012 + Math.min(forwardSpeed * 0.008, 0.028);
-        const liftAmount = Math.min(Math.max(targetGap * 0.45, 0.006), maxLiftPerStep);
+        const maxLiftPerStep = 0.02 + Math.min(forwardSpeed * 0.015, 0.04);
+        const liftAmount = Math.min(Math.max(targetGap * 0.6, 0.01), maxLiftPerStep);
         if (liftAmount <= 1e-6) {
             return;
         }
 
         const nextZ = Math.min(translation.z + liftAmount, climbTargetZ);
         this.body.setTranslation(new this.rapier.Vector3(translation.x, translation.y, nextZ), true);
-        this.body.setLinvel(new this.rapier.Vector3(velocity.x, velocity.y, Math.max(velocity.z * 0.35, 0.01)), true);
+        this.body.setLinvel(new this.rapier.Vector3(velocity.x, velocity.y, Math.max(velocity.z * 0.5, 0.05)), true);
     }
 
     isVehicleNearObstacleSupportZone() {
@@ -3776,11 +3776,11 @@ class RapierDriveSimulation {
                     this.body.setLinvel(new this.rapier.Vector3(velocity.x * 0.92, velocity.y * 0.92, velocity.z), true);
                 }
             }
-            if (hasObstacleContactNow) {
-                const velocity = this.body.linvel();
-                const dampingFactor = 0.6;
-                this.body.setLinvel(new this.rapier.Vector3(velocity.x * dampingFactor, velocity.y * dampingFactor, velocity.z), true);
-            }
+        if (hasObstacleContactNow) {
+            const velocity = this.body.linvel();
+            const dampingFactor = 0.92;
+            this.body.setLinvel(new this.rapier.Vector3(velocity.x * dampingFactor, velocity.y * dampingFactor, velocity.z), true);
+        }
             if (this.hasActivatedDynamicGroundClamp) {
                 this.clampVehicleAboveGround();
             }
@@ -3829,10 +3829,10 @@ class RapierDriveSimulation {
         );
 
         const hasMoveCommand = keyboardState.isActive || throttleSign !== 0;
-        const shouldBlockByObstacle = hasObstacleContact;
+        const shouldBlockByObstacle = this.blockMotionOnObstacleContact && hasObstacleContact;
         if (hasMoveCommand && !shouldBlockByObstacle) {
             const currentVelocity = this.body.linvel();
-            const keepZVelocity = this.isBodyNearFlatGroundSupport() ? 0 : currentVelocity.z;
+            const keepZVelocity = (this.isBodyNearFlatGroundSupport() && !this.isVehicleObstacleContact) ? 0 : currentVelocity.z;
             this.body.setLinvel(new this.rapier.Vector3(commandedVelocityX, commandedVelocityY, keepZVelocity), true);
         } else {
             const currentVelocity = this.body.linvel();

@@ -15,7 +15,7 @@
   </material>
 
   <material name="tire_tread_texture">
-    <texture filename="textures/tire_tread.svg" />
+    <texture filename="textures/tire_tread.png" />
   </material>
 
   <material name="tread_mark">

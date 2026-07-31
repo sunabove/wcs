@@ -862,9 +862,33 @@ class RapierDriveSimulation {
         }
     }
 
+    stopSimulationMotion() {
+        if (this.body && this.rapier) {
+            this.body.setLinvel(new this.rapier.Vector3(0, 0, 0), true);
+            this.body.setAngvel(new this.rapier.Vector3(0, 0, 0), true);
+        }
+
+        ['fl', 'fr', 'rl', 'rr'].forEach((key) => {
+            if (typeof globalThis.setWheelAnimationByKey === 'function') {
+                globalThis.setWheelAnimationByKey(key, 0);
+            }
+        });
+
+        this.hasActivatedSimulationMotion = false;
+        this.hasActivatedDynamicGroundClamp = false;
+
+        if (this.carFrame) {
+            this.syncCarFrameFromBody();
+        }
+    }
+
     applyDriveModeCommand(mode) {
         const normalizedMode = String(mode || 'stop');
         this.commandedDriveMode = normalizedMode;
+
+        if (normalizedMode === 'stop') {
+            this.stopSimulationMotion();
+        }
 
         if (typeof globalThis.setDriveMode === 'function') {
             globalThis.setDriveMode(normalizedMode);
@@ -2977,6 +3001,12 @@ class RapierDriveSimulation {
 
         const now = performance.now();
         if (this.isPaused) {
+            this.lastStepTimeMs = now;
+            return;
+        }
+
+        if (String(this.commandedDriveMode || '').toLowerCase() === 'stop') {
+            this.stopSimulationMotion();
             this.lastStepTimeMs = now;
             return;
         }

@@ -3130,21 +3130,6 @@ class RapierDriveSimulation {
             });
         }
 
-        if (!hasContact) {
-            const linkMap = this.viewer?.robotModel?.links || null;
-            this.obstacleColliderInfos.forEach((obstacleInfo) => {
-                if (!obstacleInfo || obstacleInfo.isSensor || this.isObstacleBelowWheelContactPlane(obstacleInfo)) {
-                    return;
-                }
-
-                const geometryContact = this.isVehicleAabbTouchingObstacle(obstacleInfo, linkMap)
-                    || this.isVehicleNearObstacleSurface(obstacleInfo, linkMap);
-                if (geometryContact) {
-                    hasContact = true;
-                }
-            });
-        }
-
         if (hasContact !== this.isVehicleObstacleContact) {
             this.isVehicleObstacleContact = hasContact;
             console.log(`[URDF][Simulation] vehicle-obstacle contact: ${hasContact ? 'ON' : 'OFF'}`);

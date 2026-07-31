@@ -2020,66 +2020,10 @@ class RapierDriveSimulation {
     }
 
     isVehicleAabbTouchingObstacle(obstacleInfo) {
-        const vehicleCenter = this.getVehicleColliderWorldCenter();
-        const vehicleHalfExtents = this.getVehicleColliderWorldAabbHalfExtents();
-        if (!vehicleCenter || !obstacleInfo?.center || !obstacleInfo?.halfExtents) {
-            return false;
-        }
-
-        if (!vehicleHalfExtents) {
-            return false;
-        }
-
-        const vx = vehicleHalfExtents.x;
-        const vy = vehicleHalfExtents.y;
-        const vz = vehicleHalfExtents.z;
-        const ox = obstacleInfo.halfExtents.x;
-        const oy = obstacleInfo.halfExtents.y;
-        const oz = obstacleInfo.halfExtents.z;
-        const tolerance = Math.max(Number(this.obstacleContactSurfaceToleranceMeters) || 0, 0);
-
-        const gapX = Math.abs(vehicleCenter.x - obstacleInfo.center.x) - (vx + ox);
-        const gapY = Math.abs(vehicleCenter.y - obstacleInfo.center.y) - (vy + oy);
-        const gapZ = Math.abs(vehicleCenter.z - obstacleInfo.center.z) - (vz + oz);
-
-        return gapX <= tolerance && gapY <= tolerance && gapZ <= tolerance;
+        return false;
     }
 
     isVehicleNearObstacleSurface(obstacleInfo) {
-        if (!this.body || !obstacleInfo?.center || !obstacleInfo?.halfExtents) {
-            return false;
-        }
-
-        const bodyTranslation = this.body.translation();
-        const bodyVelocity = this.body.linvel();
-        const vehicleHalfExtents = this.vehicleColliderHalfExtents || this.vehicleHalfExtents || null;
-        const localMinZ = Number.isFinite(this.wheelLocalMinZ)
-            ? this.wheelLocalMinZ
-            : (Number.isFinite(this.vehicleLocalMinZ) ? this.vehicleLocalMinZ : 0);
-        const wheelContactPlaneZ = bodyTranslation.z + localMinZ;
-        const obstacleTopZ = obstacleInfo.center.z + obstacleInfo.halfExtents.z;
-        const obstacleBottomZ = obstacleInfo.center.z - obstacleInfo.halfExtents.z;
-
-        const lateralGapX = Math.abs(bodyTranslation.x - obstacleInfo.center.x) - ((vehicleHalfExtents?.x || 0) + obstacleInfo.halfExtents.x);
-        const lateralGapY = Math.abs(bodyTranslation.y - obstacleInfo.center.y) - ((vehicleHalfExtents?.y || 0) + obstacleInfo.halfExtents.y);
-        const verticalGap = obstacleTopZ - wheelContactPlaneZ;
-        const contactMargin = Math.max(Number(this.obstacleGeometryContactMarginMeters) || 0, 0);
-        const enterMargin = Math.max(Number(this.obstacleContactSurfaceToleranceMeters) || 0, 0) + contactMargin;
-        const exitMargin = enterMargin + 0.06;
-
-        const isWithinLateral = lateralGapX <= enterMargin && lateralGapY <= enterMargin;
-        const isWithinVertical = verticalGap <= 0.08 && verticalGap >= -0.04;
-        const isBaseAligned = obstacleBottomZ <= (bodyTranslation.z + 0.03) && obstacleBottomZ >= (bodyTranslation.z - 0.08);
-        const isMovingTowardObstacle = Math.abs(bodyVelocity.x) + Math.abs(bodyVelocity.y) > 0.02;
-
-        if (isWithinLateral && isWithinVertical) {
-            return true;
-        }
-
-        if (this.isVehicleObstacleContact) {
-            return lateralGapX <= exitMargin && lateralGapY <= exitMargin && verticalGap <= 0.12 && verticalGap >= -0.06;
-        }
-
         return false;
     }
 
@@ -2889,17 +2833,6 @@ class RapierDriveSimulation {
             });
         }
 
-        if (!hasContact) {
-            this.obstacleColliderInfos.forEach((obstacleInfo) => {
-                if (hasContact || obstacleInfo?.isSensor) {
-                    return;
-                }
-                if (this.isVehicleNearObstacleSurface(obstacleInfo)) {
-                    hasContact = true;
-                }
-            });
-        }
-
         if (hasContact !== this.isVehicleObstacleContact) {
             this.isVehicleObstacleContact = hasContact;
             console.log(`[URDF][Simulation] vehicle-obstacle contact: ${hasContact ? 'ON' : 'OFF'}`);
@@ -3345,7 +3278,7 @@ class RapierDriveSimulation {
         );
 
         const hasMoveCommand = keyboardState.isActive || throttleSign !== 0;
-        const shouldBlockByObstacle = hasObstacleContact || this.isVehicleAabbTouchingObstacle(this.obstacleColliderInfos[0] || null);
+        const shouldBlockByObstacle = hasObstacleContact;
         if (hasMoveCommand && !shouldBlockByObstacle) {
             const currentVelocity = this.body.linvel();
             const keepZVelocity = this.isBodyNearFlatGroundSupport() ? 0 : currentVelocity.z;

@@ -3128,17 +3128,7 @@ class URDFViewer {
             return;
         }
 
-        const linkMap = this.robotModel?.links || null;
-        const anchorLink = linkMap?.origin || linkMap?.base_link || null;
-        if (!anchorLink) {
-            this.axesRootGroup.position.set(0, 0, 0);
-            return;
-        }
-
-        const anchorPosition = new THREE.Vector3();
-        anchorLink.updateWorldMatrix(true, false);
-        anchorLink.getWorldPosition(anchorPosition);
-        this.axesRootGroup.position.copy(anchorPosition);
+        this.axesRootGroup.position.set(0, 0, 0);
     }
 
     setReferenceGuidesVisible(isVisible) {

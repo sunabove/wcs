@@ -493,11 +493,29 @@ class RapierDriveSimulation {
             wheelLink.updateWorldMatrix(true, true);
             const centerWorld = new THREE.Vector3();
             wheelLink.getWorldPosition(centerWorld);
-            const wheelBottomZ = Number(centerWorld.z - wheelRadiusMeters);
-            const groundReferenceZ = Number.isFinite(this.groundZ) ? Number(this.groundZ) : 0;
-            // Wheel chart reports the wheel-bottom clearance above the ground surface.
-            // On flat ground this should stay at 0 or above.
-            const wheelBottomHeightAboveGround = Math.max(0, wheelBottomZ - groundReferenceZ);
+
+            const wheelBottomWorldPosition = centerWorld.clone().setZ(centerWorld.z - wheelRadiusMeters);
+            const groundLink = this.findLinkByName(linkMap, 'ground')
+                || this.findLinkByName(linkMap, 'ground_link')
+                || this.findLinkByName(linkMap, 'ground_patch')
+                || null;
+
+            let wheelBottomHeightAboveGround = null;
+            if (groundLink) {
+                groundLink.updateWorldMatrix(true, true);
+                const groundWorldPosition = new THREE.Vector3();
+                const groundWorldQuaternion = new THREE.Quaternion();
+                groundLink.getWorldPosition(groundWorldPosition);
+                groundLink.getWorldQuaternion(groundWorldQuaternion);
+
+                const groundPlaneNormal = new THREE.Vector3(0, 0, 1).applyQuaternion(groundWorldQuaternion).normalize();
+                const signedDistanceToGroundPlane = groundPlaneNormal.dot(wheelBottomWorldPosition.clone().sub(groundWorldPosition));
+                wheelBottomHeightAboveGround = Math.max(0, signedDistanceToGroundPlane);
+            } else {
+                const groundReferenceZ = Number.isFinite(this.groundZ) ? Number(this.groundZ) : 0;
+                const wheelBottomZ = Number(centerWorld.z - wheelRadiusMeters);
+                wheelBottomHeightAboveGround = Math.max(0, wheelBottomZ - groundReferenceZ);
+            }
 
             if (!Number.isFinite(wheelBottomHeightAboveGround)) {
                 return;

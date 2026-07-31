@@ -806,17 +806,20 @@ class RapierDriveSimulation {
             wheelGroundSummary = `wheelGround=${wheelState}`;
         }
 
+        const statusLine = `status: ready=${isReady} failed=${isFailed} paused=${isPaused} hooks=${hookState}`;
+        const viewerLine = `viewer: active=${activeViewerId} sim=${simulationViewerId} drive=${driveViewerId}`;
+        const driveLine = `drive: mode=${driveMode} input=${Number.isFinite(speedMpsInput) ? `${speedMpsInput.toFixed(1)} m/s` : 'NaN'} (${Number.isFinite(speedKmhInput) ? `${speedKmhInput.toFixed(1)} km/h` : 'NaN'}) speed=${Number.isFinite(speedMps) ? `${speedMps.toFixed(3)} m/s` : 'NaN'}`;
+        const visualLine = `visual: ${Number.isFinite(visualSpeedScale) ? this.formatVisualSpeedScaleLabel(visualSpeedScale) : 'NaN'}`;
+
         this.debugTextElement.textContent = [
-            `ready=${isReady} failed=${isFailed} paused=${isPaused} hooks=${hookState}`,
-            `activeViewer=${activeViewerId}`,
-            `simulationViewer=${simulationViewerId}`,
-            `driveViewer=${driveViewerId}`,
-            `visualSpeed=${Number.isFinite(visualSpeedScale) ? this.formatVisualSpeedScaleLabel(visualSpeedScale) : 'NaN'}`,
-            `mode=${driveMode} inputMps=${Number.isFinite(speedMpsInput) ? speedMpsInput.toFixed(1) : 'NaN'} inputKmh=${Number.isFinite(speedKmhInput) ? speedKmhInput.toFixed(1) : 'NaN'} speedMps=${Number.isFinite(speedMps) ? speedMps.toFixed(3) : 'NaN'}`,
+            statusLine,
+            viewerLine,
+            driveLine,
+            visualLine,
             bodySummary,
             obstacleSummary,
             wheelGroundSummary,
-            `obstacleContact=${this.isVehicleObstacleContact ? 'Y' : 'N'}`
+            `contact: obstacle=${this.isVehicleObstacleContact ? 'Y' : 'N'}`
         ].join('\n');
     }
 
@@ -3455,6 +3458,39 @@ class RapierDriveSimulation {
 
         const yawTorque = ((dx / length) * 0.005) * effectiveDeltaSec;
         this.body.applyTorqueImpulse(new this.rapier.Vector3(0, 0, yawTorque), true);
+    }
+
+    updateWheelGroundContactState() {
+        if (!this.world || !this.body || !this.rapier) {
+            return 0;
+        }
+
+        const wheelKeys = ['fl', 'fr', 'rl', 'rr'];
+        let contactCount = 0;
+        wheelKeys.forEach((wheelKey) => {
+            const wheelCollider = this.wheelCollidersByKey?.[wheelKey] || null;
+            if (!wheelCollider) {
+                this.wheelGroundContactState[wheelKey] = false;
+                return;
+            }
+
+            let isContacting = false;
+            this.groundColliders.forEach((groundCollider) => {
+                if (isContacting) {
+                    return;
+                }
+                this.world.contactPair(wheelCollider, groundCollider, () => {
+                    isContacting = true;
+                });
+            });
+
+            this.wheelGroundContactState[wheelKey] = isContacting;
+            if (isContacting) {
+                contactCount += 1;
+            }
+        });
+
+        return contactCount;
     }
 
     stepSimulation() {

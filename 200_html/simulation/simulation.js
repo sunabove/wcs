@@ -2110,7 +2110,7 @@ class RapierDriveSimulation {
             return false;
         }
 
-        const expandedObstacleBounds = obstacleBounds.clone().expandByScalar(this.obstacleGeometryContactMarginMeters);
+        const expandedObstacleBounds = obstacleBounds.clone().expandByScalar(Math.max(this.obstacleGeometryContactMarginMeters * 0.5, 0.01));
         return vehicleBoundsList.some((vehicleBounds) => {
             if (!vehicleBounds || vehicleBounds.isEmpty()) {
                 return false;
@@ -2131,7 +2131,7 @@ class RapierDriveSimulation {
             return false;
         }
 
-        const contactMargin = Math.max(this.obstacleGeometryContactMarginMeters, 0.04);
+        const contactMargin = Math.max(this.obstacleGeometryContactMarginMeters * 0.5, 0.02);
         const expandedObstacleBounds = obstacleBounds.clone().expandByScalar(contactMargin);
         return vehicleBoundsList.some((vehicleBounds) => {
             if (!vehicleBounds || vehicleBounds.isEmpty()) {
@@ -2306,14 +2306,14 @@ class RapierDriveSimulation {
         const translation = this.body.translation();
         const velocity = this.body.linvel();
         const targetGap = climbTargetZ - translation.z;
-        const liftAmount = Math.min(Math.max(targetGap * 0.75, 0.0), 0.024 + (effectiveDeltaSec * 0.012));
+        const liftAmount = Math.min(Math.max(targetGap * 0.35, 0.0), 0.012 + (effectiveDeltaSec * 0.004));
         if (liftAmount <= 1e-6) {
             return;
         }
 
         const nextZ = Math.min(translation.z + liftAmount, climbTargetZ);
         this.body.setTranslation(new this.rapier.Vector3(translation.x, translation.y, nextZ), true);
-        this.body.setLinvel(new this.rapier.Vector3(velocity.x, velocity.y, Math.max(velocity.z, 0.8)), true);
+        this.body.setLinvel(new this.rapier.Vector3(velocity.x, velocity.y, Math.max(velocity.z, 0.2)), true);
     }
 
     isVehicleNearObstacleSupportZone() {
@@ -3379,7 +3379,7 @@ class RapierDriveSimulation {
             }
             if (hasObstacleContactNow) {
                 const velocity = this.body.linvel();
-                const dampingFactor = 0.2;
+                const dampingFactor = 0.6;
                 this.body.setLinvel(new this.rapier.Vector3(velocity.x * dampingFactor, velocity.y * dampingFactor, velocity.z), true);
             }
             if (this.hasActivatedDynamicGroundClamp) {

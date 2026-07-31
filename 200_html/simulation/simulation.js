@@ -3236,22 +3236,23 @@ class RapierDriveSimulation {
         );
 
         const hasMoveCommand = keyboardState.isActive || throttleSign !== 0;
-        if (hasMoveCommand && !hasObstacleContact) {
+        const shouldBlockByObstacle = hasObstacleContact || this.isVehicleAabbTouchingObstacle(this.obstacleColliderInfos[0] || null);
+        if (hasMoveCommand && !shouldBlockByObstacle) {
             const currentVelocity = this.body.linvel();
             const keepZVelocity = this.isBodyNearFlatGroundSupport() ? 0 : currentVelocity.z;
             this.body.setLinvel(new this.rapier.Vector3(commandedVelocityX, commandedVelocityY, keepZVelocity), true);
-        } else if (hasObstacleContact) {
+        } else {
             const currentVelocity = this.body.linvel();
             const stopVelocity = Math.abs(currentVelocity.x) < 0.01 && Math.abs(currentVelocity.y) < 0.01;
             this.body.setLinvel(new this.rapier.Vector3(
-                stopVelocity ? 0 : currentVelocity.x * 0.15,
-                stopVelocity ? 0 : currentVelocity.y * 0.15,
+                stopVelocity ? 0 : currentVelocity.x * 0.05,
+                stopVelocity ? 0 : currentVelocity.y * 0.05,
                 currentVelocity.z
             ), true);
         }
 
         const isMoveCommandActive = keyboardState.isActive || throttleSign !== 0;
-        if (this.blockMotionOnObstacleContact && hasObstacleContact && isMoveCommandActive) {
+        if (this.blockMotionOnObstacleContact && (hasObstacleContact || this.isVehicleAabbTouchingObstacle(this.obstacleColliderInfos[0] || null)) && isMoveCommandActive) {
             this.rollbackToPreviousPose(previousPose);
             return;
         }

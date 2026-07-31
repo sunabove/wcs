@@ -2125,7 +2125,7 @@ class RapierDriveSimulation {
             return false;
         }
 
-        const margin = Math.max(Number(contactMarginMeters) || 0, 0);
+        const margin = Math.max(Number(contactMarginMeters) || 0, 0.001);
         const centerOffset = obbB.center.clone().sub(obbA.center);
         const axesToTest = [];
 
@@ -2197,17 +2197,13 @@ class RapierDriveSimulation {
         }
 
         const baseHalfExtents = this.getVehicleColliderWorldAabbHalfExtents() || { x: 0, y: 0, z: 0 };
-        const wheelRadiusBuffer = Math.max(
-            (Number(this.wheelEffectiveRadiusMeters) || 0.16) + (Number(this.wheelColliderInflationMeters) || 0.012),
-            0.12
-        );
 
         return {
             center: vehicleCenter,
             halfExtents: {
-                x: (Number(baseHalfExtents.x) || 0) + wheelRadiusBuffer * 0.65,
-                y: (Number(baseHalfExtents.y) || 0) + wheelRadiusBuffer * 0.65,
-                z: (Number(baseHalfExtents.z) || 0) + Math.max(wheelRadiusBuffer * 0.35, 0.04)
+                x: Number(baseHalfExtents.x) || 0,
+                y: Number(baseHalfExtents.y) || 0,
+                z: Number(baseHalfExtents.z) || 0
             }
         };
     }
@@ -2250,7 +2246,7 @@ class RapierDriveSimulation {
             return false;
         }
 
-        return vehicleObbs.some((vehicleObb) => this.obbIntersects(vehicleObb, obstacleObb, 0.002));
+        return vehicleObbs.some((vehicleObb) => this.obbIntersects(vehicleObb, obstacleObb, 0.001));
     }
 
     isVehicleNearObstacleSurface(obstacleInfo, linkMap = null) {
@@ -2271,8 +2267,8 @@ class RapierDriveSimulation {
                 Math.abs(obstacleObb.center.x - vehicleObb.center.x) - (obstacleObb.halfExtents.x + vehicleObb.halfExtents.x),
                 Math.abs(obstacleObb.center.y - vehicleObb.center.y) - (obstacleObb.halfExtents.y + vehicleObb.halfExtents.y)
             );
-            const nearSurface = verticalGap <= 0.02 && horizontalSeparation <= 0.02;
-            return nearSurface || this.obbIntersects(vehicleObb, obstacleObb, 0.004);
+            const nearSurface = verticalGap <= 0.002 && horizontalSeparation <= 0.002;
+            return nearSurface || this.obbIntersects(vehicleObb, obstacleObb, 0.001);
         });
     }
 

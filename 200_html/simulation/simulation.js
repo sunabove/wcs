@@ -28,6 +28,7 @@ class RapierDriveSimulation {
         this.obstacleContactSurfaceToleranceMeters = 0.012;
         this.obstacleApproachDisableSnapDistanceMeters = 0.05;
         this.obstacleDepenetrationEpsilonMeters = 0.015;
+        this.obstacleGeometryContactMarginMeters = 0.06;
         this.obstacleDepenetrationMaxIterations = 8;
         this.isVehicleObstacleContact = false;
         this.carFrame = null;
@@ -2044,6 +2045,44 @@ class RapierDriveSimulation {
         return gapX <= tolerance && gapY <= tolerance && gapZ <= tolerance;
     }
 
+    isVehicleNearObstacleSurface(obstacleInfo) {
+        if (!this.body || !obstacleInfo?.center || !obstacleInfo?.halfExtents) {
+            return false;
+        }
+
+        const bodyTranslation = this.body.translation();
+        const bodyVelocity = this.body.linvel();
+        const vehicleHalfExtents = this.vehicleColliderHalfExtents || this.vehicleHalfExtents || null;
+        const localMinZ = Number.isFinite(this.wheelLocalMinZ)
+            ? this.wheelLocalMinZ
+            : (Number.isFinite(this.vehicleLocalMinZ) ? this.vehicleLocalMinZ : 0);
+        const wheelContactPlaneZ = bodyTranslation.z + localMinZ;
+        const obstacleTopZ = obstacleInfo.center.z + obstacleInfo.halfExtents.z;
+        const obstacleBottomZ = obstacleInfo.center.z - obstacleInfo.halfExtents.z;
+
+        const lateralGapX = Math.abs(bodyTranslation.x - obstacleInfo.center.x) - ((vehicleHalfExtents?.x || 0) + obstacleInfo.halfExtents.x);
+        const lateralGapY = Math.abs(bodyTranslation.y - obstacleInfo.center.y) - ((vehicleHalfExtents?.y || 0) + obstacleInfo.halfExtents.y);
+        const verticalGap = obstacleTopZ - wheelContactPlaneZ;
+        const contactMargin = Math.max(Number(this.obstacleGeometryContactMarginMeters) || 0, 0);
+        const enterMargin = Math.max(Number(this.obstacleContactSurfaceToleranceMeters) || 0, 0) + contactMargin;
+        const exitMargin = enterMargin + 0.06;
+
+        const isWithinLateral = lateralGapX <= enterMargin && lateralGapY <= enterMargin;
+        const isWithinVertical = verticalGap <= 0.08 && verticalGap >= -0.04;
+        const isBaseAligned = obstacleBottomZ <= (bodyTranslation.z + 0.03) && obstacleBottomZ >= (bodyTranslation.z - 0.08);
+        const isMovingTowardObstacle = Math.abs(bodyVelocity.x) + Math.abs(bodyVelocity.y) > 0.02;
+
+        if (isWithinLateral && isWithinVertical) {
+            return true;
+        }
+
+        if (this.isVehicleObstacleContact) {
+            return lateralGapX <= exitMargin && lateralGapY <= exitMargin && verticalGap <= 0.12 && verticalGap >= -0.06;
+        }
+
+        return isBaseAligned && isMovingTowardObstacle;
+    }
+
     resolveVehicleObstacleInterpenetration() {
         if (!this.body || !this.rapier || !Array.isArray(this.obstacleColliderInfos) || this.obstacleColliderInfos.length === 0) {
             return false;
@@ -2181,7 +2220,7 @@ class RapierDriveSimulation {
         const translation = this.body.translation();
         const velocity = this.body.linvel();
         const targetGap = climbTargetZ - translation.z;
-        const liftAmount = Math.min(Math.max(targetGap * 0.65, 0.0), 0.04 + (effectiveDeltaSec * 0.02));
+        const liftAmount = Math.min(Math.max(targetGap * 0.35, 0.0), 0.015 + (effectiveDeltaSec * 0.008));
         if (liftAmount <= 1e-6) {
             return;
         }
@@ -2189,9 +2228,9 @@ class RapierDriveSimulation {
         const nextZ = translation.z + liftAmount;
         this.body.setTranslation(new this.rapier.Vector3(translation.x, translation.y, nextZ), true);
         this.body.setLinvel(new this.rapier.Vector3(
-            velocity.x,
-            velocity.y,
-            Math.max(velocity.z, 0.25)
+            velocity.x * 0.7,
+            velocity.y * 0.7,
+            Math.max(velocity.z, 0.05)
         ), true);
     }
 
@@ -2857,11 +2896,22 @@ class RapierDriveSimulation {
                             return;
                         }
 
-                        if (this.isVehicleAabbTouchingObstacle(obstacleInfo)) {
+                        if (this.isVehicleAabbTouchingObstacle(obstacleInfo) || this.isVehicleNearObstacleSurface(obstacleInfo)) {
                             hasContact = true;
                         }
                     });
                 });
+            });
+        }
+
+        if (!hasContact) {
+            this.obstacleColliderInfos.forEach((obstacleInfo) => {
+                if (hasContact || obstacleInfo?.isSensor) {
+                    return;
+                }
+                if (this.isVehicleNearObstacleSurface(obstacleInfo)) {
+                    hasContact = true;
+                }
             });
         }
 
@@ -3315,9 +3365,10 @@ class RapierDriveSimulation {
         }
 
         const isMoveCommandActive = keyboardState.isActive || throttleSign !== 0;
-        if (this.blockMotionOnObstacleContact && (hasObstacleContact || this.isVehicleAabbTouchingObstacle(this.obstacleColliderInfos[0] || null)) && isMoveCommandActive) {
-            this.rollbackToPreviousPose(previousPose);
-            return;
+        if (this.blockMotionOnObstacleContact && hasObstacleContact && isMoveCommandActive) {
+            const currentVelocity = this.body.linvel();
+            this.body.setLinvel(new this.rapier.Vector3(0, 0, currentVelocity.z), true);
+            this.body.setAngvel(new this.rapier.Vector3(0, 0, 0), true);
         }
 
         const nextPosition = this.body.translation();

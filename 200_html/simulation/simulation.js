@@ -1849,9 +1849,9 @@ class RapierDriveSimulation {
             const bbox = new THREE.Box3().setFromObject(obstacleLink);
             const center = bbox.getCenter(new THREE.Vector3());
             const size = bbox.getSize(new THREE.Vector3());
-            const halfX = Math.max(size.x * 0.5, 0.02);
-            const halfY = Math.max(size.y * 0.5, 0.02);
-            const halfZ = Math.max(size.z * 0.5, 0.02);
+            const halfX = Math.max(size.x * 0.5 + 0.03, 0.06);
+            const halfY = Math.max(size.y * 0.5 + 0.03, 0.06);
+            const halfZ = Math.max(size.z * 0.5 + 0.04, 0.06);
             const normalizedObstacleName = this.normalizeLinkName(obstacleLinkName);
             const isPassUnderTagged = this.passUnderObstacleNamePatterns.some((pattern) => pattern.test(obstacleLinkName) || pattern.test(normalizedObstacleName));
 
@@ -2275,12 +2275,13 @@ class RapierDriveSimulation {
         }
 
         const obstacleTopZ = targetObstacle.center.z + targetObstacle.halfExtents.z;
-        const verticalGap = obstacleTopZ - wheelContactPlaneZ;
+        const wheelBottomZ = obstacleTopZ - (Number.isFinite(this.wheelLocalMinZ) ? this.wheelLocalMinZ : 0);
+        const verticalGap = wheelBottomZ - translation.z;
         if (verticalGap <= 0) {
             return null;
         }
 
-        return obstacleTopZ + 0.02;
+        return wheelBottomZ + 0.01;
     }
 
     applyObstacleClimbLift(hasObstacleContactNow, effectiveDeltaSec, obstacleInfo = null) {

@@ -1918,8 +1918,12 @@ class RapierDriveSimulation {
             const isPassUnderTagged = this.passUnderObstacleNamePatterns.some((pattern) => pattern.test(obstacleLinkName) || pattern.test(normalizedObstacleName));
 
             const isPotholeObstacle = /^pothole/i.test(obstacleLinkName) || /^pothole/i.test(normalizedObstacleName);
+            const isRockObstacle = /^obstacle_rock/i.test(obstacleLinkName) || /^obstacle_rock/i.test(normalizedObstacleName);
+            const effectiveHalfX = isRockObstacle ? Math.max(halfX, 0.07) : halfX;
+            const effectiveHalfY = isRockObstacle ? Math.max(halfY, 0.08) : halfY;
+            const effectiveHalfZ = isRockObstacle ? Math.max(halfZ, 0.025) : Math.max(halfZ, 0.01);
             const clampedCenterZ = !isPotholeObstacle
-                ? Math.max(center.z, this.groundZ + halfZ)
+                ? Math.max(center.z, this.groundZ + effectiveHalfZ)
                 : center.z;
 
             const obstacleBodyDesc = this.rapier.RigidBodyDesc.fixed().setTranslation(
@@ -1928,11 +1932,11 @@ class RapierDriveSimulation {
                 clampedCenterZ
             );
             const obstacleBody = this.world.createRigidBody(obstacleBodyDesc);
-            const obstacleColliderDesc = this.rapier.ColliderDesc.cuboid(halfX, halfY, halfZ)
-                .setFriction(1.4)
-                .setRestitution(0.02);
+            const obstacleColliderDesc = this.rapier.ColliderDesc.cuboid(effectiveHalfX, effectiveHalfY, effectiveHalfZ)
+                .setFriction(isRockObstacle ? 0.18 : 1.4)
+                .setRestitution(isRockObstacle ? 0.0 : 0.02);
 
-            const obstacleTopZ = clampedCenterZ + halfZ;
+            const obstacleTopZ = clampedCenterZ + effectiveHalfZ;
             const wheelContactPlaneZ = this.getWheelContactPlaneZ();
             const passThroughClearance = Math.max(Number(this.underbodyPassThroughClearanceMeters) || 0, 0);
             const obstacleMinY = center.y - halfY;
@@ -1973,7 +1977,7 @@ class RapierDriveSimulation {
             this.obstacleColliderInfos.push({
                 collider: obstacleCollider,
                 center: new THREE.Vector3(center.x, center.y, clampedCenterZ),
-                halfExtents: { x: halfX, y: halfY, z: halfZ },
+                halfExtents: { x: effectiveHalfX, y: effectiveHalfY, z: effectiveHalfZ },
                 linkName: obstacleLinkName,
                 normalizedLinkName: normalizedObstacleName,
                 isSensor: Boolean(isPassUnderTagged),

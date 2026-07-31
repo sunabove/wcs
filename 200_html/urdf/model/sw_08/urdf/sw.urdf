@@ -213,7 +213,7 @@
     <visual>
       <origin xyz="0 0 0" rpy="0 0 0" />
       <geometry>
-        <box size="0.14 0.16 0.01" />
+        <box size="0.14 0.16 0.05" />
       </geometry>
       <material name="rock_mat_1">
         <color rgba="0.38 0.35 0.32 1.0" />
@@ -222,13 +222,13 @@
     <collision>
       <origin xyz="0 0 0" rpy="0 0 0" />
       <geometry>
-        <box size="0.14 0.16 0.01" />
+        <box size="0.14 0.16 0.05" />
       </geometry>
     </collision>
   </link>
 
   <joint name="ground_to_rock_1_joint" type="fixed">
-    <origin xyz="0.7 0.3 0.005" rpy="0 0 0" />
+    <origin xyz="0.7 0.3 0.025" rpy="0 0 0" />
     <parent link="ground" />
     <child link="obstacle_rock_1" />
   </joint>

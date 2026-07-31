@@ -2572,24 +2572,11 @@ class RapierDriveSimulation {
         const isOverHole = this.isVehicleOverHoleRegion();
         const groundBasedMinZ = this.groundZ - this.groundContactLocalMinZ - this.groundContactBiasMeters;
         const minAllowedZ = groundBasedMinZ - Math.max(this.groundPenetrationToleranceMeters, 0.002);
-        const baseReferenceZ = Number.isFinite(this.initialPosition?.z)
-            ? Math.max(this.initialPosition.z, groundBasedMinZ)
-            : groundBasedMinZ;
-        const maxLiftMeters = this.isVehicleObstacleContact
-            ? this.maxLiftWithObstacleMeters
-            : this.maxLiftWithoutObstacleMeters;
-        const maxAllowedZ = baseReferenceZ + Math.max(maxLiftMeters, 0);
 
-        const clampActivationMargin = Math.max(Number(this.bodyGroundClampActivationMarginMeters) || 0, 0);
-        if (!isOverHole && translation.z < (minAllowedZ - clampActivationMargin)) {
+        // Only clamp when sinking below ground to prevent vertical jitter
+        if (!isOverHole && translation.z < minAllowedZ) {
             this.body.setTranslation(new this.rapier.Vector3(translation.x, translation.y, minAllowedZ), true);
-            this.body.setLinvel(new this.rapier.Vector3(velocity.x, velocity.y, 0), true);
-            return;
-        }
-
-        if (translation.z > maxAllowedZ) {
-            this.body.setTranslation(new this.rapier.Vector3(translation.x, translation.y, maxAllowedZ), true);
-            this.body.setLinvel(new this.rapier.Vector3(velocity.x, velocity.y, 0), true);
+            this.body.setLinvel(new this.rapier.Vector3(velocity.x, velocity.y, Math.max(0, velocity.z)), true);
         }
     }
 
@@ -2660,79 +2647,13 @@ class RapierDriveSimulation {
     }
 
     enforceMeasuredWheelGroundLimit(linkMap) {
-        if (!this.body || !this.rapier || !linkMap || !Number.isFinite(this.groundZ)) {
-            return false;
-        }
-
-        if (!this.isVehicleObstacleContact && !this.isVehicleOverHoleRegion()) {
-            return false;
-        }
-
-        if (this.isVehicleOverHoleRegion()) {
-            return false;
-        }
-
-        const measuredWheelMinZ = this.getWheelWorldMinZ(linkMap);
-        if (!Number.isFinite(measuredWheelMinZ)) {
-            return false;
-        }
-
-        const minAllowedWheelZ = this.groundZ - Math.max(Number(this.groundPenetrationToleranceMeters) || 0, 0.002);
-        const penetrationDepth = minAllowedWheelZ - measuredWheelMinZ;
-        const activationMargin = Math.max(Number(this.wheelGroundClampActivationMarginMeters) || 0, 0);
-        if (penetrationDepth <= activationMargin) {
-            return false;
-        }
-
-        const liftAmount = penetrationDepth + Math.max(Number(this.wheelGroundHardClampOffsetMeters) || 0, 0);
-        const translation = this.body.translation();
-        const velocity = this.body.linvel();
-        this.body.setTranslation(new this.rapier.Vector3(translation.x, translation.y, translation.z + liftAmount), true);
-        this.body.setLinvel(new this.rapier.Vector3(velocity.x, velocity.y, 0), true);
-        return true;
+        // Disabled artificial teleportation to prevent jittering during obstacle passage.
+        return false;
     }
 
     settleVehicleToGroundAfterObstacle(linkMap) {
-        if (!this.body || !this.rapier || !linkMap || !Number.isFinite(this.groundZ)) {
-            return false;
-        }
-
-        if (this.isVehicleObstacleContact || this.isVehicleOverHoleRegion()) {
-            return false;
-        }
-
-        const measuredWheelMinZ = this.getWheelWorldMinZ(linkMap);
-        if (!Number.isFinite(measuredWheelMinZ)) {
-            return false;
-        }
-
-        const translation = this.body.translation();
-        const velocity = this.body.linvel();
-        const wheelGroundGap = measuredWheelMinZ - this.groundZ;
-        const tolerance = Math.max(Number(this.postObstacleGroundReattachToleranceMeters) || 0, 0);
-
-        // Keep reattaching for a short period after obstacle contact ends.
-        const inRecoverWindow = (Number(this.postObstacleGroundRecoverRemainingSec) || 0) > 0;
-        if (wheelGroundGap <= tolerance && !inRecoverWindow) {
-            return false;
-        }
-
-        if (!inRecoverWindow && this.isVehicleNearObstacleSupportZone()) {
-            return false;
-        }
-
-        const maxDropPerStep = 0.06;
-        const blend = THREE.MathUtils.clamp(Number(this.postObstacleGroundReattachBlend) || 0, 0.1, 1);
-        const desiredDrop = Math.max(wheelGroundGap * blend, 0);
-        const appliedDrop = Math.min(desiredDrop, maxDropPerStep);
-        if (appliedDrop <= 1e-6) {
-            return false;
-        }
-
-        const nextZ = translation.z - appliedDrop;
-        this.body.setTranslation(new this.rapier.Vector3(translation.x, translation.y, nextZ), true);
-        this.body.setLinvel(new this.rapier.Vector3(velocity.x, velocity.y, Math.min(0, velocity.z)), true);
-        return true;
+        // Disabled artificial position snapping.
+        return false;
     }
 
     addWheelCollidersFromUrdf(body, carFrame, linkMap) {

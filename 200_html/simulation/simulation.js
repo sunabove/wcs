@@ -76,8 +76,8 @@ class RapierDriveSimulation {
         this.maxSpeedMps = 100 / 3.6;
         this.maxYawRateRad = THREE.MathUtils.degToRad(80);
         this.enableWheelPhysicsColliders = true;
-        this.enableRagdollPhysics = false;
-        this.physicsArchitecture = 'single-body';
+        this.enableRagdollPhysics = true;
+        this.physicsArchitecture = 'ragdoll';
         this.ragdollPhysicsNodes = [];
         this.ragdollJointInfos = [];
         this.blockMotionOnObstacleContact = false;
@@ -3190,6 +3190,41 @@ class RapierDriveSimulation {
         this.body.setLinvel(new this.rapier.Vector3(velocity.x, velocity.y, Math.min(0, velocity.z)), true);
     }
 
+    syncWheelLinksFromPhysicsBodies(linkMap) {
+        if (!this.carFrame || !this.body || !linkMap) {
+            return;
+        }
+
+        const wheelLinkNames = ['wheel_fl', 'wheel_fr', 'wheel_rl', 'wheel_rr'];
+        const wheelKeyByLinkName = {
+            wheel_fl: 'fl',
+            wheel_fr: 'fr',
+            wheel_rl: 'rl',
+            wheel_rr: 'rr'
+        };
+
+        wheelLinkNames.forEach((wheelLinkName) => {
+            const wheelLink = this.findLinkByName(linkMap, wheelLinkName);
+            const wheelKey = wheelKeyByLinkName[wheelLinkName] || null;
+            const wheelBody = wheelKey ? this.wheelBodiesByKey?.[wheelKey] || null : null;
+            if (!wheelLink || !wheelBody) {
+                return;
+            }
+
+            const worldPosition = wheelBody.translation();
+            const worldRotation = wheelBody.rotation();
+            const worldQuaternion = new THREE.Quaternion(worldRotation.x, worldRotation.y, worldRotation.z, worldRotation.w).normalize();
+            const localPosition = this.carFrame.worldToLocal(new THREE.Vector3(worldPosition.x, worldPosition.y, worldPosition.z));
+            const parentWorldQuaternion = new THREE.Quaternion();
+            this.carFrame.getWorldQuaternion(parentWorldQuaternion);
+            const localQuaternion = parentWorldQuaternion.clone().invert().multiply(worldQuaternion);
+
+            wheelLink.position.copy(localPosition);
+            wheelLink.quaternion.copy(localQuaternion).normalize();
+            wheelLink.updateMatrixWorld(true);
+        });
+    }
+
     syncCarFrameFromBody() {
         if (!this.body || !this.carFrame) {
             return;
@@ -3201,6 +3236,8 @@ class RapierDriveSimulation {
         this.carFrame.position.set(position.x, position.y, position.z);
         this.carFrame.quaternion.set(rotation.x, rotation.y, rotation.z, rotation.w).normalize();
         this.carFrame.updateMatrixWorld(true);
+        const linkMap = this.viewer?.robotModel?.links || null;
+        this.syncWheelLinksFromPhysicsBodies(linkMap);
     }
 
     enforceWheelGroundContactAtLoad(linkMap) {
@@ -3513,12 +3550,14 @@ class RapierDriveSimulation {
             return;
         }
 
+        this.applyWheelDriveForces(effectiveDeltaSec, throttleSign, steerSign, clampedSpeed, wheelGroundContactCount);
+
         const tractionScale = wheelGroundContactCount > 0 ? 1 : 0.35;
         const currentLinearVelocity = this.body.linvel();
         const currentAngularVelocity = this.body.angvel();
         const velocityErrorX = targetVelocityX - currentLinearVelocity.x;
         const velocityErrorY = targetVelocityY - currentLinearVelocity.y;
-        const accelerationImpulseScale = Math.max(0.25 + (Math.max(clampedSpeed, 0) * 0.08), 0.3) * tractionScale;
+        const accelerationImpulseScale = Math.max(0.006 + (Math.max(clampedSpeed, 0) * 0.002), 0.008) * tractionScale;
         const impulseX = velocityErrorX * accelerationImpulseScale * effectiveDeltaSec;
         const impulseY = velocityErrorY * accelerationImpulseScale * effectiveDeltaSec;
 
@@ -3526,21 +3565,17 @@ class RapierDriveSimulation {
 
         const currentSpeed = Math.hypot(currentLinearVelocity.x, currentLinearVelocity.y);
         if (currentSpeed > 0.001) {
-            const dragScale = Math.min(0.08 + currentSpeed * 0.08, 0.22) * tractionScale * effectiveDeltaSec;
+            const dragScale = Math.min(0.01 + currentSpeed * 0.008, 0.04) * tractionScale * effectiveDeltaSec;
             this.body.applyImpulse(new this.rapier.Vector3(-currentLinearVelocity.x * dragScale, -currentLinearVelocity.y * dragScale, 0), true);
         }
 
-        if (Math.abs(throttleSign) < 1e-6 && Math.abs(steerSign) < 1e-6) {
-            this.body.applyImpulse(new this.rapier.Vector3(-currentLinearVelocity.x * 0.04 * tractionScale * effectiveDeltaSec, -currentLinearVelocity.y * 0.04 * tractionScale * effectiveDeltaSec, 0), true);
-        }
-
-        const steeringTorque = (Number.isFinite(steerSign) ? steerSign : 0) * 0.012 * tractionScale * effectiveDeltaSec;
+        const steeringTorque = (Number.isFinite(steerSign) ? steerSign : 0) * 0.0025 * tractionScale * effectiveDeltaSec;
         if (Math.abs(steeringTorque) > 1e-6) {
             this.body.applyTorqueImpulse(new this.rapier.Vector3(0, 0, steeringTorque), true);
         }
 
         if (Math.abs(currentAngularVelocity.z) > 0.001 && Math.abs(steerSign) < 1e-6) {
-            const yawDampingTorque = -currentAngularVelocity.z * 0.06 * tractionScale * effectiveDeltaSec;
+            const yawDampingTorque = -currentAngularVelocity.z * 0.02 * tractionScale * effectiveDeltaSec;
             this.body.applyTorqueImpulse(new this.rapier.Vector3(0, 0, yawDampingTorque), true);
         }
     }

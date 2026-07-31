@@ -3316,7 +3316,10 @@ class RapierDriveSimulation {
             this.body.applyTorqueImpulse(new this.rapier.Vector3(0, 0, steeringTorque), true);
         }
 
-        if (Math.abs(currentAngularVelocity.z) > 0.001 && Math.abs(steerSign) < 1e-6) {
+        // Suppress unwanted rotation (yaw spin) caused by asymmetric wheel obstacle collision
+        if (this.isVehicleObstacleContact && Math.abs(steerSign) < 1e-3) {
+            this.body.setAngvel(new this.rapier.Vector3(0, 0, 0), true);
+        } else if (Math.abs(currentAngularVelocity.z) > 0.001 && Math.abs(steerSign) < 1e-6) {
             const yawDampingTorque = -currentAngularVelocity.z * 0.06 * tractionScale * effectiveDeltaSec;
             this.body.applyTorqueImpulse(new this.rapier.Vector3(0, 0, yawDampingTorque), true);
         }
@@ -3639,7 +3642,14 @@ class RapierDriveSimulation {
         if (hasMoveCommand && !shouldBlockByObstacle) {
             const currentVelocity = this.body.linvel();
             const keepZVelocity = (this.isBodyNearFlatGroundSupport() && !this.isVehicleObstacleContact) ? 0 : currentVelocity.z;
-            this.body.setLinvel(new this.rapier.Vector3(commandedVelocityX, commandedVelocityY, keepZVelocity), true);
+            
+            // Fix: Maintain straight forward/backward vector and suppress yaw spin during obstacle climb
+            if (this.isVehicleObstacleContact && Math.abs(steerSign) < 1e-3) {
+                this.body.setLinvel(new this.rapier.Vector3(commandedVelocityX, commandedVelocityY, keepZVelocity), true);
+                this.body.setAngvel(new this.rapier.Vector3(0, 0, 0), true);
+            } else {
+                this.body.setLinvel(new this.rapier.Vector3(commandedVelocityX, commandedVelocityY, keepZVelocity), true);
+            }
         } else {
             const currentVelocity = this.body.linvel();
             const stopVelocity = Math.abs(currentVelocity.x) < 0.01 && Math.abs(currentVelocity.y) < 0.01;

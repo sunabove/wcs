@@ -493,13 +493,14 @@ class RapierDriveSimulation {
             wheelLink.updateWorldMatrix(true, true);
             const centerWorld = new THREE.Vector3();
             wheelLink.getWorldPosition(centerWorld);
-            const zValue = Number(centerWorld.z - wheelRadiusMeters);
+            // Wheel chart reports the bottom-of-wheel height: wheel center Z minus wheel radius.
+            const wheelBottomZ = Number(centerWorld.z - wheelRadiusMeters);
 
-            if (!Number.isFinite(zValue)) {
+            if (!Number.isFinite(wheelBottomZ)) {
                 return;
             }
 
-            this.wheelZChartHistoryByKey[wheelKey].push({ t: nowSec, z: zValue });
+            this.wheelZChartHistoryByKey[wheelKey].push({ t: nowSec, z: wheelBottomZ });
         });
 
         this.trimWheelZChartHistory(nowSec);

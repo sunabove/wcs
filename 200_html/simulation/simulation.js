@@ -2116,7 +2116,11 @@ class RapierDriveSimulation {
                 return false;
             }
 
-            return vehicleBounds.clone().expandByScalar(this.obstacleGeometryContactMarginMeters).intersectsBox(expandedObstacleBounds);
+            const expandedVehicleBounds = vehicleBounds.clone().expandByScalar(this.obstacleGeometryContactMarginMeters);
+            const overlapX = expandedVehicleBounds.min.x <= expandedObstacleBounds.max.x && expandedVehicleBounds.max.x >= expandedObstacleBounds.min.x;
+            const overlapY = expandedVehicleBounds.min.y <= expandedObstacleBounds.max.y && expandedVehicleBounds.max.y >= expandedObstacleBounds.min.y;
+            const overlapZ = expandedVehicleBounds.min.z <= expandedObstacleBounds.max.z && expandedVehicleBounds.max.z >= expandedObstacleBounds.min.z;
+            return overlapX && overlapY && overlapZ;
         });
     }
 
@@ -2139,10 +2143,14 @@ class RapierDriveSimulation {
             }
 
             const expandedVehicleBounds = vehicleBounds.clone().expandByScalar(contactMargin);
-            const horizontalOverlap = expandedVehicleBounds.intersectsBox(expandedObstacleBounds);
-            const verticalGap = obstacleBounds.max.z - vehicleBounds.min.z;
-            const verticalApproach = verticalGap >= -0.08 && verticalGap <= 0.12;
-            return horizontalOverlap || verticalApproach;
+            const overlapX = expandedVehicleBounds.min.x <= expandedObstacleBounds.max.x && expandedVehicleBounds.max.x >= expandedObstacleBounds.min.x;
+            const overlapY = expandedVehicleBounds.min.y <= expandedObstacleBounds.max.y && expandedVehicleBounds.max.y >= expandedObstacleBounds.min.y;
+            const verticalGap = Math.min(
+                Math.abs(expandedObstacleBounds.min.z - expandedVehicleBounds.max.z),
+                Math.abs(expandedObstacleBounds.max.z - expandedVehicleBounds.min.z)
+            );
+            const verticalApproach = verticalGap <= 0.06;
+            return overlapX && overlapY && verticalApproach;
         });
     }
 

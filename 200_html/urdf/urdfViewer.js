@@ -4113,12 +4113,26 @@ function setDriveMode(mode) {
         return;
     }
 
+    const normalizedMode = String(mode || '').trim().toLowerCase();
     const speedInput = $('#drive-speed-kmh');
     let speedKmh = speedInput.length > 0 ? Number.parseFloat(speedInput.val()) : 0;
     speedKmh = Number.isFinite(speedKmh) ? Math.max(speedKmh, 0) : 0;
 
-    window.activeURDFViewer.applyDriveMode(mode, speedKmh);
-    updateDriveModeButtons(mode);
+    if (normalizedMode !== 'stop') {
+        const minimumSpeedKmh = 0.1;
+        speedKmh = Math.max(speedKmh, minimumSpeedKmh);
+    }
+
+    if (speedInput.length > 0) {
+        speedInput.val(String(speedKmh));
+        const speedValueElement = document.getElementById('drive-speed-kmh-value');
+        if (speedValueElement) {
+            speedValueElement.textContent = `${speedKmh} km/h`;
+        }
+    }
+
+    window.activeURDFViewer.applyDriveMode(normalizedMode, speedKmh);
+    updateDriveModeButtons(normalizedMode);
 }
 
 function setDriveSpeedKmh(kmh) {

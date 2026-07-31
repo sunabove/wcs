@@ -1846,9 +1846,10 @@ class RapierDriveSimulation {
             const obstacleLink = linkMap[obstacleLinkName];
             obstacleLink.updateWorldMatrix(true, true);
 
-            const bbox = new THREE.Box3().setFromObject(obstacleLink);
-            const center = bbox.getCenter(new THREE.Vector3());
-            const size = bbox.getSize(new THREE.Vector3());
+            const fallbackBounds = new THREE.Box3().setFromObject(obstacleLink);
+            const actualBounds = this.computeLinkOwnBounds(obstacleLink, linkMap) || fallbackBounds;
+            const center = actualBounds.getCenter(new THREE.Vector3());
+            const size = actualBounds.getSize(new THREE.Vector3());
             const halfX = Math.max(size.x * 0.5 + 0.08, 0.12);
             const halfY = Math.max(size.y * 0.5 + 0.08, 0.12);
             const halfZ = Math.max(size.z * 0.5 + 0.08, 0.12);
@@ -1910,7 +1911,9 @@ class RapierDriveSimulation {
                 halfExtents: { x: halfX, y: halfY, z: halfZ },
                 linkName: obstacleLinkName,
                 normalizedLinkName: normalizedObstacleName,
-                isSensor: Boolean(isPassUnderTagged)
+                isSensor: Boolean(isPassUnderTagged),
+                linkObject: obstacleLink,
+                worldBounds: actualBounds.clone()
             });
             console.log(`[URDF][Simulation] obstacle collider created from URDF link: ${obstacleLinkName}`);
         });
@@ -1946,6 +1949,83 @@ class RapierDriveSimulation {
         });
 
         return bands;
+    }
+
+    getObstacleWorldBounds(obstacleInfo, linkMap = null) {
+        if (!obstacleInfo) {
+            return null;
+        }
+
+        if (obstacleInfo.worldBounds && !obstacleInfo.worldBounds.isEmpty()) {
+            return obstacleInfo.worldBounds;
+        }
+
+        const effectiveLinkMap = linkMap || this.viewer?.robotModel?.links || null;
+        const obstacleLink = obstacleInfo.linkObject
+            || (effectiveLinkMap ? this.findLinkByName(effectiveLinkMap, obstacleInfo.linkName) : null)
+            || null;
+
+        if (!obstacleLink) {
+            return null;
+        }
+
+        const bounds = this.computeLinkOwnBounds(obstacleLink, effectiveLinkMap);
+        if (!bounds || bounds.isEmpty()) {
+            return null;
+        }
+
+        obstacleInfo.worldBounds = bounds.clone();
+        return obstacleInfo.worldBounds;
+    }
+
+    getVehicleCollisionBounds(linkMap = null) {
+        const effectiveLinkMap = linkMap || this.viewer?.robotModel?.links || null;
+        const boundsList = [];
+
+        if (!effectiveLinkMap) {
+            return boundsList;
+        }
+
+        if (this.carFrame) {
+            const chassisBounds = this.computeChassisBounds(this.carFrame, effectiveLinkMap);
+            if (chassisBounds && !chassisBounds.isEmpty()) {
+                boundsList.push(chassisBounds.clone());
+            }
+
+            ['wheel_fl', 'wheel_fr', 'wheel_rl', 'wheel_rr'].forEach((wheelName) => {
+                const wheelLink = this.findLinkByName(effectiveLinkMap, wheelName);
+                if (!wheelLink) {
+                    return;
+                }
+
+                const wheelBounds = this.computeLinkOwnBounds(wheelLink, effectiveLinkMap);
+                if (wheelBounds && !wheelBounds.isEmpty()) {
+                    boundsList.push(wheelBounds.clone());
+                }
+            });
+        }
+
+        if (boundsList.length === 0 && this.body) {
+            const fallbackCenter = this.getVehicleColliderWorldCenter();
+            const fallbackHalfExtents = this.getVehicleColliderWorldAabbHalfExtents();
+            if (fallbackCenter && fallbackHalfExtents) {
+                const fallbackBounds = new THREE.Box3(
+                    new THREE.Vector3(
+                        fallbackCenter.x - fallbackHalfExtents.x,
+                        fallbackCenter.y - fallbackHalfExtents.y,
+                        fallbackCenter.z - fallbackHalfExtents.z
+                    ),
+                    new THREE.Vector3(
+                        fallbackCenter.x + fallbackHalfExtents.x,
+                        fallbackCenter.y + fallbackHalfExtents.y,
+                        fallbackCenter.z + fallbackHalfExtents.z
+                    )
+                );
+                boundsList.push(fallbackBounds);
+            }
+        }
+
+        return boundsList;
     }
 
     getVehicleColliderWorldCenter() {
@@ -2019,43 +2099,51 @@ class RapierDriveSimulation {
         return { x: halfX, y: halfY, z: halfZ };
     }
 
-    isVehicleAabbTouchingObstacle(obstacleInfo) {
-        if (!this.body || !obstacleInfo?.center || !obstacleInfo?.halfExtents) {
+    isVehicleAabbTouchingObstacle(obstacleInfo, linkMap = null) {
+        const vehicleBoundsList = this.getVehicleCollisionBounds(linkMap);
+        if (vehicleBoundsList.length === 0) {
             return false;
         }
 
-        const vehicleCenter = this.getVehicleColliderWorldCenter();
-        const vehicleHalfExtents = this.getVehicleColliderWorldAabbHalfExtents();
-        if (!vehicleCenter || !vehicleHalfExtents) {
+        const obstacleBounds = this.getObstacleWorldBounds(obstacleInfo, linkMap);
+        if (!obstacleBounds || obstacleBounds.isEmpty()) {
             return false;
         }
 
-        const gapX = Math.abs(vehicleCenter.x - obstacleInfo.center.x) - (vehicleHalfExtents.x + obstacleInfo.halfExtents.x);
-        const gapY = Math.abs(vehicleCenter.y - obstacleInfo.center.y) - (vehicleHalfExtents.y + obstacleInfo.halfExtents.y);
-        const gapZ = Math.abs(vehicleCenter.z - obstacleInfo.center.z) - (vehicleHalfExtents.z + obstacleInfo.halfExtents.z);
-        return gapX <= 0.04 && gapY <= 0.04 && gapZ <= 0.08;
+        const expandedObstacleBounds = obstacleBounds.clone().expandByScalar(this.obstacleGeometryContactMarginMeters);
+        return vehicleBoundsList.some((vehicleBounds) => {
+            if (!vehicleBounds || vehicleBounds.isEmpty()) {
+                return false;
+            }
+
+            return vehicleBounds.clone().expandByScalar(this.obstacleGeometryContactMarginMeters).intersectsBox(expandedObstacleBounds);
+        });
     }
 
-    isVehicleNearObstacleSurface(obstacleInfo) {
-        if (!this.body || !obstacleInfo?.center || !obstacleInfo?.halfExtents) {
+    isVehicleNearObstacleSurface(obstacleInfo, linkMap = null) {
+        const vehicleBoundsList = this.getVehicleCollisionBounds(linkMap);
+        if (vehicleBoundsList.length === 0) {
             return false;
         }
 
-        const vehicleCenter = this.getVehicleColliderWorldCenter();
-        if (!vehicleCenter) {
+        const obstacleBounds = this.getObstacleWorldBounds(obstacleInfo, linkMap);
+        if (!obstacleBounds || obstacleBounds.isEmpty()) {
             return false;
         }
 
-        const vehicleHalfExtents = this.getVehicleColliderWorldAabbHalfExtents();
-        if (!vehicleHalfExtents) {
-            return false;
-        }
+        const contactMargin = Math.max(this.obstacleGeometryContactMarginMeters, 0.04);
+        const expandedObstacleBounds = obstacleBounds.clone().expandByScalar(contactMargin);
+        return vehicleBoundsList.some((vehicleBounds) => {
+            if (!vehicleBounds || vehicleBounds.isEmpty()) {
+                return false;
+            }
 
-        const obstacleTopZ = obstacleInfo.center.z + obstacleInfo.halfExtents.z;
-        const verticalGap = obstacleTopZ - vehicleCenter.z;
-        const gapX = Math.abs(vehicleCenter.x - obstacleInfo.center.x) - (vehicleHalfExtents.x + obstacleInfo.halfExtents.x);
-        const gapY = Math.abs(vehicleCenter.y - obstacleInfo.center.y) - (vehicleHalfExtents.y + obstacleInfo.halfExtents.y);
-        return gapX <= 0.06 && gapY <= 0.06 && verticalGap >= -0.05 && verticalGap <= 0.08;
+            const expandedVehicleBounds = vehicleBounds.clone().expandByScalar(contactMargin);
+            const horizontalOverlap = expandedVehicleBounds.intersectsBox(expandedObstacleBounds);
+            const verticalGap = obstacleBounds.max.z - vehicleBounds.min.z;
+            const verticalApproach = verticalGap >= -0.08 && verticalGap <= 0.12;
+            return horizontalOverlap || verticalApproach;
+        });
     }
 
     resolveVehicleObstacleInterpenetration() {
@@ -2858,7 +2946,22 @@ class RapierDriveSimulation {
             }
         });
 
-        if (typeof this.world.contactPair === 'function') {
+        const linkMap = this.viewer?.robotModel?.links || null;
+        this.obstacleColliderInfos.forEach((obstacleInfo) => {
+            if (!obstacleInfo || obstacleInfo.isSensor) {
+                return;
+            }
+
+            if (this.isObstacleBelowWheelContactPlane(obstacleInfo)) {
+                return;
+            }
+
+            if (this.isVehicleAabbTouchingObstacle(obstacleInfo, linkMap) || this.isVehicleNearObstacleSurface(obstacleInfo, linkMap)) {
+                hasContact = true;
+            }
+        });
+
+        if (!hasContact && typeof this.world.contactPair === 'function') {
             this.vehicleColliders.forEach((vehicleCollider) => {
                 if (hasContact) {
                     return;
@@ -2874,27 +2977,9 @@ class RapierDriveSimulation {
                         return;
                     }
 
-                    let pairHasContact = false;
                     this.world.contactPair(vehicleCollider, obstacleCollider, () => {
-                        pairHasContact = true;
+                        hasContact = true;
                     });
-
-                    if (pairHasContact) {
-                        hasContact = true;
-                        return;
-                    }
-
-                    if (!obstacleInfo) {
-                        return;
-                    }
-
-                    if (this.isObstacleBelowWheelContactPlane(obstacleInfo)) {
-                        return;
-                    }
-
-                    if (this.isVehicleAabbTouchingObstacle(obstacleInfo) || this.isVehicleNearObstacleSurface(obstacleInfo)) {
-                        hasContact = true;
-                    }
                 });
             });
         }

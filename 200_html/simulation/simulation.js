@@ -2135,7 +2135,7 @@ class RapierDriveSimulation {
             return false;
         }
 
-        const contactMargin = Math.max(this.obstacleGeometryContactMarginMeters * 0.5, 0.02);
+        const contactMargin = Math.max(this.obstacleGeometryContactMarginMeters * 0.25, 0.004);
         const expandedObstacleBounds = obstacleBounds.clone().expandByScalar(contactMargin);
         return vehicleBoundsList.some((vehicleBounds) => {
             if (!vehicleBounds || vehicleBounds.isEmpty()) {
@@ -2149,7 +2149,7 @@ class RapierDriveSimulation {
                 Math.abs(expandedObstacleBounds.min.z - expandedVehicleBounds.max.z),
                 Math.abs(expandedObstacleBounds.max.z - expandedVehicleBounds.min.z)
             );
-            const verticalApproach = verticalGap <= 0.06;
+            const verticalApproach = verticalGap <= 0.02;
             return overlapX && overlapY && verticalApproach;
         });
     }
@@ -2265,7 +2265,7 @@ class RapierDriveSimulation {
             const gapY = Math.abs(vehicleCenter.y - obstacleInfo.center.y) - (vehicleHalfExtents.y + obstacleInfo.halfExtents.y);
             const obstacleTopZ = obstacleInfo.center.z + obstacleInfo.halfExtents.z;
             const verticalGap = obstacleTopZ - vehicleCenter.z;
-            const isRelevant = gapX <= 0.12 && gapY <= 0.12 && verticalGap >= -0.08 && verticalGap <= 0.16;
+            const isRelevant = gapX <= 0.04 && gapY <= 0.04 && verticalGap >= -0.02 && verticalGap <= 0.04;
             if (!isRelevant) {
                 return;
             }

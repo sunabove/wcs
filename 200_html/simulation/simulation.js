@@ -1886,6 +1886,79 @@ class RapierDriveSimulation {
         this.hasLoggedGroundDiagnostics = true;
     }
 
+    getObstaclePhysicsProfile(obstacleLinkName, normalizedObstacleName, halfX, halfY, halfZ) {
+        const name = String(obstacleLinkName || normalizedObstacleName || '');
+        const normalizedName = String(normalizedObstacleName || this.normalizeLinkName(name) || '').toLowerCase();
+        const isObstacleFamily = /^obstacle_/i.test(name) || /^obstacle_/i.test(normalizedName);
+
+        const isPotholeObstacle = /^pothole/i.test(name) || /^pothole/i.test(normalizedName);
+        const isRockLike = /rock|stone|boulder|block/i.test(normalizedName);
+        const isHemisphereLike = /hemisphere|sphere|ball/i.test(normalizedName);
+        const isBarLike = /bar|beam|pole|stick|wood/i.test(normalizedName);
+
+        let effectiveHalfX = Math.max(halfX, 0.001);
+        let effectiveHalfY = Math.max(halfY, 0.001);
+        let effectiveHalfZ = Math.max(halfZ, 0.01);
+        let friction = 1.4;
+        let restitution = 0.02;
+
+        if (!isObstacleFamily) {
+            return {
+                effectiveHalfX,
+                effectiveHalfY,
+                effectiveHalfZ,
+                friction,
+                restitution,
+                isPotholeObstacle,
+                isRockLike,
+                isHemisphereLike,
+                isBarLike
+            };
+        }
+
+        if (isRockLike) {
+            effectiveHalfX = Math.max(effectiveHalfX, 0.07);
+            effectiveHalfY = Math.max(effectiveHalfY, 0.08);
+            effectiveHalfZ = Math.max(effectiveHalfZ, 0.025);
+            friction = 0.18;
+            restitution = 0.0;
+        } else if (isHemisphereLike) {
+            effectiveHalfX = Math.max(effectiveHalfX, 0.06);
+            effectiveHalfY = Math.max(effectiveHalfY, 0.06);
+            effectiveHalfZ = Math.max(effectiveHalfZ, 0.04);
+            friction = 0.25;
+            restitution = 0.0;
+        } else if (isBarLike) {
+            effectiveHalfX = Math.max(effectiveHalfX, 0.04);
+            effectiveHalfY = Math.max(effectiveHalfY, 0.75);
+            effectiveHalfZ = Math.max(effectiveHalfZ, 0.03);
+            friction = 0.35;
+            restitution = 0.0;
+        } else {
+            const maxExtent = Math.max(effectiveHalfX, effectiveHalfY, effectiveHalfZ);
+            if (maxExtent > 0.25) {
+                friction = 0.6;
+                restitution = 0.0;
+            } else if (maxExtent < 0.08) {
+                effectiveHalfZ = Math.max(effectiveHalfZ, 0.015);
+                friction = 0.4;
+                restitution = 0.0;
+            }
+        }
+
+        return {
+            effectiveHalfX,
+            effectiveHalfY,
+            effectiveHalfZ,
+            friction,
+            restitution,
+            isPotholeObstacle,
+            isRockLike,
+            isHemisphereLike,
+            isBarLike
+        };
+    }
+
     addObstacleColliderFromUrdf() {
         if (!this.world || !this.rapier || !this.viewer?.robotModel || !this.carFrame) {
             return;
@@ -1916,14 +1989,9 @@ class RapierDriveSimulation {
             const normalizedObstacleName = this.normalizeLinkName(obstacleLinkName);
             const isOriginObject = /(^|[_-])origin($|[_-])/i.test(obstacleLinkName) || /(^|[_-])origin($|[_-])/i.test(normalizedObstacleName);
             const isPassUnderTagged = this.passUnderObstacleNamePatterns.some((pattern) => pattern.test(obstacleLinkName) || pattern.test(normalizedObstacleName));
-
-            const isPotholeObstacle = /^pothole/i.test(obstacleLinkName) || /^pothole/i.test(normalizedObstacleName);
-            const isRockObstacle = /^obstacle_rock/i.test(obstacleLinkName) || /^obstacle_rock/i.test(normalizedObstacleName);
-            const effectiveHalfX = isRockObstacle ? Math.max(halfX, 0.07) : halfX;
-            const effectiveHalfY = isRockObstacle ? Math.max(halfY, 0.08) : halfY;
-            const effectiveHalfZ = isRockObstacle ? Math.max(halfZ, 0.025) : Math.max(halfZ, 0.01);
-            const clampedCenterZ = !isPotholeObstacle
-                ? Math.max(center.z, this.groundZ + effectiveHalfZ)
+            const obstacleProfile = this.getObstaclePhysicsProfile(obstacleLinkName, normalizedObstacleName, halfX, halfY, halfZ);
+            const clampedCenterZ = !obstacleProfile.isPotholeObstacle
+                ? Math.max(center.z, this.groundZ + obstacleProfile.effectiveHalfZ)
                 : center.z;
 
             const obstacleBodyDesc = this.rapier.RigidBodyDesc.fixed().setTranslation(
@@ -1932,11 +2000,15 @@ class RapierDriveSimulation {
                 clampedCenterZ
             );
             const obstacleBody = this.world.createRigidBody(obstacleBodyDesc);
-            const obstacleColliderDesc = this.rapier.ColliderDesc.cuboid(effectiveHalfX, effectiveHalfY, effectiveHalfZ)
-                .setFriction(isRockObstacle ? 0.18 : 1.4)
-                .setRestitution(isRockObstacle ? 0.0 : 0.02);
+            const obstacleColliderDesc = this.rapier.ColliderDesc.cuboid(
+                obstacleProfile.effectiveHalfX,
+                obstacleProfile.effectiveHalfY,
+                obstacleProfile.effectiveHalfZ
+            )
+                .setFriction(obstacleProfile.friction)
+                .setRestitution(obstacleProfile.restitution);
 
-            const obstacleTopZ = clampedCenterZ + effectiveHalfZ;
+            const obstacleTopZ = clampedCenterZ + obstacleProfile.effectiveHalfZ;
             const wheelContactPlaneZ = this.getWheelContactPlaneZ();
             const passThroughClearance = Math.max(Number(this.underbodyPassThroughClearanceMeters) || 0, 0);
             const obstacleMinY = center.y - halfY;
@@ -1977,7 +2049,7 @@ class RapierDriveSimulation {
             this.obstacleColliderInfos.push({
                 collider: obstacleCollider,
                 center: new THREE.Vector3(center.x, center.y, clampedCenterZ),
-                halfExtents: { x: effectiveHalfX, y: effectiveHalfY, z: effectiveHalfZ },
+                halfExtents: { x: obstacleProfile.effectiveHalfX, y: obstacleProfile.effectiveHalfY, z: obstacleProfile.effectiveHalfZ },
                 linkName: obstacleLinkName,
                 normalizedLinkName: normalizedObstacleName,
                 isSensor: Boolean(isPassUnderTagged),

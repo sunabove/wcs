@@ -1990,6 +1990,8 @@ class RapierDriveSimulation {
             const isOriginObject = /(^|[_-])origin($|[_-])/i.test(obstacleLinkName) || /(^|[_-])origin($|[_-])/i.test(normalizedObstacleName);
             const isPassUnderTagged = this.passUnderObstacleNamePatterns.some((pattern) => pattern.test(obstacleLinkName) || pattern.test(normalizedObstacleName));
             const obstacleProfile = this.getObstaclePhysicsProfile(obstacleLinkName, normalizedObstacleName, halfX, halfY, halfZ);
+            // Fix: Keep obstacle surface friction low (0.05) so asymmetric contact glides smoothly over instead of locking one side and spinning
+            obstacleProfile.friction = 0.05;
             const clampedCenterZ = !obstacleProfile.isPotholeObstacle
                 ? Math.max(center.z, this.groundZ + obstacleProfile.effectiveHalfZ)
                 : center.z;
@@ -2685,7 +2687,7 @@ class RapierDriveSimulation {
 
             const wheelColliderDesc = this.rapier.ColliderDesc.ball(approxRadius)
                 .setTranslation(localCenter.x, localCenter.y, localCenter.z)
-                .setFriction(1.6)
+                .setFriction(0.2)
                 .setRestitution(0.0);
 
             const wheelCollider = this.world.createCollider(wheelColliderDesc, body);

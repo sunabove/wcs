@@ -2689,6 +2689,9 @@ class RapierDriveSimulation {
                 .setTranslation(localCenter.x, localCenter.y, localCenter.z)
                 .setFriction(0.2)
                 .setRestitution(0.0);
+            
+            // Set wheel colliders as sensors so Rapier physics collision engine doesn't produce asymmetric physical pivot forces/spin against obstacles
+            wheelColliderDesc.setSensor(true);
 
             const wheelCollider = this.world.createCollider(wheelColliderDesc, body);
             this.vehicleColliders.push(wheelCollider);
@@ -3569,8 +3572,16 @@ class RapierDriveSimulation {
                 const headingY = Math.sin(yaw);
                 const speed = clampedSpeed * (throttleSign !== 0 ? throttleSign : 1);
                 const currVel = this.body.linvel();
+                
+                // Keep linear velocity strictly forward and reset position rotation quaternion to initial heading during obstacle climb
                 this.body.setLinvel(new this.rapier.Vector3(headingX * speed, headingY * speed, currVel.z), true);
                 this.body.setAngvel(new this.rapier.Vector3(0, 0, 0), true);
+                
+                // Preserve exact orientation quaternion during obstacle climb
+                const quat = new THREE.Quaternion(bodyRotation.x, bodyRotation.y, bodyRotation.z, bodyRotation.w);
+                const euler = new THREE.Euler().setFromQuaternion(quat, 'YXZ');
+                const cleanQuat = new THREE.Quaternion().setFromEuler(new THREE.Euler(0, 0, euler.z, 'YXZ'));
+                this.body.setRotation({ x: cleanQuat.x, y: cleanQuat.y, z: cleanQuat.z, w: cleanQuat.w }, true);
             }
 
             this.world.timestep = this.physicsFixedTimeStepSec;

@@ -2477,15 +2477,15 @@ class RapierDriveSimulation {
                 if (axis === 'x') {
                     const direction = deltaX >= 0 ? 1 : -1;
                     nextX += direction * pushAmount;
-                    nextVelX = currentVelocity.x * 0.2;
+                    nextVelX = currentVelocity.x;
                 } else if (axis === 'y') {
                     const direction = deltaY >= 0 ? 1 : -1;
                     nextY += direction * pushAmount;
-                    nextVelY = currentVelocity.y * 0.2;
+                    nextVelY = currentVelocity.y;
                 } else {
                     const direction = deltaZ >= 0 ? 1 : -1;
-                    nextZ += direction * pushAmount * 0.35;
-                    nextVelZ = currentVelocity.z * 0.4;
+                    nextZ += direction * pushAmount;
+                    nextVelZ = Math.max(currentVelocity.z, 0.05);
                 }
 
                 this.body.setTranslation(new this.rapier.Vector3(nextX, nextY, nextZ), true);
@@ -3415,7 +3415,8 @@ class RapierDriveSimulation {
             let colliderMinLocalZ = rawBboxMinLocalZ;
             let colliderMaxLocalZ = rawBboxMaxLocalZ;
             if (Number.isFinite(this.wheelLocalMinZ)) {
-                const minPassThroughZ = this.wheelLocalMinZ + Math.max(Number(this.underbodyPassThroughClearanceMeters) || 0, 0);
+                // Raise the lower boundary of the chassis box so it doesn't bump obstacles before wheels
+                const minPassThroughZ = this.wheelLocalMinZ + 0.08;
                 colliderMinLocalZ = Math.max(colliderMinLocalZ, minPassThroughZ);
             }
             if ((colliderMaxLocalZ - colliderMinLocalZ) < 0.04) {
@@ -3528,26 +3529,8 @@ class RapierDriveSimulation {
     }
 
     applyObstacleContactImpulse(effectiveDeltaSec, obstacleInfo = null) {
-        if (!this.body || !this.rapier || !obstacleInfo?.center) {
-            return;
-        }
-
-        const bodyCenter = this.getVehicleColliderWorldCenter();
-        const obstacleCenter = obstacleInfo.center;
-        const dx = bodyCenter.x - obstacleCenter.x;
-        const dy = bodyCenter.y - obstacleCenter.y;
-        const dz = bodyCenter.z - obstacleCenter.z;
-        const length = Math.max(Math.hypot(dx, dy, dz), 1e-4);
-        const pushStrength = 0.035 * effectiveDeltaSec;
-        const pushVector = new this.rapier.Vector3(
-            (dx / length) * pushStrength,
-            (dy / length) * pushStrength,
-            0
-        );
-        this.body.applyImpulse(pushVector, true);
-
-        const yawTorque = ((dx / length) * 0.0012) * effectiveDeltaSec;
-        this.body.applyTorqueImpulse(new this.rapier.Vector3(0, 0, yawTorque), true);
+        // Do not apply artificial push back impulse to allow smooth climbing
+        return;
     }
 
     updateWheelGroundContactState() {

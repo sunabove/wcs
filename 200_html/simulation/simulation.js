@@ -64,6 +64,10 @@ class RapierDriveSimulation {
         this.maxSpeedMps = 100 / 3.6;
         this.maxYawRateRad = THREE.MathUtils.degToRad(80);
         this.enableWheelPhysicsColliders = true;
+        this.enableRagdollPhysics = false;
+        this.physicsArchitecture = 'single-body';
+        this.ragdollPhysicsNodes = [];
+        this.ragdollJointInfos = [];
         this.blockMotionOnObstacleContact = false;
         this.keepUprightOnFlatGround = true;
         this.isUprightRotationLockActive = false;
@@ -3306,6 +3310,104 @@ class RapierDriveSimulation {
         });
     }
 
+    configureVehicleBodyConstraints(body) {
+        let hasSelectiveRotationLock = false;
+        if (typeof body.setEnabledRotations === 'function') {
+            body.setEnabledRotations(false, false, true, true);
+            hasSelectiveRotationLock = true;
+        } else if (typeof body.restrictRotations === 'function') {
+            body.restrictRotations(false, false, true, true);
+            hasSelectiveRotationLock = true;
+        } else {
+            console.warn('[URDF][Simulation] selective rotation lock API unavailable; steering yaw kept enabled.');
+        }
+        this.isUprightRotationLockActive = hasSelectiveRotationLock;
+        return hasSelectiveRotationLock;
+    }
+
+    createVehiclePhysicsBody(rapier, world, initialPosition, initialQuaternion, carFrame, linkMap) {
+        const rigidBodyDesc = rapier.RigidBodyDesc.dynamic()
+            .setTranslation(initialPosition.x, initialPosition.y, initialPosition.z)
+            .setRotation(initialQuaternion)
+            .setLinearDamping(3.8)
+            .setAngularDamping(6.0)
+            .setCcdEnabled(true);
+
+        const body = world.createRigidBody(rigidBodyDesc);
+        this.configureVehicleBodyConstraints(body);
+
+        const bbox = this.computeChassisBounds(carFrame, linkMap);
+        const size = bbox.getSize(new THREE.Vector3());
+        const worldCenter = bbox.getCenter(new THREE.Vector3());
+        const localCenter = carFrame.worldToLocal(worldCenter.clone());
+        const chassisMarginX = 0.04;
+        const chassisMarginY = 0.03;
+        const chassisMarginZ = 0.01;
+        const halfX = Math.max((size.x || 0.6) * 0.5 - chassisMarginX, 0.16);
+        const halfY = Math.max((size.y || 0.4) * 0.5 - chassisMarginY, 0.14);
+
+        const halfZBase = Math.max((size.z || 0.25) * 0.5 - chassisMarginZ, 0.06);
+        const rawBboxMinLocalZ = localCenter.z - halfZBase;
+        const rawBboxMaxLocalZ = localCenter.z + halfZBase;
+        this.vehicleLocalMinZ = rawBboxMinLocalZ;
+        this.estimateWheelEffectiveRadiusMeters(carFrame, linkMap);
+        this.wheelLocalMinZ = this.getWheelLocalMinZ(carFrame, linkMap);
+        if (Number.isFinite(this.wheelLocalMinZ)) {
+            this.groundContactLocalMinZ = this.wheelLocalMinZ;
+        } else if (Number.isFinite(this.vehicleLocalMinZ)) {
+            this.groundContactLocalMinZ = this.vehicleLocalMinZ;
+        } else {
+            this.groundContactLocalMinZ = null;
+        }
+
+        let colliderMinLocalZ = rawBboxMinLocalZ;
+        let colliderMaxLocalZ = rawBboxMaxLocalZ;
+        if (Number.isFinite(this.wheelLocalMinZ)) {
+            const minPassThroughZ = this.wheelLocalMinZ + Math.max(Number(this.underbodyPassThroughClearanceMeters) || 0, 0);
+            colliderMinLocalZ = Math.max(colliderMinLocalZ, minPassThroughZ);
+        }
+        if ((colliderMaxLocalZ - colliderMinLocalZ) < 0.04) {
+            colliderMaxLocalZ = colliderMinLocalZ + 0.04;
+        }
+
+        const halfZ = Math.max((colliderMaxLocalZ - colliderMinLocalZ) * 0.5, 0.04);
+        const adjustedCenterZ = (colliderMaxLocalZ + colliderMinLocalZ) * 0.5;
+
+        const colliderDesc = rapier.ColliderDesc.cuboid(halfX, halfY, halfZ)
+            .setTranslation(localCenter.x, localCenter.y, adjustedCenterZ)
+            .setFriction(0.15)
+            .setRestitution(0.0);
+        const vehicleCollider = world.createCollider(colliderDesc, body);
+        this.vehicleColliderLocalCenter.set(localCenter.x, localCenter.y, adjustedCenterZ);
+        this.vehicleColliderHalfExtents = { x: halfX, y: halfY, z: halfZ };
+        this.vehicleHalfExtents = { x: halfX, y: halfY, z: halfZ };
+
+        return {
+            body,
+            vehicleCollider,
+            vehicleColliderLocalCenter: this.vehicleColliderLocalCenter,
+            vehicleColliderHalfExtents: this.vehicleColliderHalfExtents,
+            halfX,
+            halfY,
+            halfZ,
+            localCenter,
+            adjustedCenterZ
+        };
+    }
+
+    createRagdollVehiclePhysics(rapier, world, initialPosition, initialQuaternion, carFrame, linkMap) {
+        const setup = this.createVehiclePhysicsBody(rapier, world, initialPosition, initialQuaternion, carFrame, linkMap);
+        this.physicsArchitecture = 'ragdoll';
+        this.ragdollPhysicsNodes = [{
+            key: 'chassis',
+            body: setup.body,
+            collider: setup.vehicleCollider,
+            role: 'root'
+        }];
+        this.ragdollJointInfos = [];
+        return setup;
+    }
+
     async ensureRapierInitialized() {
         if (this.isReady || this.isInitializing || this.hasFailed) {
             return;
@@ -3336,74 +3438,13 @@ class RapierDriveSimulation {
             const world = new RAPIER.World(new RAPIER.Vector3(0, 0, -9.81));
             const initialPosition = carFrame.position.clone();
             const initialQuaternion = carFrame.quaternion.clone();
+            const bodySetup = this.enableRagdollPhysics
+                ? this.createRagdollVehiclePhysics(RAPIER, world, initialPosition, initialQuaternion, carFrame, linkMap)
+                : this.createVehiclePhysicsBody(RAPIER, world, initialPosition, initialQuaternion, carFrame, linkMap);
 
-            const rigidBodyDesc = RAPIER.RigidBodyDesc.dynamic()
-                .setTranslation(initialPosition.x, initialPosition.y, initialPosition.z)
-                .setRotation(initialQuaternion)
-                .setLinearDamping(3.8)
-                .setAngularDamping(6.0)
-                .setCcdEnabled(true);
-
-            const body = world.createRigidBody(rigidBodyDesc);
-
-            // Keep the vehicle upright with API-compatible fallbacks across Rapier versions.
-            let hasSelectiveRotationLock = false;
-            if (typeof body.setEnabledRotations === 'function') {
-                body.setEnabledRotations(false, false, true, true);
-                hasSelectiveRotationLock = true;
-            } else if (typeof body.restrictRotations === 'function') {
-                body.restrictRotations(false, false, true, true);
-                hasSelectiveRotationLock = true;
-            } else {
-                console.warn('[URDF][Simulation] selective rotation lock API unavailable; steering yaw kept enabled.');
-            }
-            this.isUprightRotationLockActive = hasSelectiveRotationLock;
-
-            const bbox = this.computeChassisBounds(carFrame, linkMap);
-            const size = bbox.getSize(new THREE.Vector3());
-            const worldCenter = bbox.getCenter(new THREE.Vector3());
-            const localCenter = carFrame.worldToLocal(worldCenter.clone());
-            const chassisMarginX = 0.04;
-            const chassisMarginY = 0.03;
-            const chassisMarginZ = 0.01;
-            const halfX = Math.max((size.x || 0.6) * 0.5 - chassisMarginX, 0.16);
-            const halfY = Math.max((size.y || 0.4) * 0.5 - chassisMarginY, 0.14);
-
-            const halfZBase = Math.max((size.z || 0.25) * 0.5 - chassisMarginZ, 0.06);
-            const rawBboxMinLocalZ = localCenter.z - halfZBase;
-            const rawBboxMaxLocalZ = localCenter.z + halfZBase;
-            this.vehicleLocalMinZ = rawBboxMinLocalZ;
-            this.estimateWheelEffectiveRadiusMeters(carFrame, linkMap);
-            this.wheelLocalMinZ = this.getWheelLocalMinZ(carFrame, linkMap);
-            if (Number.isFinite(this.wheelLocalMinZ)) {
-                this.groundContactLocalMinZ = this.wheelLocalMinZ;
-            } else if (Number.isFinite(this.vehicleLocalMinZ)) {
-                this.groundContactLocalMinZ = this.vehicleLocalMinZ;
-            } else {
-                this.groundContactLocalMinZ = null;
-            }
-
-            // Allow low obstacles to pass under the body by trimming the lower part of chassis collider.
-            let colliderMinLocalZ = rawBboxMinLocalZ;
-            let colliderMaxLocalZ = rawBboxMaxLocalZ;
-            if (Number.isFinite(this.wheelLocalMinZ)) {
-                const minPassThroughZ = this.wheelLocalMinZ + Math.max(Number(this.underbodyPassThroughClearanceMeters) || 0, 0);
-                colliderMinLocalZ = Math.max(colliderMinLocalZ, minPassThroughZ);
-            }
-            if ((colliderMaxLocalZ - colliderMinLocalZ) < 0.04) {
-                colliderMaxLocalZ = colliderMinLocalZ + 0.04;
-            }
-
-            const halfZ = Math.max((colliderMaxLocalZ - colliderMinLocalZ) * 0.5, 0.04);
-            const adjustedCenterZ = (colliderMaxLocalZ + colliderMinLocalZ) * 0.5;
-
-            const colliderDesc = RAPIER.ColliderDesc.cuboid(halfX, halfY, halfZ)
-                .setTranslation(localCenter.x, localCenter.y, adjustedCenterZ)
-                .setFriction(0.15)
-                .setRestitution(0.0);
-            this.vehicleCollider = world.createCollider(colliderDesc, body);
-            this.vehicleColliderLocalCenter.set(localCenter.x, localCenter.y, adjustedCenterZ);
-            this.vehicleColliderHalfExtents = { x: halfX, y: halfY, z: halfZ };
+            const body = bodySetup.body;
+            const vehicleCollider = bodySetup.vehicleCollider;
+            this.vehicleCollider = vehicleCollider;
             this.vehicleColliders = [this.vehicleCollider];
             if (this.enableWheelPhysicsColliders) {
                 this.addWheelCollidersFromUrdf(body, carFrame, linkMap);
@@ -3415,14 +3456,13 @@ class RapierDriveSimulation {
             this.carFrame = carFrame;
             this.initialPosition = initialPosition.clone();
             this.initialQuaternion = initialQuaternion.clone();
-            this.vehicleHalfExtents = { x: halfX, y: halfY, z: halfZ };
             this.addGroundCollider();
             this.enforceWheelGroundContactAtLoad(linkMap);
             this.addObstacleColliderFromUrdf();
             this.isReady = true;
             this.hasFailed = false;
 
-            console.log('[URDF][Simulation] Rapier direction control with URDF obstacle initialized');
+            console.log(`[URDF][Simulation] Rapier ${this.physicsArchitecture} initialization complete`);
         } catch (error) {
             this.hasFailed = true;
             console.warn('[URDF][Simulation] Rapier initialization failed:', error);

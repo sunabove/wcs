@@ -2010,11 +2010,6 @@ class RapierDriveSimulation {
                 .setFriction(obstacleProfile.friction)
                 .setRestitution(obstacleProfile.restitution);
 
-            // Set obstacle collider as sensor during climbing so it triggers contact and climb lift without applying physical rigid-body pivot forces
-            if (typeof obstacleColliderDesc.setSensor === 'function') {
-                obstacleColliderDesc.setSensor(true);
-            }
-
             const obstacleTopZ = clampedCenterZ + obstacleProfile.effectiveHalfZ;
             const wheelContactPlaneZ = this.getWheelContactPlaneZ();
             const passThroughClearance = Math.max(Number(this.underbodyPassThroughClearanceMeters) || 0, 0);

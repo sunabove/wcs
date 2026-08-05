@@ -2517,6 +2517,23 @@ class RapierDriveSimulation {
         this.body.applyImpulse(new this.rapier.Vector3(0, 0, liftImpulse), true);
     }
 
+    preserveObstacleHeading(yaw = null) {
+        if (!this.body) {
+            return;
+        }
+
+        const bodyRotation = this.body.rotation();
+        const headingYaw = Number.isFinite(yaw)
+            ? yaw
+            : this.extractYawFromQuaternion(bodyRotation);
+        this.body.setRotation({
+            x: 0,
+            y: 0,
+            z: Math.sin(headingYaw * 0.5),
+            w: Math.cos(headingYaw * 0.5)
+        }, true);
+    }
+
     isVehicleNearObstacleSupportZone() {
         return false;
     }
@@ -3560,6 +3577,7 @@ class RapierDriveSimulation {
         while (this.physicsAccumulatorSec >= this.physicsFixedTimeStepSec && stepIndex < this.maxPhysicsCatchupSteps) {
             const currentObstacleApproach = this.getObstacleApproachInfo();
             const currentClimbApproach = this.isObstacleInFrontForClimb(currentObstacleApproach?.obstacleInfo || null);
+            const obstacleHeadingYaw = this.extractYawFromQuaternion(this.body.rotation());
 
             this.applyDriveForces(this.physicsFixedTimeStepSec, targetVelocityX, targetVelocityY, throttleSign, effectiveSteerSign, clampedSpeed, wheelGroundContactCount);
             this.applyGroundSupportForces(this.physicsFixedTimeStepSec, wheelGroundContactCount, this.isVehicleObstacleContact);
@@ -3573,21 +3591,20 @@ class RapierDriveSimulation {
                 const speed = clampedSpeed * (throttleSign !== 0 ? throttleSign : 1);
                 const currVel = this.body.linvel();
                 
-                // Keep linear velocity strictly forward and reset position rotation quaternion to initial heading during obstacle climb
+                // Keep linear velocity strictly forward during obstacle climb.
                 this.body.setLinvel(new this.rapier.Vector3(headingX * speed, headingY * speed, currVel.z), true);
                 this.body.setAngvel(new this.rapier.Vector3(0, 0, 0), true);
-                
-                // Preserve exact orientation quaternion during obstacle climb
-                const quat = new THREE.Quaternion(bodyRotation.x, bodyRotation.y, bodyRotation.z, bodyRotation.w);
-                const euler = new THREE.Euler().setFromQuaternion(quat, 'YXZ');
-                const cleanQuat = new THREE.Quaternion().setFromEuler(new THREE.Euler(0, 0, euler.z, 'YXZ'));
-                this.body.setRotation({ x: cleanQuat.x, y: cleanQuat.y, z: cleanQuat.z, w: cleanQuat.w }, true);
+                this.preserveObstacleHeading();
             }
 
             this.world.timestep = this.physicsFixedTimeStepSec;
             this.world.step();
             let hasObstacleContactNow = this.updateObstacleContactState();
             const isClimbingApproach = currentClimbApproach || this.isObstacleInFrontForClimb(currentObstacleApproach?.obstacleInfo || null);
+            if ((hasObstacleContactNow || isClimbingApproach) && Math.abs(effectiveSteerSign) < 1e-3) {
+                this.preserveObstacleHeading(obstacleHeadingYaw);
+                this.body.setAngvel(new this.rapier.Vector3(0, 0, 0), true);
+            }
             if (hasObstacleContactNow || isClimbingApproach) {
                 this.postObstacleGroundRecoverRemainingSec = Math.max(Number(this.postObstacleGroundRecoverDurationSec) || 0, 0);
             } else {
@@ -3650,6 +3667,10 @@ class RapierDriveSimulation {
         const hasObstacleContact = this.updateObstacleContactState();
         const isClimbingApproachAfterStep = this.isObstacleInFrontForClimb(obstacleApproach?.obstacleInfo || null);
         this.isVehicleObstacleContact = Boolean(hasObstacleContact || isClimbingApproachAfterStep);
+        if (this.isVehicleObstacleContact && Math.abs(effectiveSteerSign) < 1e-3) {
+            this.preserveObstacleHeading();
+            this.body.setAngvel(new this.rapier.Vector3(0, 0, 0), true);
+        }
         if (this.keepUprightOnFlatGround) {
             this.setUprightRotationLockEnabled(true);
         }

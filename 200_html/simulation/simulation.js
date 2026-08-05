@@ -13,8 +13,142 @@ const SIM_VISUAL_SPEED_LEGACY_MAX_SCALE = 1.5;
 const SIM_VISUAL_SPEED_MIN_DENOMINATOR = 1;
 const SIM_VISUAL_SPEED_MAX_DENOMINATOR = 30;
 
+class VehicleModel {
+    constructor(runtime) {
+        this.runtime = runtime;
+    }
+
+    get viewer() {
+        return this.runtime.viewer;
+    }
+
+    get robotModel() {
+        return this.viewer?.robotModel || null;
+    }
+
+    get links() {
+        return this.robotModel?.links || {};
+    }
+
+    get carFrame() {
+        return this.runtime.carFrame;
+    }
+
+    syncFromPhysics() {
+        this.runtime.syncCarFrameFromBody();
+    }
+}
+
+class PhysicsEngine {
+    constructor(runtime) {
+        this.runtime = runtime;
+    }
+
+    get world() {
+        return this.runtime.world;
+    }
+
+    get body() {
+        return this.runtime.body;
+    }
+
+    step(fixedTimeStepSec) {
+        if (!this.world) {
+            return;
+        }
+
+        this.world.timestep = fixedTimeStepSec;
+        this.world.step();
+    }
+}
+
+class WheelController {
+    constructor(runtime) {
+        this.runtime = runtime;
+    }
+
+    updateGroundContactState() {
+        return this.runtime.updateWheelGroundContactState();
+    }
+
+    getSideSignedRpm() {
+        return this.runtime.getWheelSideSignedRpm();
+    }
+}
+
+class ContactSolver {
+    constructor(runtime) {
+        this.runtime = runtime;
+    }
+
+    updateVehicleObstacleContact() {
+        return this.runtime.updateObstacleContactState();
+    }
+
+    getApproachInfo() {
+        return this.runtime.getObstacleApproachInfo();
+    }
+
+    isClimbApproach(obstacleInfo) {
+        return this.runtime.isObstacleInFrontForClimb(obstacleInfo);
+    }
+
+    applyClimbLift(obstacleInfo, fixedTimeStepSec) {
+        this.runtime.applyObstacleClimbLift(true, fixedTimeStepSec, obstacleInfo);
+    }
+
+    preserveHeading(yaw = null) {
+        this.runtime.preserveObstacleHeading(yaw);
+    }
+}
+
+class VehicleController {
+    constructor(runtime) {
+        this.runtime = runtime;
+    }
+
+    getKeyboardState() {
+        return this.runtime.getKeyboardDriveState();
+    }
+
+    getDriveSource() {
+        return this.runtime.getDriveSourceViewer();
+    }
+
+    getSpeedMps() {
+        return this.runtime.getCommandedDriveSpeedMps();
+    }
+}
+
+class Renderer {
+    constructor(runtime) {
+        this.runtime = runtime;
+    }
+
+    syncVehicle() {
+        this.runtime.syncCarFrameFromBody();
+    }
+}
+
+class SimulationLoop {
+    constructor(runtime) {
+        this.runtime = runtime;
+    }
+
+    schedule() {
+        requestAnimationFrame(() => this.runtime.runLoop());
+    }
+}
+
 class RapierDriveSimulation {
     constructor() {
+        this.vehicleModel = new VehicleModel(this);
+        this.physicsEngine = new PhysicsEngine(this);
+        this.wheelController = new WheelController(this);
+        this.contactSolver = new ContactSolver(this);
+        this.vehicleController = new VehicleController(this);
+        this.renderer = new Renderer(this);
+        this.simulationLoop = new SimulationLoop(this);
         this.viewer = null;
         this.rapier = null;
         this.world = null;
@@ -472,7 +606,7 @@ class RapierDriveSimulation {
             return;
         }
 
-        const linkMap = this.viewer.robotModel.links || {};
+        const linkMap = this.vehicleModel.links;
         Object.entries(this.wheelLinkNameByKey).forEach(([wheelKey, wheelLinkName]) => {
             const wheelLink = this.findLinkByName(linkMap, wheelLinkName);
             if (!wheelLink) {
@@ -1964,7 +2098,7 @@ class RapierDriveSimulation {
             return;
         }
 
-        const linkMap = this.viewer.robotModel.links || {};
+        const linkMap = this.vehicleModel.links;
         const wheelLateralBands = this.getWheelLateralContactBands(linkMap);
         const obstacleLinkNames = this.getObstacleLinkNamesFromMap(linkMap);
         if (obstacleLinkNames.length === 0) {
@@ -3196,7 +3330,7 @@ class RapierDriveSimulation {
             return;
         }
 
-        const linkMap = this.viewer.robotModel.links || {};
+        const linkMap = this.vehicleModel.links;
         const carFrame = this.findLinkByName(linkMap, 'car_frame') || this.findLinkByName(linkMap, 'base_link') || null;
         if (!carFrame) {
             return;
@@ -3445,8 +3579,8 @@ class RapierDriveSimulation {
         this.lastStepTimeMs = now;
         const effectiveDeltaSec = Math.min(deltaSec * this.visualSpeedScale, 0.25);
 
-        const keyboardState = this.getKeyboardDriveState();
-        const driveViewer = this.getDriveSourceViewer();
+        const keyboardState = this.vehicleController.getKeyboardState();
+        const driveViewer = this.vehicleController.getDriveSource();
 
         let throttleSign = 0;
         let steerSign = 0;
@@ -3487,10 +3621,10 @@ class RapierDriveSimulation {
             }
         }
 
-        const speedMps = this.getCommandedDriveSpeedMps();
+        const speedMps = this.vehicleController.getSpeedMps();
         const clampedSpeed = Math.min(speedMps, this.maxSpeedMps);
         const effectiveSteerSign = clampedSpeed > 1e-3 ? steerSign : 0;
-        const wheelGroundContactCount = this.updateWheelGroundContactState();
+        const wheelGroundContactCount = this.wheelController.updateGroundContactState();
         const hasDriveCommand = keyboardState.isActive || throttleSign !== 0 || steerSign !== 0;
         if (hasDriveCommand) {
             this.hasActivatedSimulationMotion = true;
@@ -3499,16 +3633,16 @@ class RapierDriveSimulation {
         if (!this.hasActivatedSimulationMotion) {
             this.body.setLinvel(new this.rapier.Vector3(0, 0, 0), true);
             this.body.setAngvel(new this.rapier.Vector3(0, 0, 0), true);
-            this.syncCarFrameFromBody();
+            this.renderer.syncVehicle();
             return;
         }
 
         if (hasDriveCommand) {
             this.hasActivatedDynamicGroundClamp = true;
         }
-        const wasObstacleContact = this.updateObstacleContactState();
-        const obstacleApproach = this.getObstacleApproachInfo();
-        const isObstacleApproachForClimb = this.isObstacleInFrontForClimb(obstacleApproach?.obstacleInfo || null);
+        const wasObstacleContact = this.contactSolver.updateVehicleObstacleContact();
+        const obstacleApproach = this.contactSolver.getApproachInfo();
+        const isObstacleApproachForClimb = this.contactSolver.isClimbApproach(obstacleApproach?.obstacleInfo || null);
         this.isVehicleObstacleContact = Boolean(wasObstacleContact || isObstacleApproachForClimb);
         let commandedVelocityX = 0;
         let commandedVelocityY = 0;
@@ -3575,8 +3709,8 @@ class RapierDriveSimulation {
         const linkMap = this.viewer?.robotModel?.links || null;
         let stepIndex = 0;
         while (this.physicsAccumulatorSec >= this.physicsFixedTimeStepSec && stepIndex < this.maxPhysicsCatchupSteps) {
-            const currentObstacleApproach = this.getObstacleApproachInfo();
-            const currentClimbApproach = this.isObstacleInFrontForClimb(currentObstacleApproach?.obstacleInfo || null);
+            const currentObstacleApproach = this.contactSolver.getApproachInfo();
+            const currentClimbApproach = this.contactSolver.isClimbApproach(currentObstacleApproach?.obstacleInfo || null);
             const obstacleHeadingYaw = this.extractYawFromQuaternion(this.body.rotation());
 
             this.applyDriveForces(this.physicsFixedTimeStepSec, targetVelocityX, targetVelocityY, throttleSign, effectiveSteerSign, clampedSpeed, wheelGroundContactCount);
@@ -3597,10 +3731,9 @@ class RapierDriveSimulation {
                 this.preserveObstacleHeading();
             }
 
-            this.world.timestep = this.physicsFixedTimeStepSec;
-            this.world.step();
-            let hasObstacleContactNow = this.updateObstacleContactState();
-            const isClimbingApproach = currentClimbApproach || this.isObstacleInFrontForClimb(currentObstacleApproach?.obstacleInfo || null);
+            this.physicsEngine.step(this.physicsFixedTimeStepSec);
+            let hasObstacleContactNow = this.contactSolver.updateVehicleObstacleContact();
+            const isClimbingApproach = currentClimbApproach || this.contactSolver.isClimbApproach(currentObstacleApproach?.obstacleInfo || null);
             if ((hasObstacleContactNow || isClimbingApproach) && Math.abs(effectiveSteerSign) < 1e-3) {
                 this.preserveObstacleHeading(obstacleHeadingYaw);
                 this.body.setAngvel(new this.rapier.Vector3(0, 0, 0), true);
@@ -3615,13 +3748,13 @@ class RapierDriveSimulation {
             }
             const resolvedInterpenetration = this.resolveVehicleObstacleInterpenetration();
             if (resolvedInterpenetration) {
-                hasObstacleContactNow = this.updateObstacleContactState();
+                hasObstacleContactNow = this.contactSolver.updateVehicleObstacleContact();
             }
             if (hasObstacleContactNow && obstacleApproach?.obstacleInfo) {
                 this.applyObstacleContactImpulse(this.physicsFixedTimeStepSec, obstacleApproach.obstacleInfo);
             }
             if (hasObstacleContactNow || isClimbingApproach) {
-                this.applyObstacleClimbLift(true, this.physicsFixedTimeStepSec, currentObstacleApproach?.obstacleInfo);
+                this.contactSolver.applyClimbLift(currentObstacleApproach?.obstacleInfo, this.physicsFixedTimeStepSec);
             } else {
                 const velocity = this.body.linvel();
                 const approachSpeed = Math.hypot(velocity.x, velocity.y);
@@ -3637,20 +3770,20 @@ class RapierDriveSimulation {
             if (this.hasActivatedDynamicGroundClamp) {
                 this.clampVehicleAboveGround();
             }
-            this.syncCarFrameFromBody();
+            this.renderer.syncVehicle();
             const adjustedByWheelClamp = hasObstacleContactNow
                 ? this.enforceMeasuredWheelGroundLimit(linkMap)
                 : false;
             if (adjustedByWheelClamp) {
-                this.syncCarFrameFromBody();
+                this.renderer.syncVehicle();
             }
             const adjustedByGroundReattach = this.settleVehicleToGroundAfterObstacle(linkMap);
             if (adjustedByGroundReattach) {
-                this.syncCarFrameFromBody();
+                this.renderer.syncVehicle();
             }
             this.stabilizeFlatGroundVerticalMotion();
             this.enforceFlatGroundRideHeight();
-            this.syncCarFrameFromBody();
+            this.renderer.syncVehicle();
             if (hasDriveCommand) {
                 this.wheelZChartElapsedSec += this.physicsFixedTimeStepSec;
                 this.sampleWheelCenterZForChart(this.wheelZChartElapsedSec);
@@ -3664,8 +3797,8 @@ class RapierDriveSimulation {
             this.body.setAngvel(new this.rapier.Vector3(0, 0, 0), true);
         }
 
-        const hasObstacleContact = this.updateObstacleContactState();
-        const isClimbingApproachAfterStep = this.isObstacleInFrontForClimb(obstacleApproach?.obstacleInfo || null);
+        const hasObstacleContact = this.contactSolver.updateVehicleObstacleContact();
+        const isClimbingApproachAfterStep = this.contactSolver.isClimbApproach(obstacleApproach?.obstacleInfo || null);
         this.isVehicleObstacleContact = Boolean(hasObstacleContact || isClimbingApproachAfterStep);
         if (this.isVehicleObstacleContact && Math.abs(effectiveSteerSign) < 1e-3) {
             this.preserveObstacleHeading();
@@ -3758,7 +3891,7 @@ class RapierDriveSimulation {
         }
 
         this.updateDebugPanel(this.physicsFixedTimeStepSec);
-        requestAnimationFrame(() => this.runLoop());
+        this.simulationLoop.schedule();
     }
 
     start() {
@@ -3769,7 +3902,7 @@ class RapierDriveSimulation {
         this.installDriveCommandHooks();
         this.syncInitialDriveStateFromUi();
         this.updateDebugPanel(this.debugStatusUpdateIntervalSec);
-        requestAnimationFrame(() => this.runLoop());
+        this.simulationLoop.schedule();
     }
 
     resetUiStates() {
@@ -3843,7 +3976,7 @@ class RapierDriveSimulation {
         this.hasActivatedDynamicGroundClamp = false;
 
         // On reset, always return to the URDF-authored pose without extra ground alignment offsets.
-        this.syncCarFrameFromBody();
+        this.renderer.syncVehicle();
     }
 
     async reset() {

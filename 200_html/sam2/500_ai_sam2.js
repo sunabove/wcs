@@ -17,7 +17,8 @@
     const uploadProgressWrapElement = document.getElementById('sam2-upload-progress-wrap');
     const uploadProgressBarElement = document.getElementById('sam2-upload-progress-bar');
     const uploadProgressTextElement = document.getElementById('sam2-upload-progress-text');
-    const pointModeButton = document.getElementById('sam2-point-mode');
+    const foregroundPointModeButton = document.getElementById('sam2-foreground-point-mode');
+    const backgroundPointModeButton = document.getElementById('sam2-background-point-mode');
     const bboxModeButton = document.getElementById('sam2-bbox-mode');
     const pointClearButton = document.getElementById('sam2-point-clear');
     const bboxClearButton = document.getElementById('sam2-bbox-clear');
@@ -56,7 +57,7 @@
     let pointDragIndex = -1;
     let pointDragging = false;
     let suppressPointClick = false;
-    let detectionMode = 'point';
+    let detectionMode = 'foreground';
     let isUploadingImmediately = false;
     let uploadedListLoadingStartedAt = 0;
     let isUploadedListLoading = false;
@@ -264,7 +265,7 @@
 
     function updateDetectionControlState() {
         const enabled = hasSelectedVideo();
-            [pointModeButton, bboxModeButton, pointClearButton, bboxClearButton, optionsSaveButton, optionsResetButton, multimaskOutputCheckbox, maskInputCheckbox].forEach((control) => {
+            [foregroundPointModeButton, backgroundPointModeButton, bboxModeButton, pointClearButton, bboxClearButton, optionsSaveButton, optionsResetButton, multimaskOutputCheckbox, maskInputCheckbox].forEach((control) => {
             if (control) {
                 control.disabled = !enabled;
             }
@@ -318,7 +319,7 @@
             positivePoints = points.slice(0, MAX_POINT_COUNT).map((point, index) => ({
                 x: clamp(toNumber(point && point.x, 0), 0, 100),
                 y: clamp(toNumber(point && point.y, 0), 0, 100),
-                label: index % 2 === 0 ? 1 : 0,
+                label: Number(labels[index]) === 0 ? 0 : 1,
             }));
 
             const savedBox = options.bbox;
@@ -573,7 +574,7 @@
         if (!point) {
             return;
         }
-        point.label = positivePoints.length % 2 === 0 ? 1 : 0;
+        point.label = detectionMode === 'background' ? 0 : 1;
 
         if (positivePoints.length >= MAX_POINT_COUNT) {
             setStatus(`Point는 최대 ${MAX_POINT_COUNT}개까지 입력할 수 있습니다.`, 'warning');
@@ -582,7 +583,7 @@
 
         positivePoints.push(point);
         renderPointUi();
-        setStatus(`${positivePoints.length}차 Point가 ${point.label === 1 ? 'Foreground' : 'Background'}로 추가되었습니다.`, 'secondary');
+        setStatus(`${point.label === 1 ? 'Foreground' : 'Background'} Point가 추가되었습니다.`, 'secondary');
     }
 
     function toRelativePoint(event) {
@@ -1810,18 +1811,31 @@
     });
 
     detectButton.addEventListener('click', runSam2Segment);
-    if (pointModeButton) {
-        pointModeButton.addEventListener('click', () => {
-            if (!hasSelectedVideo()) {
-                setStatus('먼저 동영상을 선택하세요.', 'warning');
-                return;
-            }
-            detectionMode = 'point';
-            pointModeButton.classList.add('btn-primary');
-            pointModeButton.classList.remove('btn-outline-primary');
-            bboxModeButton?.classList.add('btn-outline-primary');
-            bboxModeButton?.classList.remove('btn-primary');
-            setStatus('Point 설정 모드입니다.', 'secondary');
+    function setPointMode(mode) {
+        if (!hasSelectedVideo()) {
+            setStatus('먼저 동영상을 선택하세요.', 'warning');
+            return;
+        }
+
+        detectionMode = mode;
+        const isForeground = mode === 'foreground';
+        foregroundPointModeButton?.classList.toggle('btn-primary', isForeground);
+        foregroundPointModeButton?.classList.toggle('btn-outline-primary', !isForeground);
+        backgroundPointModeButton?.classList.toggle('btn-primary', !isForeground);
+        backgroundPointModeButton?.classList.toggle('btn-outline-primary', isForeground);
+        bboxModeButton?.classList.add('btn-outline-primary');
+        bboxModeButton?.classList.remove('btn-primary');
+        setStatus(`${isForeground ? '전경' : '배경'} Point 설정 모드입니다.`, 'secondary');
+    }
+
+    if (foregroundPointModeButton) {
+        foregroundPointModeButton.addEventListener('click', () => {
+            setPointMode('foreground');
+        });
+    }
+    if (backgroundPointModeButton) {
+        backgroundPointModeButton.addEventListener('click', () => {
+            setPointMode('background');
         });
     }
     if (bboxModeButton) {
@@ -1831,10 +1845,13 @@
                 return;
             }
             detectionMode = 'bbox';
-            bboxModeButton.classList.add('btn-primary');
+            foregroundPointModeButton?.classList.add('btn-outline-primary');
+            foregroundPointModeButton?.classList.remove('btn-primary');
+            backgroundPointModeButton?.classList.add('btn-outline-primary');
+            backgroundPointModeButton?.classList.remove('btn-primary');
+            bboxModeButton?.classList.add('btn-outline-primary');
             bboxModeButton.classList.remove('btn-outline-primary');
-            pointModeButton?.classList.add('btn-outline-primary');
-            pointModeButton?.classList.remove('btn-primary');
+            bboxModeButton.classList.add('btn-primary');
             setStatus('BBox 설정 모드입니다.', 'secondary');
         });
     }
@@ -1889,7 +1906,7 @@
     }
     if (bboxCaptureLayerElement) {
         bboxCaptureLayerElement.addEventListener('click', (event) => {
-            if (detectionMode === 'point') {
+            if (detectionMode === 'foreground' || detectionMode === 'background') {
                 if (suppressPointClick) {
                     suppressPointClick = false;
                     return;

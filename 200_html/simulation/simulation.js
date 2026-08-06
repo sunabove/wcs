@@ -3904,12 +3904,17 @@ class RapierDriveSimulation {
             const currentClimbApproach = this.contactSolver.isClimbApproach(currentObstacleApproach?.obstacleInfo || null);
             const obstacleHeadingYaw = this.extractYawFromQuaternion(this.body.rotation());
             const obstacleReferencePosition = this.body.translation();
+            const obstaclePathControlActive = Boolean(
+                this.isVehicleObstacleContact
+                || currentClimbApproach
+                || this.contactSolver.isObstacleTraversalActive()
+            );
 
             this.applyDriveForces(this.physicsFixedTimeStepSec, targetVelocityX, targetVelocityY, throttleSign, effectiveSteerSign, clampedSpeed, wheelGroundContactCount);
-            this.applyGroundSupportForces(this.physicsFixedTimeStepSec, wheelGroundContactCount, this.isVehicleObstacleContact);
+            this.applyGroundSupportForces(this.physicsFixedTimeStepSec, wheelGroundContactCount, obstaclePathControlActive);
             
             // Force strict forward linear velocity direction inside the fixed physics loop when climbing
-            if (this.isVehicleObstacleContact && Math.abs(effectiveSteerSign) < 1e-3) {
+            if (obstaclePathControlActive && Math.abs(effectiveSteerSign) < 1e-3) {
                 const bodyRotation = this.body.rotation();
                 const yaw = this.extractYawFromQuaternion(bodyRotation);
                 const headingX = Math.cos(yaw);
@@ -3918,7 +3923,7 @@ class RapierDriveSimulation {
                 const currVel = this.body.linvel();
                 
                 // Keep linear velocity strictly forward during obstacle climb.
-                this.body.setLinvel(new this.rapier.Vector3(headingX * speed, headingY * speed, currVel.z), true);
+                this.body.setLinvel(new this.rapier.Vector3(headingX * speed, headingY * speed, 0), true);
                 this.body.setAngvel(new this.rapier.Vector3(0, 0, 0), true);
                 this.preserveObstacleHeading();
             }
@@ -3966,7 +3971,7 @@ class RapierDriveSimulation {
             const dampingFactor = 0.92;
             this.body.setLinvel(new this.rapier.Vector3(velocity.x * dampingFactor, velocity.y * dampingFactor, velocity.z), true);
         }
-            if (this.hasActivatedDynamicGroundClamp) {
+            if (this.hasActivatedDynamicGroundClamp && !obstaclePathControlActive) {
                 this.clampVehicleAboveGround();
             }
             this.renderer.syncVehicle();
@@ -3980,8 +3985,10 @@ class RapierDriveSimulation {
             if (adjustedByGroundReattach) {
                 this.renderer.syncVehicle();
             }
-            this.stabilizeFlatGroundVerticalMotion();
-            this.enforceFlatGroundRideHeight();
+            if (!obstaclePathControlActive) {
+                this.stabilizeFlatGroundVerticalMotion();
+                this.enforceFlatGroundRideHeight();
+            }
             this.renderer.syncVehicle();
             this.physicsAccumulatorSec -= this.physicsFixedTimeStepSec;
             stepIndex += 1;
@@ -4079,6 +4086,16 @@ class RapierDriveSimulation {
                 traversalPath.forwardY * traversalSpeed,
                 0
             ), true);
+        }
+
+        const finalObstaclePathControlActive = Boolean(
+            this.isVehicleObstacleContact
+            || this.contactSolver.isClimbApproach(this.contactSolver.getApproachInfo()?.obstacleInfo || null)
+            || this.contactSolver.isObstacleTraversalActive()
+        );
+        if (finalObstaclePathControlActive) {
+            const finalVelocity = this.body.linvel();
+            this.body.setLinvel(new this.rapier.Vector3(finalVelocity.x, finalVelocity.y, 0), true);
         }
 
         const nextPosition = this.body.translation();

@@ -25,8 +25,10 @@
     const optionsResetButton = document.getElementById('sam2-options-reset');
     const pointLabelCheckbox = document.getElementById('sam2-point-label');
     const multimaskOutputCheckbox = document.getElementById('sam2-multimask-output');
+    const maskInputCheckbox = document.getElementById('sam2-mask-input');
     const pointLabelText = document.getElementById('sam2-point-label-text');
     const multimaskOutputText = document.getElementById('sam2-multimask-output-text');
+    const maskInputText = document.getElementById('sam2-mask-input-text');
     const positivePointListElement = document.getElementById('sam2-positive-points');
     const positivePointCountElement = document.getElementById('sam2-positive-count');
     const pointMarkerLayerElement = document.getElementById('sam2-point-marker-layer');
@@ -264,7 +266,7 @@
 
     function updateDetectionControlState() {
         const enabled = hasSelectedVideo();
-            [pointModeButton, bboxModeButton, pointClearButton, bboxClearButton, optionsSaveButton, optionsResetButton, pointLabelCheckbox, multimaskOutputCheckbox].forEach((control) => {
+            [pointModeButton, bboxModeButton, pointClearButton, bboxClearButton, optionsSaveButton, optionsResetButton, pointLabelCheckbox, multimaskOutputCheckbox, maskInputCheckbox].forEach((control) => {
             if (control) {
                 control.disabled = !enabled;
             }
@@ -341,6 +343,10 @@
             if (multimaskOutputCheckbox) {
                 multimaskOutputCheckbox.checked = options.multimask_output === true;
                 updateMultimaskOutputText();
+            }
+            if (maskInputCheckbox) {
+                maskInputCheckbox.checked = options.mask_input === true;
+                updateMaskInputText();
             }
             renderPointUi();
             renderBoundingBoxUi();
@@ -913,6 +919,17 @@
         return `&multimask_output=${encodeURIComponent(String(value))}`;
     }
 
+    function updateMaskInputText() {
+        if (maskInputText) {
+            maskInputText.textContent = maskInputCheckbox && maskInputCheckbox.checked ? 'On' : 'Off';
+        }
+    }
+
+    function buildMaskInputQuery() {
+        const value = Boolean(maskInputCheckbox && maskInputCheckbox.checked);
+        return `&mask_input=${encodeURIComponent(String(value))}`;
+    }
+
     async function saveVideoOptions(fileName) {
         const value = String(fileName || '').trim();
         if (!value) {
@@ -920,7 +937,7 @@
         }
 
         const apiBase = await resolveApiBase();
-        const url = `${apiBase}/fast/sam2/video_options?file_name=${encodeURIComponent(value)}&model_name=auto${buildBboxQuery()}${buildPointsQuery()}${buildPointLabelsQuery()}${buildMultimaskOutputQuery()}`;
+        const url = `${apiBase}/fast/sam2/video_options?file_name=${encodeURIComponent(value)}&model_name=auto${buildBboxQuery()}${buildPointsQuery()}${buildPointLabelsQuery()}${buildMultimaskOutputQuery()}${buildMaskInputQuery()}`;
         const response = await fetch(url, { method: 'POST' });
         if (!response.ok) {
             return false;
@@ -1670,13 +1687,13 @@
             if (file) {
                 const formData = new FormData();
                 formData.append('file', file);
-                const url = `${apiBase}/fast/sam2/segment_video_upload?${bboxQuery.slice(1)}${pointsQuery}${pointLabelsQuery}${buildMultimaskOutputQuery().slice(1)}`;
+                const url = `${apiBase}/fast/sam2/segment_video_upload?${bboxQuery.slice(1)}${pointsQuery}${pointLabelsQuery}${buildMultimaskOutputQuery().slice(1)}${buildMaskInputQuery()}`;
                 response = await fetch(url, {
                     method: 'POST',
                     body: formData,
                 });
             } else {
-                const url = `${apiBase}/fast/sam2/segment_saved_video?file_name=${encodeURIComponent(selectedServerFileName)}${bboxQuery}${pointsQuery}${pointLabelsQuery}${buildMultimaskOutputQuery()}`;
+                const url = `${apiBase}/fast/sam2/segment_saved_video?file_name=${encodeURIComponent(selectedServerFileName)}${bboxQuery}${pointsQuery}${pointLabelsQuery}${buildMultimaskOutputQuery()}${buildMaskInputQuery()}`;
                 response = await fetch(url, {
                     method: 'POST',
                 });

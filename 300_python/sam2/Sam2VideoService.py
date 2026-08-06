@@ -288,12 +288,14 @@ class Sam2VideoService:
         bbox: str,
         points: str,
         point_labels: str,
+        multimask_output: bool = False,
     ) -> None:
         options = {
             "model_name": model_name,
             "bbox": self._parse_options_json(bbox, None),
             "points": self._parse_options_json(points, []),
             "point_labels": self._parse_options_json(point_labels, []),
+            "multimask_output": bool(multimask_output),
             "saved_at": datetime.now().isoformat(timespec="seconds"),
         }
         options_path = self._options_path(input_path)

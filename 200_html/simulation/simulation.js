@@ -3910,6 +3910,13 @@ class RapierDriveSimulation {
                 || this.contactSolver.isObstacleTraversalActive()
             );
 
+            if (currentClimbApproach || this.contactSolver.isObstacleTraversalActive()) {
+                this.contactSolver.applyClimbLift(
+                    currentObstacleApproach?.obstacleInfo || null,
+                    this.physicsFixedTimeStepSec
+                );
+            }
+
             this.applyDriveForces(this.physicsFixedTimeStepSec, targetVelocityX, targetVelocityY, throttleSign, effectiveSteerSign, clampedSpeed, wheelGroundContactCount);
             this.applyGroundSupportForces(this.physicsFixedTimeStepSec, wheelGroundContactCount, obstaclePathControlActive);
             

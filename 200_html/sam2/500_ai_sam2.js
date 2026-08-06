@@ -34,6 +34,8 @@
     const optionsResetButton = document.getElementById('sam2-options-reset');
     const multimaskOutputCheckbox = document.getElementById('sam2-multimask-output');
     const maskInputCheckbox = document.getElementById('sam2-mask-input');
+    const claheCheckbox = document.getElementById('sam2-clahe');
+    const claheText = document.getElementById('sam2-clahe-text');
     document.getElementById('sam2-point-label-text')?.closest('.form-switch')?.remove();
     const multimaskOutputText = document.getElementById('sam2-multimask-output-text');
     const maskInputText = document.getElementById('sam2-mask-input-text');
@@ -347,6 +349,10 @@
             if (maskInputCheckbox) {
                 maskInputCheckbox.checked = options.mask_input !== false;
                 updateMaskInputText();
+            }
+            if (claheCheckbox) {
+                claheCheckbox.checked = options.clahe === true;
+                updateClaheText();
             }
             renderPointUi();
             renderBoundingBoxUi();
@@ -1024,6 +1030,17 @@
         return `&mask_input=${encodeURIComponent(String(value))}`;
     }
 
+    function updateClaheText() {
+        if (claheText) {
+            claheText.textContent = claheCheckbox && claheCheckbox.checked ? 'On' : 'Off';
+        }
+    }
+
+    function buildClaheQuery() {
+        const value = Boolean(claheCheckbox && claheCheckbox.checked);
+        return `&clahe=${encodeURIComponent(String(value))}`;
+    }
+
     async function saveVideoOptions(fileName) {
         const value = String(fileName || '').trim();
         if (!value) {
@@ -1031,7 +1048,7 @@
         }
 
         const apiBase = await resolveApiBase();
-        const url = `${apiBase}/fast/sam2/video_options?file_name=${encodeURIComponent(value)}&model_name=auto${buildBboxQuery()}${buildPointsQuery()}${buildPointLabelsQuery()}${buildMultimaskOutputQuery()}${buildMaskInputQuery()}`;
+        const url = `${apiBase}/fast/sam2/video_options?file_name=${encodeURIComponent(value)}&model_name=auto${buildBboxQuery()}${buildPointsQuery()}${buildPointLabelsQuery()}${buildMultimaskOutputQuery()}${buildMaskInputQuery()}${buildClaheQuery()}`;
         const response = await fetch(url, { method: 'POST' });
         if (!response.ok) {
             return false;

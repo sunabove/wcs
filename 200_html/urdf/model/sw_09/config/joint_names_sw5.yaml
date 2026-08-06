@@ -1,0 +1,1 @@
+controller_joint_names: ['', 'swing_joint', 'inner_gaer_fr_joint', 'inner_wheel_fr_joint', 'wheel_fr_joint', 'inner_gear_fl_joint', 'inner_wheel_fl_joint', 'wheel_fl_joint', 'inner_gear_rr_joint', 'inner_wheel_rr_joint', 'wheel_rr_joint', 'inner_gear_rl_joint', 'inner_wheel_rl_joint', 'wheel_rl_joint', ]

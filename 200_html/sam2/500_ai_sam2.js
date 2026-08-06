@@ -250,9 +250,7 @@
 
     function updatePointLabelText() {
         if (pointLabelText) {
-            pointLabelText.textContent = pointLabelCheckbox && pointLabelCheckbox.checked
-                ? 'Positive'
-                : 'Negative';
+            pointLabelText.textContent = '1st Foreground / 2nd Background';
         }
     }
 
@@ -266,7 +264,7 @@
 
     function updateDetectionControlState() {
         const enabled = hasSelectedVideo();
-            [pointModeButton, bboxModeButton, pointClearButton, bboxClearButton, optionsSaveButton, optionsResetButton, pointLabelCheckbox, multimaskOutputCheckbox, maskInputCheckbox].forEach((control) => {
+            [pointModeButton, bboxModeButton, pointClearButton, bboxClearButton, optionsSaveButton, optionsResetButton, multimaskOutputCheckbox, maskInputCheckbox].forEach((control) => {
             if (control) {
                 control.disabled = !enabled;
             }
@@ -320,7 +318,7 @@
             positivePoints = points.slice(0, MAX_POINT_COUNT).map((point, index) => ({
                 x: clamp(toNumber(point && point.x, 0), 0, 100),
                 y: clamp(toNumber(point && point.y, 0), 0, 100),
-                label: Number(labels[index]) === 0 ? 0 : 1,
+                label: index % 2 === 0 ? 1 : 0,
             }));
 
             const savedBox = options.bbox;
@@ -575,31 +573,16 @@
         if (!point) {
             return;
         }
-        point.label = pointLabelCheckbox && pointLabelCheckbox.checked ? 1 : 0;
+        point.label = positivePoints.length % 2 === 0 ? 1 : 0;
 
-        if (event && event.ctrlKey) {
-            if (positivePoints.length >= MAX_POINT_COUNT) {
-                positivePoints.shift();
-            }
-            positivePoints.push(point);
-            renderPointUi();
-            setStatus('Positive Point가 추가되었습니다. (Ctrl+클릭)', 'secondary');
+        if (positivePoints.length >= MAX_POINT_COUNT) {
+            setStatus(`Point는 최대 ${MAX_POINT_COUNT}개까지 입력할 수 있습니다.`, 'warning');
             return;
         }
 
-        if (positivePoints.length === 0) {
-            positivePoints.push(point);
-            renderPointUi();
-            setStatus('Positive Point가 추가되었습니다.', 'secondary');
-            return;
-        }
-
-        const nearestIndex = findNearestPointIndex(point);
-        if (nearestIndex >= 0) {
-            positivePoints[nearestIndex] = point;
-        }
+        positivePoints.push(point);
         renderPointUi();
-        setStatus('가장 가까운 Positive Point 위치를 수정했습니다.', 'secondary');
+        setStatus(`${positivePoints.length}차 Point가 ${point.label === 1 ? 'Foreground' : 'Background'}로 추가되었습니다.`, 'secondary');
     }
 
     function toRelativePoint(event) {

@@ -339,18 +339,7 @@ class Sam2VideoDetector:
                 (x / 100.0) * width,
                 (y / 100.0) * height,
             ])
-            label_index = len(labels)
-            raw_label = (
-                raw_labels[label_index]
-                if raw_labels is not None
-                else raw_point.get("label", 1)
-            )
-            try:
-                label = int(raw_label)
-            except (TypeError, ValueError) as ex:
-                raise ValueError("point labels must be 0 or 1") from ex
-            if label not in (0, 1):
-                raise ValueError("point labels must be 0 or 1")
+            label = 1 if len(labels) % 2 == 0 else 0
             labels.append(label)
 
         return np.asarray(pixel_points, dtype=np.float32), np.asarray(labels, dtype=np.int32)

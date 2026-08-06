@@ -2640,7 +2640,7 @@ class RapierDriveSimulation {
         }
 
         const obstacleTopZ = targetObstacle.center.z + targetObstacle.halfExtents.z;
-        const wheelBottomWorldZ = obstacleTopZ + 0.008;
+        const wheelBottomWorldZ = obstacleTopZ + 0.001;
         const targetBodyZ = wheelBottomWorldZ - this.wheelLocalMinZ;
         const verticalGap = targetBodyZ - translation.z;
         if (verticalGap <= 0.002) {

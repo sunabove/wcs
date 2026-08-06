@@ -588,16 +588,16 @@ class Sam2VideoDetector:
                     raise
 
                 plotted = self._overlay_mask_result(frame, mask_tensor, bbox_rect, detection_score)
+
+                if plotted.shape[1] != width or plotted.shape[0] != height:
+                    plotted = cv2.resize(plotted, (width, height), interpolation=cv2.INTER_AREA)
+
                 self._draw_option_summary(
                     plotted,
                     self._get_point_label_text(point_prompt),
                     mask_input,
                     multimask_output,
                 )
-
-                if plotted.shape[1] != width or plotted.shape[0] != height:
-                    plotted = cv2.resize(plotted, (width, height), interpolation=cv2.INTER_AREA)
-
                 writer.write(plotted)
                 tracked_frames += 1
                 if progress_callback is not None and total_frames > 0:

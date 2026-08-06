@@ -479,7 +479,15 @@ class Sam2VideoDetector:
         panel_x2 = max(panel_x1 + 120, width - 8)
         panel_y1 = max(0, height - panel_height)
         panel_y2 = height - 6
-        chart_x1 = panel_x1 + 42
+        y_axis_font = cv2.FONT_HERSHEY_SIMPLEX
+        y_axis_font_scale = 0.35
+        y_axis_thickness = 1
+        y_axis_labels = ("0.0", "0.5", "1.0")
+        y_axis_label_width = max(
+            cv2.getTextSize(label, y_axis_font, y_axis_font_scale, y_axis_thickness)[0][0]
+            for label in y_axis_labels
+        )
+        chart_x1 = panel_x1 + y_axis_label_width + 14
         chart_x2 = panel_x2 - 10
         chart_y1 = panel_y1 + 20
         chart_y2 = panel_y2 - 22
@@ -496,18 +504,18 @@ class Sam2VideoDetector:
             tick_label = f"{score_tick:.1f}"
             (tick_width, _tick_height), _baseline = cv2.getTextSize(
                 tick_label,
-                cv2.FONT_HERSHEY_SIMPLEX,
-                0.35,
-                1,
+                y_axis_font,
+                y_axis_font_scale,
+                y_axis_thickness,
             )
             cv2.putText(
                 canvas,
                 tick_label,
-                (max(0, chart_x1 - tick_width - 6), tick_y + 4),
-                cv2.FONT_HERSHEY_SIMPLEX,
-                0.35,
+                (chart_x1 - tick_width - 8, tick_y + 4),
+                y_axis_font,
+                y_axis_font_scale,
                 (190, 190, 190),
-                1,
+                y_axis_thickness,
                 cv2.LINE_AA,
             )
 

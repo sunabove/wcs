@@ -22,6 +22,7 @@
     const pointClearButton = document.getElementById('sam2-point-clear');
     const bboxClearButton = document.getElementById('sam2-bbox-clear');
     const pointLabelCheckbox = document.getElementById('sam2-point-label');
+    const pointLabelText = document.getElementById('sam2-point-label-text');
     const positivePointListElement = document.getElementById('sam2-positive-points');
     const positivePointCountElement = document.getElementById('sam2-positive-count');
     const pointMarkerLayerElement = document.getElementById('sam2-point-marker-layer');
@@ -226,6 +227,14 @@
     function hasSelectedVideo() {
         const fileFromInput = fileInput.files && fileInput.files[0] ? fileInput.files[0] : null;
         return Boolean(selectedFile || fileFromInput || selectedServerFileName);
+    }
+
+    function updatePointLabelText() {
+        if (pointLabelText) {
+            pointLabelText.textContent = pointLabelCheckbox && pointLabelCheckbox.checked
+                ? 'Negative'
+                : 'Positive';
+        }
     }
 
     function updateDetectionControlState() {
@@ -1615,6 +1624,10 @@
     }
     if (loopToggleInput) {
         loopToggleInput.addEventListener('change', applyLoopOption);
+    }
+    if (pointLabelCheckbox) {
+        pointLabelCheckbox.addEventListener('change', updatePointLabelText);
+        updatePointLabelText();
     }
     setUploadedListLoading(true, '동영상 목록을 불러오는 중...');
     setStatus('업로드 목록을 가져오는 중...', 'info');

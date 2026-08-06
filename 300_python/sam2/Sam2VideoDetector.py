@@ -402,7 +402,6 @@ class Sam2VideoDetector:
     def detect_video_file(
         self,
         input_path: Path,
-        target_type: str = "road",
         model_name: str = SAM2_DEFAULT_MODEL,
         bbox=None,
         points=None,
@@ -417,7 +416,7 @@ class Sam2VideoDetector:
             raise FileNotFoundError(f"Input video not found: {resolved_input}")
 
         job_id = f"{int(time.time() * 1000)}_{uuid.uuid4().hex[:8]}"
-        output_path = SAM2_OUTPUT_DIR / f"{job_id}_{target_type}_segmented.mp4"
+        output_path = SAM2_OUTPUT_DIR / f"{job_id}_segmented.mp4"
 
         prepared = self._prepare_video_for_inference(resolved_input, job_id)
         prepared_path = Path(prepared["path"])
@@ -510,7 +509,6 @@ class Sam2VideoDetector:
 
         return {
             "job_id": job_id,
-            "target_type": str(target_type),
             "model": str(model_name or SAM2_DEFAULT_MODEL),
             "processed_frames": tracked_frames,
             "input_total_frames": total_frames,

@@ -25,7 +25,6 @@ def upload_limit():
 @router.post("/segment_video_upload")
 def segment_video_upload(
     file: UploadFile = File(...),
-    target_type: str = Query("road"),
     model_name: str = Query("auto"),
     bbox: str = Query(""),
     points: str = Query(""),
@@ -33,7 +32,6 @@ def segment_video_upload(
 ):
     return _service.detect_uploaded_video(
         upload_file=file,
-        target_type=target_type,
         model_name=model_name,
         bbox=bbox,
         points=points,
@@ -58,7 +56,6 @@ def uploaded_videos(
 @router.post("/segment_saved_video")
 def segment_saved_video(
     file_name: str = Query(...),
-    target_type: str = Query("road"),
     model_name: str = Query("auto"),
     bbox: str = Query(""),
     points: str = Query(""),
@@ -66,7 +63,6 @@ def segment_saved_video(
 ):
     return _service.detect_saved_video(
         file_name=file_name,
-        target_type=target_type,
         model_name=model_name,
         bbox=bbox,
         points=points,

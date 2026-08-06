@@ -26,12 +26,6 @@ class Sam2VideoService:
     def __init__(self):
         self.detector = Sam2VideoDetector()
 
-    def _normalize_target_type(self, target_type: str) -> str:
-        value = str(target_type or "").strip().lower()
-        if value in {"road", "pothole", "curb_step"}:
-            return value
-        raise HTTPException(status_code=400, detail="target_type must be one of: road, pothole, curb_step")
-
     def _safe_suffix(self, file_name: str) -> str:
         suffix = Path(str(file_name or "")).suffix.lower()
         if suffix not in SAM2_VIDEO_EXTENSIONS:
@@ -212,14 +206,12 @@ class Sam2VideoService:
     def _save_detection_options(
         self,
         input_path: Path,
-        target_type: str,
         model_name: str,
         bbox: str,
         points: str,
         point_labels: str,
     ) -> None:
         options = {
-            "target_type": target_type,
             "model_name": model_name,
             "bbox": self._parse_options_json(bbox, None),
             "points": self._parse_options_json(points, []),
@@ -287,18 +279,15 @@ class Sam2VideoService:
     def detect_uploaded_video(
         self,
         upload_file: UploadFile,
-        target_type: str = "road",
         model_name: str = "auto",
         bbox: str = "",
         points: str = "",
         point_labels: str = "",
     ):
         input_path = self._save_uploaded_video(upload_file)
-        normalized_target_type = self._normalize_target_type(target_type)
         resolved_model_name = self._resolve_model_name(model_name)
         self._save_detection_options(
             input_path=input_path,
-            target_type=normalized_target_type,
             model_name=resolved_model_name,
             bbox=bbox,
             points=points,
@@ -308,7 +297,6 @@ class Sam2VideoService:
         try:
             return self.detector.detect_video_file(
                 input_path=input_path,
-                target_type=normalized_target_type,
                 model_name=resolved_model_name,
                 bbox=bbox,
                 points=points,
@@ -339,18 +327,15 @@ class Sam2VideoService:
     def detect_saved_video(
         self,
         file_name: str,
-        target_type: str = "road",
         model_name: str = "auto",
         bbox: str = "",
         points: str = "",
         point_labels: str = "",
     ):
         input_path = self._resolve_uploaded_video_path(file_name)
-        normalized_target_type = self._normalize_target_type(target_type)
         resolved_model_name = self._resolve_model_name(model_name)
         self._save_detection_options(
             input_path=input_path,
-            target_type=normalized_target_type,
             model_name=resolved_model_name,
             bbox=bbox,
             points=points,
@@ -360,7 +345,6 @@ class Sam2VideoService:
         try:
             return self.detector.detect_video_file(
                 input_path=input_path,
-                target_type=normalized_target_type,
                 model_name=resolved_model_name,
                 bbox=bbox,
                 points=points,

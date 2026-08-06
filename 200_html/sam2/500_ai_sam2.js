@@ -1368,7 +1368,6 @@
 
         const fileFromInput = fileInput.files && fileInput.files[0] ? fileInput.files[0] : null;
         const file = selectedFile || fileFromInput;
-        const targetType = 'road';
         ensureDefaultBoundingBox();
         const bboxQuery = buildBboxQuery();
         const pointsQuery = buildPointsQuery();
@@ -1407,13 +1406,13 @@
             if (file) {
                 const formData = new FormData();
                 formData.append('file', file);
-                const url = `${apiBase}/fast/sam2/segment_video_upload?target_type=${encodeURIComponent(targetType)}${bboxQuery}${pointsQuery}${pointLabelsQuery}`;
+                const url = `${apiBase}/fast/sam2/segment_video_upload?${bboxQuery.slice(1)}${pointsQuery}${pointLabelsQuery}`;
                 response = await fetch(url, {
                     method: 'POST',
                     body: formData,
                 });
             } else {
-                const url = `${apiBase}/fast/sam2/segment_saved_video?file_name=${encodeURIComponent(selectedServerFileName)}&target_type=${encodeURIComponent(targetType)}${bboxQuery}${pointsQuery}${pointLabelsQuery}`;
+                const url = `${apiBase}/fast/sam2/segment_saved_video?file_name=${encodeURIComponent(selectedServerFileName)}${bboxQuery}${pointsQuery}${pointLabelsQuery}`;
                 response = await fetch(url, {
                     method: 'POST',
                 });

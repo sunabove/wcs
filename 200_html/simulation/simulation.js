@@ -910,11 +910,13 @@ class RapierDriveSimulation {
 
             const wheelContactPlaneZ = this.getWheelContactPlaneZ();
             const obstacleRock01TopZ = this.getObstacleTopZByName('obstacle_rock_01');
+            const approachObstacle = this.getObstacleApproachInfo()?.obstacleInfo || null;
+            const climbTargetZ = this.getObstacleClimbTargetZ(approachObstacle);
             const gap = Number.isFinite(wheelContactPlaneZ) && Number.isFinite(obstacleRock01TopZ)
                 ? (wheelContactPlaneZ - obstacleRock01TopZ)
                 : null;
 
-            obstacleSummary = `wheelPlaneZ=${Number.isFinite(wheelContactPlaneZ) ? wheelContactPlaneZ.toFixed(3) : 'n/a'} rock01TopZ=${Number.isFinite(obstacleRock01TopZ) ? obstacleRock01TopZ.toFixed(3) : 'n/a'} underbodyGap=${Number.isFinite(gap) ? gap.toFixed(3) : 'n/a'}`;
+            obstacleSummary = `wheelPlaneZ=${Number.isFinite(wheelContactPlaneZ) ? wheelContactPlaneZ.toFixed(3) : 'n/a'} rock01TopZ=${Number.isFinite(obstacleRock01TopZ) ? obstacleRock01TopZ.toFixed(3) : 'n/a'} climb=${approachObstacle?.linkName || 'n/a'} targetZ=${Number.isFinite(climbTargetZ) ? climbTargetZ.toFixed(3) : 'n/a'} underbodyGap=${Number.isFinite(gap) ? gap.toFixed(3) : 'n/a'}`;
             const wheelState = Object.entries(this.wheelGroundContactState || {}).map(([key, isContacting]) => `${key}${isContacting ? 'Y' : 'N'}`).join(' ');
             wheelGroundSummary = `wheelGround=${wheelState}`;
 
@@ -1295,8 +1297,9 @@ class RapierDriveSimulation {
                 return;
             }
 
+            const isObstacleFamily = /^obstacle_/i.test(String(name)) || /^obstacle_/i.test(normalizedName);
             const matchedByExactName = targetNames.has(String(name).toLowerCase()) || targetNames.has(normalizedName);
-            if (matchedByExactName) {
+            if (isObstacleFamily || matchedByExactName) {
                 names.add(name);
             }
         });
@@ -2068,6 +2071,10 @@ class RapierDriveSimulation {
 
             const fallbackBounds = new THREE.Box3().setFromObject(obstacleLink);
             const actualBounds = this.computeLinkOwnBounds(obstacleLink, linkMap) || fallbackBounds;
+            if (actualBounds.isEmpty()) {
+                return;
+            }
+
             const center = actualBounds.getCenter(new THREE.Vector3());
             const size = actualBounds.getSize(new THREE.Vector3());
             const halfX = Math.max(size.x * 0.5, 0.001);
@@ -2532,7 +2539,45 @@ class RapierDriveSimulation {
             return isContacting;
         });
 
-        return obstacleContactInfo ? { obstacleInfo: obstacleContactInfo } : null;
+        if (obstacleContactInfo) {
+            return { obstacleInfo: obstacleContactInfo };
+        }
+
+        const bodyPosition = this.body.translation();
+        const yaw = this.extractYawFromQuaternion(this.body.rotation());
+        const forwardX = Math.cos(yaw);
+        const forwardY = Math.sin(yaw);
+        const wheelPlaneZ = bodyPosition.z + (Number.isFinite(this.wheelLocalMinZ) ? this.wheelLocalMinZ : 0);
+        const approachCandidates = this.obstacleColliderInfos
+            .filter((obstacleInfo) => {
+                if (!obstacleInfo || obstacleInfo.isSensor || !obstacleInfo.center || !obstacleInfo.halfExtents) {
+                    return false;
+                }
+
+                const dx = obstacleInfo.center.x - bodyPosition.x;
+                const dy = obstacleInfo.center.y - bodyPosition.y;
+                const alongForward = (dx * forwardX) + (dy * forwardY);
+                const lateralOffset = Math.abs((dx * forwardY) - (dy * forwardX));
+                const distance = Math.hypot(dx, dy);
+                const obstacleTopZ = obstacleInfo.center.z + obstacleInfo.halfExtents.z;
+                return alongForward > 0.03
+                    && distance < 0.8
+                    && lateralOffset < 0.45
+                    && obstacleTopZ > (wheelPlaneZ + 0.005);
+            })
+            .sort((left, right) => {
+                const leftDx = left.center.x - bodyPosition.x;
+                const leftDy = left.center.y - bodyPosition.y;
+                const rightDx = right.center.x - bodyPosition.x;
+                const rightDy = right.center.y - bodyPosition.y;
+                const leftDistance = (leftDx * forwardX) + (leftDy * forwardY);
+                const rightDistance = (rightDx * forwardX) + (rightDy * forwardY);
+                return leftDistance - rightDistance;
+            });
+
+        return approachCandidates.length > 0
+            ? { obstacleInfo: approachCandidates[0] }
+            : null;
     }
 
     isObstacleInFrontForClimb(obstacleInfo = null) {
@@ -2599,15 +2644,19 @@ class RapierDriveSimulation {
             return;
         }
 
-        // Limit the climb to a controlled vertical speed instead of accumulating a large impulse.
-        const climbDurationSec = 0.45;
-        const targetLiftSpeed = Math.min(Math.max(targetGap / climbDurationSec, 0.04), 0.55);
-        const currentLiftSpeed = this.body.linvel().z;
-        const nextLiftSpeed = Math.min(Math.max(currentLiftSpeed, targetLiftSpeed), 0.55);
+        const maxLiftPerStep = Math.min(Math.max(effectiveDeltaSec * 0.25, 0.001), 0.004);
+        const nextBodyZ = Math.min(translation.z + maxLiftPerStep, climbTargetZ);
+        this.body.setTranslation(new this.rapier.Vector3(
+            translation.x,
+            translation.y,
+            nextBodyZ
+        ), true);
+
+        const currentVelocity = this.body.linvel();
         this.body.setLinvel(new this.rapier.Vector3(
-            this.body.linvel().x,
-            this.body.linvel().y,
-            nextLiftSpeed
+            currentVelocity.x,
+            currentVelocity.y,
+            0
         ), true);
     }
 
@@ -2824,12 +2873,12 @@ class RapierDriveSimulation {
             wheelLink.updateWorldMatrix(true, true);
 
             const wheelBounds = new THREE.Box3().setFromObject(wheelLink);
-            if (wheelBounds.isEmpty()) {
-                return;
-            }
-
-            const centerWorld = wheelBounds.getCenter(new THREE.Vector3());
-            const size = wheelBounds.getSize(new THREE.Vector3());
+            const centerWorld = wheelBounds.isEmpty()
+                ? wheelLink.getWorldPosition(new THREE.Vector3())
+                : wheelBounds.getCenter(new THREE.Vector3());
+            const size = wheelBounds.isEmpty()
+                ? new THREE.Vector3(this.wheelEffectiveRadiusMeters * 2, this.wheelEffectiveRadiusMeters * 2, this.wheelEffectiveRadiusMeters * 2)
+                : wheelBounds.getSize(new THREE.Vector3());
             const inflation = Math.max(Number(this.wheelColliderInflationMeters) || 0, 0);
             const approxRadius = Math.max(size.x * 0.5, size.z * 0.5, 0.05) + inflation;
             const localCenter = carFrame.worldToLocal(centerWorld.clone());
@@ -2879,14 +2928,16 @@ class RapierDriveSimulation {
 
             wheelLink.updateWorldMatrix(true, true);
             const wheelBounds = new THREE.Box3().setFromObject(wheelLink);
-            if (wheelBounds.isEmpty()) {
-                return;
-            }
-
-            const centerWorld = wheelBounds.getCenter(new THREE.Vector3());
+            const centerWorld = wheelBounds.isEmpty()
+                ? wheelLink.getWorldPosition(new THREE.Vector3())
+                : wheelBounds.getCenter(new THREE.Vector3());
             const centerLocal = carFrame.worldToLocal(centerWorld.clone());
-            const wheelSize = wheelBounds.getSize(new THREE.Vector3());
-            const wheelRadius = Math.max(wheelSize.x * 0.5, wheelSize.z * 0.5, 0.05);
+            const wheelSize = wheelBounds.isEmpty()
+                ? new THREE.Vector3(this.wheelEffectiveRadiusMeters * 2, this.wheelEffectiveRadiusMeters * 2, this.wheelEffectiveRadiusMeters * 2)
+                : wheelBounds.getSize(new THREE.Vector3());
+            const wheelRadius = wheelBounds.isEmpty()
+                ? Math.max(this.wheelEffectiveRadiusMeters, 0.05)
+                : Math.max(wheelSize.x * 0.5, wheelSize.z * 0.5, 0.05);
             minValues.push(centerLocal.z - wheelRadius);
         });
 
@@ -2914,6 +2965,11 @@ class RapierDriveSimulation {
             wheelLink.updateWorldMatrix(true, true);
             const wheelBounds = new THREE.Box3().setFromObject(wheelLink);
             if (wheelBounds.isEmpty()) {
+                const wheelCenter = wheelLink.getWorldPosition(new THREE.Vector3());
+                minWheelWorldZ = Math.min(
+                    minWheelWorldZ,
+                    wheelCenter.z - Math.max(this.wheelEffectiveRadiusMeters, 0.05)
+                );
                 return;
             }
 

@@ -319,7 +319,9 @@
             positivePoints = points.slice(0, MAX_POINT_COUNT).map((point, index) => ({
                 x: clamp(toNumber(point && point.x, 0), 0, 100),
                 y: clamp(toNumber(point && point.y, 0), 0, 100),
-                label: Number(labels[index]) === 0 ? 0 : 1,
+                label: labels[index] === undefined
+                    ? (index % 2 === 0 ? 1 : 0)
+                    : (Number(labels[index]) === 0 ? 0 : 1),
             }));
 
             const savedBox = options.bbox;

@@ -295,7 +295,6 @@ class Sam2VideoService:
         multimask_output: bool = False,
         mask_input: bool = True,
         clahe: bool = False,
-        clahe: bool = False,
     ) -> None:
         options = {
             "model_name": model_name,

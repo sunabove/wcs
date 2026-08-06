@@ -402,10 +402,11 @@ class Sam2VideoDetector:
             cv2.LINE_AA,
         )
 
-    def _draw_option_summary(self, image, mask_input, multimask_output):
+    def _draw_option_summary(self, image, mask_input, multimask_output, clahe):
         label = (
             f"Mask input: {'On' if mask_input else 'Off'} | "
-            f"Multimask output: {'On' if multimask_output else 'Off'}"
+            f"Multimask output: {'On' if multimask_output else 'Off'} | "
+            f"CLAHE: {'On' if clahe else 'Off'}"
         )
         font = cv2.FONT_HERSHEY_SIMPLEX
         font_scale = 0.5
@@ -590,6 +591,7 @@ class Sam2VideoDetector:
         point_labels=None,
         multimask_output=False,
         mask_input=True,
+        clahe=False,
         progress_callback=None,
     ):
         resolved_input = Path(input_path).resolve()
@@ -641,6 +643,7 @@ class Sam2VideoDetector:
         box_prompt = np.array([x1, y1, x2, y2], dtype=np.float32)
         point_prompt = self._parse_points(points, width, height, point_labels)
         previous_mask_input = None
+        clahe_processor = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8)) if clahe else None
 
         tracked_frames = 0
         total_segments = 0
@@ -654,6 +657,10 @@ class Sam2VideoDetector:
 
                 try:
                     rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                    if clahe_processor is not None:
+                        lab_frame = cv2.cvtColor(rgb_frame, cv2.COLOR_RGB2LAB)
+                        lab_frame[:, :, 0] = clahe_processor.apply(lab_frame[:, :, 0])
+                        rgb_frame = cv2.cvtColor(lab_frame, cv2.COLOR_LAB2RGB)
                     model.set_image(rgb_frame)
                     predict_kwargs = {
                         "box": box_prompt,
@@ -689,6 +696,7 @@ class Sam2VideoDetector:
                     plotted,
                     mask_input,
                     multimask_output,
+                    clahe,
                 )
                 tracked_frames += 1
                 score_history.append(max(0.0, min(1.0, float(detection_score or 0.0))))

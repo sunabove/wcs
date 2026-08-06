@@ -1809,13 +1809,13 @@
             if (file) {
                 const formData = new FormData();
                 formData.append('file', file);
-                const url = `${apiBase}/fast/sam2/segment_video_upload?${bboxQuery.slice(1)}${pointsQuery}${pointLabelsQuery}${buildMultimaskOutputQuery().slice(1)}${buildMaskInputQuery()}`;
+                const url = `${apiBase}/fast/sam2/segment_video_upload?${bboxQuery.slice(1)}${pointsQuery}${pointLabelsQuery}${buildMultimaskOutputQuery().slice(1)}${buildMaskInputQuery()}${buildClaheQuery()}`;
                 response = await fetch(url, {
                     method: 'POST',
                     body: formData,
                 });
             } else {
-                const url = `${apiBase}/fast/sam2/segment_saved_video?file_name=${encodeURIComponent(selectedServerFileName)}${bboxQuery}${pointsQuery}${pointLabelsQuery}${buildMultimaskOutputQuery()}${buildMaskInputQuery()}`;
+                const url = `${apiBase}/fast/sam2/segment_saved_video?file_name=${encodeURIComponent(selectedServerFileName)}${bboxQuery}${pointsQuery}${pointLabelsQuery}${buildMultimaskOutputQuery()}${buildMaskInputQuery()}${buildClaheQuery()}`;
                 response = await fetch(url, {
                     method: 'POST',
                 });
@@ -2100,6 +2100,10 @@
     if (maskInputCheckbox) {
         maskInputCheckbox.addEventListener('change', updateMaskInputText);
         updateMaskInputText();
+    }
+    if (claheCheckbox) {
+        claheCheckbox.addEventListener('change', updateClaheText);
+        updateClaheText();
     }
     setUploadedListLoading(true, '동영상 목록을 불러오는 중...');
     setStatus('업로드 목록을 가져오는 중...', 'info');

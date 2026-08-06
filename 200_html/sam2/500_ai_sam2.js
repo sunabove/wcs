@@ -66,6 +66,7 @@
     let suppressPointClick = false;
     let pointContextMenuElement = null;
     let pointContextMenuIndex = -1;
+    let outputControlsHideTimer = 0;
     let detectionMode = 'foreground';
     let isUploadingImmediately = false;
     let uploadedListLoadingStartedAt = 0;
@@ -393,6 +394,37 @@
         const loopEnabled = Boolean(loopToggleInput && loopToggleInput.checked);
         inputVideoElement.loop = loopEnabled;
         outputVideoElement.loop = loopEnabled;
+    }
+
+    function showOutputVideoControls() {
+        if (outputControlsHideTimer) {
+            window.clearTimeout(outputControlsHideTimer);
+            outputControlsHideTimer = 0;
+        }
+        outputVideoElement.setAttribute('controls', 'controls');
+    }
+
+    function hideOutputVideoControls() {
+        if (document.activeElement === outputVideoElement) {
+            return;
+        }
+        outputControlsHideTimer = window.setTimeout(() => {
+            if (document.activeElement !== outputVideoElement) {
+                outputVideoElement.removeAttribute('controls');
+            }
+            outputControlsHideTimer = 0;
+        }, 250);
+    }
+
+    function initializeOutputVideoControls() {
+        if (!outputVideoElement) {
+            return;
+        }
+        outputVideoElement.removeAttribute('controls');
+        outputVideoElement.addEventListener('mouseenter', showOutputVideoControls);
+        outputVideoElement.addEventListener('mouseleave', hideOutputVideoControls);
+        outputVideoElement.addEventListener('focus', showOutputVideoControls);
+        outputVideoElement.addEventListener('blur', hideOutputVideoControls);
     }
 
     function clamp(value, min, max) {
@@ -2052,6 +2084,7 @@
     updateUploadLimitLabel('default');
 
     applyLoopOption();
+    initializeOutputVideoControls();
     loadInputSourceTab();
     updateDetectionControlState();
     renderPointUi();

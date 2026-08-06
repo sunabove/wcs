@@ -218,7 +218,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://sw5/meshes/car_frame.STL" />
+          filename="../meshes/car_frame.STL" />
       </geometry>
       <material
         name="">
@@ -232,7 +232,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://sw5/meshes/car_frame.STL" />
+          filename="../meshes/car_frame.STL" />
       </geometry>
     </collision>
   </link>
@@ -247,7 +247,7 @@
     <visual>
       <origin xyz="0 0 0" rpy="0 0 0" />
       <geometry>
-        <mesh filename="package://sw5/meshes/version_marker.STL" scale="0.02 0.02 0.02" />
+        <mesh filename="../meshes/version_marker.STL" scale="0.02 0.02 0.02" />
       </geometry>
       <material name="version_marker_mat">
         <color rgba="1.0 0.0 0.0 1" />
@@ -257,7 +257,7 @@
     <collision>
       <origin xyz="0 0 0" rpy="0 0 0" />
       <geometry>
-        <mesh filename="package://sw5/meshes/version_marker.STL" scale="0.02 0.02 0.02" />
+        <mesh filename="../meshes/version_marker.STL" scale="0.02 0.02 0.02" />
       </geometry>
     </collision>
   </link>
@@ -293,7 +293,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://sw5/meshes/swing_link.STL" />
+          filename="../meshes/swing_link.STL" />
       </geometry>
       <material
         name="">
@@ -307,7 +307,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://sw5/meshes/swing_link.STL" />
+          filename="../meshes/swing_link.STL" />
       </geometry>
     </collision>
   </link>
@@ -350,7 +350,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://sw5/meshes/inner_gaer_fr.STL" />
+          filename="../meshes/inner_gaer_fr.STL" />
       </geometry>
       <material
         name="">
@@ -364,7 +364,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://sw5/meshes/inner_gaer_fr.STL" />
+          filename="../meshes/inner_gaer_fr.STL" />
       </geometry>
     </collision>
   </link>
@@ -402,7 +402,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://sw5/meshes/inner_wheel_fr.STL" />
+          filename="../meshes/inner_wheel_fr.STL" />
       </geometry>
       <material
         name="">
@@ -416,7 +416,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://sw5/meshes/inner_wheel_fr.STL" />
+          filename="../meshes/inner_wheel_fr.STL" />
       </geometry>
     </collision>
   </link>
@@ -454,7 +454,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://sw5/meshes/wheel_fr.STL" />
+          filename="../meshes/wheel_fr.STL" />
       </geometry>
       <material
         name="">
@@ -468,7 +468,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://sw5/meshes/wheel_fr.STL" />
+          filename="../meshes/wheel_fr.STL" />
       </geometry>
     </collision>
   </link>
@@ -506,7 +506,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://sw5/meshes/marker_fr.STL" />
+          filename="../meshes/marker_fr.STL" />
       </geometry>
       <material
         name="">
@@ -520,7 +520,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://sw5/meshes/marker_fr.STL" />
+          filename="../meshes/marker_fr.STL" />
       </geometry>
     </collision>
   </link>
@@ -558,7 +558,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://sw5/meshes/cover_fr.STL" />
+          filename="../meshes/cover_fr.STL" />
       </geometry>
       <material
         name="">
@@ -572,7 +572,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://sw5/meshes/cover_fr.STL" />
+          filename="../meshes/cover_fr.STL" />
       </geometry>
     </collision>
   </link>
@@ -610,7 +610,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://sw5/meshes/inner_gear_fl.STL" />
+          filename="../meshes/inner_gear_fl.STL" />
       </geometry>
       <material
         name="">
@@ -624,7 +624,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://sw5/meshes/inner_gear_fl.STL" />
+          filename="../meshes/inner_gear_fl.STL" />
       </geometry>
     </collision>
   </link>
@@ -662,7 +662,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://sw5/meshes/inner_wheel_fl.STL" />
+          filename="../meshes/inner_wheel_fl.STL" />
       </geometry>
       <material
         name="">
@@ -676,7 +676,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://sw5/meshes/inner_wheel_fl.STL" />
+          filename="../meshes/inner_wheel_fl.STL" />
       </geometry>
     </collision>
   </link>
@@ -714,7 +714,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://sw5/meshes/wheel_fl.STL" />
+          filename="../meshes/wheel_fl.STL" />
       </geometry>
       <material
         name="">
@@ -728,7 +728,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://sw5/meshes/wheel_fl.STL" />
+          filename="../meshes/wheel_fl.STL" />
       </geometry>
     </collision>
   </link>
@@ -766,7 +766,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://sw5/meshes/marker_fl.STL" />
+          filename="../meshes/marker_fl.STL" />
       </geometry>
       <material
         name="">
@@ -780,7 +780,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://sw5/meshes/marker_fl.STL" />
+          filename="../meshes/marker_fl.STL" />
       </geometry>
     </collision>
   </link>
@@ -818,7 +818,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://sw5/meshes/cover_fl.STL" />
+          filename="../meshes/cover_fl.STL" />
       </geometry>
       <material
         name="">
@@ -832,7 +832,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://sw5/meshes/cover_fl.STL" />
+          filename="../meshes/cover_fl.STL" />
       </geometry>
     </collision>
   </link>
@@ -870,7 +870,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://sw5/meshes/inner_gear_rr.STL" />
+          filename="../meshes/inner_gear_rr.STL" />
       </geometry>
       <material
         name="">
@@ -884,7 +884,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://sw5/meshes/inner_gear_rr.STL" />
+          filename="../meshes/inner_gear_rr.STL" />
       </geometry>
     </collision>
   </link>
@@ -922,7 +922,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://sw5/meshes/inner_wheel_rr.STL" />
+          filename="../meshes/inner_wheel_rr.STL" />
       </geometry>
       <material
         name="">
@@ -936,7 +936,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://sw5/meshes/inner_wheel_rr.STL" />
+          filename="../meshes/inner_wheel_rr.STL" />
       </geometry>
     </collision>
   </link>
@@ -974,7 +974,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://sw5/meshes/wheel_rr.STL" />
+          filename="../meshes/wheel_rr.STL" />
       </geometry>
       <material
         name="">
@@ -988,7 +988,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://sw5/meshes/wheel_rr.STL" />
+          filename="../meshes/wheel_rr.STL" />
       </geometry>
     </collision>
   </link>
@@ -1026,7 +1026,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://sw5/meshes/marker_rr.STL" />
+          filename="../meshes/marker_rr.STL" />
       </geometry>
       <material
         name="">
@@ -1040,7 +1040,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://sw5/meshes/marker_rr.STL" />
+          filename="../meshes/marker_rr.STL" />
       </geometry>
     </collision>
   </link>
@@ -1078,7 +1078,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://sw5/meshes/cover_rr.STL" />
+          filename="../meshes/cover_rr.STL" />
       </geometry>
       <material
         name="">
@@ -1092,7 +1092,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://sw5/meshes/cover_rr.STL" />
+          filename="../meshes/cover_rr.STL" />
       </geometry>
     </collision>
   </link>
@@ -1130,7 +1130,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://sw5/meshes/inner_gear_rl.STL" />
+          filename="../meshes/inner_gear_rl.STL" />
       </geometry>
       <material
         name="">
@@ -1144,7 +1144,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://sw5/meshes/inner_gear_rl.STL" />
+          filename="../meshes/inner_gear_rl.STL" />
       </geometry>
     </collision>
   </link>
@@ -1182,7 +1182,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://sw5/meshes/inner_wheel_rl.STL" />
+          filename="../meshes/inner_wheel_rl.STL" />
       </geometry>
       <material
         name="">
@@ -1196,7 +1196,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://sw5/meshes/inner_wheel_rl.STL" />
+          filename="../meshes/inner_wheel_rl.STL" />
       </geometry>
     </collision>
   </link>
@@ -1234,7 +1234,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://sw5/meshes/wheel_rl.STL" />
+          filename="../meshes/wheel_rl.STL" />
       </geometry>
       <material
         name="">
@@ -1248,7 +1248,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://sw5/meshes/wheel_rl.STL" />
+          filename="../meshes/wheel_rl.STL" />
       </geometry>
     </collision>
   </link>
@@ -1286,7 +1286,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://sw5/meshes/marker_rl.STL" />
+          filename="../meshes/marker_rl.STL" />
       </geometry>
       <material
         name="">
@@ -1300,7 +1300,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://sw5/meshes/marker_rl.STL" />
+          filename="../meshes/marker_rl.STL" />
       </geometry>
     </collision>
   </link>
@@ -1338,7 +1338,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://sw5/meshes/cover_rl.STL" />
+          filename="../meshes/cover_rl.STL" />
       </geometry>
       <material
         name="">
@@ -1352,7 +1352,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://sw5/meshes/cover_rl.STL" />
+          filename="../meshes/cover_rl.STL" />
       </geometry>
     </collision>
   </link>

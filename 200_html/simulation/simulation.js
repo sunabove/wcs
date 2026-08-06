@@ -2646,10 +2646,16 @@ class RapierDriveSimulation {
             return;
         }
 
-        // Apply enough upward acceleration to overcome gravity while keeping the lift smooth.
-        const liftAcceleration = Math.min(9.81 + (targetGap * 30), 20);
-        const liftImpulse = liftAcceleration * effectiveDeltaSec;
-        this.body.applyImpulse(new this.rapier.Vector3(0, 0, liftImpulse), true);
+        // Limit the climb to a controlled vertical speed instead of accumulating a large impulse.
+        const climbDurationSec = 0.45;
+        const targetLiftSpeed = Math.min(Math.max(targetGap / climbDurationSec, 0.04), 0.55);
+        const currentLiftSpeed = this.body.linvel().z;
+        const nextLiftSpeed = Math.min(Math.max(currentLiftSpeed, targetLiftSpeed), 0.55);
+        this.body.setLinvel(new this.rapier.Vector3(
+            this.body.linvel().x,
+            this.body.linvel().y,
+            nextLiftSpeed
+        ), true);
     }
 
     preserveObstacleHeading(yaw = null) {

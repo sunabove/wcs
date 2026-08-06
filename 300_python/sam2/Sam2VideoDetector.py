@@ -364,37 +364,77 @@ class Sam2VideoDetector:
         try:
             if hasattr(scores, "detach"):
                 scores = scores.detach().to("cpu").numpy()
-            value = float(np.asarray(scores).reshape(-1)[0])
-        except (TypeError, ValueError, IndexError):
+            values = np.asarray(scores, dtype=np.float32).reshape(-1)
+            values = values[np.isfinite(values)]
+            value = float(np.max(values)) if values.size > 0 else None
+        except (TypeError, ValueError):
             return None
 
-        return value if np.isfinite(value) else None
+        return value
+
+    def _select_best_mask(self, masks, scores):
+        if masks is None:
+            return None
+
+        if hasattr(masks, "detach"):
+            masks = masks.detach().to("cpu").numpy()
+        masks = np.asarray(masks)
+        if masks.ndim != 3:
+            return masks
+
+        try:
+            if hasattr(scores, "detach"):
+                scores = scores.detach().to("cpu").numpy()
+            score_values = np.asarray(scores, dtype=np.float32).reshape(-1)
+            best_index = int(np.nanargmax(score_values)) if score_values.size > 0 else 0
+        except (TypeError, ValueError):
+            best_index = 0
+
+        best_index = max(0, min(best_index, masks.shape[0] - 1))
+        return masks[best_index]
+
+    def _to_binary_mask(self, mask_tensor, frame_shape):
+        if mask_tensor is None:
+            return None
+
+        if hasattr(mask_tensor, "detach"):
+            mask_tensor = mask_tensor.detach().to("cpu").numpy()
+        mask = np.asarray(mask_tensor)
+        if mask.ndim == 3:
+            mask = mask[0]
+        if mask.ndim != 2:
+            return None
+
+        frame_height, frame_width = frame_shape[:2]
+        mask_np = mask > 0
+        if mask_np.shape != (frame_height, frame_width):
+            mask_np = cv2.resize(
+                mask_np.astype(np.uint8),
+                (frame_width, frame_height),
+                interpolation=cv2.INTER_NEAREST,
+            ) > 0
+        return mask_np
+
+    def _calculate_mask_pair_iou(self, mask_tensor, reference_mask, frame_shape):
+        mask_np = self._to_binary_mask(mask_tensor, frame_shape)
+        if mask_np is None or reference_mask is None:
+            return 0.0
+
+        reference_np = self._to_binary_mask(reference_mask, frame_shape)
+        if reference_np is None:
+            return 0.0
+
+        intersection = int(np.count_nonzero(np.logical_and(mask_np, reference_np)))
+        union = int(np.count_nonzero(np.logical_or(mask_np, reference_np)))
+        return float(intersection / union) if union > 0 else 0.0
 
     def _calculate_mask_iou(self, mask_tensor, bbox_rect, frame_shape):
         if mask_tensor is None or bbox_rect is None:
             return 0.0
 
-        if isinstance(mask_tensor, np.ndarray):
-            mask = mask_tensor
-        elif hasattr(mask_tensor, "detach"):
-            mask = mask_tensor.detach().to("cpu").numpy()
-        else:
-            mask = np.asarray(mask_tensor)
-
-        if mask.ndim == 3:
-            mask = mask[0]
-        if mask.ndim != 2:
+        mask_np = self._to_binary_mask(mask_tensor, frame_shape)
+        if mask_np is None:
             return 0.0
-
-        frame_height, frame_width = frame_shape[:2]
-        mask_np = mask > 0
-        if mask.shape != (frame_height, frame_width):
-            mask = cv2.resize(
-                mask_np.astype(np.uint8),
-                (frame_width, frame_height),
-                interpolation=cv2.INTER_NEAREST,
-            )
-            mask_np = mask > 0
 
         x1, y1, x2, y2 = bbox_rect
         bbox_area = max(0, x2 - x1) * max(0, y2 - y1)
@@ -760,6 +800,8 @@ class Sam2VideoDetector:
         total_segments = 0
         score_history = []
         iou_history = []
+        mask_history = []
+        reference_mask = None
 
         try:
             while True:
@@ -788,7 +830,7 @@ class Sam2VideoDetector:
                         previous_mask_input = _logits[:1] if getattr(_logits, "ndim", 0) == 3 else _logits
                     else:
                         previous_mask_input = None
-                    mask_tensor = masks[0] if isinstance(masks, np.ndarray) and masks.ndim == 3 else masks
+                    mask_tensor = self._select_best_mask(masks, scores)
                     if mask_tensor is not None:
                         total_segments += 1
                 except RuntimeError as ex:
@@ -812,7 +854,24 @@ class Sam2VideoDetector:
                 )
                 tracked_frames += 1
                 score_history.append(max(0.0, min(1.0, float(detection_score or 0.0))))
-                iou_history.append(self._calculate_mask_iou(mask_tensor, bbox_rect, frame.shape))
+                mask_history.append(self._to_binary_mask(mask_tensor, frame.shape))
+                reference_created = False
+                if reference_mask is None:
+                    first_peak_index = self._find_first_score_peak_index(np.asarray(score_history, dtype=np.float32))
+                    if first_peak_index is not None and mask_history[first_peak_index] is not None:
+                        reference_mask = mask_history[first_peak_index].copy()
+                        iou_history = [
+                            self._calculate_mask_pair_iou(mask, reference_mask, frame.shape)
+                            for mask in mask_history
+                        ]
+                        reference_created = True
+                if not reference_created:
+                    if reference_mask is None:
+                        iou_history.append(0.0)
+                    else:
+                        iou_history.append(
+                            self._calculate_mask_pair_iou(mask_tensor, reference_mask, frame.shape)
+                        )
                 plotted = self._render_score_chart(
                     plotted,
                     score_history,

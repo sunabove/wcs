@@ -513,21 +513,23 @@ class Sam2VideoDetector:
             return None
 
         smoothing_radius = 2
-        minimum_rise = 0.03
-        minimum_fall = 0.03
+        minimum_prominence = 0.01
         smoothed_values = np.asarray([
             np.mean(values[index - smoothing_radius:index + smoothing_radius + 1])
             for index in range(smoothing_radius, len(values) - smoothing_radius)
         ])
 
-        for smoothed_index in range(1, len(smoothed_values) - 1):
-            previous_value = float(smoothed_values[smoothed_index - 1])
+        for smoothed_index in range(2, len(smoothed_values) - 2):
+            left_value = float(np.mean(smoothed_values[smoothed_index - 2:smoothed_index]))
             current_value = float(smoothed_values[smoothed_index])
-            next_value = float(smoothed_values[smoothed_index + 1])
-            if (
-                current_value - previous_value >= minimum_rise
-                and current_value - next_value >= minimum_fall
-            ):
+            right_value = float(np.mean(smoothed_values[smoothed_index + 1:smoothed_index + 3]))
+            neighboring_values = smoothed_values[smoothed_index - 1:smoothed_index + 2]
+            is_local_maximum = current_value >= float(np.max(neighboring_values))
+            has_prominence = (
+                current_value - left_value >= minimum_prominence
+                and current_value - right_value >= minimum_prominence
+            )
+            if is_local_maximum and has_prominence:
                 return smoothed_index + smoothing_radius
 
         return None

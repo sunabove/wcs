@@ -294,25 +294,6 @@
         showInputSourceTab(tabId, false);
     }
 
-    function getSelectedTargetType() {
-        const selected = document.querySelector('input[name="sam2-target"]:checked');
-        const value = selected ? String(selected.value || '').trim() : '';
-        if (value === 'road' || value === 'pothole' || value === 'curb_step') {
-            return value;
-        }
-        return 'road';
-    }
-
-    function targetTypeLabel(targetType) {
-        if (targetType === 'pothole') {
-            return '포트홀';
-        }
-        if (targetType === 'curb_step') {
-            return '단차';
-        }
-        return '도로';
-    }
-
     function applyLoopOption() {
         const loopEnabled = Boolean(loopToggleInput && loopToggleInput.checked);
         inputVideoElement.loop = loopEnabled;
@@ -1372,7 +1353,7 @@
 
         const fileFromInput = fileInput.files && fileInput.files[0] ? fileInput.files[0] : null;
         const file = selectedFile || fileFromInput;
-        const targetType = getSelectedTargetType();
+        const targetType = 'road';
         ensureDefaultBoundingBox();
         const bboxQuery = buildBboxQuery();
         const pointsQuery = buildPointsQuery();
@@ -1392,7 +1373,7 @@
         }
 
         detectButton.disabled = true;
-        setStatus(`SAM2 분할 진행 중... (대상: ${targetTypeLabel(targetType)})`, 'info');
+        setStatus('SAM2 분할 진행 중...', 'info');
 
         const outputTabButton = document.getElementById('sam2-output-tab');
         if (outputTabButton) {
@@ -1617,11 +1598,6 @@
             }
         });
     }
-    document.querySelectorAll('input[name="sam2-target"]').forEach((input) => {
-        input.addEventListener('change', () => {
-            stopCurrentOutputPlayback();
-        });
-    });
     if (loopToggleInput) {
         loopToggleInput.addEventListener('change', applyLoopOption);
     }

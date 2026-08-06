@@ -402,24 +402,8 @@ class Sam2VideoDetector:
             cv2.LINE_AA,
         )
 
-    def _get_point_label_text(self, point_prompt):
-        if point_prompt is None:
-            return "Positive"
-
-        try:
-            labels = np.asarray(point_prompt[1]).reshape(-1)
-        except (IndexError, TypeError, ValueError):
-            return "Positive"
-
-        if labels.size == 0 or np.all(labels == 1):
-            return "Positive"
-        if np.all(labels == 0):
-            return "Negative"
-        return "Mixed"
-
-    def _draw_option_summary(self, image, point_label, mask_input, multimask_output):
+    def _draw_option_summary(self, image, mask_input, multimask_output):
         label = (
-            f"Point label: {point_label} | "
             f"Mask input: {'On' if mask_input else 'Off'} | "
             f"Multimask output: {'On' if multimask_output else 'Off'}"
         )
@@ -675,7 +659,6 @@ class Sam2VideoDetector:
 
                 self._draw_option_summary(
                     plotted,
-                    self._get_point_label_text(point_prompt),
                     mask_input,
                     multimask_output,
                 )

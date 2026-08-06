@@ -32,10 +32,8 @@
     const bboxClearButton = document.getElementById('sam2-bbox-clear');
     const optionsSaveButton = document.getElementById('sam2-options-save');
     const optionsResetButton = document.getElementById('sam2-options-reset');
-    const pointLabelCheckbox = document.getElementById('sam2-point-label');
     const multimaskOutputCheckbox = document.getElementById('sam2-multimask-output');
     const maskInputCheckbox = document.getElementById('sam2-mask-input');
-    const pointLabelText = document.getElementById('sam2-point-label-text');
     const multimaskOutputText = document.getElementById('sam2-multimask-output-text');
     const maskInputText = document.getElementById('sam2-mask-input-text');
     const positivePointListElement = document.getElementById('sam2-positive-points');
@@ -259,12 +257,6 @@
         return Boolean(selectedFile || fileFromInput || selectedServerFileName);
     }
 
-    function updatePointLabelText() {
-        if (pointLabelText) {
-            pointLabelText.textContent = '1st Foreground / 2nd Background';
-        }
-    }
-
     function updateMultimaskOutputText() {
         if (multimaskOutputText) {
             multimaskOutputText.textContent = multimaskOutputCheckbox && multimaskOutputCheckbox.checked
@@ -346,11 +338,6 @@
                 boundingBox = createFullBoundingBox();
             }
 
-            if (pointLabelCheckbox) {
-                const lastPoint = positivePoints[positivePoints.length - 1];
-                pointLabelCheckbox.checked = !lastPoint || lastPoint.label === 1;
-                updatePointLabelText();
-            }
             if (multimaskOutputCheckbox) {
                 multimaskOutputCheckbox.checked = options.multimask_output === true;
                 updateMultimaskOutputText();
@@ -2046,10 +2033,6 @@
     }
     if (loopToggleInput) {
         loopToggleInput.addEventListener('change', applyLoopOption);
-    }
-    if (pointLabelCheckbox) {
-        pointLabelCheckbox.addEventListener('change', updatePointLabelText);
-        updatePointLabelText();
     }
     if (multimaskOutputCheckbox) {
         multimaskOutputCheckbox.addEventListener('change', updateMultimaskOutputText);

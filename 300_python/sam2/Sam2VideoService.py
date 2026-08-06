@@ -3,8 +3,10 @@ import json
 import os
 import re
 import subprocess
+import threading
 import time
 import uuid
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 from pathlib import Path
 
@@ -25,6 +27,80 @@ DEFAULT_UPLOAD_LIMIT_BYTES = 1024 * 1024 * 1024
 class Sam2VideoService:
     def __init__(self):
         self.detector = Sam2VideoDetector()
+        self._job_executor = ThreadPoolExecutor(max_workers=1)
+        self._jobs = {}
+        self._jobs_lock = threading.Lock()
+
+    def _create_job(self):
+        job_id = uuid.uuid4().hex
+        with self._jobs_lock:
+            self._jobs[job_id] = {
+                "status": "queued",
+                "progress": 0,
+                "processed_frames": 0,
+                "total_frames": 0,
+                "result": None,
+                "error": "",
+            }
+        return job_id
+
+    def _update_job_progress(self, job_id, processed_frames, total_frames):
+        progress = 0
+        if total_frames > 0:
+            progress = min(99, int((processed_frames / total_frames) * 100))
+        with self._jobs_lock:
+            job = self._jobs.get(job_id)
+            if job:
+                job.update({
+                    "status": "running",
+                    "progress": progress,
+                    "processed_frames": processed_frames,
+                    "total_frames": total_frames,
+                })
+
+    def _run_detection_job(self, job_id, input_path, model_name, bbox, points, point_labels):
+        try:
+            with self._jobs_lock:
+                self._jobs[job_id]["status"] = "running"
+            result = self.detector.detect_video_file(
+                input_path=input_path,
+                model_name=model_name,
+                bbox=bbox,
+                points=points,
+                point_labels=point_labels,
+                progress_callback=lambda processed, total: self._update_job_progress(job_id, processed, total),
+            )
+            with self._jobs_lock:
+                self._jobs[job_id].update({
+                    "status": "completed",
+                    "progress": 100,
+                    "processed_frames": result.get("processed_frames", 0),
+                    "total_frames": result.get("input_total_frames", 0),
+                    "result": result,
+                })
+        except Exception as ex:
+            with self._jobs_lock:
+                self._jobs[job_id].update({"status": "failed", "error": str(ex)})
+
+    def _start_detection_job(self, input_path, model_name, bbox, points, point_labels):
+        job_id = self._create_job()
+        self._job_executor.submit(
+            self._run_detection_job,
+            job_id,
+            input_path,
+            model_name,
+            bbox,
+            points,
+            point_labels,
+        )
+        return {"job_id": job_id, "status": "queued", "progress": 0}
+
+    def get_segment_status(self, job_id):
+        with self._jobs_lock:
+            job = self._jobs.get(str(job_id or "").strip())
+            if not job:
+                raise HTTPException(status_code=404, detail="Segmentation job not found")
+            return {"job_id": job_id, **job}
 
     def _safe_suffix(self, file_name: str) -> str:
         suffix = Path(str(file_name or "")).suffix.lower()
@@ -294,22 +370,13 @@ class Sam2VideoService:
             point_labels=point_labels,
         )
 
-        try:
-            return self.detector.detect_video_file(
-                input_path=input_path,
-                model_name=resolved_model_name,
-                bbox=bbox,
-                points=points,
-                point_labels=point_labels,
-            )
-        except FileNotFoundError as ex:
-            raise HTTPException(status_code=404, detail=str(ex)) from ex
-        except ValueError as ex:
-            raise HTTPException(status_code=400, detail=str(ex)) from ex
-        except RuntimeError as ex:
-            raise HTTPException(status_code=500, detail=str(ex)) from ex
-        except Exception as ex:
-            raise HTTPException(status_code=500, detail=f"SAM2 segmentation failed: {ex}") from ex
+        return self._start_detection_job(
+            input_path=input_path,
+            model_name=resolved_model_name,
+            bbox=bbox,
+            points=points,
+            point_labels=point_labels,
+        )
 
     def upload_video_only(self, upload_file: UploadFile):
         input_path = self._save_uploaded_video(upload_file)
@@ -342,22 +409,13 @@ class Sam2VideoService:
             point_labels=point_labels,
         )
 
-        try:
-            return self.detector.detect_video_file(
-                input_path=input_path,
-                model_name=resolved_model_name,
-                bbox=bbox,
-                points=points,
-                point_labels=point_labels,
-            )
-        except FileNotFoundError as ex:
-            raise HTTPException(status_code=404, detail=str(ex)) from ex
-        except ValueError as ex:
-            raise HTTPException(status_code=400, detail=str(ex)) from ex
-        except RuntimeError as ex:
-            raise HTTPException(status_code=500, detail=str(ex)) from ex
-        except Exception as ex:
-            raise HTTPException(status_code=500, detail=f"SAM2 segmentation failed: {ex}") from ex
+        return self._start_detection_job(
+            input_path=input_path,
+            model_name=resolved_model_name,
+            bbox=bbox,
+            points=points,
+            point_labels=point_labels,
+        )
 
     def list_uploaded_videos(self, limit: int = 50):
         SAM2_UPLOAD_DIR.mkdir(parents=True, exist_ok=True)

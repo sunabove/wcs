@@ -406,6 +406,7 @@ class Sam2VideoDetector:
         bbox=None,
         points=None,
         point_labels=None,
+        progress_callback=None,
     ):
         resolved_input = Path(input_path).resolve()
         suffix = resolved_input.suffix.lower()
@@ -493,6 +494,8 @@ class Sam2VideoDetector:
 
                 writer.write(plotted)
                 tracked_frames += 1
+                if progress_callback is not None and total_frames > 0:
+                    progress_callback(tracked_frames, total_frames)
         finally:
             capture.release()
             writer.release()

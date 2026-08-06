@@ -92,3 +92,8 @@ def segment_saved_video(
         points=points,
         point_labels=point_labels,
     )
+
+
+@router.get("/segment_status/{job_id}")
+def segment_status(job_id: str):
+    return _service.get_segment_status(job_id)

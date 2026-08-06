@@ -910,6 +910,29 @@
         return result && result.saved === true;
     }
 
+    async function waitForSegmentResult(apiBase, response) {
+        const initialResult = await response.json();
+        if (!initialResult || !initialResult.job_id) {
+            return initialResult;
+        }
+
+        const statusUrl = `${apiBase}/fast/sam2/segment_status/${encodeURIComponent(initialResult.job_id)}`;
+        while (true) {
+            await new Promise((resolve) => window.setTimeout(resolve, 500));
+            const statusResponse = await fetch(statusUrl, { cache: 'no-store' });
+            const statusResult = await statusResponse.json();
+            const progress = Math.max(0, Math.min(99, Number(statusResult.progress) || 0));
+            setStatus(`SAM2 분할 진행 중... (${progress}%)`, 'info');
+
+            if (statusResult.status === 'completed') {
+                return statusResult.result;
+            }
+            if (statusResult.status === 'failed') {
+                throw new Error(statusResult.error || 'SAM2 segmentation failed');
+            }
+        }
+    }
+
     async function previewSelectedVideoFirstFrame(showInputTab) {
         if (!selectedServerFileName) {
             return;
@@ -1656,7 +1679,7 @@
                 throw new Error(errorMessage);
             }
 
-            const result = await response.json();
+            const result = await waitForSegmentResult(apiBase, response);
 
             if (file) {
                 const relativeServerPath = extractFastImagePath(result.input_url) || String(result.input_file || '').trim();

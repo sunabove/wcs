@@ -558,6 +558,37 @@
         bboxCaptureLayerElement.querySelectorAll('.sam2-bbox-control-point').forEach((node) => {
             node.remove();
         });
+
+        if (!boundingBox) {
+            return;
+        }
+
+        const left = toNumber(boundingBox.x, 0);
+        const top = toNumber(boundingBox.y, 0);
+        const width = toNumber(boundingBox.w, 0);
+        const height = toNumber(boundingBox.h, 0);
+        const insetX = Math.min(1.5, Math.max(0.05, width / 2));
+        const insetY = Math.min(1.5, Math.max(0.05, height / 2));
+        const handles = [
+            { key: 'nw', x: left + insetX, y: top + insetY },
+            { key: 'ne', x: left + width - insetX, y: top + insetY },
+            { key: 'sw', x: left + insetX, y: top + height - insetY },
+            { key: 'se', x: left + width - insetX, y: top + height - insetY },
+        ];
+
+        handles.forEach((handle) => {
+            const controlPoint = document.createElement('div');
+            controlPoint.className = `sam2-bbox-control-point sam2-bbox-control-point-${handle.key}`;
+            controlPoint.style.left = `${clamp(handle.x, 0, 100)}%`;
+            controlPoint.style.top = `${clamp(handle.y, 0, 100)}%`;
+            controlPoint.dataset.handle = handle.key;
+            controlPoint.addEventListener('mousedown', (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                startBboxResize(handle.key, event);
+            });
+            bboxCaptureLayerElement.appendChild(controlPoint);
+        });
     }
 
     function resizeBoundingBoxFromHandle(handleKey, currentPoint) {
@@ -625,10 +656,14 @@
             return;
         }
 
-        const point = toRelativePoint(event);
-        if (!point) {
-            return;
-        }
+        const point = {
+            x: handleKey.includes('e')
+                ? boundingBox.x + boundingBox.w
+                : boundingBox.x,
+            y: handleKey.includes('s')
+                ? boundingBox.y + boundingBox.h
+                : boundingBox.y,
+        };
 
         bboxDragging = false;
         bboxDragStart = null;
@@ -1143,11 +1178,25 @@
             const savedSelectedVideo = loadSelectedVideo();
             const matchedSelected = mapped.find((item) => item.serverFileName === savedSelectedVideo);
             if (matchedSelected) {
-                // Restore only highlight from previous session; do not restore active behavior.
                 if (!selectedServerFileName) {
+                    showInputSourceTab('sam2-uploaded-source-tab');
+                    selectedServerFileName = matchedSelected.serverFileName;
                     highlightedServerFileName = matchedSelected.serverFileName;
+                    selectedFile = null;
+                    if (fileInput) {
+                        fileInput.value = '';
+                    }
+                    updateDetectionControlState();
+                    clearAllPoints();
+                    clearBoundingBox();
+                    try {
+                        await previewSelectedVideoFirstFrame(true);
+                    } catch (_ignore) {
+                        // Keep the selected video even when preview loading fails.
+                    }
+                    await loadVideoOptions(selectedServerFileName);
                     renderUploadedHistory();
-                    setStatus(`이전 선택 표시됨: ${matchedSelected.name} (하이라이트만 복원)`, 'secondary');
+                    setStatus(`이전 선택 복원: ${matchedSelected.name}`, 'secondary');
                 }
             } else if (savedSelectedVideo) {
                 if (!selectedServerFileName) {

@@ -191,7 +191,23 @@
     cursor: nwse-resize;
 }
 
+.sam2-bbox-control-point-nw {
+    transform: translate(0, 0);
+}
+
+.sam2-bbox-control-point-se {
+    transform: translate(-100%, -100%);
+}
+
 .sam2-bbox-control-point-ne,
 .sam2-bbox-control-point-sw {
     cursor: nesw-resize;
+}
+
+.sam2-bbox-control-point-ne {
+    transform: translate(-100%, 0);
+}
+
+.sam2-bbox-control-point-sw {
+    transform: translate(0, -100%);
 }

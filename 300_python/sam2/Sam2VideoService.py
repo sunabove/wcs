@@ -405,3 +405,26 @@ class Sam2VideoService:
             "point_labels": options.get("point_labels", []),
             "saved_at": options.get("saved_at", ""),
         }
+
+    def save_video_options(
+        self,
+        file_name: str,
+        model_name: str = "auto",
+        bbox: str = "",
+        points: str = "",
+        point_labels: str = "",
+    ):
+        input_path = self._resolve_uploaded_video_path(file_name)
+        resolved_model_name = self._resolve_model_name(model_name)
+        self._save_detection_options(
+            input_path=input_path,
+            model_name=resolved_model_name,
+            bbox=bbox,
+            points=points,
+            point_labels=point_labels,
+        )
+        return {
+            "saved": True,
+            "file_name": self._to_relative_under_base(input_path),
+            "saved_at": datetime.now().isoformat(timespec="seconds"),
+        }

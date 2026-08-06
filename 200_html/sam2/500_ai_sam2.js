@@ -21,6 +21,7 @@
     const bboxModeButton = document.getElementById('sam2-bbox-mode');
     const pointClearButton = document.getElementById('sam2-point-clear');
     const bboxClearButton = document.getElementById('sam2-bbox-clear');
+    const optionsSaveButton = document.getElementById('sam2-options-save');
     const optionsResetButton = document.getElementById('sam2-options-reset');
     const pointLabelCheckbox = document.getElementById('sam2-point-label');
     const pointLabelText = document.getElementById('sam2-point-label-text');
@@ -243,7 +244,7 @@
 
     function updateDetectionControlState() {
         const enabled = hasSelectedVideo();
-        [pointModeButton, bboxModeButton, pointClearButton, bboxClearButton, optionsResetButton, pointLabelCheckbox].forEach((control) => {
+        [pointModeButton, bboxModeButton, pointClearButton, bboxClearButton, optionsSaveButton, optionsResetButton, pointLabelCheckbox].forEach((control) => {
             if (control) {
                 control.disabled = !enabled;
             }
@@ -881,6 +882,22 @@
             ? positivePoints.map((point) => Number(point && point.label) === 0 ? 0 : 1)
             : [];
         return `&point_labels=${encodeURIComponent(JSON.stringify(labels))}`;
+    }
+
+    async function saveVideoOptions(fileName) {
+        const value = String(fileName || '').trim();
+        if (!value) {
+            return false;
+        }
+
+        const apiBase = await resolveApiBase();
+        const url = `${apiBase}/fast/sam2/video_options?file_name=${encodeURIComponent(value)}&model_name=auto${buildBboxQuery()}${buildPointsQuery()}${buildPointLabelsQuery()}`;
+        const response = await fetch(url, { method: 'POST' });
+        if (!response.ok) {
+            return false;
+        }
+        const result = await response.json();
+        return result && result.saved === true;
     }
 
     async function previewSelectedVideoFirstFrame(showInputTab) {
@@ -1779,6 +1796,27 @@
         bboxClearButton.addEventListener('click', () => {
             clearBoundingBox();
             setStatus('BBox 설정을 초기화했습니다.', 'secondary');
+        });
+    }
+    if (optionsSaveButton) {
+        optionsSaveButton.addEventListener('click', async () => {
+            if (!selectedServerFileName) {
+                setStatus('서버에 저장할 동영상을 먼저 선택하세요.', 'warning');
+                return;
+            }
+
+            optionsSaveButton.disabled = true;
+            try {
+                const saved = await saveVideoOptions(selectedServerFileName);
+                setStatus(
+                    saved ? '검출 옵션을 서버에 저장했습니다.' : '검출 옵션 저장에 실패했습니다.',
+                    saved ? 'secondary' : 'warning'
+                );
+            } catch (_ignore) {
+                setStatus('검출 옵션 저장에 실패했습니다.', 'warning');
+            } finally {
+                updateDetectionControlState();
+            }
         });
     }
     if (optionsResetButton) {

@@ -60,6 +60,23 @@ def video_options(
     return _service.get_video_options(file_name=file_name)
 
 
+@router.post("/video_options")
+def save_video_options(
+    file_name: str = Query(...),
+    model_name: str = Query("auto"),
+    bbox: str = Query(""),
+    points: str = Query(""),
+    point_labels: str = Query(""),
+):
+    return _service.save_video_options(
+        file_name=file_name,
+        model_name=model_name,
+        bbox=bbox,
+        points=points,
+        point_labels=point_labels,
+    )
+
+
 @router.post("/segment_saved_video")
 def segment_saved_video(
     file_name: str = Query(...),

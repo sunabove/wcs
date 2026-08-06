@@ -70,7 +70,17 @@
 
     function setStatus(message, type) {
         const alertType = type || 'secondary';
-        statusElement.className = `alert alert-${alertType}`;
+        statusElement.classList.remove(
+            'alert-secondary',
+            'alert-primary',
+            'alert-success',
+            'alert-warning',
+            'alert-danger',
+            'alert-info',
+            'alert-light',
+            'alert-dark'
+        );
+        statusElement.classList.add(`alert-${alertType}`);
         statusElement.textContent = message;
     }
 

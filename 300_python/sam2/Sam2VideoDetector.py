@@ -520,6 +520,7 @@ class Sam2VideoDetector:
             np.median(values[index - smoothing_radius:index + smoothing_radius + 1])
             for index in range(smoothing_radius, len(values) - smoothing_radius)
         ])
+        raw_differences = np.diff(values)
 
         differences = np.diff(smoothed_values)
         difference_center = float(np.median(differences)) if differences.size else 0.0
@@ -537,7 +538,11 @@ class Sam2VideoDetector:
         for index, current_value in enumerate(smoothed_values[1:], start=1):
             current_value = float(current_value)
             if current_value > running_high + change_threshold:
-                if current_value - running_high >= minimum_slope:
+                raw_peak_index = high_index + smoothing_radius
+                if (
+                    raw_peak_index > 0
+                    and np.max(raw_differences[:raw_peak_index]) >= minimum_slope
+                ):
                     has_steep_rise = True
                 running_high = current_value
                 high_index = index
@@ -551,7 +556,12 @@ class Sam2VideoDetector:
                 continue
 
             if current_value < running_high - change_threshold:
-                if running_high - current_value >= minimum_slope:
+                raw_peak_index = high_index + smoothing_radius
+                raw_decline_end = min(len(raw_differences), index + smoothing_radius)
+                if (
+                    raw_peak_index < raw_decline_end
+                    and np.min(raw_differences[raw_peak_index:raw_decline_end]) <= -minimum_slope
+                ):
                     has_steep_decline = True
                 decline_values.append(current_value)
                 if len(decline_values) >= confirmation_frames:

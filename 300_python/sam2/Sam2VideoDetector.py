@@ -513,29 +513,51 @@ class Sam2VideoDetector:
             return None
 
         values = np.nan_to_num(values, nan=0.0, posinf=1.0, neginf=0.0)
+        values = np.clip(values, 0.0, 1.0)
         smoothing_radius = 1
         confirmation_frames = 3
-        minimum_rise = 0.01
-        minimum_drop = 0.01
-        plateau_tolerance = 0.005
         smoothed_values = np.asarray([
             np.median(values[index - smoothing_radius:index + smoothing_radius + 1])
             for index in range(smoothing_radius, len(values) - smoothing_radius)
         ])
 
-        for decline_end in range(3, len(smoothed_values) - confirmation_frames + 1):
-            high_values = smoothed_values[:decline_end + 1]
-            high_value = float(np.max(high_values))
-            high_index = int(np.flatnonzero(high_values >= high_value - plateau_tolerance)[-1])
-            baseline_end = max(1, high_index - 1)
-            baseline_value = float(np.mean(smoothed_values[:baseline_end]))
-            decline_value = float(np.mean(
-                smoothed_values[decline_end:decline_end + confirmation_frames]
-            ))
-            has_rise = high_value - baseline_value >= minimum_rise
-            has_sustained_drop = high_value - decline_value >= minimum_drop
-            if has_rise and has_sustained_drop:
-                return high_index + smoothing_radius
+        differences = np.diff(smoothed_values)
+        difference_center = float(np.median(differences)) if differences.size else 0.0
+        noise_level = float(np.median(np.abs(differences - difference_center)))
+        change_threshold = max(0.008, min(0.04, noise_level * 2.0))
+        plateau_tolerance = max(0.004, change_threshold * 0.75)
+
+        baseline_value = float(np.median(smoothed_values[:3]))
+        running_high = float(smoothed_values[0])
+        high_index = 0
+        decline_values = []
+        has_risen = False
+
+        for index, current_value in enumerate(smoothed_values[1:], start=1):
+            current_value = float(current_value)
+            if current_value > running_high + change_threshold:
+                running_high = current_value
+                high_index = index
+                decline_values.clear()
+                has_risen = running_high - baseline_value >= change_threshold
+                continue
+
+            if current_value >= running_high - plateau_tolerance:
+                high_index = index
+                decline_values.clear()
+                continue
+
+            if current_value < running_high - change_threshold:
+                decline_values.append(current_value)
+                if len(decline_values) >= confirmation_frames:
+                    decline_value = float(np.mean(decline_values[-confirmation_frames:]))
+                    if (
+                        has_risen
+                        and running_high - decline_value >= change_threshold
+                    ):
+                        return high_index + smoothing_radius
+            else:
+                decline_values.clear()
 
         return None
 

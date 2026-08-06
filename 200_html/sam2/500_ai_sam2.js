@@ -1947,6 +1947,10 @@
         multimaskOutputCheckbox.addEventListener('change', updateMultimaskOutputText);
         updateMultimaskOutputText();
     }
+    if (maskInputCheckbox) {
+        maskInputCheckbox.addEventListener('change', updateMaskInputText);
+        updateMaskInputText();
+    }
     setUploadedListLoading(true, '동영상 목록을 불러오는 중...');
     setStatus('업로드 목록을 가져오는 중...', 'info');
 

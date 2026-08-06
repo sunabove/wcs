@@ -58,7 +58,7 @@ class Sam2VideoService:
                     "total_frames": total_frames,
                 })
 
-    def _run_detection_job(self, job_id, input_path, model_name, bbox, points, point_labels, multimask_output):
+    def _run_detection_job(self, job_id, input_path, model_name, bbox, points, point_labels, multimask_output, mask_input):
         try:
             with self._jobs_lock:
                 self._jobs[job_id]["status"] = "running"
@@ -69,6 +69,7 @@ class Sam2VideoService:
                 points=points,
                 point_labels=point_labels,
                 multimask_output=multimask_output,
+                mask_input=mask_input,
                 progress_callback=lambda processed, total: self._update_job_progress(job_id, processed, total),
             )
             with self._jobs_lock:
@@ -83,7 +84,7 @@ class Sam2VideoService:
             with self._jobs_lock:
                 self._jobs[job_id].update({"status": "failed", "error": str(ex)})
 
-    def _start_detection_job(self, input_path, model_name, bbox, points, point_labels, multimask_output):
+    def _start_detection_job(self, input_path, model_name, bbox, points, point_labels, multimask_output, mask_input):
         job_id = self._create_job()
         self._job_executor.submit(
             self._run_detection_job,
@@ -94,6 +95,7 @@ class Sam2VideoService:
             points,
             point_labels,
             multimask_output,
+            mask_input,
         )
         return {"job_id": job_id, "status": "queued", "progress": 0}
 
@@ -289,6 +291,7 @@ class Sam2VideoService:
         points: str,
         point_labels: str,
         multimask_output: bool = False,
+        mask_input: bool = False,
     ) -> None:
         options = {
             "model_name": model_name,
@@ -296,6 +299,7 @@ class Sam2VideoService:
             "points": self._parse_options_json(points, []),
             "point_labels": self._parse_options_json(point_labels, []),
             "multimask_output": bool(multimask_output),
+            "mask_input": bool(mask_input),
             "saved_at": datetime.now().isoformat(timespec="seconds"),
         }
         options_path = self._options_path(input_path)
@@ -364,6 +368,7 @@ class Sam2VideoService:
         points: str = "",
         point_labels: str = "",
         multimask_output: bool = False,
+        mask_input: bool = False,
     ):
         input_path = self._save_uploaded_video(upload_file)
         resolved_model_name = self._resolve_model_name(model_name)
@@ -374,6 +379,7 @@ class Sam2VideoService:
             points=points,
             point_labels=point_labels,
             multimask_output=multimask_output,
+            mask_input=mask_input,
         )
 
         return self._start_detection_job(
@@ -383,6 +389,7 @@ class Sam2VideoService:
             points=points,
             point_labels=point_labels,
             multimask_output=multimask_output,
+            mask_input=mask_input,
         )
 
     def upload_video_only(self, upload_file: UploadFile):
@@ -406,6 +413,7 @@ class Sam2VideoService:
         points: str = "",
         point_labels: str = "",
         multimask_output: bool = False,
+        mask_input: bool = False,
     ):
         input_path = self._resolve_uploaded_video_path(file_name)
         resolved_model_name = self._resolve_model_name(model_name)
@@ -416,6 +424,7 @@ class Sam2VideoService:
             points=points,
             point_labels=point_labels,
             multimask_output=multimask_output,
+            mask_input=mask_input,
         )
 
         return self._start_detection_job(
@@ -425,6 +434,7 @@ class Sam2VideoService:
             points=points,
             point_labels=point_labels,
             multimask_output=multimask_output,
+            mask_input=mask_input,
         )
 
     def list_uploaded_videos(self, limit: int = 50):
@@ -472,6 +482,7 @@ class Sam2VideoService:
             "points": options.get("points", []),
             "point_labels": options.get("point_labels", []),
             "multimask_output": options.get("multimask_output", False) is True,
+            "mask_input": options.get("mask_input", False) is True,
             "saved_at": options.get("saved_at", ""),
         }
 
@@ -483,6 +494,7 @@ class Sam2VideoService:
         points: str = "",
         point_labels: str = "",
         multimask_output: bool = False,
+        mask_input: bool = False,
     ):
         input_path = self._resolve_uploaded_video_path(file_name)
         resolved_model_name = self._resolve_model_name(model_name)
@@ -493,6 +505,7 @@ class Sam2VideoService:
             points=points,
             point_labels=point_labels,
             multimask_output=multimask_output,
+            mask_input=mask_input,
         )
         return {
             "saved": True,

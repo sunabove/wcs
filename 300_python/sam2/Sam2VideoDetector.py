@@ -407,6 +407,7 @@ class Sam2VideoDetector:
         points=None,
         point_labels=None,
         multimask_output=False,
+        mask_input=False,
         progress_callback=None,
     ):
         resolved_input = Path(input_path).resolve()
@@ -457,6 +458,7 @@ class Sam2VideoDetector:
         x1, y1, x2, y2 = bbox_rect
         box_prompt = np.array([x1, y1, x2, y2], dtype=np.float32)
         point_prompt = self._parse_points(points, width, height, point_labels)
+        previous_mask_input = None
 
         tracked_frames = 0
         total_segments = 0
@@ -474,9 +476,15 @@ class Sam2VideoDetector:
                         "box": box_prompt,
                         "multimask_output": bool(multimask_output),
                     }
+                    if mask_input and previous_mask_input is not None:
+                        predict_kwargs["mask_input"] = previous_mask_input
                     if point_prompt is not None:
                         predict_kwargs["point_coords"], predict_kwargs["point_labels"] = point_prompt
                     masks, scores, _logits = model.predict(**predict_kwargs)
+                    if mask_input and _logits is not None:
+                        previous_mask_input = _logits[:1] if getattr(_logits, "ndim", 0) == 3 else _logits
+                    else:
+                        previous_mask_input = None
                     mask_tensor = masks[0] if isinstance(masks, np.ndarray) and masks.ndim == 3 else masks
                     if mask_tensor is not None:
                         total_segments += 1

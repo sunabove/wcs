@@ -1,4 +1,5 @@
 import hashlib
+import json
 import os
 import re
 import subprocess
@@ -198,6 +199,40 @@ class Sam2VideoService:
 
         return True
 
+    def _options_path(self, input_path: Path) -> Path:
+        return input_path.with_name(f"{input_path.name}.sam2_options.json")
+
+    def _parse_options_json(self, value: str, default):
+        if not str(value or "").strip():
+            return default
+        try:
+            return json.loads(value)
+        except json.JSONDecodeError as ex:
+            raise HTTPException(status_code=400, detail="Detection options must be valid JSON") from ex
+
+    def _save_detection_options(
+        self,
+        input_path: Path,
+        target_type: str,
+        max_det: int,
+        model_name: str,
+        bbox: str,
+        points: str,
+    ) -> None:
+        options = {
+            "target_type": target_type,
+            "max_det": int(max_det),
+            "model_name": model_name,
+            "bbox": self._parse_options_json(bbox, None),
+            "points": self._parse_options_json(points, []),
+            "saved_at": datetime.now().isoformat(timespec="seconds"),
+        }
+        options_path = self._options_path(input_path)
+        try:
+            options_path.write_text(json.dumps(options, ensure_ascii=False, indent=2), encoding="utf-8")
+        except OSError as ex:
+            raise HTTPException(status_code=500, detail=f"Failed to save detection options: {ex}") from ex
+
     def _save_uploaded_video(self, upload_file: UploadFile) -> Path:
         original_file_name = self._safe_uploaded_file_name(upload_file.filename)
         suffix = self._safe_suffix(original_file_name)
@@ -257,10 +292,19 @@ class Sam2VideoService:
         max_det: int = 300,
         model_name: str = "auto",
         bbox: str = "",
+        points: str = "",
     ):
         input_path = self._save_uploaded_video(upload_file)
         normalized_target_type = self._normalize_target_type(target_type)
         resolved_model_name = self._resolve_model_name(normalized_target_type, model_name)
+        self._save_detection_options(
+            input_path=input_path,
+            target_type=normalized_target_type,
+            max_det=max_det,
+            model_name=resolved_model_name,
+            bbox=bbox,
+            points=points,
+        )
 
         try:
             return self.detector.detect_video_file(
@@ -299,10 +343,19 @@ class Sam2VideoService:
         max_det: int = 300,
         model_name: str = "auto",
         bbox: str = "",
+        points: str = "",
     ):
         input_path = self._resolve_uploaded_video_path(file_name)
         normalized_target_type = self._normalize_target_type(target_type)
         resolved_model_name = self._resolve_model_name(normalized_target_type, model_name)
+        self._save_detection_options(
+            input_path=input_path,
+            target_type=normalized_target_type,
+            max_det=max_det,
+            model_name=resolved_model_name,
+            bbox=bbox,
+            points=points,
+        )
 
         try:
             return self.detector.detect_video_file(

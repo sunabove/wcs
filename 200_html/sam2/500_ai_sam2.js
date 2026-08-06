@@ -55,7 +55,6 @@
     let uploadedListInFlightCount = 0;
     let hasCompletedInitialUploadedListLoad = false;
     const MAX_POINT_COUNT = 20;
-    const STORAGE_TARGET_KEY = 'sam2.targetType';
     const STORAGE_SELECTED_VIDEO_KEY = 'sam2.selectedVideo';
     const DEFAULT_MAX_UPLOAD_BYTES = 1024 * 1024 * 1024; // 1 GB
     let maxUploadBytes = DEFAULT_MAX_UPLOAD_BYTES;
@@ -227,15 +226,6 @@
         return Boolean(selectedFile || fileFromInput || selectedServerFileName);
     }
 
-    function saveUiOptions() {
-        try {
-            const targetType = getSelectedTargetType();
-            localStorage.setItem(STORAGE_TARGET_KEY, targetType);
-        } catch (_ignore) {
-            // localStorage may be unavailable in some browser/privacy modes.
-        }
-    }
-
     function saveSelectedVideo(fileName) {
         try {
             const value = String(fileName || '').trim();
@@ -254,20 +244,6 @@
             return String(localStorage.getItem(STORAGE_SELECTED_VIDEO_KEY) || '').trim();
         } catch (_ignore) {
             return '';
-        }
-    }
-
-    function loadUiOptions() {
-        try {
-            const storedTargetType = String(localStorage.getItem(STORAGE_TARGET_KEY) || '').trim();
-            if (storedTargetType === 'road' || storedTargetType === 'pothole' || storedTargetType === 'curb_step') {
-                const targetInput = document.querySelector(`input[name="sam2-target"][value="${storedTargetType}"]`);
-                if (targetInput) {
-                    targetInput.checked = true;
-                }
-            }
-        } catch (_ignore) {
-            // Keep defaults when localStorage is unavailable.
         }
     }
 
@@ -670,6 +646,16 @@
             h: toNumber(boundingBox.h, 0),
         };
         return `&bbox=${encodeURIComponent(JSON.stringify(payload))}`;
+    }
+
+    function buildPointsQuery() {
+        const points = Array.isArray(positivePoints)
+            ? positivePoints.map((point) => ({
+                x: toNumber(point && point.x, 0),
+                y: toNumber(point && point.y, 0),
+            }))
+            : [];
+        return `&points=${encodeURIComponent(JSON.stringify(points))}`;
     }
 
     async function previewSelectedVideoFirstFrame(showInputTab) {
@@ -1332,6 +1318,7 @@
         const targetType = getSelectedTargetType();
         ensureDefaultBoundingBox();
         const bboxQuery = buildBboxQuery();
+        const pointsQuery = buildPointsQuery();
 
         if (!file && !selectedServerFileName && highlightedServerFileName) {
             const highlightedExists = uploadedHistory.some((item) => item.serverFileName === highlightedServerFileName);
@@ -1366,13 +1353,13 @@
             if (file) {
                 const formData = new FormData();
                 formData.append('file', file);
-                const url = `${apiBase}/fast/sam2/segment_video_upload?target_type=${encodeURIComponent(targetType)}${bboxQuery}`;
+                const url = `${apiBase}/fast/sam2/segment_video_upload?target_type=${encodeURIComponent(targetType)}${bboxQuery}${pointsQuery}`;
                 response = await fetch(url, {
                     method: 'POST',
                     body: formData,
                 });
             } else {
-                const url = `${apiBase}/fast/sam2/segment_saved_video?file_name=${encodeURIComponent(selectedServerFileName)}&target_type=${encodeURIComponent(targetType)}${bboxQuery}`;
+                const url = `${apiBase}/fast/sam2/segment_saved_video?file_name=${encodeURIComponent(selectedServerFileName)}&target_type=${encodeURIComponent(targetType)}${bboxQuery}${pointsQuery}`;
                 response = await fetch(url, {
                     method: 'POST',
                 });
@@ -1555,7 +1542,6 @@
     document.querySelectorAll('input[name="sam2-target"]').forEach((input) => {
         input.addEventListener('change', () => {
             stopCurrentOutputPlayback();
-            saveUiOptions();
         });
     });
     if (loopToggleInput) {
@@ -1570,7 +1556,6 @@
     updateUploadLimitLabel('default');
 
     applyLoopOption();
-    loadUiOptions();
     renderPointUi();
     renderBoundingBoxUi();
 

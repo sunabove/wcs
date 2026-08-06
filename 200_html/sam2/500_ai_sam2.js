@@ -232,8 +232,8 @@
     function updatePointLabelText() {
         if (pointLabelText) {
             pointLabelText.textContent = pointLabelCheckbox && pointLabelCheckbox.checked
-                ? 'Negative'
-                : 'Positive';
+                ? 'Positive'
+                : 'Negative';
         }
     }
 
@@ -310,7 +310,7 @@
 
             if (pointLabelCheckbox) {
                 const lastPoint = positivePoints[positivePoints.length - 1];
-                pointLabelCheckbox.checked = Boolean(lastPoint && lastPoint.label === 0);
+                pointLabelCheckbox.checked = !lastPoint || lastPoint.label === 1;
                 updatePointLabelText();
             }
             renderPointUi();
@@ -459,7 +459,7 @@
         if (!point) {
             return;
         }
-        point.label = pointLabelCheckbox && pointLabelCheckbox.checked ? 0 : 1;
+        point.label = pointLabelCheckbox && pointLabelCheckbox.checked ? 1 : 0;
 
         if (event && event.ctrlKey) {
             if (positivePoints.length >= MAX_POINT_COUNT) {

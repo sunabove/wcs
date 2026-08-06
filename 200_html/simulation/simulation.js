@@ -256,7 +256,6 @@ class RapierDriveSimulation {
         this.wheelZChartContext = null;
         this.wheelZChartWindowSec = 20;
         this.wheelZChartElapsedSec = 0;
-        this.wheelZChartRenderIntervalSec = 0.25;
         this.wheelZChartLastRenderTimeMs = null;
         this.wheelZChartVisibleStorageKey = 'wcs.simulation.wheelZChartVisible';
         this.isWheelZChartVisible = this.loadWheelZChartVisibleState();
@@ -696,12 +695,10 @@ class RapierDriveSimulation {
             rawSamples.push(...samples);
         });
 
-        const maxMeasuredCount = 20;
         const uniqueSampleTimesSec = Array.from(new Set(rawSamples.map((sample) => sample.t))).sort((a, b) => a - b);
-        const recentSampleTimesSec = uniqueSampleTimesSec.slice(-maxMeasuredCount);
-        const hasRecentSamples = recentSampleTimesSec.length > 0;
-        const minTimeSec = hasRecentSamples ? recentSampleTimesSec[0] : Math.max(nowSec - this.wheelZChartWindowSec, 0);
-        const windowEndSec = hasRecentSamples ? recentSampleTimesSec[recentSampleTimesSec.length - 1] : nowSec;
+        const hasSamples = uniqueSampleTimesSec.length > 0;
+        const minTimeSec = Math.max(nowSec - this.wheelZChartWindowSec, 0);
+        const windowEndSec = hasSamples ? Math.max(nowSec, uniqueSampleTimesSec[uniqueSampleTimesSec.length - 1]) : nowSec;
         const effectiveWindowSec = Math.max(windowEndSec - minTimeSec, this.physicsFixedTimeStepSec);
 
         const visibleSamples = rawSamples.filter((sample) => sample.t >= minTimeSec && sample.t <= windowEndSec);
@@ -831,9 +828,6 @@ class RapierDriveSimulation {
         ctx.textAlign = 'left';
         ctx.textBaseline = 'alphabetic';
 
-        // Small per-wheel Y pixel offset so lines stay visible when values are identical.
-        const yPixelOffsetByKey = { fl: -2, fr: -1, rl: 1, rr: 2 };
-
         Object.keys(this.wheelZChartHistoryByKey).forEach((wheelKey) => {
             const samples = (this.wheelZChartHistoryByKey[wheelKey] || [])
                 .filter((sample) => sample.t >= minTimeSec && sample.t <= windowEndSec);
@@ -841,32 +835,13 @@ class RapierDriveSimulation {
                 return;
             }
 
-            // Keep visual spacing readable by rendering a decimated subset.
-            const minPixelGap = 12;
-            const targetPointCount = Math.max(Math.floor(plotWidth / minPixelGap), 1);
-            const minTimeGapSec = effectiveWindowSec / targetPointCount;
-            const renderSamples = [];
-            let lastAcceptedTimeSec = Number.NEGATIVE_INFINITY;
-            for (let i = 0; i < samples.length; i += 1) {
-                const sample = samples[i];
-                const isLast = i === (samples.length - 1);
-                if ((sample.t - lastAcceptedTimeSec) >= minTimeGapSec || isLast) {
-                    renderSamples.push(sample);
-                    lastAcceptedTimeSec = sample.t;
-                }
-            }
-            if (renderSamples.length < 2) {
-                return;
-            }
-
-            const yOffset = yPixelOffsetByKey[wheelKey] || 0;
             const seriesColor = this.wheelChartColorByKey[wheelKey] || '#222';
             ctx.strokeStyle = seriesColor;
             ctx.lineWidth = 1.7;
             ctx.beginPath();
-            renderSamples.forEach((sample, index) => {
+            samples.forEach((sample, index) => {
                 const x = toX(sample.t);
-                const y = toY(sample.z) + yOffset;
+                const y = toY(sample.z);
                 if (index === 0) {
                     ctx.moveTo(x, y);
                 } else {
@@ -874,35 +849,6 @@ class RapierDriveSimulation {
                 }
             });
             ctx.stroke();
-
-            ctx.fillStyle = seriesColor;
-            renderSamples.forEach((sample) => {
-                const x = toX(sample.t);
-                const y = toY(sample.z) + yOffset;
-                const markerSize = 5.0;
-                ctx.beginPath();
-                if (wheelKey === 'fl') {
-                    // Circle marker
-                    ctx.arc(x, y, markerSize * 0.5, 0, Math.PI * 2);
-                } else if (wheelKey === 'fr') {
-                    // Square marker
-                    ctx.rect(x - markerSize * 0.5, y - markerSize * 0.5, markerSize, markerSize);
-                } else if (wheelKey === 'rl') {
-                    // Triangle marker
-                    ctx.moveTo(x, y - markerSize * 0.7);
-                    ctx.lineTo(x + markerSize * 0.65, y + markerSize * 0.5);
-                    ctx.lineTo(x - markerSize * 0.65, y + markerSize * 0.5);
-                    ctx.closePath();
-                } else {
-                    // Diamond marker (rr)
-                    ctx.moveTo(x, y - markerSize * 0.8);
-                    ctx.lineTo(x + markerSize * 0.8, y);
-                    ctx.lineTo(x, y + markerSize * 0.8);
-                    ctx.lineTo(x - markerSize * 0.8, y);
-                    ctx.closePath();
-                }
-                ctx.fill();
-            });
         });
 
         const legendKeys = ['fl', 'fr', 'rl', 'rr'];
@@ -3930,17 +3876,7 @@ class RapierDriveSimulation {
 
         this.stepSimulation();
 
-        const nowMs = typeof performance !== 'undefined' && typeof performance.now === 'function'
-            ? performance.now()
-            : null;
-        const shouldRenderWheelChart = this.wheelZChartLastRenderTimeMs === null
-            || (nowMs !== null && (nowMs - this.wheelZChartLastRenderTimeMs) >= (this.wheelZChartRenderIntervalSec * 1000));
-        if (shouldRenderWheelChart) {
-            this.renderWheelZChart(this.wheelZChartElapsedSec);
-            if (nowMs !== null) {
-                this.wheelZChartLastRenderTimeMs = nowMs;
-            }
-        }
+        this.renderWheelZChart(this.wheelZChartElapsedSec);
 
         this.updateDebugPanel(this.physicsFixedTimeStepSec);
         this.simulationLoop.schedule();

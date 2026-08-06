@@ -17,12 +17,13 @@
     const uploadProgressWrapElement = document.getElementById('sam2-upload-progress-wrap');
     const uploadProgressBarElement = document.getElementById('sam2-upload-progress-bar');
     const uploadProgressTextElement = document.getElementById('sam2-upload-progress-text');
+    const pointModeButton = document.getElementById('sam2-point-mode');
+    const bboxModeButton = document.getElementById('sam2-bbox-mode');
     const pointClearButton = document.getElementById('sam2-point-clear');
+    const bboxClearButton = document.getElementById('sam2-bbox-clear');
     const positivePointListElement = document.getElementById('sam2-positive-points');
     const positivePointCountElement = document.getElementById('sam2-positive-count');
     const pointMarkerLayerElement = document.getElementById('sam2-point-marker-layer');
-    const bboxEnabledInput = document.getElementById('sam2-bbox-enabled');
-    const bboxValueElement = document.getElementById('sam2-bbox-value');
     const bboxLayerElement = document.getElementById('sam2-bbox-layer');
     const bboxCaptureLayerElement = document.getElementById('sam2-bbox-capture-layer');
 
@@ -44,6 +45,7 @@
     let bboxResizeHandle = '';
     let bboxResizeStartPoint = null;
     let bboxResizeStartBox = null;
+    let detectionMode = 'point';
     let isUploadingImmediately = false;
     let uploadedListLoadingStartedAt = 0;
     let isUploadedListLoading = false;
@@ -543,7 +545,7 @@
     }
 
     function startBboxResize(handleKey, event) {
-        if (!bboxEnabledInput || !bboxEnabledInput.checked || !boundingBox) {
+        if (detectionMode !== 'bbox' || !boundingBox) {
             return;
         }
 
@@ -569,10 +571,6 @@
 
     function renderBoundingBoxUi() {
         ensureDefaultBoundingBox();
-
-        if (bboxValueElement) {
-            bboxValueElement.textContent = formatBoundingBoxText(boundingBox);
-        }
 
         if (!bboxLayerElement) {
             return;
@@ -601,7 +599,7 @@
     }
 
     function handleBoundingBoxDragStart(event) {
-        if (!bboxEnabledInput || !bboxEnabledInput.checked) {
+        if (detectionMode !== 'bbox') {
             return;
         }
         if (bboxResizeHandle) {
@@ -1495,34 +1493,63 @@
     });
 
     detectButton.addEventListener('click', runSam2Segment);
+    if (pointModeButton) {
+        pointModeButton.addEventListener('click', () => {
+            detectionMode = 'point';
+            pointModeButton.classList.add('btn-primary');
+            pointModeButton.classList.remove('btn-outline-primary');
+            bboxModeButton?.classList.add('btn-outline-primary');
+            bboxModeButton?.classList.remove('btn-primary');
+            setStatus('Point 설정 모드입니다.', 'secondary');
+        });
+    }
+    if (bboxModeButton) {
+        bboxModeButton.addEventListener('click', () => {
+            detectionMode = 'bbox';
+            bboxModeButton.classList.add('btn-primary');
+            bboxModeButton.classList.remove('btn-outline-primary');
+            pointModeButton?.classList.add('btn-outline-primary');
+            pointModeButton?.classList.remove('btn-primary');
+            setStatus('BBox 설정 모드입니다.', 'secondary');
+        });
+    }
     if (pointClearButton) {
         pointClearButton.addEventListener('click', () => {
             clearAllPoints();
             setStatus('Point 설정을 초기화했습니다.', 'secondary');
         });
     }
-    if (bboxEnabledInput) {
-        bboxEnabledInput.addEventListener('change', () => {
-            bboxDragging = false;
-            bboxDragStart = null;
-            renderBoundingBoxUi();
+    if (bboxClearButton) {
+        bboxClearButton.addEventListener('click', () => {
+            clearBoundingBox();
+            setStatus('BBox 설정을 초기화했습니다.', 'secondary');
         });
     }
     if (bboxCaptureLayerElement) {
         bboxCaptureLayerElement.addEventListener('click', (event) => {
-            addPointByClick(event);
+            if (detectionMode === 'point') {
+                addPointByClick(event);
+            }
         });
         bboxCaptureLayerElement.addEventListener('mousedown', (event) => {
-            handleBoundingBoxDragStart(event);
+            if (detectionMode === 'bbox') {
+                handleBoundingBoxDragStart(event);
+            }
         });
         bboxCaptureLayerElement.addEventListener('mousemove', (event) => {
-            handleBoundingBoxDragMove(event);
+            if (detectionMode === 'bbox') {
+                handleBoundingBoxDragMove(event);
+            }
         });
         bboxCaptureLayerElement.addEventListener('mouseup', (event) => {
-            handleBoundingBoxDragEnd(event);
+            if (detectionMode === 'bbox') {
+                handleBoundingBoxDragEnd(event);
+            }
         });
         bboxCaptureLayerElement.addEventListener('mouseleave', (event) => {
-            handleBoundingBoxDragEnd(event);
+            if (detectionMode === 'bbox') {
+                handleBoundingBoxDragEnd(event);
+            }
         });
     }
     document.querySelectorAll('input[name="sam2-target"]').forEach((input) => {

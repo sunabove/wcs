@@ -226,6 +226,18 @@
         return Boolean(selectedFile || fileFromInput || selectedServerFileName);
     }
 
+    function updateDetectionControlState() {
+        const enabled = hasSelectedVideo();
+        [pointModeButton, bboxModeButton, pointClearButton, bboxClearButton].forEach((button) => {
+            if (button) {
+                button.disabled = !enabled;
+            }
+        });
+        if (bboxCaptureLayerElement) {
+            bboxCaptureLayerElement.style.pointerEvents = enabled ? 'auto' : 'none';
+        }
+    }
+
     function saveSelectedVideo(fileName) {
         try {
             const value = String(fileName || '').trim();
@@ -356,6 +368,10 @@
     }
 
     function addPointByClick(event) {
+        if (!hasSelectedVideo()) {
+            setStatus('먼저 동영상을 선택하세요.', 'warning');
+            return;
+        }
         const point = toRelativePoint(event);
         if (!point) {
             return;
@@ -745,6 +761,7 @@
 
     function setSelectedFile(file) {
         selectedFile = file || null;
+        updateDetectionControlState();
         if (!selectedFileElement) {
             return;
         }
@@ -841,6 +858,7 @@
                     fileInput.value = '';
                 }
                 saveSelectedVideo(selectedServerFileName);
+                updateDetectionControlState();
 
                 stopCurrentOutputPlayback();
                 clearAllPoints();
@@ -1266,6 +1284,7 @@
             selectedServerFileName = uploadedPath;
             highlightedServerFileName = uploadedPath;
             saveSelectedVideo(selectedServerFileName);
+            updateDetectionControlState();
 
             await loadUploadedHistoryFromServer();
             try {
@@ -1482,6 +1501,10 @@
     detectButton.addEventListener('click', runSam2Segment);
     if (pointModeButton) {
         pointModeButton.addEventListener('click', () => {
+            if (!hasSelectedVideo()) {
+                setStatus('먼저 동영상을 선택하세요.', 'warning');
+                return;
+            }
             detectionMode = 'point';
             pointModeButton.classList.add('btn-primary');
             pointModeButton.classList.remove('btn-outline-primary');
@@ -1492,6 +1515,10 @@
     }
     if (bboxModeButton) {
         bboxModeButton.addEventListener('click', () => {
+            if (!hasSelectedVideo()) {
+                setStatus('먼저 동영상을 선택하세요.', 'warning');
+                return;
+            }
             detectionMode = 'bbox';
             bboxModeButton.classList.add('btn-primary');
             bboxModeButton.classList.remove('btn-outline-primary');
@@ -1556,6 +1583,7 @@
     updateUploadLimitLabel('default');
 
     applyLoopOption();
+    updateDetectionControlState();
     renderPointUi();
     renderBoundingBoxUi();
 

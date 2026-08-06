@@ -494,6 +494,37 @@ class Sam2VideoDetector:
             2,
         )
 
+        x_ticks = self._chart_renderer._uniform_ticks(x_min, x_max, target_ticks=4)
+        if int(x_max) not in x_ticks:
+            x_ticks.append(int(x_max))
+        x_ticks = sorted(set(x_ticks))
+        for x_tick in x_ticks:
+            tick_x = self._chart_renderer._map_chart_x(
+                x_tick,
+                x_min,
+                x_max,
+                chart_x1,
+                chart_x2 - chart_x1,
+            )
+            cv2.line(canvas, (tick_x, chart_y2), (tick_x, chart_y2 + 4), (130, 130, 130), 1, cv2.LINE_AA)
+            tick_label = str(int(x_tick))
+            (tick_width, _tick_height), _baseline = cv2.getTextSize(
+                tick_label,
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.32,
+                1,
+            )
+            cv2.putText(
+                canvas,
+                tick_label,
+                (max(chart_x1, min(chart_x2 - tick_width, tick_x - (tick_width // 2))), chart_y2 + 16),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.32,
+                (190, 190, 190),
+                1,
+                cv2.LINE_AA,
+            )
+
         current_x = self._chart_renderer._map_chart_x(
             frame_number,
             x_min,

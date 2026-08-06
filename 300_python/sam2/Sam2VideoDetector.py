@@ -515,65 +515,38 @@ class Sam2VideoDetector:
         values = np.nan_to_num(values, nan=0.0, posinf=1.0, neginf=0.0)
         values = np.clip(values, 0.0, 1.0)
         smoothing_radius = 1
-        confirmation_frames = 2
         smoothed_values = np.asarray([
             np.median(values[index - smoothing_radius:index + smoothing_radius + 1])
             for index in range(smoothing_radius, len(values) - smoothing_radius)
         ])
         raw_differences = np.diff(values)
+        noise_level = float(np.median(np.abs(raw_differences - np.median(raw_differences))))
+        change_threshold = max(0.008, min(0.02, noise_level * 0.75))
+        minimum_rise_slope = max(0.06, min(0.08, noise_level * 2.0))
+        minimum_fall_slope = max(0.04, min(0.045, noise_level * 1.2))
+        slope_window = 4
 
-        differences = np.diff(smoothed_values)
-        difference_center = float(np.median(differences)) if differences.size else 0.0
-        noise_level = float(np.median(np.abs(differences - difference_center)))
-        change_threshold = max(0.008, min(0.04, noise_level * 2.0))
-        minimum_slope = max(0.02, min(0.08, noise_level * 2.0))
-        plateau_tolerance = max(0.004, change_threshold * 0.75)
-
-        running_high = float(smoothed_values[0])
-        high_index = 0
-        decline_values = []
-        has_steep_rise = False
-        has_steep_decline = False
-
-        for index, current_value in enumerate(smoothed_values[1:], start=1):
-            current_value = float(current_value)
-            if current_value > running_high + change_threshold:
-                raw_peak_index = high_index + smoothing_radius
-                if (
-                    raw_peak_index > 0
-                    and np.max(raw_differences[:raw_peak_index]) >= minimum_slope
-                ):
-                    has_steep_rise = True
-                running_high = current_value
-                high_index = index
-                decline_values.clear()
-                has_steep_decline = False
+        for smoothed_index in range(2, len(smoothed_values) - 2):
+            current_value = float(smoothed_values[smoothed_index])
+            neighboring_values = smoothed_values[smoothed_index - 1:smoothed_index + 2]
+            if current_value < float(np.max(neighboring_values)):
                 continue
 
-            if current_value >= running_high - plateau_tolerance:
-                high_index = index
-                decline_values.clear()
+            left_value = float(np.mean(smoothed_values[smoothed_index - 2:smoothed_index]))
+            right_value = float(np.mean(smoothed_values[smoothed_index + 1:smoothed_index + 3]))
+            if current_value - left_value < change_threshold:
+                continue
+            if current_value - right_value < change_threshold:
                 continue
 
-            if current_value < running_high - change_threshold:
-                raw_peak_index = high_index + smoothing_radius
-                raw_decline_end = min(len(raw_differences), index + smoothing_radius)
-                if (
-                    raw_peak_index < raw_decline_end
-                    and np.min(raw_differences[raw_peak_index:raw_decline_end]) <= -minimum_slope
-                ):
-                    has_steep_decline = True
-                decline_values.append(current_value)
-                if len(decline_values) >= confirmation_frames:
-                    decline_value = float(np.mean(decline_values[-confirmation_frames:]))
-                    if (
-                        has_steep_rise
-                        and has_steep_decline
-                        and running_high - decline_value >= change_threshold
-                    ):
-                        return high_index + smoothing_radius
-            else:
-                decline_values.clear()
+            raw_peak_index = smoothed_index + smoothing_radius
+            rise_start = max(0, raw_peak_index - slope_window)
+            rise_end = min(raw_peak_index, len(raw_differences))
+            fall_end = min(raw_peak_index + slope_window, len(raw_differences))
+            has_steep_rise = rise_end > rise_start and np.max(raw_differences[rise_start:rise_end]) >= minimum_rise_slope
+            has_steep_fall = fall_end > raw_peak_index and np.min(raw_differences[raw_peak_index:fall_end]) <= -minimum_fall_slope
+            if has_steep_rise and has_steep_fall:
+                return raw_peak_index
 
         return None
 

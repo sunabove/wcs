@@ -229,6 +229,13 @@ class RapierDriveSimulation {
         this.accelerationMetric = 0;
         this.maxPhysicsCatchupSteps = 6;
         this.hasLoggedGroundDiagnostics = false;
+        this.lastVelocitySnapshot = null;
+        this.contactStrengthMetric = 0;
+        this.accelerationMetric = 0;
+        this.runtimeDiagnosticsElapsedSec = 0;
+        this.debugStatusElapsedSec = 0;
+        this.postObstacleGroundRecoverRemainingSec = 0;
+        this.isUprightRotationLockActive = false;
         this.enableRuntimeDiagnostics = true;
         this.runtimeDiagnosticsIntervalSec = 1;
         this.runtimeDiagnosticsElapsedSec = 0;
@@ -939,7 +946,9 @@ class RapierDriveSimulation {
             this.contactStrengthMetric = contactStrengthMetric;
 
             const currentVelocity = this.body.linvel();
-            if (this.lastVelocitySnapshot) {
+            if (!this.hasActivatedSimulationMotion) {
+                this.accelerationMetric = 0;
+            } else if (this.lastVelocitySnapshot) {
                 const deltaVx = currentVelocity.x - this.lastVelocitySnapshot.x;
                 const deltaVy = currentVelocity.y - this.lastVelocitySnapshot.y;
                 const deltaVz = currentVelocity.z - this.lastVelocitySnapshot.z;
@@ -4202,10 +4211,11 @@ class RapierDriveSimulation {
         this.body.setLinvel(new this.rapier.Vector3(0, 0, 0), true);
         this.body.setAngvel(new this.rapier.Vector3(0, 0, 0), true);
         this.isVehicleObstacleContact = false;
-        if (this.activeObstacleTraversalPath?.obstacleInfo?.collider
-            && typeof this.activeObstacleTraversalPath.obstacleInfo.collider.setSensor === 'function') {
-            this.activeObstacleTraversalPath.obstacleInfo.collider.setSensor(false);
-        }
+        this.obstacleColliderInfos.forEach((obstacleInfo) => {
+            if (obstacleInfo?.collider && typeof obstacleInfo.collider.setSensor === 'function') {
+                obstacleInfo.collider.setSensor(false);
+            }
+        });
         this.activeObstacleTraversalPath = null;
         this.hasActivatedSimulationMotion = false;
         this.hasActivatedDynamicGroundClamp = false;

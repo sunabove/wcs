@@ -48,6 +48,9 @@
     let bboxResizeHandle = '';
     let bboxResizeStartPoint = null;
     let bboxResizeStartBox = null;
+    let pointDragIndex = -1;
+    let pointDragging = false;
+    let suppressPointClick = false;
     let detectionMode = 'point';
     let isUploadingImmediately = false;
     let uploadedListLoadingStartedAt = 0;
@@ -449,6 +452,87 @@
         });
 
         return nearestIndex;
+    }
+
+    function findPointIndexAtPosition(point) {
+        if (!pointMarkerLayerElement || !point || positivePoints.length === 0) {
+            return -1;
+        }
+
+        const rect = pointMarkerLayerElement.getBoundingClientRect();
+        if (!rect || rect.width <= 0 || rect.height <= 0) {
+            return -1;
+        }
+
+        const thresholdX = (16 / rect.width) * 100;
+        const thresholdY = (16 / rect.height) * 100;
+        let nearestIndex = -1;
+        let nearestDistance = Number.POSITIVE_INFINITY;
+        positivePoints.forEach((candidate, index) => {
+            const dx = (toNumber(candidate && candidate.x, 0) - point.x) / thresholdX;
+            const dy = (toNumber(candidate && candidate.y, 0) - point.y) / thresholdY;
+            const distance = (dx * dx) + (dy * dy);
+            if (distance <= 1 && distance < nearestDistance) {
+                nearestIndex = index;
+                nearestDistance = distance;
+            }
+        });
+        return nearestIndex;
+    }
+
+    function startPointDrag(event) {
+        if (detectionMode !== 'point' || event.button !== 0 || !hasSelectedVideo()) {
+            return;
+        }
+
+        const point = toRelativePoint(event);
+        const index = findPointIndexAtPosition(point);
+        if (index < 0) {
+            return;
+        }
+
+        event.preventDefault();
+        event.stopPropagation();
+        pointDragIndex = index;
+        pointDragging = false;
+        suppressPointClick = false;
+        document.addEventListener('mousemove', handlePointDragMove);
+        document.addEventListener('mouseup', endPointDrag);
+    }
+
+    function handlePointDragMove(event) {
+        if (pointDragIndex < 0) {
+            return;
+        }
+
+        const point = toRelativePoint(event);
+        if (!point) {
+            return;
+        }
+
+        pointDragging = true;
+        suppressPointClick = true;
+        positivePoints[pointDragIndex] = {
+            ...positivePoints[pointDragIndex],
+            x: point.x,
+            y: point.y,
+        };
+        renderPointUi();
+    }
+
+    function endPointDrag() {
+        if (pointDragIndex < 0) {
+            return;
+        }
+
+        const wasDragging = pointDragging;
+        pointDragIndex = -1;
+        pointDragging = false;
+        document.removeEventListener('mousemove', handlePointDragMove);
+        document.removeEventListener('mouseup', endPointDrag);
+        if (wasDragging) {
+            setStatus('Point 위치가 수정되었습니다.', 'secondary');
+        }
     }
 
     function addPointByClick(event) {
@@ -1721,11 +1805,17 @@
     if (bboxCaptureLayerElement) {
         bboxCaptureLayerElement.addEventListener('click', (event) => {
             if (detectionMode === 'point') {
+                if (suppressPointClick) {
+                    suppressPointClick = false;
+                    return;
+                }
                 addPointByClick(event);
             }
         });
         bboxCaptureLayerElement.addEventListener('mousedown', (event) => {
-            if (detectionMode === 'bbox') {
+            if (detectionMode === 'point') {
+                startPointDrag(event);
+            } else if (detectionMode === 'bbox') {
                 handleBoundingBoxDragStart(event);
             }
         });

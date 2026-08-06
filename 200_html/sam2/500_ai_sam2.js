@@ -1186,6 +1186,14 @@
         return `${stem.slice(0, maxLength)}...`;
     }
 
+    function sortUploadedHistoryByName(items) {
+        return items.sort((left, right) => String(left && left.name || '').localeCompare(
+            String(right && right.name || ''),
+            undefined,
+            { numeric: true, sensitivity: 'base' },
+        ));
+    }
+
     function renderUploadedHistory() {
         if (!uploadedListElement) {
             return;
@@ -1384,6 +1392,7 @@
             uploadedHistory = uploadedHistory.slice(0, 20);
         }
 
+        sortUploadedHistoryByName(uploadedHistory);
         renderUploadedHistory();
     }
 
@@ -1430,7 +1439,7 @@
                 return;
             }
 
-            uploadedHistory = mapped;
+            uploadedHistory = sortUploadedHistoryByName(mapped);
 
             // Keep active selection and visual highlight independent.
             if (selectedServerFileName) {

@@ -444,7 +444,7 @@ class Sam2VideoDetector:
         panel_y2 = height - 6
         chart_x1 = panel_x1 + 42
         chart_x2 = panel_x2 - 10
-        chart_y1 = panel_y1 + 25
+        chart_y1 = panel_y1 + 8
         chart_y2 = panel_y2 - 22
         if chart_x2 <= chart_x1 or chart_y2 <= chart_y1:
             return canvas

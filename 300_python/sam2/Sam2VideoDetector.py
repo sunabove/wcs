@@ -456,10 +456,17 @@ class Sam2VideoDetector:
         for score_tick in (0.0, 0.5, 1.0):
             tick_y = self._chart_renderer._map_chart_y(score_tick, 1.0, chart_y2, chart_y2 - chart_y1)
             cv2.line(canvas, (chart_x1, tick_y), (chart_x2, tick_y), (65, 65, 65), 1, cv2.LINE_AA)
+            tick_label = f"{score_tick:.1f}"
+            (tick_width, _tick_height), _baseline = cv2.getTextSize(
+                tick_label,
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.35,
+                1,
+            )
             cv2.putText(
                 canvas,
-                f"{score_tick:.1f}",
-                (8, tick_y + 4),
+                tick_label,
+                (max(0, chart_x1 - tick_width - 6), tick_y + 4),
                 cv2.FONT_HERSHEY_SIMPLEX,
                 0.35,
                 (190, 190, 190),

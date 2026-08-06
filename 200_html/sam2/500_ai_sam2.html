@@ -61,8 +61,12 @@
 							</td>
 						</tr>
 						<tr>
+							<th scope="row" class="text-center text-nowrap">검출</th>
+							<td class="text-end"><button id="sam2-detect-btn" type="button" class="btn btn-success">분할 시작</button></td>
+						</tr>
+						<tr>
 							<th scope="row" class="text-center text-nowrap">상태</th>
-							<td class="p-1"><div class="d-flex flex-wrap align-items-stretch gap-2 w-100"><div id="sam2-status" class="alert alert-secondary mb-0 py-1 px-2 rounded-2 d-flex align-items-center" style="line-height: 1.15; min-width: 0; flex: 0 0 calc(50% - 0.5rem); max-width: calc(50% - 0.5rem);">대기 중</div><div class="alert alert-secondary mb-0 py-1 px-2 rounded-2 d-flex align-items-stretch" style="line-height: 1.15; flex: 0 0 calc(50% - 0.5rem); max-width: calc(50% - 0.5rem); min-width: 0;"><div class="progress position-relative w-100 h-100" role="progressbar" aria-label="동영상 업로드 진행률" aria-valuemin="0" aria-valuemax="100" style="min-height: 30px;"><div class="progress-bar progress-bar-striped progress-bar-animated" style="width: 0%;"></div><span class="position-absolute top-50 start-50 translate-middle fs-6 fw-semibold text-dark">처리 상태</span></div></div></div></td>
+							<td class="p-1"><div class="d-flex flex-wrap align-items-stretch gap-2 w-100"><div id="sam2-status" class="alert alert-secondary mb-0 py-1 px-2 rounded-2 d-flex align-items-center" style="line-height: 1.15; min-width: 0; flex: 0 0 calc(50% - 0.5rem); max-width: calc(50% - 0.5rem);">대기 중</div><div class="alert alert-secondary mb-0 py-1 px-2 rounded-2 d-flex align-items-stretch" style="line-height: 1.15; min-width: 0; flex: 0 0 calc(50% - 0.5rem); max-width: calc(50% - 0.5rem);"><div class="progress position-relative w-100 h-100" role="progressbar" aria-label="SAM2 처리 진행률" aria-valuemin="0" aria-valuemax="100" style="min-height: 30px;"><div class="progress-bar progress-bar-striped progress-bar-animated" style="width: 0%;"></div><span class="position-absolute top-50 start-50 translate-middle fs-6 fw-semibold text-dark">처리 상태</span></div></div></div></td>
 						</tr>
 						<tr>
 							<th scope="row" class="text-center text-nowrap">출력</th>

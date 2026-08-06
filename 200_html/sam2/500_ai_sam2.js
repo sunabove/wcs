@@ -47,8 +47,6 @@
     const statusElement = document.getElementById('sam2-status');
     const inputVideoElement = document.getElementById('sam2-input-video');
     const outputVideoElement = document.getElementById('sam2-output-video');
-    const outputVideoContainerElement = outputVideoElement ? outputVideoElement.parentElement : null;
-    let scoreChartImage = null;
 
     let selectedFile = null;
     let resolvedApiBase = null;
@@ -99,54 +97,6 @@
         );
         statusElement.classList.add(`alert-${alertType}`);
         statusElement.textContent = message;
-    }
-
-    function ensureScoreChart() {
-        if (scoreChartImage || !outputVideoContainerElement) {
-            return scoreChartImage;
-        }
-
-        const chartWrap = document.createElement('div');
-        chartWrap.className = 'border rounded bg-dark p-2 text-start';
-        chartWrap.style.position = 'absolute';
-        chartWrap.style.left = '0';
-        chartWrap.style.right = '0';
-        chartWrap.style.bottom = '46px';
-        chartWrap.style.width = '100%';
-        chartWrap.style.margin = '0';
-        chartWrap.style.display = 'none';
-        chartWrap.style.zIndex = '5';
-        chartWrap.style.pointerEvents = 'none';
-
-        scoreChartImage = document.createElement('img');
-        scoreChartImage.setAttribute('alt', 'SAM2 프레임별 스코어 차트');
-        scoreChartImage.style.display = 'block';
-        scoreChartImage.style.width = '100%';
-        scoreChartImage.style.height = 'auto';
-        chartWrap.appendChild(scoreChartImage);
-        outputVideoContainerElement.style.position = 'relative';
-        outputVideoContainerElement.style.width = 'min(640px, 100%)';
-        outputVideoContainerElement.style.margin = '0 auto';
-        outputVideoContainerElement.appendChild(chartWrap);
-        scoreChartImage._sam2ChartWrap = chartWrap;
-        return scoreChartImage;
-    }
-
-    function renderScoreChart(scoreChartUrl) {
-        const image = ensureScoreChart();
-        if (!image) {
-            return;
-        }
-
-        const chartWrap = image._sam2ChartWrap;
-        const url = String(scoreChartUrl || '').trim();
-        if (!url) {
-            chartWrap.style.display = 'none';
-            return;
-        }
-
-        chartWrap.style.display = 'block';
-        image.src = url;
     }
 
     function formatBytes(bytes) {
@@ -1795,7 +1745,6 @@
         }
 
         detectButton.disabled = true;
-        renderScoreChart('');
         setStatus('SAM2 분할 진행중 ...', 'info');
 
         const outputTabButton = document.getElementById('sam2-output-tab');
@@ -1857,7 +1806,6 @@
 
             await assignVideoSource(inputVideoElement, inputUrl, 'input');
             await assignVideoSource(outputVideoElement, outputUrl, 'output');
-            renderScoreChart(buildAbsoluteUrl(apiBase, result && result.score_chart_url));
 
             const outputTabButton = document.getElementById('sam2-output-tab');
             if (outputTabButton) {

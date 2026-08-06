@@ -512,25 +512,30 @@ class Sam2VideoDetector:
         if len(values) < 7:
             return None
 
-        smoothing_radius = 2
-        minimum_prominence = 0.01
+        values = np.nan_to_num(values, nan=0.0, posinf=1.0, neginf=0.0)
+        smoothing_radius = 1
+        confirmation_frames = 3
+        minimum_rise = 0.01
+        minimum_drop = 0.01
+        plateau_tolerance = 0.005
         smoothed_values = np.asarray([
-            np.mean(values[index - smoothing_radius:index + smoothing_radius + 1])
+            np.median(values[index - smoothing_radius:index + smoothing_radius + 1])
             for index in range(smoothing_radius, len(values) - smoothing_radius)
         ])
 
-        for smoothed_index in range(2, len(smoothed_values) - 2):
-            left_value = float(np.mean(smoothed_values[smoothed_index - 2:smoothed_index]))
-            current_value = float(smoothed_values[smoothed_index])
-            right_value = float(np.mean(smoothed_values[smoothed_index + 1:smoothed_index + 3]))
-            neighboring_values = smoothed_values[smoothed_index - 1:smoothed_index + 2]
-            is_local_maximum = current_value >= float(np.max(neighboring_values))
-            has_prominence = (
-                current_value - left_value >= minimum_prominence
-                and current_value - right_value >= minimum_prominence
-            )
-            if is_local_maximum and has_prominence:
-                return smoothed_index + smoothing_radius
+        for decline_end in range(3, len(smoothed_values) - confirmation_frames + 1):
+            high_values = smoothed_values[:decline_end + 1]
+            high_value = float(np.max(high_values))
+            high_index = int(np.flatnonzero(high_values >= high_value - plateau_tolerance)[-1])
+            baseline_end = max(1, high_index - 1)
+            baseline_value = float(np.mean(smoothed_values[:baseline_end]))
+            decline_value = float(np.mean(
+                smoothed_values[decline_end:decline_end + confirmation_frames]
+            ))
+            has_rise = high_value - baseline_value >= minimum_rise
+            has_sustained_drop = high_value - decline_value >= minimum_drop
+            if has_rise and has_sustained_drop:
+                return high_index + smoothing_radius
 
         return None
 

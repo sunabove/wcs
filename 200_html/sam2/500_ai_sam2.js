@@ -21,7 +21,7 @@
     const bboxModeButton = document.getElementById('sam2-bbox-mode');
     const pointClearButton = document.getElementById('sam2-point-clear');
     const bboxClearButton = document.getElementById('sam2-bbox-clear');
-    const pointLabelSelect = document.getElementById('sam2-point-label');
+    const pointLabelCheckbox = document.getElementById('sam2-point-label');
     const positivePointListElement = document.getElementById('sam2-positive-points');
     const positivePointCountElement = document.getElementById('sam2-positive-count');
     const pointMarkerLayerElement = document.getElementById('sam2-point-marker-layer');
@@ -230,7 +230,7 @@
 
     function updateDetectionControlState() {
         const enabled = hasSelectedVideo();
-        [pointModeButton, bboxModeButton, pointClearButton, bboxClearButton, pointLabelSelect].forEach((control) => {
+        [pointModeButton, bboxModeButton, pointClearButton, bboxClearButton, pointLabelCheckbox].forEach((control) => {
             if (control) {
                 control.disabled = !enabled;
             }
@@ -399,7 +399,7 @@
         if (!point) {
             return;
         }
-        point.label = pointLabelSelect && pointLabelSelect.value === '0' ? 0 : 1;
+        point.label = pointLabelCheckbox && pointLabelCheckbox.checked ? 0 : 1;
 
         if (event && event.ctrlKey) {
             if (positivePoints.length >= MAX_POINT_COUNT) {

@@ -95,6 +95,12 @@
     min-height: 32px;
 }
 
+.sam2-point-toolbar {
+    width: min(640px, 100%);
+    margin-left: auto;
+    margin-right: auto;
+}
+
 .sam2-point-chip {
     font-size: 0.75rem;
     padding: 0.15rem 0.4rem;

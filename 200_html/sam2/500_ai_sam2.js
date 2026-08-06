@@ -65,6 +65,8 @@
     let pointDragIndex = -1;
     let pointDragging = false;
     let suppressPointClick = false;
+    let pointContextMenuElement = null;
+    let pointContextMenuIndex = -1;
     let detectionMode = 'foreground';
     let isUploadingImmediately = false;
     let uploadedListLoadingStartedAt = 0;
@@ -470,8 +472,70 @@
     }
 
     function clearAllPoints() {
+        hidePointContextMenu();
         positivePoints = [];
         renderPointUi();
+    }
+
+    function hidePointContextMenu() {
+        if (pointContextMenuElement) {
+            pointContextMenuElement.remove();
+            pointContextMenuElement = null;
+        }
+        pointContextMenuIndex = -1;
+    }
+
+    function showPointContextMenu(event, pointIndex) {
+        hidePointContextMenu();
+        if (!bboxCaptureLayerElement || !positivePoints[pointIndex]) {
+            return;
+        }
+
+        const point = positivePoints[pointIndex];
+        const layerRect = bboxCaptureLayerElement.getBoundingClientRect();
+        const menu = document.createElement('div');
+        const pointType = Number(point.label) === 0 ? '배경 Point' : '전경 Point';
+        menu.className = 'bg-white border rounded shadow-sm p-2';
+        menu.style.position = 'absolute';
+        menu.style.zIndex = '20';
+        menu.style.minWidth = '132px';
+        menu.style.left = `${Math.max(4, Math.min(layerRect.width - 136, event.clientX - layerRect.left + 6))}px`;
+        menu.style.top = `${Math.max(4, Math.min(layerRect.height - 78, event.clientY - layerRect.top + 6))}px`;
+        menu.addEventListener('contextmenu', (menuEvent) => {
+            menuEvent.preventDefault();
+            menuEvent.stopPropagation();
+        });
+
+        const title = document.createElement('div');
+        title.className = 'small text-secondary mb-2';
+        title.textContent = `${pointType} 선택됨`;
+        menu.appendChild(title);
+
+        const deleteButton = document.createElement('button');
+        deleteButton.type = 'button';
+        deleteButton.className = 'btn btn-danger btn-sm w-100 mb-1';
+        deleteButton.textContent = '삭제';
+        deleteButton.addEventListener('click', () => {
+            const selectedPoint = positivePoints[pointContextMenuIndex];
+            if (selectedPoint) {
+                positivePoints.splice(pointContextMenuIndex, 1);
+                renderPointUi();
+                setStatus(`${Number(selectedPoint.label) === 0 ? 'Background' : 'Foreground'} Point를 삭제했습니다.`, 'secondary');
+            }
+            hidePointContextMenu();
+        });
+        menu.appendChild(deleteButton);
+
+        const cancelButton = document.createElement('button');
+        cancelButton.type = 'button';
+        cancelButton.className = 'btn btn-outline-secondary btn-sm w-100';
+        cancelButton.textContent = '취소';
+        cancelButton.addEventListener('click', hidePointContextMenu);
+        menu.appendChild(cancelButton);
+
+        pointContextMenuIndex = pointIndex;
+        pointContextMenuElement = menu;
+        bboxCaptureLayerElement.appendChild(menu);
     }
 
     function findNearestPointIndex(point) {
@@ -596,7 +660,7 @@
         setStatus(`${point.label === 1 ? 'Foreground' : 'Background'} Point가 추가되었습니다.`, 'secondary');
     }
 
-    function removePointByRightClick(event) {
+    function selectPointByRightClick(event) {
         if (!hasSelectedVideo()) {
             return;
         }
@@ -609,10 +673,7 @@
 
         event.preventDefault();
         event.stopPropagation();
-        const removedPoint = positivePoints[index];
-        positivePoints.splice(index, 1);
-        renderPointUi();
-        setStatus(`${Number(removedPoint && removedPoint.label) === 0 ? 'Background' : 'Foreground'} Point를 삭제했습니다.`, 'secondary');
+        showPointContextMenu(event, index);
     }
 
     function toRelativePoint(event) {
@@ -1935,6 +1996,12 @@
     }
     if (bboxCaptureLayerElement) {
         bboxCaptureLayerElement.addEventListener('click', (event) => {
+            if (pointContextMenuElement) {
+                if (pointContextMenuElement.contains(event.target)) {
+                    return;
+                }
+                hidePointContextMenu();
+            }
             if (detectionMode === 'foreground' || detectionMode === 'background') {
                 if (suppressPointClick) {
                     suppressPointClick = false;
@@ -1943,7 +2010,7 @@
                 addPointByClick(event);
             }
         });
-        bboxCaptureLayerElement.addEventListener('contextmenu', removePointByRightClick);
+        bboxCaptureLayerElement.addEventListener('contextmenu', selectPointByRightClick);
         bboxCaptureLayerElement.addEventListener('mousedown', (event) => {
             startPointDrag(event);
             if (pointDragIndex < 0 && detectionMode === 'bbox') {

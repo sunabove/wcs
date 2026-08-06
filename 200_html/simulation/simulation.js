@@ -2762,12 +2762,9 @@ class RapierDriveSimulation {
         const targetGap = targetZ - translation.z;
         const maxPathStep = Math.min(Math.max(effectiveDeltaSec * 0.8, 0.002), 0.008);
         const nextBodyZ = translation.z + THREE.MathUtils.clamp(targetGap, -maxPathStep, maxPathStep);
-        const velocity = this.body.linvel();
-        const forwardSpeed = (velocity.x * path.forwardX) + (velocity.y * path.forwardY);
-        const commandedForwardSpeed = Math.max(
-            forwardSpeed,
-            Number(this.commandedSpeedMps) || 0,
-            0.05
+        const commandedForwardSpeed = Math.min(
+            Math.max(Number(this.commandedSpeedMps) || 0, 0.05),
+            Number(this.maxSpeedMps) || Number.POSITIVE_INFINITY
         );
         this.body.setTranslation(new this.rapier.Vector3(
             translation.x + (path.forwardX * commandedForwardSpeed * effectiveDeltaSec),
@@ -4055,16 +4052,18 @@ class RapierDriveSimulation {
             const traversalPath = this.activeObstacleTraversalPath;
             const traversalPosition = this.body.translation();
             const traversalTargetZ = this.getObstacleTraversalTargetZ(traversalPath);
-            const traversalSpeed = Math.max(Number(this.commandedSpeedMps) || 0, 0.05);
-            const traversalStep = Math.max(traversalSpeed * this.physicsFixedTimeStepSec, 0.01);
             const boundedTargetZ = Number.isFinite(traversalTargetZ)
                 ? traversalPosition.z + THREE.MathUtils.clamp(traversalTargetZ - traversalPosition.z, -0.008, 0.008)
                 : traversalPosition.z;
             this.body.setTranslation(new this.rapier.Vector3(
-                traversalPosition.x + (traversalPath.forwardX * traversalStep),
-                traversalPosition.y + (traversalPath.forwardY * traversalStep),
+                traversalPosition.x,
+                traversalPosition.y,
                 boundedTargetZ
             ), true);
+            const traversalSpeed = Math.min(
+                Math.max(Number(this.commandedSpeedMps) || 0, 0.05),
+                Number(this.maxSpeedMps) || Number.POSITIVE_INFINITY
+            );
             this.body.setLinvel(new this.rapier.Vector3(
                 traversalPath.forwardX * traversalSpeed,
                 traversalPath.forwardY * traversalSpeed,

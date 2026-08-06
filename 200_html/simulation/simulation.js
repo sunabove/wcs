@@ -2745,6 +2745,25 @@ class RapierDriveSimulation {
         return path.groundTargetZ + ((path.obstacleTargetZ - path.groundTargetZ) * smoothProgress);
     }
 
+    getObstacleTraversalPitch(path) {
+        if (!path) {
+            return 0;
+        }
+
+        const wheelbaseMeters = 0.64;
+        const frontTargetZ = this.getObstacleTraversalTargetZ(path, wheelbaseMeters * 0.5);
+        const rearTargetZ = this.getObstacleTraversalTargetZ(path, -wheelbaseMeters * 0.5);
+        if (!Number.isFinite(frontTargetZ) || !Number.isFinite(rearTargetZ)) {
+            return 0;
+        }
+
+        return THREE.MathUtils.clamp(
+            -Math.atan2(frontTargetZ - rearTargetZ, wheelbaseMeters),
+            THREE.MathUtils.degToRad(-22),
+            THREE.MathUtils.degToRad(22)
+        );
+    }
+
     applyObstacleClimbLift(hasObstacleContactNow, effectiveDeltaSec, obstacleInfo = null) {
         if (!this.body || !this.rapier || !hasObstacleContactNow) {
             return;
@@ -4110,6 +4129,19 @@ class RapierDriveSimulation {
 
         this.carFrame.position.set(nextPosition.x, nextPosition.y, nextPosition.z);
         this.carFrame.quaternion.set(nextRotation.x, nextRotation.y, nextRotation.z, nextRotation.w).normalize();
+        if (this.activeObstacleTraversalPath && this.isObstacleTraversalActive()) {
+            const traversalYaw = this.extractYawFromQuaternion(nextRotation);
+            const traversalPitch = this.getObstacleTraversalPitch(this.activeObstacleTraversalPath);
+            const yawRotation = new THREE.Quaternion().setFromAxisAngle(
+                new THREE.Vector3(0, 0, 1),
+                traversalYaw
+            );
+            const pitchRotation = new THREE.Quaternion().setFromAxisAngle(
+                new THREE.Vector3(0, 1, 0),
+                traversalPitch
+            );
+            this.carFrame.quaternion.copy(yawRotation.multiply(pitchRotation)).normalize();
+        }
     }
 
     async runLoop() {

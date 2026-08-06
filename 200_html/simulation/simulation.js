@@ -2646,8 +2646,9 @@ class RapierDriveSimulation {
             return;
         }
 
-        // Apply smooth upward impulse instead of hard teleporting setTranslation
-        const liftImpulse = Math.min(targetGap * 1.5, 0.08) * effectiveDeltaSec;
+        // Apply enough upward acceleration to overcome gravity while keeping the lift smooth.
+        const liftAcceleration = Math.min(9.81 + (targetGap * 30), 20);
+        const liftImpulse = liftAcceleration * effectiveDeltaSec;
         this.body.applyImpulse(new this.rapier.Vector3(0, 0, liftImpulse), true);
     }
 
@@ -3773,6 +3774,9 @@ class RapierDriveSimulation {
             this.physicsEngine.step(this.physicsFixedTimeStepSec);
             let hasObstacleContactNow = this.contactSolver.updateVehicleObstacleContact();
             const isClimbingApproach = currentClimbApproach || this.contactSolver.isClimbApproach(currentObstacleApproach?.obstacleInfo || null);
+            const obstacleInfoForClimb = currentObstacleApproach?.obstacleInfo
+                || this.contactSolver.getApproachInfo()?.obstacleInfo
+                || null;
             if ((hasObstacleContactNow || isClimbingApproach) && Math.abs(effectiveSteerSign) < 1e-3) {
                 this.preserveObstacleHeading(obstacleHeadingYaw);
                 this.suppressObstacleLateralDrift(obstacleReferencePosition, obstacleHeadingYaw);
@@ -3795,7 +3799,7 @@ class RapierDriveSimulation {
                 this.applyObstacleContactImpulse(this.physicsFixedTimeStepSec, obstacleApproach.obstacleInfo);
             }
             if (hasObstacleContactNow || isClimbingApproach) {
-                this.contactSolver.applyClimbLift(currentObstacleApproach?.obstacleInfo, this.physicsFixedTimeStepSec);
+                this.contactSolver.applyClimbLift(obstacleInfoForClimb, this.physicsFixedTimeStepSec);
             } else {
                 const velocity = this.body.linvel();
                 const approachSpeed = Math.hypot(velocity.x, velocity.y);

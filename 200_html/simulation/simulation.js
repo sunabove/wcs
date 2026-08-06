@@ -173,6 +173,7 @@ class RapierDriveSimulation {
         this.vehicleColliderHalfExtents = { x: 0.1, y: 0.1, z: 0.1 };
         this.obstacleColliders = [];
         this.obstacleColliderInfos = [];
+        this.activeObstacleTraversalPath = null;
         this.obstacleContactSurfaceToleranceMeters = 0.012;
         this.obstacleApproachDisableSnapDistanceMeters = 0.05;
         this.obstacleDepenetrationEpsilonMeters = 0.015;
@@ -2615,25 +2616,97 @@ class RapierDriveSimulation {
         return targetBodyZ;
     }
 
+    getObstacleTraversalPath(obstacleInfo = null) {
+        if (!this.body || !obstacleInfo?.center || !obstacleInfo?.halfExtents) {
+            return null;
+        }
+
+        const bodyPosition = this.body.translation();
+        const yaw = this.extractYawFromQuaternion(this.body.rotation());
+        const forwardX = Math.cos(yaw);
+        const forwardY = Math.sin(yaw);
+        const dx = obstacleInfo.center.x - bodyPosition.x;
+        const dy = obstacleInfo.center.y - bodyPosition.y;
+        const centerAlongForward = (dx * forwardX) + (dy * forwardY);
+        const lateralOffset = Math.abs((dx * forwardY) - (dy * forwardX));
+        const halfForward = (Math.abs(forwardX) * obstacleInfo.halfExtents.x)
+            + (Math.abs(forwardY) * obstacleInfo.halfExtents.y);
+        const obstacleFront = centerAlongForward - halfForward;
+        const obstacleRear = centerAlongForward + halfForward;
+        const rampLength = Math.max(0.18, Math.min(0.32, halfForward * 0.8));
+        const groundTargetZ = this.getGroundContactTargetZ();
+        const obstacleTargetZ = this.getObstacleClimbTargetZ(obstacleInfo);
+
+        if (!Number.isFinite(groundTargetZ)
+            || !Number.isFinite(obstacleTargetZ)
+            || lateralOffset > 0.42
+            || obstacleTargetZ <= groundTargetZ + 0.004) {
+            return null;
+        }
+
+        return {
+            obstacleInfo,
+            forwardX,
+            forwardY,
+            obstacleFront,
+            obstacleRear,
+            start: obstacleFront - rampLength,
+            end: obstacleRear + rampLength,
+            groundTargetZ,
+            obstacleTargetZ
+        };
+    }
+
+    getObstacleTraversalTargetZ(path) {
+        if (!path || !Number.isFinite(path.start) || !Number.isFinite(path.end)) {
+            return null;
+        }
+
+        const bodyPosition = this.body.translation();
+        const relativeX = bodyPosition.x - path.obstacleInfo.center.x;
+        const relativeY = bodyPosition.y - path.obstacleInfo.center.y;
+        const alongForward = (relativeX * path.forwardX) + (relativeY * path.forwardY)
+            + (path.obstacleFront + path.obstacleRear) * 0.5;
+        const climbDistance = Math.max(path.obstacleFront - path.start, 0.001);
+        const descentDistance = Math.max(path.end - path.obstacleRear, 0.001);
+        let progress = 0;
+
+        if (alongForward <= path.obstacleFront) {
+            progress = THREE.MathUtils.clamp((alongForward - path.start) / climbDistance, 0, 1);
+        } else if (alongForward < path.obstacleRear) {
+            progress = 1;
+        } else {
+            progress = 1 - THREE.MathUtils.clamp((alongForward - path.obstacleRear) / descentDistance, 0, 1);
+        }
+
+        const smoothProgress = progress * progress * (3 - (2 * progress));
+        return path.groundTargetZ + ((path.obstacleTargetZ - path.groundTargetZ) * smoothProgress);
+    }
+
     applyObstacleClimbLift(hasObstacleContactNow, effectiveDeltaSec, obstacleInfo = null) {
         if (!this.body || !this.rapier || !hasObstacleContactNow) {
             return;
         }
 
-        const climbTargetZ = this.getObstacleClimbTargetZ(obstacleInfo);
-        if (!Number.isFinite(climbTargetZ)) {
+        const nextPath = this.getObstacleTraversalPath(obstacleInfo);
+        if (nextPath) {
+            this.activeObstacleTraversalPath = nextPath;
+        }
+
+        const path = this.activeObstacleTraversalPath;
+        if (!path) {
             return;
         }
 
         const translation = this.body.translation();
-        const velocity = this.body.linvel();
-        const targetGap = climbTargetZ - translation.z;
-        if (targetGap <= 0.002) {
+        const targetZ = this.getObstacleTraversalTargetZ(path);
+        if (!Number.isFinite(targetZ)) {
             return;
         }
 
-        const maxLiftPerStep = Math.min(Math.max(effectiveDeltaSec * 0.25, 0.001), 0.004);
-        const nextBodyZ = Math.min(translation.z + maxLiftPerStep, climbTargetZ);
+        const targetGap = targetZ - translation.z;
+        const maxPathStep = Math.min(Math.max(effectiveDeltaSec * 0.8, 0.002), 0.008);
+        const nextBodyZ = translation.z + THREE.MathUtils.clamp(targetGap, -maxPathStep, maxPathStep);
         this.body.setTranslation(new this.rapier.Vector3(
             translation.x,
             translation.y,
@@ -2646,6 +2719,14 @@ class RapierDriveSimulation {
             currentVelocity.y,
             0
         ), true);
+
+        const relativeX = translation.x - path.obstacleInfo.center.x;
+        const relativeY = translation.y - path.obstacleInfo.center.y;
+        const alongForward = (relativeX * path.forwardX) + (relativeY * path.forwardY)
+            + (path.obstacleFront + path.obstacleRear) * 0.5;
+        if (alongForward > path.end + 0.12) {
+            this.activeObstacleTraversalPath = null;
+        }
     }
 
     preserveObstacleHeading(yaw = null) {

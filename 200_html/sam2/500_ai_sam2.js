@@ -345,7 +345,7 @@
                 updateMultimaskOutputText();
             }
             if (maskInputCheckbox) {
-                maskInputCheckbox.checked = options.mask_input === true;
+                maskInputCheckbox.checked = options.mask_input !== false;
                 updateMaskInputText();
             }
             renderPointUi();

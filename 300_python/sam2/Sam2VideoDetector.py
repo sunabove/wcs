@@ -454,7 +454,7 @@ class Sam2VideoDetector:
         points=None,
         point_labels=None,
         multimask_output=False,
-        mask_input=False,
+        mask_input=True,
         progress_callback=None,
     ):
         resolved_input = Path(input_path).resolve()

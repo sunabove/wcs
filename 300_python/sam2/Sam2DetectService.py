@@ -30,7 +30,7 @@ def segment_video_upload(
     points: str = Query(""),
     point_labels: str = Query(""),
     multimask_output: bool = Query(False),
-    mask_input: bool = Query(False),
+    mask_input: bool = Query(True),
 ):
     return _service.detect_uploaded_video(
         upload_file=file,
@@ -72,7 +72,7 @@ def save_video_options(
     points: str = Query(""),
     point_labels: str = Query(""),
     multimask_output: bool = Query(False),
-    mask_input: bool = Query(False),
+    mask_input: bool = Query(True),
 ):
     return _service.save_video_options(
         file_name=file_name,
@@ -93,7 +93,7 @@ def segment_saved_video(
     points: str = Query(""),
     point_labels: str = Query(""),
     multimask_output: bool = Query(False),
-    mask_input: bool = Query(False),
+    mask_input: bool = Query(True),
 ):
     return _service.detect_saved_video(
         file_name=file_name,

@@ -291,7 +291,7 @@ class Sam2VideoService:
         points: str,
         point_labels: str,
         multimask_output: bool = False,
-        mask_input: bool = False,
+        mask_input: bool = True,
     ) -> None:
         options = {
             "model_name": model_name,
@@ -368,7 +368,7 @@ class Sam2VideoService:
         points: str = "",
         point_labels: str = "",
         multimask_output: bool = False,
-        mask_input: bool = False,
+        mask_input: bool = True,
     ):
         input_path = self._save_uploaded_video(upload_file)
         resolved_model_name = self._resolve_model_name(model_name)
@@ -413,7 +413,7 @@ class Sam2VideoService:
         points: str = "",
         point_labels: str = "",
         multimask_output: bool = False,
-        mask_input: bool = False,
+        mask_input: bool = True,
     ):
         input_path = self._resolve_uploaded_video_path(file_name)
         resolved_model_name = self._resolve_model_name(model_name)
@@ -482,7 +482,7 @@ class Sam2VideoService:
             "points": options.get("points", []),
             "point_labels": options.get("point_labels", []),
             "multimask_output": options.get("multimask_output", False) is True,
-            "mask_input": options.get("mask_input", False) is True,
+            "mask_input": options.get("mask_input", True) is not False,
             "saved_at": options.get("saved_at", ""),
         }
 
@@ -494,7 +494,7 @@ class Sam2VideoService:
         points: str = "",
         point_labels: str = "",
         multimask_output: bool = False,
-        mask_input: bool = False,
+        mask_input: bool = True,
     ):
         input_path = self._resolve_uploaded_video_path(file_name)
         resolved_model_name = self._resolve_model_name(model_name)

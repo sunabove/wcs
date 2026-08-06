@@ -355,7 +355,52 @@ class Sam2VideoDetector:
 
         return np.asarray(pixel_points, dtype=np.float32), np.asarray(labels, dtype=np.int32)
 
-    def _overlay_bbox_result(self, frame, roi_plotted, bbox_rect):
+    def _first_score_value(self, scores):
+        if scores is None:
+            return None
+
+        try:
+            if hasattr(scores, "detach"):
+                scores = scores.detach().to("cpu").numpy()
+            value = float(np.asarray(scores).reshape(-1)[0])
+        except (TypeError, ValueError, IndexError):
+            return None
+
+        return value if np.isfinite(value) else None
+
+    def _draw_bbox_score(self, image, bbox_rect, score):
+        if bbox_rect is None or score is None:
+            return
+
+        x1, y1, _x2, _y2 = bbox_rect
+        label = f"Score: {score:.3f}"
+        (text_width, text_height), baseline = cv2.getTextSize(
+            label,
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.5,
+            1,
+        )
+        label_x = max(0, x1)
+        label_y = max(text_height + baseline, y1)
+        cv2.rectangle(
+            image,
+            (label_x, label_y - text_height - baseline),
+            (label_x + text_width, label_y),
+            (13, 110, 253),
+            cv2.FILLED,
+        )
+        cv2.putText(
+            image,
+            label,
+            (label_x, label_y - baseline),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.5,
+            (255, 255, 255),
+            1,
+            cv2.LINE_AA,
+        )
+
+    def _overlay_bbox_result(self, frame, roi_plotted, bbox_rect, score=None):
         if bbox_rect is None:
             return roi_plotted
 
@@ -368,11 +413,12 @@ class Sam2VideoDetector:
 
         composed[y1:y2, x1:x2] = roi_plotted
         cv2.rectangle(composed, (x1, y1), (x2 - 1, y2 - 1), (13, 110, 253), 1)
+        self._draw_bbox_score(composed, bbox_rect, score)
         return composed
 
-    def _overlay_mask_result(self, frame, mask_tensor, bbox_rect=None):
+    def _overlay_mask_result(self, frame, mask_tensor, bbox_rect=None, score=None):
         if mask_tensor is None:
-            return self._overlay_bbox_result(frame, frame, bbox_rect)
+            return self._overlay_bbox_result(frame, frame, bbox_rect, score)
 
         if isinstance(mask_tensor, np.ndarray):
             mask = mask_tensor
@@ -384,11 +430,11 @@ class Sam2VideoDetector:
         if mask.ndim == 3:
             mask = mask[0]
         if mask.ndim != 2:
-            return self._overlay_bbox_result(frame, frame, bbox_rect)
+            return self._overlay_bbox_result(frame, frame, bbox_rect, score)
 
         mask_np = mask > 0
         if not np.any(mask_np):
-            return self._overlay_bbox_result(frame, frame, bbox_rect)
+            return self._overlay_bbox_result(frame, frame, bbox_rect, score)
 
         overlay = frame.copy()
         color = np.array([13, 110, 253], dtype=np.float32)
@@ -397,6 +443,7 @@ class Sam2VideoDetector:
         if bbox_rect is not None:
             x1, y1, x2, y2 = bbox_rect
             cv2.rectangle(overlay, (x1, y1), (x2 - 1, y2 - 1), (13, 110, 253), 1)
+            self._draw_bbox_score(overlay, bbox_rect, score)
         return overlay
 
     def detect_video_file(
@@ -481,6 +528,7 @@ class Sam2VideoDetector:
                     if point_prompt is not None:
                         predict_kwargs["point_coords"], predict_kwargs["point_labels"] = point_prompt
                     masks, scores, _logits = model.predict(**predict_kwargs)
+                    detection_score = self._first_score_value(scores)
                     if mask_input and _logits is not None:
                         previous_mask_input = _logits[:1] if getattr(_logits, "ndim", 0) == 3 else _logits
                     else:
@@ -496,7 +544,7 @@ class Sam2VideoDetector:
                         ) from ex
                     raise
 
-                plotted = self._overlay_mask_result(frame, mask_tensor, bbox_rect)
+                plotted = self._overlay_mask_result(frame, mask_tensor, bbox_rect, detection_score)
 
                 if plotted.shape[1] != width or plotted.shape[0] != height:
                     plotted = cv2.resize(plotted, (width, height), interpolation=cv2.INTER_AREA)

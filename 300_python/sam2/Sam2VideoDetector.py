@@ -447,6 +447,46 @@ class Sam2VideoDetector:
             cv2.LINE_AA,
         )
 
+    def _create_score_chart_image(self, score_history, width=640, height=180):
+        chart = np.zeros((height, width, 3), dtype=np.uint8)
+        chart[:] = (44, 44, 44)
+        chart_left = 48
+        chart_right = width - 12
+        chart_top = 34
+        chart_bottom = height - 28
+        plot_width = max(1, chart_right - chart_left)
+        plot_height = max(1, chart_bottom - chart_top)
+
+        cv2.rectangle(chart, (chart_left, chart_top), (chart_right, chart_bottom), (56, 56, 56), cv2.FILLED)
+        cv2.rectangle(chart, (chart_left, chart_top), (chart_right, chart_bottom), (120, 120, 120), 1)
+        for tick in (0.0, 0.5, 1.0):
+            y = int(round(chart_bottom - tick * plot_height))
+            cv2.line(chart, (chart_left, y), (chart_right, y), (82, 82, 82), 1, cv2.LINE_AA)
+            cv2.putText(chart, f"{tick:.1f}", (8, y + 4), cv2.FONT_HERSHEY_SIMPLEX, 0.4, (210, 210, 210), 1, cv2.LINE_AA)
+
+        values = [max(0.0, min(1.0, float(value or 0.0))) for value in score_history]
+        if values:
+            points = []
+            denominator = max(1, len(values) - 1)
+            for index, value in enumerate(values):
+                x = chart_left + int(round((index / denominator) * plot_width))
+                y = chart_bottom - int(round(value * plot_height))
+                points.append((x, y))
+            if len(points) > 1:
+                cv2.polylines(chart, [np.asarray(points, dtype=np.int32)], False, (80, 255, 80), 2, cv2.LINE_AA)
+            cv2.putText(
+                chart,
+                f"Score history | Frames: {len(values)} | Current: {values[-1]:.3f}",
+                (chart_left, 22),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.48,
+                (235, 235, 235),
+                1,
+                cv2.LINE_AA,
+            )
+        cv2.putText(chart, "Frame", (chart_left + (plot_width // 2) - 18, height - 8), cv2.FONT_HERSHEY_SIMPLEX, 0.4, (210, 210, 210), 1, cv2.LINE_AA)
+        return chart
+
     def _render_score_chart(self, frame, score_history, frame_number, total_frames):
         if frame is None:
             return frame
@@ -699,6 +739,9 @@ class Sam2VideoDetector:
             raise RuntimeError("No frames were processed")
 
         elapsed_sec = round(time.time() - start_time, 3)
+        score_chart_path = SAM2_OUTPUT_DIR / f"{job_id}_score_chart.png"
+        if not cv2.imwrite(str(score_chart_path), self._create_score_chart_image(score_history, width=width)):
+            score_chart_path = None
 
         return {
             "job_id": job_id,
@@ -709,6 +752,7 @@ class Sam2VideoDetector:
             "elapsed_sec": elapsed_sec,
             "segment_count": int(total_segments),
             "score_history": score_history,
+            "score_chart_url": self._to_route_url(score_chart_path) if score_chart_path else "",
             "bbox": normalized_bbox,
             "optimized_input": bool(prepared.get("optimized")),
             "input_file": str(resolved_input),

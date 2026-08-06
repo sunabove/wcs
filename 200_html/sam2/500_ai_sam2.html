@@ -9,6 +9,7 @@
 	<title>AI SAM2 Video Segmentation</title>
 	<link rel="icon" href="/favicon.ico" type="image/x-icon">
 	<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+	<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
 	<link rel="stylesheet" href="500_ai_sam2.css?v=20260715_2">
 
 	<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js" defer></script>
@@ -34,115 +35,52 @@
 		<div class="card-header">
 			<h5 class="mb-0">SAM2 객체 분할</h5>
 		</div>
-		<div class="card-body">
-			<div class="row g-3 align-items-start">
-				<div class="col-4">
-					<label for="sam2-video-file" class="form-label">동영상 파일</label>
-					<input id="sam2-video-file" class="form-control mb-2" type="file" accept="video/*">
-					<div id="sam2-drop-zone" role="button" tabindex="0" aria-label="동영상 드래그 업로드 영역">
-						<div class="fw-semibold">동영상을 여기로 드래그하세요</div>
-						<div class="small text-muted mt-1">또는 클릭해서 파일 선택</div>
-					</div>
-					<div id="sam2-upload-progress-wrap" class="mt-2 d-none" aria-live="polite">
-						<div class="progress" role="progressbar" aria-label="동영상 업로드 진행률" aria-valuemin="0" aria-valuemax="100">
-							<div id="sam2-upload-progress-bar" class="progress-bar progress-bar-striped progress-bar-animated" style="width: 0%">0%</div>
-						</div>
-						<div id="sam2-upload-progress-text" class="small text-muted mt-1">업로드 준비 중...</div>
-					</div>
-					<div id="sam2-upload-max-size" class="small text-muted mt-1">최대 업로드 용량: ___GB</div>
-				</div>
-				<div class="col-8">
-					<div class="d-flex align-items-center gap-2 mb-1">
-						<div class="small fw-semibold text-secondary">업로드한 동영상 &nbsp;</div>
-						<div id="sam2-uploaded-loading" class="small text-primary d-inline-flex align-items-center" aria-live="polite">
-							<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
-							<span id="sam2-uploaded-loading-text">동영상 목록을 불러오는 중...</span>
-						</div>
-					</div>
-					<ul id="sam2-uploaded-list" class="list-group list-group-sm"></ul>
-				</div>
-			</div>
-
-			<div class="row g-2 mt-1 align-items-stretch">
-				<div class="col">
-					<div class="sam2-option-card border rounded p-2">
-						<div class="small fw-semibold text-secondary mb-1">분할 대상</div>
-						<div class="d-flex flex-wrap gap-3" id="sam2-target-group">
-							<div class="form-check mb-0">
-								<input class="form-check-input" type="radio" name="sam2-target" id="sam2-target-road" value="road" checked>
-								<label class="form-check-label" for="sam2-target-road">도로</label>
-							</div>
-							<div class="form-check mb-0">
-								<input class="form-check-input" type="radio" name="sam2-target" id="sam2-target-pothole" value="pothole">
-								<label class="form-check-label" for="sam2-target-pothole">포트홀</label>
-							</div>
-							<div class="form-check mb-0">
-								<input class="form-check-input" type="radio" name="sam2-target" id="sam2-target-curb-step" value="curb_step">
-								<label class="form-check-label" for="sam2-target-curb-step">단차</label>
-							</div>
-						</div>
-					</div>
-				</div>
-				<div class="col-auto d-flex align-items-center">
-					<button id="sam2-detect-btn" class="btn btn-primary">분할 시작</button>
-				</div>
-			</div>
-
-			<div class="sam2-point-panel mt-2">
-				<div class="d-flex flex-wrap align-items-center gap-2 mb-2">
-					<div class="small fw-semibold text-secondary me-1">Point 추가 버튼</div>
-					<button id="sam2-point-clear" type="button" class="btn btn-outline-secondary btn-sm">전체 삭제</button>
-					<div class="form-check form-switch ms-2 mb-0">
-						<input class="form-check-input" type="checkbox" role="switch" id="sam2-bbox-enabled" checked>
-						<label class="form-check-label small" for="sam2-bbox-enabled">Bounding Box 변경</label>
-					</div>
-					<div class="small text-muted ms-1">원본 영상을 클릭해 포인트와 BBox를 설정합니다.</div>
-				</div>
-				<div class="row g-2">
-					<div class="col-md-6">
-						<div class="small text-success fw-semibold mb-1">Positive (<span id="sam2-positive-count">0</span>)</div>
-						<div id="sam2-positive-points" class="sam2-point-list"></div>
-					</div>
-				</div>
-				<div class="small text-primary mt-2">
-					BBox: <span id="sam2-bbox-value">없음</span>
-				</div>
-			</div>
-
-			<div id="sam2-status" class="alert alert-secondary mt-2 mb-0">대기 중</div>
-
-			<div class="mt-3">
-				<div class="d-flex justify-content-between align-items-center mb-1">
-					<ul class="nav nav-tabs" id="sam2-video-tabs" role="tablist">
-						<li class="nav-item" role="presentation">
-							<button class="nav-link active" id="sam2-input-tab" data-bs-toggle="tab" data-bs-target="#sam2-input-pane" type="button" role="tab" aria-controls="sam2-input-pane" aria-selected="true">📼 원본 영상</button>
-						</li>
-						<li class="nav-item" role="presentation">
-							<button class="nav-link" id="sam2-output-tab" data-bs-toggle="tab" data-bs-target="#sam2-output-pane" type="button" role="tab" aria-controls="sam2-output-pane" aria-selected="false">🧩 분할 영상</button>
-						</li>
-					</ul>
-					<div class="form-check form-switch mb-0 ms-2">
-						<input class="form-check-input" type="checkbox" role="switch" id="sam2-loop-toggle">
-						<label class="form-check-label small" for="sam2-loop-toggle">반복 재생</label>
-					</div>
-				</div>
-				<div class="tab-content border border-top-0 rounded-bottom p-3 bg-white" id="sam2-video-tab-content">
-					<div class="tab-pane fade show active" id="sam2-input-pane" role="tabpanel" aria-labelledby="sam2-input-tab" tabindex="0">
-						<div class="sam2-video-wrap">
-							<div id="sam2-input-video-wrap" class="sam2-input-stage border rounded overflow-hidden">
-								<video id="sam2-input-video" class="sam2-video-player" controls playsinline></video>
-								<div id="sam2-point-marker-layer" class="sam2-point-marker-layer" aria-hidden="true"></div>
-								<div id="sam2-bbox-layer" class="sam2-bbox-layer" aria-hidden="true"></div>
-								<div id="sam2-bbox-capture-layer" class="sam2-bbox-capture-layer" aria-label="Bounding Box 입력 레이어"></div>
-							</div>
-						</div>
-					</div>
-					<div class="tab-pane fade" id="sam2-output-pane" role="tabpanel" aria-labelledby="sam2-output-tab" tabindex="0">
-						<div class="sam2-video-wrap">
-							<video id="sam2-output-video" class="sam2-video-player border rounded" controls playsinline></video>
-						</div>
-					</div>
-				</div>
+		<div class="card-body p-2">
+			<div class="table-responsive">
+				<table class="table table-bordered align-middle mb-0">
+					<colgroup><col style="width: 140px;"><col></colgroup>
+					<tbody>
+						<tr>
+							<th scope="row" class="text-center text-nowrap">입력</th>
+							<td>
+								<ul class="nav nav-tabs" id="sam2-input-source-tabs" role="tablist">
+									<li class="nav-item" role="presentation"><button class="nav-link active text-secondary" id="sam2-file-source-tab" data-bs-toggle="tab" data-bs-target="#sam2-file-source-pane" type="button" role="tab" aria-selected="true"><i class="bi bi-film me-1" aria-hidden="true"></i>동영상 파일</button></li>
+									<li class="nav-item" role="presentation"><button class="nav-link text-secondary" id="sam2-uploaded-source-tab" data-bs-toggle="tab" data-bs-target="#sam2-uploaded-source-pane" type="button" role="tab" aria-selected="false"><i class="bi bi-upload me-1" aria-hidden="true"></i>업로드 동영상</button></li>
+								</ul>
+								<input id="sam2-video-file" class="d-none" type="file" accept="video/*">
+								<div class="tab-content border border-top-0 rounded-bottom p-2 bg-white">
+									<div class="tab-pane fade show active" id="sam2-file-source-pane" role="tabpanel">
+										<div class="d-flex align-items-stretch gap-2">
+											<div id="sam2-drop-zone" class="border border-2 rounded-3 bg-light p-3 text-center text-secondary flex-grow-1" role="button" tabindex="0" aria-label="동영상 드래그 업로드 영역"><div class="fw-semibold">동영상을 여기로 드래그하세요</div><div id="sam2-selected-file" class="form-text mt-1">또는 클릭해서 파일 선택</div></div>
+											</div>
+										<div id="sam2-upload-progress-wrap" class="mt-2 d-none" aria-live="polite"><div class="progress" role="progressbar" aria-label="동영상 업로드 진행률" aria-valuemin="0" aria-valuemax="100"><div id="sam2-upload-progress-bar" class="progress-bar progress-bar-striped progress-bar-animated" style="width: 0%">0%</div></div><div id="sam2-upload-progress-text" class="small text-muted mt-1">업로드 준비 중...</div></div>
+										<div id="sam2-upload-max-size" class="small text-muted mt-1">최대 업로드 용량: ___GB</div>
+									</div>
+									<div class="tab-pane fade" id="sam2-uploaded-source-pane" role="tabpanel"><div class="d-flex align-items-center gap-2 mb-1"><div id="sam2-uploaded-loading" class="small text-primary d-inline-flex align-items-center" aria-live="polite"><span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span><span id="sam2-uploaded-loading-text">동영상 목록을 불러오는 중...</span></div></div><ul id="sam2-uploaded-list" class="list-group list-group-sm d-flex flex-row flex-nowrap gap-2 align-items-stretch overflow-auto pb-1 mb-0" style="white-space: nowrap;"></ul></div>
+								</div>
+							</td>
+						</tr>
+						<tr>
+							<th scope="row" class="text-center text-nowrap">옵션</th>
+							<td>
+								<div class="row g-2 align-items-stretch">
+									<div class="col-lg-5"><div class="border rounded p-2 bg-white h-100"><div class="small fw-semibold text-secondary mb-1">분할 대상</div><div class="d-flex flex-wrap gap-3" id="sam2-target-group"><div class="form-check mb-0"><input class="form-check-input" type="radio" name="sam2-target" id="sam2-target-road" value="road" checked><label class="form-check-label" for="sam2-target-road">도로</label></div><div class="form-check mb-0"><input class="form-check-input" type="radio" name="sam2-target" id="sam2-target-pothole" value="pothole"><label class="form-check-label" for="sam2-target-pothole">포트홀</label></div><div class="form-check mb-0"><input class="form-check-input" type="radio" name="sam2-target" id="sam2-target-curb-step" value="curb_step"><label class="form-check-label" for="sam2-target-curb-step">단차</label></div></div></div></div>
+									<div class="col-lg-5"><div class="border rounded p-2 bg-white h-100"><div class="d-flex flex-wrap align-items-center gap-2"><span class="small fw-semibold text-secondary">포인트</span><span class="badge text-bg-success">Positive <span id="sam2-positive-count">0</span></span><button id="sam2-point-clear" type="button" class="btn btn-outline-secondary btn-sm">전체 삭제</button></div><div id="sam2-positive-points" class="sam2-point-list mt-2"></div><div class="small text-primary mt-2">BBox: <span id="sam2-bbox-value">없음</span></div></div></div>
+									<div class="col-lg-2 d-grid"><button id="sam2-detect-btn" class="btn btn-primary h-100">분할 시작</button></div>
+								</div>
+								<div class="form-check form-switch mt-2 mb-0"><input class="form-check-input" type="checkbox" role="switch" id="sam2-bbox-enabled" checked><label class="form-check-label small" for="sam2-bbox-enabled">Bounding Box 변경</label><span class="small text-muted ms-2">원본 영상을 클릭해 포인트와 BBox를 설정합니다.</span></div>
+							</td>
+						</tr>
+						<tr>
+							<th scope="row" class="text-center text-nowrap">상태</th>
+							<td class="p-1"><div class="d-flex flex-wrap align-items-stretch gap-2 w-100"><div id="sam2-status" class="alert alert-secondary mb-0 py-1 px-2 rounded-2 d-flex align-items-center" style="line-height: 1.15; min-width: 0; flex: 0 0 calc(50% - 0.5rem); max-width: calc(50% - 0.5rem);">대기 중</div><div class="alert alert-secondary mb-0 py-1 px-2 rounded-2 d-flex align-items-stretch" style="line-height: 1.15; flex: 0 0 calc(50% - 0.5rem); max-width: calc(50% - 0.5rem); min-width: 0;"><div class="progress position-relative w-100 h-100" role="progressbar" aria-label="동영상 업로드 진행률" aria-valuemin="0" aria-valuemax="100" style="min-height: 30px;"><div class="progress-bar progress-bar-striped progress-bar-animated" style="width: 0%;"></div><span class="position-absolute top-50 start-50 translate-middle fs-6 fw-semibold text-dark">처리 상태</span></div></div></div></td>
+						</tr>
+						<tr>
+							<th scope="row" class="text-center text-nowrap">출력</th>
+							<td><div class="d-flex justify-content-between align-items-center mb-1"><ul class="nav nav-tabs" id="sam2-video-tabs" role="tablist"><li class="nav-item" role="presentation"><button class="nav-link active" id="sam2-input-tab" data-bs-toggle="tab" data-bs-target="#sam2-input-pane" type="button" role="tab" aria-selected="true">📼 원본 영상</button></li><li class="nav-item" role="presentation"><button class="nav-link" id="sam2-output-tab" data-bs-toggle="tab" data-bs-target="#sam2-output-pane" type="button" role="tab" aria-selected="false">🧩 분할 영상</button></li></ul><div class="form-check form-switch mb-0 ms-2"><input class="form-check-input" type="checkbox" role="switch" id="sam2-loop-toggle"><label class="form-check-label" for="sam2-loop-toggle">반복 재생</label></div></div><div class="tab-content border border-top-0 rounded-bottom p-3 bg-white" id="sam2-video-tab-content"><div class="tab-pane fade show active" id="sam2-input-pane" role="tabpanel"><div class="sam2-video-wrap"><div id="sam2-input-video-wrap" class="sam2-input-stage border rounded overflow-hidden"><video id="sam2-input-video" class="sam2-video-player" controls playsinline></video><div id="sam2-point-marker-layer" class="sam2-point-marker-layer" aria-hidden="true"></div><div id="sam2-bbox-layer" class="sam2-bbox-layer" aria-hidden="true"></div><div id="sam2-bbox-capture-layer" class="sam2-bbox-capture-layer" aria-label="Bounding Box 입력 레이어"></div></div></div></div><div class="tab-pane fade" id="sam2-output-pane" role="tabpanel"><div class="sam2-video-wrap"><video id="sam2-output-video" class="sam2-video-player border rounded" controls playsinline></video></div></div></div></td>
+						</tr>
+					</tbody>
+				</table>
 			</div>
 		</div>
 	</div>

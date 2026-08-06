@@ -1510,24 +1510,19 @@
     }
     if (bboxCaptureLayerElement) {
         bboxCaptureLayerElement.addEventListener('click', (event) => {
-            event.preventDefault();
-            event.stopPropagation();
+            addPointByClick(event);
         });
         bboxCaptureLayerElement.addEventListener('mousedown', (event) => {
-            event.preventDefault();
-            event.stopPropagation();
+            handleBoundingBoxDragStart(event);
         });
         bboxCaptureLayerElement.addEventListener('mousemove', (event) => {
-            event.preventDefault();
-            event.stopPropagation();
+            handleBoundingBoxDragMove(event);
         });
         bboxCaptureLayerElement.addEventListener('mouseup', (event) => {
-            event.preventDefault();
-            event.stopPropagation();
+            handleBoundingBoxDragEnd(event);
         });
         bboxCaptureLayerElement.addEventListener('mouseleave', (event) => {
-            event.preventDefault();
-            event.stopPropagation();
+            handleBoundingBoxDragEnd(event);
         });
     }
     document.querySelectorAll('input[name="sam2-target"]').forEach((input) => {

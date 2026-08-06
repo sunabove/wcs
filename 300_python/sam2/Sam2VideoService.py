@@ -200,7 +200,7 @@ class Sam2VideoService:
         return True
 
     def _options_path(self, input_path: Path) -> Path:
-        return input_path.with_name(f"{input_path.name}.sam2_options.json")
+        return input_path.with_suffix(".sam2")
 
     def _parse_options_json(self, value: str, default):
         if not str(value or "").strip():

@@ -624,9 +624,15 @@ class RapierDriveSimulation {
                 ? this.wheelRadiusMetersByKey[wheelKey]
                 : Math.max(Number(this.wheelEffectiveRadiusMeters) || 0.16, 0.05);
 
-            wheelLink.updateWorldMatrix(true, true);
             const centerWorld = new THREE.Vector3();
-            wheelLink.getWorldPosition(centerWorld);
+            const wheelCollider = this.wheelCollidersByKey?.[wheelKey] || null;
+            if (wheelCollider && typeof wheelCollider.translation === 'function') {
+                const colliderPosition = wheelCollider.translation();
+                centerWorld.set(colliderPosition.x, colliderPosition.y, colliderPosition.z);
+            } else {
+                wheelLink.updateWorldMatrix(true, true);
+                wheelLink.getWorldPosition(centerWorld);
+            }
 
             const wheelBottomWorldPosition = centerWorld.clone().setZ(centerWorld.z - wheelRadiusMeters);
             const groundLink = this.findLinkByName(linkMap, 'ground')

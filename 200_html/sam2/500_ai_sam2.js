@@ -481,7 +481,7 @@
     }
 
     function startPointDrag(event) {
-        if (detectionMode !== 'point' || event.button !== 0 || !hasSelectedVideo()) {
+        if (event.button !== 0 || !hasSelectedVideo()) {
             return;
         }
 
@@ -735,7 +735,7 @@
     }
 
     function startBboxResize(handleKey, event) {
-        if (detectionMode !== 'bbox' || !boundingBox) {
+        if (!boundingBox) {
             return;
         }
 
@@ -1808,9 +1808,8 @@
             }
         });
         bboxCaptureLayerElement.addEventListener('mousedown', (event) => {
-            if (detectionMode === 'point') {
-                startPointDrag(event);
-            } else if (detectionMode === 'bbox') {
+            startPointDrag(event);
+            if (pointDragIndex < 0 && detectionMode === 'bbox') {
                 handleBoundingBoxDragStart(event);
             }
         });

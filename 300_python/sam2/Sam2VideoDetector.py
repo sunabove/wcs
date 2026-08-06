@@ -22,7 +22,6 @@ from sam2.Sam2VideoConfig import (
 
 class Sam2VideoDetector:
     _chart_renderer = ChartRenderer()
-    _score_chart_height = 120
     _model_cache = {}
     _sam2_image_predictor_class = None
     _max_infer_side = 960
@@ -452,14 +451,13 @@ class Sam2VideoDetector:
             return frame
 
         height, width = frame.shape[:2]
-        panel_height = 120
-        canvas = np.zeros((height + panel_height, width, 3), dtype=frame.dtype)
-        canvas[:height, :width] = frame
+        panel_height = min(120, max(48, height // 3))
+        canvas = frame.copy()
 
         panel_x1 = 8
         panel_x2 = max(panel_x1 + 120, width - 8)
-        panel_y1 = height + 6
-        panel_y2 = height + panel_height - 6
+        panel_y1 = max(0, height - panel_height)
+        panel_y2 = height - 6
         chart_x1 = panel_x1 + 42
         chart_x2 = panel_x2 - 10
         chart_y1 = panel_y1 + 25
@@ -620,8 +618,7 @@ class Sam2VideoDetector:
                 "h": 100.0,
             }
 
-        output_height = height + self._score_chart_height
-        writer = self._create_video_writer(output_path, fps, width, output_height)
+        writer = self._create_video_writer(output_path, fps, width, height)
         if writer is None:
             capture.release()
             raise RuntimeError("Failed to create output video")

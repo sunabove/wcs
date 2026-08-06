@@ -25,6 +25,8 @@
     if (backgroundPointModeButton) {
         backgroundPointModeButton.textContent = '배경 Point';
     }
+    const pointToolbarTitle = document.querySelector('#sam2-input-pane .sam2-point-toolbar > div > .fw-semibold');
+    pointToolbarTitle?.classList.add('d-none');
     const bboxModeButton = document.getElementById('sam2-bbox-mode');
     const pointClearButton = document.getElementById('sam2-point-clear');
     const bboxClearButton = document.getElementById('sam2-bbox-clear');

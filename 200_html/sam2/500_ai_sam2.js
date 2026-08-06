@@ -34,6 +34,7 @@
     const optionsResetButton = document.getElementById('sam2-options-reset');
     const multimaskOutputCheckbox = document.getElementById('sam2-multimask-output');
     const maskInputCheckbox = document.getElementById('sam2-mask-input');
+    document.getElementById('sam2-point-label-text')?.closest('.form-switch')?.remove();
     const multimaskOutputText = document.getElementById('sam2-multimask-output-text');
     const maskInputText = document.getElementById('sam2-mask-input-text');
     const positivePointListElement = document.getElementById('sam2-positive-points');

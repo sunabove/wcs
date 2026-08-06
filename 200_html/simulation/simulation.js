@@ -649,7 +649,24 @@ class RapierDriveSimulation {
                 this.wheelChartBaselineCenterZByKey[wheelKey] = centerWorld.z;
             }
 
-            const wheelCenterHeightDelta = centerWorld.z - this.wheelChartBaselineCenterZByKey[wheelKey];
+            let chartCenterWorldZ = centerWorld.z;
+            const traversalPath = this.activeObstacleTraversalPath;
+            if (traversalPath && this.isObstacleTraversalActive()) {
+                const bodyPosition = this.body?.translation();
+                if (bodyPosition) {
+                    const bodyYaw = this.extractYawFromQuaternion(this.body.rotation());
+                    const wheelOffsetX = centerWorld.x - bodyPosition.x;
+                    const wheelOffsetY = centerWorld.y - bodyPosition.y;
+                    const wheelForwardOffset = (wheelOffsetX * Math.cos(bodyYaw))
+                        + (wheelOffsetY * Math.sin(bodyYaw));
+                    const wheelTargetBodyZ = this.getObstacleTraversalTargetZ(traversalPath, wheelForwardOffset);
+                    if (Number.isFinite(wheelTargetBodyZ)) {
+                        chartCenterWorldZ = wheelTargetBodyZ + (centerWorld.z - bodyPosition.z);
+                    }
+                }
+            }
+
+            const wheelCenterHeightDelta = chartCenterWorldZ - this.wheelChartBaselineCenterZByKey[wheelKey];
             if (!Number.isFinite(wheelCenterHeightDelta)) {
                 return;
             }
@@ -2689,7 +2706,7 @@ class RapierDriveSimulation {
             && distances.rear > -this.activeObstacleTraversalPath.rampLength;
     }
 
-    getObstacleTraversalTargetZ(path) {
+    getObstacleTraversalTargetZ(path, wheelForwardOffset = 0) {
         if (!path || !Number.isFinite(path.rampLength)) {
             return null;
         }
@@ -2700,14 +2717,18 @@ class RapierDriveSimulation {
         }
 
         const rampLength = path.rampLength;
+        const wheelDistances = {
+            front: distances.front - wheelForwardOffset,
+            rear: distances.rear - wheelForwardOffset
+        };
         let progress = 0;
 
-        if (distances.front > 0) {
-            progress = 1 - THREE.MathUtils.clamp(distances.front / rampLength, 0, 1);
-        } else if (distances.rear >= 0) {
+        if (wheelDistances.front > 0) {
+            progress = 1 - THREE.MathUtils.clamp(wheelDistances.front / rampLength, 0, 1);
+        } else if (wheelDistances.rear >= 0) {
             progress = 1;
         } else {
-            progress = THREE.MathUtils.clamp((distances.rear + rampLength) / rampLength, 0, 1);
+            progress = THREE.MathUtils.clamp((wheelDistances.rear + rampLength) / rampLength, 0, 1);
         }
 
         const smoothProgress = progress * progress * (3 - (2 * progress));

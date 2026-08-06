@@ -2776,8 +2776,8 @@ class RapierDriveSimulation {
             Number(this.maxSpeedMps) || Number.POSITIVE_INFINITY
         );
         this.body.setTranslation(new this.rapier.Vector3(
-            translation.x + (path.forwardX * commandedForwardSpeed * effectiveDeltaSec),
-            translation.y + (path.forwardY * commandedForwardSpeed * effectiveDeltaSec),
+            translation.x,
+            translation.y,
             nextBodyZ
         ), true);
 

@@ -1046,6 +1046,7 @@ class RapierDriveSimulation {
 
         this.hasActivatedSimulationMotion = false;
         this.hasActivatedDynamicGroundClamp = false;
+        this.wheelZChartLastSampleTimeMs = null;
 
         if (this.carFrame) {
             this.syncCarFrameFromBody();
@@ -4109,17 +4110,22 @@ class RapierDriveSimulation {
             ? performance.now()
             : null;
         if (nowMs !== null) {
-            if (this.wheelZChartLastSampleTimeMs === null) {
-                this.wheelZChartLastSampleTimeMs = nowMs;
-            }
+            const isDriveStopped = String(this.commandedDriveMode || '').toLowerCase() === 'stop';
+            if (isDriveStopped) {
+                this.wheelZChartLastSampleTimeMs = null;
+            } else {
+                if (this.wheelZChartLastSampleTimeMs === null) {
+                    this.wheelZChartLastSampleTimeMs = nowMs;
+                }
 
-            const frameDeltaSec = Math.min(
-                Math.max((nowMs - this.wheelZChartLastSampleTimeMs) / 1000, 0),
-                0.1
-            );
-            this.wheelZChartLastSampleTimeMs = nowMs;
-            this.wheelZChartElapsedSec += frameDeltaSec * this.visualSpeedScale;
-            this.sampleWheelCenterZForChart(this.wheelZChartElapsedSec);
+                const frameDeltaSec = Math.min(
+                    Math.max((nowMs - this.wheelZChartLastSampleTimeMs) / 1000, 0),
+                    0.1
+                );
+                this.wheelZChartLastSampleTimeMs = nowMs;
+                this.wheelZChartElapsedSec += frameDeltaSec * this.visualSpeedScale;
+                this.sampleWheelCenterZForChart(this.wheelZChartElapsedSec);
+            }
             this.renderWheelZChart(this.wheelZChartElapsedSec);
         } else {
             this.renderWheelZChart(this.wheelZChartElapsedSec);

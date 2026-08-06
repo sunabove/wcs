@@ -502,16 +502,6 @@ class Sam2VideoDetector:
             chart_x2 - chart_x1,
         )
         cv2.line(canvas, (current_x, chart_y1), (current_x, chart_y2), (255, 230, 0), 1, cv2.LINE_AA)
-        cv2.putText(
-            canvas,
-            f"Score history | Frame {int(frame_number)}/{int(total_frames or frame_number)} | Current: {score_history[-1]:.3f}",
-            (chart_x1 + 4, panel_y1 + 16),
-            cv2.FONT_HERSHEY_SIMPLEX,
-            0.42,
-            (220, 220, 220),
-            1,
-            cv2.LINE_AA,
-        )
         return canvas
 
     def _overlay_bbox_result(self, frame, roi_plotted, bbox_rect, score=None):

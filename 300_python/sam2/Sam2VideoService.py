@@ -141,8 +141,7 @@ class Sam2VideoService:
 
         return name
 
-    def _resolve_model_name(self, target_type: str, model_name: str) -> str:
-        _ = target_type
+    def _resolve_model_name(self, model_name: str) -> str:
         value = str(model_name or "").strip()
         if value and value.lower() not in {"auto", "default"}:
             return value
@@ -296,7 +295,7 @@ class Sam2VideoService:
     ):
         input_path = self._save_uploaded_video(upload_file)
         normalized_target_type = self._normalize_target_type(target_type)
-        resolved_model_name = self._resolve_model_name(normalized_target_type, model_name)
+        resolved_model_name = self._resolve_model_name(model_name)
         self._save_detection_options(
             input_path=input_path,
             target_type=normalized_target_type,
@@ -348,7 +347,7 @@ class Sam2VideoService:
     ):
         input_path = self._resolve_uploaded_video_path(file_name)
         normalized_target_type = self._normalize_target_type(target_type)
-        resolved_model_name = self._resolve_model_name(normalized_target_type, model_name)
+        resolved_model_name = self._resolve_model_name(model_name)
         self._save_detection_options(
             input_path=input_path,
             target_type=normalized_target_type,

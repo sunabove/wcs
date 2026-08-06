@@ -47,6 +47,8 @@
     const statusElement = document.getElementById('sam2-status');
     const inputVideoElement = document.getElementById('sam2-input-video');
     const outputVideoElement = document.getElementById('sam2-output-video');
+    const inputVideoStageElement = document.getElementById('sam2-input-video-wrap');
+    let scoreChartCanvas = null;
 
     let selectedFile = null;
     let resolvedApiBase = null;
@@ -97,6 +99,99 @@
         );
         statusElement.classList.add(`alert-${alertType}`);
         statusElement.textContent = message;
+    }
+
+    function ensureScoreChart() {
+        if (scoreChartCanvas || !inputVideoStageElement || !inputVideoStageElement.parentElement) {
+            return scoreChartCanvas;
+        }
+
+        const chartWrap = document.createElement('div');
+        chartWrap.className = 'mt-2 border rounded bg-dark p-2 text-start';
+        chartWrap.style.width = 'min(640px, 100%)';
+        chartWrap.style.margin = '0 auto';
+        chartWrap.style.display = 'none';
+
+        scoreChartCanvas = document.createElement('canvas');
+        scoreChartCanvas.setAttribute('aria-label', 'SAM2 프레임별 스코어 차트');
+        scoreChartCanvas.style.display = 'block';
+        scoreChartCanvas.style.width = '100%';
+        scoreChartCanvas.style.height = '150px';
+        chartWrap.appendChild(scoreChartCanvas);
+        inputVideoStageElement.parentElement.appendChild(chartWrap);
+        scoreChartCanvas._sam2ChartWrap = chartWrap;
+        return scoreChartCanvas;
+    }
+
+    function renderScoreChart(scoreHistory) {
+        const canvas = ensureScoreChart();
+        if (!canvas) {
+            return;
+        }
+
+        const values = Array.isArray(scoreHistory)
+            ? scoreHistory.map((value) => Math.max(0, Math.min(1, Number(value) || 0)))
+            : [];
+        const chartWrap = canvas._sam2ChartWrap;
+        if (values.length === 0) {
+            chartWrap.style.display = 'none';
+            return;
+        }
+
+        chartWrap.style.display = 'block';
+        const width = Math.max(1, Math.floor(chartWrap.clientWidth));
+        const height = 150;
+        const devicePixelRatio = window.devicePixelRatio || 1;
+        canvas.width = Math.floor(width * devicePixelRatio);
+        canvas.height = Math.floor(height * devicePixelRatio);
+        const context = canvas.getContext('2d');
+        context.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
+        context.clearRect(0, 0, width, height);
+
+        const chartLeft = 42;
+        const chartRight = width - 10;
+        const chartTop = 28;
+        const chartBottom = height - 24;
+        context.fillStyle = '#2c2c2c';
+        context.fillRect(0, 0, width, height);
+        context.fillStyle = '#383838';
+        context.fillRect(chartLeft, chartTop, Math.max(1, chartRight - chartLeft), chartBottom - chartTop);
+        context.strokeStyle = '#777';
+        context.strokeRect(chartLeft, chartTop, Math.max(1, chartRight - chartLeft), chartBottom - chartTop);
+
+        context.font = '11px sans-serif';
+        context.fillStyle = '#c8c8c8';
+        context.textAlign = 'right';
+        [0, 0.5, 1].forEach((tick) => {
+            const y = chartBottom - (tick * (chartBottom - chartTop));
+            context.strokeStyle = '#555';
+            context.beginPath();
+            context.moveTo(chartLeft, y);
+            context.lineTo(chartRight, y);
+            context.stroke();
+            context.fillText(tick.toFixed(1), chartLeft - 6, y + 4);
+        });
+
+        context.textAlign = 'left';
+        context.fillText(`Score history | Frames: ${values.length} | Current: ${values[values.length - 1].toFixed(3)}`, chartLeft, 16);
+        context.textAlign = 'center';
+        context.fillText('Frame', (chartLeft + chartRight) / 2, height - 7);
+
+        context.strokeStyle = '#50ff50';
+        context.lineWidth = 2;
+        context.beginPath();
+        values.forEach((value, index) => {
+            const x = values.length === 1
+                ? chartLeft
+                : chartLeft + (index / (values.length - 1)) * (chartRight - chartLeft);
+            const y = chartBottom - (value * (chartBottom - chartTop));
+            if (index === 0) {
+                context.moveTo(x, y);
+            } else {
+                context.lineTo(x, y);
+            }
+        });
+        context.stroke();
     }
 
     function formatBytes(bytes) {
@@ -1743,6 +1838,7 @@
         }
 
         detectButton.disabled = true;
+        renderScoreChart([]);
         setStatus('SAM2 분할 진행중 ...', 'info');
 
         const outputTabButton = document.getElementById('sam2-output-tab');
@@ -1804,6 +1900,7 @@
 
             await assignVideoSource(inputVideoElement, inputUrl, 'input');
             await assignVideoSource(outputVideoElement, outputUrl, 'output');
+            renderScoreChart(result.score_history);
 
             applyLoopOption();
 

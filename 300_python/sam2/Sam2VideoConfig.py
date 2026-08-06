@@ -14,8 +14,3 @@ SAM2_OUTPUT_DIR = BASE_DIR / SAM2_OUTPUT_SUBDIR
 
 SAM2_VIDEO_EXTENSIONS = {".mp4", ".avi", ".mov", ".mkv", ".wmv", ".webm", ".m4v"}
 
-SAM2_TARGET_MODEL_MAP = {
-	"road": SAM2_DEFAULT_MODEL,
-	"pothole": SAM2_DEFAULT_MODEL,
-	"curb_step": SAM2_DEFAULT_MODEL,
-}

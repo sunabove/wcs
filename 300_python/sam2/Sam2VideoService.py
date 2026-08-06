@@ -214,7 +214,6 @@ class Sam2VideoService:
         self,
         input_path: Path,
         target_type: str,
-        max_det: int,
         model_name: str,
         bbox: str,
         points: str,
@@ -222,7 +221,6 @@ class Sam2VideoService:
     ) -> None:
         options = {
             "target_type": target_type,
-            "max_det": int(max_det),
             "model_name": model_name,
             "bbox": self._parse_options_json(bbox, None),
             "points": self._parse_options_json(points, []),
@@ -291,7 +289,6 @@ class Sam2VideoService:
         self,
         upload_file: UploadFile,
         target_type: str = "road",
-        max_det: int = 300,
         model_name: str = "auto",
         bbox: str = "",
         points: str = "",
@@ -303,7 +300,6 @@ class Sam2VideoService:
         self._save_detection_options(
             input_path=input_path,
             target_type=normalized_target_type,
-            max_det=max_det,
             model_name=resolved_model_name,
             bbox=bbox,
             points=points,
@@ -314,7 +310,6 @@ class Sam2VideoService:
             return self.detector.detect_video_file(
                 input_path=input_path,
                 target_type=normalized_target_type,
-                max_det=max_det,
                 model_name=resolved_model_name,
                 bbox=bbox,
                 points=points,
@@ -346,7 +341,6 @@ class Sam2VideoService:
         self,
         file_name: str,
         target_type: str = "road",
-        max_det: int = 300,
         model_name: str = "auto",
         bbox: str = "",
         points: str = "",
@@ -358,7 +352,6 @@ class Sam2VideoService:
         self._save_detection_options(
             input_path=input_path,
             target_type=normalized_target_type,
-            max_det=max_det,
             model_name=resolved_model_name,
             bbox=bbox,
             points=points,
@@ -369,7 +362,6 @@ class Sam2VideoService:
             return self.detector.detect_video_file(
                 input_path=input_path,
                 target_type=normalized_target_type,
-                max_det=max_det,
                 model_name=resolved_model_name,
                 bbox=bbox,
                 points=points,

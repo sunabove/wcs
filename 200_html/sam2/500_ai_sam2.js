@@ -270,6 +270,57 @@
         }
     }
 
+    async function loadVideoOptions(fileName) {
+        const value = String(fileName || '').trim();
+        if (!value) {
+            return false;
+        }
+
+        try {
+            const apiBase = await resolveApiBase();
+            const response = await fetch(`${apiBase}/fast/sam2/video_options?file_name=${encodeURIComponent(value)}`);
+            if (!response.ok) {
+                return false;
+            }
+
+            const options = await response.json();
+            if (!options || options.exists !== true) {
+                return false;
+            }
+
+            const points = Array.isArray(options.points) ? options.points : [];
+            const labels = Array.isArray(options.point_labels) ? options.point_labels : [];
+            positivePoints = points.slice(0, MAX_POINT_COUNT).map((point, index) => ({
+                x: clamp(toNumber(point && point.x, 0), 0, 100),
+                y: clamp(toNumber(point && point.y, 0), 0, 100),
+                label: Number(labels[index]) === 0 ? 0 : 1,
+            }));
+
+            const savedBox = options.bbox;
+            if (savedBox && typeof savedBox === 'object') {
+                boundingBox = {
+                    x: clamp(toNumber(savedBox.x, 0), 0, 100),
+                    y: clamp(toNumber(savedBox.y, 0), 0, 100),
+                    w: clamp(toNumber(savedBox.w, 100), 0, 100),
+                    h: clamp(toNumber(savedBox.h, 100), 0, 100),
+                };
+            } else {
+                boundingBox = createFullBoundingBox();
+            }
+
+            if (pointLabelCheckbox) {
+                const lastPoint = positivePoints[positivePoints.length - 1];
+                pointLabelCheckbox.checked = Boolean(lastPoint && lastPoint.label === 0);
+                updatePointLabelText();
+            }
+            renderPointUi();
+            renderBoundingBoxUi();
+            return true;
+        } catch (_ignore) {
+            return false;
+        }
+    }
+
     function showInputSourceTab(tabId, persist) {
         const tabButton = document.getElementById(tabId);
         if (!tabButton) {
@@ -912,6 +963,8 @@
                     // Keep selection behavior even when preview loading fails.
                 }
 
+                await loadVideoOptions(selectedServerFileName);
+
                 renderUploadedHistory();
                 setStatus(`선택됨: ${item.name} (분할 시작 버튼을 눌러 실행)`, 'secondary');
             });
@@ -1335,6 +1388,7 @@
             } catch (_ignore) {
                 // Keep successful upload flow even if preview fails.
             }
+            await loadVideoOptions(selectedServerFileName);
 
             uploadCompleted = true;
             setStatus('동영상 업로드 완료. 분할 시작 버튼을 눌러주세요.', 'success');

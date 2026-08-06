@@ -382,3 +382,26 @@ class Sam2VideoService:
 
         items.sort(key=lambda item: item.get("uploaded_at", ""), reverse=True)
         return {"videos": items[: max(1, int(limit))]}
+
+    def get_video_options(self, file_name: str):
+        input_path = self._resolve_uploaded_video_path(file_name)
+        options_path = self._options_path(input_path)
+        if not options_path.is_file():
+            return {"exists": False}
+
+        try:
+            options = json.loads(options_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as ex:
+            raise HTTPException(status_code=500, detail=f"Failed to load detection options: {ex}") from ex
+
+        if not isinstance(options, dict):
+            raise HTTPException(status_code=500, detail="Detection options must be a JSON object")
+
+        return {
+            "exists": True,
+            "model_name": options.get("model_name", ""),
+            "bbox": options.get("bbox"),
+            "points": options.get("points", []),
+            "point_labels": options.get("point_labels", []),
+            "saved_at": options.get("saved_at", ""),
+        }

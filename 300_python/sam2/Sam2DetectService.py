@@ -53,6 +53,13 @@ def uploaded_videos(
     return _service.list_uploaded_videos(limit=limit)
 
 
+@router.get("/video_options")
+def video_options(
+    file_name: str = Query(...),
+):
+    return _service.get_video_options(file_name=file_name)
+
+
 @router.post("/segment_saved_video")
 def segment_saved_video(
     file_name: str = Query(...),

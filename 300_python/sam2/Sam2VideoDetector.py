@@ -432,7 +432,8 @@ class Sam2VideoDetector:
         y = image.shape[0] - video_control_height - padding_y
         top = max(0, y - text_height - baseline - padding_y)
         right = min(image.shape[1], x + text_width + padding_x)
-        cv2.rectangle(image, (0, top), (right, image.shape[0]), (80, 80, 80), cv2.FILLED)
+        bottom = min(image.shape[0], y + padding_y)
+        cv2.rectangle(image, (0, top), (right, bottom), (80, 80, 80), cv2.FILLED)
         cv2.putText(
             image,
             label,

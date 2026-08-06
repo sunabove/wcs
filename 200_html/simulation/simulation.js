@@ -3874,7 +3874,6 @@ class RapierDriveSimulation {
 
         this.stepSimulation();
 
-        this.renderWheelZChart(this.wheelZChartElapsedSec);
         const nowMs = typeof performance !== 'undefined' && typeof performance.now === 'function'
             ? performance.now()
             : null;
@@ -3890,6 +3889,8 @@ class RapierDriveSimulation {
             this.wheelZChartLastSampleTimeMs = nowMs;
             this.wheelZChartElapsedSec += frameDeltaSec * this.visualSpeedScale;
             this.sampleWheelCenterZForChart(this.wheelZChartElapsedSec);
+            this.renderWheelZChart(this.wheelZChartElapsedSec);
+        } else {
             this.renderWheelZChart(this.wheelZChartElapsedSec);
         }
 

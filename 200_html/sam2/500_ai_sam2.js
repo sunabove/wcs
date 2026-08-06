@@ -596,6 +596,25 @@
         setStatus(`${point.label === 1 ? 'Foreground' : 'Background'} Point가 추가되었습니다.`, 'secondary');
     }
 
+    function removePointByRightClick(event) {
+        if (!hasSelectedVideo()) {
+            return;
+        }
+
+        const point = toRelativePoint(event);
+        const index = findPointIndexAtPosition(point);
+        if (index < 0) {
+            return;
+        }
+
+        event.preventDefault();
+        event.stopPropagation();
+        const removedPoint = positivePoints[index];
+        positivePoints.splice(index, 1);
+        renderPointUi();
+        setStatus(`${Number(removedPoint && removedPoint.label) === 0 ? 'Background' : 'Foreground'} Point를 삭제했습니다.`, 'secondary');
+    }
+
     function toRelativePoint(event) {
         if (!inputVideoElement) {
             return null;
@@ -1924,6 +1943,7 @@
                 addPointByClick(event);
             }
         });
+        bboxCaptureLayerElement.addEventListener('contextmenu', removePointByRightClick);
         bboxCaptureLayerElement.addEventListener('mousedown', (event) => {
             startPointDrag(event);
             if (pointDragIndex < 0 && detectionMode === 'bbox') {

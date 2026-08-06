@@ -941,7 +941,7 @@
             const statusResponse = await fetch(statusUrl, { cache: 'no-store' });
             const statusResult = await statusResponse.json();
             const progress = Math.max(0, Math.min(99, Number(statusResult.progress) || 0));
-            setStatus(`SAM2 분할 진행 중... (${progress}%)`, 'info');
+            setStatus(`SAM2 분할 진행중 ... (${progress}%)`, 'info');
 
             if (statusResult.status === 'completed') {
                 return statusResult.result;
@@ -1652,7 +1652,7 @@
         }
 
         detectButton.disabled = true;
-        setStatus('SAM2 분할 진행 중...', 'info');
+        setStatus('SAM2 분할 진행중 ...', 'info');
 
         const outputTabButton = document.getElementById('sam2-output-tab');
         if (outputTabButton) {

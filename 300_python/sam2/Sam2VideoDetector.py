@@ -287,6 +287,44 @@ class Sam2VideoDetector:
         }
         return (x1, y1, x2, y2), normalized_bbox
 
+    def _parse_points(self, points, width: int, height: int):
+        if points is None:
+            return None
+
+        raw_value = points
+        if isinstance(raw_value, str):
+            text = raw_value.strip()
+            if not text:
+                return None
+            try:
+                raw_value = json.loads(text)
+            except Exception as ex:
+                raise ValueError(f"Invalid points JSON: {ex}") from ex
+
+        if not isinstance(raw_value, list):
+            raise ValueError("points must be an array of x, y objects")
+        if not raw_value:
+            return None
+
+        pixel_points = []
+        for raw_point in raw_value:
+            if not isinstance(raw_point, dict):
+                raise ValueError("each point must be an object with x and y")
+            try:
+                x = float(raw_point.get("x"))
+                y = float(raw_point.get("y"))
+            except (TypeError, ValueError) as ex:
+                raise ValueError("point values must be numbers") from ex
+
+            x = max(0.0, min(100.0, x))
+            y = max(0.0, min(100.0, y))
+            pixel_points.append([
+                (x / 100.0) * width,
+                (y / 100.0) * height,
+            ])
+
+        return np.asarray(pixel_points, dtype=np.float32), np.ones(len(pixel_points), dtype=np.int32)
+
     def _overlay_bbox_result(self, frame, roi_plotted, bbox_rect):
         if bbox_rect is None:
             return roi_plotted
@@ -338,6 +376,7 @@ class Sam2VideoDetector:
         max_det: int = 300,
         model_name: str = SAM2_DEFAULT_MODEL,
         bbox=None,
+        points=None,
     ):
         resolved_input = Path(input_path).resolve()
         suffix = resolved_input.suffix.lower()
@@ -386,6 +425,7 @@ class Sam2VideoDetector:
         model = self._get_model(model_name)
         x1, y1, x2, y2 = bbox_rect
         box_prompt = np.array([x1, y1, x2, y2], dtype=np.float32)
+        point_prompt = self._parse_points(points, width, height)
 
         tracked_frames = 0
         total_segments = 0
@@ -399,12 +439,13 @@ class Sam2VideoDetector:
                 try:
                     rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
                     model.set_image(rgb_frame)
-                    masks, scores, _logits = model.predict(
-                        box=box_prompt,
-                        multimask_output=False,
-                        return_logits=False,
-                        normalize_coords=True,
-                    )
+                    predict_kwargs = {
+                        "box": box_prompt,
+                        "multimask_output": False,
+                    }
+                    if point_prompt is not None:
+                        predict_kwargs["point_coords"], predict_kwargs["point_labels"] = point_prompt
+                    masks, scores, _logits = model.predict(**predict_kwargs)
                     mask_tensor = masks[0] if isinstance(masks, np.ndarray) and masks.ndim == 3 else masks
                     if mask_tensor is not None:
                         total_segments += 1

@@ -313,6 +313,7 @@ class Sam2VideoService:
                 max_det=max_det,
                 model_name=resolved_model_name,
                 bbox=bbox,
+                points=points,
             )
         except FileNotFoundError as ex:
             raise HTTPException(status_code=404, detail=str(ex)) from ex
@@ -364,6 +365,7 @@ class Sam2VideoService:
                 max_det=max_det,
                 model_name=resolved_model_name,
                 bbox=bbox,
+                points=points,
             )
         except FileNotFoundError as ex:
             raise HTTPException(status_code=404, detail=str(ex)) from ex

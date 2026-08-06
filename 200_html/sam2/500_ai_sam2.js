@@ -56,6 +56,7 @@
     let hasCompletedInitialUploadedListLoad = false;
     const MAX_POINT_COUNT = 20;
     const STORAGE_SELECTED_VIDEO_KEY = 'sam2.selectedVideo';
+    const STORAGE_INPUT_SOURCE_TAB_KEY = 'sam2.inputSourceTab';
     const DEFAULT_MAX_UPLOAD_BYTES = 1024 * 1024 * 1024; // 1 GB
     let maxUploadBytes = DEFAULT_MAX_UPLOAD_BYTES;
     let maxUploadConfiguredValue = '1g';
@@ -257,6 +258,40 @@
         } catch (_ignore) {
             return '';
         }
+    }
+
+    function showInputSourceTab(tabId, persist) {
+        const tabButton = document.getElementById(tabId);
+        if (!tabButton) {
+            return;
+        }
+
+        if (window.bootstrap && typeof window.bootstrap.Tab === 'function') {
+            window.bootstrap.Tab.getOrCreateInstance(tabButton).show();
+        } else {
+            tabButton.click();
+        }
+
+        if (persist !== false) {
+            try {
+                localStorage.setItem(STORAGE_INPUT_SOURCE_TAB_KEY, tabId);
+            } catch (_ignore) {
+                // Keep the current tab when localStorage is unavailable.
+            }
+        }
+    }
+
+    function loadInputSourceTab() {
+        let tabId = 'sam2-file-source-tab';
+        try {
+            const storedTabId = String(localStorage.getItem(STORAGE_INPUT_SOURCE_TAB_KEY) || '').trim();
+            if (storedTabId === 'sam2-file-source-tab' || storedTabId === 'sam2-uploaded-source-tab') {
+                tabId = storedTabId;
+            }
+        } catch (_ignore) {
+            // Keep the file input tab as the default.
+        }
+        showInputSourceTab(tabId, false);
     }
 
     function getSelectedTargetType() {
@@ -851,6 +886,8 @@
                     return;
                 }
 
+                showInputSourceTab('sam2-uploaded-source-tab');
+
                 selectedServerFileName = item.serverFileName;
                 highlightedServerFileName = item.serverFileName;
                 selectedFile = null;
@@ -1254,6 +1291,7 @@
         }
 
         setSelectedFile(file);
+        showInputSourceTab('sam2-file-source-tab');
         selectedServerFileName = '';
         highlightedServerFileName = '';
         saveSelectedVideo('');
@@ -1457,6 +1495,19 @@
         void handleChosenFile(file);
     });
 
+    document.querySelectorAll('#sam2-input-source-tabs [data-bs-toggle="tab"]').forEach((tabButton) => {
+        tabButton.addEventListener('shown.bs.tab', (event) => {
+            const tabId = event.target && event.target.id;
+            if (tabId) {
+                try {
+                    localStorage.setItem(STORAGE_INPUT_SOURCE_TAB_KEY, tabId);
+                } catch (_ignore) {
+                    // Keep the current tab when localStorage is unavailable.
+                }
+            }
+        });
+    });
+
     dropZone.addEventListener('click', () => {
         fileInput.click();
     });
@@ -1583,6 +1634,7 @@
     updateUploadLimitLabel('default');
 
     applyLoopOption();
+    loadInputSourceTab();
     updateDetectionControlState();
     renderPointUi();
     renderBoundingBoxUi();

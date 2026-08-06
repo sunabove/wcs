@@ -290,6 +290,12 @@ class RapierDriveSimulation {
             rl: null,
             rr: null
         };
+        this.wheelChartBaselineCenterZByKey = {
+            fl: null,
+            fr: null,
+            rl: null,
+            rr: null
+        };
         this.wheelColliderInflationMeters = 0.012;
     }
 
@@ -634,34 +640,16 @@ class RapierDriveSimulation {
                 wheelLink.getWorldPosition(centerWorld);
             }
 
-            const wheelBottomWorldPosition = centerWorld.clone().setZ(centerWorld.z - wheelRadiusMeters);
-            const groundLink = this.findLinkByName(linkMap, 'ground')
-                || this.findLinkByName(linkMap, 'ground_link')
-                || this.findLinkByName(linkMap, 'ground_patch')
-                || null;
-
-            let wheelBottomHeightAboveGround = null;
-            if (groundLink) {
-                groundLink.updateWorldMatrix(true, true);
-                const groundWorldPosition = new THREE.Vector3();
-                const groundWorldQuaternion = new THREE.Quaternion();
-                groundLink.getWorldPosition(groundWorldPosition);
-                groundLink.getWorldQuaternion(groundWorldQuaternion);
-
-                const groundPlaneNormal = new THREE.Vector3(0, 0, 1).applyQuaternion(groundWorldQuaternion).normalize();
-                const signedDistanceToGroundPlane = groundPlaneNormal.dot(wheelBottomWorldPosition.clone().sub(groundWorldPosition));
-                wheelBottomHeightAboveGround = Math.max(0, signedDistanceToGroundPlane);
-            } else {
-                const groundReferenceZ = Number.isFinite(this.groundZ) ? Number(this.groundZ) : 0;
-                const wheelBottomZ = Number(centerWorld.z - wheelRadiusMeters);
-                wheelBottomHeightAboveGround = Math.max(0, wheelBottomZ - groundReferenceZ);
+            if (!Number.isFinite(this.wheelChartBaselineCenterZByKey[wheelKey])) {
+                this.wheelChartBaselineCenterZByKey[wheelKey] = centerWorld.z;
             }
 
-            if (!Number.isFinite(wheelBottomHeightAboveGround)) {
+            const wheelCenterHeightDelta = centerWorld.z - this.wheelChartBaselineCenterZByKey[wheelKey];
+            if (!Number.isFinite(wheelCenterHeightDelta)) {
                 return;
             }
 
-            this.wheelZChartHistoryByKey[wheelKey].push({ t: nowSec, z: wheelBottomHeightAboveGround });
+            this.wheelZChartHistoryByKey[wheelKey].push({ t: nowSec, z: wheelCenterHeightDelta });
         });
 
         this.trimWheelZChartHistory(nowSec);
@@ -4027,6 +4015,9 @@ class RapierDriveSimulation {
         this.wheelZChartLastSampleTimeMs = null;
         Object.keys(this.wheelRadiusMetersByKey).forEach((key) => {
             this.wheelRadiusMetersByKey[key] = null;
+        });
+        Object.keys(this.wheelChartBaselineCenterZByKey).forEach((key) => {
+            this.wheelChartBaselineCenterZByKey[key] = null;
         });
 
         this.hasLoggedGroundDiagnostics = false;

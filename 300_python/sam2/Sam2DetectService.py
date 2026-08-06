@@ -30,6 +30,7 @@ def segment_video_upload(
     model_name: str = Query("auto"),
     bbox: str = Query(""),
     points: str = Query(""),
+    point_labels: str = Query(""),
 ):
     return _service.detect_uploaded_video(
         upload_file=file,
@@ -38,6 +39,7 @@ def segment_video_upload(
         model_name=model_name,
         bbox=bbox,
         points=points,
+        point_labels=point_labels,
     )
 
 
@@ -63,6 +65,7 @@ def segment_saved_video(
     model_name: str = Query("auto"),
     bbox: str = Query(""),
     points: str = Query(""),
+    point_labels: str = Query(""),
 ):
     return _service.detect_saved_video(
         file_name=file_name,
@@ -71,4 +74,5 @@ def segment_saved_video(
         model_name=model_name,
         bbox=bbox,
         points=points,
+        point_labels=point_labels,
     )

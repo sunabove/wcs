@@ -218,6 +218,7 @@ class Sam2VideoService:
         model_name: str,
         bbox: str,
         points: str,
+        point_labels: str,
     ) -> None:
         options = {
             "target_type": target_type,
@@ -225,6 +226,7 @@ class Sam2VideoService:
             "model_name": model_name,
             "bbox": self._parse_options_json(bbox, None),
             "points": self._parse_options_json(points, []),
+            "point_labels": self._parse_options_json(point_labels, []),
             "saved_at": datetime.now().isoformat(timespec="seconds"),
         }
         options_path = self._options_path(input_path)
@@ -293,6 +295,7 @@ class Sam2VideoService:
         model_name: str = "auto",
         bbox: str = "",
         points: str = "",
+        point_labels: str = "",
     ):
         input_path = self._save_uploaded_video(upload_file)
         normalized_target_type = self._normalize_target_type(target_type)
@@ -304,6 +307,7 @@ class Sam2VideoService:
             model_name=resolved_model_name,
             bbox=bbox,
             points=points,
+            point_labels=point_labels,
         )
 
         try:
@@ -314,6 +318,7 @@ class Sam2VideoService:
                 model_name=resolved_model_name,
                 bbox=bbox,
                 points=points,
+                point_labels=point_labels,
             )
         except FileNotFoundError as ex:
             raise HTTPException(status_code=404, detail=str(ex)) from ex
@@ -345,6 +350,7 @@ class Sam2VideoService:
         model_name: str = "auto",
         bbox: str = "",
         points: str = "",
+        point_labels: str = "",
     ):
         input_path = self._resolve_uploaded_video_path(file_name)
         normalized_target_type = self._normalize_target_type(target_type)
@@ -356,6 +362,7 @@ class Sam2VideoService:
             model_name=resolved_model_name,
             bbox=bbox,
             points=points,
+            point_labels=point_labels,
         )
 
         try:
@@ -366,6 +373,7 @@ class Sam2VideoService:
                 model_name=resolved_model_name,
                 bbox=bbox,
                 points=points,
+                point_labels=point_labels,
             )
         except FileNotFoundError as ex:
             raise HTTPException(status_code=404, detail=str(ex)) from ex

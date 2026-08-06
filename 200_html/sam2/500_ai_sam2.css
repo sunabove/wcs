@@ -144,6 +144,10 @@
     background: #198754;
 }
 
+.sam2-point-marker-negative {
+    background: #dc3545;
+}
+
 .sam2-bbox-layer {
     position: absolute;
     left: 0;

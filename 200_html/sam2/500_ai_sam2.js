@@ -21,6 +21,7 @@
     const bboxModeButton = document.getElementById('sam2-bbox-mode');
     const pointClearButton = document.getElementById('sam2-point-clear');
     const bboxClearButton = document.getElementById('sam2-bbox-clear');
+    const pointLabelSelect = document.getElementById('sam2-point-label');
     const positivePointListElement = document.getElementById('sam2-positive-points');
     const positivePointCountElement = document.getElementById('sam2-positive-count');
     const pointMarkerLayerElement = document.getElementById('sam2-point-marker-layer');
@@ -229,9 +230,9 @@
 
     function updateDetectionControlState() {
         const enabled = hasSelectedVideo();
-        [pointModeButton, bboxModeButton, pointClearButton, bboxClearButton].forEach((button) => {
-            if (button) {
-                button.disabled = !enabled;
+        [pointModeButton, bboxModeButton, pointClearButton, bboxClearButton, pointLabelSelect].forEach((control) => {
+            if (control) {
+                control.disabled = !enabled;
             }
         });
         if (bboxCaptureLayerElement) {
@@ -307,7 +308,8 @@
     function formatPointLabel(point, index) {
         const x = toNumber(point && point.x, 0).toFixed(1);
         const y = toNumber(point && point.y, 0).toFixed(1);
-        return `${index + 1}: (${x}%, ${y}%)`;
+        const label = Number(point && point.label) === 0 ? 'Negative' : 'Positive';
+        return `${index + 1}: ${label} (${x}%, ${y}%)`;
     }
 
     function renderPointList(targetElement, points, chipClassName) {
@@ -347,7 +349,12 @@
             pointMarkerLayerElement.appendChild(marker);
         };
 
-        positivePoints.forEach(point => appendMarker(point, 'sam2-point-marker-positive'));
+        positivePoints.forEach(point => {
+            const markerClass = Number(point && point.label) === 0
+                ? 'sam2-point-marker-negative'
+                : 'sam2-point-marker-positive';
+            appendMarker(point, markerClass);
+        });
     }
 
     function renderPointUi() {
@@ -392,6 +399,7 @@
         if (!point) {
             return;
         }
+        point.label = pointLabelSelect && pointLabelSelect.value === '0' ? 0 : 1;
 
         if (event && event.ctrlKey) {
             if (positivePoints.length >= MAX_POINT_COUNT) {
@@ -688,6 +696,13 @@
             }))
             : [];
         return `&points=${encodeURIComponent(JSON.stringify(points))}`;
+    }
+
+    function buildPointLabelsQuery() {
+        const labels = Array.isArray(positivePoints)
+            ? positivePoints.map((point) => Number(point && point.label) === 0 ? 0 : 1)
+            : [];
+        return `&point_labels=${encodeURIComponent(JSON.stringify(labels))}`;
     }
 
     async function previewSelectedVideoFirstFrame(showInputTab) {
@@ -1357,6 +1372,7 @@
         ensureDefaultBoundingBox();
         const bboxQuery = buildBboxQuery();
         const pointsQuery = buildPointsQuery();
+        const pointLabelsQuery = buildPointLabelsQuery();
 
         if (!file && !selectedServerFileName && highlightedServerFileName) {
             const highlightedExists = uploadedHistory.some((item) => item.serverFileName === highlightedServerFileName);
@@ -1391,13 +1407,13 @@
             if (file) {
                 const formData = new FormData();
                 formData.append('file', file);
-                const url = `${apiBase}/fast/sam2/segment_video_upload?target_type=${encodeURIComponent(targetType)}${bboxQuery}${pointsQuery}`;
+                const url = `${apiBase}/fast/sam2/segment_video_upload?target_type=${encodeURIComponent(targetType)}${bboxQuery}${pointsQuery}${pointLabelsQuery}`;
                 response = await fetch(url, {
                     method: 'POST',
                     body: formData,
                 });
             } else {
-                const url = `${apiBase}/fast/sam2/segment_saved_video?file_name=${encodeURIComponent(selectedServerFileName)}&target_type=${encodeURIComponent(targetType)}${bboxQuery}${pointsQuery}`;
+                const url = `${apiBase}/fast/sam2/segment_saved_video?file_name=${encodeURIComponent(selectedServerFileName)}&target_type=${encodeURIComponent(targetType)}${bboxQuery}${pointsQuery}${pointLabelsQuery}`;
                 response = await fetch(url, {
                     method: 'POST',
                 });

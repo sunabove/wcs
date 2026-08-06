@@ -287,7 +287,7 @@ class Sam2VideoDetector:
         }
         return (x1, y1, x2, y2), normalized_bbox
 
-    def _parse_points(self, points, width: int, height: int):
+    def _parse_points(self, points, width: int, height: int, point_labels=None):
         if points is None:
             return None
 
@@ -306,7 +306,24 @@ class Sam2VideoDetector:
         if not raw_value:
             return None
 
+        raw_labels = point_labels
+        if isinstance(raw_labels, str):
+            text = raw_labels.strip()
+            if text:
+                try:
+                    raw_labels = json.loads(text)
+                except Exception as ex:
+                    raise ValueError(f"Invalid point_labels JSON: {ex}") from ex
+            else:
+                raw_labels = None
+
+        if raw_labels is not None and not isinstance(raw_labels, list):
+            raise ValueError("point_labels must be an array")
+        if raw_labels is not None and len(raw_labels) != len(raw_value):
+            raise ValueError("point_labels must have the same length as points")
+
         pixel_points = []
+        labels = []
         for raw_point in raw_value:
             if not isinstance(raw_point, dict):
                 raise ValueError("each point must be an object with x and y")
@@ -322,8 +339,21 @@ class Sam2VideoDetector:
                 (x / 100.0) * width,
                 (y / 100.0) * height,
             ])
+            label_index = len(labels)
+            raw_label = (
+                raw_labels[label_index]
+                if raw_labels is not None
+                else raw_point.get("label", 1)
+            )
+            try:
+                label = int(raw_label)
+            except (TypeError, ValueError) as ex:
+                raise ValueError("point labels must be 0 or 1") from ex
+            if label not in (0, 1):
+                raise ValueError("point labels must be 0 or 1")
+            labels.append(label)
 
-        return np.asarray(pixel_points, dtype=np.float32), np.ones(len(pixel_points), dtype=np.int32)
+        return np.asarray(pixel_points, dtype=np.float32), np.asarray(labels, dtype=np.int32)
 
     def _overlay_bbox_result(self, frame, roi_plotted, bbox_rect):
         if bbox_rect is None:
@@ -377,6 +407,7 @@ class Sam2VideoDetector:
         model_name: str = SAM2_DEFAULT_MODEL,
         bbox=None,
         points=None,
+        point_labels=None,
     ):
         resolved_input = Path(input_path).resolve()
         suffix = resolved_input.suffix.lower()
@@ -425,7 +456,7 @@ class Sam2VideoDetector:
         model = self._get_model(model_name)
         x1, y1, x2, y2 = bbox_rect
         box_prompt = np.array([x1, y1, x2, y2], dtype=np.float32)
-        point_prompt = self._parse_points(points, width, height)
+        point_prompt = self._parse_points(points, width, height, point_labels)
 
         tracked_frames = 0
         total_segments = 0

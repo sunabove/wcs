@@ -58,7 +58,7 @@ class Sam2VideoService:
                     "total_frames": total_frames,
                 })
 
-    def _run_detection_job(self, job_id, input_path, model_name, bbox, points, point_labels):
+    def _run_detection_job(self, job_id, input_path, model_name, bbox, points, point_labels, multimask_output):
         try:
             with self._jobs_lock:
                 self._jobs[job_id]["status"] = "running"
@@ -68,6 +68,7 @@ class Sam2VideoService:
                 bbox=bbox,
                 points=points,
                 point_labels=point_labels,
+                multimask_output=multimask_output,
                 progress_callback=lambda processed, total: self._update_job_progress(job_id, processed, total),
             )
             with self._jobs_lock:
@@ -82,7 +83,7 @@ class Sam2VideoService:
             with self._jobs_lock:
                 self._jobs[job_id].update({"status": "failed", "error": str(ex)})
 
-    def _start_detection_job(self, input_path, model_name, bbox, points, point_labels):
+    def _start_detection_job(self, input_path, model_name, bbox, points, point_labels, multimask_output):
         job_id = self._create_job()
         self._job_executor.submit(
             self._run_detection_job,
@@ -92,6 +93,7 @@ class Sam2VideoService:
             bbox,
             points,
             point_labels,
+            multimask_output,
         )
         return {"job_id": job_id, "status": "queued", "progress": 0}
 
@@ -359,6 +361,7 @@ class Sam2VideoService:
         bbox: str = "",
         points: str = "",
         point_labels: str = "",
+        multimask_output: bool = False,
     ):
         input_path = self._save_uploaded_video(upload_file)
         resolved_model_name = self._resolve_model_name(model_name)
@@ -368,6 +371,7 @@ class Sam2VideoService:
             bbox=bbox,
             points=points,
             point_labels=point_labels,
+            multimask_output=multimask_output,
         )
 
         return self._start_detection_job(
@@ -376,6 +380,7 @@ class Sam2VideoService:
             bbox=bbox,
             points=points,
             point_labels=point_labels,
+            multimask_output=multimask_output,
         )
 
     def upload_video_only(self, upload_file: UploadFile):
@@ -398,6 +403,7 @@ class Sam2VideoService:
         bbox: str = "",
         points: str = "",
         point_labels: str = "",
+        multimask_output: bool = False,
     ):
         input_path = self._resolve_uploaded_video_path(file_name)
         resolved_model_name = self._resolve_model_name(model_name)
@@ -407,6 +413,7 @@ class Sam2VideoService:
             bbox=bbox,
             points=points,
             point_labels=point_labels,
+            multimask_output=multimask_output,
         )
 
         return self._start_detection_job(
@@ -415,6 +422,7 @@ class Sam2VideoService:
             bbox=bbox,
             points=points,
             point_labels=point_labels,
+            multimask_output=multimask_output,
         )
 
     def list_uploaded_videos(self, limit: int = 50):
@@ -461,6 +469,7 @@ class Sam2VideoService:
             "bbox": options.get("bbox"),
             "points": options.get("points", []),
             "point_labels": options.get("point_labels", []),
+            "multimask_output": options.get("multimask_output", False) is True,
             "saved_at": options.get("saved_at", ""),
         }
 
@@ -471,6 +480,7 @@ class Sam2VideoService:
         bbox: str = "",
         points: str = "",
         point_labels: str = "",
+        multimask_output: bool = False,
     ):
         input_path = self._resolve_uploaded_video_path(file_name)
         resolved_model_name = self._resolve_model_name(model_name)
@@ -480,6 +490,7 @@ class Sam2VideoService:
             bbox=bbox,
             points=points,
             point_labels=point_labels,
+            multimask_output=multimask_output,
         )
         return {
             "saved": True,

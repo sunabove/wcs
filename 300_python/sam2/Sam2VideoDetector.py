@@ -406,6 +406,7 @@ class Sam2VideoDetector:
         bbox=None,
         points=None,
         point_labels=None,
+        multimask_output=False,
         progress_callback=None,
     ):
         resolved_input = Path(input_path).resolve()
@@ -471,7 +472,7 @@ class Sam2VideoDetector:
                     model.set_image(rgb_frame)
                     predict_kwargs = {
                         "box": box_prompt,
-                        "multimask_output": False,
+                        "multimask_output": bool(multimask_output),
                     }
                     if point_prompt is not None:
                         predict_kwargs["point_coords"], predict_kwargs["point_labels"] = point_prompt

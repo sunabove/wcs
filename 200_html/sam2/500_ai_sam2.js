@@ -24,6 +24,7 @@
     const optionsSaveButton = document.getElementById('sam2-options-save');
     const optionsResetButton = document.getElementById('sam2-options-reset');
     const pointLabelCheckbox = document.getElementById('sam2-point-label');
+    const multimaskOutputCheckbox = document.getElementById('sam2-multimask-output');
     const pointLabelText = document.getElementById('sam2-point-label-text');
     const positivePointListElement = document.getElementById('sam2-positive-points');
     const positivePointCountElement = document.getElementById('sam2-positive-count');
@@ -254,7 +255,7 @@
 
     function updateDetectionControlState() {
         const enabled = hasSelectedVideo();
-        [pointModeButton, bboxModeButton, pointClearButton, bboxClearButton, optionsSaveButton, optionsResetButton, pointLabelCheckbox].forEach((control) => {
+            [pointModeButton, bboxModeButton, pointClearButton, bboxClearButton, optionsSaveButton, optionsResetButton, pointLabelCheckbox, multimaskOutputCheckbox].forEach((control) => {
             if (control) {
                 control.disabled = !enabled;
             }
@@ -327,6 +328,9 @@
                 const lastPoint = positivePoints[positivePoints.length - 1];
                 pointLabelCheckbox.checked = !lastPoint || lastPoint.label === 1;
                 updatePointLabelText();
+            }
+            if (multimaskOutputCheckbox) {
+                multimaskOutputCheckbox.checked = options.multimask_output === true;
             }
             renderPointUi();
             renderBoundingBoxUi();
@@ -894,6 +898,11 @@
         return `&point_labels=${encodeURIComponent(JSON.stringify(labels))}`;
     }
 
+    function buildMultimaskOutputQuery() {
+        const value = Boolean(multimaskOutputCheckbox && multimaskOutputCheckbox.checked);
+        return `&multimask_output=${encodeURIComponent(String(value))}`;
+    }
+
     async function saveVideoOptions(fileName) {
         const value = String(fileName || '').trim();
         if (!value) {
@@ -901,7 +910,7 @@
         }
 
         const apiBase = await resolveApiBase();
-        const url = `${apiBase}/fast/sam2/video_options?file_name=${encodeURIComponent(value)}&model_name=auto${buildBboxQuery()}${buildPointsQuery()}${buildPointLabelsQuery()}`;
+        const url = `${apiBase}/fast/sam2/video_options?file_name=${encodeURIComponent(value)}&model_name=auto${buildBboxQuery()}${buildPointsQuery()}${buildPointLabelsQuery()}${buildMultimaskOutputQuery()}`;
         const response = await fetch(url, { method: 'POST' });
         if (!response.ok) {
             return false;
@@ -1651,13 +1660,13 @@
             if (file) {
                 const formData = new FormData();
                 formData.append('file', file);
-                const url = `${apiBase}/fast/sam2/segment_video_upload?${bboxQuery.slice(1)}${pointsQuery}${pointLabelsQuery}`;
+                const url = `${apiBase}/fast/sam2/segment_video_upload?${bboxQuery.slice(1)}${pointsQuery}${pointLabelsQuery}${buildMultimaskOutputQuery().slice(1)}`;
                 response = await fetch(url, {
                     method: 'POST',
                     body: formData,
                 });
             } else {
-                const url = `${apiBase}/fast/sam2/segment_saved_video?file_name=${encodeURIComponent(selectedServerFileName)}${bboxQuery}${pointsQuery}${pointLabelsQuery}`;
+                const url = `${apiBase}/fast/sam2/segment_saved_video?file_name=${encodeURIComponent(selectedServerFileName)}${bboxQuery}${pointsQuery}${pointLabelsQuery}${buildMultimaskOutputQuery()}`;
                 response = await fetch(url, {
                     method: 'POST',
                 });

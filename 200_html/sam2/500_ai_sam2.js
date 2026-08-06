@@ -19,6 +19,12 @@
     const uploadProgressTextElement = document.getElementById('sam2-upload-progress-text');
     const foregroundPointModeButton = document.getElementById('sam2-foreground-point-mode');
     const backgroundPointModeButton = document.getElementById('sam2-background-point-mode');
+    if (foregroundPointModeButton) {
+        foregroundPointModeButton.textContent = '전경 Point';
+    }
+    if (backgroundPointModeButton) {
+        backgroundPointModeButton.textContent = '배경 Point';
+    }
     const bboxModeButton = document.getElementById('sam2-bbox-mode');
     const pointClearButton = document.getElementById('sam2-point-clear');
     const bboxClearButton = document.getElementById('sam2-bbox-clear');

@@ -11,6 +11,7 @@ import numpy as np
 import torch
 
 from config import BASE_DIR
+from ChartRenderer import ChartRenderer
 from sam2.Sam2VideoConfig import (
     SAM2_DEFAULT_MODEL,
     SAM2_OUTPUT_DIR,
@@ -20,6 +21,7 @@ from sam2.Sam2VideoConfig import (
 
 
 class Sam2VideoDetector:
+    _chart_renderer = ChartRenderer()
     _model_cache = {}
     _sam2_image_predictor_class = None
     _max_infer_side = 960
@@ -443,6 +445,84 @@ class Sam2VideoDetector:
             thickness,
             cv2.LINE_AA,
         )
+
+    def _render_score_chart(self, frame, score_history, frame_number, total_frames):
+        if frame is None:
+            return frame
+
+        height, width = frame.shape[:2]
+        panel_height = 120
+        canvas = np.zeros((height + panel_height, width, 3), dtype=frame.dtype)
+        canvas[:height, :width] = frame
+
+        panel_x1 = 8
+        panel_x2 = max(panel_x1 + 120, width - 8)
+        panel_y1 = height + 6
+        panel_y2 = height + panel_height - 6
+        chart_x1 = panel_x1 + 42
+        chart_x2 = panel_x2 - 10
+        chart_y1 = panel_y1 + 25
+        chart_y2 = panel_y2 - 22
+        if chart_x2 <= chart_x1 or chart_y2 <= chart_y1:
+            return canvas
+
+        cv2.rectangle(canvas, (panel_x1, panel_y1), (panel_x2, panel_y2), (36, 36, 36), cv2.FILLED)
+        cv2.rectangle(canvas, (chart_x1, chart_y1), (chart_x2, chart_y2), (44, 44, 44), cv2.FILLED)
+        cv2.rectangle(canvas, (chart_x1, chart_y1), (chart_x2, chart_y2), (100, 100, 100), 1)
+
+        for score_tick in (0.0, 0.5, 1.0):
+            tick_y = self._chart_renderer._map_chart_y(score_tick, 1.0, chart_y2, chart_y2 - chart_y1)
+            cv2.line(canvas, (chart_x1, tick_y), (chart_x2, tick_y), (65, 65, 65), 1, cv2.LINE_AA)
+            cv2.putText(
+                canvas,
+                f"{score_tick:.1f}",
+                (8, tick_y + 4),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.35,
+                (190, 190, 190),
+                1,
+                cv2.LINE_AA,
+            )
+
+        x_min = 1.0
+        x_max = float(max(1, int(total_frames or frame_number)))
+        if x_max <= x_min:
+            x_max = x_min + 1.0
+        x_values = np.arange(1, len(score_history) + 1, dtype=np.float32)
+        self._chart_renderer._draw_chart_series(
+            canvas,
+            x_values,
+            np.asarray(score_history, dtype=np.float32),
+            (80, 255, 80),
+            x_min,
+            x_max,
+            chart_x1,
+            chart_x2 - chart_x1,
+            1.0,
+            chart_y2,
+            chart_y2 - chart_y1,
+            2,
+        )
+
+        current_x = self._chart_renderer._map_chart_x(
+            frame_number,
+            x_min,
+            x_max,
+            chart_x1,
+            chart_x2 - chart_x1,
+        )
+        cv2.line(canvas, (current_x, chart_y1), (current_x, chart_y2), (255, 230, 0), 1, cv2.LINE_AA)
+        cv2.putText(
+            canvas,
+            f"Score history | Frame {int(frame_number)}/{int(total_frames or frame_number)} | Current: {score_history[-1]:.3f}",
+            (chart_x1 + 4, panel_y1 + 16),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.42,
+            (220, 220, 220),
+            1,
+            cv2.LINE_AA,
+        )
+        return canvas
 
     def _overlay_bbox_result(self, frame, roi_plotted, bbox_rect, score=None):
         if bbox_rect is None:

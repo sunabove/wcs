@@ -400,6 +400,49 @@ class Sam2VideoDetector:
             cv2.LINE_AA,
         )
 
+    def _get_point_label_text(self, point_prompt):
+        if point_prompt is None:
+            return "Positive"
+
+        try:
+            labels = np.asarray(point_prompt[1]).reshape(-1)
+        except (IndexError, TypeError, ValueError):
+            return "Positive"
+
+        if labels.size == 0 or np.all(labels == 1):
+            return "Positive"
+        if np.all(labels == 0):
+            return "Negative"
+        return "Mixed"
+
+    def _draw_option_summary(self, image, point_label, mask_input, multimask_output):
+        label = (
+            f"Point label: {point_label} | "
+            f"Mask input: {'On' if mask_input else 'Off'} | "
+            f"Multimask output: {'On' if multimask_output else 'Off'}"
+        )
+        font = cv2.FONT_HERSHEY_SIMPLEX
+        font_scale = 0.5
+        thickness = 1
+        (text_width, text_height), baseline = cv2.getTextSize(label, font, font_scale, thickness)
+        padding_x = 8
+        padding_y = 6
+        x = padding_x
+        y = image.shape[0] - padding_y
+        top = max(0, y - text_height - baseline - padding_y)
+        right = min(image.shape[1], x + text_width + padding_x)
+        cv2.rectangle(image, (0, top), (right, image.shape[0]), (32, 32, 32), cv2.FILLED)
+        cv2.putText(
+            image,
+            label,
+            (x, y - baseline),
+            font,
+            font_scale,
+            (255, 255, 255),
+            thickness,
+            cv2.LINE_AA,
+        )
+
     def _overlay_bbox_result(self, frame, roi_plotted, bbox_rect, score=None):
         if bbox_rect is None:
             return roi_plotted
@@ -545,6 +588,12 @@ class Sam2VideoDetector:
                     raise
 
                 plotted = self._overlay_mask_result(frame, mask_tensor, bbox_rect, detection_score)
+                self._draw_option_summary(
+                    plotted,
+                    self._get_point_label_text(point_prompt),
+                    mask_input,
+                    multimask_output,
+                )
 
                 if plotted.shape[1] != width or plotted.shape[0] != height:
                     plotted = cv2.resize(plotted, (width, height), interpolation=cv2.INTER_AREA)

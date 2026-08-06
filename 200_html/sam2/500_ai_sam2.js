@@ -1130,7 +1130,9 @@
             setStatus(`SAM2 분할 진행중 ... (${progress}%)`, 'info');
 
             if (statusResult.status === 'completed') {
-                return statusResult.result;
+                return statusResult.result && typeof statusResult.result === 'object'
+                    ? statusResult.result
+                    : statusResult;
             }
             if (statusResult.status === 'failed') {
                 throw new Error(statusResult.error || 'SAM2 segmentation failed');
@@ -1900,7 +1902,7 @@
 
             await assignVideoSource(inputVideoElement, inputUrl, 'input');
             await assignVideoSource(outputVideoElement, outputUrl, 'output');
-            renderScoreChart(result.score_history);
+            renderScoreChart(Array.isArray(result && result.score_history) ? result.score_history : []);
 
             applyLoopOption();
 

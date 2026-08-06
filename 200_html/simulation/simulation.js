@@ -256,6 +256,7 @@ class RapierDriveSimulation {
         this.wheelZChartContext = null;
         this.wheelZChartWindowSec = 20;
         this.wheelZChartElapsedSec = 0;
+        this.wheelZChartLastSampleTimeMs = null;
         this.wheelZChartLastRenderTimeMs = null;
         this.wheelZChartVisibleStorageKey = 'wcs.simulation.wheelZChartVisible';
         this.isWheelZChartVisible = this.loadWheelZChartVisibleState();
@@ -3782,8 +3783,6 @@ class RapierDriveSimulation {
             this.stabilizeFlatGroundVerticalMotion();
             this.enforceFlatGroundRideHeight();
             this.renderer.syncVehicle();
-            this.wheelZChartElapsedSec += this.physicsFixedTimeStepSec;
-            this.sampleWheelCenterZForChart(this.wheelZChartElapsedSec);
             this.physicsAccumulatorSec -= this.physicsFixedTimeStepSec;
             stepIndex += 1;
         }
@@ -3876,6 +3875,23 @@ class RapierDriveSimulation {
         this.stepSimulation();
 
         this.renderWheelZChart(this.wheelZChartElapsedSec);
+        const nowMs = typeof performance !== 'undefined' && typeof performance.now === 'function'
+            ? performance.now()
+            : null;
+        if (nowMs !== null) {
+            if (this.wheelZChartLastSampleTimeMs === null) {
+                this.wheelZChartLastSampleTimeMs = nowMs;
+            }
+
+            const frameDeltaSec = Math.min(
+                Math.max((nowMs - this.wheelZChartLastSampleTimeMs) / 1000, 0),
+                0.1
+            );
+            this.wheelZChartLastSampleTimeMs = nowMs;
+            this.wheelZChartElapsedSec += frameDeltaSec * this.visualSpeedScale;
+            this.sampleWheelCenterZForChart(this.wheelZChartElapsedSec);
+            this.renderWheelZChart(this.wheelZChartElapsedSec);
+        }
 
         this.updateDebugPanel(this.physicsFixedTimeStepSec);
         this.simulationLoop.schedule();

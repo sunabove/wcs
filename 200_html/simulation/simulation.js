@@ -3962,6 +3962,7 @@ class RapierDriveSimulation {
             this.wheelZChartHistoryByKey[key] = [];
         });
         this.wheelZChartElapsedSec = 0;
+        this.wheelZChartLastSampleTimeMs = null;
         Object.keys(this.wheelRadiusMetersByKey).forEach((key) => {
             this.wheelRadiusMetersByKey[key] = null;
         });

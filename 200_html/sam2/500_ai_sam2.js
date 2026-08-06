@@ -652,16 +652,11 @@
         const top = toNumber(boundingBox.y, 0);
         const width = toNumber(boundingBox.w, 0);
         const height = toNumber(boundingBox.h, 0);
-        const layerRect = bboxCaptureLayerElement.getBoundingClientRect();
-        const controlInsetX = layerRect.width > 0 ? (14 / layerRect.width) * 100 : 1.5;
-        const controlInsetY = layerRect.height > 0 ? (14 / layerRect.height) * 100 : 1.5;
-        const insetX = Math.min(width / 2, Math.max(0.05, controlInsetX));
-        const insetY = Math.min(height / 2, Math.max(0.05, controlInsetY));
         const handles = [
-            { key: 'nw', x: left + insetX, y: top + insetY },
-            { key: 'ne', x: left + width - insetX, y: top + insetY },
-            { key: 'sw', x: left + insetX, y: top + height - insetY },
-            { key: 'se', x: left + width - insetX, y: top + height - insetY },
+            { key: 'nw', x: left, y: top },
+            { key: 'ne', x: left + width, y: top },
+            { key: 'sw', x: left, y: top + height },
+            { key: 'se', x: left + width, y: top + height },
         ];
 
         handles.forEach((handle) => {

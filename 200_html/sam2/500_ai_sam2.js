@@ -21,6 +21,7 @@
     const bboxModeButton = document.getElementById('sam2-bbox-mode');
     const pointClearButton = document.getElementById('sam2-point-clear');
     const bboxClearButton = document.getElementById('sam2-bbox-clear');
+    const optionsCancelButton = document.getElementById('sam2-options-cancel');
     const pointLabelCheckbox = document.getElementById('sam2-point-label');
     const pointLabelText = document.getElementById('sam2-point-label-text');
     const positivePointListElement = document.getElementById('sam2-positive-points');
@@ -239,7 +240,7 @@
 
     function updateDetectionControlState() {
         const enabled = hasSelectedVideo();
-        [pointModeButton, bboxModeButton, pointClearButton, bboxClearButton, pointLabelCheckbox].forEach((control) => {
+        [pointModeButton, bboxModeButton, pointClearButton, bboxClearButton, optionsCancelButton, pointLabelCheckbox].forEach((control) => {
             if (control) {
                 control.disabled = !enabled;
             }
@@ -1699,6 +1700,22 @@
         bboxClearButton.addEventListener('click', () => {
             clearBoundingBox();
             setStatus('BBox 설정을 초기화했습니다.', 'secondary');
+        });
+    }
+    if (optionsCancelButton) {
+        optionsCancelButton.addEventListener('click', async () => {
+            if (!selectedServerFileName) {
+                setStatus('서버에 저장된 검출 설정을 찾을 수 없습니다.', 'warning');
+                return;
+            }
+
+            optionsCancelButton.disabled = true;
+            const restored = await loadVideoOptions(selectedServerFileName);
+            updateDetectionControlState();
+            setStatus(
+                restored ? '서버에 저장된 검출 설정으로 초기화했습니다.' : '서버 검출 설정을 불러오지 못했습니다.',
+                restored ? 'secondary' : 'warning'
+            );
         });
     }
     if (bboxCaptureLayerElement) {

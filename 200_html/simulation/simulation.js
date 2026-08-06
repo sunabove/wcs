@@ -2687,6 +2687,25 @@ class RapierDriveSimulation {
         ), true);
     }
 
+    suppressObstacleLateralDrift(referencePosition, referenceYaw) {
+        if (!this.body || !referencePosition || !Number.isFinite(referenceYaw)) {
+            return;
+        }
+
+        const forwardX = Math.cos(referenceYaw);
+        const forwardY = Math.sin(referenceYaw);
+        const currentPosition = this.body.translation();
+        const deltaX = currentPosition.x - referencePosition.x;
+        const deltaY = currentPosition.y - referencePosition.y;
+        const forwardDistance = (deltaX * forwardX) + (deltaY * forwardY);
+
+        this.body.setTranslation(new this.rapier.Vector3(
+            referencePosition.x + (forwardX * forwardDistance),
+            referencePosition.y + (forwardY * forwardDistance),
+            currentPosition.z
+        ), true);
+    }
+
     isVehicleNearObstacleSupportZone() {
         return false;
     }
@@ -3731,6 +3750,7 @@ class RapierDriveSimulation {
             const currentObstacleApproach = this.contactSolver.getApproachInfo();
             const currentClimbApproach = this.contactSolver.isClimbApproach(currentObstacleApproach?.obstacleInfo || null);
             const obstacleHeadingYaw = this.extractYawFromQuaternion(this.body.rotation());
+            const obstacleReferencePosition = this.body.translation();
 
             this.applyDriveForces(this.physicsFixedTimeStepSec, targetVelocityX, targetVelocityY, throttleSign, effectiveSteerSign, clampedSpeed, wheelGroundContactCount);
             this.applyGroundSupportForces(this.physicsFixedTimeStepSec, wheelGroundContactCount, this.isVehicleObstacleContact);
@@ -3755,6 +3775,7 @@ class RapierDriveSimulation {
             const isClimbingApproach = currentClimbApproach || this.contactSolver.isClimbApproach(currentObstacleApproach?.obstacleInfo || null);
             if ((hasObstacleContactNow || isClimbingApproach) && Math.abs(effectiveSteerSign) < 1e-3) {
                 this.preserveObstacleHeading(obstacleHeadingYaw);
+                this.suppressObstacleLateralDrift(obstacleReferencePosition, obstacleHeadingYaw);
                 this.suppressObstacleLateralSlip();
                 this.body.setAngvel(new this.rapier.Vector3(0, 0, 0), true);
             }

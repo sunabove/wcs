@@ -370,6 +370,42 @@ class Sam2VideoDetector:
 
         return value if np.isfinite(value) else None
 
+    def _calculate_mask_iou(self, mask_tensor, bbox_rect, frame_shape):
+        if mask_tensor is None or bbox_rect is None:
+            return 0.0
+
+        if isinstance(mask_tensor, np.ndarray):
+            mask = mask_tensor
+        elif hasattr(mask_tensor, "detach"):
+            mask = mask_tensor.detach().to("cpu").numpy()
+        else:
+            mask = np.asarray(mask_tensor)
+
+        if mask.ndim == 3:
+            mask = mask[0]
+        if mask.ndim != 2:
+            return 0.0
+
+        frame_height, frame_width = frame_shape[:2]
+        mask_np = mask > 0
+        if mask.shape != (frame_height, frame_width):
+            mask = cv2.resize(
+                mask_np.astype(np.uint8),
+                (frame_width, frame_height),
+                interpolation=cv2.INTER_NEAREST,
+            )
+            mask_np = mask > 0
+
+        x1, y1, x2, y2 = bbox_rect
+        bbox_area = max(0, x2 - x1) * max(0, y2 - y1)
+        if bbox_area <= 0:
+            return 0.0
+
+        mask_area = int(np.count_nonzero(mask_np))
+        intersection = int(np.count_nonzero(mask_np[y1:y2, x1:x2]))
+        union = mask_area + bbox_area - intersection
+        return float(intersection / union) if union > 0 else 0.0
+
     def _draw_bbox_score(self, image, bbox_rect, score):
         if bbox_rect is None or score is None:
             return
@@ -431,12 +467,12 @@ class Sam2VideoDetector:
             cv2.LINE_AA,
         )
 
-    def _render_score_chart(self, frame, score_history, frame_number, total_frames):
+    def _render_score_chart(self, frame, score_history, iou_history, frame_number, total_frames):
         if frame is None:
             return frame
 
         height, width = frame.shape[:2]
-        panel_height = min(120, max(48, height // 3))
+        panel_height = min(132, max(64, height // 3))
         canvas = frame.copy()
 
         panel_x1 = 8
@@ -445,7 +481,7 @@ class Sam2VideoDetector:
         panel_y2 = height - 6
         chart_x1 = panel_x1 + 42
         chart_x2 = panel_x2 - 10
-        chart_y1 = panel_y1 + 8
+        chart_y1 = panel_y1 + 20
         chart_y2 = panel_y2 - 22
         if chart_x2 <= chart_x1 or chart_y2 <= chart_y1:
             return canvas
@@ -493,6 +529,41 @@ class Sam2VideoDetector:
             chart_y2,
             chart_y2 - chart_y1,
             2,
+        )
+        self._chart_renderer._draw_chart_series(
+            canvas,
+            x_values,
+            np.asarray(iou_history, dtype=np.float32),
+            (255, 190, 60),
+            x_min,
+            x_max,
+            chart_x1,
+            chart_x2 - chart_x1,
+            1.0,
+            chart_y2,
+            chart_y2 - chart_y1,
+            2,
+        )
+
+        cv2.putText(
+            canvas,
+            "Score",
+            (panel_x1 + 8, panel_y1 + 13),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.35,
+            (80, 255, 80),
+            1,
+            cv2.LINE_AA,
+        )
+        cv2.putText(
+            canvas,
+            "IoU",
+            (panel_x1 + 62, panel_y1 + 13),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.35,
+            (255, 190, 60),
+            1,
+            cv2.LINE_AA,
         )
 
         x_ticks = self._chart_renderer._uniform_ticks(x_min, x_max, target_ticks=4)
@@ -648,6 +719,7 @@ class Sam2VideoDetector:
         tracked_frames = 0
         total_segments = 0
         score_history = []
+        iou_history = []
 
         try:
             while True:
@@ -700,9 +772,11 @@ class Sam2VideoDetector:
                 )
                 tracked_frames += 1
                 score_history.append(max(0.0, min(1.0, float(detection_score or 0.0))))
+                iou_history.append(self._calculate_mask_iou(mask_tensor, bbox_rect, frame.shape))
                 plotted = self._render_score_chart(
                     plotted,
                     score_history,
+                    iou_history,
                     tracked_frames,
                     total_frames,
                 )

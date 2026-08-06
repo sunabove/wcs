@@ -62,7 +62,22 @@
 						</tr>
 						<tr>
 							<th scope="row" class="text-center text-nowrap">검출</th>
-							<td class="text-end"><div class="d-inline-flex align-items-center gap-2"><span class="small text-secondary">Point label</span><div class="form-check form-switch mb-0"><input id="sam2-point-label" class="form-check-input" type="checkbox" role="switch" checked disabled><label id="sam2-point-label-text" class="form-check-label small" for="sam2-point-label">Positive</label></div><div class="form-check form-switch mb-0"><input id="sam2-multimask-output" class="form-check-input" type="checkbox" role="switch" disabled><label class="form-check-label small" for="sam2-multimask-output">Multi mask</label></div><button id="sam2-detect-btn" type="button" class="btn btn-success">분할 시작</button></div></td>
+							<td class="text-start">
+								<div class="d-flex flex-wrap align-items-center gap-2">
+									<div class="d-inline-flex align-items-center gap-1">
+										<span class="small text-secondary">Point label</span>
+										<div class="form-check form-switch mb-0">
+											<input id="sam2-point-label" class="form-check-input" type="checkbox" role="switch" checked disabled>
+											<label id="sam2-point-label-text" class="form-check-label small" for="sam2-point-label">Positive</label>
+										</div>
+									</div>
+									<div class="form-check form-switch mb-0">
+										<input id="sam2-multimask-output" class="form-check-input" type="checkbox" role="switch" disabled>
+										<label id="sam2-multimask-output-text" class="form-check-label small" for="sam2-multimask-output">Single mask</label>
+									</div>
+									<button id="sam2-detect-btn" type="button" class="btn btn-success">분할 시작</button>
+								</div>
+							</td>
 						</tr>
 						<tr>
 							<th scope="row" class="text-center text-nowrap">상태</th>

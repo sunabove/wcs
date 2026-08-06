@@ -26,6 +26,7 @@
     const pointLabelCheckbox = document.getElementById('sam2-point-label');
     const multimaskOutputCheckbox = document.getElementById('sam2-multimask-output');
     const pointLabelText = document.getElementById('sam2-point-label-text');
+    const multimaskOutputText = document.getElementById('sam2-multimask-output-text');
     const positivePointListElement = document.getElementById('sam2-positive-points');
     const positivePointCountElement = document.getElementById('sam2-positive-count');
     const pointMarkerLayerElement = document.getElementById('sam2-point-marker-layer');
@@ -253,6 +254,14 @@
         }
     }
 
+    function updateMultimaskOutputText() {
+        if (multimaskOutputText) {
+            multimaskOutputText.textContent = multimaskOutputCheckbox && multimaskOutputCheckbox.checked
+                ? 'Multi mask'
+                : 'Single mask';
+        }
+    }
+
     function updateDetectionControlState() {
         const enabled = hasSelectedVideo();
             [pointModeButton, bboxModeButton, pointClearButton, bboxClearButton, optionsSaveButton, optionsResetButton, pointLabelCheckbox, multimaskOutputCheckbox].forEach((control) => {
@@ -331,6 +340,7 @@
             }
             if (multimaskOutputCheckbox) {
                 multimaskOutputCheckbox.checked = options.multimask_output === true;
+                updateMultimaskOutputText();
             }
             renderPointUi();
             renderBoundingBoxUi();
@@ -1915,6 +1925,10 @@
     if (pointLabelCheckbox) {
         pointLabelCheckbox.addEventListener('change', updatePointLabelText);
         updatePointLabelText();
+    }
+    if (multimaskOutputCheckbox) {
+        multimaskOutputCheckbox.addEventListener('change', updateMultimaskOutputText);
+        updateMultimaskOutputText();
     }
     setUploadedListLoading(true, '동영상 목록을 불러오는 중...');
     setStatus('업로드 목록을 가져오는 중...', 'info');

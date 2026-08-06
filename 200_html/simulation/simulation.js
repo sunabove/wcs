@@ -2668,6 +2668,25 @@ class RapierDriveSimulation {
         }, true);
     }
 
+    suppressObstacleLateralSlip() {
+        if (!this.body) {
+            return;
+        }
+
+        const bodyRotation = this.body.rotation();
+        const yaw = this.extractYawFromQuaternion(bodyRotation);
+        const forwardX = Math.cos(yaw);
+        const forwardY = Math.sin(yaw);
+        const velocity = this.body.linvel();
+        const forwardSpeed = (velocity.x * forwardX) + (velocity.y * forwardY);
+
+        this.body.setLinvel(new this.rapier.Vector3(
+            forwardX * forwardSpeed,
+            forwardY * forwardSpeed,
+            velocity.z
+        ), true);
+    }
+
     isVehicleNearObstacleSupportZone() {
         return false;
     }
@@ -3736,6 +3755,7 @@ class RapierDriveSimulation {
             const isClimbingApproach = currentClimbApproach || this.contactSolver.isClimbApproach(currentObstacleApproach?.obstacleInfo || null);
             if ((hasObstacleContactNow || isClimbingApproach) && Math.abs(effectiveSteerSign) < 1e-3) {
                 this.preserveObstacleHeading(obstacleHeadingYaw);
+                this.suppressObstacleLateralSlip();
                 this.body.setAngvel(new this.rapier.Vector3(0, 0, 0), true);
             }
             if (hasObstacleContactNow || isClimbingApproach) {
@@ -3802,6 +3822,7 @@ class RapierDriveSimulation {
         this.isVehicleObstacleContact = Boolean(hasObstacleContact || isClimbingApproachAfterStep);
         if (this.isVehicleObstacleContact && Math.abs(effectiveSteerSign) < 1e-3) {
             this.preserveObstacleHeading();
+            this.suppressObstacleLateralSlip();
             this.body.setAngvel(new this.rapier.Vector3(0, 0, 0), true);
         }
         if (this.keepUprightOnFlatGround) {

@@ -1904,6 +1904,15 @@
             await assignVideoSource(outputVideoElement, outputUrl, 'output');
             renderScoreChart(Array.isArray(result && result.score_history) ? result.score_history : []);
 
+            const inputTabButton = document.getElementById('sam2-input-tab');
+            if (inputTabButton) {
+                if (window.bootstrap && typeof window.bootstrap.Tab === 'function') {
+                    window.bootstrap.Tab.getOrCreateInstance(inputTabButton).show();
+                } else {
+                    inputTabButton.click();
+                }
+            }
+
             applyLoopOption();
 
             setStatus('분할 완료', 'success');

@@ -21,7 +21,7 @@
     const bboxModeButton = document.getElementById('sam2-bbox-mode');
     const pointClearButton = document.getElementById('sam2-point-clear');
     const bboxClearButton = document.getElementById('sam2-bbox-clear');
-    const optionsCancelButton = document.getElementById('sam2-options-cancel');
+    const optionsResetButton = document.getElementById('sam2-options-reset');
     const pointLabelCheckbox = document.getElementById('sam2-point-label');
     const pointLabelText = document.getElementById('sam2-point-label-text');
     const positivePointListElement = document.getElementById('sam2-positive-points');
@@ -243,7 +243,7 @@
 
     function updateDetectionControlState() {
         const enabled = hasSelectedVideo();
-        [pointModeButton, bboxModeButton, pointClearButton, bboxClearButton, optionsCancelButton, pointLabelCheckbox].forEach((control) => {
+        [pointModeButton, bboxModeButton, pointClearButton, bboxClearButton, optionsResetButton, pointLabelCheckbox].forEach((control) => {
             if (control) {
                 control.disabled = !enabled;
             }
@@ -1786,14 +1786,14 @@
             setStatus('BBox 설정을 초기화했습니다.', 'secondary');
         });
     }
-    if (optionsCancelButton) {
-        optionsCancelButton.addEventListener('click', async () => {
+    if (optionsResetButton) {
+        optionsResetButton.addEventListener('click', async () => {
             if (!selectedServerFileName) {
                 setStatus('서버에 저장된 검출 설정을 찾을 수 없습니다.', 'warning');
                 return;
             }
 
-            optionsCancelButton.disabled = true;
+            optionsResetButton.disabled = true;
             const restored = await loadVideoOptions(selectedServerFileName);
             updateDetectionControlState();
             setStatus(

@@ -3729,6 +3729,7 @@ class RapierDriveSimulation {
             const obstacleInfoForClimb = currentObstacleApproach?.obstacleInfo
                 || this.contactSolver.getApproachInfo()?.obstacleInfo
                 || null;
+            this.isVehicleObstacleContact = Boolean(hasObstacleContactNow || isClimbingApproach);
             if ((hasObstacleContactNow || isClimbingApproach) && Math.abs(effectiveSteerSign) < 1e-3) {
                 this.preserveObstacleHeading(obstacleHeadingYaw);
                 this.suppressObstacleLateralDrift(obstacleReferencePosition, obstacleHeadingYaw);
@@ -3781,10 +3782,8 @@ class RapierDriveSimulation {
             this.stabilizeFlatGroundVerticalMotion();
             this.enforceFlatGroundRideHeight();
             this.renderer.syncVehicle();
-            if (hasDriveCommand) {
-                this.wheelZChartElapsedSec += this.physicsFixedTimeStepSec;
-                this.sampleWheelCenterZForChart(this.wheelZChartElapsedSec);
-            }
+            this.wheelZChartElapsedSec += this.physicsFixedTimeStepSec;
+            this.sampleWheelCenterZForChart(this.wheelZChartElapsedSec);
             this.physicsAccumulatorSec -= this.physicsFixedTimeStepSec;
             stepIndex += 1;
         }

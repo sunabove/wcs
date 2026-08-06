@@ -660,7 +660,8 @@ class Sam2VideoDetector:
                 "h": 100.0,
             }
 
-        writer = self._create_video_writer(output_path, fps, width, height)
+        output_height = height + self._score_chart_height
+        writer = self._create_video_writer(output_path, fps, width, output_height)
         if writer is None:
             capture.release()
             raise RuntimeError("Failed to create output video")
@@ -723,6 +724,12 @@ class Sam2VideoDetector:
                 )
                 tracked_frames += 1
                 score_history.append(max(0.0, min(1.0, float(detection_score or 0.0))))
+                plotted = self._render_score_chart(
+                    plotted,
+                    score_history,
+                    tracked_frames,
+                    total_frames,
+                )
                 writer.write(plotted)
                 if progress_callback is not None and total_frames > 0:
                     progress_callback(tracked_frames, total_frames)

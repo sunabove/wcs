@@ -1848,7 +1848,7 @@
 
             await assignVideoSource(inputVideoElement, inputUrl, 'input');
             await assignVideoSource(outputVideoElement, outputUrl, 'output');
-            renderScoreChart(result && result.score_chart_url);
+            renderScoreChart(buildAbsoluteUrl(apiBase, result && result.score_chart_url));
 
             const inputTabButton = document.getElementById('sam2-input-tab');
             if (inputTabButton) {

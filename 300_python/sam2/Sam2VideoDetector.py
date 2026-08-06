@@ -508,15 +508,27 @@ class Sam2VideoDetector:
         )
 
     def _find_first_score_peak_index(self, score_values):
-        if len(score_values) < 3:
+        values = np.asarray(score_values, dtype=np.float32).reshape(-1)
+        if len(values) < 7:
             return None
 
-        for index in range(1, len(score_values) - 1):
-            previous_value = float(score_values[index - 1])
-            current_value = float(score_values[index])
-            next_value = float(score_values[index + 1])
-            if current_value >= previous_value and current_value > next_value:
-                return index
+        smoothing_radius = 2
+        minimum_rise = 0.03
+        minimum_fall = 0.03
+        smoothed_values = np.asarray([
+            np.mean(values[index - smoothing_radius:index + smoothing_radius + 1])
+            for index in range(smoothing_radius, len(values) - smoothing_radius)
+        ])
+
+        for smoothed_index in range(1, len(smoothed_values) - 1):
+            previous_value = float(smoothed_values[smoothed_index - 1])
+            current_value = float(smoothed_values[smoothed_index])
+            next_value = float(smoothed_values[smoothed_index + 1])
+            if (
+                current_value - previous_value >= minimum_rise
+                and current_value - next_value >= minimum_fall
+            ):
+                return smoothed_index + smoothing_radius
 
         return None
 

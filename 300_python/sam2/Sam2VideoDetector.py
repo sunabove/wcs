@@ -467,6 +467,19 @@ class Sam2VideoDetector:
             cv2.LINE_AA,
         )
 
+    def _find_first_score_peak_index(self, score_values):
+        if len(score_values) < 3:
+            return None
+
+        for index in range(1, len(score_values) - 1):
+            previous_value = float(score_values[index - 1])
+            current_value = float(score_values[index])
+            next_value = float(score_values[index + 1])
+            if current_value >= previous_value and current_value > next_value:
+                return index
+
+        return None
+
     def _render_score_chart(self, frame, score_history, iou_history, frame_number, total_frames):
         if frame is None:
             return frame
@@ -524,10 +537,11 @@ class Sam2VideoDetector:
         if x_max <= x_min:
             x_max = x_min + 1.0
         x_values = np.arange(1, len(score_history) + 1, dtype=np.float32)
+        score_values = np.asarray(score_history, dtype=np.float32)
         self._chart_renderer._draw_chart_series(
             canvas,
             x_values,
-            np.asarray(score_history, dtype=np.float32),
+            score_values,
             (80, 255, 80),
             x_min,
             x_max,
@@ -538,6 +552,24 @@ class Sam2VideoDetector:
             chart_y2 - chart_y1,
             2,
         )
+        first_peak_index = self._find_first_score_peak_index(score_values)
+        if first_peak_index is not None:
+            peak_start = max(0, first_peak_index - 1)
+            peak_end = min(len(score_values), first_peak_index + 2)
+            self._chart_renderer._draw_chart_series(
+                canvas,
+                x_values[peak_start:peak_end],
+                score_values[peak_start:peak_end],
+                (80, 80, 255),
+                x_min,
+                x_max,
+                chart_x1,
+                chart_x2 - chart_x1,
+                1.0,
+                chart_y2,
+                chart_y2 - chart_y1,
+                3,
+            )
         self._chart_renderer._draw_chart_series(
             canvas,
             x_values,

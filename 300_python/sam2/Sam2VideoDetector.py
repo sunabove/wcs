@@ -525,7 +525,7 @@ class Sam2VideoDetector:
         difference_center = float(np.median(differences)) if differences.size else 0.0
         noise_level = float(np.median(np.abs(differences - difference_center)))
         change_threshold = max(0.008, min(0.04, noise_level * 2.0))
-        minimum_slope = max(0.02, min(0.12, noise_level * 4.0))
+        minimum_slope = max(0.02, min(0.08, noise_level * 2.0))
         plateau_tolerance = max(0.004, change_threshold * 0.75)
 
         running_high = float(smoothed_values[0])

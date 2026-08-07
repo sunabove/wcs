@@ -44,19 +44,18 @@
 							<th scope="row" class="text-center text-nowrap">입력</th>
 							<td>
 								<ul class="nav nav-tabs" id="sam2-input-source-tabs" role="tablist">
-									<li class="nav-item" role="presentation"><button class="nav-link active text-secondary" id="sam2-file-source-tab" data-bs-toggle="tab" data-bs-target="#sam2-file-source-pane" type="button" role="tab" aria-selected="true"><i class="bi bi-film me-1" aria-hidden="true"></i>동영상 파일</button></li>
-									<li class="nav-item" role="presentation"><button class="nav-link text-secondary" id="sam2-uploaded-source-tab" data-bs-toggle="tab" data-bs-target="#sam2-uploaded-source-pane" type="button" role="tab" aria-selected="false"><i class="bi bi-upload me-1" aria-hidden="true"></i>업로드 동영상</button></li>
+									<li class="nav-item" role="presentation"><button class="nav-link active text-secondary" id="sam2-uploaded-source-tab" data-bs-toggle="tab" data-bs-target="#sam2-uploaded-source-pane" type="button" role="tab" aria-selected="true"><i class="bi bi-upload me-1" aria-hidden="true"></i>업로드 동영상</button></li>
 								</ul>
 								<input id="sam2-video-file" class="d-none" type="file" accept="video/*">
 								<div class="tab-content border border-top-0 rounded-bottom p-2 bg-white">
-									<div class="tab-pane fade show active" id="sam2-file-source-pane" role="tabpanel">
+									<div class="tab-pane fade show active" id="sam2-uploaded-source-pane" role="tabpanel">
 										<div class="d-flex align-items-stretch gap-2">
 											<div id="sam2-drop-zone" class="border border-2 rounded-3 bg-light p-3 text-center text-secondary flex-grow-1" role="button" tabindex="0" aria-label="동영상 드래그 업로드 영역"><div class="fw-semibold">동영상을 여기로 드래그하세요</div><div id="sam2-selected-file" class="form-text mt-1">또는 클릭해서 파일 선택</div></div>
 											</div>
 										<div id="sam2-upload-progress-wrap" class="mt-2 d-none" aria-live="polite"><div class="progress" role="progressbar" aria-label="동영상 업로드 진행률" aria-valuemin="0" aria-valuemax="100"><div id="sam2-upload-progress-bar" class="progress-bar progress-bar-striped progress-bar-animated" style="width: 0%">0%</div></div><div id="sam2-upload-progress-text" class="small text-muted mt-1">업로드 준비 중...</div></div>
 										<div id="sam2-upload-max-size" class="small text-muted mt-1">최대 업로드 용량: ___GB</div>
+										<div class="d-flex align-items-center gap-2 mb-1 mt-3"><div id="sam2-uploaded-loading" class="small text-primary d-inline-flex align-items-center" aria-live="polite"><span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span><span id="sam2-uploaded-loading-text">동영상 목록을 불러오는 중...</span></div></div><ul id="sam2-uploaded-list" class="list-group list-group-sm d-flex flex-row flex-nowrap gap-2 align-items-stretch overflow-auto pb-1 mb-0" style="white-space: nowrap;"></ul>
 									</div>
-									<div class="tab-pane fade" id="sam2-uploaded-source-pane" role="tabpanel"><div class="d-flex align-items-center gap-2 mb-1"><div id="sam2-uploaded-loading" class="small text-primary d-inline-flex align-items-center" aria-live="polite"><span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span><span id="sam2-uploaded-loading-text">동영상 목록을 불러오는 중...</span></div></div><ul id="sam2-uploaded-list" class="list-group list-group-sm d-flex flex-row flex-nowrap gap-2 align-items-stretch overflow-auto pb-1 mb-0" style="white-space: nowrap;"></ul></div>
 								</div>
 							</td>
 						</tr>

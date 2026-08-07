@@ -408,16 +408,7 @@
     }
 
     function loadInputSourceTab() {
-        let tabId = 'sam2-file-source-tab';
-        try {
-            const storedTabId = String(localStorage.getItem(STORAGE_INPUT_SOURCE_TAB_KEY) || '').trim();
-            if (storedTabId === 'sam2-file-source-tab' || storedTabId === 'sam2-uploaded-source-tab') {
-                tabId = storedTabId;
-            }
-        } catch (_ignore) {
-            // Keep the file input tab as the default.
-        }
-        showInputSourceTab(tabId, false);
+        showInputSourceTab('sam2-uploaded-source-tab', false);
     }
 
     function applyLoopOption() {
@@ -1956,7 +1947,7 @@
 
         applyUploadDefaultOptions();
         setSelectedFile(file);
-        showInputSourceTab('sam2-file-source-tab');
+        showInputSourceTab('sam2-uploaded-source-tab');
         selectedServerFileName = '';
         highlightedServerFileName = '';
         saveSelectedVideo('');

@@ -80,6 +80,20 @@
     text-align: center;
 }
 
+.sam2-output-video-wrap {
+    position: relative;
+    width: min(640px, 100%);
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.sam2-output-download-button {
+    position: absolute;
+    top: 0.5rem;
+    right: 0.5rem;
+    z-index: 5;
+}
+
 .sam2-video-player {
     width: min(640px, 100%);
     aspect-ratio: 4 / 3;

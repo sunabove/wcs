@@ -579,7 +579,15 @@ class Sam2VideoDetector:
         )
         candidate_indices = np.flatnonzero(values >= high_score_threshold)
         if len(candidate_indices) == 0:
-            return None, None
+            fallback_start = min(
+                range(len(values) - 1),
+                key=lambda index: (
+                    -float(np.mean(smoothed_values[index:index + 2])),
+                    float(np.ptp(smoothed_values[index:index + 2])),
+                    index,
+                ),
+            )
+            return fallback_start, fallback_start + 1
 
         minimum_plateau_length = 2
         stability_tolerance = 0.2

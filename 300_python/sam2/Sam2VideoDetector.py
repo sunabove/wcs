@@ -519,43 +519,56 @@ class Sam2VideoDetector:
             np.median(values[index - smoothing_radius:index + smoothing_radius + 1])
             for index in range(smoothing_radius, len(values) - smoothing_radius)
         ])
-        raw_differences = np.diff(values)
-        noise_level = float(np.median(np.abs(raw_differences - np.median(raw_differences))))
+        noise_level = float(np.median(np.abs(np.diff(values) - np.median(np.diff(values)))))
         change_threshold = max(0.003, min(0.02, noise_level * 0.75))
+        minimum_length = 3
+        maximum_range = 0.1
+        minimum_rectangularity = 0.85
 
-        # Prefer the first nearly-flat score run over a later, taller peak.
-        # Small frame-to-frame changes inside this run are not meaningful.
-        plateau_slope_limit = 0.04
-        plateau_min_length = 2
-        for plateau_start in range(1, len(smoothed_values) - plateau_min_length):
-            plateau_end = plateau_start
-            while (
-                plateau_end + 1 < len(smoothed_values)
-                and abs(float(smoothed_values[plateau_end + 1]) - float(smoothed_values[plateau_end])) <= plateau_slope_limit
-                and float(np.max(smoothed_values[plateau_start:plateau_end + 2]))
-                - float(np.min(smoothed_values[plateau_start:plateau_end + 2])) <= 0.1
-                and float(np.max(values[plateau_start + 1:plateau_end + 3]))
-                - float(np.min(values[plateau_start + 1:plateau_end + 3])) <= 0.1
-            ):
+        # Scan from the left and accept the first area-shaped plateau.
+        for plateau_start in range(1, len(smoothed_values) - minimum_length):
+            plateau_end = plateau_start + minimum_length - 1
+            while plateau_end + 1 < len(smoothed_values):
+                candidate = smoothed_values[plateau_start:plateau_end + 2]
+                raw_start = plateau_start + smoothing_radius
+                raw_end = plateau_end + smoothing_radius + 2
+                raw_candidate = values[raw_start:raw_end]
+                if (
+                    float(np.max(candidate)) - float(np.min(candidate)) > maximum_range
+                    or len(raw_candidate) == 0
+                    or float(np.max(raw_candidate)) - float(np.min(raw_candidate)) > maximum_range
+                ):
+                    break
                 plateau_end += 1
 
-            if plateau_end - plateau_start + 1 < plateau_min_length:
+            region = smoothed_values[plateau_start:plateau_end + 1]
+            raw_start = plateau_start + smoothing_radius
+            raw_end = plateau_end + smoothing_radius + 1
+            raw_region = values[raw_start:raw_end]
+            if (
+                len(region) < minimum_length
+                or len(raw_region) == 0
+                or float(np.max(region)) - float(np.min(region)) > maximum_range
+                or float(np.max(raw_region)) - float(np.min(raw_region)) > maximum_range
+            ):
                 continue
-
+            peak_value = float(np.max(region))
+            if peak_value <= 0.0:
+                continue
+            area = float(np.sum(region))
+            rectangularity = area / (len(region) * peak_value)
             left_values = smoothed_values[max(0, plateau_start - 2):plateau_start]
             right_values = smoothed_values[plateau_end + 1:min(len(smoothed_values), plateau_end + 3)]
             if len(left_values) == 0 or len(right_values) == 0:
                 continue
-            left_value = float(np.mean(left_values))
-            right_value = float(np.mean(right_values))
-            plateau_value = float(np.mean(smoothed_values[plateau_start:plateau_end + 1]))
+            region_value = area / len(region)
             if (
-                plateau_value - left_value >= change_threshold * 0.75
-                and plateau_value - right_value >= change_threshold * 0.75
+                rectangularity >= minimum_rectangularity
+                and region_value - float(np.mean(left_values)) >= change_threshold
+                and region_value - float(np.mean(right_values)) >= change_threshold
             ):
                 return ((plateau_start + plateau_end) // 2) + smoothing_radius
 
-        # Do not select a later isolated maximum or taller plateau.
         return None
 
     def _get_score_peak_bounds(self, score_values, peak_index):

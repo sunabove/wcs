@@ -604,14 +604,8 @@ class Sam2VideoDetector:
         if not candidates:
             return None, None
 
-        return max(
-            candidates,
-            key=lambda bounds: (
-                float(np.median(smoothed_values[bounds[0]:bounds[1] + 1])),
-                bounds[1] - bounds[0] + 1,
-                -bounds[0],
-            ),
-        )
+        # The first plateau is defined by temporal order, not by the highest Score.
+        return candidates[0]
 
     def _get_score_peak_bounds(self, score_values, peak_index):
         values = np.asarray(score_values, dtype=np.float32).reshape(-1)

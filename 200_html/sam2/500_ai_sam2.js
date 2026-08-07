@@ -1069,7 +1069,7 @@
             const statusResponse = await fetch(statusUrl, { cache: 'no-store' });
             const statusResult = await statusResponse.json();
             const progress = Math.max(0, Math.min(99, Number(statusResult.progress) || 0));
-            setStatus(`SAM2 분할 진행중 ... (${progress}%)`, 'info');
+            setStatus(`SAM2 검출 진행중 ... (${progress}%)`, 'info');
 
             if (statusResult.status === 'completed') {
                 return statusResult.result && typeof statusResult.result === 'object'
@@ -1291,7 +1291,7 @@
                 await loadVideoOptions(selectedServerFileName);
 
                 renderUploadedHistory();
-                setStatus(`선택됨: ${item.name} (분할 시작 버튼을 눌러 실행)`, 'secondary');
+                setStatus(`선택됨: ${item.name} (검출 시작 버튼을 눌러 실행)`, 'secondary');
             });
 
             uploadedListElement.appendChild(li);
@@ -1731,7 +1731,7 @@
             await loadVideoOptions(selectedServerFileName);
 
             uploadCompleted = true;
-            setStatus('동영상 업로드 완료. 분할 시작 버튼을 눌러주세요.', 'success');
+            setStatus('동영상 업로드 완료. 검출 시작 버튼을 눌러주세요.', 'success');
         } catch (error) {
             const message = error && error.message ? error.message : String(error);
             // Fallback: keep selected file so segment_video_upload can still upload+segment.
@@ -1746,7 +1746,7 @@
                 uploadProgressBarElement.classList.remove('progress-bar-striped');
                 uploadProgressBarElement.classList.add('bg-danger');
             }
-            setStatus(`업로드 오류: ${message} (분할 시작 시 업로드 재시도)`, 'danger');
+            setStatus(`업로드 오류: ${message} (검출 시작 시 업로드 재시도)`, 'danger');
         } finally {
             isUploadingImmediately = false;
             if (uploadCompleted) {
@@ -1781,7 +1781,7 @@
             if (highlightedExists) {
                 selectedServerFileName = highlightedServerFileName;
                 saveSelectedVideo(selectedServerFileName);
-                setStatus('하이라이트된 동영상을 자동 선택하여 분할을 시작합니다.', 'secondary');
+                setStatus('하이라이트된 동영상을 자동 선택하여 검출을 시작합니다.', 'secondary');
             }
         }
 
@@ -1791,7 +1791,7 @@
         }
 
         detectButton.disabled = true;
-        setStatus('SAM2 분할 진행중 ...', 'info');
+        setStatus('SAM2 검출 진행중 ...', 'info');
 
         const outputTabButton = document.getElementById('sam2-output-tab');
         if (outputTabButton) {
@@ -1864,7 +1864,7 @@
 
             applyLoopOption();
 
-            setStatus('분할 완료', 'success');
+            setStatus('검출 완료', 'success');
         } catch (error) {
             const message = error && error.message ? error.message : String(error);
             if (file) {

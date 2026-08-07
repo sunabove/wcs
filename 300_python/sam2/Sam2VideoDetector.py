@@ -811,8 +811,9 @@ class Sam2VideoDetector:
                     chart_y2 - chart_y1,
                     3,
                 )
+            plateau_layer = canvas.copy()
             self._chart_renderer._draw_chart_series(
-                canvas,
+                plateau_layer,
                 x_values[peak_start:peak_end],
                 score_values[peak_start:peak_end],
                 (80, 80, 255),
@@ -825,6 +826,7 @@ class Sam2VideoDetector:
                 chart_y2 - chart_y1,
                 3,
             )
+            cv2.addWeighted(plateau_layer, 0.3, canvas, 0.7, 0.0, canvas)
 
         cv2.putText(
             canvas,

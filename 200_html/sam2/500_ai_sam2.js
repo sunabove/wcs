@@ -1418,7 +1418,7 @@
         yoloInputFileName = '';
         yoloConversionAvailable = false;
         if (yoloDatasetSummaryElement) {
-            yoloDatasetSummaryElement.textContent = 'YOLO 학습 데이터 대기 중';
+            yoloDatasetSummaryElement.textContent = '';
         }
         if (yoloDatasetTabSummaryElement) {
             yoloDatasetTabSummaryElement.textContent = '검출 완료 후 YOLO 학습 데이터로 변환할 수 있습니다.';
@@ -2676,6 +2676,9 @@
     updateDetectionControlState();
     renderPointUi();
     renderBoundingBoxUi();
+    if (yoloDatasetSummaryElement) {
+        yoloDatasetSummaryElement.textContent = '';
+    }
 
     loadUploadLimitFromServer();
     loadUploadedHistoryFromServer();

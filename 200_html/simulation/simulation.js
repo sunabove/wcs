@@ -1125,6 +1125,13 @@ class RapierDriveSimulation {
         );
     }
 
+    getVehicleForwardVector(yaw) {
+        return {
+            x: -Math.cos(yaw),
+            y: -Math.sin(yaw)
+        };
+    }
+
     isDescendantObject3D(childObject, ancestorObject) {
         if (!childObject || !ancestorObject || childObject === ancestorObject) {
             return false;
@@ -2568,8 +2575,7 @@ class RapierDriveSimulation {
 
         const bodyPosition = this.body.translation();
         const yaw = this.extractYawFromQuaternion(this.body.rotation());
-        const forwardX = Math.cos(yaw);
-        const forwardY = Math.sin(yaw);
+        const { x: forwardX, y: forwardY } = this.getVehicleForwardVector(yaw);
         const wheelPlaneZ = bodyPosition.z + (Number.isFinite(this.wheelLocalMinZ) ? this.wheelLocalMinZ : 0);
         const approachCandidates = this.obstacleColliderInfos
             .filter((obstacleInfo) => {
@@ -2611,8 +2617,7 @@ class RapierDriveSimulation {
         const bodyPosition = this.body.translation();
         const bodyRotation = this.body.rotation();
         const yaw = this.extractYawFromQuaternion(bodyRotation);
-        const forwardX = Math.cos(yaw);
-        const forwardY = Math.sin(yaw);
+        const { x: forwardX, y: forwardY } = this.getVehicleForwardVector(yaw);
         const dx = obstacleInfo.center.x - bodyPosition.x;
         const dy = obstacleInfo.center.y - bodyPosition.y;
         const alongForward = dx * forwardX + dy * forwardY;
@@ -2657,8 +2662,7 @@ class RapierDriveSimulation {
 
         const bodyPosition = this.body.translation();
         const yaw = this.extractYawFromQuaternion(this.body.rotation());
-        const forwardX = Math.cos(yaw);
-        const forwardY = Math.sin(yaw);
+        const { x: forwardX, y: forwardY } = this.getVehicleForwardVector(yaw);
         const dx = obstacleInfo.center.x - bodyPosition.x;
         const dy = obstacleInfo.center.y - bodyPosition.y;
         const centerAlongForward = (dx * forwardX) + (dy * forwardY);
@@ -2840,8 +2844,7 @@ class RapierDriveSimulation {
 
         const bodyRotation = this.body.rotation();
         const yaw = this.extractYawFromQuaternion(bodyRotation);
-        const forwardX = Math.cos(yaw);
-        const forwardY = Math.sin(yaw);
+        const { x: forwardX, y: forwardY } = this.getVehicleForwardVector(yaw);
         const velocity = this.body.linvel();
         const forwardSpeed = (velocity.x * forwardX) + (velocity.y * forwardY);
 
@@ -2857,8 +2860,7 @@ class RapierDriveSimulation {
             return;
         }
 
-        const forwardX = Math.cos(referenceYaw);
-        const forwardY = Math.sin(referenceYaw);
+        const { x: forwardX, y: forwardY } = this.getVehicleForwardVector(referenceYaw);
         const currentPosition = this.body.translation();
         const deltaX = currentPosition.x - referencePosition.x;
         const deltaY = currentPosition.y - referencePosition.y;
@@ -3902,8 +3904,9 @@ class RapierDriveSimulation {
         } else {
             const bodyRotation = this.body.rotation();
             const yaw = this.extractYawFromQuaternion(bodyRotation);
-            targetVelocityX = Math.cos(yaw) * clampedSpeed * throttleSign;
-            targetVelocityY = Math.sin(yaw) * clampedSpeed * throttleSign;
+            const forwardVector = this.getVehicleForwardVector(yaw);
+            targetVelocityX = forwardVector.x * clampedSpeed * throttleSign;
+            targetVelocityY = forwardVector.y * clampedSpeed * throttleSign;
             commandedVelocityX = targetVelocityX;
             commandedVelocityY = targetVelocityY;
 
@@ -3943,8 +3946,7 @@ class RapierDriveSimulation {
             if (obstaclePathControlActive && Math.abs(effectiveSteerSign) < 1e-3) {
                 const bodyRotation = this.body.rotation();
                 const yaw = this.extractYawFromQuaternion(bodyRotation);
-                const headingX = Math.cos(yaw);
-                const headingY = Math.sin(yaw);
+                const { x: headingX, y: headingY } = this.getVehicleForwardVector(yaw);
                 const speed = clampedSpeed * (throttleSign !== 0 ? throttleSign : 1);
                 const currVel = this.body.linvel();
                 
@@ -4065,8 +4067,7 @@ class RapierDriveSimulation {
             if (this.isVehicleObstacleContact && Math.abs(steerSign) < 1e-3) {
                 const bodyRotation = this.body.rotation();
                 const yaw = this.extractYawFromQuaternion(bodyRotation);
-                const headingX = Math.cos(yaw);
-                const headingY = Math.sin(yaw);
+                const { x: headingX, y: headingY } = this.getVehicleForwardVector(yaw);
                 const forwardSpeed = clampedSpeed * (throttleSign !== 0 ? throttleSign : 1);
                 
                 this.body.setLinvel(new this.rapier.Vector3(headingX * forwardSpeed, headingY * forwardSpeed, keepZVelocity), true);

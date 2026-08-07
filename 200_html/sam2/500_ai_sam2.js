@@ -1507,6 +1507,13 @@
                     return;
                 }
 
+                debugSam2('업로드 동영상 클릭', {
+                    name: item.name,
+                    serverFileName: item.serverFileName,
+                    inputUrl: item.inputUrl,
+                    outputUrl: item.outputUrl,
+                });
+
                 showInputSourceTab('sam2-uploaded-source-tab');
 
                 selectedServerFileName = item.serverFileName;
@@ -2009,12 +2016,18 @@
         }
 
         await new Promise((resolve, reject) => {
+            debugSam2('원본 video source 설정', { sourceUrl });
             const cleanup = () => {
                 videoElement.removeEventListener('loadeddata', onLoadedData);
                 videoElement.removeEventListener('error', onError);
             };
 
             const onLoadedData = () => {
+                debugSam2('원본 video loadeddata', {
+                    readyState: videoElement.readyState,
+                    networkState: videoElement.networkState,
+                    duration: videoElement.duration,
+                });
                 cleanup();
                 resolve();
             };
@@ -2022,6 +2035,13 @@
             const onError = () => {
                 const mediaError = videoElement.error;
                 const code = mediaError && mediaError.code ? mediaError.code : 'unknown';
+                console.error('[SAM2] 원본 video error', {
+                    code,
+                    message: mediaError && mediaError.message,
+                    sourceUrl,
+                    readyState: videoElement.readyState,
+                    networkState: videoElement.networkState,
+                });
                 cleanup();
                 reject(new Error(`원본 영상 디코딩 실패 (code: ${code})`));
             };
@@ -2030,6 +2050,11 @@
             videoElement.addEventListener('error', onError, { once: true });
             videoElement.src = sourceUrl;
             videoElement.load();
+            debugSam2('원본 video load 호출', {
+                currentSrc: videoElement.currentSrc,
+                readyState: videoElement.readyState,
+                networkState: videoElement.networkState,
+            });
 
             if (videoElement.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) {
                 onLoadedData();
@@ -2549,6 +2574,23 @@
     if (claheCheckbox) {
         claheCheckbox.addEventListener('change', updateClaheText);
         updateClaheText();
+    }
+    if (inputVideoElement) {
+        ['loadedmetadata', 'canplay', 'play', 'playing', 'pause', 'waiting', 'stalled', 'abort'].forEach((eventName) => {
+            inputVideoElement.addEventListener(eventName, () => {
+                const mediaError = inputVideoElement.error;
+                debugSam2(`원본 video 이벤트: ${eventName}`, {
+                    currentSrc: inputVideoElement.currentSrc || inputVideoElement.src,
+                    readyState: inputVideoElement.readyState,
+                    networkState: inputVideoElement.networkState,
+                    paused: inputVideoElement.paused,
+                    currentTime: inputVideoElement.currentTime,
+                    duration: inputVideoElement.duration,
+                    errorCode: mediaError && mediaError.code,
+                    errorMessage: mediaError && mediaError.message,
+                });
+            });
+        });
     }
     setUploadedListLoading(true, '동영상 목록을 불러오는 중...');
     setStatus('업로드 목록을 가져오는 중...', 'info');

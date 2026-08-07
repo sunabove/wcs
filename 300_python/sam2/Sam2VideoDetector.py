@@ -839,7 +839,7 @@ class Sam2VideoDetector:
                 plateau_layer,
                 x_values[peak_start:peak_end],
                 score_values[peak_start:peak_end],
-                (80, 80, 255),
+                (0, 0, 255),
                 x_min,
                 x_max,
                 chart_x1,
@@ -849,7 +849,7 @@ class Sam2VideoDetector:
                 chart_y2 - chart_y1,
                 2,
             )
-            cv2.addWeighted(plateau_layer, 0.35, canvas, 0.65, 0.0, canvas)
+            cv2.addWeighted(plateau_layer, 0.75, canvas, 0.25, 0.0, canvas)
 
         cv2.putText(
             canvas,

@@ -522,9 +522,61 @@ class Sam2VideoDetector:
         raw_differences = np.diff(values)
         noise_level = float(np.median(np.abs(raw_differences - np.median(raw_differences))))
         change_threshold = max(0.003, min(0.02, noise_level * 0.75))
-        minimum_rise_slope = max(0.005, min(0.06, noise_level * 2.0))
-        minimum_fall_slope = max(0.005, min(0.04, noise_level * 1.2))
+        minimum_rise_slope = max(0.06, min(0.08, noise_level * 2.0))
+        minimum_fall_slope = max(0.04, min(0.045, noise_level * 1.2))
         slope_window = 4
+
+        def has_steep_plateau_edges(plateau_start, plateau_end):
+            raw_start = plateau_start + smoothing_radius
+            raw_end = plateau_end + smoothing_radius
+            rise_start = max(0, raw_start - slope_window)
+            rise_end = min(raw_start, len(raw_differences))
+            fall_start = min(raw_end + 1, len(raw_differences))
+            fall_end = min(raw_end + slope_window + 1, len(raw_differences))
+            has_rise = rise_end > rise_start and np.max(raw_differences[rise_start:rise_end]) >= minimum_rise_slope
+            has_fall = fall_end > fall_start and np.min(raw_differences[fall_start:fall_end]) <= -minimum_fall_slope
+            if not has_rise or not has_fall:
+                return False
+
+            rise_baseline_start = max(0, rise_start - slope_window)
+            rise_baseline = raw_differences[rise_baseline_start:rise_start]
+            fall_baseline_end = min(len(raw_differences), fall_end + slope_window)
+            fall_baseline = raw_differences[fall_end:fall_baseline_end]
+            max_rise = float(np.max(raw_differences[rise_start:rise_end]))
+            min_fall = float(np.min(raw_differences[fall_start:fall_end]))
+            rise_change = max_rise - (float(np.median(rise_baseline)) if len(rise_baseline) else 0.0)
+            fall_change = (float(np.median(fall_baseline)) if len(fall_baseline) else 0.0) - min_fall
+            return rise_change >= 0.08 and fall_change >= 0.06
+
+        plateau_tolerance = max(0.15, change_threshold * 2.0)
+        for smoothed_index in range(1, len(smoothed_values) - 1):
+            current_value = float(smoothed_values[smoothed_index])
+            if current_value < float(np.max(smoothed_values[smoothed_index - 1:smoothed_index + 2])):
+                continue
+
+            plateau_start = smoothed_index
+            plateau_end = smoothed_index
+            while (
+                plateau_start > 0
+                and float(smoothed_values[plateau_start - 1]) >= current_value - plateau_tolerance
+            ):
+                plateau_start -= 1
+            while (
+                plateau_end + 1 < len(smoothed_values)
+                and float(smoothed_values[plateau_end + 1]) >= current_value - plateau_tolerance
+            ):
+                plateau_end += 1
+
+            if plateau_start == 0 or plateau_end >= len(smoothed_values) - 1:
+                continue
+            left_value = float(np.mean(smoothed_values[max(0, plateau_start - 2):plateau_start]))
+            right_value = float(np.mean(smoothed_values[plateau_end + 1:min(len(smoothed_values), plateau_end + 3)]))
+            if (
+                current_value - left_value >= change_threshold * 0.75
+                and current_value - right_value >= change_threshold * 0.75
+                and has_steep_plateau_edges(plateau_start, plateau_end)
+            ):
+                return ((plateau_start + plateau_end) // 2) + smoothing_radius
 
         for smoothed_index in range(2, len(smoothed_values) - 2):
             current_value = float(smoothed_values[smoothed_index])
@@ -545,8 +597,38 @@ class Sam2VideoDetector:
             fall_end = min(raw_peak_index + slope_window, len(raw_differences))
             has_steep_rise = rise_end > rise_start and np.max(raw_differences[rise_start:rise_end]) >= minimum_rise_slope
             has_steep_fall = fall_end > raw_peak_index and np.min(raw_differences[raw_peak_index:fall_end]) <= -minimum_fall_slope
-            if has_steep_rise and has_steep_fall:
+            if has_steep_rise and has_steep_fall and has_steep_plateau_edges(smoothed_index, smoothed_index):
                 return raw_peak_index
+
+        for smoothed_index in range(1, len(smoothed_values) - 1):
+            current_value = float(smoothed_values[smoothed_index])
+            if current_value < float(np.max(smoothed_values[smoothed_index - 1:smoothed_index + 2])):
+                continue
+
+            plateau_tolerance = max(0.15, change_threshold * 2.0)
+            plateau_start = smoothed_index
+            plateau_end = smoothed_index
+            while (
+                plateau_start > 0
+                and float(smoothed_values[plateau_start - 1]) >= current_value - plateau_tolerance
+            ):
+                plateau_start -= 1
+            while (
+                plateau_end + 1 < len(smoothed_values)
+                and float(smoothed_values[plateau_end + 1]) >= current_value - plateau_tolerance
+            ):
+                plateau_end += 1
+
+            if plateau_start == 0 or plateau_end >= len(smoothed_values) - 1:
+                continue
+            left_value = float(np.mean(smoothed_values[max(0, plateau_start - 2):plateau_start]))
+            right_value = float(np.mean(smoothed_values[plateau_end + 1:min(len(smoothed_values), plateau_end + 3)]))
+            if (
+                current_value - left_value >= change_threshold * 0.75
+                and current_value - right_value >= change_threshold * 0.75
+                and has_steep_plateau_edges(plateau_start, plateau_end)
+            ):
+                return ((plateau_start + plateau_end) // 2) + smoothing_radius
 
         # A broad or plateau-shaped peak can satisfy the prominence check while
         # failing the steep-slope check. Use the highest observed score as a
@@ -559,10 +641,14 @@ class Sam2VideoDetector:
             if (
                 peak_value - left_value >= change_threshold
                 and peak_value - right_value >= change_threshold
+                and has_steep_plateau_edges(
+                    max(0, fallback_index - smoothing_radius),
+                    max(0, fallback_index - smoothing_radius),
+                )
             ):
                 return fallback_index
 
-        peak_tolerance = max(0.002, change_threshold * 0.4)
+        peak_tolerance = max(0.03, change_threshold * 1.5)
         peak_indices = np.flatnonzero(values >= (float(np.max(values)) - peak_tolerance))
         if len(peak_indices) >= 2:
             plateau_end = int(peak_indices[-1])
@@ -571,13 +657,43 @@ class Sam2VideoDetector:
                 left_value = float(np.mean(values[max(0, plateau_start - 2):plateau_start]))
                 right_value = float(np.mean(values[plateau_end + 1:min(len(values), plateau_end + 3)]))
                 peak_value = float(np.max(values))
+                rise_start = max(0, plateau_start - slope_window)
+                rise_end = min(plateau_start, len(raw_differences))
+                fall_start = min(plateau_end + 1, len(raw_differences))
+                fall_end = min(plateau_end + slope_window + 1, len(raw_differences))
+                has_steep_rise = rise_end > rise_start and np.max(raw_differences[rise_start:rise_end]) >= minimum_rise_slope
+                has_steep_fall = fall_end > fall_start and np.min(raw_differences[fall_start:fall_end]) <= -minimum_fall_slope
+                rise_baseline = raw_differences[max(0, rise_start - slope_window):rise_start]
+                fall_baseline = raw_differences[fall_end:min(len(raw_differences), fall_end + slope_window)]
+                rise_change = float(np.max(raw_differences[rise_start:rise_end])) - (float(np.median(rise_baseline)) if len(rise_baseline) else 0.0)
+                fall_change = (float(np.median(fall_baseline)) if len(fall_baseline) else 0.0) - float(np.min(raw_differences[fall_start:fall_end]))
                 if (
                     peak_value - left_value >= change_threshold
                     and peak_value - right_value >= peak_tolerance
+                    and has_steep_rise
+                    and has_steep_fall
+                    and rise_change >= 0.08
+                    and fall_change >= 0.06
                 ):
                     return (plateau_start + plateau_end) // 2
 
         return None
+
+    def _get_score_peak_bounds(self, score_values, peak_index):
+        values = np.asarray(score_values, dtype=np.float32).reshape(-1)
+        if len(values) == 0 or peak_index is None:
+            return None, None
+
+        peak_index = max(0, min(len(values) - 1, int(peak_index)))
+        peak_value = float(values[peak_index])
+        plateau_tolerance = 0.15
+        peak_start = peak_index
+        peak_end = peak_index
+        while peak_start > 0 and float(values[peak_start - 1]) >= peak_value - plateau_tolerance:
+            peak_start -= 1
+        while peak_end + 1 < len(values) and float(values[peak_end + 1]) >= peak_value - plateau_tolerance:
+            peak_end += 1
+        return peak_start, peak_end
 
     def _render_score_chart(self, frame, score_history, iou_history, frame_number, total_frames):
         if frame is None:
@@ -653,8 +769,9 @@ class Sam2VideoDetector:
         )
         first_peak_index = self._find_first_score_peak_index(score_values)
         if first_peak_index is not None:
-            peak_start = max(0, first_peak_index - 1)
-            peak_end = min(len(score_values), first_peak_index + 2)
+            peak_start, peak_last = self._get_score_peak_bounds(score_values, first_peak_index)
+            peak_start = max(0, peak_start - 1)
+            peak_end = min(len(score_values), peak_last + 2)
             self._chart_renderer._draw_chart_series(
                 canvas,
                 x_values[peak_start:peak_end],

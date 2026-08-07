@@ -2287,6 +2287,7 @@
         }
 
         detectButton.disabled = true;
+        stopCurrentOutputPlayback();
         setStatus('SAM2 검출 진행중 ...', 'info');
 
         const outputTabButton = document.getElementById('sam2-output-tab');

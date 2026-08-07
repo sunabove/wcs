@@ -30,7 +30,7 @@ class Sam2VideoDetector:
     _max_infer_fps = 10.0
     _max_infer_frames = 600
     _max_infer_pixels_total = 320_000_000
-    _score_plateau_area_ratio_threshold = 0.85
+    _score_plateau_area_ratio_threshold = 0.86
 
     def __init__(self):
         SAM2_UPLOAD_DIR.mkdir(parents=True, exist_ok=True)

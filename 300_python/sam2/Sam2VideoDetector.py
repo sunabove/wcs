@@ -693,8 +693,12 @@ class Sam2VideoDetector:
             plateau_end = int(peak_indices[-1])
             if 1 <= plateau_end < len(values) - 1:
                 plateau_start = int(peak_indices[0])
-                left_value = float(np.mean(values[max(0, plateau_start - 2):plateau_start]))
-                right_value = float(np.mean(values[plateau_end + 1:min(len(values), plateau_end + 3)]))
+                left_values = values[max(0, plateau_start - 2):plateau_start]
+                right_values = values[plateau_end + 1:min(len(values), plateau_end + 3)]
+                if len(left_values) == 0 or len(right_values) == 0:
+                    return None
+                left_value = float(np.mean(left_values))
+                right_value = float(np.mean(right_values))
                 peak_value = float(np.max(values))
                 rise_start = max(0, plateau_start - slope_window)
                 rise_end = min(plateau_start, len(raw_differences))

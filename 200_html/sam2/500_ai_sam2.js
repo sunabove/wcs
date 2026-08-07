@@ -1928,9 +1928,6 @@
             outputObjectUrl = newObjectUrl;
         }
 
-        videoElement.src = newObjectUrl;
-        videoElement.load();
-
         if (objectUrlKey === 'output') {
             updateOutputDownloadState();
         }
@@ -1955,6 +1952,12 @@
 
             videoElement.addEventListener('loadeddata', onLoadedData, { once: true });
             videoElement.addEventListener('error', onError, { once: true });
+            videoElement.src = newObjectUrl;
+            videoElement.load();
+
+            if (videoElement.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) {
+                onLoadedData();
+            }
         });
     }
 

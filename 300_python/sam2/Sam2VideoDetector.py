@@ -740,6 +740,7 @@ class Sam2VideoDetector:
         frame,
         score_history,
         iou_history,
+        iou_threshold,
         fill_ratio_history,
         frame_number,
         total_frames,
@@ -886,6 +887,22 @@ class Sam2VideoDetector:
             )
             cv2.addWeighted(plateau_layer, 0.75, canvas, 0.25, 0.0, canvas)
 
+        if iou_threshold is not None:
+            iou_threshold_y = self._chart_renderer._map_chart_y(
+                iou_threshold,
+                1.0,
+                chart_y2,
+                chart_y2 - chart_y1,
+            )
+            cv2.line(
+                canvas,
+                (chart_x1, iou_threshold_y),
+                (chart_x2, iou_threshold_y),
+                (255, 0, 255),
+                1,
+                cv2.LINE_AA,
+            )
+
         cv2.putText(
             canvas,
             "Score",
@@ -914,6 +931,17 @@ class Sam2VideoDetector:
                 cv2.FONT_HERSHEY_SIMPLEX,
                 0.3,
                 (0, 165, 255),
+                1,
+                cv2.LINE_AA,
+            )
+        if iou_threshold is not None:
+            cv2.putText(
+                canvas,
+                "IoU Threshold",
+                (panel_x1 + 180, panel_y1 + 13),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.3,
+                (255, 0, 255),
                 1,
                 cv2.LINE_AA,
             )
@@ -1306,6 +1334,7 @@ class Sam2VideoDetector:
                 np.asarray(score_history, dtype=np.float32),
             )
             detection_threshold = None
+            iou_threshold = None
             if peak_start is not None and peak_last is not None:
                 detection_threshold = float(np.min(score_history[peak_start:peak_last + 1]))
                 reference_mask_index = (peak_start + peak_last) // 2
@@ -1319,6 +1348,8 @@ class Sam2VideoDetector:
                     self._calculate_mask_pair_iou(mask, reference_mask, (height, width, 3))
                     for mask in mask_history
                 ]
+                if peak_start is not None and peak_last is not None:
+                    iou_threshold = float(np.min(iou_history[peak_start:peak_last + 1]))
 
             previous_cache = self._yolo_conversion_cache.get(str(resolved_input))
             if previous_cache and previous_cache.get("cleanup_source"):
@@ -1352,6 +1383,13 @@ class Sam2VideoDetector:
                     detection_threshold is not None
                     and frame_index < len(score_history)
                     and score_history[frame_index] >= detection_threshold
+                    and (
+                        iou_threshold is None
+                        or (
+                            frame_index < len(iou_history)
+                            and iou_history[frame_index] >= iou_threshold
+                        )
+                    )
                     and frame_index < len(mask_history)
                     and mask_history[frame_index] is not None
                 ):
@@ -1371,6 +1409,7 @@ class Sam2VideoDetector:
                     plotted,
                     score_history,
                     iou_history,
+                    iou_threshold,
                     fill_ratio_history,
                     rendered_frames,
                     total_frames,

@@ -1530,6 +1530,7 @@
                     name: item.name,
                     serverFileName: item.serverFileName,
                     inputUrl: item.inputUrl,
+                    playableUrl: item.playableUrl,
                     outputUrl: item.outputUrl,
                 });
 
@@ -1549,7 +1550,7 @@
                 clearBoundingBox();
 
                 try {
-                    await previewSelectedVideoFirstFrame(true, item.inputUrl);
+                    await previewSelectedVideoFirstFrame(true, item.playableUrl || item.inputUrl);
                 } catch (error) {
                     const message = error && error.message ? error.message : '원본 영상 로드 실패';
                     setStatus(`원본 영상 로드 실패: ${message}`, 'warning');
@@ -1800,6 +1801,7 @@
                 thumbnailSource: buildThumbnailUrl(apiBase, item.file_name),
                 serverFileName: String(item.file_name || ''),
                 inputUrl: String(item.input_url || ''),
+                playableUrl: String(item.playable_url || ''),
                 outputUrl: String(item.output_url || ''),
             }));
 
@@ -1832,7 +1834,7 @@
                     clearAllPoints();
                     clearBoundingBox();
                     try {
-                        await previewSelectedVideoFirstFrame(true, matchedSelected.inputUrl);
+                        await previewSelectedVideoFirstFrame(true, matchedSelected.playableUrl || matchedSelected.inputUrl);
                     } catch (error) {
                         const message = error && error.message ? error.message : '원본 영상 로드 실패';
                         setStatus(`원본 영상 로드 실패: ${message}`, 'warning');
@@ -1909,6 +1911,10 @@
     async function resolvePlayableVideoUrl(apiBase, rawVideoUrl, forceTranscode) {
         const pathValue = extractFastImagePath(rawVideoUrl);
         if (!pathValue) {
+            return buildAbsoluteUrl(apiBase, rawVideoUrl);
+        }
+
+        if (pathValue.toLowerCase().includes('.playable.mp4')) {
             return buildAbsoluteUrl(apiBase, rawVideoUrl);
         }
 
@@ -2168,7 +2174,7 @@
 
             await loadUploadedHistoryFromServer();
             try {
-                await previewSelectedVideoFirstFrame(true);
+                await previewSelectedVideoFirstFrame(true, uploadResult.playable_url || uploadResult.input_url);
             } catch (_ignore) {
                 // Keep successful upload flow even if preview fails.
             }

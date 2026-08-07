@@ -673,8 +673,10 @@ class Sam2VideoDetector:
         if chart_x2 <= chart_x1 or chart_y2 <= chart_y1:
             return canvas
 
-        cv2.rectangle(canvas, (panel_x1, panel_y1), (panel_x2, panel_y2), (36, 36, 36), cv2.FILLED)
-        cv2.rectangle(canvas, (chart_x1, chart_y1), (chart_x2, chart_y2), (44, 44, 44), cv2.FILLED)
+        chart_background = canvas.copy()
+        cv2.rectangle(chart_background, (panel_x1, panel_y1), (panel_x2, panel_y2), (36, 36, 36), cv2.FILLED)
+        cv2.rectangle(chart_background, (chart_x1, chart_y1), (chart_x2, chart_y2), (44, 44, 44), cv2.FILLED)
+        cv2.addWeighted(chart_background, 0.8, canvas, 0.2, 0.0, canvas)
         cv2.rectangle(canvas, (chart_x1, chart_y1), (chart_x2, chart_y2), (100, 100, 100), 1)
 
         for score_tick in (0.0, 0.5, 1.0):

@@ -567,6 +567,10 @@ class Sam2VideoDetector:
             ):
                 return ((plateau_start + plateau_end) // 2) + smoothing_radius
 
+        # Only a qualifying low-slope plateau is a peak. Do not fall back to
+        # a taller isolated score or a plateau whose raw range exceeds 0.1.
+        return None
+
         def has_steep_plateau_edges(plateau_start, plateau_end):
             raw_start = plateau_start + smoothing_radius
             raw_end = plateau_end + smoothing_radius

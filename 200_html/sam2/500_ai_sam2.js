@@ -1302,7 +1302,7 @@
         const inputPathUrl = String(inputPath || '').trim() || `/fast/image/${selectedServerFileName}`;
         debugSam2('원본 영상 URL 확인', { apiBase, inputPathUrl });
         try {
-            const inputUrl = await resolvePlayableVideoUrl(apiBase, inputPathUrl, false);
+            const inputUrl = await resolvePlayableVideoUrl(apiBase, inputPathUrl, true);
             debugSam2('원본 재생 URL 확인 완료', { inputUrl });
             await assignInputVideoSource(inputVideoElement, inputUrl);
             debugSam2('원본 영상 source 연결 완료', {

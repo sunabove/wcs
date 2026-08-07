@@ -115,3 +115,10 @@ def segment_saved_video(
 @router.get("/segment_status/{job_id}")
 def segment_status(job_id: str):
     return _service.get_segment_status(job_id)
+
+
+@router.post("/convert_yolo_dataset")
+def convert_yolo_dataset(
+    file_name: str = Query(...),
+):
+    return _service.convert_yolo_dataset(file_name=file_name)

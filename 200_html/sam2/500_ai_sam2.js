@@ -57,6 +57,10 @@
     let inputObjectUrl = '';
     let outputObjectUrl = '';
     let yoloDatasetUrl = '';
+    let yoloInputFileName = '';
+    let yoloConversionAvailable = false;
+    let yoloConvertButton = null;
+    let yoloDatasetTabSummaryElement = null;
     let uploadedHistory = [];
     let selectedServerFileName = '';
     let highlightedServerFileName = '';
@@ -437,12 +441,101 @@
         outputVideoElement.addEventListener('blur', hideOutputVideoControls);
     }
 
+    function initializeYoloOutputTab() {
+        const outputTabButton = document.getElementById('sam2-output-tab');
+        const outputPane = document.getElementById('sam2-output-pane');
+        const tabList = document.getElementById('sam2-video-tabs');
+        const tabContent = document.getElementById('sam2-video-tab-content');
+        if (!outputTabButton || !outputPane || !tabList || !tabContent) {
+            return;
+        }
+
+        const tabItem = document.createElement('li');
+        tabItem.className = 'nav-item';
+        tabItem.setAttribute('role', 'presentation');
+        tabItem.innerHTML = '<button class="nav-link" id="sam2-yolo-tab" data-bs-toggle="tab" data-bs-target="#sam2-yolo-pane" type="button" role="tab" aria-controls="sam2-yolo-pane" aria-selected="false"><i class="bi bi-database me-1" aria-hidden="true"></i>YOLO 변환</button>';
+        tabList.appendChild(tabItem);
+
+        const tabPane = document.createElement('div');
+        tabPane.className = 'tab-pane fade';
+        tabPane.id = 'sam2-yolo-pane';
+        tabPane.setAttribute('role', 'tabpanel');
+        tabPane.setAttribute('aria-labelledby', 'sam2-yolo-tab');
+        tabPane.innerHTML = '<div class="d-flex flex-wrap align-items-center gap-2"><span id="sam2-yolo-tab-summary" class="small text-muted me-auto">검출 완료 후 YOLO 학습 데이터로 변환할 수 있습니다.</span><button id="sam2-yolo-convert" type="button" class="btn btn-primary btn-sm" disabled title="YOLO 학습 데이터 변환"><i class="bi bi-arrow-repeat me-1" aria-hidden="true"></i>YOLO 변환</button></div>';
+        tabContent.appendChild(tabPane);
+
+        yoloConvertButton = document.getElementById('sam2-yolo-convert');
+        yoloDatasetTabSummaryElement = document.getElementById('sam2-yolo-tab-summary');
+        const yoloTabActions = tabPane.querySelector('.d-flex');
+        if (yoloTabActions && yoloDatasetDownloadButton) {
+            yoloTabActions.appendChild(yoloDatasetDownloadButton);
+        }
+        yoloConvertButton?.addEventListener('click', convertYoloDataset);
+    }
+
     function updateOutputDownloadState() {
         if (outputDownloadButton) {
             outputDownloadButton.disabled = !outputObjectUrl;
         }
         if (yoloDatasetDownloadButton) {
             yoloDatasetDownloadButton.disabled = !yoloDatasetUrl;
+        }
+        if (yoloConvertButton) {
+            yoloConvertButton.disabled = !yoloConversionAvailable;
+        }
+    }
+
+    async function convertYoloDataset() {
+        if (!yoloConversionAvailable || !yoloInputFileName) {
+            setStatus('먼저 검출을 완료하세요.', 'warning');
+            return;
+        }
+
+        if (yoloConvertButton) {
+            yoloConvertButton.disabled = true;
+        }
+        setStatus('YOLO 학습 데이터 변환 중 ...', 'info');
+
+        try {
+            const apiBase = await resolveApiBase();
+            const response = await fetch(
+                `${apiBase}/fast/sam2/convert_yolo_dataset?file_name=${encodeURIComponent(yoloInputFileName)}`,
+                { method: 'POST' }
+            );
+            if (!response.ok) {
+                let errorMessage = `YOLO 변환 실패 (${response.status})`;
+                try {
+                    const errorBody = await response.json();
+                    if (errorBody && errorBody.detail) {
+                        errorMessage = String(errorBody.detail);
+                    }
+                } catch (_ignore) {
+                    // Keep default error message.
+                }
+                throw new Error(errorMessage);
+            }
+
+            const result = await response.json();
+            yoloDatasetUrl = result.yolo_dataset_url
+                ? `${apiBase}${result.yolo_dataset_url}`
+                : '';
+            const imageCount = Number(result.yolo_dataset_image_count || 0);
+            const labelCount = Number(result.yolo_dataset_label_count || 0);
+            const summary = yoloDatasetUrl
+                ? `변환 완료: 이미지 ${imageCount}장, 세그먼트 ${labelCount}개`
+                : '기준 스코어 이상인 학습 데이터가 없습니다.';
+            if (yoloDatasetSummaryElement) {
+                yoloDatasetSummaryElement.textContent = summary;
+            }
+            if (yoloDatasetTabSummaryElement) {
+                yoloDatasetTabSummaryElement.textContent = summary;
+            }
+            updateOutputDownloadState();
+            setStatus(yoloDatasetUrl ? 'YOLO 변환 완료' : '변환할 학습 데이터가 없습니다.', yoloDatasetUrl ? 'success' : 'warning');
+        } catch (error) {
+            yoloConversionAvailable = true;
+            updateOutputDownloadState();
+            setStatus(error && error.message ? error.message : 'YOLO 변환에 실패했습니다.', 'danger');
         }
     }
 
@@ -1187,8 +1280,13 @@
             outputObjectUrl = '';
         }
         yoloDatasetUrl = '';
+        yoloInputFileName = '';
+        yoloConversionAvailable = false;
         if (yoloDatasetSummaryElement) {
             yoloDatasetSummaryElement.textContent = 'YOLO 학습 데이터 대기 중';
+        }
+        if (yoloDatasetTabSummaryElement) {
+            yoloDatasetTabSummaryElement.textContent = '검출 완료 후 YOLO 학습 데이터로 변환할 수 있습니다.';
         }
         updateOutputDownloadState();
     }
@@ -1914,15 +2012,20 @@
 
             const inputUrl = await resolvePlayableVideoUrl(apiBase, result.input_url, true);
             const outputUrl = await resolvePlayableVideoUrl(apiBase, result.output_url, true);
-            yoloDatasetUrl = result.yolo_dataset_url
-                ? `${apiBase}${result.yolo_dataset_url}`
-                : '';
+            yoloInputFileName = extractFastImagePath(result.input_url)
+                || selectedServerFileName
+                || '';
+            yoloConversionAvailable = result.yolo_conversion_available === true;
+            yoloDatasetUrl = '';
             if (yoloDatasetSummaryElement) {
-                const imageCount = Number(result.yolo_dataset_image_count || 0);
-                const labelCount = Number(result.yolo_dataset_label_count || 0);
-                yoloDatasetSummaryElement.textContent = yoloDatasetUrl
-                    ? `서버 저장: 이미지 ${imageCount}장, 세그먼트 ${labelCount}개`
-                    : '기준 스코어 이상인 학습 데이터가 없습니다.';
+                yoloDatasetSummaryElement.textContent = yoloConversionAvailable
+                    ? 'YOLO 변환 버튼을 클릭하면 학습 데이터를 생성합니다.'
+                    : 'YOLO 학습 데이터로 변환할 수 없습니다.';
+            }
+            if (yoloDatasetTabSummaryElement) {
+                yoloDatasetTabSummaryElement.textContent = yoloConversionAvailable
+                    ? 'YOLO 변환 버튼을 클릭하면 학습 데이터를 생성합니다.'
+                    : 'YOLO 학습 데이터로 변환할 수 없습니다.';
             }
             updateOutputDownloadState();
 
@@ -2197,6 +2300,7 @@
 
     applyLoopOption();
     initializeOutputVideoControls();
+    initializeYoloOutputTab();
     loadInputSourceTab();
     updateDetectionControlState();
     renderPointUi();

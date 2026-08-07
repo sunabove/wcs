@@ -24,6 +24,7 @@ from sam2.Sam2VideoConfig import (
 class Sam2VideoDetector:
     _chart_renderer = ChartRenderer()
     _model_cache = {}
+    _yolo_conversion_cache = {}
     _sam2_image_predictor_class = None
     _max_infer_side = 960
     _max_infer_fps = 10.0
@@ -1027,6 +1028,44 @@ class Sam2VideoDetector:
             "label_count": label_count,
         }
 
+    def convert_yolo_dataset(self, input_path: Path):
+        resolved_input = Path(input_path).resolve()
+        cached = self._yolo_conversion_cache.get(str(resolved_input))
+        if not cached:
+            raise ValueError("No completed detection is available for YOLO conversion")
+
+        dataset_result = self._export_yolo_dataset(
+            source_video_path=Path(cached["source_video_path"]),
+            output_root=SAM2_OUTPUT_DIR / "yolo",
+            input_file_stem=resolved_input.stem,
+            score_history=cached["score_history"],
+            mask_history=cached["mask_history"],
+            detection_threshold=cached["detection_threshold"],
+        )
+        result = {
+            "input_file_stem": resolved_input.stem,
+            "yolo_dataset_url": (
+                self._to_route_url(dataset_result["archive"])
+                if dataset_result and dataset_result.get("archive")
+                else None
+            ),
+            "yolo_dataset_root_url": (
+                self._to_route_url(dataset_result["root"])
+                if dataset_result and dataset_result.get("root")
+                else None
+            ),
+            "yolo_dataset_image_count": int(dataset_result["image_count"] if dataset_result else 0),
+            "yolo_dataset_label_count": int(dataset_result["label_count"] if dataset_result else 0),
+        }
+        source_video_path = Path(cached["source_video_path"])
+        if cached.get("cleanup_source"):
+            try:
+                source_video_path.unlink(missing_ok=True)
+            except OSError:
+                pass
+        self._yolo_conversion_cache.pop(str(resolved_input), None)
+        return result
+
     def detect_video_file(
         self,
         input_path: Path,
@@ -1078,7 +1117,6 @@ class Sam2VideoDetector:
             }
 
         temporary_output_path = SAM2_OUTPUT_DIR / f"_{input_file_stem}.sam2_overlay.mp4"
-        dataset_root = SAM2_OUTPUT_DIR / "yolo"
         overlay_writer = self._create_video_writer(temporary_output_path, fps, width, height)
         if overlay_writer is None:
             capture.release()
@@ -1174,14 +1212,19 @@ class Sam2VideoDetector:
                     for mask in mask_history
                 ]
 
-            dataset_result = self._export_yolo_dataset(
-                source_video_path=temporary_output_path,
-                output_root=dataset_root,
-                input_file_stem=input_file_stem,
-                score_history=score_history,
-                mask_history=mask_history,
-                detection_threshold=detection_threshold,
-            )
+            previous_cache = self._yolo_conversion_cache.get(str(resolved_input))
+            if previous_cache and previous_cache.get("cleanup_source"):
+                try:
+                    Path(previous_cache["source_video_path"]).unlink(missing_ok=True)
+                except OSError:
+                    pass
+            self._yolo_conversion_cache[str(resolved_input)] = {
+                "source_video_path": str(prepared_path),
+                "cleanup_source": bool(prepared.get("cleanup")),
+                "score_history": score_history,
+                "mask_history": mask_history,
+                "detection_threshold": detection_threshold,
+            }
 
             writer = self._create_video_writer(output_path, fps, width, height)
             if writer is None:
@@ -1239,7 +1282,7 @@ class Sam2VideoDetector:
                 temporary_output_path.unlink(missing_ok=True)
             except OSError:
                 pass
-            if prepared.get("cleanup"):
+            if prepared.get("cleanup") and str(resolved_input) not in self._yolo_conversion_cache:
                 try:
                     prepared_path.unlink(missing_ok=True)
                 except OSError:
@@ -1263,16 +1306,10 @@ class Sam2VideoDetector:
             "output_file": str(output_path.resolve()),
             "input_url": self._to_route_url(resolved_input),
             "output_url": self._to_route_url(output_path),
-            "yolo_dataset_url": (
-                self._to_route_url(dataset_result["archive"])
-                if dataset_result and dataset_result.get("archive")
-                else None
-            ),
-            "yolo_dataset_root_url": (
-                self._to_route_url(dataset_result["root"])
-                if dataset_result and dataset_result.get("root")
-                else None
-            ),
-            "yolo_dataset_image_count": int(dataset_result["image_count"] if dataset_result else 0),
-            "yolo_dataset_label_count": int(dataset_result["label_count"] if dataset_result else 0),
+            "input_file_stem": input_file_stem,
+            "yolo_conversion_available": detection_threshold is not None,
+            "yolo_dataset_url": None,
+            "yolo_dataset_root_url": None,
+            "yolo_dataset_image_count": 0,
+            "yolo_dataset_label_count": 0,
         }

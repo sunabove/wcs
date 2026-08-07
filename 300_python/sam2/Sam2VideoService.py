@@ -108,6 +108,13 @@ class Sam2VideoService:
                 raise HTTPException(status_code=404, detail="Segmentation job not found")
             return {"job_id": job_id, **job}
 
+    def convert_yolo_dataset(self, file_name: str):
+        input_path = self._resolve_uploaded_video_path(file_name)
+        try:
+            return self.detector.convert_yolo_dataset(input_path)
+        except ValueError as ex:
+            raise HTTPException(status_code=409, detail=str(ex)) from ex
+
     def _safe_suffix(self, file_name: str) -> str:
         suffix = Path(str(file_name or "")).suffix.lower()
         if suffix not in SAM2_VIDEO_EXTENSIONS:

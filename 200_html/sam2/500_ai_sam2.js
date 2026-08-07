@@ -137,7 +137,7 @@
         const sizeText = maxUploadBytes <= 0
             ? '제한 없음'
             : (configuredText || formatBytes(maxUploadBytes));
-        setUploadText(uploadMaxSizeElement, `최대 업로드 용량: ${sizeText}`);
+        setUploadText(uploadMaxSizeElement, `최대 크기: ${sizeText}`);
     }
 
     function setUploadText(element, text) {
@@ -1957,7 +1957,7 @@
             setSelectedFile(null);
             syncInputWithFile(null);
             const maxText = formatBytes(maxUploadBytes);
-            setStatus(`파일 용량이 너무 큽니다. 최대 업로드 용량은 ${maxText} 입니다.`, 'warning');
+            setStatus(`파일 용량이 너무 큽니다. 최대 크기는 ${maxText} 입니다.`, 'warning');
             return;
         }
 

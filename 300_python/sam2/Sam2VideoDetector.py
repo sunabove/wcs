@@ -553,73 +553,65 @@ class Sam2VideoDetector:
             cv2.LINE_AA,
         )
 
-    def _find_first_score_peak_index(self, score_values):
+    def _find_score_plateau_bounds(self, score_values):
         values = np.asarray(score_values, dtype=np.float32).reshape(-1)
-        if len(values) < 7:
-            return None
-
-        values = np.nan_to_num(values, nan=0.0, posinf=1.0, neginf=0.0)
-        values = np.clip(values, 0.0, 1.0)
-        smoothing_radius = 1
-        smoothed_values = np.asarray([
-            np.median(values[index - smoothing_radius:index + smoothing_radius + 1])
-            for index in range(smoothing_radius, len(values) - smoothing_radius)
-        ])
-        plateau_change_limit = 0.2
-        plateau_min_length = 2
-        prominence_limit = 0.003
-
-        for plateau_start in range(1, len(smoothed_values) - plateau_min_length):
-            plateau_end = plateau_start
-            while (
-                plateau_end + 1 < len(smoothed_values)
-                and float(np.max(smoothed_values[plateau_start:plateau_end + 2]))
-                - float(np.min(smoothed_values[plateau_start:plateau_end + 2]))
-                <= plateau_change_limit
-            ):
-                plateau_end += 1
-
-            if plateau_end - plateau_start + 1 < plateau_min_length:
-                continue
-
-            left_values = smoothed_values[max(0, plateau_start - 2):plateau_start]
-            right_values = smoothed_values[plateau_end + 1:min(len(smoothed_values), plateau_end + 3)]
-            if len(left_values) == 0 or len(right_values) == 0:
-                continue
-
-            plateau_value = float(np.mean(smoothed_values[plateau_start:plateau_end + 1]))
-            if (
-                plateau_value - float(np.mean(left_values)) >= prominence_limit
-                and plateau_value - float(np.mean(right_values)) >= prominence_limit
-            ):
-                return ((plateau_start + plateau_end) // 2) + smoothing_radius
-
-        return None
-
-    def _find_first_mask_fill_plateau_bounds(self, fill_ratio_values, minimum_ratio=0.9):
-        values = np.asarray(fill_ratio_values, dtype=np.float32).reshape(-1)
-        if len(values) == 0:
+        if len(values) < 2:
             return None, None
 
         values = np.nan_to_num(values, nan=0.0, posinf=1.0, neginf=0.0)
         values = np.clip(values, 0.0, 1.0)
-        qualifying_indices = np.flatnonzero(values >= float(minimum_ratio))
-        if len(qualifying_indices) == 0:
+        if len(values) >= 3:
+            interior_values = np.asarray([
+                np.median(values[index - 1:index + 2])
+                for index in range(1, len(values) - 1)
+            ], dtype=np.float32)
+            smoothed_values = np.concatenate((
+                values[:1],
+                interior_values,
+                values[-1:],
+            ))
+        else:
+            smoothed_values = values.copy()
+
+        high_score_threshold = max(
+            0.5,
+            float(np.percentile(smoothed_values, 75.0)) - 0.1,
+        )
+        candidate_indices = np.flatnonzero(smoothed_values >= high_score_threshold)
+        if len(candidate_indices) == 0:
             return None, None
 
-        plateau_start = int(qualifying_indices[0])
+        minimum_plateau_length = max(2, min(5, int(np.ceil(len(values) * 0.05))))
+        stability_tolerance = 0.15
+        candidates = []
+        plateau_start = int(candidate_indices[0])
         plateau_end = plateau_start
-        for index in qualifying_indices[1:]:
+        for index in candidate_indices[1:]:
             index = int(index)
             if index != plateau_end + 1:
-                if plateau_end - plateau_start + 1 >= 2:
-                    return plateau_start, plateau_end
+                if plateau_end - plateau_start + 1 >= minimum_plateau_length:
+                    plateau_values = smoothed_values[plateau_start:plateau_end + 1]
+                    if float(np.ptp(plateau_values)) <= stability_tolerance:
+                        candidates.append((plateau_start, plateau_end))
                 plateau_start = index
             plateau_end = index
 
-        if plateau_end - plateau_start + 1 >= 2:
-            return plateau_start, plateau_end
-        return None, None
+        if plateau_end - plateau_start + 1 >= minimum_plateau_length:
+            plateau_values = smoothed_values[plateau_start:plateau_end + 1]
+            if float(np.ptp(plateau_values)) <= stability_tolerance:
+                candidates.append((plateau_start, plateau_end))
+
+        if not candidates:
+            return None, None
+
+        return max(
+            candidates,
+            key=lambda bounds: (
+                float(np.median(smoothed_values[bounds[0]:bounds[1] + 1])),
+                bounds[1] - bounds[0] + 1,
+                -bounds[0],
+            ),
+        )
 
     def _get_score_peak_bounds(self, score_values, peak_index):
         values = np.asarray(score_values, dtype=np.float32).reshape(-1)
@@ -755,7 +747,7 @@ class Sam2VideoDetector:
             x_max = x_min + 1.0
         x_values = np.arange(1, len(score_history) + 1, dtype=np.float32)
         score_values = np.asarray(score_history, dtype=np.float32)
-        peak_start, peak_last = self._find_first_mask_fill_plateau_bounds(fill_ratio_history)
+        peak_start, peak_last = self._find_score_plateau_bounds(score_history)
         self._chart_renderer._draw_chart_series(
             canvas,
             x_values,
@@ -1238,9 +1230,9 @@ class Sam2VideoDetector:
             overlay_writer.release()
             overlay_writer = None
 
-            # Determine the first plateau from the mask-to-bounding-box area ratio.
-            peak_start, peak_last = self._find_first_mask_fill_plateau_bounds(
-                np.asarray(fill_ratio_history, dtype=np.float32),
+            # Select the highest stable Score plateau for thresholding and reference-mask selection.
+            peak_start, peak_last = self._find_score_plateau_bounds(
+                np.asarray(score_history, dtype=np.float32),
             )
             detection_threshold = None
             if peak_start is not None and peak_last is not None:

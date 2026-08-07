@@ -536,7 +536,9 @@ class Sam2VideoDetector:
                 plateau_end + 1 < len(smoothed_values)
                 and abs(float(smoothed_values[plateau_end + 1]) - float(smoothed_values[plateau_end])) <= plateau_slope_limit
                 and float(np.max(smoothed_values[plateau_start:plateau_end + 2]))
-                - float(np.min(smoothed_values[plateau_start:plateau_end + 2])) <= 0.15
+                - float(np.min(smoothed_values[plateau_start:plateau_end + 2])) <= 0.1
+                and float(np.max(values[plateau_start + 1:plateau_end + 3]))
+                - float(np.min(values[plateau_start + 1:plateau_end + 3])) <= 0.1
             ):
                 plateau_end += 1
 
@@ -587,7 +589,7 @@ class Sam2VideoDetector:
             fall_change = (float(np.median(fall_baseline)) if len(fall_baseline) else 0.0) - min_fall
             return rise_change >= 0.08 and fall_change >= 0.06
 
-        plateau_tolerance = max(0.15, change_threshold * 2.0)
+        plateau_tolerance = max(0.1, change_threshold * 2.0)
         for smoothed_index in range(1, len(smoothed_values) - 1):
             current_value = float(smoothed_values[smoothed_index])
             if current_value < float(np.max(smoothed_values[smoothed_index - 1:smoothed_index + 2])):
@@ -644,7 +646,7 @@ class Sam2VideoDetector:
             if current_value < float(np.max(smoothed_values[smoothed_index - 1:smoothed_index + 2])):
                 continue
 
-            plateau_tolerance = max(0.15, change_threshold * 2.0)
+            plateau_tolerance = max(0.1, change_threshold * 2.0)
             plateau_start = smoothed_index
             plateau_end = smoothed_index
             while (
@@ -730,7 +732,7 @@ class Sam2VideoDetector:
 
         peak_index = max(0, min(len(values) - 1, int(peak_index)))
         peak_value = float(values[peak_index])
-        plateau_tolerance = 0.15
+        plateau_tolerance = 0.1
         peak_start = peak_index
         peak_end = peak_index
         while peak_start > 0 and float(values[peak_start - 1]) >= peak_value - plateau_tolerance:

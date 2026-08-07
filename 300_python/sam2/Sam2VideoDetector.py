@@ -906,6 +906,17 @@ class Sam2VideoDetector:
             1,
             cv2.LINE_AA,
         )
+        if peak_start is not None and peak_last is not None:
+            cv2.putText(
+                canvas,
+                "Threshold",
+                (panel_x1 + 108, panel_y1 + 13),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.3,
+                (0, 165, 255),
+                1,
+                cv2.LINE_AA,
+            )
 
         x_ticks = self._chart_renderer._uniform_ticks(x_min, x_max, target_ticks=4)
         if int(x_max) not in x_ticks:

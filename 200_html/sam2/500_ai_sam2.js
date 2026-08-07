@@ -527,6 +527,9 @@
         menu.style.minWidth = '132px';
         menu.style.left = `${Math.max(4, Math.min(layerRect.width - 136, event.clientX - layerRect.left + 6))}px`;
         menu.style.top = `${Math.max(4, Math.min(layerRect.height - 78, event.clientY - layerRect.top + 6))}px`;
+        menu.addEventListener('click', (menuEvent) => {
+            menuEvent.stopPropagation();
+        });
         menu.addEventListener('contextmenu', (menuEvent) => {
             menuEvent.preventDefault();
             menuEvent.stopPropagation();

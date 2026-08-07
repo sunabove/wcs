@@ -848,11 +848,14 @@ class Sam2VideoDetector:
                 "h": 100.0,
             }
 
-        writer = self._create_video_writer(output_path, fps, width, height)
-        if writer is None:
+        temporary_output_path = SAM2_OUTPUT_DIR / f"_{job_id}.sam2_overlay.mp4"
+        overlay_writer = self._create_video_writer(temporary_output_path, fps, width, height)
+        if overlay_writer is None:
             capture.release()
             raise RuntimeError("Failed to create output video")
 
+        writer = None
+        render_capture = None
         start_time = time.time()
         model = self._get_model(model_name)
         x1, y1, x2, y2 = bbox_rect
@@ -920,36 +923,66 @@ class Sam2VideoDetector:
                 tracked_frames += 1
                 score_history.append(max(0.0, min(1.0, float(detection_score or 0.0))))
                 mask_history.append(self._to_binary_mask(mask_tensor, frame.shape))
-                reference_created = False
-                if reference_mask is None:
-                    first_peak_index = self._find_first_score_peak_index(np.asarray(score_history, dtype=np.float32))
-                    if first_peak_index is not None and mask_history[first_peak_index] is not None:
-                        reference_mask = mask_history[first_peak_index].copy()
-                        iou_history = [
-                            self._calculate_mask_pair_iou(mask, reference_mask, frame.shape)
-                            for mask in mask_history
-                        ]
-                        reference_created = True
-                if not reference_created:
-                    if reference_mask is None:
-                        iou_history.append(0.0)
-                    else:
-                        iou_history.append(
-                            self._calculate_mask_pair_iou(mask_tensor, reference_mask, frame.shape)
-                        )
+                overlay_writer.write(plotted)
+                if progress_callback is not None and total_frames > 0:
+                    progress_callback(tracked_frames, max(1, total_frames * 2))
+
+            capture.release()
+            capture = None
+            overlay_writer.release()
+            overlay_writer = None
+
+            # Determine the first plateau from the complete score history.
+            first_peak_index = self._find_first_score_peak_index(
+                np.asarray(score_history, dtype=np.float32)
+            )
+            if first_peak_index is not None and mask_history[first_peak_index] is not None:
+                reference_mask = mask_history[first_peak_index].copy()
+
+            if reference_mask is None:
+                iou_history = [0.0] * len(mask_history)
+            else:
+                iou_history = [
+                    self._calculate_mask_pair_iou(mask, reference_mask, (height, width, 3))
+                    for mask in mask_history
+                ]
+
+            writer = self._create_video_writer(output_path, fps, width, height)
+            if writer is None:
+                raise RuntimeError("Failed to create output video")
+            render_capture = cv2.VideoCapture(str(temporary_output_path))
+            if not render_capture.isOpened():
+                raise RuntimeError("Failed to reopen intermediate output video")
+
+            rendered_frames = 0
+            while True:
+                ok, plotted = render_capture.read()
+                if not ok:
+                    break
+                rendered_frames += 1
                 plotted = self._render_score_chart(
                     plotted,
                     score_history,
                     iou_history,
-                    tracked_frames,
+                    rendered_frames,
                     total_frames,
                 )
                 writer.write(plotted)
                 if progress_callback is not None and total_frames > 0:
-                    progress_callback(tracked_frames, total_frames)
+                    progress_callback(total_frames + rendered_frames, max(1, total_frames * 2))
         finally:
-            capture.release()
-            writer.release()
+            if capture is not None:
+                capture.release()
+            if render_capture is not None:
+                render_capture.release()
+            if overlay_writer is not None:
+                overlay_writer.release()
+            if writer is not None:
+                writer.release()
+            try:
+                temporary_output_path.unlink(missing_ok=True)
+            except OSError:
+                pass
             if prepared.get("cleanup"):
                 try:
                     prepared_path.unlink(missing_ok=True)

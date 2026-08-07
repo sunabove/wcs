@@ -1184,7 +1184,7 @@ class Sam2VideoDetector:
             raise FileNotFoundError(f"Input video not found: {resolved_input}")
 
         input_file_stem = resolved_input.stem
-        output_path = SAM2_OUTPUT_DIR / f"{input_file_stem}_segmented.mp4"
+        output_path = SAM2_OUTPUT_DIR / f"{input_file_stem}.mp4"
 
         prepared = self._prepare_video_for_inference(resolved_input, input_file_stem)
         prepared_path = Path(prepared["path"])

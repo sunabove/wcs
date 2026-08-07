@@ -491,6 +491,8 @@ class Sam2VideoService:
 
         remove_file(input_path)
         remove_file(self._options_path(input_path))
+        remove_file(input_path.with_name(f"{input_stem}.playable.mp4"))
+        remove_file(input_path.with_name(f"{input_stem}.playable.tmp.mp4"))
         for path in SAM2_UPLOAD_DIR.glob(f"_{input_stem}.*"):
             remove_file(path)
         for path in SAM2_OUTPUT_DIR.glob(f"{input_stem}*"):

@@ -447,6 +447,20 @@ class Sam2VideoDetector:
             int(mask_y.max()) + 1,
         )
 
+    def _calculate_mask_bbox_fill_ratio(self, mask_tensor, frame_shape):
+        mask_np = self._to_binary_mask(mask_tensor, frame_shape)
+        if mask_np is None:
+            return 0.0
+
+        bbox = self._get_mask_bbox(mask_np)
+        if bbox is None:
+            return 0.0
+
+        x1, y1, x2, y2 = bbox
+        bbox_area = float(max(0, x2 - x1) * max(0, y2 - y1))
+        mask_area = float(np.count_nonzero(mask_np[y1:y2, x1:x2]))
+        return mask_area / bbox_area if bbox_area > 0 else 0.0
+
     def _calculate_mask_pair_iou(self, mask_tensor, reference_mask, frame_shape):
         mask_np = self._to_binary_mask(mask_tensor, frame_shape)
         if mask_np is None or reference_mask is None:
@@ -582,6 +596,31 @@ class Sam2VideoDetector:
 
         return None
 
+    def _find_first_mask_fill_plateau_bounds(self, fill_ratio_values, minimum_ratio=0.9):
+        values = np.asarray(fill_ratio_values, dtype=np.float32).reshape(-1)
+        if len(values) == 0:
+            return None, None
+
+        values = np.nan_to_num(values, nan=0.0, posinf=1.0, neginf=0.0)
+        values = np.clip(values, 0.0, 1.0)
+        qualifying_indices = np.flatnonzero(values >= float(minimum_ratio))
+        if len(qualifying_indices) == 0:
+            return None, None
+
+        plateau_start = int(qualifying_indices[0])
+        plateau_end = plateau_start
+        for index in qualifying_indices[1:]:
+            index = int(index)
+            if index != plateau_end + 1:
+                if plateau_end - plateau_start + 1 >= 2:
+                    return plateau_start, plateau_end
+                plateau_start = index
+            plateau_end = index
+
+        if plateau_end - plateau_start + 1 >= 2:
+            return plateau_start, plateau_end
+        return None, None
+
     def _get_score_peak_bounds(self, score_values, peak_index):
         values = np.asarray(score_values, dtype=np.float32).reshape(-1)
         if len(values) == 0 or peak_index is None:
@@ -648,7 +687,15 @@ class Sam2VideoDetector:
         regions.append((region_start, region_end + 1))
         return regions
 
-    def _render_score_chart(self, frame, score_history, iou_history, frame_number, total_frames):
+    def _render_score_chart(
+        self,
+        frame,
+        score_history,
+        iou_history,
+        fill_ratio_history,
+        frame_number,
+        total_frames,
+    ):
         if frame is None:
             return frame
 
@@ -722,9 +769,8 @@ class Sam2VideoDetector:
             chart_y2 - chart_y1,
             2,
         )
-        first_peak_index = self._find_first_score_peak_index(score_values)
-        if first_peak_index is not None:
-            peak_start, peak_last = self._get_score_peak_bounds(score_values, first_peak_index)
+        peak_start, peak_last = self._find_first_mask_fill_plateau_bounds(fill_ratio_history)
+        if peak_start is not None and peak_last is not None:
             peak_end = peak_last + 1
             first_peak_minimum = float(np.min(score_values[peak_start:peak_end]))
             threshold_y = self._chart_renderer._map_chart_y(
@@ -750,25 +796,6 @@ class Sam2VideoDetector:
                     x_values[region_start:region_end],
                     score_values[region_start:region_end],
                     (0, 165, 255),
-                    x_min,
-                    x_max,
-                    chart_x1,
-                    chart_x2 - chart_x1,
-                    1.0,
-                    chart_y2,
-                    chart_y2 - chart_y1,
-                    3,
-                )
-            leading_start, leading_last = self._get_leading_score_plateau_bounds(
-                score_values,
-                peak_start,
-            )
-            if leading_start is not None:
-                self._chart_renderer._draw_chart_series(
-                    canvas,
-                    x_values[leading_start:leading_last + 1],
-                    score_values[leading_start:leading_last + 1],
-                    (80, 80, 255),
                     x_min,
                     x_max,
                     chart_x1,
@@ -1153,6 +1180,7 @@ class Sam2VideoDetector:
         tracked_frames = 0
         total_segments = 0
         score_history = []
+        fill_ratio_history = []
         iou_history = []
         mask_history = []
         reference_mask = None
@@ -1198,6 +1226,9 @@ class Sam2VideoDetector:
                 tracked_frames += 1
                 score_history.append(max(0.0, min(1.0, float(detection_score or 0.0))))
                 mask_history.append(self._to_binary_mask(mask_tensor, frame.shape))
+                fill_ratio_history.append(
+                    self._calculate_mask_bbox_fill_ratio(mask_tensor, frame.shape)
+                )
                 overlay_writer.write(frame)
                 if progress_callback is not None and total_frames > 0:
                     progress_callback(tracked_frames, max(1, total_frames * 2))
@@ -1207,20 +1238,16 @@ class Sam2VideoDetector:
             overlay_writer.release()
             overlay_writer = None
 
-            # Determine the first plateau from the complete score history.
-            first_peak_index = self._find_first_score_peak_index(
-                np.asarray(score_history, dtype=np.float32)
+            # Determine the first plateau from the mask-to-bounding-box area ratio.
+            peak_start, peak_last = self._find_first_mask_fill_plateau_bounds(
+                np.asarray(fill_ratio_history, dtype=np.float32),
             )
             detection_threshold = None
-            if first_peak_index is not None:
-                peak_start, peak_last = self._get_score_peak_bounds(
-                    score_history,
-                    first_peak_index,
-                )
-                if peak_start is not None and peak_last is not None:
-                    detection_threshold = float(np.min(score_history[peak_start:peak_last + 1]))
-            if first_peak_index is not None and mask_history[first_peak_index] is not None:
-                reference_mask = mask_history[first_peak_index].copy()
+            if peak_start is not None and peak_last is not None:
+                detection_threshold = float(np.min(score_history[peak_start:peak_last + 1]))
+                reference_mask_index = (peak_start + peak_last) // 2
+                if mask_history[reference_mask_index] is not None:
+                    reference_mask = mask_history[reference_mask_index].copy()
 
             if reference_mask is None:
                 iou_history = [0.0] * len(mask_history)
@@ -1281,6 +1308,7 @@ class Sam2VideoDetector:
                     plotted,
                     score_history,
                     iou_history,
+                    fill_ratio_history,
                     rendered_frames,
                     total_frames,
                 )

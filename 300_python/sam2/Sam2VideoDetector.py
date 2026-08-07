@@ -31,6 +31,8 @@ class Sam2VideoDetector:
     _max_infer_frames = 600
     _max_infer_pixels_total = 320_000_000
     _score_plateau_area_ratio_threshold = 0.86
+    _score_plateau_first_derivative_threshold = 0.08
+    _score_plateau_second_derivative_threshold = 0.35
 
     def __init__(self):
         SAM2_UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
@@ -562,17 +564,20 @@ class Sam2VideoDetector:
         values = np.nan_to_num(values, nan=0.0, posinf=1.0, neginf=0.0)
         values = np.clip(values, 0.0, 1.0)
         if len(values) >= 3:
-            interior_values = np.asarray([
+            smoothed_values = np.asarray([
                 np.median(values[index - 1:index + 2])
                 for index in range(1, len(values) - 1)
             ], dtype=np.float32)
             smoothed_values = np.concatenate((
                 values[:1],
-                interior_values,
+                smoothed_values,
                 values[-1:],
             ))
         else:
             smoothed_values = values.copy()
+
+        first_derivative = np.gradient(smoothed_values)
+        second_derivative = np.gradient(first_derivative)
 
         high_score_threshold = max(
             0.5,
@@ -599,11 +604,22 @@ class Sam2VideoDetector:
             if index != plateau_end + 1:
                 if plateau_end - plateau_start + 1 >= minimum_plateau_length:
                     plateau_values = values[plateau_start:plateau_end + 1]
+                    derivative_is_stable = (
+                        np.any(
+                            np.abs(first_derivative[plateau_start:plateau_end + 1])
+                            <= self._score_plateau_first_derivative_threshold
+                        )
+                        and np.any(
+                            np.abs(second_derivative[plateau_start:plateau_end + 1])
+                            <= self._score_plateau_second_derivative_threshold
+                        )
+                    )
                     plateau_peak = float(np.max(plateau_values))
                     plateau_area = float(np.sum(plateau_values))
                     plateau_rectangle_area = plateau_peak * len(plateau_values)
                     if (
-                        plateau_rectangle_area > 0.0
+                        derivative_is_stable
+                        and plateau_rectangle_area > 0.0
                         and plateau_area / plateau_rectangle_area
                         >= self._score_plateau_area_ratio_threshold
                     ):
@@ -613,11 +629,22 @@ class Sam2VideoDetector:
 
         if plateau_end - plateau_start + 1 >= minimum_plateau_length:
             plateau_values = values[plateau_start:plateau_end + 1]
+            derivative_is_stable = (
+                np.any(
+                    np.abs(first_derivative[plateau_start:plateau_end + 1])
+                    <= self._score_plateau_first_derivative_threshold
+                )
+                and np.any(
+                    np.abs(second_derivative[plateau_start:plateau_end + 1])
+                    <= self._score_plateau_second_derivative_threshold
+                )
+            )
             plateau_peak = float(np.max(plateau_values))
             plateau_area = float(np.sum(plateau_values))
             plateau_rectangle_area = plateau_peak * len(plateau_values)
             if (
-                plateau_rectangle_area > 0.0
+                derivative_is_stable
+                and plateau_rectangle_area > 0.0
                 and plateau_area / plateau_rectangle_area
                 >= self._score_plateau_area_ratio_threshold
             ):

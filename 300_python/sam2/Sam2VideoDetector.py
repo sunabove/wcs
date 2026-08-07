@@ -590,7 +590,6 @@ class Sam2VideoDetector:
             return fallback_start, fallback_start + 1
 
         minimum_plateau_length = 2
-        stability_tolerance = 0.2
         candidates = []
         plateau_start = int(candidate_indices[0])
         plateau_end = plateau_start
@@ -598,15 +597,27 @@ class Sam2VideoDetector:
             index = int(index)
             if index != plateau_end + 1:
                 if plateau_end - plateau_start + 1 >= minimum_plateau_length:
-                    plateau_values = smoothed_values[plateau_start:plateau_end + 1]
-                    if float(np.ptp(plateau_values)) <= stability_tolerance:
+                    plateau_values = values[plateau_start:plateau_end + 1]
+                    plateau_peak = float(np.max(plateau_values))
+                    plateau_area = float(np.sum(plateau_values))
+                    plateau_rectangle_area = plateau_peak * len(plateau_values)
+                    if (
+                        plateau_rectangle_area > 0.0
+                        and plateau_area / plateau_rectangle_area >= 0.9
+                    ):
                         candidates.append((plateau_start, plateau_end))
                 plateau_start = index
             plateau_end = index
 
         if plateau_end - plateau_start + 1 >= minimum_plateau_length:
-            plateau_values = smoothed_values[plateau_start:plateau_end + 1]
-            if float(np.ptp(plateau_values)) <= stability_tolerance:
+            plateau_values = values[plateau_start:plateau_end + 1]
+            plateau_peak = float(np.max(plateau_values))
+            plateau_area = float(np.sum(plateau_values))
+            plateau_rectangle_area = plateau_peak * len(plateau_values)
+            if (
+                plateau_rectangle_area > 0.0
+                and plateau_area / plateau_rectangle_area >= 0.9
+            ):
                 candidates.append((plateau_start, plateau_end))
 
         if not candidates:

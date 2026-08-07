@@ -954,12 +954,24 @@ class Sam2VideoDetector:
         if detection_threshold is None:
             return None
 
-        if output_root.exists():
-            shutil.rmtree(output_root)
         images_dir = output_root / "images" / "train"
         labels_dir = output_root / "labels" / "train"
         images_dir.mkdir(parents=True, exist_ok=True)
         labels_dir.mkdir(parents=True, exist_ok=True)
+        output_root.with_suffix(".zip").unlink(missing_ok=True)
+
+        file_prefix = f"{input_file_stem}_"
+        for directory, suffixes in (
+            (images_dir, {".jpg"}),
+            (labels_dir, {".txt"}),
+        ):
+            for existing_path in directory.iterdir():
+                if (
+                    existing_path.is_file()
+                    and existing_path.name.startswith(file_prefix)
+                    and existing_path.suffix.lower() in suffixes
+                ):
+                    existing_path.unlink()
 
         capture = cv2.VideoCapture(str(source_video_path))
         if not capture.isOpened():
@@ -997,7 +1009,6 @@ class Sam2VideoDetector:
             capture.release()
 
         if image_count <= 0:
-            shutil.rmtree(output_root, ignore_errors=True)
             return {
                 "root": None,
                 "archive": None,

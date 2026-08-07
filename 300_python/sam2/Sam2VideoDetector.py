@@ -519,53 +519,31 @@ class Sam2VideoDetector:
             np.median(values[index - smoothing_radius:index + smoothing_radius + 1])
             for index in range(smoothing_radius, len(values) - smoothing_radius)
         ])
-        noise_level = float(np.median(np.abs(np.diff(values) - np.median(np.diff(values)))))
-        change_threshold = max(0.003, min(0.02, noise_level * 0.75))
-        minimum_length = 3
-        maximum_range = 0.1
-        minimum_rectangularity = 0.85
+        plateau_change_limit = 0.2
+        plateau_min_length = 2
+        prominence_limit = 0.003
 
-        # Scan from the left and accept the first area-shaped plateau.
-        for plateau_start in range(1, len(smoothed_values) - minimum_length):
-            plateau_end = plateau_start + minimum_length - 1
-            while plateau_end + 1 < len(smoothed_values):
-                candidate = smoothed_values[plateau_start:plateau_end + 2]
-                raw_start = plateau_start + smoothing_radius
-                raw_end = plateau_end + smoothing_radius + 2
-                raw_candidate = values[raw_start:raw_end]
-                if (
-                    float(np.max(candidate)) - float(np.min(candidate)) > maximum_range
-                    or len(raw_candidate) == 0
-                    or float(np.max(raw_candidate)) - float(np.min(raw_candidate)) > maximum_range
-                ):
-                    break
+        for plateau_start in range(1, len(smoothed_values) - plateau_min_length):
+            plateau_end = plateau_start
+            while (
+                plateau_end + 1 < len(smoothed_values)
+                and abs(float(smoothed_values[plateau_end + 1]) - float(smoothed_values[plateau_end]))
+                <= plateau_change_limit
+            ):
                 plateau_end += 1
 
-            region = smoothed_values[plateau_start:plateau_end + 1]
-            raw_start = plateau_start + smoothing_radius
-            raw_end = plateau_end + smoothing_radius + 1
-            raw_region = values[raw_start:raw_end]
-            if (
-                len(region) < minimum_length
-                or len(raw_region) == 0
-                or float(np.max(region)) - float(np.min(region)) > maximum_range
-                or float(np.max(raw_region)) - float(np.min(raw_region)) > maximum_range
-            ):
+            if plateau_end - plateau_start + 1 < plateau_min_length:
                 continue
-            peak_value = float(np.max(region))
-            if peak_value <= 0.0:
-                continue
-            area = float(np.sum(region))
-            rectangularity = area / (len(region) * peak_value)
+
             left_values = smoothed_values[max(0, plateau_start - 2):plateau_start]
             right_values = smoothed_values[plateau_end + 1:min(len(smoothed_values), plateau_end + 3)]
             if len(left_values) == 0 or len(right_values) == 0:
                 continue
-            region_value = area / len(region)
+
+            plateau_value = float(np.mean(smoothed_values[plateau_start:plateau_end + 1]))
             if (
-                rectangularity >= minimum_rectangularity
-                and region_value - float(np.mean(left_values)) >= change_threshold
-                and region_value - float(np.mean(right_values)) >= change_threshold
+                plateau_value - float(np.mean(left_values)) >= prominence_limit
+                and plateau_value - float(np.mean(right_values)) >= prominence_limit
             ):
                 return ((plateau_start + plateau_end) // 2) + smoothing_radius
 
@@ -579,7 +557,7 @@ class Sam2VideoDetector:
         peak_index = max(0, min(len(values) - 1, int(peak_index)))
         peak_value = float(values[peak_index])
         plateau_tolerance = 0.1
-        plateau_slope_limit = 0.04
+        plateau_slope_limit = 0.2
         peak_start = peak_index
         peak_end = peak_index
         while (
@@ -603,7 +581,7 @@ class Sam2VideoDetector:
         if len(values) == 0 or peak_start is None or peak_start <= 1:
             return None, None
 
-        plateau_slope_limit = 0.04
+        plateau_slope_limit = 0.2
         plateau_tolerance = 0.1
         plateau_end = int(peak_start) - 1
         while plateau_end >= 1:

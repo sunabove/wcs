@@ -1542,9 +1542,15 @@
                 }
 
                 await loadVideoOptions(selectedServerFileName);
+                const hasExistingOutput = await loadExistingOutputVideo(item.outputUrl);
 
                 renderUploadedHistory();
-                setStatus(`선택됨: ${item.name} (검출 시작 버튼을 눌러 실행)`, 'secondary');
+                setStatus(
+                    hasExistingOutput
+                        ? `선택됨: ${item.name} (기존 검출 영상 표시)`
+                        : `선택됨: ${item.name} (검출 버튼을 눌러 실행)`,
+                    'secondary'
+                );
             });
 
             row.addEventListener('contextmenu', (event) => {
@@ -1911,15 +1917,8 @@
         });
         if (!response.ok) {
             throw new Error(`재생 URL 조회 실패 (${response.status})`);
-                const hasExistingOutput = await loadExistingOutputVideo(item.outputUrl);
         }
-
-                setStatus(
-                    hasExistingOutput
-                        ? `선택됨: ${item.name} (기존 검출 영상 표시)`
-                        : `선택됨: ${item.name} (검출 버튼을 눌러 실행)`,
-                    'secondary'
-                );
+        const body = await response.json();
         if (body && body.video_url) {
             return buildAbsoluteUrl(apiBase, body.video_url);
         }

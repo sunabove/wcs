@@ -956,14 +956,17 @@ class Sam2VideoDetector:
 
         images_dir = output_root / "images" / "train"
         labels_dir = output_root / "labels" / "train"
+        masks_dir = output_root / "masks" / "train"
         images_dir.mkdir(parents=True, exist_ok=True)
         labels_dir.mkdir(parents=True, exist_ok=True)
+        masks_dir.mkdir(parents=True, exist_ok=True)
         output_root.with_suffix(".zip").unlink(missing_ok=True)
 
         file_prefix = f"{input_file_stem}_"
         for directory, suffixes in (
             (images_dir, {".jpg"}),
             (labels_dir, {".txt"}),
+            (masks_dir, {".png"}),
         ):
             for existing_path in directory.iterdir():
                 if (
@@ -998,8 +1001,12 @@ class Sam2VideoDetector:
                         stem = f"{input_file_stem}_{frame_index:06d}"
                         image_path = images_dir / f"{stem}.jpg"
                         label_path = labels_dir / f"{stem}.txt"
+                        mask_path = masks_dir / f"{stem}.png"
                         if not cv2.imwrite(str(image_path), frame):
                             raise RuntimeError(f"Failed to save YOLO dataset image: {image_path}")
+                        mask_image = (np.asarray(mask_history[frame_index], dtype=np.uint8) > 0).astype(np.uint8) * 255
+                        if not cv2.imwrite(str(mask_path), mask_image):
+                            raise RuntimeError(f"Failed to save YOLO dataset mask: {mask_path}")
                         label_path.write_text("\n".join(labels) + "\n", encoding="utf-8")
                         image_count += 1
                         label_count += len(labels)

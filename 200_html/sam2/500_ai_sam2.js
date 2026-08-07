@@ -1268,11 +1268,11 @@
         const inputPathUrl = String(inputPath || '').trim() || `/fast/image/${selectedServerFileName}`;
         try {
             const inputUrl = await resolvePlayableVideoUrl(apiBase, inputPathUrl, true);
-            await assignVideoSource(inputVideoElement, inputUrl, 'input');
+            await assignInputVideoSource(inputVideoElement, inputUrl);
         } catch (playableError) {
             const directInputUrl = buildAbsoluteUrl(apiBase, inputPathUrl);
             try {
-                await assignVideoSource(inputVideoElement, directInputUrl, 'input');
+                await assignInputVideoSource(inputVideoElement, directInputUrl);
             } catch (_directError) {
                 throw playableError;
             }
@@ -1953,6 +1953,41 @@
             videoElement.addEventListener('loadeddata', onLoadedData, { once: true });
             videoElement.addEventListener('error', onError, { once: true });
             videoElement.src = newObjectUrl;
+            videoElement.load();
+
+            if (videoElement.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) {
+                onLoadedData();
+            }
+        });
+    }
+
+    async function assignInputVideoSource(videoElement, sourceUrl) {
+        if (inputObjectUrl) {
+            URL.revokeObjectURL(inputObjectUrl);
+            inputObjectUrl = '';
+        }
+
+        await new Promise((resolve, reject) => {
+            const cleanup = () => {
+                videoElement.removeEventListener('loadeddata', onLoadedData);
+                videoElement.removeEventListener('error', onError);
+            };
+
+            const onLoadedData = () => {
+                cleanup();
+                resolve();
+            };
+
+            const onError = () => {
+                const mediaError = videoElement.error;
+                const code = mediaError && mediaError.code ? mediaError.code : 'unknown';
+                cleanup();
+                reject(new Error(`원본 영상 디코딩 실패 (code: ${code})`));
+            };
+
+            videoElement.addEventListener('loadeddata', onLoadedData, { once: true });
+            videoElement.addEventListener('error', onError, { once: true });
+            videoElement.src = sourceUrl;
             videoElement.load();
 
             if (videoElement.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) {

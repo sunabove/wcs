@@ -813,7 +813,7 @@
             return;
         }
         const index = findPointIndexAtPosition(point);
-        if (index < 0 || !isPointInsideBoundingBox(point)) {
+        if (index < 0) {
             return;
         }
 
@@ -893,6 +893,9 @@
         }
 
         const point = toRelativePoint(event);
+        if (!isPointInsideBoundingBox(point)) {
+            return;
+        }
         const index = findPointIndexAtPosition(point);
         if (index < 0) {
             return;

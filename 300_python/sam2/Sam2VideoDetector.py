@@ -1077,7 +1077,7 @@ class Sam2VideoDetector:
             }
 
         temporary_output_path = SAM2_OUTPUT_DIR / f"_{input_file_stem}.sam2_overlay.mp4"
-        dataset_root = SAM2_OUTPUT_DIR / "yolo" / f"{input_file_stem}_yolo_dataset"
+        dataset_root = SAM2_OUTPUT_DIR / "yolo" / f"{input_file_stem}"
         overlay_writer = self._create_video_writer(temporary_output_path, fps, width, height)
         if overlay_writer is None:
             capture.release()

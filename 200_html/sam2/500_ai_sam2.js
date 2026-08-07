@@ -278,6 +278,21 @@
         }
     }
 
+    function applyUploadDefaultOptions() {
+        if (maskInputCheckbox) {
+            maskInputCheckbox.checked = true;
+            updateMaskInputText();
+        }
+        if (claheCheckbox) {
+            claheCheckbox.checked = true;
+            updateClaheText();
+        }
+        if (multimaskOutputCheckbox) {
+            multimaskOutputCheckbox.checked = false;
+            updateMultimaskOutputText();
+        }
+    }
+
     function updateDetectionControlState() {
         const enabled = hasSelectedVideo();
             [foregroundPointModeButton, backgroundPointModeButton, bboxModeButton, pointClearButton, bboxClearButton, optionsSaveButton, optionsResetButton, multimaskOutputCheckbox, maskInputCheckbox].forEach((control) => {
@@ -1939,6 +1954,7 @@
             return;
         }
 
+        applyUploadDefaultOptions();
         setSelectedFile(file);
         showInputSourceTab('sam2-file-source-tab');
         selectedServerFileName = '';

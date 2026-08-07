@@ -415,6 +415,36 @@ class Sam2VideoDetector:
             ) > 0
         return mask_np
 
+    def _get_mask_bbox(self, mask_np):
+        mask = np.asarray(mask_np, dtype=np.uint8)
+        if mask.ndim != 2 or not np.any(mask):
+            return None
+
+        component_count, labels, stats, _centroids = cv2.connectedComponentsWithStats(
+            (mask > 0).astype(np.uint8),
+            connectivity=8,
+        )
+        if component_count <= 1:
+            return None
+
+        component_areas = stats[1:, cv2.CC_STAT_AREA]
+        largest_area = int(np.max(component_areas))
+        minimum_component_area = max(4, int(round(largest_area * 0.02)))
+        kept_components = np.flatnonzero(component_areas >= minimum_component_area) + 1
+        if len(kept_components) == 0:
+            kept_components = [int(np.argmax(component_areas)) + 1]
+
+        cleaned_mask = np.isin(labels, kept_components)
+        mask_y, mask_x = np.where(cleaned_mask)
+        if len(mask_x) == 0 or len(mask_y) == 0:
+            return None
+        return (
+            int(mask_x.min()),
+            int(mask_y.min()),
+            int(mask_x.max()) + 1,
+            int(mask_y.max()) + 1,
+        )
+
     def _calculate_mask_pair_iou(self, mask_tensor, reference_mask, frame_shape):
         mask_np = self._to_binary_mask(mask_tensor, frame_shape)
         if mask_np is None or reference_mask is None:
@@ -693,6 +723,20 @@ class Sam2VideoDetector:
             peak_start, peak_last = self._get_score_peak_bounds(score_values, first_peak_index)
             peak_end = peak_last + 1
             first_peak_minimum = float(np.min(score_values[peak_start:peak_end]))
+            threshold_y = self._chart_renderer._map_chart_y(
+                first_peak_minimum,
+                1.0,
+                chart_y2,
+                chart_y2 - chart_y1,
+            )
+            cv2.line(
+                canvas,
+                (chart_x1, threshold_y),
+                (chart_x2, threshold_y),
+                (0, 165, 255),
+                1,
+                cv2.LINE_AA,
+            )
             for region_start, region_end in self._get_score_threshold_regions(
                 score_values,
                 first_peak_minimum,
@@ -861,10 +905,12 @@ class Sam2VideoDetector:
         color = np.array([13, 110, 253], dtype=np.float32)
         overlay_pixels = overlay[mask_np].astype(np.float32)
         overlay[mask_np] = np.clip(overlay_pixels * 0.35 + color * 0.65, 0, 255).astype(np.uint8)
-        if bbox_rect is not None:
-            x1, y1, x2, y2 = bbox_rect
+        mask_bbox = self._get_mask_bbox(mask_np)
+        display_bbox = mask_bbox or bbox_rect
+        if display_bbox is not None:
+            x1, y1, x2, y2 = display_bbox
             cv2.rectangle(overlay, (x1, y1), (x2 - 1, y2 - 1), (13, 110, 253), 1)
-            self._draw_bbox_score(overlay, bbox_rect, score)
+            self._draw_bbox_score(overlay, display_bbox, score)
         return overlay
 
     def detect_video_file(

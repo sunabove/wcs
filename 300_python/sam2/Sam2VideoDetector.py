@@ -951,7 +951,7 @@ class Sam2VideoDetector:
                         filter_layer,
                         x_values[region_start:region_end],
                         score_values[region_start:region_end],
-                        (0, 0, 255),
+                        (255, 80, 180),
                         x_min,
                         x_max,
                         chart_x1,
@@ -986,7 +986,7 @@ class Sam2VideoDetector:
         if peak_start is not None and peak_last is not None:
             cv2.putText(
                 canvas,
-                "Threshold",
+                "Ref-Score",
                 (panel_x1 + 108, panel_y1 + 13),
                 cv2.FONT_HERSHEY_SIMPLEX,
                 0.3,
@@ -997,7 +997,7 @@ class Sam2VideoDetector:
         if iou_threshold is not None:
             cv2.putText(
                 canvas,
-                "IoU Threshold",
+                "Ref-IoU",
                 (panel_x1 + 180, panel_y1 + 13),
                 cv2.FONT_HERSHEY_SIMPLEX,
                 0.3,
@@ -1005,11 +1005,22 @@ class Sam2VideoDetector:
                 1,
                 cv2.LINE_AA,
             )
+        if peak_start is not None and peak_last is not None:
+            cv2.putText(
+                canvas,
+                "Plateau",
+                (panel_x1 + 282, panel_y1 + 13),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.28,
+                (0, 0, 255),
+                1,
+                cv2.LINE_AA,
+            )
         if peak_start is not None and peak_last is not None and iou_threshold is not None:
             cv2.putText(
                 canvas,
                 "Score+IoU",
-                (panel_x1 + 282, panel_y1 + 13),
+                (panel_x1 + 340, panel_y1 + 13),
                 cv2.FONT_HERSHEY_SIMPLEX,
                 0.28,
                 (0, 255, 255),
@@ -1019,13 +1030,23 @@ class Sam2VideoDetector:
             cv2.putText(
                 canvas,
                 "Score only",
-                (panel_x1 + 340, panel_y1 + 13),
+                (panel_x1 + 398, panel_y1 + 13),
                 cv2.FONT_HERSHEY_SIMPLEX,
                 0.28,
-                (0, 0, 255),
+                (255, 80, 180),
                 1,
                 cv2.LINE_AA,
             )
+        cv2.putText(
+            canvas,
+            "Frame",
+            (panel_x1 + 465, panel_y1 + 13),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.28,
+            (255, 230, 0),
+            1,
+            cv2.LINE_AA,
+        )
 
         x_ticks = self._chart_renderer._uniform_ticks(x_min, x_max, target_ticks=4)
         if int(x_max) not in x_ticks:

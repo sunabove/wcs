@@ -30,6 +30,7 @@ class Sam2VideoDetector:
     _max_infer_fps = 10.0
     _max_infer_frames = 600
     _max_infer_pixels_total = 320_000_000
+    _score_plateau_area_ratio_threshold = 0.9
 
     def __init__(self):
         SAM2_UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
@@ -603,7 +604,8 @@ class Sam2VideoDetector:
                     plateau_rectangle_area = plateau_peak * len(plateau_values)
                     if (
                         plateau_rectangle_area > 0.0
-                        and plateau_area / plateau_rectangle_area >= 0.9
+                        and plateau_area / plateau_rectangle_area
+                        >= self._score_plateau_area_ratio_threshold
                     ):
                         candidates.append((plateau_start, plateau_end))
                 plateau_start = index
@@ -616,7 +618,8 @@ class Sam2VideoDetector:
             plateau_rectangle_area = plateau_peak * len(plateau_values)
             if (
                 plateau_rectangle_area > 0.0
-                and plateau_area / plateau_rectangle_area >= 0.9
+                and plateau_area / plateau_rectangle_area
+                >= self._score_plateau_area_ratio_threshold
             ):
                 candidates.append((plateau_start, plateau_end))
 

@@ -31,8 +31,8 @@ class Sam2VideoDetector:
     _max_infer_frames = 600
     _max_infer_pixels_total = 320_000_000
     _score_plateau_area_ratio_threshold = 0.86
-    _score_plateau_first_derivative_threshold = 0.08
-    _score_plateau_second_derivative_threshold = 0.35
+    _score_plateau_first_derivative_threshold = 0.04
+    _score_plateau_second_derivative_threshold = 0.18
 
     def __init__(self):
         SAM2_UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
@@ -583,7 +583,11 @@ class Sam2VideoDetector:
             0.5,
             float(np.percentile(smoothed_values, 75.0)) - 0.2,
         )
-        candidate_indices = np.flatnonzero(values >= high_score_threshold)
+        candidate_indices = np.flatnonzero(
+            (values >= high_score_threshold)
+            & (np.abs(first_derivative) <= self._score_plateau_first_derivative_threshold)
+            & (np.abs(second_derivative) <= self._score_plateau_second_derivative_threshold)
+        )
         if len(candidate_indices) == 0:
             fallback_start = min(
                 range(len(values) - 1),

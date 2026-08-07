@@ -17,6 +17,7 @@ from sam2.Sam2VideoConfig import (
     SAM2_DEFAULT_MODEL,
     SAM2_OUTPUT_DIR,
     SAM2_UPLOAD_DIR,
+    SAM2_YOLO_DIR,
     SAM2_VIDEO_EXTENSIONS,
 )
 
@@ -1132,7 +1133,7 @@ class Sam2VideoDetector:
 
         dataset_result = self._export_yolo_dataset(
             source_video_path=Path(cached["source_video_path"]),
-            output_root=SAM2_OUTPUT_DIR / "yolo",
+            output_root=SAM2_YOLO_DIR,
             input_file_stem=resolved_input.stem,
             score_history=cached["score_history"],
             mask_history=cached["mask_history"],

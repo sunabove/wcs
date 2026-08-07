@@ -76,6 +76,7 @@
     let suppressPointClick = false;
     let pointContextMenuElement = null;
     let pointContextMenuIndex = -1;
+    let uploadedContextMenuElement = null;
     let outputControlsHideTimer = 0;
     let detectionMode = 'foreground';
     let isUploadingImmediately = false;
@@ -1453,9 +1454,90 @@
                 setStatus(`선택됨: ${item.name} (검출 시작 버튼을 눌러 실행)`, 'secondary');
             });
 
+            row.addEventListener('contextmenu', (event) => {
+                event.preventDefault();
+                showUploadedContextMenu(event, item);
+            });
+
             uploadedListElement.appendChild(li);
         }
     }
+
+    function hideUploadedContextMenu() {
+        if (uploadedContextMenuElement) {
+            uploadedContextMenuElement.remove();
+            uploadedContextMenuElement = null;
+        }
+    }
+
+    function showUploadedContextMenu(event, item) {
+        hideUploadedContextMenu();
+        const menu = document.createElement('div');
+        menu.className = 'bg-white border rounded shadow-sm p-1';
+        menu.style.position = 'fixed';
+        menu.style.left = `${Math.min(event.clientX, window.innerWidth - 150)}px`;
+        menu.style.top = `${Math.min(event.clientY, window.innerHeight - 90)}px`;
+        menu.style.zIndex = '2000';
+
+        const deleteButton = document.createElement('button');
+        deleteButton.type = 'button';
+        deleteButton.className = 'btn btn-danger btn-sm w-100 mb-1';
+        deleteButton.textContent = '삭제';
+        deleteButton.addEventListener('click', async () => {
+            hideUploadedContextMenu();
+            await deleteUploadedVideo(item);
+        });
+        menu.appendChild(deleteButton);
+
+        const cancelButton = document.createElement('button');
+        cancelButton.type = 'button';
+        cancelButton.className = 'btn btn-outline-secondary btn-sm w-100';
+        cancelButton.textContent = '취소';
+        cancelButton.addEventListener('click', hideUploadedContextMenu);
+        menu.appendChild(cancelButton);
+        document.body.appendChild(menu);
+        uploadedContextMenuElement = menu;
+    }
+
+    async function deleteUploadedVideo(item) {
+        if (!item || !item.serverFileName) {
+            return;
+        }
+        try {
+            let response = await fetch(`/fast/sam2/uploaded_video?file_name=${encodeURIComponent(item.serverFileName)}`, {
+                method: 'DELETE',
+            });
+            if (!response.ok) {
+                const apiBase = await resolveApiBase();
+                response = await fetch(`${apiBase}/fast/sam2/uploaded_video?file_name=${encodeURIComponent(item.serverFileName)}`, {
+                    method: 'DELETE',
+                });
+            }
+            if (!response.ok) {
+                throw new Error(`삭제 실패 (${response.status})`);
+            }
+            uploadedHistory = uploadedHistory.filter(historyItem => historyItem.serverFileName !== item.serverFileName);
+            if (selectedServerFileName === item.serverFileName) {
+                selectedServerFileName = '';
+                highlightedServerFileName = '';
+                stopCurrentOutputPlayback();
+                inputVideoElement?.removeAttribute('src');
+                inputVideoElement?.load();
+                saveSelectedVideo('');
+                updateDetectionControlState();
+            }
+            renderUploadedHistory();
+            setStatus(`삭제됨: ${item.name}`, 'success');
+        } catch (error) {
+            setStatus(error instanceof Error ? error.message : '삭제 중 오류가 발생했습니다.', 'danger');
+        }
+    }
+
+    document.addEventListener('click', (event) => {
+        if (uploadedContextMenuElement && !uploadedContextMenuElement.contains(event.target)) {
+            hideUploadedContextMenu();
+        }
+    });
 
     function setUploadedListLoading(isLoading, message) {
         if (!uploadedLoadingElement) {

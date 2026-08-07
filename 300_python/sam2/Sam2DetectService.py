@@ -59,6 +59,13 @@ def uploaded_videos(
     return _service.list_uploaded_videos(limit=limit)
 
 
+@router.delete("/uploaded_video")
+def delete_uploaded_video(
+    file_name: str = Query(...),
+):
+    return _service.delete_uploaded_video(file_name=file_name)
+
+
 @router.get("/video_options")
 def video_options(
     file_name: str = Query(...),

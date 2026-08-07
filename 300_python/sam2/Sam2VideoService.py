@@ -15,6 +15,7 @@ from fastapi import HTTPException, UploadFile
 from config import BASE_DIR
 from sam2.Sam2VideoConfig import (
     SAM2_DEFAULT_MODEL,
+    SAM2_OUTPUT_DIR,
     SAM2_UPLOAD_DIR,
     SAM2_VIDEO_EXTENSIONS,
 )
@@ -477,6 +478,31 @@ class Sam2VideoService:
 
         items.sort(key=lambda item: item.get("uploaded_at", ""), reverse=True)
         return {"videos": items[: max(1, int(limit))]}
+
+    def delete_uploaded_video(self, file_name: str):
+        input_path = self._resolve_uploaded_video_path(file_name)
+        input_stem = input_path.stem
+        deleted_paths = []
+
+        def remove_file(path: Path):
+            if path.is_file() or path.is_symlink():
+                path.unlink(missing_ok=True)
+                deleted_paths.append(str(path))
+
+        remove_file(input_path)
+        remove_file(self._options_path(input_path))
+        for path in SAM2_UPLOAD_DIR.glob(f"_{input_stem}.*"):
+            remove_file(path)
+        for path in SAM2_OUTPUT_DIR.glob(f"{input_stem}*"):
+            if path.is_file() or path.is_symlink():
+                remove_file(path)
+
+        self.detector._yolo_conversion_cache.pop(str(input_path.resolve()), None)
+        return {
+            "file_name": self._to_relative_under_base(input_path),
+            "deleted": True,
+            "deleted_count": len(deleted_paths),
+        }
 
     def get_video_options(self, file_name: str):
         input_path = self._resolve_uploaded_video_path(file_name)

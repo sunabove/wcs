@@ -1719,6 +1719,7 @@
                 thumbnailUrl: '',
                 thumbnailSource: buildThumbnailUrl(apiBase, item.file_name),
                 serverFileName: String(item.file_name || ''),
+                outputUrl: String(item.output_url || ''),
             }));
 
             if (requestSeq !== uploadedListLatestRequestSeq) {
@@ -1755,8 +1756,14 @@
                         // Keep the selected video even when preview loading fails.
                     }
                     await loadVideoOptions(selectedServerFileName);
+                    const hasExistingOutput = await loadExistingOutputVideo(matchedSelected.outputUrl);
                     renderUploadedHistory();
-                    setStatus(`이전 선택 복원: ${matchedSelected.name}`, 'secondary');
+                    setStatus(
+                        hasExistingOutput
+                            ? `이전 선택 복원: ${matchedSelected.name} (기존 검출 영상 표시)`
+                            : `이전 선택 복원: ${matchedSelected.name}`,
+                        'secondary'
+                    );
                 }
             } else if (savedSelectedVideo) {
                 if (!selectedServerFileName) {
@@ -1836,15 +1843,47 @@
         });
         if (!response.ok) {
             throw new Error(`재생 URL 조회 실패 (${response.status})`);
+                const hasExistingOutput = await loadExistingOutputVideo(item.outputUrl);
         }
 
-        const body = await response.json();
+                setStatus(
+                    hasExistingOutput
+                        ? `선택됨: ${item.name} (기존 검출 영상 표시)`
+                        : `선택됨: ${item.name} (검출 버튼을 눌러 실행)`,
+                    'secondary'
+                );
         if (body && body.video_url) {
             return buildAbsoluteUrl(apiBase, body.video_url);
         }
 
         throw new Error('재생 URL 응답이 올바르지 않습니다.');
 
+    }
+
+    async function loadExistingOutputVideo(outputUrl) {
+        const value = String(outputUrl || '').trim();
+        if (!value) {
+            return false;
+        }
+
+        try {
+            const apiBase = await resolveApiBase();
+            const playableUrl = await resolvePlayableVideoUrl(apiBase, value, true);
+            await assignVideoSource(outputVideoElement, playableUrl, 'output');
+
+            const outputTabButton = document.getElementById('sam2-output-tab');
+            if (outputTabButton) {
+                if (window.bootstrap && typeof window.bootstrap.Tab === 'function') {
+                    window.bootstrap.Tab.getOrCreateInstance(outputTabButton).show();
+                } else {
+                    outputTabButton.click();
+                }
+            }
+            applyLoopOption();
+            return true;
+        } catch (_ignore) {
+            return false;
+        }
     }
 
     async function assignVideoSource(videoElement, sourceUrl, objectUrlKey) {

@@ -96,11 +96,16 @@
 
     function debugSam2(message, details) {
         if (details === undefined) {
-            console.debug(`[SAM2] ${message}`);
+            console.log(`[SAM2] ${message}`);
         } else {
-            console.debug(`[SAM2] ${message}`, details);
+            console.log(`[SAM2] ${message}`, details);
         }
     }
+
+    debugSam2('SAM2 JavaScript loaded', {
+        scriptUrl: document.currentScript && document.currentScript.src,
+        pageUrl: window.location.href,
+    });
 
     function setStatus(message, type) {
         const alertType = type || 'secondary';

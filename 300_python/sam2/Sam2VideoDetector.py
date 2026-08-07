@@ -585,6 +585,27 @@ class Sam2VideoDetector:
             peak_end += 1
         return peak_start, peak_end
 
+    def _get_score_threshold_regions(self, score_values, threshold):
+        values = np.asarray(score_values, dtype=np.float32).reshape(-1)
+        if len(values) == 0 or threshold is None:
+            return []
+
+        indices = np.flatnonzero(values >= float(threshold))
+        if len(indices) == 0:
+            return []
+
+        regions = []
+        region_start = int(indices[0])
+        region_end = region_start
+        for index in indices[1:]:
+            index = int(index)
+            if index != region_end + 1:
+                regions.append((region_start, region_end + 1))
+                region_start = index
+            region_end = index
+        regions.append((region_start, region_end + 1))
+        return regions
+
     def _render_score_chart(self, frame, score_history, iou_history, frame_number, total_frames):
         if frame is None:
             return frame
@@ -661,6 +682,25 @@ class Sam2VideoDetector:
         if first_peak_index is not None:
             peak_start, peak_last = self._get_score_peak_bounds(score_values, first_peak_index)
             peak_end = peak_last + 1
+            first_peak_minimum = float(np.min(score_values[peak_start:peak_end]))
+            for region_start, region_end in self._get_score_threshold_regions(
+                score_values,
+                first_peak_minimum,
+            ):
+                self._chart_renderer._draw_chart_series(
+                    canvas,
+                    x_values[region_start:region_end],
+                    score_values[region_start:region_end],
+                    (0, 165, 255),
+                    x_min,
+                    x_max,
+                    chart_x1,
+                    chart_x2 - chart_x1,
+                    1.0,
+                    chart_y2,
+                    chart_y2 - chart_y1,
+                    3,
+                )
             self._chart_renderer._draw_chart_series(
                 canvas,
                 x_values[peak_start:peak_end],

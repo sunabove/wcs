@@ -1,0 +1,1394 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- This URDF was automatically created by SolidWorks to URDF Exporter! Originally created by Stephen Brawner (brawner@gmail.com) 
+     Commit Version: 1.6.0-4-g7f85cfe  Build Version: 1.6.7995.38578
+     For more information, please see http://wiki.ros.org/sw_urdf_exporter -->
+<robot name="sw5">
+  <!-- =================================================================== -->
+  <!-- WORLD LINK: virtual root, shifts entire tree so ground_sphere sits at (0,0,0) -->
+  <!-- =================================================================== -->
+  <link name="world" />
+
+  <joint name="world_to_ellipsoid_joint" type="fixed">
+    <origin xyz="0 0 -0.30" rpy="0 0 0" />
+    <parent link="world" />
+    <child link="ellipsoid_surface" />
+  </joint>
+
+  <!-- =================================================================== -->
+  <!-- ROOT LINK: ellipsoid_surface -->
+  <!-- =================================================================== -->
+  <link name="ellipsoid_surface">
+    <inertial>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <mass value="30.0" />
+      <inertia ixx="3.0" ixy="0" ixz="0" iyy="2.4" iyz="0" izz="5.0" />
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <box size="4.341 4.852 0.01" />
+      </geometry>
+      <material name="ellipsoid_mat">
+        <color rgba="0.2 0.4 0.8 0.5" />
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <box size="4.341 4.852 0.01" />
+      </geometry>
+    </collision>
+  </link>
+
+  <!-- =================================================================== -->
+  <!-- LINK: ground (ellipsoid_surface의 자식) -->
+  <!-- =================================================================== -->
+  <link name="ground">
+    <inertial>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <mass value="10.0" />
+      <inertia ixx="0.818" ixy="0" ixz="0" iyy="0.654" iyz="0" izz="1.472" />
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <box size="3.544 3.964 0.01" />
+      </geometry>
+      <material name="ground_mat">
+        <color rgba="0.5 0.5 0.5 0.8" />
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <box size="3.544 3.964 0.01" />
+      </geometry>
+    </collision>
+  </link>
+
+  <joint name="ellipsoid_to_ground_joint" type="fixed">
+    <origin xyz="0 0 0.30" rpy="0 0 0" />
+    <parent link="ellipsoid_surface" />
+    <child link="ground" />
+  </joint>
+
+  <!-- =================================================================== -->
+  <!-- LINK: ground_sphere (ground의 자식) -->
+  <!-- =================================================================== -->
+  <link name="ground_sphere">
+    <inertial>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <mass value="0.1" />
+      <inertia ixx="0.0001" ixy="0" ixz="0" iyy="0.0001" iyz="0" izz="0.0001" />
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <sphere radius="0.03" />
+      </geometry>
+      <material name="green_material">
+        <color rgba="0.0 1.0 0.0 1.0" />
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <sphere radius="0.03" />
+      </geometry>
+    </collision>
+  </link>
+
+  <joint name="ground_to_sphere_joint" type="fixed">
+    <origin xyz="0 0 0.0" rpy="0 0 0" />
+    <parent link="ground" />
+    <child link="ground_sphere" />
+  </joint>
+
+  <!-- =================================================================== -->
+  <!-- OBSTACLES (Attached to ground) -->
+  <!-- =================================================================== -->
+  <link name="obstacle_hemisphere">
+    <inertial>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <mass value="1.0" />
+      <inertia ixx="0.001" ixy="0" ixz="0" iyy="0.001" iyz="0" izz="0.001" />
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="../meshes/hemisphere.STL" scale="0.1 0.1 0.1" />
+      </geometry>
+      <material name="hemisphere_mat">
+        <color rgba="0.8 0.3 0.3 1.0" />
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="../meshes/hemisphere.STL" scale="0.1 0.1 0.1" />
+      </geometry>
+    </collision>
+  </link>
+
+  <joint name="ground_to_hemisphere_joint" type="fixed">
+    <origin xyz="0.0 -1.0 0.005" rpy="0 0 0" />
+    <parent link="ground" />
+    <child link="obstacle_hemisphere" />
+  </joint>
+
+  <link name="obstacle_wood_bar">
+    <inertial>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <mass value="2.0" />
+      <inertia ixx="0.37" ixy="0" ixz="0" iyy="0.001" iyz="0" izz="0.37" />
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <box size="0.08 1.5 0.06" />
+      </geometry>
+      <material name="wood_mat">
+        <color rgba="0.55 0.35 0.15 1.0" />
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <box size="0.08 1.5 0.06" />
+      </geometry>
+    </collision>
+  </link>
+
+  <joint name="ground_to_wood_bar_joint" type="fixed">
+    <origin xyz="1.2 0.0 0.035" rpy="0 0 0" />
+    <parent link="ground" />
+    <child link="obstacle_wood_bar" />
+  </joint>
+
+  <link name="obstacle_rock_1">
+    <inertial>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <mass value="1.5" />
+      <inertia ixx="0.005" ixy="0" ixz="0" iyy="0.005" iyz="0" izz="0.005" />
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <box size="0.14 0.16 0.07" />
+      </geometry>
+      <material name="rock_mat_1">
+        <color rgba="0.38 0.35 0.32 1.0" />
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <box size="0.14 0.16 0.07" />
+      </geometry>
+    </collision>
+  </link>
+
+  <joint name="ground_to_rock_1_joint" type="fixed">
+    <origin xyz="0.7 0.3 0.04" rpy="0 0 0" />
+    <parent link="ground" />
+    <child link="obstacle_rock_1" />
+  </joint>
+
+  <!-- =================================================================== -->
+  <!-- ROBOT LINKS & JOINTS (car_frame, swing, wheels, gears) -->
+  <!-- Robot body taken from the sw4 file -->
+  <!-- =================================================================== -->
+  <link
+    name="car_frame">
+    <inertial>
+      <origin
+        xyz="-0.0699924818342791 4.77678323729809E-09 0.255859857265833"
+        rpy="0 0 0" />
+      <mass
+        value="4.36726752622479" />
+      <inertia
+        ixx="0.120130237589006"
+        ixy="2.47975489093145E-06"
+        ixz="-3.27227207152052E-05"
+        iyy="0.191286662671253"
+        iyz="2.68106169101457E-10"
+        izz="0.301245720968891" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="../meshes/car_frame.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.894117647058823 0.894117647058823 0.894117647058823 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="../meshes/car_frame.STL" />
+      </geometry>
+    </collision>
+  </link>
+
+  <joint name="ground_to_car_frame_joint" type="fixed">
+    <origin xyz="0 0 0.0239" rpy="0 0 3.14159" />
+    <parent link="ground" />
+    <child link="car_frame" />
+  </joint>
+
+  <link name="version_marker">
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://sw5/meshes/version_marker.STL" scale="0.01 0.01 0.01" />
+      </geometry>
+      <material name="version_marker_mat">
+        <color rgba="1.0 0.0 0.0 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://sw5/meshes/version_marker.STL" scale="0.01 0.01 0.01" />
+      </geometry>
+    </collision>
+  </link>
+
+  <joint name="car_frame_to_version_marker_joint" type="fixed">
+    <origin
+      xyz="0.4 -0.1 0.27"
+      rpy="1.5708 0 1.5708" />
+    <parent
+      link="car_frame" />
+    <child
+      link="version_marker" />
+  </joint>
+
+  <link
+    name="swing_link">
+    <inertial>
+      <origin
+        xyz="-0.0273355916585125 -0.0287903676257647 2.89027422336719E-08"
+        rpy="0 0 0" />
+      <mass
+        value="1.44344385530313" />
+      <inertia
+        ixx="0.00529337280538952"
+        ixy="-3.64864367307083E-06"
+        ixz="-2.47940935716782E-06"
+        iyy="0.00598687173589354"
+        iyz="5.36294117235269E-10"
+        izz="0.00290322324922313" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="../meshes/swing_link.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.894117647058823 0.894117647058823 0.894117647058823 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="../meshes/swing_link.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="swing_joint"
+    type="revolute">
+    <origin
+      xyz="0.256 0 0.14713"
+      rpy="1.5708 0 0" />
+    <parent
+      link="car_frame" />
+    <child
+      link="swing_link" />
+    <axis
+      xyz="1 0 0" />
+    <limit
+      lower="-0.2"
+      upper="0.2"
+      effort="0"
+      velocity="0" />
+  </joint>
+  <link
+    name="inner_gaer_rl">
+    <inertial>
+      <origin
+        xyz="5.68499051889493E-07 7.63716316804983E-05 -0.0149805703213809"
+        rpy="0 0 0" />
+      <mass
+        value="0.0110327332596441" />
+      <inertia
+        ixx="4.80829060566523E-06"
+        ixy="-3.01977896116383E-11"
+        ixz="1.64764447803552E-10"
+        iyy="4.80952617762222E-06"
+        iyz="-3.00538459560614E-08"
+        izz="7.04246785452798E-07" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="../meshes/inner_gaer_rl.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0 1 0 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="../meshes/inner_gaer_rl.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="inner_gaer_rl_joint"
+    type="continuous">
+    <origin
+      xyz="0 -0.133 0.32225"
+      rpy="0 0 -0.059958" />
+    <parent
+      link="swing_link" />
+    <child
+      link="inner_gaer_rl" />
+    <axis
+      xyz="0 0 1" />
+  </joint>
+  <link
+    name="inner_wheel_rl">
+    <inertial>
+      <origin
+        xyz="-0.0026183231347941 0.0436166291145295 -0.0104233484656811"
+        rpy="0 0 0" />
+      <mass
+        value="0.257556919292698" />
+      <inertia
+        ixx="0.000352310782843601"
+        ixy="-1.12191004252328E-06"
+        ixz="-2.1208829372609E-07"
+        iyy="0.000370932469728746"
+        iyz="3.53301558696694E-06"
+        izz="0.000683104052806643" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="../meshes/inner_wheel_rl.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.894117647058823 0.894117647058823 0.894117647058823 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="../meshes/inner_wheel_rl.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="inner_wheel_rl_joint"
+    type="continuous">
+    <origin
+      xyz="0 -0.133 0.32225"
+      rpy="0 0 -0.059958" />
+    <parent
+      link="swing_link" />
+    <child
+      link="inner_wheel_rl" />
+    <axis
+      xyz="0 0 1" />
+  </joint>
+  <link
+    name="wheel_rl">
+    <inertial>
+      <origin
+        xyz="-0.001562739705886 -0.000131316876807515 2.79373952472017E-07"
+        rpy="0 0 0" />
+      <mass
+        value="0.165142633558275" />
+      <inertia
+        ixx="0.000907319831290132"
+        ixy="9.21658701292544E-09"
+        ixz="-1.96276226441759E-11"
+        iyy="0.000464100110679714"
+        iyz="-3.35033565768488E-09"
+        izz="0.000462525250528816" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="../meshes/wheel_rl.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.796078431372549 0.623529411764706 1 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="../meshes/wheel_rl.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="wheel_rl_joint"
+    type="continuous">
+    <origin
+      xyz="-0.0028763 0.047914 -0.00725"
+      rpy="0.059958 1.5708 0" />
+    <parent
+      link="inner_wheel_rl" />
+    <child
+      link="wheel_rl" />
+    <axis
+      xyz="-1 0 0" />
+  </joint>
+  <link
+    name="marker_rl">
+    <inertial>
+      <origin
+        xyz="0 0.0657584488911423 -0.01025"
+        rpy="0 0 0" />
+      <mass
+        value="0.0350523985722445" />
+      <inertia
+        ixx="4.42121651078555E-06"
+        ixy="-4.78970661892705E-20"
+        ixz="-7.10521236656888E-20"
+        iyy="3.67633196288507E-05"
+        iyz="3.28841221858915E-22"
+        izz="3.57142588184518E-05" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="../meshes/marker_rl.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="1 0.184313725490196 0.207843137254902 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="../meshes/marker_rl.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="marker_rl_joint"
+    type="fixed">
+    <origin
+      xyz="-0.0102499999999998 0 0"
+      rpy="-1.5707963267949 -1.55207700478783 1.5707963267949" />
+    <parent
+      link="wheel_rl" />
+    <child
+      link="marker_rl" />
+    <axis
+      xyz="0 0 0" />
+  </joint>
+  <link
+    name="cover_rl">
+    <inertial>
+      <origin
+        xyz="-9.94446145005656E-05 -1.24187237701134E-05 -0.00141090609422095"
+        rpy="0 0 0" />
+      <mass
+        value="0.0355492073745058" />
+      <inertia
+        ixx="3.76248166455624E-05"
+        ixy="3.36004195884918E-08"
+        ixz="-5.61507233129707E-09"
+        iyy="3.88759680999378E-05"
+        iyz="-7.02195906235155E-10"
+        izz="7.64579543953779E-05" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="../meshes/cover_rl.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.250980392156863 0.250980392156863 0.250980392156863 0.2" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="../meshes/cover_rl.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="cover_rl_joint"
+    type="fixed">
+    <origin
+      xyz="-0.0028763 0.047914 0.00775"
+      rpy="3.1416 0 -3.0816" />
+    <parent
+      link="inner_wheel_rl" />
+    <child
+      link="cover_rl" />
+    <axis
+      xyz="0 0 0" />
+  </joint>
+  <link
+    name="inner_gear_rr">
+    <inertial>
+      <origin
+        xyz="5.68499051945004E-07 7.63716316805E-05 -0.0149805703213809"
+        rpy="0 0 0" />
+      <mass
+        value="0.011032733259644" />
+      <inertia
+        ixx="4.80829060566522E-06"
+        ixy="-3.01977896133059E-11"
+        ixz="1.64764447801133E-10"
+        iyy="4.80952617762221E-06"
+        iyz="-3.00538459560614E-08"
+        izz="7.04246785452794E-07" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="../meshes/inner_gear_rr.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0 1 0 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="../meshes/inner_gear_rr.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="inner_gear_rr_joint"
+    type="continuous">
+    <origin
+      xyz="0 -0.133 -0.32225"
+      rpy="3.1416 0 -3.0816" />
+    <parent
+      link="swing_link" />
+    <child
+      link="inner_gear_rr" />
+    <axis
+      xyz="0 0 -1" />
+  </joint>
+  <link
+    name="inner_wheel_rr">
+    <inertial>
+      <origin
+        xyz="-0.00261832313479415 0.0436166291145294 -0.0104233484656811"
+        rpy="0 0 0" />
+      <mass
+        value="0.257556919292698" />
+      <inertia
+        ixx="0.000352310782843601"
+        ixy="-1.12191004252329E-06"
+        ixz="-2.12088293726098E-07"
+        iyy="0.000370932469728746"
+        iyz="3.53301558696702E-06"
+        izz="0.000683104052806642" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="../meshes/inner_wheel_rr.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.894117647058823 0.894117647058823 0.894117647058823 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="../meshes/inner_wheel_rr.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="inner_wheel_rr_joint"
+    type="continuous">
+    <origin
+      xyz="0 -0.133 -0.32225"
+      rpy="3.1416 0 -3.0816" />
+    <parent
+      link="swing_link" />
+    <child
+      link="inner_wheel_rr" />
+    <axis
+      xyz="0 0 -1" />
+  </joint>
+  <link
+    name="wheel_rr">
+    <inertial>
+      <origin
+        xyz="-0.00156273970588572 0.000131316876807612 -2.7937395213895E-07"
+        rpy="0 0 0" />
+      <mass
+        value="0.165142633558274" />
+      <inertia
+        ixx="0.000907319831290129"
+        ixy="-9.21658701263872E-09"
+        ixz="1.96276228595072E-11"
+        iyy="0.000464100110679713"
+        iyz="-3.35033565680581E-09"
+        izz="0.000462525250528813" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="../meshes/wheel_rr.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.796078431372549 0.623529411764706 1 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="../meshes/wheel_rr.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="wheel_rr_joint"
+    type="continuous">
+    <origin
+      xyz="-0.0028763 0.047914 -0.00725"
+      rpy="3.0816 1.5708 0" />
+    <parent
+      link="inner_wheel_rr" />
+    <child
+      link="wheel_rr" />
+    <axis
+      xyz="1 0 0" />
+  </joint>
+  <link
+    name="marker_rr">
+    <inertial>
+      <origin
+        xyz="-5.55111512312578E-17 0.0657584488911423 -0.0102499999999999"
+        rpy="0 0 0" />
+      <mass
+        value="0.0350523985722444" />
+      <inertia
+        ixx="4.42121651078569E-06"
+        ixy="-5.475273910611E-20"
+        ixz="-9.03428622892884E-20"
+        iyy="3.67633196288506E-05"
+        iyz="3.29726097123104E-21"
+        izz="3.57142588184519E-05" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="../meshes/marker_rr.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="1 0.184313725490196 0.207843137254902 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="../meshes/marker_rr.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="marker_rr_joint"
+    type="fixed">
+    <origin
+      xyz="-0.0102499999999998 0 0"
+      rpy="1.5707963267949 1.55207700478784 -1.5707963267949" />
+    <parent
+      link="wheel_rr" />
+    <child
+      link="marker_rr" />
+    <axis
+      xyz="0 0 0" />
+  </joint>
+  <link
+    name="cover_rr">
+    <inertial>
+      <origin
+        xyz="-9.94446145006767E-05 -1.24187237701134E-05 -0.00141090609422095"
+        rpy="0 0 0" />
+      <mass
+        value="0.0355492073745058" />
+      <inertia
+        ixx="3.76248166455624E-05"
+        ixy="3.36004195884911E-08"
+        ixz="-5.61507233125263E-09"
+        iyy="3.88759680999377E-05"
+        iyz="-7.02195906241697E-10"
+        izz="7.64579543953779E-05" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="../meshes/cover_rr.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.250980392156863 0.250980392156863 0.250980392156863 0.2" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="../meshes/cover_rr.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="cover_rr_joint"
+    type="fixed">
+    <origin
+      xyz="-0.0028762806962761 0.0479137455158353 0.00774999999999976"
+      rpy="3.14159265358979 0 -3.08163422030932" />
+    <parent
+      link="inner_wheel_rr" />
+    <child
+      link="cover_rr" />
+    <axis
+      xyz="0 0 0" />
+  </joint>
+  <link
+    name="inner_gear_fl">
+    <inertial>
+      <origin
+        xyz="5.68499051833982E-07 7.63716316804983E-05 -0.0149805703213809"
+        rpy="0 0 0" />
+      <mass
+        value="0.0110327332596441" />
+      <inertia
+        ixx="4.80829060566523E-06"
+        ixy="-3.01977896124854E-11"
+        ixz="1.64764447787993E-10"
+        iyy="4.80952617762222E-06"
+        iyz="-3.00538459560626E-08"
+        izz="7.04246785452801E-07" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="../meshes/inner_gear_fl.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0 1 0 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="../meshes/inner_gear_fl.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="inner_gear_fl_joint"
+    type="continuous">
+    <origin
+      xyz="-0.244 -0.32225 0.014126"
+      rpy="1.5708 0.059958 0" />
+    <parent
+      link="car_frame" />
+    <child
+      link="inner_gear_fl" />
+    <axis
+      xyz="0 0 1" />
+  </joint>
+  <link
+    name="inner_wheel_fl">
+    <inertial>
+      <origin
+        xyz="-0.00261832313479413 0.0436166291145294 -0.0104233484656811"
+        rpy="0 0 0" />
+      <mass
+        value="0.257556919292698" />
+      <inertia
+        ixx="0.000352310782843601"
+        ixy="-1.12191004252322E-06"
+        ixz="-2.12088293725005E-07"
+        iyy="0.000370932469728746"
+        iyz="3.53301558696707E-06"
+        izz="0.000683104052806642" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="../meshes/inner_wheel_fl.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.894117647058823 0.894117647058823 0.894117647058823 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="../meshes/inner_wheel_fl.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="inner_wheel_fl_joint"
+    type="continuous">
+    <origin
+      xyz="-0.244 -0.32225 0.014126"
+      rpy="1.5708 0.059958 0" />
+    <parent
+      link="car_frame" />
+    <child
+      link="inner_wheel_fl" />
+    <axis
+      xyz="0 0 1" />
+  </joint>
+  <link
+    name="wheel_fl">
+    <inertial>
+      <origin
+        xyz="-0.00156273970588588 -0.000131316876807508 2.79373952388751E-07"
+        rpy="0 0 0" />
+      <mass
+        value="0.165142633558274" />
+      <inertia
+        ixx="0.000907319831290128"
+        ixy="9.21658701271734E-09"
+        ixz="-1.96276242383239E-11"
+        iyy="0.000464100110679714"
+        iyz="-3.35033565802894E-09"
+        izz="0.000462525250528812" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="../meshes/wheel_fl.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.796078431372549 0.623529411764706 1 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="../meshes/wheel_fl.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="wheel_fl_joint"
+    type="continuous">
+    <origin
+      xyz="-0.0028763 0.047914 -0.00725"
+      rpy="0.059958 1.5708 0" />
+    <parent
+      link="inner_wheel_fl" />
+    <child
+      link="wheel_fl" />
+    <axis
+      xyz="-1 0 0" />
+  </joint>
+  <link
+    name="marker_fl">
+    <inertial>
+      <origin
+        xyz="-1.11022302462516E-16 0.0657584488911423 -0.01025"
+        rpy="0 0 0" />
+      <mass
+        value="0.0350523985722444" />
+      <inertia
+        ixx="4.42121651078552E-06"
+        ixy="-2.7813120916483E-20"
+        ixz="2.32348435859302E-20"
+        iyy="3.67633196288506E-05"
+        iyz="-1.85408747480345E-21"
+        izz="3.57142588184517E-05" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="../meshes/marker_fl.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="1 0.184313725490196 0.207843137254902 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="../meshes/marker_fl.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="marker_fl_joint"
+    type="fixed">
+    <origin
+      xyz="-0.0102499999999998 0 0"
+      rpy="-1.5707963267949 -1.55207700478784 1.5707963267949" />
+    <parent
+      link="wheel_fl" />
+    <child
+      link="marker_fl" />
+    <axis
+      xyz="0 0 0" />
+  </joint>
+  <link
+    name="cover_fl">
+    <inertial>
+      <origin
+        xyz="-9.94446145006489E-05 -1.24187237701204E-05 -0.00141090609422095"
+        rpy="0 0 0" />
+      <mass
+        value="0.0355492073745058" />
+      <inertia
+        ixx="3.76248166455624E-05"
+        ixy="3.3600419588488E-08"
+        ixz="-5.61507233117656E-09"
+        iyy="3.88759680999378E-05"
+        iyz="-7.02195906237178E-10"
+        izz="7.64579543953779E-05" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="../meshes/cover_fl.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.250980392156863 0.250980392156863 0.250980392156863 0.2" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="../meshes/cover_fl.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="cover_fl_joint"
+    type="fixed">
+    <origin
+      xyz="-0.00287628069627605 0.0479137455158353 0.00774999999999976"
+      rpy="3.14159265358979 0 -3.08163422030932" />
+    <parent
+      link="inner_wheel_fl" />
+    <child
+      link="cover_fl" />
+    <axis
+      xyz="0 0 0" />
+  </joint>
+  <link
+    name="inner_gear_fr">
+    <inertial>
+      <origin
+        xyz="5.68499051833982E-07 7.63716316805607E-05 -0.0149805703213809"
+        rpy="0 0 0" />
+      <mass
+        value="0.011032733259644" />
+      <inertia
+        ixx="4.80829060566523E-06"
+        ixy="-3.01977896106325E-11"
+        ixz="1.64764447786779E-10"
+        iyy="4.80952617762221E-06"
+        iyz="-3.00538459560703E-08"
+        izz="7.04246785452794E-07" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="../meshes/inner_gear_fr.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0 1 0 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="../meshes/inner_gear_fr.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="inner_gear_fr_joint"
+    type="continuous">
+    <origin
+      xyz="-0.244 0.32225 0.014126"
+      rpy="1.5708 0.059958 -3.1416" />
+    <parent
+      link="car_frame" />
+    <child
+      link="inner_gear_fr" />
+    <axis
+      xyz="0 0 -1" />
+  </joint>
+  <link
+    name="inner_wheel_fr">
+    <inertial>
+      <origin
+        xyz="-0.00261832313479415 0.0436166291145294 -0.0104233484656811"
+        rpy="0 0 0" />
+      <mass
+        value="0.257556919292697" />
+      <inertia
+        ixx="0.000352310782843601"
+        ixy="-1.12191004252324E-06"
+        ixz="-2.12088293724879E-07"
+        iyy="0.000370932469728745"
+        iyz="3.53301558696703E-06"
+        izz="0.000683104052806642" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="../meshes/inner_wheel_fr.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.894117647058823 0.894117647058823 0.894117647058823 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="../meshes/inner_wheel_fr.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="inner_wheel_fr_joint"
+    type="continuous">
+    <origin
+      xyz="-0.244 0.32225 0.014126"
+      rpy="1.5708 0.059958 -3.1416" />
+    <parent
+      link="car_frame" />
+    <child
+      link="inner_wheel_fr" />
+    <axis
+      xyz="0 0 -1" />
+  </joint>
+  <link
+    name="wheel_fr">
+    <inertial>
+      <origin
+        xyz="-0.00156273970588583 0.000131316876807272 -2.79373952499773E-07"
+        rpy="0 0 0" />
+      <mass
+        value="0.165142633558276" />
+      <inertia
+        ixx="0.000907319831290136"
+        ixy="-9.21658701288718E-09"
+        ixz="1.96276244222484E-11"
+        iyy="0.000464100110679716"
+        iyz="-3.35033565658832E-09"
+        izz="0.000462525250528818" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="../meshes/wheel_fr.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.796078431372549 0.623529411764706 1 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="../meshes/wheel_fr.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="wheel_fr_joint"
+    type="continuous">
+    <origin
+      xyz="-0.0028763 0.047914 -0.00725"
+      rpy="3.0816 1.5708 0" />
+    <parent
+      link="inner_wheel_fr" />
+    <child
+      link="wheel_fr" />
+    <axis
+      xyz="1 0 0" />
+  </joint>
+  <link
+    name="marker_fr">
+    <inertial>
+      <origin
+        xyz="-8.32667268468867E-17 0.0657584488911424 -0.0102499999999999"
+        rpy="0 0 0" />
+      <mass
+        value="0.0350523985722445" />
+      <inertia
+        ixx="4.42121651078541E-06"
+        ixy="-2.30022384738746E-20"
+        ixz="3.51237687998265E-20"
+        iyy="3.67633196288506E-05"
+        iyz="-2.88717789940908E-22"
+        izz="3.57142588184516E-05" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="../meshes/marker_fr.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="1 0.184313725490196 0.207843137254902 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="../meshes/marker_fr.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="marker_fr_joint"
+    type="fixed">
+    <origin
+      xyz="-0.0102499999999998 0 0"
+      rpy="1.5707963267949 1.55207700478783 -1.5707963267949" />
+    <parent
+      link="wheel_fr" />
+    <child
+      link="marker_fr" />
+    <axis
+      xyz="0 0 0" />
+  </joint>
+  <link
+    name="cover_fr">
+    <inertial>
+      <origin
+        xyz="-9.94446145006211E-05 -1.24187237701204E-05 -0.00141090609422095"
+        rpy="0 0 0" />
+      <mass
+        value="0.0355492073745058" />
+      <inertia
+        ixx="3.76248166455624E-05"
+        ixy="3.36004195884859E-08"
+        ixz="-5.61507233125255E-09"
+        iyy="3.88759680999378E-05"
+        iyz="-7.02195906242058E-10"
+        izz="7.64579543953779E-05" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="../meshes/cover_fr.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.250980392156863 0.250980392156863 0.250980392156863 0.2" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="../meshes/cover_fr.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="cover_fr_joint"
+    type="fixed">
+    <origin
+      xyz="-0.00287628069627605 0.0479137455158353 0.00774999999999976"
+      rpy="3.14159265358979 0 -3.08163422030932" />
+    <parent
+      link="inner_wheel_fr" />
+    <child
+      link="cover_fr" />
+    <axis
+      xyz="0 0 0" />
+  </joint>
+</robot>

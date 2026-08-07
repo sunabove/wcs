@@ -48,6 +48,7 @@
     const statusElement = document.getElementById('sam2-status');
     const inputVideoElement = document.getElementById('sam2-input-video');
     const outputVideoElement = document.getElementById('sam2-output-video');
+    const outputDownloadButton = document.getElementById('sam2-output-download');
 
     let selectedFile = null;
     let resolvedApiBase = null;
@@ -431,6 +432,37 @@
         outputVideoElement.addEventListener('mouseleave', hideOutputVideoControls);
         outputVideoElement.addEventListener('focus', showOutputVideoControls);
         outputVideoElement.addEventListener('blur', hideOutputVideoControls);
+    }
+
+    function updateOutputDownloadState() {
+        if (outputDownloadButton) {
+            outputDownloadButton.disabled = !outputObjectUrl;
+        }
+    }
+
+    function buildOutputDownloadFileName() {
+        const sourceName = selectedServerFileName
+            || (selectedFile && selectedFile.name)
+            || 'sam2_video';
+        const baseName = String(sourceName).split('/').pop() || 'sam2_video';
+        const dotIndex = baseName.lastIndexOf('.');
+        const stem = dotIndex > 0 ? baseName.slice(0, dotIndex) : baseName;
+        return `${stem}_detected.mp4`;
+    }
+
+    function downloadDetectedVideo() {
+        if (!outputObjectUrl) {
+            setStatus('먼저 검출 영상을 생성하세요.', 'warning');
+            return;
+        }
+
+        const downloadLink = document.createElement('a');
+        downloadLink.href = outputObjectUrl;
+        downloadLink.download = buildOutputDownloadFileName();
+        document.body.appendChild(downloadLink);
+        downloadLink.click();
+        downloadLink.remove();
+        setStatus('검출 영상 다운로드를 시작했습니다.', 'success');
     }
 
     function clamp(value, min, max) {
@@ -1133,6 +1165,7 @@
             URL.revokeObjectURL(outputObjectUrl);
             outputObjectUrl = '';
         }
+        updateOutputDownloadState();
     }
 
     async function resolveApiBase() {
@@ -1611,6 +1644,10 @@
         videoElement.src = newObjectUrl;
         videoElement.load();
 
+        if (objectUrlKey === 'output') {
+            updateOutputDownloadState();
+        }
+
         await new Promise((resolve, reject) => {
             const cleanup = () => {
                 videoElement.removeEventListener('loadeddata', onLoadedData);
@@ -1961,6 +1998,9 @@
     });
 
     detectButton.addEventListener('click', runSam2Segment);
+    if (outputDownloadButton) {
+        outputDownloadButton.addEventListener('click', downloadDetectedVideo);
+    }
     function setPointMode(mode) {
         if (!hasSelectedVideo()) {
             setStatus('먼저 동영상을 선택하세요.', 'warning');

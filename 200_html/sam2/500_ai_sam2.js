@@ -1393,6 +1393,11 @@
         for (const item of uploadedHistory) {
             const li = document.createElement('li');
             li.className = 'list-group-item small';
+            li.addEventListener('contextmenu', (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                showUploadedContextMenu(event, item);
+            });
 
             if (item.serverFileName && item.serverFileName === highlightedServerFileName) {
                 li.classList.add('active');
@@ -1456,6 +1461,7 @@
 
             row.addEventListener('contextmenu', (event) => {
                 event.preventDefault();
+                event.stopPropagation();
                 showUploadedContextMenu(event, item);
             });
 

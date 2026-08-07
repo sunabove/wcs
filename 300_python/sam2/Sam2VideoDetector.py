@@ -585,6 +585,30 @@ class Sam2VideoDetector:
             peak_end += 1
         return peak_start, peak_end
 
+    def _get_leading_score_plateau_bounds(self, score_values, peak_start):
+        values = np.asarray(score_values, dtype=np.float32).reshape(-1)
+        if len(values) == 0 or peak_start is None or peak_start <= 1:
+            return None, None
+
+        plateau_slope_limit = 0.04
+        plateau_tolerance = 0.1
+        plateau_end = int(peak_start) - 1
+        while plateau_end >= 1:
+            plateau_start = plateau_end
+            while (
+                plateau_start > 0
+                and abs(float(values[plateau_start]) - float(values[plateau_start - 1])) <= plateau_slope_limit
+                and float(np.max(values[plateau_start:plateau_end + 1]))
+                - float(np.min(values[plateau_start:plateau_end + 1])) <= plateau_tolerance
+            ):
+                plateau_start -= 1
+
+            if plateau_end - plateau_start + 1 >= 2:
+                return plateau_start, plateau_end
+            plateau_end = plateau_start - 1
+
+        return None, None
+
     def _get_score_threshold_regions(self, score_values, threshold):
         values = np.asarray(score_values, dtype=np.float32).reshape(-1)
         if len(values) == 0 or threshold is None:
@@ -692,6 +716,25 @@ class Sam2VideoDetector:
                     x_values[region_start:region_end],
                     score_values[region_start:region_end],
                     (0, 165, 255),
+                    x_min,
+                    x_max,
+                    chart_x1,
+                    chart_x2 - chart_x1,
+                    1.0,
+                    chart_y2,
+                    chart_y2 - chart_y1,
+                    3,
+                )
+            leading_start, leading_last = self._get_leading_score_plateau_bounds(
+                score_values,
+                peak_start,
+            )
+            if leading_start is not None:
+                self._chart_renderer._draw_chart_series(
+                    canvas,
+                    x_values[leading_start:leading_last + 1],
+                    score_values[leading_start:leading_last + 1],
+                    (80, 80, 255),
                     x_min,
                     x_max,
                     chart_x1,

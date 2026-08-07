@@ -661,21 +661,22 @@ class Sam2VideoDetector:
                 rise_end = min(plateau_start, len(raw_differences))
                 fall_start = min(plateau_end + 1, len(raw_differences))
                 fall_end = min(plateau_end + slope_window + 1, len(raw_differences))
-                has_steep_rise = rise_end > rise_start and np.max(raw_differences[rise_start:rise_end]) >= minimum_rise_slope
-                has_steep_fall = fall_end > fall_start and np.min(raw_differences[fall_start:fall_end]) <= -minimum_fall_slope
-                rise_baseline = raw_differences[max(0, rise_start - slope_window):rise_start]
-                fall_baseline = raw_differences[fall_end:min(len(raw_differences), fall_end + slope_window)]
-                rise_change = float(np.max(raw_differences[rise_start:rise_end])) - (float(np.median(rise_baseline)) if len(rise_baseline) else 0.0)
-                fall_change = (float(np.median(fall_baseline)) if len(fall_baseline) else 0.0) - float(np.min(raw_differences[fall_start:fall_end]))
-                if (
-                    peak_value - left_value >= change_threshold
-                    and peak_value - right_value >= peak_tolerance
-                    and has_steep_rise
-                    and has_steep_fall
-                    and rise_change >= 0.08
-                    and fall_change >= 0.06
-                ):
-                    return (plateau_start + plateau_end) // 2
+                if rise_end > rise_start and fall_end > fall_start:
+                    has_steep_rise = np.max(raw_differences[rise_start:rise_end]) >= minimum_rise_slope
+                    has_steep_fall = np.min(raw_differences[fall_start:fall_end]) <= -minimum_fall_slope
+                    rise_baseline = raw_differences[max(0, rise_start - slope_window):rise_start]
+                    fall_baseline = raw_differences[fall_end:min(len(raw_differences), fall_end + slope_window)]
+                    rise_change = float(np.max(raw_differences[rise_start:rise_end])) - (float(np.median(rise_baseline)) if len(rise_baseline) else 0.0)
+                    fall_change = (float(np.median(fall_baseline)) if len(fall_baseline) else 0.0) - float(np.min(raw_differences[fall_start:fall_end]))
+                    if (
+                        peak_value - left_value >= change_threshold
+                        and peak_value - right_value >= peak_tolerance
+                        and has_steep_rise
+                        and has_steep_fall
+                        and rise_change >= 0.08
+                        and fall_change >= 0.06
+                    ):
+                        return (plateau_start + plateau_end) // 2
 
         return None
 

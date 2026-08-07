@@ -95,17 +95,8 @@
     let maxUploadConfiguredValue = '1g';
 
     function debugSam2(message, details) {
-        if (details === undefined) {
-            console.error(`[SAM2] ${message}`);
-        } else {
-            console.error(`[SAM2] ${message}`, details);
-        }
+        return undefined;
     }
-
-    console.error('[SAM2] SAM2 JavaScript loaded', {
-        scriptUrl: document.currentScript && document.currentScript.src,
-        pageUrl: window.location.href,
-    });
 
     window.addEventListener('error', (event) => {
         console.error('[SAM2] 전역 JavaScript 오류', {

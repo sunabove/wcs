@@ -577,7 +577,7 @@ class Sam2VideoDetector:
             0.5,
             float(np.percentile(smoothed_values, 75.0)) - 0.2,
         )
-        candidate_indices = np.flatnonzero(smoothed_values >= high_score_threshold)
+        candidate_indices = np.flatnonzero(values >= high_score_threshold)
         if len(candidate_indices) == 0:
             return None, None
 

@@ -735,6 +735,24 @@ class Sam2VideoDetector:
         regions.append((region_start, region_end + 1))
         return regions
 
+    def _get_boolean_regions(self, condition):
+        values = np.asarray(condition, dtype=bool).reshape(-1)
+        indices = np.flatnonzero(values)
+        if len(indices) == 0:
+            return []
+
+        regions = []
+        region_start = int(indices[0])
+        region_end = region_start
+        for index in indices[1:]:
+            index = int(index)
+            if index != region_end + 1:
+                regions.append((region_start, region_end + 1))
+                region_start = index
+            region_end = index
+        regions.append((region_start, region_end + 1))
+        return regions
+
     def _render_score_chart(
         self,
         frame,
@@ -903,6 +921,48 @@ class Sam2VideoDetector:
                 cv2.LINE_AA,
             )
 
+        if peak_start is not None and peak_last is not None and iou_threshold is not None:
+            sample_count = min(len(score_values), len(iou_history))
+            if sample_count > 0:
+                score_samples = score_values[:sample_count]
+                iou_samples = np.asarray(iou_history[:sample_count], dtype=np.float32)
+                score_passed = score_samples >= first_peak_minimum
+                iou_passed = iou_samples >= iou_threshold
+                qualified_regions = self._get_boolean_regions(score_passed & iou_passed)
+                score_only_regions = self._get_boolean_regions(score_passed & ~iou_passed)
+                filter_layer = canvas.copy()
+                for region_start, region_end in qualified_regions:
+                    self._chart_renderer._draw_chart_series(
+                        filter_layer,
+                        x_values[region_start:region_end],
+                        score_values[region_start:region_end],
+                        (0, 255, 255),
+                        x_min,
+                        x_max,
+                        chart_x1,
+                        chart_x2 - chart_x1,
+                        1.0,
+                        chart_y2,
+                        chart_y2 - chart_y1,
+                        3,
+                    )
+                for region_start, region_end in score_only_regions:
+                    self._chart_renderer._draw_chart_series(
+                        filter_layer,
+                        x_values[region_start:region_end],
+                        score_values[region_start:region_end],
+                        (0, 0, 255),
+                        x_min,
+                        x_max,
+                        chart_x1,
+                        chart_x2 - chart_x1,
+                        1.0,
+                        chart_y2,
+                        chart_y2 - chart_y1,
+                        3,
+                    )
+                cv2.addWeighted(filter_layer, 0.9, canvas, 0.1, 0.0, canvas)
+
         cv2.putText(
             canvas,
             "Score",
@@ -942,6 +1002,27 @@ class Sam2VideoDetector:
                 cv2.FONT_HERSHEY_SIMPLEX,
                 0.3,
                 (255, 0, 255),
+                1,
+                cv2.LINE_AA,
+            )
+        if peak_start is not None and peak_last is not None and iou_threshold is not None:
+            cv2.putText(
+                canvas,
+                "Score+IoU",
+                (panel_x1 + 282, panel_y1 + 13),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.28,
+                (0, 255, 255),
+                1,
+                cv2.LINE_AA,
+            )
+            cv2.putText(
+                canvas,
+                "Score only",
+                (panel_x1 + 340, panel_y1 + 13),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.28,
+                (0, 0, 255),
                 1,
                 cv2.LINE_AA,
             )

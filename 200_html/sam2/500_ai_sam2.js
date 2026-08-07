@@ -2346,12 +2346,12 @@
             yoloDatasetUrl = '';
             if (yoloDatasetSummaryElement) {
                 yoloDatasetSummaryElement.textContent = yoloConversionAvailable
-                    ? 'YOLO 변환 버튼을 클릭하면 학습 데이터를 생성합니다.'
+                    ? ''
                     : 'YOLO 학습 데이터로 변환할 수 없습니다.';
             }
             if (yoloDatasetTabSummaryElement) {
                 yoloDatasetTabSummaryElement.textContent = yoloConversionAvailable
-                    ? 'YOLO 변환 버튼을 클릭하면 학습 데이터를 생성합니다.'
+                    ? ''
                     : 'YOLO 학습 데이터로 변환할 수 없습니다.';
             }
             updateOutputDownloadState();

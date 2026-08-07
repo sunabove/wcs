@@ -132,7 +132,7 @@
     position: relative;
     display: inline-block;
     line-height: 0;
-    cursor: crosshair;
+    cursor: default;
 }
 
 .sam2-point-marker-layer {

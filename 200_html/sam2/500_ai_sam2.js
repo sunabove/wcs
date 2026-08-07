@@ -971,6 +971,22 @@
         };
     }
 
+    function updatePointInputCursor(event) {
+        if (!bboxCaptureLayerElement) {
+            return;
+        }
+
+        if (detectionMode !== 'foreground' && detectionMode !== 'background') {
+            bboxCaptureLayerElement.style.cursor = 'default';
+            return;
+        }
+
+        const point = toRelativePoint(event);
+        bboxCaptureLayerElement.style.cursor = isPointInsideBoundingBox(point)
+            ? 'crosshair'
+            : 'default';
+    }
+
     function ensureDefaultBoundingBox() {
         if (!hasSelectedVideo()) {
             return;
@@ -2595,6 +2611,10 @@
             }
         });
         bboxCaptureLayerElement.addEventListener('contextmenu', selectPointByRightClick);
+        bboxCaptureLayerElement.addEventListener('mousemove', updatePointInputCursor);
+        bboxCaptureLayerElement.addEventListener('mouseleave', () => {
+            bboxCaptureLayerElement.style.cursor = 'default';
+        });
         bboxCaptureLayerElement.addEventListener('mousedown', (event) => {
             startPointDrag(event);
             if (pointDragIndex < 0 && detectionMode === 'bbox') {

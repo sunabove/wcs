@@ -761,6 +761,21 @@ class Sam2VideoDetector:
             x_max = x_min + 1.0
         x_values = np.arange(1, len(score_history) + 1, dtype=np.float32)
         score_values = np.asarray(score_history, dtype=np.float32)
+        peak_start, peak_last = self._find_first_mask_fill_plateau_bounds(fill_ratio_history)
+        self._chart_renderer._draw_chart_series(
+            canvas,
+            x_values,
+            np.asarray(iou_history, dtype=np.float32),
+            (255, 190, 60),
+            x_min,
+            x_max,
+            chart_x1,
+            chart_x2 - chart_x1,
+            1.0,
+            chart_y2,
+            chart_y2 - chart_y1,
+            2,
+        )
         self._chart_renderer._draw_chart_series(
             canvas,
             x_values,
@@ -775,7 +790,6 @@ class Sam2VideoDetector:
             chart_y2 - chart_y1,
             2,
         )
-        peak_start, peak_last = self._find_first_mask_fill_plateau_bounds(fill_ratio_history)
         if peak_start is not None and peak_last is not None:
             peak_end = peak_last + 1
             first_peak_minimum = float(np.min(score_values[peak_start:peak_end]))
@@ -825,20 +839,6 @@ class Sam2VideoDetector:
                 chart_y2 - chart_y1,
                 3,
             )
-        self._chart_renderer._draw_chart_series(
-            canvas,
-            x_values,
-            np.asarray(iou_history, dtype=np.float32),
-            (255, 190, 60),
-            x_min,
-            x_max,
-            chart_x1,
-            chart_x2 - chart_x1,
-            1.0,
-            chart_y2,
-            chart_y2 - chart_y1,
-            2,
-        )
 
         cv2.putText(
             canvas,

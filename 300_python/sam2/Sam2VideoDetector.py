@@ -1026,21 +1026,10 @@ class Sam2VideoDetector:
                         ) from ex
                     raise
 
-                plotted = self._overlay_mask_result(frame, mask_tensor, bbox_rect, detection_score)
-
-                if plotted.shape[1] != width or plotted.shape[0] != height:
-                    plotted = cv2.resize(plotted, (width, height), interpolation=cv2.INTER_AREA)
-
-                self._draw_option_summary(
-                    plotted,
-                    mask_input,
-                    multimask_output,
-                    clahe,
-                )
                 tracked_frames += 1
                 score_history.append(max(0.0, min(1.0, float(detection_score or 0.0))))
                 mask_history.append(self._to_binary_mask(mask_tensor, frame.shape))
-                overlay_writer.write(plotted)
+                overlay_writer.write(frame)
                 if progress_callback is not None and total_frames > 0:
                     progress_callback(tracked_frames, max(1, total_frames * 2))
 
@@ -1053,6 +1042,14 @@ class Sam2VideoDetector:
             first_peak_index = self._find_first_score_peak_index(
                 np.asarray(score_history, dtype=np.float32)
             )
+            detection_threshold = None
+            if first_peak_index is not None:
+                peak_start, peak_last = self._get_score_peak_bounds(
+                    score_history,
+                    first_peak_index,
+                )
+                if peak_start is not None and peak_last is not None:
+                    detection_threshold = float(np.min(score_history[peak_start:peak_last + 1]))
             if first_peak_index is not None and mask_history[first_peak_index] is not None:
                 reference_mask = mask_history[first_peak_index].copy()
 
@@ -1077,6 +1074,26 @@ class Sam2VideoDetector:
                 if not ok:
                     break
                 rendered_frames += 1
+                frame_index = rendered_frames - 1
+                if (
+                    detection_threshold is not None
+                    and frame_index < len(score_history)
+                    and score_history[frame_index] >= detection_threshold
+                    and frame_index < len(mask_history)
+                    and mask_history[frame_index] is not None
+                ):
+                    plotted = self._overlay_mask_result(
+                        plotted,
+                        mask_history[frame_index],
+                        bbox_rect,
+                        score_history[frame_index],
+                    )
+                self._draw_option_summary(
+                    plotted,
+                    mask_input,
+                    multimask_output,
+                    clahe,
+                )
                 plotted = self._render_score_chart(
                     plotted,
                     score_history,

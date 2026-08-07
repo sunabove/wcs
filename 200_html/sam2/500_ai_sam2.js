@@ -96,15 +96,29 @@
 
     function debugSam2(message, details) {
         if (details === undefined) {
-            console.log(`[SAM2] ${message}`);
+            console.error(`[SAM2] ${message}`);
         } else {
-            console.log(`[SAM2] ${message}`, details);
+            console.error(`[SAM2] ${message}`, details);
         }
     }
 
-    debugSam2('SAM2 JavaScript loaded', {
+    console.error('[SAM2] SAM2 JavaScript loaded', {
         scriptUrl: document.currentScript && document.currentScript.src,
         pageUrl: window.location.href,
+    });
+
+    window.addEventListener('error', (event) => {
+        console.error('[SAM2] 전역 JavaScript 오류', {
+            message: event.message,
+            source: event.filename,
+            line: event.lineno,
+            column: event.colno,
+            error: event.error,
+        });
+    });
+
+    window.addEventListener('unhandledrejection', (event) => {
+        console.error('[SAM2] 처리되지 않은 Promise 오류', event.reason);
     });
 
     function setStatus(message, type) {

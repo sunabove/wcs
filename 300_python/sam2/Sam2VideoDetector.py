@@ -458,13 +458,7 @@ class Sam2VideoDetector:
 
         x1, y1, x2, y2 = bbox
         bbox_area = float(max(0, x2 - x1) * max(0, y2 - y1))
-        mask_image = (mask_np[y1:y2, x1:x2].astype(np.uint8)) * 255
-        contours, _ = cv2.findContours(
-            mask_image,
-            cv2.RETR_EXTERNAL,
-            cv2.CHAIN_APPROX_SIMPLE,
-        )
-        mask_area = float(sum(cv2.contourArea(contour) for contour in contours))
+        mask_area = float(np.count_nonzero(mask_np[y1:y2, x1:x2]))
         return mask_area / bbox_area if bbox_area > 0 else 0.0
 
     def _calculate_mask_pair_iou(self, mask_tensor, reference_mask, frame_shape):

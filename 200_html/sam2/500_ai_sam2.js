@@ -2245,6 +2245,22 @@
         });
     });
 
+    const outputTabButton = document.getElementById('sam2-output-tab');
+    if (outputTabButton) {
+        outputTabButton.addEventListener('shown.bs.tab', () => {
+            if (outputObjectUrl || !selectedServerFileName) {
+                return;
+            }
+
+            const selectedItem = uploadedHistory.find(
+                (item) => item.serverFileName === selectedServerFileName
+            );
+            if (selectedItem && selectedItem.outputUrl) {
+                void loadExistingOutputVideo(selectedItem.outputUrl);
+            }
+        });
+    }
+
     dropZone.addEventListener('click', () => {
         fileInput.click();
     });

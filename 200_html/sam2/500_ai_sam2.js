@@ -1382,7 +1382,12 @@
             return;
         }
 
-        uploadedListElement.innerHTML = '';
+        uploadedListElement.querySelectorAll('li[data-uploaded-history-item="true"]').forEach((item) => {
+            item.remove();
+        });
+        uploadedListElement.querySelectorAll('#sam2-uploaded-empty').forEach((item) => {
+            item.remove();
+        });
 
         if (uploadedHistory.length === 0) {
             if (isUploadedListLoading) {
@@ -1399,6 +1404,7 @@
         for (const item of uploadedHistory) {
             const li = document.createElement('li');
             li.className = 'list-group-item small';
+            li.dataset.uploadedHistoryItem = 'true';
             li.addEventListener('contextmenu', (event) => {
                 event.preventDefault();
                 event.stopPropagation();

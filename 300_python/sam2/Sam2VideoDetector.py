@@ -575,7 +575,7 @@ class Sam2VideoDetector:
 
         high_score_threshold = max(
             0.5,
-            float(np.percentile(smoothed_values, 75.0)) - 0.1,
+            float(np.percentile(smoothed_values, 75.0)) - 0.2,
         )
         candidate_indices = np.flatnonzero(smoothed_values >= high_score_threshold)
         if len(candidate_indices) == 0:
@@ -768,7 +768,7 @@ class Sam2VideoDetector:
             1.0,
             chart_y2,
             chart_y2 - chart_y1,
-            2,
+            3,
         )
         if peak_start is not None and peak_last is not None:
             peak_end = peak_last + 1
@@ -803,7 +803,7 @@ class Sam2VideoDetector:
                     1.0,
                     chart_y2,
                     chart_y2 - chart_y1,
-                    3,
+                    2,
                 )
             plateau_layer = canvas.copy()
             self._chart_renderer._draw_chart_series(
@@ -818,7 +818,7 @@ class Sam2VideoDetector:
                 1.0,
                 chart_y2,
                 chart_y2 - chart_y1,
-                3,
+                1,
             )
             cv2.addWeighted(plateau_layer, 0.3, canvas, 0.7, 0.0, canvas)
 

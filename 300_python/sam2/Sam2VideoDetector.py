@@ -774,7 +774,7 @@ class Sam2VideoDetector:
             1.0,
             chart_y2,
             chart_y2 - chart_y1,
-            2,
+            1,
         )
         self._chart_renderer._draw_chart_series(
             canvas,

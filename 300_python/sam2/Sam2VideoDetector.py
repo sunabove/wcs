@@ -602,7 +602,15 @@ class Sam2VideoDetector:
                 candidates.append((plateau_start, plateau_end))
 
         if not candidates:
-            return None, None
+            fallback_start = min(
+                range(len(values) - 1),
+                key=lambda index: (
+                    -float(np.mean(smoothed_values[index:index + 2])),
+                    float(np.ptp(smoothed_values[index:index + 2])),
+                    index,
+                ),
+            )
+            return fallback_start, fallback_start + 1
 
         # The first plateau is defined by temporal order, not by the highest Score.
         return candidates[0]

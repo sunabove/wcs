@@ -583,18 +583,6 @@ class Sam2VideoDetector:
             - float(np.min(values[peak_start:peak_end + 2])) <= plateau_tolerance
         ):
             peak_end += 1
-
-        # Exclude monotonic rising/falling edges from the highlighted plateau.
-        while peak_start < peak_index:
-            edge_differences = np.diff(values[peak_start:peak_index + 1])
-            if len(edge_differences) == 0 or edge_differences[0] <= 0:
-                break
-            peak_start += 1
-        while peak_end > peak_index:
-            edge_differences = np.diff(values[peak_index:peak_end + 1])
-            if len(edge_differences) == 0 or edge_differences[-1] >= 0:
-                break
-            peak_end -= 1
         return peak_start, peak_end
 
     def _render_score_chart(self, frame, score_history, iou_history, frame_number, total_frames):

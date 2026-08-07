@@ -1248,13 +1248,24 @@
         }
     }
 
-    async function previewSelectedVideoFirstFrame(showInputTab) {
+    async function previewSelectedVideoFirstFrame(showInputTab, inputPath) {
         if (!selectedServerFileName) {
             return;
         }
 
+        if (showInputTab) {
+            const inputTabButton = document.getElementById('sam2-input-tab');
+            if (inputTabButton) {
+                if (window.bootstrap && typeof window.bootstrap.Tab === 'function') {
+                    window.bootstrap.Tab.getOrCreateInstance(inputTabButton).show();
+                } else {
+                    inputTabButton.click();
+                }
+            }
+        }
+
         const apiBase = await resolveApiBase();
-        const inputPathUrl = `/fast/image/${selectedServerFileName}`;
+        const inputPathUrl = String(inputPath || '').trim() || `/fast/image/${selectedServerFileName}`;
         const inputUrl = await resolvePlayableVideoUrl(apiBase, inputPathUrl, true);
         await assignVideoSource(inputVideoElement, inputUrl, 'input');
         inputVideoElement.pause();
@@ -1266,14 +1277,6 @@
             return;
         }
 
-        const inputTabButton = document.getElementById('sam2-input-tab');
-        if (inputTabButton) {
-            if (window.bootstrap && typeof window.bootstrap.Tab === 'function') {
-                window.bootstrap.Tab.getOrCreateInstance(inputTabButton).show();
-            } else {
-                inputTabButton.click();
-            }
-        }
     }
 
     function stopCurrentOutputPlayback() {
@@ -1470,9 +1473,10 @@
                 clearBoundingBox();
 
                 try {
-                    await previewSelectedVideoFirstFrame(true);
-                } catch (_ignore) {
-                    // Keep selection behavior even when preview loading fails.
+                    await previewSelectedVideoFirstFrame(true, item.inputUrl);
+                } catch (error) {
+                    const message = error && error.message ? error.message : '원본 영상 로드 실패';
+                    setStatus(`원본 영상 로드 실패: ${message}`, 'warning');
                 }
 
                 await loadVideoOptions(selectedServerFileName);
@@ -1719,6 +1723,7 @@
                 thumbnailUrl: '',
                 thumbnailSource: buildThumbnailUrl(apiBase, item.file_name),
                 serverFileName: String(item.file_name || ''),
+                inputUrl: String(item.input_url || ''),
                 outputUrl: String(item.output_url || ''),
             }));
 
@@ -1751,9 +1756,10 @@
                     clearAllPoints();
                     clearBoundingBox();
                     try {
-                        await previewSelectedVideoFirstFrame(true);
-                    } catch (_ignore) {
-                        // Keep the selected video even when preview loading fails.
+                        await previewSelectedVideoFirstFrame(true, matchedSelected.inputUrl);
+                    } catch (error) {
+                        const message = error && error.message ? error.message : '원본 영상 로드 실패';
+                        setStatus(`원본 영상 로드 실패: ${message}`, 'warning');
                     }
                     await loadVideoOptions(selectedServerFileName);
                     const hasExistingOutput = await loadExistingOutputVideo(matchedSelected.outputUrl);

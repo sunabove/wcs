@@ -13,6 +13,7 @@ from pathlib import Path
 from fastapi import HTTPException, UploadFile
 
 from config import BASE_DIR
+from send_image import get_browser_playable_video_url
 from sam2.Sam2VideoConfig import (
     SAM2_DEFAULT_MODEL,
     SAM2_OUTPUT_DIR,
@@ -410,6 +411,7 @@ class Sam2VideoService:
     def upload_video_only(self, upload_file: UploadFile):
         input_path = self._save_uploaded_video(upload_file)
         relative = self._to_relative_under_base(input_path)
+        playable_result = get_browser_playable_video_url(relative, force_transcode=True)
 
         return {
             "file_name": relative,
@@ -417,6 +419,7 @@ class Sam2VideoService:
             "size": int(input_path.stat().st_size),
             "uploaded_at": datetime.fromtimestamp(input_path.stat().st_mtime).isoformat(timespec="seconds"),
             "input_url": f"/fast/image/{relative}",
+            "playable_url": playable_result["video_url"],
             "thumbnail_url": f"/fast/video_thumbnail/{relative}",
         }
 
@@ -466,6 +469,7 @@ class Sam2VideoService:
             stat = path.stat()
             relative = self._to_relative_under_base(path)
             output_path = SAM2_OUTPUT_DIR / f"{path.stem}.mp4"
+            playable_path = path.with_name(f"{path.stem}.playable.mp4")
             items.append(
                 {
                     "file_name": relative,
@@ -473,6 +477,11 @@ class Sam2VideoService:
                     "size": int(stat.st_size),
                     "uploaded_at": datetime.fromtimestamp(stat.st_mtime).isoformat(timespec="seconds"),
                     "input_url": f"/fast/image/{relative}",
+                    "playable_url": (
+                        f"/fast/image/{self._to_relative_under_base(playable_path)}"
+                        if playable_path.is_file()
+                        else ""
+                    ),
                     "thumbnail_url": f"/fast/video_thumbnail/{relative}",
                     "output_url": (
                         f"/fast/image/{self._to_relative_under_base(output_path)}"

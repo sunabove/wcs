@@ -138,7 +138,7 @@ class Sam2VideoDetector:
             writer.release()
         return None
 
-    def _prepare_video_for_inference(self, input_path: Path, job_id: str):
+    def _prepare_video_for_inference(self, input_path: Path, input_file_stem: str):
         capture = cv2.VideoCapture(str(input_path))
         if not capture.isOpened():
             raise RuntimeError("Failed to open uploaded video")
@@ -186,7 +186,7 @@ class Sam2VideoDetector:
                 }
 
             SAM2_UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
-            optimized_path = SAM2_UPLOAD_DIR / f"_{job_id}.sam2_optimized.mp4"
+            optimized_path = SAM2_UPLOAD_DIR / f"_{input_file_stem}.sam2_optimized.mp4"
             writer = self._create_video_writer(optimized_path, target_fps, dst_width, dst_height)
             if writer is None:
                 raise RuntimeError("Failed to create optimized inference video")
@@ -1046,10 +1046,10 @@ class Sam2VideoDetector:
         if not resolved_input.exists() or not resolved_input.is_file():
             raise FileNotFoundError(f"Input video not found: {resolved_input}")
 
-        job_id = resolved_input.stem
-        output_path = SAM2_OUTPUT_DIR / f"{job_id}_segmented.mp4"
+        input_file_stem = resolved_input.stem
+        output_path = SAM2_OUTPUT_DIR / f"{input_file_stem}_segmented.mp4"
 
-        prepared = self._prepare_video_for_inference(resolved_input, job_id)
+        prepared = self._prepare_video_for_inference(resolved_input, input_file_stem)
         prepared_path = Path(prepared["path"])
         capture = cv2.VideoCapture(str(prepared_path))
         if not capture.isOpened():
@@ -1076,8 +1076,8 @@ class Sam2VideoDetector:
                 "h": 100.0,
             }
 
-        temporary_output_path = SAM2_OUTPUT_DIR / f"_{job_id}.sam2_overlay.mp4"
-        dataset_root = SAM2_OUTPUT_DIR / "yolo" / f"{job_id}_yolo_dataset"
+        temporary_output_path = SAM2_OUTPUT_DIR / f"_{input_file_stem}.sam2_overlay.mp4"
+        dataset_root = SAM2_OUTPUT_DIR / "yolo" / f"{input_file_stem}_yolo_dataset"
         overlay_writer = self._create_video_writer(temporary_output_path, fps, width, height)
         if overlay_writer is None:
             capture.release()
@@ -1248,7 +1248,7 @@ class Sam2VideoDetector:
 
         elapsed_sec = round(time.time() - start_time, 3)
         return {
-            "job_id": job_id,
+            "job_id": input_file_stem,
             "model": str(model_name or SAM2_DEFAULT_MODEL),
             "processed_frames": tracked_frames,
             "input_total_frames": total_frames,

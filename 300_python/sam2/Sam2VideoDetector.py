@@ -945,6 +945,7 @@ class Sam2VideoDetector:
         self,
         source_video_path: Path,
         output_root: Path,
+        input_file_stem: str,
         score_history,
         mask_history,
         detection_threshold,
@@ -981,7 +982,7 @@ class Sam2VideoDetector:
                 if qualifies:
                     labels = self._build_yolo_segmentation_labels(mask_history[frame_index])
                     if labels:
-                        stem = f"frame_{frame_index:06d}"
+                        stem = f"{input_file_stem}_{frame_index:06d}"
                         image_path = images_dir / f"{stem}.jpg"
                         label_path = labels_dir / f"{stem}.txt"
                         if not cv2.imwrite(str(image_path), frame):
@@ -1176,6 +1177,7 @@ class Sam2VideoDetector:
             dataset_result = self._export_yolo_dataset(
                 source_video_path=temporary_output_path,
                 output_root=dataset_root,
+                input_file_stem=input_file_stem,
                 score_history=score_history,
                 mask_history=mask_history,
                 detection_threshold=detection_threshold,

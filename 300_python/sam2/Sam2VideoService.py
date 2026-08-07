@@ -465,6 +465,7 @@ class Sam2VideoService:
 
             stat = path.stat()
             relative = self._to_relative_under_base(path)
+            output_path = SAM2_OUTPUT_DIR / f"{path.stem}.mp4"
             items.append(
                 {
                     "file_name": relative,
@@ -473,6 +474,11 @@ class Sam2VideoService:
                     "uploaded_at": datetime.fromtimestamp(stat.st_mtime).isoformat(timespec="seconds"),
                     "input_url": f"/fast/image/{relative}",
                     "thumbnail_url": f"/fast/video_thumbnail/{relative}",
+                    "output_url": (
+                        f"/fast/image/{self._to_relative_under_base(output_path)}"
+                        if output_path.is_file()
+                        else ""
+                    ),
                 }
             )
 

@@ -548,6 +548,35 @@ class Sam2VideoDetector:
             if has_steep_rise and has_steep_fall:
                 return raw_peak_index
 
+        # A broad or plateau-shaped peak can satisfy the prominence check while
+        # failing the steep-slope check. Use the highest observed score as a
+        # fallback once there are samples on both sides of it.
+        fallback_index = int(np.argmax(values))
+        if 1 <= fallback_index < len(values) - 1:
+            left_value = float(np.mean(values[max(0, fallback_index - 2):fallback_index]))
+            right_value = float(np.mean(values[fallback_index + 1:min(len(values), fallback_index + 3)]))
+            peak_value = float(values[fallback_index])
+            if (
+                peak_value - left_value >= change_threshold
+                and peak_value - right_value >= change_threshold
+            ):
+                return fallback_index
+
+        peak_tolerance = max(0.002, change_threshold * 0.4)
+        peak_indices = np.flatnonzero(values >= (float(np.max(values)) - peak_tolerance))
+        if len(peak_indices) >= 2:
+            plateau_end = int(peak_indices[-1])
+            if 1 <= plateau_end < len(values) - 1:
+                plateau_start = int(peak_indices[0])
+                left_value = float(np.mean(values[max(0, plateau_start - 2):plateau_start]))
+                right_value = float(np.mean(values[plateau_end + 1:min(len(values), plateau_end + 3)]))
+                peak_value = float(np.max(values))
+                if (
+                    peak_value - left_value >= change_threshold
+                    and peak_value - right_value >= peak_tolerance
+                ):
+                    return (plateau_start + plateau_end) // 2
+
         return None
 
     def _render_score_chart(self, frame, score_history, iou_history, frame_number, total_frames):

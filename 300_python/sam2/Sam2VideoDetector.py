@@ -784,7 +784,7 @@ class Sam2VideoDetector:
             1.0,
             chart_y2,
             chart_y2 - chart_y1,
-            3,
+            2,
         )
         if peak_start is not None and peak_last is not None:
             peak_end = peak_last + 1
@@ -803,12 +803,13 @@ class Sam2VideoDetector:
                 1,
                 cv2.LINE_AA,
             )
+            threshold_layer = canvas.copy()
             for region_start, region_end in self._get_score_threshold_regions(
                 score_values,
                 first_peak_minimum,
             ):
                 self._chart_renderer._draw_chart_series(
-                    canvas,
+                    threshold_layer,
                     x_values[region_start:region_end],
                     score_values[region_start:region_end],
                     (0, 165, 255),
@@ -821,8 +822,10 @@ class Sam2VideoDetector:
                     chart_y2 - chart_y1,
                     2,
                 )
+            cv2.addWeighted(threshold_layer, 0.65, canvas, 0.35, 0.0, canvas)
+            plateau_layer = canvas.copy()
             self._chart_renderer._draw_chart_series(
-                canvas,
+                plateau_layer,
                 x_values[peak_start:peak_end],
                 score_values[peak_start:peak_end],
                 (80, 80, 255),
@@ -833,8 +836,9 @@ class Sam2VideoDetector:
                 1.0,
                 chart_y2,
                 chart_y2 - chart_y1,
-                1,
+                2,
             )
+            cv2.addWeighted(plateau_layer, 0.35, canvas, 0.65, 0.0, canvas)
 
         cv2.putText(
             canvas,

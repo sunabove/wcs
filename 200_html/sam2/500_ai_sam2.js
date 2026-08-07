@@ -1267,7 +1267,7 @@
         const apiBase = await resolveApiBase();
         const inputPathUrl = String(inputPath || '').trim() || `/fast/image/${selectedServerFileName}`;
         try {
-            const inputUrl = await resolvePlayableVideoUrl(apiBase, inputPathUrl, true);
+            const inputUrl = await resolvePlayableVideoUrl(apiBase, inputPathUrl, false);
             await assignInputVideoSource(inputVideoElement, inputUrl);
         } catch (playableError) {
             const directInputUrl = buildAbsoluteUrl(apiBase, inputPathUrl);

@@ -4,7 +4,6 @@ import os
 import shutil
 import sys
 import time
-import uuid
 import zipfile
 from pathlib import Path
 
@@ -1047,7 +1046,7 @@ class Sam2VideoDetector:
         if not resolved_input.exists() or not resolved_input.is_file():
             raise FileNotFoundError(f"Input video not found: {resolved_input}")
 
-        job_id = f"{int(time.time() * 1000)}_{uuid.uuid4().hex[:8]}"
+        job_id = resolved_input.stem
         output_path = SAM2_OUTPUT_DIR / f"{job_id}_segmented.mp4"
 
         prepared = self._prepare_video_for_inference(resolved_input, job_id)
@@ -1078,7 +1077,7 @@ class Sam2VideoDetector:
             }
 
         temporary_output_path = SAM2_OUTPUT_DIR / f"_{job_id}.sam2_overlay.mp4"
-        dataset_root = SAM2_OUTPUT_DIR / f"{job_id}_yolo_dataset"
+        dataset_root = SAM2_OUTPUT_DIR / "yolo" / f"{job_id}_yolo_dataset"
         overlay_writer = self._create_video_writer(temporary_output_path, fps, width, height)
         if overlay_writer is None:
             capture.release()

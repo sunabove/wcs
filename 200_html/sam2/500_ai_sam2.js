@@ -49,11 +49,14 @@
     const inputVideoElement = document.getElementById('sam2-input-video');
     const outputVideoElement = document.getElementById('sam2-output-video');
     const outputDownloadButton = document.getElementById('sam2-output-download');
+    const yoloDatasetDownloadButton = document.getElementById('sam2-yolo-dataset-download');
+    const yoloDatasetSummaryElement = document.getElementById('sam2-yolo-dataset-summary');
 
     let selectedFile = null;
     let resolvedApiBase = null;
     let inputObjectUrl = '';
     let outputObjectUrl = '';
+    let yoloDatasetUrl = '';
     let uploadedHistory = [];
     let selectedServerFileName = '';
     let highlightedServerFileName = '';
@@ -438,6 +441,24 @@
         if (outputDownloadButton) {
             outputDownloadButton.disabled = !outputObjectUrl;
         }
+        if (yoloDatasetDownloadButton) {
+            yoloDatasetDownloadButton.disabled = !yoloDatasetUrl;
+        }
+    }
+
+    function downloadYoloDataset() {
+        if (!yoloDatasetUrl) {
+            setStatus('먼저 기준 스코어 이상인 YOLO 학습 데이터를 생성하세요.', 'warning');
+            return;
+        }
+
+        const downloadLink = document.createElement('a');
+        downloadLink.href = yoloDatasetUrl;
+        downloadLink.download = 'sam2_yolo_dataset.zip';
+        document.body.appendChild(downloadLink);
+        downloadLink.click();
+        downloadLink.remove();
+        setStatus('YOLO 학습 데이터 다운로드를 시작했습니다.', 'success');
     }
 
     function buildOutputDownloadFileName() {
@@ -1165,6 +1186,10 @@
             URL.revokeObjectURL(outputObjectUrl);
             outputObjectUrl = '';
         }
+        yoloDatasetUrl = '';
+        if (yoloDatasetSummaryElement) {
+            yoloDatasetSummaryElement.textContent = 'YOLO 학습 데이터 대기 중';
+        }
         updateOutputDownloadState();
     }
 
@@ -1889,6 +1914,17 @@
 
             const inputUrl = await resolvePlayableVideoUrl(apiBase, result.input_url, true);
             const outputUrl = await resolvePlayableVideoUrl(apiBase, result.output_url, true);
+            yoloDatasetUrl = result.yolo_dataset_url
+                ? `${apiBase}${result.yolo_dataset_url}`
+                : '';
+            if (yoloDatasetSummaryElement) {
+                const imageCount = Number(result.yolo_dataset_image_count || 0);
+                const labelCount = Number(result.yolo_dataset_label_count || 0);
+                yoloDatasetSummaryElement.textContent = yoloDatasetUrl
+                    ? `서버 저장: 이미지 ${imageCount}장, 세그먼트 ${labelCount}개`
+                    : '기준 스코어 이상인 학습 데이터가 없습니다.';
+            }
+            updateOutputDownloadState();
 
             await assignVideoSource(inputVideoElement, inputUrl, 'input');
             await assignVideoSource(outputVideoElement, outputUrl, 'output');
@@ -2000,6 +2036,9 @@
     detectButton.addEventListener('click', runSam2Segment);
     if (outputDownloadButton) {
         outputDownloadButton.addEventListener('click', downloadDetectedVideo);
+    }
+    if (yoloDatasetDownloadButton) {
+        yoloDatasetDownloadButton.addEventListener('click', downloadYoloDataset);
     }
     function setPointMode(mode) {
         if (!hasSelectedVideo()) {

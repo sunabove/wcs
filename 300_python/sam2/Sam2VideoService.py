@@ -373,6 +373,7 @@ class Sam2VideoService:
         point_labels: str = "",
         multimask_output: bool = False,
         mask_input: bool = True,
+        clahe: bool = False,
     ):
         input_path = self._save_uploaded_video(upload_file)
         resolved_model_name = self._resolve_model_name(model_name)

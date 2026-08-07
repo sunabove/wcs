@@ -94,6 +94,14 @@
     let maxUploadBytes = DEFAULT_MAX_UPLOAD_BYTES;
     let maxUploadConfiguredValue = '1g';
 
+    function debugSam2(message, details) {
+        if (details === undefined) {
+            console.debug(`[SAM2] ${message}`);
+        } else {
+            console.debug(`[SAM2] ${message}`, details);
+        }
+    }
+
     function setStatus(message, type) {
         const alertType = type || 'secondary';
         statusElement.classList.remove(
@@ -1250,8 +1258,15 @@
 
     async function previewSelectedVideoFirstFrame(showInputTab, inputPath) {
         if (!selectedServerFileName) {
+            debugSam2('원본 영상 미리보기 건너뜀: 선택된 서버 파일 없음');
             return;
         }
+
+        debugSam2('원본 영상 미리보기 시작', {
+            selectedServerFileName,
+            inputPath: String(inputPath || ''),
+            showInputTab: Boolean(showInputTab),
+        });
 
         if (showInputTab) {
             const inputTabButton = document.getElementById('sam2-input-tab');
@@ -1266,14 +1281,40 @@
 
         const apiBase = await resolveApiBase();
         const inputPathUrl = String(inputPath || '').trim() || `/fast/image/${selectedServerFileName}`;
+        debugSam2('원본 영상 URL 확인', { apiBase, inputPathUrl });
         try {
             const inputUrl = await resolvePlayableVideoUrl(apiBase, inputPathUrl, false);
+            debugSam2('원본 재생 URL 확인 완료', { inputUrl });
             await assignInputVideoSource(inputVideoElement, inputUrl);
+            debugSam2('원본 영상 source 연결 완료', {
+                src: inputVideoElement.currentSrc || inputVideoElement.src,
+                readyState: inputVideoElement.readyState,
+                networkState: inputVideoElement.networkState,
+                duration: inputVideoElement.duration,
+            });
         } catch (playableError) {
             const directInputUrl = buildAbsoluteUrl(apiBase, inputPathUrl);
+            console.warn('[SAM2] 재생 URL 로드 실패, 원본 URL fallback 시도', {
+                error: playableError,
+                directInputUrl,
+            });
             try {
                 await assignInputVideoSource(inputVideoElement, directInputUrl);
+                debugSam2('원본 URL fallback 연결 완료', {
+                    src: inputVideoElement.currentSrc || inputVideoElement.src,
+                    readyState: inputVideoElement.readyState,
+                    networkState: inputVideoElement.networkState,
+                    duration: inputVideoElement.duration,
+                });
             } catch (_directError) {
+                console.error('[SAM2] 원본 영상 URL과 fallback 모두 로드 실패', {
+                    playableError,
+                    directError: _directError,
+                    mediaError: inputVideoElement.error,
+                    src: inputVideoElement.currentSrc || inputVideoElement.src,
+                    readyState: inputVideoElement.readyState,
+                    networkState: inputVideoElement.networkState,
+                });
                 throw playableError;
             }
         }

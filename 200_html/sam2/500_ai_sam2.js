@@ -1266,8 +1266,17 @@
 
         const apiBase = await resolveApiBase();
         const inputPathUrl = String(inputPath || '').trim() || `/fast/image/${selectedServerFileName}`;
-        const inputUrl = await resolvePlayableVideoUrl(apiBase, inputPathUrl, true);
-        await assignVideoSource(inputVideoElement, inputUrl, 'input');
+        try {
+            const inputUrl = await resolvePlayableVideoUrl(apiBase, inputPathUrl, true);
+            await assignVideoSource(inputVideoElement, inputUrl, 'input');
+        } catch (playableError) {
+            const directInputUrl = buildAbsoluteUrl(apiBase, inputPathUrl);
+            try {
+                await assignVideoSource(inputVideoElement, directInputUrl, 'input');
+            } catch (_directError) {
+                throw playableError;
+            }
+        }
         inputVideoElement.pause();
         inputVideoElement.currentTime = 0;
         ensureDefaultBoundingBox();

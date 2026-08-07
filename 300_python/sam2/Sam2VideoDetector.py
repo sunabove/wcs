@@ -581,8 +581,8 @@ class Sam2VideoDetector:
         if len(candidate_indices) == 0:
             return None, None
 
-        minimum_plateau_length = max(2, min(5, int(np.ceil(len(values) * 0.05))))
-        stability_tolerance = 0.15
+        minimum_plateau_length = 2
+        stability_tolerance = 0.2
         candidates = []
         plateau_start = int(candidate_indices[0])
         plateau_end = plateau_start

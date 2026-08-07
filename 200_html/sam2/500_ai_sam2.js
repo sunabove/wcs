@@ -1582,9 +1582,15 @@
                 }
 
                 await loadVideoOptions(selectedServerFileName);
+                const hasExistingOutput = await loadExistingOutputVideo(item.outputUrl);
 
                 renderUploadedHistory();
-                setStatus(`선택됨: ${item.name} (검출 버튼을 눌러 실행)`, 'secondary');
+                setStatus(
+                    hasExistingOutput
+                        ? `선택됨: ${item.name} (기존 검출 영상 표시)`
+                        : `선택됨: ${item.name} (검출 버튼을 눌러 실행)`,
+                    'secondary'
+                );
             });
 
             row.addEventListener('contextmenu', (event) => {

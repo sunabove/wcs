@@ -2160,7 +2160,7 @@
 
             await loadUploadedHistoryFromServer();
             try {
-                await previewSelectedVideoFirstFrame(false);
+                await previewSelectedVideoFirstFrame(true);
             } catch (_ignore) {
                 // Keep successful upload flow even if preview fails.
             }

@@ -527,7 +527,8 @@ class Sam2VideoDetector:
             plateau_end = plateau_start
             while (
                 plateau_end + 1 < len(smoothed_values)
-                and abs(float(smoothed_values[plateau_end + 1]) - float(smoothed_values[plateau_end]))
+                and float(np.max(smoothed_values[plateau_start:plateau_end + 2]))
+                - float(np.min(smoothed_values[plateau_start:plateau_end + 2]))
                 <= plateau_change_limit
             ):
                 plateau_end += 1
@@ -555,21 +556,17 @@ class Sam2VideoDetector:
             return None, None
 
         peak_index = max(0, min(len(values) - 1, int(peak_index)))
-        peak_value = float(values[peak_index])
-        plateau_tolerance = 0.1
-        plateau_slope_limit = 0.2
+        plateau_tolerance = 0.2
         peak_start = peak_index
         peak_end = peak_index
         while (
             peak_start > 0
-            and abs(float(values[peak_start]) - float(values[peak_start - 1])) <= plateau_slope_limit
             and float(np.max(values[peak_start - 1:peak_end + 1]))
             - float(np.min(values[peak_start - 1:peak_end + 1])) <= plateau_tolerance
         ):
             peak_start -= 1
         while (
             peak_end + 1 < len(values)
-            and abs(float(values[peak_end + 1]) - float(values[peak_end])) <= plateau_slope_limit
             and float(np.max(values[peak_start:peak_end + 2]))
             - float(np.min(values[peak_start:peak_end + 2])) <= plateau_tolerance
         ):
@@ -581,14 +578,12 @@ class Sam2VideoDetector:
         if len(values) == 0 or peak_start is None or peak_start <= 1:
             return None, None
 
-        plateau_slope_limit = 0.2
-        plateau_tolerance = 0.1
+        plateau_tolerance = 0.2
         plateau_end = int(peak_start) - 1
         while plateau_end >= 1:
             plateau_start = plateau_end
             while (
                 plateau_start > 0
-                and abs(float(values[plateau_start]) - float(values[plateau_start - 1])) <= plateau_slope_limit
                 and float(np.max(values[plateau_start:plateau_end + 1]))
                 - float(np.min(values[plateau_start:plateau_end + 1])) <= plateau_tolerance
             ):

@@ -809,8 +809,11 @@
         }
 
         const point = toRelativePoint(event);
+        if (!isPointInsideBoundingBox(point)) {
+            return;
+        }
         const index = findPointIndexAtPosition(point);
-        if (index < 0) {
+        if (index < 0 || !isPointInsideBoundingBox(point)) {
             return;
         }
 
@@ -833,12 +836,13 @@
             return;
         }
 
+        const boundedPoint = clampPointToBoundingBox(point);
         pointDragging = true;
         suppressPointClick = true;
         positivePoints[pointDragIndex] = {
             ...positivePoints[pointDragIndex],
-            x: point.x,
-            y: point.y,
+            x: boundedPoint.x,
+            y: boundedPoint.y,
         };
         renderPointUi();
     }
@@ -865,6 +869,10 @@
         }
         const point = toRelativePoint(event);
         if (!point) {
+            return;
+        }
+        if (!isPointInsideBoundingBox(point)) {
+            setStatus('BBox 내부에서만 Point를 입력할 수 있습니다.', 'warning');
             return;
         }
         point.label = detectionMode === 'background' ? 0 : 1;
@@ -929,6 +937,34 @@
             y: 0,
             w: 100,
             h: 100,
+        };
+    }
+
+    function isPointInsideBoundingBox(point) {
+        if (!point) {
+            return false;
+        }
+
+        const box = boundingBox || createFullBoundingBox();
+        const left = toNumber(box.x, 0);
+        const top = toNumber(box.y, 0);
+        const right = left + toNumber(box.w, 0);
+        const bottom = top + toNumber(box.h, 0);
+        return point.x >= left
+            && point.x <= right
+            && point.y >= top
+            && point.y <= bottom;
+    }
+
+    function clampPointToBoundingBox(point) {
+        if (!point) {
+            return null;
+        }
+
+        const box = boundingBox || createFullBoundingBox();
+        return {
+            x: clamp(point.x, toNumber(box.x, 0), toNumber(box.x, 0) + toNumber(box.w, 0)),
+            y: clamp(point.y, toNumber(box.y, 0), toNumber(box.y, 0) + toNumber(box.h, 0)),
         };
     }
 

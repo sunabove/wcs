@@ -521,9 +521,9 @@ class Sam2VideoDetector:
         ])
         raw_differences = np.diff(values)
         noise_level = float(np.median(np.abs(raw_differences - np.median(raw_differences))))
-        change_threshold = max(0.008, min(0.02, noise_level * 0.75))
-        minimum_rise_slope = max(0.06, min(0.08, noise_level * 2.0))
-        minimum_fall_slope = max(0.04, min(0.045, noise_level * 1.2))
+        change_threshold = max(0.003, min(0.02, noise_level * 0.75))
+        minimum_rise_slope = max(0.005, min(0.06, noise_level * 2.0))
+        minimum_fall_slope = max(0.005, min(0.04, noise_level * 1.2))
         slope_window = 4
 
         for smoothed_index in range(2, len(smoothed_values) - 2):

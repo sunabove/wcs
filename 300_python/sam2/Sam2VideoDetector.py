@@ -526,6 +526,45 @@ class Sam2VideoDetector:
         minimum_fall_slope = max(0.04, min(0.045, noise_level * 1.2))
         slope_window = 4
 
+        # Prefer the first nearly-flat score run over a later, taller peak.
+        # Small frame-to-frame changes inside this run are not meaningful.
+        plateau_slope_limit = 0.04
+        plateau_min_length = 2
+        for plateau_start in range(1, len(smoothed_values) - plateau_min_length):
+            plateau_end = plateau_start
+            while (
+                plateau_end + 1 < len(smoothed_values)
+                and abs(float(smoothed_values[plateau_end + 1]) - float(smoothed_values[plateau_end])) <= plateau_slope_limit
+                and float(np.max(smoothed_values[plateau_start:plateau_end + 2]))
+                - float(np.min(smoothed_values[plateau_start:plateau_end + 2])) <= 0.15
+            ):
+                plateau_end += 1
+
+            if plateau_end - plateau_start + 1 < plateau_min_length:
+                continue
+
+            raw_start = plateau_start + smoothing_radius
+            raw_end = plateau_end + smoothing_radius
+            rise_start = max(0, raw_start - slope_window)
+            rise_end = min(raw_start, len(raw_differences))
+            fall_start = min(raw_end + 1, len(raw_differences))
+            fall_end = min(raw_end + slope_window + 1, len(raw_differences))
+            if rise_end <= rise_start or fall_end <= fall_start:
+                continue
+
+            rise_values = raw_differences[rise_start:rise_end]
+            fall_values = raw_differences[fall_start:fall_end]
+            left_value = float(np.mean(smoothed_values[max(0, plateau_start - 2):plateau_start]))
+            right_value = float(np.mean(smoothed_values[plateau_end + 1:min(len(smoothed_values), plateau_end + 3)]))
+            plateau_value = float(np.mean(smoothed_values[plateau_start:plateau_end + 1]))
+            if (
+                plateau_value - left_value >= change_threshold * 0.75
+                and plateau_value - right_value >= change_threshold * 0.75
+                and float(np.max(rise_values)) >= minimum_rise_slope
+                and float(np.min(fall_values)) <= -minimum_fall_slope
+            ):
+                return ((plateau_start + plateau_end) // 2) + smoothing_radius
+
         def has_steep_plateau_edges(plateau_start, plateau_end):
             raw_start = plateau_start + smoothing_radius
             raw_end = plateau_end + smoothing_radius

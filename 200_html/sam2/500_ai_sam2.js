@@ -49,7 +49,7 @@
     const inputVideoElement = document.getElementById('sam2-input-video');
     const outputVideoElement = document.getElementById('sam2-output-video');
     const outputDownloadButton = document.getElementById('sam2-output-download');
-    const yoloDatasetDownloadButton = document.getElementById('sam2-yolo-dataset-download');
+    document.getElementById('sam2-yolo-dataset-download')?.remove();
     const yoloDatasetSummaryElement = document.getElementById('sam2-yolo-dataset-summary');
 
     let selectedFile = null;
@@ -502,18 +502,12 @@
         yoloConvertButton = document.getElementById('sam2-yolo-convert');
         yoloDatasetTabSummaryElement = document.getElementById('sam2-yolo-tab-summary');
         const yoloTabActions = tabPane.querySelector('.d-flex');
-        if (yoloTabActions && yoloDatasetDownloadButton) {
-            yoloTabActions.appendChild(yoloDatasetDownloadButton);
-        }
         yoloConvertButton?.addEventListener('click', convertYoloDataset);
     }
 
     function updateOutputDownloadState() {
         if (outputDownloadButton) {
             outputDownloadButton.disabled = !outputObjectUrl;
-        }
-        if (yoloDatasetDownloadButton) {
-            yoloDatasetDownloadButton.disabled = !yoloDatasetUrl;
         }
         if (yoloConvertButton) {
             yoloConvertButton.disabled = !yoloConversionAvailable;
@@ -572,21 +566,6 @@
             updateOutputDownloadState();
             setStatus(error && error.message ? error.message : 'YOLO 변환에 실패했습니다.', 'danger');
         }
-    }
-
-    function downloadYoloDataset() {
-        if (!yoloDatasetUrl) {
-            setStatus('먼저 기준 스코어 이상인 YOLO 학습 데이터를 생성하세요.', 'warning');
-            return;
-        }
-
-        const downloadLink = document.createElement('a');
-        downloadLink.href = yoloDatasetUrl;
-        downloadLink.download = 'sam2_yolo_dataset.zip';
-        document.body.appendChild(downloadLink);
-        downloadLink.click();
-        downloadLink.remove();
-        setStatus('YOLO 학습 데이터 다운로드를 시작했습니다.', 'success');
     }
 
     function buildOutputDownloadFileName() {
@@ -2489,9 +2468,6 @@
     detectButton.addEventListener('click', runSam2Segment);
     if (outputDownloadButton) {
         outputDownloadButton.addEventListener('click', downloadDetectedVideo);
-    }
-    if (yoloDatasetDownloadButton) {
-        yoloDatasetDownloadButton.addEventListener('click', downloadYoloDataset);
     }
     function setPointMode(mode) {
         if (!hasSelectedVideo()) {

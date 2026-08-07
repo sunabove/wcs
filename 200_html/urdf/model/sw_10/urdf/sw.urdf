@@ -249,7 +249,7 @@
     <visual>
       <origin xyz="0 0 0" rpy="0 0 0" />
       <geometry>
-        <mesh filename="package://sw5/meshes/version_marker.STL" scale="0.01 0.01 0.01" />
+        <mesh filename="../meshes/version_marker.STL" scale="0.01 0.01 0.01" />
       </geometry>
       <material name="version_marker_mat">
         <color rgba="1.0 0.0 0.0 1" />
@@ -258,7 +258,7 @@
     <collision>
       <origin xyz="0 0 0" rpy="0 0 0" />
       <geometry>
-        <mesh filename="package://sw5/meshes/version_marker.STL" scale="0.01 0.01 0.01" />
+        <mesh filename="../meshes/version_marker.STL" scale="0.01 0.01 0.01" />
       </geometry>
     </collision>
   </link>

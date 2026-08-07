@@ -90,8 +90,16 @@
 .sam2-output-download-button {
     position: absolute;
     top: 0.5rem;
-    right: 0.5rem;
+    left: calc(100% + 0.5rem);
     z-index: 5;
+}
+
+@media (max-width: 700px) {
+    .sam2-output-download-button {
+        top: calc(100% + 0.5rem);
+        left: auto;
+        right: 0;
+    }
 }
 
 .sam2-video-player {

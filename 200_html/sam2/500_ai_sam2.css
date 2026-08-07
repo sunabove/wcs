@@ -92,6 +92,8 @@
     top: 0.5rem;
     left: calc(100% + 0.5rem);
     z-index: 5;
+    white-space: nowrap;
+    writing-mode: horizontal-tb;
 }
 
 @media (max-width: 700px) {

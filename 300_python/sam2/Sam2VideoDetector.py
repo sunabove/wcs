@@ -1,9 +1,11 @@
 import json
 import importlib
 import os
+import shutil
 import sys
 import time
 import uuid
+import zipfile
 from pathlib import Path
 
 import cv2
@@ -915,6 +917,116 @@ class Sam2VideoDetector:
             self._draw_bbox_score(overlay, display_bbox, score)
         return overlay
 
+    def _build_yolo_segmentation_labels(self, mask_np, min_area=4.0):
+        mask = (np.asarray(mask_np, dtype=np.uint8) > 0).astype(np.uint8) * 255
+        if mask.ndim != 2 or not np.any(mask):
+            return []
+
+        height, width = mask.shape[:2]
+        contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        labels = []
+        for contour in contours:
+            if cv2.contourArea(contour) < min_area:
+                continue
+
+            perimeter = cv2.arcLength(contour, True)
+            approximation = cv2.approxPolyDP(contour, 0.002 * perimeter, True)
+            if len(approximation) < 3:
+                continue
+
+            points = approximation.reshape(-1, 2).astype(np.float32)
+            points[:, 0] = np.clip(points[:, 0] / max(1, width), 0.0, 1.0)
+            points[:, 1] = np.clip(points[:, 1] / max(1, height), 0.0, 1.0)
+            coordinates = " ".join(f"{value:.6f}" for value in points.reshape(-1))
+            labels.append(f"0 {coordinates}")
+
+        return labels
+
+    def _export_yolo_dataset(
+        self,
+        source_video_path: Path,
+        output_root: Path,
+        score_history,
+        mask_history,
+        detection_threshold,
+    ):
+        if detection_threshold is None:
+            return None
+
+        if output_root.exists():
+            shutil.rmtree(output_root)
+        images_dir = output_root / "images" / "train"
+        labels_dir = output_root / "labels" / "train"
+        images_dir.mkdir(parents=True, exist_ok=True)
+        labels_dir.mkdir(parents=True, exist_ok=True)
+
+        capture = cv2.VideoCapture(str(source_video_path))
+        if not capture.isOpened():
+            raise RuntimeError("Failed to reopen video for YOLO dataset export")
+
+        image_count = 0
+        label_count = 0
+        frame_index = 0
+        try:
+            while True:
+                ok, frame = capture.read()
+                if not ok:
+                    break
+
+                qualifies = (
+                    frame_index < len(score_history)
+                    and float(score_history[frame_index]) >= float(detection_threshold)
+                    and frame_index < len(mask_history)
+                    and mask_history[frame_index] is not None
+                )
+                if qualifies:
+                    labels = self._build_yolo_segmentation_labels(mask_history[frame_index])
+                    if labels:
+                        stem = f"frame_{frame_index:06d}"
+                        image_path = images_dir / f"{stem}.jpg"
+                        label_path = labels_dir / f"{stem}.txt"
+                        if not cv2.imwrite(str(image_path), frame):
+                            raise RuntimeError(f"Failed to save YOLO dataset image: {image_path}")
+                        label_path.write_text("\n".join(labels) + "\n", encoding="utf-8")
+                        image_count += 1
+                        label_count += len(labels)
+
+                frame_index += 1
+        finally:
+            capture.release()
+
+        if image_count <= 0:
+            shutil.rmtree(output_root, ignore_errors=True)
+            return {
+                "root": None,
+                "archive": None,
+                "image_count": 0,
+                "label_count": 0,
+            }
+
+        dataset_yaml = output_root / "dataset.yaml"
+        dataset_yaml.write_text(
+            "path: .\n"
+            "train: images/train\n"
+            "val: images/train\n"
+            "names:\n"
+            "  0: object\n",
+            encoding="utf-8",
+        )
+        archive_path = output_root.with_suffix(".zip")
+        archive_path.unlink(missing_ok=True)
+        with zipfile.ZipFile(archive_path, "w", zipfile.ZIP_DEFLATED) as archive:
+            for path in sorted(output_root.rglob("*")):
+                if path.is_file():
+                    archive.write(path, path.relative_to(output_root).as_posix())
+
+        return {
+            "root": output_root,
+            "archive": archive_path,
+            "image_count": image_count,
+            "label_count": label_count,
+        }
+
     def detect_video_file(
         self,
         input_path: Path,
@@ -966,6 +1078,7 @@ class Sam2VideoDetector:
             }
 
         temporary_output_path = SAM2_OUTPUT_DIR / f"_{job_id}.sam2_overlay.mp4"
+        dataset_root = SAM2_OUTPUT_DIR / f"{job_id}_yolo_dataset"
         overlay_writer = self._create_video_writer(temporary_output_path, fps, width, height)
         if overlay_writer is None:
             capture.release()
@@ -1061,6 +1174,14 @@ class Sam2VideoDetector:
                     for mask in mask_history
                 ]
 
+            dataset_result = self._export_yolo_dataset(
+                source_video_path=temporary_output_path,
+                output_root=dataset_root,
+                score_history=score_history,
+                mask_history=mask_history,
+                detection_threshold=detection_threshold,
+            )
+
             writer = self._create_video_writer(output_path, fps, width, height)
             if writer is None:
                 raise RuntimeError("Failed to create output video")
@@ -1141,4 +1262,16 @@ class Sam2VideoDetector:
             "output_file": str(output_path.resolve()),
             "input_url": self._to_route_url(resolved_input),
             "output_url": self._to_route_url(output_path),
+            "yolo_dataset_url": (
+                self._to_route_url(dataset_result["archive"])
+                if dataset_result and dataset_result.get("archive")
+                else None
+            ),
+            "yolo_dataset_root_url": (
+                self._to_route_url(dataset_result["root"])
+                if dataset_result and dataset_result.get("root")
+                else None
+            ),
+            "yolo_dataset_image_count": int(dataset_result["image_count"] if dataset_result else 0),
+            "yolo_dataset_label_count": int(dataset_result["label_count"] if dataset_result else 0),
         }

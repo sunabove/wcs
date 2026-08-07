@@ -2678,4 +2678,5 @@
 
     loadUploadLimitFromServer();
     loadUploadedHistoryFromServer();
+    console.log('[SAM2] 페이지 초기화 완료');
 })();

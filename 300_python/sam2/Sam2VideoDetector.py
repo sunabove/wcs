@@ -566,12 +566,35 @@ class Sam2VideoDetector:
         peak_index = max(0, min(len(values) - 1, int(peak_index)))
         peak_value = float(values[peak_index])
         plateau_tolerance = 0.1
+        plateau_slope_limit = 0.04
         peak_start = peak_index
         peak_end = peak_index
-        while peak_start > 0 and float(values[peak_start - 1]) >= peak_value - plateau_tolerance:
+        while (
+            peak_start > 0
+            and abs(float(values[peak_start]) - float(values[peak_start - 1])) <= plateau_slope_limit
+            and float(np.max(values[peak_start - 1:peak_end + 1]))
+            - float(np.min(values[peak_start - 1:peak_end + 1])) <= plateau_tolerance
+        ):
             peak_start -= 1
-        while peak_end + 1 < len(values) and float(values[peak_end + 1]) >= peak_value - plateau_tolerance:
+        while (
+            peak_end + 1 < len(values)
+            and abs(float(values[peak_end + 1]) - float(values[peak_end])) <= plateau_slope_limit
+            and float(np.max(values[peak_start:peak_end + 2]))
+            - float(np.min(values[peak_start:peak_end + 2])) <= plateau_tolerance
+        ):
             peak_end += 1
+
+        # Exclude monotonic rising/falling edges from the highlighted plateau.
+        while peak_start < peak_index:
+            edge_differences = np.diff(values[peak_start:peak_index + 1])
+            if len(edge_differences) == 0 or edge_differences[0] <= 0:
+                break
+            peak_start += 1
+        while peak_end > peak_index:
+            edge_differences = np.diff(values[peak_index:peak_end + 1])
+            if len(edge_differences) == 0 or edge_differences[-1] >= 0:
+                break
+            peak_end -= 1
         return peak_start, peak_end
 
     def _render_score_chart(self, frame, score_history, iou_history, frame_number, total_frames):
@@ -649,8 +672,7 @@ class Sam2VideoDetector:
         first_peak_index = self._find_first_score_peak_index(score_values)
         if first_peak_index is not None:
             peak_start, peak_last = self._get_score_peak_bounds(score_values, first_peak_index)
-            peak_start = max(0, peak_start - 1)
-            peak_end = min(len(score_values), peak_last + 2)
+            peak_end = peak_last + 1
             self._chart_renderer._draw_chart_series(
                 canvas,
                 x_values[peak_start:peak_end],

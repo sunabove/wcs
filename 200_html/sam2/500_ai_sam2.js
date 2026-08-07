@@ -137,7 +137,17 @@
         const sizeText = maxUploadBytes <= 0
             ? '제한 없음'
             : (configuredText || formatBytes(maxUploadBytes));
-        uploadMaxSizeElement.textContent = `최대 업로드 용량: ${sizeText}`;
+        setUploadText(uploadMaxSizeElement, `최대 업로드 용량: ${sizeText}`);
+    }
+
+    function setUploadText(element, text) {
+        if (!element) {
+            return;
+        }
+
+        const value = String(text || '');
+        element.textContent = value;
+        element.title = value;
     }
 
     function setUploadProgress(percent, text) {
@@ -147,11 +157,11 @@
         }
         if (uploadProgressBarElement) {
             uploadProgressBarElement.style.width = `${normalized}%`;
-            uploadProgressBarElement.textContent = `${normalized}%`;
+            setUploadText(uploadProgressBarElement, `${normalized}%`);
             uploadProgressBarElement.setAttribute('aria-valuenow', String(normalized));
         }
         if (uploadProgressTextElement && text) {
-            uploadProgressTextElement.textContent = String(text);
+            setUploadText(uploadProgressTextElement, text);
         }
     }
 
@@ -161,11 +171,11 @@
         }
         if (uploadProgressBarElement) {
             uploadProgressBarElement.style.width = '0%';
-            uploadProgressBarElement.textContent = '0%';
+            setUploadText(uploadProgressBarElement, '0%');
             uploadProgressBarElement.setAttribute('aria-valuenow', '0');
         }
         if (uploadProgressTextElement) {
-            uploadProgressTextElement.textContent = '업로드 준비 중...';
+            setUploadText(uploadProgressTextElement, '업로드 준비 중...');
         }
     }
 
@@ -1341,9 +1351,9 @@
         }
 
         if (selectedFile) {
-            selectedFileElement.textContent = `선택됨: ${selectedFile.name}`;
+            setUploadText(selectedFileElement, `선택됨: ${selectedFile.name}`);
         } else {
-            selectedFileElement.textContent = '선택된 파일 없음';
+            setUploadText(selectedFileElement, '선택된 파일 없음');
         }
     }
 

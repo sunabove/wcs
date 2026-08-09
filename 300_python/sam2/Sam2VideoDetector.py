@@ -47,6 +47,103 @@ class Sam2VideoDetector:
             relative = file_path.name
         return f"/fast/image/{relative}"
 
+    def _yolo_conversion_cache_path(self, input_path: Path) -> Path:
+        return SAM2_OUTPUT_DIR / f"{Path(input_path).stem}.sam2_yolo_cache.npz"
+
+    def _save_yolo_conversion_cache(self, input_path: Path, cache: dict) -> bool:
+        cache_path = self._yolo_conversion_cache_path(input_path)
+        mask_history = cache.get("mask_history", [])
+        mask_shape = next(
+            (np.asarray(mask).shape for mask in mask_history if mask is not None),
+            None,
+        )
+        if cache.get("detection_threshold") is None or not mask_shape or len(mask_shape) != 2:
+            cache_path.unlink(missing_ok=True)
+            return False
+
+        height, width = int(mask_shape[0]), int(mask_shape[1])
+        valid_masks = np.asarray([mask is not None for mask in mask_history], dtype=np.bool_)
+        packed_masks = np.packbits(
+            np.stack([
+                np.asarray(mask, dtype=np.bool_) if mask is not None else np.zeros((height, width), dtype=np.bool_)
+                for mask in mask_history
+            ]).reshape(len(mask_history), -1),
+            axis=1,
+        )
+        temporary_path = cache_path.with_suffix(".tmp.npz")
+        np.savez_compressed(
+            temporary_path,
+            source_video_path=np.asarray(str(cache["source_video_path"])),
+            cleanup_source=np.asarray(bool(cache.get("cleanup_source")), dtype=np.bool_),
+            score_history=np.asarray(cache.get("score_history", []), dtype=np.float32),
+            detection_threshold=np.asarray(float(cache["detection_threshold"]), dtype=np.float32),
+            mask_shape=np.asarray([height, width], dtype=np.int32),
+            valid_masks=valid_masks,
+            packed_masks=packed_masks,
+        )
+        temporary_path.replace(cache_path)
+        return True
+
+    def _load_yolo_conversion_cache(self, input_path: Path):
+        resolved_input = Path(input_path).resolve()
+        memory_cache = self._yolo_conversion_cache.get(str(resolved_input))
+        if memory_cache and Path(memory_cache["source_video_path"]).is_file():
+            return memory_cache
+
+        cache_path = self._yolo_conversion_cache_path(resolved_input)
+        if not cache_path.is_file():
+            return None
+
+        try:
+            with np.load(cache_path, allow_pickle=False) as saved:
+                source_video_path = Path(str(saved["source_video_path"].item()))
+                if not source_video_path.is_file():
+                    cache_path.unlink(missing_ok=True)
+                    return None
+                height, width = (int(value) for value in saved["mask_shape"])
+                valid_masks = saved["valid_masks"].astype(np.bool_)
+                unpacked_masks = np.unpackbits(
+                    saved["packed_masks"],
+                    axis=1,
+                    count=height * width,
+                ).reshape(-1, height, width).astype(np.bool_)
+                cache = {
+                    "source_video_path": str(source_video_path),
+                    "cleanup_source": bool(saved["cleanup_source"].item()),
+                    "score_history": saved["score_history"].astype(np.float32).tolist(),
+                    "mask_history": [
+                        unpacked_masks[index] if is_valid else None
+                        for index, is_valid in enumerate(valid_masks)
+                    ],
+                    "detection_threshold": float(saved["detection_threshold"].item()),
+                }
+        except (OSError, ValueError, KeyError):
+            return None
+
+        self._yolo_conversion_cache[str(resolved_input)] = cache
+        return cache
+
+    def has_yolo_conversion_cache(self, input_path: Path) -> bool:
+        resolved_input = Path(input_path).resolve()
+        memory_cache = self._yolo_conversion_cache.get(str(resolved_input))
+        if memory_cache:
+            return (
+                memory_cache.get("detection_threshold") is not None
+                and Path(memory_cache["source_video_path"]).is_file()
+            )
+
+        cache_path = self._yolo_conversion_cache_path(resolved_input)
+        if not cache_path.is_file():
+            return False
+        try:
+            with np.load(cache_path, allow_pickle=False) as saved:
+                return (
+                    Path(str(saved["source_video_path"].item())).is_file()
+                    and np.isfinite(float(saved["detection_threshold"].item()))
+                )
+        except (OSError, ValueError, KeyError):
+            return False
+
     def _load_sam2_image_predictor_class(self):
         if self.__class__._sam2_image_predictor_class is not None:
             return self.__class__._sam2_image_predictor_class
@@ -1269,7 +1366,7 @@ class Sam2VideoDetector:
 
     def convert_yolo_dataset(self, input_path: Path):
         resolved_input = Path(input_path).resolve()
-        cached = self._yolo_conversion_cache.get(str(resolved_input))
+        cached = self._load_yolo_conversion_cache(resolved_input)
         if not cached:
             raise ValueError("No completed detection is available for YOLO conversion")
 
@@ -1301,12 +1398,6 @@ class Sam2VideoDetector:
             "yolo_dataset_image_count": int(dataset_result["image_count"] if dataset_result else 0),
             "yolo_dataset_label_count": int(dataset_result["label_count"] if dataset_result else 0),
         }
-        if cached.get("cleanup_source"):
-            try:
-                source_video_path.unlink(missing_ok=True)
-            except OSError:
-                pass
-        self._yolo_conversion_cache.pop(str(resolved_input), None)
         return result
 
     def detect_video_file(
@@ -1474,6 +1565,10 @@ class Sam2VideoDetector:
                 "mask_history": mask_history,
                 "detection_threshold": detection_threshold,
             }
+            yolo_conversion_available = self._save_yolo_conversion_cache(
+                resolved_input,
+                self._yolo_conversion_cache[str(resolved_input)],
+            )
 
             writer = self._create_video_writer(output_path, fps, width, height)
             if writer is None:
@@ -1568,7 +1663,7 @@ class Sam2VideoDetector:
             "input_url": self._to_route_url(resolved_input),
             "output_url": self._to_route_url(output_path),
             "input_file_stem": input_file_stem,
-            "yolo_conversion_available": detection_threshold is not None,
+            "yolo_conversion_available": yolo_conversion_available,
             "yolo_dataset_url": None,
             "yolo_dataset_root_url": None,
             "yolo_dataset_image_count": 0,

@@ -479,6 +479,7 @@ class Sam2VideoService:
             stat = path.stat()
             relative = self._to_relative_under_base(path)
             output_path = SAM2_OUTPUT_DIR / f"{path.stem}.mp4"
+            has_output = output_path.is_file()
             playable_path = path.with_name(f"{path.stem}.playable.mp4")
             items.append(
                 {
@@ -495,8 +496,11 @@ class Sam2VideoService:
                     "thumbnail_url": f"/fast/video_thumbnail/{relative}",
                     "output_url": (
                         f"/fast/image/{self._to_relative_under_base(output_path)}"
-                        if output_path.is_file()
+                        if has_output
                         else ""
+                    ),
+                    "yolo_conversion_available": (
+                        has_output and self.detector.has_yolo_conversion_cache(path)
                     ),
                 }
             )

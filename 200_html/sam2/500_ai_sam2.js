@@ -1669,7 +1669,11 @@
                 }
 
                 await loadVideoOptions(selectedServerFileName);
-                const hasExistingOutput = await loadExistingOutputVideo(item.outputUrl);
+                const hasExistingOutput = await loadExistingOutputVideo(
+                    item.outputUrl,
+                    item.serverFileName,
+                    item.yoloConversionAvailable
+                );
 
                 renderUploadedHistory();
                 setStatus(
@@ -1923,6 +1927,7 @@
                 inputUrl: String(item.input_url || ''),
                 playableUrl: String(item.playable_url || ''),
                 outputUrl: String(item.output_url || ''),
+                yoloConversionAvailable: item.yolo_conversion_available === true,
             }));
 
             if (requestSeq !== uploadedListLatestRequestSeq) {
@@ -1960,7 +1965,11 @@
                         setStatus(`원본 영상 로드 실패: ${message}`, 'warning');
                     }
                     await loadVideoOptions(selectedServerFileName);
-                    const hasExistingOutput = await loadExistingOutputVideo(matchedSelected.outputUrl);
+                    const hasExistingOutput = await loadExistingOutputVideo(
+                        matchedSelected.outputUrl,
+                        matchedSelected.serverFileName,
+                        matchedSelected.yoloConversionAvailable
+                    );
                     renderUploadedHistory();
                     setStatus(
                         hasExistingOutput
@@ -2063,7 +2072,7 @@
 
     }
 
-    async function loadExistingOutputVideo(outputUrl) {
+    async function loadExistingOutputVideo(outputUrl, inputFileName, conversionAvailable) {
         const value = String(outputUrl || '').trim();
         if (!value) {
             return false;
@@ -2083,6 +2092,11 @@
                 }
             }
             applyLoopOption();
+            yoloInputFileName = String(inputFileName || '').trim();
+            yoloConversionAvailable = conversionAvailable === true;
+            yoloDatasetUrl = '';
+            updateYoloClassTabs(extractYoloClassName(yoloInputFileName));
+            updateOutputDownloadState();
             return true;
         } catch (_ignore) {
             return false;
@@ -2509,7 +2523,11 @@
                 (item) => item.serverFileName === selectedServerFileName
             );
             if (selectedItem && selectedItem.outputUrl) {
-                void loadExistingOutputVideo(selectedItem.outputUrl);
+                void loadExistingOutputVideo(
+                    selectedItem.outputUrl,
+                    selectedItem.serverFileName,
+                    selectedItem.yoloConversionAvailable
+                );
             }
         });
     }

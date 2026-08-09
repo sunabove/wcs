@@ -60,9 +60,9 @@
     let yoloDatasetUrl = '';
     let yoloInputFileName = '';
     let yoloConversionAvailable = false;
-    let yoloConvertButton = null;
-    let yoloDatasetTabSummaryElement = null;
-    let yoloClassNamesElement = null;
+    let yoloClassTabsElement = null;
+    let yoloClassTabContentElement = null;
+    const yoloClassUiByName = new Map();
     let uploadedHistory = [];
     let selectedServerFileName = '';
     let highlightedServerFileName = '';
@@ -514,36 +514,36 @@
         tabPane.id = 'sam2-yolo-pane';
         tabPane.setAttribute('role', 'tabpanel');
         tabPane.setAttribute('aria-labelledby', 'sam2-yolo-tab');
-        tabPane.innerHTML = '<div class="d-flex flex-wrap align-items-center gap-2"><span id="sam2-yolo-class-names" class="small text-secondary"></span><span id="sam2-yolo-tab-summary" class="small text-muted me-auto">검출 완료 후 YOLO 학습 데이터로 변환할 수 있습니다.</span><button id="sam2-yolo-convert" type="button" class="btn btn-primary btn-sm" disabled title="YOLO 학습 데이터 변환"><i class="bi bi-arrow-repeat me-1" aria-hidden="true"></i>YOLO 변환</button></div>';
+        tabPane.innerHTML = '<ul id="sam2-yolo-class-tabs" class="nav nav-tabs" role="tablist"></ul><div id="sam2-yolo-class-tab-content" class="tab-content border border-top-0 rounded-bottom p-3 bg-white"></div>';
         tabContent.appendChild(tabPane);
 
-        yoloConvertButton = document.getElementById('sam2-yolo-convert');
-        yoloDatasetTabSummaryElement = document.getElementById('sam2-yolo-tab-summary');
-        yoloClassNamesElement = document.getElementById('sam2-yolo-class-names');
-        updateYoloClassNames();
-        const yoloTabActions = tabPane.querySelector('.d-flex');
-        yoloConvertButton?.addEventListener('click', convertYoloDataset);
+        yoloClassTabsElement = document.getElementById('sam2-yolo-class-tabs');
+        yoloClassTabContentElement = document.getElementById('sam2-yolo-class-tab-content');
+        updateYoloClassTabs();
     }
 
     function updateOutputDownloadState() {
         if (outputDownloadButton) {
             outputDownloadButton.disabled = !outputObjectUrl;
         }
-        if (yoloConvertButton) {
-            yoloConvertButton.disabled = !yoloConversionAvailable;
+        const detectedClassName = extractYoloClassName(yoloInputFileName);
+        for (const [className, classUi] of yoloClassUiByName) {
+            classUi.convertButton.disabled = !yoloConversionAvailable || className !== detectedClassName;
         }
     }
 
-    async function convertYoloDataset() {
-        if (!yoloConversionAvailable || !yoloInputFileName) {
-            setStatus('먼저 검출을 완료하세요.', 'warning');
+    async function convertYoloDataset(className) {
+        const detectedClassName = extractYoloClassName(yoloInputFileName);
+        if (!yoloConversionAvailable || !yoloInputFileName || className !== detectedClassName) {
+            setStatus(`${className} 클래스 영상을 먼저 검출하세요.`, 'warning');
             return;
         }
 
-        if (yoloConvertButton) {
-            yoloConvertButton.disabled = true;
+        const classUi = yoloClassUiByName.get(className);
+        if (classUi) {
+            classUi.convertButton.disabled = true;
         }
-        setStatus('YOLO 학습 데이터 변환 중 ...', 'info');
+        setStatus(`${className} 클래스 YOLO 학습 데이터 변환 중 ...`, 'info');
 
         try {
             const apiBase = await resolveApiBase();
@@ -576,11 +576,11 @@
             if (yoloDatasetSummaryElement) {
                 yoloDatasetSummaryElement.textContent = summary;
             }
-            if (yoloDatasetTabSummaryElement) {
-                yoloDatasetTabSummaryElement.textContent = summary;
+            if (classUi) {
+                classUi.summaryElement.textContent = summary;
             }
             updateOutputDownloadState();
-            setStatus(yoloDatasetUrl ? 'YOLO 변환 완료' : '변환할 학습 데이터가 없습니다.', yoloDatasetUrl ? 'success' : 'warning');
+            setStatus(yoloDatasetUrl ? `${className} 클래스 YOLO 변환 완료` : '변환할 학습 데이터가 없습니다.', yoloDatasetUrl ? 'success' : 'warning');
         } catch (error) {
             yoloConversionAvailable = true;
             updateOutputDownloadState();
@@ -1430,9 +1430,7 @@
         if (yoloDatasetSummaryElement) {
             yoloDatasetSummaryElement.textContent = '';
         }
-        if (yoloDatasetTabSummaryElement) {
-            yoloDatasetTabSummaryElement.textContent = '검출 완료 후 YOLO 학습 데이터로 변환할 수 있습니다.';
-        }
+        updateYoloClassTabs();
         updateOutputDownloadState();
     }
 
@@ -1521,12 +1519,8 @@
         return match ? match[1] : '';
     }
 
-    function updateYoloClassNames() {
-        if (!yoloClassNamesElement) {
-            return;
-        }
-
-        const classNames = Array.from(new Set(
+    function getYoloClassNames() {
+        return Array.from(new Set(
             uploadedHistory
                 .map((item) => extractYoloClassName(item && item.name))
                 .filter(Boolean)
@@ -1534,15 +1528,84 @@
             numeric: true,
             sensitivity: 'base',
         }));
+    }
 
-        yoloClassNamesElement.textContent = classNames.length > 0
-            ? `클래스: ${classNames.join(', ')}`
-            : '클래스: 없음';
-        yoloClassNamesElement.title = yoloClassNamesElement.textContent;
+    function updateYoloClassTabs(preferredClassName) {
+        if (!yoloClassTabsElement || !yoloClassTabContentElement) {
+            return;
+        }
+
+        const classNames = getYoloClassNames();
+        const currentActiveClassName = yoloClassTabsElement.querySelector('.nav-link.active')?.dataset.className || '';
+        const detectedClassName = extractYoloClassName(yoloInputFileName);
+        const requestedClassName = String(preferredClassName || '').trim();
+        const activeClassName = [requestedClassName, currentActiveClassName, detectedClassName, classNames[0]]
+            .find((className) => classNames.includes(className)) || '';
+
+        yoloClassTabsElement.innerHTML = '';
+        yoloClassTabContentElement.innerHTML = '';
+        yoloClassUiByName.clear();
+
+        if (classNames.length === 0) {
+            yoloClassTabContentElement.innerHTML = '<div class="small text-muted">파일명 규칙에 맞는 업로드 동영상이 없습니다.</div>';
+            return;
+        }
+
+        classNames.forEach((className, index) => {
+            const isActive = className === activeClassName;
+            const tabId = `sam2-yolo-class-tab-${index}`;
+            const paneId = `sam2-yolo-class-pane-${index}`;
+            const videoCount = uploadedHistory.filter((item) => extractYoloClassName(item && item.name) === className).length;
+
+            const tabItem = document.createElement('li');
+            tabItem.className = 'nav-item';
+            tabItem.setAttribute('role', 'presentation');
+
+            const tabButton = document.createElement('button');
+            tabButton.className = `nav-link${isActive ? ' active' : ''}`;
+            tabButton.id = tabId;
+            tabButton.type = 'button';
+            tabButton.setAttribute('role', 'tab');
+            tabButton.setAttribute('data-bs-toggle', 'tab');
+            tabButton.setAttribute('data-bs-target', `#${paneId}`);
+            tabButton.setAttribute('aria-controls', paneId);
+            tabButton.setAttribute('aria-selected', String(isActive));
+            tabButton.dataset.className = className;
+            tabButton.textContent = className;
+            tabItem.appendChild(tabButton);
+            yoloClassTabsElement.appendChild(tabItem);
+
+            const tabPane = document.createElement('div');
+            tabPane.className = `tab-pane fade${isActive ? ' show active' : ''}`;
+            tabPane.id = paneId;
+            tabPane.setAttribute('role', 'tabpanel');
+            tabPane.setAttribute('aria-labelledby', tabId);
+
+            const actions = document.createElement('div');
+            actions.className = 'd-flex flex-wrap align-items-center gap-2';
+            const summaryElement = document.createElement('span');
+            summaryElement.className = 'small text-muted me-auto';
+            summaryElement.textContent = className === detectedClassName && yoloConversionAvailable
+                ? `검출 완료: ${className} 클래스를 YOLO 학습 데이터로 변환할 수 있습니다.`
+                : `업로드 동영상 ${videoCount}개 · 검출 완료 후 변환할 수 있습니다.`;
+            const convertButton = document.createElement('button');
+            convertButton.type = 'button';
+            convertButton.className = 'btn btn-primary btn-sm';
+            convertButton.title = `${className} 클래스 YOLO 학습 데이터 변환`;
+            convertButton.innerHTML = '<i class="bi bi-arrow-repeat me-1" aria-hidden="true"></i>YOLO 변환';
+            convertButton.addEventListener('click', () => convertYoloDataset(className));
+            actions.appendChild(summaryElement);
+            actions.appendChild(convertButton);
+            tabPane.appendChild(actions);
+            yoloClassTabContentElement.appendChild(tabPane);
+            yoloClassUiByName.set(className, { convertButton, summaryElement });
+        });
+
+        updateOutputDownloadState();
     }
 
     function renderUploadedHistory() {
-        updateYoloClassNames();
+        updateYoloClassTabs();
         if (!uploadedListElement) {
             return;
         }
@@ -2400,11 +2463,7 @@
                     ? ''
                     : 'YOLO 학습 데이터로 변환할 수 없습니다.';
             }
-            if (yoloDatasetTabSummaryElement) {
-                yoloDatasetTabSummaryElement.textContent = yoloConversionAvailable
-                    ? ''
-                    : 'YOLO 학습 데이터로 변환할 수 없습니다.';
-            }
+            updateYoloClassTabs(extractYoloClassName(yoloInputFileName));
             updateOutputDownloadState();
 
             await assignVideoSource(inputVideoElement, inputUrl, 'input');

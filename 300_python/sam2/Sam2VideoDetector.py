@@ -1271,26 +1271,18 @@ class Sam2VideoDetector:
         if detection_threshold is None:
             return None
 
+        file_prefix = f"{input_file_stem}_"
+        if output_root.is_dir():
+            for existing_path in output_root.rglob("*"):
+                if existing_path.is_file() and existing_path.name.startswith(file_prefix):
+                    existing_path.unlink()
+
         images_dir = output_root / "images" / "train"
         labels_dir = output_root / "labels" / "train"
         masks_dir = output_root / "masks" / "train"
         images_dir.mkdir(parents=True, exist_ok=True)
         labels_dir.mkdir(parents=True, exist_ok=True)
         masks_dir.mkdir(parents=True, exist_ok=True)
-
-        file_prefix = f"{input_file_stem}_"
-        for directory, suffixes in (
-            (images_dir, {".jpg"}),
-            (labels_dir, {".txt"}),
-            (masks_dir, {".png"}),
-        ):
-            for existing_path in directory.iterdir():
-                if (
-                    existing_path.is_file()
-                    and existing_path.name.startswith(file_prefix)
-                    and existing_path.suffix.lower() in suffixes
-                ):
-                    existing_path.unlink()
 
         capture = cv2.VideoCapture(str(source_video_path))
         if not capture.isOpened():

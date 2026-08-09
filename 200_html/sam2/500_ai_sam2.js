@@ -16,6 +16,7 @@
     const uploadMaxSizeElement = document.getElementById('sam2-upload-max-size');
     const uploadProgressWrapElement = document.getElementById('sam2-upload-progress-wrap');
     const uploadProgressBarElement = document.getElementById('sam2-upload-progress-bar');
+    const uploadProgressStatusElement = document.getElementById('sam2-upload-progress-status');
     const foregroundPointModeButton = document.getElementById('sam2-foreground-point-mode');
     const backgroundPointModeButton = document.getElementById('sam2-background-point-mode');
     if (foregroundPointModeButton) {
@@ -179,9 +180,9 @@
         }
         if (uploadProgressBarElement) {
             uploadProgressBarElement.style.width = `${normalized}%`;
-            setUploadText(uploadProgressBarElement, `${normalized}%`);
             uploadProgressBarElement.setAttribute('aria-valuenow', String(normalized));
         }
+        setUploadText(uploadProgressStatusElement, `${normalized}%`);
     }
 
     function hideUploadProgress() {
@@ -190,9 +191,9 @@
         }
         if (uploadProgressBarElement) {
             uploadProgressBarElement.style.width = '0%';
-            setUploadText(uploadProgressBarElement, '0%');
             uploadProgressBarElement.setAttribute('aria-valuenow', '0');
         }
+        setUploadText(uploadProgressStatusElement, '0%');
     }
 
     function uploadVideoWithProgress(apiBase, file) {
@@ -2311,12 +2312,12 @@
             // Fallback: keep selected file so segment_video_upload can still upload+segment.
             if (uploadProgressBarElement) {
                 uploadProgressBarElement.style.width = '100%';
-                uploadProgressBarElement.textContent = '실패';
                 uploadProgressBarElement.setAttribute('aria-valuenow', '100');
                 uploadProgressBarElement.classList.remove('progress-bar-animated');
                 uploadProgressBarElement.classList.remove('progress-bar-striped');
                 uploadProgressBarElement.classList.add('bg-danger');
             }
+            setUploadText(uploadProgressStatusElement, '실패');
             setStatus(`업로드 오류: ${message} (검출 시작 시 업로드 재시도)`, 'danger');
         } finally {
             isUploadingImmediately = false;

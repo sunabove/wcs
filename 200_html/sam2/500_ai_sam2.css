@@ -89,13 +89,23 @@
 
 .sam2-output-download-button {
     position: absolute;
-    top: 3rem;
+    top: 5.5rem;
     left: calc(100% + 0.5rem);
     z-index: 5;
     width: 8.5rem;
     text-align: left;
     white-space: nowrap;
     writing-mode: horizontal-tb;
+}
+
+.sam2-output-yolo-convert-button {
+    position: absolute;
+    top: 3rem;
+    left: calc(100% + 0.5rem);
+    z-index: 5;
+    width: 8.5rem;
+    text-align: left;
+    white-space: nowrap;
 }
 
 .sam2-output-loop-toggle {
@@ -119,6 +129,12 @@
 
 @media (max-width: 700px) {
     .sam2-output-download-button {
+        top: calc(100% + 5.5rem);
+        left: auto;
+        right: 0;
+    }
+
+    .sam2-output-yolo-convert-button {
         top: calc(100% + 3rem);
         left: auto;
         right: 0;

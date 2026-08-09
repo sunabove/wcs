@@ -1826,7 +1826,9 @@
 
             if (!response.ok) {
                 if (requestSeq === uploadedListLatestRequestSeq) {
-                    setStatus(`업로드 목록 조회 실패 (${response.status})`, 'warning');
+                    const message = `업로드 목록 조회 실패 (${response.status})`;
+                    setStatus(message, 'warning');
+                    window.alert(message);
                 }
                 return;
             }
@@ -1899,7 +1901,9 @@
             }
         } catch (_ignore) {
             if (requestSeq === uploadedListLatestRequestSeq) {
-                setStatus('업로드 목록을 불러오지 못했습니다. API 연결 상태를 확인하세요.', 'warning');
+                const message = '업로드 목록을 불러오지 못했습니다. API 연결 상태를 확인하세요.';
+                setStatus(message, 'warning');
+                window.alert(message);
             }
         } finally {
             await finishUploadedListLoading(doneMessage);

@@ -62,6 +62,7 @@
     let yoloConversionAvailable = false;
     let yoloConvertButton = null;
     let yoloDatasetTabSummaryElement = null;
+    let yoloClassNamesElement = null;
     let uploadedHistory = [];
     let selectedServerFileName = '';
     let highlightedServerFileName = '';
@@ -507,11 +508,13 @@
         tabPane.id = 'sam2-yolo-pane';
         tabPane.setAttribute('role', 'tabpanel');
         tabPane.setAttribute('aria-labelledby', 'sam2-yolo-tab');
-        tabPane.innerHTML = '<div class="d-flex flex-wrap align-items-center gap-2"><span id="sam2-yolo-tab-summary" class="small text-muted me-auto">검출 완료 후 YOLO 학습 데이터로 변환할 수 있습니다.</span><button id="sam2-yolo-convert" type="button" class="btn btn-primary btn-sm" disabled title="YOLO 학습 데이터 변환"><i class="bi bi-arrow-repeat me-1" aria-hidden="true"></i>YOLO 변환</button></div>';
+        tabPane.innerHTML = '<div class="d-flex flex-wrap align-items-center gap-2"><span id="sam2-yolo-class-names" class="small text-secondary"></span><span id="sam2-yolo-tab-summary" class="small text-muted me-auto">검출 완료 후 YOLO 학습 데이터로 변환할 수 있습니다.</span><button id="sam2-yolo-convert" type="button" class="btn btn-primary btn-sm" disabled title="YOLO 학습 데이터 변환"><i class="bi bi-arrow-repeat me-1" aria-hidden="true"></i>YOLO 변환</button></div>';
         tabContent.appendChild(tabPane);
 
         yoloConvertButton = document.getElementById('sam2-yolo-convert');
         yoloDatasetTabSummaryElement = document.getElementById('sam2-yolo-tab-summary');
+        yoloClassNamesElement = document.getElementById('sam2-yolo-class-names');
+        updateYoloClassNames();
         const yoloTabActions = tabPane.querySelector('.d-flex');
         yoloConvertButton?.addEventListener('click', convertYoloDataset);
     }
@@ -1506,7 +1509,34 @@
         ));
     }
 
+    function extractYoloClassName(fileName) {
+        const name = basename(fileName);
+        const match = name.match(/^(.+?)_?\d+\.mp4$/i);
+        return match ? match[1] : '';
+    }
+
+    function updateYoloClassNames() {
+        if (!yoloClassNamesElement) {
+            return;
+        }
+
+        const classNames = Array.from(new Set(
+            uploadedHistory
+                .map((item) => extractYoloClassName(item && item.name))
+                .filter(Boolean)
+        )).sort((left, right) => left.localeCompare(right, undefined, {
+            numeric: true,
+            sensitivity: 'base',
+        }));
+
+        yoloClassNamesElement.textContent = classNames.length > 0
+            ? `클래스: ${classNames.join(', ')}`
+            : '클래스: 없음';
+        yoloClassNamesElement.title = yoloClassNamesElement.textContent;
+    }
+
     function renderUploadedHistory() {
+        updateYoloClassNames();
         if (!uploadedListElement) {
             return;
         }

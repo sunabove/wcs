@@ -2314,7 +2314,7 @@
             if (file) {
                 const formData = new FormData();
                 formData.append('file', file);
-                const url = `${apiBase}/fast/sam2/segment_video_upload?${bboxQuery.slice(1)}${pointsQuery}${pointLabelsQuery}${buildMultimaskOutputQuery().slice(1)}${buildMaskInputQuery()}${buildClaheQuery()}${buildIouMaskFilterQuery()}`;
+                const url = `${apiBase}/fast/sam2/segment_video_upload?${bboxQuery.slice(1)}${pointsQuery}${pointLabelsQuery}${buildMultimaskOutputQuery()}${buildMaskInputQuery()}${buildClaheQuery()}${buildIouMaskFilterQuery()}`;
                 response = await fetch(url, {
                     method: 'POST',
                     body: formData,

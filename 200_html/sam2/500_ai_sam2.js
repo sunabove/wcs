@@ -16,7 +16,6 @@
     const uploadMaxSizeElement = document.getElementById('sam2-upload-max-size');
     const uploadProgressWrapElement = document.getElementById('sam2-upload-progress-wrap');
     const uploadProgressBarElement = document.getElementById('sam2-upload-progress-bar');
-    const uploadProgressTextElement = document.getElementById('sam2-upload-progress-text');
     const foregroundPointModeButton = document.getElementById('sam2-foreground-point-mode');
     const backgroundPointModeButton = document.getElementById('sam2-background-point-mode');
     if (foregroundPointModeButton) {
@@ -168,7 +167,7 @@
         element.title = value;
     }
 
-    function setUploadProgress(percent, text) {
+    function setUploadProgress(percent) {
         const normalized = Math.max(0, Math.min(100, Number(percent) || 0));
         if (uploadProgressWrapElement) {
             uploadProgressWrapElement.classList.remove('d-none');
@@ -177,9 +176,6 @@
             uploadProgressBarElement.style.width = `${normalized}%`;
             setUploadText(uploadProgressBarElement, `${normalized}%`);
             uploadProgressBarElement.setAttribute('aria-valuenow', String(normalized));
-        }
-        if (uploadProgressTextElement && text) {
-            setUploadText(uploadProgressTextElement, text);
         }
     }
 
@@ -192,9 +188,6 @@
             setUploadText(uploadProgressBarElement, '0%');
             uploadProgressBarElement.setAttribute('aria-valuenow', '0');
         }
-        if (uploadProgressTextElement) {
-            setUploadText(uploadProgressTextElement, '업로드 준비 중...');
-        }
     }
 
     function uploadVideoWithProgress(apiBase, file) {
@@ -204,15 +197,15 @@
             xhr.timeout = 10 * 60 * 1000;
 
             xhr.addEventListener('loadstart', () => {
-                setUploadProgress(0, '업로드 시작...');
+                setUploadProgress(0);
             });
 
             xhr.upload.addEventListener('progress', (event) => {
                 if (event && event.lengthComputable && event.total > 0) {
                     const percent = Math.round((event.loaded / event.total) * 100);
-                    setUploadProgress(percent, `업로드 중... ${percent}% (${formatBytes(event.loaded)} / ${formatBytes(event.total)})`);
+                    setUploadProgress(percent);
                 } else {
-                    setUploadProgress(0, '업로드 중...');
+                    setUploadProgress(0);
                 }
             });
 
@@ -220,7 +213,7 @@
                 if (xhr.status >= 200 && xhr.status < 300) {
                     try {
                         const body = JSON.parse(xhr.responseText || '{}');
-                        setUploadProgress(100, '업로드 완료');
+                        setUploadProgress(100);
                         resolve(body);
                     } catch (_ignore) {
                         reject(new Error('업로드 응답 파싱 실패'));
@@ -2199,7 +2192,7 @@
 
         isUploadingImmediately = true;
         setStatus('동영상 업로드 중...', 'info');
-        setUploadProgress(0, '업로드 시작...');
+        setUploadProgress(0);
         let uploadCompleted = false;
 
         try {
@@ -2228,9 +2221,6 @@
         } catch (error) {
             const message = error && error.message ? error.message : String(error);
             // Fallback: keep selected file so segment_video_upload can still upload+segment.
-            if (uploadProgressTextElement) {
-                uploadProgressTextElement.textContent = `업로드 실패: ${message}`;
-            }
             if (uploadProgressBarElement) {
                 uploadProgressBarElement.style.width = '100%';
                 uploadProgressBarElement.textContent = '실패';

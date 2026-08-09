@@ -1273,8 +1273,13 @@ class Sam2VideoDetector:
         if not cached:
             raise ValueError("No completed detection is available for YOLO conversion")
 
+        source_video_path = Path(cached["source_video_path"])
+        if not source_video_path.is_file():
+            self._yolo_conversion_cache.pop(str(resolved_input), None)
+            raise ValueError("YOLO conversion source is unavailable. Run SAM2 detection again")
+
         dataset_result = self._export_yolo_dataset(
-            source_video_path=Path(cached["source_video_path"]),
+            source_video_path=source_video_path,
             output_root=SAM2_YOLO_DIR,
             input_file_stem=resolved_input.stem,
             score_history=cached["score_history"],
@@ -1296,7 +1301,6 @@ class Sam2VideoDetector:
             "yolo_dataset_image_count": int(dataset_result["image_count"] if dataset_result else 0),
             "yolo_dataset_label_count": int(dataset_result["label_count"] if dataset_result else 0),
         }
-        source_video_path = Path(cached["source_video_path"])
         if cached.get("cleanup_source"):
             try:
                 source_video_path.unlink(missing_ok=True)

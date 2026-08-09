@@ -52,6 +52,8 @@
     const outputDownloadButton = document.getElementById('sam2-output-download');
     document.getElementById('sam2-yolo-dataset-download')?.remove();
     const yoloDatasetSummaryElement = document.getElementById('sam2-yolo-dataset-summary');
+    const yoloClassTabTemplate = document.getElementById('sam2-yolo-class-template');
+    const yoloClassEmptyTemplate = document.getElementById('sam2-yolo-class-empty-template');
 
     let selectedFile = null;
     let resolvedApiBase = null;
@@ -495,28 +497,6 @@
     }
 
     function initializeYoloOutputTab() {
-        const outputTabButton = document.getElementById('sam2-output-tab');
-        const outputPane = document.getElementById('sam2-output-pane');
-        const tabList = document.getElementById('sam2-video-tabs');
-        const tabContent = document.getElementById('sam2-video-tab-content');
-        if (!outputTabButton || !outputPane || !tabList || !tabContent) {
-            return;
-        }
-
-        const tabItem = document.createElement('li');
-        tabItem.className = 'nav-item';
-        tabItem.setAttribute('role', 'presentation');
-        tabItem.innerHTML = '<button class="nav-link" id="sam2-yolo-tab" data-bs-toggle="tab" data-bs-target="#sam2-yolo-pane" type="button" role="tab" aria-controls="sam2-yolo-pane" aria-selected="false"><i class="bi bi-database me-1" aria-hidden="true"></i>YOLO 변환</button>';
-        tabList.appendChild(tabItem);
-
-        const tabPane = document.createElement('div');
-        tabPane.className = 'tab-pane fade';
-        tabPane.id = 'sam2-yolo-pane';
-        tabPane.setAttribute('role', 'tabpanel');
-        tabPane.setAttribute('aria-labelledby', 'sam2-yolo-tab');
-        tabPane.innerHTML = '<ul id="sam2-yolo-class-tabs" class="nav nav-tabs" role="tablist"></ul><div id="sam2-yolo-class-tab-content" class="tab-content border border-top-0 rounded-bottom p-3 bg-white"></div>';
-        tabContent.appendChild(tabPane);
-
         yoloClassTabsElement = document.getElementById('sam2-yolo-class-tabs');
         yoloClassTabContentElement = document.getElementById('sam2-yolo-class-tab-content');
         updateYoloClassTabs();
@@ -1531,7 +1511,7 @@
     }
 
     function updateYoloClassTabs(preferredClassName) {
-        if (!yoloClassTabsElement || !yoloClassTabContentElement) {
+        if (!yoloClassTabsElement || !yoloClassTabContentElement || !yoloClassTabTemplate || !yoloClassEmptyTemplate) {
             return;
         }
 
@@ -1547,7 +1527,7 @@
         yoloClassUiByName.clear();
 
         if (classNames.length === 0) {
-            yoloClassTabContentElement.innerHTML = '<div class="small text-muted">파일명 규칙에 맞는 업로드 동영상이 없습니다.</div>';
+            yoloClassTabContentElement.appendChild(yoloClassEmptyTemplate.content.cloneNode(true));
             return;
         }
 
@@ -1557,46 +1537,34 @@
             const paneId = `sam2-yolo-class-pane-${index}`;
             const videoCount = uploadedHistory.filter((item) => extractYoloClassName(item && item.name) === className).length;
 
-            const tabItem = document.createElement('li');
-            tabItem.className = 'nav-item';
-            tabItem.setAttribute('role', 'presentation');
+            const fragment = yoloClassTabTemplate.content.cloneNode(true);
+            const tabItem = fragment.querySelector('[data-role="tab-item"]');
+            const tabButton = fragment.querySelector('[data-role="tab-button"]');
+            const tabPane = fragment.querySelector('[data-role="tab-pane"]');
+            const summaryElement = fragment.querySelector('[data-role="summary"]');
+            const convertButton = fragment.querySelector('[data-role="convert-button"]');
+            if (!tabItem || !tabButton || !tabPane || !summaryElement || !convertButton) {
+                return;
+            }
 
-            const tabButton = document.createElement('button');
             tabButton.className = `nav-link${isActive ? ' active' : ''}`;
             tabButton.id = tabId;
-            tabButton.type = 'button';
-            tabButton.setAttribute('role', 'tab');
-            tabButton.setAttribute('data-bs-toggle', 'tab');
             tabButton.setAttribute('data-bs-target', `#${paneId}`);
             tabButton.setAttribute('aria-controls', paneId);
             tabButton.setAttribute('aria-selected', String(isActive));
             tabButton.dataset.className = className;
             tabButton.textContent = className;
-            tabItem.appendChild(tabButton);
-            yoloClassTabsElement.appendChild(tabItem);
-
-            const tabPane = document.createElement('div');
             tabPane.className = `tab-pane fade${isActive ? ' show active' : ''}`;
             tabPane.id = paneId;
             tabPane.setAttribute('role', 'tabpanel');
             tabPane.setAttribute('aria-labelledby', tabId);
 
-            const actions = document.createElement('div');
-            actions.className = 'd-flex flex-wrap align-items-center gap-2';
-            const summaryElement = document.createElement('span');
-            summaryElement.className = 'small text-muted me-auto';
             summaryElement.textContent = className === detectedClassName && yoloConversionAvailable
                 ? `검출 완료: ${className} 클래스를 YOLO 학습 데이터로 변환할 수 있습니다.`
                 : `업로드 동영상 ${videoCount}개 · 검출 완료 후 변환할 수 있습니다.`;
-            const convertButton = document.createElement('button');
-            convertButton.type = 'button';
-            convertButton.className = 'btn btn-primary btn-sm';
             convertButton.title = `${className} 클래스 YOLO 학습 데이터 변환`;
-            convertButton.innerHTML = '<i class="bi bi-arrow-repeat me-1" aria-hidden="true"></i>YOLO 변환';
             convertButton.addEventListener('click', () => convertYoloDataset(className));
-            actions.appendChild(summaryElement);
-            actions.appendChild(convertButton);
-            tabPane.appendChild(actions);
+            yoloClassTabsElement.appendChild(tabItem);
             yoloClassTabContentElement.appendChild(tabPane);
             yoloClassUiByName.set(className, { convertButton, summaryElement });
         });

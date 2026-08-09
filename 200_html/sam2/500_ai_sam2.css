@@ -89,30 +89,42 @@
 
 .sam2-output-download-button {
     position: absolute;
-    top: 0.5rem;
+    top: 3rem;
     left: calc(100% + 0.5rem);
     z-index: 5;
+    width: 8.5rem;
     white-space: nowrap;
     writing-mode: horizontal-tb;
 }
 
 .sam2-output-loop-toggle {
     position: absolute;
-    top: 3rem;
+    top: 0.5rem;
     left: calc(100% + 0.5rem);
     z-index: 5;
+    display: flex;
+    width: 8.5rem;
+    padding-left: 0;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
     white-space: nowrap;
+}
+
+.sam2-output-loop-toggle .form-check-input {
+    float: none;
+    margin-left: 0;
 }
 
 @media (max-width: 700px) {
     .sam2-output-download-button {
-        top: calc(100% + 0.5rem);
+        top: calc(100% + 3rem);
         left: auto;
         right: 0;
     }
 
     .sam2-output-loop-toggle {
-        top: calc(100% + 3rem);
+        top: calc(100% + 0.5rem);
         left: auto;
         right: 0;
     }

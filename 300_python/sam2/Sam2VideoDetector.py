@@ -1457,8 +1457,10 @@ class Sam2VideoDetector:
 
             previous_cache = self._yolo_conversion_cache.get(str(resolved_input))
             if previous_cache and previous_cache.get("cleanup_source"):
+                previous_source_path = Path(previous_cache["source_video_path"])
                 try:
-                    Path(previous_cache["source_video_path"]).unlink(missing_ok=True)
+                    if previous_source_path.resolve() != prepared_path.resolve():
+                        previous_source_path.unlink(missing_ok=True)
                 except OSError:
                     pass
             self._yolo_conversion_cache[str(resolved_input)] = {

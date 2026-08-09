@@ -93,6 +93,7 @@
     left: calc(100% + 0.5rem);
     z-index: 5;
     width: 8.5rem;
+    text-align: left;
     white-space: nowrap;
     writing-mode: horizontal-tb;
 }
@@ -106,7 +107,7 @@
     width: 8.5rem;
     padding-left: 0;
     align-items: center;
-    justify-content: center;
+    justify-content: flex-start;
     gap: 0.5rem;
     white-space: nowrap;
 }

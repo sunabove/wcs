@@ -52,7 +52,6 @@
     const outputVideoElement = document.getElementById('sam2-output-video');
     const outputDownloadButton = document.getElementById('sam2-output-download');
     const yoloConvertButton = document.getElementById('sam2-yolo-convert');
-    document.getElementById('sam2-yolo-dataset-download')?.remove();
     const yoloDatasetSummaryElement = document.getElementById('sam2-yolo-dataset-summary');
     const yoloClassTabTemplate = document.getElementById('sam2-yolo-class-template');
     const yoloClassEmptyTemplate = document.getElementById('sam2-yolo-class-empty-template');
@@ -61,7 +60,6 @@
     let resolvedApiBase = null;
     let inputObjectUrl = '';
     let outputObjectUrl = '';
-    let yoloDatasetUrl = '';
     let yoloInputFileName = '';
     let yoloConversionAvailable = false;
     let yoloClassTabsElement = null;
@@ -546,12 +544,10 @@
             }
 
             const result = await response.json();
-            yoloDatasetUrl = result.yolo_dataset_url
-                ? `${apiBase}${result.yolo_dataset_url}`
-                : '';
             const imageCount = Number(result.yolo_dataset_image_count || 0);
             const labelCount = Number(result.yolo_dataset_label_count || 0);
-            const summary = yoloDatasetUrl
+            const conversionCompleted = imageCount > 0;
+            const summary = conversionCompleted
                 ? `변환 완료: 이미지 ${imageCount}장, 세그먼트 ${labelCount}개`
                 : '기준 스코어 이상인 학습 데이터가 없습니다.';
             if (yoloDatasetSummaryElement) {
@@ -561,7 +557,7 @@
                 classUi.summaryElement.textContent = summary;
             }
             updateOutputDownloadState();
-            setStatus(yoloDatasetUrl ? `${className} 클래스 YOLO 변환 완료` : '변환할 학습 데이터가 없습니다.', yoloDatasetUrl ? 'success' : 'warning');
+            setStatus(conversionCompleted ? `${className} 클래스 YOLO 변환 완료` : '변환할 학습 데이터가 없습니다.', conversionCompleted ? 'success' : 'warning');
         } catch (error) {
             yoloConversionAvailable = true;
             updateOutputDownloadState();
@@ -1405,7 +1401,6 @@
             URL.revokeObjectURL(outputObjectUrl);
             outputObjectUrl = '';
         }
-        yoloDatasetUrl = '';
         yoloInputFileName = '';
         yoloConversionAvailable = false;
         if (yoloDatasetSummaryElement) {
@@ -2094,7 +2089,6 @@
             applyLoopOption();
             yoloInputFileName = String(inputFileName || '').trim();
             yoloConversionAvailable = conversionAvailable === true;
-            yoloDatasetUrl = '';
             updateYoloClassTabs(extractYoloClassName(yoloInputFileName));
             updateOutputDownloadState();
             return true;
@@ -2437,7 +2431,6 @@
                 || selectedServerFileName
                 || '';
             yoloConversionAvailable = result.yolo_conversion_available === true;
-            yoloDatasetUrl = '';
             if (yoloDatasetSummaryElement) {
                 yoloDatasetSummaryElement.textContent = yoloConversionAvailable
                     ? ''

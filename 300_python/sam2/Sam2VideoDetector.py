@@ -4,7 +4,6 @@ import os
 import shutil
 import sys
 import time
-import zipfile
 from pathlib import Path
 
 import cv2
@@ -1278,7 +1277,6 @@ class Sam2VideoDetector:
         images_dir.mkdir(parents=True, exist_ok=True)
         labels_dir.mkdir(parents=True, exist_ok=True)
         masks_dir.mkdir(parents=True, exist_ok=True)
-        output_root.with_suffix(".zip").unlink(missing_ok=True)
 
         file_prefix = f"{input_file_stem}_"
         for directory, suffixes in (
@@ -1336,7 +1334,6 @@ class Sam2VideoDetector:
         if image_count <= 0:
             return {
                 "root": None,
-                "archive": None,
                 "image_count": 0,
                 "label_count": 0,
             }
@@ -1350,16 +1347,9 @@ class Sam2VideoDetector:
             "  0: object\n",
             encoding="utf-8",
         )
-        archive_path = output_root.with_suffix(".zip")
-        archive_path.unlink(missing_ok=True)
-        with zipfile.ZipFile(archive_path, "w", zipfile.ZIP_DEFLATED) as archive:
-            for path in sorted(output_root.rglob("*")):
-                if path.is_file():
-                    archive.write(path, path.relative_to(output_root).as_posix())
 
         return {
             "root": output_root,
-            "archive": archive_path,
             "image_count": image_count,
             "label_count": label_count,
         }
@@ -1385,16 +1375,6 @@ class Sam2VideoDetector:
         )
         result = {
             "input_file_stem": resolved_input.stem,
-            "yolo_dataset_url": (
-                self._to_route_url(dataset_result["archive"])
-                if dataset_result and dataset_result.get("archive")
-                else None
-            ),
-            "yolo_dataset_root_url": (
-                self._to_route_url(dataset_result["root"])
-                if dataset_result and dataset_result.get("root")
-                else None
-            ),
             "yolo_dataset_image_count": int(dataset_result["image_count"] if dataset_result else 0),
             "yolo_dataset_label_count": int(dataset_result["label_count"] if dataset_result else 0),
         }
@@ -1664,8 +1644,6 @@ class Sam2VideoDetector:
             "output_url": self._to_route_url(output_path),
             "input_file_stem": input_file_stem,
             "yolo_conversion_available": yolo_conversion_available,
-            "yolo_dataset_url": None,
-            "yolo_dataset_root_url": None,
             "yolo_dataset_image_count": 0,
             "yolo_dataset_label_count": 0,
         }

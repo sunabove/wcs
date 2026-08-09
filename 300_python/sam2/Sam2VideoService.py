@@ -60,7 +60,7 @@ class Sam2VideoService:
                     "total_frames": total_frames,
                 })
 
-    def _run_detection_job(self, job_id, input_path, model_name, bbox, points, point_labels, multimask_output, mask_input, clahe):
+    def _run_detection_job(self, job_id, input_path, model_name, bbox, points, point_labels, multimask_output, mask_input, clahe, iou_mask_filter):
         try:
             with self._jobs_lock:
                 self._jobs[job_id]["status"] = "running"
@@ -73,6 +73,7 @@ class Sam2VideoService:
                 multimask_output=multimask_output,
                 mask_input=mask_input,
                 clahe=clahe,
+                iou_mask_filter=iou_mask_filter,
                 progress_callback=lambda processed, total: self._update_job_progress(job_id, processed, total),
             )
             with self._jobs_lock:
@@ -87,7 +88,7 @@ class Sam2VideoService:
             with self._jobs_lock:
                 self._jobs[job_id].update({"status": "failed", "error": str(ex)})
 
-    def _start_detection_job(self, input_path, model_name, bbox, points, point_labels, multimask_output, mask_input, clahe):
+    def _start_detection_job(self, input_path, model_name, bbox, points, point_labels, multimask_output, mask_input, clahe, iou_mask_filter):
         job_id = self._create_job()
         self._job_executor.submit(
             self._run_detection_job,
@@ -100,6 +101,7 @@ class Sam2VideoService:
             multimask_output,
             mask_input,
             clahe,
+            iou_mask_filter,
         )
         return {"job_id": job_id, "status": "queued", "progress": 0}
 
@@ -304,6 +306,7 @@ class Sam2VideoService:
         multimask_output: bool = False,
         mask_input: bool = True,
         clahe: bool = False,
+        iou_mask_filter: bool = True,
     ) -> None:
         options = {
             "model_name": model_name,
@@ -313,6 +316,7 @@ class Sam2VideoService:
             "multimask_output": bool(multimask_output),
             "mask_input": bool(mask_input),
             "clahe": bool(clahe),
+            "iou_mask_filter": bool(iou_mask_filter),
             "saved_at": datetime.now().isoformat(timespec="seconds"),
         }
         options_path = self._options_path(input_path)
@@ -383,6 +387,7 @@ class Sam2VideoService:
         multimask_output: bool = False,
         mask_input: bool = True,
         clahe: bool = False,
+        iou_mask_filter: bool = True,
     ):
         input_path = self._save_uploaded_video(upload_file)
         resolved_model_name = self._resolve_model_name(model_name)
@@ -395,6 +400,7 @@ class Sam2VideoService:
             multimask_output=multimask_output,
             mask_input=mask_input,
             clahe=clahe,
+            iou_mask_filter=iou_mask_filter,
         )
 
         return self._start_detection_job(
@@ -406,6 +412,7 @@ class Sam2VideoService:
             multimask_output=multimask_output,
             mask_input=mask_input,
             clahe=clahe,
+            iou_mask_filter=iou_mask_filter,
         )
 
     def upload_video_only(self, upload_file: UploadFile):
@@ -433,6 +440,7 @@ class Sam2VideoService:
         multimask_output: bool = False,
         mask_input: bool = True,
         clahe: bool = False,
+        iou_mask_filter: bool = True,
     ):
         input_path = self._resolve_uploaded_video_path(file_name)
         resolved_model_name = self._resolve_model_name(model_name)
@@ -445,6 +453,7 @@ class Sam2VideoService:
             multimask_output=multimask_output,
             mask_input=mask_input,
             clahe=clahe,
+            iou_mask_filter=iou_mask_filter,
         )
 
         return self._start_detection_job(
@@ -456,6 +465,7 @@ class Sam2VideoService:
             multimask_output=multimask_output,
             mask_input=mask_input,
             clahe=clahe,
+            iou_mask_filter=iou_mask_filter,
         )
 
     def list_uploaded_videos(self, limit: int = 50):
@@ -544,6 +554,7 @@ class Sam2VideoService:
             "multimask_output": options.get("multimask_output", False) is True,
             "mask_input": options.get("mask_input", True) is not False,
             "clahe": options.get("clahe", False) is True,
+            "iou_mask_filter": options.get("iou_mask_filter", True) is not False,
             "saved_at": options.get("saved_at", ""),
         }
 
@@ -557,6 +568,7 @@ class Sam2VideoService:
         multimask_output: bool = False,
         mask_input: bool = True,
         clahe: bool = False,
+        iou_mask_filter: bool = True,
     ):
         input_path = self._resolve_uploaded_video_path(file_name)
         resolved_model_name = self._resolve_model_name(model_name)
@@ -569,6 +581,7 @@ class Sam2VideoService:
             multimask_output=multimask_output,
             mask_input=mask_input,
             clahe=clahe,
+            iou_mask_filter=iou_mask_filter,
         )
         return {
             "saved": True,

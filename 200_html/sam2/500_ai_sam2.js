@@ -35,6 +35,8 @@
     const maskInputCheckbox = document.getElementById('sam2-mask-input');
     const claheCheckbox = document.getElementById('sam2-clahe');
     const claheText = document.getElementById('sam2-clahe-text');
+    const iouMaskFilterCheckbox = document.getElementById('sam2-iou-mask-filter');
+    const iouMaskFilterText = document.getElementById('sam2-iou-mask-filter-text');
     document.getElementById('sam2-point-label-text')?.closest('.form-switch')?.remove();
     const multimaskOutputText = document.getElementById('sam2-multimask-output-text');
     const maskInputText = document.getElementById('sam2-mask-input-text');
@@ -308,6 +310,10 @@
             claheCheckbox.checked = true;
             updateClaheText();
         }
+        if (iouMaskFilterCheckbox) {
+            iouMaskFilterCheckbox.checked = true;
+            updateIouMaskFilterText();
+        }
         if (multimaskOutputCheckbox) {
             multimaskOutputCheckbox.checked = false;
             updateMultimaskOutputText();
@@ -316,7 +322,7 @@
 
     function updateDetectionControlState() {
         const enabled = hasSelectedVideo();
-            [foregroundPointModeButton, backgroundPointModeButton, bboxModeButton, pointClearButton, bboxClearButton, optionsSaveButton, optionsResetButton, multimaskOutputCheckbox, maskInputCheckbox].forEach((control) => {
+            [foregroundPointModeButton, backgroundPointModeButton, bboxModeButton, pointClearButton, bboxClearButton, optionsSaveButton, optionsResetButton, multimaskOutputCheckbox, maskInputCheckbox, claheCheckbox, iouMaskFilterCheckbox].forEach((control) => {
             if (control) {
                 control.disabled = !enabled;
             }
@@ -398,6 +404,10 @@
             if (claheCheckbox) {
                 claheCheckbox.checked = options.clahe === true;
                 updateClaheText();
+            }
+            if (iouMaskFilterCheckbox) {
+                iouMaskFilterCheckbox.checked = options.iou_mask_filter !== false;
+                updateIouMaskFilterText();
             }
             renderPointUi();
             renderBoundingBoxUi();
@@ -1260,6 +1270,17 @@
         return `&clahe=${encodeURIComponent(String(value))}`;
     }
 
+    function updateIouMaskFilterText() {
+        if (iouMaskFilterText) {
+            iouMaskFilterText.textContent = iouMaskFilterCheckbox && iouMaskFilterCheckbox.checked ? 'On' : 'Off';
+        }
+    }
+
+    function buildIouMaskFilterQuery() {
+        const value = Boolean(iouMaskFilterCheckbox && iouMaskFilterCheckbox.checked);
+        return `&iou_mask_filter=${encodeURIComponent(String(value))}`;
+    }
+
     async function saveVideoOptions(fileName) {
         const value = String(fileName || '').trim();
         if (!value) {
@@ -1267,7 +1288,7 @@
         }
 
         const apiBase = await resolveApiBase();
-        const url = `${apiBase}/fast/sam2/video_options?file_name=${encodeURIComponent(value)}&model_name=auto${buildBboxQuery()}${buildPointsQuery()}${buildPointLabelsQuery()}${buildMultimaskOutputQuery()}${buildMaskInputQuery()}${buildClaheQuery()}`;
+        const url = `${apiBase}/fast/sam2/video_options?file_name=${encodeURIComponent(value)}&model_name=auto${buildBboxQuery()}${buildPointsQuery()}${buildPointLabelsQuery()}${buildMultimaskOutputQuery()}${buildMaskInputQuery()}${buildClaheQuery()}${buildIouMaskFilterQuery()}`;
         const response = await fetch(url, { method: 'POST' });
         if (!response.ok) {
             return false;
@@ -2293,13 +2314,13 @@
             if (file) {
                 const formData = new FormData();
                 formData.append('file', file);
-                const url = `${apiBase}/fast/sam2/segment_video_upload?${bboxQuery.slice(1)}${pointsQuery}${pointLabelsQuery}${buildMultimaskOutputQuery().slice(1)}${buildMaskInputQuery()}${buildClaheQuery()}`;
+                const url = `${apiBase}/fast/sam2/segment_video_upload?${bboxQuery.slice(1)}${pointsQuery}${pointLabelsQuery}${buildMultimaskOutputQuery().slice(1)}${buildMaskInputQuery()}${buildClaheQuery()}${buildIouMaskFilterQuery()}`;
                 response = await fetch(url, {
                     method: 'POST',
                     body: formData,
                 });
             } else {
-                const url = `${apiBase}/fast/sam2/segment_saved_video?file_name=${encodeURIComponent(selectedServerFileName)}${bboxQuery}${pointsQuery}${pointLabelsQuery}${buildMultimaskOutputQuery()}${buildMaskInputQuery()}${buildClaheQuery()}`;
+                const url = `${apiBase}/fast/sam2/segment_saved_video?file_name=${encodeURIComponent(selectedServerFileName)}${bboxQuery}${pointsQuery}${pointLabelsQuery}${buildMultimaskOutputQuery()}${buildMaskInputQuery()}${buildClaheQuery()}${buildIouMaskFilterQuery()}`;
                 response = await fetch(url, {
                     method: 'POST',
                 });
@@ -2627,6 +2648,10 @@
     if (claheCheckbox) {
         claheCheckbox.addEventListener('change', updateClaheText);
         updateClaheText();
+    }
+    if (iouMaskFilterCheckbox) {
+        iouMaskFilterCheckbox.addEventListener('change', updateIouMaskFilterText);
+        updateIouMaskFilterText();
     }
     if (inputVideoElement) {
         ['loadedmetadata', 'canplay', 'play', 'playing', 'pause', 'waiting', 'stalled', 'abort'].forEach((eventName) => {

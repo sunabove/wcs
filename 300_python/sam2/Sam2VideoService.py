@@ -393,7 +393,7 @@ class Sam2VideoService:
         with self._training_jobs_lock:
             if self._active_training_job_id:
                 active_job = self._training_jobs.get(self._active_training_job_id, {})
-                if active_job.get("status") in {"queued", "running"}:
+                if active_job.get("status") in {"queued", "running", "stopping"}:
                     raise HTTPException(status_code=409, detail="YOLO 학습이 이미 진행 중입니다")
             job_id = uuid.uuid4().hex
             self._training_jobs[job_id] = {

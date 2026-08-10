@@ -785,7 +785,11 @@
             );
         } catch (error) {
             yoloTrainStopButton.disabled = false;
-            renderYoloTrainingProgress(0, error && error.message ? error.message : 'YOLO 학습을 중지하지 못했습니다.', 'failed');
+            if (yoloTrainStatusElement) {
+                yoloTrainStatusElement.textContent = error && error.message
+                    ? error.message
+                    : 'YOLO 학습을 중지하지 못했습니다.';
+            }
         }
     }
 

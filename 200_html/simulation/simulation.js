@@ -202,7 +202,7 @@ class RapierDriveSimulation {
         this.passUnderObstacleNamePatterns = [/pass_under/i, /underbody/i];
         this.maxSpeedMps = 100 / 3.6;
         this.maxYawRateRad = THREE.MathUtils.degToRad(80);
-        this.enableWheelPhysicsColliders = true;
+        this.enableWheelPhysicsColliders = false;
         this.blockMotionOnObstacleContact = false;
         this.keepUprightOnFlatGround = true;
         this.isUprightRotationLockActive = false;
@@ -2520,6 +2520,29 @@ class RapierDriveSimulation {
         return vehicleBounds.some((bounds) => bounds.intersectsBox(obstacleBounds));
     }
 
+    getObstacleContactedWheelKeys(obstacleInfo, linkMap = null) {
+        const effectiveLinkMap = linkMap || this.viewer?.robotModel?.links || null;
+        const obstacleBounds = this.getObstacleWorldBounds(obstacleInfo, effectiveLinkMap);
+        if (!effectiveLinkMap || !obstacleBounds || obstacleBounds.isEmpty()) {
+            return [];
+        }
+
+        const wheelLinkNameByKey = {
+            fl: 'wheel_fl',
+            fr: 'wheel_fr',
+            rl: 'wheel_rl',
+            rr: 'wheel_rr'
+        };
+
+        return Object.entries(wheelLinkNameByKey)
+            .filter(([, wheelLinkName]) => {
+                const wheelLink = this.findLinkByName(effectiveLinkMap, wheelLinkName);
+                const wheelBounds = this.computeLinkOwnBounds(wheelLink, effectiveLinkMap);
+                return wheelBounds && !wheelBounds.isEmpty() && wheelBounds.intersectsBox(obstacleBounds);
+            })
+            .map(([wheelKey]) => wheelKey);
+    }
+
     syncObstacleColliderActivation(linkMap = null) {
         this.obstacleColliderInfos.forEach((obstacleInfo) => {
             if (!obstacleInfo?.collider || obstacleInfo.isSensor) {
@@ -2569,7 +2592,7 @@ class RapierDriveSimulation {
         }
 
         const obstacleContactInfo = this.obstacleColliderInfos.find((obstacleInfo) => {
-            if (!obstacleInfo || obstacleInfo.isSensor || !this.world?.contactPair || !this.body) {
+            if (!obstacleInfo || obstacleInfo.isSensor) {
                 return false;
             }
 
@@ -2577,20 +2600,8 @@ class RapierDriveSimulation {
                 return false;
             }
 
-            let isContacting = false;
-            const contactedWheelKeys = [];
-            this.vehicleColliders.forEach((vehicleCollider) => {
-                this.world.contactPair(vehicleCollider, obstacleInfo.collider, () => {
-                    isContacting = true;
-                    Object.entries(this.wheelCollidersByKey).forEach(([wheelKey, wheelCollider]) => {
-                        if (wheelCollider === vehicleCollider) {
-                            contactedWheelKeys.push(wheelKey);
-                        }
-                    });
-                });
-            });
-            obstacleInfo.contactedWheelKeys = contactedWheelKeys;
-            return isContacting;
+            obstacleInfo.contactedWheelKeys = this.getObstacleContactedWheelKeys(obstacleInfo);
+            return true;
         });
 
         if (obstacleContactInfo) {
@@ -2976,11 +2987,7 @@ class RapierDriveSimulation {
             return;
         }
 
-        if (!this.isBodyNearFlatGroundSupport()) {
-            return;
-        }
-
-        const targetZ = this.getGroundContactTargetZ();
+        const targetZ = Number(this.initialPosition?.z);
         if (!Number.isFinite(targetZ)) {
             return;
         }
@@ -3537,10 +3544,8 @@ class RapierDriveSimulation {
         }
 
         let hasContact = false;
-        if (typeof this.world.contactPair === 'function') {
-            this.obstacleColliderInfos.forEach((obstacleInfo) => {
+        this.obstacleColliderInfos.forEach((obstacleInfo) => {
                 let obstacleHasContact = false;
-                let obstacleHasWheelContact = false;
                 if (!obstacleInfo?.collider || obstacleInfo.isSensor) {
                     this.setObstacleContactHighlight(obstacleInfo, false);
                     return;
@@ -3552,18 +3557,9 @@ class RapierDriveSimulation {
                     return;
                 }
 
-                if (this.isObstacleBelowWheelContactPlane(obstacleInfo)) {
-                    this.setObstacleContactHighlight(obstacleInfo, false);
-                    return;
-                }
-
-                this.vehicleColliders.forEach((vehicleCollider) => {
-                    this.world.contactPair(vehicleCollider, obstacleInfo.collider, () => {
-                        obstacleHasContact = true;
-                        obstacleHasWheelContact = obstacleHasWheelContact
-                            || this.wheelColliders.includes(vehicleCollider);
-                    });
-                });
+                obstacleHasContact = true;
+                obstacleInfo.contactedWheelKeys = this.getObstacleContactedWheelKeys(obstacleInfo);
+                const obstacleHasWheelContact = obstacleInfo.contactedWheelKeys.length > 0;
 
                 const isActiveTraversalObstacle = this.activeObstacleTraversalPath?.obstacleInfo === obstacleInfo;
                 if (obstacleHasWheelContact) {
@@ -3580,7 +3576,6 @@ class RapierDriveSimulation {
                 );
                 hasContact = hasContact || obstacleHasContact;
             });
-        }
 
         if (hasContact !== this.isVehicleObstacleContact) {
             this.isVehicleObstacleContact = hasContact;

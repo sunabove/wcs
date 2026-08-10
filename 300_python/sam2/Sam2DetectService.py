@@ -150,8 +150,10 @@ def yolo_dataset_summary():
 
 
 @router.post("/train_yolo_dataset")
-def train_yolo_dataset():
-    return _service.start_yolo_training()
+def train_yolo_dataset(
+    force_retrain: bool = Query(False),
+):
+    return _service.start_yolo_training(force_retrain=force_retrain)
 
 
 @router.get("/yolo_training_status/{job_id}")

@@ -155,7 +155,7 @@ class Sam2VideoService:
             hasher.update(classes_path.read_bytes())
         return hasher.hexdigest()
 
-    def _get_yolo_training_plan(self, dataset_fingerprint):
+    def _get_yolo_training_plan(self, dataset_fingerprint, force_retrain=False):
         run_dir = SAM2_YOLO_DIR / "runs" / "obstacle-seg"
         checkpoint_path = run_dir / "weights" / "last.pt"
         metadata_path = run_dir / "training_state.json"
@@ -166,9 +166,14 @@ class Sam2VideoService:
                 previous_fingerprint = str(metadata.get("dataset_fingerprint", ""))
             except (OSError, json.JSONDecodeError):
                 previous_fingerprint = ""
-        continue_training = checkpoint_path.is_file() and previous_fingerprint == dataset_fingerprint
+        continue_training = (
+            not force_retrain
+            and checkpoint_path.is_file()
+            and previous_fingerprint == dataset_fingerprint
+        )
         return {
             "continue_training": continue_training,
+            "force_retrain": bool(force_retrain),
             "model_source": str(checkpoint_path) if continue_training else os.getenv(
                 "SAM2_YOLO_TRAIN_MODEL",
                 "yolo11m-seg.pt",
@@ -187,11 +192,14 @@ class Sam2VideoService:
                 training_plan = self._training_jobs[job_id]["training_plan"]
                 model_source = training_plan["model_source"]
                 continue_training = bool(training_plan["continue_training"])
+                force_retrain = bool(training_plan["force_retrain"])
                 self._training_jobs[job_id].update({
                     "status": "running",
                     "message": (
                         "기존 가중치에서 이어서 학습을 준비하는 중..."
                         if continue_training
+                        else "기본 모델에서 재학습을 준비하는 중..."
+                        if force_retrain
                         else "새 학습 모델을 준비하는 중..."
                     ),
                     "total_epochs": epochs,
@@ -303,6 +311,7 @@ class Sam2VideoService:
                     "message": "YOLO 학습이 완료되었습니다.",
                     "result": {
                         "continued_training": continue_training,
+                        "forced_retraining": force_retrain,
                         "save_dir": save_dir,
                         "training_best_model_path": str(best_model_path),
                         "best_model_path": str(output_model_path),
@@ -320,7 +329,7 @@ class Sam2VideoService:
                 if self._active_training_job_id == job_id:
                     self._active_training_job_id = ""
 
-    def start_yolo_training(self):
+    def start_yolo_training(self, force_retrain=False):
         summary = self.detector.get_yolo_dataset_summary()
         if int(summary.get("frame_count", 0)) <= 0:
             raise HTTPException(status_code=409, detail="변환된 YOLO 학습 데이터가 없습니다")
@@ -330,7 +339,10 @@ class Sam2VideoService:
             raise HTTPException(status_code=409, detail=str(ex)) from ex
 
         dataset_fingerprint = self._get_yolo_dataset_fingerprint()
-        training_plan = self._get_yolo_training_plan(dataset_fingerprint)
+        training_plan = self._get_yolo_training_plan(
+            dataset_fingerprint,
+            force_retrain=bool(force_retrain),
+        )
 
         with self._training_jobs_lock:
             if self._active_training_job_id:
@@ -343,7 +355,7 @@ class Sam2VideoService:
                 "progress": 0,
                 "current_epoch": 0,
                 "total_epochs": 0,
-                "message": "YOLO 학습 대기 중...",
+                "message": "YOLO 재학습 대기 중..." if force_retrain else "YOLO 학습 대기 중...",
                 "metric_history": [],
                 "dataset_fingerprint": dataset_fingerprint,
                 "training_plan": training_plan,

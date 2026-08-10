@@ -2786,6 +2786,8 @@ class RapierDriveSimulation {
             if (path.obstacleInfo.collider && typeof path.obstacleInfo.collider.setSensor === 'function') {
                 path.obstacleInfo.collider.setSensor(false);
             }
+            path.obstacleInfo.isContactHighlightLatched = false;
+            this.setObstacleContactHighlight(path.obstacleInfo, false, true);
             this.activeObstacleTraversalPath = null;
         }
     }
@@ -3485,13 +3487,6 @@ class RapierDriveSimulation {
             return;
         }
 
-        const nowMs = performance.now();
-        if (isContacting) {
-            obstacleInfo.contactHighlightUntilMs = nowMs + 600;
-        } else if (!forceClear && nowMs < (Number(obstacleInfo.contactHighlightUntilMs) || 0)) {
-            return;
-        }
-
         if (obstacleInfo.isContactHighlighted === isContacting) {
             return;
         }
@@ -3543,7 +3538,19 @@ class RapierDriveSimulation {
                     });
                 });
 
-                this.setObstacleContactHighlight(obstacleInfo, obstacleHasWheelContact);
+                const isActiveTraversalObstacle = this.activeObstacleTraversalPath?.obstacleInfo === obstacleInfo;
+                if (obstacleHasWheelContact) {
+                    obstacleInfo.isContactHighlightLatched = true;
+                    obstacleInfo.contactHighlightPendingUntilMs = performance.now() + 600;
+                } else if (!isActiveTraversalObstacle
+                    && performance.now() >= (Number(obstacleInfo.contactHighlightPendingUntilMs) || 0)) {
+                    obstacleInfo.isContactHighlightLatched = false;
+                }
+
+                this.setObstacleContactHighlight(
+                    obstacleInfo,
+                    obstacleInfo.isContactHighlightLatched === true || isActiveTraversalObstacle
+                );
                 hasContact = hasContact || obstacleHasContact;
             });
         }
@@ -4381,6 +4388,8 @@ class RapierDriveSimulation {
         this.body.setAngvel(new this.rapier.Vector3(0, 0, 0), true);
         this.isVehicleObstacleContact = false;
         this.obstacleColliderInfos.forEach((obstacleInfo) => {
+            obstacleInfo.isContactHighlightLatched = false;
+            obstacleInfo.contactHighlightPendingUntilMs = 0;
             this.setObstacleContactHighlight(obstacleInfo, false, true);
             if (obstacleInfo?.collider && typeof obstacleInfo.collider.setSensor === 'function') {
                 obstacleInfo.collider.setSensor(false);

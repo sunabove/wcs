@@ -1563,12 +1563,32 @@
         const viewerElement = fileTabPane.querySelector('[data-role="frame-viewer"]');
         const frameSlider = fileTabPane.querySelector('[data-role="frame-slider"]');
         const counterElement = fileTabPane.querySelector('[data-role="frame-counter"]');
+        const imageTabButton = fileTabPane.querySelector('[data-role="frame-image-tab"]');
+        const maskTabButton = fileTabPane.querySelector('[data-role="frame-mask-tab"]');
+        const segTabButton = fileTabPane.querySelector('[data-role="frame-seg-tab"]');
+        const imageTabPane = fileTabPane.querySelector('[data-role="frame-image-pane"]');
+        const maskTabPane = fileTabPane.querySelector('[data-role="frame-mask-pane"]');
+        const segTabPane = fileTabPane.querySelector('[data-role="frame-seg-pane"]');
         const imageElement = fileTabPane.querySelector('[data-role="frame-image"]');
         const maskElement = fileTabPane.querySelector('[data-role="frame-mask"]');
         const labelElement = fileTabPane.querySelector('[data-role="frame-label"]');
-        if (!loadingElement || !viewerElement || !frameSlider || !counterElement || !imageElement || !maskElement || !labelElement) {
+        if (!loadingElement || !viewerElement || !frameSlider || !counterElement || !imageTabButton || !maskTabButton || !segTabButton || !imageTabPane || !maskTabPane || !segTabPane || !imageElement || !maskElement || !labelElement) {
             return async function () {};
         }
+
+        [
+            [imageTabButton, imageTabPane, 'image'],
+            [maskTabButton, maskTabPane, 'mask'],
+            [segTabButton, segTabPane, 'seg'],
+        ].forEach(([tabButton, tabPane, suffix]) => {
+            const tabId = `${fileTabPane.id}-${suffix}-tab`;
+            const paneId = `${fileTabPane.id}-${suffix}-pane`;
+            tabButton.id = tabId;
+            tabButton.setAttribute('data-bs-target', `#${paneId}`);
+            tabButton.setAttribute('aria-controls', paneId);
+            tabPane.id = paneId;
+            tabPane.setAttribute('aria-labelledby', tabId);
+        });
 
         let frames = [];
         let framePosition = 0;

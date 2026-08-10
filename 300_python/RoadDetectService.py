@@ -139,8 +139,8 @@ async def camera_detect_stream_init_service(
     remove_noisy_masks: bool = Query(True),
     show_detect_stats: bool = Query(False),
     show_time_bar: bool = Query(True),
-    include_pothole: bool = Query(False),
-    pothole_conf: float = Query(0.5, ge=0.0, le=1.0),
+    include_obstacle: bool = Query(False),
+    obstacle_conf: float = Query(0.5, ge=0.0, le=1.0),
     mqtt_publish: bool = Query(False),
 ):
     from RoadDetector import RoadDetector
@@ -154,8 +154,8 @@ async def camera_detect_stream_init_service(
         remove_noisy_masks=remove_noisy_masks,
         show_detect_stats=show_detect_stats,
         show_time_bar=show_time_bar,
-        include_pothole=include_pothole,
-        pothole_conf=pothole_conf,
+        include_obstacle=include_obstacle,
+        obstacle_conf=obstacle_conf,
         mqtt_publish=mqtt_publish,
     )
 pass # camera_detect_stream_init_service
@@ -237,15 +237,15 @@ def road_detect_service(
     remove_noisy_masks: bool = Query(True),
     show_detect_stats: bool = Query(False),
     show_time_bar: bool = Query(False),
-    include_pothole: bool = Query(False),
-    pothole_conf: float = Query(0.5, ge=0.0, le=1.0),
+    include_obstacle: bool = Query(False),
+    obstacle_conf: float = Query(0.5, ge=0.0, le=1.0),
     mqtt_publish: bool = Query(False),
 ):
     from RoadDetector import RoadDetector
 
     detector = RoadDetector()
 
-    return detector.road_detect_service(file_name, detect_type, remove_noisy_masks, show_detect_stats, show_time_bar, include_pothole, pothole_conf, mqtt_publish)
+    return detector.road_detect_service(file_name, detect_type, remove_noisy_masks, show_detect_stats, show_time_bar, include_obstacle, obstacle_conf, mqtt_publish)
 pass # road_detect_service
 
 @router.get("/road_roi/{file_name:path}")
@@ -276,15 +276,15 @@ async def road_detect_stream_service(
     remove_noisy_masks: bool = Query(True),
     show_detect_stats: bool = Query(False),
     show_time_bar: bool = Query(False),
-    include_pothole: bool = Query(False),
-    pothole_conf: float = Query(0.5, ge=0.0, le=1.0),
+    include_obstacle: bool = Query(False),
+    obstacle_conf: float = Query(0.5, ge=0.0, le=1.0),
     mqtt_publish: bool = Query(False),
 ):
     from RoadDetector import RoadDetector
 
     detector = RoadDetector()
 
-    return detector.road_detect_stream(file_name, detect_type, remove_noisy_masks, show_detect_stats, show_time_bar, include_pothole, pothole_conf, mqtt_publish)
+    return detector.road_detect_stream(file_name, detect_type, remove_noisy_masks, show_detect_stats, show_time_bar, include_obstacle, obstacle_conf, mqtt_publish)
 pass # road_detect_stream_service
 
 @router.post("/road_detect_stream_init/{file_name:path}")
@@ -294,15 +294,15 @@ async def road_detect_stream_init_service(
     remove_noisy_masks: bool = Query(True),
     show_detect_stats: bool = Query(False),
     show_time_bar: bool = Query(False),
-    include_pothole: bool = Query(False),
-    pothole_conf: float = Query(0.5, ge=0.0, le=1.0),
+    include_obstacle: bool = Query(False),
+    obstacle_conf: float = Query(0.5, ge=0.0, le=1.0),
     mqtt_publish: bool = Query(False),
 ):
     from RoadDetector import RoadDetector
 
     detector = RoadDetector()
 
-    return detector.road_detect_stream_init(file_name, detect_type, remove_noisy_masks, show_detect_stats, show_time_bar, include_pothole, pothole_conf, mqtt_publish)
+    return detector.road_detect_stream_init(file_name, detect_type, remove_noisy_masks, show_detect_stats, show_time_bar, include_obstacle, obstacle_conf, mqtt_publish)
 pass # road_detect_stream_init_service
 
 @router.get("/road_detect_stream_next/{file_name:path}")

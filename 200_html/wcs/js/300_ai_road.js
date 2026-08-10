@@ -38,9 +38,9 @@ $(function () {
     const $uploadStatusMessage = $("#work-status-message");
     const $detectingIndicator = $("#detecting-indicator");
     const $detectTypeInputs = $("input[name='detect-type']");
-    const $detectPotholeInput = $("#detect-pothole");
-    const $enablePotholeDetect = $("#enable-pothole-detect");
-    const $potholeConfidence = $("#pothole-confidence");
+    const $detectObstacleInput = $("#detect-obstacle");
+    const $enableObstacleDetect = $("#enable-obstacle-detect");
+    const $obstacleConfidence = $("#obstacle-confidence");
     const $removeNoisyMasks = $("#remove-noisy-masks");
     const $showDetectStatsChart = $("#show-detect-stats-chart");
     const $enableMqttPublish = $("#enable-mqtt-publish");
@@ -58,9 +58,10 @@ $(function () {
     const cameraDeviceListContainerTemplate = document.getElementById("camera-device-list-container-template");
     const DETECT_AFTER_UPLOAD_DELAY_MS = 800;
     const DETECT_OPTIONS_STORAGE_KEY = "wcs.ai_road.detect_options.v1";
-    const POTHOLE_OPTION_STORAGE_KEY = "wcs.ai_road.enable_pothole_detect.v1";
+    const OBSTACLE_OPTION_STORAGE_KEY = "wcs.ai_road.enable_obstacle_detect.v1";
+    const LEGACY_POTHOLE_OPTION_STORAGE_KEY = "wcs.ai_road.enable_pothole_detect.v1";
     const MQTT_PUBLISH_OPTION_STORAGE_KEY = "wcs.ai_road.enable_mqtt_publish.v1";
-    const DEFAULT_POTHOLE_CONFIDENCE = 0.5;
+    const DEFAULT_OBSTACLE_CONFIDENCE = 0.5;
     const INPUT_TAB_STORAGE_KEY = "wcs.ai_road.input_tab.v1";
     const SAMPLE_BROWSER_STORAGE_KEY = "wcs.ai_road.sample_browser.v1";
     let uploadedFileName = "";
@@ -819,14 +820,14 @@ $(function () {
     }
 
     function isObstacleDetectEnabled() {
-        if ($enablePotholeDetect.length === 0) {
+        if ($enableObstacleDetect.length === 0) {
             return true;
         }
         return $enableObstacleDetect.is(":checked");
     }
 
     function syncObstacleDetectOption() {
-        if ($detectPotholeInput.length === 0) {
+        if ($detectObstacleInput.length === 0) {
             return;
         }
 
@@ -871,7 +872,7 @@ $(function () {
     }
 
     function getObstacleConfidenceValue() {
-        if ($potholeConfidence.length === 0) {
+        if ($obstacleConfidence.length === 0) {
             return DEFAULT_OBSTACLE_CONFIDENCE;
         }
 
@@ -926,25 +927,31 @@ $(function () {
             parsed = {};
         }
 
-        if ($enablePotholeDetect.length > 0) {
-            let restoredPotholeEnabled = null;
-            if (parsed && typeof parsed.enablePotholeDetect === "boolean") {
-                restoredPotholeEnabled = parsed.enablePotholeDetect;
+        if ($enableObstacleDetect.length > 0) {
+            let restoredObstacleEnabled = null;
+            if (parsed && typeof parsed.enableObstacleDetect === "boolean") {
+                restoredObstacleEnabled = parsed.enableObstacleDetect;
+            } else if (parsed && typeof parsed.enablePotholeDetect === "boolean") {
+                restoredObstacleEnabled = parsed.enablePotholeDetect;
             } else {
                 try {
-                    const rawPothole = String(window.localStorage.getItem(POTHOLE_OPTION_STORAGE_KEY) || "").trim().toLowerCase();
-                    if (rawPothole === "true") {
-                        restoredPotholeEnabled = true;
-                    } else if (rawPothole === "false") {
-                        restoredPotholeEnabled = false;
+                    const rawObstacle = String(
+                        window.localStorage.getItem(OBSTACLE_OPTION_STORAGE_KEY)
+                        || window.localStorage.getItem(LEGACY_POTHOLE_OPTION_STORAGE_KEY)
+                        || ""
+                    ).trim().toLowerCase();
+                    if (rawObstacle === "true") {
+                        restoredObstacleEnabled = true;
+                    } else if (rawObstacle === "false") {
+                        restoredObstacleEnabled = false;
                     }
                 } catch (error) {
                     // Ignore storage read errors.
                 }
             }
 
-            if (typeof restoredPotholeEnabled === "boolean") {
-                $enablePotholeDetect.prop("checked", restoredPotholeEnabled);
+            if (typeof restoredObstacleEnabled === "boolean") {
+                $enableObstacleDetect.prop("checked", restoredObstacleEnabled);
             }
         }
         syncObstacleDetectOption();
@@ -961,12 +968,12 @@ $(function () {
             $removeNoisyMasks.prop("checked", parsed.removeNoisyMasks);
         }
 
-        if ($potholeConfidence.length > 0) {
-            const restoredPotholeConf = Number(parsed.potholeConfidence);
-            if (Number.isFinite(restoredPotholeConf)) {
-                $potholeConfidence.val(String(Math.min(1, Math.max(0, restoredPotholeConf))));
+        if ($obstacleConfidence.length > 0) {
+            const restoredObstacleConf = Number(parsed.obstacleConfidence ?? parsed.potholeConfidence);
+            if (Number.isFinite(restoredObstacleConf)) {
+                $obstacleConfidence.val(String(Math.min(1, Math.max(0, restoredObstacleConf))));
             } else {
-                $potholeConfidence.val(String(DEFAULT_POTHOLE_CONFIDENCE));
+                $obstacleConfidence.val(String(DEFAULT_OBSTACLE_CONFIDENCE));
             }
         }
 
@@ -3082,7 +3089,7 @@ $(function () {
         scheduleDetectUpdate();
     });
 
-    $enablePotholeDetect.on("change", function () {
+    $enableObstacleDetect.on("change", function () {
         syncObstacleDetectOption();
         saveDetectOptionsToStorage();
         scheduleDetectUpdate();
@@ -3109,7 +3116,7 @@ $(function () {
         }
     });
 
-    $potholeConfidence.on("change", function () {
+    $obstacleConfidence.on("change", function () {
         getObstacleConfidenceValue();
         saveDetectOptionsToStorage();
         scheduleDetectUpdate();

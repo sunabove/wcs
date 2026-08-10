@@ -3514,6 +3514,7 @@ class RapierDriveSimulation {
         if (typeof this.world.contactPair === 'function') {
             this.obstacleColliderInfos.forEach((obstacleInfo) => {
                 let obstacleHasContact = false;
+                let obstacleHasWheelContact = false;
                 if (!obstacleInfo?.collider || obstacleInfo.isSensor) {
                     this.setObstacleContactHighlight(obstacleInfo, false);
                     return;
@@ -3531,10 +3532,11 @@ class RapierDriveSimulation {
 
                     this.world.contactPair(vehicleCollider, obstacleInfo.collider, () => {
                         obstacleHasContact = true;
+                        obstacleHasWheelContact = this.wheelColliders.includes(vehicleCollider);
                     });
                 });
 
-                this.setObstacleContactHighlight(obstacleInfo, obstacleHasContact);
+                this.setObstacleContactHighlight(obstacleInfo, obstacleHasWheelContact);
                 hasContact = hasContact || obstacleHasContact;
             });
         }

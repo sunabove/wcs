@@ -570,9 +570,19 @@ class URDFViewer {
                     return;
                 }
 
-                material.transparent = opacity < 1;
-                material.opacity = opacity;
-                material.depthWrite = opacity >= 1;
+                if (!material.userData.carFrameOpacitySource) {
+                    material.userData.carFrameOpacitySource = {
+                        opacity: THREE.MathUtils.clamp(Number(material.opacity), 0, 1),
+                        transparent: material.transparent,
+                        depthWrite: material.depthWrite,
+                    };
+                }
+
+                const source = material.userData.carFrameOpacitySource;
+                const weightedOpacity = source.opacity * opacity;
+                material.transparent = source.transparent || weightedOpacity < 1;
+                material.opacity = weightedOpacity;
+                material.depthWrite = opacity >= 1 ? source.depthWrite : false;
                 material.needsUpdate = true;
             });
         });

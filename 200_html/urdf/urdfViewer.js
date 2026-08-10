@@ -115,6 +115,7 @@ class URDFViewer {
             rl: 0,
             rr: 0
         };
+        this.wheelAnimationTimeScale = 1;
         const wheelVisualRotationSign = Number.parseFloat(
             containerElement.getAttribute('wheel-visual-rotation-sign')
         );
@@ -2454,10 +2455,47 @@ class URDFViewer {
         this.enableWheelVisualFilter = enabled !== false;
     }
 
+    setWheelAnimationTimeScale(scale) {
+        const numericScale = Number(scale);
+        this.wheelAnimationTimeScale = Number.isFinite(numericScale)
+            ? Math.max(numericScale, 0)
+            : 1;
+    }
+
+    applyWheelTravelDistances(distanceMetersByKey, radiusMetersByKey = {}) {
+        Object.keys(this.wheelRuntimeTargetByKey).forEach((key) => {
+            const runtimeTarget = this.wheelRuntimeTargetByKey[key];
+            const distanceMeters = Number(distanceMetersByKey?.[key]);
+            const radiusMeters = Number(radiusMetersByKey?.[key]);
+            if (!runtimeTarget
+                || !Number.isFinite(distanceMeters)
+                || !Number.isFinite(radiusMeters)
+                || radiusMeters <= 0) {
+                return;
+            }
+
+            this.wheelAngles[key] += distanceMeters / radiusMeters;
+            if (runtimeTarget.type === 'joint') {
+                runtimeTarget.ref.setJointValue(this.wheelAngles[key]);
+                return;
+            }
+
+            if (runtimeTarget.type === 'link') {
+                const rotationAxis = runtimeTarget.axis || (this.viewerWheelKey ? 'x' : 'y');
+                const rotationSign = Number.isFinite(runtimeTarget.rotationSign)
+                    ? runtimeTarget.rotationSign
+                    : (this.viewerWheelKey ? -1 : 1);
+                runtimeTarget.ref.rotation[rotationAxis] = this.wheelAngles[key] * rotationSign;
+            }
+        });
+    }
+
     applyWheelAnimation(deltaSec) {
         if (!this.robotModel) {
             return;
         }
+
+        const scaledDeltaSec = deltaSec * this.wheelAnimationTimeScale;
 
         Object.keys(this.wheelSpeedRpmByKey).forEach(key => {
             const runtimeTarget = this.wheelRuntimeTargetByKey[key];
@@ -2468,14 +2506,14 @@ class URDFViewer {
             const wheelAngularSpeedRad = this.wheelAngularSpeedRadByKey[key] || 0;
             const wheelDirection = this.wheelDirectionSignByKey[key] || 1;
             const targetAngularSpeedRad = this.wheelVisualRotationSign * wheelDirection * wheelAngularSpeedRad;
-            let clampedAngleStep = targetAngularSpeedRad * deltaSec;
+            let clampedAngleStep = targetAngularSpeedRad * scaledDeltaSec;
 
             if (this.enableWheelVisualFilter) {
                 const visualTargetAngularSpeedRad = this.toVisualWheelAngularSpeedRad(targetAngularSpeedRad);
 
                 const smoothingHz = Math.max(Number(this.wheelVisualSmoothingHz) || 0, 0);
                 const alpha = smoothingHz > 0
-                    ? (1 - Math.exp(-smoothingHz * Math.max(deltaSec, 0)))
+                    ? (1 - Math.exp(-smoothingHz * Math.max(scaledDeltaSec, 0)))
                     : 1;
                 const currentVisualAngularSpeedRad = Number(this.wheelVisualAngularSpeedRadByKey[key]) || 0;
                 const nextVisualAngularSpeedRad = currentVisualAngularSpeedRad
@@ -2483,7 +2521,7 @@ class URDFViewer {
                 this.wheelVisualAngularSpeedRadByKey[key] = nextVisualAngularSpeedRad;
 
                 const maxStepRad = Math.max(Number(this.wheelVisualMaxStepRadPerFrame) || 0, 0.001);
-                const rawAngleStep = nextVisualAngularSpeedRad * deltaSec;
+                const rawAngleStep = nextVisualAngularSpeedRad * scaledDeltaSec;
                 clampedAngleStep = THREE.MathUtils.clamp(rawAngleStep, -maxStepRad, maxStepRad);
             } else {
                 // Physical-mode rendering path: use raw signed angular velocity without visual compression.

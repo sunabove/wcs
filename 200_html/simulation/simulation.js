@@ -172,6 +172,7 @@ class RapierDriveSimulation {
             rl: false,
             rr: false
         };
+        this.previousWheelColliderPositionByKey = {};
         this.groundColliders = [];
         this.vehicleColliderLocalCenter = new THREE.Vector3(0, 0, 0);
         this.vehicleColliderHalfExtents = { x: 0.1, y: 0.1, z: 0.1 };
@@ -1062,7 +1063,6 @@ class RapierDriveSimulation {
 
         if (typeof globalThis.setDriveMode === 'function') {
             globalThis.setDriveMode(normalizedMode);
-            return;
         }
 
         const viewer = this.getDriveSourceViewer() || this.viewer;
@@ -1708,6 +1708,7 @@ class RapierDriveSimulation {
     applyVisualSpeedScale(value) {
         const normalizedScale = this.normalizeVisualSpeedScale(value);
         this.visualSpeedScale = normalizedScale;
+        this.configureWheelVisualKinematics();
 
         const speedSlider = document.getElementById('simulation-visual-speed-scale');
         const speedLabel = document.getElementById('simulation-visual-speed-scale-value');
@@ -1754,6 +1755,7 @@ class RapierDriveSimulation {
         const persistScale = () => {
             const normalizedScale = this.normalizeVisualSpeedScale(speedSlider.value);
             this.visualSpeedScale = normalizedScale;
+            this.configureWheelVisualKinematics();
             if (speedLabel) {
                 speedLabel.textContent = this.formatVisualSpeedScaleLabel(normalizedScale);
             }
@@ -3133,6 +3135,75 @@ class RapierDriveSimulation {
 
         const avgRadius = radii.reduce((sum, radius) => sum + radius, 0) / radii.length;
         this.wheelEffectiveRadiusMeters = Math.max(avgRadius, 0.05);
+        this.configureWheelVisualKinematics();
+    }
+
+    configureWheelVisualKinematics() {
+        const viewer = this.getDriveSourceViewer();
+        const wheelRadiusMeters = Number(this.wheelEffectiveRadiusMeters);
+        if (!viewer || !Number.isFinite(wheelRadiusMeters) || wheelRadiusMeters <= 0) {
+            return;
+        }
+
+        viewer.kmhToRpmFactor = 1000 / (60 * Math.PI * 2 * wheelRadiusMeters);
+        if (typeof viewer.setWheelAnimationTimeScale === 'function') {
+            viewer.setWheelAnimationTimeScale(0);
+        }
+        if (typeof viewer.setWheelVisualFilterEnabled === 'function') {
+            viewer.setWheelVisualFilterEnabled(false);
+        }
+
+        const driveMode = String(this.commandedDriveMode || viewer.driveMode || 'stop');
+        if (typeof viewer.applyDriveMode === 'function') {
+            viewer.applyDriveMode(driveMode, this.mpsToKmh(this.commandedSpeedMps));
+        }
+    }
+
+    resetWheelTravelTracking() {
+        this.previousWheelColliderPositionByKey = {};
+        const linkMap = this.viewer?.robotModel?.links || null;
+        Object.entries(this.wheelLinkNameByKey).forEach(([wheelKey, wheelLinkName]) => {
+            const wheelLink = this.findLinkByName(linkMap, wheelLinkName);
+            if (!wheelLink) {
+                return;
+            }
+
+            wheelLink.updateWorldMatrix(true, false);
+            this.previousWheelColliderPositionByKey[wheelKey] = wheelLink.getWorldPosition(new THREE.Vector3());
+        });
+    }
+
+    syncWheelRotationToBodyTravel() {
+        const viewer = this.getDriveSourceViewer();
+        if (!viewer || typeof viewer.applyWheelTravelDistances !== 'function' || !this.body) {
+            return;
+        }
+
+        const yaw = this.extractYawFromQuaternion(this.body.rotation());
+        const forwardVector = this.getVehicleForwardVector(yaw);
+        const distanceMetersByKey = {};
+        const radiusMetersByKey = {};
+        const linkMap = this.viewer?.robotModel?.links || null;
+
+        Object.entries(this.wheelLinkNameByKey).forEach(([wheelKey, wheelLinkName]) => {
+            const wheelLink = this.findLinkByName(linkMap, wheelLinkName);
+            if (!wheelLink) {
+                return;
+            }
+
+            wheelLink.updateWorldMatrix(true, false);
+            const currentPosition = wheelLink.getWorldPosition(new THREE.Vector3());
+            const previousPosition = this.previousWheelColliderPositionByKey[wheelKey] || null;
+            if (previousPosition) {
+                const displacement = currentPosition.clone().sub(previousPosition);
+                distanceMetersByKey[wheelKey] = (displacement.x * forwardVector.x)
+                    + (displacement.y * forwardVector.y);
+                radiusMetersByKey[wheelKey] = Math.max(Number(this.wheelEffectiveRadiusMeters) || 0, 0.05);
+            }
+            this.previousWheelColliderPositionByKey[wheelKey] = currentPosition;
+        });
+
+        viewer.applyWheelTravelDistances(distanceMetersByKey, radiusMetersByKey);
     }
 
     getAverageSignedWheelRpm() {
@@ -3664,6 +3735,7 @@ class RapierDriveSimulation {
             this.addGroundCollider();
             this.enforceWheelGroundContactAtLoad(linkMap);
             this.addObstacleColliderFromUrdf();
+            this.resetWheelTravelTracking();
             this.isReady = true;
             this.hasFailed = false;
 
@@ -4166,6 +4238,8 @@ class RapierDriveSimulation {
             );
             this.carFrame.quaternion.copy(yawRotation.multiply(pitchRotation)).normalize();
         }
+        this.carFrame.updateMatrixWorld(true);
+        this.syncWheelRotationToBodyTravel();
     }
 
     async runLoop() {
@@ -4309,6 +4383,7 @@ class RapierDriveSimulation {
 
         // On reset, always return to the URDF-authored pose without extra ground alignment offsets.
         this.renderer.syncVehicle();
+        this.resetWheelTravelTracking();
     }
 
     async reset() {

@@ -564,11 +564,22 @@ class RoadDetector:
                 should_draw = False
 
         if should_draw:
+            roi_color = (0, 0, 255)
             overlay = detected.copy()
-            cv2.rectangle(overlay, (x1, y1), (x2, y2), (0, 0, 255), cv2.FILLED)
+            cv2.rectangle(overlay, (x1, y1), (x2, y2), roi_color, cv2.FILLED)
             alpha = 0.1
             cv2.addWeighted(overlay, alpha, detected, 1 - alpha, 0, detected)
-            cv2.rectangle(detected, (x1, y1), (x2, y2), (0, 0, 255), 2)
+            cv2.rectangle(detected, (x1, y1), (x2, y2), roi_color, 2)
+
+            label = "ROI"
+            font_face = cv2.FONT_HERSHEY_SIMPLEX
+            (text_width, text_height), baseline = cv2.getTextSize(label, font_face, 0.6, 2)
+            text_y = max(y1 - 6, text_height + 4)
+            label_x2 = min(width - 1, x1 + text_width + 4)
+            label_y1 = max(0, text_y - text_height - 4)
+            label_y2 = min(height - 1, text_y + baseline)
+            cv2.rectangle(detected, (x1, label_y1), (label_x2, label_y2), roi_color, cv2.FILLED)
+            cv2.putText(detected, label, (x1 + 2, text_y - 2), font_face, 0.6, (255, 255, 255), 2)
 
         return detected
 

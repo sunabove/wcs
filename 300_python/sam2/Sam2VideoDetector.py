@@ -1352,9 +1352,12 @@ class Sam2VideoDetector:
             set(previous_class_names).union(uploaded_class_names),
             key=lambda name: (name.casefold(), name),
         )
-        if previous_class_names and previous_class_names != class_names:
-            self._remap_yolo_label_class_ids(output_root, previous_class_names, class_names)
-        return registry_path, class_names, class_names.index(class_name)
+        return (
+            registry_path,
+            previous_class_names,
+            class_names,
+            class_names.index(class_name),
+        )
 
     def _remap_yolo_label_class_ids(
         self,
@@ -1403,7 +1406,10 @@ class Sam2VideoDetector:
         if detection_threshold is None:
             return None
 
-        registry_path, class_names, class_id = self._get_yolo_class_registry(output_root, class_name)
+        registry_path, previous_class_names, class_names, class_id = self._get_yolo_class_registry(
+            output_root,
+            class_name,
+        )
         file_prefix = f"{input_file_stem}_"
         if output_root.is_dir():
             for existing_path in output_root.rglob("*"):
@@ -1466,6 +1472,8 @@ class Sam2VideoDetector:
                 "label_count": 0,
             }
 
+        if previous_class_names and previous_class_names != class_names:
+            self._remap_yolo_label_class_ids(output_root, previous_class_names, class_names)
         dataset_yaml = output_root / "dataset.yaml"
         dataset_yaml.write_text(
             "path: .\n"

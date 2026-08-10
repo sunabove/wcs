@@ -2,6 +2,7 @@ import hashlib
 import json
 import os
 import re
+import shutil
 import subprocess
 import threading
 import time
@@ -141,7 +142,7 @@ class Sam2VideoService:
             from ultralytics import YOLO
 
             dataset_yaml = SAM2_YOLO_DIR / "dataset.yaml"
-            model_source = os.getenv("SAM2_YOLO_TRAIN_MODEL", "yolo11n-seg.pt")
+            model_source = os.getenv("SAM2_YOLO_TRAIN_MODEL", "yolo11m-seg.pt")
             epochs = max(1, int(os.getenv("SAM2_YOLO_TRAIN_EPOCHS", "100")))
             with self._training_jobs_lock:
                 self._training_jobs[job_id].update({
@@ -177,6 +178,17 @@ class Sam2VideoService:
             )
             save_dir = str(getattr(results, "save_dir", "") or "")
             best_model_path = Path(save_dir) / "weights" / "best.pt" if save_dir else None
+            if not best_model_path or not best_model_path.is_file():
+                raise RuntimeError("학습 결과 best.pt 파일을 찾을 수 없습니다")
+            output_model_path = (
+                BASE_DIR
+                / "ai"
+                / "road"
+                / "model"
+                / f"05_yolo11m-obstacle-sg_{datetime.now().strftime('%y%m%d')}.pt"
+            )
+            output_model_path.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(best_model_path, output_model_path)
             with self._training_jobs_lock:
                 self._training_jobs[job_id].update({
                     "status": "completed",
@@ -185,7 +197,8 @@ class Sam2VideoService:
                     "message": "YOLO 학습이 완료되었습니다.",
                     "result": {
                         "save_dir": save_dir,
-                        "best_model_path": str(best_model_path) if best_model_path and best_model_path.is_file() else "",
+                        "training_best_model_path": str(best_model_path),
+                        "best_model_path": str(output_model_path),
                     },
                 })
         except Exception as ex:

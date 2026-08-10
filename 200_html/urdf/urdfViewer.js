@@ -2474,7 +2474,7 @@ class URDFViewer {
                 return;
             }
 
-            this.wheelAngles[key] += distanceMeters / radiusMeters;
+            this.wheelAngles[key] += this.wheelVisualRotationSign * distanceMeters / radiusMeters;
             if (runtimeTarget.type === 'joint') {
                 runtimeTarget.ref.setJointValue(this.wheelAngles[key]);
                 return;

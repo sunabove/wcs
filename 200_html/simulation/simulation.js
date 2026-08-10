@@ -3733,6 +3733,11 @@ class RapierDriveSimulation {
                 .setTranslation(localCenter.x, localCenter.y, adjustedCenterZ)
                 .setFriction(0.15)
                 .setRestitution(0.0);
+
+            this.rapier = RAPIER;
+            this.world = world;
+            this.body = body;
+            this.carFrame = carFrame;
             this.vehicleCollider = world.createCollider(colliderDesc, body);
             this.vehicleColliderLocalCenter.set(localCenter.x, localCenter.y, adjustedCenterZ);
             this.vehicleColliderHalfExtents = { x: halfX, y: halfY, z: halfZ };
@@ -3741,10 +3746,6 @@ class RapierDriveSimulation {
                 this.addWheelCollidersFromUrdf(body, carFrame, linkMap);
             }
 
-            this.rapier = RAPIER;
-            this.world = world;
-            this.body = body;
-            this.carFrame = carFrame;
             this.initialPosition = initialPosition.clone();
             this.initialQuaternion = initialQuaternion.clone();
             this.vehicleHalfExtents = { x: halfX, y: halfY, z: halfZ };

@@ -1800,12 +1800,11 @@ class RoadDetector:
         class_color_map = self._get_class_color_map()
 
         target_class_ids = set()
-        if detect_key:
+        if detect_key and detect_key != "obstacle":
             detect_key_norm = str(detect_key).strip().lower().replace("-", "_").replace(" ", "_")
-            target_class_name = "pothole" if detect_key_norm == "obstacle" else detect_key_norm
             for class_id, class_name in names.items():
                 class_name_norm = str(class_name).strip().lower().replace("-", "_").replace(" ", "_")
-                if class_name_norm == target_class_name:
+                if class_name_norm == detect_key_norm:
                     target_class_ids.add(int(class_id))
 
         if box_xyxy is not None and inference_roi is not None and len(box_xyxy) > 0:
@@ -2106,6 +2105,7 @@ class RoadDetector:
         regenerated_labels,
         regenerated_box_colors,
         inference_roi,
+        names,
     ):
         # YOLOv11m 모델은 masks와 boxes가 동시에 존재할 수 있음.
         # 둘 다 존재하는 경우, 마스크는 영역을 강조하고 박스는 신뢰도와 함께 위치를 표시하는 용도로 활용.
@@ -2133,8 +2133,20 @@ class RoadDetector:
                 boxes[:, 3] += iy1
             confs = result.boxes.conf.cpu().numpy()
             cls_ids = result.boxes.cls.cpu().numpy().astype(int) if result.boxes.cls is not None else None
+            class_color_map = self._get_class_color_map()
             box_labels = []
-            box_colors = [(0, 255, 255)] * len(boxes)
+            box_colors = []
+            for idx in range(len(boxes)):
+                cls_name = ""
+                if cls_ids is not None and idx < len(cls_ids):
+                    cls_name = str(names.get(int(cls_ids[idx]), int(cls_ids[idx])))
+                box_labels.append(cls_name)
+                box_colors.append(
+                    class_color_map.get(
+                        cls_name,
+                        class_color_map.get(cls_name.lower(), (0, 255, 255)),
+                    )
+                )
 
         return {
             "boxes": boxes,
@@ -2440,7 +2452,7 @@ class RoadDetector:
 
     def _render_header(self, detected, conf_text, detected_count, class_counts, started_at, font_face):
         elapsed_ms = (time.perf_counter() - started_at) * 1000.0
-        header_text = f"Detect: {conf_text}, time: {elapsed_ms:.0f}ms"
+        header_text = f"{conf_text}, time: {elapsed_ms:.0f}ms"
         if detected_count == 0:
             count_text = "not detected"
         elif class_counts:
@@ -2946,6 +2958,7 @@ class RoadDetector:
                 regenerated_labels,
                 regenerated_box_colors,
                 inference_roi,
+                names,
             )
             boxes_payload = self._filter_boxes_payload_by_roi(boxes_payload, roi)
             if detect_key == "obstacle":
@@ -3118,12 +3131,12 @@ class RoadDetector:
                     )
 
         if include_obstacle and detect_key in ("road", "road_type"):
-            header_conf_text = f"{detect_key}({conf * 100:.0f}%), obstacle({float(np.clip(float(obstacle_conf), 0.0, 1.0)) * 100:.0f}%)"
+            header_detect_info = f"{detect_key}({conf * 100:.0f}%), obstacle({float(np.clip(float(obstacle_conf), 0.0, 1.0)) * 100:.0f}%)"
         else:
-            header_conf_text = f"{detect_key}({conf * 100:.0f}%)"
+            header_detect_info = f"{detect_key}({conf * 100:.0f}%)"
 
         if not suppress_header:
-            detected = self._render_header(detected, header_conf_text, detected_count, class_counts, started_at, font_face)
+            detected = self._render_header(detected, header_detect_info, detected_count, class_counts, started_at, font_face)
 
         chart_class_counts = {str(key): int(value) for key, value in class_counts.items()}
         chart_class_colors = {str(key): (int(value[0]), int(value[1]), int(value[2])) for key, value in class_chart_colors.items()}

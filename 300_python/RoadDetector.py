@@ -32,7 +32,8 @@ class RoadDetector:
     DEFAULT_OBSTACLE_CONF = 0.50
     MIN_OVERLAY_COMPONENT_AREA_RATIO = 0.0002
     
-    OBSTACLE_SCORE_CONF_WEIGHT = 0.7 
+    OBSTACLE_SCORE_CONF_WEIGHT = 0.7
+    OBSTACLE_SCORE_AREA_WEIGHT = 0.3
     
     _class_color_map_path = Path(__file__).resolve().parent / "colormap_road.txt"
     _class_color_map = None
@@ -1883,7 +1884,7 @@ class RoadDetector:
                         mask_conf_values[m_idx] = float(box_confs[best_idx])
 
             if mask_conf_values is not None:
-                # For pothole, select only one instance by combined
+                # For obstacle detection, select only one instance by combined
                 # weighted-sum score (confidence-dominant).
                 if detect_key == "pothole" and len(mask_has_area_flags) == len(mask_conf_values):
                     valid_indices = np.where(mask_has_area_flags)[0]
@@ -2206,7 +2207,7 @@ class RoadDetector:
                 continue
 
             # Clip the output box to the actual allowed-area overlap so
-            # pothole boxes do not extend outside road regions.
+            # Obstacle boxes do not extend outside road regions.
             cx1 = int(x1 + xs.min())
             cy1 = int(y1 + ys.min())
             cx2 = int(x1 + xs.max() + 1)
@@ -2346,7 +2347,7 @@ class RoadDetector:
         area_ratio = (box_area / max_area) if max_area > 0.0 else np.ones_like(box_area)
         scores = (
             (float(self.OBSTACLE_SCORE_CONF_WEIGHT) * confs.astype(float))
-            + (float(1 - self.OBSTACLE_SCORE_CONF_WEIGHT) * area_ratio)
+            + (float(self.OBSTACLE_SCORE_AREA_WEIGHT) * area_ratio)
         )
 
         keep_indices = np.argsort(scores)[::-1][:k]
@@ -2400,8 +2401,8 @@ class RoadDetector:
             label_x2 = int(x1 + tw + 4)
             label_y2 = int(ty + baseline)
 
-            # If pothole label area overlaps existing labels (road/road_type),
-            # align pothole label to the right side of its bbox.
+            # If an obstacle label overlaps existing labels (road/road_type),
+            # align the obstacle label to the right side of its bbox.
             if detect_key == "pothole" and label_regions:
                 is_overlapping = False
                 for ox1, oy1, ox2, oy2 in label_regions:
@@ -2847,8 +2848,8 @@ class RoadDetector:
         else:
             frame_for_inference = frame.copy()
 
-        # For road_type and pothole, use the same road-area preprocessing.
-        pothole_allowed_area_mask = None
+        # For road_type and obstacle detection, use the same road-area preprocessing.
+        obstacle_allowed_area_mask = None
         if detect_key in ("road_type", "pothole"):
             frame_for_inference, prepared_inference_roi, road_allowed_mask = self._prepare_inference_frame_with_road_crop(
                 frame,
@@ -2860,7 +2861,7 @@ class RoadDetector:
             if prepared_inference_roi is not None:
                 inference_roi = prepared_inference_roi
             if detect_key == "pothole":
-                pothole_allowed_area_mask = road_allowed_mask
+                obstacle_allowed_area_mask = road_allowed_mask
 
         if infer_key not in RoadDetector._models:
             model_path = RoadDetector._model_paths[infer_key]
@@ -2895,7 +2896,7 @@ class RoadDetector:
             remove_noisy_masks,
             roi,
             inference_roi,
-            allowed_area_mask=pothole_allowed_area_mask,
+            allowed_area_mask=obstacle_allowed_area_mask,
         )
         
         detected = mask_result["detected"]
@@ -2934,7 +2935,7 @@ class RoadDetector:
             )
             boxes_payload = self._filter_boxes_payload_by_roi(boxes_payload, roi)
             if detect_key == "pothole":
-                boxes_payload = self._filter_boxes_payload_by_area_mask(boxes_payload, pothole_allowed_area_mask)
+                boxes_payload = self._filter_boxes_payload_by_area_mask(boxes_payload, obstacle_allowed_area_mask)
             # When masks are present, confidence filtering is already applied in
             # _process_result_masks. Applying box-only filtering again can cause
             # mask/box mismatch (overlay outside shown boxes).
@@ -3008,13 +3009,13 @@ class RoadDetector:
         extra_chart_class_counts = {}
         extra_chart_class_colors = {}
 
-        # Optional extra pothole overlay on top of road/road_type detection.
-        if include_pothole and detect_key in ("road", "road_type"):
-            pothole_source_frame = frame.copy()
-            pothole_input_mask = np.zeros(frame.shape[:2], dtype=bool)
+        # Optional extra obstacle overlay on top of road/road_type detection.
+        if include_obstacle and detect_key in ("road", "road_type"):
+            obstacle_source_frame = frame.copy()
+            obstacle_input_mask = np.zeros(frame.shape[:2], dtype=bool)
 
             if kept_binary_masks:
-                pothole_input_mask = np.any(np.stack(kept_binary_masks, axis=0), axis=0)
+                obstacle_input_mask = np.any(np.stack(kept_binary_masks, axis=0), axis=0)
             elif len(boxes) > 0:
                 for box in boxes:
                     x1, y1, x2, y2 = [int(v) for v in box]
@@ -3022,88 +3023,88 @@ class RoadDetector:
                     y1 = max(0, min(y1, frame.shape[0] - 1))
                     x2 = max(x1 + 1, min(x2, frame.shape[1]))
                     y2 = max(y1 + 1, min(y2, frame.shape[0]))
-                    pothole_input_mask[y1:y2, x1:x2] = True
+                    obstacle_input_mask[y1:y2, x1:x2] = True
 
             if roi is not None:
                 rx1, ry1, rx2, ry2 = self._clamp_roi(roi, frame.shape[1], frame.shape[0])
                 roi_mask = np.zeros(frame.shape[:2], dtype=bool)
                 roi_mask[ry1:ry2, rx1:rx2] = True
-                pothole_input_mask = np.logical_and(pothole_input_mask, roi_mask)
+                obstacle_input_mask = np.logical_and(obstacle_input_mask, roi_mask)
 
-            if np.any(pothole_input_mask):
-                ys, xs = np.where(pothole_input_mask)
+            if np.any(obstacle_input_mask):
+                ys, xs = np.where(obstacle_input_mask)
                 px1 = int(xs.min())
                 py1 = int(ys.min())
                 px2 = int(xs.max() + 1)
                 py2 = int(ys.max() + 1)
-                pothole_roi = self._clamp_roi((px1, py1, px2, py2), frame.shape[1], frame.shape[0])
+                obstacle_roi = self._clamp_roi((px1, py1, px2, py2), frame.shape[1], frame.shape[0])
 
-                pothole_result = self.detect_road(
-                    pothole_source_frame,
+                obstacle_result = self.detect_road(
+                    obstacle_source_frame,
                     detect_type="pothole",
-                    roi=pothole_roi,
+                    roi=obstacle_roi,
                     remove_noisy_masks=remove_noisy_masks,
                     return_info=True,
                     show_detect_stats=False,
                     show_time_bar=False,
-                    include_pothole=False,
-                    pothole_conf=pothole_conf,
+                    include_obstacle=False,
+                    obstacle_conf=obstacle_conf,
                     suppress_header=True,
                     avoid_label_regions=label_regions,
                     draw_boxes_labels=False,
                 )
 
-                # Keep pothole stats separate from base road/road_type counts,
+                # Keep obstacle stats separate from base road/road_type counts,
                 # but expose them as extra chart series.
-                pothole_stats = pothole_result.get("stats") if isinstance(pothole_result, dict) else None
-                if isinstance(pothole_stats, dict):
-                    pothole_counts = pothole_stats.get("class_counts")
-                    if isinstance(pothole_counts, dict):
-                        for cls_name, cls_count in pothole_counts.items():
+                obstacle_stats = obstacle_result.get("stats") if isinstance(obstacle_result, dict) else None
+                if isinstance(obstacle_stats, dict):
+                    obstacle_counts = obstacle_stats.get("class_counts")
+                    if isinstance(obstacle_counts, dict):
+                        for cls_name, cls_count in obstacle_counts.items():
                             key = str(cls_name)
                             extra_chart_class_counts[key] = extra_chart_class_counts.get(key, 0) + int(cls_count)
 
-                    pothole_colors = pothole_stats.get("class_colors")
-                    if isinstance(pothole_colors, dict):
-                        for cls_name, bgr in pothole_colors.items():
+                    obstacle_colors = obstacle_stats.get("class_colors")
+                    if isinstance(obstacle_colors, dict):
+                        for cls_name, bgr in obstacle_colors.items():
                             if bgr is None or len(bgr) < 3:
                                 continue
                             key = str(cls_name)
                             extra_chart_class_colors[key] = (int(bgr[0]), int(bgr[1]), int(bgr[2]))
 
-                pothole_frame = pothole_result.get("frame") if isinstance(pothole_result, dict) else None
-                if isinstance(pothole_frame, np.ndarray) and pothole_frame.shape == detected.shape:
-                    pothole_overlay_mask = pothole_result.get("overlay_mask") if isinstance(pothole_result, dict) else None
-                    if isinstance(pothole_overlay_mask, np.ndarray) and pothole_overlay_mask.shape[:2] == detected.shape[:2]:
-                        pothole_overlay_mask = pothole_overlay_mask.astype(bool)
+                obstacle_frame = obstacle_result.get("frame") if isinstance(obstacle_result, dict) else None
+                if isinstance(obstacle_frame, np.ndarray) and obstacle_frame.shape == detected.shape:
+                    obstacle_overlay_mask = obstacle_result.get("overlay_mask") if isinstance(obstacle_result, dict) else None
+                    if isinstance(obstacle_overlay_mask, np.ndarray) and obstacle_overlay_mask.shape[:2] == detected.shape[:2]:
+                        obstacle_overlay_mask = obstacle_overlay_mask.astype(bool)
                     else:
-                        pothole_overlay_mask = np.zeros(detected.shape[:2], dtype=bool)
-                    if np.any(pothole_overlay_mask):
-                        detected[pothole_overlay_mask] = pothole_frame[pothole_overlay_mask]
+                        obstacle_overlay_mask = np.zeros(detected.shape[:2], dtype=bool)
+                    if np.any(obstacle_overlay_mask):
+                        detected[obstacle_overlay_mask] = obstacle_frame[obstacle_overlay_mask]
 
-                pothole_boxes = pothole_result.get("boxes") if isinstance(pothole_result, dict) else None
-                pothole_confs = pothole_result.get("confs") if isinstance(pothole_result, dict) else None
-                pothole_cls_ids = pothole_result.get("cls_ids") if isinstance(pothole_result, dict) else None
-                pothole_box_labels = pothole_result.get("box_labels") if isinstance(pothole_result, dict) else None
-                pothole_box_colors = pothole_result.get("box_colors") if isinstance(pothole_result, dict) else None
-                pothole_names = pothole_result.get("names") if isinstance(pothole_result, dict) else None
+                obstacle_boxes = obstacle_result.get("boxes") if isinstance(obstacle_result, dict) else None
+                obstacle_confs = obstacle_result.get("confs") if isinstance(obstacle_result, dict) else None
+                obstacle_cls_ids = obstacle_result.get("cls_ids") if isinstance(obstacle_result, dict) else None
+                obstacle_box_labels = obstacle_result.get("box_labels") if isinstance(obstacle_result, dict) else None
+                obstacle_box_colors = obstacle_result.get("box_colors") if isinstance(obstacle_result, dict) else None
+                obstacle_names = obstacle_result.get("names") if isinstance(obstacle_result, dict) else None
 
-                if isinstance(pothole_boxes, np.ndarray) and isinstance(pothole_confs, np.ndarray) and len(pothole_boxes) > 0:
+                if isinstance(obstacle_boxes, np.ndarray) and isinstance(obstacle_confs, np.ndarray) and len(obstacle_boxes) > 0:
                     _, _, _, label_regions = self._draw_boxes_and_collect_counts(
                         detected,
-                        pothole_boxes,
-                        pothole_confs,
-                        pothole_cls_ids if isinstance(pothole_cls_ids, np.ndarray) else np.empty((0,), dtype=int),
-                        pothole_box_labels if isinstance(pothole_box_labels, list) else [],
-                        pothole_box_colors if isinstance(pothole_box_colors, list) else [(255, 255, 0)] * len(pothole_boxes),
-                        pothole_names if isinstance(pothole_names, dict) else {},
+                        obstacle_boxes,
+                        obstacle_confs,
+                        obstacle_cls_ids if isinstance(obstacle_cls_ids, np.ndarray) else np.empty((0,), dtype=int),
+                        obstacle_box_labels if isinstance(obstacle_box_labels, list) else [],
+                        obstacle_box_colors if isinstance(obstacle_box_colors, list) else [(255, 255, 0)] * len(obstacle_boxes),
+                        obstacle_names if isinstance(obstacle_names, dict) else {},
                         "pothole",
                         font_face,
                         avoid_label_regions=label_regions,
                     )
 
-        if include_pothole and detect_key in ("road", "road_type"):
-            header_conf_text = f"{detect_key}({conf * 100:.0f}%), pothole({float(np.clip(float(pothole_conf), 0.0, 1.0)) * 100:.0f}%)"
+        if include_obstacle and detect_key in ("road", "road_type"):
+            header_conf_text = f"{detect_key}({conf * 100:.0f}%), obstacle({float(np.clip(float(obstacle_conf), 0.0, 1.0)) * 100:.0f}%)"
         else:
             header_conf_text = f"{detect_key}({conf * 100:.0f}%)"
 
@@ -3151,12 +3152,12 @@ class RoadDetector:
                 font_face=font_face,
             )
 
-        # Final safety gate: for pothole, ensure nothing is rendered outside
+        # Final safety gate: for obstacle detection, ensure nothing is rendered outside
         # confidence-filtered road area.
-        if detect_key == "pothole" and pothole_allowed_area_mask is not None:
-            if np.any(pothole_allowed_area_mask):
-                filtered_object_mask = np.logical_and(filtered_object_mask, pothole_allowed_area_mask)
-                detected = np.where(pothole_allowed_area_mask[:, :, None], detected, frame)
+        if detect_key == "pothole" and obstacle_allowed_area_mask is not None:
+            if np.any(obstacle_allowed_area_mask):
+                filtered_object_mask = np.logical_and(filtered_object_mask, obstacle_allowed_area_mask)
+                detected = np.where(obstacle_allowed_area_mask[:, :, None], detected, frame)
             else:
                 filtered_object_mask = np.zeros_like(filtered_object_mask, dtype=bool)
                 detected = frame.copy()

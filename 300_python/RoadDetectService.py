@@ -139,8 +139,8 @@ async def camera_detect_stream_init_service(
     remove_noisy_masks: bool = Query(True),
     show_detect_stats: bool = Query(False),
     show_time_bar: bool = Query(True),
-    include_obstacle: bool = Query(False),
-    obstacle_conf: float = Query(0.5, ge=0.0, le=1.0),
+    include_obstacle: bool = Query(False, alias="include_pothole"),
+    obstacle_conf: float = Query(0.5, ge=0.0, le=1.0, alias="pothole_conf"),
     mqtt_publish: bool = Query(False),
 ):
     from RoadDetector import RoadDetector
@@ -237,8 +237,8 @@ def road_detect_service(
     remove_noisy_masks: bool = Query(True),
     show_detect_stats: bool = Query(False),
     show_time_bar: bool = Query(False),
-    include_obstacle: bool = Query(False),
-    obstacle_conf: float = Query(0.5, ge=0.0, le=1.0),
+    include_obstacle: bool = Query(False, alias="include_pothole"),
+    obstacle_conf: float = Query(0.5, ge=0.0, le=1.0, alias="pothole_conf"),
     mqtt_publish: bool = Query(False),
 ):
     from RoadDetector import RoadDetector
@@ -276,8 +276,8 @@ async def road_detect_stream_service(
     remove_noisy_masks: bool = Query(True),
     show_detect_stats: bool = Query(False),
     show_time_bar: bool = Query(False),
-    include_obstacle: bool = Query(False),
-    obstacle_conf: float = Query(0.5, ge=0.0, le=1.0),
+    include_obstacle: bool = Query(False, alias="include_pothole"),
+    obstacle_conf: float = Query(0.5, ge=0.0, le=1.0, alias="pothole_conf"),
     mqtt_publish: bool = Query(False),
 ):
     from RoadDetector import RoadDetector
@@ -294,8 +294,8 @@ async def road_detect_stream_init_service(
     remove_noisy_masks: bool = Query(True),
     show_detect_stats: bool = Query(False),
     show_time_bar: bool = Query(False),
-    include_obstacle: bool = Query(False),
-    obstacle_conf: float = Query(0.5, ge=0.0, le=1.0),
+    include_obstacle: bool = Query(False, alias="include_pothole"),
+    obstacle_conf: float = Query(0.5, ge=0.0, le=1.0, alias="pothole_conf"),
     mqtt_publish: bool = Query(False),
 ):
     from RoadDetector import RoadDetector

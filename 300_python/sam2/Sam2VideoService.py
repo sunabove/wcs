@@ -326,15 +326,19 @@ class Sam2VideoService:
             best_model_path = Path(save_dir) / "weights" / "best.pt" if save_dir else None
             if not best_model_path or not best_model_path.is_file():
                 raise RuntimeError("학습 결과 best.pt 파일을 찾을 수 없습니다")
+            output_model_name = f"05_yolo11m-obstacle-sg_{datetime.now().strftime('%y%m%d')}.pt"
             output_model_path = (
                 BASE_DIR
                 / "ai"
                 / "road"
                 / "model"
-                / f"05_yolo11m-obstacle-sg_{datetime.now().strftime('%y%m%d')}.pt"
+                / output_model_name
             )
+            yolo_model_path = BASE_DIR / "yolo" / "model" / output_model_name
             output_model_path.parent.mkdir(parents=True, exist_ok=True)
+            yolo_model_path.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(best_model_path, output_model_path)
+            shutil.copy2(best_model_path, yolo_model_path)
             metadata_path = Path(training_plan["metadata_path"])
             metadata_path.parent.mkdir(parents=True, exist_ok=True)
             metadata_path.write_text(
@@ -344,6 +348,7 @@ class Sam2VideoService:
                     "continued_from_checkpoint": continue_training,
                     "checkpoint_path": str(Path(save_dir) / "weights" / "last.pt"),
                     "output_model_path": str(output_model_path),
+                    "yolo_model_path": str(yolo_model_path),
                 }, ensure_ascii=False, indent=2),
                 encoding="utf-8",
             )
@@ -360,6 +365,7 @@ class Sam2VideoService:
                         "save_dir": save_dir,
                         "training_best_model_path": str(best_model_path),
                         "best_model_path": str(output_model_path),
+                        "yolo_model_path": str(yolo_model_path),
                     },
                 })
         except Exception as ex:

@@ -1577,8 +1577,10 @@
         const maskElement = fileTabPane.querySelector('[data-role="frame-mask"]');
         const overlayImageElement = fileTabPane.querySelector('[data-role="frame-overlay-image"]');
         const overlayMaskElement = fileTabPane.querySelector('[data-role="frame-overlay-mask"]');
+        const classIdElement = fileTabPane.querySelector('[data-role="frame-class-id"]');
+        const classNameElement = fileTabPane.querySelector('[data-role="frame-class-name"]');
         const labelElement = fileTabPane.querySelector('[data-role="frame-label"]');
-        if (!loadingElement || !viewerElement || !frameSlider || !increaseFrameButton || !decreaseFrameButton || !counterElement || !imageTabButton || !maskTabButton || !overlayTabButton || !segTabButton || !imageTabPane || !maskTabPane || !overlayTabPane || !segTabPane || !imageElement || !maskElement || !overlayImageElement || !overlayMaskElement || !labelElement) {
+        if (!loadingElement || !viewerElement || !frameSlider || !increaseFrameButton || !decreaseFrameButton || !counterElement || !imageTabButton || !maskTabButton || !overlayTabButton || !segTabButton || !imageTabPane || !maskTabPane || !overlayTabPane || !segTabPane || !imageElement || !maskElement || !overlayImageElement || !overlayMaskElement || !classIdElement || !classNameElement || !labelElement) {
             return async function () {};
         }
 
@@ -1603,6 +1605,28 @@
         let loaded = false;
         let loading = false;
         let labelRequestSequence = 0;
+        const yoloClassName = extractYoloClassName(item.serverFileName || item.name) || '-';
+
+        function renderSegmentationData(labelText) {
+            const labelLines = String(labelText || '').trim().split(/\r?\n/).filter(Boolean);
+            const classIds = [];
+            const polygons = [];
+            labelLines.forEach((line) => {
+                const parts = line.trim().split(/\s+/);
+                if (parts.length === 0) {
+                    return;
+                }
+                if (!classIds.includes(parts[0])) {
+                    classIds.push(parts[0]);
+                }
+                if (parts.length > 1) {
+                    polygons.push(parts.slice(1).join(' '));
+                }
+            });
+            classIdElement.textContent = classIds.join(', ') || '-';
+            classNameElement.textContent = yoloClassName;
+            labelElement.textContent = polygons.join('\n') || 'Seg Polygon 데이터가 없습니다.';
+        }
 
         async function renderFrame() {
             const frame = frames[framePosition];
@@ -1619,7 +1643,9 @@
             maskElement.src = `${apiBase}${frame.mask_url}`;
             overlayImageElement.src = `${apiBase}${frame.image_url}`;
             overlayMaskElement.style.maskImage = `url("${apiBase}${frame.mask_url}")`;
-            labelElement.textContent = '라벨을 불러오는 중...';
+            classIdElement.textContent = '-';
+            classNameElement.textContent = yoloClassName;
+            labelElement.textContent = 'Seg Polygon 데이터를 불러오는 중...';
             try {
                 const response = await fetch(`${apiBase}${frame.label_url}`, { cache: 'no-store' });
                 if (!response.ok) {
@@ -1627,10 +1653,11 @@
                 }
                 const labelText = await response.text();
                 if (requestSequence === labelRequestSequence) {
-                    labelElement.textContent = labelText.trim() || '라벨 데이터가 없습니다.';
+                    renderSegmentationData(labelText);
                 }
             } catch (error) {
                 if (requestSequence === labelRequestSequence) {
+                    classIdElement.textContent = '-';
                     labelElement.textContent = error && error.message ? error.message : '라벨을 불러오지 못했습니다.';
                 }
             }

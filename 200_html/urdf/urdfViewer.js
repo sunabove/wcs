@@ -115,6 +115,12 @@ class URDFViewer {
             rl: 0,
             rr: 0
         };
+        const wheelVisualRotationSign = Number.parseFloat(
+            containerElement.getAttribute('wheel-visual-rotation-sign')
+        );
+        this.wheelVisualRotationSign = Number.isFinite(wheelVisualRotationSign) && wheelVisualRotationSign < 0
+            ? -1
+            : 1;
         this.enableWheelVisualFilter = this.parseBooleanAttribute(
             containerElement.getAttribute('wheelVisualFilter'),
             true
@@ -2461,7 +2467,7 @@ class URDFViewer {
 
             const wheelAngularSpeedRad = this.wheelAngularSpeedRadByKey[key] || 0;
             const wheelDirection = this.wheelDirectionSignByKey[key] || 1;
-            const targetAngularSpeedRad = wheelDirection * wheelAngularSpeedRad;
+            const targetAngularSpeedRad = this.wheelVisualRotationSign * wheelDirection * wheelAngularSpeedRad;
             let clampedAngleStep = targetAngularSpeedRad * deltaSec;
 
             if (this.enableWheelVisualFilter) {

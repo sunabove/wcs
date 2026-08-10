@@ -1562,23 +1562,30 @@
         const loadingElement = fileTabPane.querySelector('[data-role="frame-loading"]');
         const viewerElement = fileTabPane.querySelector('[data-role="frame-viewer"]');
         const frameSlider = fileTabPane.querySelector('[data-role="frame-slider"]');
+        const previousFrameButton = fileTabPane.querySelector('[data-role="frame-previous"]');
+        const nextFrameButton = fileTabPane.querySelector('[data-role="frame-next"]');
         const counterElement = fileTabPane.querySelector('[data-role="frame-counter"]');
         const imageTabButton = fileTabPane.querySelector('[data-role="frame-image-tab"]');
         const maskTabButton = fileTabPane.querySelector('[data-role="frame-mask-tab"]');
+        const overlayTabButton = fileTabPane.querySelector('[data-role="frame-overlay-tab"]');
         const segTabButton = fileTabPane.querySelector('[data-role="frame-seg-tab"]');
         const imageTabPane = fileTabPane.querySelector('[data-role="frame-image-pane"]');
         const maskTabPane = fileTabPane.querySelector('[data-role="frame-mask-pane"]');
+        const overlayTabPane = fileTabPane.querySelector('[data-role="frame-overlay-pane"]');
         const segTabPane = fileTabPane.querySelector('[data-role="frame-seg-pane"]');
         const imageElement = fileTabPane.querySelector('[data-role="frame-image"]');
         const maskElement = fileTabPane.querySelector('[data-role="frame-mask"]');
+        const overlayImageElement = fileTabPane.querySelector('[data-role="frame-overlay-image"]');
+        const overlayMaskElement = fileTabPane.querySelector('[data-role="frame-overlay-mask"]');
         const labelElement = fileTabPane.querySelector('[data-role="frame-label"]');
-        if (!loadingElement || !viewerElement || !frameSlider || !counterElement || !imageTabButton || !maskTabButton || !segTabButton || !imageTabPane || !maskTabPane || !segTabPane || !imageElement || !maskElement || !labelElement) {
+        if (!loadingElement || !viewerElement || !frameSlider || !previousFrameButton || !nextFrameButton || !counterElement || !imageTabButton || !maskTabButton || !overlayTabButton || !segTabButton || !imageTabPane || !maskTabPane || !overlayTabPane || !segTabPane || !imageElement || !maskElement || !overlayImageElement || !overlayMaskElement || !labelElement) {
             return async function () {};
         }
 
         [
             [imageTabButton, imageTabPane, 'image'],
             [maskTabButton, maskTabPane, 'mask'],
+            [overlayTabButton, overlayTabPane, 'overlay'],
             [segTabButton, segTabPane, 'seg'],
         ].forEach(([tabButton, tabPane, suffix]) => {
             const tabId = `${fileTabPane.id}-${suffix}-tab`;
@@ -1606,8 +1613,12 @@
             const requestSequence = ++labelRequestSequence;
             counterElement.textContent = `${framePosition + 1} / ${frames.length} · 프레임 ${frame.frame_index}`;
             frameSlider.value = String(framePosition);
+            previousFrameButton.disabled = framePosition === 0;
+            nextFrameButton.disabled = framePosition === frames.length - 1;
             imageElement.src = `${apiBase}${frame.image_url}`;
             maskElement.src = `${apiBase}${frame.mask_url}`;
+            overlayImageElement.src = `${apiBase}${frame.image_url}`;
+            overlayMaskElement.src = `${apiBase}${frame.mask_url}`;
             labelElement.textContent = '라벨을 불러오는 중...';
             try {
                 const response = await fetch(`${apiBase}${frame.label_url}`, { cache: 'no-store' });
@@ -1627,6 +1638,16 @@
 
         frameSlider.addEventListener('input', () => {
             framePosition = Number.parseInt(frameSlider.value, 10) || 0;
+            renderFrame();
+        });
+
+        previousFrameButton.addEventListener('click', () => {
+            framePosition = Math.max(0, framePosition - 1);
+            renderFrame();
+        });
+
+        nextFrameButton.addEventListener('click', () => {
+            framePosition = Math.min(frames.length - 1, framePosition + 1);
             renderFrame();
         });
 

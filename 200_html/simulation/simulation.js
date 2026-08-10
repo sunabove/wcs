@@ -3526,13 +3526,10 @@ class RapierDriveSimulation {
                 }
 
                 this.vehicleColliders.forEach((vehicleCollider) => {
-                    if (obstacleHasContact) {
-                        return;
-                    }
-
                     this.world.contactPair(vehicleCollider, obstacleInfo.collider, () => {
                         obstacleHasContact = true;
-                        obstacleHasWheelContact = this.wheelColliders.includes(vehicleCollider);
+                        obstacleHasWheelContact = obstacleHasWheelContact
+                            || this.wheelColliders.includes(vehicleCollider);
                     });
                 });
 

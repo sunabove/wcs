@@ -3479,10 +3479,20 @@ class RapierDriveSimulation {
         obstacleInfo.isContactHighlighted = false;
     }
 
-    setObstacleContactHighlight(obstacleInfo, isContacting) {
+    setObstacleContactHighlight(obstacleInfo, isContacting, forceClear = false) {
         this.initializeObstacleContactVisual(obstacleInfo);
-        if (!Array.isArray(obstacleInfo?.contactMaterialStates)
-            || obstacleInfo.isContactHighlighted === isContacting) {
+        if (!Array.isArray(obstacleInfo?.contactMaterialStates)) {
+            return;
+        }
+
+        const nowMs = performance.now();
+        if (isContacting) {
+            obstacleInfo.contactHighlightUntilMs = nowMs + 600;
+        } else if (!forceClear && nowMs < (Number(obstacleInfo.contactHighlightUntilMs) || 0)) {
+            return;
+        }
+
+        if (obstacleInfo.isContactHighlighted === isContacting) {
             return;
         }
 
@@ -4371,7 +4381,7 @@ class RapierDriveSimulation {
         this.body.setAngvel(new this.rapier.Vector3(0, 0, 0), true);
         this.isVehicleObstacleContact = false;
         this.obstacleColliderInfos.forEach((obstacleInfo) => {
-            this.setObstacleContactHighlight(obstacleInfo, false);
+            this.setObstacleContactHighlight(obstacleInfo, false, true);
             if (obstacleInfo?.collider && typeof obstacleInfo.collider.setSensor === 'function') {
                 obstacleInfo.collider.setSensor(false);
             }

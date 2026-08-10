@@ -2555,14 +2555,18 @@ class RapierDriveSimulation {
             }
 
             let isContacting = false;
+            const contactedWheelKeys = [];
             this.vehicleColliders.forEach((vehicleCollider) => {
-                if (isContacting) {
-                    return;
-                }
                 this.world.contactPair(vehicleCollider, obstacleInfo.collider, () => {
                     isContacting = true;
+                    Object.entries(this.wheelCollidersByKey).forEach(([wheelKey, wheelCollider]) => {
+                        if (wheelCollider === vehicleCollider) {
+                            contactedWheelKeys.push(wheelKey);
+                        }
+                    });
                 });
             });
+            obstacleInfo.contactedWheelKeys = contactedWheelKeys;
             return isContacting;
         });
 
@@ -2584,15 +2588,15 @@ class RapierDriveSimulation {
         const dx = obstacleInfo.center.x - bodyPosition.x;
         const dy = obstacleInfo.center.y - bodyPosition.y;
         const alongForward = dx * forwardX + dy * forwardY;
-        const lateralOffset = Math.abs(dx * forwardY - dy * forwardX);
         const distance = Math.hypot(dx, dy);
         const obstacleTopZ = obstacleInfo.center.z + obstacleInfo.halfExtents.z;
         const wheelPlaneZ = bodyPosition.z + (Number.isFinite(this.wheelLocalMinZ) ? this.wheelLocalMinZ : 0);
         const verticalGap = obstacleTopZ - wheelPlaneZ;
+        const hasWheelContact = Array.isArray(obstacleInfo.contactedWheelKeys)
+            && obstacleInfo.contactedWheelKeys.length > 0;
 
-        return alongForward > 0.03
+        return (hasWheelContact || alongForward > 0.03)
             && distance < 0.6
-            && lateralOffset < 0.25
             && verticalGap > 0.02;
     }
 
@@ -2630,6 +2634,8 @@ class RapierDriveSimulation {
         const dy = obstacleInfo.center.y - bodyPosition.y;
         const centerAlongForward = (dx * forwardX) + (dy * forwardY);
         const lateralOffset = Math.abs((dx * forwardY) - (dy * forwardX));
+        const hasWheelContact = Array.isArray(obstacleInfo.contactedWheelKeys)
+            && obstacleInfo.contactedWheelKeys.length > 0;
         const halfForward = (Math.abs(forwardX) * obstacleInfo.halfExtents.x)
             + (Math.abs(forwardY) * obstacleInfo.halfExtents.y);
         const obstacleFront = centerAlongForward - halfForward;
@@ -2642,7 +2648,7 @@ class RapierDriveSimulation {
         const obstacleTargetZ = this.getObstacleClimbTargetZ(obstacleInfo);
 
         if (!Number.isFinite(obstacleTargetZ)
-            || lateralOffset > 0.42
+            || (!hasWheelContact && lateralOffset > 0.42)
             || obstacleTargetZ <= groundTargetZ + 0.004) {
             return null;
         }

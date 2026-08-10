@@ -166,6 +166,11 @@ def yolo_training_status(job_id: str):
     return _service.get_yolo_training_status(job_id)
 
 
+@router.post("/yolo_training_stop/{job_id}")
+def stop_yolo_training(job_id: str):
+    return _service.stop_yolo_training(job_id)
+
+
 @router.delete("/yolo_dataset")
 def delete_yolo_dataset(
     file_name: str = Query(...),

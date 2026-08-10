@@ -211,7 +211,21 @@ class Sam2VideoService:
             batch_progress = {"epoch": -1, "batch": 0}
             metric_history = []
 
+            def stop_if_requested(trainer):
+                with self._training_jobs_lock:
+                    job = self._training_jobs[job_id]
+                    if not job.get("stop_requested"):
+                        return False
+                    trainer.stop = True
+                    job.update({
+                        "status": "stopping",
+                        "message": "현재 Batch 완료 후 학습을 중지하는 중...",
+                    })
+                    return True
+
             def update_batch(trainer):
+                if stop_if_requested(trainer):
+                    return
                 current_epoch_index = int(getattr(trainer, "epoch", 0))
                 if batch_progress["epoch"] != current_epoch_index:
                     batch_progress.update({"epoch": current_epoch_index, "batch": 0})
@@ -242,6 +256,8 @@ class Sam2VideoService:
                     })
 
             def update_epoch(trainer):
+                if stop_if_requested(trainer):
+                    return
                 current_epoch = min(epochs, int(getattr(trainer, "epoch", 0)) + 1)
                 with self._training_jobs_lock:
                     self._training_jobs[job_id].update({
@@ -281,6 +297,32 @@ class Sam2VideoService:
                 exist_ok=True,
             )
             save_dir = str(getattr(results, "save_dir", "") or "")
+            with self._training_jobs_lock:
+                stopped = bool(self._training_jobs[job_id].get("stop_requested"))
+            if stopped:
+                checkpoint_path = Path(save_dir) / "weights" / "last.pt" if save_dir else None
+                metadata_path = Path(training_plan["metadata_path"])
+                if checkpoint_path and checkpoint_path.is_file():
+                    metadata_path.parent.mkdir(parents=True, exist_ok=True)
+                    metadata_path.write_text(
+                        json.dumps({
+                            "dataset_fingerprint": dataset_fingerprint,
+                            "interrupted_at": datetime.now().isoformat(timespec="seconds"),
+                            "continued_from_checkpoint": continue_training,
+                            "checkpoint_path": str(checkpoint_path),
+                        }, ensure_ascii=False, indent=2),
+                        encoding="utf-8",
+                    )
+                with self._training_jobs_lock:
+                    self._training_jobs[job_id].update({
+                        "status": "stopped",
+                        "completed_at": time.time(),
+                        "message": "YOLO 학습이 중지되었습니다.",
+                        "result": {
+                            "checkpoint_path": str(checkpoint_path) if checkpoint_path else "",
+                        },
+                    })
+                return
             best_model_path = Path(save_dir) / "weights" / "best.pt" if save_dir else None
             if not best_model_path or not best_model_path.is_file():
                 raise RuntimeError("학습 결과 best.pt 파일을 찾을 수 없습니다")
@@ -363,6 +405,7 @@ class Sam2VideoService:
                 "metric_history": [],
                 "started_at": None,
                 "completed_at": None,
+                "stop_requested": False,
                 "dataset_fingerprint": dataset_fingerprint,
                 "training_plan": training_plan,
                 "result": None,
@@ -371,6 +414,21 @@ class Sam2VideoService:
             self._active_training_job_id = job_id
         self._training_executor.submit(self._run_yolo_training_job, job_id)
         return self.get_yolo_training_status(job_id)
+
+    def stop_yolo_training(self, job_id: str):
+        normalized_job_id = str(job_id or "").strip()
+        with self._training_jobs_lock:
+            job = self._training_jobs.get(normalized_job_id)
+            if not job:
+                raise HTTPException(status_code=404, detail="YOLO training job not found")
+            if job.get("status") not in {"queued", "running", "stopping"}:
+                raise HTTPException(status_code=409, detail="진행 중인 YOLO 학습이 아닙니다")
+            job.update({
+                "stop_requested": True,
+                "status": "stopping",
+                "message": "학습 중지를 요청했습니다. 현재 Batch 완료를 기다리는 중...",
+            })
+            return self._get_yolo_training_snapshot(normalized_job_id, job)
 
     def _get_yolo_training_snapshot(self, job_id, job):
         snapshot = {"job_id": job_id, **job}
@@ -404,7 +462,7 @@ class Sam2VideoService:
         with self._training_jobs_lock:
             job_id = self._active_training_job_id
             job = self._training_jobs.get(job_id)
-            if not job or job.get("status") not in {"queued", "running"}:
+            if not job or job.get("status") not in {"queued", "running", "stopping"}:
                 return {"active": False}
             return {"active": True, **self._get_yolo_training_snapshot(job_id, job)}
 

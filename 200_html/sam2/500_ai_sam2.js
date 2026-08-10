@@ -63,6 +63,7 @@
     const yoloTrainSummaryStatusElement = document.getElementById('sam2-yolo-train-summary-status');
     const yoloTrainStartButton = document.getElementById('sam2-yolo-train-start');
     const yoloRetrainStartButton = document.getElementById('sam2-yolo-retrain-start');
+    const yoloTrainStopButton = document.getElementById('sam2-yolo-train-stop');
     const yoloTrainProgressElement = document.getElementById('sam2-yolo-train-progress');
     const yoloTrainProgressTextElement = document.getElementById('sam2-yolo-train-progress-text');
     const yoloTrainStatusElement = document.getElementById('sam2-yolo-train-status');
@@ -520,6 +521,7 @@
         });
         yoloTrainStartButton?.addEventListener('click', () => startYoloTraining(false));
         yoloRetrainStartButton?.addEventListener('click', () => startYoloTraining(true));
+        yoloTrainStopButton?.addEventListener('click', stopYoloTraining);
         recoverActiveYoloTraining();
     }
 
@@ -629,7 +631,10 @@
                 job.estimated_total_seconds
             );
             renderYoloTrainingMetrics(job.metric_history);
-            if (status === 'queued' || status === 'running') {
+            if (yoloTrainStopButton) {
+                yoloTrainStopButton.disabled = status === 'stopping';
+            }
+            if (status === 'queued' || status === 'running' || status === 'stopping') {
                 window.setTimeout(pollYoloTrainingStatus, 1000);
                 return;
             }
@@ -640,6 +645,9 @@
             if (yoloRetrainStartButton) {
                 yoloRetrainStartButton.disabled = false;
             }
+            if (yoloTrainStopButton) {
+                yoloTrainStopButton.disabled = true;
+            }
         } catch (error) {
             yoloTrainingJobId = '';
             if (yoloTrainStartButton) {
@@ -647,6 +655,9 @@
             }
             if (yoloRetrainStartButton) {
                 yoloRetrainStartButton.disabled = false;
+            }
+            if (yoloTrainStopButton) {
+                yoloTrainStopButton.disabled = true;
             }
             renderYoloTrainingProgress(0, error && error.message ? error.message : '학습 상태를 조회하지 못했습니다.', 'failed');
         }
@@ -674,6 +685,9 @@
             if (yoloRetrainStartButton) {
                 yoloRetrainStartButton.disabled = true;
             }
+            if (yoloTrainStopButton) {
+                yoloTrainStopButton.disabled = job.status === 'stopping';
+            }
             renderYoloTrainingProgress(
                 job.progress,
                 job.error || job.message,
@@ -696,6 +710,9 @@
         }
         yoloTrainStartButton.disabled = true;
         yoloRetrainStartButton.disabled = true;
+        if (yoloTrainStopButton) {
+            yoloTrainStopButton.disabled = true;
+        }
         renderYoloTrainingProgress(0, forceRetrain ? 'YOLO 재학습을 요청하는 중...' : 'YOLO 학습을 요청하는 중...', 'queued');
         renderYoloTrainingMetrics([]);
         try {
@@ -716,6 +733,9 @@
             }
             const job = await response.json();
             yoloTrainingJobId = String(job.job_id || '');
+            if (yoloTrainStopButton) {
+                yoloTrainStopButton.disabled = !yoloTrainingJobId;
+            }
             renderYoloTrainingProgress(
                 job.progress,
                 job.message,
@@ -727,7 +747,45 @@
         } catch (error) {
             yoloTrainStartButton.disabled = false;
             yoloRetrainStartButton.disabled = false;
+            if (yoloTrainStopButton) {
+                yoloTrainStopButton.disabled = true;
+            }
             renderYoloTrainingProgress(0, error && error.message ? error.message : 'YOLO 학습을 시작하지 못했습니다.', 'failed');
+        }
+    }
+
+    async function stopYoloTraining() {
+        if (!yoloTrainingJobId || !yoloTrainStopButton || yoloTrainStopButton.disabled) {
+            return;
+        }
+        yoloTrainStopButton.disabled = true;
+        try {
+            const apiBase = await resolveApiBase();
+            const response = await fetch(
+                `${apiBase}/fast/sam2/yolo_training_stop/${encodeURIComponent(yoloTrainingJobId)}`,
+                { method: 'POST' }
+            );
+            if (!response.ok) {
+                let message = `YOLO 학습 중지 실패 (${response.status})`;
+                try {
+                    const errorBody = await response.json();
+                    message = errorBody.detail || message;
+                } catch (_ignore) {
+                    // Keep the status-based error message.
+                }
+                throw new Error(message);
+            }
+            const job = await response.json();
+            renderYoloTrainingProgress(
+                job.progress,
+                job.message,
+                job.status,
+                job.elapsed_seconds,
+                job.estimated_total_seconds
+            );
+        } catch (error) {
+            yoloTrainStopButton.disabled = false;
+            renderYoloTrainingProgress(0, error && error.message ? error.message : 'YOLO 학습을 중지하지 못했습니다.', 'failed');
         }
     }
 

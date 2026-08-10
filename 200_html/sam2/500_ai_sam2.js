@@ -52,6 +52,7 @@
     const outputVideoElement = document.getElementById('sam2-output-video');
     const outputDownloadButton = document.getElementById('sam2-output-download');
     const yoloConvertButton = document.getElementById('sam2-yolo-convert');
+    const yoloDatasetDeleteButton = document.getElementById('sam2-yolo-dataset-delete');
     const yoloDatasetSummaryElement = document.getElementById('sam2-yolo-dataset-summary');
     const yoloClassTabTemplate = document.getElementById('sam2-yolo-class-template');
     const yoloFileTabTemplate = document.getElementById('sam2-yolo-file-template');
@@ -63,6 +64,7 @@
     let outputObjectUrl = '';
     let yoloInputFileName = '';
     let yoloConversionAvailable = false;
+    let selectedYoloDatasetItem = null;
     let yoloClassTabsElement = null;
     let yoloClassTabContentElement = null;
     let uploadedHistory = [];
@@ -1516,6 +1518,13 @@
         }));
     }
 
+    function setSelectedYoloDatasetItem(item) {
+        selectedYoloDatasetItem = item || null;
+        if (yoloDatasetDeleteButton) {
+            yoloDatasetDeleteButton.disabled = !selectedYoloDatasetItem;
+        }
+    }
+
     async function deleteYoloDataset(item, deleteButton) {
         const inputStem = fileStem(item.name);
         if (!window.confirm(`${inputStem}의 YOLO 학습 데이터를 삭제하시겠습니까?`)) {
@@ -1665,6 +1674,7 @@
 
         yoloClassTabsElement.innerHTML = '';
         yoloClassTabContentElement.innerHTML = '';
+        setSelectedYoloDatasetItem(null);
 
         if (classNames.length === 0) {
             yoloClassTabContentElement.appendChild(yoloClassEmptyTemplate.content.cloneNode(true));
@@ -1705,6 +1715,7 @@
             tabPane.setAttribute('aria-labelledby', tabId);
 
             let activeFileViewerLoader = null;
+            let activeFileItem = null;
             const activeFileIndex = Math.max(0, classVideos.findIndex((item) => basename(item && item.name) === activeInputName));
             if (classVideos.length === 0) {
                 fileTabContentElement.appendChild(yoloClassEmptyTemplate.content.cloneNode(true));
@@ -1716,9 +1727,8 @@
                 const fileFragment = yoloFileTabTemplate.content.cloneNode(true);
                 const fileTabItem = fileFragment.querySelector('[data-role="file-tab-item"]');
                 const fileTabButton = fileFragment.querySelector('[data-role="file-tab-button"]');
-                const deleteButton = fileFragment.querySelector('[data-role="dataset-delete"]');
                 const fileTabPane = fileFragment.querySelector('[data-role="file-tab-pane"]');
-                if (!fileTabItem || !fileTabButton || !deleteButton || !fileTabPane) {
+                if (!fileTabItem || !fileTabButton || !fileTabPane) {
                     return;
                 }
 
@@ -1731,15 +1741,15 @@
                 fileTabPane.className = `tab-pane fade${isActiveFile ? ' show active' : ''}`;
                 fileTabPane.id = filePaneId;
                 fileTabPane.setAttribute('aria-labelledby', fileTabId);
-                deleteButton.addEventListener('click', (event) => {
-                    event.stopPropagation();
-                    deleteYoloDataset(item, deleteButton);
-                });
                 const loadFrameViewer = initializeYoloFrameViewer(item, fileTabPane);
-                fileTabButton.addEventListener('shown.bs.tab', loadFrameViewer);
+                fileTabButton.addEventListener('shown.bs.tab', () => {
+                    setSelectedYoloDatasetItem(item);
+                    loadFrameViewer();
+                });
                 fileTabButton.addEventListener('click', loadFrameViewer);
                 if (isActiveFile) {
                     activeFileViewerLoader = loadFrameViewer;
+                    activeFileItem = item;
                 }
                 fileTabsElement.appendChild(fileTabItem);
                 fileTabContentElement.appendChild(fileTabPane);
@@ -1747,8 +1757,12 @@
 
             yoloClassTabsElement.appendChild(tabItem);
             yoloClassTabContentElement.appendChild(tabPane);
-            tabButton.addEventListener('shown.bs.tab', () => activeFileViewerLoader?.());
+            tabButton.addEventListener('shown.bs.tab', () => {
+                setSelectedYoloDatasetItem(activeFileItem);
+                activeFileViewerLoader?.();
+            });
             if (isActive) {
+                setSelectedYoloDatasetItem(activeFileItem);
                 activeFileViewerLoader?.();
             }
         });
@@ -2764,6 +2778,13 @@
     }
     if (yoloConvertButton) {
         yoloConvertButton.addEventListener('click', convertYoloDataset);
+    }
+    if (yoloDatasetDeleteButton) {
+        yoloDatasetDeleteButton.addEventListener('click', () => {
+            if (selectedYoloDatasetItem) {
+                deleteYoloDataset(selectedYoloDatasetItem, yoloDatasetDeleteButton);
+            }
+        });
     }
     function setPointMode(mode) {
         if (!hasSelectedVideo()) {

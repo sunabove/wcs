@@ -141,7 +141,7 @@ class Sam2VideoService:
         try:
             from ultralytics import YOLO
 
-            dataset_yaml = SAM2_YOLO_DIR / "dataset.yaml"
+            dataset_yaml = self.detector.ensure_yolo_dataset_yaml()
             model_source = os.getenv("SAM2_YOLO_TRAIN_MODEL", "yolo11m-seg.pt")
             epochs = max(1, int(os.getenv("SAM2_YOLO_TRAIN_EPOCHS", "100")))
             with self._training_jobs_lock:
@@ -217,9 +217,10 @@ class Sam2VideoService:
         summary = self.detector.get_yolo_dataset_summary()
         if int(summary.get("frame_count", 0)) <= 0:
             raise HTTPException(status_code=409, detail="변환된 YOLO 학습 데이터가 없습니다")
-        dataset_yaml = SAM2_YOLO_DIR / "dataset.yaml"
-        if not dataset_yaml.is_file():
-            raise HTTPException(status_code=409, detail="dataset.yaml 파일이 없습니다")
+        try:
+            self.detector.ensure_yolo_dataset_yaml()
+        except (FileNotFoundError, ValueError) as ex:
+            raise HTTPException(status_code=409, detail=str(ex)) from ex
 
         with self._training_jobs_lock:
             if self._active_training_job_id:

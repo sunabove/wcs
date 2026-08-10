@@ -235,6 +235,28 @@ class Sam2VideoDetector:
             "segment_count": segment_count,
         }
 
+    def ensure_yolo_dataset_yaml(self):
+        registry_path = SAM2_YOLO_DIR / "classes.json"
+        if not registry_path.is_file():
+            raise FileNotFoundError("YOLO classes.json file not found")
+        try:
+            saved_names = json.loads(registry_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as ex:
+            raise ValueError("Invalid YOLO classes.json file") from ex
+        if not isinstance(saved_names, list) or not saved_names:
+            raise ValueError("YOLO class registry is empty")
+
+        class_names = [str(name) for name in saved_names if str(name).strip()]
+        dataset_yaml = SAM2_YOLO_DIR / "dataset.yaml"
+        dataset_yaml.write_text(
+            f"path: {SAM2_YOLO_DIR.resolve().as_posix()}\n"
+            "train: images/train\n"
+            "val: images/train\n"
+            f"names: {json.dumps(class_names, ensure_ascii=False)}\n",
+            encoding="utf-8",
+        )
+        return dataset_yaml
+
     def delete_yolo_dataset(self, input_path: Path) -> int:
         file_prefix = f"{Path(input_path).stem}_"
         deleted_count = 0
@@ -1521,7 +1543,7 @@ class Sam2VideoDetector:
             self._remap_yolo_label_class_ids(output_root, previous_class_names, class_names)
         dataset_yaml = output_root / "dataset.yaml"
         dataset_yaml.write_text(
-            "path: .\n"
+            f"path: {output_root.resolve().as_posix()}\n"
             "train: images/train\n"
             "val: images/train\n"
             f"names: {json.dumps(class_names, ensure_ascii=False)}\n",

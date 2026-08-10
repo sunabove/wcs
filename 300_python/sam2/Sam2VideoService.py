@@ -137,17 +137,63 @@ class Sam2VideoService:
     def get_yolo_dataset_summary(self):
         return self.detector.get_yolo_dataset_summary()
 
+    def _get_yolo_dataset_fingerprint(self):
+        hasher = hashlib.sha256()
+        for relative_root, pattern in (
+            (Path("images/train"), "*.jpg"),
+            (Path("labels/train"), "*.txt"),
+            (Path("masks/train"), "*.png"),
+        ):
+            root = SAM2_YOLO_DIR / relative_root
+            if not root.is_dir():
+                continue
+            for file_path in sorted(root.glob(pattern), key=lambda path: path.name):
+                hasher.update(file_path.relative_to(SAM2_YOLO_DIR).as_posix().encode("utf-8"))
+                hasher.update(self._hash_file(file_path).encode("ascii"))
+        classes_path = SAM2_YOLO_DIR / "classes.json"
+        if classes_path.is_file():
+            hasher.update(classes_path.read_bytes())
+        return hasher.hexdigest()
+
+    def _get_yolo_training_plan(self, dataset_fingerprint):
+        run_dir = SAM2_YOLO_DIR / "runs" / "obstacle-seg"
+        checkpoint_path = run_dir / "weights" / "last.pt"
+        metadata_path = run_dir / "training_state.json"
+        previous_fingerprint = ""
+        if metadata_path.is_file():
+            try:
+                metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
+                previous_fingerprint = str(metadata.get("dataset_fingerprint", ""))
+            except (OSError, json.JSONDecodeError):
+                previous_fingerprint = ""
+        continue_training = checkpoint_path.is_file() and previous_fingerprint == dataset_fingerprint
+        return {
+            "continue_training": continue_training,
+            "model_source": str(checkpoint_path) if continue_training else os.getenv(
+                "SAM2_YOLO_TRAIN_MODEL",
+                "yolo11m-seg.pt",
+            ),
+            "metadata_path": metadata_path,
+        }
+
     def _run_yolo_training_job(self, job_id):
         try:
             from ultralytics import YOLO
 
             dataset_yaml = self.detector.ensure_yolo_dataset_yaml()
-            model_source = os.getenv("SAM2_YOLO_TRAIN_MODEL", "yolo11m-seg.pt")
             epochs = max(1, int(os.getenv("SAM2_YOLO_TRAIN_EPOCHS", "100")))
             with self._training_jobs_lock:
+                dataset_fingerprint = self._training_jobs[job_id]["dataset_fingerprint"]
+                training_plan = self._training_jobs[job_id]["training_plan"]
+                model_source = training_plan["model_source"]
+                continue_training = bool(training_plan["continue_training"])
                 self._training_jobs[job_id].update({
                     "status": "running",
-                    "message": "학습 모델을 준비하는 중...",
+                    "message": (
+                        "기존 가중치에서 이어서 학습을 준비하는 중..."
+                        if continue_training
+                        else "새 학습 모델을 준비하는 중..."
+                    ),
                     "total_epochs": epochs,
                 })
 
@@ -237,6 +283,18 @@ class Sam2VideoService:
             )
             output_model_path.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(best_model_path, output_model_path)
+            metadata_path = Path(training_plan["metadata_path"])
+            metadata_path.parent.mkdir(parents=True, exist_ok=True)
+            metadata_path.write_text(
+                json.dumps({
+                    "dataset_fingerprint": dataset_fingerprint,
+                    "completed_at": datetime.now().isoformat(timespec="seconds"),
+                    "continued_from_checkpoint": continue_training,
+                    "checkpoint_path": str(Path(save_dir) / "weights" / "last.pt"),
+                    "output_model_path": str(output_model_path),
+                }, ensure_ascii=False, indent=2),
+                encoding="utf-8",
+            )
             with self._training_jobs_lock:
                 self._training_jobs[job_id].update({
                     "status": "completed",
@@ -244,6 +302,7 @@ class Sam2VideoService:
                     "current_epoch": epochs,
                     "message": "YOLO 학습이 완료되었습니다.",
                     "result": {
+                        "continued_training": continue_training,
                         "save_dir": save_dir,
                         "training_best_model_path": str(best_model_path),
                         "best_model_path": str(output_model_path),
@@ -270,6 +329,9 @@ class Sam2VideoService:
         except (FileNotFoundError, ValueError) as ex:
             raise HTTPException(status_code=409, detail=str(ex)) from ex
 
+        dataset_fingerprint = self._get_yolo_dataset_fingerprint()
+        training_plan = self._get_yolo_training_plan(dataset_fingerprint)
+
         with self._training_jobs_lock:
             if self._active_training_job_id:
                 active_job = self._training_jobs.get(self._active_training_job_id, {})
@@ -283,6 +345,8 @@ class Sam2VideoService:
                 "total_epochs": 0,
                 "message": "YOLO 학습 대기 중...",
                 "metric_history": [],
+                "dataset_fingerprint": dataset_fingerprint,
+                "training_plan": training_plan,
                 "result": None,
                 "error": "",
             }

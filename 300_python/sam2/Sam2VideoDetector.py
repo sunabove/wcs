@@ -1,6 +1,7 @@
 import json
 import importlib
 import os
+import re
 import shutil
 import sys
 import time
@@ -1234,7 +1235,7 @@ class Sam2VideoDetector:
             self._draw_bbox_score(overlay, display_bbox, score)
         return overlay
 
-    def _build_yolo_segmentation_labels(self, mask_np, min_area=4.0):
+    def _build_yolo_segmentation_labels(self, mask_np, class_id=0, min_area=4.0):
         mask = (np.asarray(mask_np, dtype=np.uint8) > 0).astype(np.uint8) * 255
         if mask.ndim != 2 or not np.any(mask):
             return []
@@ -1255,15 +1256,39 @@ class Sam2VideoDetector:
             points[:, 0] = np.clip(points[:, 0] / max(1, width), 0.0, 1.0)
             points[:, 1] = np.clip(points[:, 1] / max(1, height), 0.0, 1.0)
             coordinates = " ".join(f"{value:.6f}" for value in points.reshape(-1))
-            labels.append(f"0 {coordinates}")
+            labels.append(f"{int(class_id)} {coordinates}")
 
         return labels
+
+    def _extract_yolo_class_name(self, file_name: str) -> str:
+        match = re.fullmatch(r"(.+?)_?\d+\.mp4", Path(file_name).name, flags=re.IGNORECASE)
+        if not match:
+            raise ValueError(
+                "YOLO input filename must match {class_name}_{idx}.mp4 or {class_name}{idx}.mp4"
+            )
+        return match.group(1)
+
+    def _get_yolo_class_registry(self, output_root: Path, class_name: str):
+        registry_path = output_root / "classes.json"
+        class_names = []
+        if registry_path.is_file():
+            try:
+                saved_names = json.loads(registry_path.read_text(encoding="utf-8"))
+                if isinstance(saved_names, list):
+                    class_names = [str(name) for name in saved_names if str(name).strip()]
+            except (OSError, json.JSONDecodeError):
+                class_names = []
+
+        if class_name not in class_names:
+            class_names.append(class_name)
+        return registry_path, class_names, class_names.index(class_name)
 
     def _export_yolo_dataset(
         self,
         source_video_path: Path,
         output_root: Path,
         input_file_stem: str,
+        class_name: str,
         score_history,
         mask_history,
         detection_threshold,
@@ -1271,6 +1296,7 @@ class Sam2VideoDetector:
         if detection_threshold is None:
             return None
 
+        registry_path, class_names, class_id = self._get_yolo_class_registry(output_root, class_name)
         file_prefix = f"{input_file_stem}_"
         if output_root.is_dir():
             for existing_path in output_root.rglob("*"):
@@ -1304,7 +1330,10 @@ class Sam2VideoDetector:
                     and mask_history[frame_index] is not None
                 )
                 if qualifies:
-                    labels = self._build_yolo_segmentation_labels(mask_history[frame_index])
+                    labels = self._build_yolo_segmentation_labels(
+                        mask_history[frame_index],
+                        class_id=class_id,
+                    )
                     if labels:
                         stem = f"{input_file_stem}_{frame_index:06d}"
                         image_path = images_dir / f"{stem}.jpg"
@@ -1335,19 +1364,25 @@ class Sam2VideoDetector:
             "path: .\n"
             "train: images/train\n"
             "val: images/train\n"
-            "names:\n"
-            "  0: object\n",
+            f"names: {json.dumps(class_names, ensure_ascii=False)}\n",
+            encoding="utf-8",
+        )
+        registry_path.write_text(
+            json.dumps(class_names, ensure_ascii=False, indent=2),
             encoding="utf-8",
         )
 
         return {
             "root": output_root,
+            "class_name": class_name,
+            "class_id": class_id,
             "image_count": image_count,
             "label_count": label_count,
         }
 
     def convert_yolo_dataset(self, input_path: Path):
         resolved_input = Path(input_path).resolve()
+        class_name = self._extract_yolo_class_name(resolved_input.name)
         cached = self._load_yolo_conversion_cache(resolved_input)
         if not cached:
             raise ValueError("No completed detection is available for YOLO conversion")
@@ -1361,12 +1396,15 @@ class Sam2VideoDetector:
             source_video_path=source_video_path,
             output_root=SAM2_YOLO_DIR,
             input_file_stem=resolved_input.stem,
+            class_name=class_name,
             score_history=cached["score_history"],
             mask_history=cached["mask_history"],
             detection_threshold=cached["detection_threshold"],
         )
         result = {
             "input_file_stem": resolved_input.stem,
+            "yolo_class_name": class_name,
+            "yolo_class_id": int(dataset_result["class_id"] if dataset_result else -1),
             "yolo_dataset_image_count": int(dataset_result["image_count"] if dataset_result else 0),
             "yolo_dataset_label_count": int(dataset_result["label_count"] if dataset_result else 0),
         }

@@ -65,7 +65,6 @@
     let yoloConversionAvailable = false;
     let yoloClassTabsElement = null;
     let yoloClassTabContentElement = null;
-    const yoloClassUiByName = new Map();
     let uploadedHistory = [];
     let selectedServerFileName = '';
     let highlightedServerFileName = '';
@@ -519,7 +518,6 @@
         }
 
         const className = extractYoloClassName(yoloInputFileName) || basename(yoloInputFileName).replace(/\.[^.]+$/, '');
-        const classUi = yoloClassUiByName.get(className);
         if (yoloConvertButton) {
             yoloConvertButton.disabled = true;
         }
@@ -561,10 +559,6 @@
             }
             if (yoloDatasetSummaryElement) {
                 yoloDatasetSummaryElement.textContent = summary;
-            }
-            const updatedClassUi = yoloClassUiByName.get(className) || classUi;
-            if (updatedClassUi) {
-                updatedClassUi.fileSummaryByName.get(basename(yoloInputFileName))?.replaceChildren(summary);
             }
             updateOutputDownloadState();
             setStatus(conversionCompleted ? `${className} 클래스 YOLO 변환 완료` : '변환할 학습 데이터가 없습니다.', conversionCompleted ? 'success' : 'warning');
@@ -1634,7 +1628,6 @@
 
         yoloClassTabsElement.innerHTML = '';
         yoloClassTabContentElement.innerHTML = '';
-        yoloClassUiByName.clear();
 
         if (classNames.length === 0) {
             yoloClassTabContentElement.appendChild(yoloClassEmptyTemplate.content.cloneNode(true));
@@ -1674,7 +1667,6 @@
             tabPane.setAttribute('role', 'tabpanel');
             tabPane.setAttribute('aria-labelledby', tabId);
 
-            const fileSummaryByName = new Map();
             let activeFileViewerLoader = null;
             const activeFileIndex = Math.max(0, classVideos.findIndex((item) => basename(item && item.name) === activeInputName));
             if (classVideos.length === 0) {
@@ -1688,8 +1680,7 @@
                 const fileTabItem = fileFragment.querySelector('[data-role="file-tab-item"]');
                 const fileTabButton = fileFragment.querySelector('[data-role="file-tab-button"]');
                 const fileTabPane = fileFragment.querySelector('[data-role="file-tab-pane"]');
-                const fileSummaryElement = fileFragment.querySelector('[data-role="file-summary"]');
-                if (!fileTabItem || !fileTabButton || !fileTabPane || !fileSummaryElement) {
+                if (!fileTabItem || !fileTabButton || !fileTabPane) {
                     return;
                 }
 
@@ -1702,9 +1693,6 @@
                 fileTabPane.className = `tab-pane fade${isActiveFile ? ' show active' : ''}`;
                 fileTabPane.id = filePaneId;
                 fileTabPane.setAttribute('aria-labelledby', fileTabId);
-                fileSummaryElement.textContent = item.yoloConversionAvailable
-                    ? '검출 완료 · YOLO 학습 데이터로 변환할 수 있습니다.'
-                    : '검출 완료 후 YOLO 학습 데이터로 변환할 수 있습니다.';
                 const loadFrameViewer = initializeYoloFrameViewer(item, fileTabPane);
                 fileTabButton.addEventListener('shown.bs.tab', loadFrameViewer);
                 fileTabButton.addEventListener('click', loadFrameViewer);
@@ -1713,12 +1701,10 @@
                 }
                 fileTabsElement.appendChild(fileTabItem);
                 fileTabContentElement.appendChild(fileTabPane);
-                fileSummaryByName.set(basename(item.name), fileSummaryElement);
             });
 
             yoloClassTabsElement.appendChild(tabItem);
             yoloClassTabContentElement.appendChild(tabPane);
-            yoloClassUiByName.set(className, { fileSummaryByName });
             tabButton.addEventListener('shown.bs.tab', () => activeFileViewerLoader?.());
             if (isActive) {
                 activeFileViewerLoader?.();

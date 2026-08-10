@@ -2151,9 +2151,11 @@ class RapierDriveSimulation {
             const isUnderbodyPassThroughByHeight = false;
             const isUnderbodyPassThrough = false;
 
-            // Only explicitly tagged links are sensors; generic obstacles must physically collide.
-            if (isPassUnderTagged && typeof obstacleColliderDesc.setSensor === 'function') {
+            // Keep colliders non-solid until the rendered obstacle overlaps the chassis or a wheel in X, Y, and Z.
+            if (typeof obstacleColliderDesc.setSensor === 'function') {
                 obstacleColliderDesc.setSensor(true);
+            }
+            if (isPassUnderTagged) {
                 console.log('[URDF][Simulation] obstacle treated as pass-under sensor:', {
                     obstacleLinkName,
                     isPassUnderTagged,
@@ -2178,6 +2180,7 @@ class RapierDriveSimulation {
                 linkName: obstacleLinkName,
                 normalizedLinkName: normalizedObstacleName,
                 isSensor: Boolean(isPassUnderTagged),
+                isSpatiallyOverlapping: false,
                 linkObject: obstacleLink,
                 worldBounds: actualBounds.clone()
             });
@@ -2504,17 +2507,31 @@ class RapierDriveSimulation {
     }
 
     isVehicleAabbTouchingObstacle(obstacleInfo, linkMap = null) {
-        const vehicleObbs = this.getVehicleCollisionObbs(linkMap);
-        if (vehicleObbs.length === 0) {
+        const vehicleBounds = this.getVehicleCollisionBounds(linkMap);
+        if (vehicleBounds.length === 0) {
             return false;
         }
 
-        const obstacleObb = this.getObstacleCollisionObb(obstacleInfo, linkMap);
-        if (!obstacleObb) {
+        const obstacleBounds = this.getObstacleWorldBounds(obstacleInfo, linkMap);
+        if (!obstacleBounds || obstacleBounds.isEmpty()) {
             return false;
         }
 
-        return vehicleObbs.some((vehicleObb) => this.obbIntersects(vehicleObb, obstacleObb, 0.001));
+        return vehicleBounds.some((bounds) => bounds.intersectsBox(obstacleBounds));
+    }
+
+    syncObstacleColliderActivation(linkMap = null) {
+        this.obstacleColliderInfos.forEach((obstacleInfo) => {
+            if (!obstacleInfo?.collider || obstacleInfo.isSensor) {
+                return;
+            }
+
+            const isSpatiallyOverlapping = this.isVehicleAabbTouchingObstacle(obstacleInfo, linkMap);
+            obstacleInfo.isSpatiallyOverlapping = isSpatiallyOverlapping;
+            if (typeof obstacleInfo.collider.setSensor === 'function') {
+                obstacleInfo.collider.setSensor(!isSpatiallyOverlapping);
+            }
+        });
     }
 
     isVehicleNearObstacleSurface(obstacleInfo, linkMap = null) {
@@ -2553,6 +2570,10 @@ class RapierDriveSimulation {
 
         const obstacleContactInfo = this.obstacleColliderInfos.find((obstacleInfo) => {
             if (!obstacleInfo || obstacleInfo.isSensor || !this.world?.contactPair || !this.body) {
+                return false;
+            }
+
+            if (!this.isVehicleAabbTouchingObstacle(obstacleInfo)) {
                 return false;
             }
 
@@ -3525,6 +3546,12 @@ class RapierDriveSimulation {
                     return;
                 }
 
+                if (!this.isVehicleAabbTouchingObstacle(obstacleInfo)) {
+                    obstacleInfo.isSpatiallyOverlapping = false;
+                    this.setObstacleContactHighlight(obstacleInfo, false);
+                    return;
+                }
+
                 if (this.isObstacleBelowWheelContactPlane(obstacleInfo)) {
                     this.setObstacleContactHighlight(obstacleInfo, false);
                     return;
@@ -4053,6 +4080,7 @@ class RapierDriveSimulation {
 
             this.applyDriveForces(this.physicsFixedTimeStepSec, targetVelocityX, targetVelocityY, throttleSign, effectiveSteerSign, clampedSpeed, wheelGroundContactCount);
             this.applyGroundSupportForces(this.physicsFixedTimeStepSec, wheelGroundContactCount, obstaclePathControlActive);
+            this.syncObstacleColliderActivation(linkMap);
             
             // Force strict forward linear velocity direction inside the fixed physics loop when climbing
             if (obstaclePathControlActive && Math.abs(effectiveSteerSign) < 1e-3) {
@@ -4395,8 +4423,9 @@ class RapierDriveSimulation {
             obstacleInfo.contactHighlightPendingUntilMs = 0;
             this.setObstacleContactHighlight(obstacleInfo, false, true);
             if (obstacleInfo?.collider && typeof obstacleInfo.collider.setSensor === 'function') {
-                obstacleInfo.collider.setSensor(false);
+                obstacleInfo.collider.setSensor(true);
             }
+            obstacleInfo.isSpatiallyOverlapping = false;
         });
         this.activeObstacleTraversalPath = null;
         this.hasActivatedSimulationMotion = false;

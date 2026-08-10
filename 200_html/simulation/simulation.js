@@ -4177,7 +4177,13 @@ class RapierDriveSimulation {
             if (adjustedByGroundReattach) {
                 this.renderer.syncVehicle();
             }
-            if (!obstaclePathControlActive) {
+            const hasObstacleControlAfterStep = Boolean(
+                hasObstacleContactNow
+                || isClimbingApproach
+                || isObstaclePathActive
+                || this.contactSolver.isObstacleTraversalActive()
+            );
+            if (!hasObstacleControlAfterStep) {
                 this.stabilizeFlatGroundVerticalMotion();
                 this.enforceFlatGroundRideHeight();
             }

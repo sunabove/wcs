@@ -1514,7 +1514,6 @@
     function getYoloClassNames() {
         return Array.from(new Set(
             uploadedHistory
-                .filter((item) => item && item.hasYoloDataset === true)
                 .map((item) => extractYoloClassName(item && item.name))
                 .filter(Boolean)
         )).sort((left, right) => left.localeCompare(right, undefined, {
@@ -1579,6 +1578,9 @@
 
             const fileSummaryByName = new Map();
             const activeFileIndex = Math.max(0, classVideos.findIndex((item) => basename(item && item.name) === activeInputName));
+            if (classVideos.length === 0) {
+                fileTabContentElement.appendChild(yoloClassEmptyTemplate.content.cloneNode(true));
+            }
             classVideos.forEach((item, fileIndex) => {
                 const isActiveFile = fileIndex === activeFileIndex;
                 const fileTabId = `sam2-yolo-file-tab-${index}-${fileIndex}`;

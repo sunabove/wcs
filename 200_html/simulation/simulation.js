@@ -2783,7 +2783,9 @@ class RapierDriveSimulation {
             this.activeObstacleTraversalPath = nextPath;
         }
 
-        const path = this.activeObstacleTraversalPath;
+        const path = this.isObstacleTraversalActive()
+            ? this.activeObstacleTraversalPath
+            : null;
         if (!path) {
             const hasWheelContact = Array.isArray(obstacleInfo?.contactedWheelKeys)
                 && obstacleInfo.contactedWheelKeys.length > 0;

@@ -1562,7 +1562,8 @@
         const loadingElement = fileTabPane.querySelector('[data-role="frame-loading"]');
         const viewerElement = fileTabPane.querySelector('[data-role="frame-viewer"]');
         const frameSlider = fileTabPane.querySelector('[data-role="frame-slider"]');
-        const frameSpinner = fileTabPane.querySelector('[data-role="frame-spinner"]');
+        const increaseFrameButton = fileTabPane.querySelector('[data-role="frame-increase"]');
+        const decreaseFrameButton = fileTabPane.querySelector('[data-role="frame-decrease"]');
         const counterElement = fileTabPane.querySelector('[data-role="frame-counter"]');
         const imageTabButton = fileTabPane.querySelector('[data-role="frame-image-tab"]');
         const maskTabButton = fileTabPane.querySelector('[data-role="frame-mask-tab"]');
@@ -1577,7 +1578,7 @@
         const overlayImageElement = fileTabPane.querySelector('[data-role="frame-overlay-image"]');
         const overlayMaskElement = fileTabPane.querySelector('[data-role="frame-overlay-mask"]');
         const labelElement = fileTabPane.querySelector('[data-role="frame-label"]');
-        if (!loadingElement || !viewerElement || !frameSlider || !frameSpinner || !counterElement || !imageTabButton || !maskTabButton || !overlayTabButton || !segTabButton || !imageTabPane || !maskTabPane || !overlayTabPane || !segTabPane || !imageElement || !maskElement || !overlayImageElement || !overlayMaskElement || !labelElement) {
+        if (!loadingElement || !viewerElement || !frameSlider || !increaseFrameButton || !decreaseFrameButton || !counterElement || !imageTabButton || !maskTabButton || !overlayTabButton || !segTabButton || !imageTabPane || !maskTabPane || !overlayTabPane || !segTabPane || !imageElement || !maskElement || !overlayImageElement || !overlayMaskElement || !labelElement) {
             return async function () {};
         }
 
@@ -1610,9 +1611,10 @@
             }
 
             const requestSequence = ++labelRequestSequence;
-            counterElement.textContent = `${framePosition + 1} / ${frames.length} · 프레임 ${frame.frame_index}`;
+            counterElement.textContent = `${framePosition + 1} / ${frames.length} · (원본 프레임 ${frame.frame_index})`;
             frameSlider.value = String(framePosition);
-            frameSpinner.value = String(framePosition + 1);
+            increaseFrameButton.disabled = framePosition >= frames.length - 1;
+            decreaseFrameButton.disabled = framePosition <= 0;
             imageElement.src = `${apiBase}${frame.image_url}`;
             maskElement.src = `${apiBase}${frame.mask_url}`;
             overlayImageElement.src = `${apiBase}${frame.image_url}`;
@@ -1639,12 +1641,13 @@
             renderFrame();
         });
 
-        frameSpinner.addEventListener('input', () => {
-            const requestedPosition = Number.parseInt(frameSpinner.value, 10) - 1;
-            if (!Number.isInteger(requestedPosition)) {
-                return;
-            }
-            framePosition = Math.max(0, Math.min(frames.length - 1, requestedPosition));
+        increaseFrameButton.addEventListener('click', () => {
+            framePosition = Math.min(frames.length - 1, framePosition + 1);
+            renderFrame();
+        });
+
+        decreaseFrameButton.addEventListener('click', () => {
+            framePosition = Math.max(0, framePosition - 1);
             renderFrame();
         });
 
@@ -1680,11 +1683,6 @@
                 frameSlider.step = '1';
                 frameSlider.value = '0';
                 frameSlider.disabled = frames.length <= 1;
-                frameSpinner.min = '1';
-                frameSpinner.max = String(frames.length);
-                frameSpinner.step = '1';
-                frameSpinner.value = '1';
-                frameSpinner.disabled = frames.length <= 1;
                 await renderFrame();
             } catch (error) {
                 loadingElement.textContent = error && error.message ? error.message : '프레임 데이터를 불러오지 못했습니다.';

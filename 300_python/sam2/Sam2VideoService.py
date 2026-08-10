@@ -19,6 +19,7 @@ from sam2.Sam2VideoConfig import (
     SAM2_OUTPUT_DIR,
     SAM2_UPLOAD_DIR,
     SAM2_VIDEO_EXTENSIONS,
+    SAM2_YOLO_DIR,
 )
 from sam2.Sam2VideoDetector import Sam2VideoDetector
 
@@ -32,6 +33,10 @@ class Sam2VideoService:
         self._job_executor = ThreadPoolExecutor(max_workers=1)
         self._jobs = {}
         self._jobs_lock = threading.Lock()
+        self._training_executor = ThreadPoolExecutor(max_workers=1)
+        self._training_jobs = {}
+        self._training_jobs_lock = threading.Lock()
+        self._active_training_job_id = ""
 
     def _create_job(self):
         job_id = uuid.uuid4().hex
@@ -130,6 +135,104 @@ class Sam2VideoService:
 
     def get_yolo_dataset_summary(self):
         return self.detector.get_yolo_dataset_summary()
+
+    def _run_yolo_training_job(self, job_id):
+        try:
+            from ultralytics import YOLO
+
+            dataset_yaml = SAM2_YOLO_DIR / "dataset.yaml"
+            model_source = os.getenv("SAM2_YOLO_TRAIN_MODEL", "yolo11n-seg.pt")
+            epochs = max(1, int(os.getenv("SAM2_YOLO_TRAIN_EPOCHS", "100")))
+            with self._training_jobs_lock:
+                self._training_jobs[job_id].update({
+                    "status": "running",
+                    "message": "학습 모델을 준비하는 중...",
+                    "total_epochs": epochs,
+                })
+
+            model = YOLO(model_source)
+
+            def update_epoch(trainer):
+                current_epoch = min(epochs, int(getattr(trainer, "epoch", 0)) + 1)
+                with self._training_jobs_lock:
+                    self._training_jobs[job_id].update({
+                        "progress": min(99, int((current_epoch / epochs) * 100)),
+                        "current_epoch": current_epoch,
+                        "message": f"학습 중: Epoch {current_epoch} / {epochs}",
+                    })
+
+            model.add_callback("on_train_epoch_end", update_epoch)
+            device = "0" if __import__("torch").cuda.is_available() else "cpu"
+            results = model.train(
+                data=str(dataset_yaml),
+                epochs=epochs,
+                imgsz=640,
+                batch=4,
+                workers=0,
+                patience=30,
+                device=device,
+                project=str(SAM2_YOLO_DIR / "runs"),
+                name="obstacle-seg",
+                exist_ok=True,
+            )
+            save_dir = str(getattr(results, "save_dir", "") or "")
+            best_model_path = Path(save_dir) / "weights" / "best.pt" if save_dir else None
+            with self._training_jobs_lock:
+                self._training_jobs[job_id].update({
+                    "status": "completed",
+                    "progress": 100,
+                    "current_epoch": epochs,
+                    "message": "YOLO 학습이 완료되었습니다.",
+                    "result": {
+                        "save_dir": save_dir,
+                        "best_model_path": str(best_model_path) if best_model_path and best_model_path.is_file() else "",
+                    },
+                })
+        except Exception as ex:
+            with self._training_jobs_lock:
+                self._training_jobs[job_id].update({
+                    "status": "failed",
+                    "message": "YOLO 학습에 실패했습니다.",
+                    "error": str(ex),
+                })
+        finally:
+            with self._training_jobs_lock:
+                if self._active_training_job_id == job_id:
+                    self._active_training_job_id = ""
+
+    def start_yolo_training(self):
+        summary = self.detector.get_yolo_dataset_summary()
+        if int(summary.get("frame_count", 0)) <= 0:
+            raise HTTPException(status_code=409, detail="변환된 YOLO 학습 데이터가 없습니다")
+        dataset_yaml = SAM2_YOLO_DIR / "dataset.yaml"
+        if not dataset_yaml.is_file():
+            raise HTTPException(status_code=409, detail="dataset.yaml 파일이 없습니다")
+
+        with self._training_jobs_lock:
+            if self._active_training_job_id:
+                active_job = self._training_jobs.get(self._active_training_job_id, {})
+                if active_job.get("status") in {"queued", "running"}:
+                    raise HTTPException(status_code=409, detail="YOLO 학습이 이미 진행 중입니다")
+            job_id = uuid.uuid4().hex
+            self._training_jobs[job_id] = {
+                "status": "queued",
+                "progress": 0,
+                "current_epoch": 0,
+                "total_epochs": 0,
+                "message": "YOLO 학습 대기 중...",
+                "result": None,
+                "error": "",
+            }
+            self._active_training_job_id = job_id
+        self._training_executor.submit(self._run_yolo_training_job, job_id)
+        return {"job_id": job_id, **self._training_jobs[job_id]}
+
+    def get_yolo_training_status(self, job_id: str):
+        with self._training_jobs_lock:
+            job = self._training_jobs.get(str(job_id or "").strip())
+            if not job:
+                raise HTTPException(status_code=404, detail="YOLO training job not found")
+            return {"job_id": job_id, **job}
 
     def delete_yolo_dataset(self, file_name: str):
         input_path = self._resolve_uploaded_video_path(file_name)

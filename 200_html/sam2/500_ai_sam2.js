@@ -63,6 +63,7 @@
     const yoloTrainSummaryStatusElement = document.getElementById('sam2-yolo-train-summary-status');
     const yoloTrainStartButton = document.getElementById('sam2-yolo-train-start');
     const yoloTrainProgressElement = document.getElementById('sam2-yolo-train-progress');
+    const yoloTrainProgressTextElement = document.getElementById('sam2-yolo-train-progress-text');
     const yoloTrainStatusElement = document.getElementById('sam2-yolo-train-status');
 
     let selectedFile = null;
@@ -520,11 +521,13 @@
             : normalizedProgress.toFixed(2).replace(/0+$/, '').replace(/\.$/, '');
         if (yoloTrainProgressElement) {
             yoloTrainProgressElement.style.width = `${normalizedProgress}%`;
-            yoloTrainProgressElement.textContent = `${progressText}%`;
             yoloTrainProgressElement.closest('.progress')?.setAttribute('aria-valuenow', String(normalizedProgress));
             yoloTrainProgressElement.classList.toggle('progress-bar-animated', status === 'running');
             yoloTrainProgressElement.classList.toggle('bg-success', status === 'completed');
             yoloTrainProgressElement.classList.toggle('bg-danger', status === 'failed');
+        }
+        if (yoloTrainProgressTextElement) {
+            yoloTrainProgressTextElement.textContent = `${progressText}%`;
         }
         if (yoloTrainStatusElement) {
             yoloTrainStatusElement.textContent = message || '학습 대기 중';

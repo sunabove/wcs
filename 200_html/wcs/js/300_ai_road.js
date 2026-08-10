@@ -2446,7 +2446,7 @@ $(function () {
         setDetectedOutputShareUrl("", "");
 
         const detectType = getSelectedDetectType();
-        const includePothole = shouldIncludeObstacleOverlay();
+        const includeObstacle = shouldIncludeObstacleOverlay();
         const removeNoisyMasks = getRemoveNoisyMasks();
         const showDetectStats = getShowDetectStatsOverlay();
         const mqttPublish = getMqttPublishOption();
@@ -2468,7 +2468,7 @@ $(function () {
             url: buildRoadDetectUrl(uploadedFileName),
             data: {
                 detect_type: detectType,
-                include_pothole: includePothole,
+                include_pothole: includeObstacle,
                 pothole_conf: getObstacleConfidenceValue(),
                 remove_noisy_masks: removeNoisyMasks,
                 show_detect_stats: showDetectStats,

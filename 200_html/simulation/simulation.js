@@ -197,8 +197,7 @@ class RapierDriveSimulation {
         this.groundZ = 0;
         this.holeRegions = [];
         this.underbodyPassThroughClearanceMeters = 0.02;
-        this.urdfObstacleLinkNames = ['obstacle_rock_1'];
-        this.urdfObstacleLinkNamePatterns = [];
+        this.urdfObstacleLinkPrefix = 'obstacle_';
         this.passUnderObstacleNamePatterns = [/pass_under/i, /underbody/i];
         this.maxSpeedMps = 100 / 3.6;
         this.maxYawRateRad = THREE.MathUtils.degToRad(80);
@@ -1316,7 +1315,7 @@ class RapierDriveSimulation {
         }
 
         const names = new Set();
-        const targetNames = new Set(this.urdfObstacleLinkNames.map((name) => String(name).toLowerCase()));
+        const obstaclePrefix = String(this.urdfObstacleLinkPrefix || 'obstacle_').toLowerCase();
 
         Object.keys(linkMap).forEach((name) => {
             const normalizedName = this.normalizeLinkName(name);
@@ -1327,9 +1326,7 @@ class RapierDriveSimulation {
                 return;
             }
 
-            const isObstacleFamily = /^obstacle_/i.test(String(name)) || /^obstacle_/i.test(normalizedName);
-            const matchedByExactName = targetNames.has(String(name).toLowerCase()) || targetNames.has(normalizedName);
-            if (isObstacleFamily || matchedByExactName) {
+            if (normalizedName.startsWith(obstaclePrefix)) {
                 names.add(name);
             }
         });
@@ -2088,7 +2085,7 @@ class RapierDriveSimulation {
         const wheelLateralBands = this.getWheelLateralContactBands(linkMap);
         const obstacleLinkNames = this.getObstacleLinkNamesFromMap(linkMap);
         if (obstacleLinkNames.length === 0) {
-            console.warn('[URDF][Simulation] URDF obstacle link not found. Expected one of:', this.urdfObstacleLinkNames);
+            console.warn(`[URDF][Simulation] URDF obstacle link not found. Expected prefix: ${this.urdfObstacleLinkPrefix}*`);
             return;
         }
 

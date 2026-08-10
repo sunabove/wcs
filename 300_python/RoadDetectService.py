@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Body, Query
+from fastapi import APIRouter, Body, Form, Query
 from fastapi import HTTPException, UploadFile, File
 from fastapi.responses import FileResponse
 
@@ -47,10 +47,13 @@ async def image_test():
 pass # image_test
 
 @router.post("/upload_image")
-async def image_upload_service(file: UploadFile = File(...)):
+async def image_upload_service(
+    file: UploadFile = File(...),
+    target_folder: str = Form(""),
+):
     from upload_image import save_uploaded_image
 
-    return save_uploaded_image(file)
+    return save_uploaded_image(file, target_folder=target_folder)
 pass # image_upload_service
 
 @router.get("/image")

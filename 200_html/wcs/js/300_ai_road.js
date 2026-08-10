@@ -2058,6 +2058,9 @@ $(function () {
         prepareUploadFile(file).then(function (uploadFile) {
             const formData = new FormData();
             formData.append("file", uploadFile, uploadFile.name || file.name);
+            if (isVideoPath(uploadFile.name || file.name)) {
+                formData.append("target_folder", sampleVideoBrowserPath);
+            }
 
             showUploadStatusMessage("", true);
             $uploadStatusMessage.addClass("d-none");
@@ -2075,6 +2078,11 @@ $(function () {
                     previousFileName = uploadedFileName;  // 이전 파일명 저장
                     uploadedFileName = result.filename;    // 새 파일명 설정
                     displayOriginalMedia(result.filename);
+
+                    if (isVideoPath(result.filename)) {
+                        isSampleVideosLoaded = false;
+                        loadSampleVideos(sampleVideoBrowserPath, sampleVideoShowAllFiles);
+                    }
 
                     if ($detectedImageTab.length > 0 && typeof bootstrap !== "undefined" && bootstrap.Tab) {
                         bootstrap.Tab.getOrCreateInstance($detectedImageTab[0]).show();

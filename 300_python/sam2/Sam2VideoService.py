@@ -182,6 +182,8 @@ class Sam2VideoService:
         }
 
     def _run_yolo_training_job(self, job_id):
+        with self._training_jobs_lock:
+            self._training_jobs[job_id]["started_at"] = time.time()
         try:
             from ultralytics import YOLO
 
@@ -308,6 +310,7 @@ class Sam2VideoService:
                     "status": "completed",
                     "progress": 100,
                     "current_epoch": epochs,
+                    "completed_at": time.time(),
                     "message": "YOLO 학습이 완료되었습니다.",
                     "result": {
                         "continued_training": continue_training,
@@ -321,6 +324,7 @@ class Sam2VideoService:
             with self._training_jobs_lock:
                 self._training_jobs[job_id].update({
                     "status": "failed",
+                    "completed_at": time.time(),
                     "message": "YOLO 학습에 실패했습니다.",
                     "error": str(ex),
                 })
@@ -357,6 +361,8 @@ class Sam2VideoService:
                 "total_epochs": 0,
                 "message": "YOLO 재학습 대기 중..." if force_retrain else "YOLO 학습 대기 중...",
                 "metric_history": [],
+                "started_at": None,
+                "completed_at": None,
                 "dataset_fingerprint": dataset_fingerprint,
                 "training_plan": training_plan,
                 "result": None,
@@ -364,14 +370,35 @@ class Sam2VideoService:
             }
             self._active_training_job_id = job_id
         self._training_executor.submit(self._run_yolo_training_job, job_id)
-        return {"job_id": job_id, **self._training_jobs[job_id]}
+        return self.get_yolo_training_status(job_id)
+
+    def _get_yolo_training_snapshot(self, job_id, job):
+        snapshot = {"job_id": job_id, **job}
+        started_at = job.get("started_at")
+        if started_at is None:
+            snapshot.update({"elapsed_seconds": 0, "estimated_total_seconds": None})
+            return snapshot
+
+        end_time = job.get("completed_at") or time.time()
+        elapsed_seconds = max(0, int(end_time - float(started_at)))
+        progress = max(0.0, min(100.0, float(job.get("progress") or 0)))
+        estimated_total_seconds = None
+        if progress >= 100:
+            estimated_total_seconds = elapsed_seconds
+        elif progress > 0:
+            estimated_total_seconds = max(elapsed_seconds, int(elapsed_seconds * 100 / progress))
+        snapshot.update({
+            "elapsed_seconds": elapsed_seconds,
+            "estimated_total_seconds": estimated_total_seconds,
+        })
+        return snapshot
 
     def get_yolo_training_status(self, job_id: str):
         with self._training_jobs_lock:
             job = self._training_jobs.get(str(job_id or "").strip())
             if not job:
                 raise HTTPException(status_code=404, detail="YOLO training job not found")
-            return {"job_id": job_id, **job}
+            return self._get_yolo_training_snapshot(job_id, job)
 
     def get_active_yolo_training(self):
         with self._training_jobs_lock:
@@ -379,7 +406,7 @@ class Sam2VideoService:
             job = self._training_jobs.get(job_id)
             if not job or job.get("status") not in {"queued", "running"}:
                 return {"active": False}
-            return {"active": True, "job_id": job_id, **job}
+            return {"active": True, **self._get_yolo_training_snapshot(job_id, job)}
 
     def delete_yolo_dataset(self, file_name: str):
         input_path = self._resolve_uploaded_video_path(file_name)

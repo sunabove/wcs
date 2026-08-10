@@ -523,7 +523,17 @@
         recoverActiveYoloTraining();
     }
 
-    function renderYoloTrainingProgress(progress, message, status) {
+    function formatYoloTrainingDuration(seconds) {
+        const totalSeconds = Math.max(0, Math.floor(Number(seconds) || 0));
+        const hours = Math.floor(totalSeconds / 3600);
+        const minutes = Math.floor((totalSeconds % 3600) / 60);
+        const remainingSeconds = totalSeconds % 60;
+        return [hours, minutes, remainingSeconds]
+            .map(value => String(value).padStart(2, '0'))
+            .join(':');
+    }
+
+    function renderYoloTrainingProgress(progress, message, status, elapsedSeconds, estimatedTotalSeconds) {
         const normalizedProgress = Math.max(0, Math.min(100, Number(progress || 0)));
         const progressText = Number.isInteger(normalizedProgress)
             ? String(normalizedProgress)
@@ -539,7 +549,11 @@
             yoloTrainProgressTextElement.textContent = `${progressText}%`;
         }
         if (yoloTrainStatusElement) {
-            yoloTrainStatusElement.textContent = message || '학습 대기 중';
+            const hasTiming = elapsedSeconds !== undefined && elapsedSeconds !== null;
+            const timingText = hasTiming
+                ? ` · 진행 시간 ${formatYoloTrainingDuration(elapsedSeconds)} · 총 예상 시간 ${estimatedTotalSeconds === null || estimatedTotalSeconds === undefined ? '계산 중' : formatYoloTrainingDuration(estimatedTotalSeconds)}`
+                : '';
+            yoloTrainStatusElement.textContent = `${message || '학습 대기 중'}${timingText}`;
         }
     }
 
@@ -607,7 +621,13 @@
             const message = status === 'completed' && copiedWeightPath
                 ? `YOLO 학습 완료 · 가중치 파일 복사 완료: ${copiedWeightPath}`
                 : job.error || job.message || 'YOLO 학습 진행 중...';
-            renderYoloTrainingProgress(job.progress, message, status);
+            renderYoloTrainingProgress(
+                job.progress,
+                message,
+                status,
+                job.elapsed_seconds,
+                job.estimated_total_seconds
+            );
             renderYoloTrainingMetrics(job.metric_history);
             if (status === 'queued' || status === 'running') {
                 window.setTimeout(pollYoloTrainingStatus, 1000);
@@ -654,7 +674,13 @@
             if (yoloRetrainStartButton) {
                 yoloRetrainStartButton.disabled = true;
             }
-            renderYoloTrainingProgress(job.progress, job.error || job.message, job.status);
+            renderYoloTrainingProgress(
+                job.progress,
+                job.error || job.message,
+                job.status,
+                job.elapsed_seconds,
+                job.estimated_total_seconds
+            );
             renderYoloTrainingMetrics(job.metric_history);
             pollYoloTrainingStatus();
         } catch (error) {
@@ -690,7 +716,13 @@
             }
             const job = await response.json();
             yoloTrainingJobId = String(job.job_id || '');
-            renderYoloTrainingProgress(job.progress, job.message, job.status);
+            renderYoloTrainingProgress(
+                job.progress,
+                job.message,
+                job.status,
+                job.elapsed_seconds,
+                job.estimated_total_seconds
+            );
             pollYoloTrainingStatus();
         } catch (error) {
             yoloTrainStartButton.disabled = false;

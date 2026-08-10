@@ -507,17 +507,17 @@
             outputDownloadButton.disabled = !outputObjectUrl;
         }
         if (yoloConvertButton) {
-            yoloConvertButton.disabled = !yoloConversionAvailable || !extractYoloClassName(yoloInputFileName);
+            yoloConvertButton.disabled = !yoloConversionAvailable || !yoloInputFileName;
         }
     }
 
     async function convertYoloDataset() {
-        const className = extractYoloClassName(yoloInputFileName);
-        if (!yoloConversionAvailable || !yoloInputFileName || !className) {
-            setStatus('클래스 영상을 먼저 검출하세요.', 'warning');
+        if (!yoloConversionAvailable || !yoloInputFileName) {
+            setStatus('영상을 먼저 검출하세요.', 'warning');
             return;
         }
 
+        const className = extractYoloClassName(yoloInputFileName) || basename(yoloInputFileName).replace(/\.[^.]+$/, '');
         const classUi = yoloClassUiByName.get(className);
         if (yoloConvertButton) {
             yoloConvertButton.disabled = true;

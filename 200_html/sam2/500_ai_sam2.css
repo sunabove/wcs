@@ -23,13 +23,9 @@
 #sam2-uploaded-list {
     display: flex;
     flex-direction: row;
-    flex-wrap: nowrap;
+    flex-wrap: wrap;
     gap: 0.5rem;
     align-items: stretch;
-    overflow-x: auto;
-    overflow-y: hidden;
-    padding-bottom: 0.25rem;
-    white-space: nowrap;
 }
 
 #sam2-uploaded-list .list-group-item {

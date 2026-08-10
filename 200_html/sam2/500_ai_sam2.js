@@ -540,7 +540,10 @@
             }
             const job = await response.json();
             const status = String(job.status || 'queued');
-            const message = job.error || job.message || 'YOLO 학습 진행 중...';
+            const copiedWeightPath = String(job.result && job.result.best_model_path || '').trim();
+            const message = status === 'completed' && copiedWeightPath
+                ? `YOLO 학습 완료 · 가중치 파일 복사 완료: ${copiedWeightPath}`
+                : job.error || job.message || 'YOLO 학습 진행 중...';
             renderYoloTrainingProgress(job.progress, message, status);
             if (status === 'queued' || status === 'running') {
                 window.setTimeout(pollYoloTrainingStatus, 1000);

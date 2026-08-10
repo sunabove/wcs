@@ -3370,43 +3370,101 @@ class RapierDriveSimulation {
         this.logWheelGroundDiagnosticsOnce(linkMap, 'enforceWheelGroundContactAtLoad');
     }
 
+    initializeObstacleContactVisual(obstacleInfo) {
+        if (!obstacleInfo?.linkObject || Array.isArray(obstacleInfo.contactMaterialStates)) {
+            return;
+        }
+
+        const materialStates = [];
+        obstacleInfo.linkObject.traverse((node) => {
+            if (!node?.isMesh || !node.material) {
+                return;
+            }
+
+            if (Array.isArray(node.material)) {
+                node.material = node.material.map((material) => material?.clone?.() || material);
+            } else if (node.material?.clone) {
+                node.material = node.material.clone();
+            }
+
+            const materials = Array.isArray(node.material) ? node.material : [node.material];
+            materials.forEach((material) => {
+                if (!material) {
+                    return;
+                }
+
+                materialStates.push({
+                    material,
+                    color: material.color?.clone?.() || null,
+                    emissive: material.emissive?.clone?.() || null,
+                    emissiveIntensity: Number.isFinite(material.emissiveIntensity)
+                        ? material.emissiveIntensity
+                        : null
+                });
+            });
+        });
+
+        obstacleInfo.contactMaterialStates = materialStates;
+        obstacleInfo.isContactHighlighted = false;
+    }
+
+    setObstacleContactHighlight(obstacleInfo, isContacting) {
+        this.initializeObstacleContactVisual(obstacleInfo);
+        if (!Array.isArray(obstacleInfo?.contactMaterialStates)
+            || obstacleInfo.isContactHighlighted === isContacting) {
+            return;
+        }
+
+        const contactColor = new THREE.Color(0xff0000);
+        const contactEmissive = new THREE.Color(0x660000);
+        obstacleInfo.contactMaterialStates.forEach((state) => {
+            if (state.material.color) {
+                state.material.color.copy(isContacting ? contactColor : state.color);
+            }
+            if (state.material.emissive) {
+                state.material.emissive.copy(isContacting ? contactEmissive : state.emissive);
+            }
+            if (state.emissiveIntensity !== null) {
+                state.material.emissiveIntensity = isContacting
+                    ? Math.max(state.emissiveIntensity, 0.8)
+                    : state.emissiveIntensity;
+            }
+            state.material.needsUpdate = true;
+        });
+        obstacleInfo.isContactHighlighted = isContacting;
+    }
+
     updateObstacleContactState() {
         if (!this.world || this.vehicleColliders.length === 0 || this.obstacleColliders.length === 0) {
             return false;
         }
 
         let hasContact = false;
-        const obstacleInfoByCollider = new Map();
-        this.obstacleColliderInfos.forEach((info) => {
-            if (info?.collider) {
-                obstacleInfoByCollider.set(info.collider, info);
-            }
-        });
-
         if (typeof this.world.contactPair === 'function') {
-            this.vehicleColliders.forEach((vehicleCollider) => {
-                if (hasContact) {
+            this.obstacleColliderInfos.forEach((obstacleInfo) => {
+                let obstacleHasContact = false;
+                if (!obstacleInfo?.collider || obstacleInfo.isSensor) {
+                    this.setObstacleContactHighlight(obstacleInfo, false);
                     return;
                 }
 
-                this.obstacleColliders.forEach((obstacleCollider) => {
-                    if (hasContact) {
+                if (this.isObstacleBelowWheelContactPlane(obstacleInfo)) {
+                    this.setObstacleContactHighlight(obstacleInfo, false);
+                    return;
+                }
+
+                this.vehicleColliders.forEach((vehicleCollider) => {
+                    if (obstacleHasContact) {
                         return;
                     }
 
-                    const obstacleInfo = obstacleInfoByCollider.get(obstacleCollider) || null;
-                    if (!obstacleInfo || obstacleInfo.isSensor) {
-                        return;
-                    }
-
-                    if (this.isObstacleBelowWheelContactPlane(obstacleInfo)) {
-                        return;
-                    }
-
-                    this.world.contactPair(vehicleCollider, obstacleCollider, () => {
-                        hasContact = true;
+                    this.world.contactPair(vehicleCollider, obstacleInfo.collider, () => {
+                        obstacleHasContact = true;
                     });
                 });
+
+                this.setObstacleContactHighlight(obstacleInfo, obstacleHasContact);
+                hasContact = hasContact || obstacleHasContact;
             });
         }
 
@@ -4240,6 +4298,7 @@ class RapierDriveSimulation {
         this.body.setAngvel(new this.rapier.Vector3(0, 0, 0), true);
         this.isVehicleObstacleContact = false;
         this.obstacleColliderInfos.forEach((obstacleInfo) => {
+            this.setObstacleContactHighlight(obstacleInfo, false);
             if (obstacleInfo?.collider && typeof obstacleInfo.collider.setSensor === 'function') {
                 obstacleInfo.collider.setSensor(false);
             }

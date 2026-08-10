@@ -38,13 +38,15 @@ class RoadDetector:
     _class_color_map_path = Path(__file__).resolve().parent / "colormap_road.txt"
     _class_color_map = None
     
-    road_type_model_name = "ai/road/model/02_yolo11m-cobot-road-type-sg-260626.pt"
-    #road_type_model_name = "ai/road/model/03_yolo11m-road-type-sg.pt"
+    road_model_name = "ai/road/model/01_yolo11m-road-sg.pt"
+    road_type_model_name = "ai/road/model/02_yolo11m-cobot-road-type-sg-260626.pt" 
+    obstacle_model_name = "ai/road/model/04_yolo11m-pothole-sg.pt"
+    obstacle_model_name = "ai/road/model/04_yolo11m-pothole-sg.pt"
     
     _model_paths = {
-        "road": Path(__file__).resolve().parent / "ai/road/model/01_yolo11m-road-sg.pt",
+        "road": Path(__file__).resolve().parent / road_model_name,
         "road_type": Path(__file__).resolve().parent / road_type_model_name ,
-        "obstacle": Path(__file__).resolve().parent / "ai/road/model/04_yolo11m-pothole-sg.pt",
+        "obstacle": Path(__file__).resolve().parent / obstacle_model_name,
     }
     _models = {}
     _stream_sessions = {}  # {session_id: {capture, frame_count, fps, detect_type, file_name, input_path, roi}}

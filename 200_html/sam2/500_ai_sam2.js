@@ -52,8 +52,6 @@
     const outputVideoElement = document.getElementById('sam2-output-video');
     const outputDownloadButton = document.getElementById('sam2-output-download');
     const yoloConvertButton = document.getElementById('sam2-yolo-convert');
-    const yoloDatasetDeleteButton = document.getElementById('sam2-yolo-dataset-delete');
-    const yoloDeleteFallbackElement = document.getElementById('sam2-yolo-delete-fallback');
     const yoloDatasetSummaryElement = document.getElementById('sam2-yolo-dataset-summary');
     const yoloClassTabTemplate = document.getElementById('sam2-yolo-class-template');
     const yoloFileTabTemplate = document.getElementById('sam2-yolo-file-template');
@@ -65,7 +63,6 @@
     let outputObjectUrl = '';
     let yoloInputFileName = '';
     let yoloConversionAvailable = false;
-    let selectedYoloDatasetItem = null;
     let yoloClassTabsElement = null;
     let yoloClassTabContentElement = null;
     let uploadedHistory = [];
@@ -1519,20 +1516,17 @@
         }));
     }
 
-    function setSelectedYoloDatasetItem(item) {
-        selectedYoloDatasetItem = item || null;
-        if (yoloDatasetDeleteButton) {
-            yoloDatasetDeleteButton.disabled = !selectedYoloDatasetItem;
-        }
-    }
-
     async function deleteYoloDataset(item, deleteButton) {
+        if (deleteButton.getAttribute('aria-disabled') === 'true') {
+            return;
+        }
         const inputStem = fileStem(item.name);
         if (!window.confirm(`${inputStem}의 YOLO 학습 데이터를 삭제하시겠습니까?`)) {
             return;
         }
 
-        deleteButton.disabled = true;
+        deleteButton.classList.add('disabled');
+        deleteButton.setAttribute('aria-disabled', 'true');
         try {
             const deleteApiBase = await resolveApiBase();
             const fileName = item.serverFileName || item.name;
@@ -1558,7 +1552,8 @@
             updateYoloClassTabs(extractYoloClassName(item.name));
             setStatus(`${inputStem} 학습 데이터 ${Number(result.deleted_count || 0)}개 삭제 완료`, 'success');
         } catch (error) {
-            deleteButton.disabled = false;
+            deleteButton.classList.remove('disabled');
+            deleteButton.removeAttribute('aria-disabled');
             setStatus(error && error.message ? error.message : '학습 데이터 삭제에 실패했습니다.', 'danger');
         }
     }
@@ -1668,12 +1663,8 @@
         const activeClassName = [requestedClassName, currentActiveClassName, detectedClassName, classNames[0]]
             .find((className) => classNames.includes(className)) || '';
 
-        if (yoloDatasetDeleteButton && yoloDeleteFallbackElement) {
-            yoloDeleteFallbackElement.appendChild(yoloDatasetDeleteButton);
-        }
         yoloClassTabsElement.innerHTML = '';
         yoloClassTabContentElement.innerHTML = '';
-        setSelectedYoloDatasetItem(null);
 
         if (classNames.length === 0) {
             yoloClassTabContentElement.appendChild(yoloClassEmptyTemplate.content.cloneNode(true));
@@ -1696,9 +1687,8 @@
             const tabButton = fragment.querySelector('[data-role="tab-button"]');
             const tabPane = fragment.querySelector('[data-role="tab-pane"]');
             const fileTabsElement = fragment.querySelector('[data-role="file-tabs"]');
-            const deleteSlotElement = fragment.querySelector('[data-role="delete-slot"]');
             const fileTabContentElement = fragment.querySelector('[data-role="file-tab-content"]');
-            if (!tabItem || !tabButton || !tabPane || !fileTabsElement || !deleteSlotElement || !fileTabContentElement) {
+            if (!tabItem || !tabButton || !tabPane || !fileTabsElement || !fileTabContentElement) {
                 return;
             }
 
@@ -1715,7 +1705,6 @@
             tabPane.setAttribute('aria-labelledby', tabId);
 
             let activeFileViewerLoader = null;
-            let activeFileItem = null;
             const activeFileIndex = Math.max(0, classVideos.findIndex((item) => basename(item && item.name) === activeInputName));
             if (classVideos.length === 0) {
                 fileTabContentElement.appendChild(yoloClassEmptyTemplate.content.cloneNode(true));
@@ -1727,8 +1716,10 @@
                 const fileFragment = yoloFileTabTemplate.content.cloneNode(true);
                 const fileTabItem = fileFragment.querySelector('[data-role="file-tab-item"]');
                 const fileTabButton = fileFragment.querySelector('[data-role="file-tab-button"]');
+                const fileTabTitle = fileFragment.querySelector('[data-role="file-tab-title"]');
+                const deleteButton = fileFragment.querySelector('[data-role="dataset-delete"]');
                 const fileTabPane = fileFragment.querySelector('[data-role="file-tab-pane"]');
-                if (!fileTabItem || !fileTabButton || !fileTabPane) {
+                if (!fileTabItem || !fileTabButton || !fileTabTitle || !deleteButton || !fileTabPane) {
                     return;
                 }
 
@@ -1737,19 +1728,20 @@
                 fileTabButton.setAttribute('data-bs-target', `#${filePaneId}`);
                 fileTabButton.setAttribute('aria-controls', filePaneId);
                 fileTabButton.setAttribute('aria-selected', String(isActiveFile));
-                fileTabButton.textContent = fileStem(item.name);
+                fileTabTitle.textContent = fileStem(item.name);
                 fileTabPane.className = `tab-pane fade${isActiveFile ? ' show active' : ''}`;
                 fileTabPane.id = filePaneId;
                 fileTabPane.setAttribute('aria-labelledby', fileTabId);
-                const loadFrameViewer = initializeYoloFrameViewer(item, fileTabPane);
-                fileTabButton.addEventListener('shown.bs.tab', () => {
-                    setSelectedYoloDatasetItem(item);
-                    loadFrameViewer();
+                deleteButton.addEventListener('click', (event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    deleteYoloDataset(item, deleteButton);
                 });
+                const loadFrameViewer = initializeYoloFrameViewer(item, fileTabPane);
+                fileTabButton.addEventListener('shown.bs.tab', loadFrameViewer);
                 fileTabButton.addEventListener('click', loadFrameViewer);
                 if (isActiveFile) {
                     activeFileViewerLoader = loadFrameViewer;
-                    activeFileItem = item;
                 }
                 fileTabsElement.appendChild(fileTabItem);
                 fileTabContentElement.appendChild(fileTabPane);
@@ -1757,18 +1749,8 @@
 
             yoloClassTabsElement.appendChild(tabItem);
             yoloClassTabContentElement.appendChild(tabPane);
-            tabButton.addEventListener('shown.bs.tab', () => {
-                if (yoloDatasetDeleteButton) {
-                    deleteSlotElement.appendChild(yoloDatasetDeleteButton);
-                }
-                setSelectedYoloDatasetItem(activeFileItem);
-                activeFileViewerLoader?.();
-            });
+            tabButton.addEventListener('shown.bs.tab', () => activeFileViewerLoader?.());
             if (isActive) {
-                if (yoloDatasetDeleteButton) {
-                    deleteSlotElement.appendChild(yoloDatasetDeleteButton);
-                }
-                setSelectedYoloDatasetItem(activeFileItem);
                 activeFileViewerLoader?.();
             }
         });
@@ -2784,13 +2766,6 @@
     }
     if (yoloConvertButton) {
         yoloConvertButton.addEventListener('click', convertYoloDataset);
-    }
-    if (yoloDatasetDeleteButton) {
-        yoloDatasetDeleteButton.addEventListener('click', () => {
-            if (selectedYoloDatasetItem) {
-                deleteYoloDataset(selectedYoloDatasetItem, yoloDatasetDeleteButton);
-            }
-        });
     }
     function setPointMode(mode) {
         if (!hasSelectedVideo()) {

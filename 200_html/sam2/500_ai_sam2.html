@@ -119,17 +119,16 @@
 									</div>
 									<div class="tab-pane fade" id="sam2-output-pane" role="tabpanel" aria-labelledby="sam2-output-tab"><div class="sam2-video-wrap"><button id="sam2-yolo-convert" type="button" class="btn btn-primary btn-sm sam2-output-yolo-convert-button" disabled title="YOLO 학습 데이터 변환"><i class="bi bi-arrow-repeat me-1" aria-hidden="true"></i>YOLO 변환</button><video id="sam2-output-video" class="sam2-video-player border rounded" controls playsinline></video><div class="d-flex flex-wrap justify-content-end align-items-center gap-2 mt-2"><span id="sam2-yolo-dataset-summary" class="small text-muted me-auto">YOLO 학습 데이터 대기 중</span><button id="sam2-output-download" type="button" class="btn btn-outline-success btn-sm" disabled title="검출 영상 다운로드"><i class="bi bi-download me-1" aria-hidden="true"></i>다운로드</button></div></div></div>
 									<div class="tab-pane fade" id="sam2-yolo-pane" role="tabpanel" aria-labelledby="sam2-yolo-tab" style="margin-top: -0.75rem;">
-										<div id="sam2-yolo-delete-fallback" class="d-flex justify-content-end"><button id="sam2-yolo-dataset-delete" type="button" class="btn btn-outline-danger py-2 text-nowrap" disabled title="현재 선택된 입력파일의 YOLO 학습 데이터 삭제"><i class="bi bi-trash me-1" aria-hidden="true"></i>학습 데이터 삭제</button></div>
 										<ul id="sam2-yolo-class-tabs" class="nav nav-tabs" role="tablist"></ul>
 										<div id="sam2-yolo-class-tab-content" class="tab-content border border-top-0 rounded-bottom pt-1 px-3 pb-3 bg-white"><div class="small text-muted">YOLO 변환 파일이 없습니다.</div></div>
 									</div>
 								</div>
 								<template id="sam2-yolo-class-template">
 									<li class="nav-item" role="presentation" data-role="tab-item"><button class="nav-link" type="button" role="tab" data-bs-toggle="tab" data-role="tab-button"></button></li>
-									<div class="tab-pane fade" role="tabpanel" data-role="tab-pane"><div class="d-flex align-items-stretch"><ul class="nav nav-tabs flex-grow-1 flex-nowrap overflow-x-auto" role="tablist" data-role="file-tabs"></ul><div class="d-flex align-items-stretch ms-2" data-role="delete-slot"></div></div><div class="tab-content border border-top-0 rounded-bottom p-3" data-role="file-tab-content"></div></div>
+									<div class="tab-pane fade" role="tabpanel" data-role="tab-pane"><ul class="nav nav-tabs flex-nowrap overflow-x-auto" role="tablist" data-role="file-tabs"></ul><div class="tab-content border border-top-0 rounded-bottom p-3" data-role="file-tab-content"></div></div>
 								</template>
 								<template id="sam2-yolo-file-template">
-									<li class="nav-item" role="presentation" data-role="file-tab-item"><button class="nav-link" type="button" role="tab" data-bs-toggle="tab" data-role="file-tab-button"></button></li>
+									<li class="nav-item" role="presentation" data-role="file-tab-item"><button class="nav-link d-inline-flex align-items-center" type="button" role="tab" data-bs-toggle="tab" data-role="file-tab-button"><span data-role="file-tab-title"></span><span class="ms-2 text-danger" role="button" data-role="dataset-delete" title="해당 입력파일의 YOLO 학습 데이터 삭제" aria-label="YOLO 학습 데이터 삭제"><i class="bi bi-trash" aria-hidden="true"></i></span></button></li>
 									<div class="tab-pane fade" role="tabpanel" data-role="file-tab-pane">
 										<div class="small text-muted py-4 text-center" data-role="frame-loading">프레임 데이터를 불러오는 중...</div>
 										<div class="d-none" data-role="frame-viewer">

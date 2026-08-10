@@ -128,6 +128,9 @@ class Sam2VideoService:
             "frames": frames,
         }
 
+    def get_yolo_dataset_summary(self):
+        return self.detector.get_yolo_dataset_summary()
+
     def delete_yolo_dataset(self, file_name: str):
         input_path = self._resolve_uploaded_video_path(file_name)
         deleted_count = self.detector.delete_yolo_dataset(input_path)

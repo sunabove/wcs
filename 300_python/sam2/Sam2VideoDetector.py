@@ -190,6 +190,51 @@ class Sam2VideoDetector:
             })
         return frames
 
+    def get_yolo_dataset_summary(self):
+        registry_path = SAM2_YOLO_DIR / "classes.json"
+        class_names = []
+        if registry_path.is_file():
+            try:
+                saved_names = json.loads(registry_path.read_text(encoding="utf-8"))
+                if isinstance(saved_names, list):
+                    class_names = [str(name) for name in saved_names if str(name).strip()]
+            except (OSError, json.JSONDecodeError):
+                class_names = []
+
+        images_dir = SAM2_YOLO_DIR / "images" / "train"
+        labels_dir = SAM2_YOLO_DIR / "labels" / "train"
+        masks_dir = SAM2_YOLO_DIR / "masks" / "train"
+        input_file_stems = set()
+        frame_count = 0
+        segment_count = 0
+        if images_dir.is_dir() and labels_dir.is_dir() and masks_dir.is_dir():
+            for image_path in images_dir.glob("*.jpg"):
+                output_stem = image_path.stem
+                label_path = labels_dir / f"{output_stem}.txt"
+                mask_path = masks_dir / f"{output_stem}.png"
+                if not label_path.is_file() or not mask_path.is_file():
+                    continue
+                match = re.fullmatch(r"(.+)_\d+", output_stem)
+                if match:
+                    input_file_stems.add(match.group(1))
+                frame_count += 1
+                try:
+                    segment_count += sum(
+                        1
+                        for line in label_path.read_text(encoding="utf-8").splitlines()
+                        if line.strip()
+                    )
+                except OSError:
+                    continue
+
+        return {
+            "class_count": len(class_names),
+            "class_names": class_names,
+            "input_file_count": len(input_file_stems),
+            "frame_count": frame_count,
+            "segment_count": segment_count,
+        }
+
     def delete_yolo_dataset(self, input_path: Path) -> int:
         file_prefix = f"{Path(input_path).stem}_"
         deleted_count = 0

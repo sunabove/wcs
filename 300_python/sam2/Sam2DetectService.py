@@ -144,6 +144,11 @@ def yolo_dataset_frames(
     return _service.get_yolo_dataset_frames(file_name=file_name)
 
 
+@router.get("/yolo_dataset_summary")
+def yolo_dataset_summary():
+    return _service.get_yolo_dataset_summary()
+
+
 @router.delete("/yolo_dataset")
 def delete_yolo_dataset(
     file_name: str = Query(...),

@@ -56,6 +56,11 @@
     const yoloClassTabTemplate = document.getElementById('sam2-yolo-class-template');
     const yoloFileTabTemplate = document.getElementById('sam2-yolo-file-template');
     const yoloClassEmptyTemplate = document.getElementById('sam2-yolo-class-empty-template');
+    const yoloTrainTabElement = document.getElementById('sam2-yolo-train-tab');
+    const yoloTrainClassCountElement = document.getElementById('sam2-yolo-train-class-count');
+    const yoloTrainClassNamesElement = document.getElementById('sam2-yolo-train-class-names');
+    const yoloTrainDataSummaryElement = document.getElementById('sam2-yolo-train-data-summary');
+    const yoloTrainSummaryStatusElement = document.getElementById('sam2-yolo-train-summary-status');
 
     let selectedFile = null;
     let resolvedApiBase = null;
@@ -500,6 +505,39 @@
         yoloClassTabsElement = document.getElementById('sam2-yolo-class-tabs');
         yoloClassTabContentElement = document.getElementById('sam2-yolo-class-tab-content');
         updateYoloClassTabs();
+        yoloTrainTabElement?.addEventListener('shown.bs.tab', updateYoloTrainingOverview);
+    }
+
+    async function updateYoloTrainingOverview() {
+        if (!yoloTrainClassCountElement || !yoloTrainClassNamesElement || !yoloTrainDataSummaryElement || !yoloTrainSummaryStatusElement) {
+            return;
+        }
+        yoloTrainSummaryStatusElement.textContent = '학습 데이터 개요를 불러오는 중...';
+        try {
+            const apiBase = await resolveApiBase();
+            const response = await fetch(`${apiBase}/fast/sam2/yolo_dataset_summary`, { cache: 'no-store' });
+            if (!response.ok) {
+                throw new Error(`학습 데이터 개요 조회 실패 (${response.status})`);
+            }
+            const summary = await response.json();
+            const classNames = Array.isArray(summary.class_names) ? summary.class_names : [];
+            const classCount = Number(summary.class_count || 0);
+            const inputFileCount = Number(summary.input_file_count || 0);
+            const frameCount = Number(summary.frame_count || 0);
+            const segmentCount = Number(summary.segment_count || 0);
+            yoloTrainClassCountElement.textContent = `클래스 ${classCount}개`;
+            yoloTrainClassNamesElement.textContent = classNames.length > 0
+                ? classNames.join(', ')
+                : '등록된 클래스가 없습니다.';
+            yoloTrainDataSummaryElement.textContent = `입력파일 ${inputFileCount}개 · 프레임 ${frameCount}장 · Seg Polygon ${segmentCount}개`;
+            yoloTrainSummaryStatusElement.textContent = frameCount > 0
+                ? '학습 데이터 준비 완료'
+                : '변환된 학습 데이터가 없습니다.';
+        } catch (error) {
+            yoloTrainSummaryStatusElement.textContent = error && error.message
+                ? error.message
+                : '학습 데이터 개요를 불러오지 못했습니다.';
+        }
     }
 
     function updateOutputDownloadState() {
@@ -556,6 +594,7 @@
                     convertedItem.hasYoloDataset = true;
                 }
                 updateYoloClassTabs(className);
+                updateYoloTrainingOverview();
             }
             if (yoloDatasetSummaryElement) {
                 yoloDatasetSummaryElement.textContent = summary;
@@ -1550,6 +1589,7 @@
             const result = await response.json();
             item.hasYoloDataset = false;
             updateYoloClassTabs(extractYoloClassName(item.name));
+            updateYoloTrainingOverview();
             setStatus(`${inputStem} 학습 데이터 ${Number(result.deleted_count || 0)}개 삭제 완료`, 'success');
         } catch (error) {
             deleteButton.classList.remove('disabled');

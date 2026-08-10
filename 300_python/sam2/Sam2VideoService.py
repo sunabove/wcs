@@ -128,6 +128,14 @@ class Sam2VideoService:
             "frames": frames,
         }
 
+    def delete_yolo_dataset(self, file_name: str):
+        input_path = self._resolve_uploaded_video_path(file_name)
+        deleted_count = self.detector.delete_yolo_dataset(input_path)
+        return {
+            "input_file_stem": input_path.stem,
+            "deleted_count": deleted_count,
+        }
+
     def _safe_suffix(self, file_name: str) -> str:
         suffix = Path(str(file_name or "")).suffix.lower()
         if suffix not in SAM2_VIDEO_EXTENSIONS:

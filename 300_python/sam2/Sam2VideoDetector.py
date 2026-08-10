@@ -190,6 +190,18 @@ class Sam2VideoDetector:
             })
         return frames
 
+    def delete_yolo_dataset(self, input_path: Path) -> int:
+        file_prefix = f"{Path(input_path).stem}_"
+        deleted_count = 0
+        if not SAM2_YOLO_DIR.is_dir():
+            return deleted_count
+
+        for output_path in SAM2_YOLO_DIR.rglob("*"):
+            if output_path.is_file() and output_path.name.startswith(file_prefix):
+                output_path.unlink()
+                deleted_count += 1
+        return deleted_count
+
     def _load_sam2_image_predictor_class(self):
         if self.__class__._sam2_image_predictor_class is not None:
             return self.__class__._sam2_image_predictor_class

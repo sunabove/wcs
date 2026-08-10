@@ -152,6 +152,37 @@ class Sam2VideoService:
                 })
 
             model = YOLO(model_source)
+            batch_progress = {"epoch": -1, "batch": 0}
+
+            def update_batch(trainer):
+                current_epoch_index = int(getattr(trainer, "epoch", 0))
+                if batch_progress["epoch"] != current_epoch_index:
+                    batch_progress.update({"epoch": current_epoch_index, "batch": 0})
+                batch_progress["batch"] += 1
+                total_batches = max(1, len(trainer.train_loader))
+                current_batch = min(total_batches, batch_progress["batch"])
+                current_epoch = min(epochs, current_epoch_index + 1)
+                completed_batches = current_epoch_index * total_batches + current_batch
+                total_training_batches = max(1, epochs * total_batches)
+                progress = min(99.99, round((completed_batches / total_training_batches) * 100, 2))
+                loss_values = []
+                for name, value in (getattr(trainer, "tloss", {}) or {}).items():
+                    try:
+                        loss_values.append(f"{name} {float(value):.4f}")
+                    except (TypeError, ValueError):
+                        continue
+                loss_text = f" · {' · '.join(loss_values)}" if loss_values else ""
+                with self._training_jobs_lock:
+                    self._training_jobs[job_id].update({
+                        "progress": progress,
+                        "current_epoch": current_epoch,
+                        "current_batch": current_batch,
+                        "total_batches": total_batches,
+                        "message": (
+                            f"학습 중: Epoch {current_epoch} / {epochs} · "
+                            f"Batch {current_batch} / {total_batches}{loss_text}"
+                        ),
+                    })
 
             def update_epoch(trainer):
                 current_epoch = min(epochs, int(getattr(trainer, "epoch", 0)) + 1)
@@ -162,6 +193,7 @@ class Sam2VideoService:
                         "message": f"학습 중: Epoch {current_epoch} / {epochs}",
                     })
 
+            model.add_callback("on_train_batch_end", update_batch)
             model.add_callback("on_train_epoch_end", update_epoch)
             device = "0" if __import__("torch").cuda.is_available() else "cpu"
             results = model.train(

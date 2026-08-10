@@ -515,9 +515,12 @@
 
     function renderYoloTrainingProgress(progress, message, status) {
         const normalizedProgress = Math.max(0, Math.min(100, Number(progress || 0)));
+        const progressText = Number.isInteger(normalizedProgress)
+            ? String(normalizedProgress)
+            : normalizedProgress.toFixed(2).replace(/0+$/, '').replace(/\.$/, '');
         if (yoloTrainProgressElement) {
             yoloTrainProgressElement.style.width = `${normalizedProgress}%`;
-            yoloTrainProgressElement.textContent = `${normalizedProgress}%`;
+            yoloTrainProgressElement.textContent = `${progressText}%`;
             yoloTrainProgressElement.closest('.progress')?.setAttribute('aria-valuenow', String(normalizedProgress));
             yoloTrainProgressElement.classList.toggle('progress-bar-animated', status === 'running');
             yoloTrainProgressElement.classList.toggle('bg-success', status === 'completed');

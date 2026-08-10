@@ -1328,14 +1328,14 @@ class Sam2VideoDetector:
 
     def _get_yolo_class_registry(self, output_root: Path, class_name: str):
         registry_path = output_root / "classes.json"
-        class_names = []
+        previous_class_names = []
         if registry_path.is_file():
             try:
                 saved_names = json.loads(registry_path.read_text(encoding="utf-8"))
                 if isinstance(saved_names, list):
-                    class_names = [str(name) for name in saved_names if str(name).strip()]
+                    previous_class_names = [str(name) for name in saved_names if str(name).strip()]
             except (OSError, json.JSONDecodeError):
-                class_names = []
+                previous_class_names = []
 
         uploaded_class_names = set()
         if SAM2_UPLOAD_DIR.is_dir():
@@ -1348,11 +1348,47 @@ class Sam2VideoDetector:
                     continue
 
         uploaded_class_names.add(class_name)
-        class_names.extend(sorted(
-            uploaded_class_names.difference(class_names),
-            key=str.casefold,
-        ))
+        class_names = sorted(
+            set(previous_class_names).union(uploaded_class_names),
+            key=lambda name: (name.casefold(), name),
+        )
+        if previous_class_names and previous_class_names != class_names:
+            self._remap_yolo_label_class_ids(output_root, previous_class_names, class_names)
         return registry_path, class_names, class_names.index(class_name)
+
+    def _remap_yolo_label_class_ids(
+        self,
+        output_root: Path,
+        previous_class_names,
+        class_names,
+    ) -> None:
+        labels_dir = output_root / "labels" / "train"
+        if not labels_dir.is_dir():
+            return
+
+        class_id_map = {
+            previous_id: class_names.index(name)
+            for previous_id, name in enumerate(previous_class_names)
+        }
+        for label_path in labels_dir.glob("*.txt"):
+            try:
+                lines = label_path.read_text(encoding="utf-8").splitlines()
+                remapped_lines = []
+                for line in lines:
+                    parts = line.split(maxsplit=1)
+                    if not parts:
+                        continue
+                    previous_id = int(parts[0])
+                    class_id = class_id_map.get(previous_id, previous_id)
+                    remapped_lines.append(
+                        f"{class_id} {parts[1]}" if len(parts) > 1 else str(class_id)
+                    )
+                label_path.write_text(
+                    "\n".join(remapped_lines) + ("\n" if remapped_lines else ""),
+                    encoding="utf-8",
+                )
+            except (OSError, ValueError):
+                continue
 
     def _export_yolo_dataset(
         self,

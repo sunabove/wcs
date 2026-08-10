@@ -53,6 +53,7 @@
     const outputDownloadButton = document.getElementById('sam2-output-download');
     const yoloConvertButton = document.getElementById('sam2-yolo-convert');
     const yoloDatasetDeleteButton = document.getElementById('sam2-yolo-dataset-delete');
+    const yoloDeleteFallbackElement = document.getElementById('sam2-yolo-delete-fallback');
     const yoloDatasetSummaryElement = document.getElementById('sam2-yolo-dataset-summary');
     const yoloClassTabTemplate = document.getElementById('sam2-yolo-class-template');
     const yoloFileTabTemplate = document.getElementById('sam2-yolo-file-template');
@@ -1672,6 +1673,9 @@
         const activeClassName = [requestedClassName, currentActiveClassName, detectedClassName, classNames[0]]
             .find((className) => classNames.includes(className)) || '';
 
+        if (yoloDatasetDeleteButton && yoloDeleteFallbackElement) {
+            yoloDeleteFallbackElement.appendChild(yoloDatasetDeleteButton);
+        }
         yoloClassTabsElement.innerHTML = '';
         yoloClassTabContentElement.innerHTML = '';
         setSelectedYoloDatasetItem(null);
@@ -1697,8 +1701,9 @@
             const tabButton = fragment.querySelector('[data-role="tab-button"]');
             const tabPane = fragment.querySelector('[data-role="tab-pane"]');
             const fileTabsElement = fragment.querySelector('[data-role="file-tabs"]');
+            const deleteSlotElement = fragment.querySelector('[data-role="delete-slot"]');
             const fileTabContentElement = fragment.querySelector('[data-role="file-tab-content"]');
-            if (!tabItem || !tabButton || !tabPane || !fileTabsElement || !fileTabContentElement) {
+            if (!tabItem || !tabButton || !tabPane || !fileTabsElement || !deleteSlotElement || !fileTabContentElement) {
                 return;
             }
 
@@ -1758,10 +1763,16 @@
             yoloClassTabsElement.appendChild(tabItem);
             yoloClassTabContentElement.appendChild(tabPane);
             tabButton.addEventListener('shown.bs.tab', () => {
+                if (yoloDatasetDeleteButton) {
+                    deleteSlotElement.appendChild(yoloDatasetDeleteButton);
+                }
                 setSelectedYoloDatasetItem(activeFileItem);
                 activeFileViewerLoader?.();
             });
             if (isActive) {
+                if (yoloDatasetDeleteButton) {
+                    deleteSlotElement.appendChild(yoloDatasetDeleteButton);
+                }
                 setSelectedYoloDatasetItem(activeFileItem);
                 activeFileViewerLoader?.();
             }

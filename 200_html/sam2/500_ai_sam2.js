@@ -1566,13 +1566,12 @@
     function initializeYoloFrameViewer(item, fileTabPane) {
         const loadingElement = fileTabPane.querySelector('[data-role="frame-loading"]');
         const viewerElement = fileTabPane.querySelector('[data-role="frame-viewer"]');
-        const previousButton = fileTabPane.querySelector('[data-role="frame-prev"]');
-        const nextButton = fileTabPane.querySelector('[data-role="frame-next"]');
+        const frameSlider = fileTabPane.querySelector('[data-role="frame-slider"]');
         const counterElement = fileTabPane.querySelector('[data-role="frame-counter"]');
         const imageElement = fileTabPane.querySelector('[data-role="frame-image"]');
         const maskElement = fileTabPane.querySelector('[data-role="frame-mask"]');
         const labelElement = fileTabPane.querySelector('[data-role="frame-label"]');
-        if (!loadingElement || !viewerElement || !previousButton || !nextButton || !counterElement || !imageElement || !maskElement || !labelElement) {
+        if (!loadingElement || !viewerElement || !frameSlider || !counterElement || !imageElement || !maskElement || !labelElement) {
             return async function () {};
         }
 
@@ -1591,8 +1590,7 @@
 
             const requestSequence = ++labelRequestSequence;
             counterElement.textContent = `${framePosition + 1} / ${frames.length} · 프레임 ${frame.frame_index}`;
-            previousButton.disabled = framePosition <= 0;
-            nextButton.disabled = framePosition >= frames.length - 1;
+            frameSlider.value = String(framePosition);
             imageElement.src = `${apiBase}${frame.image_url}`;
             maskElement.src = `${apiBase}${frame.mask_url}`;
             labelElement.textContent = '라벨을 불러오는 중...';
@@ -1612,17 +1610,9 @@
             }
         }
 
-        previousButton.addEventListener('click', () => {
-            if (framePosition > 0) {
-                framePosition -= 1;
-                renderFrame();
-            }
-        });
-        nextButton.addEventListener('click', () => {
-            if (framePosition < frames.length - 1) {
-                framePosition += 1;
-                renderFrame();
-            }
+        frameSlider.addEventListener('input', () => {
+            framePosition = Number.parseInt(frameSlider.value, 10) || 0;
+            renderFrame();
         });
 
         return async function loadYoloFrames() {
@@ -1652,6 +1642,11 @@
                 loadingElement.classList.add('d-none');
                 viewerElement.classList.remove('d-none');
                 framePosition = 0;
+                frameSlider.min = '0';
+                frameSlider.max = String(frames.length - 1);
+                frameSlider.step = '1';
+                frameSlider.value = '0';
+                frameSlider.disabled = frames.length <= 1;
                 await renderFrame();
             } catch (error) {
                 loadingElement.textContent = error && error.message ? error.message : '프레임 데이터를 불러오지 못했습니다.';

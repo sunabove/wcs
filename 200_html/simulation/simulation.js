@@ -2776,9 +2776,6 @@ class RapierDriveSimulation {
         const nextPath = this.getObstacleTraversalPath(obstacleInfo);
         if (nextPath) {
             this.activeObstacleTraversalPath = nextPath;
-            if (nextPath.obstacleInfo.collider && typeof nextPath.obstacleInfo.collider.setSensor === 'function') {
-                nextPath.obstacleInfo.collider.setSensor(true);
-            }
         }
 
         const path = this.activeObstacleTraversalPath;
@@ -3045,9 +3042,6 @@ class RapierDriveSimulation {
                 .setTranslation(localCenter.x, localCenter.y, localCenter.z)
                 .setFriction(0.2)
                 .setRestitution(0.0);
-            
-            // Set wheel colliders as sensors so Rapier physics collision engine doesn't produce asymmetric physical pivot forces/spin against obstacles
-            wheelColliderDesc.setSensor(true);
 
             const wheelCollider = this.world.createCollider(wheelColliderDesc, body);
             this.vehicleColliders.push(wheelCollider);

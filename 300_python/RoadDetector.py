@@ -44,7 +44,7 @@ class RoadDetector:
     _model_paths = {
         "road": Path(__file__).resolve().parent / "ai/road/model/01_yolo11m-road-sg.pt",
         "road_type": Path(__file__).resolve().parent / road_type_model_name ,
-        "pothole": Path(__file__).resolve().parent / "ai/road/model/04_yolo11m-pothole-sg.pt",
+        "obstacle": Path(__file__).resolve().parent / "ai/road/model/04_yolo11m-pothole-sg.pt",
     }
     _models = {}
     _stream_sessions = {}  # {session_id: {capture, frame_count, fps, detect_type, file_name, input_path, roi}}
@@ -395,7 +395,7 @@ class RoadDetector:
             return
 
         key = str(detect_key or "").strip().lower()
-        if key != "pothole" and not include_obstacle:
+        if key != "obstacle" and not include_obstacle:
             return
 
         class_counts = stats.get("class_counts") if isinstance(stats, dict) else None
@@ -1789,9 +1789,10 @@ class RoadDetector:
         target_class_ids = set()
         if detect_key:
             detect_key_norm = str(detect_key).strip().lower().replace("-", "_").replace(" ", "_")
+            target_class_name = "pothole" if detect_key_norm == "obstacle" else detect_key_norm
             for class_id, class_name in names.items():
                 class_name_norm = str(class_name).strip().lower().replace("-", "_").replace(" ", "_")
-                if class_name_norm == detect_key_norm:
+                if class_name_norm == target_class_name:
                     target_class_ids.add(int(class_id))
 
         if box_xyxy is not None and inference_roi is not None and len(box_xyxy) > 0:
@@ -1886,7 +1887,7 @@ class RoadDetector:
             if mask_conf_values is not None:
                 # For obstacle detection, select only one instance by combined
                 # weighted-sum score (confidence-dominant).
-                if detect_key == "pothole" and len(mask_has_area_flags) == len(mask_conf_values):
+                if detect_key == "obstacle" and len(mask_has_area_flags) == len(mask_conf_values):
                     valid_indices = np.where(mask_has_area_flags)[0]
                     if len(valid_indices) > 0:
                         valid_confs = mask_conf_values[valid_indices]
@@ -1939,7 +1940,7 @@ class RoadDetector:
                 kept_mask_indices.append(idx)
                 kept_binary_masks.append(active_binary_mask)
 
-                if detect_key in ("road", "road_type", "pothole"):
+                if detect_key in ("road", "road_type", "obstacle"):
                     contour_input_active = (active_binary_mask.astype(np.uint8) * 255)
                     contours_active, _ = cv2.findContours(
                         contour_input_active,
@@ -2012,7 +2013,7 @@ class RoadDetector:
         mask_count = len(kept_mask_indices)
         detected = cv2.addWeighted(overlay, 0.35, detected, 0.65, 0)
         if mask_outline_polygons:
-            outline_color = (255, 255, 0) if detect_key == "pothole" else (0, 0, 255)
+            outline_color = (255, 255, 0) if detect_key == "obstacle" else (0, 0, 255)
             cv2.polylines(detected, mask_outline_polygons, True, outline_color, 1)
         if (not remove_noisy_masks) and noisy_mask_polygons:
             cv2.polylines(detected, noisy_mask_polygons, True, (0, 0, 255), 1)
@@ -2403,7 +2404,7 @@ class RoadDetector:
 
             # If an obstacle label overlaps existing labels (road/road_type),
             # align the obstacle label to the right side of its bbox.
-            if detect_key == "pothole" and label_regions:
+            if detect_key == "obstacle" and label_regions:
                 is_overlapping = False
                 for ox1, oy1, ox2, oy2 in label_regions:
                     if label_x1 < ox2 and label_x2 > ox1 and label_y1 < oy2 and label_y2 > oy1:
@@ -2773,7 +2774,7 @@ class RoadDetector:
 
                     prepared_inference_roi = (x1, y1, x2, y2)
 
-                    if detect_key == "pothole":
+                    if detect_key == "obstacle":
                         road_allowed_mask = np.zeros((h, w), dtype=bool)
                         if road_result.masks is not None and road_result.masks.data is not None:
                             road_masks = road_result.masks.data.cpu().numpy()
@@ -2834,7 +2835,7 @@ class RoadDetector:
     ):
         detect_key = detect_type if detect_type in RoadDetector._model_paths else "road"
         conf = RoadDetector.MIN_CONF
-        if detect_key == "pothole":
+        if detect_key == "obstacle":
             conf = float(np.clip(float(obstacle_conf), 0.0, 1.0))
         infer_key = detect_key
         font_face = cv2.FONT_HERSHEY_SIMPLEX
@@ -2850,7 +2851,7 @@ class RoadDetector:
 
         # For road_type and obstacle detection, use the same road-area preprocessing.
         obstacle_allowed_area_mask = None
-        if detect_key in ("road_type", "pothole"):
+        if detect_key in ("road_type", "obstacle"):
             frame_for_inference, prepared_inference_roi, road_allowed_mask = self._prepare_inference_frame_with_road_crop(
                 frame,
                 frame_for_inference,
@@ -2860,7 +2861,7 @@ class RoadDetector:
             )
             if prepared_inference_roi is not None:
                 inference_roi = prepared_inference_roi
-            if detect_key == "pothole":
+            if detect_key == "obstacle":
                 obstacle_allowed_area_mask = road_allowed_mask
 
         if infer_key not in RoadDetector._models:
@@ -2934,16 +2935,16 @@ class RoadDetector:
                 inference_roi,
             )
             boxes_payload = self._filter_boxes_payload_by_roi(boxes_payload, roi)
-            if detect_key == "pothole":
+            if detect_key == "obstacle":
                 boxes_payload = self._filter_boxes_payload_by_area_mask(boxes_payload, obstacle_allowed_area_mask)
             # When masks are present, confidence filtering is already applied in
             # _process_result_masks. Applying box-only filtering again can cause
             # mask/box mismatch (overlay outside shown boxes).
             if total_mask_count <= 0:
-                if detect_key != "pothole":
+                if detect_key != "obstacle":
                     boxes_payload = self._filter_boxes_payload_by_max_conf_gap(boxes_payload)
 
-            if detect_key == "pothole":
+            if detect_key == "obstacle":
                 boxes_payload = self._filter_boxes_payload_by_area_conf_score(boxes_payload, top_k=1)
 
             boxes = boxes_payload["boxes"]
@@ -3041,7 +3042,7 @@ class RoadDetector:
 
                 obstacle_result = self.detect_road(
                     obstacle_source_frame,
-                    detect_type="pothole",
+                    detect_type="obstacle",
                     roi=obstacle_roi,
                     remove_noisy_masks=remove_noisy_masks,
                     return_info=True,
@@ -3098,7 +3099,7 @@ class RoadDetector:
                         obstacle_box_labels if isinstance(obstacle_box_labels, list) else [],
                         obstacle_box_colors if isinstance(obstacle_box_colors, list) else [(255, 255, 0)] * len(obstacle_boxes),
                         obstacle_names if isinstance(obstacle_names, dict) else {},
-                        "pothole",
+                        "obstacle",
                         font_face,
                         avoid_label_regions=label_regions,
                     )
@@ -3154,7 +3155,7 @@ class RoadDetector:
 
         # Final safety gate: for obstacle detection, ensure nothing is rendered outside
         # confidence-filtered road area.
-        if detect_key == "pothole" and obstacle_allowed_area_mask is not None:
+        if detect_key == "obstacle" and obstacle_allowed_area_mask is not None:
             if np.any(obstacle_allowed_area_mask):
                 filtered_object_mask = np.logical_and(filtered_object_mask, obstacle_allowed_area_mask)
                 detected = np.where(obstacle_allowed_area_mask[:, :, None], detected, frame)

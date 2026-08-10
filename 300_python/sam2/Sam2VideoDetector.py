@@ -144,6 +144,25 @@ class Sam2VideoDetector:
         except (OSError, ValueError, KeyError):
             return False
 
+    def has_yolo_dataset(self, input_path: Path) -> bool:
+        input_stem = Path(input_path).stem
+        images_dir = SAM2_YOLO_DIR / "images" / "train"
+        labels_dir = SAM2_YOLO_DIR / "labels" / "train"
+        masks_dir = SAM2_YOLO_DIR / "masks" / "train"
+        if not images_dir.is_dir() or not labels_dir.is_dir() or not masks_dir.is_dir():
+            return False
+
+        file_prefix = f"{input_stem}_"
+        for image_path in images_dir.iterdir():
+            if not image_path.is_file() or image_path.suffix.lower() != ".jpg":
+                continue
+            if not image_path.name.startswith(file_prefix):
+                continue
+            output_stem = image_path.stem
+            if (labels_dir / f"{output_stem}.txt").is_file() and (masks_dir / f"{output_stem}.png").is_file():
+                return True
+        return False
+
     def _load_sam2_image_predictor_class(self):
         if self.__class__._sam2_image_predictor_class is not None:
             return self.__class__._sam2_image_predictor_class

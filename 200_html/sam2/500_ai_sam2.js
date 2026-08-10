@@ -551,11 +551,20 @@
             const summary = conversionCompleted
                 ? `변환 완료: 이미지 ${imageCount}장, 세그먼트 ${labelCount}개`
                 : '기준 스코어 이상인 학습 데이터가 없습니다.';
+            if (conversionCompleted) {
+                const convertedInputName = basename(yoloInputFileName);
+                const convertedItem = uploadedHistory.find((item) => basename(item && item.name) === convertedInputName);
+                if (convertedItem) {
+                    convertedItem.hasYoloDataset = true;
+                }
+                updateYoloClassTabs(className);
+            }
             if (yoloDatasetSummaryElement) {
                 yoloDatasetSummaryElement.textContent = summary;
             }
-            if (classUi) {
-                classUi.fileSummaryByName.get(basename(yoloInputFileName))?.replaceChildren(summary);
+            const updatedClassUi = yoloClassUiByName.get(className) || classUi;
+            if (updatedClassUi) {
+                updatedClassUi.fileSummaryByName.get(basename(yoloInputFileName))?.replaceChildren(summary);
             }
             updateOutputDownloadState();
             setStatus(conversionCompleted ? `${className} 클래스 YOLO 변환 완료` : '변환할 학습 데이터가 없습니다.', conversionCompleted ? 'success' : 'warning');
@@ -1505,6 +1514,7 @@
     function getYoloClassNames() {
         return Array.from(new Set(
             uploadedHistory
+                .filter((item) => item && item.hasYoloDataset === true)
                 .map((item) => extractYoloClassName(item && item.name))
                 .filter(Boolean)
         )).sort((left, right) => left.localeCompare(right, undefined, {
@@ -1538,7 +1548,11 @@
             const isActive = className === activeClassName;
             const tabId = `sam2-yolo-class-tab-${index}`;
             const paneId = `sam2-yolo-class-pane-${index}`;
-            const classVideos = uploadedHistory.filter((item) => extractYoloClassName(item && item.name) === className);
+            const classVideos = uploadedHistory.filter((item) => (
+                item
+                && item.hasYoloDataset === true
+                && extractYoloClassName(item.name) === className
+            ));
             const activeInputName = basename(yoloInputFileName);
 
             const fragment = yoloClassTabTemplate.content.cloneNode(true);
@@ -1961,6 +1975,7 @@
                 playableUrl: String(item.playable_url || ''),
                 outputUrl: String(item.output_url || ''),
                 yoloConversionAvailable: item.yolo_conversion_available === true,
+                hasYoloDataset: item.has_yolo_dataset === true,
             }));
 
             if (requestSeq !== uploadedListLatestRequestSeq) {

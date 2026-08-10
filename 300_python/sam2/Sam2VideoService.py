@@ -502,6 +502,7 @@ class Sam2VideoService:
                     "yolo_conversion_available": bool(
                         has_output and self.detector.has_yolo_conversion_cache(path)
                     ),
+                    "has_yolo_dataset": self.detector.has_yolo_dataset(path),
                 }
             )
 

@@ -308,7 +308,7 @@ class RapierDriveSimulation {
             rl: null,
             rr: null
         };
-        this.wheelColliderInflationMeters = 0.012;
+        this.wheelColliderInflationMeters = 0;
     }
 
     kmhToMps(kmh) {

@@ -1325,8 +1325,21 @@ class Sam2VideoDetector:
             except (OSError, json.JSONDecodeError):
                 class_names = []
 
-        if class_name not in class_names:
-            class_names.append(class_name)
+        uploaded_class_names = set()
+        if SAM2_UPLOAD_DIR.is_dir():
+            for input_path in SAM2_UPLOAD_DIR.iterdir():
+                if not input_path.is_file() or input_path.suffix.lower() != ".mp4":
+                    continue
+                try:
+                    uploaded_class_names.add(self._extract_yolo_class_name(input_path.name))
+                except ValueError:
+                    continue
+
+        uploaded_class_names.add(class_name)
+        class_names.extend(sorted(
+            uploaded_class_names.difference(class_names),
+            key=str.casefold,
+        ))
         return registry_path, class_names, class_names.index(class_name)
 
     def _export_yolo_dataset(

@@ -136,7 +136,7 @@ class Sam2VideoDetector:
             return False
         try:
             with np.load(cache_path, allow_pickle=False) as saved:
-                return (
+                return bool(
                     Path(str(saved["source_video_path"].item())).is_file()
                     and np.isfinite(float(saved["detection_threshold"].item()))
                 )

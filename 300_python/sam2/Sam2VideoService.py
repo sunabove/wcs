@@ -499,7 +499,7 @@ class Sam2VideoService:
                         if has_output
                         else ""
                     ),
-                    "yolo_conversion_available": (
+                    "yolo_conversion_available": bool(
                         has_output and self.detector.has_yolo_conversion_cache(path)
                     ),
                 }

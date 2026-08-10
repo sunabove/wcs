@@ -1156,7 +1156,11 @@ class RapierDriveSimulation {
             return null;
         }
 
-        const otherLinkRoots = Object.values(linkMap || {}).filter((root) => root && root !== linkObject);
+        const otherLinkRoots = Object.values(linkMap || {}).filter((root) => (
+            root
+            && root !== linkObject
+            && this.isDescendantObject3D(root, linkObject)
+        ));
         const bounds = new THREE.Box3();
         let hasMesh = false;
 

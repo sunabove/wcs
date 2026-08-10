@@ -1766,7 +1766,7 @@
             tabButton.setAttribute('aria-controls', paneId);
             tabButton.setAttribute('aria-selected', String(isActive));
             tabButton.dataset.className = className;
-            tabButton.textContent = className;
+            tabButton.textContent = `${className} (${classVideos.length})`;
             tabPane.className = `tab-pane fade${isActive ? ' show active' : ''}`;
             tabPane.id = paneId;
             tabPane.setAttribute('role', 'tabpanel');

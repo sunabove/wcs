@@ -326,7 +326,7 @@ class Sam2VideoService:
             best_model_path = Path(save_dir) / "weights" / "best.pt" if save_dir else None
             if not best_model_path or not best_model_path.is_file():
                 raise RuntimeError("학습 결과 best.pt 파일을 찾을 수 없습니다")
-            output_model_name = f"05_yolo11m-obstacle-sg_{datetime.now().strftime('%y%m%d')}.pt"
+            output_model_name = f"05_yolo11m-obstacle-sg-{datetime.now().strftime('%y%m%d')}.pt"
             output_model_path = (
                 BASE_DIR
                 / "ai"

@@ -1516,6 +1516,43 @@
         }));
     }
 
+    async function deleteYoloDataset(item, deleteButton) {
+        const inputStem = fileStem(item.name);
+        if (!window.confirm(`${inputStem}의 YOLO 학습 데이터를 삭제하시겠습니까?`)) {
+            return;
+        }
+
+        deleteButton.disabled = true;
+        try {
+            const deleteApiBase = await resolveApiBase();
+            const fileName = item.serverFileName || item.name;
+            const response = await fetch(
+                `${deleteApiBase}/fast/sam2/yolo_dataset?file_name=${encodeURIComponent(fileName)}`,
+                { method: 'DELETE' }
+            );
+            if (!response.ok) {
+                let errorMessage = `학습 데이터 삭제 실패 (${response.status})`;
+                try {
+                    const errorBody = await response.json();
+                    if (errorBody && errorBody.detail) {
+                        errorMessage = String(errorBody.detail);
+                    }
+                } catch (_ignore) {
+                    // Keep default error message.
+                }
+                throw new Error(errorMessage);
+            }
+
+            const result = await response.json();
+            item.hasYoloDataset = false;
+            updateYoloClassTabs(extractYoloClassName(item.name));
+            setStatus(`${inputStem} 학습 데이터 ${Number(result.deleted_count || 0)}개 삭제 완료`, 'success');
+        } catch (error) {
+            deleteButton.disabled = false;
+            setStatus(error && error.message ? error.message : '학습 데이터 삭제에 실패했습니다.', 'danger');
+        }
+    }
+
     function initializeYoloFrameViewer(item, fileTabPane) {
         const loadingElement = fileTabPane.querySelector('[data-role="frame-loading"]');
         const viewerElement = fileTabPane.querySelector('[data-role="frame-viewer"]');
@@ -1525,8 +1562,7 @@
         const imageElement = fileTabPane.querySelector('[data-role="frame-image"]');
         const maskElement = fileTabPane.querySelector('[data-role="frame-mask"]');
         const labelElement = fileTabPane.querySelector('[data-role="frame-label"]');
-        const deleteButton = fileTabPane.querySelector('[data-role="dataset-delete"]');
-        if (!loadingElement || !viewerElement || !previousButton || !nextButton || !counterElement || !imageElement || !maskElement || !labelElement || !deleteButton) {
+        if (!loadingElement || !viewerElement || !previousButton || !nextButton || !counterElement || !imageElement || !maskElement || !labelElement) {
             return async function () {};
         }
 
@@ -1576,42 +1612,6 @@
             if (framePosition < frames.length - 1) {
                 framePosition += 1;
                 renderFrame();
-            }
-        });
-        deleteButton.addEventListener('click', async () => {
-            const inputStem = fileStem(item.name);
-            if (!window.confirm(`${inputStem}의 YOLO 학습 데이터를 삭제하시겠습니까?`)) {
-                return;
-            }
-
-            deleteButton.disabled = true;
-            try {
-                const deleteApiBase = await resolveApiBase();
-                const fileName = item.serverFileName || item.name;
-                const response = await fetch(
-                    `${deleteApiBase}/fast/sam2/yolo_dataset?file_name=${encodeURIComponent(fileName)}`,
-                    { method: 'DELETE' }
-                );
-                if (!response.ok) {
-                    let errorMessage = `학습 데이터 삭제 실패 (${response.status})`;
-                    try {
-                        const errorBody = await response.json();
-                        if (errorBody && errorBody.detail) {
-                            errorMessage = String(errorBody.detail);
-                        }
-                    } catch (_ignore) {
-                        // Keep default error message.
-                    }
-                    throw new Error(errorMessage);
-                }
-
-                const result = await response.json();
-                item.hasYoloDataset = false;
-                updateYoloClassTabs(extractYoloClassName(item.name));
-                setStatus(`${inputStem} 학습 데이터 ${Number(result.deleted_count || 0)}개 삭제 완료`, 'success');
-            } catch (error) {
-                deleteButton.disabled = false;
-                setStatus(error && error.message ? error.message : '학습 데이터 삭제에 실패했습니다.', 'danger');
             }
         });
 
@@ -1716,8 +1716,9 @@
                 const fileFragment = yoloFileTabTemplate.content.cloneNode(true);
                 const fileTabItem = fileFragment.querySelector('[data-role="file-tab-item"]');
                 const fileTabButton = fileFragment.querySelector('[data-role="file-tab-button"]');
+                const deleteButton = fileFragment.querySelector('[data-role="dataset-delete"]');
                 const fileTabPane = fileFragment.querySelector('[data-role="file-tab-pane"]');
-                if (!fileTabItem || !fileTabButton || !fileTabPane) {
+                if (!fileTabItem || !fileTabButton || !deleteButton || !fileTabPane) {
                     return;
                 }
 
@@ -1730,6 +1731,10 @@
                 fileTabPane.className = `tab-pane fade${isActiveFile ? ' show active' : ''}`;
                 fileTabPane.id = filePaneId;
                 fileTabPane.setAttribute('aria-labelledby', fileTabId);
+                deleteButton.addEventListener('click', (event) => {
+                    event.stopPropagation();
+                    deleteYoloDataset(item, deleteButton);
+                });
                 const loadFrameViewer = initializeYoloFrameViewer(item, fileTabPane);
                 fileTabButton.addEventListener('shown.bs.tab', loadFrameViewer);
                 fileTabButton.addEventListener('click', loadFrameViewer);

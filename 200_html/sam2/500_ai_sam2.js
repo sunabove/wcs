@@ -1616,7 +1616,7 @@
             imageElement.src = `${apiBase}${frame.image_url}`;
             maskElement.src = `${apiBase}${frame.mask_url}`;
             overlayImageElement.src = `${apiBase}${frame.image_url}`;
-            overlayMaskElement.src = `${apiBase}${frame.mask_url}`;
+            overlayMaskElement.style.maskImage = `url("${apiBase}${frame.mask_url}")`;
             labelElement.textContent = '라벨을 불러오는 중...';
             try {
                 const response = await fetch(`${apiBase}${frame.label_url}`, { cache: 'no-store' });

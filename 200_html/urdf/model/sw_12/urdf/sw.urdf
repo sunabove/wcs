@@ -189,7 +189,7 @@
   </link>
 
   <joint name="ground_to_rock_1_joint" type="fixed">
-    <origin xyz="1.801 0.772 0.04" rpy="0 0 0" />
+    <origin xyz="1.801 0.315 0.04" rpy="0 0 0" />
     <parent link="ground" />
     <child link="obstacle_rock_1" />
   </joint>

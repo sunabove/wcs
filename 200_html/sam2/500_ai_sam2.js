@@ -65,6 +65,7 @@
     const yoloTrainProgressElement = document.getElementById('sam2-yolo-train-progress');
     const yoloTrainProgressTextElement = document.getElementById('sam2-yolo-train-progress-text');
     const yoloTrainStatusElement = document.getElementById('sam2-yolo-train-status');
+    const yoloTrainMetricsCanvas = document.getElementById('sam2-yolo-train-metrics-chart');
 
     let selectedFile = null;
     let resolvedApiBase = null;
@@ -75,6 +76,7 @@
     let yoloClassTabsElement = null;
     let yoloClassTabContentElement = null;
     let yoloTrainingJobId = '';
+    let yoloTrainingMetricsChart = null;
     let uploadedHistory = [];
     let selectedServerFileName = '';
     let highlightedServerFileName = '';
@@ -534,6 +536,54 @@
         }
     }
 
+    function renderYoloTrainingMetrics(metricHistory) {
+        if (!yoloTrainMetricsCanvas || typeof Chart !== 'function') {
+            return;
+        }
+        const history = Array.isArray(metricHistory) ? metricHistory : [];
+        const labels = history.map((item) => Number(item.epoch || 0));
+        const datasetDefinitions = [
+            ['Precision', 'precision', '#0d6efd'],
+            ['Recall', 'recall', '#198754'],
+            ['mAP50', 'map50', '#fd7e14'],
+            ['mAP50-95', 'map50_95', '#6f42c1'],
+        ];
+        if (!yoloTrainingMetricsChart) {
+            yoloTrainingMetricsChart = new Chart(yoloTrainMetricsCanvas, {
+                type: 'line',
+                data: {
+                    labels,
+                    datasets: datasetDefinitions.map(([label, key, color]) => ({
+                        label,
+                        data: history.map((item) => Number(item[key] || 0)),
+                        borderColor: color,
+                        backgroundColor: color,
+                        borderWidth: 2,
+                        pointRadius: 2,
+                        tension: 0.15,
+                    })),
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    animation: false,
+                    interaction: { mode: 'index', intersect: false },
+                    scales: {
+                        x: { title: { display: true, text: 'Epoch' } },
+                        y: { min: 0, max: 1, title: { display: true, text: 'Score' } },
+                    },
+                },
+            });
+            return;
+        }
+        yoloTrainingMetricsChart.data.labels = labels;
+        yoloTrainingMetricsChart.data.datasets.forEach((dataset, index) => {
+            const key = datasetDefinitions[index][1];
+            dataset.data = history.map((item) => Number(item[key] || 0));
+        });
+        yoloTrainingMetricsChart.update('none');
+    }
+
     async function pollYoloTrainingStatus() {
         if (!yoloTrainingJobId) {
             return;
@@ -551,6 +601,7 @@
                 ? `YOLO 학습 완료 · 가중치 파일 복사 완료: ${copiedWeightPath}`
                 : job.error || job.message || 'YOLO 학습 진행 중...';
             renderYoloTrainingProgress(job.progress, message, status);
+            renderYoloTrainingMetrics(job.metric_history);
             if (status === 'queued' || status === 'running') {
                 window.setTimeout(pollYoloTrainingStatus, 1000);
                 return;
@@ -574,6 +625,7 @@
         }
         yoloTrainStartButton.disabled = true;
         renderYoloTrainingProgress(0, 'YOLO 학습을 요청하는 중...', 'queued');
+        renderYoloTrainingMetrics([]);
         try {
             const apiBase = await resolveApiBase();
             const response = await fetch(`${apiBase}/fast/sam2/train_yolo_dataset`, { method: 'POST' });

@@ -153,6 +153,7 @@ class Sam2VideoService:
 
             model = YOLO(model_source)
             batch_progress = {"epoch": -1, "batch": 0}
+            metric_history = []
 
             def update_batch(trainer):
                 current_epoch_index = int(getattr(trainer, "epoch", 0))
@@ -193,8 +194,23 @@ class Sam2VideoService:
                         "message": f"학습 중: Epoch {current_epoch} / {epochs}",
                     })
 
+            def update_metrics(trainer):
+                current_epoch = min(epochs, int(getattr(trainer, "epoch", 0)) + 1)
+                metrics = getattr(trainer, "metrics", {}) or {}
+                metric_point = {
+                    "epoch": current_epoch,
+                    "precision": float(metrics.get("metrics/precision(M)", 0.0)),
+                    "recall": float(metrics.get("metrics/recall(M)", 0.0)),
+                    "map50": float(metrics.get("metrics/mAP50(M)", 0.0)),
+                    "map50_95": float(metrics.get("metrics/mAP50-95(M)", 0.0)),
+                }
+                metric_history.append(metric_point)
+                with self._training_jobs_lock:
+                    self._training_jobs[job_id]["metric_history"] = list(metric_history)
+
             model.add_callback("on_train_batch_end", update_batch)
             model.add_callback("on_train_epoch_end", update_epoch)
+            model.add_callback("on_fit_epoch_end", update_metrics)
             device = "0" if __import__("torch").cuda.is_available() else "cpu"
             results = model.train(
                 data=str(dataset_yaml),
@@ -266,6 +282,7 @@ class Sam2VideoService:
                 "current_epoch": 0,
                 "total_epochs": 0,
                 "message": "YOLO 학습 대기 중...",
+                "metric_history": [],
                 "result": None,
                 "error": "",
             }

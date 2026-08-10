@@ -2569,41 +2569,7 @@ class RapierDriveSimulation {
         if (obstacleContactInfo) {
             return { obstacleInfo: obstacleContactInfo };
         }
-
-        const bodyPosition = this.body.translation();
-        const yaw = this.extractYawFromQuaternion(this.body.rotation());
-        const { x: forwardX, y: forwardY } = this.getVehicleForwardVector(yaw);
-        const wheelPlaneZ = bodyPosition.z + (Number.isFinite(this.wheelLocalMinZ) ? this.wheelLocalMinZ : 0);
-        const approachCandidates = this.obstacleColliderInfos
-            .filter((obstacleInfo) => {
-                if (!obstacleInfo || obstacleInfo.isSensor || !obstacleInfo.center || !obstacleInfo.halfExtents) {
-                    return false;
-                }
-
-                const dx = obstacleInfo.center.x - bodyPosition.x;
-                const dy = obstacleInfo.center.y - bodyPosition.y;
-                const alongForward = (dx * forwardX) + (dy * forwardY);
-                const lateralOffset = Math.abs((dx * forwardY) - (dy * forwardX));
-                const distance = Math.hypot(dx, dy);
-                const obstacleTopZ = obstacleInfo.center.z + obstacleInfo.halfExtents.z;
-                return alongForward > 0.03
-                    && distance < 0.8
-                    && lateralOffset < 0.45
-                    && obstacleTopZ > (wheelPlaneZ + 0.005);
-            })
-            .sort((left, right) => {
-                const leftDx = left.center.x - bodyPosition.x;
-                const leftDy = left.center.y - bodyPosition.y;
-                const rightDx = right.center.x - bodyPosition.x;
-                const rightDy = right.center.y - bodyPosition.y;
-                const leftDistance = (leftDx * forwardX) + (leftDy * forwardY);
-                const rightDistance = (rightDx * forwardX) + (rightDy * forwardY);
-                return leftDistance - rightDistance;
-            });
-
-        return approachCandidates.length > 0
-            ? { obstacleInfo: approachCandidates[0] }
-            : null;
+        return null;
     }
 
     isObstacleInFrontForClimb(obstacleInfo = null) {

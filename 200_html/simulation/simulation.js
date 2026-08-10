@@ -2203,7 +2203,7 @@ class RapierDriveSimulation {
             }
 
             wheelLink.updateWorldMatrix(true, true);
-            const wheelBounds = new THREE.Box3().setFromObject(wheelLink);
+            const wheelBounds = this.computeLinkOwnBounds(wheelLink, linkMap) || new THREE.Box3();
             if (wheelBounds.isEmpty()) {
                 return;
             }
@@ -3023,7 +3023,7 @@ class RapierDriveSimulation {
 
             wheelLink.updateWorldMatrix(true, true);
 
-            const wheelBounds = new THREE.Box3().setFromObject(wheelLink);
+            const wheelBounds = this.computeLinkOwnBounds(wheelLink, linkMap) || new THREE.Box3();
             const centerWorld = wheelBounds.isEmpty()
                 ? wheelLink.getWorldPosition(new THREE.Vector3())
                 : wheelBounds.getCenter(new THREE.Vector3());
@@ -3075,7 +3075,7 @@ class RapierDriveSimulation {
             }
 
             wheelLink.updateWorldMatrix(true, true);
-            const wheelBounds = new THREE.Box3().setFromObject(wheelLink);
+            const wheelBounds = this.computeLinkOwnBounds(wheelLink, linkMap) || new THREE.Box3();
             const centerWorld = wheelBounds.isEmpty()
                 ? wheelLink.getWorldPosition(new THREE.Vector3())
                 : wheelBounds.getCenter(new THREE.Vector3());
@@ -3111,7 +3111,7 @@ class RapierDriveSimulation {
             }
 
             wheelLink.updateWorldMatrix(true, true);
-            const wheelBounds = new THREE.Box3().setFromObject(wheelLink);
+            const wheelBounds = this.computeLinkOwnBounds(wheelLink, linkMap) || new THREE.Box3();
             if (wheelBounds.isEmpty()) {
                 const wheelCenter = wheelLink.getWorldPosition(new THREE.Vector3());
                 minWheelWorldZ = Math.min(
@@ -3142,7 +3142,7 @@ class RapierDriveSimulation {
             }
 
             wheelLink.updateWorldMatrix(true, true);
-            const wheelBounds = new THREE.Box3().setFromObject(wheelLink);
+            const wheelBounds = this.computeLinkOwnBounds(wheelLink, linkMap) || new THREE.Box3();
             if (wheelBounds.isEmpty()) {
                 return;
             }

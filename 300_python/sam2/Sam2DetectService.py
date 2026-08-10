@@ -156,6 +156,11 @@ def train_yolo_dataset(
     return _service.start_yolo_training(force_retrain=force_retrain)
 
 
+@router.get("/yolo_training_status")
+def active_yolo_training_status():
+    return _service.get_active_yolo_training()
+
+
 @router.get("/yolo_training_status/{job_id}")
 def yolo_training_status(job_id: str):
     return _service.get_yolo_training_status(job_id)

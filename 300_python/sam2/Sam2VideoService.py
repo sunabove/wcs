@@ -373,6 +373,14 @@ class Sam2VideoService:
                 raise HTTPException(status_code=404, detail="YOLO training job not found")
             return {"job_id": job_id, **job}
 
+    def get_active_yolo_training(self):
+        with self._training_jobs_lock:
+            job_id = self._active_training_job_id
+            job = self._training_jobs.get(job_id)
+            if not job or job.get("status") not in {"queued", "running"}:
+                return {"active": False}
+            return {"active": True, "job_id": job_id, **job}
+
     def delete_yolo_dataset(self, file_name: str):
         input_path = self._resolve_uploaded_video_path(file_name)
         deleted_count = self.detector.delete_yolo_dataset(input_path)

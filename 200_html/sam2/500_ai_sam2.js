@@ -77,6 +77,7 @@
     let yoloClassTabsElement = null;
     let yoloClassTabContentElement = null;
     let yoloTrainingJobId = '';
+    let yoloTrainingRecoveryPending = false;
     let yoloTrainingMetricsChart = null;
     let uploadedHistory = [];
     let selectedServerFileName = '';
@@ -513,9 +514,13 @@
         yoloClassTabsElement = document.getElementById('sam2-yolo-class-tabs');
         yoloClassTabContentElement = document.getElementById('sam2-yolo-class-tab-content');
         updateYoloClassTabs();
-        yoloTrainTabElement?.addEventListener('shown.bs.tab', updateYoloTrainingOverview);
+        yoloTrainTabElement?.addEventListener('shown.bs.tab', () => {
+            recoverActiveYoloTraining();
+            updateYoloTrainingOverview();
+        });
         yoloTrainStartButton?.addEventListener('click', () => startYoloTraining(false));
         yoloRetrainStartButton?.addEventListener('click', () => startYoloTraining(true));
+        recoverActiveYoloTraining();
     }
 
     function renderYoloTrainingProgress(progress, message, status) {
@@ -624,6 +629,38 @@
                 yoloRetrainStartButton.disabled = false;
             }
             renderYoloTrainingProgress(0, error && error.message ? error.message : '학습 상태를 조회하지 못했습니다.', 'failed');
+        }
+    }
+
+    async function recoverActiveYoloTraining() {
+        if (yoloTrainingJobId || yoloTrainingRecoveryPending) {
+            return;
+        }
+        yoloTrainingRecoveryPending = true;
+        try {
+            const apiBase = await resolveApiBase();
+            const response = await fetch(`${apiBase}/fast/sam2/yolo_training_status`, { cache: 'no-store' });
+            if (!response.ok) {
+                throw new Error(`진행 중인 학습 조회 실패 (${response.status})`);
+            }
+            const job = await response.json();
+            if (!job.active || !job.job_id) {
+                return;
+            }
+            yoloTrainingJobId = String(job.job_id);
+            if (yoloTrainStartButton) {
+                yoloTrainStartButton.disabled = true;
+            }
+            if (yoloRetrainStartButton) {
+                yoloRetrainStartButton.disabled = true;
+            }
+            renderYoloTrainingProgress(job.progress, job.error || job.message, job.status);
+            renderYoloTrainingMetrics(job.metric_history);
+            pollYoloTrainingStatus();
+        } catch (error) {
+            console.error('[SAM2] 진행 중인 YOLO 학습 복구 실패', error);
+        } finally {
+            yoloTrainingRecoveryPending = false;
         }
     }
 

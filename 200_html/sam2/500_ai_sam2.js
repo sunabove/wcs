@@ -1525,7 +1525,8 @@
         const imageElement = fileTabPane.querySelector('[data-role="frame-image"]');
         const maskElement = fileTabPane.querySelector('[data-role="frame-mask"]');
         const labelElement = fileTabPane.querySelector('[data-role="frame-label"]');
-        if (!loadingElement || !viewerElement || !previousButton || !nextButton || !counterElement || !imageElement || !maskElement || !labelElement) {
+        const deleteButton = fileTabPane.querySelector('[data-role="dataset-delete"]');
+        if (!loadingElement || !viewerElement || !previousButton || !nextButton || !counterElement || !imageElement || !maskElement || !labelElement || !deleteButton) {
             return async function () {};
         }
 
@@ -1575,6 +1576,42 @@
             if (framePosition < frames.length - 1) {
                 framePosition += 1;
                 renderFrame();
+            }
+        });
+        deleteButton.addEventListener('click', async () => {
+            const inputStem = fileStem(item.name);
+            if (!window.confirm(`${inputStem}의 YOLO 학습 데이터를 삭제하시겠습니까?`)) {
+                return;
+            }
+
+            deleteButton.disabled = true;
+            try {
+                const deleteApiBase = await resolveApiBase();
+                const fileName = item.serverFileName || item.name;
+                const response = await fetch(
+                    `${deleteApiBase}/fast/sam2/yolo_dataset?file_name=${encodeURIComponent(fileName)}`,
+                    { method: 'DELETE' }
+                );
+                if (!response.ok) {
+                    let errorMessage = `학습 데이터 삭제 실패 (${response.status})`;
+                    try {
+                        const errorBody = await response.json();
+                        if (errorBody && errorBody.detail) {
+                            errorMessage = String(errorBody.detail);
+                        }
+                    } catch (_ignore) {
+                        // Keep default error message.
+                    }
+                    throw new Error(errorMessage);
+                }
+
+                const result = await response.json();
+                item.hasYoloDataset = false;
+                updateYoloClassTabs(extractYoloClassName(item.name));
+                setStatus(`${inputStem} 학습 데이터 ${Number(result.deleted_count || 0)}개 삭제 완료`, 'success');
+            } catch (error) {
+                deleteButton.disabled = false;
+                setStatus(error && error.message ? error.message : '학습 데이터 삭제에 실패했습니다.', 'danger');
             }
         });
 

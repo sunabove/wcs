@@ -2595,7 +2595,8 @@ class RapierDriveSimulation {
         const hasWheelContact = Array.isArray(obstacleInfo.contactedWheelKeys)
             && obstacleInfo.contactedWheelKeys.length > 0;
 
-        return (hasWheelContact || alongForward > 0.03)
+        return hasWheelContact
+            && alongForward > -0.1
             && distance < 0.6
             && verticalGap > 0.02;
     }
@@ -2647,8 +2648,9 @@ class RapierDriveSimulation {
             : bodyPosition.z;
         const obstacleTargetZ = this.getObstacleClimbTargetZ(obstacleInfo);
 
-        if (!Number.isFinite(obstacleTargetZ)
-            || (!hasWheelContact && lateralOffset > 0.42)
+        if (!hasWheelContact
+            || !Number.isFinite(obstacleTargetZ)
+            || lateralOffset > 0.8
             || obstacleTargetZ <= groundTargetZ + 0.004) {
             return null;
         }

@@ -4076,11 +4076,13 @@ class RapierDriveSimulation {
                 || null;
             const isObstaclePathActive = this.contactSolver.isObstacleTraversalActive();
             this.isVehicleObstacleContact = Boolean(hasObstacleContactNow || isClimbingApproach || isObstaclePathActive);
-            if ((hasObstacleContactNow || isClimbingApproach || isObstaclePathActive) && Math.abs(effectiveSteerSign) < 1e-3) {
+            if (Math.abs(effectiveSteerSign) < 1e-3) {
                 this.preserveObstacleHeading(obstacleHeadingYaw);
-                this.suppressObstacleLateralDrift(obstacleReferencePosition, obstacleHeadingYaw);
-                this.suppressObstacleLateralSlip();
                 this.body.setAngvel(new this.rapier.Vector3(0, 0, 0), true);
+                if (hasObstacleContactNow || isClimbingApproach || isObstaclePathActive) {
+                    this.suppressObstacleLateralDrift(obstacleReferencePosition, obstacleHeadingYaw);
+                    this.suppressObstacleLateralSlip();
+                }
             }
             if (hasObstacleContactNow || isClimbingApproach || isObstaclePathActive) {
                 this.postObstacleGroundRecoverRemainingSec = Math.max(Number(this.postObstacleGroundRecoverDurationSec) || 0, 0);

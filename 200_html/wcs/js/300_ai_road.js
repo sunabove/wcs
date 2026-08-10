@@ -514,7 +514,7 @@ $(function () {
         cleanupAllFrameStreams();
 
         const detectType = getSelectedDetectType();
-        const includePothole = shouldIncludePotholeOverlay();
+        const includePothole = shouldIncludeObstacleOverlay();
         const removeNoisyMasks = getRemoveNoisyMasks();
         const showDetectStats = getShowDetectStatsOverlay();
         const mqttPublish = getMqttPublishOption();
@@ -600,7 +600,7 @@ $(function () {
                 data: {
                     detect_type: detectType,
                     include_pothole: includePothole,
-                    pothole_conf: getPotholeConfidenceValue(),
+                    pothole_conf: getObstacleConfidenceValue(),
                     remove_noisy_masks: removeNoisyMasks,
                     show_detect_stats: showDetectStats,
                     mqtt_publish: mqttPublish,
@@ -697,7 +697,7 @@ $(function () {
         }
 
         const detectType = getSelectedDetectType();
-        const includePothole = shouldIncludePotholeOverlay();
+        const includePothole = shouldIncludeObstacleOverlay();
         const removeNoisyMasks = getRemoveNoisyMasks();
         const showDetectStats = getShowDetectStatsOverlay();
         const mqttPublish = getMqttPublishOption();
@@ -712,7 +712,7 @@ $(function () {
             data: {
                 detect_type: detectType,
                 include_pothole: includePothole,
-                pothole_conf: getPotholeConfidenceValue(),
+                pothole_conf: getObstacleConfidenceValue(),
                 remove_noisy_masks: removeNoisyMasks,
                 show_detect_stats: showDetectStats,
                 mqtt_publish: mqttPublish,
@@ -818,22 +818,22 @@ $(function () {
         return selected || "road";
     }
 
-    function isPotholeDetectEnabled() {
+    function isObstacleDetectEnabled() {
         if ($enablePotholeDetect.length === 0) {
             return true;
         }
-        return $enablePotholeDetect.is(":checked");
+        return $enableObstacleDetect.is(":checked");
     }
 
-    function syncPotholeDetectOption() {
+    function syncObstacleDetectOption() {
         if ($detectPotholeInput.length === 0) {
             return;
         }
 
-        const enabled = isPotholeDetectEnabled();
-        $detectPotholeInput.prop("disabled", !enabled);
+        const enabled = isObstacleDetectEnabled();
+        $detectObstacleInput.prop("disabled", !enabled);
 
-        if (!enabled && $detectPotholeInput.is(":checked")) {
+        if (!enabled && $detectObstacleInput.is(":checked")) {
             const $fallback = $detectTypeInputs.filter("[value='road']");
             if ($fallback.length > 0) {
                 $fallback.prop("checked", true);
@@ -841,9 +841,9 @@ $(function () {
         }
     }
 
-    function shouldIncludePotholeOverlay() {
+    function shouldIncludeObstacleOverlay() {
         const detectType = getSelectedDetectType();
-        if (!isPotholeDetectEnabled()) {
+        if (!isObstacleDetectEnabled()) {
             return false;
         }
         return detectType === "road" || detectType === "road_type";
@@ -870,16 +870,16 @@ $(function () {
         return $enableMqttPublish.is(":checked");
     }
 
-    function getPotholeConfidenceValue() {
+    function getObstacleConfidenceValue() {
         if ($potholeConfidence.length === 0) {
-            return DEFAULT_POTHOLE_CONFIDENCE;
+            return DEFAULT_OBSTACLE_CONFIDENCE;
         }
 
-        const parsed = parseFloat($potholeConfidence.val());
-        const value = Number.isFinite(parsed) ? parsed : DEFAULT_POTHOLE_CONFIDENCE;
+        const parsed = parseFloat($obstacleConfidence.val());
+        const value = Number.isFinite(parsed) ? parsed : DEFAULT_OBSTACLE_CONFIDENCE;
         const clamped = Math.min(1, Math.max(0, value));
-        if (String(clamped) !== String($potholeConfidence.val())) {
-            $potholeConfidence.val(clamped);
+        if (String(clamped) !== String($obstacleConfidence.val())) {
+            $obstacleConfidence.val(clamped);
         }
         return clamped;
     }
@@ -891,8 +891,8 @@ $(function () {
 
         const payload = {
             detectType: getSelectedDetectType(),
-            enablePotholeDetect: isPotholeDetectEnabled(),
-            potholeConfidence: getPotholeConfidenceValue(),
+            enableObstacleDetect: isObstacleDetectEnabled(),
+            obstacleConfidence: getObstacleConfidenceValue(),
             removeNoisyMasks: getRemoveNoisyMasks(),
             showDetectStats: getShowDetectStatsOverlay(),
             mqttPublish: getMqttPublishOption(),
@@ -900,7 +900,7 @@ $(function () {
 
         try {
             window.localStorage.setItem(DETECT_OPTIONS_STORAGE_KEY, JSON.stringify(payload));
-            window.localStorage.setItem(POTHOLE_OPTION_STORAGE_KEY, String(isPotholeDetectEnabled()));
+            window.localStorage.setItem(OBSTACLE_OPTION_STORAGE_KEY, String(isObstacleDetectEnabled()));
             window.localStorage.setItem(MQTT_PUBLISH_OPTION_STORAGE_KEY, String(getMqttPublishOption()));
         } catch (error) {
             // Ignore storage write errors (private mode, quota exceeded, etc.).
@@ -947,7 +947,7 @@ $(function () {
                 $enablePotholeDetect.prop("checked", restoredPotholeEnabled);
             }
         }
-        syncPotholeDetectOption();
+        syncObstacleDetectOption();
 
         const detectType = String(parsed.detectType || "").trim();
         if (detectType) {
@@ -1164,8 +1164,8 @@ $(function () {
             return window.wcsBuildRoadDetectStreamUrl(fileName, {
                 detect_type: detectType || "road",
                 remove_noisy_masks: removeNoisyMasks !== false,
-                include_pothole: shouldIncludePotholeOverlay(),
-                pothole_conf: getPotholeConfidenceValue(),
+                include_pothole: shouldIncludeObstacleOverlay(),
+                pothole_conf: getObstacleConfidenceValue(),
                 mqtt_publish: getMqttPublishOption(),
                 t: Date.now(),
             });
@@ -1175,8 +1175,8 @@ $(function () {
             const query = $.param({
                 detect_type: detectType || "road",
                 remove_noisy_masks: removeNoisyMasks !== false,
-                include_pothole: shouldIncludePotholeOverlay(),
-                pothole_conf: getPotholeConfidenceValue(),
+                include_pothole: shouldIncludeObstacleOverlay(),
+                pothole_conf: getObstacleConfidenceValue(),
                 mqtt_publish: getMqttPublishOption(),
                 t: Date.now(),
             });
@@ -1189,8 +1189,8 @@ $(function () {
             detect_type: detectType || "road",
             remove_noisy_masks: removeNoisyMasks !== false,
             show_detect_stats: showDetectStats !== false,
-            include_pothole: shouldIncludePotholeOverlay(),
-            pothole_conf: getPotholeConfidenceValue(),
+            include_pothole: shouldIncludeObstacleOverlay(),
+            pothole_conf: getObstacleConfidenceValue(),
             mqtt_publish: getMqttPublishOption(),
         });
         return base + "?" + query;
@@ -1236,8 +1236,8 @@ $(function () {
             camera_name: String(cameraName || ""),
             remove_noisy_masks: removeNoisyMasks !== false,
             show_detect_stats: showDetectStats !== false,
-            include_pothole: shouldIncludePotholeOverlay(),
-            pothole_conf: getPotholeConfidenceValue(),
+            include_pothole: shouldIncludeObstacleOverlay(),
+            pothole_conf: getObstacleConfidenceValue(),
             mqtt_publish: getMqttPublishOption(),
         });
     }
@@ -1724,7 +1724,7 @@ $(function () {
         showUploadStatusMessage("카메라 장치를 여는 중...", true);
 
         const detectType = getSelectedDetectType();
-        const includePothole = shouldIncludePotholeOverlay();
+        const includePothole = shouldIncludeObstacleOverlay();
         const removeNoisyMasks = getRemoveNoisyMasks();
         const showDetectStats = getShowDetectStatsOverlay();
         $.ajax({
@@ -2439,7 +2439,7 @@ $(function () {
         setDetectedOutputShareUrl("", "");
 
         const detectType = getSelectedDetectType();
-        const includePothole = shouldIncludePotholeOverlay();
+        const includePothole = shouldIncludeObstacleOverlay();
         const removeNoisyMasks = getRemoveNoisyMasks();
         const showDetectStats = getShowDetectStatsOverlay();
         const mqttPublish = getMqttPublishOption();
@@ -2462,7 +2462,7 @@ $(function () {
             data: {
                 detect_type: detectType,
                 include_pothole: includePothole,
-                pothole_conf: getPotholeConfidenceValue(),
+                pothole_conf: getObstacleConfidenceValue(),
                 remove_noisy_masks: removeNoisyMasks,
                 show_detect_stats: showDetectStats,
                 mqtt_publish: mqttPublish,
@@ -3038,7 +3038,7 @@ $(function () {
     }
 
     restoreDetectOptionsFromStorage();
-    syncPotholeDetectOption();
+    syncObstacleDetectOption();
     restoreSampleBrowserStateFromStorage();
 
     $detectedImageTab.on("click", function () {
@@ -3083,7 +3083,7 @@ $(function () {
     });
 
     $enablePotholeDetect.on("change", function () {
-        syncPotholeDetectOption();
+        syncObstacleDetectOption();
         saveDetectOptionsToStorage();
         scheduleDetectUpdate();
     });
@@ -3110,7 +3110,7 @@ $(function () {
     });
 
     $potholeConfidence.on("change", function () {
-        getPotholeConfidenceValue();
+        getObstacleConfidenceValue();
         saveDetectOptionsToStorage();
         scheduleDetectUpdate();
         if (cameraStreamState && cameraStreamState.isPlaying) {

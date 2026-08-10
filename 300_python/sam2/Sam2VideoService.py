@@ -119,6 +119,15 @@ class Sam2VideoService:
         except ValueError as ex:
             raise HTTPException(status_code=409, detail=str(ex)) from ex
 
+    def get_yolo_dataset_frames(self, file_name: str):
+        input_path = self._resolve_uploaded_video_path(file_name)
+        frames = self.detector.list_yolo_dataset_frames(input_path)
+        return {
+            "input_file_stem": input_path.stem,
+            "frame_count": len(frames),
+            "frames": frames,
+        }
+
     def _safe_suffix(self, file_name: str) -> str:
         suffix = Path(str(file_name or "")).suffix.lower()
         if suffix not in SAM2_VIDEO_EXTENSIONS:

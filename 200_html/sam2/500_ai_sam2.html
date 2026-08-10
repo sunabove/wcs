@@ -127,7 +127,15 @@
 								</template>
 								<template id="sam2-yolo-file-template">
 									<li class="nav-item" role="presentation" data-role="file-tab-item"><button class="nav-link" type="button" role="tab" data-bs-toggle="tab" data-role="file-tab-button"></button></li>
-									<div class="tab-pane fade" role="tabpanel" data-role="file-tab-pane"><span class="small text-muted" data-role="file-summary"></span></div>
+									<div class="tab-pane fade" role="tabpanel" data-role="file-tab-pane">
+										<div class="small text-muted mb-2" data-role="file-summary"></div>
+										<div class="small text-muted py-4 text-center" data-role="frame-loading">프레임 데이터를 불러오는 중...</div>
+										<div class="d-none" data-role="frame-viewer">
+											<div class="d-flex justify-content-center align-items-center gap-2 mb-2"><button type="button" class="btn btn-outline-secondary btn-sm" data-role="frame-prev" title="이전 프레임" aria-label="이전 프레임"><i class="bi bi-chevron-left" aria-hidden="true"></i></button><span class="small fw-semibold text-nowrap" data-role="frame-counter"></span><button type="button" class="btn btn-outline-secondary btn-sm" data-role="frame-next" title="다음 프레임" aria-label="다음 프레임"><i class="bi bi-chevron-right" aria-hidden="true"></i></button></div>
+											<div class="row g-2"><div class="col-12 col-lg-6"><div class="small fw-semibold text-secondary mb-1">입력 프레임</div><img class="img-fluid border rounded bg-light w-100" data-role="frame-image" alt="YOLO 입력 프레임" style="aspect-ratio: 4 / 3; object-fit: contain;"></div><div class="col-12 col-lg-6"><div class="small fw-semibold text-secondary mb-1">변환 마스크</div><img class="img-fluid border rounded bg-light w-100" data-role="frame-mask" alt="YOLO 변환 마스크" style="aspect-ratio: 4 / 3; object-fit: contain;"></div></div>
+											<div class="mt-2 text-start"><div class="small fw-semibold text-secondary mb-1">YOLO 라벨</div><pre class="small border rounded bg-light p-2 mb-0 overflow-auto" data-role="frame-label" style="min-height: 3.5rem; max-height: 10rem;"></pre></div>
+										</div>
+									</div>
 								</template>
 								<template id="sam2-yolo-class-empty-template"><div class="small text-muted">YOLO 변환 파일이 없습니다.</div></template>
 							</td>

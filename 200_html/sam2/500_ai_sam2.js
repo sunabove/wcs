@@ -1522,6 +1522,104 @@
         }));
     }
 
+    function initializeYoloFrameViewer(item, fileTabPane) {
+        const loadingElement = fileTabPane.querySelector('[data-role="frame-loading"]');
+        const viewerElement = fileTabPane.querySelector('[data-role="frame-viewer"]');
+        const previousButton = fileTabPane.querySelector('[data-role="frame-prev"]');
+        const nextButton = fileTabPane.querySelector('[data-role="frame-next"]');
+        const counterElement = fileTabPane.querySelector('[data-role="frame-counter"]');
+        const imageElement = fileTabPane.querySelector('[data-role="frame-image"]');
+        const maskElement = fileTabPane.querySelector('[data-role="frame-mask"]');
+        const labelElement = fileTabPane.querySelector('[data-role="frame-label"]');
+        if (!loadingElement || !viewerElement || !previousButton || !nextButton || !counterElement || !imageElement || !maskElement || !labelElement) {
+            return async function () {};
+        }
+
+        let frames = [];
+        let framePosition = 0;
+        let apiBase = '';
+        let loaded = false;
+        let loading = false;
+        let labelRequestSequence = 0;
+
+        async function renderFrame() {
+            const frame = frames[framePosition];
+            if (!frame) {
+                return;
+            }
+
+            const requestSequence = ++labelRequestSequence;
+            counterElement.textContent = `${framePosition + 1} / ${frames.length} · 프레임 ${frame.frame_index}`;
+            previousButton.disabled = framePosition <= 0;
+            nextButton.disabled = framePosition >= frames.length - 1;
+            imageElement.src = `${apiBase}${frame.image_url}`;
+            maskElement.src = `${apiBase}${frame.mask_url}`;
+            labelElement.textContent = '라벨을 불러오는 중...';
+            try {
+                const response = await fetch(`${apiBase}${frame.label_url}`, { cache: 'no-store' });
+                if (!response.ok) {
+                    throw new Error(`라벨 조회 실패 (${response.status})`);
+                }
+                const labelText = await response.text();
+                if (requestSequence === labelRequestSequence) {
+                    labelElement.textContent = labelText.trim() || '라벨 데이터가 없습니다.';
+                }
+            } catch (error) {
+                if (requestSequence === labelRequestSequence) {
+                    labelElement.textContent = error && error.message ? error.message : '라벨을 불러오지 못했습니다.';
+                }
+            }
+        }
+
+        previousButton.addEventListener('click', () => {
+            if (framePosition > 0) {
+                framePosition -= 1;
+                renderFrame();
+            }
+        });
+        nextButton.addEventListener('click', () => {
+            if (framePosition < frames.length - 1) {
+                framePosition += 1;
+                renderFrame();
+            }
+        });
+
+        return async function loadYoloFrames() {
+            if (loaded || loading) {
+                return;
+            }
+            loading = true;
+            loadingElement.classList.remove('d-none');
+            loadingElement.textContent = '프레임 데이터를 불러오는 중...';
+            try {
+                apiBase = await resolveApiBase();
+                const fileName = item.serverFileName || item.name;
+                const response = await fetch(
+                    `${apiBase}/fast/sam2/yolo_dataset_frames?file_name=${encodeURIComponent(fileName)}`,
+                    { cache: 'no-store' }
+                );
+                if (!response.ok) {
+                    throw new Error(`프레임 목록 조회 실패 (${response.status})`);
+                }
+                const result = await response.json();
+                frames = Array.isArray(result.frames) ? result.frames : [];
+                loaded = true;
+                if (frames.length === 0) {
+                    loadingElement.textContent = '확인할 YOLO 변환 프레임이 없습니다.';
+                    return;
+                }
+                loadingElement.classList.add('d-none');
+                viewerElement.classList.remove('d-none');
+                framePosition = 0;
+                await renderFrame();
+            } catch (error) {
+                loadingElement.textContent = error && error.message ? error.message : '프레임 데이터를 불러오지 못했습니다.';
+            } finally {
+                loading = false;
+            }
+        };
+    }
+
     function updateYoloClassTabs(preferredClassName) {
         if (!yoloClassTabsElement || !yoloClassTabContentElement || !yoloClassTabTemplate || !yoloFileTabTemplate || !yoloClassEmptyTemplate) {
             return;
@@ -1577,6 +1675,7 @@
             tabPane.setAttribute('aria-labelledby', tabId);
 
             const fileSummaryByName = new Map();
+            let activeFileViewerLoader = null;
             const activeFileIndex = Math.max(0, classVideos.findIndex((item) => basename(item && item.name) === activeInputName));
             if (classVideos.length === 0) {
                 fileTabContentElement.appendChild(yoloClassEmptyTemplate.content.cloneNode(true));
@@ -1606,6 +1705,12 @@
                 fileSummaryElement.textContent = item.yoloConversionAvailable
                     ? '검출 완료 · YOLO 학습 데이터로 변환할 수 있습니다.'
                     : '검출 완료 후 YOLO 학습 데이터로 변환할 수 있습니다.';
+                const loadFrameViewer = initializeYoloFrameViewer(item, fileTabPane);
+                fileTabButton.addEventListener('shown.bs.tab', loadFrameViewer);
+                fileTabButton.addEventListener('click', loadFrameViewer);
+                if (isActiveFile) {
+                    activeFileViewerLoader = loadFrameViewer;
+                }
                 fileTabsElement.appendChild(fileTabItem);
                 fileTabContentElement.appendChild(fileTabPane);
                 fileSummaryByName.set(basename(item.name), fileSummaryElement);
@@ -1614,6 +1719,10 @@
             yoloClassTabsElement.appendChild(tabItem);
             yoloClassTabContentElement.appendChild(tabPane);
             yoloClassUiByName.set(className, { fileSummaryByName });
+            tabButton.addEventListener('shown.bs.tab', () => activeFileViewerLoader?.());
+            if (isActive) {
+                activeFileViewerLoader?.();
+            }
         });
 
         updateOutputDownloadState();

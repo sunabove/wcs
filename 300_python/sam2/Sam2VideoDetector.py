@@ -163,6 +163,33 @@ class Sam2VideoDetector:
                 return True
         return False
 
+    def list_yolo_dataset_frames(self, input_path: Path):
+        input_stem = Path(input_path).stem
+        images_dir = SAM2_YOLO_DIR / "images" / "train"
+        labels_dir = SAM2_YOLO_DIR / "labels" / "train"
+        masks_dir = SAM2_YOLO_DIR / "masks" / "train"
+        if not images_dir.is_dir() or not labels_dir.is_dir() or not masks_dir.is_dir():
+            return []
+
+        file_prefix = f"{input_stem}_"
+        frames = []
+        for image_path in sorted(images_dir.glob(f"{file_prefix}*.jpg")):
+            output_stem = image_path.stem
+            label_path = labels_dir / f"{output_stem}.txt"
+            mask_path = masks_dir / f"{output_stem}.png"
+            if not label_path.is_file() or not mask_path.is_file():
+                continue
+            frame_text = output_stem[len(file_prefix):]
+            if not frame_text.isdigit():
+                continue
+            frames.append({
+                "frame_index": int(frame_text),
+                "image_url": self._to_route_url(image_path),
+                "label_url": self._to_route_url(label_path),
+                "mask_url": self._to_route_url(mask_path),
+            })
+        return frames
+
     def _load_sam2_image_predictor_class(self):
         if self.__class__._sam2_image_predictor_class is not None:
             return self.__class__._sam2_image_predictor_class

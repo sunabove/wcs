@@ -128,8 +128,9 @@
 									<div class="tab-pane fade" role="tabpanel" data-role="tab-pane"><ul class="nav nav-tabs" role="tablist" data-role="file-tabs"></ul><div class="tab-content border border-top-0 rounded-bottom p-3" data-role="file-tab-content"></div></div>
 								</template>
 								<template id="sam2-yolo-file-template">
-									<li class="nav-item d-flex align-items-stretch" role="presentation" data-role="file-tab-item"><button class="nav-link" type="button" role="tab" data-bs-toggle="tab" data-role="file-tab-button"></button><button type="button" class="btn btn-outline-danger btn-sm ms-1 my-1" data-role="dataset-delete" title="해당 입력파일의 YOLO 학습 데이터 삭제" aria-label="YOLO 학습 데이터 삭제"><i class="bi bi-trash" aria-hidden="true"></i></button></li>
+									<li class="nav-item" role="presentation" data-role="file-tab-item"><button class="nav-link" type="button" role="tab" data-bs-toggle="tab" data-role="file-tab-button"></button></li>
 									<div class="tab-pane fade" role="tabpanel" data-role="file-tab-pane">
+										<div class="d-flex justify-content-end mb-2"><button type="button" class="btn btn-outline-danger btn-sm" data-role="dataset-delete" title="해당 입력파일의 YOLO 학습 데이터 삭제"><i class="bi bi-trash me-1" aria-hidden="true"></i>학습 데이터 삭제</button></div>
 										<div class="small text-muted py-4 text-center" data-role="frame-loading">프레임 데이터를 불러오는 중...</div>
 										<div class="d-none" data-role="frame-viewer">
 											<div class="d-flex justify-content-center align-items-center gap-2 mb-2"><button type="button" class="btn btn-outline-secondary btn-sm" data-role="frame-prev" title="이전 프레임" aria-label="이전 프레임"><i class="bi bi-chevron-left" aria-hidden="true"></i></button><span class="small fw-semibold text-nowrap" data-role="frame-counter"></span><button type="button" class="btn btn-outline-secondary btn-sm" data-role="frame-next" title="다음 프레임" aria-label="다음 프레임"><i class="bi bi-chevron-right" aria-hidden="true"></i></button></div>

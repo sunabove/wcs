@@ -3131,7 +3131,7 @@ class RoadDetector:
                     )
 
         header_detect_name = detect_key
-        if detect_key in ("road", "road_type") and len(class_counts) == 1:
+        if detect_key in ("road", "road_type", "obstacle") and len(class_counts) == 1:
             header_detect_name = str(next(iter(class_counts)))
 
         if include_obstacle and detect_key in ("road", "road_type"):

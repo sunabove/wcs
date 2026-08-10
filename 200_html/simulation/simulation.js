@@ -2785,6 +2785,29 @@ class RapierDriveSimulation {
 
         const path = this.activeObstacleTraversalPath;
         if (!path) {
+            const hasWheelContact = Array.isArray(obstacleInfo?.contactedWheelKeys)
+                && obstacleInfo.contactedWheelKeys.length > 0;
+            const directTargetZ = hasWheelContact
+                ? this.getObstacleClimbTargetZ(obstacleInfo)
+                : null;
+            if (!Number.isFinite(directTargetZ)) {
+                return;
+            }
+
+            const translation = this.body.translation();
+            const velocity = this.body.linvel();
+            const maxLiftStep = Math.min(Math.max(effectiveDeltaSec * 0.8, 0.002), 0.008);
+            const nextBodyZ = translation.z + THREE.MathUtils.clamp(
+                directTargetZ - translation.z,
+                0,
+                maxLiftStep
+            );
+            this.body.setTranslation(new this.rapier.Vector3(
+                translation.x,
+                translation.y,
+                nextBodyZ
+            ), true);
+            this.body.setLinvel(new this.rapier.Vector3(velocity.x, velocity.y, 0), true);
             return;
         }
 
@@ -3562,7 +3585,7 @@ class RapierDriveSimulation {
                 const obstacleHasWheelContact = obstacleInfo.contactedWheelKeys.length > 0;
 
                 const isActiveTraversalObstacle = this.activeObstacleTraversalPath?.obstacleInfo === obstacleInfo;
-                if (obstacleHasWheelContact) {
+                if (obstacleHasContact) {
                     obstacleInfo.isContactHighlightLatched = true;
                     obstacleInfo.contactHighlightPendingUntilMs = performance.now() + 600;
                 } else if (!isActiveTraversalObstacle
@@ -3572,7 +3595,9 @@ class RapierDriveSimulation {
 
                 this.setObstacleContactHighlight(
                     obstacleInfo,
-                    obstacleInfo.isContactHighlightLatched === true || isActiveTraversalObstacle
+                    obstacleHasContact
+                        || obstacleInfo.isContactHighlightLatched === true
+                        || isActiveTraversalObstacle
                 );
                 hasContact = hasContact || obstacleHasContact;
             });

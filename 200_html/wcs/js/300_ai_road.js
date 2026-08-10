@@ -515,7 +515,7 @@ $(function () {
         cleanupAllFrameStreams();
 
         const detectType = getSelectedDetectType();
-        const includePothole = shouldIncludeObstacleOverlay();
+        const includeObstacle = shouldIncludeObstacleOverlay();
         const removeNoisyMasks = getRemoveNoisyMasks();
         const showDetectStats = getShowDetectStatsOverlay();
         const mqttPublish = getMqttPublishOption();
@@ -600,7 +600,7 @@ $(function () {
                 url: buildRoadDetectUrl(fileName),
                 data: {
                     detect_type: detectType,
-                    include_pothole: includePothole,
+                    include_pothole: includeObstacle,
                     pothole_conf: getObstacleConfidenceValue(),
                     remove_noisy_masks: removeNoisyMasks,
                     show_detect_stats: showDetectStats,
@@ -698,7 +698,7 @@ $(function () {
         }
 
         const detectType = getSelectedDetectType();
-        const includePothole = shouldIncludeObstacleOverlay();
+        const includeObstacle = shouldIncludeObstacleOverlay();
         const removeNoisyMasks = getRemoveNoisyMasks();
         const showDetectStats = getShowDetectStatsOverlay();
         const mqttPublish = getMqttPublishOption();
@@ -712,7 +712,7 @@ $(function () {
             url: buildRoadDetectUrl(fileName),
             data: {
                 detect_type: detectType,
-                include_pothole: includePothole,
+                include_pothole: includeObstacle,
                 pothole_conf: getObstacleConfidenceValue(),
                 remove_noisy_masks: removeNoisyMasks,
                 show_detect_stats: showDetectStats,
@@ -1731,7 +1731,7 @@ $(function () {
         showUploadStatusMessage("카메라 장치를 여는 중...", true);
 
         const detectType = getSelectedDetectType();
-        const includePothole = shouldIncludeObstacleOverlay();
+        const includeObstacle = shouldIncludeObstacleOverlay();
         const removeNoisyMasks = getRemoveNoisyMasks();
         const showDetectStats = getShowDetectStatsOverlay();
         $.ajax({

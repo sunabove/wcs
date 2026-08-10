@@ -28,7 +28,8 @@ def _is_valid_sample_file(file_path):
     if ext not in IMAGE_EXTENSIONS and ext not in VIDEO_EXTENSIONS:
         return False
 
-    if "_detected" in file_path.stem.lower():
+    stem_lower = file_path.stem.lower()
+    if "_detected" in stem_lower or ".playable" in stem_lower:
         return False
 
     return True

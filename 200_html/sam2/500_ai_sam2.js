@@ -555,7 +555,6 @@
                 yoloDatasetSummaryElement.textContent = summary;
             }
             if (classUi) {
-                classUi.summaryElement.textContent = summary;
                 classUi.fileSummaryByName.get(basename(yoloInputFileName))?.replaceChildren(summary);
             }
             updateOutputDownloadState();
@@ -1546,10 +1545,9 @@
             const tabItem = fragment.querySelector('[data-role="tab-item"]');
             const tabButton = fragment.querySelector('[data-role="tab-button"]');
             const tabPane = fragment.querySelector('[data-role="tab-pane"]');
-            const summaryElement = fragment.querySelector('[data-role="summary"]');
             const fileTabsElement = fragment.querySelector('[data-role="file-tabs"]');
             const fileTabContentElement = fragment.querySelector('[data-role="file-tab-content"]');
-            if (!tabItem || !tabButton || !tabPane || !summaryElement || !fileTabsElement || !fileTabContentElement) {
+            if (!tabItem || !tabButton || !tabPane || !fileTabsElement || !fileTabContentElement) {
                 return;
             }
 
@@ -1564,10 +1562,6 @@
             tabPane.id = paneId;
             tabPane.setAttribute('role', 'tabpanel');
             tabPane.setAttribute('aria-labelledby', tabId);
-
-            summaryElement.textContent = className === detectedClassName && yoloConversionAvailable
-                ? `검출 완료: ${className} 클래스를 YOLO 학습 데이터로 변환할 수 있습니다.`
-                : `업로드 동영상 ${classVideos.length}개 · 검출 완료 후 변환할 수 있습니다.`;
 
             const fileSummaryByName = new Map();
             const activeFileIndex = Math.max(0, classVideos.findIndex((item) => basename(item && item.name) === activeInputName));
@@ -1603,7 +1597,7 @@
 
             yoloClassTabsElement.appendChild(tabItem);
             yoloClassTabContentElement.appendChild(tabPane);
-            yoloClassUiByName.set(className, { summaryElement, fileSummaryByName });
+            yoloClassUiByName.set(className, { fileSummaryByName });
         });
 
         updateOutputDownloadState();

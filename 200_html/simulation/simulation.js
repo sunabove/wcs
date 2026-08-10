@@ -2778,24 +2778,12 @@ class RapierDriveSimulation {
             return;
         }
 
-        const nextPath = this.getObstacleTraversalPath(obstacleInfo);
-        if (nextPath) {
-            this.activeObstacleTraversalPath = nextPath;
-        }
-
-        const path = this.isObstacleTraversalActive()
-            ? this.activeObstacleTraversalPath
+        const hasWheelContact = Array.isArray(obstacleInfo?.contactedWheelKeys)
+            && obstacleInfo.contactedWheelKeys.length > 0;
+        const directTargetZ = hasWheelContact
+            ? this.getObstacleClimbTargetZ(obstacleInfo)
             : null;
-        if (!path) {
-            const hasWheelContact = Array.isArray(obstacleInfo?.contactedWheelKeys)
-                && obstacleInfo.contactedWheelKeys.length > 0;
-            const directTargetZ = hasWheelContact
-                ? this.getObstacleClimbTargetZ(obstacleInfo)
-                : null;
-            if (!Number.isFinite(directTargetZ)) {
-                return;
-            }
-
+        if (Number.isFinite(directTargetZ)) {
             const translation = this.body.translation();
             const velocity = this.body.linvel();
             const maxLiftStep = Math.min(Math.max(effectiveDeltaSec * 0.8, 0.002), 0.008);
@@ -2810,6 +2798,18 @@ class RapierDriveSimulation {
                 nextBodyZ
             ), true);
             this.body.setLinvel(new this.rapier.Vector3(velocity.x, velocity.y, 0), true);
+            return;
+        }
+
+        const nextPath = this.getObstacleTraversalPath(obstacleInfo);
+        if (nextPath) {
+            this.activeObstacleTraversalPath = nextPath;
+        }
+
+        const path = this.isObstacleTraversalActive()
+            ? this.activeObstacleTraversalPath
+            : null;
+        if (!path) {
             return;
         }
 

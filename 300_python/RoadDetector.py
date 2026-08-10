@@ -3130,10 +3130,14 @@ class RoadDetector:
                         avoid_label_regions=label_regions,
                     )
 
+        header_detect_name = detect_key
+        if detect_key in ("road", "road_type") and len(class_counts) == 1:
+            header_detect_name = str(next(iter(class_counts)))
+
         if include_obstacle and detect_key in ("road", "road_type"):
-            header_detect_info = f"{detect_key}({conf * 100:.0f}%), obstacle({float(np.clip(float(obstacle_conf), 0.0, 1.0)) * 100:.0f}%)"
+            header_detect_info = f"{header_detect_name}({conf * 100:.0f}%), obstacle({float(np.clip(float(obstacle_conf), 0.0, 1.0)) * 100:.0f}%)"
         else:
-            header_detect_info = f"{detect_key}({conf * 100:.0f}%)"
+            header_detect_info = f"{header_detect_name}({conf * 100:.0f}%)"
 
         if not suppress_header:
             detected = self._render_header(detected, header_detect_info, detected_count, class_counts, started_at, font_face)

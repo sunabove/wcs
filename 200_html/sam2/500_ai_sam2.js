@@ -84,6 +84,8 @@
     const yoloTrainStatusElement = document.getElementById('sam2-yolo-train-status');
     const yoloTrainMetricsCanvas = document.getElementById('sam2-yolo-train-metrics-chart');
     document.querySelector('#sam2-yolo-train-pane > section > .fw-semibold.mb-2')?.remove();
+    setIconText(yoloTrainClassCountElement, 'bi-tags', '클래스 0개');
+    setIconText(yoloTrainDataSummaryElement, 'bi-file-earmark-play', '입력파일 0개 · 프레임 0장 · Seg Polygon 0개');
 
     let selectedFile = null;
     let resolvedApiBase = null;
@@ -325,6 +327,16 @@
     function toNumber(value, fallback) {
         const parsed = Number(value);
         return Number.isFinite(parsed) ? parsed : fallback;
+    }
+
+    function setIconText(element, iconClass, text) {
+        if (!element) {
+            return;
+        }
+        const icon = document.createElement('i');
+        icon.className = `bi ${iconClass} me-1`;
+        icon.setAttribute('aria-hidden', 'true');
+        element.replaceChildren(icon, document.createTextNode(text));
     }
 
     function getPromptFrame() {
@@ -977,11 +989,15 @@
             const inputFileCount = Number(summary.input_file_count || 0);
             const frameCount = Number(summary.frame_count || 0);
             const segmentCount = Number(summary.segment_count || 0);
-            yoloTrainClassCountElement.textContent = `클래스 ${classCount}개`;
+            setIconText(yoloTrainClassCountElement, 'bi-tags', `클래스 ${classCount}개`);
             yoloTrainClassNamesElement.textContent = classNames.length > 0
                 ? classNames.join(', ')
                 : '등록된 클래스가 없습니다.';
-            yoloTrainDataSummaryElement.textContent = `입력파일 ${inputFileCount}개 · 프레임 ${frameCount}장 · Seg Polygon ${segmentCount}개`;
+            setIconText(
+                yoloTrainDataSummaryElement,
+                'bi-file-earmark-play',
+                `입력파일 ${inputFileCount}개 · 프레임 ${frameCount}장 · Seg Polygon ${segmentCount}개`
+            );
             if (yoloTrainStartButton && !yoloTrainingJobId) {
                 yoloTrainStartButton.disabled = frameCount <= 0;
             }

@@ -3,7 +3,6 @@
 
     const fileInput = document.getElementById('yolo-video-file');
     const dropZone = document.getElementById('yolo-drop-zone');
-    const uploadButton = document.getElementById('yolo-upload-button');
     const selectedFileElement = document.getElementById('yolo-selected-file');
     const detectButton = document.getElementById('yolo-detect-btn');
     const confInput = document.getElementById('yolo-conf');
@@ -47,6 +46,7 @@
     let detectProgressTimer = null;
     let detectProgressValue = 0;
     let pendingRealtimeDetect = false;
+    let uploadInProgress = false;
     let uploadedHistory = [];
     let modelHistory = [];
     let selectedServerFileName = '';
@@ -749,9 +749,6 @@
         }
 
         if (!selectedFileElement) {
-            if (uploadButton) {
-                uploadButton.disabled = !selectedFile;
-            }
             return;
         }
 
@@ -759,10 +756,6 @@
             selectedFileElement.textContent = `선택됨: ${selectedFile.name}`;
         } else {
             selectedFileElement.textContent = '선택된 파일 없음';
-        }
-
-        if (uploadButton) {
-            uploadButton.disabled = !selectedFile;
         }
     }
 
@@ -1123,9 +1116,14 @@
         }
     }
 
-    function handleChosenFile(file) {
+    async function handleChosenFile(file) {
         if (!file) {
             setSelectedFile(null);
+            return;
+        }
+
+        if (uploadInProgress) {
+            setStatus('동영상 업로드가 진행 중입니다.', 'warning');
             return;
         }
 
@@ -1138,22 +1136,24 @@
         selectedServerFileName = '';
         syncInputWithFile(file);
         renderUploadedHistory();
-        setStatus('동영상 파일이 준비되었습니다. 동영상 업로드를 눌러주세요.', 'secondary');
+        await uploadSelectedVideo(file);
     }
 
-    async function uploadSelectedVideo() {
-        if (uploadButton?.disabled) {
+    async function uploadSelectedVideo(selectedVideoFile) {
+        if (uploadInProgress) {
             return;
         }
 
         const fileFromInput = fileInput.files && fileInput.files[0] ? fileInput.files[0] : null;
-        const file = selectedFile || fileFromInput;
+        const file = selectedVideoFile || selectedFile || fileFromInput;
         if (!file) {
             setStatus('업로드할 동영상 파일을 선택하세요.', 'warning');
             return;
         }
 
-        uploadButton.disabled = true;
+        uploadInProgress = true;
+        fileInput.disabled = true;
+        dropZone.setAttribute('aria-busy', 'true');
         setUploadProgress(0, true, '0%');
         setStatus('동영상 업로드 중...', 'info');
 
@@ -1175,12 +1175,14 @@
             setStatus('동영상 업로드 완료. 업로드 동영상 탭에서 선택되었습니다.', 'success');
         } catch (error) {
             const message = error && error.message ? error.message : String(error);
+            setSelectedFile(null);
+            syncInputWithFile(null);
             setStatus(`오류: ${message}`, 'danger');
             setUploadProgress(0, false, '0%');
         } finally {
-            if (uploadButton) {
-                uploadButton.disabled = !selectedFile;
-            }
+            uploadInProgress = false;
+            fileInput.disabled = false;
+            dropZone.removeAttribute('aria-busy');
         }
     }
 
@@ -1279,16 +1281,6 @@
     dropZone.addEventListener('click', () => {
         fileInput.click();
     });
-
-    if (uploadButton) {
-        uploadButton.addEventListener('click', () => {
-            if (uploadButton.disabled) {
-                return;
-            }
-
-            uploadSelectedVideo();
-        });
-    }
 
     dropZone.addEventListener('keydown', (event) => {
         if (event.key === 'Enter' || event.key === ' ') {

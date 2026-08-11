@@ -27,5 +27,14 @@ from sam2.Sam2DetectService import router as sam2DetectRouter
 
 app.include_router(roadDetectRouter)
 app.include_router(yoloDetectRouter)
-app.include_router(sam2DetectRouter)
+app.include_router(sam2DetectRouter) 
 
+
+def main():
+    import uvicorn
+
+    uvicorn.run("fastapi_main:app", host="0.0.0.0", port=8000, reload=True)
+pass # main
+
+if __name__ == "__main__":
+    main()

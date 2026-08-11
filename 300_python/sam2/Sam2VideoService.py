@@ -67,13 +67,14 @@ class Sam2VideoService:
                     "total_frames": total_frames,
                 })
 
-    def _run_detection_job(self, job_id, input_path, model_name, bbox, points, point_labels, multimask_output, mask_input, clahe, iou_mask_filter):
+    def _run_detection_job(self, job_id, input_path, model_name, prompt_frame, bbox, points, point_labels, multimask_output, mask_input, clahe, iou_mask_filter):
         try:
             with self._jobs_lock:
                 self._jobs[job_id]["status"] = "running"
             result = self.detector.detect_video_file(
                 input_path=input_path,
                 model_name=model_name,
+                prompt_frame=prompt_frame,
                 bbox=bbox,
                 points=points,
                 point_labels=point_labels,
@@ -95,13 +96,14 @@ class Sam2VideoService:
             with self._jobs_lock:
                 self._jobs[job_id].update({"status": "failed", "error": str(ex)})
 
-    def _start_detection_job(self, input_path, model_name, bbox, points, point_labels, multimask_output, mask_input, clahe, iou_mask_filter):
+    def _start_detection_job(self, input_path, model_name, prompt_frame, bbox, points, point_labels, multimask_output, mask_input, clahe, iou_mask_filter):
         job_id = self._create_job()
         self._job_executor.submit(
             self._run_detection_job,
             job_id,
             input_path,
             model_name,
+            prompt_frame,
             bbox,
             points,
             point_labels,
@@ -772,6 +774,7 @@ class Sam2VideoService:
         return self._start_detection_job(
             input_path=input_path,
             model_name=resolved_model_name,
+            prompt_frame=prompt_frame,
             bbox=bbox,
             points=points,
             point_labels=point_labels,
@@ -827,6 +830,7 @@ class Sam2VideoService:
         return self._start_detection_job(
             input_path=input_path,
             model_name=resolved_model_name,
+            prompt_frame=prompt_frame,
             bbox=bbox,
             points=points,
             point_labels=point_labels,

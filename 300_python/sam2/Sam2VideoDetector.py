@@ -1596,6 +1596,7 @@ class Sam2VideoDetector:
         self,
         input_path: Path,
         model_name: str = SAM2_DEFAULT_MODEL,
+        prompt_frame: int = 1,
         bbox=None,
         points=None,
         point_labels=None,
@@ -1633,6 +1634,10 @@ class Sam2VideoDetector:
             capture.release()
             raise RuntimeError("Invalid video size")
 
+        prompt_frame_index = max(0, int(prompt_frame) - 1)
+        if total_frames > 0:
+            prompt_frame_index = min(prompt_frame_index, total_frames - 1)
+
         bbox_rect, normalized_bbox = self._parse_bbox(bbox, width, height)
         if bbox_rect is None:
             bbox_rect = (0, 0, width, height)
@@ -1666,12 +1671,24 @@ class Sam2VideoDetector:
         iou_history = []
         mask_history = []
         reference_mask = None
+        frame_index = 0
 
         try:
             while True:
                 ok, frame = capture.read()
                 if not ok:
                     break
+
+                if frame_index < prompt_frame_index:
+                    tracked_frames += 1
+                    score_history.append(0.0)
+                    mask_history.append(None)
+                    fill_ratio_history.append(0.0)
+                    overlay_writer.write(frame)
+                    frame_index += 1
+                    if progress_callback is not None and total_frames > 0:
+                        progress_callback(tracked_frames, max(1, total_frames * 2))
+                    continue
 
                 try:
                     rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
@@ -1712,6 +1729,7 @@ class Sam2VideoDetector:
                     self._calculate_mask_bbox_fill_ratio(mask_tensor, frame.shape)
                 )
                 overlay_writer.write(frame)
+                frame_index += 1
                 if progress_callback is not None and total_frames > 0:
                     progress_callback(tracked_frames, max(1, total_frames * 2))
 
@@ -1721,8 +1739,18 @@ class Sam2VideoDetector:
             overlay_writer = None
 
             # Select the highest stable Score plateau for thresholding and reference-mask selection.
-            peak_start, peak_last = self._find_score_plateau_bounds(
-                np.asarray(score_history, dtype=np.float32),
+            local_peak_start, local_peak_last = self._find_score_plateau_bounds(
+                np.asarray(score_history[prompt_frame_index:], dtype=np.float32),
+            )
+            peak_start = (
+                prompt_frame_index + local_peak_start
+                if local_peak_start is not None
+                else None
+            )
+            peak_last = (
+                prompt_frame_index + local_peak_last
+                if local_peak_last is not None
+                else None
             )
             detection_threshold = None
             iou_threshold = None

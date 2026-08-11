@@ -17,6 +17,7 @@
     const uploadProgressWrapElement = document.getElementById('sam2-upload-progress-wrap');
     const uploadProgressBarElement = document.getElementById('sam2-upload-progress-bar');
     const uploadProgressStatusElement = document.getElementById('sam2-upload-progress-status');
+    const promptFrameInput = document.getElementById('sam2-prompt-frame-input');
     const foregroundPointModeButton = document.getElementById('sam2-foreground-point-mode');
     const backgroundPointModeButton = document.getElementById('sam2-background-point-mode');
     if (foregroundPointModeButton) {
@@ -321,6 +322,12 @@
         }
         if (inputVideoFps <= 0 || inputVideoFrameCount <= 0) {
             inputFrameCounterElement.textContent = '프레임 - / -';
+            if (promptFrameInput) {
+                promptFrameInput.min = '1';
+                promptFrameInput.max = '1';
+                promptFrameInput.value = '1';
+                promptFrameInput.disabled = true;
+            }
             return;
         }
 
@@ -332,6 +339,11 @@
             inputVideoFrameCount
         );
         inputFrameCounterElement.textContent = `프레임 ${currentFrame.toLocaleString()} / ${inputVideoFrameCount.toLocaleString()}`;
+        if (promptFrameInput && document.activeElement !== promptFrameInput) {
+            promptFrameInput.max = String(inputVideoFrameCount);
+            promptFrameInput.value = String(currentFrame);
+            promptFrameInput.disabled = !hasSelectedVideo();
+        }
     }
 
     async function loadInputVideoMetadata(fileName) {
@@ -367,6 +379,20 @@
     inputVideoElement.addEventListener('loadedmetadata', updateInputFrameCounter);
     inputVideoElement.addEventListener('timeupdate', updateInputFrameCounter);
     inputVideoElement.addEventListener('seeked', updateInputFrameCounter);
+    promptFrameInput?.addEventListener('change', () => {
+        if (inputVideoFps <= 0 || inputVideoFrameCount <= 0) {
+            return;
+        }
+        const targetFrame = clamp(
+            Math.trunc(toNumber(promptFrameInput.value, 1)),
+            1,
+            inputVideoFrameCount
+        );
+        promptFrameInput.value = String(targetFrame);
+        inputVideoElement.pause();
+        inputVideoElement.currentTime = (targetFrame - 1) / inputVideoFps;
+        updateInputFrameCounter(inputVideoElement.currentTime);
+    });
     if (typeof inputVideoElement.requestVideoFrameCallback === 'function') {
         const updateOnVideoFrame = (_now, metadata) => {
             updateInputFrameCounter(metadata.mediaTime);
@@ -409,6 +435,9 @@
                 control.disabled = !enabled;
             }
         });
+        if (promptFrameInput) {
+            promptFrameInput.disabled = !enabled || inputVideoFps <= 0 || inputVideoFrameCount <= 0;
+        }
         if (bboxCaptureLayerElement) {
             bboxCaptureLayerElement.style.pointerEvents = enabled ? 'auto' : 'none';
         }

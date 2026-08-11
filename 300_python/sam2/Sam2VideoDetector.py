@@ -1737,6 +1737,12 @@ class Sam2VideoDetector:
             if not render_capture.isOpened():
                 raise RuntimeError("Failed to reopen intermediate output video")
 
+            chart_score_history = list(score_history)
+            chart_iou_history = list(iou_history)
+            chart_fill_ratio_history = list(fill_ratio_history)
+            for history in (chart_score_history, chart_iou_history, chart_fill_ratio_history):
+                history[:prompt_frame_index] = [0.0] * prompt_frame_index
+
             rendered_frames = 0
             while True:
                 ok, plotted = render_capture.read()
@@ -1775,8 +1781,11 @@ class Sam2VideoDetector:
                 )
                 plotted = self._render_score_chart(
                     plotted,
-                    score_history,
-                    prompt_frame_index + 1,
+                    chart_score_history,
+                    chart_iou_history,
+                    iou_threshold,
+                    chart_fill_ratio_history,
+                    rendered_frames,
                     total_frames,
                 )
                 writer.write(plotted)

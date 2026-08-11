@@ -497,24 +497,12 @@
         modelBadgesElement.appendChild(button);
     }
 
-    function updateModelClassSelectionCount(paneElement, modelItem, selectedClassNames) {
+    function updateClassSelectionToggleButton(paneElement, modelItem, selectedClassNames) {
         if (!paneElement) {
             return;
         }
 
-        const classCountElement = paneElement.querySelector('[data-role="class-count"]');
-        if (!classCountElement) {
-            return;
-        }
-
         const totalCount = normalizeClassNameList(modelItem && modelItem.classNames).length;
-        if (totalCount <= 0) {
-            classCountElement.textContent = '클래스 0개';
-            return;
-        }
-
-        classCountElement.textContent = `클래스 ${selectedClassNames.length}/${totalCount}`;
-
         const toggleAllButton = paneElement.querySelector('[data-role="class-toggle-all"]');
         if (toggleAllButton) {
             toggleAllButton.textContent = selectedClassNames.length >= totalCount ? '전체 해제' : '전체 선택';
@@ -557,7 +545,7 @@
                 const buttonClassName = String(button.getAttribute('data-class-name') || '').trim();
                 applyClassToggleButtonState(button, selectedNow.has(buttonClassName));
             });
-            updateModelClassSelectionCount(activePane, modelItem, nextSelection);
+            updateClassSelectionToggleButton(activePane, modelItem, nextSelection);
         }
     }
 
@@ -593,7 +581,7 @@
                 const buttonClassName = String(button.getAttribute('data-class-name') || '').trim();
                 applyClassToggleButtonState(button, selectedNow.has(buttonClassName));
             });
-            updateModelClassSelectionCount(activePane, modelItem, nextSelection);
+            updateClassSelectionToggleButton(activePane, modelItem, nextSelection);
         }
     }
 
@@ -639,7 +627,6 @@
                 <span class="d-inline-flex align-items-center gap-1">
                     <i class="bi bi-box-seam text-secondary" aria-hidden="true"></i>
                     <span>${modelItem.displayName}</span>
-                    ${modelItem.isDefault ? '<span class="badge text-bg-primary ms-1">기본</span>' : ''}
                 </span>
             `;
 

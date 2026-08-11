@@ -82,6 +82,14 @@
     }
     const yoloTrainProgressElement = document.getElementById('sam2-yolo-train-progress');
     const yoloTrainProgressTextElement = document.getElementById('sam2-yolo-train-progress-text');
+    const yoloTrainProgressBar = yoloTrainProgressElement?.parentElement;
+    if (yoloTrainProgressBar) {
+        yoloTrainProgressBar.style.height = '2.5rem';
+        yoloTrainProgressBar.parentElement?.classList.remove('mt-2');
+        yoloTrainProgressBar.parentElement?.classList.add('mt-3');
+    }
+    yoloTrainProgressTextElement?.classList.remove('small');
+    yoloTrainProgressTextElement?.classList.add('fs-5', 'px-3', 'py-1');
     const yoloTrainStatusElement = document.getElementById('sam2-yolo-train-status');
     yoloTrainStatusElement?.classList.remove('small', 'mt-1');
     yoloTrainStatusElement?.classList.add('fs-5', 'mt-3');

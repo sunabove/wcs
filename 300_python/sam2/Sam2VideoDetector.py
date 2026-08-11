@@ -732,12 +732,22 @@ class Sam2VideoDetector:
             cv2.LINE_AA,
         )
 
-    def _draw_option_summary(self, image, mask_input, multimask_output, clahe, iou_mask_filter):
+    def _draw_option_summary(
+        self,
+        image,
+        mask_input,
+        multimask_output,
+        clahe,
+        iou_mask_filter,
+        current_frame,
+        total_frames,
+    ):
         label = (
             f"Mask input: {'On' if mask_input else 'Off'} | "
             f"Multimask output: {'On' if multimask_output else 'Off'} | "
             f"CLAHE: {'On' if clahe else 'Off'} | "
-            f"IoU Mask filter: {'On' if iou_mask_filter else 'Off'}"
+            f"IoU Mask filter: {'On' if iou_mask_filter else 'Off'} | "
+            f"Frame: {int(current_frame)}/{int(total_frames)}"
         )
         font = cv2.FONT_HERSHEY_SIMPLEX
         font_scale = 0.5
@@ -1778,6 +1788,8 @@ class Sam2VideoDetector:
                     multimask_output,
                     clahe,
                     iou_mask_filter,
+                    rendered_frames,
+                    total_frames,
                 )
                 plotted = self._render_score_chart(
                     plotted,

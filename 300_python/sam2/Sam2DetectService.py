@@ -66,8 +66,9 @@ def uploaded_videos(
 @router.get("/video_metadata")
 def video_metadata(
     file_name: str = Query(...),
+    output: bool = Query(False),
 ):
-    return _service.get_video_metadata(file_name=file_name)
+    return _service.get_video_metadata(file_name=file_name, output=output)
 
 
 @router.delete("/uploaded_video")

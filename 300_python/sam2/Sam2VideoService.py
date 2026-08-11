@@ -881,10 +881,15 @@ class Sam2VideoService:
         items.sort(key=lambda item: item.get("uploaded_at", ""), reverse=True)
         return {"videos": items[: max(1, int(limit))]}
 
-    def get_video_metadata(self, file_name: str):
+    def get_video_metadata(self, file_name: str, output: bool = False):
         input_path = self._resolve_uploaded_video_path(file_name)
-        playable_path = input_path.with_name(f"{input_path.stem}.playable.mp4")
-        metadata_path = playable_path if playable_path.is_file() else input_path
+        if output:
+            metadata_path = SAM2_OUTPUT_DIR / f"{input_path.stem}.mp4"
+            if not metadata_path.is_file():
+                raise HTTPException(status_code=404, detail="Detected video not found")
+        else:
+            playable_path = input_path.with_name(f"{input_path.stem}.playable.mp4")
+            metadata_path = playable_path if playable_path.is_file() else input_path
         capture = cv2.VideoCapture(str(metadata_path))
         try:
             if not capture.isOpened():

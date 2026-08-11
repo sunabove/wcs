@@ -1,0 +1,99 @@
+#yolo-drop-zone.drag-active {
+	border-color: #198754;
+	background: #d1e7dd;
+	box-shadow: inset 0 0 0 1px rgba(25, 135, 84, 0.25);
+}
+
+#yolo-drop-zone.file-selected {
+	border-color: #198754;
+	background: #eaf7ef;
+	box-shadow: inset 0 0 0 1px rgba(25, 135, 84, 0.2);
+}
+
+.yolo-label-column {
+	width: 140px;
+}
+
+#yolo-uploaded-list {
+	white-space: nowrap;
+}
+
+#yolo-uploaded-list .list-group-item {
+	min-width: 118px;
+	max-width: 118px;
+	padding: 0.4rem;
+}
+
+.yolo-uploaded-item {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 0.35rem;
+}
+
+#yolo-drop-zone,
+.yolo-uploaded-item-selectable {
+	cursor: pointer;
+}
+
+.yolo-uploaded-thumb {
+	width: 100%;
+	height: 64px;
+	object-fit: cover;
+	border-radius: 0.35rem;
+	border: 1px solid #dee2e6;
+	background: #f1f5f9;
+	flex-shrink: 0;
+}
+
+.yolo-upload-drop-thumb {
+	border-style: dashed;
+}
+
+.yolo-uploaded-meta {
+	width: 100%;
+	min-width: 0;
+	line-height: 1.2;
+	text-align: center;
+}
+
+.yolo-inherit-text,
+#yolo-upload-progress-wrap,
+#yolo-upload-progress-label,
+#yolo-status {
+	font-family: inherit;
+}
+
+.yolo-upload-progress {
+	height: 16px;
+}
+
+#yolo-upload-progress-bar {
+	width: 0;
+}
+
+#yolo-upload-progress-label {
+	font-size: 0.65rem;
+	line-height: 1;
+	text-shadow: 0 0 2px rgba(255, 255, 255, 0.9);
+}
+
+[data-role="class-list"],
+#yolo-status {
+	min-width: 0;
+}
+
+.yolo-class-toggle-btn {
+	font-size: 1.05em;
+	padding: 0.31em 0.65em;
+}
+
+#yolo-status {
+	line-height: 1.15;
+}
+
+.yolo-video-player {
+	width: auto;
+	height: auto;
+	max-height: 70vh;
+}

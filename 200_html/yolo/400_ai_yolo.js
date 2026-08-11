@@ -465,7 +465,7 @@
 
         const classNames = normalizeClassNameList(modelItem && modelItem.classNames);
         if (classNames.length === 0) {
-            classListElement.innerHTML = '<span class="badge text-bg-light border text-dark flex-shrink-0" style="font-family: inherit; font-size: inherit;">-</span>';
+            classListElement.innerHTML = '<span class="badge text-bg-light border text-dark flex-shrink-0 yolo-inherit-text">-</span>';
             return;
         }
 
@@ -476,8 +476,6 @@
             const button = document.createElement('button');
             button.type = 'button';
             button.className = 'btn btn-sm yolo-class-toggle-btn d-inline-flex align-items-center fw-bold lh-1';
-            button.style.fontSize = '1.05em';
-            button.style.padding = '0.31em 0.65em';
             button.setAttribute('data-role', 'class-toggle');
             button.setAttribute('data-model-key', getModelSelectionKey(modelItem));
             button.setAttribute('data-class-name', className);
@@ -771,8 +769,7 @@
             }
 
             const row = document.createElement('div');
-            row.className = 'yolo-uploaded-item';
-            row.style.cursor = 'pointer';
+            row.className = 'yolo-uploaded-item yolo-uploaded-item-selectable';
 
             const thumb = document.createElement('img');
             thumb.className = 'yolo-uploaded-thumb';

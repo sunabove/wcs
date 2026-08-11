@@ -8,7 +8,7 @@ User=www
 WorkingDirectory=/home/www/wcs
 Environment=PYTHONUNBUFFERED=1
 
-ExecStart=/usr/bin/python3 fastapi_main.py
+ExecStart=/usr/bin/python3 300_python/fastapi_main.py
 
 Restart=always
 RestartSec=1

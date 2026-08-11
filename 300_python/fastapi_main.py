@@ -8,7 +8,7 @@ from pathlib import Path
 from pydantic import BaseModel 
 
 # cd ~/wcs
-# python3 fastapi_main.py
+# python3 300_python/fastapi_main.py
 
 CURRENT_DIR = Path(__file__).resolve().parent
 if str(CURRENT_DIR) not in sys.path:

@@ -43,8 +43,6 @@
     let inputObjectUrl = '';
     let outputObjectUrl = '';
     let realtimeDetectTimer = null;
-    let detectProgressTimer = null;
-    let detectProgressValue = 0;
     let pendingRealtimeDetect = false;
     let uploadInProgress = false;
     let uploadedHistory = [];
@@ -187,46 +185,7 @@
             uploadProgressLabelElement.textContent = `${bounded}%`;
         }
 
-        uploadProgressWrapElement.classList.remove('d-none');
-    }
-
-    function stopDetectProgressTicker(finalPercent) {
-        if (detectProgressTimer) {
-            clearInterval(detectProgressTimer);
-            detectProgressTimer = null;
-        }
-
-        if (Number.isFinite(Number(finalPercent))) {
-            detectProgressValue = Math.max(0, Math.min(100, Number(finalPercent)));
-            setUploadProgress(detectProgressValue, true, `${Math.round(detectProgressValue)}%`);
-        }
-    }
-
-    function startDetectProgressTicker() {
-        stopDetectProgressTicker();
-        detectProgressValue = 3;
-        setUploadProgress(detectProgressValue, true, `${Math.round(detectProgressValue)}%`);
-
-        detectProgressTimer = setInterval(() => {
-            if (detectProgressValue >= 95) {
-                return;
-            }
-
-            // Gradually slow down as it approaches completion to look natural.
-            if (detectProgressValue < 40) {
-                detectProgressValue += 3;
-            } else if (detectProgressValue < 70) {
-                detectProgressValue += 2;
-            } else {
-                detectProgressValue += 1;
-            }
-
-            if (detectProgressValue > 95) {
-                detectProgressValue = 95;
-            }
-
-            setUploadProgress(detectProgressValue, true, `${Math.round(detectProgressValue)}%`);
-        }, 700);
+        uploadProgressWrapElement.classList.toggle('d-none', !show);
     }
 
     function formatBytes(bytes) {
@@ -1216,7 +1175,6 @@
         }
 
         detectButton.disabled = true;
-        startDetectProgressTicker();
         setStatus('YOLO 검출 진행 중...', 'info');
 
         try {
@@ -1262,11 +1220,9 @@
                 }
             }
 
-            stopDetectProgressTicker(100);
             setStatus('검출 완료', 'success');
         } catch (error) {
             const message = error && error.message ? error.message : String(error);
-            stopDetectProgressTicker(0);
             setStatus(`오류: ${message}`, 'danger');
         } finally {
             detectButton.disabled = false;

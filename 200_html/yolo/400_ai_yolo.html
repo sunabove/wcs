@@ -100,10 +100,16 @@
 								<input id="yolo-video-file" class="d-none" type="file" accept="video/*">
 								<div class="tab-content border border-top-0 rounded-bottom p-2 bg-white">
 									<div class="tab-pane fade show active" id="yolo-file-source-pane" role="tabpanel" aria-labelledby="yolo-file-source-tab" tabindex="0">
-										<div class="d-flex align-items-stretch">
+										<div class="d-flex flex-column align-items-stretch gap-2">
 											<div id="yolo-drop-zone" class="border border-2 rounded-3 bg-light p-3 text-center text-secondary flex-grow-1" style="border-style: dashed; cursor: pointer; transition: all 0.15s ease; background: #f8fafc; color: #334155;" role="button" tabindex="0" aria-label="동영상 드래그 업로드 영역">
 												<div class="fw-semibold">동영상을 여기로 드래그하세요</div>
 												<div id="yolo-selected-file" class="form-text mt-1">또는 클릭해서 파일 선택</div>
+											</div>
+											<div id="yolo-upload-progress-wrap" class="d-none" style="font-family: inherit;">
+												<div class="progress position-relative w-100" role="progressbar" aria-label="동영상 업로드 진행률" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" style="min-height: 24px;">
+													<div id="yolo-upload-progress-bar" class="progress-bar progress-bar-striped progress-bar-animated" style="width: 0%;"></div>
+													<span id="yolo-upload-progress-label" class="position-absolute top-50 start-50 translate-middle small fw-semibold text-dark" style="text-shadow: 0 0 2px rgba(255, 255, 255, 0.9); font-family: inherit;">0%</span>
+												</div>
 											</div>
 										</div>
 									</div>
@@ -163,16 +169,8 @@
 						<tr>
 							<th scope="row" class="text-center text-nowrap">상태</th>
 							<td class="p-1">
-								<div class="d-flex flex-wrap align-items-stretch gap-2 w-100">
-									<div id="yolo-status" class="alert alert-secondary mb-0 py-1 px-2 rounded-2 d-flex align-items-center" style="line-height: 1.15; min-width: 0; flex: 0 0 calc(50% - 0.5rem); max-width: calc(50% - 0.5rem); font-family: inherit;">
-										<span id="yolo-status-text" class="fs-6 fw-semibold text-dark">대기 중</span>
-									</div>
-									<div id="yolo-upload-progress-wrap" class="alert alert-secondary mb-0 py-1 px-2 small rounded-2 d-flex align-items-stretch" style="line-height: 1.15; flex: 0 0 calc(50% - 0.5rem); max-width: calc(50% - 0.5rem); min-width: 0; font-family: inherit;">
-										<div class="progress position-relative w-100 h-100" role="progressbar" aria-label="동영상 작업 진행률" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" style="min-height: 30px;">
-											<div id="yolo-upload-progress-bar" class="progress-bar progress-bar-striped progress-bar-animated" style="width: 0%;"></div>
-											<span id="yolo-upload-progress-label" class="position-absolute top-50 start-50 translate-middle fs-6 fw-semibold text-dark" style="text-shadow: 0 0 2px rgba(255, 255, 255, 0.9); font-family: inherit;">0%</span>
-										</div>
-									</div>
+								<div id="yolo-status" class="alert alert-secondary mb-0 py-1 px-2 rounded-2 d-flex align-items-center w-100" style="line-height: 1.15; min-width: 0; font-family: inherit;">
+									<span id="yolo-status-text" class="fs-6 fw-semibold text-dark">대기 중</span>
 								</div>
 							</td>
 						</tr>

@@ -479,7 +479,7 @@
             button.setAttribute('data-class-name', className);
 
             const toggleIcon = document.createElement('i');
-            toggleIcon.className = 'bi ms-1';
+            toggleIcon.className = 'bi ms-2';
             toggleIcon.setAttribute('data-role', 'class-toggle-icon');
             toggleIcon.setAttribute('aria-hidden', 'true');
 

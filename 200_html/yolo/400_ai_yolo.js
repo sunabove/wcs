@@ -479,11 +479,12 @@
             button.setAttribute('data-class-name', className);
 
             const toggleIcon = document.createElement('i');
-            toggleIcon.className = 'bi ms-2';
+            toggleIcon.className = 'bi d-inline-flex align-items-center lh-1 ms-2';
             toggleIcon.setAttribute('data-role', 'class-toggle-icon');
             toggleIcon.setAttribute('aria-hidden', 'true');
 
             const label = document.createElement('span');
+            label.className = 'd-inline-flex align-items-center lh-1';
             label.textContent = className;
 
             button.append(label, toggleIcon);

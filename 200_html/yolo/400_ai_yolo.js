@@ -473,8 +473,8 @@
             const button = document.createElement('button');
             button.type = 'button';
             button.className = 'btn btn-sm yolo-class-toggle-btn d-inline-flex align-items-center fw-bold lh-1';
-            button.style.fontSize = 'inherit';
-            button.style.padding = '0.35em 0.65em';
+            button.style.fontSize = '1.05em';
+            button.style.padding = '0.31em 0.65em';
             button.setAttribute('data-role', 'class-toggle');
             button.setAttribute('data-model-key', getModelSelectionKey(modelItem));
             button.setAttribute('data-class-name', className);

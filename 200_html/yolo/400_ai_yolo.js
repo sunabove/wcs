@@ -657,7 +657,6 @@
                 const templateClone = modelPaneTemplate.content.cloneNode(true);
                 const modelBadgesElement = templateClone.querySelector('[data-role="model-badges"]');
                 const modelTypeElement = templateClone.querySelector('[data-role="model-type"]');
-                const classCountElement = templateClone.querySelector('[data-role="class-count"]');
                 const classListElement = templateClone.querySelector('[data-role="class-list"]');
 
                 if (modelBadgesElement) {
@@ -667,12 +666,6 @@
                     modelTypeElement.textContent = modelItem.modelType || 'YOLO 모델';
                 }
                 const selectedClassNames = getSelectedClassNamesForModel(modelItem);
-                if (classCountElement) {
-                    const totalCount = normalizeClassNameList(modelItem.classNames).length;
-                    classCountElement.textContent = totalCount > 0
-                        ? `클래스 ${selectedClassNames.length}/${totalCount}`
-                        : '클래스 0개';
-                }
                 renderClassToggleButtons(classListElement, modelItem, selectedClassNames);
                 renderClassSelectionToggleButton(modelBadgesElement, modelItem, selectedClassNames);
 

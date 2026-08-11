@@ -1074,17 +1074,17 @@ class Sam2VideoDetector:
             region_background,
             (chart_x1, chart_y1),
             (reference_x, chart_y2),
-            (58, 52, 46),
+            (72, 54, 40),
             cv2.FILLED,
         )
         cv2.rectangle(
             region_background,
             (reference_x + 1, chart_y1),
             (chart_x2, chart_y2),
-            (46, 52, 58),
+            (40, 56, 72),
             cv2.FILLED,
         )
-        cv2.addWeighted(region_background, 0.22, canvas, 0.78, 0.0, canvas)
+        cv2.addWeighted(region_background, 0.45, canvas, 0.55, 0.0, canvas)
         x_values = np.arange(1, len(score_history) + 1, dtype=np.float32)
         score_values = np.asarray(score_history, dtype=np.float32)
         peak_start, peak_last = self._find_score_plateau_bounds(score_history)

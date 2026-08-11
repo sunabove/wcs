@@ -191,3 +191,25 @@ class YoloVideoService:
 
         items.sort(key=lambda item: item.get("uploaded_at", ""), reverse=True)
         return {"videos": items[: max(1, int(limit))]}
+
+    def delete_uploaded_video(self, file_name: str):
+        input_path = self._resolve_uploaded_video_path(file_name)
+        input_stem = input_path.stem
+        deleted_paths = []
+
+        def remove_file(path: Path):
+            if path.is_file() or path.is_symlink():
+                path.unlink(missing_ok=True)
+                deleted_paths.append(str(path))
+
+        remove_file(input_path)
+        remove_file(input_path.with_name(f"{input_stem}.playable.mp4"))
+        remove_file(input_path.with_name(f"{input_stem}.playable.tmp.mp4"))
+        for path in YOLO_UPLOAD_DIR.glob(f"_{input_stem}.*"):
+            remove_file(path)
+
+        return {
+            "file_name": self._to_relative_under_base(input_path),
+            "deleted": True,
+            "deleted_count": len(deleted_paths),
+        }

@@ -36,6 +36,14 @@
 	cursor: pointer;
 }
 
+.yolo-upload-context-menu {
+	top: 50%;
+	left: 50%;
+	min-width: 96px;
+	transform: translate(-50%, -50%);
+	z-index: 2000;
+}
+
 .yolo-uploaded-thumb {
 	width: 100%;
 	height: 64px;

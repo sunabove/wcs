@@ -47,6 +47,7 @@
     let pendingRealtimeDetect = false;
     let uploadInProgress = false;
     let uploadProgressHideTimer = null;
+    let uploadedContextMenuElement = null;
     let uploadedHistory = [];
     let modelHistory = [];
     let selectedServerFileName = '';
@@ -743,6 +744,7 @@
             return;
         }
 
+        hideUploadedContextMenu();
         if (uploadItemElement) {
             uploadedListElement.replaceChildren(uploadItemElement);
         } else {
@@ -760,7 +762,12 @@
 
         for (const item of uploadedHistory) {
             const li = document.createElement('li');
-            li.className = 'list-group-item small';
+            li.className = 'list-group-item small position-relative';
+            li.addEventListener('contextmenu', (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                showUploadedContextMenu(li, item);
+            });
 
             if (item.serverFileName && item.serverFileName === selectedServerFileName) {
                 li.classList.add('active');
@@ -809,6 +816,94 @@
             });
 
             uploadedListElement.appendChild(li);
+        }
+    }
+
+    function hideUploadedContextMenu() {
+        if (!uploadedContextMenuElement) {
+            return;
+        }
+
+        uploadedContextMenuElement.remove();
+        uploadedContextMenuElement = null;
+    }
+
+    function showUploadedContextMenu(listItemElement, item) {
+        hideUploadedContextMenu();
+
+        const menu = document.createElement('div');
+        menu.className = 'dropdown-menu show position-absolute yolo-upload-context-menu p-1';
+
+        const deleteButton = document.createElement('button');
+        deleteButton.type = 'button';
+        deleteButton.className = 'dropdown-item text-danger d-flex align-items-center gap-2 rounded';
+        deleteButton.innerHTML = '<i class="bi bi-trash" aria-hidden="true"></i><span>파일 삭제</span>';
+        deleteButton.addEventListener('click', async (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            hideUploadedContextMenu();
+            await deleteUploadedVideo(item);
+        });
+
+        menu.appendChild(deleteButton);
+        listItemElement.appendChild(menu);
+        uploadedContextMenuElement = menu;
+        deleteButton.focus();
+    }
+
+    async function deleteUploadedVideo(item) {
+        if (!item || !item.serverFileName) {
+            return;
+        }
+
+        if (!window.confirm(`${item.name} 파일을 삭제하시겠습니까?`)) {
+            return;
+        }
+
+        try {
+            const apiBase = await resolveApiBase();
+            const response = await fetch(
+                `${apiBase}/fast/yolo/uploaded_video?file_name=${encodeURIComponent(item.serverFileName)}`,
+                { method: 'DELETE' },
+            );
+            if (!response.ok) {
+                let errorMessage = `파일 삭제 실패 (${response.status})`;
+                try {
+                    const errorBody = await response.json();
+                    if (errorBody && errorBody.detail) {
+                        errorMessage = String(errorBody.detail);
+                    }
+                } catch (_ignore) {
+                    // Keep default error message.
+                }
+                throw new Error(errorMessage);
+            }
+
+            uploadedHistory = uploadedHistory.filter((historyItem) => {
+                return historyItem.serverFileName !== item.serverFileName;
+            });
+
+            const optionMap = readVideoDetectOptionMap();
+            delete optionMap[item.serverFileName];
+            writeVideoDetectOptionMap(optionMap);
+
+            if (selectedServerFileName === item.serverFileName) {
+                selectedServerFileName = '';
+                [inputVideoElement, outputVideoElement].forEach((videoElement) => {
+                    if (!videoElement) {
+                        return;
+                    }
+                    videoElement.pause();
+                    videoElement.removeAttribute('src');
+                    videoElement.load();
+                });
+            }
+
+            renderUploadedHistory();
+            setStatus(`삭제됨: ${item.name}`, 'success');
+        } catch (error) {
+            const message = error && error.message ? error.message : '파일 삭제 중 오류가 발생했습니다.';
+            setStatus(message, 'danger');
         }
     }
 

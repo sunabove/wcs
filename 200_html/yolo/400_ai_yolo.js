@@ -655,6 +655,9 @@
                 }
                 const selectedClassNames = getSelectedClassNamesForModel(modelItem);
                 renderClassToggleButtons(classListElement, modelItem, selectedClassNames);
+                if (modelTypeElement && classListElement) {
+                    classListElement.prepend(modelTypeElement);
+                }
                 renderClassSelectionToggleButton(modelBadgesElement, modelItem, selectedClassNames);
 
                 pane.appendChild(templateClone);

@@ -36,7 +36,6 @@ class RoadDetector:
     OBSTACLE_SCORE_AREA_WEIGHT = 0.3
     
     _class_color_map_path = Path(__file__).resolve().parent / "colormap_road.txt"
-    _class_color_map = None
     
     road_model_name = "ai/road/model/01_yolo11m-road-sg.pt"
     road_type_model_name = "ai/road/model/02_yolo11m-cobot-road-type-sg-260626.pt" 
@@ -443,9 +442,6 @@ class RoadDetector:
                 RoadDetector._mqtt_last_obstacle_state_by_context[context] = majority_state
 
     def _get_class_color_map(self):
-        if self.__class__._class_color_map is not None:
-            return self.__class__._class_color_map
-
         color_map = {}
         try:
             with self.__class__._class_color_map_path.open("r", encoding="utf-8") as f:
@@ -475,8 +471,7 @@ class RoadDetector:
         except FileNotFoundError:
             color_map = {}
 
-        self.__class__._class_color_map = color_map
-        return self.__class__._class_color_map
+        return color_map
 
     def _get_instance_mask_color(self, base_bgr, instance_index, cls_id=None):
         # Keep the class base color to avoid confusing cross-class-like hues.

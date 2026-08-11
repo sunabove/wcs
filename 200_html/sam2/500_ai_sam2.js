@@ -66,6 +66,19 @@
     const yoloTrainStartButton = document.getElementById('sam2-yolo-train-start');
     const yoloRetrainStartButton = document.getElementById('sam2-yolo-retrain-start');
     const yoloTrainStopButton = document.getElementById('sam2-yolo-train-stop');
+    const yoloTrainButtonGroup = yoloTrainStartButton?.parentElement;
+    if (yoloTrainButtonGroup) {
+        yoloTrainButtonGroup.classList.remove('d-grid');
+        yoloTrainButtonGroup.classList.add('d-flex', 'flex-nowrap', 'justify-content-md-end');
+        const buttonColumn = yoloTrainButtonGroup.parentElement;
+        buttonColumn?.parentElement?.querySelectorAll(':scope > [class*="col-md-"]').forEach((column) => {
+            column.classList.remove('col-md-2', 'col-md-5');
+            column.classList.add('col-md-4');
+        });
+        [yoloTrainStartButton, yoloRetrainStartButton, yoloTrainStopButton].forEach((button) => {
+            button?.classList.add('text-nowrap');
+        });
+    }
     const yoloTrainProgressElement = document.getElementById('sam2-yolo-train-progress');
     const yoloTrainProgressTextElement = document.getElementById('sam2-yolo-train-progress-text');
     const yoloTrainStatusElement = document.getElementById('sam2-yolo-train-status');

@@ -760,7 +760,15 @@
             return;
         }
 
-        for (const item of uploadedHistory) {
+        const sortedUploadedHistory = uploadedHistory.slice().sort((left, right) => {
+            return String(left && left.name || '').localeCompare(
+                String(right && right.name || ''),
+                undefined,
+                { numeric: true, sensitivity: 'base' },
+            );
+        });
+
+        for (const item of sortedUploadedHistory) {
             const li = document.createElement('li');
             li.className = 'list-group-item small position-relative';
             li.addEventListener('contextmenu', (event) => {

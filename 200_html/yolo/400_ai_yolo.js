@@ -491,7 +491,7 @@
         const isAllSelected = selectedCount >= classNames.length;
         const button = document.createElement('button');
         button.type = 'button';
-        button.className = 'btn btn-sm btn-outline-primary ms-auto px-2 py-0';
+        button.className = 'btn btn-sm btn-outline-primary ms-auto px-2 py-0 flex-shrink-0';
         button.setAttribute('data-role', 'class-toggle-all');
         button.setAttribute('data-model-key', getModelSelectionKey(modelItem));
         button.textContent = isAllSelected ? '전체 해제' : '전체 선택';

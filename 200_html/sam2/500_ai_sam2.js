@@ -138,7 +138,6 @@
     let pointContextMenuElement = null;
     let pointContextMenuIndex = -1;
     let uploadedContextMenuElement = null;
-    let outputControlsHideTimer = 0;
     let detectionMode = 'foreground';
     let isUploadingImmediately = false;
     let uploadedListLoadingStartedAt = 0;
@@ -672,26 +671,6 @@
         outputVideoElement.loop = loopEnabled;
     }
 
-    function showOutputVideoControls() {
-        if (outputControlsHideTimer) {
-            window.clearTimeout(outputControlsHideTimer);
-            outputControlsHideTimer = 0;
-        }
-        outputVideoElement.setAttribute('controls', 'controls');
-    }
-
-    function hideOutputVideoControls() {
-        if (document.activeElement === outputVideoElement) {
-            return;
-        }
-        outputControlsHideTimer = window.setTimeout(() => {
-            if (document.activeElement !== outputVideoElement) {
-                outputVideoElement.removeAttribute('controls');
-            }
-            outputControlsHideTimer = 0;
-        }, 250);
-    }
-
     function updateOutputPlaybackControls(mediaTime) {
         const hasMedia = Boolean(outputVideoElement.currentSrc)
             && outputVideoElement.readyState >= HTMLMediaElement.HAVE_METADATA;
@@ -795,10 +774,6 @@
             }
         }
         outputVideoElement.removeAttribute('controls');
-        outputVideoElement.addEventListener('mouseenter', showOutputVideoControls);
-        outputVideoElement.addEventListener('mouseleave', hideOutputVideoControls);
-        outputVideoElement.addEventListener('focus', showOutputVideoControls);
-        outputVideoElement.addEventListener('blur', hideOutputVideoControls);
         ['loadedmetadata', 'durationchange', 'timeupdate', 'seeked', 'play', 'pause', 'ended', 'emptied'].forEach((eventName) => {
             outputVideoElement.addEventListener(eventName, () => updateOutputPlaybackControls());
         });

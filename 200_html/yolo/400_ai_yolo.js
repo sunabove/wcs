@@ -1420,6 +1420,24 @@
         });
     }
 
+    document.addEventListener('click', (event) => {
+        if (uploadedContextMenuElement && !uploadedContextMenuElement.contains(event.target)) {
+            hideUploadedContextMenu();
+        }
+    });
+
+    document.addEventListener('contextmenu', (event) => {
+        if (uploadedContextMenuElement && !uploadedContextMenuElement.contains(event.target)) {
+            hideUploadedContextMenu();
+        }
+    });
+
+    document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape') {
+            hideUploadedContextMenu();
+        }
+    });
+
     applyDetectOptionsForSelectedVideo();
     updateSliderValueLabels();
     if (uploadedEmptyElement) {

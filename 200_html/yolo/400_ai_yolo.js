@@ -52,17 +52,56 @@
     let selectedServerFileName = '';
     let selectedModelPath = '';
     let selectedModelFileName = '';
-    const selectedClassNamesByModelKey = {};
 
     const REALTIME_DETECT_DEBOUNCE_MS = 300;
     const INPUT_SOURCE_TAB_STORAGE_KEY = 'wcs.yolo.input_source_tab.v1';
     const MODEL_SELECTION_STORAGE_KEY = 'wcs.yolo.model_selection.v1';
+    const MODEL_CLASS_SELECTION_STORAGE_KEY = 'wcs.yolo.model_class_selection.v1';
     const VIDEO_DETECT_OPTION_STORAGE_KEY = 'wcs.yolo.video_detect_option.v1';
     const STATUS_ALERT_VARIANTS = ['alert-secondary', 'alert-info', 'alert-warning', 'alert-danger', 'alert-success', 'alert-primary'];
+    const selectedClassNamesByModelKey = readModelClassSelectionMap();
 
     function normalizeThresholdValue(value, fallbackValue) {
         const numeric = toNumber(value, fallbackValue);
         return Math.max(0, Math.min(1, numeric));
+    }
+
+    function readModelClassSelectionMap() {
+        const selectionMap = Object.create(null);
+
+        try {
+            const raw = window.localStorage.getItem(MODEL_CLASS_SELECTION_STORAGE_KEY);
+            if (!raw) {
+                return selectionMap;
+            }
+
+            const parsed = JSON.parse(raw);
+            if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+                return selectionMap;
+            }
+
+            Object.entries(parsed).forEach(([modelKey, classNames]) => {
+                const normalizedModelKey = String(modelKey || '').trim();
+                if (normalizedModelKey && Array.isArray(classNames)) {
+                    selectionMap[normalizedModelKey] = normalizeClassNameList(classNames);
+                }
+            });
+        } catch (_ignore) {
+            // Ignore storage failures.
+        }
+
+        return selectionMap;
+    }
+
+    function writeModelClassSelectionMap() {
+        try {
+            window.localStorage.setItem(
+                MODEL_CLASS_SELECTION_STORAGE_KEY,
+                JSON.stringify(selectedClassNamesByModelKey),
+            );
+        } catch (_ignore) {
+            // Ignore storage failures.
+        }
     }
 
     function readVideoDetectOptionMap() {
@@ -419,13 +458,18 @@
             return [];
         }
 
-        const existingSelection = Array.isArray(selectedClassNamesByModelKey[modelKey])
+        const hasExistingSelection = Object.prototype.hasOwnProperty.call(selectedClassNamesByModelKey, modelKey)
+            && Array.isArray(selectedClassNamesByModelKey[modelKey]);
+        const existingSelection = hasExistingSelection
             ? selectedClassNamesByModelKey[modelKey]
             : [];
 
         const cleanedSelection = existingSelection.filter((name) => classNames.includes(name));
-        const nextSelection = cleanedSelection.length > 0 ? cleanedSelection : classNames.slice();
+        const nextSelection = hasExistingSelection ? cleanedSelection : classNames.slice();
         selectedClassNamesByModelKey[modelKey] = nextSelection;
+        if (hasExistingSelection && cleanedSelection.length !== existingSelection.length) {
+            writeModelClassSelectionMap();
+        }
         return nextSelection;
     }
 
@@ -518,6 +562,7 @@
 
         const nextSelection = classNames.filter((name) => selectedSet.has(name));
         selectedClassNamesByModelKey[normalizedModelKey] = nextSelection;
+        writeModelClassSelectionMap();
 
         const activePane = modelTabContentElement
             ? modelTabContentElement.querySelector('.tab-pane.active, .tab-pane.show.active')

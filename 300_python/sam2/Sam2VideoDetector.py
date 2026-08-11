@@ -1,6 +1,5 @@
 import json
 import importlib
-import os
 import re
 import shutil
 import sys
@@ -26,7 +25,6 @@ class Sam2VideoDetector:
     _chart_renderer = ChartRenderer()
     _model_cache = {}
     _yolo_conversion_cache = {}
-    _sam2_image_predictor_class = None
     _sam2_video_predictor_class = None
     _max_infer_side = 960
     _max_infer_fps = 10.0
@@ -270,15 +268,6 @@ class Sam2VideoDetector:
                 deleted_count += 1
         return deleted_count
 
-    def _load_sam2_image_predictor_class(self):
-        if self.__class__._sam2_image_predictor_class is not None:
-            return self.__class__._sam2_image_predictor_class
-
-        module = self._load_external_sam2_module("sam2.sam2_image_predictor")
-        predictor_class = module.SAM2ImagePredictor
-        self.__class__._sam2_image_predictor_class = predictor_class
-        return predictor_class
-
     def _load_sam2_video_predictor_class(self):
         if self.__class__._sam2_video_predictor_class is not None:
             return self.__class__._sam2_video_predictor_class
@@ -318,49 +307,6 @@ class Sam2VideoDetector:
             sys.path = original_sys_path
             for name, module in restored_modules.items():
                 sys.modules.setdefault(name, module)
-
-    def _build_model_from_hf_model_id(self, model_id: str, device: str):
-        build_sam_module = self._load_external_sam2_module("sam2.build_sam")
-        hf_map = getattr(build_sam_module, "HF_MODEL_ID_TO_FILENAMES", {})
-        if model_id not in hf_map:
-            raise ValueError(f"Unsupported SAM2 model id: {model_id}")
-
-        config_name, checkpoint_name = hf_map[model_id]
-
-        from huggingface_hub import hf_hub_download
-
-        offline_text = str(os.getenv("HF_HUB_OFFLINE", "")).strip().lower()
-        local_files_only = offline_text in {"1", "true", "yes", "on"}
-
-        ckpt_path = hf_hub_download(
-            repo_id=model_id,
-            filename=checkpoint_name,
-            local_files_only=local_files_only,
-        )
-
-        build_image_model = getattr(build_sam_module, "build_sam2")
-        image_model = build_image_model(
-            config_file=config_name,
-            ckpt_path=ckpt_path,
-            device=device,
-        )
-        predictor_class = self._load_sam2_image_predictor_class()
-        return predictor_class(image_model)
-
-    def _get_model(self, model_name: str):
-        normalized = str(model_name or "").strip() or SAM2_DEFAULT_MODEL
-        cache_key = f"sam2:{normalized}"
-        if cache_key not in self._model_cache:
-            device = "cuda" if torch.cuda.is_available() else "cpu"
-            if normalized.startswith("facebook/"):
-                self._model_cache[cache_key] = self._build_model_from_hf_model_id(normalized, device)
-            else:
-                predictor_class = self._load_sam2_image_predictor_class()
-                self._model_cache[cache_key] = predictor_class.from_pretrained(
-                    normalized,
-                    device=device,
-                )
-        return self._model_cache[cache_key]
 
     def _get_video_model(self, model_name: str):
         normalized = str(model_name or "").strip() or SAM2_DEFAULT_MODEL

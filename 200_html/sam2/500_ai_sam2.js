@@ -2403,7 +2403,7 @@
                 clearBoundingBox();
 
                 try {
-                    await previewSelectedVideoFirstFrame(true, item.playableUrl || item.inputUrl);
+                    await previewSelectedVideoFirstFrame(false, item.playableUrl || item.inputUrl);
                 } catch (error) {
                     const message = error && error.message ? error.message : '원본 영상 로드 실패';
                     setStatus(`원본 영상 로드 실패: ${message}`, 'warning');
@@ -2415,6 +2415,7 @@
                     item.serverFileName,
                     item.yoloConversionAvailable
                 );
+                loadOutputTab();
 
                 renderUploadedHistory();
                 setStatus(
@@ -2701,7 +2702,7 @@
                     clearAllPoints();
                     clearBoundingBox();
                     try {
-                        await previewSelectedVideoFirstFrame(true, matchedSelected.playableUrl || matchedSelected.inputUrl);
+                        await previewSelectedVideoFirstFrame(false, matchedSelected.playableUrl || matchedSelected.inputUrl);
                     } catch (error) {
                         const message = error && error.message ? error.message : '원본 영상 로드 실패';
                         setStatus(`원본 영상 로드 실패: ${message}`, 'warning');
@@ -2712,6 +2713,7 @@
                         matchedSelected.serverFileName,
                         matchedSelected.yoloConversionAvailable
                     );
+                    loadOutputTab();
                     renderUploadedHistory();
                     setStatus(
                         hasExistingOutput
@@ -2824,15 +2826,6 @@
             const apiBase = await resolveApiBase();
             const playableUrl = await resolvePlayableVideoUrl(apiBase, value, true);
             await assignVideoSource(outputVideoElement, playableUrl, 'output');
-
-            const outputTabButton = document.getElementById('sam2-output-tab');
-            if (outputTabButton) {
-                if (window.bootstrap && typeof window.bootstrap.Tab === 'function') {
-                    window.bootstrap.Tab.getOrCreateInstance(outputTabButton).show();
-                } else {
-                    outputTabButton.click();
-                }
-            }
             applyLoopOption();
             yoloInputFileName = String(inputFileName || '').trim();
             yoloConversionAvailable = conversionAvailable === true;
@@ -3051,11 +3044,12 @@
 
             await loadUploadedHistoryFromServer();
             try {
-                await previewSelectedVideoFirstFrame(true, uploadResult.playable_url || uploadResult.input_url);
+                await previewSelectedVideoFirstFrame(false, uploadResult.playable_url || uploadResult.input_url);
             } catch (_ignore) {
                 // Keep successful upload flow even if preview fails.
             }
             await loadVideoOptions(selectedServerFileName);
+            loadOutputTab();
 
             uploadCompleted = true;
             setStatus('동영상 업로드 완료. 검출 시작 버튼을 눌러주세요.', 'success');
@@ -3253,8 +3247,11 @@
     });
 
     document.querySelectorAll('#sam2-video-tabs [data-bs-toggle="tab"]').forEach((tabButton) => {
-        tabButton.addEventListener('shown.bs.tab', (event) => {
-            const tabId = event.target && event.target.id;
+        tabButton.addEventListener('click', (event) => {
+            if (!event.isTrusted) {
+                return;
+            }
+            const tabId = event.currentTarget && event.currentTarget.id;
             if (tabId) {
                 try {
                     localStorage.setItem(STORAGE_OUTPUT_TAB_KEY, tabId);

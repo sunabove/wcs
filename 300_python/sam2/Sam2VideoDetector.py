@@ -1002,7 +1002,7 @@ class Sam2VideoDetector:
         iou_history,
         iou_threshold,
         fill_ratio_history,
-        frame_number,
+        reference_frame_number,
         total_frames,
     ):
         if frame is None:
@@ -1059,9 +1059,32 @@ class Sam2VideoDetector:
             )
 
         x_min = 1.0
-        x_max = float(max(1, int(total_frames or frame_number)))
+        x_max = float(max(1, int(total_frames or reference_frame_number)))
         if x_max <= x_min:
             x_max = x_min + 1.0
+        reference_x = self._chart_renderer._map_chart_x(
+            reference_frame_number,
+            x_min,
+            x_max,
+            chart_x1,
+            chart_x2 - chart_x1,
+        )
+        region_background = canvas.copy()
+        cv2.rectangle(
+            region_background,
+            (chart_x1, chart_y1),
+            (reference_x, chart_y2),
+            (58, 52, 46),
+            cv2.FILLED,
+        )
+        cv2.rectangle(
+            region_background,
+            (reference_x + 1, chart_y1),
+            (chart_x2, chart_y2),
+            (46, 52, 58),
+            cv2.FILLED,
+        )
+        cv2.addWeighted(region_background, 0.22, canvas, 0.78, 0.0, canvas)
         x_values = np.arange(1, len(score_history) + 1, dtype=np.float32)
         score_values = np.asarray(score_history, dtype=np.float32)
         peak_start, peak_last = self._find_score_plateau_bounds(score_history)
@@ -1250,14 +1273,7 @@ class Sam2VideoDetector:
                 cv2.LINE_AA,
             )
 
-        current_x = self._chart_renderer._map_chart_x(
-            frame_number,
-            x_min,
-            x_max,
-            chart_x1,
-            chart_x2 - chart_x1,
-        )
-        cv2.line(canvas, (current_x, chart_y1), (current_x, chart_y2), (255, 230, 0), 1, cv2.LINE_AA)
+        cv2.line(canvas, (reference_x, chart_y1), (reference_x, chart_y2), (255, 230, 0), 1, cv2.LINE_AA)
         return canvas
 
     def _overlay_bbox_result(self, frame, roi_plotted, bbox_rect, score=None):
@@ -1822,7 +1838,7 @@ class Sam2VideoDetector:
                     chart_iou_history,
                     iou_threshold,
                     chart_fill_ratio_history,
-                    rendered_frames,
+                    prompt_frame_index + 1,
                     total_frames,
                 )
                 writer.write(plotted)

@@ -83,6 +83,7 @@
     const yoloTrainProgressTextElement = document.getElementById('sam2-yolo-train-progress-text');
     const yoloTrainStatusElement = document.getElementById('sam2-yolo-train-status');
     const yoloTrainMetricsCanvas = document.getElementById('sam2-yolo-train-metrics-chart');
+    document.querySelector('#sam2-yolo-train-pane > section > .fw-semibold.mb-2')?.remove();
 
     let selectedFile = null;
     let resolvedApiBase = null;

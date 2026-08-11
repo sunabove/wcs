@@ -15,7 +15,7 @@
 	<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js" defer></script>
 	<script src="https://cdn.jsdelivr.net/npm/chart.js@4.3.0/dist/chart.umd.min.js" defer></script>
 	<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-	<script src="500_ai_sam2.js?v=20260811_18" defer></script>
+	<script src="500_ai_sam2.js?v=20260811_19" defer></script>
 </head>
 
 <body class="bg-light">
@@ -119,7 +119,7 @@
 											<div id="sam2-input-video-wrap" class="sam2-input-stage border rounded overflow-hidden"><video id="sam2-input-video" class="sam2-video-player" controls playsinline></video><div id="sam2-point-marker-layer" class="sam2-point-marker-layer" aria-hidden="true"></div><div id="sam2-bbox-layer" class="sam2-bbox-layer" aria-hidden="true"></div><div id="sam2-bbox-capture-layer" class="sam2-bbox-capture-layer" aria-label="Bounding Box 입력 레이어"></div></div>
 										</div>
 									</div>
-									<div class="tab-pane fade" id="sam2-output-pane" role="tabpanel" aria-labelledby="sam2-output-tab"><div class="sam2-video-wrap"><button id="sam2-yolo-convert" type="button" class="btn btn-primary btn-sm sam2-output-yolo-convert-button" disabled title="YOLO 학습 데이터 변환"><i class="bi bi-arrow-repeat me-1" aria-hidden="true"></i>YOLO 변환</button><video id="sam2-output-video" class="sam2-video-player border rounded" controls playsinline></video><div class="d-flex flex-wrap justify-content-end align-items-center gap-2 mt-2"><span id="sam2-yolo-dataset-summary" class="small text-muted me-auto">YOLO 학습 데이터 대기 중</span><button id="sam2-output-download" type="button" class="btn btn-outline-success btn-sm" disabled title="검출 영상 다운로드"><i class="bi bi-download me-1" aria-hidden="true"></i>다운로드</button></div></div></div>
+									<div class="tab-pane fade" id="sam2-output-pane" role="tabpanel" aria-labelledby="sam2-output-tab"><div class="sam2-video-wrap"><button id="sam2-yolo-convert" type="button" class="btn btn-primary btn-sm sam2-output-yolo-convert-button" disabled title="YOLO 학습 데이터 변환"><i class="bi bi-arrow-repeat me-1" aria-hidden="true"></i>YOLO 변환</button><video id="sam2-output-video" class="sam2-video-player border rounded" controls playsinline></video><div class="d-flex align-items-center gap-2 w-100 mt-2" role="group" aria-label="검출 영상 재생 제어"><button id="sam2-output-play-toggle" type="button" class="btn btn-outline-primary btn-sm flex-shrink-0" style="width: 2.5rem;" disabled title="재생" aria-label="재생"><i class="bi bi-play-fill" aria-hidden="true"></i></button><input id="sam2-output-frame-slider" type="range" class="form-range flex-grow-1 m-0" min="1" max="1" step="1" value="1" disabled title="검출 영상 프레임 이동" aria-label="검출 영상 프레임 이동"></div><div class="d-flex flex-wrap justify-content-end align-items-center gap-2 mt-2"><span id="sam2-yolo-dataset-summary" class="small text-muted me-auto">YOLO 학습 데이터 대기 중</span><button id="sam2-output-download" type="button" class="btn btn-outline-success btn-sm" disabled title="검출 영상 다운로드"><i class="bi bi-download me-1" aria-hidden="true"></i>다운로드</button></div></div></div>
 									<div class="tab-pane fade" id="sam2-yolo-pane" role="tabpanel" aria-labelledby="sam2-yolo-tab" style="margin-top: -0.75rem;">
 										<ul id="sam2-yolo-class-tabs" class="nav nav-tabs" role="tablist"></ul>
 										<div id="sam2-yolo-class-tab-content" class="tab-content border border-top-0 rounded-bottom pt-1 px-3 pb-3 bg-white"><div class="small text-muted">YOLO 변환 파일이 없습니다.</div></div>

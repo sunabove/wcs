@@ -56,6 +56,8 @@
     const inputVideoElement = document.getElementById('sam2-input-video');
     const inputFrameCounterElement = document.getElementById('sam2-input-frame-counter');
     const outputVideoElement = document.getElementById('sam2-output-video');
+    const outputPlayToggleButton = document.getElementById('sam2-output-play-toggle');
+    const outputFrameSliderElement = document.getElementById('sam2-output-frame-slider');
     const outputDownloadButton = document.getElementById('sam2-output-download');
     const yoloConvertButton = document.getElementById('sam2-yolo-convert');
     const yoloDatasetSummaryElement = document.getElementById('sam2-yolo-dataset-summary');
@@ -435,6 +437,7 @@
         inputVideoFps = 0;
         inputVideoFrameCount = 0;
         updateInputFrameCounter();
+        updateOutputPlaybackControls();
 
         try {
             const apiBase = await resolveApiBase();
@@ -451,12 +454,14 @@
             inputVideoFps = Math.max(0, Number(metadata.fps) || 0);
             inputVideoFrameCount = Math.max(0, Math.trunc(Number(metadata.frame_count) || 0));
             updateInputFrameCounter();
+            updateOutputPlaybackControls();
             restorePendingPromptFrame();
         } catch (_ignore) {
             if (requestSeq === inputVideoMetadataRequestSeq) {
                 inputVideoFps = 0;
                 inputVideoFrameCount = 0;
                 updateInputFrameCounter();
+                updateOutputPlaybackControls();
             }
         }
     }
@@ -686,6 +691,77 @@
         }, 250);
     }
 
+    function updateOutputPlaybackControls(mediaTime) {
+        const hasMedia = Boolean(outputVideoElement.currentSrc)
+            && outputVideoElement.readyState >= HTMLMediaElement.HAVE_METADATA;
+        const isPlaying = hasMedia && !outputVideoElement.paused && !outputVideoElement.ended;
+        const playIcon = outputPlayToggleButton?.querySelector('i');
+        if (playIcon) {
+            playIcon.className = isPlaying ? 'bi bi-pause-fill' : 'bi bi-play-fill';
+        }
+        if (outputPlayToggleButton) {
+            const playLabel = isPlaying ? '일시정지' : '재생';
+            outputPlayToggleButton.disabled = !hasMedia;
+            outputPlayToggleButton.title = playLabel;
+            outputPlayToggleButton.setAttribute('aria-label', playLabel);
+        }
+
+        const canSeekByFrame = hasMedia && inputVideoFps > 0 && inputVideoFrameCount > 0;
+        if (!outputFrameSliderElement) {
+            return;
+        }
+        outputFrameSliderElement.disabled = !canSeekByFrame;
+        outputFrameSliderElement.min = '1';
+        outputFrameSliderElement.max = String(canSeekByFrame ? inputVideoFrameCount : 1);
+        if (!canSeekByFrame) {
+            outputFrameSliderElement.value = '1';
+            return;
+        }
+
+        const frameTime = Number.isFinite(mediaTime) ? mediaTime : outputVideoElement.currentTime;
+        const currentFrame = clamp(
+            Math.floor(Math.max(0, Number(frameTime) || 0) * inputVideoFps) + 1,
+            1,
+            inputVideoFrameCount
+        );
+        outputFrameSliderElement.value = String(currentFrame);
+        outputFrameSliderElement.title = `프레임 ${currentFrame.toLocaleString()} / ${inputVideoFrameCount.toLocaleString()}`;
+    }
+
+    async function toggleOutputPlayback() {
+        if (!outputVideoElement.currentSrc) {
+            return;
+        }
+        if (!outputVideoElement.paused && !outputVideoElement.ended) {
+            outputVideoElement.pause();
+            return;
+        }
+        if (outputVideoElement.ended) {
+            outputVideoElement.currentTime = 0;
+        }
+        try {
+            await outputVideoElement.play();
+        } catch (_ignore) {
+            updateOutputPlaybackControls();
+        }
+    }
+
+    function seekOutputFrame() {
+        if (inputVideoFps <= 0 || inputVideoFrameCount <= 0 || !outputFrameSliderElement) {
+            return;
+        }
+        const targetFrame = clamp(
+            Math.trunc(toNumber(outputFrameSliderElement.value, 1)),
+            1,
+            inputVideoFrameCount
+        );
+        outputVideoElement.currentTime = Math.min(
+            Number.isFinite(outputVideoElement.duration) ? outputVideoElement.duration : Number.MAX_SAFE_INTEGER,
+            (targetFrame - 1) / inputVideoFps
+        );
+        updateOutputPlaybackControls(outputVideoElement.currentTime);
+    }
+
     function initializeOutputVideoControls() {
         if (!outputVideoElement) {
             return;
@@ -709,6 +785,12 @@
         outputVideoElement.addEventListener('mouseleave', hideOutputVideoControls);
         outputVideoElement.addEventListener('focus', showOutputVideoControls);
         outputVideoElement.addEventListener('blur', hideOutputVideoControls);
+        ['loadedmetadata', 'durationchange', 'timeupdate', 'seeked', 'play', 'pause', 'ended', 'emptied'].forEach((eventName) => {
+            outputVideoElement.addEventListener(eventName, () => updateOutputPlaybackControls());
+        });
+        outputPlayToggleButton?.addEventListener('click', toggleOutputPlayback);
+        outputFrameSliderElement?.addEventListener('input', seekOutputFrame);
+        updateOutputPlaybackControls();
     }
 
     function initializeYoloOutputTab() {
@@ -3576,8 +3658,4 @@
     if (yoloDatasetSummaryElement) {
         yoloDatasetSummaryElement.textContent = '';
     }
-
-    loadUploadLimitFromServer();
-    loadUploadedHistoryFromServer();
-    console.log('[SAM2] 페이지 초기화 완료');
-})();
+

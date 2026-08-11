@@ -15,7 +15,7 @@
 	<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js" defer></script>
 	<script src="https://cdn.jsdelivr.net/npm/chart.js@4.3.0/dist/chart.umd.min.js" defer></script>
 	<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-	<script src="500_ai_sam2.js?v=20260807_11" defer></script>
+	<script src="500_ai_sam2.js?v=20260811_1" defer></script>
 </head>
 
 <body class="bg-light">
@@ -117,6 +117,7 @@
 										<div class="sam2-video-wrap">
 											<div class="sam2-point-toolbar border rounded p-2 mb-2 text-start bg-light"><div class="d-flex flex-wrap align-items-center gap-2"><span class="small fw-semibold text-secondary">검출 설정</span><button id="sam2-foreground-point-mode" type="button" class="btn btn-primary btn-sm" disabled>전경 Point 설정</button><button id="sam2-background-point-mode" type="button" class="btn btn-outline-primary btn-sm" disabled>배경 Point 설정</button><button id="sam2-bbox-mode" type="button" class="btn btn-outline-primary btn-sm" disabled>BBox 설정</button><button id="sam2-point-clear" type="button" class="btn btn-outline-secondary btn-sm" disabled>Point 삭제</button><button id="sam2-bbox-clear" type="button" class="btn btn-outline-secondary btn-sm" disabled>BBox 삭제</button><button id="sam2-options-save" type="button" class="btn btn-outline-success btn-sm" disabled>저장</button><button id="sam2-options-reset" type="button" class="btn btn-outline-warning btn-sm" disabled>초기화</button></div></div>
 											<div id="sam2-input-video-wrap" class="sam2-input-stage border rounded overflow-hidden"><video id="sam2-input-video" class="sam2-video-player" controls playsinline></video><div id="sam2-point-marker-layer" class="sam2-point-marker-layer" aria-hidden="true"></div><div id="sam2-bbox-layer" class="sam2-bbox-layer" aria-hidden="true"></div><div id="sam2-bbox-capture-layer" class="sam2-bbox-capture-layer" aria-label="Bounding Box 입력 레이어"></div></div>
+											<div id="sam2-input-frame-counter" class="small text-secondary text-end mt-1 mx-auto" style="width: min(640px, 100%);" aria-live="polite">프레임 - / -</div>
 										</div>
 									</div>
 									<div class="tab-pane fade" id="sam2-output-pane" role="tabpanel" aria-labelledby="sam2-output-tab"><div class="sam2-video-wrap"><button id="sam2-yolo-convert" type="button" class="btn btn-primary btn-sm sam2-output-yolo-convert-button" disabled title="YOLO 학습 데이터 변환"><i class="bi bi-arrow-repeat me-1" aria-hidden="true"></i>YOLO 변환</button><video id="sam2-output-video" class="sam2-video-player border rounded" controls playsinline></video><div class="d-flex flex-wrap justify-content-end align-items-center gap-2 mt-2"><span id="sam2-yolo-dataset-summary" class="small text-muted me-auto">YOLO 학습 데이터 대기 중</span><button id="sam2-output-download" type="button" class="btn btn-outline-success btn-sm" disabled title="검출 영상 다운로드"><i class="bi bi-download me-1" aria-hidden="true"></i>다운로드</button></div></div></div>

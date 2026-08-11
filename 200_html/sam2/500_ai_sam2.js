@@ -49,6 +49,7 @@
 
     const statusElement = document.getElementById('sam2-status');
     const inputVideoElement = document.getElementById('sam2-input-video');
+    const inputFrameCounterElement = document.getElementById('sam2-input-frame-counter');
     const outputVideoElement = document.getElementById('sam2-output-video');
     const outputDownloadButton = document.getElementById('sam2-output-download');
     const yoloConvertButton = document.getElementById('sam2-yolo-convert');
@@ -106,6 +107,9 @@
     let uploadedListLatestRequestSeq = 0;
     let uploadedListInFlightCount = 0;
     let hasCompletedInitialUploadedListLoad = false;
+    let inputVideoFps = 0;
+    let inputVideoFrameCount = 0;
+    let inputVideoMetadataRequestSeq = 0;
     const MAX_POINT_COUNT = 20;
     const STORAGE_SELECTED_VIDEO_KEY = 'sam2.selectedVideo';
     const STORAGE_INPUT_SOURCE_TAB_KEY = 'sam2.inputSourceTab';
@@ -309,6 +313,66 @@
     function hasSelectedVideo() {
         const fileFromInput = fileInput.files && fileInput.files[0] ? fileInput.files[0] : null;
         return Boolean(selectedFile || fileFromInput || selectedServerFileName);
+    }
+
+    function updateInputFrameCounter(mediaTime) {
+        if (!inputFrameCounterElement) {
+            return;
+        }
+        if (inputVideoFps <= 0 || inputVideoFrameCount <= 0) {
+            inputFrameCounterElement.textContent = '프레임 - / -';
+            return;
+        }
+
+        const frameTime = Number.isFinite(mediaTime) ? mediaTime : inputVideoElement.currentTime;
+        const currentTime = Math.max(0, Number(frameTime) || 0);
+        const currentFrame = clamp(
+            Math.floor(currentTime * inputVideoFps) + 1,
+            1,
+            inputVideoFrameCount
+        );
+        inputFrameCounterElement.textContent = `프레임 ${currentFrame.toLocaleString()} / ${inputVideoFrameCount.toLocaleString()}`;
+    }
+
+    async function loadInputVideoMetadata(fileName) {
+        const requestSeq = ++inputVideoMetadataRequestSeq;
+        inputVideoFps = 0;
+        inputVideoFrameCount = 0;
+        updateInputFrameCounter();
+
+        try {
+            const apiBase = await resolveApiBase();
+            const response = await fetch(`${apiBase}/fast/sam2/video_metadata?file_name=${encodeURIComponent(fileName)}`, {
+                cache: 'no-store',
+            });
+            if (!response.ok) {
+                return;
+            }
+            const metadata = await response.json();
+            if (requestSeq !== inputVideoMetadataRequestSeq) {
+                return;
+            }
+            inputVideoFps = Math.max(0, Number(metadata.fps) || 0);
+            inputVideoFrameCount = Math.max(0, Math.trunc(Number(metadata.frame_count) || 0));
+            updateInputFrameCounter();
+        } catch (_ignore) {
+            if (requestSeq === inputVideoMetadataRequestSeq) {
+                inputVideoFps = 0;
+                inputVideoFrameCount = 0;
+                updateInputFrameCounter();
+            }
+        }
+    }
+
+    inputVideoElement.addEventListener('loadedmetadata', updateInputFrameCounter);
+    inputVideoElement.addEventListener('timeupdate', updateInputFrameCounter);
+    inputVideoElement.addEventListener('seeked', updateInputFrameCounter);
+    if (typeof inputVideoElement.requestVideoFrameCallback === 'function') {
+        const updateOnVideoFrame = (_now, metadata) => {
+            updateInputFrameCounter(metadata.mediaTime);
+            inputVideoElement.requestVideoFrameCallback(updateOnVideoFrame);
+        };
+        inputVideoElement.requestVideoFrameCallback(updateOnVideoFrame);
     }
 
     function updateMultimaskOutputText() {
@@ -1706,6 +1770,7 @@
         }
         inputVideoElement.pause();
         inputVideoElement.currentTime = 0;
+        await loadInputVideoMetadata(selectedServerFileName);
         ensureDefaultBoundingBox();
         renderBoundingBoxUi();
 

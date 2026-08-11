@@ -61,6 +61,13 @@ def uploaded_videos(
     return _service.list_uploaded_videos(limit=limit)
 
 
+@router.get("/video_metadata")
+def video_metadata(
+    file_name: str = Query(...),
+):
+    return _service.get_video_metadata(file_name=file_name)
+
+
 @router.delete("/uploaded_video")
 def delete_uploaded_video(
     file_name: str = Query(...),

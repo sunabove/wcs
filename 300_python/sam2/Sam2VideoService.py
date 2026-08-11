@@ -11,6 +11,7 @@ from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 from pathlib import Path
 
+import cv2
 from fastapi import HTTPException, UploadFile
 
 from config import BASE_DIR
@@ -869,6 +870,27 @@ class Sam2VideoService:
 
         items.sort(key=lambda item: item.get("uploaded_at", ""), reverse=True)
         return {"videos": items[: max(1, int(limit))]}
+
+    def get_video_metadata(self, file_name: str):
+        input_path = self._resolve_uploaded_video_path(file_name)
+        playable_path = input_path.with_name(f"{input_path.stem}.playable.mp4")
+        metadata_path = playable_path if playable_path.is_file() else input_path
+        capture = cv2.VideoCapture(str(metadata_path))
+        try:
+            if not capture.isOpened():
+                raise HTTPException(status_code=422, detail="Unable to read video metadata")
+            fps = float(capture.get(cv2.CAP_PROP_FPS) or 0.0)
+            frame_count = int(capture.get(cv2.CAP_PROP_FRAME_COUNT) or 0)
+        finally:
+            capture.release()
+
+        if fps <= 0 or frame_count <= 0:
+            raise HTTPException(status_code=422, detail="Video frame metadata is unavailable")
+
+        return {
+            "fps": round(fps, 6),
+            "frame_count": frame_count,
+        }
 
     def delete_uploaded_video(self, file_name: str):
         input_path = self._resolve_uploaded_video_path(file_name)

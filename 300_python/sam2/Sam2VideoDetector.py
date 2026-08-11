@@ -984,7 +984,7 @@ class Sam2VideoDetector:
         if x_max <= x_min:
             x_max = x_min + 1.0
         x_values = np.arange(1, len(score_history) + 1, dtype=np.float32)
-        score_values = np.asarray(score_history, dtype=np.float32)
+        score_values = np.asarray(score_history, dtype=np.float32).copy()
         score_values[:max(0, int(prompt_frame) - 1)] = 0.0
         self._chart_renderer._draw_chart_series(
             canvas,

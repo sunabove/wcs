@@ -33,6 +33,9 @@
     const bboxClearButton = document.getElementById('sam2-bbox-clear');
     const optionsSaveButton = document.getElementById('sam2-options-save');
     const optionsResetButton = document.getElementById('sam2-options-reset');
+    if (optionsResetButton) {
+        optionsResetButton.textContent = '취소';
+    }
     const multimaskOutputCheckbox = document.getElementById('sam2-multimask-output');
     const maskInputCheckbox = document.getElementById('sam2-mask-input');
     const claheCheckbox = document.getElementById('sam2-clahe');
@@ -3465,7 +3468,7 @@
             const restored = await loadVideoOptions(selectedServerFileName);
             updateDetectionControlState();
             setStatus(
-                restored ? '서버에 저장된 검출 설정으로 초기화했습니다.' : '서버 검출 설정을 불러오지 못했습니다.',
+                restored ? '변경사항을 취소하고 서버에 저장된 검출 설정을 복원했습니다.' : '서버 검출 설정을 불러오지 못했습니다.',
                 restored ? 'secondary' : 'warning'
             );
         });

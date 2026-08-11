@@ -656,16 +656,12 @@
             if (modelPaneTemplate && modelPaneTemplate.content) {
                 const templateClone = modelPaneTemplate.content.cloneNode(true);
                 const modelBadgesElement = templateClone.querySelector('[data-role="model-badges"]');
-                const fileNameElement = templateClone.querySelector('[data-role="file-name"]');
                 const modelTypeElement = templateClone.querySelector('[data-role="model-type"]');
                 const classCountElement = templateClone.querySelector('[data-role="class-count"]');
                 const classListElement = templateClone.querySelector('[data-role="class-list"]');
 
                 if (modelBadgesElement) {
                     modelBadgesElement.classList.add('align-items-center');
-                }
-                if (fileNameElement) {
-                    fileNameElement.textContent = modelItem.fileName;
                 }
                 if (modelTypeElement) {
                     modelTypeElement.textContent = modelItem.modelType || 'YOLO 모델';

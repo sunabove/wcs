@@ -1692,138 +1692,116 @@ class Sam2VideoDetector:
 
         writer = None
         render_capture = None
+        inference_state = None
+        video_predictor = None
+        clahe_input_path = None
         start_time = time.time()
-        model = self._get_model(model_name)
         x1, y1, x2, y2 = bbox_rect
         box_prompt = np.array([x1, y1, x2, y2], dtype=np.float32)
         point_prompt = self._parse_points(points, width, height, point_labels)
-        previous_mask_input = None
-        prompt_mask_input = None
         clahe_processor = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8)) if clahe else None
 
         tracked_frames = 0
         total_segments = 0
-        score_history = []
-        fill_ratio_history = []
+        score_history = [0.0] * total_frames
+        fill_ratio_history = [0.0] * total_frames
         iou_history = []
-        mask_history = []
+        mask_history = [None] * total_frames
         reference_mask = None
-        frame_index = 0
 
         try:
+            model_input_path = prepared_path
+            clahe_writer = None
+            if clahe_processor is not None:
+                clahe_input_path = SAM2_UPLOAD_DIR / f"_{input_file_stem}.sam2_clahe.mp4"
+                clahe_writer = self._create_video_writer(clahe_input_path, fps, width, height)
+                if clahe_writer is None:
+                    raise RuntimeError("Failed to create CLAHE inference video")
+                model_input_path = clahe_input_path
+
             while True:
                 ok, frame = capture.read()
                 if not ok:
                     break
-
-                if frame_index < prompt_frame_index:
-                    score_history.append(0.0)
-                    mask_history.append(None)
-                    fill_ratio_history.append(0.0)
-                    overlay_writer.write(frame)
-                    frame_index += 1
-                    continue
-
-                try:
-                    rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-                    if clahe_processor is not None:
-                        lab_frame = cv2.cvtColor(rgb_frame, cv2.COLOR_RGB2LAB)
-                        lab_frame[:, :, 0] = clahe_processor.apply(lab_frame[:, :, 0])
-                        rgb_frame = cv2.cvtColor(lab_frame, cv2.COLOR_LAB2RGB)
-                    model.set_image(rgb_frame)
-                    predict_kwargs = {
-                        "multimask_output": bool(multimask_output),
-                    }
-                    if mask_input and previous_mask_input is not None:
-                        predict_kwargs["mask_input"] = previous_mask_input
-                    else:
-                        predict_kwargs["box"] = box_prompt
-                        if point_prompt is not None:
-                            predict_kwargs["point_coords"], predict_kwargs["point_labels"] = point_prompt
-                    masks, scores, _logits = model.predict(**predict_kwargs)
-                    detection_score = self._first_score_value(scores)
-                    if mask_input and _logits is not None:
-                        previous_mask_input = _logits[:1] if getattr(_logits, "ndim", 0) == 3 else _logits
-                        if frame_index == prompt_frame_index:
-                            prompt_mask_input = previous_mask_input.copy()
-                    else:
-                        previous_mask_input = None
-                    mask_tensor = self._select_best_mask(masks, scores)
-                    if mask_tensor is not None:
-                        total_segments += 1
-                except RuntimeError as ex:
-                    message = str(ex)
-                    if "can't allocate memory" in message.lower() or "cannot allocate memory" in message.lower():
-                        raise RuntimeError(
-                            "메모리가 부족합니다. 더 짧은 영상을 사용하거나 해상도를 낮춘 뒤 다시 시도하세요."
-                        ) from ex
-                    raise
-
-                tracked_frames += 1
-                score_history.append(max(0.0, min(1.0, float(detection_score or 0.0))))
-                mask_history.append(self._to_binary_mask(mask_tensor, frame.shape))
-                fill_ratio_history.append(
-                    self._calculate_mask_bbox_fill_ratio(mask_tensor, frame.shape)
-                )
                 overlay_writer.write(frame)
-                frame_index += 1
-                if progress_callback is not None and total_frames > 0:
-                    progress_callback(tracked_frames, max(1, total_frames * 2))
-
-            previous_mask_input = prompt_mask_input.copy() if prompt_mask_input is not None else None
-            for reverse_frame_index in range(prompt_frame_index - 1, -1, -1):
-                capture.set(cv2.CAP_PROP_POS_FRAMES, reverse_frame_index)
-                ok, frame = capture.read()
-                if not ok:
-                    continue
-
-                try:
-                    rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-                    if clahe_processor is not None:
-                        lab_frame = cv2.cvtColor(rgb_frame, cv2.COLOR_RGB2LAB)
-                        lab_frame[:, :, 0] = clahe_processor.apply(lab_frame[:, :, 0])
-                        rgb_frame = cv2.cvtColor(lab_frame, cv2.COLOR_LAB2RGB)
-                    model.set_image(rgb_frame)
-                    predict_kwargs = {
-                        "multimask_output": bool(multimask_output),
-                    }
-                    if mask_input and previous_mask_input is not None:
-                        predict_kwargs["mask_input"] = previous_mask_input
-                    else:
-                        predict_kwargs["box"] = box_prompt
-                        if point_prompt is not None:
-                            predict_kwargs["point_coords"], predict_kwargs["point_labels"] = point_prompt
-                    masks, scores, _logits = model.predict(**predict_kwargs)
-                    detection_score = self._first_score_value(scores)
-                    if mask_input and _logits is not None:
-                        previous_mask_input = _logits[:1] if getattr(_logits, "ndim", 0) == 3 else _logits
-                    else:
-                        previous_mask_input = None
-                    mask_tensor = self._select_best_mask(masks, scores)
-                    if mask_tensor is not None:
-                        total_segments += 1
-                except RuntimeError as ex:
-                    message = str(ex)
-                    if "can't allocate memory" in message.lower() or "cannot allocate memory" in message.lower():
-                        raise RuntimeError(
-                            "메모리가 부족합니다. 더 짧은 영상을 사용하거나 해상도를 낮춘 뒤 다시 시도하세요."
-                        ) from ex
-                    raise
-
-                tracked_frames += 1
-                score_history[reverse_frame_index] = max(0.0, min(1.0, float(detection_score or 0.0)))
-                mask_history[reverse_frame_index] = self._to_binary_mask(mask_tensor, frame.shape)
-                fill_ratio_history[reverse_frame_index] = self._calculate_mask_bbox_fill_ratio(
-                    mask_tensor,
-                    frame.shape,
-                )
-                if progress_callback is not None and total_frames > 0:
-                    progress_callback(tracked_frames, max(1, total_frames * 2))
+                if clahe_writer is not None:
+                    lab_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2LAB)
+                    lab_frame[:, :, 0] = clahe_processor.apply(lab_frame[:, :, 0])
+                    clahe_writer.write(cv2.cvtColor(lab_frame, cv2.COLOR_LAB2BGR))
 
             capture.release()
             capture = None
             overlay_writer.release()
             overlay_writer = None
+            if clahe_writer is not None:
+                clahe_writer.release()
+
+            video_predictor = self._get_video_model(model_name)
+            inference_state = video_predictor.init_state(
+                video_path=str(model_input_path),
+                offload_video_to_cpu=True,
+                offload_state_to_cpu=not torch.cuda.is_available(),
+            )
+            state_frame_count = int(inference_state.get("num_frames", total_frames))
+            if state_frame_count <= 0:
+                raise RuntimeError("SAM2 video predictor loaded no frames")
+            if state_frame_count != total_frames:
+                total_frames = state_frame_count
+                score_history = [0.0] * total_frames
+                fill_ratio_history = [0.0] * total_frames
+                mask_history = [None] * total_frames
+            prompt_frame_index = min(prompt_frame_index, total_frames - 1)
+
+            point_coords = point_prompt[0] if point_prompt is not None else None
+            point_labels_array = point_prompt[1] if point_prompt is not None else None
+            video_predictor.add_new_points_or_box(
+                inference_state=inference_state,
+                frame_idx=prompt_frame_index,
+                obj_id=1,
+                points=point_coords,
+                labels=point_labels_array,
+                box=box_prompt,
+            )
+
+            processed_indices = set()
+
+            def collect_propagation(propagation):
+                nonlocal total_segments, tracked_frames
+                for result_frame_index, object_ids, video_mask_logits in propagation:
+                    result_frame_index = int(result_frame_index)
+                    if result_frame_index < 0 or result_frame_index >= total_frames:
+                        continue
+                    object_id_values = [int(value) for value in object_ids]
+                    object_position = object_id_values.index(1)
+                    mask_logits = video_mask_logits[object_position]
+                    mask = self._to_binary_mask(mask_logits, (height, width, 3))
+                    score_history[result_frame_index] = self._video_mask_score(mask_logits)
+                    mask_history[result_frame_index] = mask
+                    fill_ratio_history[result_frame_index] = self._calculate_mask_bbox_fill_ratio(
+                        mask,
+                        (height, width, 3),
+                    )
+                    if result_frame_index not in processed_indices:
+                        processed_indices.add(result_frame_index)
+                        if mask is not None and np.any(mask):
+                            total_segments += 1
+                    tracked_frames = len(processed_indices)
+                    if progress_callback is not None:
+                        progress_callback(tracked_frames, max(1, total_frames * 2))
+
+            collect_propagation(video_predictor.propagate_in_video(
+                inference_state,
+                start_frame_idx=prompt_frame_index,
+                max_frame_num_to_track=total_frames - prompt_frame_index,
+                reverse=False,
+            ))
+            if prompt_frame_index > 0:
+                collect_propagation(video_predictor.propagate_in_video(
+                    inference_state,
+                    start_frame_idx=prompt_frame_index,
+                    max_frame_num_to_track=prompt_frame_index + 1,
+                    reverse=True,
+                ))
 
             # Select the highest stable Score plateau for thresholding and reference-mask selection.
             local_peak_start, local_peak_last = self._find_score_plateau_bounds(

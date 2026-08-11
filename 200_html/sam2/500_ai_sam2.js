@@ -84,15 +84,15 @@
     const yoloTrainProgressTextElement = document.getElementById('sam2-yolo-train-progress-text');
     const yoloTrainProgressBar = yoloTrainProgressElement?.parentElement;
     if (yoloTrainProgressBar) {
-        yoloTrainProgressBar.style.height = '2.5rem';
+        yoloTrainProgressBar.style.height = '2rem';
         yoloTrainProgressBar.parentElement?.classList.remove('mt-2');
         yoloTrainProgressBar.parentElement?.classList.add('mt-3');
     }
     yoloTrainProgressTextElement?.classList.remove('small');
-    yoloTrainProgressTextElement?.classList.add('fs-5', 'px-3', 'py-1');
+    yoloTrainProgressTextElement?.classList.add('fs-6', 'px-2', 'py-1');
     const yoloTrainStatusElement = document.getElementById('sam2-yolo-train-status');
     yoloTrainStatusElement?.classList.remove('small', 'mt-1');
-    yoloTrainStatusElement?.classList.add('fs-5', 'mt-3');
+    yoloTrainStatusElement?.classList.add('fs-6', 'mt-2');
     const yoloTrainMetricsCanvas = document.getElementById('sam2-yolo-train-metrics-chart');
     document.querySelector('#sam2-yolo-train-pane > section > .fw-semibold.mb-2')?.remove();
     setIconText(yoloTrainClassCountElement, 'bi-tags', '클래스 0개');

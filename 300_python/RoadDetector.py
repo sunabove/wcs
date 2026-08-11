@@ -483,6 +483,17 @@ class RoadDetector:
         b0, g0, r0 = [int(v) for v in base_bgr]
         return (b0, g0, r0)
 
+    def _get_class_color(self, names, cls_id, fallback=(0, 255, 255)):
+        if cls_id is None:
+            return fallback
+
+        class_name = str(names.get(int(cls_id), int(cls_id))).strip()
+        class_color_map = self._get_class_color_map()
+        return class_color_map.get(
+            class_name,
+            class_color_map.get(class_name.lower(), fallback),
+        )
+
     def _get_roi_path(self, input_path: Path) -> Path:
         return input_path.with_name(f"{input_path.stem}_roi.txt")
 
@@ -1952,6 +1963,9 @@ class RoadDetector:
                 kept_mask_indices.append(idx)
                 kept_binary_masks.append(active_binary_mask)
 
+                mask_color = self._get_class_color(names, cls_id, fallback=(0, 255, 0))
+                mask_color = self._get_instance_mask_color(mask_color, idx, cls_id)
+
                 if detect_key in ("road", "road_type", "obstacle"):
                     contour_input_active = (active_binary_mask.astype(np.uint8) * 255)
                     contours_active, _ = cv2.findContours(
@@ -1960,14 +1974,7 @@ class RoadDetector:
                         cv2.CHAIN_APPROX_SIMPLE,
                     )
                     if contours_active:
-                        mask_outline_polygons.extend(contours_active)
-
-                mask_color = (0, 255, 0)
-                if mask_cls_ids is not None and idx < len(mask_cls_ids):
-                    cls_id = int(mask_cls_ids[idx])
-                    cls_name = str(names.get(cls_id, cls_id))
-                    mask_color = class_color_map.get(cls_name, class_color_map.get(cls_name.lower(), mask_color))
-                mask_color = self._get_instance_mask_color(mask_color, idx, cls_id)
+                        mask_outline_polygons.extend((contour, mask_color) for contour in contours_active)
 
                 ys, xs = np.where(active_binary_mask)
                 if xs.size > 0 and ys.size > 0:
@@ -2025,8 +2032,8 @@ class RoadDetector:
         mask_count = len(kept_mask_indices)
         detected = cv2.addWeighted(overlay, 0.35, detected, 0.65, 0)
         if mask_outline_polygons:
-            outline_color = (255, 255, 0) if detect_key == "obstacle" else (0, 0, 255)
-            cv2.polylines(detected, mask_outline_polygons, True, outline_color, 1)
+            for polygon, outline_color in mask_outline_polygons:
+                cv2.polylines(detected, [polygon], True, outline_color, 1)
         if (not remove_noisy_masks) and noisy_mask_polygons:
             cv2.polylines(detected, noisy_mask_polygons, True, (0, 0, 255), 1)
 
@@ -2138,15 +2145,12 @@ class RoadDetector:
             box_colors = []
             for idx in range(len(boxes)):
                 cls_name = ""
+                cls_id = None
                 if cls_ids is not None and idx < len(cls_ids):
-                    cls_name = str(names.get(int(cls_ids[idx]), int(cls_ids[idx])))
+                    cls_id = int(cls_ids[idx])
+                    cls_name = str(names.get(cls_id, cls_id)).strip()
                 box_labels.append(cls_name)
-                box_colors.append(
-                    class_color_map.get(
-                        cls_name,
-                        class_color_map.get(cls_name.lower(), (0, 255, 255)),
-                    )
-                )
+                box_colors.append(self._get_class_color(names, cls_id))
 
         return {
             "boxes": boxes,

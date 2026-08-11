@@ -27,6 +27,7 @@ class Sam2VideoDetector:
     _model_cache = {}
     _yolo_conversion_cache = {}
     _sam2_image_predictor_class = None
+    _sam2_video_predictor_class = None
     _max_infer_side = 960
     _max_infer_fps = 10.0
     _max_infer_frames = 600
@@ -278,6 +279,15 @@ class Sam2VideoDetector:
         self.__class__._sam2_image_predictor_class = predictor_class
         return predictor_class
 
+    def _load_sam2_video_predictor_class(self):
+        if self.__class__._sam2_video_predictor_class is not None:
+            return self.__class__._sam2_video_predictor_class
+
+        module = self._load_external_sam2_module("sam2.sam2_video_predictor")
+        predictor_class = module.SAM2VideoPredictor
+        self.__class__._sam2_video_predictor_class = predictor_class
+        return predictor_class
+
     def _load_external_sam2_module(self, module_name: str):
         local_root = Path(__file__).resolve().parents[1]
         original_sys_path = list(sys.path)
@@ -350,6 +360,18 @@ class Sam2VideoDetector:
                     normalized,
                     device=device,
                 )
+        return self._model_cache[cache_key]
+
+    def _get_video_model(self, model_name: str):
+        normalized = str(model_name or "").strip() or SAM2_DEFAULT_MODEL
+        cache_key = f"sam2-video:{normalized}"
+        if cache_key not in self._model_cache:
+            device = "cuda" if torch.cuda.is_available() else "cpu"
+            predictor_class = self._load_sam2_video_predictor_class()
+            self._model_cache[cache_key] = predictor_class.from_pretrained(
+                normalized,
+                device=device,
+            )
         return self._model_cache[cache_key]
 
     def _create_video_writer(self, output_path: Path, fps: float, width: int, height: int):

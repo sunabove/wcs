@@ -153,6 +153,10 @@
     object-fit: contain;
 }
 
+#sam2-input-video::-webkit-media-controls-play-button {
+    display: none;
+}
+
 .sam2-option-card {
     height: 100%;
     min-height: 96px;

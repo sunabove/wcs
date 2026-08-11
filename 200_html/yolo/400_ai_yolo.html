@@ -85,13 +85,7 @@
 							<td>
 								<ul class="nav nav-tabs" id="yolo-input-source-tabs" role="tablist">
 									<li class="nav-item" role="presentation">
-										<button class="nav-link active text-secondary" id="yolo-file-source-tab" data-bs-toggle="tab" data-bs-target="#yolo-file-source-pane" type="button" role="tab" aria-controls="yolo-file-source-pane" aria-selected="true">
-											<i class="bi bi-film me-1" aria-hidden="true"></i>
-											&nbsp; 동영상 파일
-										</button>
-									</li>
-									<li class="nav-item" role="presentation">
-										<button class="nav-link text-secondary" id="yolo-uploaded-source-tab" data-bs-toggle="tab" data-bs-target="#yolo-uploaded-source-pane" type="button" role="tab" aria-controls="yolo-uploaded-source-pane" aria-selected="false">
+										<button class="nav-link active text-primary" id="yolo-uploaded-source-tab" data-bs-toggle="tab" data-bs-target="#yolo-uploaded-source-pane" type="button" role="tab" aria-controls="yolo-uploaded-source-pane" aria-selected="true">
 											<i class="bi bi-upload me-1" aria-hidden="true"></i>
 											&nbsp; 업로드 동영상
 										</button>
@@ -99,22 +93,23 @@
 								</ul>
 								<input id="yolo-video-file" class="d-none" type="file" accept="video/*">
 								<div class="tab-content border border-top-0 rounded-bottom p-2 bg-white">
-									<div class="tab-pane fade show active" id="yolo-file-source-pane" role="tabpanel" aria-labelledby="yolo-file-source-tab" tabindex="0">
-										<div class="d-flex flex-column align-items-stretch gap-2">
-											<div id="yolo-drop-zone" class="border border-2 rounded-3 bg-light p-3 text-center text-secondary flex-grow-1" style="border-style: dashed; cursor: pointer; transition: all 0.15s ease; background: #f8fafc; color: #334155;" role="button" tabindex="0" aria-label="동영상 드래그 업로드 영역">
-												<div class="fw-semibold">동영상을 여기로 드래그하세요</div>
-												<div id="yolo-selected-file" class="form-text mt-1">또는 클릭해서 파일 선택</div>
-											</div>
-											<div id="yolo-upload-progress-wrap" class="d-none" style="font-family: inherit;">
-												<div class="progress position-relative w-100" role="progressbar" aria-label="동영상 업로드 진행률" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" style="min-height: 24px;">
-													<div id="yolo-upload-progress-bar" class="progress-bar progress-bar-striped progress-bar-animated" style="width: 0%;"></div>
-													<span id="yolo-upload-progress-label" class="position-absolute top-50 start-50 translate-middle small fw-semibold text-dark" style="text-shadow: 0 0 2px rgba(255, 255, 255, 0.9); font-family: inherit;">0%</span>
-												</div>
-											</div>
-										</div>
-									</div>
-									<div class="tab-pane fade" id="yolo-uploaded-source-pane" role="tabpanel" aria-labelledby="yolo-uploaded-source-tab" tabindex="0">
+									<div class="tab-pane fade show active" id="yolo-uploaded-source-pane" role="tabpanel" aria-labelledby="yolo-uploaded-source-tab" tabindex="0">
 										<ul id="yolo-uploaded-list" class="list-group list-group-sm d-flex flex-row flex-nowrap gap-2 align-items-stretch overflow-auto pb-1 mb-0" style="white-space: nowrap;">
+											<li id="yolo-upload-item" class="list-group-item small flex-shrink-0">
+												<div id="yolo-drop-zone" class="yolo-uploaded-item h-100 text-center text-primary" style="cursor: pointer;" role="button" tabindex="0" aria-label="동영상 파일 선택 또는 드래그 업로드">
+													<div class="yolo-uploaded-thumb d-flex flex-column align-items-center justify-content-center border-primary" style="border-style: dashed;">
+														<i class="bi bi-cloud-arrow-up fs-3" aria-hidden="true"></i>
+														<span class="small fw-semibold">업로드</span>
+													</div>
+													<div id="yolo-selected-file" class="yolo-uploaded-meta text-truncate">파일 선택</div>
+													<div id="yolo-upload-progress-wrap" class="d-none w-100" style="font-family: inherit;">
+														<div class="progress position-relative w-100" role="progressbar" aria-label="동영상 업로드 진행률" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" style="height: 16px;">
+															<div id="yolo-upload-progress-bar" class="progress-bar progress-bar-striped progress-bar-animated" style="width: 0%;"></div>
+															<span id="yolo-upload-progress-label" class="position-absolute top-50 start-50 translate-middle fw-semibold text-dark" style="font-size: 0.65rem; line-height: 1; text-shadow: 0 0 2px rgba(255, 255, 255, 0.9); font-family: inherit;">0%</span>
+														</div>
+													</div>
+												</div>
+											</li>
 											<li id="yolo-uploaded-empty" class="list-group-item small text-muted">업로드 이력 없음</li>
 										</ul>
 									</div>

@@ -11,6 +11,7 @@
     const confValueElement = document.getElementById('yolo-conf-value');
     const iouValueElement = document.getElementById('yolo-iou-value');
     const uploadedListElement = document.getElementById('yolo-uploaded-list');
+    const uploadItemElement = document.getElementById('yolo-upload-item');
     const uploadedEmptyElement = document.getElementById('yolo-uploaded-empty');
     const inputSourceTabButtons = Array.from(document.querySelectorAll('#yolo-input-source-tabs [data-bs-toggle="tab"]'));
     const modelTabsElement = document.getElementById('yolo-model-tabs');
@@ -745,7 +746,11 @@
             return;
         }
 
-        uploadedListElement.innerHTML = '';
+        if (uploadItemElement) {
+            uploadedListElement.replaceChildren(uploadItemElement);
+        } else {
+            uploadedListElement.innerHTML = '';
+        }
 
         if (uploadedHistory.length === 0) {
             const emptyItem = document.createElement('li');

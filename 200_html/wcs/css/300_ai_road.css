@@ -108,6 +108,12 @@
     flex: 0 0 auto;
 }
 
+.detected-output-url-input {
+    flex: 0 1 420px;
+    min-width: 220px;
+    max-width: 420px;
+}
+
 .roi-editor-toolbar {
     display: flex;
     flex-wrap: wrap;
@@ -198,5 +204,10 @@
 
     #detected-image-download-wrap {
         align-self: flex-end;
+    }
+
+    .detected-output-url-input {
+        flex-basis: 100%;
+        max-width: 100%;
     }
 }

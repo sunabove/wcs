@@ -359,15 +359,27 @@ class Sam2VideoDetector:
             dst_width += dst_width % 2
             dst_height += dst_height % 2
 
-            target_fps = min(src_fps, self._max_infer_fps)
-            frame_step = max(1, int(round(src_fps / max(0.1, target_fps))))
-
-            estimated_out_frames = src_frames // frame_step if src_frames > 0 else self._max_infer_frames
+            fps_frame_step = max(1, int(np.ceil(src_fps / max(0.1, self._max_infer_fps))))
+            max_frames_by_pixels = max(
+                1,
+                int(self._max_infer_pixels_total // max(1, dst_width * dst_height)),
+            )
+            output_frame_limit = max(1, min(self._max_infer_frames, max_frames_by_pixels))
+            duration_frame_step = (
+                max(1, int(np.ceil(src_frames / output_frame_limit)))
+                if src_frames > 0
+                else 1
+            )
+            frame_step = max(fps_frame_step, duration_frame_step)
+            target_fps = src_fps / frame_step
+            estimated_out_frames = (
+                int(np.ceil(src_frames / frame_step))
+                if src_frames > 0
+                else output_frame_limit
+            )
             requires_optimize = (
                 resize_ratio < 1.0
                 or frame_step > 1
-                or (src_frames > 0 and estimated_out_frames > self._max_infer_frames)
-                or (src_frames > 0 and (src_width * src_height * src_frames) > self._max_infer_pixels_total)
             )
 
             if not requires_optimize:
@@ -408,7 +420,7 @@ class Sam2VideoDetector:
                     written += 1
                     frame_index += 1
 
-                    if written >= self._max_infer_frames:
+                    if written >= output_frame_limit:
                         break
             finally:
                 writer.release()
@@ -434,6 +446,14 @@ class Sam2VideoDetector:
             }
         finally:
             capture.release()
+
+    def _map_prompt_frame_index(self, prompt_frame: int, prepared, total_frames: int) -> int:
+        source_frame_index = max(0, int(prompt_frame) - 1)
+        frame_step = max(1, int(prepared.get("frame_step", 1)))
+        inference_frame_index = int(round(source_frame_index / frame_step))
+        if total_frames > 0:
+            inference_frame_index = min(inference_frame_index, total_frames - 1)
+        return inference_frame_index
 
     def _parse_bbox(self, bbox, width: int, height: int):
         if bbox is None:
@@ -1562,11 +1582,7 @@ class Sam2VideoDetector:
             capture.release()
             raise RuntimeError("Invalid video size")
 
-        source_prompt_frame_index = max(0, int(prompt_frame) - 1)
-        frame_step = max(1, int(prepared.get("frame_step", 1)))
-        prompt_frame_index = int(round(source_prompt_frame_index / frame_step))
-        if total_frames > 0:
-            prompt_frame_index = min(prompt_frame_index, total_frames - 1)
+        prompt_frame_index = self._map_prompt_frame_index(prompt_frame, prepared, total_frames)
 
         bbox_rect, normalized_bbox = self._parse_bbox(bbox, width, height)
         if bbox_rect is None:

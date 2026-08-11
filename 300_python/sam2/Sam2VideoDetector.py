@@ -622,6 +622,20 @@ class Sam2VideoDetector:
 
         return value
 
+    def _video_mask_score(self, mask_logits) -> float:
+        if mask_logits is None:
+            return 0.0
+        if hasattr(mask_logits, "detach"):
+            mask_logits = mask_logits.detach().float().to("cpu").numpy()
+        logits = np.asarray(mask_logits, dtype=np.float32).squeeze()
+        if logits.ndim != 2:
+            return 0.0
+        foreground_logits = logits[np.isfinite(logits) & (logits > 0)]
+        if foreground_logits.size == 0:
+            return 0.0
+        probabilities = 1.0 / (1.0 + np.exp(-np.clip(foreground_logits, -30.0, 30.0)))
+        return float(np.mean(probabilities))
+
     def _select_best_mask(self, masks, scores):
         if masks is None:
             return None

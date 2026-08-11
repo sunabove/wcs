@@ -423,7 +423,7 @@
             inputVideoFrameCount
         );
         inputFrameCounterElement.textContent = `프레임 ${currentFrame.toLocaleString()} / ${inputVideoFrameCount.toLocaleString()}`;
-        if (promptFrameInput && document.activeElement !== promptFrameInput) {
+        if (promptFrameInput && pendingPromptFrame === null && document.activeElement !== promptFrameInput) {
             promptFrameInput.max = String(inputVideoFrameCount);
             promptFrameInput.value = String(currentFrame);
             promptFrameInput.disabled = !hasSelectedVideo();
@@ -3144,6 +3144,8 @@
         const bboxQuery = buildBboxQuery();
         const pointsQuery = buildPointsQuery();
         const pointLabelsQuery = buildPointLabelsQuery();
+        const promptFrame = getPromptFrame();
+        const promptFrameQuery = `&prompt_frame=${encodeURIComponent(String(promptFrame))}`;
 
         if (!file && !selectedServerFileName && highlightedServerFileName) {
             const highlightedExists = uploadedHistory.some((item) => item.serverFileName === highlightedServerFileName);
@@ -3179,13 +3181,13 @@
             if (file) {
                 const formData = new FormData();
                 formData.append('file', file);
-                const url = `${apiBase}/fast/sam2/segment_video_upload?${bboxQuery.slice(1)}${pointsQuery}${pointLabelsQuery}${buildPromptFrameQuery()}${buildMultimaskOutputQuery()}${buildMaskInputQuery()}${buildClaheQuery()}${buildIouMaskFilterQuery()}`;
+                const url = `${apiBase}/fast/sam2/segment_video_upload?${bboxQuery.slice(1)}${pointsQuery}${pointLabelsQuery}${promptFrameQuery}${buildMultimaskOutputQuery()}${buildMaskInputQuery()}${buildClaheQuery()}${buildIouMaskFilterQuery()}`;
                 response = await fetch(url, {
                     method: 'POST',
                     body: formData,
                 });
             } else {
-                const url = `${apiBase}/fast/sam2/segment_saved_video?file_name=${encodeURIComponent(selectedServerFileName)}${bboxQuery}${pointsQuery}${pointLabelsQuery}${buildPromptFrameQuery()}${buildMultimaskOutputQuery()}${buildMaskInputQuery()}${buildClaheQuery()}${buildIouMaskFilterQuery()}`;
+                const url = `${apiBase}/fast/sam2/segment_saved_video?file_name=${encodeURIComponent(selectedServerFileName)}${bboxQuery}${pointsQuery}${pointLabelsQuery}${promptFrameQuery}${buildMultimaskOutputQuery()}${buildMaskInputQuery()}${buildClaheQuery()}${buildIouMaskFilterQuery()}`;
                 response = await fetch(url, {
                     method: 'POST',
                 });
@@ -3231,7 +3233,9 @@
             updateYoloClassTabs(extractYoloClassName(yoloInputFileName));
             updateOutputDownloadState();
 
+            pendingPromptFrame = promptFrame;
             await assignVideoSource(inputVideoElement, inputUrl, 'input');
+            restorePendingPromptFrame();
             await assignVideoSource(outputVideoElement, outputUrl, 'output');
 
             const outputTabButton = document.getElementById('sam2-output-tab');

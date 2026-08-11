@@ -1698,13 +1698,14 @@ class Sam2VideoDetector:
                         rgb_frame = cv2.cvtColor(lab_frame, cv2.COLOR_LAB2RGB)
                     model.set_image(rgb_frame)
                     predict_kwargs = {
-                        "box": box_prompt,
                         "multimask_output": bool(multimask_output),
                     }
                     if mask_input and previous_mask_input is not None:
                         predict_kwargs["mask_input"] = previous_mask_input
-                    if point_prompt is not None:
-                        predict_kwargs["point_coords"], predict_kwargs["point_labels"] = point_prompt
+                    else:
+                        predict_kwargs["box"] = box_prompt
+                        if point_prompt is not None:
+                            predict_kwargs["point_coords"], predict_kwargs["point_labels"] = point_prompt
                     masks, scores, _logits = model.predict(**predict_kwargs)
                     detection_score = self._first_score_value(scores)
                     if mask_input and _logits is not None:

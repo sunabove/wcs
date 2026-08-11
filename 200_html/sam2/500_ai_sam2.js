@@ -114,6 +114,7 @@
     const MAX_POINT_COUNT = 20;
     const STORAGE_SELECTED_VIDEO_KEY = 'sam2.selectedVideo';
     const STORAGE_INPUT_SOURCE_TAB_KEY = 'sam2.inputSourceTab';
+    const STORAGE_OUTPUT_TAB_KEY = 'sam2.outputTab';
     const DEFAULT_MAX_UPLOAD_BYTES = 1024 * 1024 * 1024; // 1 GB
     let maxUploadBytes = DEFAULT_MAX_UPLOAD_BYTES;
     let maxUploadConfiguredValue = '1g';
@@ -551,6 +552,23 @@
 
     function loadInputSourceTab() {
         showInputSourceTab('sam2-uploaded-source-tab', false);
+    }
+
+    function loadOutputTab() {
+        let tabId = '';
+        try {
+            tabId = String(localStorage.getItem(STORAGE_OUTPUT_TAB_KEY) || '').trim();
+        } catch (_ignore) {
+            // Use the default tab when localStorage is unavailable.
+        }
+
+        const tabButton = document.getElementById(tabId);
+        const isOutputTab = tabButton
+            && tabButton.matches('[data-bs-toggle="tab"]')
+            && tabButton.closest('#sam2-video-tabs');
+        if (isOutputTab && window.bootstrap && typeof window.bootstrap.Tab === 'function') {
+            window.bootstrap.Tab.getOrCreateInstance(tabButton).show();
+        }
     }
 
     function applyLoopOption() {
@@ -3192,6 +3210,19 @@
         });
     });
 
+    document.querySelectorAll('#sam2-video-tabs [data-bs-toggle="tab"]').forEach((tabButton) => {
+        tabButton.addEventListener('shown.bs.tab', (event) => {
+            const tabId = event.target && event.target.id;
+            if (tabId) {
+                try {
+                    localStorage.setItem(STORAGE_OUTPUT_TAB_KEY, tabId);
+                } catch (_ignore) {
+                    // Keep the current tab when localStorage is unavailable.
+                }
+            }
+        });
+    });
+
     const outputTabButton = document.getElementById('sam2-output-tab');
     if (outputTabButton) {
         outputTabButton.addEventListener('shown.bs.tab', () => {
@@ -3444,6 +3475,7 @@
     initializeOutputVideoControls();
     initializeYoloOutputTab();
     loadInputSourceTab();
+    loadOutputTab();
     updateDetectionControlState();
     renderPointUi();
     renderBoundingBoxUi();

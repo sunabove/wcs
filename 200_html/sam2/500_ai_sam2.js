@@ -3389,8 +3389,8 @@
 
         detectionMode = mode;
         const isForeground = mode === 'foreground';
-        foregroundPointModeButton?.classList.toggle('btn-primary', isForeground);
-        foregroundPointModeButton?.classList.toggle('btn-outline-primary', !isForeground);
+        foregroundPointModeButton?.classList.remove('btn-primary');
+        foregroundPointModeButton?.classList.add('btn-outline-primary');
         backgroundPointModeButton?.classList.toggle('btn-primary', !isForeground);
         backgroundPointModeButton?.classList.toggle('btn-outline-primary', isForeground);
         bboxModeButton?.classList.add('btn-outline-primary');

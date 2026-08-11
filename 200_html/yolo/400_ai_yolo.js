@@ -46,6 +46,7 @@
     let realtimeDetectTimer = null;
     let pendingRealtimeDetect = false;
     let uploadInProgress = false;
+    let uploadProgressHideTimer = null;
     let uploadedHistory = [];
     let modelHistory = [];
     let selectedServerFileName = '';
@@ -1118,6 +1119,10 @@
         uploadInProgress = true;
         fileInput.disabled = true;
         dropZone.setAttribute('aria-busy', 'true');
+        if (uploadProgressHideTimer) {
+            clearTimeout(uploadProgressHideTimer);
+            uploadProgressHideTimer = null;
+        }
         setUploadProgress(0, true, '0%');
         setStatus('동영상 업로드 중...', 'info');
 
@@ -1137,6 +1142,10 @@
             renderUploadedHistory();
             showInputSourceTab('#yolo-uploaded-source-pane');
             setStatus('동영상 업로드 완료. 업로드 동영상 탭에서 선택되었습니다.', 'success');
+            uploadProgressHideTimer = setTimeout(() => {
+                setUploadProgress(100, false, '100%');
+                uploadProgressHideTimer = null;
+            }, 1000);
         } catch (error) {
             const message = error && error.message ? error.message : String(error);
             setSelectedFile(null);

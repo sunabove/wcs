@@ -173,7 +173,7 @@
 }
 
 .sam2-point-toolbar {
-    width: min(640px, 100%);
+    width: 100%;
     margin-left: auto;
     margin-right: auto;
 }

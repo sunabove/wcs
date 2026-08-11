@@ -149,6 +149,8 @@
     let hasCompletedInitialUploadedListLoad = false;
     let inputVideoFps = 0;
     let inputVideoFrameCount = 0;
+    let outputVideoFps = 0;
+    let outputVideoFrameCount = 0;
     let inputVideoMetadataRequestSeq = 0;
     let pendingPromptFrame = null;
     const MAX_POINT_COUNT = 20;
@@ -686,16 +688,16 @@
             outputPlayToggleButton.setAttribute('aria-label', playLabel);
         }
 
-        const canSeekByFrame = hasMedia && inputVideoFps > 0 && inputVideoFrameCount > 0;
+        const canSeekByFrame = hasMedia && outputVideoFps > 0 && outputVideoFrameCount > 0;
         if (!outputFrameSliderElement || !outputFrameSpinnerElement) {
             return;
         }
         outputFrameSliderElement.disabled = !canSeekByFrame;
         outputFrameSliderElement.min = '1';
-        outputFrameSliderElement.max = String(canSeekByFrame ? inputVideoFrameCount : 1);
+        outputFrameSliderElement.max = String(canSeekByFrame ? outputVideoFrameCount : 1);
         outputFrameSpinnerElement.disabled = !canSeekByFrame;
         outputFrameSpinnerElement.min = '1';
-        outputFrameSpinnerElement.max = String(canSeekByFrame ? inputVideoFrameCount : 1);
+        outputFrameSpinnerElement.max = String(canSeekByFrame ? outputVideoFrameCount : 1);
         if (!canSeekByFrame) {
             outputFrameSliderElement.value = '1';
             outputFrameSpinnerElement.value = '1';
@@ -704,14 +706,14 @@
 
         const frameTime = Number.isFinite(mediaTime) ? mediaTime : outputVideoElement.currentTime;
         const currentFrame = clamp(
-            Math.floor(Math.max(0, Number(frameTime) || 0) * inputVideoFps) + 1,
+            Math.floor(Math.max(0, Number(frameTime) || 0) * outputVideoFps) + 1,
             1,
-            inputVideoFrameCount
+            outputVideoFrameCount
         );
         outputFrameSliderElement.value = String(currentFrame);
         outputFrameSpinnerElement.value = String(currentFrame);
-        outputFrameSliderElement.title = `프레임 ${currentFrame.toLocaleString()} / ${inputVideoFrameCount.toLocaleString()}`;
-        outputFrameSpinnerElement.title = `프레임 ${currentFrame.toLocaleString()} / ${inputVideoFrameCount.toLocaleString()}`;
+        outputFrameSliderElement.title = `프레임 ${currentFrame.toLocaleString()} / ${outputVideoFrameCount.toLocaleString()}`;
+        outputFrameSpinnerElement.title = `프레임 ${currentFrame.toLocaleString()} / ${outputVideoFrameCount.toLocaleString()}`;
     }
 
     async function toggleOutputPlayback() {
@@ -734,8 +736,8 @@
 
     function seekOutputFrame(frameValue) {
         if (
-            inputVideoFps <= 0
-            || inputVideoFrameCount <= 0
+            outputVideoFps <= 0
+            || outputVideoFrameCount <= 0
             || !outputFrameSliderElement
             || !outputFrameSpinnerElement
         ) {
@@ -744,13 +746,13 @@
         const targetFrame = clamp(
             Math.trunc(toNumber(frameValue, 1)),
             1,
-            inputVideoFrameCount
+            outputVideoFrameCount
         );
         outputFrameSliderElement.value = String(targetFrame);
         outputFrameSpinnerElement.value = String(targetFrame);
         outputVideoElement.currentTime = Math.min(
             Number.isFinite(outputVideoElement.duration) ? outputVideoElement.duration : Number.MAX_SAFE_INTEGER,
-            (targetFrame - 1) / inputVideoFps
+            (targetFrame - 1) / outputVideoFps
         );
         updateOutputPlaybackControls(outputVideoElement.currentTime);
     }
@@ -2007,6 +2009,9 @@
 
         outputVideoElement.removeAttribute('src');
         outputVideoElement.load();
+        outputVideoFps = 0;
+        outputVideoFrameCount = 0;
+        updateOutputPlaybackControls();
 
         if (outputObjectUrl) {
             URL.revokeObjectURL(outputObjectUrl);
@@ -2947,8 +2952,22 @@
 
         try {
             const apiBase = await resolveApiBase();
+            outputVideoFps = 0;
+            outputVideoFrameCount = 0;
+            updateOutputPlaybackControls();
             const playableUrl = await resolvePlayableVideoUrl(apiBase, value, true);
             await assignVideoSource(outputVideoElement, playableUrl, 'output');
+            const metadataResponse = await fetch(
+                `${apiBase}/fast/sam2/video_metadata?file_name=${encodeURIComponent(inputFileName)}&output=true`,
+                { cache: 'no-store' }
+            );
+            if (!metadataResponse.ok) {
+                throw new Error(`검출 영상 메타데이터 조회 실패 (${metadataResponse.status})`);
+            }
+            const metadata = await metadataResponse.json();
+            outputVideoFps = Math.max(0, Number(metadata.fps) || 0);
+            outputVideoFrameCount = Math.max(0, Math.trunc(Number(metadata.frame_count) || 0));
+            updateOutputPlaybackControls();
             applyLoopOption();
             yoloInputFileName = String(inputFileName || '').trim();
             yoloConversionAvailable = conversionAvailable === true;
@@ -3308,7 +3327,10 @@
             pendingPromptFrame = promptFrame;
             await assignVideoSource(inputVideoElement, inputUrl, 'input');
             restorePendingPromptFrame();
+            outputVideoFps = Math.max(0, Number(result.fps) || 0);
+            outputVideoFrameCount = Math.max(0, Math.trunc(Number(result.input_total_frames) || 0));
             await assignVideoSource(outputVideoElement, outputUrl, 'output');
+            updateOutputPlaybackControls();
 
             const outputTabButton = document.getElementById('sam2-output-tab');
             if (outputTabButton) {

@@ -2307,7 +2307,7 @@ $(function () {
 
             setDetectedOutputShareUrl(
                 buildRoadDetectStreamUrl(fileName, detectType, removeNoisyMasks),
-                "검출 스트림 URL을 복사해 브라우저에서 독립 출력할 수 있습니다."
+                ""
             );
 
             updateDetectedStreamControls();

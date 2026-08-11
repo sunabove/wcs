@@ -1038,10 +1038,24 @@ class Sam2VideoDetector:
         if chart_x2 <= chart_x1 or chart_y2 <= chart_y1:
             return canvas
 
+        x_min = 1.0
+        x_max = float(max(1, int(total_frames or reference_frame_number)))
+        if x_max <= x_min:
+            x_max = x_min + 1.0
+        reference_x = self._chart_renderer._map_chart_x(
+            reference_frame_number,
+            x_min,
+            x_max,
+            chart_x1,
+            chart_x2 - chart_x1,
+        )
+
         chart_background = canvas.copy()
         cv2.rectangle(chart_background, (panel_x1, panel_y1), (panel_x2, panel_y2), (36, 36, 36), cv2.FILLED)
         cv2.rectangle(chart_background, (chart_x1, chart_y1), (chart_x2, chart_y2), (44, 44, 44), cv2.FILLED)
         cv2.addWeighted(chart_background, 0.8, canvas, 0.2, 0.0, canvas)
+        cv2.rectangle(canvas, (chart_x1, chart_y1), (reference_x, chart_y2), (88, 48, 24), cv2.FILLED)
+        cv2.rectangle(canvas, (reference_x + 1, chart_y1), (chart_x2, chart_y2), (24, 48, 88), cv2.FILLED)
         cv2.rectangle(canvas, (chart_x1, chart_y1), (chart_x2, chart_y2), (100, 100, 100), 1)
 
         for score_tick in (0.0, 0.5, 1.0):
@@ -1065,33 +1079,6 @@ class Sam2VideoDetector:
                 cv2.LINE_AA,
             )
 
-        x_min = 1.0
-        x_max = float(max(1, int(total_frames or reference_frame_number)))
-        if x_max <= x_min:
-            x_max = x_min + 1.0
-        reference_x = self._chart_renderer._map_chart_x(
-            reference_frame_number,
-            x_min,
-            x_max,
-            chart_x1,
-            chart_x2 - chart_x1,
-        )
-        region_background = canvas.copy()
-        cv2.rectangle(
-            region_background,
-            (chart_x1, chart_y1),
-            (reference_x, chart_y2),
-            (104, 58, 24),
-            cv2.FILLED,
-        )
-        cv2.rectangle(
-            region_background,
-            (reference_x + 1, chart_y1),
-            (chart_x2, chart_y2),
-            (24, 58, 104),
-            cv2.FILLED,
-        )
-        cv2.addWeighted(region_background, 0.6, canvas, 0.4, 0.0, canvas)
         x_values = np.arange(1, len(score_history) + 1, dtype=np.float32)
         score_values = np.asarray(score_history, dtype=np.float32)
         peak_start, peak_last = self._find_score_plateau_bounds(score_history)

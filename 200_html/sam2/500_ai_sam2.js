@@ -35,6 +35,7 @@
     const optionsResetButton = document.getElementById('sam2-options-reset');
     if (optionsResetButton) {
         optionsResetButton.textContent = '취소';
+        optionsResetButton.title = '현재 변경사항을 취소하고 저장된 검출 설정으로 복원';
     }
     const multimaskOutputCheckbox = document.getElementById('sam2-multimask-output');
     const maskInputCheckbox = document.getElementById('sam2-mask-input');

@@ -467,6 +467,7 @@
             const button = document.createElement('button');
             button.type = 'button';
             button.className = 'btn btn-sm yolo-class-toggle-btn px-2 py-0';
+            button.style.fontSize = 'inherit';
             button.setAttribute('data-role', 'class-toggle');
             button.setAttribute('data-model-key', getModelSelectionKey(modelItem));
             button.setAttribute('data-class-name', className);

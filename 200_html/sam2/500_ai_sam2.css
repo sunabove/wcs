@@ -157,6 +157,15 @@
     display: none;
 }
 
+#sam2-foreground-point-mode,
+#sam2-foreground-point-mode:hover,
+#sam2-foreground-point-mode:focus,
+#sam2-foreground-point-mode:disabled {
+    background-color: #fff !important;
+    border-color: #0d6efd !important;
+    color: #0d6efd !important;
+}
+
 .sam2-option-card {
     height: 100%;
     min-height: 96px;

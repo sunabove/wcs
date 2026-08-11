@@ -376,6 +376,9 @@ class Sam2VideoDetector:
                     "cleanup": False,
                     "optimized": False,
                     "fps": src_fps,
+                    "source_fps": src_fps,
+                    "source_frame_count": src_frames,
+                    "frame_step": 1,
                     "width": src_width,
                     "height": src_height,
                 }
@@ -422,6 +425,10 @@ class Sam2VideoDetector:
                 "cleanup": True,
                 "optimized": True,
                 "fps": target_fps,
+                "source_fps": src_fps,
+                "source_frame_count": src_frames,
+                "frame_step": frame_step,
+                "frame_count": written,
                 "width": dst_width,
                 "height": dst_height,
             }
@@ -1555,7 +1562,9 @@ class Sam2VideoDetector:
             capture.release()
             raise RuntimeError("Invalid video size")
 
-        prompt_frame_index = max(0, int(prompt_frame) - 1)
+        source_prompt_frame_index = max(0, int(prompt_frame) - 1)
+        frame_step = max(1, int(prepared.get("frame_step", 1)))
+        prompt_frame_index = int(round(source_prompt_frame_index / frame_step))
         if total_frames > 0:
             prompt_frame_index = min(prompt_frame_index, total_frames - 1)
 

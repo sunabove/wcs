@@ -837,7 +837,7 @@
         const deleteButton = document.createElement('button');
         deleteButton.type = 'button';
         deleteButton.className = 'dropdown-item text-danger d-flex align-items-center gap-2 rounded';
-        deleteButton.innerHTML = '<i class="bi bi-trash" aria-hidden="true"></i><span>파일 삭제</span>';
+        deleteButton.innerHTML = '<i class="bi bi-trash" aria-hidden="true"></i><span>삭제</span>';
         deleteButton.addEventListener('click', async (event) => {
             event.preventDefault();
             event.stopPropagation();

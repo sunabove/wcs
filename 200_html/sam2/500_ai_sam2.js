@@ -29,7 +29,8 @@
     const pointToolbarTitle = document.querySelector('#sam2-input-pane .sam2-point-toolbar > div > .fw-semibold');
     pointToolbarTitle?.classList.add('d-none');
     const bboxModeButton = document.getElementById('sam2-bbox-mode');
-    const pointClearButton = document.getElementById('sam2-point-clear');
+    const foregroundPointClearButton = document.getElementById('sam2-foreground-point-clear');
+    const backgroundPointClearButton = document.getElementById('sam2-background-point-clear');
     const bboxClearButton = document.getElementById('sam2-bbox-clear');
     const optionsSaveButton = document.getElementById('sam2-options-save');
     const optionsResetButton = document.getElementById('sam2-options-reset');
@@ -524,7 +525,7 @@
 
     function updateDetectionControlState() {
         const enabled = hasSelectedVideo();
-            [foregroundPointModeButton, backgroundPointModeButton, bboxModeButton, pointClearButton, bboxClearButton, optionsSaveButton, optionsResetButton, multimaskOutputCheckbox, maskInputCheckbox, claheCheckbox, iouMaskFilterCheckbox].forEach((control) => {
+            [foregroundPointModeButton, backgroundPointModeButton, bboxModeButton, foregroundPointClearButton, backgroundPointClearButton, bboxClearButton, optionsSaveButton, optionsResetButton, multimaskOutputCheckbox, maskInputCheckbox, claheCheckbox, iouMaskFilterCheckbox].forEach((control) => {
             if (control) {
                 control.disabled = !enabled;
             }
@@ -1270,6 +1271,17 @@
         hidePointContextMenu();
         positivePoints = [];
         renderPointUi();
+    }
+
+    function clearPointsByLabel(label) {
+        hidePointContextMenu();
+        const pointLabel = Number(label) === 0 ? 0 : 1;
+        const previousCount = positivePoints.length;
+        positivePoints = positivePoints.filter(point => (
+            (Number(point && point.label) === 0 ? 0 : 1) !== pointLabel
+        ));
+        renderPointUi();
+        return previousCount - positivePoints.length;
     }
 
     function hidePointContextMenu() {
@@ -3523,10 +3535,16 @@
             setStatus('BBox 설정 모드입니다.', 'secondary');
         });
     }
-    if (pointClearButton) {
-        pointClearButton.addEventListener('click', () => {
-            clearAllPoints();
-            setStatus('Point 설정을 초기화했습니다.', 'secondary');
+    if (foregroundPointClearButton) {
+        foregroundPointClearButton.addEventListener('click', () => {
+            const removedCount = clearPointsByLabel(1);
+            setStatus(`전경 Point ${removedCount}개를 삭제했습니다.`, 'secondary');
+        });
+    }
+    if (backgroundPointClearButton) {
+        backgroundPointClearButton.addEventListener('click', () => {
+            const removedCount = clearPointsByLabel(0);
+            setStatus(`배경 Point ${removedCount}개를 삭제했습니다.`, 'secondary');
         });
     }
     if (bboxClearButton) {

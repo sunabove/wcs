@@ -83,6 +83,8 @@
     const yoloTrainProgressElement = document.getElementById('sam2-yolo-train-progress');
     const yoloTrainProgressTextElement = document.getElementById('sam2-yolo-train-progress-text');
     const yoloTrainStatusElement = document.getElementById('sam2-yolo-train-status');
+    yoloTrainStatusElement?.classList.remove('small', 'mt-1');
+    yoloTrainStatusElement?.classList.add('fs-5', 'mt-3');
     const yoloTrainMetricsCanvas = document.getElementById('sam2-yolo-train-metrics-chart');
     document.querySelector('#sam2-yolo-train-pane > section > .fw-semibold.mb-2')?.remove();
     setIconText(yoloTrainClassCountElement, 'bi-tags', '클래스 0개');

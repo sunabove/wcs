@@ -95,7 +95,7 @@
     }
     const yoloTrainStatusElement = document.getElementById('sam2-yolo-train-status');
     yoloTrainStatusElement?.classList.remove('small', 'mt-1');
-    yoloTrainStatusElement?.classList.add('mt-1');
+    yoloTrainStatusElement?.classList.add('mt-2');
     if (yoloTrainStatusElement) {
         yoloTrainStatusElement.style.fontSize = '0.95rem';
     }

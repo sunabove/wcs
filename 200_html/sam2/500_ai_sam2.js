@@ -75,6 +75,7 @@
             column.classList.remove('col-md-2', 'col-md-5');
             column.classList.add('col-md-4');
         });
+        buttonColumn?.classList.add('align-self-center');
         [yoloTrainStartButton, yoloRetrainStartButton, yoloTrainStopButton].forEach((button) => {
             button?.classList.add('text-nowrap');
         });

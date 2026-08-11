@@ -1911,18 +1911,30 @@ class Sam2VideoDetector:
                 if progress_callback is not None and total_frames > 0:
                     progress_callback(total_frames + rendered_frames, max(1, total_frames * 2))
         finally:
+            if video_predictor is not None and inference_state is not None:
+                try:
+                    video_predictor.reset_state(inference_state)
+                except (KeyError, RuntimeError):
+                    pass
             if capture is not None:
                 capture.release()
             if render_capture is not None:
                 render_capture.release()
             if overlay_writer is not None:
                 overlay_writer.release()
+            if clahe_writer is not None:
+                clahe_writer.release()
             if writer is not None:
                 writer.release()
             try:
                 temporary_output_path.unlink(missing_ok=True)
             except OSError:
                 pass
+            if clahe_input_path is not None:
+                try:
+                    clahe_input_path.unlink(missing_ok=True)
+                except OSError:
+                    pass
             if prepared.get("cleanup") and str(resolved_input) not in self._yolo_conversion_cache:
                 try:
                     prepared_path.unlink(missing_ok=True)

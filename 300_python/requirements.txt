@@ -11,6 +11,7 @@ opencv-python
 scikit-image
 ultralytics
 sam2
+antlr4-python3-runtime==4.9.3
 huggingface_hub
 decord
 tensorboard 

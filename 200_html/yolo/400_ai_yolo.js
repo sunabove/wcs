@@ -479,14 +479,14 @@
             button.setAttribute('data-class-name', className);
 
             const toggleIcon = document.createElement('i');
-            toggleIcon.className = 'bi me-1';
+            toggleIcon.className = 'bi ms-1';
             toggleIcon.setAttribute('data-role', 'class-toggle-icon');
             toggleIcon.setAttribute('aria-hidden', 'true');
 
             const label = document.createElement('span');
             label.textContent = className;
 
-            button.append(toggleIcon, label);
+            button.append(label, toggleIcon);
             applyClassToggleButtonState(button, selectedSet.has(className));
             classListElement.appendChild(button);
         });

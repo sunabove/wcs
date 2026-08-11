@@ -919,53 +919,11 @@ class Sam2VideoDetector:
 
         return None, None
 
-    def _get_score_threshold_regions(self, score_values, threshold):
-        values = np.asarray(score_values, dtype=np.float32).reshape(-1)
-        if len(values) == 0 or threshold is None:
-            return []
-
-        indices = np.flatnonzero(values >= float(threshold))
-        if len(indices) == 0:
-            return []
-
-        regions = []
-        region_start = int(indices[0])
-        region_end = region_start
-        for index in indices[1:]:
-            index = int(index)
-            if index != region_end + 1:
-                regions.append((region_start, region_end + 1))
-                region_start = index
-            region_end = index
-        regions.append((region_start, region_end + 1))
-        return regions
-
-    def _get_boolean_regions(self, condition):
-        values = np.asarray(condition, dtype=bool).reshape(-1)
-        indices = np.flatnonzero(values)
-        if len(indices) == 0:
-            return []
-
-        regions = []
-        region_start = int(indices[0])
-        region_end = region_start
-        for index in indices[1:]:
-            index = int(index)
-            if index != region_end + 1:
-                regions.append((region_start, region_end + 1))
-                region_start = index
-            region_end = index
-        regions.append((region_start, region_end + 1))
-        return regions
-
     def _render_score_chart(
         self,
         frame,
         score_history,
-        iou_history,
-        iou_threshold,
-        fill_ratio_history,
-        frame_number,
+        prompt_frame,
         total_frames,
     ):
         if frame is None:
@@ -1027,21 +985,6 @@ class Sam2VideoDetector:
             x_max = x_min + 1.0
         x_values = np.arange(1, len(score_history) + 1, dtype=np.float32)
         score_values = np.asarray(score_history, dtype=np.float32)
-        peak_start, peak_last = self._find_score_plateau_bounds(score_history)
-        self._chart_renderer._draw_chart_series(
-            canvas,
-            x_values,
-            np.asarray(iou_history, dtype=np.float32),
-            (255, 190, 60),
-            x_min,
-            x_max,
-            chart_x1,
-            chart_x2 - chart_x1,
-            1.0,
-            chart_y2,
-            chart_y2 - chart_y1,
-            1,
-        )
         self._chart_renderer._draw_chart_series(
             canvas,
             x_values,
@@ -1056,117 +999,6 @@ class Sam2VideoDetector:
             chart_y2 - chart_y1,
             2,
         )
-        if peak_start is not None and peak_last is not None:
-            peak_end = peak_last + 1
-            first_peak_minimum = float(np.min(score_values[peak_start:peak_end]))
-            threshold_y = self._chart_renderer._map_chart_y(
-                first_peak_minimum,
-                1.0,
-                chart_y2,
-                chart_y2 - chart_y1,
-            )
-            cv2.line(
-                canvas,
-                (chart_x1, threshold_y),
-                (chart_x2, threshold_y),
-                (0, 165, 255),
-                1,
-                cv2.LINE_AA,
-            )
-            threshold_layer = canvas.copy()
-            for region_start, region_end in self._get_score_threshold_regions(
-                score_values,
-                first_peak_minimum,
-            ):
-                self._chart_renderer._draw_chart_series(
-                    threshold_layer,
-                    x_values[region_start:region_end],
-                    score_values[region_start:region_end],
-                    (0, 165, 255),
-                    x_min,
-                    x_max,
-                    chart_x1,
-                    chart_x2 - chart_x1,
-                    1.0,
-                    chart_y2,
-                    chart_y2 - chart_y1,
-                    2,
-                )
-            cv2.addWeighted(threshold_layer, 0.65, canvas, 0.35, 0.0, canvas)
-            plateau_layer = canvas.copy()
-            self._chart_renderer._draw_chart_series(
-                plateau_layer,
-                x_values[peak_start:peak_end],
-                score_values[peak_start:peak_end],
-                (0, 0, 255),
-                x_min,
-                x_max,
-                chart_x1,
-                chart_x2 - chart_x1,
-                1.0,
-                chart_y2,
-                chart_y2 - chart_y1,
-                2,
-            )
-            cv2.addWeighted(plateau_layer, 0.75, canvas, 0.25, 0.0, canvas)
-
-        if iou_threshold is not None:
-            iou_threshold_y = self._chart_renderer._map_chart_y(
-                iou_threshold,
-                1.0,
-                chart_y2,
-                chart_y2 - chart_y1,
-            )
-            cv2.line(
-                canvas,
-                (chart_x1, iou_threshold_y),
-                (chart_x2, iou_threshold_y),
-                (255, 0, 255),
-                1,
-                cv2.LINE_AA,
-            )
-
-        if peak_start is not None and peak_last is not None and iou_threshold is not None:
-            sample_count = min(len(score_values), len(iou_history))
-            if sample_count > 0:
-                score_samples = score_values[:sample_count]
-                iou_samples = np.asarray(iou_history[:sample_count], dtype=np.float32)
-                score_passed = score_samples >= first_peak_minimum
-                iou_passed = iou_samples >= iou_threshold
-                qualified_regions = self._get_boolean_regions(score_passed & iou_passed)
-                score_only_regions = self._get_boolean_regions(score_passed & ~iou_passed)
-                filter_layer = canvas.copy()
-                for region_start, region_end in qualified_regions:
-                    self._chart_renderer._draw_chart_series(
-                        filter_layer,
-                        x_values[region_start:region_end],
-                        score_values[region_start:region_end],
-                        (0, 255, 255),
-                        x_min,
-                        x_max,
-                        chart_x1,
-                        chart_x2 - chart_x1,
-                        1.0,
-                        chart_y2,
-                        chart_y2 - chart_y1,
-                        3,
-                    )
-                for region_start, region_end in score_only_regions:
-                    self._chart_renderer._draw_chart_series(
-                        filter_layer,
-                        x_values[region_start:region_end],
-                        score_values[region_start:region_end],
-                        (255, 80, 180),
-                        x_min,
-                        x_max,
-                        chart_x1,
-                        chart_x2 - chart_x1,
-                        1.0,
-                        chart_y2,
-                        chart_y2 - chart_y1,
-                        3,
-                    )
-                cv2.addWeighted(filter_layer, 0.9, canvas, 0.1, 0.0, canvas)
 
         cv2.putText(
             canvas,
@@ -1180,75 +1012,11 @@ class Sam2VideoDetector:
         )
         cv2.putText(
             canvas,
-            "IoU",
+            "Prompt",
             (panel_x1 + 62, panel_y1 + 13),
             cv2.FONT_HERSHEY_SIMPLEX,
             0.35,
-            (255, 190, 60),
-            1,
-            cv2.LINE_AA,
-        )
-        if peak_start is not None and peak_last is not None:
-            cv2.putText(
-                canvas,
-                "Ref-Score",
-                (panel_x1 + 108, panel_y1 + 13),
-                cv2.FONT_HERSHEY_SIMPLEX,
-                0.3,
-                (0, 165, 255),
-                1,
-                cv2.LINE_AA,
-            )
-        if iou_threshold is not None:
-            cv2.putText(
-                canvas,
-                "Ref-IoU",
-                (panel_x1 + 180, panel_y1 + 13),
-                cv2.FONT_HERSHEY_SIMPLEX,
-                0.3,
-                (255, 0, 255),
-                1,
-                cv2.LINE_AA,
-            )
-        if peak_start is not None and peak_last is not None:
-            cv2.putText(
-                canvas,
-                "Plateau",
-                (panel_x1 + 282, panel_y1 + 13),
-                cv2.FONT_HERSHEY_SIMPLEX,
-                0.28,
-                (0, 0, 255),
-                1,
-                cv2.LINE_AA,
-            )
-        if peak_start is not None and peak_last is not None and iou_threshold is not None:
-            cv2.putText(
-                canvas,
-                "Score+IoU",
-                (panel_x1 + 340, panel_y1 + 13),
-                cv2.FONT_HERSHEY_SIMPLEX,
-                0.28,
-                (0, 255, 255),
-                1,
-                cv2.LINE_AA,
-            )
-            cv2.putText(
-                canvas,
-                "Score only",
-                (panel_x1 + 398, panel_y1 + 13),
-                cv2.FONT_HERSHEY_SIMPLEX,
-                0.28,
-                (255, 80, 180),
-                1,
-                cv2.LINE_AA,
-            )
-        cv2.putText(
-            canvas,
-            "Frame",
-            (panel_x1 + 465, panel_y1 + 13),
-            cv2.FONT_HERSHEY_SIMPLEX,
-            0.28,
-            (255, 230, 0),
+            (0, 165, 255),
             1,
             cv2.LINE_AA,
         )
@@ -1284,14 +1052,14 @@ class Sam2VideoDetector:
                 cv2.LINE_AA,
             )
 
-        current_x = self._chart_renderer._map_chart_x(
-            frame_number,
+        prompt_x = self._chart_renderer._map_chart_x(
+            prompt_frame,
             x_min,
             x_max,
             chart_x1,
             chart_x2 - chart_x1,
         )
-        cv2.line(canvas, (current_x, chart_y1), (current_x, chart_y2), (255, 230, 0), 1, cv2.LINE_AA)
+        cv2.line(canvas, (prompt_x, chart_y1), (prompt_x, chart_y2), (0, 165, 255), 2, cv2.LINE_AA)
         return canvas
 
     def _overlay_bbox_result(self, frame, roi_plotted, bbox_rect, score=None):
@@ -1847,10 +1615,7 @@ class Sam2VideoDetector:
                 plotted = self._render_score_chart(
                     plotted,
                     score_history,
-                    iou_history,
-                    iou_threshold,
-                    fill_ratio_history,
-                    rendered_frames,
+                    prompt_frame_index + 1,
                     total_frames,
                 )
                 writer.write(plotted)

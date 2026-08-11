@@ -447,6 +447,12 @@
         buttonElement.classList.toggle('btn-primary', isSelected);
         buttonElement.classList.toggle('btn-outline-secondary', !isSelected);
         buttonElement.setAttribute('aria-pressed', String(isSelected));
+
+        const toggleIcon = buttonElement.querySelector('[data-role="class-toggle-icon"]');
+        if (toggleIcon) {
+            toggleIcon.classList.toggle('bi-toggle-on', isSelected);
+            toggleIcon.classList.toggle('bi-toggle-off', !isSelected);
+        }
     }
 
     function renderClassToggleButtons(classListElement, modelItem, selectedClassNames) {
@@ -466,12 +472,21 @@
         classNames.forEach((className) => {
             const button = document.createElement('button');
             button.type = 'button';
-            button.className = 'btn btn-sm yolo-class-toggle-btn px-2 py-0';
+            button.className = 'btn btn-sm yolo-class-toggle-btn d-inline-flex align-items-center px-2 py-0';
             button.style.fontSize = 'inherit';
             button.setAttribute('data-role', 'class-toggle');
             button.setAttribute('data-model-key', getModelSelectionKey(modelItem));
             button.setAttribute('data-class-name', className);
-            button.textContent = className;
+
+            const toggleIcon = document.createElement('i');
+            toggleIcon.className = 'bi me-1';
+            toggleIcon.setAttribute('data-role', 'class-toggle-icon');
+            toggleIcon.setAttribute('aria-hidden', 'true');
+
+            const label = document.createElement('span');
+            label.textContent = className;
+
+            button.append(toggleIcon, label);
             applyClassToggleButtonState(button, selectedSet.has(className));
             classListElement.appendChild(button);
         });

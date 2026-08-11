@@ -390,6 +390,8 @@ class Sam2VideoDetector:
                     "fps": src_fps,
                     "source_fps": src_fps,
                     "source_frame_count": src_frames,
+                    "source_width": src_width,
+                    "source_height": src_height,
                     "frame_step": 1,
                     "width": src_width,
                     "height": src_height,
@@ -439,6 +441,8 @@ class Sam2VideoDetector:
                 "fps": target_fps,
                 "source_fps": src_fps,
                 "source_frame_count": src_frames,
+                "source_width": src_width,
+                "source_height": src_height,
                 "frame_step": frame_step,
                 "frame_count": written,
                 "width": dst_width,
@@ -449,8 +453,11 @@ class Sam2VideoDetector:
 
     def _map_prompt_frame_index(self, prompt_frame: int, prepared, total_frames: int) -> int:
         source_frame_index = max(0, int(prompt_frame) - 1)
+        return self._map_source_frame_index(source_frame_index, prepared, total_frames)
+
+    def _map_source_frame_index(self, source_frame_index: int, prepared, total_frames: int) -> int:
         frame_step = max(1, int(prepared.get("frame_step", 1)))
-        inference_frame_index = int(round(source_frame_index / frame_step))
+        inference_frame_index = int(round(max(0, int(source_frame_index)) / frame_step))
         if total_frames > 0:
             inference_frame_index = min(inference_frame_index, total_frames - 1)
         return inference_frame_index
@@ -1309,6 +1316,13 @@ class Sam2VideoDetector:
             return self._overlay_bbox_result(frame, frame, bbox_rect, score)
 
         mask_np = mask > 0
+        frame_height, frame_width = frame.shape[:2]
+        if mask_np.shape != (frame_height, frame_width):
+            mask_np = cv2.resize(
+                mask_np.astype(np.uint8),
+                (frame_width, frame_height),
+                interpolation=cv2.INTER_NEAREST,
+            ) > 0
         if not np.any(mask_np):
             return self._overlay_bbox_result(frame, frame, bbox_rect, score)
 
@@ -1598,6 +1612,11 @@ class Sam2VideoDetector:
             capture.release()
             raise RuntimeError("Invalid video size")
 
+        source_fps = float(prepared.get("source_fps") or fps)
+        source_total_frames = int(prepared.get("source_frame_count") or total_frames)
+        source_width = int(prepared.get("source_width") or width)
+        source_height = int(prepared.get("source_height") or height)
+
         prompt_frame_index = self._map_prompt_frame_index(prompt_frame, prepared, total_frames)
 
         bbox_rect, normalized_bbox = self._parse_bbox(bbox, width, height)
@@ -1781,18 +1800,33 @@ class Sam2VideoDetector:
                 self._yolo_conversion_cache[str(resolved_input)],
             )
 
-            writer = self._create_video_writer(output_path, fps, width, height)
+            writer = self._create_video_writer(output_path, source_fps, source_width, source_height)
             if writer is None:
                 raise RuntimeError("Failed to create output video")
-            render_capture = cv2.VideoCapture(str(temporary_output_path))
+            render_capture = cv2.VideoCapture(str(resolved_input))
             if not render_capture.isOpened():
-                raise RuntimeError("Failed to reopen intermediate output video")
+                raise RuntimeError("Failed to reopen source video")
 
-            chart_score_history = list(score_history)
-            chart_iou_history = list(iou_history)
-            chart_fill_ratio_history = list(fill_ratio_history)
+            output_bbox_rect, _output_normalized_bbox = self._parse_bbox(
+                normalized_bbox,
+                source_width,
+                source_height,
+            )
+
+            source_frame_indices = range(source_total_frames)
+            inference_frame_indices = [
+                self._map_source_frame_index(index, prepared, total_frames)
+                for index in source_frame_indices
+            ]
+            chart_score_history = [score_history[index] for index in inference_frame_indices]
+            chart_iou_history = [iou_history[index] for index in inference_frame_indices]
+            chart_fill_ratio_history = [fill_ratio_history[index] for index in inference_frame_indices]
+            source_prompt_frame_index = max(
+                0,
+                min(int(prompt_frame) - 1, source_total_frames - 1),
+            )
             for history in (chart_score_history, chart_iou_history, chart_fill_ratio_history):
-                history[:prompt_frame_index] = [0.0] * prompt_frame_index
+                history[:source_prompt_frame_index] = [0.0] * source_prompt_frame_index
 
             rendered_frames = 0
             while True:
@@ -1800,7 +1834,12 @@ class Sam2VideoDetector:
                 if not ok:
                     break
                 rendered_frames += 1
-                frame_index = rendered_frames - 1
+                source_frame_index = rendered_frames - 1
+                frame_index = self._map_source_frame_index(
+                    source_frame_index,
+                    prepared,
+                    total_frames,
+                )
                 if (
                     detection_threshold is not None
                     and frame_index < len(score_history)
@@ -1820,7 +1859,7 @@ class Sam2VideoDetector:
                     plotted = self._overlay_mask_result(
                         plotted,
                         mask_history[frame_index],
-                        bbox_rect,
+                        output_bbox_rect,
                         score_history[frame_index],
                     )
                 self._draw_option_summary(
@@ -1830,7 +1869,7 @@ class Sam2VideoDetector:
                     clahe,
                     iou_mask_filter,
                     rendered_frames,
-                    total_frames,
+                    source_total_frames,
                 )
                 plotted = self._render_score_chart(
                     plotted,
@@ -1838,12 +1877,15 @@ class Sam2VideoDetector:
                     chart_iou_history,
                     iou_threshold,
                     chart_fill_ratio_history,
-                    prompt_frame_index + 1,
-                    total_frames,
+                    source_prompt_frame_index + 1,
+                    source_total_frames,
                 )
                 writer.write(plotted)
-                if progress_callback is not None and total_frames > 0:
-                    progress_callback(total_frames + rendered_frames, max(1, total_frames * 2))
+                if progress_callback is not None and source_total_frames > 0:
+                    progress_callback(
+                        total_frames + rendered_frames,
+                        max(1, total_frames + source_total_frames),
+                    )
         finally:
             if video_predictor is not None and inference_state is not None:
                 try:
@@ -1883,8 +1925,8 @@ class Sam2VideoDetector:
             "job_id": input_file_stem,
             "model": str(model_name or SAM2_DEFAULT_MODEL),
             "processed_frames": tracked_frames,
-            "input_total_frames": total_frames,
-            "fps": round(fps, 3),
+            "input_total_frames": source_total_frames,
+            "fps": round(source_fps, 3),
             "elapsed_sec": elapsed_sec,
             "segment_count": int(total_segments),
             "bbox": normalized_bbox,

@@ -58,6 +58,7 @@
     const outputVideoElement = document.getElementById('sam2-output-video');
     const outputPlayToggleButton = document.getElementById('sam2-output-play-toggle');
     const outputFrameSliderElement = document.getElementById('sam2-output-frame-slider');
+    const outputFrameSpinnerElement = document.getElementById('sam2-output-frame-spinner');
     const outputDownloadButton = document.getElementById('sam2-output-download');
     const yoloConvertButton = document.getElementById('sam2-yolo-convert');
     const yoloDatasetSummaryElement = document.getElementById('sam2-yolo-dataset-summary');
@@ -707,14 +708,18 @@
         }
 
         const canSeekByFrame = hasMedia && inputVideoFps > 0 && inputVideoFrameCount > 0;
-        if (!outputFrameSliderElement) {
+        if (!outputFrameSliderElement || !outputFrameSpinnerElement) {
             return;
         }
         outputFrameSliderElement.disabled = !canSeekByFrame;
         outputFrameSliderElement.min = '1';
         outputFrameSliderElement.max = String(canSeekByFrame ? inputVideoFrameCount : 1);
+        outputFrameSpinnerElement.disabled = !canSeekByFrame;
+        outputFrameSpinnerElement.min = '1';
+        outputFrameSpinnerElement.max = String(canSeekByFrame ? inputVideoFrameCount : 1);
         if (!canSeekByFrame) {
             outputFrameSliderElement.value = '1';
+            outputFrameSpinnerElement.value = '1';
             return;
         }
 
@@ -725,7 +730,9 @@
             inputVideoFrameCount
         );
         outputFrameSliderElement.value = String(currentFrame);
+        outputFrameSpinnerElement.value = String(currentFrame);
         outputFrameSliderElement.title = `프레임 ${currentFrame.toLocaleString()} / ${inputVideoFrameCount.toLocaleString()}`;
+        outputFrameSpinnerElement.title = `프레임 ${currentFrame.toLocaleString()} / ${inputVideoFrameCount.toLocaleString()}`;
     }
 
     async function toggleOutputPlayback() {
@@ -746,15 +753,22 @@
         }
     }
 
-    function seekOutputFrame() {
-        if (inputVideoFps <= 0 || inputVideoFrameCount <= 0 || !outputFrameSliderElement) {
+    function seekOutputFrame(frameValue) {
+        if (
+            inputVideoFps <= 0
+            || inputVideoFrameCount <= 0
+            || !outputFrameSliderElement
+            || !outputFrameSpinnerElement
+        ) {
             return;
         }
         const targetFrame = clamp(
-            Math.trunc(toNumber(outputFrameSliderElement.value, 1)),
+            Math.trunc(toNumber(frameValue, 1)),
             1,
             inputVideoFrameCount
         );
+        outputFrameSliderElement.value = String(targetFrame);
+        outputFrameSpinnerElement.value = String(targetFrame);
         outputVideoElement.currentTime = Math.min(
             Number.isFinite(outputVideoElement.duration) ? outputVideoElement.duration : Number.MAX_SAFE_INTEGER,
             (targetFrame - 1) / inputVideoFps
@@ -789,7 +803,8 @@
             outputVideoElement.addEventListener(eventName, () => updateOutputPlaybackControls());
         });
         outputPlayToggleButton?.addEventListener('click', toggleOutputPlayback);
-        outputFrameSliderElement?.addEventListener('input', seekOutputFrame);
+        outputFrameSliderElement?.addEventListener('input', () => seekOutputFrame(outputFrameSliderElement.value));
+        outputFrameSpinnerElement?.addEventListener('input', () => seekOutputFrame(outputFrameSpinnerElement.value));
         updateOutputPlaybackControls();
     }
 

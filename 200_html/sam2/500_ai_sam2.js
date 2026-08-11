@@ -111,6 +111,7 @@
     let inputVideoFps = 0;
     let inputVideoFrameCount = 0;
     let inputVideoMetadataRequestSeq = 0;
+    let pendingPromptFrame = null;
     const MAX_POINT_COUNT = 20;
     const STORAGE_SELECTED_VIDEO_KEY = 'sam2.selectedVideo';
     const STORAGE_INPUT_SOURCE_TAB_KEY = 'sam2.inputSourceTab';
@@ -312,6 +313,41 @@
         return Number.isFinite(parsed) ? parsed : fallback;
     }
 
+    function getPromptFrame() {
+        const maximumFrame = inputVideoFrameCount > 0
+            ? inputVideoFrameCount
+            : Number.MAX_SAFE_INTEGER;
+        return clamp(
+            Math.trunc(toNumber(promptFrameInput && promptFrameInput.value, 1)),
+            1,
+            maximumFrame
+        );
+    }
+
+    function buildPromptFrameQuery() {
+        return `&prompt_frame=${encodeURIComponent(String(getPromptFrame()))}`;
+    }
+
+    function restorePendingPromptFrame() {
+        if (!promptFrameInput || pendingPromptFrame === null) {
+            return;
+        }
+
+        const maximumFrame = inputVideoFrameCount > 0
+            ? inputVideoFrameCount
+            : Number.MAX_SAFE_INTEGER;
+        const targetFrame = clamp(Math.trunc(toNumber(pendingPromptFrame, 1)), 1, maximumFrame);
+        promptFrameInput.value = String(targetFrame);
+        if (inputVideoFps <= 0 || inputVideoFrameCount <= 0) {
+            return;
+        }
+
+        pendingPromptFrame = null;
+        inputVideoElement.pause();
+        inputVideoElement.currentTime = (targetFrame - 1) / inputVideoFps;
+        updateInputFrameCounter(inputVideoElement.currentTime);
+    }
+
     function hasSelectedVideo() {
         const fileFromInput = fileInput.files && fileInput.files[0] ? fileInput.files[0] : null;
         return Boolean(selectedFile || fileFromInput || selectedServerFileName);
@@ -368,6 +404,7 @@
             inputVideoFps = Math.max(0, Number(metadata.fps) || 0);
             inputVideoFrameCount = Math.max(0, Math.trunc(Number(metadata.frame_count) || 0));
             updateInputFrameCounter();
+            restorePendingPromptFrame();
         } catch (_ignore) {
             if (requestSeq === inputVideoMetadataRequestSeq) {
                 inputVideoFps = 0;
@@ -389,6 +426,7 @@
             1,
             inputVideoFrameCount
         );
+        pendingPromptFrame = null;
         promptFrameInput.value = String(targetFrame);
         inputVideoElement.pause();
         inputVideoElement.currentTime = (targetFrame - 1) / inputVideoFps;
@@ -411,6 +449,7 @@
     }
 
     function applyUploadDefaultOptions() {
+        pendingPromptFrame = null;
         if (maskInputCheckbox) {
             maskInputCheckbox.checked = true;
             updateMaskInputText();
@@ -482,6 +521,9 @@
             if (!options || options.exists !== true) {
                 return false;
             }
+
+            pendingPromptFrame = Math.max(1, Math.trunc(toNumber(options.prompt_frame, 1)));
+            restorePendingPromptFrame();
 
             const points = Array.isArray(options.points) ? options.points : [];
             const labels = Array.isArray(options.point_labels) ? options.point_labels : [];
@@ -1719,7 +1761,7 @@
         }
 
         const apiBase = await resolveApiBase();
-        const url = `${apiBase}/fast/sam2/video_options?file_name=${encodeURIComponent(value)}&model_name=auto${buildBboxQuery()}${buildPointsQuery()}${buildPointLabelsQuery()}${buildMultimaskOutputQuery()}${buildMaskInputQuery()}${buildClaheQuery()}${buildIouMaskFilterQuery()}`;
+        const url = `${apiBase}/fast/sam2/video_options?file_name=${encodeURIComponent(value)}&model_name=auto${buildPromptFrameQuery()}${buildBboxQuery()}${buildPointsQuery()}${buildPointLabelsQuery()}${buildMultimaskOutputQuery()}${buildMaskInputQuery()}${buildClaheQuery()}${buildIouMaskFilterQuery()}`;
         const response = await fetch(url, { method: 'POST' });
         if (!response.ok) {
             return false;
@@ -3092,13 +3134,13 @@
             if (file) {
                 const formData = new FormData();
                 formData.append('file', file);
-                const url = `${apiBase}/fast/sam2/segment_video_upload?${bboxQuery.slice(1)}${pointsQuery}${pointLabelsQuery}${buildMultimaskOutputQuery()}${buildMaskInputQuery()}${buildClaheQuery()}${buildIouMaskFilterQuery()}`;
+                const url = `${apiBase}/fast/sam2/segment_video_upload?${bboxQuery.slice(1)}${pointsQuery}${pointLabelsQuery}${buildPromptFrameQuery()}${buildMultimaskOutputQuery()}${buildMaskInputQuery()}${buildClaheQuery()}${buildIouMaskFilterQuery()}`;
                 response = await fetch(url, {
                     method: 'POST',
                     body: formData,
                 });
             } else {
-                const url = `${apiBase}/fast/sam2/segment_saved_video?file_name=${encodeURIComponent(selectedServerFileName)}${bboxQuery}${pointsQuery}${pointLabelsQuery}${buildMultimaskOutputQuery()}${buildMaskInputQuery()}${buildClaheQuery()}${buildIouMaskFilterQuery()}`;
+                const url = `${apiBase}/fast/sam2/segment_saved_video?file_name=${encodeURIComponent(selectedServerFileName)}${bboxQuery}${pointsQuery}${pointLabelsQuery}${buildPromptFrameQuery()}${buildMultimaskOutputQuery()}${buildMaskInputQuery()}${buildClaheQuery()}${buildIouMaskFilterQuery()}`;
                 response = await fetch(url, {
                     method: 'POST',
                 });

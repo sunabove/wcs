@@ -662,6 +662,7 @@ class Sam2VideoService:
         self,
         input_path: Path,
         model_name: str,
+        prompt_frame: int,
         bbox: str,
         points: str,
         point_labels: str,
@@ -672,6 +673,7 @@ class Sam2VideoService:
     ) -> None:
         options = {
             "model_name": model_name,
+            "prompt_frame": max(1, int(prompt_frame)),
             "bbox": self._parse_options_json(bbox, None),
             "points": self._parse_options_json(points, []),
             "point_labels": self._parse_options_json(point_labels, []),
@@ -743,6 +745,7 @@ class Sam2VideoService:
         self,
         upload_file: UploadFile,
         model_name: str = "auto",
+        prompt_frame: int = 1,
         bbox: str = "",
         points: str = "",
         point_labels: str = "",
@@ -756,6 +759,7 @@ class Sam2VideoService:
         self._save_detection_options(
             input_path=input_path,
             model_name=resolved_model_name,
+            prompt_frame=prompt_frame,
             bbox=bbox,
             points=points,
             point_labels=point_labels,
@@ -796,6 +800,7 @@ class Sam2VideoService:
         self,
         file_name: str,
         model_name: str = "auto",
+        prompt_frame: int = 1,
         bbox: str = "",
         points: str = "",
         point_labels: str = "",
@@ -809,6 +814,7 @@ class Sam2VideoService:
         self._save_detection_options(
             input_path=input_path,
             model_name=resolved_model_name,
+            prompt_frame=prompt_frame,
             bbox=bbox,
             points=points,
             point_labels=point_labels,
@@ -936,6 +942,7 @@ class Sam2VideoService:
         return {
             "exists": True,
             "model_name": options.get("model_name", ""),
+            "prompt_frame": max(1, int(options.get("prompt_frame", 1))),
             "bbox": options.get("bbox"),
             "points": options.get("points", []),
             "point_labels": options.get("point_labels", []),
@@ -950,6 +957,7 @@ class Sam2VideoService:
         self,
         file_name: str,
         model_name: str = "auto",
+        prompt_frame: int = 1,
         bbox: str = "",
         points: str = "",
         point_labels: str = "",
@@ -963,6 +971,7 @@ class Sam2VideoService:
         self._save_detection_options(
             input_path=input_path,
             model_name=resolved_model_name,
+            prompt_frame=prompt_frame,
             bbox=bbox,
             points=points,
             point_labels=point_labels,

@@ -26,6 +26,7 @@ def upload_limit():
 def segment_video_upload(
     file: UploadFile = File(...),
     model_name: str = Query("auto"),
+    prompt_frame: int = Query(1, ge=1),
     bbox: str = Query(""),
     points: str = Query(""),
     point_labels: str = Query(""),
@@ -37,6 +38,7 @@ def segment_video_upload(
     return _service.detect_uploaded_video(
         upload_file=file,
         model_name=model_name,
+        prompt_frame=prompt_frame,
         bbox=bbox,
         points=points,
         point_labels=point_labels,
@@ -86,6 +88,7 @@ def video_options(
 def save_video_options(
     file_name: str = Query(...),
     model_name: str = Query("auto"),
+    prompt_frame: int = Query(1, ge=1),
     bbox: str = Query(""),
     points: str = Query(""),
     point_labels: str = Query(""),
@@ -97,6 +100,7 @@ def save_video_options(
     return _service.save_video_options(
         file_name=file_name,
         model_name=model_name,
+        prompt_frame=prompt_frame,
         bbox=bbox,
         points=points,
         point_labels=point_labels,
@@ -111,6 +115,7 @@ def save_video_options(
 def segment_saved_video(
     file_name: str = Query(...),
     model_name: str = Query("auto"),
+    prompt_frame: int = Query(1, ge=1),
     bbox: str = Query(""),
     points: str = Query(""),
     point_labels: str = Query(""),
@@ -122,6 +127,7 @@ def segment_saved_video(
     return _service.detect_saved_video(
         file_name=file_name,
         model_name=model_name,
+        prompt_frame=prompt_frame,
         bbox=bbox,
         points=points,
         point_labels=point_labels,

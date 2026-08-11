@@ -58,6 +58,7 @@
     const MODEL_SELECTION_STORAGE_KEY = 'wcs.yolo.model_selection.v1';
     const MODEL_CLASS_SELECTION_STORAGE_KEY = 'wcs.yolo.model_class_selection.v1';
     const VIDEO_DETECT_OPTION_STORAGE_KEY = 'wcs.yolo.video_detect_option.v1';
+    const DEFAULT_VIDEO_DETECT_OPTION_KEY = '__default__';
     const STATUS_ALERT_VARIANTS = ['alert-secondary', 'alert-info', 'alert-warning', 'alert-danger', 'alert-success', 'alert-primary'];
     const selectedClassNamesByModelKey = readModelClassSelectionMap();
 
@@ -128,27 +129,24 @@
 
     function saveDetectOptionsForSelectedVideo() {
         const selectedVideoKey = String(selectedServerFileName || '').trim();
-        if (!selectedVideoKey) {
-            return;
-        }
-
         const optionMap = readVideoDetectOptionMap();
-        optionMap[selectedVideoKey] = {
+        const savedOption = {
             conf: normalizeThresholdValue(confInput.value, 0.25),
             iou: normalizeThresholdValue(iouInput.value, 0.45),
             savedAt: new Date().toISOString(),
         };
+        optionMap[DEFAULT_VIDEO_DETECT_OPTION_KEY] = savedOption;
+        if (selectedVideoKey) {
+            optionMap[selectedVideoKey] = savedOption;
+        }
         writeVideoDetectOptionMap(optionMap);
     }
 
     function applyDetectOptionsForSelectedVideo() {
         const selectedVideoKey = String(selectedServerFileName || '').trim();
-        if (!selectedVideoKey) {
-            return;
-        }
-
         const optionMap = readVideoDetectOptionMap();
-        const savedOption = optionMap[selectedVideoKey];
+        const savedOption = (selectedVideoKey && optionMap[selectedVideoKey])
+            || optionMap[DEFAULT_VIDEO_DETECT_OPTION_KEY];
         if (!savedOption || typeof savedOption !== 'object') {
             return;
         }
@@ -1370,6 +1368,7 @@
         });
     }
 
+    applyDetectOptionsForSelectedVideo();
     updateSliderValueLabels();
     if (uploadedEmptyElement) {
         renderUploadedHistory();

@@ -96,7 +96,7 @@
 
 .sam2-output-yolo-convert-button {
     position: absolute;
-    top: 0;
+    top: 2.7rem;
     left: calc(100% + 0.5rem);
     z-index: 5;
     width: 8.5rem;
@@ -106,7 +106,7 @@
 
 .sam2-output-loop-toggle {
     position: absolute;
-    top: 2.7rem;
+    top: 5.4rem;
     left: calc(100% + 0.5rem);
     z-index: 5;
     display: flex;
@@ -131,13 +131,13 @@
     }
 
     .sam2-output-yolo-convert-button {
-        top: calc(100% + 0rem);
+        top: calc(100% + 2.7rem);
         left: auto;
         right: 0;
     }
 
     .sam2-output-loop-toggle {
-        top: calc(100% + 2.7rem);
+        top: calc(100% + 5.4rem);
         left: auto;
         right: 0;
     }

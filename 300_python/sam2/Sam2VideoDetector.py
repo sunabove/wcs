@@ -1226,7 +1226,7 @@ class Sam2VideoDetector:
             cv2.putText(
                 canvas,
                 legend_text,
-                (legend_x, panel_y1 + 13),
+                (legend_x, panel_y1 + 16),
                 cv2.FONT_HERSHEY_SIMPLEX,
                 legend_scale,
                 legend_color,

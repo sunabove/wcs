@@ -1297,9 +1297,9 @@ class Sam2VideoDetector:
             )
 
         ref_thickness = 2
-        curr_thickness = min(ref_thickness, 2)
+        curr_thickness = 1
 
-        cv2.line(canvas, (current_x - 1, chart_y1), (current_x - 1, chart_y2), (235, 235, 235), curr_thickness + 2, cv2.LINE_AA)
+        cv2.line(canvas, (current_x - 1, chart_y1), (current_x - 1, chart_y2), (235, 235, 235), curr_thickness + 1, cv2.LINE_AA)
         cv2.line(canvas, (current_x, chart_y1), (current_x, chart_y2), (235, 235, 235), curr_thickness, cv2.LINE_AA)
         cv2.line(canvas, (reference_x + 1, chart_y1), (reference_x + 1, chart_y2), (255, 180, 80), ref_thickness + 1, cv2.LINE_AA)
         cv2.line(canvas, (reference_x, chart_y1), (reference_x, chart_y2), (255, 180, 80), ref_thickness, cv2.LINE_AA)

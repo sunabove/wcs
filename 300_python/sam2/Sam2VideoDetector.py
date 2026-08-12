@@ -959,6 +959,8 @@ class Sam2VideoDetector:
             1,
         )
 
+        cv2.line(canvas, (chart_x1, threshold_y), (chart_x2, threshold_y), (0, 165, 255), 1, cv2.LINE_AA)
+
         filter_regions = self._get_score_threshold_regions(score_values.tolist(), threshold_value)
         if filter_regions:
             filter_layer = canvas.copy()
@@ -996,8 +998,6 @@ class Sam2VideoDetector:
             chart_y2 - chart_y1,
             2,
         )
-
-        cv2.line(canvas, (chart_x1, threshold_y), (chart_x2, threshold_y), (0, 165, 255), 1, cv2.LINE_AA)
 
         legend_items = [
             ("Score", (80, 255, 80), 0.555),

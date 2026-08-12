@@ -758,6 +758,43 @@
         updateOutputPlaybackControls(outputVideoElement.currentTime);
     }
 
+    function handleOutputFrameKeyboard(event) {
+        if (!outputVideoFps || outputVideoFrameCount <= 0) {
+            return;
+        }
+        const currentInput = event.currentTarget;
+        if (!currentInput) {
+            return;
+        }
+        const minimum = Number(currentInput.min || 1);
+        const maximum = Number(currentInput.max || outputVideoFrameCount);
+        const step = Number.isFinite(Number(currentInput.step)) && Number(currentInput.step) > 0
+            ? Number(currentInput.step)
+            : 1;
+        const currentValue = Number.parseInt(currentInput.value, 10);
+        if (!Number.isFinite(currentValue)) {
+            return;
+        }
+
+        let nextValue = currentValue;
+        if (event.key === 'ArrowUp' || event.key === 'ArrowRight') {
+            nextValue = currentValue + step;
+        } else if (event.key === 'ArrowDown' || event.key === 'ArrowLeft') {
+            nextValue = currentValue - step;
+        } else if (event.key === 'Home') {
+            nextValue = minimum;
+        } else if (event.key === 'End') {
+            nextValue = maximum;
+        } else {
+            return;
+        }
+
+        event.preventDefault();
+        const normalizedValue = clamp(Math.trunc(nextValue), minimum, maximum);
+        currentInput.value = String(normalizedValue);
+        seekOutputFrame(normalizedValue);
+    }
+
     function initializeOutputVideoControls() {
         if (!outputVideoElement) {
             return;
@@ -781,7 +818,9 @@
             outputVideoElement.addEventListener(eventName, () => updateOutputPlaybackControls());
         });
         outputPlayToggleButton?.addEventListener('click', toggleOutputPlayback);
+        outputFrameSliderElement?.addEventListener('keydown', handleOutputFrameKeyboard);
         outputFrameSliderElement?.addEventListener('input', () => seekOutputFrame(outputFrameSliderElement.value));
+        outputFrameSpinnerElement?.addEventListener('keydown', handleOutputFrameKeyboard);
         outputFrameSpinnerElement?.addEventListener('input', () => seekOutputFrame(outputFrameSpinnerElement.value));
         updateOutputPlaybackControls();
     }

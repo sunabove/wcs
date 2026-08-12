@@ -1010,6 +1010,7 @@ class Sam2VideoDetector:
         iou_threshold,
         fill_ratio_history,
         reference_frame_number,
+        current_frame_number,
         total_frames,
     ):
         if frame is None:
@@ -1044,6 +1045,13 @@ class Sam2VideoDetector:
             x_max = x_min + 1.0
         reference_x = self._chart_renderer._map_chart_x(
             reference_frame_number,
+            x_min,
+            x_max,
+            chart_x1,
+            chart_x2 - chart_x1,
+        )
+        current_x = self._chart_renderer._map_chart_x(
+            current_frame_number,
             x_min,
             x_max,
             chart_x1,
@@ -1219,6 +1227,7 @@ class Sam2VideoDetector:
             legend_items.append(("Score+IoU", (0, 255, 255), 0.45))
             legend_items.append(("Score only", (255, 80, 180), 0.45))
         legend_items.append(("Frame", (255, 230, 0), 0.45))
+        legend_items.append(("Current", (235, 235, 235), 0.45))
 
         legend_x = panel_x1 + 8
         legend_gap = 10
@@ -1273,6 +1282,7 @@ class Sam2VideoDetector:
             )
 
         cv2.line(canvas, (reference_x, chart_y1), (reference_x, chart_y2), (255, 230, 0), 1, cv2.LINE_AA)
+        cv2.line(canvas, (current_x, chart_y1), (current_x, chart_y2), (235, 235, 235), 2, cv2.LINE_AA)
         return canvas
 
     def _overlay_bbox_result(self, frame, roi_plotted, bbox_rect, score=None):
@@ -1870,6 +1880,7 @@ class Sam2VideoDetector:
                     iou_threshold,
                     chart_fill_ratio_history,
                     source_prompt_frame_index + 1,
+                    rendered_frames,
                     source_total_frames,
                 )
                 writer.write(plotted)

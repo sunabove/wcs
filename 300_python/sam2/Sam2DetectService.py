@@ -99,7 +99,7 @@ def save_video_options(
     mask_input: bool = Query(True),
     clahe: bool = Query(False),
     iou_mask_filter: bool = Query(True),
-    reference_score: float = Query(0.5, ge=0.0, le=1.0),
+    reference_score: float = Query(0.8, ge=0.0, le=1.0),
 ):
     return _service.save_video_options(
         file_name=file_name,
@@ -128,7 +128,7 @@ def segment_saved_video(
     mask_input: bool = Query(True),
     clahe: bool = Query(False),
     iou_mask_filter: bool = Query(True),
-    reference_score: float = Query(0.5, ge=0.0, le=1.0),
+    reference_score: float = Query(0.8, ge=0.0, le=1.0),
 ):
     return _service.detect_saved_video(
         file_name=file_name,

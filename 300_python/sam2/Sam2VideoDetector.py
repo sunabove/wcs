@@ -30,9 +30,6 @@ class Sam2VideoDetector:
     _max_infer_fps = 10.0
     _max_infer_frames = 600
     _max_infer_pixels_total = 320_000_000
-    _score_plateau_area_ratio_threshold = 0.86
-    _score_plateau_first_derivative_threshold = 0.04
-    _score_plateau_second_derivative_threshold = 0.18
 
     def __init__(self):
         SAM2_UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
@@ -1003,9 +1000,7 @@ class Sam2VideoDetector:
         legend_items = [
             ("Score", (80, 255, 80), 0.555),
             ("IoU", (255, 140, 60), 0.555),
-            ("1st Plateau", (82, 132, 56), 0.48),
             ("Ref-Score", (0, 165, 255), 0.48),
-            ("Score+IoU", (0, 255, 255), 0.45),
             ("Ref-Frame", (255, 180, 80), 0.45),
             ("Curr-Frame", (235, 235, 235), 0.45),
         ]

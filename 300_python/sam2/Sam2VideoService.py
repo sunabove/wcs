@@ -674,12 +674,12 @@ class Sam2VideoService:
         mask_input: bool = True,
         clahe: bool = False,
         iou_mask_filter: bool = True,
-        reference_score: float = 0.5,
+        reference_score: float = 0.8,
     ) -> None:
         try:
             reference_value = float(reference_score)
         except (TypeError, ValueError):
-            reference_value = 0.5
+            reference_value = 0.8
         reference_value = max(0.0, min(1.0, reference_value))
 
         options = {
@@ -765,7 +765,7 @@ class Sam2VideoService:
         mask_input: bool = True,
         clahe: bool = False,
         iou_mask_filter: bool = True,
-        reference_score: float = 0.5,
+        reference_score: float = 0.8,
     ):
         input_path = self._save_uploaded_video(upload_file)
         resolved_model_name = self._resolve_model_name(model_name)
@@ -965,9 +965,9 @@ class Sam2VideoService:
             raise HTTPException(status_code=500, detail="Detection options must be a JSON object")
 
         try:
-            reference_score = float(options.get("reference_score", 0.5))
+            reference_score = float(options.get("reference_score", 0.8))
         except (TypeError, ValueError):
-            reference_score = 0.5
+            reference_score = 0.8
         reference_score = max(0.0, min(1.0, reference_score))
 
         return {

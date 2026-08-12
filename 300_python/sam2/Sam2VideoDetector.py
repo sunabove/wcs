@@ -1048,6 +1048,9 @@ class Sam2VideoDetector:
         if int(x_max) not in x_ticks:
             x_ticks.append(int(x_max))
         x_ticks = sorted(set(x_ticks))
+
+        label_min_gap = 16
+        last_label_end_x = -99999
         for x_tick in x_ticks:
             tick_x = self._chart_renderer._map_chart_x(
                 x_tick,
@@ -1064,16 +1067,22 @@ class Sam2VideoDetector:
                 0.32,
                 1,
             )
+
+            text_x = max(chart_x1, min(chart_x2 - tick_width, tick_x - (tick_width // 2)))
+            if text_x < last_label_end_x + label_min_gap:
+                continue
+
             cv2.putText(
                 canvas,
                 tick_label,
-                (max(chart_x1, min(chart_x2 - tick_width, tick_x - (tick_width // 2))), chart_y2 + 16),
+                (text_x, chart_y2 + 16),
                 cv2.FONT_HERSHEY_SIMPLEX,
                 0.32,
                 (190, 190, 190),
                 1,
                 cv2.LINE_AA,
             )
+            last_label_end_x = text_x + tick_width
 
         ref_thickness = 2
         curr_thickness = 1

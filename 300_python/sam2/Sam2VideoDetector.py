@@ -971,7 +971,7 @@ class Sam2VideoDetector:
             1.0,
             chart_y2,
             chart_y2 - chart_y1,
-            2,
+            4,
         )
 
         filter_regions = self._get_score_threshold_regions(score_values.tolist(), threshold_value)
@@ -992,7 +992,7 @@ class Sam2VideoDetector:
                     1.0,
                     chart_y2,
                     chart_y2 - chart_y1,
-                    1,
+                    2,
                 )
 
         cv2.line(canvas, (chart_x1, threshold_y), (chart_x2, threshold_y), (0, 165, 255), 1, cv2.LINE_AA)

@@ -1129,9 +1129,35 @@ class Sam2VideoDetector:
 
         x_values = np.arange(1, len(score_history) + 1, dtype=np.float32)
         score_values = np.asarray(score_history, dtype=np.float32)
+        first_plateau_start, first_plateau_end = self._find_score_plateau_bounds(score_history)
         peak_start, peak_last = self._select_reference_plateau(score_history, int(reference_frame_number) - 1)
         if peak_start is None or peak_last is None:
             peak_start, peak_last = self._find_score_plateau_bounds(score_history)
+
+        if first_plateau_start is not None and first_plateau_end is not None:
+            first_plateau_x1 = self._chart_renderer._map_chart_x(
+                float(first_plateau_start + 1),
+                x_min,
+                x_max,
+                chart_x1,
+                chart_x2 - chart_x1,
+            )
+            first_plateau_x2 = self._chart_renderer._map_chart_x(
+                float(first_plateau_end + 1),
+                x_min,
+                x_max,
+                chart_x1,
+                chart_x2 - chart_x1,
+            )
+            first_plateau_fill = canvas.copy()
+            cv2.rectangle(
+                first_plateau_fill,
+                (int(min(first_plateau_x1, first_plateau_x2)), chart_y1),
+                (int(max(first_plateau_x1, first_plateau_x2)), chart_y2),
+                (82, 132, 56),
+                cv2.FILLED,
+            )
+            cv2.addWeighted(first_plateau_fill, 0.25, canvas, 0.75, 0.0, canvas)
 
         if peak_start is not None and peak_last is not None:
             plateau_x1 = self._chart_renderer._map_chart_x(
@@ -1238,6 +1264,7 @@ class Sam2VideoDetector:
         legend_items = [
             ("Score", (80, 255, 80), 0.555),
             ("IoU", (255, 140, 60), 0.555),
+            ("1st Plateau", (82, 132, 56), 0.48),
             ("Ref-Score", (0, 165, 255), 0.48),
             ("Score+IoU", (0, 255, 255), 0.45),
             ("Ref-Frame", (255, 180, 80), 0.45),

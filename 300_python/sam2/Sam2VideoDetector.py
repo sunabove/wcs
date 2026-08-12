@@ -1119,7 +1119,18 @@ class Sam2VideoDetector:
         if display_bbox is not None:
             x1, y1, x2, y2 = display_bbox
             cv2.rectangle(overlay, (x1, y1), (x2 - 1, y2 - 1), tuple(display_color.astype(np.uint8).tolist()), 1)
-            self._draw_bbox_score(overlay, display_bbox, score, iou)
+            if np.all(display_color >= 96):
+                self._draw_bbox_score(
+                    overlay,
+                    display_bbox,
+                    score,
+                    iou,
+                    text_color=(220, 220, 220),
+                    header_fill=(18, 18, 18),
+                    header_edge=(120, 120, 120),
+                )
+            else:
+                self._draw_bbox_score(overlay, display_bbox, score, iou)
         return overlay
 
     def _build_yolo_segmentation_labels(self, mask_np, class_id=0, min_area=4.0):
@@ -1655,7 +1666,7 @@ class Sam2VideoDetector:
                         output_bbox_rect,
                         score_value,
                         current_iou,
-                        color=(13, 110, 253) if accepted else (170, 170, 170),
+                        color=(13, 110, 253) if accepted else (96, 96, 96),
                     )
                 self._draw_option_summary(
                     plotted,

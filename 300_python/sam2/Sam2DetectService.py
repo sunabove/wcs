@@ -34,6 +34,7 @@ def segment_video_upload(
     mask_input: bool = Query(True),
     clahe: bool = Query(False),
     iou_mask_filter: bool = Query(True),
+    reference_score: float = Query(0.5, ge=0.0, le=1.0),
 ):
     return _service.detect_uploaded_video(
         upload_file=file,
@@ -46,6 +47,7 @@ def segment_video_upload(
         mask_input=mask_input,
         clahe=clahe,
         iou_mask_filter=iou_mask_filter,
+        reference_score=reference_score,
     )
 
 
@@ -97,6 +99,7 @@ def save_video_options(
     mask_input: bool = Query(True),
     clahe: bool = Query(False),
     iou_mask_filter: bool = Query(True),
+    reference_score: float = Query(0.5, ge=0.0, le=1.0),
 ):
     return _service.save_video_options(
         file_name=file_name,
@@ -109,6 +112,7 @@ def save_video_options(
         mask_input=mask_input,
         clahe=clahe,
         iou_mask_filter=iou_mask_filter,
+        reference_score=reference_score,
     )
 
 
@@ -124,6 +128,7 @@ def segment_saved_video(
     mask_input: bool = Query(True),
     clahe: bool = Query(False),
     iou_mask_filter: bool = Query(True),
+    reference_score: float = Query(0.5, ge=0.0, le=1.0),
 ):
     return _service.detect_saved_video(
         file_name=file_name,
@@ -136,6 +141,7 @@ def segment_saved_video(
         mask_input=mask_input,
         clahe=clahe,
         iou_mask_filter=iou_mask_filter,
+        reference_score=reference_score,
     )
 
 

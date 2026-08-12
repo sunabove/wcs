@@ -67,7 +67,7 @@ class Sam2VideoService:
                     "total_frames": total_frames,
                 })
 
-    def _run_detection_job(self, job_id, input_path, model_name, prompt_frame, bbox, points, point_labels, multimask_output, mask_input, clahe, iou_mask_filter):
+    def _run_detection_job(self, job_id, input_path, model_name, prompt_frame, bbox, points, point_labels, multimask_output, mask_input, clahe, iou_mask_filter, reference_score):
         try:
             with self._jobs_lock:
                 self._jobs[job_id]["status"] = "running"
@@ -82,6 +82,7 @@ class Sam2VideoService:
                 mask_input=mask_input,
                 clahe=clahe,
                 iou_mask_filter=iou_mask_filter,
+                reference_score=reference_score,
                 progress_callback=lambda processed, total: self._update_job_progress(job_id, processed, total),
             )
             with self._jobs_lock:
@@ -96,7 +97,7 @@ class Sam2VideoService:
             with self._jobs_lock:
                 self._jobs[job_id].update({"status": "failed", "error": str(ex)})
 
-    def _start_detection_job(self, input_path, model_name, prompt_frame, bbox, points, point_labels, multimask_output, mask_input, clahe, iou_mask_filter):
+    def _start_detection_job(self, input_path, model_name, prompt_frame, bbox, points, point_labels, multimask_output, mask_input, clahe, iou_mask_filter, reference_score=0.5):
         job_id = self._create_job()
         self._job_executor.submit(
             self._run_detection_job,
@@ -111,6 +112,7 @@ class Sam2VideoService:
             mask_input,
             clahe,
             iou_mask_filter,
+            reference_score,
         )
         return {"job_id": job_id, "status": "queued", "progress": 0}
 
@@ -672,7 +674,14 @@ class Sam2VideoService:
         mask_input: bool = True,
         clahe: bool = False,
         iou_mask_filter: bool = True,
+        reference_score: float = 0.5,
     ) -> None:
+        try:
+            reference_value = float(reference_score)
+        except (TypeError, ValueError):
+            reference_value = 0.5
+        reference_value = max(0.0, min(1.0, reference_value))
+
         options = {
             "model_name": model_name,
             "prompt_frame": max(1, int(prompt_frame)),
@@ -683,6 +692,7 @@ class Sam2VideoService:
             "mask_input": bool(mask_input),
             "clahe": bool(clahe),
             "iou_mask_filter": bool(iou_mask_filter),
+            "reference_score": round(reference_value, 3),
             "saved_at": datetime.now().isoformat(timespec="seconds"),
         }
         options_path = self._options_path(input_path)
@@ -755,6 +765,7 @@ class Sam2VideoService:
         mask_input: bool = True,
         clahe: bool = False,
         iou_mask_filter: bool = True,
+        reference_score: float = 0.5,
     ):
         input_path = self._save_uploaded_video(upload_file)
         resolved_model_name = self._resolve_model_name(model_name)
@@ -811,6 +822,7 @@ class Sam2VideoService:
         mask_input: bool = True,
         clahe: bool = False,
         iou_mask_filter: bool = True,
+        reference_score: float = 0.5,
     ):
         input_path = self._resolve_uploaded_video_path(file_name)
         resolved_model_name = self._resolve_model_name(model_name)
@@ -948,6 +960,12 @@ class Sam2VideoService:
         if not isinstance(options, dict):
             raise HTTPException(status_code=500, detail="Detection options must be a JSON object")
 
+        try:
+            reference_score = float(options.get("reference_score", 0.5))
+        except (TypeError, ValueError):
+            reference_score = 0.5
+        reference_score = max(0.0, min(1.0, reference_score))
+
         return {
             "exists": True,
             "model_name": options.get("model_name", ""),
@@ -959,6 +977,7 @@ class Sam2VideoService:
             "mask_input": options.get("mask_input", True) is not False,
             "clahe": options.get("clahe", False) is True,
             "iou_mask_filter": options.get("iou_mask_filter", True) is not False,
+            "reference_score": round(reference_score, 3),
             "saved_at": options.get("saved_at", ""),
         }
 
@@ -974,6 +993,7 @@ class Sam2VideoService:
         mask_input: bool = True,
         clahe: bool = False,
         iou_mask_filter: bool = True,
+        reference_score: float = 0.5,
     ):
         input_path = self._resolve_uploaded_video_path(file_name)
         resolved_model_name = self._resolve_model_name(model_name)

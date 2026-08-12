@@ -44,6 +44,7 @@
     const claheText = document.getElementById('sam2-clahe-text');
     const iouMaskFilterCheckbox = document.getElementById('sam2-iou-mask-filter');
     const iouMaskFilterText = document.getElementById('sam2-iou-mask-filter-text');
+    const referenceScoreInput = document.getElementById('sam2-reference-score-input');
     document.getElementById('sam2-point-label-text')?.closest('.form-switch')?.remove();
     const multimaskOutputText = document.getElementById('sam2-multimask-output-text');
     const maskInputText = document.getElementById('sam2-mask-input-text');
@@ -517,6 +518,9 @@
             iouMaskFilterCheckbox.checked = true;
             updateIouMaskFilterText();
         }
+        if (referenceScoreInput) {
+            referenceScoreInput.value = '0.500';
+        }
         if (multimaskOutputCheckbox) {
             multimaskOutputCheckbox.checked = false;
             updateMultimaskOutputText();
@@ -617,6 +621,12 @@
             if (iouMaskFilterCheckbox) {
                 iouMaskFilterCheckbox.checked = options.iou_mask_filter !== false;
                 updateIouMaskFilterText();
+            }
+            if (referenceScoreInput) {
+                const savedReferenceScore = Number(options.reference_score);
+                referenceScoreInput.value = String(Number.isFinite(savedReferenceScore)
+                    ? clamp(savedReferenceScore, 0, 1).toFixed(3)
+                    : '0.500');
             }
             renderPointUi();
             renderBoundingBoxUi();
@@ -1955,6 +1965,21 @@
         return `&iou_mask_filter=${encodeURIComponent(String(value))}`;
     }
 
+    function getReferenceScore() {
+        if (!referenceScoreInput) {
+            return 0.5;
+        }
+        const value = clamp(Number(referenceScoreInput.value), 0, 1);
+        if (!Number.isFinite(value)) {
+            return 0.5;
+        }
+        return Number(value.toFixed(3));
+    }
+
+    function buildReferenceScoreQuery() {
+        return `&reference_score=${encodeURIComponent(String(getReferenceScore()))}`;
+    }
+
     async function saveVideoOptions(fileName) {
         const value = String(fileName || '').trim();
         if (!value) {
@@ -1962,7 +1987,7 @@
         }
 
         const apiBase = await resolveApiBase();
-        const url = `${apiBase}/fast/sam2/video_options?file_name=${encodeURIComponent(value)}&model_name=auto${buildPromptFrameQuery()}${buildBboxQuery()}${buildPointsQuery()}${buildPointLabelsQuery()}${buildMultimaskOutputQuery()}${buildMaskInputQuery()}${buildClaheQuery()}${buildIouMaskFilterQuery()}`;
+        const url = `${apiBase}/fast/sam2/video_options?file_name=${encodeURIComponent(value)}&model_name=auto${buildPromptFrameQuery()}${buildBboxQuery()}${buildPointsQuery()}${buildPointLabelsQuery()}${buildMultimaskOutputQuery()}${buildMaskInputQuery()}${buildClaheQuery()}${buildIouMaskFilterQuery()}${buildReferenceScoreQuery()}`;
         const response = await fetch(url, { method: 'POST' });
         if (!response.ok) {
             return false;
@@ -3348,13 +3373,13 @@
             if (file) {
                 const formData = new FormData();
                 formData.append('file', file);
-                const url = `${apiBase}/fast/sam2/segment_video_upload?${bboxQuery.slice(1)}${pointsQuery}${pointLabelsQuery}${promptFrameQuery}${buildMultimaskOutputQuery()}${buildMaskInputQuery()}${buildClaheQuery()}${buildIouMaskFilterQuery()}`;
+                const url = `${apiBase}/fast/sam2/segment_video_upload?${bboxQuery.slice(1)}${pointsQuery}${pointLabelsQuery}${promptFrameQuery}${buildMultimaskOutputQuery()}${buildMaskInputQuery()}${buildClaheQuery()}${buildIouMaskFilterQuery()}${buildReferenceScoreQuery()}`;
                 response = await fetch(url, {
                     method: 'POST',
                     body: formData,
                 });
             } else {
-                const url = `${apiBase}/fast/sam2/segment_saved_video?file_name=${encodeURIComponent(selectedServerFileName)}${bboxQuery}${pointsQuery}${pointLabelsQuery}${promptFrameQuery}${buildMultimaskOutputQuery()}${buildMaskInputQuery()}${buildClaheQuery()}${buildIouMaskFilterQuery()}`;
+                const url = `${apiBase}/fast/sam2/segment_saved_video?file_name=${encodeURIComponent(selectedServerFileName)}${bboxQuery}${pointsQuery}${pointLabelsQuery}${promptFrameQuery}${buildMultimaskOutputQuery()}${buildMaskInputQuery()}${buildClaheQuery()}${buildIouMaskFilterQuery()}${buildReferenceScoreQuery()}`;
                 response = await fetch(url, {
                     method: 'POST',
                 });

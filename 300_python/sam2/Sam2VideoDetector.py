@@ -1024,7 +1024,8 @@ class Sam2VideoDetector:
 
         legend_x = chart_x1 + 8
         legend_gap = 10
-        legend_margin_top = 10
+        legend_top_margin = 6
+        legend_text_y = chart_y1 + legend_top_margin
         for legend_text, legend_color, legend_scale in legend_items:
             (legend_width, legend_height), _legend_baseline = cv2.getTextSize(
                 legend_text,
@@ -1032,11 +1033,10 @@ class Sam2VideoDetector:
                 legend_scale,
                 1,
             )
-            legend_y = chart_y1 + legend_margin_top + legend_height
             cv2.putText(
                 canvas,
                 legend_text,
-                (legend_x, legend_y),
+                (legend_x, legend_text_y + legend_height),
                 cv2.FONT_HERSHEY_SIMPLEX,
                 legend_scale,
                 legend_color,

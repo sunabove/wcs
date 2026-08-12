@@ -731,7 +731,16 @@ class Sam2VideoDetector:
         union = mask_area + bbox_area - intersection
         return float(intersection / union) if union > 0 else 0.0
 
-    def _draw_bbox_score(self, image, bbox_rect, score, iou=None):
+    def _draw_bbox_score(
+        self,
+        image,
+        bbox_rect,
+        score,
+        iou=None,
+        text_color=(255, 255, 255),
+        header_fill=(13, 110, 253),
+        header_edge=(13, 110, 253),
+    ):
         if bbox_rect is None or score is None:
             return
 
@@ -751,8 +760,15 @@ class Sam2VideoDetector:
             image,
             (label_x, label_y - text_height - baseline),
             (label_x + text_width, label_y),
-            (13, 110, 253),
+            header_fill,
             cv2.FILLED,
+        )
+        cv2.rectangle(
+            image,
+            (label_x, label_y - text_height - baseline),
+            (label_x + text_width, label_y),
+            header_edge,
+            1,
         )
         cv2.putText(
             image,
@@ -760,7 +776,7 @@ class Sam2VideoDetector:
             (label_x, label_y - baseline),
             cv2.FONT_HERSHEY_SIMPLEX,
             0.5,
-            (255, 255, 255),
+            text_color,
             1,
             cv2.LINE_AA,
         )

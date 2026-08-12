@@ -759,11 +759,8 @@
     }
 
     function handleOutputFrameKeyboard(event) {
-        if (!outputVideoFps || outputVideoFrameCount <= 0) {
-            return;
-        }
         const currentInput = event.currentTarget;
-        if (!currentInput) {
+        if (!currentInput || !outputVideoFps || outputVideoFrameCount <= 0) {
             return;
         }
 
@@ -781,9 +778,9 @@
         }
 
         let nextValue = currentValue;
-        if (event.key === 'ArrowUp' || event.key === 'ArrowRight') {
+        if (event.key === 'ArrowUp' || event.key === 'ArrowRight' || event.key === 'PageUp') {
             nextValue = currentValue + step;
-        } else if (event.key === 'ArrowDown' || event.key === 'ArrowLeft') {
+        } else if (event.key === 'ArrowDown' || event.key === 'ArrowLeft' || event.key === 'PageDown') {
             nextValue = currentValue - step;
         } else if (event.key === 'Home') {
             nextValue = minimum;

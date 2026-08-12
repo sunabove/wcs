@@ -1351,7 +1351,6 @@ class Sam2VideoDetector:
         multimask_output=False,
         mask_input=True,
         clahe=False,
-        iou_mask_filter=True,
         reference_score: float = 0.8,
         progress_callback=None,
     ):

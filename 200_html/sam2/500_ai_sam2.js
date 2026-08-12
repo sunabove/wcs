@@ -759,7 +759,10 @@
     }
 
     function handleOutputFrameKeyboard(event) {
-        const currentInput = event.currentTarget;
+        const activeElement = document.activeElement;
+        const currentInput = activeElement === outputFrameSliderElement || activeElement === outputFrameSpinnerElement
+            ? activeElement
+            : null;
         if (!currentInput || !outputVideoFps || outputVideoFrameCount <= 0) {
             return;
         }
@@ -819,9 +822,8 @@
             outputVideoElement.addEventListener(eventName, () => updateOutputPlaybackControls());
         });
         outputPlayToggleButton?.addEventListener('click', toggleOutputPlayback);
-        outputFrameSliderElement?.addEventListener('keydown', handleOutputFrameKeyboard);
+        document.addEventListener('keydown', handleOutputFrameKeyboard);
         outputFrameSliderElement?.addEventListener('input', () => seekOutputFrame(outputFrameSliderElement.value));
-        outputFrameSpinnerElement?.addEventListener('keydown', handleOutputFrameKeyboard);
         outputFrameSpinnerElement?.addEventListener('input', () => seekOutputFrame(outputFrameSpinnerElement.value));
         updateOutputPlaybackControls();
     }

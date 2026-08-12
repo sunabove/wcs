@@ -861,7 +861,7 @@ class Sam2VideoDetector:
         regions.append((region_start, region_end + 1))
         return regions
 
-    def _render_score_chart(
+    def _render_detect_data_chart(
         self,
         frame,
         score_history,
@@ -1714,7 +1714,7 @@ class Sam2VideoDetector:
                     rendered_frames,
                     source_total_frames,
                 )
-                padded_frame = self._render_score_chart(
+                padded_frame = self._render_detect_data_chart(
                     padded_frame,
                     chart_score_history,
                     chart_iou_history,

@@ -3120,6 +3120,8 @@
             const onLoadedData = () => {
                 cleanup();
                 if (videoElement.videoWidth > 0 && videoElement.videoHeight > 0) {
+                    const ratio = `${videoElement.videoWidth} / ${videoElement.videoHeight}`;
+                    videoElement.style.aspectRatio = ratio;
                     videoElement.style.maxHeight = 'none';
                     videoElement.style.width = '100%';
                     videoElement.style.height = 'auto';

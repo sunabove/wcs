@@ -780,6 +780,7 @@ class Sam2VideoService:
             mask_input=mask_input,
             clahe=clahe,
             iou_mask_filter=iou_mask_filter,
+            reference_score=reference_score,
         )
 
         return self._start_detection_job(
@@ -793,6 +794,7 @@ class Sam2VideoService:
             mask_input=mask_input,
             clahe=clahe,
             iou_mask_filter=iou_mask_filter,
+            reference_score=reference_score,
         )
 
     def upload_video_only(self, upload_file: UploadFile):
@@ -837,6 +839,7 @@ class Sam2VideoService:
             mask_input=mask_input,
             clahe=clahe,
             iou_mask_filter=iou_mask_filter,
+            reference_score=reference_score,
         )
 
         return self._start_detection_job(
@@ -850,6 +853,7 @@ class Sam2VideoService:
             mask_input=mask_input,
             clahe=clahe,
             iou_mask_filter=iou_mask_filter,
+            reference_score=reference_score,
         )
 
     def list_uploaded_videos(self, limit: int = 50):

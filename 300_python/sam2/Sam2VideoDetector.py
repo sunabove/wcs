@@ -1099,8 +1099,11 @@ class Sam2VideoDetector:
         cv2.rectangle(chart_background, (panel_x1, panel_y1), (panel_x2, panel_y2), (36, 36, 36), cv2.FILLED)
         cv2.rectangle(chart_background, (chart_x1, chart_y1), (chart_x2, chart_y2), (44, 44, 44), cv2.FILLED)
         cv2.addWeighted(chart_background, 0.8, canvas, 0.2, 0.0, canvas)
-        cv2.rectangle(canvas, (chart_x1, chart_y1), (reference_x, chart_y2), (88, 48, 24), cv2.FILLED)
-        cv2.rectangle(canvas, (reference_x + 1, chart_y1), (chart_x2, chart_y2), (24, 48, 88), cv2.FILLED)
+
+        before_reference_x = min(reference_x, chart_x2)
+        after_reference_x = max(reference_x + 1, chart_x1)
+        cv2.rectangle(canvas, (chart_x1, chart_y1), (before_reference_x, chart_y2), (96, 56, 28), cv2.FILLED)
+        cv2.rectangle(canvas, (after_reference_x, chart_y1), (chart_x2, chart_y2), (26, 46, 80), cv2.FILLED)
         cv2.rectangle(canvas, (chart_x1, chart_y1), (chart_x2, chart_y2), (100, 100, 100), 1)
 
         for score_tick in (0.0, 0.5, 1.0):
@@ -1126,7 +1129,29 @@ class Sam2VideoDetector:
 
         x_values = np.arange(1, len(score_history) + 1, dtype=np.float32)
         score_values = np.asarray(score_history, dtype=np.float32)
-        peak_start, peak_last = self._find_score_plateau_bounds(score_history)
+        peak_start, peak_last = self._select_reference_plateau(score_history, int(reference_frame_number) - 1)
+        if peak_start is None or peak_last is None:
+            peak_start, peak_last = self._find_score_plateau_bounds(score_history)
+
+        if peak_start is not None and peak_last is not None:
+            plateau_x1 = self._chart_renderer._map_chart_x(
+                float(peak_start + 1),
+                x_min,
+                x_max,
+                chart_x1,
+                chart_x2 - chart_x1,
+            )
+            plateau_x2 = self._chart_renderer._map_chart_x(
+                float(peak_last + 1),
+                x_min,
+                x_max,
+                chart_x1,
+                chart_x2 - chart_x1,
+            )
+            plateau_fill = canvas.copy()
+            cv2.rectangle(plateau_fill, (int(min(plateau_x1, plateau_x2)), chart_y1), (int(max(plateau_x1, plateau_x2)), chart_y2), (30, 40, 90), cv2.FILLED)
+            cv2.addWeighted(plateau_fill, 0.3, canvas, 0.7, 0.0, canvas)
+
         self._chart_renderer._draw_chart_series(
             canvas,
             x_values,
@@ -1155,6 +1180,7 @@ class Sam2VideoDetector:
             chart_y2 - chart_y1,
             2,
         )
+
         if peak_start is not None and peak_last is not None:
             peak_end = peak_last + 1
             first_peak_minimum = float(np.min(score_values[peak_start:peak_end]))
@@ -1165,29 +1191,13 @@ class Sam2VideoDetector:
                 chart_y2 - chart_y1,
             )
             cv2.line(canvas, (chart_x1, threshold_y), (chart_x2, threshold_y), (0, 165, 255), 1, cv2.LINE_AA)
-            threshold_layer = canvas.copy()
-            for region_start, region_end in self._get_score_threshold_regions(score_values, first_peak_minimum):
-                self._chart_renderer._draw_chart_series(
-                    threshold_layer,
-                    x_values[region_start:region_end],
-                    score_values[region_start:region_end],
-                    (0, 165, 255),
-                    x_min,
-                    x_max,
-                    chart_x1,
-                    chart_x2 - chart_x1,
-                    1.0,
-                    chart_y2,
-                    chart_y2 - chart_y1,
-                    2,
-                )
-            cv2.addWeighted(threshold_layer, 0.65, canvas, 0.35, 0.0, canvas)
+
             plateau_layer = canvas.copy()
             self._chart_renderer._draw_chart_series(
                 plateau_layer,
                 x_values[peak_start:peak_end],
                 score_values[peak_start:peak_end],
-                (0, 0, 255),
+                (0, 165, 255),
                 x_min,
                 x_max,
                 chart_x1,
@@ -1197,26 +1207,16 @@ class Sam2VideoDetector:
                 chart_y2 - chart_y1,
                 2,
             )
-            cv2.addWeighted(plateau_layer, 0.75, canvas, 0.25, 0.0, canvas)
-
-        if iou_threshold is not None:
-            iou_threshold_y = self._chart_renderer._map_chart_y(
-                iou_threshold,
-                1.0,
-                chart_y2,
-                chart_y2 - chart_y1,
-            )
-            cv2.line(canvas, (chart_x1, iou_threshold_y), (chart_x2, iou_threshold_y), (255, 0, 255), 1, cv2.LINE_AA)
+            cv2.addWeighted(plateau_layer, 0.85, canvas, 0.15, 0.0, canvas)
 
         if peak_start is not None and peak_last is not None and iou_threshold is not None:
             sample_count = min(len(score_values), len(iou_history))
             if sample_count > 0:
                 score_samples = score_values[:sample_count]
                 iou_samples = np.asarray(iou_history[:sample_count], dtype=np.float32)
-                score_passed = score_samples >= first_peak_minimum
+                score_passed = score_samples >= max(float(np.min(score_values[peak_start:peak_last + 1])), float(iou_threshold))
                 iou_passed = iou_samples >= iou_threshold
                 qualified_regions = self._get_boolean_regions(score_passed & iou_passed)
-                score_only_regions = self._get_boolean_regions(score_passed & ~iou_passed)
                 filter_layer = canvas.copy()
                 for region_start, region_end in qualified_regions:
                     self._chart_renderer._draw_chart_series(
@@ -1233,38 +1233,15 @@ class Sam2VideoDetector:
                         chart_y2 - chart_y1,
                         3,
                     )
-                for region_start, region_end in score_only_regions:
-                    self._chart_renderer._draw_chart_series(
-                        filter_layer,
-                        x_values[region_start:region_end],
-                        score_values[region_start:region_end],
-                        (255, 80, 180),
-                        x_min,
-                        x_max,
-                        chart_x1,
-                        chart_x2 - chart_x1,
-                        1.0,
-                        chart_y2,
-                        chart_y2 - chart_y1,
-                        3,
-                    )
                 cv2.addWeighted(filter_layer, 0.9, canvas, 0.1, 0.0, canvas)
 
         legend_items = [
             ("Score", (80, 255, 80), 0.555),
             ("IoU", (255, 190, 60), 0.555),
+            ("Ref-Score", (0, 165, 255), 0.48),
+            ("Score+IoU", (0, 255, 255), 0.45),
+            ("Frame", (255, 230, 0), 0.45),
         ]
-        if peak_start is not None and peak_last is not None:
-            legend_items.append(("Ref-Score", (0, 165, 255), 0.48))
-        if iou_threshold is not None:
-            legend_items.append(("Ref-IoU", (255, 0, 255), 0.48))
-        if peak_start is not None and peak_last is not None:
-            legend_items.append(("Plateau", (0, 0, 255), 0.45))
-        if peak_start is not None and peak_last is not None and iou_threshold is not None:
-            legend_items.append(("Score+IoU", (0, 255, 255), 0.45))
-            legend_items.append(("Score only", (255, 80, 180), 0.45))
-        legend_items.append(("Frame", (255, 230, 0), 0.45))
-        legend_items.append(("Current", (235, 235, 235), 0.45))
 
         legend_x = panel_x1 + 8
         legend_gap = 10

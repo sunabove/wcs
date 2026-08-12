@@ -759,23 +759,25 @@
     }
 
     function handleOutputFrameKeyboard(event) {
-        const activeElement = document.activeElement;
-        const currentInput = activeElement === outputFrameSliderElement || activeElement === outputFrameSpinnerElement
-            ? activeElement
-            : null;
-        if (!currentInput || !outputVideoFps || outputVideoFrameCount <= 0) {
+        const targetInput = event.target && (event.target === outputFrameSliderElement || event.target === outputFrameSpinnerElement)
+            ? event.target
+            : (document.activeElement === outputFrameSliderElement || document.activeElement === outputFrameSpinnerElement)
+                ? document.activeElement
+                : null;
+
+        if (!targetInput || !outputVideoFps || outputVideoFrameCount <= 0) {
             return;
         }
 
-        const minimum = Number(currentInput.min || 1);
-        const maximum = Number(currentInput.max || outputVideoFrameCount);
-        const step = Number.isFinite(Number(currentInput.step)) && Number(currentInput.step) > 0
-            ? Number(currentInput.step)
+        const minimum = Number(targetInput.min || 1);
+        const maximum = Number(targetInput.max || outputVideoFrameCount);
+        const step = Number.isFinite(Number(targetInput.step)) && Number(targetInput.step) > 0
+            ? Number(targetInput.step)
             : 1;
 
-        const currentValue = Number.isFinite(currentInput.valueAsNumber)
-            ? currentInput.valueAsNumber
-            : Number.parseInt(currentInput.value, 10);
+        const currentValue = Number.isFinite(targetInput.valueAsNumber)
+            ? targetInput.valueAsNumber
+            : Number.parseInt(targetInput.value, 10);
         if (!Number.isFinite(currentValue)) {
             return;
         }
@@ -794,8 +796,9 @@
         }
 
         event.preventDefault();
+        event.stopPropagation();
         const normalizedValue = clamp(Math.trunc(nextValue), minimum, maximum);
-        currentInput.value = String(normalizedValue);
+        targetInput.value = String(normalizedValue);
         seekOutputFrame(normalizedValue);
     }
 
@@ -822,7 +825,8 @@
             outputVideoElement.addEventListener(eventName, () => updateOutputPlaybackControls());
         });
         outputPlayToggleButton?.addEventListener('click', toggleOutputPlayback);
-        document.addEventListener('keydown', handleOutputFrameKeyboard);
+        outputFrameSliderElement?.addEventListener('keydown', handleOutputFrameKeyboard);
+        outputFrameSpinnerElement?.addEventListener('keydown', handleOutputFrameKeyboard);
         outputFrameSliderElement?.addEventListener('input', () => seekOutputFrame(outputFrameSliderElement.value));
         outputFrameSpinnerElement?.addEventListener('input', () => seekOutputFrame(outputFrameSpinnerElement.value));
         updateOutputPlaybackControls();

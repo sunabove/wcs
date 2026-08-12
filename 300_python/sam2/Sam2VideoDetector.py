@@ -1528,7 +1528,6 @@ class Sam2VideoDetector:
 
             def collect_propagation(propagation):
                 nonlocal total_segments, tracked_frames
-                min_mask_ratio = float(np.clip(float(mask_area_ratio if mask_area_ratio is not None else 0.0), 0.0, 1.0))
                 for result_frame_index, object_ids, video_mask_logits in propagation:
                     result_frame_index = int(result_frame_index)
                     if result_frame_index < 0 or result_frame_index >= total_frames:
@@ -1539,11 +1538,6 @@ class Sam2VideoDetector:
                     mask = self._to_binary_mask(mask_logits, (height, width, 3))
                     mask_ratio = self._calculate_mask_frame_area_ratio(mask, (height, width, 3))
                     score_value = self._video_mask_score(mask_logits)
-                    if min_mask_ratio > 0.0 and mask_ratio < min_mask_ratio:
-                        score_history[result_frame_index] = 0.0
-                        mask_history[result_frame_index] = None
-                        fill_ratio_history[result_frame_index] = 0.0
-                        continue
                     score_history[result_frame_index] = score_value
                     mask_history[result_frame_index] = mask
                     fill_ratio_history[result_frame_index] = mask_ratio
@@ -1570,6 +1564,7 @@ class Sam2VideoDetector:
                 ))
 
             detection_threshold = float(np.clip(float(reference_score if reference_score is not None else 0.8), 0.0, 1.0))
+            mask_ratio_threshold = float(np.clip(float(mask_area_ratio if mask_area_ratio is not None else 0.05), 0.0, 1.0))
 
             previous_cache = self._yolo_conversion_cache.get(str(resolved_input))
             if previous_cache and previous_cache.get("cleanup_source"):
@@ -1640,9 +1635,15 @@ class Sam2VideoDetector:
                     and mask_history[frame_index] is not None
                     and score_value > 0.0
                 ):
+                    frame_mask_ratio = (
+                        fill_ratio_history[frame_index]
+                        if frame_index < len(fill_ratio_history)
+                        else 0.0
+                    )
                     accepted = (
                         detection_threshold is not None
                         and score_value >= detection_threshold
+                        and frame_mask_ratio >= mask_ratio_threshold
                     )
                     plotted = self._overlay_mask_result(
                         plotted,

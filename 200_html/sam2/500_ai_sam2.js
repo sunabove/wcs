@@ -519,7 +519,7 @@
             updateIouMaskFilterText();
         }
         if (referenceScoreInput) {
-            referenceScoreInput.value = '0.500';
+            referenceScoreInput.value = '0.800';
         }
         if (multimaskOutputCheckbox) {
             multimaskOutputCheckbox.checked = false;
@@ -626,7 +626,7 @@
                 const savedReferenceScore = Number(options.reference_score);
                 referenceScoreInput.value = String(Number.isFinite(savedReferenceScore)
                     ? clamp(savedReferenceScore, 0, 1).toFixed(3)
-                    : '0.500');
+                    : '0.800');
             }
             renderPointUi();
             renderBoundingBoxUi();
@@ -1967,11 +1967,11 @@
 
     function getReferenceScore() {
         if (!referenceScoreInput) {
-            return 0.5;
+            return 0.8;
         }
         const value = clamp(Number(referenceScoreInput.value), 0, 1);
         if (!Number.isFinite(value)) {
-            return 0.5;
+            return 0.8;
         }
         return Number(value.toFixed(3));
     }

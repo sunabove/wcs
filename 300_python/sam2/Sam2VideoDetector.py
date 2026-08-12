@@ -700,6 +700,17 @@ class Sam2VideoDetector:
         mask_area = float(np.count_nonzero(mask_np[y1:y2, x1:x2]))
         return mask_area / bbox_area if bbox_area > 0 else 0.0
 
+    def _calculate_mask_frame_area_ratio(self, mask_tensor, frame_shape):
+        mask_np = self._to_binary_mask(mask_tensor, frame_shape)
+        if mask_np is None:
+            return 0.0
+
+        total_area = float(np.prod(mask_np.shape[:2]))
+        if total_area <= 0:
+            return 0.0
+        mask_area = float(np.count_nonzero(mask_np))
+        return mask_area / total_area if total_area > 0 else 0.0
+
     def _draw_bbox_score(
         self,
         image,
@@ -708,12 +719,14 @@ class Sam2VideoDetector:
         text_color=(255, 255, 255),
         header_fill=(13, 110, 253),
         header_edge=(13, 110, 253),
+        mask_ratio=None,
     ):
         if bbox_rect is None or score is None:
             return
 
         x1, y1, _x2, _y2 = bbox_rect
-        label = f"Score: {score:.3f}"
+        mask_text = f" | Mask: {float(mask_ratio) * 100:.1f}%" if mask_ratio is not None else ""
+        label = f"Score: {score:.3f}{mask_text}"
         (text_width, text_height), baseline = cv2.getTextSize(
             label,
             cv2.FONT_HERSHEY_SIMPLEX,
@@ -959,10 +972,27 @@ class Sam2VideoDetector:
                     2,
                 )
 
+        mask_ratio_values = np.asarray(fill_ratio_history, dtype=np.float32)
+        self._chart_renderer._draw_chart_series(
+            canvas,
+            x_values,
+            mask_ratio_values,
+            (255, 165, 0),
+            x_min,
+            x_max,
+            chart_x1,
+            chart_x2 - chart_x1,
+            1.0,
+            chart_y2,
+            chart_y2 - chart_y1,
+            2,
+        )
+
         cv2.line(canvas, (chart_x1, threshold_y), (chart_x2, threshold_y), (0, 165, 255), 1, cv2.LINE_AA)
 
         legend_items = [
             ("Score", (80, 255, 80), 0.555),
+            ("Mask Ratio", (255, 165, 0), 0.52),
             ("Score>=Ref", (0, 255, 255), 0.48),
             ("Ref-Score", (0, 165, 255), 0.48),
             ("Ref-Frame", (255, 180, 80), 0.45),
@@ -1103,9 +1133,15 @@ class Sam2VideoDetector:
                     text_color=(230, 230, 230),
                     header_fill=(50, 50, 50),
                     header_edge=(120, 120, 120),
+                    mask_ratio=self._calculate_mask_frame_area_ratio(mask_np, frame.shape[:2]),
                 )
             else:
-                self._draw_bbox_score(overlay, display_bbox, score)
+                self._draw_bbox_score(
+                    overlay,
+                    display_bbox,
+                    score,
+                    mask_ratio=self._calculate_mask_frame_area_ratio(mask_np, frame.shape[:2]),
+                )
         return overlay
 
     def _build_yolo_segmentation_labels(self, mask_np, class_id=0, min_area=4.0):
@@ -1490,7 +1526,7 @@ class Sam2VideoDetector:
                     mask = self._to_binary_mask(mask_logits, (height, width, 3))
                     score_history[result_frame_index] = self._video_mask_score(mask_logits)
                     mask_history[result_frame_index] = mask
-                    fill_ratio_history[result_frame_index] = self._calculate_mask_bbox_fill_ratio(
+                    fill_ratio_history[result_frame_index] = self._calculate_mask_frame_area_ratio(
                         mask,
                         (height, width, 3),
                     )

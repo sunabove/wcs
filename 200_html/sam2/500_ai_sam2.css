@@ -1,3 +1,7 @@
+.nav-tabs .nav-link {
+  color: #111111 !important;
+}
+
 .nav-tabs .nav-link.active,
 .nav-tabs .nav-link.show {
   color: var(--bs-primary) !important;

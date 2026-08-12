@@ -1083,7 +1083,7 @@ class Sam2VideoDetector:
         self._draw_bbox_score(composed, bbox_rect, score, iou)
         return composed
 
-    def _overlay_mask_result(self, frame, mask_tensor, bbox_rect=None, score=None, iou=None):
+    def _overlay_mask_result(self, frame, mask_tensor, bbox_rect=None, score=None, iou=None, color=None):
         if mask_tensor is None:
             return self._overlay_bbox_result(frame, frame, bbox_rect, score, iou)
 
@@ -1111,14 +1111,14 @@ class Sam2VideoDetector:
             return self._overlay_bbox_result(frame, frame, bbox_rect, score, iou)
 
         overlay = frame.copy()
-        color = np.array([13, 110, 253], dtype=np.float32)
+        display_color = np.array(color if color is not None else [13, 110, 253], dtype=np.float32)
         overlay_pixels = overlay[mask_np].astype(np.float32)
-        overlay[mask_np] = np.clip(overlay_pixels * 0.35 + color * 0.65, 0, 255).astype(np.uint8)
+        overlay[mask_np] = np.clip(overlay_pixels * 0.35 + display_color * 0.65, 0, 255).astype(np.uint8)
         mask_bbox = self._get_mask_bbox(mask_np)
         display_bbox = mask_bbox or bbox_rect
         if display_bbox is not None:
             x1, y1, x2, y2 = display_bbox
-            cv2.rectangle(overlay, (x1, y1), (x2 - 1, y2 - 1), (13, 110, 253), 1)
+            cv2.rectangle(overlay, (x1, y1), (x2 - 1, y2 - 1), tuple(display_color.astype(np.uint8).tolist()), 1)
             self._draw_bbox_score(overlay, display_bbox, score, iou)
         return overlay
 
@@ -1629,29 +1629,33 @@ class Sam2VideoDetector:
                     prepared,
                     total_frames,
                 )
-                if (
-                    detection_threshold is not None
-                    and frame_index < len(score_history)
-                    and score_history[frame_index] >= detection_threshold
-                    and (
-                        not iou_mask_filter
-                        or frame_index >= len(iou_history)
-                        or iou_history[frame_index] > 0.0
-                    )
-                    and frame_index < len(mask_history)
-                    and mask_history[frame_index] is not None
-                ):
+                if frame_index < len(mask_history) and mask_history[frame_index] is not None:
                     current_iou = (
                         iou_history[frame_index]
                         if frame_index < len(iou_history)
                         else 0.0
                     )
+                    score_value = (
+                        score_history[frame_index]
+                        if frame_index < len(score_history)
+                        else 0.0
+                    )
+                    accepted = (
+                        detection_threshold is not None
+                        and score_value >= detection_threshold
+                        and (
+                            not iou_mask_filter
+                            or frame_index >= len(iou_history)
+                            or current_iou > 0.0
+                        )
+                    )
                     plotted = self._overlay_mask_result(
                         plotted,
                         mask_history[frame_index],
                         output_bbox_rect,
-                        score_history[frame_index],
+                        score_value,
                         current_iou,
+                        color=(13, 110, 253) if accepted else (170, 170, 170),
                     )
                 self._draw_option_summary(
                     plotted,

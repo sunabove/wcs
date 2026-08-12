@@ -1296,8 +1296,8 @@ class Sam2VideoDetector:
                 cv2.LINE_AA,
             )
 
-        cv2.line(canvas, (reference_x, chart_y1), (reference_x, chart_y2), (255, 180, 80), 1, cv2.LINE_AA)
         cv2.line(canvas, (current_x, chart_y1), (current_x, chart_y2), (235, 235, 235), 3, cv2.LINE_AA)
+        cv2.line(canvas, (reference_x, chart_y1), (reference_x, chart_y2), (255, 180, 80), 1, cv2.LINE_AA)
         return canvas
 
     def _overlay_bbox_result(self, frame, roi_plotted, bbox_rect, score=None):

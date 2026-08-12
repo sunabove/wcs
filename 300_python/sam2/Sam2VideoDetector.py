@@ -1022,9 +1022,9 @@ class Sam2VideoDetector:
             ("Curr-Frame", (235, 235, 235), 0.45),
         ]
 
-        legend_x = panel_x1 + 8
+        legend_x = chart_x1 + 8
         legend_gap = 10
-        legend_y = panel_y1 + 10
+        legend_y = chart_y1 + 12
         for legend_text, legend_color, legend_scale in legend_items:
             cv2.putText(
                 canvas,

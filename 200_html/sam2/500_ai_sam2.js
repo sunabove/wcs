@@ -3125,6 +3125,9 @@
                     videoElement.style.maxHeight = 'none';
                     videoElement.style.width = '100%';
                     videoElement.style.height = 'auto';
+                    videoElement.style.display = 'block';
+                    videoElement.style.margin = '0 auto';
+                    videoElement.style.objectFit = 'contain';
                 }
                 resolve();
             };

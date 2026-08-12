@@ -1388,6 +1388,7 @@ class Sam2VideoDetector:
         mask_input=True,
         clahe=False,
         reference_score: float = 0.8,
+        mask_area_ratio: float = 0.0,
         progress_callback=None,
     ):
         resolved_input = Path(input_path).resolve()
@@ -1516,6 +1517,7 @@ class Sam2VideoDetector:
 
             def collect_propagation(propagation):
                 nonlocal total_segments, tracked_frames
+                min_mask_ratio = float(np.clip(float(mask_area_ratio if mask_area_ratio is not None else 0.0), 0.0, 1.0))
                 for result_frame_index, object_ids, video_mask_logits in propagation:
                     result_frame_index = int(result_frame_index)
                     if result_frame_index < 0 or result_frame_index >= total_frames:
@@ -1524,12 +1526,16 @@ class Sam2VideoDetector:
                     object_position = object_id_values.index(1)
                     mask_logits = video_mask_logits[object_position]
                     mask = self._to_binary_mask(mask_logits, (height, width, 3))
-                    score_history[result_frame_index] = self._video_mask_score(mask_logits)
+                    mask_ratio = self._calculate_mask_frame_area_ratio(mask, (height, width, 3))
+                    score_value = self._video_mask_score(mask_logits)
+                    if min_mask_ratio > 0.0 and mask_ratio < min_mask_ratio:
+                        score_history[result_frame_index] = 0.0
+                        mask_history[result_frame_index] = None
+                        fill_ratio_history[result_frame_index] = 0.0
+                        continue
+                    score_history[result_frame_index] = score_value
                     mask_history[result_frame_index] = mask
-                    fill_ratio_history[result_frame_index] = self._calculate_mask_frame_area_ratio(
-                        mask,
-                        (height, width, 3),
-                    )
+                    fill_ratio_history[result_frame_index] = mask_ratio
                     if result_frame_index not in processed_indices:
                         processed_indices.add(result_frame_index)
                         if mask is not None and np.any(mask):

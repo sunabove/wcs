@@ -67,7 +67,7 @@ class Sam2VideoService:
                     "total_frames": total_frames,
                 })
 
-    def _run_detection_job(self, job_id, input_path, model_name, prompt_frame, bbox, points, point_labels, multimask_output, mask_input, clahe, reference_score):
+    def _run_detection_job(self, job_id, input_path, model_name, prompt_frame, bbox, points, point_labels, multimask_output, mask_input, clahe, reference_score, mask_area_ratio):
         try:
             with self._jobs_lock:
                 self._jobs[job_id]["status"] = "running"
@@ -82,6 +82,7 @@ class Sam2VideoService:
                 mask_input=mask_input,
                 clahe=clahe,
                 reference_score=reference_score,
+                mask_area_ratio=mask_area_ratio,
                 progress_callback=lambda processed, total: self._update_job_progress(job_id, processed, total),
             )
             with self._jobs_lock:
@@ -96,7 +97,7 @@ class Sam2VideoService:
             with self._jobs_lock:
                 self._jobs[job_id].update({"status": "failed", "error": str(ex)})
 
-    def _start_detection_job(self, input_path, model_name, prompt_frame, bbox, points, point_labels, multimask_output, mask_input, clahe, reference_score=0.5):
+    def _start_detection_job(self, input_path, model_name, prompt_frame, bbox, points, point_labels, multimask_output, mask_input, clahe, reference_score=0.5, mask_area_ratio=0.0):
         job_id = self._create_job()
         self._job_executor.submit(
             self._run_detection_job,
@@ -111,6 +112,7 @@ class Sam2VideoService:
             mask_input,
             clahe,
             reference_score,
+            mask_area_ratio,
         )
         return {"job_id": job_id, "status": "queued", "progress": 0}
 
@@ -672,12 +674,18 @@ class Sam2VideoService:
         mask_input: bool = True,
         clahe: bool = False,
         reference_score: float = 0.8,
+        mask_area_ratio: float = 0.0,
     ) -> None:
         try:
             reference_value = float(reference_score)
         except (TypeError, ValueError):
             reference_value = 0.8
         reference_value = max(0.0, min(1.0, reference_value))
+        try:
+            mask_ratio_value = float(mask_area_ratio)
+        except (TypeError, ValueError):
+            mask_ratio_value = 0.0
+        mask_ratio_value = max(0.0, min(1.0, mask_ratio_value))
 
         options = {
             "model_name": model_name,
@@ -689,6 +697,7 @@ class Sam2VideoService:
             "mask_input": bool(mask_input),
             "clahe": bool(clahe),
             "reference_score": round(reference_value, 2),
+            "mask_area_ratio": round(mask_ratio_value, 2),
             "saved_at": datetime.now().isoformat(timespec="seconds"),
         }
         options_path = self._options_path(input_path)
@@ -761,6 +770,7 @@ class Sam2VideoService:
         mask_input: bool = True,
         clahe: bool = False,
         reference_score: float = 0.8,
+        mask_area_ratio: float = 0.0,
     ):
         input_path = self._save_uploaded_video(upload_file)
         resolved_model_name = self._resolve_model_name(model_name)
@@ -775,6 +785,7 @@ class Sam2VideoService:
             mask_input=mask_input,
             clahe=clahe,
             reference_score=reference_score,
+            mask_area_ratio=mask_area_ratio,
         )
 
         return self._start_detection_job(
@@ -788,6 +799,7 @@ class Sam2VideoService:
             mask_input=mask_input,
             clahe=clahe,
             reference_score=reference_score,
+            mask_area_ratio=mask_area_ratio,
         )
 
     def upload_video_only(self, upload_file: UploadFile):
@@ -817,6 +829,7 @@ class Sam2VideoService:
         mask_input: bool = True,
         clahe: bool = False,
         reference_score: float = 0.5,
+        mask_area_ratio: float = 0.0,
     ):
         input_path = self._resolve_uploaded_video_path(file_name)
         resolved_model_name = self._resolve_model_name(model_name)
@@ -831,6 +844,7 @@ class Sam2VideoService:
             mask_input=mask_input,
             clahe=clahe,
             reference_score=reference_score,
+            mask_area_ratio=mask_area_ratio,
         )
 
         return self._start_detection_job(
@@ -844,6 +858,7 @@ class Sam2VideoService:
             mask_input=mask_input,
             clahe=clahe,
             reference_score=reference_score,
+            mask_area_ratio=mask_area_ratio,
         )
 
     def list_uploaded_videos(self, limit: int = 50):
@@ -959,6 +974,11 @@ class Sam2VideoService:
         except (TypeError, ValueError):
             reference_score = 0.8
         reference_score = max(0.0, min(1.0, reference_score))
+        try:
+            mask_area_ratio = float(options.get("mask_area_ratio", 0.0))
+        except (TypeError, ValueError):
+            mask_area_ratio = 0.0
+        mask_area_ratio = max(0.0, min(1.0, mask_area_ratio))
 
         return {
             "exists": True,
@@ -971,6 +991,7 @@ class Sam2VideoService:
             "mask_input": options.get("mask_input", True) is not False,
             "clahe": options.get("clahe", False) is True,
             "reference_score": round(reference_score, 2),
+            "mask_area_ratio": round(mask_area_ratio, 2),
             "saved_at": options.get("saved_at", ""),
         }
 
@@ -986,6 +1007,7 @@ class Sam2VideoService:
         mask_input: bool = True,
         clahe: bool = False,
         reference_score: float = 0.5,
+        mask_area_ratio: float = 0.0,
     ):
         input_path = self._resolve_uploaded_video_path(file_name)
         resolved_model_name = self._resolve_model_name(model_name)
@@ -1000,6 +1022,7 @@ class Sam2VideoService:
             mask_input=mask_input,
             clahe=clahe,
             reference_score=reference_score,
+            mask_area_ratio=mask_area_ratio,
         )
         return {
             "saved": True,

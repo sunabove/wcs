@@ -758,48 +758,66 @@
         updateOutputPlaybackControls(outputVideoElement.currentTime);
     }
 
-    function handleOutputFrameKeyboard(event) {
-        const targetInput = event.target && (event.target === outputFrameSliderElement || event.target === outputFrameSpinnerElement)
-            ? event.target
-            : (document.activeElement === outputFrameSliderElement || document.activeElement === outputFrameSpinnerElement)
-                ? document.activeElement
-                : null;
+    function getActiveOutputFrameInput() {
+        if (!outputFrameSliderElement || !outputFrameSpinnerElement) {
+            return null;
+        }
+        if (document.activeElement === outputFrameSpinnerElement || document.activeElement === outputFrameSliderElement) {
+            return document.activeElement;
+        }
+        return outputFrameSliderElement;
+    }
 
-        if (!targetInput || !outputVideoFps || outputVideoFrameCount <= 0) {
+    function applyOutputFrameDelta(delta) {
+        if (!outputFrameSliderElement || !outputFrameSpinnerElement || !outputVideoFps || outputVideoFrameCount <= 0) {
             return;
         }
 
-        const minimum = Number(targetInput.min || 1);
-        const maximum = Number(targetInput.max || outputVideoFrameCount);
-        const step = Number.isFinite(Number(targetInput.step)) && Number(targetInput.step) > 0
-            ? Number(targetInput.step)
-            : 1;
-
-        const currentValue = Number.isFinite(targetInput.valueAsNumber)
-            ? targetInput.valueAsNumber
-            : Number.parseInt(targetInput.value, 10);
+        const activeInput = getActiveOutputFrameInput() || outputFrameSliderElement;
+        const currentValue = Number.isFinite(activeInput.valueAsNumber)
+            ? activeInput.valueAsNumber
+            : Number.parseInt(activeInput.value, 10);
         if (!Number.isFinite(currentValue)) {
             return;
         }
 
-        let nextValue = currentValue;
-        if (event.key === 'ArrowUp' || event.key === 'ArrowRight' || event.key === 'PageUp') {
-            nextValue = currentValue + step;
-        } else if (event.key === 'ArrowDown' || event.key === 'ArrowLeft' || event.key === 'PageDown') {
-            nextValue = currentValue - step;
-        } else if (event.key === 'Home') {
-            nextValue = minimum;
-        } else if (event.key === 'End') {
-            nextValue = maximum;
-        } else {
+        const nextValue = clamp(Math.trunc(currentValue + delta), 1, outputVideoFrameCount);
+        activeInput.value = String(nextValue);
+        seekOutputFrame(nextValue);
+    }
+
+    function handleOutputFrameKeyboard(event) {
+        const activeInput = getActiveOutputFrameInput();
+        if (!activeInput) {
             return;
         }
 
-        event.preventDefault();
-        event.stopPropagation();
-        const normalizedValue = clamp(Math.trunc(nextValue), minimum, maximum);
-        targetInput.value = String(normalizedValue);
-        seekOutputFrame(normalizedValue);
+        if (event.key === 'ArrowRight' || event.key === 'ArrowUp' || event.key === 'PageUp') {
+            event.preventDefault();
+            event.stopPropagation();
+            applyOutputFrameDelta(1);
+            return;
+        }
+
+        if (event.key === 'ArrowLeft' || event.key === 'ArrowDown' || event.key === 'PageDown') {
+            event.preventDefault();
+            event.stopPropagation();
+            applyOutputFrameDelta(-1);
+            return;
+        }
+
+        if (event.key === 'Home') {
+            event.preventDefault();
+            event.stopPropagation();
+            seekOutputFrame(1);
+            return;
+        }
+
+        if (event.key === 'End') {
+            event.preventDefault();
+            event.stopPropagation();
+            seekOutputFrame(outputVideoFrameCount);
+        }
     }
 
     function initializeOutputVideoControls() {

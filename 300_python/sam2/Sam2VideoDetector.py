@@ -1124,7 +1124,7 @@ class Sam2VideoDetector:
                 interpolation=cv2.INTER_NEAREST,
             ) > 0
         if not np.any(mask_np):
-            return self._overlay_bbox_result(frame, frame, bbox_rect, score, iou)
+            return frame
 
         overlay = frame.copy()
         display_color = np.array(color if color is not None else [13, 110, 253], dtype=np.float32)
@@ -1656,15 +1656,19 @@ class Sam2VideoDetector:
                     prepared,
                     total_frames,
                 )
-                if frame_index < len(mask_history) and mask_history[frame_index] is not None:
+                score_value = (
+                    score_history[frame_index]
+                    if frame_index < len(score_history)
+                    else 0.0
+                )
+                if (
+                    frame_index < len(mask_history)
+                    and mask_history[frame_index] is not None
+                    and score_value > 0.0
+                ):
                     current_iou = (
                         iou_history[frame_index]
                         if frame_index < len(iou_history)
-                        else 0.0
-                    )
-                    score_value = (
-                        score_history[frame_index]
-                        if frame_index < len(score_history)
                         else 0.0
                     )
                     accepted = (

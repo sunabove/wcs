@@ -998,29 +998,6 @@ class Sam2VideoDetector:
 
         cv2.line(canvas, (chart_x1, threshold_y), (chart_x2, threshold_y), (0, 165, 255), 1, cv2.LINE_AA)
 
-        filter_regions = self._get_score_threshold_regions(score_values.tolist(), threshold_value)
-        if filter_regions:
-            filter_layer = canvas.copy()
-            for region_start, region_end in filter_regions:
-                if region_start >= len(x_values):
-                    continue
-                region_end = min(region_end, len(x_values))
-                self._chart_renderer._draw_chart_series(
-                    filter_layer,
-                    x_values[region_start:region_end],
-                    score_values[region_start:region_end],
-                    (0, 255, 255),
-                    x_min,
-                    x_max,
-                    chart_x1,
-                    chart_x2 - chart_x1,
-                    1.0,
-                    chart_y2,
-                    chart_y2 - chart_y1,
-                    3,
-                )
-            cv2.addWeighted(filter_layer, 0.9, canvas, 0.1, 0.0, canvas)
-
         legend_items = [
             ("Score", (80, 255, 80), 0.555),
             ("IoU", (255, 140, 60), 0.555),

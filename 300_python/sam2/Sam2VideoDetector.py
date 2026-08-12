@@ -808,200 +808,7 @@ class Sam2VideoDetector:
             cv2.LINE_AA,
         )
 
-    def _find_score_plateau_bounds(self, score_values):
-        values = np.asarray(score_values, dtype=np.float32).reshape(-1)
-        if len(values) < 2:
-            return None, None
-
-        values = np.nan_to_num(values, nan=0.0, posinf=1.0, neginf=0.0)
-        values = np.clip(values, 0.0, 1.0)
-        if len(values) >= 3:
-            smoothed_values = np.asarray([
-                np.median(values[index - 1:index + 2])
-                for index in range(1, len(values) - 1)
-            ], dtype=np.float32)
-            smoothed_values = np.concatenate((
-                values[:1],
-                smoothed_values,
-                values[-1:],
-            ))
-        else:
-            smoothed_values = values.copy()
-
-        first_derivative = np.gradient(smoothed_values)
-        second_derivative = np.gradient(first_derivative)
-
-        high_score_threshold = max(
-            0.5,
-            float(np.percentile(smoothed_values, 75.0)) - 0.2,
-        )
-        candidate_indices = np.flatnonzero(
-            (values >= high_score_threshold)
-            & (np.abs(first_derivative) <= self._score_plateau_first_derivative_threshold)
-            & (np.abs(second_derivative) <= self._score_plateau_second_derivative_threshold)
-        )
-        if len(candidate_indices) == 0:
-            fallback_start = min(
-                range(len(values) - 1),
-                key=lambda index: (
-                    -float(np.mean(smoothed_values[index:index + 2])),
-                    float(np.ptp(smoothed_values[index:index + 2])),
-                    index,
-                ),
-            )
-            return fallback_start, fallback_start + 1
-
-        minimum_plateau_length = 2
-        candidates = []
-        plateau_start = int(candidate_indices[0])
-        plateau_end = plateau_start
-        for index in candidate_indices[1:]:
-            index = int(index)
-            if index != plateau_end + 1:
-                if plateau_end - plateau_start + 1 >= minimum_plateau_length:
-                    plateau_values = values[plateau_start:plateau_end + 1]
-                    derivative_is_stable = (
-                        np.any(
-                            np.abs(first_derivative[plateau_start:plateau_end + 1])
-                            <= self._score_plateau_first_derivative_threshold
-                        )
-                        and np.any(
-                            np.abs(second_derivative[plateau_start:plateau_end + 1])
-                            <= self._score_plateau_second_derivative_threshold
-                        )
-                    )
-                    plateau_peak = float(np.max(plateau_values))
-                    plateau_area = float(np.sum(plateau_values))
-                    plateau_rectangle_area = plateau_peak * len(plateau_values)
-                    if (
-                        derivative_is_stable
-                        and plateau_rectangle_area > 0.0
-                        and plateau_area / plateau_rectangle_area
-                        >= self._score_plateau_area_ratio_threshold
-                    ):
-                        candidates.append((plateau_start, plateau_end))
-                plateau_start = index
-            plateau_end = index
-
-        if plateau_end - plateau_start + 1 >= minimum_plateau_length:
-            plateau_values = values[plateau_start:plateau_end + 1]
-            derivative_is_stable = (
-                np.any(
-                    np.abs(first_derivative[plateau_start:plateau_end + 1])
-                    <= self._score_plateau_first_derivative_threshold
-                )
-                and np.any(
-                    np.abs(second_derivative[plateau_start:plateau_end + 1])
-                    <= self._score_plateau_second_derivative_threshold
-                )
-            )
-            plateau_peak = float(np.max(plateau_values))
-            plateau_area = float(np.sum(plateau_values))
-            plateau_rectangle_area = plateau_peak * len(plateau_values)
-            if (
-                derivative_is_stable
-                and plateau_rectangle_area > 0.0
-                and plateau_area / plateau_rectangle_area
-                >= self._score_plateau_area_ratio_threshold
-            ):
-                candidates.append((plateau_start, plateau_end))
-
-        if not candidates:
-            fallback_start = min(
-                range(len(values) - 1),
-                key=lambda index: (
-                    -float(np.mean(smoothed_values[index:index + 2])),
-                    float(np.ptp(smoothed_values[index:index + 2])),
-                    index,
-                ),
-            )
-            return fallback_start, fallback_start + 1
-
-        # The first plateau is defined by temporal order, not by the highest Score.
-        return candidates[0]
-
-    def _select_reference_plateau(self, score_history, prompt_frame_index):
-        values = np.asarray(score_history, dtype=np.float32).reshape(-1)
-        if len(values) == 0:
-            return None, None
-
-        prompt_index = max(0, min(int(prompt_frame_index), len(values) - 1))
-        search_starts = [
-            max(0, prompt_index - offset)
-            for offset in range(0, 9)
-        ]
-        search_starts.extend([0, len(values) - 1])
-        search_starts = sorted(set(search_starts), key=lambda start: abs(start - prompt_index))
-
-        best_candidate = None
-        best_distance = None
-        for start_index in search_starts:
-            plateau_start, plateau_end = self._find_score_plateau_bounds(values[start_index:])
-            if plateau_start is None or plateau_end is None:
-                continue
-            plateau_start += start_index
-            plateau_end += start_index
-            if plateau_start <= prompt_index <= plateau_end:
-                return plateau_start, plateau_end
-
-            distance = min(
-                abs(prompt_index - plateau_start),
-                abs(prompt_index - plateau_end),
-            )
-            if best_distance is None or distance < best_distance:
-                best_distance = distance
-                best_candidate = (plateau_start, plateau_end)
-
-        if best_candidate is not None:
-            return best_candidate
-
-        return self._find_score_plateau_bounds(values)
-
-    def _get_score_peak_bounds(self, score_values, peak_index):
-        values = np.asarray(score_values, dtype=np.float32).reshape(-1)
-        if len(values) == 0 or peak_index is None:
-            return None, None
-
-        peak_index = max(0, min(len(values) - 1, int(peak_index)))
-        plateau_tolerance = 0.2
-        peak_start = peak_index
-        peak_end = peak_index
-        while (
-            peak_start > 0
-            and float(np.max(values[peak_start - 1:peak_end + 1]))
-            - float(np.min(values[peak_start - 1:peak_end + 1])) <= plateau_tolerance
-        ):
-            peak_start -= 1
-        while (
-            peak_end + 1 < len(values)
-            and float(np.max(values[peak_start:peak_end + 2]))
-            - float(np.min(values[peak_start:peak_end + 2])) <= plateau_tolerance
-        ):
-            peak_end += 1
-        return peak_start, peak_end
-
-    def _get_leading_score_plateau_bounds(self, score_values, peak_start):
-        values = np.asarray(score_values, dtype=np.float32).reshape(-1)
-        if len(values) == 0 or peak_start is None or peak_start <= 1:
-            return None, None
-
-        plateau_tolerance = 0.2
-        plateau_end = int(peak_start) - 1
-        while plateau_end >= 1:
-            plateau_start = plateau_end
-            while (
-                plateau_start > 0
-                and float(np.max(values[plateau_start:plateau_end + 1]))
-                - float(np.min(values[plateau_start:plateau_end + 1])) <= plateau_tolerance
-            ):
-                plateau_start -= 1
-
-            if plateau_end - plateau_start + 1 >= 2:
-                return plateau_start, plateau_end
-            plateau_end = plateau_start - 1
-
-        return None, None
-
+ 
     def _get_score_threshold_regions(self, score_values, threshold):
         values = np.asarray(score_values, dtype=np.float32).reshape(-1)
         if len(values) == 0 or threshold is None:
@@ -1046,7 +853,7 @@ class Sam2VideoDetector:
         frame,
         score_history,
         iou_history,
-        iou_threshold,
+        reference_score,
         fill_ratio_history,
         reference_frame_number,
         current_frame_number,
@@ -1131,54 +938,6 @@ class Sam2VideoDetector:
 
         x_values = np.arange(1, len(score_history) + 1, dtype=np.float32)
         score_values = np.asarray(score_history, dtype=np.float32)
-        first_plateau_start, first_plateau_end = self._find_score_plateau_bounds(score_history)
-        peak_start, peak_last = self._select_reference_plateau(score_history, int(reference_frame_number) - 1)
-        if peak_start is None or peak_last is None:
-            peak_start, peak_last = self._find_score_plateau_bounds(score_history)
-
-        if first_plateau_start is not None and first_plateau_end is not None:
-            first_plateau_x1 = self._chart_renderer._map_chart_x(
-                float(first_plateau_start + 1),
-                x_min,
-                x_max,
-                chart_x1,
-                chart_x2 - chart_x1,
-            )
-            first_plateau_x2 = self._chart_renderer._map_chart_x(
-                float(first_plateau_end + 1),
-                x_min,
-                x_max,
-                chart_x1,
-                chart_x2 - chart_x1,
-            )
-            first_plateau_fill = canvas.copy()
-            cv2.rectangle(
-                first_plateau_fill,
-                (int(min(first_plateau_x1, first_plateau_x2)), chart_y1),
-                (int(max(first_plateau_x1, first_plateau_x2)), chart_y2),
-                (82, 132, 56),
-                cv2.FILLED,
-            )
-            cv2.addWeighted(first_plateau_fill, 0.25, canvas, 0.75, 0.0, canvas)
-
-        if peak_start is not None and peak_last is not None:
-            plateau_x1 = self._chart_renderer._map_chart_x(
-                float(peak_start + 1),
-                x_min,
-                x_max,
-                chart_x1,
-                chart_x2 - chart_x1,
-            )
-            plateau_x2 = self._chart_renderer._map_chart_x(
-                float(peak_last + 1),
-                x_min,
-                x_max,
-                chart_x1,
-                chart_x2 - chart_x1,
-            )
-            plateau_fill = canvas.copy()
-            cv2.rectangle(plateau_fill, (int(min(plateau_x1, plateau_x2)), chart_y1), (int(max(plateau_x1, plateau_x2)), chart_y2), (30, 40, 90), cv2.FILLED)
-            cv2.addWeighted(plateau_fill, 0.3, canvas, 0.7, 0.0, canvas)
 
         self._chart_renderer._draw_chart_series(
             canvas,
@@ -1209,59 +968,37 @@ class Sam2VideoDetector:
             2,
         )
 
-        if peak_start is not None and peak_last is not None:
-            peak_end = peak_last + 1
-            first_peak_minimum = float(np.min(score_values[peak_start:peak_end]))
-            threshold_y = self._chart_renderer._map_chart_y(
-                first_peak_minimum,
-                1.0,
-                chart_y2,
-                chart_y2 - chart_y1,
-            )
-            cv2.line(canvas, (chart_x1, threshold_y), (chart_x2, threshold_y), (0, 165, 255), 1, cv2.LINE_AA)
+        threshold_value = float(np.clip(float(reference_score if reference_score is not None else 0.0), 0.0, 1.0))
+        threshold_y = self._chart_renderer._map_chart_y(
+            threshold_value,
+            1.0,
+            chart_y2,
+            chart_y2 - chart_y1,
+        )
+        cv2.line(canvas, (chart_x1, threshold_y), (chart_x2, threshold_y), (0, 165, 255), 1, cv2.LINE_AA)
 
-            plateau_layer = canvas.copy()
-            self._chart_renderer._draw_chart_series(
-                plateau_layer,
-                x_values[peak_start:peak_end],
-                score_values[peak_start:peak_end],
-                (0, 165, 255),
-                x_min,
-                x_max,
-                chart_x1,
-                chart_x2 - chart_x1,
-                1.0,
-                chart_y2,
-                chart_y2 - chart_y1,
-                2,
-            )
-            cv2.addWeighted(plateau_layer, 0.85, canvas, 0.15, 0.0, canvas)
-
-        if peak_start is not None and peak_last is not None and iou_threshold is not None:
-            sample_count = min(len(score_values), len(iou_history))
-            if sample_count > 0:
-                score_samples = score_values[:sample_count]
-                iou_samples = np.asarray(iou_history[:sample_count], dtype=np.float32)
-                score_passed = score_samples >= max(float(np.min(score_values[peak_start:peak_last + 1])), float(iou_threshold))
-                iou_passed = iou_samples >= iou_threshold
-                qualified_regions = self._get_boolean_regions(score_passed & iou_passed)
-                filter_layer = canvas.copy()
-                for region_start, region_end in qualified_regions:
-                    self._chart_renderer._draw_chart_series(
-                        filter_layer,
-                        x_values[region_start:region_end],
-                        score_values[region_start:region_end],
-                        (0, 255, 255),
-                        x_min,
-                        x_max,
-                        chart_x1,
-                        chart_x2 - chart_x1,
-                        1.0,
-                        chart_y2,
-                        chart_y2 - chart_y1,
-                        3,
-                    )
-                cv2.addWeighted(filter_layer, 0.9, canvas, 0.1, 0.0, canvas)
+        filter_regions = self._get_score_threshold_regions(score_values.tolist(), threshold_value)
+        if filter_regions:
+            filter_layer = canvas.copy()
+            for region_start, region_end in filter_regions:
+                if region_start >= len(x_values):
+                    continue
+                region_end = min(region_end, len(x_values))
+                self._chart_renderer._draw_chart_series(
+                    filter_layer,
+                    x_values[region_start:region_end],
+                    score_values[region_start:region_end],
+                    (0, 255, 255),
+                    x_min,
+                    x_max,
+                    chart_x1,
+                    chart_x2 - chart_x1,
+                    1.0,
+                    chart_y2,
+                    chart_y2 - chart_y1,
+                    3,
+                )
+            cv2.addWeighted(filter_layer, 0.9, canvas, 0.1, 0.0, canvas)
 
         legend_items = [
             ("Score", (80, 255, 80), 0.555),
@@ -1633,6 +1370,7 @@ class Sam2VideoDetector:
         mask_input=True,
         clahe=False,
         iou_mask_filter=True,
+        reference_score: float = 0.8,
         progress_callback=None,
     ):
         resolved_input = Path(input_path).resolve()
@@ -1799,18 +1537,11 @@ class Sam2VideoDetector:
                     reverse=True,
                 ))
 
-            # Select the stable Score plateau closest to the prompt frame rather than only the forward tail.
-            peak_start, peak_last = self._select_reference_plateau(
-                score_history,
-                prompt_frame_index,
-            )
-            detection_threshold = None
-            iou_threshold = None
-            if peak_start is not None and peak_last is not None:
-                detection_threshold = float(np.min(score_history[peak_start:peak_last + 1]))
-                reference_mask_index = (peak_start + peak_last) // 2
-                if mask_history[reference_mask_index] is not None:
-                    reference_mask = mask_history[reference_mask_index].copy()
+            detection_threshold = float(np.clip(float(reference_score if reference_score is not None else 0.8), 0.0, 1.0))
+            iou_threshold = 0.0
+
+            reference_mask_index = max(0, min(prompt_frame_index, len(mask_history) - 1))
+            reference_mask = mask_history[reference_mask_index].copy() if mask_history[reference_mask_index] is not None else None
 
             if reference_mask is None:
                 iou_history = [0.0] * len(mask_history)
@@ -1819,8 +1550,7 @@ class Sam2VideoDetector:
                     self._calculate_mask_pair_iou(mask, reference_mask, (height, width, 3))
                     for mask in mask_history
                 ]
-                if peak_start is not None and peak_last is not None:
-                    iou_threshold = float(np.min(iou_history[peak_start:peak_last + 1]))
+                iou_threshold = 0.0
 
             previous_cache = self._yolo_conversion_cache.get(str(resolved_input))
             if previous_cache and previous_cache.get("cleanup_source"):
@@ -1888,12 +1618,8 @@ class Sam2VideoDetector:
                     and score_history[frame_index] >= detection_threshold
                     and (
                         not iou_mask_filter
-                        or
-                        iou_threshold is None
-                        or (
-                            frame_index < len(iou_history)
-                            and iou_history[frame_index] >= iou_threshold
-                        )
+                        or frame_index >= len(iou_history)
+                        or iou_history[frame_index] > 0.0
                     )
                     and frame_index < len(mask_history)
                     and mask_history[frame_index] is not None
@@ -1923,7 +1649,7 @@ class Sam2VideoDetector:
                     plotted,
                     chart_score_history,
                     chart_iou_history,
-                    iou_threshold,
+                    detection_threshold,
                     chart_fill_ratio_history,
                     source_prompt_frame_index + 1,
                     rendered_frames,

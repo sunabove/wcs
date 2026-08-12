@@ -53,7 +53,12 @@ class Sam2VideoDetector:
             (np.asarray(mask).shape for mask in mask_history if mask is not None),
             None,
         )
-        if cache.get("detection_threshold") is None or not mask_shape or len(mask_shape) != 2:
+        if (
+            cache.get("detection_threshold") is None
+            or cache.get("mask_ratio_threshold") is None
+            or not mask_shape
+            or len(mask_shape) != 2
+        ):
             cache_path.unlink(missing_ok=True)
             return False
 
@@ -72,7 +77,9 @@ class Sam2VideoDetector:
             source_video_path=np.asarray(str(cache["source_video_path"])),
             cleanup_source=np.asarray(bool(cache.get("cleanup_source")), dtype=np.bool_),
             score_history=np.asarray(cache.get("score_history", []), dtype=np.float32),
+            mask_ratio_history=np.asarray(cache.get("mask_ratio_history", []), dtype=np.float32),
             detection_threshold=np.asarray(float(cache["detection_threshold"]), dtype=np.float32),
+            mask_ratio_threshold=np.asarray(float(cache["mask_ratio_threshold"]), dtype=np.float32),
             mask_shape=np.asarray([height, width], dtype=np.int32),
             valid_masks=valid_masks,
             packed_masks=packed_masks,
@@ -103,15 +110,18 @@ class Sam2VideoDetector:
                     axis=1,
                     count=height * width,
                 ).reshape(-1, height, width).astype(np.bool_)
+                mask_ratio_history = saved["mask_ratio_history"].astype(np.float32).tolist() if "mask_ratio_history" in saved else [0.0] * len(saved["score_history"])
                 cache = {
                     "source_video_path": str(source_video_path),
                     "cleanup_source": bool(saved["cleanup_source"].item()),
                     "score_history": saved["score_history"].astype(np.float32).tolist(),
+                    "mask_ratio_history": mask_ratio_history,
                     "mask_history": [
                         unpacked_masks[index] if is_valid else None
                         for index, is_valid in enumerate(valid_masks)
                     ],
                     "detection_threshold": float(saved["detection_threshold"].item()),
+                    "mask_ratio_threshold": float(saved["mask_ratio_threshold"].item()) if "mask_ratio_threshold" in saved else 0.0,
                 }
         except (OSError, ValueError, KeyError):
             return None
@@ -1263,9 +1273,11 @@ class Sam2VideoDetector:
         class_name: str,
         score_history,
         mask_history,
+        mask_ratio_history,
         detection_threshold,
+        mask_ratio_threshold,
     ):
-        if detection_threshold is None:
+        if detection_threshold is None or mask_ratio_threshold is None:
             return None
 
         registry_path, previous_class_names, class_names, class_id = self._get_yolo_class_registry(
@@ -1301,6 +1313,8 @@ class Sam2VideoDetector:
                 qualifies = (
                     frame_index < len(score_history)
                     and float(score_history[frame_index]) >= float(detection_threshold)
+                    and frame_index < len(mask_ratio_history)
+                    and float(mask_ratio_history[frame_index]) >= float(mask_ratio_threshold)
                     and frame_index < len(mask_history)
                     and mask_history[frame_index] is not None
                 )
@@ -1376,7 +1390,9 @@ class Sam2VideoDetector:
             class_name=class_name,
             score_history=cached["score_history"],
             mask_history=cached["mask_history"],
+            mask_ratio_history=cached.get("mask_ratio_history", [0.0] * len(cached.get("score_history", []))),
             detection_threshold=cached["detection_threshold"],
+            mask_ratio_threshold=cached.get("mask_ratio_threshold", 0.0),
         )
         result = {
             "input_file_stem": resolved_input.stem,
@@ -1578,8 +1594,10 @@ class Sam2VideoDetector:
                 "source_video_path": str(prepared_path),
                 "cleanup_source": bool(prepared.get("cleanup")),
                 "score_history": score_history,
+                "mask_ratio_history": fill_ratio_history,
                 "mask_history": mask_history,
                 "detection_threshold": detection_threshold,
+                "mask_ratio_threshold": mask_ratio_threshold,
             }
             yolo_conversion_available = self._save_yolo_conversion_cache(
                 resolved_input,

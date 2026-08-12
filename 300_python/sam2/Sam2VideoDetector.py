@@ -936,6 +936,15 @@ class Sam2VideoDetector:
         x_values = np.arange(1, len(score_history) + 1, dtype=np.float32)
         score_values = np.asarray(score_history, dtype=np.float32)
 
+        threshold_value = float(np.clip(float(reference_score if reference_score is not None else 0.0), 0.0, 1.0))
+        threshold_y = self._chart_renderer._map_chart_y(
+            threshold_value,
+            1.0,
+            chart_y2,
+            chart_y2 - chart_y1,
+        )
+        cv2.line(canvas, (chart_x1, threshold_y), (chart_x2, threshold_y), (0, 165, 255), 1, cv2.LINE_AA)
+
         self._chart_renderer._draw_chart_series(
             canvas,
             x_values,
@@ -965,15 +974,6 @@ class Sam2VideoDetector:
             2,
         )
 
-        threshold_value = float(np.clip(float(reference_score if reference_score is not None else 0.0), 0.0, 1.0))
-        threshold_y = self._chart_renderer._map_chart_y(
-            threshold_value,
-            1.0,
-            chart_y2,
-            chart_y2 - chart_y1,
-        )
-        cv2.line(canvas, (chart_x1, threshold_y), (chart_x2, threshold_y), (0, 165, 255), 1, cv2.LINE_AA)
-
         filter_regions = self._get_score_threshold_regions(score_values.tolist(), threshold_value)
         if filter_regions:
             filter_layer = canvas.copy()
@@ -1000,6 +1000,7 @@ class Sam2VideoDetector:
         legend_items = [
             ("Score", (80, 255, 80), 0.555),
             ("IoU", (255, 140, 60), 0.555),
+            ("Score>=Ref", (0, 255, 255), 0.48),
             ("Ref-Score", (0, 165, 255), 0.48),
             ("Ref-Frame", (255, 180, 80), 0.45),
             ("Curr-Frame", (235, 235, 235), 0.45),

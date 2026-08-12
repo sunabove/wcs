@@ -918,6 +918,43 @@ class Sam2VideoDetector:
         # The first plateau is defined by temporal order, not by the highest Score.
         return candidates[0]
 
+    def _select_reference_plateau(self, score_history, prompt_frame_index):
+        values = np.asarray(score_history, dtype=np.float32).reshape(-1)
+        if len(values) == 0:
+            return None, None
+
+        prompt_index = max(0, min(int(prompt_frame_index), len(values) - 1))
+        search_starts = [
+            max(0, prompt_index - offset)
+            for offset in range(0, 9)
+        ]
+        search_starts.extend([0, len(values) - 1])
+        search_starts = sorted(set(search_starts), key=lambda start: abs(start - prompt_index))
+
+        best_candidate = None
+        best_distance = None
+        for start_index in search_starts:
+            plateau_start, plateau_end = self._find_score_plateau_bounds(values[start_index:])
+            if plateau_start is None or plateau_end is None:
+                continue
+            plateau_start += start_index
+            plateau_end += start_index
+            if plateau_start <= prompt_index <= plateau_end:
+                return plateau_start, plateau_end
+
+            distance = min(
+                abs(prompt_index - plateau_start),
+                abs(prompt_index - plateau_end),
+            )
+            if best_distance is None or distance < best_distance:
+                best_distance = distance
+                best_candidate = (plateau_start, plateau_end)
+
+        if best_candidate is not None:
+            return best_candidate
+
+        return self._find_score_plateau_bounds(values)
+
     def _get_score_peak_bounds(self, score_values, peak_index):
         values = np.asarray(score_values, dtype=np.float32).reshape(-1)
         if len(values) == 0 or peak_index is None:
@@ -1750,19 +1787,10 @@ class Sam2VideoDetector:
                     reverse=True,
                 ))
 
-            # Select the highest stable Score plateau for thresholding and reference-mask selection.
-            local_peak_start, local_peak_last = self._find_score_plateau_bounds(
-                np.asarray(score_history[prompt_frame_index:], dtype=np.float32),
-            )
-            peak_start = (
-                prompt_frame_index + local_peak_start
-                if local_peak_start is not None
-                else None
-            )
-            peak_last = (
-                prompt_frame_index + local_peak_last
-                if local_peak_last is not None
-                else None
+            # Select the stable Score plateau closest to the prompt frame rather than only the forward tail.
+            peak_start, peak_last = self._select_reference_plateau(
+                score_history,
+                prompt_frame_index,
             )
             detection_threshold = None
             iou_threshold = None

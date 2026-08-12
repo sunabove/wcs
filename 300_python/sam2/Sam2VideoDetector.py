@@ -1541,10 +1541,30 @@ class Sam2VideoDetector:
             if reference_mask is None:
                 iou_history = [0.0] * len(mask_history)
             else:
-                iou_history = [
-                    self._calculate_mask_pair_iou(mask, reference_mask, (height, width, 3))
-                    for mask in mask_history
-                ]
+                iou_history = [0.0] * len(mask_history)
+                iou_history[reference_mask_index] = 1.0
+
+                reverse_reference_mask = reference_mask.copy()
+                for frame_index in range(reference_mask_index - 1, -1, -1):
+                    mask = mask_history[frame_index]
+                    if mask is None:
+                        continue
+                    iou_history[frame_index] = self._calculate_mask_pair_iou(
+                        mask,
+                        reverse_reference_mask,
+                        (height, width, 3),
+                    )
+                    reverse_reference_mask = mask.copy()
+
+                for frame_index in range(reference_mask_index + 1, len(mask_history)):
+                    mask = mask_history[frame_index]
+                    if mask is None:
+                        continue
+                    iou_history[frame_index] = self._calculate_mask_pair_iou(
+                        mask,
+                        reference_mask,
+                        (height, width, 3),
+                    )
                 iou_threshold = 0.0
 
             previous_cache = self._yolo_conversion_cache.get(str(resolved_input))

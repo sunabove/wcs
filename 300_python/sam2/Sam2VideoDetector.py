@@ -734,12 +734,14 @@ class Sam2VideoDetector:
         union = mask_area + bbox_area - intersection
         return float(intersection / union) if union > 0 else 0.0
 
-    def _draw_bbox_score(self, image, bbox_rect, score):
+    def _draw_bbox_score(self, image, bbox_rect, score, iou=None):
         if bbox_rect is None or score is None:
             return
 
         x1, y1, _x2, _y2 = bbox_rect
         label = f"Score: {score:.3f}"
+        if iou is not None:
+            label = f"Score: {score:.3f} | IoU: {iou:.3f}"
         (text_width, text_height), baseline = cv2.getTextSize(
             label,
             cv2.FONT_HERSHEY_SIMPLEX,
@@ -1332,7 +1334,7 @@ class Sam2VideoDetector:
         cv2.line(canvas, (reference_x, chart_y1), (reference_x, chart_y2), (255, 180, 80), ref_thickness, cv2.LINE_AA)
         return canvas
 
-    def _overlay_bbox_result(self, frame, roi_plotted, bbox_rect, score=None):
+    def _overlay_bbox_result(self, frame, roi_plotted, bbox_rect, score=None, iou=None):
         if bbox_rect is None:
             return roi_plotted
 
@@ -1345,12 +1347,12 @@ class Sam2VideoDetector:
 
         composed[y1:y2, x1:x2] = roi_plotted
         cv2.rectangle(composed, (x1, y1), (x2 - 1, y2 - 1), (13, 110, 253), 1)
-        self._draw_bbox_score(composed, bbox_rect, score)
+        self._draw_bbox_score(composed, bbox_rect, score, iou)
         return composed
 
-    def _overlay_mask_result(self, frame, mask_tensor, bbox_rect=None, score=None):
+    def _overlay_mask_result(self, frame, mask_tensor, bbox_rect=None, score=None, iou=None):
         if mask_tensor is None:
-            return self._overlay_bbox_result(frame, frame, bbox_rect, score)
+            return self._overlay_bbox_result(frame, frame, bbox_rect, score, iou)
 
         if isinstance(mask_tensor, np.ndarray):
             mask = mask_tensor
@@ -1362,7 +1364,7 @@ class Sam2VideoDetector:
         if mask.ndim == 3:
             mask = mask[0]
         if mask.ndim != 2:
-            return self._overlay_bbox_result(frame, frame, bbox_rect, score)
+            return self._overlay_bbox_result(frame, frame, bbox_rect, score, iou)
 
         mask_np = mask > 0
         frame_height, frame_width = frame.shape[:2]
@@ -1373,7 +1375,7 @@ class Sam2VideoDetector:
                 interpolation=cv2.INTER_NEAREST,
             ) > 0
         if not np.any(mask_np):
-            return self._overlay_bbox_result(frame, frame, bbox_rect, score)
+            return self._overlay_bbox_result(frame, frame, bbox_rect, score, iou)
 
         overlay = frame.copy()
         color = np.array([13, 110, 253], dtype=np.float32)
@@ -1384,7 +1386,7 @@ class Sam2VideoDetector:
         if display_bbox is not None:
             x1, y1, x2, y2 = display_bbox
             cv2.rectangle(overlay, (x1, y1), (x2 - 1, y2 - 1), (13, 110, 253), 1)
-            self._draw_bbox_score(overlay, display_bbox, score)
+            self._draw_bbox_score(overlay, display_bbox, score, iou)
         return overlay
 
     def _build_yolo_segmentation_labels(self, mask_np, class_id=0, min_area=4.0):
@@ -1896,11 +1898,17 @@ class Sam2VideoDetector:
                     and frame_index < len(mask_history)
                     and mask_history[frame_index] is not None
                 ):
+                    current_iou = (
+                        iou_history[frame_index]
+                        if frame_index < len(iou_history)
+                        else 0.0
+                    )
                     plotted = self._overlay_mask_result(
                         plotted,
                         mask_history[frame_index],
                         output_bbox_rect,
                         score_history[frame_index],
+                        current_iou,
                     )
                 self._draw_option_summary(
                     plotted,

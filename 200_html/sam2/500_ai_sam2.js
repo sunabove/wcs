@@ -765,15 +765,15 @@
         const outputVideoWrap = outputVideoElement.closest('.sam2-video-wrap');
         if (outputVideoWrap) {
             outputVideoWrap.classList.add('sam2-output-video-wrap');
-            if (outputDownloadButton) {
-                outputDownloadButton.classList.add('sam2-output-download-button');
-                outputVideoWrap.insertBefore(outputDownloadButton, outputVideoElement);
-            }
             const loopToggleContainer = loopToggleInput?.closest('.form-switch');
             if (loopToggleContainer) {
                 loopToggleContainer.classList.remove('ms-2');
                 loopToggleContainer.classList.add('sam2-output-loop-toggle');
                 outputVideoWrap.insertBefore(loopToggleContainer, outputVideoElement);
+            }
+            if (outputDownloadButton) {
+                outputDownloadButton.classList.add('sam2-output-download-button');
+                outputVideoWrap.insertBefore(outputDownloadButton, outputVideoElement);
             }
         }
         outputVideoElement.removeAttribute('controls');

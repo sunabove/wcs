@@ -1024,7 +1024,7 @@ class Sam2VideoDetector:
 
         legend_x = chart_x1 + 8
         legend_gap = 10
-        legend_margin = 6
+        legend_margin = 8
         for legend_text, legend_color, legend_scale in legend_items:
             (legend_width, legend_height), legend_baseline = cv2.getTextSize(
                 legend_text,

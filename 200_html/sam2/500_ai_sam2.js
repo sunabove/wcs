@@ -3119,6 +3119,11 @@
 
             const onLoadedData = () => {
                 cleanup();
+                if (videoElement.videoWidth > 0 && videoElement.videoHeight > 0) {
+                    videoElement.style.maxHeight = 'none';
+                    videoElement.style.width = '100%';
+                    videoElement.style.height = 'auto';
+                }
                 resolve();
             };
 

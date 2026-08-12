@@ -1615,7 +1615,9 @@ class Sam2VideoDetector:
                 self._yolo_conversion_cache[str(resolved_input)],
             )
 
-            writer = self._create_video_writer(output_path, source_fps, source_width, source_height)
+            chart_padding_height = min(136, max(68, source_height // 3 + 4)) + 20
+            output_height = source_height + chart_padding_height
+            writer = self._create_video_writer(output_path, source_fps, source_width, output_height)
             if writer is None:
                 raise RuntimeError("Failed to create output video")
             render_capture = cv2.VideoCapture(str(resolved_input))
@@ -1688,8 +1690,10 @@ class Sam2VideoDetector:
                         current_iou,
                         color=(13, 110, 253) if accepted else (96, 96, 96),
                     )
+                padded_frame = np.zeros((output_height, source_width, 3), dtype=np.uint8)
+                padded_frame[:source_height, :, :] = plotted
                 self._draw_option_summary(
-                    plotted,
+                    padded_frame,
                     mask_input,
                     multimask_output,
                     clahe,
@@ -1697,8 +1701,8 @@ class Sam2VideoDetector:
                     rendered_frames,
                     source_total_frames,
                 )
-                plotted = self._render_score_chart(
-                    plotted,
+                padded_frame = self._render_score_chart(
+                    padded_frame,
                     chart_score_history,
                     chart_iou_history,
                     detection_threshold,
@@ -1707,7 +1711,7 @@ class Sam2VideoDetector:
                     rendered_frames,
                     source_total_frames,
                 )
-                writer.write(plotted)
+                writer.write(padded_frame)
                 if progress_callback is not None and source_total_frames > 0:
                     progress_callback(
                         total_frames + rendered_frames,

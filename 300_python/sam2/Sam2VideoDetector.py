@@ -1141,8 +1141,8 @@ class Sam2VideoDetector:
                     display_bbox,
                     score,
                     iou,
-                    text_color=(220, 220, 220),
-                    header_fill=(18, 18, 18),
+                    text_color=(230, 230, 230),
+                    header_fill=(50, 50, 50),
                     header_edge=(120, 120, 120),
                 )
             else:

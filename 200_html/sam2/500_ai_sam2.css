@@ -1,3 +1,8 @@
+.nav-tabs .nav-link.active,
+.nav-tabs .nav-link.show {
+  color: var(--bs-primary) !important;
+}
+
 #sam2-drop-zone {
   border: 2px dashed #9aa4b2;
   border-radius: 10px;

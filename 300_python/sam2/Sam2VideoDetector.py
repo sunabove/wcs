@@ -958,20 +958,6 @@ class Sam2VideoDetector:
             chart_y2 - chart_y1,
             1,
         )
-        self._chart_renderer._draw_chart_series(
-            canvas,
-            x_values,
-            score_values,
-            (80, 255, 80),
-            x_min,
-            x_max,
-            chart_x1,
-            chart_x2 - chart_x1,
-            1.0,
-            chart_y2,
-            chart_y2 - chart_y1,
-            2,
-        )
 
         filter_regions = self._get_score_threshold_regions(score_values.tolist(), threshold_value)
         if filter_regions:
@@ -995,6 +981,21 @@ class Sam2VideoDetector:
                     3,
                 )
             cv2.addWeighted(filter_layer, 0.9, canvas, 0.1, 0.0, canvas)
+
+        self._chart_renderer._draw_chart_series(
+            canvas,
+            x_values,
+            score_values,
+            (80, 255, 80),
+            x_min,
+            x_max,
+            chart_x1,
+            chart_x2 - chart_x1,
+            1.0,
+            chart_y2,
+            chart_y2 - chart_y1,
+            2,
+        )
 
         cv2.line(canvas, (chart_x1, threshold_y), (chart_x2, threshold_y), (0, 165, 255), 1, cv2.LINE_AA)
 

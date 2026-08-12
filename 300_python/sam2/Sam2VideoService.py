@@ -1008,6 +1008,7 @@ class Sam2VideoService:
             mask_input=mask_input,
             clahe=clahe,
             iou_mask_filter=iou_mask_filter,
+            reference_score=reference_score,
         )
         return {
             "saved": True,

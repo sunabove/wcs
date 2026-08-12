@@ -43,6 +43,28 @@
     const claheCheckbox = document.getElementById('sam2-clahe');
     const claheText = document.getElementById('sam2-clahe-text');
     const referenceScoreInput = document.getElementById('sam2-reference-score-input');
+    function formatReferenceScoreInputValue(value) {
+        const numericValue = clamp(Number.parseFloat(String(value ?? '')), 0, 1);
+        if (!Number.isFinite(numericValue)) {
+            return '0.80';
+        }
+        return numericValue.toFixed(2);
+    }
+
+    if (referenceScoreInput) {
+        referenceScoreInput.addEventListener('focus', () => {
+            const numericValue = Number.parseFloat(referenceScoreInput.value);
+            if (Number.isFinite(numericValue)) {
+                referenceScoreInput.value = numericValue.toFixed(2);
+            }
+        });
+        referenceScoreInput.addEventListener('blur', () => {
+            referenceScoreInput.value = formatReferenceScoreInputValue(referenceScoreInput.value);
+        });
+        referenceScoreInput.addEventListener('change', () => {
+            referenceScoreInput.value = formatReferenceScoreInputValue(referenceScoreInput.value);
+        });
+    }
     document.getElementById('sam2-point-label-text')?.closest('.form-switch')?.remove();
     const multimaskOutputText = document.getElementById('sam2-multimask-output-text');
     const maskInputText = document.getElementById('sam2-mask-input-text');
@@ -513,7 +535,7 @@
             updateClaheText();
         }
         if (referenceScoreInput) {
-            referenceScoreInput.value = '0.800';
+            referenceScoreInput.value = '0.80';
         }
         if (multimaskOutputCheckbox) {
             multimaskOutputCheckbox.checked = false;
@@ -1948,7 +1970,7 @@
         if (!referenceScoreInput) {
             return 0.8;
         }
-        const value = clamp(Number(referenceScoreInput.value), 0, 1);
+        const value = clamp(Number.parseFloat(referenceScoreInput.value), 0, 1);
         if (!Number.isFinite(value)) {
             return 0.8;
         }

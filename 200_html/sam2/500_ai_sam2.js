@@ -625,8 +625,8 @@
             if (referenceScoreInput) {
                 const savedReferenceScore = Number(options.reference_score);
                 referenceScoreInput.value = String(Number.isFinite(savedReferenceScore)
-                    ? clamp(savedReferenceScore, 0, 1).toFixed(3)
-                    : '0.800');
+                    ? clamp(savedReferenceScore, 0, 1).toFixed(2)
+                    : '0.80');
             }
             renderPointUi();
             renderBoundingBoxUi();
@@ -1973,7 +1973,7 @@
         if (!Number.isFinite(value)) {
             return 0.8;
         }
-        return Number(value.toFixed(3));
+        return Number(value.toFixed(2));
     }
 
     function buildReferenceScoreQuery() {

@@ -692,7 +692,7 @@ class Sam2VideoService:
             "mask_input": bool(mask_input),
             "clahe": bool(clahe),
             "iou_mask_filter": bool(iou_mask_filter),
-            "reference_score": round(reference_value, 3),
+            "reference_score": round(reference_value, 2),
             "saved_at": datetime.now().isoformat(timespec="seconds"),
         }
         options_path = self._options_path(input_path)
@@ -981,7 +981,7 @@ class Sam2VideoService:
             "mask_input": options.get("mask_input", True) is not False,
             "clahe": options.get("clahe", False) is True,
             "iou_mask_filter": options.get("iou_mask_filter", True) is not False,
-            "reference_score": round(reference_score, 3),
+            "reference_score": round(reference_score, 2),
             "saved_at": options.get("saved_at", ""),
         }
 

@@ -1024,11 +1024,12 @@ class Sam2VideoDetector:
 
         legend_x = panel_x1 + 8
         legend_gap = 10
+        legend_y = panel_y1 + 10
         for legend_text, legend_color, legend_scale in legend_items:
             cv2.putText(
                 canvas,
                 legend_text,
-                (legend_x, panel_y1 + 14),
+                (legend_x, legend_y),
                 cv2.FONT_HERSHEY_SIMPLEX,
                 legend_scale,
                 legend_color,

@@ -1002,10 +1002,10 @@ class Sam2VideoDetector:
 
         legend_items = [
             ("Score", (80, 255, 80), 0.555),
-            ("Mask Ratio", (255, 165, 0), 0.52),
+            ("Mask-Ratio", (255, 165, 0), 0.52),
             ("Score>=Ref", (0, 255, 255), 0.48),
             ("Ref-Score", (0, 165, 255), 0.48),
-            ("Ref Mask ratio", (255, 165, 0), 0.48),
+            ("Ref-Mask-Ratio", (255, 165, 0), 0.48),
             ("Ref-Frame", (255, 180, 80), 0.45),
             ("Curr-Frame", (235, 235, 235), 0.45),
         ]

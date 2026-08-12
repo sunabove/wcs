@@ -111,7 +111,7 @@
     z-index: 5;
     display: flex;
     width: 8.5rem;
-    padding-left: 0.75rem;
+    padding-left: 0;
     align-items: center;
     justify-content: flex-start;
     gap: 0.5rem;
@@ -120,6 +120,11 @@
 
 .sam2-output-loop-toggle .form-check-input {
     float: none;
+    margin-left: 0;
+    margin-right: 0;
+}
+
+.sam2-output-loop-toggle .form-check-label {
     margin-left: 0;
 }
 

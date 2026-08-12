@@ -1205,36 +1205,41 @@ class Sam2VideoDetector:
                     )
                 cv2.addWeighted(filter_layer, 0.9, canvas, 0.1, 0.0, canvas)
 
-        cv2.putText(
-            canvas,
-            "Score",
-            (panel_x1 + 8, panel_y1 + 13),
-            cv2.FONT_HERSHEY_SIMPLEX,
-            0.555,
-            (80, 255, 80),
-            1,
-            cv2.LINE_AA,
-        )
-        cv2.putText(
-            canvas,
-            "IoU",
-            (panel_x1 + 62, panel_y1 + 13),
-            cv2.FONT_HERSHEY_SIMPLEX,
-            0.555,
-            (255, 190, 60),
-            1,
-            cv2.LINE_AA,
-        )
+        legend_items = [
+            ("Score", (80, 255, 80), 0.555),
+            ("IoU", (255, 190, 60), 0.555),
+        ]
         if peak_start is not None and peak_last is not None:
-            cv2.putText(canvas, "Ref-Score", (panel_x1 + 108, panel_y1 + 13), cv2.FONT_HERSHEY_SIMPLEX, 0.48, (0, 165, 255), 1, cv2.LINE_AA)
+            legend_items.append(("Ref-Score", (0, 165, 255), 0.48))
         if iou_threshold is not None:
-            cv2.putText(canvas, "Ref-IoU", (panel_x1 + 180, panel_y1 + 13), cv2.FONT_HERSHEY_SIMPLEX, 0.48, (255, 0, 255), 1, cv2.LINE_AA)
+            legend_items.append(("Ref-IoU", (255, 0, 255), 0.48))
         if peak_start is not None and peak_last is not None:
-            cv2.putText(canvas, "Plateau", (panel_x1 + 282, panel_y1 + 13), cv2.FONT_HERSHEY_SIMPLEX, 0.45, (0, 0, 255), 1, cv2.LINE_AA)
+            legend_items.append(("Plateau", (0, 0, 255), 0.45))
         if peak_start is not None and peak_last is not None and iou_threshold is not None:
-            cv2.putText(canvas, "Score+IoU", (panel_x1 + 340, panel_y1 + 13), cv2.FONT_HERSHEY_SIMPLEX, 0.45, (0, 255, 255), 1, cv2.LINE_AA)
-            cv2.putText(canvas, "Score only", (panel_x1 + 398, panel_y1 + 13), cv2.FONT_HERSHEY_SIMPLEX, 0.45, (255, 80, 180), 1, cv2.LINE_AA)
-        cv2.putText(canvas, "Frame", (panel_x1 + 465, panel_y1 + 13), cv2.FONT_HERSHEY_SIMPLEX, 0.45, (255, 230, 0), 1, cv2.LINE_AA)
+            legend_items.append(("Score+IoU", (0, 255, 255), 0.45))
+            legend_items.append(("Score only", (255, 80, 180), 0.45))
+        legend_items.append(("Frame", (255, 230, 0), 0.45))
+
+        legend_x = panel_x1 + 8
+        legend_gap = 10
+        for legend_text, legend_color, legend_scale in legend_items:
+            cv2.putText(
+                canvas,
+                legend_text,
+                (legend_x, panel_y1 + 13),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                legend_scale,
+                legend_color,
+                1,
+                cv2.LINE_AA,
+            )
+            (legend_width, _legend_height), _legend_baseline = cv2.getTextSize(
+                legend_text,
+                cv2.FONT_HERSHEY_SIMPLEX,
+                legend_scale,
+                1,
+            )
+            legend_x += legend_width + legend_gap
 
         x_ticks = self._chart_renderer._uniform_ticks(x_min, x_max, target_ticks=4)
         if int(x_max) not in x_ticks:

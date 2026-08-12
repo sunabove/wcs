@@ -79,7 +79,7 @@
   function formatMaskRatioInputValue(value) {
     const numericValue = clamp(Number.parseFloat(String(value ?? "")), 0, 1);
     if (!Number.isFinite(numericValue)) {
-      return "0.00";
+      return "0.05";
     }
     return numericValue.toFixed(2);
   }
@@ -672,7 +672,7 @@
       referenceScoreInput.value = "0.80";
     }
     if (maskRatioInput) {
-      maskRatioInput.value = "0.00";
+      maskRatioInput.value = "0.05";
     }
     if (multimaskOutputCheckbox) {
       multimaskOutputCheckbox.checked = false;
@@ -812,7 +812,7 @@
         maskRatioInput.value = String(
           Number.isFinite(savedMaskRatio)
             ? clamp(savedMaskRatio, 0, 1).toFixed(2)
-            : "0.00",
+            : "0.05",
         );
       }
       renderPointUi();
@@ -2334,11 +2334,11 @@
 
   function getMaskAreaRatioThreshold() {
     if (!maskRatioInput) {
-      return 0.0;
+      return 0.05;
     }
     const value = clamp(Number.parseFloat(maskRatioInput.value), 0, 1);
     if (!Number.isFinite(value)) {
-      return 0.0;
+      return 0.05;
     }
     return Number(value.toFixed(2));
   }

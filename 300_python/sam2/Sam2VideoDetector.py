@@ -881,7 +881,7 @@ class Sam2VideoDetector:
 
         panel_x1 = 8
         panel_x2 = max(panel_x1 + 120, width - 8)
-        panel_y1 = max(0, height - panel_height) + 4
+        panel_y1 = max(0, height - panel_height) + 2
         panel_y2 = height - 6
         y_axis_font = cv2.FONT_HERSHEY_SIMPLEX
         y_axis_font_scale = 0.35
@@ -893,7 +893,7 @@ class Sam2VideoDetector:
         )
         chart_x1 = panel_x1 + y_axis_label_width + 14
         chart_x2 = panel_x2 - 10
-        chart_y1 = panel_y1 + 14
+        chart_y1 = panel_y1 + 8
         chart_y2 = panel_y2 - 18
         if chart_x2 <= chart_x1 or chart_y2 <= chart_y1:
             return canvas

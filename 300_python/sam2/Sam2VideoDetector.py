@@ -1045,8 +1045,10 @@ class Sam2VideoDetector:
             legend_x += legend_width + legend_gap
 
         x_ticks = self._chart_renderer._uniform_ticks(x_min, x_max, target_ticks=4)
-        if int(x_max) not in x_ticks:
-            x_ticks.append(int(x_max))
+        x_ticks = sorted({int(round(float(tick))) for tick in x_ticks})
+        last_tick_value = int(round(float(x_max)))
+        if last_tick_value not in x_ticks:
+            x_ticks.append(last_tick_value)
         x_ticks = sorted(set(x_ticks))
 
         label_min_gap = 16

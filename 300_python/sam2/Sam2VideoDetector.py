@@ -1237,10 +1237,10 @@ class Sam2VideoDetector:
 
         legend_items = [
             ("Score", (80, 255, 80), 0.555),
-            ("IoU", (255, 190, 60), 0.555),
+            ("IoU", (255, 140, 60), 0.555),
             ("Ref-Score", (0, 165, 255), 0.48),
             ("Score+IoU", (0, 255, 255), 0.45),
-            ("Ref-Frame", (255, 230, 0), 0.45),
+            ("Ref-Frame", (255, 180, 80), 0.45),
         ]
 
         legend_x = panel_x1 + 8
@@ -1295,7 +1295,7 @@ class Sam2VideoDetector:
                 cv2.LINE_AA,
             )
 
-        cv2.line(canvas, (reference_x, chart_y1), (reference_x, chart_y2), (255, 230, 0), 1, cv2.LINE_AA)
+        cv2.line(canvas, (reference_x, chart_y1), (reference_x, chart_y2), (255, 180, 80), 1, cv2.LINE_AA)
         cv2.line(canvas, (current_x, chart_y1), (current_x, chart_y2), (235, 235, 235), 2, cv2.LINE_AA)
         return canvas
 

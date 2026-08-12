@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="ko">
+
 <head>
 	<meta charset="UTF-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1">
@@ -20,133 +21,453 @@
 
 <body class="bg-light">
 
-<header class="p-2 text-bg-dark fs-5">
+	<header class="p-2 text-bg-dark fs-5">
 		<div class="container d-flex justify-content-between align-items-center">
 			<div>SAM2 Segmentation</div>
-		<div class="d-flex gap-2">
-			<a href="/road/300_ai_road.html" class="btn btn-outline-light btn-sm">Road Detection</a>
-			<a href="/yolo/400_ai_yolo.html" class="btn btn-outline-light btn-sm">YOLO Detection</a>
-			<a href="/simulation/simulation.html" class="btn btn-outline-light btn-sm">Simulation</a>
-		</div>
-	</div>
-</header>
-
-<main class="container my-4">
-	<div class="card shadow-sm">
-		<div class="card-header">
-			<h5 class="mb-0">SAM2 객체 검출</h5>
-		</div>
-		<div class="card-body p-2">
-			<div class="table-responsive">
-				<table class="table table-bordered align-middle mb-0">
-					<colgroup><col style="width: 140px;"><col></colgroup>
-					<tbody>
-						<tr>
-							<th scope="row" class="text-center text-nowrap">입력</th>
-							<td>
-								<ul class="nav nav-tabs" id="sam2-input-source-tabs" role="tablist">
-									<li class="nav-item" role="presentation"><button class="nav-link active text-secondary" id="sam2-uploaded-source-tab" data-bs-toggle="tab" data-bs-target="#sam2-uploaded-source-pane" type="button" role="tab" aria-selected="true"><i class="bi bi-upload me-1" aria-hidden="true"></i>업로드 동영상</button></li>
-								</ul>
-								<input id="sam2-video-file" class="d-none" type="file" accept="video/*">
-								<div class="tab-content border border-top-0 rounded-bottom p-2 bg-white">
-									<div class="tab-pane fade show active" id="sam2-uploaded-source-pane" role="tabpanel">
-										<ul id="sam2-uploaded-list" class="list-group list-group-sm d-flex flex-row flex-wrap gap-2 align-items-stretch mb-0">
-											<li id="sam2-upload-item" class="list-group-item small sam2-upload-item-card">
-														<div id="sam2-drop-zone" class="sam2-upload-drop-zone border border-2 rounded-3 bg-light text-center text-secondary p-1" role="button" tabindex="0" aria-label="동영상 드래그 업로드 영역"><div class="fw-semibold">동영상 업로드</div><div id="sam2-selected-file" class="form-text mt-1 text-truncate" title="클릭/드래그">클릭/드래그</div></div>
-													<div id="sam2-upload-progress-wrap" class="mt-2 d-none" aria-live="polite"><div class="progress position-relative" role="progressbar" aria-label="동영상 업로드 진행률" aria-valuemin="0" aria-valuemax="100"><div id="sam2-upload-progress-bar" class="progress-bar progress-bar-striped progress-bar-animated" style="width: 0%"></div><span id="sam2-upload-progress-status" class="position-absolute top-50 start-50 translate-middle fw-semibold" style="z-index: 1; color: #fff; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.9); pointer-events: none;" title="0%">0%</span></div></div>
-														<div id="sam2-upload-max-size" class="small text-muted mt-1 text-truncate text-center" title="최대 크기: ___GB">최대 크기: ___GB</div>
-											</li>
-										</ul>
-										<div class="d-flex align-items-center gap-2 mt-2"><div id="sam2-uploaded-loading" class="small text-primary d-inline-flex align-items-center" aria-live="polite"><span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span><span id="sam2-uploaded-loading-text">동영상 목록을 불러오는 중...</span></div></div>
-									</div>
-								</div>
-							</td>
-						</tr>
-						<tr>
-							<th scope="row" class="text-center text-nowrap">옵션</th>
-							<td class="text-start">
-									<div class="sam2-options-bar">
-														<div class="sam2-options-group">
-															<div class="form-switch d-inline-flex align-items-center gap-2 mb-0 px-1 py-0">
-																<span class="small text-secondary text-nowrap">Point label</span>
-																<label id="sam2-point-label-text" class="form-check-label small mb-0 text-nowrap">Foreground / Background</label>
-															</div>
-															<div class="form-switch d-inline-flex align-items-center gap-1 mb-0">
-																<span class="small text-secondary">Mask input</span>
-																<input id="sam2-mask-input" class="form-check-input m-0" type="checkbox" role="switch" checked disabled>
-																<label id="sam2-mask-input-text" class="form-check-label small text-center d-inline-block" style="width: 3.5rem;" for="sam2-mask-input">On</label>
-															</div>
-															<div class="form-switch d-inline-flex align-items-center gap-1 mb-0">
-																<span class="small text-secondary">CLAHE</span>
-																<input id="sam2-clahe" class="form-check-input m-0" type="checkbox" role="switch" checked>
-																<label id="sam2-clahe-text" class="form-check-label text-center d-inline-block" style="width: 3.5rem;" for="sam2-clahe">On</label>
-															</div>
-															<div class="form-switch d-inline-flex align-items-center gap-1 mb-0">
-																<span class="small text-secondary">Multimask output</span>
-																<input id="sam2-multimask-output" class="form-check-input m-0" type="checkbox" role="switch" disabled>
-																<label id="sam2-multimask-output-text" class="form-check-label small text-center d-inline-block" style="width: 5.5rem;" for="sam2-multimask-output">Single mask</label>
-															</div>
-															<div class="d-inline-flex align-items-center gap-1 mb-0 p-1">
-																<span class="small text-secondary text-nowrap">Ref Score</span>
-																<input id="sam2-reference-score-input" type="number" class="form-control form-control-sm text-end" style="width: 5.25rem; min-width: 5.25rem;" min="0" max="1" step="0.01" value="0.80" aria-label="Ref Score 설정">
-															</div>
-														</div><button id="sam2-detect-btn" type="button" class="btn btn-success sam2-detect-btn">검출</button>
-								</div>
-							</td>
-						</tr>
-						<tr>
-							<th scope="row" class="text-center text-nowrap">상태</th>
-							<td class="p-1"><div id="sam2-status" class="alert alert-secondary my-0 py-2 px-2" style="line-height: 1.15;">대기 중</div></td>
-						</tr>
-						<tr>
-							<th scope="row" class="text-center text-nowrap">출력</th>
-							<td>
-								<div class="d-flex justify-content-between align-items-center mb-1">
-									<ul class="nav nav-tabs" id="sam2-video-tabs" role="tablist">
-										<li class="nav-item" role="presentation"><button class="nav-link active" id="sam2-input-tab" data-bs-toggle="tab" data-bs-target="#sam2-input-pane" type="button" role="tab" aria-selected="true">📼 원본 영상</button></li>
-										<li class="nav-item" role="presentation"><button class="nav-link" id="sam2-output-tab" data-bs-toggle="tab" data-bs-target="#sam2-output-pane" type="button" role="tab" aria-selected="false">🧩 검출 영상</button></li>
-										<li class="nav-item" role="presentation"><button class="nav-link" id="sam2-yolo-tab" data-bs-toggle="tab" data-bs-target="#sam2-yolo-pane" type="button" role="tab" aria-controls="sam2-yolo-pane" aria-selected="false"><i class="bi bi-database me-1" aria-hidden="true"></i>YOLO 데이터</button></li>
-										<li class="nav-item" role="presentation"><button class="nav-link" id="sam2-yolo-train-tab" data-bs-toggle="tab" data-bs-target="#sam2-yolo-train-pane" type="button" role="tab" aria-controls="sam2-yolo-train-pane" aria-selected="false"><i class="bi bi-cpu me-1" aria-hidden="true"></i>YOLO 학습</button></li>
-									</ul>
-									<div class="form-check form-switch mb-0 ms-2"><input class="form-check-input" type="checkbox" role="switch" id="sam2-loop-toggle"><label class="form-check-label" for="sam2-loop-toggle">반복 재생</label></div>
-								</div>
-								<div class="tab-content border border-top-0 rounded-bottom p-3 bg-white" id="sam2-video-tab-content">
-									<div class="tab-pane fade show active" id="sam2-input-pane" role="tabpanel">
-										<div class="sam2-video-wrap">
-											<div class="sam2-point-toolbar border rounded p-2 mb-2 text-start bg-light"><div class="d-flex flex-nowrap justify-content-center align-items-center gap-2"><span class="small fw-semibold text-secondary flex-shrink-0">검출 설정</span><label for="sam2-prompt-frame-input" class="small text-secondary text-nowrap flex-shrink-0">프레임</label><input id="sam2-prompt-frame-input" type="number" class="form-control form-control-sm text-end flex-shrink-0" style="width: 5.5rem;" min="1" max="1" step="1" value="1" disabled aria-label="Point와 BBox 설정 프레임"><button id="sam2-foreground-point-mode" type="button" class="btn btn-primary btn-sm text-nowrap flex-shrink-0" disabled>전경 Point 설정</button><button id="sam2-background-point-mode" type="button" class="btn btn-outline-primary btn-sm text-nowrap flex-shrink-0" disabled>배경 Point 설정</button><button id="sam2-bbox-mode" type="button" class="btn btn-outline-primary btn-sm text-nowrap flex-shrink-0" disabled>BBox 설정</button><button id="sam2-foreground-point-clear" type="button" class="btn btn-outline-secondary btn-sm text-nowrap flex-shrink-0" disabled>전경 Point 삭제</button><button id="sam2-background-point-clear" type="button" class="btn btn-outline-secondary btn-sm text-nowrap flex-shrink-0" disabled>배경 Point 삭제</button><button id="sam2-bbox-clear" type="button" class="btn btn-outline-secondary btn-sm text-nowrap flex-shrink-0" disabled>BBox 삭제</button><button id="sam2-options-save" type="button" class="btn btn-outline-success btn-sm text-nowrap flex-shrink-0" disabled>저장</button><button id="sam2-options-reset" type="button" class="btn btn-outline-warning btn-sm text-nowrap flex-shrink-0" disabled>초기화</button><span id="sam2-input-frame-counter" class="small text-secondary text-nowrap flex-shrink-0" aria-live="polite">프레임 - / -</span></div></div>
-											<div id="sam2-input-video-wrap" class="sam2-input-stage border rounded overflow-hidden"><video id="sam2-input-video" class="sam2-video-player" controls playsinline></video><div id="sam2-point-marker-layer" class="sam2-point-marker-layer" aria-hidden="true"></div><div id="sam2-bbox-layer" class="sam2-bbox-layer" aria-hidden="true"></div><div id="sam2-bbox-capture-layer" class="sam2-bbox-capture-layer" aria-label="Bounding Box 입력 레이어"></div></div>
-										</div>
-									</div>
-									<div class="tab-pane fade" id="sam2-output-pane" role="tabpanel" aria-labelledby="sam2-output-tab"><div class="sam2-video-wrap"><button id="sam2-yolo-convert" type="button" class="btn btn-primary btn-sm sam2-output-yolo-convert-button" disabled title="YOLO 학습 데이터 변환"><i class="bi bi-arrow-repeat me-1" aria-hidden="true"></i>YOLO 변환</button><video id="sam2-output-video" class="sam2-video-player border rounded" playsinline></video><div class="d-flex align-items-center gap-2 w-100 mt-2" role="group" aria-label="검출 영상 재생 제어"><button id="sam2-output-play-toggle" type="button" class="btn btn-outline-primary btn-sm flex-shrink-0" style="width: 2.5rem;" disabled title="재생" aria-label="재생"><i class="bi bi-play-fill" aria-hidden="true"></i></button><input id="sam2-output-frame-slider" type="range" class="form-range flex-grow-1 m-0" min="1" max="1" step="1" value="1" disabled title="검출 영상 프레임 이동" aria-label="검출 영상 프레임 이동"><input id="sam2-output-frame-spinner" type="number" class="form-control form-control-sm text-end flex-shrink-0 ms-auto" style="width: 5.5rem;" min="1" max="1" step="1" value="1" disabled title="검출 영상 프레임 번호" aria-label="검출 영상 프레임 번호"></div><div class="d-flex flex-wrap justify-content-end align-items-center gap-2 mt-2"><span id="sam2-yolo-dataset-summary" class="small text-muted me-auto">YOLO 학습 데이터 대기 중</span><button id="sam2-output-download" type="button" class="btn btn-outline-success btn-sm" disabled title="검출 영상 다운로드"><i class="bi bi-download me-1" aria-hidden="true"></i>다운로드</button></div></div></div>
-									<div class="tab-pane fade" id="sam2-yolo-pane" role="tabpanel" aria-labelledby="sam2-yolo-tab" style="margin-top: -0.75rem;">
-										<ul id="sam2-yolo-class-tabs" class="nav nav-tabs" role="tablist"></ul>
-										<div id="sam2-yolo-class-tab-content" class="tab-content border border-top-0 rounded-bottom pt-1 px-3 pb-3 bg-white"><div class="small text-muted">YOLO 변환 파일이 없습니다.</div></div>
-									</div>
-									<div class="tab-pane fade" id="sam2-yolo-train-pane" role="tabpanel" aria-labelledby="sam2-yolo-train-tab"><section class="border rounded p-3"><div class="fw-semibold mb-2"><i class="bi bi-bar-chart me-1" aria-hidden="true"></i>학습 데이터 개요</div><div class="row g-3 align-items-end"><div class="col-12 col-md-5"><div id="sam2-yolo-train-class-count" class="fs-6 fw-semibold">클래스 0개</div><div id="sam2-yolo-train-class-names" class="small text-muted text-break mt-1">등록된 클래스가 없습니다.</div></div><div class="col-12 col-md-5"><div id="sam2-yolo-train-data-summary" class="small fw-semibold">입력파일 0개 · 프레임 0장 · Seg Polygon 0개</div><div id="sam2-yolo-train-summary-status" class="small text-muted mt-1" aria-live="polite">학습 데이터 개요를 불러오는 중...</div></div><div class="col-12 col-md-2"><div class="d-grid gap-1"><button id="sam2-yolo-train-start" type="button" class="btn btn-primary btn-sm" disabled><i class="bi bi-play-fill me-1" aria-hidden="true"></i>학습</button><button id="sam2-yolo-retrain-start" type="button" class="btn btn-outline-warning btn-sm" disabled><i class="bi bi-arrow-clockwise me-1" aria-hidden="true"></i>재학습</button><button id="sam2-yolo-train-stop" type="button" class="btn btn-outline-danger btn-sm" disabled><i class="bi bi-stop-fill me-1" aria-hidden="true"></i>학습 중지</button></div></div></div></section><div class="mt-2"><div class="progress position-relative" role="progressbar" aria-label="YOLO 학습 진행률" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><div id="sam2-yolo-train-progress" class="progress-bar progress-bar-striped" style="width: 0%"></div><span id="sam2-yolo-train-progress-text" class="position-absolute top-50 start-50 translate-middle fw-semibold small rounded px-2" style="z-index: 1; color: #fff; background-color: rgba(0, 0, 0, 0.72); line-height: 1.35; pointer-events: none;">0%</span></div><div id="sam2-yolo-train-status" class="small text-muted mt-1" aria-live="polite">학습 대기 중</div></div><section class="border rounded p-2 mt-2"><div class="small fw-semibold text-secondary mb-1">가중치 정확도 지표</div><div class="position-relative w-100" style="height: 260px;"><canvas id="sam2-yolo-train-metrics-chart" aria-label="YOLO 학습 정확도 지표 차트"></canvas></div></section></div>
-								</div>
-								<template id="sam2-yolo-class-template">
-									<li class="nav-item" role="presentation" data-role="tab-item"><button class="nav-link" type="button" role="tab" data-bs-toggle="tab" data-role="tab-button"></button></li>
-									<div class="tab-pane fade" role="tabpanel" data-role="tab-pane"><ul class="nav nav-tabs flex-nowrap overflow-x-auto" role="tablist" data-role="file-tabs"></ul><div class="tab-content border border-top-0 rounded-bottom p-3" data-role="file-tab-content"></div></div>
-								</template>
-								<template id="sam2-yolo-file-template">
-									<li class="nav-item" role="presentation" data-role="file-tab-item"><button class="nav-link d-inline-flex align-items-center" type="button" role="tab" data-bs-toggle="tab" data-role="file-tab-button"><span data-role="file-tab-title"></span><span class="ms-2 text-danger" role="button" data-role="dataset-delete" title="해당 입력파일의 YOLO 학습 데이터 삭제" aria-label="YOLO 학습 데이터 삭제"><i class="bi bi-trash" aria-hidden="true"></i></span></button></li>
-									<div class="tab-pane fade" role="tabpanel" data-role="file-tab-pane">
-										<div class="small text-muted py-4 text-center" data-role="frame-loading">프레임 데이터를 불러오는 중...</div>
-										<div class="d-none" data-role="frame-viewer">
-											<div class="mb-2"><div class="small fw-semibold text-center mb-1" data-role="frame-counter"></div><div class="d-flex align-items-center gap-2"><input type="range" class="form-range m-0" data-role="frame-slider" min="0" max="0" step="1" value="0" aria-label="YOLO 변환 프레임 선택"><div class="btn-group-vertical flex-shrink-0" role="group" aria-label="프레임 증감"><button type="button" class="btn btn-outline-secondary btn-sm d-flex align-items-center justify-content-center p-0" data-role="frame-increase" title="다음 프레임" aria-label="다음 프레임" style="width: 2rem; height: 1.25rem;" disabled><i class="bi bi-chevron-up" aria-hidden="true"></i></button><button type="button" class="btn btn-outline-secondary btn-sm d-flex align-items-center justify-content-center p-0" data-role="frame-decrease" title="이전 프레임" aria-label="이전 프레임" style="width: 2rem; height: 1.25rem;" disabled><i class="bi bi-chevron-down" aria-hidden="true"></i></button></div></div></div>
-											<ul class="nav nav-tabs" role="tablist" data-role="frame-output-tabs"><li class="nav-item" role="presentation"><button class="nav-link active" type="button" role="tab" data-bs-toggle="tab" aria-selected="true" data-role="frame-overlay-tab">오버레이</button></li><li class="nav-item" role="presentation"><button class="nav-link" type="button" role="tab" data-bs-toggle="tab" aria-selected="false" data-role="frame-image-tab">원본 프레임</button></li><li class="nav-item" role="presentation"><button class="nav-link" type="button" role="tab" data-bs-toggle="tab" aria-selected="false" data-role="frame-mask-tab">마스크 프레임</button></li><li class="nav-item" role="presentation"><button class="nav-link" type="button" role="tab" data-bs-toggle="tab" aria-selected="false" data-role="frame-seg-tab">Seg 데이터</button></li></ul>
-											<div class="tab-content border border-top-0 rounded-bottom p-2"><div class="tab-pane fade show active text-center" role="tabpanel" data-role="frame-overlay-pane"><div class="position-relative overflow-hidden border rounded bg-light w-100" style="aspect-ratio: 4 / 3;"><img class="position-absolute top-0 start-0 w-100 h-100" data-role="frame-overlay-image" alt="YOLO 원본 프레임" style="object-fit: contain;"><div class="position-absolute top-0 start-0 w-100 h-100" data-role="frame-overlay-mask" role="img" aria-label="YOLO 마스크 오버레이" style="background-color: rgb(253, 110, 13); opacity: 0.65; mask-mode: luminance; mask-position: center; mask-repeat: no-repeat; mask-size: contain;"></div></div></div><div class="tab-pane fade text-center" role="tabpanel" data-role="frame-image-pane"><img class="img-fluid border rounded bg-light w-100" data-role="frame-image" alt="YOLO 원본 프레임" style="aspect-ratio: 4 / 3; object-fit: contain;"></div><div class="tab-pane fade text-center" role="tabpanel" data-role="frame-mask-pane"><img class="img-fluid border rounded bg-light w-100" data-role="frame-mask" alt="YOLO 마스크 프레임" style="aspect-ratio: 4 / 3; object-fit: contain;"></div><div class="tab-pane fade text-start" role="tabpanel" data-role="frame-seg-pane"><div class="row g-2 mb-2"><div class="col-12 col-sm-6"><div class="small fw-semibold text-secondary">클래스 아이디</div><div class="small bg-light border rounded p-2" data-role="frame-class-id">-</div></div><div class="col-12 col-sm-6"><div class="small fw-semibold text-secondary">클래스명</div><div class="small bg-light border rounded p-2" data-role="frame-class-name">-</div></div></div><div class="small fw-semibold text-secondary mb-1">Seg Polygon 데이터</div><pre class="small bg-light border rounded p-2 mb-0 overflow-y-auto overflow-x-hidden text-wrap" data-role="frame-label" style="min-height: 12rem; max-height: 28rem; overflow-wrap: anywhere;"></pre></div></div>
-										</div>
-									</div>
-								</template>
-								<template id="sam2-yolo-class-empty-template"><div class="small text-muted">YOLO 변환 파일이 없습니다.</div></template>
-							</td>
-						</tr>
-					</tbody>
-				</table>
+			<div class="d-flex gap-2">
+				<a href="/road/300_ai_road.html" class="btn btn-outline-light btn-sm">Road Detection</a>
+				<a href="/yolo/400_ai_yolo.html" class="btn btn-outline-light btn-sm">YOLO Detection</a>
+				<a href="/simulation/simulation.html" class="btn btn-outline-light btn-sm">Simulation</a>
 			</div>
 		</div>
-	</div>
-</main>
+	</header>
+
+	<main class="container my-4">
+		<div class="card shadow-sm">
+			<div class="card-header">
+				<h5 class="mb-0">SAM2 객체 검출</h5>
+			</div>
+			<div class="card-body p-2">
+				<div class="table-responsive">
+					<table class="table table-bordered align-middle mb-0">
+						<colgroup>
+							<col style="width: 140px;">
+							<col>
+						</colgroup>
+						<tbody>
+							<tr>
+								<th scope="row" class="text-center text-nowrap">입력</th>
+								<td>
+									<ul class="nav nav-tabs" id="sam2-input-source-tabs" role="tablist">
+										<li class="nav-item" role="presentation"><button
+												class="nav-link active text-secondary" id="sam2-uploaded-source-tab"
+												data-bs-toggle="tab" data-bs-target="#sam2-uploaded-source-pane"
+												type="button" role="tab" aria-selected="true"><i
+													class="bi bi-upload me-1" aria-hidden="true"></i>업로드 동영상</button>
+										</li>
+									</ul>
+									<input id="sam2-video-file" class="d-none" type="file" accept="video/*">
+									<div class="tab-content border border-top-0 rounded-bottom p-2 bg-white">
+										<div class="tab-pane fade show active" id="sam2-uploaded-source-pane"
+											role="tabpanel">
+											<ul id="sam2-uploaded-list"
+												class="list-group list-group-sm d-flex flex-row flex-wrap gap-2 align-items-stretch mb-0">
+												<li id="sam2-upload-item"
+													class="list-group-item small sam2-upload-item-card">
+													<div id="sam2-drop-zone"
+														class="sam2-upload-drop-zone border border-2 rounded-3 bg-light text-center text-secondary p-1"
+														role="button" tabindex="0" aria-label="동영상 드래그 업로드 영역">
+														<div class="fw-semibold">동영상 업로드</div>
+														<div id="sam2-selected-file"
+															class="form-text mt-1 text-truncate" title="클릭/드래그">클릭/드래그
+														</div>
+													</div>
+													<div id="sam2-upload-progress-wrap" class="mt-2 d-none"
+														aria-live="polite">
+														<div class="progress position-relative" role="progressbar"
+															aria-label="동영상 업로드 진행률" aria-valuemin="0"
+															aria-valuemax="100">
+															<div id="sam2-upload-progress-bar"
+																class="progress-bar progress-bar-striped progress-bar-animated"
+																style="width: 0%"></div><span
+																id="sam2-upload-progress-status"
+																class="position-absolute top-50 start-50 translate-middle fw-semibold"
+																style="z-index: 1; color: #fff; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.9); pointer-events: none;"
+																title="0%">0%</span>
+														</div>
+													</div>
+													<div id="sam2-upload-max-size"
+														class="small text-muted mt-1 text-truncate text-center"
+														title="최대 크기: ___GB">최대 크기: ___GB</div>
+												</li>
+											</ul>
+											<div class="d-flex align-items-center gap-2 mt-2">
+												<div id="sam2-uploaded-loading"
+													class="small text-primary d-inline-flex align-items-center"
+													aria-live="polite"><span
+														class="spinner-border spinner-border-sm me-1" role="status"
+														aria-hidden="true"></span><span
+														id="sam2-uploaded-loading-text">동영상 목록을 불러오는 중...</span></div>
+											</div>
+										</div>
+									</div>
+								</td>
+							</tr>
+							<tr>
+								<th scope="row" class="text-center text-nowrap">옵션</th>
+								<td class="text-start">
+									<div class="sam2-options-bar">
+										<div class="sam2-options-group">
+											<div
+												class="form-switch d-inline-flex align-items-center gap-2 mb-0 px-1 py-0">
+												<span class="small text-secondary text-nowrap">Point label</span>
+												<label id="sam2-point-label-text"
+													class="form-check-label small mb-0 text-nowrap">Foreground /
+													Background</label>
+											</div>
+											<div class="form-switch d-inline-flex align-items-center gap-1 mb-0">
+												<span class="small text-secondary">Mask input</span>
+												<input id="sam2-mask-input" class="form-check-input m-0" type="checkbox"
+													role="switch" checked disabled>
+												<label id="sam2-mask-input-text"
+													class="form-check-label small text-center d-inline-block"
+													style="width: 3.5rem;" for="sam2-mask-input">On</label>
+											</div>
+											<div class="form-switch d-inline-flex align-items-center gap-1 mb-0">
+												<span class="small text-secondary">CLAHE</span>
+												<input id="sam2-clahe" class="form-check-input m-0" type="checkbox"
+													role="switch" checked>
+												<label id="sam2-clahe-text"
+													class="form-check-label text-center d-inline-block"
+													style="width: 3.5rem;" for="sam2-clahe">On</label>
+											</div>
+											<div class="form-switch d-inline-flex align-items-center gap-1 mb-0">
+												<span class="small text-secondary">Multimask output</span>
+												<input id="sam2-multimask-output" class="form-check-input m-0"
+													type="checkbox" role="switch" disabled>
+												<label id="sam2-multimask-output-text"
+													class="form-check-label small text-center d-inline-block"
+													style="width: 5.5rem;" for="sam2-multimask-output">Single
+													mask</label>
+											</div>
+											<div class="d-inline-flex align-items-center gap-1 mb-0 p-1">
+												<span class="small text-secondary text-nowrap">Ref Score</span>
+												<input id="sam2-reference-score-input" type="number"
+													class="form-control form-control-sm text-end"
+													style="width: 5.25rem; min-width: 5.25rem;" min="0" max="1"
+													step="0.01" value="0.80" aria-label="Ref Score 설정">
+											</div>
+										</div><button id="sam2-detect-btn" type="button"
+											class="btn btn-success sam2-detect-btn">검출</button>
+									</div>
+								</td>
+							</tr>
+							<tr>
+								<th scope="row" class="text-center text-nowrap">상태</th>
+								<td class="p-1">
+									<div id="sam2-status" class="alert alert-secondary my-0 py-2 px-2"
+										style="line-height: 1.15;">대기 중</div>
+								</td>
+							</tr>
+							<tr>
+								<th scope="row" class="text-center text-nowrap">출력</th>
+								<td>
+									<div class="d-flex justify-content-between align-items-center mb-1">
+										<ul class="nav nav-tabs" id="sam2-video-tabs" role="tablist">
+											<li class="nav-item" role="presentation"><button class="nav-link active"
+													id="sam2-input-tab" data-bs-toggle="tab"
+													data-bs-target="#sam2-input-pane" type="button" role="tab"
+													aria-selected="true">📼 원본 영상</button></li>
+											<li class="nav-item" role="presentation"><button class="nav-link"
+													id="sam2-output-tab" data-bs-toggle="tab"
+													data-bs-target="#sam2-output-pane" type="button" role="tab"
+													aria-selected="false">🧩 검출 영상</button></li>
+											<li class="nav-item" role="presentation"><button class="nav-link"
+													id="sam2-yolo-tab" data-bs-toggle="tab"
+													data-bs-target="#sam2-yolo-pane" type="button" role="tab"
+													aria-controls="sam2-yolo-pane" aria-selected="false"><i
+														class="bi bi-database me-1" aria-hidden="true"></i>YOLO
+													데이터</button></li>
+											<li class="nav-item" role="presentation"><button class="nav-link"
+													id="sam2-yolo-train-tab" data-bs-toggle="tab"
+													data-bs-target="#sam2-yolo-train-pane" type="button" role="tab"
+													aria-controls="sam2-yolo-train-pane" aria-selected="false"><i
+														class="bi bi-cpu me-1" aria-hidden="true"></i>YOLO 학습</button>
+											</li>
+										</ul>
+										<div class="form-check form-switch mb-0 ms-2"><input class="form-check-input"
+												type="checkbox" role="switch" id="sam2-loop-toggle"><label
+												class="form-check-label" for="sam2-loop-toggle">반복 재생</label></div>
+									</div>
+									<div class="tab-content border border-top-0 rounded-bottom p-3 bg-white"
+										id="sam2-video-tab-content">
+										<div class="tab-pane fade show active" id="sam2-input-pane" role="tabpanel">
+											<div class="sam2-video-wrap">
+												<div
+													class="sam2-point-toolbar border rounded p-2 mb-2 text-start bg-light">
+													<div
+														class="d-flex flex-nowrap justify-content-center align-items-center gap-2">
+														<span class="small fw-semibold text-secondary flex-shrink-0">검출
+															설정</span><label for="sam2-prompt-frame-input"
+															class="small text-secondary text-nowrap flex-shrink-0">프레임</label><input
+															id="sam2-prompt-frame-input" type="number"
+															class="form-control form-control-sm text-end flex-shrink-0"
+															style="width: 5.5rem;" min="1" max="1" step="1" value="1"
+															disabled aria-label="Point와 BBox 설정 프레임"><button
+															id="sam2-foreground-point-mode" type="button"
+															class="btn btn-primary btn-sm text-nowrap flex-shrink-0"
+															disabled>전경 Point 설정</button><button
+															id="sam2-background-point-mode" type="button"
+															class="btn btn-outline-primary btn-sm text-nowrap flex-shrink-0"
+															disabled>배경 Point 설정</button><button id="sam2-bbox-mode"
+															type="button"
+															class="btn btn-outline-primary btn-sm text-nowrap flex-shrink-0"
+															disabled>BBox 설정</button><button
+															id="sam2-foreground-point-clear" type="button"
+															class="btn btn-outline-secondary btn-sm text-nowrap flex-shrink-0"
+															disabled>전경 Point 삭제</button><button
+															id="sam2-background-point-clear" type="button"
+															class="btn btn-outline-secondary btn-sm text-nowrap flex-shrink-0"
+															disabled>배경 Point 삭제</button><button id="sam2-bbox-clear"
+															type="button"
+															class="btn btn-outline-secondary btn-sm text-nowrap flex-shrink-0"
+															disabled>BBox 삭제</button><button id="sam2-options-save"
+															type="button"
+															class="btn btn-outline-success btn-sm text-nowrap flex-shrink-0"
+															disabled>저장</button><button id="sam2-options-reset"
+															type="button"
+															class="btn btn-outline-warning btn-sm text-nowrap flex-shrink-0"
+															disabled>초기화</button><span id="sam2-input-frame-counter"
+															class="small text-secondary text-nowrap flex-shrink-0"
+															aria-live="polite">프레임 - / -</span></div>
+												</div>
+												<div id="sam2-input-video-wrap"
+													class="sam2-input-stage border rounded overflow-hidden"><video
+														id="sam2-input-video" class="sam2-video-player" controls
+														playsinline></video>
+													<div id="sam2-point-marker-layer" class="sam2-point-marker-layer"
+														aria-hidden="true"></div>
+													<div id="sam2-bbox-layer" class="sam2-bbox-layer"
+														aria-hidden="true"></div>
+													<div id="sam2-bbox-capture-layer" class="sam2-bbox-capture-layer"
+														aria-label="Bounding Box 입력 레이어"></div>
+												</div>
+											</div>
+										</div>
+										<div class="tab-pane fade" id="sam2-output-pane" role="tabpanel"
+											aria-labelledby="sam2-output-tab">
+											<div class="sam2-video-wrap"><button id="sam2-yolo-convert" type="button"
+													class="btn btn-primary btn-sm sam2-output-yolo-convert-button"
+													disabled title="YOLO 학습 데이터 변환"><i class="bi bi-arrow-repeat me-1"
+														aria-hidden="true"></i>YOLO 변환</button><video
+													id="sam2-output-video" class="sam2-video-player border rounded"
+													playsinline></video>
+												<div class="d-flex align-items-center gap-2 w-100 mt-2" role="group"
+													aria-label="검출 영상 재생 제어"><button id="sam2-output-play-toggle"
+														type="button"
+														class="btn btn-outline-primary btn-sm flex-shrink-0"
+														style="width: 2.5rem;" disabled title="재생" aria-label="재생"><i
+															class="bi bi-play-fill"
+															aria-hidden="true"></i></button><input
+														id="sam2-output-frame-slider" type="range"
+														class="form-range flex-grow-1 m-0" min="1" max="1" step="1"
+														value="1" disabled title="검출 영상 프레임 이동"
+														aria-label="검출 영상 프레임 이동"><input id="sam2-output-frame-spinner"
+														type="number"
+														class="form-control form-control-sm text-end flex-shrink-0 ms-auto"
+														style="width: 5.5rem;" min="1" max="1" step="1" value="1"
+														disabled title="검출 영상 프레임 번호" aria-label="검출 영상 프레임 번호"></div>
+												<div
+													class="d-flex flex-wrap justify-content-end align-items-center gap-2 mt-2">
+													<span id="sam2-yolo-dataset-summary"
+														class="small text-muted me-auto">YOLO 학습 데이터 대기 중</span><button
+														id="sam2-output-download" type="button"
+														class="btn btn-outline-success btn-sm" disabled
+														title="검출 영상 다운로드"><i class="bi bi-download me-1"
+															aria-hidden="true"></i>다운로드</button></div>
+											</div>
+										</div>
+										<div class="tab-pane fade" id="sam2-yolo-pane" role="tabpanel"
+											aria-labelledby="sam2-yolo-tab" style="margin-top: -0.75rem;">
+											<ul id="sam2-yolo-class-tabs" class="nav nav-tabs" role="tablist"></ul>
+											<div id="sam2-yolo-class-tab-content"
+												class="tab-content border border-top-0 rounded-bottom pt-1 px-3 pb-3 bg-white">
+												<div class="small text-muted">YOLO 변환 파일이 없습니다.</div>
+											</div>
+										</div>
+										<div class="tab-pane fade" id="sam2-yolo-train-pane" role="tabpanel"
+											aria-labelledby="sam2-yolo-train-tab">
+											<section class="border rounded p-3">
+												<div class="fw-semibold mb-2"><i class="bi bi-bar-chart me-1"
+														aria-hidden="true"></i>학습 데이터 개요</div>
+												<div class="row g-3 align-items-end">
+													<div class="col-12 col-md-5">
+														<div id="sam2-yolo-train-class-count" class="fs-6 fw-semibold">
+															클래스 0개</div>
+														<div id="sam2-yolo-train-class-names"
+															class="small text-muted text-break mt-1">등록된 클래스가 없습니다.
+														</div>
+													</div>
+													<div class="col-12 col-md-5">
+														<div id="sam2-yolo-train-data-summary"
+															class="small fw-semibold">입력파일 0개 · 프레임 0장 · Seg Polygon 0개
+														</div>
+														<div id="sam2-yolo-train-summary-status"
+															class="small text-muted mt-1" aria-live="polite">학습 데이터 개요를
+															불러오는 중...</div>
+													</div>
+													<div class="col-12 col-md-2">
+														<div class="d-grid gap-1"><button id="sam2-yolo-train-start"
+																type="button" class="btn btn-primary btn-sm" disabled><i
+																	class="bi bi-play-fill me-1"
+																	aria-hidden="true"></i>학습</button><button
+																id="sam2-yolo-retrain-start" type="button"
+																class="btn btn-outline-warning btn-sm" disabled><i
+																	class="bi bi-arrow-clockwise me-1"
+																	aria-hidden="true"></i>재학습</button><button
+																id="sam2-yolo-train-stop" type="button"
+																class="btn btn-outline-danger btn-sm" disabled><i
+																	class="bi bi-stop-fill me-1"
+																	aria-hidden="true"></i>학습 중지</button></div>
+													</div>
+												</div>
+											</section>
+											<div class="mt-2">
+												<div class="progress position-relative" role="progressbar"
+													aria-label="YOLO 학습 진행률" aria-valuemin="0" aria-valuemax="100"
+													aria-valuenow="0">
+													<div id="sam2-yolo-train-progress"
+														class="progress-bar progress-bar-striped" style="width: 0%">
+													</div><span id="sam2-yolo-train-progress-text"
+														class="position-absolute top-50 start-50 translate-middle fw-semibold small rounded px-2"
+														style="z-index: 1; color: #fff; background-color: rgba(0, 0, 0, 0.72); line-height: 1.35; pointer-events: none;">0%</span>
+												</div>
+												<div id="sam2-yolo-train-status" class="small text-muted mt-1"
+													aria-live="polite">학습 대기 중</div>
+											</div>
+											<section class="border rounded p-2 mt-2">
+												<div class="small fw-semibold text-secondary mb-1">가중치 정확도 지표</div>
+												<div class="position-relative w-100" style="height: 260px;"><canvas
+														id="sam2-yolo-train-metrics-chart"
+														aria-label="YOLO 학습 정확도 지표 차트"></canvas></div>
+											</section>
+										</div>
+									</div>
+									<template id="sam2-yolo-class-template">
+										<li class="nav-item" role="presentation" data-role="tab-item"><button
+												class="nav-link" type="button" role="tab" data-bs-toggle="tab"
+												data-role="tab-button"></button></li>
+										<div class="tab-pane fade" role="tabpanel" data-role="tab-pane">
+											<ul class="nav nav-tabs flex-nowrap overflow-x-auto" role="tablist"
+												data-role="file-tabs"></ul>
+											<div class="tab-content border border-top-0 rounded-bottom p-3"
+												data-role="file-tab-content"></div>
+										</div>
+									</template>
+									<template id="sam2-yolo-file-template">
+										<li class="nav-item" role="presentation" data-role="file-tab-item"><button
+												class="nav-link d-inline-flex align-items-center" type="button"
+												role="tab" data-bs-toggle="tab" data-role="file-tab-button"><span
+													data-role="file-tab-title"></span><span class="ms-2 text-danger"
+													role="button" data-role="dataset-delete"
+													title="해당 입력파일의 YOLO 학습 데이터 삭제" aria-label="YOLO 학습 데이터 삭제"><i
+														class="bi bi-trash" aria-hidden="true"></i></span></button></li>
+										<div class="tab-pane fade" role="tabpanel" data-role="file-tab-pane">
+											<div class="small text-muted py-4 text-center" data-role="frame-loading">프레임
+												데이터를 불러오는 중...</div>
+											<div class="d-none" data-role="frame-viewer">
+												<div class="mb-2">
+													<div class="small fw-semibold text-center mb-1"
+														data-role="frame-counter"></div>
+													<div class="d-flex align-items-center gap-2"><input type="range"
+															class="form-range m-0" data-role="frame-slider" min="0"
+															max="0" step="1" value="0" aria-label="YOLO 변환 프레임 선택">
+														<div class="btn-group-vertical flex-shrink-0" role="group"
+															aria-label="프레임 증감"><button type="button"
+																class="btn btn-outline-secondary btn-sm d-flex align-items-center justify-content-center p-0"
+																data-role="frame-increase" title="다음 프레임"
+																aria-label="다음 프레임"
+																style="width: 2rem; height: 1.25rem;" disabled><i
+																	class="bi bi-chevron-up"
+																	aria-hidden="true"></i></button><button
+																type="button"
+																class="btn btn-outline-secondary btn-sm d-flex align-items-center justify-content-center p-0"
+																data-role="frame-decrease" title="이전 프레임"
+																aria-label="이전 프레임"
+																style="width: 2rem; height: 1.25rem;" disabled><i
+																	class="bi bi-chevron-down"
+																	aria-hidden="true"></i></button></div>
+													</div>
+												</div>
+												<ul class="nav nav-tabs" role="tablist" data-role="frame-output-tabs">
+													<li class="nav-item" role="presentation"><button
+															class="nav-link active" type="button" role="tab"
+															data-bs-toggle="tab" aria-selected="true"
+															data-role="frame-overlay-tab">오버레이</button></li>
+													<li class="nav-item" role="presentation"><button class="nav-link"
+															type="button" role="tab" data-bs-toggle="tab"
+															aria-selected="false" data-role="frame-image-tab">원본
+															프레임</button></li>
+													<li class="nav-item" role="presentation"><button class="nav-link"
+															type="button" role="tab" data-bs-toggle="tab"
+															aria-selected="false" data-role="frame-mask-tab">마스크
+															프레임</button></li>
+													<li class="nav-item" role="presentation"><button class="nav-link"
+															type="button" role="tab" data-bs-toggle="tab"
+															aria-selected="false" data-role="frame-seg-tab">Seg
+															데이터</button></li>
+												</ul>
+												<div class="tab-content border border-top-0 rounded-bottom p-2">
+													<div class="tab-pane fade show active text-center" role="tabpanel"
+														data-role="frame-overlay-pane">
+														<div class="position-relative overflow-hidden border rounded bg-light w-100"
+															style="aspect-ratio: 4 / 3;"><img
+																class="position-absolute top-0 start-0 w-100 h-100"
+																data-role="frame-overlay-image" alt="YOLO 원본 프레임"
+																style="object-fit: contain;">
+															<div class="position-absolute top-0 start-0 w-100 h-100"
+																data-role="frame-overlay-mask" role="img"
+																aria-label="YOLO 마스크 오버레이"
+																style="background-color: rgb(253, 110, 13); opacity: 0.65; mask-mode: luminance; mask-position: center; mask-repeat: no-repeat; mask-size: contain;">
+															</div>
+														</div>
+													</div>
+													<div class="tab-pane fade text-center" role="tabpanel"
+														data-role="frame-image-pane"><img
+															class="img-fluid border rounded bg-light w-100"
+															data-role="frame-image" alt="YOLO 원본 프레임"
+															style="aspect-ratio: 4 / 3; object-fit: contain;"></div>
+													<div class="tab-pane fade text-center" role="tabpanel"
+														data-role="frame-mask-pane"><img
+															class="img-fluid border rounded bg-light w-100"
+															data-role="frame-mask" alt="YOLO 마스크 프레임"
+															style="aspect-ratio: 4 / 3; object-fit: contain;"></div>
+													<div class="tab-pane fade text-start" role="tabpanel"
+														data-role="frame-seg-pane">
+														<div class="row g-2 mb-2">
+															<div class="col-12 col-sm-6">
+																<div class="small fw-semibold text-secondary">클래스 아이디
+																</div>
+																<div class="small bg-light border rounded p-2"
+																	data-role="frame-class-id">-</div>
+															</div>
+															<div class="col-12 col-sm-6">
+																<div class="small fw-semibold text-secondary">클래스명</div>
+																<div class="small bg-light border rounded p-2"
+																	data-role="frame-class-name">-</div>
+															</div>
+														</div>
+														<div class="small fw-semibold text-secondary mb-1">Seg Polygon
+															데이터</div>
+														<pre class="small bg-light border rounded p-2 mb-0 overflow-y-auto overflow-x-hidden text-wrap"
+															data-role="frame-label"
+															style="min-height: 12rem; max-height: 28rem; overflow-wrap: anywhere;"></pre>
+													</div>
+												</div>
+											</div>
+										</div>
+									</template>
+									<template id="sam2-yolo-class-empty-template">
+										<div class="small text-muted">YOLO 변환 파일이 없습니다.</div>
+									</template>
+								</td>
+							</tr>
+						</tbody>
+					</table>
+				</div>
+			</div>
+		</div>
+	</main>
 </body>
+
 </html>

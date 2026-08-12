@@ -1592,8 +1592,9 @@ class Sam2VideoDetector:
                 0,
                 min(int(prompt_frame) - 1, source_total_frames - 1),
             )
-            for history in (chart_score_history, chart_iou_history, chart_fill_ratio_history):
-                history[:source_prompt_frame_index] = [0.0] * source_prompt_frame_index
+            # Keep chart values aligned with the actual propagated mask score / IoU.
+            # For reverse-propagation frames before the prompt frame, the mask history
+            # still contains valid values and should not be overwritten to zero.
 
             rendered_frames = 0
             while True:

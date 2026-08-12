@@ -1024,9 +1024,15 @@ class Sam2VideoDetector:
 
         legend_x = chart_x1 + 8
         legend_gap = 10
-        legend_margin_top = 12
-        legend_y = chart_y1 + legend_margin_top
+        legend_margin_top = 10
         for legend_text, legend_color, legend_scale in legend_items:
+            (legend_width, legend_height), _legend_baseline = cv2.getTextSize(
+                legend_text,
+                cv2.FONT_HERSHEY_SIMPLEX,
+                legend_scale,
+                1,
+            )
+            legend_y = chart_y1 + legend_margin_top + legend_height
             cv2.putText(
                 canvas,
                 legend_text,
@@ -1037,17 +1043,7 @@ class Sam2VideoDetector:
                 1,
                 cv2.LINE_AA,
             )
-            (legend_width, legend_height), _legend_baseline = cv2.getTextSize(
-                legend_text,
-                cv2.FONT_HERSHEY_SIMPLEX,
-                legend_scale,
-                1,
-            )
             legend_x += legend_width + legend_gap
-
-        plot_top_gap = 6
-        if chart_y1 + legend_margin_top + 1 > chart_y1 + plot_top_gap:
-            pass
 
         x_ticks = self._chart_renderer._uniform_ticks(x_min, x_max, target_ticks=4)
         x_ticks = sorted({int(round(float(tick))) for tick in x_ticks})

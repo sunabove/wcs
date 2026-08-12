@@ -1240,7 +1240,7 @@ class Sam2VideoDetector:
             ("IoU", (255, 190, 60), 0.555),
             ("Ref-Score", (0, 165, 255), 0.48),
             ("Score+IoU", (0, 255, 255), 0.45),
-            ("Frame", (255, 230, 0), 0.45),
+            ("Ref-Frame", (255, 230, 0), 0.45),
         ]
 
         legend_x = panel_x1 + 8

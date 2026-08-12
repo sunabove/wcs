@@ -936,6 +936,14 @@ class Sam2VideoDetector:
             chart_y2 - chart_y1,
         )
 
+        mask_ratio_threshold = float(np.clip(float(mask_area_ratio if mask_area_ratio is not None else 0.05), 0.0, 1.0))
+        mask_ratio_threshold_y = self._chart_renderer._map_chart_y(
+            mask_ratio_threshold,
+            1.0,
+            chart_y2,
+            chart_y2 - chart_y1,
+        )
+
         self._chart_renderer._draw_chart_series(
             canvas,
             x_values,
@@ -989,12 +997,14 @@ class Sam2VideoDetector:
         )
 
         cv2.line(canvas, (chart_x1, threshold_y), (chart_x2, threshold_y), (0, 165, 255), 1, cv2.LINE_AA)
+        cv2.line(canvas, (chart_x1, mask_ratio_threshold_y), (chart_x2, mask_ratio_threshold_y), (255, 165, 0), 1, cv2.LINE_AA)
 
         legend_items = [
             ("Score", (80, 255, 80), 0.555),
             ("Mask Ratio", (255, 165, 0), 0.52),
             ("Score>=Ref", (0, 255, 255), 0.48),
             ("Ref-Score", (0, 165, 255), 0.48),
+            ("Ref Mask ratio", (255, 165, 0), 0.48),
             ("Ref-Frame", (255, 180, 80), 0.45),
             ("Curr-Frame", (235, 235, 235), 0.45),
         ]
@@ -1388,7 +1398,7 @@ class Sam2VideoDetector:
         mask_input=True,
         clahe=False,
         reference_score: float = 0.8,
-        mask_area_ratio: float = 0.0,
+        mask_area_ratio: float = 0.05,
         progress_callback=None,
     ):
         resolved_input = Path(input_path).resolve()

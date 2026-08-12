@@ -1241,7 +1241,7 @@ class Sam2VideoDetector:
             ("Ref-Score", (0, 165, 255), 0.48),
             ("Score+IoU", (0, 255, 255), 0.45),
             ("Ref-Frame", (255, 180, 80), 0.45),
-            ("Current-Frame", (235, 235, 235), 0.45),
+            ("Curr-Frame", (235, 235, 235), 0.45),
         ]
 
         legend_x = panel_x1 + 8
@@ -1296,8 +1296,8 @@ class Sam2VideoDetector:
                 cv2.LINE_AA,
             )
 
-        cv2.line(canvas, (reference_x, chart_y1), (reference_x, chart_y2), (255, 180, 80), 2, cv2.LINE_AA)
-        cv2.line(canvas, (current_x, chart_y1), (current_x, chart_y2), (235, 235, 235), 2, cv2.LINE_AA)
+        cv2.line(canvas, (reference_x, chart_y1), (reference_x, chart_y2), (255, 180, 80), 3, cv2.LINE_AA)
+        cv2.line(canvas, (current_x, chart_y1), (current_x, chart_y2), (235, 235, 235), 1, cv2.LINE_AA)
         return canvas
 
     def _overlay_bbox_result(self, frame, roi_plotted, bbox_rect, score=None):

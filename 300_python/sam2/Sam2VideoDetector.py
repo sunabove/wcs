@@ -1016,7 +1016,7 @@ class Sam2VideoDetector:
             return frame
 
         height, width = frame.shape[:2]
-        panel_height = min(132, max(64, height // 3))
+        panel_height = min(136, max(68, height // 3 + 4))
         canvas = frame.copy()
 
         panel_x1 = 8
@@ -1033,7 +1033,7 @@ class Sam2VideoDetector:
         )
         chart_x1 = panel_x1 + y_axis_label_width + 14
         chart_x2 = panel_x2 - 10
-        chart_y1 = panel_y1 + 20
+        chart_y1 = panel_y1 + 24
         chart_y2 = panel_y2 - 22
         if chart_x2 <= chart_x1 or chart_y2 <= chart_y1:
             return canvas
@@ -1226,7 +1226,7 @@ class Sam2VideoDetector:
             cv2.putText(
                 canvas,
                 legend_text,
-                (legend_x, panel_y1 + 16),
+                (legend_x, panel_y1 + 20),
                 cv2.FONT_HERSHEY_SIMPLEX,
                 legend_scale,
                 legend_color,

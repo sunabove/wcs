@@ -700,43 +700,11 @@ class Sam2VideoDetector:
         mask_area = float(np.count_nonzero(mask_np[y1:y2, x1:x2]))
         return mask_area / bbox_area if bbox_area > 0 else 0.0
 
-    def _calculate_mask_pair_iou(self, mask_tensor, reference_mask, frame_shape):
-        mask_np = self._to_binary_mask(mask_tensor, frame_shape)
-        if mask_np is None or reference_mask is None:
-            return 0.0
-
-        reference_np = self._to_binary_mask(reference_mask, frame_shape)
-        if reference_np is None:
-            return 0.0
-
-        intersection = int(np.count_nonzero(np.logical_and(mask_np, reference_np)))
-        union = int(np.count_nonzero(np.logical_or(mask_np, reference_np)))
-        return float(intersection / union) if union > 0 else 0.0
-
-    def _calculate_mask_iou(self, mask_tensor, bbox_rect, frame_shape):
-        if mask_tensor is None or bbox_rect is None:
-            return 0.0
-
-        mask_np = self._to_binary_mask(mask_tensor, frame_shape)
-        if mask_np is None:
-            return 0.0
-
-        x1, y1, x2, y2 = bbox_rect
-        bbox_area = max(0, x2 - x1) * max(0, y2 - y1)
-        if bbox_area <= 0:
-            return 0.0
-
-        mask_area = int(np.count_nonzero(mask_np))
-        intersection = int(np.count_nonzero(mask_np[y1:y2, x1:x2]))
-        union = mask_area + bbox_area - intersection
-        return float(intersection / union) if union > 0 else 0.0
-
     def _draw_bbox_score(
         self,
         image,
         bbox_rect,
         score,
-        iou=None,
         text_color=(255, 255, 255),
         header_fill=(13, 110, 253),
         header_edge=(13, 110, 253),
@@ -746,8 +714,6 @@ class Sam2VideoDetector:
 
         x1, y1, _x2, _y2 = bbox_rect
         label = f"Score: {score:.3f}"
-        if iou is not None:
-            label = f"Score: {score:.3f} | IoU: {iou:.3f}"
         (text_width, text_height), baseline = cv2.getTextSize(
             label,
             cv2.FONT_HERSHEY_SIMPLEX,
@@ -787,7 +753,6 @@ class Sam2VideoDetector:
         mask_input,
         multimask_output,
         clahe,
-        iou_mask_filter,
         current_frame,
         total_frames,
     ):
@@ -795,7 +760,6 @@ class Sam2VideoDetector:
             f"Mask input: {'On' if mask_input else 'Off'} | "
             f"Multimask output: {'On' if multimask_output else 'Off'} | "
             f"CLAHE: {'On' if clahe else 'Off'} | "
-            f"IoU Mask filter: {'On' if iou_mask_filter else 'Off'} | "
             f"Frame: {int(current_frame)}/{int(total_frames)}"
         )
         font = cv2.FONT_HERSHEY_SIMPLEX
@@ -865,7 +829,6 @@ class Sam2VideoDetector:
         self,
         frame,
         score_history,
-        iou_history,
         reference_score,
         fill_ratio_history,
         reference_frame_number,
@@ -963,21 +926,6 @@ class Sam2VideoDetector:
         self._chart_renderer._draw_chart_series(
             canvas,
             x_values,
-            np.asarray(iou_history, dtype=np.float32),
-            (255, 190, 60),
-            x_min,
-            x_max,
-            chart_x1,
-            chart_x2 - chart_x1,
-            1.0,
-            chart_y2,
-            chart_y2 - chart_y1,
-            1,
-        )
-
-        self._chart_renderer._draw_chart_series(
-            canvas,
-            x_values,
             score_values,
             (80, 255, 80),
             x_min,
@@ -1015,7 +963,6 @@ class Sam2VideoDetector:
 
         legend_items = [
             ("Score", (80, 255, 80), 0.555),
-            ("IoU", (255, 140, 60), 0.555),
             ("Score>=Ref", (0, 255, 255), 0.48),
             ("Ref-Score", (0, 165, 255), 0.48),
             ("Ref-Frame", (255, 180, 80), 0.45),
@@ -1096,7 +1043,7 @@ class Sam2VideoDetector:
         cv2.line(canvas, (reference_x, chart_y1), (reference_x, chart_y2), (255, 180, 80), ref_thickness, cv2.LINE_AA)
         return canvas
 
-    def _overlay_bbox_result(self, frame, roi_plotted, bbox_rect, score=None, iou=None):
+    def _overlay_bbox_result(self, frame, roi_plotted, bbox_rect, score=None):
         if bbox_rect is None:
             return roi_plotted
 
@@ -1109,12 +1056,12 @@ class Sam2VideoDetector:
 
         composed[y1:y2, x1:x2] = roi_plotted
         cv2.rectangle(composed, (x1, y1), (x2 - 1, y2 - 1), (13, 110, 253), 1)
-        self._draw_bbox_score(composed, bbox_rect, score, iou)
+        self._draw_bbox_score(composed, bbox_rect, score)
         return composed
 
-    def _overlay_mask_result(self, frame, mask_tensor, bbox_rect=None, score=None, iou=None, color=None):
+    def _overlay_mask_result(self, frame, mask_tensor, bbox_rect=None, score=None, color=None):
         if mask_tensor is None:
-            return self._overlay_bbox_result(frame, frame, bbox_rect, score, iou)
+            return self._overlay_bbox_result(frame, frame, bbox_rect, score)
 
         if isinstance(mask_tensor, np.ndarray):
             mask = mask_tensor
@@ -1126,7 +1073,7 @@ class Sam2VideoDetector:
         if mask.ndim == 3:
             mask = mask[0]
         if mask.ndim != 2:
-            return self._overlay_bbox_result(frame, frame, bbox_rect, score, iou)
+            return self._overlay_bbox_result(frame, frame, bbox_rect, score)
 
         mask_np = mask > 0
         frame_height, frame_width = frame.shape[:2]
@@ -1153,13 +1100,12 @@ class Sam2VideoDetector:
                     overlay,
                     display_bbox,
                     score,
-                    iou,
                     text_color=(230, 230, 230),
                     header_fill=(50, 50, 50),
                     header_edge=(120, 120, 120),
                 )
             else:
-                self._draw_bbox_score(overlay, display_bbox, score, iou)
+                self._draw_bbox_score(overlay, display_bbox, score)
         return overlay
 
     def _build_yolo_segmentation_labels(self, mask_np, class_id=0, min_area=4.0):
@@ -1475,9 +1421,7 @@ class Sam2VideoDetector:
         total_segments = 0
         score_history = [0.0] * total_frames
         fill_ratio_history = [0.0] * total_frames
-        iou_history = []
         mask_history = [None] * total_frames
-        reference_mask = None
 
         try:
             model_input_path = prepared_path
@@ -1574,39 +1518,6 @@ class Sam2VideoDetector:
                 ))
 
             detection_threshold = float(np.clip(float(reference_score if reference_score is not None else 0.8), 0.0, 1.0))
-            iou_threshold = 0.0
-
-            reference_mask_index = max(0, min(prompt_frame_index, len(mask_history) - 1))
-            reference_mask = mask_history[reference_mask_index].copy() if mask_history[reference_mask_index] is not None else None
-
-            if reference_mask is None:
-                iou_history = [0.0] * len(mask_history)
-            else:
-                iou_history = [0.0] * len(mask_history)
-                iou_history[reference_mask_index] = 1.0
-
-                reverse_reference_mask = reference_mask.copy()
-                for frame_index in range(reference_mask_index - 1, -1, -1):
-                    mask = mask_history[frame_index]
-                    if mask is None:
-                        continue
-                    iou_history[frame_index] = self._calculate_mask_pair_iou(
-                        mask,
-                        reverse_reference_mask,
-                        (height, width, 3),
-                    )
-                    reverse_reference_mask = mask.copy()
-
-                for frame_index in range(reference_mask_index + 1, len(mask_history)):
-                    mask = mask_history[frame_index]
-                    if mask is None:
-                        continue
-                    iou_history[frame_index] = self._calculate_mask_pair_iou(
-                        mask,
-                        reference_mask,
-                        (height, width, 3),
-                    )
-                iou_threshold = 0.0
 
             previous_cache = self._yolo_conversion_cache.get(str(resolved_input))
             if previous_cache and previous_cache.get("cleanup_source"):
@@ -1649,15 +1560,11 @@ class Sam2VideoDetector:
                 for index in source_frame_indices
             ]
             chart_score_history = [score_history[index] for index in inference_frame_indices]
-            chart_iou_history = [iou_history[index] for index in inference_frame_indices]
             chart_fill_ratio_history = [fill_ratio_history[index] for index in inference_frame_indices]
             source_prompt_frame_index = max(
                 0,
                 min(int(prompt_frame) - 1, source_total_frames - 1),
             )
-            # Keep chart values aligned with the actual propagated mask score / IoU.
-            # For reverse-propagation frames before the prompt frame, the mask history
-            # still contains valid values and should not be overwritten to zero.
 
             rendered_frames = 0
             while True:
@@ -1681,26 +1588,15 @@ class Sam2VideoDetector:
                     and mask_history[frame_index] is not None
                     and score_value > 0.0
                 ):
-                    current_iou = (
-                        iou_history[frame_index]
-                        if frame_index < len(iou_history)
-                        else 0.0
-                    )
                     accepted = (
                         detection_threshold is not None
                         and score_value >= detection_threshold
-                        and (
-                            not iou_mask_filter
-                            or frame_index >= len(iou_history)
-                            or current_iou > 0.0
-                        )
                     )
                     plotted = self._overlay_mask_result(
                         plotted,
                         mask_history[frame_index],
                         output_bbox_rect,
                         score_value,
-                        current_iou,
                         color=(13, 110, 253) if accepted else (96, 96, 96),
                     )
                 padded_frame = np.zeros((output_height, source_width, 3), dtype=np.uint8)
@@ -1710,14 +1606,12 @@ class Sam2VideoDetector:
                     mask_input,
                     multimask_output,
                     clahe,
-                    iou_mask_filter,
                     rendered_frames,
                     source_total_frames,
                 )
                 padded_frame = self._render_detect_data_chart(
                     padded_frame,
                     chart_score_history,
-                    chart_iou_history,
                     detection_threshold,
                     chart_fill_ratio_history,
                     source_prompt_frame_index + 1,

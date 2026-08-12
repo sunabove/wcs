@@ -766,12 +766,16 @@
         if (!currentInput) {
             return;
         }
+
         const minimum = Number(currentInput.min || 1);
         const maximum = Number(currentInput.max || outputVideoFrameCount);
         const step = Number.isFinite(Number(currentInput.step)) && Number(currentInput.step) > 0
             ? Number(currentInput.step)
             : 1;
-        const currentValue = Number.parseInt(currentInput.value, 10);
+
+        const currentValue = Number.isFinite(currentInput.valueAsNumber)
+            ? currentInput.valueAsNumber
+            : Number.parseInt(currentInput.value, 10);
         if (!Number.isFinite(currentValue)) {
             return;
         }

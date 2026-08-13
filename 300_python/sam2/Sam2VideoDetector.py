@@ -1166,7 +1166,7 @@ class Sam2VideoDetector:
                 contours,
                 -1,
                 outline_color if outline_color is not None else tuple(display_color.astype(np.uint8).tolist()),
-                2,
+                1,
                 cv2.LINE_AA,
             )
         mask_bbox = self._get_mask_bbox(mask_np)

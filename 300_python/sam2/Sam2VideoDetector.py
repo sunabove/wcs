@@ -798,7 +798,7 @@ class Sam2VideoDetector:
             f"Frame: {int(current_frame)}/{int(total_frames)}"
         )
         font = cv2.FONT_HERSHEY_SIMPLEX
-        font_scale = 0.5
+        font_scale = 0.45
         thickness = 1
         (text_width, text_height), baseline = cv2.getTextSize(label, font, font_scale, thickness)
         padding_x = 8

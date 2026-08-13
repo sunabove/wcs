@@ -267,8 +267,6 @@ class Sam2VideoService:
                 total_training_batches = max(1, epochs * total_batches)
                 progress = min(99.99, round((completed_batches / total_training_batches) * 100, 2))
                 losses = get_loss_values(trainer)
-                loss_values = [f"{name} {value:.4f}" for name, value in losses.items()]
-                loss_text = f" · {' · '.join(loss_values)}" if loss_values else ""
                 with self._training_jobs_lock:
                     job = self._training_jobs[job_id]
                     job.update({
@@ -278,10 +276,7 @@ class Sam2VideoService:
                         "total_batches": total_batches,
                         "losses": losses,
                         "training_elapsed_seconds": float(job.get("training_elapsed_seconds", 0.0)) + batch_elapsed_seconds,
-                        "message": (
-                            f"학습 중: Epoch {current_epoch} / {epochs} · "
-                            f"Batch {current_batch} / {total_batches}{loss_text}"
-                        ),
+                        "message": "학습 진행 중...",
                     })
                 stop_if_requested(trainer)
 

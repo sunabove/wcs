@@ -227,11 +227,15 @@
   const yoloTrainStatusElement = document.getElementById(
     "sam2-yolo-train-status",
   );
-  yoloTrainStatusElement?.classList.remove("small", "mt-1");
-  yoloTrainStatusElement?.classList.add("mt-2");
-  if (yoloTrainStatusElement) {
-    yoloTrainStatusElement.style.fontSize = "0.95rem";
-  }
+  const yoloTrainMessageElement = document.getElementById(
+    "sam2-yolo-train-message",
+  );
+  const yoloTrainElapsedElement = document.getElementById(
+    "sam2-yolo-train-elapsed",
+  );
+  const yoloTrainEstimatedElement = document.getElementById(
+    "sam2-yolo-train-estimated",
+  );
   const yoloTrainMetricsCanvas = document.getElementById(
     "sam2-yolo-train-metrics-chart",
   );
@@ -1170,11 +1174,22 @@
       yoloTrainProgressTextElement.textContent = `${progressText}%`;
     }
     if (yoloTrainStatusElement) {
-      const hasTiming = elapsedSeconds !== undefined && elapsedSeconds !== null;
-      const timingText = hasTiming
-        ? ` · 진행 시간 ${formatYoloTrainingDuration(elapsedSeconds)} · 총 예상 시간 ${estimatedTotalSeconds === null || estimatedTotalSeconds === undefined ? "계산 중" : formatYoloTrainingDuration(estimatedTotalSeconds)}`
-        : "";
-      yoloTrainStatusElement.textContent = `${message || "학습 대기 중"}${timingText}`;
+      yoloTrainStatusElement.value = String(status || "queued");
+    }
+    if (yoloTrainMessageElement) {
+      yoloTrainMessageElement.value = String(message || "학습 대기 중");
+    }
+    if (yoloTrainElapsedElement) {
+      yoloTrainElapsedElement.value =
+        elapsedSeconds === undefined || elapsedSeconds === null
+          ? "00:00:00"
+          : formatYoloTrainingDuration(elapsedSeconds);
+    }
+    if (yoloTrainEstimatedElement) {
+      yoloTrainEstimatedElement.value =
+        estimatedTotalSeconds === undefined || estimatedTotalSeconds === null
+          ? "계산 중"
+          : formatYoloTrainingDuration(estimatedTotalSeconds);
     }
   }
 
@@ -1439,8 +1454,8 @@
       );
     } catch (error) {
       yoloTrainStopButton.disabled = false;
-      if (yoloTrainStatusElement) {
-        yoloTrainStatusElement.textContent =
+      if (yoloTrainMessageElement) {
+        yoloTrainMessageElement.value =
           error && error.message
             ? error.message
             : "YOLO 학습을 중지하지 못했습니다.";

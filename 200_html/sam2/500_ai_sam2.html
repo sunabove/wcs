@@ -373,9 +373,27 @@
 														class="position-absolute top-50 start-50 translate-middle fw-semibold small rounded px-2"
 														style="z-index:1;color:#fff;background-color:rgba(0, 0, 0, 0.72);line-height:1.35;pointer-events:none;">0%</span>
 												</div>
-												<div id="sam2-yolo-train-status" class="small text-muted mt-1"
-													aria-live="polite">
-													학습 대기 중
+												<div class="row g-2 mt-1" aria-live="polite">
+													<div class="col-12 col-md-2">
+														<input id="sam2-yolo-train-status" type="text"
+															class="form-control form-control-sm" value="대기" readonly
+															aria-label="YOLO 학습 상태" />
+													</div>
+													<div class="col-12 col-md-5">
+														<input id="sam2-yolo-train-message" type="text"
+															class="form-control form-control-sm" value="학습 대기 중"
+															readonly aria-label="YOLO 학습 메시지" />
+													</div>
+													<div class="col-6 col-md-2">
+														<input id="sam2-yolo-train-elapsed" type="text"
+															class="form-control form-control-sm text-end"
+															value="00:00:00" readonly aria-label="YOLO 학습 진행 시간" />
+													</div>
+													<div class="col-6 col-md-3">
+														<input id="sam2-yolo-train-estimated" type="text"
+															class="form-control form-control-sm text-end" value="계산 중"
+															readonly aria-label="YOLO 학습 총 예상 시간" />
+													</div>
 												</div>
 											</div>
 											<section class="border rounded p-2 mt-2">

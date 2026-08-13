@@ -1136,7 +1136,7 @@ class Sam2VideoDetector:
         self._draw_bbox_score(composed, bbox_rect, score)
         return composed
 
-    def _overlay_mask_result(self, frame, mask_tensor, bbox_rect=None, score=None, color=None, outline_color=None):
+    def _overlay_mask_result(self, frame, mask_tensor, bbox_rect=None, score=None, color=None, outline_color=None, draw_bbox=True, split_components=True):
         if mask_tensor is None:
             return self._overlay_bbox_result(frame, frame, bbox_rect, score)
 
@@ -1165,9 +1165,13 @@ class Sam2VideoDetector:
 
         overlay = frame.copy()
         display_color = np.array(color if color is not None else [13, 110, 253], dtype=np.float32)
-        primary_mask, small_mask = self._split_mask_components(mask_np)
-        if primary_mask is None:
-            return frame
+        if split_components:
+            primary_mask, small_mask = self._split_mask_components(mask_np)
+            if primary_mask is None:
+                return frame
+        else:
+            primary_mask = mask_np
+            small_mask = np.zeros_like(mask_np, dtype=bool)
         small_color = np.array(
             [0, 165, 255] if np.any(display_color < 96) else [48, 48, 48],
             dtype=np.float32,
@@ -1200,7 +1204,7 @@ class Sam2VideoDetector:
                 cv2.LINE_AA,
             )
         mask_bbox = self._get_mask_bbox(mask_np)
-        display_bbox = mask_bbox or bbox_rect
+        display_bbox = (mask_bbox or bbox_rect) if draw_bbox else None
         if display_bbox is not None:
             x1, y1, x2, y2 = display_bbox
             cv2.rectangle(overlay, (x1, y1), (x2 - 1, y2 - 1), tuple(display_color.astype(np.uint8).tolist()), 1)
@@ -1571,6 +1575,7 @@ class Sam2VideoDetector:
         score_history = [0.0] * total_frames
         fill_ratio_history = [0.0] * total_frames
         mask_history = [None] * total_frames
+        small_mask_history = [None] * total_frames
 
         try:
             model_input_path = prepared_path
@@ -1613,6 +1618,7 @@ class Sam2VideoDetector:
                 score_history = [0.0] * total_frames
                 fill_ratio_history = [0.0] * total_frames
                 mask_history = [None] * total_frames
+                small_mask_history = [None] * total_frames
             prompt_frame_index = min(prompt_frame_index, total_frames - 1)
 
             point_coords = point_prompt[0] if point_prompt is not None else None
@@ -1637,12 +1643,13 @@ class Sam2VideoDetector:
                     object_id_values = [int(value) for value in object_ids]
                     object_position = object_id_values.index(1)
                     mask_logits = video_mask_logits[object_position]
-                    mask = self._to_binary_mask(mask_logits, (height, width, 3))
-                    mask = self._remove_small_mask_components(mask)
+                    detected_mask = self._to_binary_mask(mask_logits, (height, width, 3))
+                    mask, small_mask = self._split_mask_components(detected_mask)
                     mask_ratio = self._calculate_mask_frame_area_ratio(mask, (height, width, 3))
                     score_value = self._video_mask_score(mask_logits)
                     score_history[result_frame_index] = score_value
                     mask_history[result_frame_index] = mask
+                    small_mask_history[result_frame_index] = small_mask
                     fill_ratio_history[result_frame_index] = mask_ratio
                     if result_frame_index not in processed_indices:
                         processed_indices.add(result_frame_index)
@@ -1757,6 +1764,19 @@ class Sam2VideoDetector:
                         score_value,
                         color=(13, 110, 253) if accepted else (96, 96, 96),
                         outline_color=(0, 0, 255) if accepted else (0, 0, 0),
+                    )
+                if (
+                    frame_index < len(small_mask_history)
+                    and small_mask_history[frame_index] is not None
+                    and np.any(small_mask_history[frame_index])
+                ):
+                    plotted = self._overlay_mask_result(
+                        plotted,
+                        small_mask_history[frame_index],
+                        color=(255, 0, 255),
+                        outline_color=(255, 255, 0),
+                        draw_bbox=False,
+                        split_components=False,
                     )
                 padded_frame = np.zeros((output_height, source_width, 3), dtype=np.uint8)
                 padded_frame[:source_height, :, :] = plotted

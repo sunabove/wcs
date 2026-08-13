@@ -863,7 +863,7 @@ class Sam2VideoDetector:
             return frame
 
         height, width = frame.shape[:2]
-        panel_height = min(136, max(68, height // 3 + 4))
+        panel_height = min(172, max(104, height // 3 + 36))
         canvas = frame.copy()
 
         panel_x1 = 8
@@ -880,7 +880,7 @@ class Sam2VideoDetector:
         )
         chart_x1 = panel_x1 + y_axis_label_width + 14
         chart_x2 = panel_x2 - 10
-        chart_y1 = panel_y1 + 5
+        chart_y1 = panel_y1 + 38
         chart_y2 = panel_y2 - 18
         if chart_x2 <= chart_x1 or chart_y2 <= chart_y1:
             return canvas
@@ -1015,33 +1015,38 @@ class Sam2VideoDetector:
         cv2.line(canvas, (chart_x1, mask_ratio_threshold_y), (chart_x2, mask_ratio_threshold_y), (255, 165, 0), 1, cv2.LINE_AA)
 
         legend_items = [
-            ("Score", (80, 255, 80), 0.555),
-            ("Score>=Ref, Mask>=Ref", (0, 255, 255), 0.38),
-            ("Score>=Ref, Mask<Ref", (0, 80, 255), 0.38),
-            ("Ref-Score", (0, 165, 255), 0.48),
-            ("Mask-Ratio", (255, 165, 0), 0.52),
-            ("Ref-Mask-Ratio", (255, 165, 0), 0.48),
-            ("Ref-Frame", (255, 180, 80), 0.45),
-            ("Curr-Frame", (235, 235, 235), 0.45),
+            ("Score", (80, 255, 80)),
+            ("Score>=Ref, Mask>=Ref", (0, 255, 255)),
+            ("Score>=Ref, Mask<Ref", (0, 80, 255)),
+            ("Ref-Score", (0, 165, 255)),
+            ("Mask-Ratio", (255, 165, 0)),
+            ("Ref-Mask-Ratio", (255, 165, 0)),
+            ("Ref-Frame", (255, 180, 80)),
+            ("Curr-Frame", (235, 235, 235)),
         ]
 
         legend_x = chart_x1 + 8
         legend_gap = 10
-        legend_margin = 8
-        for legend_text, legend_color, legend_scale in legend_items:
+        legend_font_scale = 0.55
+        legend_row_height = 16
+        legend_y = panel_y1 + 14
+        legend_right = chart_x2 - 8
+        for legend_text, legend_color in legend_items:
             (legend_width, legend_height), legend_baseline = cv2.getTextSize(
                 legend_text,
                 cv2.FONT_HERSHEY_SIMPLEX,
-                legend_scale,
+                legend_font_scale,
                 1,
             )
-            text_origin_y = chart_y1 - legend_margin + legend_baseline
+            if legend_x > chart_x1 + 8 and legend_x + legend_width > legend_right:
+                legend_x = chart_x1 + 8
+                legend_y += legend_row_height
             cv2.putText(
                 canvas,
                 legend_text,
-                (legend_x, text_origin_y),
+                (legend_x, legend_y),
                 cv2.FONT_HERSHEY_SIMPLEX,
-                legend_scale,
+                legend_font_scale,
                 legend_color,
                 1,
                 cv2.LINE_AA,

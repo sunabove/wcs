@@ -666,17 +666,17 @@ class Sam2VideoDetector:
             ) > 0
         return mask_np
 
-    def _get_mask_bbox(self, mask_np):
+    def _split_mask_components(self, mask_np):
         mask = np.asarray(mask_np, dtype=np.uint8)
         if mask.ndim != 2 or not np.any(mask):
-            return None
+            return None, None
 
         component_count, labels, stats, _centroids = cv2.connectedComponentsWithStats(
             (mask > 0).astype(np.uint8),
             connectivity=8,
         )
         if component_count <= 1:
-            return None
+            return None, None
 
         component_areas = stats[1:, cv2.CC_STAT_AREA]
         largest_area = int(np.max(component_areas))
@@ -685,8 +685,16 @@ class Sam2VideoDetector:
         if len(kept_components) == 0:
             kept_components = [int(np.argmax(component_areas)) + 1]
 
-        cleaned_mask = np.isin(labels, kept_components)
-        mask_y, mask_x = np.where(cleaned_mask)
+        primary_mask = np.isin(labels, kept_components)
+        small_mask = (labels > 0) & ~primary_mask
+        return primary_mask, small_mask
+
+    def _get_mask_bbox(self, mask_np):
+        primary_mask, _small_mask = self._split_mask_components(mask_np)
+        if primary_mask is None:
+            return None
+
+        mask_y, mask_x = np.where(primary_mask)
         if len(mask_x) == 0 or len(mask_y) == 0:
             return None
         return (
@@ -1153,19 +1161,37 @@ class Sam2VideoDetector:
 
         overlay = frame.copy()
         display_color = np.array(color if color is not None else [13, 110, 253], dtype=np.float32)
-        overlay_pixels = overlay[mask_np].astype(np.float32)
-        overlay[mask_np] = np.clip(overlay_pixels * 0.35 + display_color * 0.65, 0, 255).astype(np.uint8)
-        contours, _ = cv2.findContours(
-            mask_np.astype(np.uint8),
-            cv2.RETR_EXTERNAL,
-            cv2.CHAIN_APPROX_SIMPLE,
+        primary_mask, small_mask = self._split_mask_components(mask_np)
+        if primary_mask is None:
+            return frame
+        small_color = np.array(
+            [0, 165, 255] if np.any(display_color < 96) else [48, 48, 48],
+            dtype=np.float32,
         )
-        if contours:
+        primary_outline_color = outline_color if outline_color is not None else tuple(display_color.astype(np.uint8).tolist())
+        small_outline_color = (0, 255, 255) if np.any(display_color < 96) else (255, 255, 255)
+        for component_mask, component_color, component_outline_color in (
+            (primary_mask, display_color, primary_outline_color),
+            (small_mask, small_color, small_outline_color),
+        ):
+            if not np.any(component_mask):
+                continue
+            overlay_pixels = overlay[component_mask].astype(np.float32)
+            overlay[component_mask] = np.clip(
+                overlay_pixels * 0.35 + component_color * 0.65,
+                0,
+                255,
+            ).astype(np.uint8)
+            contours, _ = cv2.findContours(
+                component_mask.astype(np.uint8),
+                cv2.RETR_EXTERNAL,
+                cv2.CHAIN_APPROX_SIMPLE,
+            )
             cv2.drawContours(
                 overlay,
                 contours,
                 -1,
-                outline_color if outline_color is not None else tuple(display_color.astype(np.uint8).tolist()),
+                component_outline_color,
                 1,
                 cv2.LINE_AA,
             )

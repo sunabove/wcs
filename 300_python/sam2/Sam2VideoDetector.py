@@ -1015,10 +1015,10 @@ class Sam2VideoDetector:
         cv2.line(canvas, (chart_x1, mask_ratio_threshold_y), (chart_x2, mask_ratio_threshold_y), (255, 165, 0), 1, cv2.LINE_AA)
 
         legend_items = [
-            ("Score", (80, 255, 80)),
-            ("Score>=Ref, Mask>=Ref", (0, 255, 255)),
-            ("Score>=Ref, Mask<Ref", (0, 80, 255)),
-            ("Ref-Score", (0, 165, 255)),
+            ("Scr", (80, 255, 80)),
+            ("Scr>=Ref, Mask>=Ref", (0, 255, 255)),
+            ("Scr>=Ref, Mask<Ref", (0, 80, 255)),
+            ("Ref-Scr", (0, 165, 255)),
             ("Mask-Ratio", (255, 165, 0)),
             ("Ref-Mask-Ratio", (255, 165, 0)),
             ("Ref-Frame", (255, 180, 80)),

@@ -83,7 +83,8 @@
 																style="width:0%;"></div>
 															<span id="sam2-upload-progress-status"
 																class="position-absolute top-50 start-50 translate-middle fw-semibold"
-																style="z-index:1;color:#fff;text-shadow:0 1px 2px rgba(0, 0, 0, 0.9);pointer-events:none;" title="0%">0%</span>
+																style="z-index:1;color:#fff;text-shadow:0 1px 2px rgba(0, 0, 0, 0.9);pointer-events:none;"
+																title="0%">0%</span>
 														</div>
 													</div>
 													<div id="sam2-upload-max-size"
@@ -141,16 +142,16 @@
 												<span class="small text-secondary text-nowrap me-2">Ref Score</span>
 												<input id="sam2-reference-score-input" type="number"
 													class="form-control form-control-sm text-end"
-													style="width:5.25rem;min-width:5.25rem;" min="0" max="1"
-													step="0.01" value="0.80" aria-label="Ref Score 설정" />
+													style="width:5.25rem;min-width:5.25rem;" min="0" max="1" step="0.01"
+													value="0.80" aria-label="Ref Score 설정" />
 											</div>
 											<div class="d-inline-flex align-items-center gap-1 p-0 mb-0">
 												<span
 													class="small text-secondary text-nowrap me-2">Ref-Mask-Ratio</span>
 												<input id="sam2-mask-ratio-input" type="number"
 													class="form-control form-control-sm text-end"
-													style="width:5.25rem;min-width:5.25rem;" min="0" max="1"
-													step="0.01" value="0.05" aria-label="Mask-Ratio 설정" />
+													style="width:5.25rem;min-width:5.25rem;" min="0" max="1" step="0.01"
+													value="0.05" aria-label="Mask-Ratio 설정" />
 											</div>
 										</div>
 										<button id="sam2-detect-btn" type="button"
@@ -417,7 +418,36 @@
 												프레임 데이터를 불러오는 중...
 											</div>
 											<div class="d-none d-flex flex-column gap-2" data-role="frame-viewer">
-												<ul class="nav nav-tabs order-1" role="tablist"
+												<div class="mb-2 order-1">
+													<div class="small fw-semibold text-center mb-1"
+														data-role="frame-counter">
+														프레임 0 / 0
+													</div>
+													<div class="d-flex align-items-center gap-2">
+														<input type="range" class="form-range m-0"
+															data-role="frame-slider" min="0" max="0" step="1" value="0"
+															aria-label="YOLO 변환 프레임 선택" />
+														<div class="btn-group-vertical flex-shrink-0" role="group"
+															aria-label="프레임 증감">
+															<button type="button"
+																class="btn btn-outline-secondary btn-sm d-flex align-items-center justify-content-center p-0"
+																data-role="frame-increase" title="다음 프레임"
+																aria-label="다음 프레임" style="width:2rem;height:1.25rem;"
+																disabled>
+																<i class="bi bi-chevron-up"
+																	aria-hidden="true"></i></button><button
+																type="button"
+																class="btn btn-outline-secondary btn-sm d-flex align-items-center justify-content-center p-0"
+																data-role="frame-decrease" title="이전 프레임"
+																aria-label="이전 프레임" style="width:2rem;height:1.25rem;"
+																disabled>
+																<i class="bi bi-chevron-down" aria-hidden="true"></i>
+															</button>
+														</div>
+													</div>
+												</div>
+												
+												<ul class="nav nav-tabs order-2" role="tablist"
 													data-role="frame-output-tabs">
 													<li class="nav-item" role="presentation">
 														<button class="nav-link active" type="button" role="tab"
@@ -448,7 +478,7 @@
 														</button>
 													</li>
 												</ul>
-												<div class="tab-content border border-top-0 rounded-bottom p-2 order-2">
+												<div class="tab-content border border-top-0 rounded-bottom p-2 order-3">
 													<div class="tab-pane fade show active text-center" role="tabpanel"
 														data-role="frame-overlay-pane">
 														<div class="position-relative overflow-hidden border rounded bg-light w-100"
@@ -501,35 +531,11 @@
 															Seg Polygon 데이터
 														</div>
 														<pre class="small bg-light border rounded p-2 mb-0 overflow-y-auto overflow-x-hidden text-wrap"
-															data-role="frame-label" style="min-height:12rem;max-height:28rem;overflow-wrap:anywhere;"></pre>
+															data-role="frame-label"
+															style="min-height:12rem;max-height:28rem;overflow-wrap:anywhere;"></pre>
 													</div>
 												</div>
-												<div class="mb-2 order-3">
-													<div class="small fw-semibold text-center mb-1"
-														data-role="frame-counter"></div>
-													<div class="d-flex align-items-center gap-2">
-														<input type="range" class="form-range m-0"
-															data-role="frame-slider" min="0" max="0" step="1" value="0"
-															aria-label="YOLO 변환 프레임 선택" />
-														<div class="btn-group-vertical flex-shrink-0" role="group"
-															aria-label="프레임 증감">
-															<button type="button"
-																class="btn btn-outline-secondary btn-sm d-flex align-items-center justify-content-center p-0"
-																data-role="frame-increase" title="다음 프레임"
-																aria-label="다음 프레임" style="width:2rem;height:1.25rem;"
-																disabled>
-																<i class="bi bi-chevron-up"
-																	aria-hidden="true"></i></button><button
-																type="button"
-																class="btn btn-outline-secondary btn-sm d-flex align-items-center justify-content-center p-0"
-																data-role="frame-decrease" title="이전 프레임"
-																aria-label="이전 프레임" style="width:2rem;height:1.25rem;"
-																disabled>
-																<i class="bi bi-chevron-down" aria-hidden="true"></i>
-															</button>
-														</div>
-													</div>
-												</div>
+
 											</div>
 									</template>
 									<template id="sam2-yolo-class-empty-template">

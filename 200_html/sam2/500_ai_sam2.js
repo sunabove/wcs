@@ -2787,7 +2787,7 @@
           polygons.push(parts.slice(1).join(" "));
         }
       });
-      classIdElement.textContent = classIds.join(", ") || "-";
+      classIdElement.textContent = classIds.join(", ") || " ";
       classNameElement.textContent = yoloClassName;
       labelElement.textContent =
         polygons.join("\n") || "Seg Polygon 데이터가 없습니다.";
@@ -2823,7 +2823,7 @@
         }
       } catch (error) {
         if (requestSequence === labelRequestSequence) {
-          classIdElement.textContent = "-";
+          classIdElement.textContent = " ";
           labelElement.textContent =
             error && error.message
               ? error.message

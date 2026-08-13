@@ -302,7 +302,7 @@ class Sam2VideoService:
                     self._training_jobs[job_id].update({
                         "progress": min(99, int((current_epoch / epochs) * 100)),
                         "current_epoch": current_epoch,
-                        "message": f"학습 중: Epoch {current_epoch} / {epochs}",
+                        "message": f"Epoch {current_epoch} 학습 완료",
                     })
 
             def update_metrics(trainer):

@@ -863,7 +863,7 @@ class Sam2VideoDetector:
             return frame
 
         height, width = frame.shape[:2]
-        panel_height = min(136, max(68, height // 3 + 4))
+        panel_height = min(156, max(88, height // 3 + 24))
         canvas = frame.copy()
 
         panel_x1 = 8
@@ -880,9 +880,9 @@ class Sam2VideoDetector:
         )
         chart_x1 = panel_x1 + y_axis_label_width + 14
         chart_x2 = panel_x2 - 10
-        chart_y1 = panel_y1 + 5
+        chart_y1 = panel_y1 + 22
         chart_y2 = panel_y2 - 18
-        chart_plot_y1 = chart_y1 + 20
+        chart_plot_y1 = chart_y1
         if chart_x2 <= chart_x1 or chart_y2 <= chart_plot_y1:
             return canvas
 
@@ -912,7 +912,6 @@ class Sam2VideoDetector:
 
         before_reference_x = min(reference_x, chart_x2)
         after_reference_x = max(reference_x + 1, chart_x1)
-        cv2.rectangle(canvas, (chart_x1, chart_y1), (chart_x2, chart_plot_y1 - 1), (44, 44, 44), cv2.FILLED)
         cv2.rectangle(canvas, (chart_x1, chart_plot_y1), (before_reference_x, chart_y2), (96, 56, 28), cv2.FILLED)
         cv2.rectangle(canvas, (after_reference_x, chart_plot_y1), (chart_x2, chart_y2), (26, 46, 80), cv2.FILLED)
         cv2.rectangle(canvas, (chart_x1, chart_y1), (chart_x2, chart_y2), (100, 100, 100), 1)
@@ -1031,7 +1030,7 @@ class Sam2VideoDetector:
         legend_gap = 8
         legend_font_scale = 0.55
         legend_right = chart_x2 - 8
-        legend_y = chart_y1 + 14
+        legend_y = panel_y1 + 14
         legend_widths = [
             cv2.getTextSize(text, cv2.FONT_HERSHEY_SIMPLEX, legend_font_scale, 1)[0][0]
             for text, _color in legend_items

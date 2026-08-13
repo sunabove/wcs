@@ -215,6 +215,7 @@ class Sam2VideoService:
             model = YOLO(model_source)
             batch_progress = {"epoch": -1, "batch": 0}
             metric_history = []
+            batch_started_at = None
 
             def get_loss_values(trainer):
                 raw_losses = getattr(trainer, "tloss", {}) or {}
@@ -245,9 +246,16 @@ class Sam2VideoService:
                     })
                     return True
 
+            def start_batch_timer(_trainer):
+                nonlocal batch_started_at
+                batch_started_at = time.monotonic()
+
             def update_batch(trainer):
-                if stop_if_requested(trainer):
-                    return
+                nonlocal batch_started_at
+                batch_elapsed_seconds = 0.0
+                if batch_started_at is not None:
+                    batch_elapsed_seconds = max(0.0, time.monotonic() - batch_started_at)
+                batch_started_at = None
                 current_epoch_index = int(getattr(trainer, "epoch", 0))
                 if batch_progress["epoch"] != current_epoch_index:
                     batch_progress.update({"epoch": current_epoch_index, "batch": 0})
@@ -262,17 +270,20 @@ class Sam2VideoService:
                 loss_values = [f"{name} {value:.4f}" for name, value in losses.items()]
                 loss_text = f" · {' · '.join(loss_values)}" if loss_values else ""
                 with self._training_jobs_lock:
-                    self._training_jobs[job_id].update({
+                    job = self._training_jobs[job_id]
+                    job.update({
                         "progress": progress,
                         "current_epoch": current_epoch,
                         "current_batch": current_batch,
                         "total_batches": total_batches,
                         "losses": losses,
+                        "training_elapsed_seconds": float(job.get("training_elapsed_seconds", 0.0)) + batch_elapsed_seconds,
                         "message": (
                             f"학습 중: Epoch {current_epoch} / {epochs} · "
                             f"Batch {current_batch} / {total_batches}{loss_text}"
                         ),
                     })
+                stop_if_requested(trainer)
 
             def update_epoch(trainer):
                 if stop_if_requested(trainer):
@@ -299,6 +310,7 @@ class Sam2VideoService:
                 with self._training_jobs_lock:
                     self._training_jobs[job_id]["metric_history"] = list(metric_history)
 
+            model.add_callback("on_train_batch_start", start_batch_timer)
             model.add_callback("on_train_batch_end", update_batch)
             model.add_callback("on_train_epoch_end", update_epoch)
             model.add_callback("on_fit_epoch_end", update_metrics)
@@ -429,6 +441,7 @@ class Sam2VideoService:
                 "total_batches": 0,
                 "total_epochs": 0,
                 "losses": {},
+                "training_elapsed_seconds": 0.0,
                 "message": "YOLO 재학습 대기 중..." if force_retrain else "YOLO 학습 대기 중...",
                 "metric_history": [],
                 "started_at": None,
@@ -465,8 +478,7 @@ class Sam2VideoService:
             snapshot.update({"elapsed_seconds": 0, "estimated_total_seconds": None})
             return snapshot
 
-        end_time = job.get("completed_at") or time.time()
-        elapsed_seconds = max(0, int(end_time - float(started_at)))
+        elapsed_seconds = max(0, int(float(job.get("training_elapsed_seconds", 0.0))))
         progress = max(0.0, min(100.0, float(job.get("progress") or 0)))
         estimated_total_seconds = None
         if progress >= 100:

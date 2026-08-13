@@ -970,17 +970,22 @@ class Sam2VideoDetector:
             4,
         )
 
-        filter_regions = self._get_score_threshold_regions(score_values.tolist(), threshold_value)
-        if filter_regions:
-            for region_start, region_end in filter_regions:
-                if region_start >= len(x_values):
-                    continue
-                region_end = min(region_end, len(x_values))
+        mask_ratio_values = np.asarray(fill_ratio_history, dtype=np.float32)
+        score_above_reference = score_values >= threshold_value
+        mask_above_reference = mask_ratio_values >= mask_ratio_threshold
+        qualified_mask_above = score_above_reference & mask_above_reference
+        qualified_mask_below = score_above_reference & ~mask_above_reference
+
+        for qualified_frames, color in (
+            (qualified_mask_above, (0, 255, 255)),
+            (qualified_mask_below, (0, 80, 255)),
+        ):
+            for region_start, region_end in self._get_boolean_regions(qualified_frames):
                 self._chart_renderer._draw_chart_series(
                     canvas,
                     x_values[region_start:region_end],
                     score_values[region_start:region_end],
-                    (0, 255, 255),
+                    color,
                     x_min,
                     x_max,
                     chart_x1,
@@ -991,7 +996,6 @@ class Sam2VideoDetector:
                     2,
                 )
 
-        mask_ratio_values = np.asarray(fill_ratio_history, dtype=np.float32)
         self._chart_renderer._draw_chart_series(
             canvas,
             x_values,
@@ -1012,7 +1016,8 @@ class Sam2VideoDetector:
 
         legend_items = [
             ("Score", (80, 255, 80), 0.555),
-            ("Score>=Ref", (0, 255, 255), 0.48),
+            ("Score>=Ref, Mask>=Ref", (0, 255, 255), 0.38),
+            ("Score>=Ref, Mask<Ref", (0, 80, 255), 0.38),
             ("Ref-Score", (0, 165, 255), 0.48),
             ("Mask-Ratio", (255, 165, 0), 0.52),
             ("Ref-Mask-Ratio", (255, 165, 0), 0.48),

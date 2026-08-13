@@ -421,14 +421,16 @@
 
 											<div class="d-none d-flex flex-column gap-0" data-role="frame-viewer">
 												<div class="mb-2 order-1">
-													<div class="small fw-semibold text-center mb-1"
-														data-role="frame-counter">
-														프레임 0 / 0
+													<div class="d-flex align-items-center gap-2 flex-nowrap mb-1">
+														<div class="small fw-semibold text-nowrap flex-shrink-0"
+															data-role="frame-counter">
+															프레임 0 / 0
+														</div>
+														<input type="number"
+															class="form-control form-control-sm text-center flex-shrink-0"
+															data-role="frame-slider" min="0" max="0" step="1" value="0"
+															style="width:8.5rem;" aria-label="YOLO 변환 프레임 선택" />
 													</div>
-													<input type="number"
-														class="form-control form-control-sm text-center"
-														data-role="frame-slider" min="0" max="0" step="1" value="0"
-														style="width:8.5rem;" aria-label="YOLO 변환 프레임 선택" />
 													<ul class="nav nav-tabs order-2" role="tablist"
 														data-role="frame-output-tabs">
 														<li class="nav-item" role="presentation">

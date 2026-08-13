@@ -72,23 +72,23 @@
   function formatReferenceScoreInputValue(value) {
     const numericValue = clamp(Number.parseFloat(String(value ?? "")), 0, 1);
     if (!Number.isFinite(numericValue)) {
-      return "0.80";
+      return "0.800";
     }
-    return numericValue.toFixed(2);
+    return numericValue.toFixed(3);
   }
   function formatMaskRatioInputValue(value) {
     const numericValue = clamp(Number.parseFloat(String(value ?? "")), 0, 1);
     if (!Number.isFinite(numericValue)) {
-      return "0.05";
+      return "0.050";
     }
-    return numericValue.toFixed(2);
+    return numericValue.toFixed(3);
   }
 
   if (referenceScoreInput) {
     referenceScoreInput.addEventListener("focus", () => {
       const numericValue = Number.parseFloat(referenceScoreInput.value);
       if (Number.isFinite(numericValue)) {
-        referenceScoreInput.value = numericValue.toFixed(2);
+        referenceScoreInput.value = numericValue.toFixed(3);
       }
     });
     referenceScoreInput.addEventListener("blur", () => {
@@ -106,7 +106,7 @@
     maskRatioInput.addEventListener("focus", () => {
       const numericValue = Number.parseFloat(maskRatioInput.value);
       if (Number.isFinite(numericValue)) {
-        maskRatioInput.value = numericValue.toFixed(2);
+        maskRatioInput.value = numericValue.toFixed(3);
       }
     });
     maskRatioInput.addEventListener("blur", () => {

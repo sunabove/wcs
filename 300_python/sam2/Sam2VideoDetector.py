@@ -863,7 +863,7 @@ class Sam2VideoDetector:
             return frame
 
         height, width = frame.shape[:2]
-        panel_height = min(172, max(104, height // 3 + 36))
+        panel_height = min(136, max(68, height // 3 + 4))
         canvas = frame.copy()
 
         panel_x1 = 8
@@ -880,9 +880,10 @@ class Sam2VideoDetector:
         )
         chart_x1 = panel_x1 + y_axis_label_width + 14
         chart_x2 = panel_x2 - 10
-        chart_y1 = panel_y1 + 38
+        chart_y1 = panel_y1 + 5
         chart_y2 = panel_y2 - 18
-        if chart_x2 <= chart_x1 or chart_y2 <= chart_y1:
+        chart_plot_y1 = chart_y1 + 20
+        if chart_x2 <= chart_x1 or chart_y2 <= chart_plot_y1:
             return canvas
 
         x_min = 1.0
@@ -911,12 +912,12 @@ class Sam2VideoDetector:
 
         before_reference_x = min(reference_x, chart_x2)
         after_reference_x = max(reference_x + 1, chart_x1)
-        cv2.rectangle(canvas, (chart_x1, chart_y1), (before_reference_x, chart_y2), (96, 56, 28), cv2.FILLED)
-        cv2.rectangle(canvas, (after_reference_x, chart_y1), (chart_x2, chart_y2), (26, 46, 80), cv2.FILLED)
+        cv2.rectangle(canvas, (chart_x1, chart_plot_y1), (before_reference_x, chart_y2), (96, 56, 28), cv2.FILLED)
+        cv2.rectangle(canvas, (after_reference_x, chart_plot_y1), (chart_x2, chart_y2), (26, 46, 80), cv2.FILLED)
         cv2.rectangle(canvas, (chart_x1, chart_y1), (chart_x2, chart_y2), (100, 100, 100), 1)
 
         for score_tick in (0.0, 0.5, 1.0):
-            tick_y = self._chart_renderer._map_chart_y(score_tick, 1.0, chart_y2, chart_y2 - chart_y1)
+            tick_y = self._chart_renderer._map_chart_y(score_tick, 1.0, chart_y2, chart_y2 - chart_plot_y1)
             cv2.line(canvas, (chart_x1, tick_y), (chart_x2, tick_y), (65, 65, 65), 1, cv2.LINE_AA)
             tick_label = f"{score_tick:.1f}"
             (tick_width, _tick_height), _baseline = cv2.getTextSize(
@@ -944,7 +945,7 @@ class Sam2VideoDetector:
             threshold_value,
             1.0,
             chart_y2,
-            chart_y2 - chart_y1,
+            chart_y2 - chart_plot_y1,
         )
 
         mask_ratio_threshold = float(np.clip(float(mask_area_ratio if mask_area_ratio is not None else 0.05), 0.0, 1.0))
@@ -952,7 +953,7 @@ class Sam2VideoDetector:
             mask_ratio_threshold,
             1.0,
             chart_y2,
-            chart_y2 - chart_y1,
+            chart_y2 - chart_plot_y1,
         )
 
         self._chart_renderer._draw_chart_series(
@@ -966,7 +967,7 @@ class Sam2VideoDetector:
             chart_x2 - chart_x1,
             1.0,
             chart_y2,
-            chart_y2 - chart_y1,
+            chart_y2 - chart_plot_y1,
             4,
         )
 
@@ -992,7 +993,7 @@ class Sam2VideoDetector:
                     chart_x2 - chart_x1,
                     1.0,
                     chart_y2,
-                    chart_y2 - chart_y1,
+                    chart_y2 - chart_plot_y1,
                     2,
                 )
 
@@ -1007,7 +1008,7 @@ class Sam2VideoDetector:
             chart_x2 - chart_x1,
             1.0,
             chart_y2,
-            chart_y2 - chart_y1,
+            chart_y2 - chart_plot_y1,
             2,
         )
 
@@ -1016,31 +1017,34 @@ class Sam2VideoDetector:
 
         legend_items = [
             ("Scr", (80, 255, 80)),
-            ("Scr>=Ref, Mask>=Ref", (0, 255, 255)),
-            ("Scr>=Ref, Mask<Ref", (0, 80, 255)),
+            ("Scr+M+", (0, 255, 255)),
+            ("Scr+M-", (0, 80, 255)),
             ("Ref-Scr", (0, 165, 255)),
-            ("Mask-Ratio", (255, 165, 0)),
-            ("Ref-Mask-Ratio", (255, 165, 0)),
-            ("Ref-Frame", (255, 180, 80)),
-            ("Curr-Frame", (235, 235, 235)),
+            ("Mask", (255, 165, 0)),
+            ("Ref-Mask", (255, 165, 0)),
+            ("Ref-Fr", (255, 180, 80)),
+            ("Cur-Fr", (235, 235, 235)),
         ]
 
         legend_x = chart_x1 + 8
-        legend_gap = 10
+        legend_gap = 8
         legend_font_scale = 0.55
-        legend_row_height = 16
-        legend_y = panel_y1 + 14
         legend_right = chart_x2 - 8
-        for legend_text, legend_color in legend_items:
-            (legend_width, legend_height), legend_baseline = cv2.getTextSize(
-                legend_text,
-                cv2.FONT_HERSHEY_SIMPLEX,
-                legend_font_scale,
-                1,
-            )
-            if legend_x > chart_x1 + 8 and legend_x + legend_width > legend_right:
-                legend_x = chart_x1 + 8
-                legend_y += legend_row_height
+        legend_y = chart_y1 + 14
+        legend_widths = [
+            cv2.getTextSize(text, cv2.FONT_HERSHEY_SIMPLEX, legend_font_scale, 1)[0][0]
+            for text, _color in legend_items
+        ]
+        legend_width = sum(legend_widths) + legend_gap * (len(legend_items) - 1)
+        available_legend_width = max(1, legend_right - legend_x)
+        if legend_width > available_legend_width:
+            legend_font_scale *= available_legend_width / legend_width
+            legend_widths = [
+                cv2.getTextSize(text, cv2.FONT_HERSHEY_SIMPLEX, legend_font_scale, 1)[0][0]
+                for text, _color in legend_items
+            ]
+
+        for (legend_text, legend_color), legend_width in zip(legend_items, legend_widths):
             cv2.putText(
                 canvas,
                 legend_text,

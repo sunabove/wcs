@@ -236,6 +236,9 @@
   const yoloTrainEpochElement = document.getElementById(
     "sam2-yolo-train-epoch",
   );
+  const yoloTrainTotalEpochElement = document.getElementById(
+    "sam2-yolo-train-total-epoch",
+  );
   const yoloTrainBatchElement = document.getElementById(
     "sam2-yolo-train-batch",
   );
@@ -1214,8 +1217,13 @@
     const formatLoss = (value) =>
       Number.isFinite(Number(value)) ? Number(value).toFixed(4) : "";
     if (yoloTrainEpochElement) {
-      yoloTrainEpochElement.value = trainingJob.total_epochs
-        ? `${Number(trainingJob.current_epoch || 0)} / ${Number(trainingJob.total_epochs)}`
+      yoloTrainEpochElement.value = trainingJob.current_epoch
+        ? String(Number(trainingJob.current_epoch))
+        : "";
+    }
+    if (yoloTrainTotalEpochElement) {
+      yoloTrainTotalEpochElement.value = trainingJob.total_epochs
+        ? String(Number(trainingJob.total_epochs))
         : "";
     }
     if (yoloTrainBatchElement) {

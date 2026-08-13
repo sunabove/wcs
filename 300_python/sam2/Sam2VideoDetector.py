@@ -912,6 +912,7 @@ class Sam2VideoDetector:
 
         before_reference_x = min(reference_x, chart_x2)
         after_reference_x = max(reference_x + 1, chart_x1)
+        cv2.rectangle(canvas, (chart_x1, chart_y1), (chart_x2, chart_plot_y1 - 1), (44, 44, 44), cv2.FILLED)
         cv2.rectangle(canvas, (chart_x1, chart_plot_y1), (before_reference_x, chart_y2), (96, 56, 28), cv2.FILLED)
         cv2.rectangle(canvas, (after_reference_x, chart_plot_y1), (chart_x2, chart_y2), (26, 46, 80), cv2.FILLED)
         cv2.rectangle(canvas, (chart_x1, chart_y1), (chart_x2, chart_y2), (100, 100, 100), 1)

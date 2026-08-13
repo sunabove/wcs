@@ -792,6 +792,8 @@ class Sam2VideoDetector:
         total_frames,
         mask_polygon_count=0,
         excluded_polygon_count=0,
+        mask_area=0,
+        excluded_area=0,
     ):
         label = (
             f"Mask input: {'On' if mask_input else 'Off'} | "
@@ -865,8 +867,8 @@ class Sam2VideoDetector:
             legend_x += cv2.getTextSize(legend_text, font, font_scale, thickness)[0][0] + legend_gap
 
         polygon_label = (
-            f"Mask polygons: {int(mask_polygon_count)} | "
-            f"Excluded polygons: {int(excluded_polygon_count)}"
+            f"Mask polygons: {int(mask_polygon_count)} · Area: {int(mask_area)} px | "
+            f"Excluded polygons: {int(excluded_polygon_count)} · Area: {int(excluded_area)} px"
         )
         polygon_y = bottom + text_height + baseline + padding_y
         polygon_bottom = min(image.shape[0], polygon_y + padding_y)
@@ -1801,6 +1803,8 @@ class Sam2VideoDetector:
                 )
                 mask_polygon_count = 0
                 excluded_polygon_count = 0
+                mask_area = 0
+                excluded_area = 0
                 score_value = (
                     score_history[frame_index]
                     if frame_index < len(score_history)
@@ -1828,6 +1832,7 @@ class Sam2VideoDetector:
                             cv2.CHAIN_APPROX_SIMPLE,
                         )[0]
                     )
+                    mask_area = int(np.count_nonzero(mask_history[frame_index]))
                     plotted = self._overlay_mask_result(
                         plotted,
                         mask_history[frame_index],
@@ -1848,6 +1853,7 @@ class Sam2VideoDetector:
                             cv2.CHAIN_APPROX_SIMPLE,
                         )[0]
                     )
+                    excluded_area = int(np.count_nonzero(small_mask_history[frame_index]))
                     plotted = self._overlay_mask_result(
                         plotted,
                         small_mask_history[frame_index],
@@ -1867,6 +1873,8 @@ class Sam2VideoDetector:
                     source_total_frames,
                     mask_polygon_count,
                     excluded_polygon_count,
+                    mask_area,
+                    excluded_area,
                 )
                 padded_frame = self._render_detect_data_chart(
                     padded_frame,

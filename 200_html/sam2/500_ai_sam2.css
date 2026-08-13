@@ -7,6 +7,21 @@
   color: var(--bs-primary) !important;
 }
 
+[data-role="frame-viewer"] {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+[data-role="frame-viewer"] > [data-role="frame-output-tabs"],
+[data-role="frame-viewer"] > .tab-content {
+  order: 1;
+}
+
+[data-role="frame-viewer"] > .mb-2 {
+  order: 2;
+}
+
 #sam2-drop-zone {
   border: 2px dashed #9aa4b2;
   border-radius: 10px;

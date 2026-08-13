@@ -2674,12 +2674,6 @@
       '[data-role="frame-viewer"]',
     );
     const frameSlider = fileTabPane.querySelector('[data-role="frame-slider"]');
-    const increaseFrameButton = fileTabPane.querySelector(
-      '[data-role="frame-increase"]',
-    );
-    const decreaseFrameButton = fileTabPane.querySelector(
-      '[data-role="frame-decrease"]',
-    );
     const counterElement = fileTabPane.querySelector(
       '[data-role="frame-counter"]',
     );
@@ -2726,8 +2720,6 @@
       !loadingElement ||
       !viewerElement ||
       !frameSlider ||
-      !increaseFrameButton ||
-      !decreaseFrameButton ||
       !counterElement ||
       !imageTabButton ||
       !maskTabButton ||
@@ -2806,8 +2798,6 @@
       const requestSequence = ++labelRequestSequence;
       counterElement.textContent = `${framePosition + 1} / ${frames.length} · (원본 프레임 ${frame.frame_index})`;
       frameSlider.value = String(framePosition);
-      increaseFrameButton.disabled = framePosition >= frames.length - 1;
-      decreaseFrameButton.disabled = framePosition <= 0;
       imageElement.src = `${apiBase}${frame.image_url}`;
       maskElement.src = `${apiBase}${frame.mask_url}`;
       overlayImageElement.src = `${apiBase}${frame.image_url}`;
@@ -2839,16 +2829,6 @@
 
     frameSlider.addEventListener("input", () => {
       framePosition = Number.parseInt(frameSlider.value, 10) || 0;
-      renderFrame();
-    });
-
-    increaseFrameButton.addEventListener("click", () => {
-      framePosition = Math.min(frames.length - 1, framePosition + 1);
-      renderFrame();
-    });
-
-    decreaseFrameButton.addEventListener("click", () => {
-      framePosition = Math.max(0, framePosition - 1);
       renderFrame();
     });
 

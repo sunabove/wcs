@@ -1192,10 +1192,10 @@
       yoloTrainProgressTextElement.textContent = `${progressText}%`;
     }
     if (yoloTrainStatusElement) {
-      yoloTrainStatusElement.value = String(status || "queued");
+      yoloTrainStatusElement.value = String(status || "");
     }
     if (yoloTrainMessageElement) {
-      yoloTrainMessageElement.value = String(message || "학습 대기 중");
+      yoloTrainMessageElement.value = String(message || "");
     }
     if (yoloTrainElapsedElement) {
       yoloTrainElapsedElement.value =
@@ -1206,7 +1206,7 @@
     if (yoloTrainEstimatedElement) {
       yoloTrainEstimatedElement.value =
         estimatedTotalSeconds === undefined || estimatedTotalSeconds === null
-          ? "계산 중"
+          ? "00:00:00"
           : formatYoloTrainingDuration(estimatedTotalSeconds);
     }
   }
@@ -1218,16 +1218,16 @@
         ? trainingJob.losses
         : {};
     const formatLoss = (value) =>
-      Number.isFinite(Number(value)) ? Number(value).toFixed(4) : "-";
+      Number.isFinite(Number(value)) ? Number(value).toFixed(4) : "";
     if (yoloTrainEpochElement) {
       yoloTrainEpochElement.value = trainingJob.total_epochs
         ? `${Number(trainingJob.current_epoch || 0)} / ${Number(trainingJob.total_epochs)}`
-        : "-";
+        : "";
     }
     if (yoloTrainBatchElement) {
       yoloTrainBatchElement.value = trainingJob.total_batches
         ? `${Number(trainingJob.current_batch || 0)} / ${Number(trainingJob.total_batches)}`
-        : "-";
+        : "";
     }
     if (yoloTrainBoxLossElement)
       yoloTrainBoxLossElement.value = formatLoss(losses.box_loss);

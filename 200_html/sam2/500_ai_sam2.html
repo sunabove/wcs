@@ -40,7 +40,7 @@
 				<div class="table-responsive">
 					<table class="table table-bordered align-middle mb-0">
 						<colgroup>
-							<col style="width: 140px" />
+							<col style="width:140px;" />
 							<col />
 						</colgroup>
 						<tbody>
@@ -80,15 +80,10 @@
 															aria-valuemax="100">
 															<div id="sam2-upload-progress-bar"
 																class="progress-bar progress-bar-striped progress-bar-animated"
-																style="width: 0%"></div>
+																style="width:0%;"></div>
 															<span id="sam2-upload-progress-status"
 																class="position-absolute top-50 start-50 translate-middle fw-semibold"
-																style="
-                                    z-index: 1;
-                                    color: #fff;
-                                    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.9);
-                                    pointer-events: none;
-                                  " title="0%">0%</span>
+																style="z-index:1;color:#fff;text-shadow:0 1px 2px rgba(0, 0, 0, 0.9);pointer-events:none;" title="0%">0%</span>
 														</div>
 													</div>
 													<div id="sam2-upload-max-size"
@@ -123,7 +118,7 @@
 													role="switch" checked disabled />
 												<label id="sam2-mask-input-text"
 													class="form-check-label small text-start d-inline-block ms-2"
-													style="width: 3.5rem" for="sam2-mask-input">On</label>
+													style="width:3.5rem;" for="sam2-mask-input">On</label>
 											</div>
 											<div class="form-switch d-inline-flex align-items-center gap-1 p-0 mb-0">
 												<span class="small text-secondary me-2">CLAHE</span>
@@ -131,7 +126,7 @@
 													role="switch" checked />
 												<label id="sam2-clahe-text"
 													class="form-check-label text-start d-inline-block ms-2"
-													style="width: 3.5rem" for="sam2-clahe">On</label>
+													style="width:3.5rem;" for="sam2-clahe">On</label>
 											</div>
 											<div class="form-switch d-inline-flex align-items-center gap-1 p-0 mb-0">
 												<span class="small text-secondary me-2">Multimask output</span>
@@ -139,14 +134,14 @@
 													type="checkbox" role="switch" disabled />
 												<label id="sam2-multimask-output-text"
 													class="form-check-label small text-start d-inline-block ms-2"
-													style="width: 5.5rem" for="sam2-multimask-output">Single
+													style="width:5.5rem;" for="sam2-multimask-output">Single
 													mask</label>
 											</div>
 											<div class="d-inline-flex align-items-center gap-1 p-0 mb-0">
 												<span class="small text-secondary text-nowrap me-2">Ref Score</span>
 												<input id="sam2-reference-score-input" type="number"
 													class="form-control form-control-sm text-end"
-													style="width: 5.25rem; min-width: 5.25rem" min="0" max="1"
+													style="width:5.25rem;min-width:5.25rem;" min="0" max="1"
 													step="0.01" value="0.80" aria-label="Ref Score 설정" />
 											</div>
 											<div class="d-inline-flex align-items-center gap-1 p-0 mb-0">
@@ -154,7 +149,7 @@
 													class="small text-secondary text-nowrap me-2">Ref-Mask-Ratio</span>
 												<input id="sam2-mask-ratio-input" type="number"
 													class="form-control form-control-sm text-end"
-													style="width: 5.25rem; min-width: 5.25rem" min="0" max="1"
+													style="width:5.25rem;min-width:5.25rem;" min="0" max="1"
 													step="0.01" value="0.05" aria-label="Mask-Ratio 설정" />
 											</div>
 										</div>
@@ -169,7 +164,7 @@
 								<th scope="row" class="text-center text-nowrap">상태</th>
 								<td class="p-1">
 									<div id="sam2-status" class="alert alert-secondary my-0 py-2 px-2"
-										style="line-height: 1.15">
+										style="line-height:1.15;">
 										대기 중
 									</div>
 								</td>
@@ -227,7 +222,7 @@
 															class="small text-secondary text-nowrap flex-shrink-0">프레임</label><input
 															id="sam2-prompt-frame-input" type="number"
 															class="form-control form-control-sm text-end flex-shrink-0"
-															style="width: 5.5rem" min="1" max="1" step="1" value="1"
+															style="width:5.5rem;" min="1" max="1" step="1" value="1"
 															disabled aria-label="Point와 BBox 설정 프레임" /><button
 															id="sam2-foreground-point-mode" type="button"
 															class="btn btn-primary btn-sm text-nowrap flex-shrink-0"
@@ -289,7 +284,7 @@
 													aria-label="검출 영상 재생 제어">
 													<button id="sam2-output-play-toggle" type="button"
 														class="btn btn-outline-primary btn-sm flex-shrink-0"
-														style="width: 2.5rem" disabled title="재생" aria-label="재생">
+														style="width:2.5rem;" disabled title="재생" aria-label="재생">
 														<i class="bi bi-play-fill"
 															aria-hidden="true"></i></button><input
 														id="sam2-output-frame-slider" type="range"
@@ -298,7 +293,7 @@
 														aria-label="검출 영상 프레임 이동" /><input
 														id="sam2-output-frame-spinner" type="number"
 														class="form-control form-control-sm text-end flex-shrink-0 ms-auto"
-														style="width: 5.5rem" min="1" max="1" step="1" value="1"
+														style="width:5.5rem;" min="1" max="1" step="1" value="1"
 														disabled title="검출 영상 프레임 번호" aria-label="검출 영상 프레임 번호" />
 												</div>
 												<div
@@ -314,7 +309,7 @@
 											</div>
 										</div>
 										<div class="tab-pane fade" id="sam2-yolo-pane" role="tabpanel"
-											aria-labelledby="sam2-yolo-tab" style="margin-top: -0.75rem">
+											aria-labelledby="sam2-yolo-tab" style="margin-top:-0.75rem;">
 											<ul id="sam2-yolo-class-tabs" class="nav nav-tabs" role="tablist"></ul>
 											<div id="sam2-yolo-class-tab-content"
 												class="tab-content border border-top-0 rounded-bottom pt-1 px-3 pb-3 bg-white">
@@ -373,17 +368,11 @@
 													aria-label="YOLO 학습 진행률" aria-valuemin="0" aria-valuemax="100"
 													aria-valuenow="0">
 													<div id="sam2-yolo-train-progress"
-														class="progress-bar progress-bar-striped" style="width: 0%">
+														class="progress-bar progress-bar-striped" style="width:0%;">
 													</div>
 													<span id="sam2-yolo-train-progress-text"
 														class="position-absolute top-50 start-50 translate-middle fw-semibold small rounded px-2"
-														style="
-                                z-index: 1;
-                                color: #fff;
-                                background-color: rgba(0, 0, 0, 0.72);
-                                line-height: 1.35;
-                                pointer-events: none;
-                              ">0%</span>
+														style="z-index:1;color:#fff;background-color:rgba(0, 0, 0, 0.72);line-height:1.35;pointer-events:none;">0%</span>
 												</div>
 												<div id="sam2-yolo-train-status" class="small text-muted mt-1"
 													aria-live="polite">
@@ -394,7 +383,7 @@
 												<div class="small fw-semibold text-secondary mb-1">
 													가중치 정확도 지표
 												</div>
-												<div class="position-relative w-100" style="height: 260px">
+												<div class="position-relative w-100" style="height:260px;">
 													<canvas id="sam2-yolo-train-metrics-chart"
 														aria-label="YOLO 학습 정확도 지표 차트"></canvas>
 												</div>
@@ -463,14 +452,14 @@
 													<div class="tab-pane fade show active text-center" role="tabpanel"
 														data-role="frame-overlay-pane">
 														<div class="position-relative overflow-hidden border rounded bg-light w-100"
-															style="aspect-ratio: 4 / 3">
+															style="aspect-ratio:4 / 3;">
 															<img class="position-absolute top-0 start-0 w-100 h-100"
 																data-role="frame-overlay-image" alt="YOLO 원본 프레임"
-																style="object-fit: contain" />
+																style="object-fit:contain;" />
 															<div class="position-absolute top-0 start-0 w-100 h-100"
 																data-role="frame-overlay-mask" role="img"
 																aria-label="YOLO 마스크 오버레이"
-																style="background-color: rgb(253, 110, 13); opacity: 0.65; mask-mode: luminance; mask-position: center; mask-repeat: no-repeat; mask-size: contain; ">
+																style="background-color:rgb(253, 110, 13);opacity:0.65;mask-mode:luminance;mask-position:center;mask-repeat:no-repeat;mask-size:contain;">
 															</div>
 														</div>
 													</div>
@@ -478,13 +467,13 @@
 														data-role="frame-image-pane">
 														<img class="img-fluid border rounded bg-light w-100"
 															data-role="frame-image" alt="YOLO 원본 프레임"
-															style="aspect-ratio: 4 / 3; object-fit: contain" />
+															style="aspect-ratio:4 / 3;object-fit:contain;" />
 													</div>
 													<div class="tab-pane fade text-center" role="tabpanel"
 														data-role="frame-mask-pane">
 														<img class="img-fluid border rounded bg-light w-100"
 															data-role="frame-mask" alt="YOLO 마스크 프레임"
-															style="aspect-ratio: 4 / 3; object-fit: contain" />
+															style="aspect-ratio:4 / 3;object-fit:contain;" />
 													</div>
 													<div class="tab-pane fade text-start" role="tabpanel"
 														data-role="frame-seg-pane">
@@ -512,11 +501,7 @@
 															Seg Polygon 데이터
 														</div>
 														<pre class="small bg-light border rounded p-2 mb-0 overflow-y-auto overflow-x-hidden text-wrap"
-															data-role="frame-label" style="
-																																			min-height: 12rem;
-																																			max-height: 28rem;
-																																			overflow-wrap: anywhere;
-																																		"></pre>
+															data-role="frame-label" style="min-height:12rem;max-height:28rem;overflow-wrap:anywhere;"></pre>
 													</div>
 												</div>
 												<div class="mb-2 order-3">
@@ -531,14 +516,14 @@
 															<button type="button"
 																class="btn btn-outline-secondary btn-sm d-flex align-items-center justify-content-center p-0"
 																data-role="frame-increase" title="다음 프레임"
-																aria-label="다음 프레임" style="width: 2rem; height: 1.25rem"
+																aria-label="다음 프레임" style="width:2rem;height:1.25rem;"
 																disabled>
 																<i class="bi bi-chevron-up"
 																	aria-hidden="true"></i></button><button
 																type="button"
 																class="btn btn-outline-secondary btn-sm d-flex align-items-center justify-content-center p-0"
 																data-role="frame-decrease" title="이전 프레임"
-																aria-label="이전 프레임" style="width: 2rem; height: 1.25rem"
+																aria-label="이전 프레임" style="width:2rem;height:1.25rem;"
 																disabled>
 																<i class="bi bi-chevron-down" aria-hidden="true"></i>
 															</button>

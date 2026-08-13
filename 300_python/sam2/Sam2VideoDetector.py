@@ -790,6 +790,8 @@ class Sam2VideoDetector:
         clahe,
         current_frame,
         total_frames,
+        mask_polygon_count=0,
+        excluded_polygon_count=0,
     ):
         label = (
             f"Mask input: {'On' if mask_input else 'Off'} | "
@@ -861,6 +863,24 @@ class Sam2VideoDetector:
                 cv2.LINE_AA,
             )
             legend_x += cv2.getTextSize(legend_text, font, font_scale, thickness)[0][0] + legend_gap
+
+        polygon_label = (
+            f"Mask polygons: {int(mask_polygon_count)} | "
+            f"Excluded polygons: {int(excluded_polygon_count)}"
+        )
+        polygon_y = bottom + text_height + baseline + padding_y
+        polygon_bottom = min(image.shape[0], polygon_y + padding_y)
+        cv2.rectangle(image, (0, bottom), (image.shape[1], polygon_bottom), (56, 32, 18), cv2.FILLED)
+        cv2.putText(
+            image,
+            polygon_label,
+            (padding_x, polygon_y - baseline),
+            font,
+            font_scale,
+            (255, 255, 255),
+            thickness,
+            cv2.LINE_AA,
+        )
 
  
     def _get_score_threshold_regions(self, score_values, threshold):
@@ -1779,6 +1799,8 @@ class Sam2VideoDetector:
                     prepared,
                     total_frames,
                 )
+                mask_polygon_count = 0
+                excluded_polygon_count = 0
                 score_value = (
                     score_history[frame_index]
                     if frame_index < len(score_history)
@@ -1799,6 +1821,13 @@ class Sam2VideoDetector:
                         and score_value >= detection_threshold
                         and frame_mask_ratio >= mask_ratio_threshold
                     )
+                    mask_polygon_count = len(
+                        cv2.findContours(
+                            mask_history[frame_index].astype(np.uint8),
+                            cv2.RETR_EXTERNAL,
+                            cv2.CHAIN_APPROX_SIMPLE,
+                        )[0]
+                    )
                     plotted = self._overlay_mask_result(
                         plotted,
                         mask_history[frame_index],
@@ -1812,6 +1841,13 @@ class Sam2VideoDetector:
                     and small_mask_history[frame_index] is not None
                     and np.any(small_mask_history[frame_index])
                 ):
+                    excluded_polygon_count = len(
+                        cv2.findContours(
+                            small_mask_history[frame_index].astype(np.uint8),
+                            cv2.RETR_EXTERNAL,
+                            cv2.CHAIN_APPROX_SIMPLE,
+                        )[0]
+                    )
                     plotted = self._overlay_mask_result(
                         plotted,
                         small_mask_history[frame_index],
@@ -1829,6 +1865,8 @@ class Sam2VideoDetector:
                     clahe,
                     rendered_frames,
                     source_total_frames,
+                    mask_polygon_count,
+                    excluded_polygon_count,
                 )
                 padded_frame = self._render_detect_data_chart(
                     padded_frame,

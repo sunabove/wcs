@@ -1124,7 +1124,7 @@ class Sam2VideoDetector:
         self._draw_bbox_score(composed, bbox_rect, score)
         return composed
 
-    def _overlay_mask_result(self, frame, mask_tensor, bbox_rect=None, score=None, color=None):
+    def _overlay_mask_result(self, frame, mask_tensor, bbox_rect=None, score=None, color=None, outline_color=None):
         if mask_tensor is None:
             return self._overlay_bbox_result(frame, frame, bbox_rect, score)
 
@@ -1155,6 +1155,20 @@ class Sam2VideoDetector:
         display_color = np.array(color if color is not None else [13, 110, 253], dtype=np.float32)
         overlay_pixels = overlay[mask_np].astype(np.float32)
         overlay[mask_np] = np.clip(overlay_pixels * 0.35 + display_color * 0.65, 0, 255).astype(np.uint8)
+        contours, _ = cv2.findContours(
+            mask_np.astype(np.uint8),
+            cv2.RETR_EXTERNAL,
+            cv2.CHAIN_APPROX_SIMPLE,
+        )
+        if contours:
+            cv2.drawContours(
+                overlay,
+                contours,
+                -1,
+                outline_color if outline_color is not None else tuple(display_color.astype(np.uint8).tolist()),
+                2,
+                cv2.LINE_AA,
+            )
         mask_bbox = self._get_mask_bbox(mask_np)
         display_bbox = mask_bbox or bbox_rect
         if display_bbox is not None:
@@ -1711,6 +1725,7 @@ class Sam2VideoDetector:
                         output_bbox_rect,
                         score_value,
                         color=(13, 110, 253) if accepted else (96, 96, 96),
+                        outline_color=(0, 0, 255) if accepted else (0, 0, 0),
                     )
                 padded_frame = np.zeros((output_height, source_width, 3), dtype=np.uint8)
                 padded_frame[:source_height, :, :] = plotted

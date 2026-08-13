@@ -414,6 +414,7 @@
 											</button>
 										</li>
 										<div class="tab-pane fade" role="tabpanel" data-role="file-tab-pane">
+
 											<div class="small text-muted py-4 text-center" data-role="frame-loading">
 												프레임 데이터를 불러오는 중...
 											</div>
@@ -424,8 +425,10 @@
 														data-role="frame-counter">
 														프레임 0 / 0
 													</div>
-													<div class="d-flex align-items-center gap-2">
-														<div class="input-group input-group-sm" style="width:9rem;">
+													<div class="d-flex align-items-center gap-2 flex-nowrap"
+														style="white-space:nowrap;">
+														<div class="input-group input-group-sm flex-shrink-0"
+															style="width:9rem;">
 															<input type="number" class="form-control text-center"
 																data-role="frame-slider" min="0" max="0" step="1"
 																value="0" aria-label="YOLO 변환 프레임 선택" />

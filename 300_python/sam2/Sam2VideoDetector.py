@@ -820,6 +820,50 @@ class Sam2VideoDetector:
             cv2.LINE_AA,
         )
 
+        legend_items = [
+            ("Accepted", (13, 110, 253), (0, 0, 255)),
+            ("Filtered", (96, 96, 96), (0, 0, 0)),
+            ("Small", (255, 0, 255), (255, 255, 0)),
+        ]
+        legend_gap = 8
+        swatch_width = 12
+        legend_width = 16
+        for legend_text, _fill_color, _outline_color in legend_items:
+            text_width = cv2.getTextSize(legend_text, font, font_scale, thickness)[0][0]
+            legend_width += swatch_width + 4 + text_width + legend_gap
+        legend_left = max(0, image.shape[1] - legend_width)
+        cv2.rectangle(image, (legend_left, top), (image.shape[1], bottom), (80, 45, 25), cv2.FILLED)
+        legend_x = legend_left + 8
+        swatch_top = max(top + 4, y - text_height - baseline)
+        swatch_bottom = min(bottom - 4, swatch_top + text_height + baseline)
+        for legend_text, fill_color, outline_color in legend_items:
+            cv2.rectangle(
+                image,
+                (legend_x, swatch_top),
+                (legend_x + swatch_width, swatch_bottom),
+                fill_color,
+                cv2.FILLED,
+            )
+            cv2.rectangle(
+                image,
+                (legend_x, swatch_top),
+                (legend_x + swatch_width, swatch_bottom),
+                outline_color,
+                1,
+            )
+            legend_x += swatch_width + 4
+            cv2.putText(
+                image,
+                legend_text,
+                (legend_x, y - baseline),
+                font,
+                font_scale,
+                (255, 255, 255),
+                thickness,
+                cv2.LINE_AA,
+            )
+            legend_x += cv2.getTextSize(legend_text, font, font_scale, thickness)[0][0] + legend_gap
+
  
     def _get_score_threshold_regions(self, score_values, threshold):
         values = np.asarray(score_values, dtype=np.float32).reshape(-1)

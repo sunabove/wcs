@@ -867,8 +867,8 @@ class Sam2VideoDetector:
             legend_x += cv2.getTextSize(legend_text, font, font_scale, thickness)[0][0] + legend_gap
 
         polygon_label = (
-            f"Mask polygons: {int(mask_polygon_count)} · Area: {int(mask_area)} px | "
-            f"Excluded polygons: {int(excluded_polygon_count)} · Area: {int(excluded_area)} px"
+            f"Area pass polygons: {int(mask_polygon_count)} · Area: {int(mask_area)} px | "
+            f"Area excluded polygons: {int(excluded_polygon_count)} · Area: {int(excluded_area)} px"
         )
         polygon_y = bottom + text_height + baseline + padding_y
         polygon_bottom = min(image.shape[0], polygon_y + padding_y)

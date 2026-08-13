@@ -213,13 +213,13 @@ class Sam2VideoService:
                 self._training_jobs[job_id].update({
                     "status": "running",
                     "message": (
-                        "기존 가중치에서 이어서 학습을 준비하는 중..."
+                        "기존 학습 캐시를 유지하고 이전 학습을 이어서 준비하는 중..."
                         if continue_training
-                        else "기존 학습 캐시를 삭제했습니다. 기본 모델에서 재학습을 준비하는 중..."
+                        else "기존 학습 캐시를 삭제하고 기본 모델에서 재학습을 준비하는 중..."
                         if force_retrain and training_cache_cleared
-                        else "기본 모델에서 재학습을 준비하는 중..."
+                        else "삭제할 기존 학습 캐시가 없어 기본 모델에서 재학습을 준비하는 중..."
                         if force_retrain
-                        else "새 학습 모델을 준비하는 중..."
+                        else "기존 학습 캐시를 이어서 사용하지 않고 기본 모델에서 새 학습을 준비하는 중..."
                     ),
                     "total_epochs": epochs,
                 })
@@ -441,6 +441,16 @@ class Sam2VideoService:
             dataset_fingerprint,
             force_retrain=bool(force_retrain),
         )
+        continue_training = bool(training_plan["continue_training"])
+        initial_message = (
+            "기존 학습 캐시를 유지하고 이전 학습을 이어서 진행합니다."
+            if continue_training
+            else "기존 학습 캐시를 삭제하고 기본 모델에서 재학습을 시작합니다."
+            if training_cache_cleared
+            else "삭제할 기존 학습 캐시가 없어 기본 모델에서 재학습을 시작합니다."
+            if force_retrain
+            else "기존 학습 캐시를 이어서 사용하지 않고 기본 모델에서 새 학습을 시작합니다."
+        )
         with self._training_jobs_lock:
             job_id = uuid.uuid4().hex
             self._training_jobs[job_id] = {
@@ -452,13 +462,7 @@ class Sam2VideoService:
                 "total_epochs": 0,
                 "losses": {},
                 "training_elapsed_seconds": 0.0,
-                "message": (
-                    "기존 학습 캐시를 삭제했습니다. 재학습 대기 중..."
-                    if training_cache_cleared
-                    else "YOLO 재학습 대기 중..."
-                    if force_retrain
-                    else "YOLO 학습 대기 중..."
-                ),
+                "message": initial_message,
                 "training_cache_cleared": training_cache_cleared,
                 "metric_history": [],
                 "started_at": None,

@@ -704,6 +704,10 @@ class Sam2VideoDetector:
             int(mask_y.max()) + 1,
         )
 
+    def _remove_small_mask_components(self, mask_np):
+        primary_mask, _small_mask = self._split_mask_components(mask_np)
+        return primary_mask
+
     def _calculate_mask_bbox_fill_ratio(self, mask_tensor, frame_shape):
         mask_np = self._to_binary_mask(mask_tensor, frame_shape)
         if mask_np is None:
@@ -1634,6 +1638,7 @@ class Sam2VideoDetector:
                     object_position = object_id_values.index(1)
                     mask_logits = video_mask_logits[object_position]
                     mask = self._to_binary_mask(mask_logits, (height, width, 3))
+                    mask = self._remove_small_mask_components(mask)
                     mask_ratio = self._calculate_mask_frame_area_ratio(mask, (height, width, 3))
                     score_value = self._video_mask_score(mask_logits)
                     score_history[result_frame_index] = score_value

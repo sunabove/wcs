@@ -290,7 +290,7 @@ class Sam2VideoService:
                         "total_batches": total_batches,
                         "losses": losses,
                         "training_elapsed_seconds": float(job.get("training_elapsed_seconds", 0.0)) + batch_elapsed_seconds,
-                        "message": "학습 진행 중...",
+                        "message": f"Epoch {current_epoch} 학습 진행 중...",
                     })
                 stop_if_requested(trainer)
 

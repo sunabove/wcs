@@ -2807,7 +2807,7 @@
       maskElement.src = `${apiBase}${frame.mask_url}`;
       overlayImageElement.src = `${apiBase}${frame.image_url}`;
       overlayMaskElement.style.maskImage = `url("${apiBase}${frame.mask_url}")`;
-      classIdElement.textContent = "-";
+      classIdElement.textContent = " ";
       classNameElement.textContent = yoloClassName;
       labelElement.textContent = "Seg Polygon 데이터를 불러오는 중...";
       try {

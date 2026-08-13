@@ -806,9 +806,8 @@ class Sam2VideoDetector:
         x = padding_x
         y = padding_y + text_height + baseline
         top = 0
-        right = min(image.shape[1], x + text_width + padding_x)
         bottom = min(image.shape[0], y + padding_y)
-        cv2.rectangle(image, (0, top), (right, bottom), (80, 45, 25), cv2.FILLED)
+        cv2.rectangle(image, (0, top), (image.shape[1], bottom), (80, 45, 25), cv2.FILLED)
         cv2.putText(
             image,
             label,
@@ -832,7 +831,6 @@ class Sam2VideoDetector:
             text_width = cv2.getTextSize(legend_text, font, font_scale, thickness)[0][0]
             legend_width += swatch_width + 4 + text_width + legend_gap
         legend_left = max(0, image.shape[1] - legend_width)
-        cv2.rectangle(image, (legend_left, top), (image.shape[1], bottom), (80, 45, 25), cv2.FILLED)
         legend_x = legend_left + 8
         swatch_top = max(top + 4, y - text_height - baseline)
         swatch_bottom = min(bottom - 4, swatch_top + text_height + baseline)

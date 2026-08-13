@@ -150,7 +150,8 @@
 													step="0.01" value="0.80" aria-label="Ref Score 설정" />
 											</div>
 											<div class="d-inline-flex align-items-center gap-1 p-0 mb-0">
-												<span class="small text-secondary text-nowrap me-2">Ref-Mask-Ratio</span>
+												<span
+													class="small text-secondary text-nowrap me-2">Ref-Mask-Ratio</span>
 												<input id="sam2-mask-ratio-input" type="number"
 													class="form-control form-control-sm text-end"
 													style="width: 5.25rem; min-width: 5.25rem" min="0" max="1"
@@ -426,8 +427,8 @@
 											<div class="small text-muted py-4 text-center" data-role="frame-loading">
 												프레임 데이터를 불러오는 중...
 											</div>
-											<div class="d-none" data-role="frame-viewer">
-												<div class="mb-2">
+											<div class="d-none d-flex flex-column gap-2" data-role="frame-viewer">
+												<div class="mb-2 order-2">
 													<div class="small fw-semibold text-center mb-1"
 														data-role="frame-counter"></div>
 													<div class="d-flex align-items-center gap-2">
@@ -453,7 +454,8 @@
 														</div>
 													</div>
 												</div>
-												<ul class="nav nav-tabs" role="tablist" data-role="frame-output-tabs">
+												<ul class="nav nav-tabs order-1" role="tablist"
+													data-role="frame-output-tabs">
 													<li class="nav-item" role="presentation">
 														<button class="nav-link active" type="button" role="tab"
 															data-bs-toggle="tab" aria-selected="true"

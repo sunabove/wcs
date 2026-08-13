@@ -186,6 +186,13 @@ class Sam2VideoService:
             "metadata_path": metadata_path,
         }
 
+    def _clear_yolo_training_cache(self) -> bool:
+        run_dir = SAM2_YOLO_DIR / "runs" / "obstacle-seg"
+        if not run_dir.exists():
+            return False
+        shutil.rmtree(run_dir)
+        return True
+
     def _run_yolo_training_job(self, job_id):
         with self._training_jobs_lock:
             self._training_jobs[job_id]["started_at"] = time.time()
@@ -200,11 +207,16 @@ class Sam2VideoService:
                 model_source = training_plan["model_source"]
                 continue_training = bool(training_plan["continue_training"])
                 force_retrain = bool(training_plan["force_retrain"])
+                training_cache_cleared = bool(
+                    self._training_jobs[job_id].get("training_cache_cleared")
+                )
                 self._training_jobs[job_id].update({
                     "status": "running",
                     "message": (
                         "기존 가중치에서 이어서 학습을 준비하는 중..."
                         if continue_training
+                        else "기존 학습 캐시를 삭제했습니다. 기본 모델에서 재학습을 준비하는 중..."
+                        if force_retrain and training_cache_cleared
                         else "기본 모델에서 재학습을 준비하는 중..."
                         if force_retrain
                         else "새 학습 모델을 준비하는 중..."
@@ -212,6 +224,8 @@ class Sam2VideoService:
                     "total_epochs": epochs,
                 })
 
+            if training_cache_cleared:
+                time.sleep(2)
             model = YOLO(model_source)
             batch_progress = {"epoch": -1, "batch": 0}
             metric_history = []
@@ -416,17 +430,18 @@ class Sam2VideoService:
         except (FileNotFoundError, ValueError) as ex:
             raise HTTPException(status_code=409, detail=str(ex)) from ex
 
-        dataset_fingerprint = self._get_yolo_dataset_fingerprint()
-        training_plan = self._get_yolo_training_plan(
-            dataset_fingerprint,
-            force_retrain=bool(force_retrain),
-        )
-
         with self._training_jobs_lock:
             if self._active_training_job_id:
                 active_job = self._training_jobs.get(self._active_training_job_id, {})
                 if active_job.get("status") in {"queued", "running", "stopping"}:
                     raise HTTPException(status_code=409, detail="YOLO 학습이 이미 진행 중입니다")
+        training_cache_cleared = self._clear_yolo_training_cache() if force_retrain else False
+        dataset_fingerprint = self._get_yolo_dataset_fingerprint()
+        training_plan = self._get_yolo_training_plan(
+            dataset_fingerprint,
+            force_retrain=bool(force_retrain),
+        )
+        with self._training_jobs_lock:
             job_id = uuid.uuid4().hex
             self._training_jobs[job_id] = {
                 "status": "queued",
@@ -437,7 +452,14 @@ class Sam2VideoService:
                 "total_epochs": 0,
                 "losses": {},
                 "training_elapsed_seconds": 0.0,
-                "message": "YOLO 재학습 대기 중..." if force_retrain else "YOLO 학습 대기 중...",
+                "message": (
+                    "기존 학습 캐시를 삭제했습니다. 재학습 대기 중..."
+                    if training_cache_cleared
+                    else "YOLO 재학습 대기 중..."
+                    if force_retrain
+                    else "YOLO 학습 대기 중..."
+                ),
+                "training_cache_cleared": training_cache_cleared,
                 "metric_history": [],
                 "started_at": None,
                 "completed_at": None,

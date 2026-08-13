@@ -236,6 +236,24 @@
   const yoloTrainEstimatedElement = document.getElementById(
     "sam2-yolo-train-estimated",
   );
+  const yoloTrainEpochElement = document.getElementById(
+    "sam2-yolo-train-epoch",
+  );
+  const yoloTrainBatchElement = document.getElementById(
+    "sam2-yolo-train-batch",
+  );
+  const yoloTrainBoxLossElement = document.getElementById(
+    "sam2-yolo-train-box-loss",
+  );
+  const yoloTrainSegLossElement = document.getElementById(
+    "sam2-yolo-train-seg-loss",
+  );
+  const yoloTrainClsLossElement = document.getElementById(
+    "sam2-yolo-train-cls-loss",
+  );
+  const yoloTrainDflLossElement = document.getElementById(
+    "sam2-yolo-train-dfl-loss",
+  );
   const yoloTrainMetricsCanvas = document.getElementById(
     "sam2-yolo-train-metrics-chart",
   );
@@ -1193,6 +1211,34 @@
     }
   }
 
+  function renderYoloTrainingDetails(job) {
+    const trainingJob = job && typeof job === "object" ? job : {};
+    const losses =
+      trainingJob.losses && typeof trainingJob.losses === "object"
+        ? trainingJob.losses
+        : {};
+    const formatLoss = (value) =>
+      Number.isFinite(Number(value)) ? Number(value).toFixed(4) : "-";
+    if (yoloTrainEpochElement) {
+      yoloTrainEpochElement.value = trainingJob.total_epochs
+        ? `${Number(trainingJob.current_epoch || 0)} / ${Number(trainingJob.total_epochs)}`
+        : "-";
+    }
+    if (yoloTrainBatchElement) {
+      yoloTrainBatchElement.value = trainingJob.total_batches
+        ? `${Number(trainingJob.current_batch || 0)} / ${Number(trainingJob.total_batches)}`
+        : "-";
+    }
+    if (yoloTrainBoxLossElement)
+      yoloTrainBoxLossElement.value = formatLoss(losses.box_loss);
+    if (yoloTrainSegLossElement)
+      yoloTrainSegLossElement.value = formatLoss(losses.seg_loss);
+    if (yoloTrainClsLossElement)
+      yoloTrainClsLossElement.value = formatLoss(losses.cls_loss);
+    if (yoloTrainDflLossElement)
+      yoloTrainDflLossElement.value = formatLoss(losses.dfl_loss);
+  }
+
   function renderYoloTrainingMetrics(metricHistory) {
     if (!yoloTrainMetricsCanvas || typeof Chart !== "function") {
       return;
@@ -1270,6 +1316,7 @@
         job.elapsed_seconds,
         job.estimated_total_seconds,
       );
+      renderYoloTrainingDetails(job);
       renderYoloTrainingMetrics(job.metric_history);
       if (yoloTrainStopButton) {
         yoloTrainStopButton.disabled = status === "stopping";
@@ -1310,6 +1357,7 @@
           : "학습 상태를 조회하지 못했습니다.",
         "failed",
       );
+      renderYoloTrainingDetails();
     }
   }
 
@@ -1348,6 +1396,7 @@
         job.elapsed_seconds,
         job.estimated_total_seconds,
       );
+      renderYoloTrainingDetails(job);
       renderYoloTrainingMetrics(job.metric_history);
       pollYoloTrainingStatus();
     } catch (error) {
@@ -1373,6 +1422,7 @@
         : "YOLO 학습을 요청하는 중...",
       "queued",
     );
+    renderYoloTrainingDetails();
     renderYoloTrainingMetrics([]);
     try {
       const apiBase = await resolveApiBase();
@@ -1402,6 +1452,7 @@
         job.elapsed_seconds,
         job.estimated_total_seconds,
       );
+      renderYoloTrainingDetails(job);
       pollYoloTrainingStatus();
     } catch (error) {
       yoloTrainStartButton.disabled = false;
@@ -1416,6 +1467,7 @@
           : "YOLO 학습을 시작하지 못했습니다.",
         "failed",
       );
+      renderYoloTrainingDetails();
     }
   }
 
@@ -1452,6 +1504,7 @@
         job.elapsed_seconds,
         job.estimated_total_seconds,
       );
+      renderYoloTrainingDetails(job);
     } catch (error) {
       yoloTrainStopButton.disabled = false;
       if (yoloTrainMessageElement) {

@@ -216,6 +216,23 @@ class Sam2VideoService:
             batch_progress = {"epoch": -1, "batch": 0}
             metric_history = []
 
+            def get_loss_values(trainer):
+                raw_losses = getattr(trainer, "tloss", {}) or {}
+                if hasattr(raw_losses, "items"):
+                    raw_values = dict(raw_losses)
+                else:
+                    try:
+                        raw_values = dict(zip(("box_loss", "seg_loss", "cls_loss", "dfl_loss"), raw_losses))
+                    except TypeError:
+                        raw_values = {}
+                losses = {}
+                for name, value in raw_values.items():
+                    try:
+                        losses[str(name)] = float(value)
+                    except (TypeError, ValueError):
+                        continue
+                return losses
+
             def stop_if_requested(trainer):
                 with self._training_jobs_lock:
                     job = self._training_jobs[job_id]
@@ -241,12 +258,8 @@ class Sam2VideoService:
                 completed_batches = current_epoch_index * total_batches + current_batch
                 total_training_batches = max(1, epochs * total_batches)
                 progress = min(99.99, round((completed_batches / total_training_batches) * 100, 2))
-                loss_values = []
-                for name, value in (getattr(trainer, "tloss", {}) or {}).items():
-                    try:
-                        loss_values.append(f"{name} {float(value):.4f}")
-                    except (TypeError, ValueError):
-                        continue
+                losses = get_loss_values(trainer)
+                loss_values = [f"{name} {value:.4f}" for name, value in losses.items()]
                 loss_text = f" · {' · '.join(loss_values)}" if loss_values else ""
                 with self._training_jobs_lock:
                     self._training_jobs[job_id].update({
@@ -254,6 +267,7 @@ class Sam2VideoService:
                         "current_epoch": current_epoch,
                         "current_batch": current_batch,
                         "total_batches": total_batches,
+                        "losses": losses,
                         "message": (
                             f"학습 중: Epoch {current_epoch} / {epochs} · "
                             f"Batch {current_batch} / {total_batches}{loss_text}"
@@ -411,7 +425,10 @@ class Sam2VideoService:
                 "status": "queued",
                 "progress": 0,
                 "current_epoch": 0,
+                "current_batch": 0,
+                "total_batches": 0,
                 "total_epochs": 0,
+                "losses": {},
                 "message": "YOLO 재학습 대기 중..." if force_retrain else "YOLO 학습 대기 중...",
                 "metric_history": [],
                 "started_at": None,

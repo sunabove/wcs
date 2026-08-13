@@ -1223,27 +1223,51 @@ class Sam2VideoDetector:
             except (OSError, json.JSONDecodeError):
                 previous_class_names = []
 
-        uploaded_class_names = set()
-        if SAM2_UPLOAD_DIR.is_dir():
-            for input_path in SAM2_UPLOAD_DIR.iterdir():
-                if not input_path.is_file() or input_path.suffix.lower() != ".mp4":
-                    continue
-                try:
-                    uploaded_class_names.add(self._extract_yolo_class_name(input_path.name))
-                except ValueError:
-                    continue
-
-        uploaded_class_names.add(class_name)
-        class_names = sorted(
-            set(previous_class_names).union(uploaded_class_names),
-            key=lambda name: (name.casefold(), name),
-        )
+        current_input_class_names = self._get_yolo_input_class_names()
+        current_input_class_names.add(class_name)
+        class_names = sorted(current_input_class_names, key=lambda name: (name.casefold(), name))
         return (
             registry_path,
             previous_class_names,
             class_names,
             class_names.index(class_name),
         )
+
+    def _get_yolo_input_class_names(self):
+        class_names = set()
+        if not SAM2_UPLOAD_DIR.is_dir():
+            return class_names
+
+        for input_path in SAM2_UPLOAD_DIR.iterdir():
+            if not input_path.is_file() or input_path.suffix.lower() != ".mp4":
+                continue
+            try:
+                class_names.add(self._extract_yolo_class_name(input_path.name))
+            except ValueError:
+                continue
+        return class_names
+
+    def _remove_stale_yolo_dataset_samples(self, output_root: Path) -> None:
+        if not output_root.is_dir() or not SAM2_UPLOAD_DIR.is_dir():
+            return
+
+        active_stems = {
+            input_path.stem
+            for input_path in SAM2_UPLOAD_DIR.iterdir()
+            if input_path.is_file() and input_path.suffix.lower() == ".mp4"
+        }
+        for directory in (
+            output_root / "images" / "train",
+            output_root / "labels" / "train",
+            output_root / "masks" / "train",
+        ):
+            if not directory.is_dir():
+                continue
+            for dataset_path in directory.iterdir():
+                if not dataset_path.is_file():
+                    continue
+                if not any(dataset_path.name.startswith(f"{stem}_") for stem in active_stems):
+                    dataset_path.unlink()
 
     def _remap_yolo_label_class_ids(
         self,
@@ -1258,6 +1282,7 @@ class Sam2VideoDetector:
         class_id_map = {
             previous_id: class_names.index(name)
             for previous_id, name in enumerate(previous_class_names)
+            if name in class_names
         }
         for label_path in labels_dir.glob("*.txt"):
             try:
@@ -1268,7 +1293,9 @@ class Sam2VideoDetector:
                     if not parts:
                         continue
                     previous_id = int(parts[0])
-                    class_id = class_id_map.get(previous_id, previous_id)
+                    class_id = class_id_map.get(previous_id)
+                    if class_id is None:
+                        continue
                     remapped_lines.append(
                         f"{class_id} {parts[1]}" if len(parts) > 1 else str(class_id)
                     )
@@ -1294,6 +1321,7 @@ class Sam2VideoDetector:
         if detection_threshold is None or mask_ratio_threshold is None:
             return None
 
+        self._remove_stale_yolo_dataset_samples(output_root)
         registry_path, previous_class_names, class_names, class_id = self._get_yolo_class_registry(
             output_root,
             class_name,

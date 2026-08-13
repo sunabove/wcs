@@ -1241,12 +1241,19 @@
       yoloTrainDflLossElement.value = formatLoss(losses.dfl_loss);
   }
 
-  function renderYoloTrainingMetrics(metricHistory) {
+  function renderYoloTrainingMetrics(metricHistory, totalEpochs = 100) {
     if (!yoloTrainMetricsCanvas || typeof Chart !== "function") {
       return;
     }
     const history = Array.isArray(metricHistory) ? metricHistory : [];
-    const labels = history.map((item) => Number(item.epoch || 0));
+    const epochCount = Math.max(1, Number(totalEpochs) || 100);
+    const labels = Array.from(
+      { length: epochCount },
+      (_value, index) => index + 1,
+    );
+    const metricsByEpoch = new Map(
+      history.map((item) => [Number(item.epoch || 0), item]),
+    );
     const datasetDefinitions = [
       ["Precision", "precision", "#0d6efd"],
       ["Recall", "recall", "#198754"],
@@ -1260,7 +1267,10 @@
           labels,
           datasets: datasetDefinitions.map(([label, key, color]) => ({
             label,
-            data: history.map((item) => Number(item[key] || 0)),
+            data: labels.map((epoch) => {
+              const metric = metricsByEpoch.get(epoch);
+              return metric ? Number(metric[key] || 0) : null;
+            }),
             borderColor: color,
             backgroundColor: color,
             borderWidth: 2,
@@ -1284,10 +1294,15 @@
     yoloTrainingMetricsChart.data.labels = labels;
     yoloTrainingMetricsChart.data.datasets.forEach((dataset, index) => {
       const key = datasetDefinitions[index][1];
-      dataset.data = history.map((item) => Number(item[key] || 0));
+      dataset.data = labels.map((epoch) => {
+        const metric = metricsByEpoch.get(epoch);
+        return metric ? Number(metric[key] || 0) : null;
+      });
     });
     yoloTrainingMetricsChart.update("none");
   }
+
+  renderYoloTrainingMetrics([], 100);
 
   async function pollYoloTrainingStatus() {
     if (!yoloTrainingJobId) {
@@ -1319,7 +1334,7 @@
         job.estimated_total_seconds,
       );
       renderYoloTrainingDetails(job);
-      renderYoloTrainingMetrics(job.metric_history);
+      renderYoloTrainingMetrics(job.metric_history, job.total_epochs);
       if (yoloTrainStopButton) {
         yoloTrainStopButton.disabled = status === "stopping";
       }
@@ -1399,7 +1414,7 @@
         job.estimated_total_seconds,
       );
       renderYoloTrainingDetails(job);
-      renderYoloTrainingMetrics(job.metric_history);
+      renderYoloTrainingMetrics(job.metric_history, job.total_epochs);
       pollYoloTrainingStatus();
     } catch (error) {
       console.error("[SAM2] 진행 중인 YOLO 학습 복구 실패", error);
@@ -1425,7 +1440,7 @@
       "queued",
     );
     renderYoloTrainingDetails();
-    renderYoloTrainingMetrics([]);
+    renderYoloTrainingMetrics([], 100);
     try {
       const apiBase = await resolveApiBase();
       const response = await fetch(

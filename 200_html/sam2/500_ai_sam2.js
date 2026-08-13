@@ -2674,6 +2674,9 @@
       '[data-role="frame-viewer"]',
     );
     const frameSlider = fileTabPane.querySelector('[data-role="frame-slider"]');
+    const frameSpinner = fileTabPane.querySelector(
+      '[data-role="frame-spinner"]',
+    );
     const counterElement = fileTabPane.querySelector(
       '[data-role="frame-counter"]',
     );
@@ -2720,6 +2723,7 @@
       !loadingElement ||
       !viewerElement ||
       !frameSlider ||
+      !frameSpinner ||
       !counterElement ||
       !imageTabButton ||
       !maskTabButton ||
@@ -2798,6 +2802,7 @@
       const requestSequence = ++labelRequestSequence;
       counterElement.textContent = `${framePosition + 1} / ${frames.length} · (원본 프레임 ${frame.frame_index})`;
       frameSlider.value = String(framePosition);
+      frameSpinner.value = String(framePosition);
       imageElement.src = `${apiBase}${frame.image_url}`;
       maskElement.src = `${apiBase}${frame.mask_url}`;
       overlayImageElement.src = `${apiBase}${frame.image_url}`;
@@ -2829,6 +2834,11 @@
 
     frameSlider.addEventListener("input", () => {
       framePosition = Number.parseInt(frameSlider.value, 10) || 0;
+      renderFrame();
+    });
+
+    frameSpinner.addEventListener("input", () => {
+      framePosition = Number.parseInt(frameSpinner.value, 10) || 0;
       renderFrame();
     });
 
@@ -2864,6 +2874,11 @@
         frameSlider.step = "1";
         frameSlider.value = "0";
         frameSlider.disabled = frames.length <= 1;
+        frameSpinner.min = "0";
+        frameSpinner.max = String(frames.length - 1);
+        frameSpinner.step = "1";
+        frameSpinner.value = "0";
+        frameSpinner.disabled = frames.length <= 1;
         await renderFrame();
       } catch (error) {
         loadingElement.textContent =

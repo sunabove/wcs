@@ -227,9 +227,6 @@
   const yoloTrainStatusElement = document.getElementById(
     "sam2-yolo-train-status",
   );
-  const yoloTrainMessageElement = document.getElementById(
-    "sam2-yolo-train-message",
-  );
   const yoloTrainElapsedElement = document.getElementById(
     "sam2-yolo-train-elapsed",
   );
@@ -1194,9 +1191,6 @@
     if (yoloTrainStatusElement) {
       yoloTrainStatusElement.value = String(status || "");
     }
-    if (yoloTrainMessageElement) {
-      yoloTrainMessageElement.value = String(message || "");
-    }
     if (yoloTrainElapsedElement) {
       yoloTrainElapsedElement.value =
         elapsedSeconds === undefined || elapsedSeconds === null
@@ -1507,12 +1501,6 @@
       renderYoloTrainingDetails(job);
     } catch (error) {
       yoloTrainStopButton.disabled = false;
-      if (yoloTrainMessageElement) {
-        yoloTrainMessageElement.value =
-          error && error.message
-            ? error.message
-            : "YOLO 학습을 중지하지 못했습니다.";
-      }
     }
   }
 

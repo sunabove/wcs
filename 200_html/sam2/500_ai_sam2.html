@@ -374,28 +374,31 @@
 														style="z-index:1;color:#fff;background-color:rgba(0, 0, 0, 0.72);line-height:1.35;pointer-events:none;">0%</span>
 												</div>
 												<div class="row g-2 mt-1" aria-live="polite">
-													<div class="col-12 col-md-2">
+													<div class="col-6 col-md-3">
 														<div class="input-group input-group-sm">
-															<span class="input-group-text">상태</span><input
+															<span
+																class="input-group-text w-50 justify-content-center">상태</span><input
 																id="sam2-yolo-train-status" type="text"
-																class="form-control" value="" readonly
+																class="form-control w-50" value="" readonly
 																aria-label="YOLO 학습 상태" />
-														</div>
-													</div>
-													<div class="col-6 col-md-2">
-														<div class="input-group input-group-sm">
-															<span class="input-group-text">경과</span><input
-																id="sam2-yolo-train-elapsed" type="text"
-																class="form-control text-end" value="00:00:00" readonly
-																aria-label="YOLO 학습 진행 시간" />
 														</div>
 													</div>
 													<div class="col-6 col-md-3">
 														<div class="input-group input-group-sm">
-															<span class="input-group-text">예상</span><input
+															<span
+																class="input-group-text w-50 justify-content-center">경과</span><input
+																id="sam2-yolo-train-elapsed" type="text"
+																class="form-control w-50 text-end" value="00:00:00"
+																readonly aria-label="YOLO 학습 진행 시간" />
+														</div>
+													</div>
+													<div class="col-6 col-md-3">
+														<div class="input-group input-group-sm">
+															<span
+																class="input-group-text w-50 justify-content-center">예상</span><input
 																id="sam2-yolo-train-estimated" type="text"
-																class="form-control text-end" value="00:00:00" readonly
-																aria-label="YOLO 학습 총 예상 시간" />
+																class="form-control w-50 text-end" value="00:00:00"
+																readonly aria-label="YOLO 학습 총 예상 시간" />
 														</div>
 													</div>
 													<div class="col-6 col-md-2">

@@ -962,6 +962,7 @@ class Sam2VideoDetector:
         reference_score,
         mask_area_ratio,
         fill_ratio_history,
+        excluded_polygon_ratio_history,
         reference_frame_number,
         current_frame_number,
         total_frames,
@@ -1119,6 +1120,25 @@ class Sam2VideoDetector:
             2,
         )
 
+        excluded_polygon_ratio_values = np.asarray(
+            excluded_polygon_ratio_history,
+            dtype=np.float32,
+        )
+        self._chart_renderer._draw_chart_series(
+            canvas,
+            x_values,
+            excluded_polygon_ratio_values,
+            (255, 0, 255),
+            x_min,
+            x_max,
+            chart_x1,
+            chart_x2 - chart_x1,
+            1.0,
+            chart_y2,
+            chart_y2 - chart_plot_y1,
+            2,
+        )
+
         cv2.line(canvas, (chart_x1, threshold_y), (chart_x2, threshold_y), (0, 165, 255), 1, cv2.LINE_AA)
         cv2.line(canvas, (chart_x1, mask_ratio_threshold_y), (chart_x2, mask_ratio_threshold_y), (255, 165, 0), 1, cv2.LINE_AA)
 
@@ -1128,6 +1148,7 @@ class Sam2VideoDetector:
             ("Scr+M-", (0, 80, 255)),
             ("Ref-Scr", (0, 165, 255)),
             ("Mask", (255, 165, 0)),
+            ("Excl-P", (255, 0, 255)),
             ("Ref-Mask", (255, 165, 0)),
             ("Ref-Fr", (255, 180, 80)),
             ("Cur-Fr", (235, 235, 235)),
@@ -1815,6 +1836,42 @@ class Sam2VideoDetector:
             ]
             chart_score_history = [score_history[index] for index in inference_frame_indices]
             chart_fill_ratio_history = [fill_ratio_history[index] for index in inference_frame_indices]
+            chart_excluded_polygon_ratio_history = []
+            for inference_frame_index in inference_frame_indices:
+                kept_mask = (
+                    mask_history[inference_frame_index]
+                    if inference_frame_index < len(mask_history)
+                    else None
+                )
+                excluded_mask = (
+                    small_mask_history[inference_frame_index]
+                    if inference_frame_index < len(small_mask_history)
+                    else None
+                )
+                kept_polygon_count = (
+                    len(cv2.findContours(
+                        kept_mask.astype(np.uint8),
+                        cv2.RETR_EXTERNAL,
+                        cv2.CHAIN_APPROX_SIMPLE,
+                    )[0])
+                    if kept_mask is not None and np.any(kept_mask)
+                    else 0
+                )
+                excluded_polygon_count = (
+                    len(cv2.findContours(
+                        excluded_mask.astype(np.uint8),
+                        cv2.RETR_EXTERNAL,
+                        cv2.CHAIN_APPROX_SIMPLE,
+                    )[0])
+                    if excluded_mask is not None and np.any(excluded_mask)
+                    else 0
+                )
+                total_polygon_count = kept_polygon_count + excluded_polygon_count
+                chart_excluded_polygon_ratio_history.append(
+                    excluded_polygon_count / total_polygon_count
+                    if total_polygon_count > 0
+                    else 0.0
+                )
             source_prompt_frame_index = max(
                 0,
                 min(int(prompt_frame) - 1, source_total_frames - 1),
@@ -1913,6 +1970,7 @@ class Sam2VideoDetector:
                     detection_threshold,
                     float(np.clip(float(mask_area_ratio if mask_area_ratio is not None else 0.05), 0.0, 1.0)),
                     chart_fill_ratio_history,
+                    chart_excluded_polygon_ratio_history,
                     source_prompt_frame_index + 1,
                     rendered_frames,
                     source_total_frames,

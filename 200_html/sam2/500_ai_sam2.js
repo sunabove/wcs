@@ -168,15 +168,6 @@
     "sam2-yolo-class-empty-template",
   );
   const yoloTrainTabElement = document.getElementById("sam2-yolo-train-tab");
-  const yoloTrainClassCountElement = document.getElementById(
-    "sam2-yolo-train-class-count",
-  );
-  const yoloTrainClassNamesElement = document.getElementById(
-    "sam2-yolo-train-class-names",
-  );
-  const yoloTrainDataSummaryElement = document.getElementById(
-    "sam2-yolo-train-data-summary",
-  );
   const yoloTrainSummaryStatusElement = document.getElementById(
     "sam2-yolo-train-summary-status",
   );
@@ -1545,12 +1536,7 @@
   }
 
   async function updateYoloTrainingOverview() {
-    if (
-      !yoloTrainClassCountElement ||
-      !yoloTrainClassNamesElement ||
-      !yoloTrainDataSummaryElement ||
-      !yoloTrainSummaryStatusElement
-    ) {
+    if (!yoloTrainClassSummaryElement || !yoloTrainSummaryStatusElement) {
       return;
     }
     yoloTrainSummaryStatusElement.textContent =
@@ -1565,58 +1551,36 @@
         throw new Error(`학습 데이터 개요 조회 실패 (${response.status})`);
       }
       const summary = await response.json();
-      const classNames = Array.isArray(summary.class_names)
-        ? summary.class_names
-        : [];
       const classSummary = Array.isArray(summary.class_summary)
         ? summary.class_summary
         : [];
-      const classCount = Number(summary.class_count || 0);
-      const inputFileCount = Number(summary.input_file_count || 0);
       const frameCount = Number(summary.frame_count || 0);
-      const segmentCount = Number(summary.segment_count || 0);
-      setIconText(
-        yoloTrainClassCountElement,
-        "bi-tags",
-        `클래스 ${classCount}개`,
-      );
-      yoloTrainClassNamesElement.textContent =
-        classNames.length > 0
-          ? classNames.join(", ")
-          : "등록된 클래스가 없습니다.";
-      if (yoloTrainClassSummaryElement) {
-        yoloTrainClassSummaryElement.replaceChildren();
-        if (classSummary.length === 0) {
+      yoloTrainClassSummaryElement.replaceChildren();
+      if (classSummary.length === 0) {
+        const row = document.createElement("tr");
+        row.innerHTML =
+          '<td colspan="5" class="text-center text-muted">등록된 클래스가 없습니다.</td>';
+        yoloTrainClassSummaryElement.append(row);
+      } else {
+        classSummary.forEach((item) => {
           const row = document.createElement("tr");
-          row.innerHTML =
-            '<td colspan="5" class="text-center text-muted">등록된 클래스가 없습니다.</td>';
-          yoloTrainClassSummaryElement.append(row);
-        } else {
-          classSummary.forEach((item) => {
-            const row = document.createElement("tr");
-            [
-              String(item.class_name || ""),
-              Number(item.class_id || 0),
-              Number(item.input_file_count || 0),
-              Number(item.frame_count || 0),
-              Number(item.segment_count || 0),
-            ].forEach((value, index) => {
-              const cell = document.createElement("td");
-              cell.textContent = String(value);
-              if (index > 0) {
-                cell.classList.add("text-end");
-              }
-              row.append(cell);
-            });
-            yoloTrainClassSummaryElement.append(row);
+          [
+            String(item.class_name || ""),
+            Number(item.class_id || 0),
+            Number(item.input_file_count || 0),
+            Number(item.frame_count || 0),
+            Number(item.segment_count || 0),
+          ].forEach((value, index) => {
+            const cell = document.createElement("td");
+            cell.textContent = String(value);
+            if (index > 0) {
+              cell.classList.add("text-end");
+            }
+            row.append(cell);
           });
-        }
+          yoloTrainClassSummaryElement.append(row);
+        });
       }
-      setIconText(
-        yoloTrainDataSummaryElement,
-        "bi-file-earmark-play",
-        `입력파일 ${inputFileCount}개 · 프레임 ${frameCount}장 · Seg Polygon ${segmentCount}개`,
-      );
       if (yoloTrainStartButton && !yoloTrainingJobId) {
         yoloTrainStartButton.disabled = frameCount <= 0;
       }

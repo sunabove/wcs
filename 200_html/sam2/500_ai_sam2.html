@@ -470,6 +470,25 @@
 													<canvas id="sam2-yolo-train-metrics-chart"
 														aria-label="YOLO 학습 정확도 지표 차트"></canvas>
 												</div>
+												<div class="table-responsive mt-3">
+													<table class="table table-sm table-striped mb-0 align-middle">
+														<thead class="table-light">
+															<tr>
+																<th scope="col">클래스명</th>
+																<th scope="col" class="text-end">클래스 ID</th>
+																<th scope="col" class="text-end">입력파일</th>
+																<th scope="col" class="text-end">프레임</th>
+																<th scope="col" class="text-end">Seg</th>
+															</tr>
+														</thead>
+														<tbody id="sam2-yolo-train-class-summary">
+															<tr>
+																<td colspan="5" class="text-center text-muted">클래스별 데이터를
+																	불러오는 중...</td>
+															</tr>
+														</tbody>
+													</table>
+												</div>
 											</section>
 										</div>
 									</div>

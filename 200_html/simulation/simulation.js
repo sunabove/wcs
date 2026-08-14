@@ -1192,6 +1192,14 @@ class RapierDriveSimulation {
   applyDriveModeCommand(mode) {
     const normalizedMode = String(mode || "stop");
     this.commandedDriveMode = normalizedMode;
+    const isCenterTurn =
+      normalizedMode === "left" || normalizedMode === "right";
+
+    if (isCenterTurn) {
+      this.captureCenterTurnPivot();
+    } else {
+      this.clearCenterTurnPivot();
+    }
 
     if (normalizedMode === "stop") {
       this.stopSimulationMotion();
@@ -1205,12 +1213,6 @@ class RapierDriveSimulation {
     if (viewer && typeof viewer.applyDriveMode === "function") {
       const speedKmh = Math.max(this.mpsToKmh(this.commandedSpeedMps), 0);
       viewer.applyDriveMode(normalizedMode, speedKmh);
-    }
-
-    if (normalizedMode === "left" || normalizedMode === "right") {
-      this.captureCenterTurnPivot();
-    } else {
-      this.clearCenterTurnPivot();
     }
   }
 
@@ -1245,19 +1247,20 @@ class RapierDriveSimulation {
 
     const bodyPosition = this.body.translation();
     const bodyRotation = this.body.rotation();
-    const inverseBodyQuaternion = new THREE.Quaternion(
+    const bodyQuaternion = new THREE.Quaternion(
       bodyRotation.x,
       bodyRotation.y,
       bodyRotation.z,
       bodyRotation.w,
-    )
-      .normalize()
-      .invert();
-    this.centerTurnPivotWorld = centerTurnPivotWorld;
-    this.centerTurnPivotLocal = centerTurnPivotWorld
+    ).normalize();
+    this.carFrame.updateWorldMatrix(true, false);
+    this.centerTurnPivotLocal = this.carFrame.worldToLocal(
+      centerTurnPivotWorld.clone(),
+    );
+    this.centerTurnPivotWorld = this.centerTurnPivotLocal
       .clone()
-      .sub(new THREE.Vector3(bodyPosition.x, bodyPosition.y, bodyPosition.z))
-      .applyQuaternion(inverseBodyQuaternion);
+      .applyQuaternion(bodyQuaternion)
+      .add(new THREE.Vector3(bodyPosition.x, bodyPosition.y, bodyPosition.z));
   }
 
   constrainCenterTurnPivot() {

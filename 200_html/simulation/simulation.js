@@ -2017,11 +2017,19 @@ class RapierDriveSimulation {
     const speedLabel = document.getElementById(
       "simulation-visual-speed-scale-value",
     );
+    const speedInput = document.getElementById(
+      "simulation-visual-speed-scale-input",
+    );
     if (speedSlider) {
       speedSlider.value = String(
         this.getVisualSpeedSliderValueFromScale(normalizedScale),
       );
       this.updateSpeedSliderVisual(speedSlider);
+    }
+    if (speedInput) {
+      speedInput.value = String(
+        this.getVisualSpeedSliderValueFromScale(normalizedScale),
+      );
     }
     if (speedLabel) {
       speedLabel.textContent =
@@ -2045,6 +2053,9 @@ class RapierDriveSimulation {
     const speedLabel = document.getElementById(
       "simulation-visual-speed-scale-value",
     );
+    const speedInput = document.getElementById(
+      "simulation-visual-speed-scale-input",
+    );
     if (!speedSlider) {
       return;
     }
@@ -2065,6 +2076,9 @@ class RapierDriveSimulation {
       this.getVisualSpeedSliderValueFromScale(initialScale),
     );
     this.updateSpeedSliderVisual(speedSlider);
+    if (speedInput) {
+      speedInput.value = speedSlider.value;
+    }
     if (speedLabel) {
       speedLabel.textContent = this.formatVisualSpeedScaleLabel(initialScale);
     }
@@ -2075,6 +2089,13 @@ class RapierDriveSimulation {
       const normalizedScale = this.normalizeVisualSpeedScale(speedSlider.value);
       this.visualSpeedScale = normalizedScale;
       this.configureWheelVisualKinematics();
+      const sliderValue =
+        this.getVisualSpeedSliderValueFromScale(normalizedScale);
+      speedSlider.value = String(sliderValue);
+      this.updateSpeedSliderVisual(speedSlider);
+      if (speedInput) {
+        speedInput.value = String(sliderValue);
+      }
       if (speedLabel) {
         speedLabel.textContent =
           this.formatVisualSpeedScaleLabel(normalizedScale);
@@ -2091,6 +2112,14 @@ class RapierDriveSimulation {
 
     speedSlider.addEventListener("input", persistScale);
     speedSlider.addEventListener("change", persistScale);
+    if (speedInput) {
+      speedInput.addEventListener("input", () => {
+        speedSlider.value = String(
+          this.normalizeVisualSpeedSliderValue(speedInput.value),
+        );
+        persistScale();
+      });
+    }
   }
 
   resetVisualSpeedSliderToDefault() {

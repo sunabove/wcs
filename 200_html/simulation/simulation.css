@@ -37,6 +37,7 @@ body {
 
 .wheel-rpm-value,
 #simulation-visual-speed-scale-value {
+  min-width: 40px;
   text-align: right;
 }
 
@@ -46,6 +47,7 @@ body {
 }
 
 #drive-speed-mps-value {
+  min-width: 40px;
   text-align: right;
 }
 

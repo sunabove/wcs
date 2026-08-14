@@ -30,6 +30,7 @@ class Sam2VideoDetector:
     _max_infer_fps = 10.0
     _max_infer_frames = 600
     _max_infer_pixels_total = 320_000_000
+    _kept_component_area_ratio = 0.20 # Keep components that are at least 2% of the largest component area
 
     def __init__(self):
         SAM2_UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
@@ -711,7 +712,10 @@ class Sam2VideoDetector:
 
         component_areas = stats[1:, cv2.CC_STAT_AREA]
         largest_area = int(np.max(component_areas))
-        minimum_component_area = max(4, int(round(largest_area * 0.02)))
+        minimum_component_area = max(
+            4,
+            int(round(largest_area * self._kept_component_area_ratio)),
+        )
         kept_components = np.flatnonzero(component_areas >= minimum_component_area) + 1
         if len(kept_components) == 0:
             kept_components = [int(np.argmax(component_areas)) + 1]

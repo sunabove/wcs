@@ -349,27 +349,33 @@
   }
 
   let yoloOverlayPolygonToastElement = null;
+  let yoloOverlayPolygonToastContainer = null;
   let yoloOverlayPolygonToastHideTimer = 0;
 
-  function setYoloOverlayPolygonLoadingToast(visible) {
+  function setYoloOverlayPolygonLoadingToast(visible, hostElement) {
     if (typeof bootstrap === "undefined" || !bootstrap.Toast) {
       return;
     }
     if (!yoloOverlayPolygonToastElement) {
-      const toastContainer = document.createElement("div");
-      toastContainer.className =
-        "toast-container position-fixed bottom-0 end-0 p-3";
-      toastContainer.style.zIndex = "1080";
+      yoloOverlayPolygonToastContainer = document.createElement("div");
+      yoloOverlayPolygonToastContainer.className =
+        "position-absolute top-50 start-50 translate-middle";
+      yoloOverlayPolygonToastContainer.style.zIndex = "2";
       yoloOverlayPolygonToastElement = document.createElement("div");
       yoloOverlayPolygonToastElement.className =
-        "toast align-items-center text-bg-primary border-0";
+        "toast align-items-center text-bg-primary border-0 shadow";
       yoloOverlayPolygonToastElement.setAttribute("role", "status");
       yoloOverlayPolygonToastElement.setAttribute("aria-live", "polite");
       yoloOverlayPolygonToastElement.setAttribute("aria-atomic", "true");
       yoloOverlayPolygonToastElement.innerHTML =
         '<div class="d-flex"><div class="toast-body"><span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>검출 폴리곤 데이터를 가져와 오버레이에 표시하는 중...</div><button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="닫기"></button></div>';
-      toastContainer.append(yoloOverlayPolygonToastElement);
-      document.body.append(toastContainer);
+      yoloOverlayPolygonToastContainer.append(yoloOverlayPolygonToastElement);
+    }
+    if (
+      hostElement &&
+      yoloOverlayPolygonToastContainer.parentElement !== hostElement
+    ) {
+      hostElement.append(yoloOverlayPolygonToastContainer);
     }
     const toast = bootstrap.Toast.getOrCreateInstance(
       yoloOverlayPolygonToastElement,
@@ -381,7 +387,7 @@
     } else {
       yoloOverlayPolygonToastHideTimer = window.setTimeout(
         () => toast.hide(),
-        350,
+        1000,
       );
     }
   }
@@ -2894,7 +2900,10 @@
       extractYoloClassName(item.serverFileName || item.name) || "-";
 
     function updateOverlayPolygonLoadingToast() {
-      setYoloOverlayPolygonLoadingToast(overlayPolygonLoading);
+      setYoloOverlayPolygonLoadingToast(
+        overlayPolygonLoading,
+        overlayImageElement.parentElement,
+      );
     }
 
     overlayTabButton.addEventListener(

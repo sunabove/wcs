@@ -688,10 +688,10 @@
       updateClaheText();
     }
     if (referenceScoreInput) {
-      referenceScoreInput.value = "0.80";
+      referenceScoreInput.value = formatReferenceScoreInputValue(0.8);
     }
     if (maskRatioInput) {
-      maskRatioInput.value = "0.05";
+      maskRatioInput.value = formatMaskRatioInputValue(0.05);
     }
     if (multimaskOutputCheckbox) {
       multimaskOutputCheckbox.checked = false;
@@ -819,19 +819,13 @@
         updateClaheText();
       }
       if (referenceScoreInput) {
-        const savedReferenceScore = Number(options.reference_score);
-        referenceScoreInput.value = String(
-          Number.isFinite(savedReferenceScore)
-            ? clamp(savedReferenceScore, 0, 1).toFixed(2)
-            : "0.80",
+        referenceScoreInput.value = formatReferenceScoreInputValue(
+          options.reference_score,
         );
       }
       if (maskRatioInput) {
-        const savedMaskRatio = Number(options.mask_area_ratio);
-        maskRatioInput.value = String(
-          Number.isFinite(savedMaskRatio)
-            ? clamp(savedMaskRatio, 0, 1).toFixed(2)
-            : "0.05",
+        maskRatioInput.value = formatMaskRatioInputValue(
+          options.mask_area_ratio,
         );
       }
       renderPointUi();
@@ -2423,32 +2417,24 @@
 
   function getReferenceScore() {
     if (!referenceScoreInput) {
-      return 0.8;
+      return "0.800";
     }
-    const value = clamp(Number.parseFloat(referenceScoreInput.value), 0, 1);
-    if (!Number.isFinite(value)) {
-      return 0.8;
-    }
-    return Number(value.toFixed(2));
+    return formatReferenceScoreInputValue(referenceScoreInput.value);
   }
 
   function getMaskAreaRatioThreshold() {
     if (!maskRatioInput) {
-      return 0.05;
+      return "0.050";
     }
-    const value = clamp(Number.parseFloat(maskRatioInput.value), 0, 1);
-    if (!Number.isFinite(value)) {
-      return 0.05;
-    }
-    return Number(value.toFixed(2));
+    return formatMaskRatioInputValue(maskRatioInput.value);
   }
 
   function buildReferenceScoreQuery() {
-    return `&reference_score=${encodeURIComponent(String(getReferenceScore()))}`;
+    return `&reference_score=${encodeURIComponent(getReferenceScore())}`;
   }
 
   function buildMaskAreaRatioQuery() {
-    return `&mask_area_ratio=${encodeURIComponent(String(getMaskAreaRatioThreshold()))}`;
+    return `&mask_area_ratio=${encodeURIComponent(getMaskAreaRatioThreshold())}`;
   }
 
   async function saveVideoOptions(fileName) {

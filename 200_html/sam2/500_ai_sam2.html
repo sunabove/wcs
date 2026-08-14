@@ -140,19 +140,19 @@
 												<label id="sam2-multimask-output-text" class="input-group-text"
 													for="sam2-multimask-output">Single mask</label>
 											</div>
-											<div class="input-group input-group-sm flex-nowrap sam2-score-input-group">
-												<span class="input-group-text">Ref Score</span>
+											<div class="d-inline-flex align-items-center gap-1 sam2-score-control">
+												<label class="small text-nowrap mb-0"
+													for="sam2-reference-score-input">Ref Score</label>
 												<input id="sam2-reference-score-input" type="number"
-													class="form-control text-end"
-													style="width:3.25rem;flex:0 0 3.25rem;" min="0" max="1" step="0.001"
-													value="0.800" aria-label="Ref Score 설정" />
+													class="form-control form-control-sm text-end" min="0" max="1"
+													step="0.001" value="0.800" aria-label="Ref Score 설정" />
 											</div>
-											<div class="input-group input-group-sm flex-nowrap sam2-score-input-group">
-												<span class="input-group-text">Ref-Mask-Ratio</span>
+											<div class="d-inline-flex align-items-center gap-1 sam2-score-control">
+												<label class="small text-nowrap mb-0"
+													for="sam2-mask-ratio-input">Ref-Mask-Ratio</label>
 												<input id="sam2-mask-ratio-input" type="number"
-													class="form-control text-end"
-													style="width:3.25rem;flex:0 0 3.25rem;" min="0" max="1" step="0.001"
-													value="0.050" aria-label="Mask-Ratio 설정" />
+													class="form-control form-control-sm text-end" min="0" max="1"
+													step="0.001" value="0.050" aria-label="Mask-Ratio 설정" />
 											</div>
 										</div>
 										<button id="sam2-detect-btn" type="button"

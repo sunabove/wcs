@@ -110,16 +110,12 @@
   flex-shrink: 0;
 }
 
-.sam2-options-group > .sam2-score-input-group {
+.sam2-options-group > .sam2-score-control {
   flex: 0 0 auto;
   width: max-content;
 }
 
-.sam2-score-input-group .input-group-text {
-  flex: 0 0 auto;
-}
-
-.sam2-score-input-group .form-control {
+.sam2-score-control .form-control {
   flex: 0 0 3.25rem;
   width: 3.25rem;
   min-width: 3.25rem;

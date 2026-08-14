@@ -257,12 +257,6 @@
   document
     .querySelector("#sam2-yolo-train-pane > section > .fw-semibold.mb-2")
     ?.remove();
-  setIconText(yoloTrainClassCountElement, "bi-tags", "클래스 0개");
-  setIconText(
-    yoloTrainDataSummaryElement,
-    "bi-file-earmark-play",
-    "입력파일 0개 · 프레임 0장 · Seg Polygon 0개",
-  );
 
   let selectedFile = null;
   let resolvedApiBase = null;

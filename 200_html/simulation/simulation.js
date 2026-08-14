@@ -196,6 +196,7 @@ class RapierDriveSimulation {
     this.groundContactLocalMinZ = null;
     this.groundContactBiasMeters = 0;
     this.groundZ = 0;
+    this.groundGrid = null;
     this.holeRegions = [];
     this.underbodyPassThroughClearanceMeters = 0.02;
     this.urdfObstacleLinkPrefix = "obstacle_";
@@ -2362,6 +2363,62 @@ class RapierDriveSimulation {
         0.5,
       );
     });
+
+    this.addGroundSurfaceGrid(groundPatches);
+  }
+
+  addGroundSurfaceGrid(groundPatches) {
+    if (!this.viewer?.scene || !Array.isArray(groundPatches)) {
+      return;
+    }
+
+    if (this.groundGrid) {
+      this.viewer.scene.remove(this.groundGrid);
+      this.groundGrid.geometry.dispose();
+      this.groundGrid.material.dispose();
+    }
+
+    const gridSpacingMeters = 0.1;
+    const gridZ = this.groundZ + 0.001;
+    const vertices = [];
+    const appendLine = (x1, y1, x2, y2) => {
+      vertices.push(x1, y1, gridZ, x2, y2, gridZ);
+    };
+
+    groundPatches.forEach((patch) => {
+      const minX =
+        Math.ceil(patch.minX / gridSpacingMeters) * gridSpacingMeters;
+      const maxX =
+        Math.floor(patch.maxX / gridSpacingMeters) * gridSpacingMeters;
+      const minY =
+        Math.ceil(patch.minY / gridSpacingMeters) * gridSpacingMeters;
+      const maxY =
+        Math.floor(patch.maxY / gridSpacingMeters) * gridSpacingMeters;
+
+      for (let x = minX; x <= maxX + 1e-8; x += gridSpacingMeters) {
+        appendLine(x, patch.minY, x, patch.maxY);
+      }
+      for (let y = minY; y <= maxY + 1e-8; y += gridSpacingMeters) {
+        appendLine(patch.minX, y, patch.maxX, y);
+      }
+    });
+
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute(
+      "position",
+      new THREE.Float32BufferAttribute(vertices, 3),
+    );
+    const material = new THREE.LineBasicMaterial({
+      color: 0x6c757d,
+      transparent: true,
+      opacity: 0.45,
+      depthWrite: false,
+    });
+
+    this.groundGrid = new THREE.LineSegments(geometry, material);
+    this.groundGrid.name = "simulation-ground-grid";
+    this.groundGrid.renderOrder = 1;
+    this.viewer.scene.add(this.groundGrid);
   }
 
   isVehicleOverHoleRegion() {

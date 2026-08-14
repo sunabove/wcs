@@ -168,9 +168,6 @@
     "sam2-yolo-class-empty-template",
   );
   const yoloTrainTabElement = document.getElementById("sam2-yolo-train-tab");
-  const yoloTrainSummaryStatusElement = document.getElementById(
-    "sam2-yolo-train-summary-status",
-  );
   const yoloTrainClassSummaryElement = document.getElementById(
     "sam2-yolo-train-class-summary",
   );
@@ -1530,11 +1527,9 @@
   }
 
   async function updateYoloTrainingOverview() {
-    if (!yoloTrainClassSummaryElement || !yoloTrainSummaryStatusElement) {
+    if (!yoloTrainClassSummaryElement) {
       return;
     }
-    yoloTrainSummaryStatusElement.textContent =
-      "학습 데이터 개요를 불러오는 중...";
     try {
       const apiBase = await resolveApiBase();
       const response = await fetch(
@@ -1581,13 +1576,13 @@
       if (yoloRetrainStartButton && !yoloTrainingJobId) {
         yoloRetrainStartButton.disabled = frameCount <= 0;
       }
-      yoloTrainSummaryStatusElement.textContent =
-        frameCount > 0 ? "" : "변환된 학습 데이터가 없습니다.";
     } catch (error) {
-      yoloTrainSummaryStatusElement.textContent =
+      setStatus(
         error && error.message
           ? error.message
-          : "학습 데이터 개요를 불러오지 못했습니다.";
+          : "학습 데이터 개요를 불러오지 못했습니다.",
+        "danger",
+      );
     }
   }
 

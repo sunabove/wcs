@@ -1907,7 +1907,7 @@ class RapierDriveSimulation {
       speedInput.value = initialSpeed.toFixed(1);
     }
     if (speedLabel) {
-      speedLabel.textContent = `${initialSpeed.toFixed(1)} m/s`;
+      speedLabel.textContent = "m/s";
     }
 
     this.applyDriveSpeedCommandMps(initialSpeed);
@@ -1922,7 +1922,7 @@ class RapierDriveSimulation {
         speedInput.value = normalizedSpeed.toFixed(1);
       }
       if (speedLabel) {
-        speedLabel.textContent = `${normalizedSpeed.toFixed(1)} m/s`;
+        speedLabel.textContent = "m/s";
       }
       this.applyDriveSpeedCommandMps(normalizedSpeed);
       try {
@@ -1946,7 +1946,7 @@ class RapierDriveSimulation {
         speedSlider.value = normalizedSpeed.toFixed(1);
         this.updateSpeedSliderVisual(speedSlider);
         if (speedLabel) {
-          speedLabel.textContent = `${normalizedSpeed.toFixed(1)} m/s`;
+          speedLabel.textContent = "m/s";
         }
         this.applyDriveSpeedCommandMps(normalizedSpeed);
         try {
@@ -2032,8 +2032,7 @@ class RapierDriveSimulation {
       );
     }
     if (speedLabel) {
-      speedLabel.textContent =
-        this.formatVisualSpeedScaleLabel(normalizedScale);
+      speedLabel.textContent = "x";
     }
 
     try {
@@ -2080,7 +2079,7 @@ class RapierDriveSimulation {
       speedInput.value = speedSlider.value;
     }
     if (speedLabel) {
-      speedLabel.textContent = this.formatVisualSpeedScaleLabel(initialScale);
+      speedLabel.textContent = "x";
     }
 
     this.visualSpeedScale = initialScale;
@@ -2097,8 +2096,7 @@ class RapierDriveSimulation {
         speedInput.value = String(sliderValue);
       }
       if (speedLabel) {
-        speedLabel.textContent =
-          this.formatVisualSpeedScaleLabel(normalizedScale);
+        speedLabel.textContent = "x";
       }
       try {
         window.localStorage.setItem(
@@ -2141,7 +2139,7 @@ class RapierDriveSimulation {
     }
 
     if (speedLabel) {
-      speedLabel.textContent = `${SIM_SPEED_DEFAULT_MPS.toFixed(1)} m/s`;
+      speedLabel.textContent = "m/s";
     }
 
     this.applyDriveSpeedCommandMps(SIM_SPEED_DEFAULT_MPS);

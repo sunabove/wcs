@@ -349,6 +349,7 @@
   }
 
   let yoloOverlayPolygonToastElement = null;
+  let yoloOverlayPolygonToastHideTimer = 0;
 
   function setYoloOverlayPolygonLoadingToast(visible) {
     if (typeof bootstrap === "undefined" || !bootstrap.Toast) {
@@ -375,9 +376,13 @@
       { autohide: false },
     );
     if (visible) {
+      window.clearTimeout(yoloOverlayPolygonToastHideTimer);
       toast.show();
     } else {
-      toast.hide();
+      yoloOverlayPolygonToastHideTimer = window.setTimeout(
+        () => toast.hide(),
+        350,
+      );
     }
   }
 
@@ -2889,9 +2894,7 @@
       extractYoloClassName(item.serverFileName || item.name) || "-";
 
     function updateOverlayPolygonLoadingToast() {
-      setYoloOverlayPolygonLoadingToast(
-        overlayPolygonLoading && overlayTabButton.classList.contains("active"),
-      );
+      setYoloOverlayPolygonLoadingToast(overlayPolygonLoading);
     }
 
     overlayTabButton.addEventListener(

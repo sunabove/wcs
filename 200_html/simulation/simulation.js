@@ -948,10 +948,30 @@ class RapierDriveSimulation {
     ctx.textAlign = "left";
     ctx.textBaseline = "alphabetic";
 
-    Object.keys(this.wheelZChartHistoryByKey).forEach((wheelKey) => {
-      const samples = (this.wheelZChartHistoryByKey[wheelKey] || []).filter(
-        (sample) => sample.t >= minTimeSec && sample.t <= windowEndSec,
-      );
+    const chartWheelKeys = ["fl", "fr", "rl", "rr"];
+    const visibleSamplesByWheelKey = Object.fromEntries(
+      chartWheelKeys.map((wheelKey) => [
+        wheelKey,
+        (this.wheelZChartHistoryByKey[wheelKey] || []).filter(
+          (sample) => sample.t >= minTimeSec && sample.t <= windowEndSec,
+        ),
+      ]),
+    );
+    const getOverlapDisplayOffsetPixels = (wheelKey, sample) => {
+      const matchingWheelKeys = chartWheelKeys.filter((candidateWheelKey) => {
+        const matchingSample = visibleSamplesByWheelKey[candidateWheelKey].find(
+          (candidateSample) =>
+            Math.abs(candidateSample.t - sample.t) < 1e-6 &&
+            Math.abs(candidateSample.z - sample.z) < 1e-6,
+        );
+        return Boolean(matchingSample);
+      });
+      const matchingIndex = matchingWheelKeys.indexOf(wheelKey);
+      return (matchingIndex - (matchingWheelKeys.length - 1) * 0.5) * 3;
+    };
+
+    chartWheelKeys.forEach((wheelKey) => {
+      const samples = visibleSamplesByWheelKey[wheelKey];
       if (samples.length < 2) {
         return;
       }
@@ -962,7 +982,8 @@ class RapierDriveSimulation {
       ctx.beginPath();
       samples.forEach((sample, index) => {
         const x = toX(sample.t);
-        const y = toY(sample.z);
+        const y =
+          toY(sample.z) + getOverlapDisplayOffsetPixels(wheelKey, sample);
         if (index === 0) {
           ctx.moveTo(x, y);
         } else {

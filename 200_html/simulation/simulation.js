@@ -2409,17 +2409,12 @@ class RapierDriveSimulation {
     const gridZ = this.groundZ + 0.001;
     const vertices = [];
     const colors = [];
-    let gridLineIndex = 0;
+    const verticalLineColor = new THREE.Color(0x0d6efd);
+    const horizontalLineColor = new THREE.Color(0xfd7e14);
     const appendLine = (x1, y1, x2, y2, isVertical) => {
       vertices.push(x1, y1, gridZ, x2, y2, gridZ);
-      const hue = (gridLineIndex * 0.61803398875) % 1;
-      const color = new THREE.Color().setHSL(
-        hue,
-        0.7,
-        isVertical ? 0.46 : 0.58,
-      );
+      const color = isVertical ? verticalLineColor : horizontalLineColor;
       colors.push(color.r, color.g, color.b, color.r, color.g, color.b);
-      gridLineIndex += 1;
     };
 
     groundPatches.forEach((patch) => {

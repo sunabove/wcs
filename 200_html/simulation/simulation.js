@@ -1220,7 +1220,7 @@ class RapierDriveSimulation {
   }
 
   captureCenterTurnPivot() {
-    if (!this.carFrame) {
+    if (!this.carFrame || !this.body) {
       this.clearCenterTurnPivot();
       return;
     }
@@ -1243,11 +1243,21 @@ class RapierDriveSimulation {
       .reduce((sum, wheelCenter) => sum.add(wheelCenter), new THREE.Vector3())
       .multiplyScalar(1 / wheelCenters.length);
 
-    this.carFrame.updateWorldMatrix(true, false);
+    const bodyPosition = this.body.translation();
+    const bodyRotation = this.body.rotation();
+    const inverseBodyQuaternion = new THREE.Quaternion(
+      bodyRotation.x,
+      bodyRotation.y,
+      bodyRotation.z,
+      bodyRotation.w,
+    )
+      .normalize()
+      .invert();
     this.centerTurnPivotWorld = centerTurnPivotWorld;
-    this.centerTurnPivotLocal = this.carFrame.worldToLocal(
-      centerTurnPivotWorld.clone(),
-    );
+    this.centerTurnPivotLocal = centerTurnPivotWorld
+      .clone()
+      .sub(new THREE.Vector3(bodyPosition.x, bodyPosition.y, bodyPosition.z))
+      .applyQuaternion(inverseBodyQuaternion);
   }
 
   constrainCenterTurnPivot() {

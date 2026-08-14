@@ -5375,6 +5375,25 @@ class RapierDriveSimulation {
       );
     }
 
+    const canApplyFlatGroundDrivePosition =
+      !keyboardState.isActive &&
+      throttleSign !== 0 &&
+      !this.isVehicleObstacleContact &&
+      !this.contactSolver.isObstacleTraversalActive() &&
+      this.isBodyNearFlatGroundSupport();
+    if (canApplyFlatGroundDrivePosition) {
+      const translation = this.body.translation();
+      this.body.setTranslation(
+        new this.rapier.Vector3(
+          translation.x + commandedVelocityX * effectiveDeltaSec,
+          translation.y + commandedVelocityY * effectiveDeltaSec,
+          translation.z,
+        ),
+        true,
+      );
+      this.body.setLinvel(new this.rapier.Vector3(0, 0, 0), true);
+    }
+
     const isMoveCommandActive = keyboardState.isActive || throttleSign !== 0;
     if (
       this.blockMotionOnObstacleContact &&

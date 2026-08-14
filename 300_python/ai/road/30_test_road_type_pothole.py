@@ -8,9 +8,9 @@ import time
 
 BASE_DIR = Path(__file__).resolve().parent
 
-road_model = YOLO(str(BASE_DIR / "model/01_yolo11m-road-sg.pt"))
-road_type_model = YOLO(str(BASE_DIR / "model/02_yolo11m-road-type-sg.pt"))
-pothole_model = YOLO(str(BASE_DIR / "model/04_yolo11m-pothole-sg.pt"))
+road_model = YOLO(str(BASE_DIR / "model/01-yolo11m-road-sg.pt"))
+road_type_model = YOLO(str(BASE_DIR / "model/02-yolo11m-road-type-sg.pt"))
+pothole_model = YOLO(str(BASE_DIR / "model/04-yolo11m-pothole-sg.pt"))
 
 colormap_path = BASE_DIR / "dataset/RUGD/RUGD_02_annotations/RUGD_annotation-colormap.txt"
 

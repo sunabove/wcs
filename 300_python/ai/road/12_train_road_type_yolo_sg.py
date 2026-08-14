@@ -30,7 +30,7 @@ def default_dataset_yaml() -> Path:
 
 
 def default_model_path() -> Path:
-	return prefer_primary_path("road/model/02_yolo11m-road-type-sg.pt")
+	return prefer_primary_path("road/model/02-yolo11m-road-type-sg.pt")
 
 
 def parse_args() -> argparse.Namespace:

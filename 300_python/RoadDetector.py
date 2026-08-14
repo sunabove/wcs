@@ -37,10 +37,10 @@ class RoadDetector:
     
     _class_color_map_path = Path(__file__).resolve().parent / "colormap_road.txt"
     
-    road_model_name = "ai/road/model/01_yolo11m-road-sg.pt"
-    road_type_model_name = "ai/road/model/02_yolo11m-cobot-road-type-sg-260626.pt" 
-    #obstacle_model_name = "ai/road/model/04_yolo11m-pothole-sg.pt"
-    obstacle_model_name = "ai/road/model/05_yolo11m-obstacle-sg-260810.pt"
+    road_model_name = "ai/road/model/01-yolo11m-road-sg.pt"
+    road_type_model_name = "ai/road/model/02-yolo11m-cobot-road-type-sg-260626.pt" 
+    #obstacle_model_name = "ai/road/model/04-yolo11m-pothole-sg.pt"
+    obstacle_model_name = "ai/road/model/05-yolo11m-obstacle-sg-260810.pt"
     
     _model_paths = {
         "road": Path(__file__).resolve().parent / road_model_name,

@@ -4,7 +4,7 @@
 # 변환 과정에서 동영상의 모든 프레임을 추출하여 이미지로 저장하고,
 # 해당 프레임에서 검출된 객체의 마스크를 YOLO segmentation 형식으로 변환합니다.
 
-# segmentation 폴리곤은 model/01_yolo11m-road-sg.pt에서 학습된 모델을 이용하여 도로 영역을 추출합니다.
+# segmentation 폴리곤은 model/01-yolo11m-road-sg.pt에서 학습된 모델을 이용하여 도로 영역을 추출합니다.
 # 추출된 도로 영역 마스크들을 다음 두 단계로 필터링합니다:
 # 1. cv2.connectedComponentsWithStats(mask)를 이용하여 전체 마스크 영역에서 10% 미만을 차지하는 연결된 영역(노이즈)은 제거합니다.
 # 2. cv2.distanceTransform(mask, cv2.DIST_L2, 5)를 이용하여 거리가 1.5 이하인 가느다란 실 같은 부분을 제거합니다.
@@ -82,7 +82,7 @@ def default_output_root() -> Path:
 
 def default_model_path() -> Path:
     """스크립트 기준 모델 경로를 반환합니다."""
-    return _SCRIPT_DIR / "model" / "01_yolo11m-road-sg.pt"
+    return _SCRIPT_DIR / "model" / "01-yolo11m-road-sg.pt"
 
 
 def default_colormap_path() -> Path:

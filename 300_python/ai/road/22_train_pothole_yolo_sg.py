@@ -48,7 +48,7 @@ def default_model_source() -> str:
 
 
 def default_output_model_path() -> Path:
-	return prefer_primary_path("dataset/model/04_yolo11m-pothole-sg.pt")
+	return prefer_primary_path("dataset/model/04-yolo11m-pothole-sg.pt")
 
 
 def default_project_root() -> Path:

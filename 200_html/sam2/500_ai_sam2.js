@@ -368,7 +368,7 @@
       yoloOverlayPolygonToastElement.setAttribute("aria-live", "polite");
       yoloOverlayPolygonToastElement.setAttribute("aria-atomic", "true");
       yoloOverlayPolygonToastElement.innerHTML =
-        '<div class="d-flex"><div class="toast-body"><span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>검출 폴리곤 데이터를 가져와 오버레이에 표시하는 중...</div><button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="닫기"></button></div>';
+        '<div class="toast-body text-nowrap"><span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>검출 폴리곤 데이터를 가져와 오버레이에 표시하는 중...</div>';
       yoloOverlayPolygonToastContainer.append(yoloOverlayPolygonToastElement);
     }
     if (

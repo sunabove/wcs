@@ -2381,8 +2381,18 @@ class RapierDriveSimulation {
     const gridSpacingMeters = 0.1;
     const gridZ = this.groundZ + 0.001;
     const vertices = [];
-    const appendLine = (x1, y1, x2, y2) => {
+    const colors = [];
+    let gridLineIndex = 0;
+    const appendLine = (x1, y1, x2, y2, isVertical) => {
       vertices.push(x1, y1, gridZ, x2, y2, gridZ);
+      const hue = (gridLineIndex * 0.61803398875) % 1;
+      const color = new THREE.Color().setHSL(
+        hue,
+        0.7,
+        isVertical ? 0.46 : 0.58,
+      );
+      colors.push(color.r, color.g, color.b, color.r, color.g, color.b);
+      gridLineIndex += 1;
     };
 
     groundPatches.forEach((patch) => {
@@ -2396,10 +2406,10 @@ class RapierDriveSimulation {
         Math.floor(patch.maxY / gridSpacingMeters) * gridSpacingMeters;
 
       for (let x = minX; x <= maxX + 1e-8; x += gridSpacingMeters) {
-        appendLine(x, patch.minY, x, patch.maxY);
+        appendLine(x, patch.minY, x, patch.maxY, true);
       }
       for (let y = minY; y <= maxY + 1e-8; y += gridSpacingMeters) {
-        appendLine(patch.minX, y, patch.maxX, y);
+        appendLine(patch.minX, y, patch.maxX, y, false);
       }
     });
 
@@ -2408,10 +2418,11 @@ class RapierDriveSimulation {
       "position",
       new THREE.Float32BufferAttribute(vertices, 3),
     );
+    geometry.setAttribute("color", new THREE.Float32BufferAttribute(colors, 3));
     const material = new THREE.LineBasicMaterial({
-      color: 0x6c757d,
+      vertexColors: true,
       transparent: true,
-      opacity: 0.45,
+      opacity: 0.65,
       depthWrite: false,
     });
 

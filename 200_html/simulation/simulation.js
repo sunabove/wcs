@@ -2409,8 +2409,8 @@ class RapierDriveSimulation {
     const gridZ = this.groundZ + 0.001;
     const vertices = [];
     const colors = [];
-    const verticalLineColor = new THREE.Color(0x0d6efd);
-    const horizontalLineColor = new THREE.Color(0xfd7e14);
+    const verticalLineColor = new THREE.Color(0x00d9ff);
+    const horizontalLineColor = new THREE.Color(0xf8f9fa);
     const appendLine = (x1, y1, x2, y2, isVertical) => {
       vertices.push(x1, y1, gridZ, x2, y2, gridZ);
       const color = isVertical ? verticalLineColor : horizontalLineColor;

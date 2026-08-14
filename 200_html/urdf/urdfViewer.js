@@ -2656,72 +2656,19 @@ class URDFViewer {
 
     this.captureDriveAnimationPoseSnapshot();
     const baseRpm = this.convertKmhToRpm(this.driveSpeedKmh);
+    const wheelRpmByMode = {
+      forward: { fl: -baseRpm, fr: -baseRpm, rl: -baseRpm, rr: -baseRpm },
+      backward: { fl: baseRpm, fr: baseRpm, rl: baseRpm, rr: baseRpm },
+      left: { fl: -baseRpm, fr: baseRpm, rl: -baseRpm, rr: baseRpm },
+      right: { fl: baseRpm, fr: -baseRpm, rl: baseRpm, rr: -baseRpm },
+      stop: { fl: 0, fr: 0, rl: 0, rr: 0 },
+    };
+    const wheelRpms = wheelRpmByMode[mode] || wheelRpmByMode.stop;
 
-    if (mode === "forward") {
-      this.setWheelDirectionSign("fl", 1);
-      this.setWheelDirectionSign("fr", 1);
-      this.setWheelDirectionSign("rl", 1);
-      this.setWheelDirectionSign("rr", 1);
-      this.setWheelSpeedRpm("fl", -baseRpm);
-      this.setWheelSpeedRpm("fr", -baseRpm);
-      this.setWheelSpeedRpm("rl", -baseRpm);
-      this.setWheelSpeedRpm("rr", -baseRpm);
-      this.updateWheelHighlightsByDriveDirection();
-      return;
-    }
-
-    if (mode === "backward") {
-      this.setWheelDirectionSign("fl", -1);
-      this.setWheelDirectionSign("fr", -1);
-      this.setWheelDirectionSign("rl", -1);
-      this.setWheelDirectionSign("rr", -1);
-      this.setWheelSpeedRpm("fl", baseRpm);
-      this.setWheelSpeedRpm("fr", baseRpm);
-      this.setWheelSpeedRpm("rl", baseRpm);
-      this.setWheelSpeedRpm("rr", baseRpm);
-      this.updateWheelHighlightsByDriveDirection();
-      return;
-    }
-
-    if (mode === "left") {
-      this.setWheelDirectionSign("fl", -1);
-      this.setWheelDirectionSign("fr", 1);
-      this.setWheelDirectionSign("rl", -1);
-      this.setWheelDirectionSign("rr", 1);
-      this.setWheelSpeedRpm("fl", -baseRpm);
-      this.setWheelSpeedRpm("fr", baseRpm);
-      this.setWheelSpeedRpm("rl", -baseRpm);
-      this.setWheelSpeedRpm("rr", baseRpm);
-      this.updateWheelHighlightsByDriveDirection();
-      return;
-    }
-
-    if (mode === "right") {
-      this.setWheelDirectionSign("fl", 1);
-      this.setWheelDirectionSign("fr", -1);
-      this.setWheelDirectionSign("rl", 1);
-      this.setWheelDirectionSign("rr", -1);
-      this.setWheelSpeedRpm("fl", baseRpm);
-      this.setWheelSpeedRpm("fr", -baseRpm);
-      this.setWheelSpeedRpm("rl", baseRpm);
-      this.setWheelSpeedRpm("rr", -baseRpm);
-      this.updateWheelHighlightsByDriveDirection();
-      return;
-    }
-
-    if (mode === "stop") {
-      this.setWheelDirectionSign("fl", 1);
-      this.setWheelDirectionSign("fr", 1);
-      this.setWheelDirectionSign("rl", 1);
-      this.setWheelDirectionSign("rr", 1);
-      this.setWheelSpeedRpm("fl", 0);
-      this.setWheelSpeedRpm("fr", 0);
-      this.setWheelSpeedRpm("rl", 0);
-      this.setWheelSpeedRpm("rr", 0);
-      this.updateWheelHighlightsByDriveDirection();
-    }
-
-    this.restoreDriveAnimationPoseSnapshot();
+    Object.entries(wheelRpms).forEach(([key, rpm]) => {
+      this.setWheelSpeedRpm(key, rpm);
+    });
+    this.updateWheelHighlightsByDriveDirection();
   }
 
   updateWheelHighlightsByDriveDirection() {

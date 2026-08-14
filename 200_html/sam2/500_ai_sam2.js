@@ -1562,7 +1562,9 @@
           ].forEach((value, index) => {
             const cell = document.createElement("td");
             cell.textContent = String(value);
-            if (index > 0) {
+            if (index === 0) {
+              cell.classList.add("text-center");
+            } else {
               cell.classList.add("text-end");
             }
             row.append(cell);

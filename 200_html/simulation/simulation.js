@@ -957,20 +957,8 @@ class RapierDriveSimulation {
         ),
       ]),
     );
-    const getOverlapDisplayOffsetPixels = (wheelKey, sample) => {
-      const matchingWheelKeys = chartWheelKeys.filter((candidateWheelKey) => {
-        const matchingSample = visibleSamplesByWheelKey[candidateWheelKey].find(
-          (candidateSample) =>
-            Math.abs(candidateSample.t - sample.t) < 1e-6 &&
-            Math.abs(candidateSample.z - sample.z) < 1e-6,
-        );
-        return Boolean(matchingSample);
-      });
-      const matchingIndex = matchingWheelKeys.indexOf(wheelKey);
-      return (matchingIndex - (matchingWheelKeys.length - 1) * 0.5) * 3;
-    };
 
-    chartWheelKeys.forEach((wheelKey) => {
+    chartWheelKeys.forEach((wheelKey, wheelIndex) => {
       const samples = visibleSamplesByWheelKey[wheelKey];
       if (samples.length < 2) {
         return;
@@ -979,11 +967,12 @@ class RapierDriveSimulation {
       const seriesColor = this.wheelChartColorByKey[wheelKey] || "#222";
       ctx.strokeStyle = seriesColor;
       ctx.lineWidth = 1.7;
+      ctx.setLineDash([4, 12]);
+      ctx.lineDashOffset = wheelIndex * 4;
       ctx.beginPath();
       samples.forEach((sample, index) => {
         const x = toX(sample.t);
-        const y =
-          toY(sample.z) + getOverlapDisplayOffsetPixels(wheelKey, sample);
+        const y = toY(sample.z);
         if (index === 0) {
           ctx.moveTo(x, y);
         } else {
@@ -992,6 +981,8 @@ class RapierDriveSimulation {
       });
       ctx.stroke();
     });
+    ctx.setLineDash([]);
+    ctx.lineDashOffset = 0;
 
     const legendKeys = ["fl", "fr", "rl", "rr"];
     const legendX = margin.left + plotWidth - 50;

@@ -211,6 +211,16 @@ class Sam2VideoDetector:
         labels_dir = SAM2_YOLO_DIR / "labels" / "train"
         masks_dir = SAM2_YOLO_DIR / "masks" / "train"
         input_file_stems = set()
+        class_summary = [
+            {
+                "class_id": class_id,
+                "class_name": class_name,
+                "input_file_stems": set(),
+                "frame_stems": set(),
+                "segment_count": 0,
+            }
+            for class_id, class_name in enumerate(class_names)
+        ]
         frame_count = 0
         segment_count = 0
         if images_dir.is_dir() and labels_dir.is_dir() and masks_dir.is_dir():
@@ -225,17 +235,38 @@ class Sam2VideoDetector:
                     input_file_stems.add(match.group(1))
                 frame_count += 1
                 try:
-                    segment_count += sum(
-                        1
-                        for line in label_path.read_text(encoding="utf-8").splitlines()
-                        if line.strip()
-                    )
+                    for line in label_path.read_text(encoding="utf-8").splitlines():
+                        fields = line.split()
+                        if not fields:
+                            continue
+                        segment_count += 1
+                        try:
+                            class_id = int(fields[0])
+                        except ValueError:
+                            continue
+                        if not 0 <= class_id < len(class_summary):
+                            continue
+                        summary = class_summary[class_id]
+                        summary["segment_count"] += 1
+                        summary["frame_stems"].add(output_stem)
+                        if match:
+                            summary["input_file_stems"].add(match.group(1))
                 except OSError:
                     continue
 
         return {
             "class_count": len(class_names),
             "class_names": class_names,
+            "class_summary": [
+                {
+                    "class_id": summary["class_id"],
+                    "class_name": summary["class_name"],
+                    "input_file_count": len(summary["input_file_stems"]),
+                    "frame_count": len(summary["frame_stems"]),
+                    "segment_count": summary["segment_count"],
+                }
+                for summary in class_summary
+            ],
             "input_file_count": len(input_file_stems),
             "frame_count": frame_count,
             "segment_count": segment_count,

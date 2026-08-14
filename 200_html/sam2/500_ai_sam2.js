@@ -180,6 +180,9 @@
   const yoloTrainSummaryStatusElement = document.getElementById(
     "sam2-yolo-train-summary-status",
   );
+  const yoloTrainClassSummaryElement = document.getElementById(
+    "sam2-yolo-train-class-summary",
+  );
   const yoloTrainStartButton = document.getElementById("sam2-yolo-train-start");
   const yoloRetrainStartButton = document.getElementById(
     "sam2-yolo-retrain-start",
@@ -1565,6 +1568,9 @@
       const classNames = Array.isArray(summary.class_names)
         ? summary.class_names
         : [];
+      const classSummary = Array.isArray(summary.class_summary)
+        ? summary.class_summary
+        : [];
       const classCount = Number(summary.class_count || 0);
       const inputFileCount = Number(summary.input_file_count || 0);
       const frameCount = Number(summary.frame_count || 0);
@@ -1578,6 +1584,34 @@
         classNames.length > 0
           ? classNames.join(", ")
           : "등록된 클래스가 없습니다.";
+      if (yoloTrainClassSummaryElement) {
+        yoloTrainClassSummaryElement.replaceChildren();
+        if (classSummary.length === 0) {
+          const row = document.createElement("tr");
+          row.innerHTML =
+            '<td colspan="5" class="text-center text-muted">등록된 클래스가 없습니다.</td>';
+          yoloTrainClassSummaryElement.append(row);
+        } else {
+          classSummary.forEach((item) => {
+            const row = document.createElement("tr");
+            [
+              String(item.class_name || ""),
+              Number(item.class_id || 0),
+              Number(item.input_file_count || 0),
+              Number(item.frame_count || 0),
+              Number(item.segment_count || 0),
+            ].forEach((value, index) => {
+              const cell = document.createElement("td");
+              cell.textContent = String(value);
+              if (index > 0) {
+                cell.classList.add("text-end");
+              }
+              row.append(cell);
+            });
+            yoloTrainClassSummaryElement.append(row);
+          });
+        }
+      }
       setIconText(
         yoloTrainDataSummaryElement,
         "bi-file-earmark-play",

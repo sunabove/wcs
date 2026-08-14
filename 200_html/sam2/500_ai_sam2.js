@@ -1582,9 +1582,7 @@
         yoloRetrainStartButton.disabled = frameCount <= 0;
       }
       yoloTrainSummaryStatusElement.textContent =
-        frameCount > 0
-          ? "학습 데이터 준비 완료"
-          : "변환된 학습 데이터가 없습니다.";
+        frameCount > 0 ? "" : "변환된 학습 데이터가 없습니다.";
     } catch (error) {
       yoloTrainSummaryStatusElement.textContent =
         error && error.message

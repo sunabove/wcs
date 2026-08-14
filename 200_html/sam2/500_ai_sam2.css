@@ -110,6 +110,21 @@
   flex-shrink: 0;
 }
 
+.sam2-options-group > .sam2-score-input-group {
+  flex: 0 0 auto;
+  width: max-content;
+}
+
+.sam2-score-input-group .input-group-text {
+  flex: 0 0 auto;
+}
+
+.sam2-score-input-group .form-control {
+  flex: 0 0 3.25rem;
+  width: 3.25rem;
+  min-width: 3.25rem;
+}
+
 .sam2-detect-btn {
   white-space: nowrap;
   flex-shrink: 0;

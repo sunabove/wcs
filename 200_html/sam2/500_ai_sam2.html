@@ -11,7 +11,7 @@
 	<link rel="icon" href="/favicon.ico" type="image/x-icon" />
 	<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" />
 	<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet" />
-	<link rel="stylesheet" href="500_ai_sam2.css?v=20260811_7" />
+	<link rel="stylesheet" href="500_ai_sam2.css?v=20260814_8" />
 
 	<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js" defer></script>
 	<script src="https://cdn.jsdelivr.net/npm/chart.js@4.3.0/dist/chart.umd.min.js" defer></script>
@@ -140,16 +140,14 @@
 												<label id="sam2-multimask-output-text" class="input-group-text"
 													for="sam2-multimask-output">Single mask</label>
 											</div>
-											<div class="input-group input-group-sm flex-nowrap"
-												style="width:10rem;flex:0 0 10rem;">
+											<div class="input-group input-group-sm flex-nowrap sam2-score-input-group">
 												<span class="input-group-text">Ref Score</span>
 												<input id="sam2-reference-score-input" type="number"
 													class="form-control text-end"
 													style="width:3.25rem;flex:0 0 3.25rem;" min="0" max="1" step="0.001"
 													value="0.800" aria-label="Ref Score 설정" />
 											</div>
-											<div class="input-group input-group-sm flex-nowrap"
-												style="width:13rem;flex:0 0 13rem;">
+											<div class="input-group input-group-sm flex-nowrap sam2-score-input-group">
 												<span class="input-group-text">Ref-Mask-Ratio</span>
 												<input id="sam2-mask-ratio-input" type="number"
 													class="form-control text-end"

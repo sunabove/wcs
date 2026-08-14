@@ -39,8 +39,8 @@ class RoadDetector:
     
     road_model_name = "ai/road/model/01-yolo11m-road-sg.pt"
     road_type_model_name = "ai/road/model/02-yolo11m-cobot-road-type-sg-260626.pt" 
-    #obstacle_model_name = "ai/road/model/04-yolo11m-pothole-sg.pt"
-    obstacle_model_name = "ai/road/model/05-yolo11m-obstacle-sg-260810.pt"
+    #obstacle_model_name = "ai/road/model/05-yolo11m-obstacle-sg-260810.pt"
+    obstacle_model_name = "ai/road/model/05-yolo11m-obstacle-sg-260814-145446.pt"
     
     _model_paths = {
         "road": Path(__file__).resolve().parent / road_model_name,

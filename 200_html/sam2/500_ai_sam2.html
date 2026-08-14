@@ -323,6 +323,25 @@
 												<div class="fw-semibold mb-2">
 													<i class="bi bi-bar-chart me-1" aria-hidden="true"></i>학습 데이터 개요
 												</div>
+												<div class="table-responsive mb-3">
+													<table class="table table-sm table-striped mb-0 align-middle">
+														<thead class="table-light">
+															<tr>
+																<th scope="col">클래스명</th>
+																<th scope="col" class="text-end">클래스 ID</th>
+																<th scope="col" class="text-end">입력파일</th>
+																<th scope="col" class="text-end">프레임</th>
+																<th scope="col" class="text-end">Seg</th>
+															</tr>
+														</thead>
+														<tbody id="sam2-yolo-train-class-summary">
+															<tr>
+																<td colspan="5" class="text-center text-muted">클래스별 데이터를
+																	불러오는 중...</td>
+															</tr>
+														</tbody>
+													</table>
+												</div>
 												<div class="row g-3 align-items-end">
 													<div class="col-12 col-md-5">
 														<div id="sam2-yolo-train-class-count" class="fs-6 fw-semibold">
@@ -470,7 +489,7 @@
 													<canvas id="sam2-yolo-train-metrics-chart"
 														aria-label="YOLO 학습 정확도 지표 차트"></canvas>
 												</div>
-												<div class="table-responsive mt-3">
+												<div class="table-responsive mt-3 d-none">
 													<table class="table table-sm table-striped mb-0 align-middle">
 														<thead class="table-light">
 															<tr>
@@ -481,7 +500,7 @@
 																<th scope="col" class="text-end">Seg</th>
 															</tr>
 														</thead>
-														<tbody id="sam2-yolo-train-class-summary">
+														<tbody id="sam2-yolo-train-class-summary-legacy">
 															<tr>
 																<td colspan="5" class="text-center text-muted">클래스별 데이터를
 																	불러오는 중...</td>

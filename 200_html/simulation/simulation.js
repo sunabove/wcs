@@ -202,7 +202,7 @@ class RapierDriveSimulation {
         this.passUnderObstacleNamePatterns = [/pass_under/i, /underbody/i];
         this.maxSpeedMps = 100 / 3.6;
         this.maxYawRateRad = THREE.MathUtils.degToRad(80);
-        this.enableWheelPhysicsColliders = false;
+        this.enableWheelPhysicsColliders = true;
         this.blockMotionOnObstacleContact = false;
         this.keepUprightOnFlatGround = true;
         this.isUprightRotationLockActive = false;
@@ -2686,7 +2686,10 @@ class RapierDriveSimulation {
             : bodyPosition.z;
         const obstacleTargetZ = this.getObstacleClimbTargetZ(obstacleInfo);
 
+        // A single contacted wheel should be allowed to climb via wheel contact and body pitch/roll.
+        // Global body-height traversal is reserved for a shared axle/support contact.
         if (!hasWheelContact
+            || obstacleInfo.contactedWheelKeys.length < 2
             || !Number.isFinite(obstacleTargetZ)
             || lateralOffset > 0.8
             || obstacleTargetZ <= groundTargetZ + 0.004) {
@@ -2784,6 +2787,9 @@ class RapierDriveSimulation {
 
         const hasWheelContact = Array.isArray(obstacleInfo?.contactedWheelKeys)
             && obstacleInfo.contactedWheelKeys.length > 0;
+        if (hasWheelContact && obstacleInfo.contactedWheelKeys.length < 2) {
+            return;
+        }
         const directTargetZ = hasWheelContact
             ? this.getObstacleClimbTargetZ(obstacleInfo)
             : null;
@@ -3736,12 +3742,12 @@ class RapierDriveSimulation {
 
             const body = world.createRigidBody(rigidBodyDesc);
 
-// Keep the vehicle strictly upright (lock roll/pitch X, Y axes permanently, enable only Yaw Z axis)
-        if (typeof body.setEnabledRotations === 'function') {
-            body.setEnabledRotations(false, false, true, true);
-        } else if (typeof body.restrictRotations === 'function') {
-            body.restrictRotations(false, false, true, true);
-        }
+            // Keep roll/pitch available for obstacle contact; flat-ground stabilization locks them dynamically.
+            if (typeof body.setEnabledRotations === 'function') {
+                body.setEnabledRotations(true, true, true, true);
+            } else if (typeof body.restrictRotations === 'function') {
+                body.restrictRotations(true, true, true, true);
+            }
 
             const bbox = this.computeChassisBounds(carFrame, linkMap);
             const size = bbox.getSize(new THREE.Vector3());
@@ -4026,8 +4032,9 @@ class RapierDriveSimulation {
         const isNearFlatGroundSupport = this.isBodyNearFlatGroundSupport();
 
         if (this.keepUprightOnFlatGround) {
-            // Always enforce upright rotation lock (Roll / Pitch locked to zero) to prevent rollover on obstacles.
-            this.setUprightRotationLockEnabled(true);
+            this.setUprightRotationLockEnabled(
+                isNearFlatGroundSupport && !this.isVehicleObstacleContact,
+            );
         }
 
         const previousTranslation = this.body.translation();
@@ -4219,7 +4226,7 @@ class RapierDriveSimulation {
             this.body.setAngvel(new this.rapier.Vector3(0, 0, 0), true);
         }
         if (this.keepUprightOnFlatGround) {
-            this.setUprightRotationLockEnabled(true);
+            this.setUprightRotationLockEnabled(!this.isVehicleObstacleContact);
         }
 
         this.maybeLogRuntimeDiagnostics(

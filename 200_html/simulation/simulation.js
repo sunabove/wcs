@@ -248,6 +248,8 @@ class RapierDriveSimulation {
     };
     this.commandedDriveMode = "stop";
     this.commandedSpeedMps = SIM_SPEED_DEFAULT_MPS;
+    this.centerTurnPivotWorld = null;
+    this.centerTurnPivotLocal = null;
     this.isPaused = false;
     this.pauseStateSnapshot = null;
     this.hasInstalledDriveCommandHooks = false;
@@ -1178,6 +1180,7 @@ class RapierDriveSimulation {
 
     this.hasActivatedSimulationMotion = false;
     this.hasActivatedDynamicGroundClamp = false;
+    this.clearCenterTurnPivot();
     this.wheelZChartLastSampleTimeMs = null;
 
     if (this.carFrame) {
@@ -1202,6 +1205,89 @@ class RapierDriveSimulation {
       const speedKmh = Math.max(this.mpsToKmh(this.commandedSpeedMps), 0);
       viewer.applyDriveMode(normalizedMode, speedKmh);
     }
+
+    if (normalizedMode === "left" || normalizedMode === "right") {
+      this.captureCenterTurnPivot();
+    } else {
+      this.clearCenterTurnPivot();
+    }
+  }
+
+  clearCenterTurnPivot() {
+    this.centerTurnPivotWorld = null;
+    this.centerTurnPivotLocal = null;
+  }
+
+  captureCenterTurnPivot() {
+    if (!this.carFrame) {
+      this.clearCenterTurnPivot();
+      return;
+    }
+
+    const linkMap = this.viewer?.robotModel?.links || null;
+    const wheelCenters = Object.values(this.wheelLinkNameByKey)
+      .map((wheelLinkName) => this.findLinkByName(linkMap, wheelLinkName))
+      .filter(Boolean)
+      .map((wheelLink) => {
+        wheelLink.updateWorldMatrix(true, false);
+        return wheelLink.getWorldPosition(new THREE.Vector3());
+      });
+
+    if (wheelCenters.length !== 4) {
+      this.clearCenterTurnPivot();
+      return;
+    }
+
+    const centerTurnPivotWorld = wheelCenters
+      .reduce((sum, wheelCenter) => sum.add(wheelCenter), new THREE.Vector3())
+      .multiplyScalar(1 / wheelCenters.length);
+
+    this.carFrame.updateWorldMatrix(true, false);
+    this.centerTurnPivotWorld = centerTurnPivotWorld;
+    this.centerTurnPivotLocal = this.carFrame.worldToLocal(
+      centerTurnPivotWorld.clone(),
+    );
+  }
+
+  constrainCenterTurnPivot() {
+    const isCenterTurn =
+      this.commandedDriveMode === "left" || this.commandedDriveMode === "right";
+    if (
+      isCenterTurn &&
+      (!this.centerTurnPivotWorld || !this.centerTurnPivotLocal)
+    ) {
+      this.captureCenterTurnPivot();
+    }
+    if (
+      !isCenterTurn ||
+      !this.body ||
+      !this.rapier ||
+      !this.centerTurnPivotWorld ||
+      !this.centerTurnPivotLocal
+    ) {
+      return;
+    }
+
+    const rotation = this.body.rotation();
+    const bodyQuaternion = new THREE.Quaternion(
+      rotation.x,
+      rotation.y,
+      rotation.z,
+      rotation.w,
+    ).normalize();
+    const localPivotOffset = this.centerTurnPivotLocal
+      .clone()
+      .applyQuaternion(bodyQuaternion);
+    const nextPosition = this.centerTurnPivotWorld
+      .clone()
+      .sub(localPivotOffset);
+    const velocity = this.body.linvel();
+
+    this.body.setTranslation(
+      new this.rapier.Vector3(nextPosition.x, nextPosition.y, nextPosition.z),
+      true,
+    );
+    this.body.setLinvel(new this.rapier.Vector3(0, 0, velocity.z), true);
   }
 
   applyDriveSpeedCommandMps(mps) {
@@ -5250,6 +5336,8 @@ class RapierDriveSimulation {
         true,
       );
     }
+
+    this.constrainCenterTurnPivot();
 
     const nextPosition = this.body.translation();
     const nextRotation = this.body.rotation();

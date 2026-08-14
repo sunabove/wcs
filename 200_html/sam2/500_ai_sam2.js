@@ -171,6 +171,15 @@
   const yoloTrainClassSummaryElement = document.getElementById(
     "sam2-yolo-train-class-summary",
   );
+  const yoloTrainTotalInputFilesElement = document.getElementById(
+    "sam2-yolo-train-total-input-files",
+  );
+  const yoloTrainTotalFramesElement = document.getElementById(
+    "sam2-yolo-train-total-frames",
+  );
+  const yoloTrainTotalSegmentsElement = document.getElementById(
+    "sam2-yolo-train-total-segments",
+  );
   const yoloTrainStartButton = document.getElementById("sam2-yolo-train-start");
   const yoloRetrainStartButton = document.getElementById(
     "sam2-yolo-retrain-start",
@@ -1543,7 +1552,18 @@
       const classSummary = Array.isArray(summary.class_summary)
         ? summary.class_summary
         : [];
+      const inputFileCount = Number(summary.input_file_count || 0);
       const frameCount = Number(summary.frame_count || 0);
+      const segmentCount = Number(summary.segment_count || 0);
+      if (yoloTrainTotalInputFilesElement) {
+        yoloTrainTotalInputFilesElement.textContent = String(inputFileCount);
+      }
+      if (yoloTrainTotalFramesElement) {
+        yoloTrainTotalFramesElement.textContent = String(frameCount);
+      }
+      if (yoloTrainTotalSegmentsElement) {
+        yoloTrainTotalSegmentsElement.textContent = String(segmentCount);
+      }
       yoloTrainClassSummaryElement.replaceChildren();
       if (classSummary.length === 0) {
         const row = document.createElement("tr");

@@ -1076,7 +1076,7 @@ class Sam2VideoDetector:
             1.0,
             chart_y2,
             chart_y2 - chart_plot_y1,
-            4,
+            1,
         )
 
         mask_ratio_values = np.asarray(fill_ratio_history, dtype=np.float32)
@@ -1102,7 +1102,7 @@ class Sam2VideoDetector:
                     1.0,
                     chart_y2,
                     chart_y2 - chart_plot_y1,
-                    2,
+                    1,
                 )
 
         self._chart_renderer._draw_chart_series(
@@ -1117,7 +1117,7 @@ class Sam2VideoDetector:
             1.0,
             chart_y2,
             chart_y2 - chart_plot_y1,
-            2,
+            1,
         )
 
         excluded_polygon_ratio_values = np.asarray(
@@ -1136,7 +1136,7 @@ class Sam2VideoDetector:
             1.0,
             chart_y2,
             chart_y2 - chart_plot_y1,
-            2,
+            1,
         )
 
         cv2.line(canvas, (chart_x1, threshold_y), (chart_x2, threshold_y), (0, 165, 255), 1, cv2.LINE_AA)
@@ -1227,13 +1227,8 @@ class Sam2VideoDetector:
             )
             last_label_end_x = text_x + tick_width
 
-        ref_thickness = 2
-        curr_thickness = 1
-
-        cv2.line(canvas, (current_x - 1, chart_y1), (current_x - 1, chart_y2), (235, 235, 235), curr_thickness + 1, cv2.LINE_AA)
-        cv2.line(canvas, (current_x, chart_y1), (current_x, chart_y2), (235, 235, 235), curr_thickness, cv2.LINE_AA)
-        cv2.line(canvas, (reference_x + 1, chart_y1), (reference_x + 1, chart_y2), (255, 180, 80), ref_thickness + 1, cv2.LINE_AA)
-        cv2.line(canvas, (reference_x, chart_y1), (reference_x, chart_y2), (255, 180, 80), ref_thickness, cv2.LINE_AA)
+        cv2.line(canvas, (current_x, chart_y1), (current_x, chart_y2), (235, 235, 235), 1, cv2.LINE_AA)
+        cv2.line(canvas, (reference_x, chart_y1), (reference_x, chart_y2), (255, 180, 80), 1, cv2.LINE_AA)
         return canvas
 
     def _overlay_bbox_result(self, frame, roi_plotted, bbox_rect, score=None):

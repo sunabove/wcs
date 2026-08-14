@@ -1399,18 +1399,17 @@
         throw new Error(`진행 중인 학습 조회 실패 (${response.status})`);
       }
       const job = await response.json();
-      if (!job.active || !job.job_id) {
+      if (!job.job_id) {
         return;
       }
-      yoloTrainingJobId = String(job.job_id);
       if (yoloTrainStartButton) {
-        yoloTrainStartButton.disabled = true;
+        yoloTrainStartButton.disabled = Boolean(job.active);
       }
       if (yoloRetrainStartButton) {
-        yoloRetrainStartButton.disabled = true;
+        yoloRetrainStartButton.disabled = Boolean(job.active);
       }
       if (yoloTrainStopButton) {
-        yoloTrainStopButton.disabled = job.status === "stopping";
+        yoloTrainStopButton.disabled = !job.active || job.status === "stopping";
       }
       renderYoloTrainingProgress(
         job.progress,
@@ -1421,7 +1420,10 @@
       );
       renderYoloTrainingDetails(job);
       renderYoloTrainingMetrics(job.metric_history, job.total_epochs);
-      pollYoloTrainingStatus();
+      if (job.active) {
+        yoloTrainingJobId = String(job.job_id);
+        pollYoloTrainingStatus();
+      }
     } catch (error) {
       console.error("[SAM2] 진행 중인 YOLO 학습 복구 실패", error);
     } finally {

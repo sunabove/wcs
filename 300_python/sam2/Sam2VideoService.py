@@ -389,6 +389,8 @@ class Sam2VideoService:
                     "checkpoint_path": str(Path(save_dir) / "weights" / "last.pt"),
                     "output_model_path": str(output_model_path),
                     "yolo_model_path": str(yolo_model_path),
+                    "total_epochs": epochs,
+                    "metric_history": metric_history,
                 }, ensure_ascii=False, indent=2),
                 encoding="utf-8",
             )
@@ -519,13 +521,38 @@ class Sam2VideoService:
                 raise HTTPException(status_code=404, detail="YOLO training job not found")
             return self._get_yolo_training_snapshot(job_id, job)
 
+    def _get_last_completed_yolo_training(self):
+        metadata_path = SAM2_YOLO_DIR / "runs" / "obstacle-seg" / "training_state.json"
+        if not metadata_path.is_file():
+            return None
+        try:
+            metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            return None
+        if not metadata.get("completed_at"):
+            return None
+        return {
+            "job_id": "last-completed",
+            "status": "completed",
+            "progress": 100,
+            "current_epoch": metadata.get("total_epochs", 0),
+            "total_epochs": metadata.get("total_epochs", 0),
+            "metric_history": metadata.get("metric_history", []),
+            "message": "마지막 YOLO 학습 결과입니다.",
+            "result": {
+                "best_model_path": metadata.get("output_model_path", ""),
+                "yolo_model_path": metadata.get("yolo_model_path", ""),
+            },
+        }
+
     def get_active_yolo_training(self):
         with self._training_jobs_lock:
             job_id = self._active_training_job_id
             job = self._training_jobs.get(job_id)
-            if not job or job.get("status") not in {"queued", "running", "stopping"}:
-                return {"active": False}
-            return {"active": True, **self._get_yolo_training_snapshot(job_id, job)}
+            if job and job.get("status") in {"queued", "running", "stopping"}:
+                return {"active": True, **self._get_yolo_training_snapshot(job_id, job)}
+        last_completed = self._get_last_completed_yolo_training()
+        return {"active": False, **last_completed} if last_completed else {"active": False}
 
     def delete_yolo_dataset(self, file_name: str):
         input_path = self._resolve_uploaded_video_path(file_name)

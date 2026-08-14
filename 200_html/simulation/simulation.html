@@ -129,14 +129,14 @@
                                             step="0.1" value="0.1"
                                             oninput="this.style.setProperty('--slider-percent', (((this.value - this.min) * 100) / (this.max - this.min)) + '%'); setSimulationDriveSpeedMps(this.value)">
                                         <div class="d-flex align-items-center gap-2 ms-auto flex-shrink-0">
-                                            <button type="button"
-                                                class="btn btn-outline-secondary btn-sm py-0 px-2 text-nowrap flex-shrink-0 small"
-                                                id="drive-speed-reset" onclick="resetSimulationSpeed()">초기화</button>
                                             <input type="number" class="form-control form-control-sm flex-shrink-0"
                                                 id="drive-speed-mps-input" min="0" max="2" step="0.1" value="0.1"
                                                 aria-label="속도 값" style="width: 5.25rem;">
                                             <span class="small text-nowrap fw-semibold text-start flex-shrink-0"
                                                 id="drive-speed-mps-value" style="width: 2.5rem;">m/s</span>
+                                            <button type="button"
+                                                class="btn btn-outline-secondary btn-sm py-0 px-2 text-nowrap flex-shrink-0 small"
+                                                id="drive-speed-reset" onclick="resetSimulationSpeed()">초기화</button>
                                         </div>
                                     </div>
                                 </div>
@@ -148,16 +148,16 @@
                                             min="1" max="30" step="1" value="2"
                                             oninput="this.style.setProperty('--slider-percent', (((this.value - this.min) * 100) / (this.max - this.min)) + '%'); setSimulationVisualSpeed(this.value)">
                                         <div class="d-flex align-items-center gap-2 ms-auto flex-shrink-0">
-                                            <button type="button"
-                                                class="btn btn-outline-secondary btn-sm py-0 px-2 text-nowrap flex-shrink-0 small"
-                                                id="simulation-visual-speed-reset"
-                                                onclick="resetSimulationVisualSpeed()">초기화</button>
                                             <input type="number" class="form-control form-control-sm flex-shrink-0"
                                                 id="simulation-visual-speed-scale-input" min="1" max="30" step="1"
                                                 value="2" aria-label="배속 값" style="width: 5.25rem;">
                                             <span class="small text-nowrap fw-semibold text-start flex-shrink-0"
                                                 id="simulation-visual-speed-scale-value"
                                                 style="width: 1.25rem;">x</span>
+                                            <button type="button"
+                                                class="btn btn-outline-secondary btn-sm py-0 px-2 text-nowrap flex-shrink-0 small"
+                                                id="simulation-visual-speed-reset"
+                                                onclick="resetSimulationVisualSpeed()">초기화</button>
                                         </div>
                                     </div>
                                 </div>

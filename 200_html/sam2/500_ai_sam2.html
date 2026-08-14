@@ -16,7 +16,7 @@
 	<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js" defer></script>
 	<script src="https://cdn.jsdelivr.net/npm/chart.js@4.3.0/dist/chart.umd.min.js" defer></script>
 	<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-	<script src="500_ai_sam2.js?v=20260814_32" defer></script>
+	<script src="500_ai_sam2.js?v=20260814_33" defer></script>
 </head>
 
 <body class="bg-light">
@@ -113,29 +113,30 @@
 									<div class="sam2-options-bar">
 										<div class="sam2-options-group">
 
-											<div class="form-switch d-inline-flex align-items-center gap-1 p-0 mb-0">
-												<span class="small text-secondary me-2"> Mask input</span>
-												<input id="sam2-mask-input" class="form-check-input m-0" type="checkbox"
-													role="switch" checked disabled />
-												<label id="sam2-mask-input-text"
-													class="form-check-label small text-start d-inline-block ms-2"
-													for="sam2-mask-input"> On &nbsp;</label>
+											<div class="input-group input-group-sm" style="width:12.5rem;">
+												<span class="input-group-text">Mask input</span>
+												<span class="input-group-text"><input id="sam2-mask-input"
+														class="form-check-input mt-0" type="checkbox" role="switch"
+														checked disabled /></span>
+												<label id="sam2-mask-input-text" class="input-group-text flex-grow-1"
+													for="sam2-mask-input">On</label>
 											</div>
-											<div class="form-switch d-inline-flex align-items-center gap-1 p-0 mb-0">
-												<span class="small text-secondary me-2">CLAHE</span>
-												<input id="sam2-clahe" class="form-check-input m-0" type="checkbox"
-													role="switch" checked />
-												<label id="sam2-clahe-text"
-													class="form-check-label text-start d-inline-block ms-2"
-													for="sam2-clahe"> On &nbsp;</label>
+											<div class="input-group input-group-sm" style="width:10rem;">
+												<span class="input-group-text">CLAHE</span>
+												<span class="input-group-text"><input id="sam2-clahe"
+														class="form-check-input mt-0" type="checkbox" role="switch"
+														checked /></span>
+												<label id="sam2-clahe-text" class="input-group-text flex-grow-1"
+													for="sam2-clahe">On</label>
 											</div>
-											<div class="form-switch d-inline-flex align-items-center gap-1 p-0 mb-0">
-												<span class="small text-secondary me-2">Multimask output</span>
-												<input id="sam2-multimask-output" class="form-check-input m-0"
-													type="checkbox" role="switch" disabled />
+											<div class="input-group input-group-sm" style="width:16rem;">
+												<span class="input-group-text">Multimask output</span>
+												<span class="input-group-text"><input id="sam2-multimask-output"
+														class="form-check-input mt-0" type="checkbox" role="switch"
+														disabled /></span>
 												<label id="sam2-multimask-output-text"
-													class="form-check-label small text-start d-inline-block ms-2"
-													for="sam2-multimask-output"> Single mask &nbsp;</label>
+													class="input-group-text flex-grow-1"
+													for="sam2-multimask-output">Single mask</label>
 											</div>
 											<div class="input-group input-group-sm" style="width:11.5rem;">
 												<span class="input-group-text">Ref Score</span>

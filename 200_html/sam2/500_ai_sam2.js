@@ -182,7 +182,7 @@
     yoloTrainButtonGroup.classList.add(
       "d-flex",
       "flex-nowrap",
-      "justify-content-md-end",
+      "justify-content-center",
     );
     const buttonColumn = yoloTrainButtonGroup.parentElement;
     buttonColumn?.parentElement

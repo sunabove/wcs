@@ -2223,6 +2223,11 @@ class RoadDetector:
             x2 = max(x1 + 1, min(x2, mask_w))
             y2 = max(y1 + 1, min(y2, mask_h))
 
+            center_x = min(mask_w - 1, max(0, (x1 + x2 - 1) // 2))
+            center_y = min(mask_h - 1, max(0, (y1 + y2 - 1) // 2))
+            if not bool(area_mask[center_y, center_x]):
+                continue
+
             overlap = area_mask[y1:y2, x1:x2]
             if overlap.size == 0 or not np.any(overlap):
                 continue

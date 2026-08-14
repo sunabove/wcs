@@ -46,7 +46,6 @@ body {
 }
 
 #drive-speed-mps-value {
-  min-width: 60px;
   text-align: right;
 }
 

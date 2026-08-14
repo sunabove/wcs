@@ -92,6 +92,7 @@ class URDFViewer {
     this.driveSpeedKmh = 0;
     this.driveAnimationPoseSnapshot = null;
     this.kmhToRpmFactor = 4;
+    this.kmhToRpmFactorByWheelKey = {};
     this.wheelJointNameByKey = {
       fl: "wheel_fl_joint",
       fr: "wheel_fr_joint",
@@ -2644,8 +2645,13 @@ class URDFViewer {
     this.wheelDirectionSignByKey[key] = sign >= 0 ? 1 : -1;
   }
 
-  convertKmhToRpm(kmh) {
-    return Math.max(kmh, 0) * this.kmhToRpmFactor;
+  convertKmhToRpm(kmh, wheelKey = null) {
+    const perWheelFactor = Number(this.kmhToRpmFactorByWheelKey?.[wheelKey]);
+    const rpmFactor =
+      Number.isFinite(perWheelFactor) && perWheelFactor > 0
+        ? perWheelFactor
+        : this.kmhToRpmFactor;
+    return Math.max(kmh, 0) * rpmFactor;
   }
 
   applyDriveMode(mode, speedKmh) {
@@ -2655,12 +2661,33 @@ class URDFViewer {
       : this.driveSpeedKmh;
 
     this.captureDriveAnimationPoseSnapshot();
-    const baseRpm = this.convertKmhToRpm(this.driveSpeedKmh);
+    const rpmForWheel = (wheelKey) =>
+      this.convertKmhToRpm(this.driveSpeedKmh, wheelKey);
     const wheelRpmByMode = {
-      forward: { fl: -baseRpm, fr: -baseRpm, rl: -baseRpm, rr: -baseRpm },
-      backward: { fl: baseRpm, fr: baseRpm, rl: baseRpm, rr: baseRpm },
-      left: { fl: -baseRpm, fr: baseRpm, rl: -baseRpm, rr: baseRpm },
-      right: { fl: baseRpm, fr: -baseRpm, rl: baseRpm, rr: -baseRpm },
+      forward: {
+        fl: -rpmForWheel("fl"),
+        fr: -rpmForWheel("fr"),
+        rl: -rpmForWheel("rl"),
+        rr: -rpmForWheel("rr"),
+      },
+      backward: {
+        fl: rpmForWheel("fl"),
+        fr: rpmForWheel("fr"),
+        rl: rpmForWheel("rl"),
+        rr: rpmForWheel("rr"),
+      },
+      left: {
+        fl: -rpmForWheel("fl"),
+        fr: rpmForWheel("fr"),
+        rl: -rpmForWheel("rl"),
+        rr: rpmForWheel("rr"),
+      },
+      right: {
+        fl: rpmForWheel("fl"),
+        fr: -rpmForWheel("fr"),
+        rl: rpmForWheel("rl"),
+        rr: -rpmForWheel("rr"),
+      },
       stop: { fl: 0, fr: 0, rl: 0, rr: 0 },
     };
     const wheelRpms = wheelRpmByMode[mode] || wheelRpmByMode.stop;

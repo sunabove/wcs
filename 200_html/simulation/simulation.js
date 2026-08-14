@@ -1293,10 +1293,10 @@ class RapierDriveSimulation {
   applyDriveSpeedCommandMps(mps) {
     const normalizedMps = this.normalizeDriveSpeedMps(mps, 0);
     this.commandedSpeedMps = normalizedMps;
+    const normalizedKmh = this.mpsToKmh(normalizedMps);
 
     if (typeof globalThis.setDriveSpeedKmh === "function") {
-      globalThis.setDriveSpeedKmh(this.mpsToKmh(normalizedMps));
-      return;
+      globalThis.setDriveSpeedKmh(normalizedKmh);
     }
 
     const viewer = this.getDriveSourceViewer() || this.viewer;
@@ -1304,15 +1304,13 @@ class RapierDriveSimulation {
       return;
     }
 
-    const normalizedKmh = this.mpsToKmh(normalizedMps);
-    viewer.driveSpeedKmh = normalizedKmh;
-    if (
-      viewer.driveMode &&
-      viewer.driveMode !== "stop" &&
-      typeof viewer.applyDriveMode === "function"
-    ) {
-      viewer.applyDriveMode(viewer.driveMode, normalizedKmh);
+    const driveMode = String(this.commandedDriveMode || "stop");
+    if (driveMode !== "stop" && typeof viewer.applyDriveMode === "function") {
+      viewer.applyDriveMode(driveMode, normalizedKmh);
+      return;
     }
+
+    viewer.driveSpeedKmh = normalizedKmh;
   }
 
   applyDriveSpeedCommandKmh(kmh) {
@@ -3838,26 +3836,30 @@ class RapierDriveSimulation {
       return;
     }
 
-    const wheelLinkNames = ["wheel_fl", "wheel_fr", "wheel_rl", "wheel_rr"];
+    const wheelRadiusMetersByKey = {};
     const radii = [];
 
-    wheelLinkNames.forEach((wheelLinkName) => {
-      const wheelLink = this.findLinkByName(linkMap, wheelLinkName);
-      if (!wheelLink) {
-        return;
-      }
+    Object.entries(this.wheelLinkNameByKey).forEach(
+      ([wheelKey, wheelLinkName]) => {
+        const wheelLink = this.findLinkByName(linkMap, wheelLinkName);
+        if (!wheelLink) {
+          return;
+        }
 
-      wheelLink.updateWorldMatrix(true, true);
-      const wheelBounds =
-        this.computeLinkOwnBounds(wheelLink, linkMap) || new THREE.Box3();
-      if (wheelBounds.isEmpty()) {
-        return;
-      }
+        wheelLink.updateWorldMatrix(true, true);
+        const wheelBounds =
+          this.computeLinkOwnBounds(wheelLink, linkMap) || new THREE.Box3();
+        if (wheelBounds.isEmpty()) {
+          return;
+        }
 
-      const size = wheelBounds.getSize(new THREE.Vector3());
-      const radius = Math.max(size.x * 0.5, size.z * 0.5, 0.05);
-      radii.push(radius);
-    });
+        const size = wheelBounds.getSize(new THREE.Vector3());
+        const radius = Math.max(size.x * 0.5, size.z * 0.5, 0.05);
+        this.wheelRadiusMetersByKey[wheelKey] = radius;
+        wheelRadiusMetersByKey[wheelKey] = radius;
+        radii.push(radius);
+      },
+    );
 
     if (radii.length === 0) {
       return;
@@ -3866,6 +3868,15 @@ class RapierDriveSimulation {
     const avgRadius =
       radii.reduce((sum, radius) => sum + radius, 0) / radii.length;
     this.wheelEffectiveRadiusMeters = Math.max(avgRadius, 0.05);
+    const viewer = this.getDriveSourceViewer();
+    if (viewer) {
+      viewer.kmhToRpmFactorByWheelKey = Object.fromEntries(
+        Object.entries(wheelRadiusMetersByKey).map(([wheelKey, radius]) => [
+          wheelKey,
+          1000 / (60 * Math.PI * 2 * radius),
+        ]),
+      );
+    }
     this.configureWheelVisualKinematics();
   }
 

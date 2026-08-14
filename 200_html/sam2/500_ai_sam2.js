@@ -348,6 +348,39 @@
     statusElement.textContent = message;
   }
 
+  let yoloOverlayPolygonToastElement = null;
+
+  function setYoloOverlayPolygonLoadingToast(visible) {
+    if (typeof bootstrap === "undefined" || !bootstrap.Toast) {
+      return;
+    }
+    if (!yoloOverlayPolygonToastElement) {
+      const toastContainer = document.createElement("div");
+      toastContainer.className =
+        "toast-container position-fixed bottom-0 end-0 p-3";
+      toastContainer.style.zIndex = "1080";
+      yoloOverlayPolygonToastElement = document.createElement("div");
+      yoloOverlayPolygonToastElement.className =
+        "toast align-items-center text-bg-primary border-0";
+      yoloOverlayPolygonToastElement.setAttribute("role", "status");
+      yoloOverlayPolygonToastElement.setAttribute("aria-live", "polite");
+      yoloOverlayPolygonToastElement.setAttribute("aria-atomic", "true");
+      yoloOverlayPolygonToastElement.innerHTML =
+        '<div class="d-flex"><div class="toast-body"><span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>검출 폴리곤 데이터를 가져와 오버레이에 표시하는 중...</div><button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="닫기"></button></div>';
+      toastContainer.append(yoloOverlayPolygonToastElement);
+      document.body.append(toastContainer);
+    }
+    const toast = bootstrap.Toast.getOrCreateInstance(
+      yoloOverlayPolygonToastElement,
+      { autohide: false },
+    );
+    if (visible) {
+      toast.show();
+    } else {
+      toast.hide();
+    }
+  }
+
   function formatBytes(bytes) {
     const value = Number(bytes);
     if (!Number.isFinite(value) || value <= 0) {
@@ -2851,8 +2884,20 @@
     let loaded = false;
     let loading = false;
     let labelRequestSequence = 0;
+    let overlayPolygonLoading = false;
     const yoloClassName =
       extractYoloClassName(item.serverFileName || item.name) || "-";
+
+    function updateOverlayPolygonLoadingToast() {
+      setYoloOverlayPolygonLoadingToast(
+        overlayPolygonLoading && overlayTabButton.classList.contains("active"),
+      );
+    }
+
+    overlayTabButton.addEventListener(
+      "shown.bs.tab",
+      updateOverlayPolygonLoadingToast,
+    );
 
     function renderSegmentationData(labelText) {
       const labelLines = String(labelText || "")
@@ -2896,6 +2941,8 @@
       classIdElement.innerHTML = "&nbsp;";
       classNameElement.textContent = yoloClassName;
       labelElement.textContent = "Seg Polygon 데이터를 불러오는 중...";
+      overlayPolygonLoading = true;
+      updateOverlayPolygonLoadingToast();
       try {
         const response = await fetch(`${apiBase}${frame.label_url}`, {
           cache: "no-store",
@@ -2914,6 +2961,11 @@
             error && error.message
               ? error.message
               : "라벨을 불러오지 못했습니다.";
+        }
+      } finally {
+        if (requestSequence === labelRequestSequence) {
+          overlayPolygonLoading = false;
+          updateOverlayPolygonLoadingToast();
         }
       }
     }

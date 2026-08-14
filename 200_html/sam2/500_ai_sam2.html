@@ -110,8 +110,8 @@
 							<tr>
 								<th scope="row" class="text-center text-nowrap">옵션</th>
 								<td class="text-start">
-									<div class="d-flex flex-wrap align-items-center gap-3">
-										<div class="d-flex flex-wrap align-items-center gap-3 flex-grow-1">
+									<div class="d-flex flex-nowrap align-items-center gap-2">
+										<div class="d-flex flex-nowrap align-items-center gap-2 flex-grow-1">
 
 											<div class="input-group input-group-sm flex-nowrap w-auto flex-shrink-0">
 												<span class="input-group-text">Mask input</span>
@@ -120,7 +120,7 @@
 														id="sam2-mask-input" class="form-check-input m-0"
 														type="checkbox" role="switch" checked disabled /></span>
 												<label id="sam2-mask-input-text" class="input-group-text text-center"
-													style="width:3.5rem;" for="sam2-mask-input">On</label>
+													style="width:2.25rem;" for="sam2-mask-input">On</label>
 											</div>
 											<div class="input-group input-group-sm flex-nowrap w-auto flex-shrink-0">
 												<span class="input-group-text">CLAHE</span>
@@ -129,7 +129,7 @@
 														id="sam2-clahe" class="form-check-input m-0" type="checkbox"
 														role="switch" checked /></span>
 												<label id="sam2-clahe-text" class="input-group-text text-center"
-													style="width:3.5rem;" for="sam2-clahe">On</label>
+													style="width:2.25rem;" for="sam2-clahe">On</label>
 											</div>
 											<div class="input-group input-group-sm flex-nowrap w-auto flex-shrink-0">
 												<span class="input-group-text">Multimask output</span>
@@ -138,20 +138,20 @@
 														id="sam2-multimask-output" class="form-check-input m-0"
 														type="checkbox" role="switch" disabled /></span>
 												<label id="sam2-multimask-output-text"
-													class="input-group-text text-center" style="width:7.5rem;"
+													class="input-group-text text-center" style="width:6rem;"
 													for="sam2-multimask-output">Single mask</label>
 											</div>
 											<div class="input-group input-group-sm flex-nowrap w-auto flex-shrink-0">
 												<span class="input-group-text">Ref Score</span>
 												<input id="sam2-reference-score-input" type="number"
-													class="form-control w-auto text-end" min="0" max="1" step="0.001"
-													value="0.800" aria-label="Ref Score 설정" />
+													class="form-control text-end" style="width:2.75rem;" min="0" max="1"
+													step="0.001" value="0.800" aria-label="Ref Score 설정" />
 											</div>
 											<div class="input-group input-group-sm flex-nowrap w-auto flex-shrink-0">
 												<span class="input-group-text">Ref-Mask-Ratio</span>
 												<input id="sam2-mask-ratio-input" type="number"
-													class="form-control w-auto text-end" min="0" max="1" step="0.001"
-													value="0.050" aria-label="Mask-Ratio 설정" />
+													class="form-control text-end" style="width:2.75rem;" min="0" max="1"
+													step="0.001" value="0.050" aria-label="Mask-Ratio 설정" />
 											</div>
 										</div>
 										<button id="sam2-detect-btn" type="button"

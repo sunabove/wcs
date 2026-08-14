@@ -778,7 +778,7 @@ class Sam2VideoDetector:
             return
 
         x1, y1, _x2, _y2 = bbox_rect
-        mask_text = f" | Mask: {float(mask_ratio) * 100:.1f}%" if mask_ratio is not None else ""
+        mask_text = f" | Mask: {float(mask_ratio):.3f}" if mask_ratio is not None else ""
         label = f"Score: {score:.3f}{mask_text}"
         (text_width, text_height), baseline = cv2.getTextSize(
             label,

@@ -7,8 +7,9 @@ const SIM_SPEED_DEFAULT_MPS = 0.1;
 const SIM_SPEED_MAX_MPS = 2.0;
 const SIM_VISUAL_SPEED_STORAGE_KEY = "wcs.simulation.visualSpeedScale";
 const SIM_VISUAL_SPEED_DEFAULT_SCALE = 1;
-const SIM_VISUAL_SPEED_MIN_SCALE = 1;
+const SIM_VISUAL_SPEED_MIN_SCALE = 0.25;
 const SIM_VISUAL_SPEED_MAX_SCALE = 4;
+const SIM_VISUAL_SPEED_STEP = 0.25;
 
 class VehicleModel {
   constructor(runtime) {
@@ -1989,9 +1990,12 @@ class RapierDriveSimulation {
       return SIM_VISUAL_SPEED_DEFAULT_SCALE;
     }
 
-    return Math.max(
+    const clampedValue = Math.max(
       SIM_VISUAL_SPEED_MIN_SCALE,
       Math.min(SIM_VISUAL_SPEED_MAX_SCALE, numericValue),
+    );
+    return (
+      Math.round(clampedValue / SIM_VISUAL_SPEED_STEP) * SIM_VISUAL_SPEED_STEP
     );
   }
 
@@ -2005,6 +2009,9 @@ class RapierDriveSimulation {
 
   formatVisualSpeedScaleLabel(scale) {
     const normalizedScale = this.normalizeVisualSpeedScale(scale);
+    if (normalizedScale < 1) {
+      return `${Math.round(1 / normalizedScale) === 4 ? "1/4" : normalizedScale}x`;
+    }
     return `${normalizedScale}x`;
   }
 
@@ -2067,10 +2074,7 @@ class RapierDriveSimulation {
         SIM_VISUAL_SPEED_STORAGE_KEY,
       );
       if (storedValue != null) {
-        const storedScale = Number.parseFloat(storedValue);
-        initialScale = this.normalizeVisualSpeedScale(
-          storedScale > 0 && storedScale < 1 ? 1 / storedScale : storedValue,
-        );
+        initialScale = this.normalizeVisualSpeedScale(storedValue);
       }
     } catch (error) {
       initialScale = SIM_VISUAL_SPEED_DEFAULT_SCALE;

@@ -2031,6 +2031,10 @@ class RapierDriveSimulation {
     return denominator <= 1 ? "1x" : `1/${denominator}x`;
   }
 
+  formatVisualSpeedScaleInput(scale) {
+    return this.normalizeVisualSpeedScale(scale).toPrecision(4);
+  }
+
   applyVisualSpeedScale(value) {
     const normalizedScale = this.normalizeVisualSpeedScale(value);
     this.visualSpeedScale = normalizedScale;
@@ -2052,9 +2056,7 @@ class RapierDriveSimulation {
       this.updateSpeedSliderVisual(speedSlider);
     }
     if (speedInput) {
-      speedInput.value = String(
-        this.getVisualSpeedSliderValueFromScale(normalizedScale),
-      );
+      speedInput.value = this.formatVisualSpeedScaleInput(normalizedScale);
     }
     if (speedLabel) {
       speedLabel.textContent = "x";
@@ -2101,7 +2103,7 @@ class RapierDriveSimulation {
     );
     this.updateSpeedSliderVisual(speedSlider);
     if (speedInput) {
-      speedInput.value = speedSlider.value;
+      speedInput.value = this.formatVisualSpeedScaleInput(initialScale);
     }
     if (speedLabel) {
       speedLabel.textContent = "x";
@@ -2118,7 +2120,7 @@ class RapierDriveSimulation {
       speedSlider.value = String(sliderValue);
       this.updateSpeedSliderVisual(speedSlider);
       if (speedInput) {
-        speedInput.value = String(sliderValue);
+        speedInput.value = this.formatVisualSpeedScaleInput(normalizedScale);
       }
       if (speedLabel) {
         speedLabel.textContent = "x";
@@ -2138,7 +2140,7 @@ class RapierDriveSimulation {
     if (speedInput) {
       speedInput.addEventListener("input", () => {
         speedSlider.value = String(
-          this.normalizeVisualSpeedSliderValue(speedInput.value),
+          this.getVisualSpeedSliderValueFromScale(speedInput.value),
         );
         persistScale();
       });

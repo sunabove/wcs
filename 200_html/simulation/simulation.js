@@ -2067,7 +2067,10 @@ class RapierDriveSimulation {
         SIM_VISUAL_SPEED_STORAGE_KEY,
       );
       if (storedValue != null) {
-        initialScale = this.normalizeVisualSpeedScale(storedValue);
+        const storedScale = Number.parseFloat(storedValue);
+        initialScale = this.normalizeVisualSpeedScale(
+          storedScale > 0 && storedScale < 1 ? 1 / storedScale : storedValue,
+        );
       }
     } catch (error) {
       initialScale = SIM_VISUAL_SPEED_DEFAULT_SCALE;

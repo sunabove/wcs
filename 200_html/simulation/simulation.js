@@ -2726,9 +2726,10 @@ class RapierDriveSimulation {
       const isUnderbodyPassThroughByHeight = false;
       const isUnderbodyPassThrough = false;
 
-      // Keep colliders non-solid until the rendered obstacle overlaps the chassis or a wheel in X, Y, and Z.
+      // Only explicitly pass-through obstacles are sensors. Normal obstacles must
+      // remain solid so physics contact cannot be missed before AABB activation.
       if (typeof obstacleColliderDesc.setSensor === "function") {
-        obstacleColliderDesc.setSensor(true);
+        obstacleColliderDesc.setSensor(isPassUnderTagged);
       }
       if (isPassUnderTagged) {
         console.log(
@@ -3181,9 +3182,6 @@ class RapierDriveSimulation {
         linkMap,
       );
       obstacleInfo.isSpatiallyOverlapping = isSpatiallyOverlapping;
-      if (typeof obstacleInfo.collider.setSensor === "function") {
-        obstacleInfo.collider.setSensor(!isSpatiallyOverlapping);
-      }
     });
   }
 

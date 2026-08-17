@@ -143,13 +143,13 @@
                                         class="d-flex align-items-center gap-2 px-3 py-2 rounded border bg-light w-100">
                                         <span class="small text-nowrap fw-semibold">배속</span>
                                         <input type="range" class="form-range m-0" id="simulation-visual-speed-scale"
-                                            min="0.25" max="4" step="0.25" value="1" dir="rtl"
+                                            min="1" max="30" step="1" value="2"
                                             oninput="this.style.setProperty('--slider-percent', (((this.value - this.min) * 100) / (this.max - this.min)) + '%'); setSimulationVisualSpeed(this.value)">
                                         <div class="d-flex align-items-center gap-2 ms-auto flex-shrink-0">
                                             <input type="number"
                                                 class="form-control form-control-sm text-end flex-shrink-0"
-                                                id="simulation-visual-speed-scale-input" min="0.25" max="4" step="0.25"
-                                                value="1" aria-label="배속 값" style="width: 5.25rem;">
+                                                id="simulation-visual-speed-scale-input" min="1" max="30" step="1"
+                                                value="2" aria-label="배속 값" style="width: 5.25rem;">
                                             <span class="small text-nowrap fw-semibold text-start flex-shrink-0"
                                                 id="simulation-visual-speed-scale-value">x</span>
                                         </div>

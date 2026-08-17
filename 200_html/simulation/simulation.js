@@ -6,10 +6,12 @@ const SIM_SPEED_LEGACY_STORAGE_KEY = "wcs.simulation.driveSpeedKmh";
 const SIM_SPEED_DEFAULT_MPS = 0.1;
 const SIM_SPEED_MAX_MPS = 2.0;
 const SIM_VISUAL_SPEED_STORAGE_KEY = "wcs.simulation.visualSpeedScale";
-const SIM_VISUAL_SPEED_DEFAULT_SCALE = 1;
-const SIM_VISUAL_SPEED_MIN_SCALE = 0.25;
-const SIM_VISUAL_SPEED_MAX_SCALE = 4;
-const SIM_VISUAL_SPEED_STEP = 0.25;
+const SIM_VISUAL_SPEED_DEFAULT_SCALE = 0.5;
+const SIM_VISUAL_SPEED_MIN_SCALE = 1 / 30;
+const SIM_VISUAL_SPEED_MAX_SCALE = 1;
+const SIM_VISUAL_SPEED_LEGACY_MAX_SCALE = 1.5;
+const SIM_VISUAL_SPEED_MIN_DENOMINATOR = 1;
+const SIM_VISUAL_SPEED_MAX_DENOMINATOR = 30;
 
 class VehicleModel {
   constructor(runtime) {
@@ -1990,29 +1992,43 @@ class RapierDriveSimulation {
       return SIM_VISUAL_SPEED_DEFAULT_SCALE;
     }
 
-    const clampedValue = Math.max(
+    if (numericValue > SIM_VISUAL_SPEED_LEGACY_MAX_SCALE) {
+      const denominator = Math.max(
+        SIM_VISUAL_SPEED_MIN_DENOMINATOR,
+        Math.min(SIM_VISUAL_SPEED_MAX_DENOMINATOR, Math.round(numericValue)),
+      );
+      return 1 / denominator;
+    }
+
+    return Math.max(
       SIM_VISUAL_SPEED_MIN_SCALE,
       Math.min(SIM_VISUAL_SPEED_MAX_SCALE, numericValue),
-    );
-    return (
-      Math.round(clampedValue / SIM_VISUAL_SPEED_STEP) * SIM_VISUAL_SPEED_STEP
     );
   }
 
   normalizeVisualSpeedSliderValue(rawValue) {
-    return this.normalizeVisualSpeedScale(rawValue);
+    const numericValue = Number.parseFloat(rawValue);
+    if (!Number.isFinite(numericValue)) {
+      return Math.round(1 / SIM_VISUAL_SPEED_DEFAULT_SCALE);
+    }
+
+    return Math.max(
+      SIM_VISUAL_SPEED_MIN_DENOMINATOR,
+      Math.min(SIM_VISUAL_SPEED_MAX_DENOMINATOR, Math.round(numericValue)),
+    );
   }
 
   getVisualSpeedSliderValueFromScale(scale) {
-    return this.normalizeVisualSpeedSliderValue(scale);
+    const normalizedScale = this.normalizeVisualSpeedScale(scale);
+    const denominator = Math.round(
+      1 / Math.max(normalizedScale, SIM_VISUAL_SPEED_MIN_SCALE),
+    );
+    return this.normalizeVisualSpeedSliderValue(denominator);
   }
 
   formatVisualSpeedScaleLabel(scale) {
-    const normalizedScale = this.normalizeVisualSpeedScale(scale);
-    if (normalizedScale < 1) {
-      return `${Math.round(1 / normalizedScale) === 4 ? "1/4" : normalizedScale}x`;
-    }
-    return `${normalizedScale}x`;
+    const denominator = this.getVisualSpeedSliderValueFromScale(scale);
+    return denominator <= 1 ? "1x" : `1/${denominator}x`;
   }
 
   applyVisualSpeedScale(value) {

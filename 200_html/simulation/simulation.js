@@ -1761,6 +1761,9 @@ class RapierDriveSimulation {
 
         const nextDriveMode = driveModeByArrowKey[event.key] || null;
         if (nextDriveMode) {
+          if (this.isPaused) {
+            this.togglePause(false);
+          }
           this.applyDriveModeCommand(nextDriveMode);
           event.preventDefault();
           return;

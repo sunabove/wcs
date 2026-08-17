@@ -4617,6 +4617,10 @@ class RapierDriveSimulation {
 
       const body = world.createRigidBody(rigidBodyDesc);
 
+      if (typeof body.setCanSleep === "function") {
+        body.setCanSleep(false);
+      }
+
       // Keep roll/pitch available for obstacle contact; flat-ground stabilization locks them dynamically.
       if (typeof body.setEnabledRotations === "function") {
         body.setEnabledRotations(true, true, true, true);
@@ -5627,7 +5631,7 @@ class RapierDriveSimulation {
         obstacleInfo?.collider &&
         typeof obstacleInfo.collider.setSensor === "function"
       ) {
-        obstacleInfo.collider.setSensor(true);
+        obstacleInfo.collider.setSensor(Boolean(obstacleInfo.isSensor));
       }
       obstacleInfo.isSpatiallyOverlapping = false;
     });

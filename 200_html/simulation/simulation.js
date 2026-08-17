@@ -5123,6 +5123,17 @@ class RapierDriveSimulation {
         );
       }
 
+      if (
+        !obstaclePathControlActive &&
+        (keyboardState.isActive || throttleSign !== 0)
+      ) {
+        const velocity = this.body.linvel();
+        this.body.setLinvel(
+          new this.rapier.Vector3(targetVelocityX, targetVelocityY, velocity.z),
+          true,
+        );
+      }
+
       this.applyDriveForces(
         this.physicsFixedTimeStepSec,
         targetVelocityX,

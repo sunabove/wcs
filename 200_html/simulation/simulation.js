@@ -2353,7 +2353,7 @@ class RapierDriveSimulation {
         halfY,
         halfZ,
       )
-        .setFriction(friction)
+        .setFriction(0.0)
         .setRestitution(0.0);
       const groundCollider = this.world.createCollider(
         groundColliderDesc,
@@ -3828,7 +3828,7 @@ class RapierDriveSimulation {
 
       const wheelColliderDesc = this.rapier.ColliderDesc.ball(approxRadius)
         .setTranslation(localCenter.x, localCenter.y, localCenter.z)
-        .setFriction(0.2)
+        .setFriction(0.0)
         .setRestitution(0.0);
 
       const wheelCollider = this.world.createCollider(wheelColliderDesc, body);

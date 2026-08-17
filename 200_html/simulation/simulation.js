@@ -2032,7 +2032,8 @@ class RapierDriveSimulation {
   }
 
   formatVisualSpeedScaleInput(scale) {
-    return this.normalizeVisualSpeedScale(scale).toPrecision(4);
+    const denominator = this.getVisualSpeedSliderValueFromScale(scale);
+    return denominator <= 1 ? "1" : `1/${denominator}`;
   }
 
   applyVisualSpeedScale(value) {
@@ -2137,14 +2138,6 @@ class RapierDriveSimulation {
 
     speedSlider.addEventListener("input", persistScale);
     speedSlider.addEventListener("change", persistScale);
-    if (speedInput) {
-      speedInput.addEventListener("input", () => {
-        speedSlider.value = String(
-          this.getVisualSpeedSliderValueFromScale(speedInput.value),
-        );
-        persistScale();
-      });
-    }
   }
 
   resetVisualSpeedSliderToDefault() {

@@ -3151,36 +3151,23 @@ class RapierDriveSimulation {
   }
 
   getObstacleContactedWheelKeys(obstacleInfo, linkMap = null) {
-    const effectiveLinkMap = linkMap || this.viewer?.robotModel?.links || null;
-    const obstacleBounds = this.getObstacleWorldBounds(
-      obstacleInfo,
-      effectiveLinkMap,
-    );
-    if (!effectiveLinkMap || !obstacleBounds || obstacleBounds.isEmpty()) {
+    if (!this.world || !obstacleInfo?.collider) {
       return [];
     }
 
-    const wheelLinkNameByKey = {
-      fl: "wheel_fl",
-      fr: "wheel_fr",
-      rl: "wheel_rl",
-      rr: "wheel_rr",
-    };
+    return Object.entries(this.wheelCollidersByKey).flatMap(
+      ([wheelKey, wheelCollider]) => {
+        if (!wheelCollider) {
+          return [];
+        }
 
-    return Object.entries(wheelLinkNameByKey)
-      .filter(([, wheelLinkName]) => {
-        const wheelLink = this.findLinkByName(effectiveLinkMap, wheelLinkName);
-        const wheelBounds = this.computeLinkOwnBounds(
-          wheelLink,
-          effectiveLinkMap,
-        );
-        return (
-          wheelBounds &&
-          !wheelBounds.isEmpty() &&
-          wheelBounds.intersectsBox(obstacleBounds)
-        );
-      })
-      .map(([wheelKey]) => wheelKey);
+        let isContacting = false;
+        this.world.contactPair(wheelCollider, obstacleInfo.collider, () => {
+          isContacting = true;
+        });
+        return isContacting ? [wheelKey] : [];
+      },
+    );
   }
 
   syncObstacleColliderActivation(linkMap = null) {
@@ -4445,17 +4432,9 @@ class RapierDriveSimulation {
         return;
       }
 
-      if (!this.isVehicleAabbTouchingObstacle(obstacleInfo)) {
-        obstacleInfo.isSpatiallyOverlapping = false;
-        this.setObstacleContactHighlight(obstacleInfo, false);
-        return;
-      }
-
-      obstacleHasContact = true;
       obstacleInfo.contactedWheelKeys =
         this.getObstacleContactedWheelKeys(obstacleInfo);
-      const obstacleHasWheelContact =
-        obstacleInfo.contactedWheelKeys.length > 0;
+      obstacleHasContact = obstacleInfo.contactedWheelKeys.length > 0;
 
       const isActiveTraversalObstacle =
         this.activeObstacleTraversalPath?.obstacleInfo === obstacleInfo;

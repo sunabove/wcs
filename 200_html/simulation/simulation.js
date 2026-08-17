@@ -8,10 +8,8 @@ const SIM_SPEED_MAX_MPS = 2.0;
 const SIM_VISUAL_SPEED_STORAGE_KEY = "wcs.simulation.visualSpeedScale";
 const SIM_VISUAL_SPEED_DEFAULT_SCALE = 0.5;
 const SIM_VISUAL_SPEED_MIN_SCALE = 1 / 4;
-const SIM_VISUAL_SPEED_MAX_SCALE = 1;
-const SIM_VISUAL_SPEED_LEGACY_MAX_SCALE = 1.5;
-const SIM_VISUAL_SPEED_MIN_DENOMINATOR = 1;
-const SIM_VISUAL_SPEED_MAX_DENOMINATOR = 4;
+const SIM_VISUAL_SPEED_MAX_SCALE = 4;
+const SIM_VISUAL_SPEED_SCALES = [1 / 4, 1 / 3, 1 / 2, 1, 2, 3, 4];
 
 class VehicleModel {
   constructor(runtime) {
@@ -1992,48 +1990,51 @@ class RapierDriveSimulation {
       return SIM_VISUAL_SPEED_DEFAULT_SCALE;
     }
 
-    if (numericValue > SIM_VISUAL_SPEED_LEGACY_MAX_SCALE) {
-      const denominator = Math.max(
-        SIM_VISUAL_SPEED_MIN_DENOMINATOR,
-        Math.min(SIM_VISUAL_SPEED_MAX_DENOMINATOR, Math.round(numericValue)),
-      );
-      return 1 / denominator;
-    }
-
-    return Math.max(
+    const clampedValue = Math.max(
       SIM_VISUAL_SPEED_MIN_SCALE,
       Math.min(SIM_VISUAL_SPEED_MAX_SCALE, numericValue),
+    );
+    return SIM_VISUAL_SPEED_SCALES.reduce((closestScale, scale) =>
+      Math.abs(scale - clampedValue) < Math.abs(closestScale - clampedValue)
+        ? scale
+        : closestScale,
     );
   }
 
   normalizeVisualSpeedSliderValue(rawValue) {
     const numericValue = Number.parseFloat(rawValue);
     if (!Number.isFinite(numericValue)) {
-      return Math.round(1 / SIM_VISUAL_SPEED_DEFAULT_SCALE);
+      return this.getVisualSpeedSliderValueFromScale(
+        SIM_VISUAL_SPEED_DEFAULT_SCALE,
+      );
     }
 
     return Math.max(
-      SIM_VISUAL_SPEED_MIN_DENOMINATOR,
-      Math.min(SIM_VISUAL_SPEED_MAX_DENOMINATOR, Math.round(numericValue)),
+      1,
+      Math.min(SIM_VISUAL_SPEED_SCALES.length, Math.round(numericValue)),
     );
+  }
+
+  getVisualSpeedScaleFromSliderValue(value) {
+    const sliderValue = this.normalizeVisualSpeedSliderValue(value);
+    return SIM_VISUAL_SPEED_SCALES[sliderValue - 1];
   }
 
   getVisualSpeedSliderValueFromScale(scale) {
     const normalizedScale = this.normalizeVisualSpeedScale(scale);
-    const denominator = Math.round(
-      1 / Math.max(normalizedScale, SIM_VISUAL_SPEED_MIN_SCALE),
-    );
-    return this.normalizeVisualSpeedSliderValue(denominator);
+    return SIM_VISUAL_SPEED_SCALES.indexOf(normalizedScale) + 1;
   }
 
   formatVisualSpeedScaleLabel(scale) {
-    const denominator = this.getVisualSpeedSliderValueFromScale(scale);
-    return denominator <= 1 ? "1x" : `1/${denominator}x`;
+    return `${this.formatVisualSpeedScaleInput(scale)}x`;
   }
 
   formatVisualSpeedScaleInput(scale) {
-    const denominator = this.getVisualSpeedSliderValueFromScale(scale);
-    return denominator <= 1 ? "1" : `1/${denominator}`;
+    const sliderValue = this.getVisualSpeedSliderValueFromScale(scale);
+    if (sliderValue < 4) {
+      return `1/${5 - sliderValue}`;
+    }
+    return String(SIM_VISUAL_SPEED_SCALES[sliderValue - 1]);
   }
 
   applyVisualSpeedScale(value) {
@@ -2113,7 +2114,9 @@ class RapierDriveSimulation {
     this.visualSpeedScale = initialScale;
 
     const persistScale = () => {
-      const normalizedScale = this.normalizeVisualSpeedScale(speedSlider.value);
+      const normalizedScale = this.getVisualSpeedScaleFromSliderValue(
+        speedSlider.value,
+      );
       this.visualSpeedScale = normalizedScale;
       this.configureWheelVisualKinematics();
       const sliderValue =
@@ -5727,5 +5730,7 @@ globalThis.setSimulationDriveSpeedKmh = function (kmh) {
 };
 
 globalThis.setSimulationVisualSpeed = function (scale) {
-  rapierDriveSimulation.applyVisualSpeedScale(scale);
+  rapierDriveSimulation.applyVisualSpeedScale(
+    rapierDriveSimulation.getVisualSpeedScaleFromSliderValue(scale),
+  );
 };

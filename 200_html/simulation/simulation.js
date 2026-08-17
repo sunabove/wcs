@@ -1759,17 +1759,12 @@ class RapierDriveSimulation {
           return;
         }
 
-        if (event.ctrlKey) {
-          const nextDriveMode = driveModeByArrowKey[event.key] || null;
-          if (nextDriveMode && typeof window.setDriveMode === "function") {
-            window.setDriveMode(nextDriveMode);
-          }
+        const nextDriveMode = driveModeByArrowKey[event.key] || null;
+        if (nextDriveMode) {
+          this.applyDriveModeCommand(nextDriveMode);
           event.preventDefault();
           return;
         }
-
-        this.keyHoldState[event.key] = 1;
-        event.preventDefault();
       },
       { passive: false },
     );

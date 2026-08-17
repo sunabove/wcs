@@ -121,7 +121,6 @@ body {
   --slider-percent: 27.2727%;
   height: 0.5rem;
   border-radius: 999px;
-  direction: rtl;
   background: linear-gradient(
     to right,
     #198754 0%,

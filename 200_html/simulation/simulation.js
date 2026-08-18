@@ -3181,27 +3181,43 @@ class RapierDriveSimulation {
       return physicsContactedWheelKeys;
     }
 
-    const effectiveLinkMap = linkMap || this.viewer?.robotModel?.links || null;
-    const obstacleBounds = this.getObstacleWorldBounds(
-      obstacleInfo,
-      effectiveLinkMap,
-    );
-    if (!effectiveLinkMap || !obstacleBounds || obstacleBounds.isEmpty()) {
+    if (!obstacleInfo.center || !obstacleInfo.halfExtents) {
       return [];
     }
 
-    return Object.entries(this.wheelLinkNameByKey)
-      .filter(([, wheelLinkName]) => {
-        const wheelLink = this.findLinkByName(effectiveLinkMap, wheelLinkName);
-        const wheelBounds = this.computeLinkOwnBounds(
-          wheelLink,
-          effectiveLinkMap,
+    return Object.entries(this.wheelCollidersByKey)
+      .filter(([wheelKey, wheelCollider]) => {
+        if (!wheelCollider || typeof wheelCollider.translation !== "function") {
+          return false;
+        }
+
+        const wheelCenter = wheelCollider.translation();
+        const wheelRadius = Math.max(
+          Number(this.wheelRadiusMetersByKey[wheelKey]) ||
+            Number(this.wheelEffectiveRadiusMeters) ||
+            0,
+          0.05,
         );
-        return (
-          wheelBounds &&
-          !wheelBounds.isEmpty() &&
-          wheelBounds.intersectsBox(obstacleBounds)
+        const nearestX = THREE.MathUtils.clamp(
+          wheelCenter.x,
+          obstacleInfo.center.x - obstacleInfo.halfExtents.x,
+          obstacleInfo.center.x + obstacleInfo.halfExtents.x,
         );
+        const nearestY = THREE.MathUtils.clamp(
+          wheelCenter.y,
+          obstacleInfo.center.y - obstacleInfo.halfExtents.y,
+          obstacleInfo.center.y + obstacleInfo.halfExtents.y,
+        );
+        const nearestZ = THREE.MathUtils.clamp(
+          wheelCenter.z,
+          obstacleInfo.center.z - obstacleInfo.halfExtents.z,
+          obstacleInfo.center.z + obstacleInfo.halfExtents.z,
+        );
+        const distanceSquared =
+          (wheelCenter.x - nearestX) ** 2 +
+          (wheelCenter.y - nearestY) ** 2 +
+          (wheelCenter.z - nearestZ) ** 2;
+        return distanceSquared <= wheelRadius ** 2;
       })
       .map(([wheelKey]) => wheelKey);
   }

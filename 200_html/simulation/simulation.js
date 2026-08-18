@@ -1332,7 +1332,13 @@ class RapierDriveSimulation {
 
   applyDriveSpeedCommandMps(mps) {
     const normalizedMps = this.normalizeDriveSpeedMps(mps, 0);
+    const hasSpeedChanged = this.commandedSpeedMps !== normalizedMps;
     this.commandedSpeedMps = normalizedMps;
+    if (hasSpeedChanged) {
+      this.lowSpeedKinematicPosition = null;
+      this.physicsAccumulatorSec = 0;
+      this.lastStepTimeMs = 0;
+    }
     const normalizedKmh = this.mpsToKmh(normalizedMps);
 
     if (typeof globalThis.setDriveSpeedKmh === "function") {

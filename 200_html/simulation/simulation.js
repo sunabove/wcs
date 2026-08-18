@@ -5478,7 +5478,7 @@ class RapierDriveSimulation {
       !shouldBlockByObstacle &&
       !hasObstacleContact &&
       clampedSpeed > 0 &&
-      clampedSpeed <= 0.1;
+      clampedSpeed <= 0.15;
     if (needsLowSpeedPositionAssist) {
       if (!this.lowSpeedKinematicPosition) {
         const translation = this.body.translation();

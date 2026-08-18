@@ -257,6 +257,7 @@ class RapierDriveSimulation {
     this.hasActivatedDynamicGroundClamp = false;
     this.visualSpeedScale = SIM_VISUAL_SPEED_DEFAULT_SCALE;
     this.lowSpeedPositionAssistDistanceMeters = 0;
+    this.lowSpeedKinematicPosition = null;
     this.lastDriveCommandState = {
       throttleSign: 0,
       steerSign: 0,
@@ -5244,6 +5245,11 @@ class RapierDriveSimulation {
         )
       ) {
         this.rollbackToPreviousPose(previousPose);
+        this.lowSpeedKinematicPosition = new THREE.Vector3(
+          previousPose.x,
+          previousPose.y,
+          previousPose.z,
+        );
       }
       const isClimbingApproach =
         currentClimbApproach ||
@@ -5474,20 +5480,33 @@ class RapierDriveSimulation {
       clampedSpeed > 0 &&
       clampedSpeed <= 0.1;
     if (needsLowSpeedPositionAssist) {
-      const translation = this.body.translation();
+      if (!this.lowSpeedKinematicPosition) {
+        const translation = this.body.translation();
+        this.lowSpeedKinematicPosition = new THREE.Vector3(
+          translation.x,
+          translation.y,
+          translation.z,
+        );
+      }
       const assistDistance = Math.hypot(
         commandedVelocityX * effectiveDeltaSec,
         commandedVelocityY * effectiveDeltaSec,
       );
+      this.lowSpeedKinematicPosition.x +=
+        commandedVelocityX * effectiveDeltaSec;
+      this.lowSpeedKinematicPosition.y +=
+        commandedVelocityY * effectiveDeltaSec;
       this.body.setTranslation(
         new this.rapier.Vector3(
-          translation.x + commandedVelocityX * effectiveDeltaSec,
-          translation.y + commandedVelocityY * effectiveDeltaSec,
-          translation.z,
+          this.lowSpeedKinematicPosition.x,
+          this.lowSpeedKinematicPosition.y,
+          this.lowSpeedKinematicPosition.z,
         ),
         true,
       );
       this.lowSpeedPositionAssistDistanceMeters = assistDistance;
+    } else {
+      this.lowSpeedKinematicPosition = null;
     }
 
     const isMoveCommandActive = keyboardState.isActive || throttleSign !== 0;

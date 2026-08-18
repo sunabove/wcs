@@ -4970,7 +4970,8 @@ class RapierDriveSimulation {
       const colliderDesc = RAPIER.ColliderDesc.cuboid(halfX, halfY, halfZ)
         .setTranslation(localCenter.x, localCenter.y, adjustedCenterZ)
         .setFriction(0.15)
-        .setRestitution(0.0);
+        .setRestitution(0.0)
+        .setSensor(true);
 
       this.rapier = RAPIER;
       this.world = world;
@@ -5415,19 +5416,7 @@ class RapierDriveSimulation {
       );
       const obstacleReferencePosition = this.body.translation();
       const obstaclePathControlActive = false;
-      const currentBodyPosition = this.body.translation();
-      const predictedPosition = new THREE.Vector3(
-        currentBodyPosition.x + targetVelocityX * this.physicsFixedTimeStepSec,
-        currentBodyPosition.y + targetVelocityY * this.physicsFixedTimeStepSec,
-        currentBodyPosition.z,
-      );
-      const willEnterObstacle =
-        (keyboardState.isActive || throttleSign !== 0) &&
-        this.isVehiclePathTouchingObstacle(
-          currentBodyPosition,
-          predictedPosition,
-        );
-      this.predictedObstacleBlockActive ||= willEnterObstacle;
+      const willEnterObstacle = false;
 
       if (
         !willEnterObstacle &&
@@ -5642,14 +5631,13 @@ class RapierDriveSimulation {
     const contactedObstacle =
       this.contactSolver.getApproachInfo()?.obstacleInfo || null;
     const shouldBlockByObstacle =
-      this.predictedObstacleBlockActive ||
-      (this.blockMotionOnObstacleContact &&
-        hasObstacleContact &&
-        this.isVelocityMovingTowardObstacle(
-          contactedObstacle,
-          commandedVelocityX,
-          commandedVelocityY,
-        ));
+      this.blockMotionOnObstacleContact &&
+      hasObstacleContact &&
+      this.isVelocityMovingTowardObstacle(
+        contactedObstacle,
+        commandedVelocityX,
+        commandedVelocityY,
+      );
 
     this.lowSpeedKinematicPosition = null;
 

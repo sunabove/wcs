@@ -4277,6 +4277,47 @@ class RapierDriveSimulation {
     );
   }
 
+  stabilizeWheelBodiesForStraightDrive(targetVelocityX, targetVelocityY) {
+    if (!this.body || !this.rapier) {
+      return;
+    }
+
+    const bodyPosition = this.body.translation();
+    const bodyRotation = this.body.rotation();
+    const bodyQuaternion = new THREE.Quaternion(
+      bodyRotation.x,
+      bodyRotation.y,
+      bodyRotation.z,
+      bodyRotation.w,
+    ).normalize();
+
+    Object.entries(this.wheelJointsByKey).forEach(([wheelKey, joint]) => {
+      const wheelBody = this.wheelBodiesByKey[wheelKey];
+      if (!joint || !wheelBody || typeof joint.anchor1 !== "function") {
+        return;
+      }
+
+      const anchor = joint.anchor1();
+      const localAnchor = new THREE.Vector3(anchor.x, anchor.y, anchor.z);
+      const worldAnchor = localAnchor
+        .applyQuaternion(bodyQuaternion)
+        .add(new THREE.Vector3(bodyPosition.x, bodyPosition.y, bodyPosition.z));
+      const wheelVelocity = wheelBody.linvel();
+      wheelBody.setTranslation(
+        new this.rapier.Vector3(worldAnchor.x, worldAnchor.y, worldAnchor.z),
+        true,
+      );
+      wheelBody.setLinvel(
+        new this.rapier.Vector3(
+          targetVelocityX,
+          targetVelocityY,
+          wheelVelocity.z,
+        ),
+        true,
+      );
+    });
+  }
+
   syncWheelChartBaselineFromPhysics() {
     Object.keys(this.wheelChartBaselineCenterZByKey).forEach((wheelKey) => {
       this.wheelChartBaselineCenterZByKey[wheelKey] = null;
@@ -5465,6 +5506,17 @@ class RapierDriveSimulation {
           );
         });
         this.straightDriveWarmupSteps -= 1;
+      }
+
+      if (
+        throttleSign !== 0 &&
+        Math.abs(effectiveSteerSign) < 1e-3 &&
+        !this.isVehicleObstacleContact
+      ) {
+        this.stabilizeWheelBodiesForStraightDrive(
+          targetVelocityX,
+          targetVelocityY,
+        );
       }
 
       this.applyDriveForces(

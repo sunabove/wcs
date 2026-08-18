@@ -5564,6 +5564,29 @@ class RapierDriveSimulation {
         );
         this.body.setAngvel(new this.rapier.Vector3(0, 0, 0), true);
       }
+      if (
+        throttleSign !== 0 &&
+        Math.abs(effectiveSteerSign) < 1e-3 &&
+        !hasObstacleContactNow &&
+        !isClimbingApproach &&
+        !isObstaclePathActive &&
+        this.initialPosition &&
+        this.initialQuaternion
+      ) {
+        const position = this.body.translation();
+        const initialYaw = this.extractYawFromQuaternion(
+          this.initialQuaternion,
+        );
+        this.body.setTranslation(
+          new this.rapier.Vector3(
+            position.x,
+            this.initialPosition.y,
+            this.initialPosition.z,
+          ),
+          true,
+        );
+        this.preserveObstacleHeading(initialYaw);
+      }
       if (this.hasActivatedDynamicGroundClamp && !obstaclePathControlActive) {
         this.clampVehicleAboveGround();
       }

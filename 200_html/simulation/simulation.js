@@ -5646,6 +5646,11 @@ class RapierDriveSimulation {
         true,
       );
       this.body.setAngvel(new this.rapier.Vector3(0, 0, 0), true);
+      ["fl", "fr", "rl", "rr"].forEach((wheelKey) => {
+        if (typeof globalThis.setWheelAnimationByKey === "function") {
+          globalThis.setWheelAnimationByKey(wheelKey, 0);
+        }
+      });
     }
 
     this.constrainCenterTurnPivot();

@@ -4665,28 +4665,10 @@ class RapierDriveSimulation {
 
     const position = this.body.translation();
     const rotation = this.body.rotation();
-    const worldPosition = new THREE.Vector3(position.x, position.y, position.z);
-    const worldQuaternion = new THREE.Quaternion(
-      rotation.x,
-      rotation.y,
-      rotation.z,
-      rotation.w,
-    ).normalize();
-    const parent = this.carFrame.parent;
-
-    if (parent) {
-      parent.updateWorldMatrix(true, false);
-      this.carFrame.position.copy(parent.worldToLocal(worldPosition));
-      const parentWorldQuaternion = parent.getWorldQuaternion(
-        new THREE.Quaternion(),
-      );
-      this.carFrame.quaternion
-        .copy(parentWorldQuaternion.invert().multiply(worldQuaternion))
-        .normalize();
-    } else {
-      this.carFrame.position.copy(worldPosition);
-      this.carFrame.quaternion.copy(worldQuaternion);
-    }
+    this.carFrame.position.set(position.x, position.y, position.z);
+    this.carFrame.quaternion
+      .set(rotation.x, rotation.y, rotation.z, rotation.w)
+      .normalize();
     this.carFrame.updateMatrixWorld(true);
   }
 
@@ -4981,11 +4963,8 @@ class RapierDriveSimulation {
       await RAPIER.init();
 
       const world = new RAPIER.World(new RAPIER.Vector3(0, 0, -9.81));
-      carFrame.updateWorldMatrix(true, false);
-      const initialPosition = carFrame.getWorldPosition(new THREE.Vector3());
-      const initialQuaternion = carFrame
-        .getWorldQuaternion(new THREE.Quaternion())
-        .normalize();
+      const initialPosition = carFrame.position.clone();
+      const initialQuaternion = carFrame.quaternion.clone();
 
       const rigidBodyDesc = RAPIER.RigidBodyDesc.dynamic()
         .setTranslation(initialPosition.x, initialPosition.y, initialPosition.z)

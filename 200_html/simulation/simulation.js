@@ -276,7 +276,7 @@ class RapierDriveSimulation {
     this.wheelZChartToggleButtonElement = null;
     this.wheelZChartCanvasElement = null;
     this.wheelZChartContext = null;
-    this.wheelZChartWindowSec = 20;
+    this.wheelZChartWindowSec = 10;
     this.wheelZChartElapsedSec = 0;
     this.wheelZChartLastSampleTimeMs = null;
     this.wheelZChartLastRenderTimeMs = null;

@@ -4055,11 +4055,10 @@ class RapierDriveSimulation {
       if (wheelKey) {
         this.wheelCollidersByKey[wheelKey] = wheelCollider;
         this.wheelBodiesByKey[wheelKey] = wheelBody;
-        const jointData = this.rapier.JointData.fixed(
+        const jointData = this.rapier.JointData.revolute(
           new this.rapier.Vector3(localCenter.x, localCenter.y, localCenter.z),
-          new this.rapier.Quaternion(0, 0, 0, 1),
           new this.rapier.Vector3(0, 0, 0),
-          new this.rapier.Quaternion(0, 0, 0, 1),
+          new this.rapier.Vector3(0, 1, 0),
         );
         this.wheelJointsByKey[wheelKey] = this.world.createImpulseJoint(
           jointData,

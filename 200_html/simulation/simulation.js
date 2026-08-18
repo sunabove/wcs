@@ -5333,24 +5333,13 @@ class RapierDriveSimulation {
       this.physicsAccumulatorSec >= this.physicsFixedTimeStepSec &&
       stepIndex < this.maxPhysicsCatchupSteps
     ) {
-      const currentObstacleApproach = this.contactSolver.getApproachInfo();
-      const currentClimbApproach = this.contactSolver.isClimbApproach(
-        currentObstacleApproach?.obstacleInfo || null,
-      );
+      const currentObstacleApproach = null;
+      const currentClimbApproach = false;
       const obstacleHeadingYaw = this.extractYawFromQuaternion(
         this.body.rotation(),
       );
       const obstacleReferencePosition = this.body.translation();
-      const obstaclePathControlActive = Boolean(
-        this.isVehicleObstacleContact ||
-        currentClimbApproach ||
-        this.contactSolver.isObstacleTraversalActive(),
-      );
-      const isMovingTowardObstacle = this.isVelocityMovingTowardObstacle(
-        currentObstacleApproach?.obstacleInfo || null,
-        targetVelocityX,
-        targetVelocityY,
-      );
+      const obstaclePathControlActive = false;
       const currentBodyPosition = this.body.translation();
       const predictedPosition = new THREE.Vector3(
         currentBodyPosition.x + targetVelocityX * this.physicsFixedTimeStepSec,
@@ -5364,11 +5353,12 @@ class RapierDriveSimulation {
           predictedPosition,
         );
       this.predictedObstacleBlockActive ||= willEnterObstacle;
-      if (willEnterObstacle) {
-        const predictedObstacle = this.obstacleColliderInfos.find(
-          (obstacleInfo) =>
+
+      if (
+        !willEnterObstacle &&
         (keyboardState.isActive || throttleSign !== 0)
       ) {
+        const velocity = this.body.linvel();
         this.body.setLinvel(
           new this.rapier.Vector3(targetVelocityX, targetVelocityY, velocity.z),
           true,
@@ -5387,7 +5377,7 @@ class RapierDriveSimulation {
       this.applyGroundSupportForces(
         this.physicsFixedTimeStepSec,
         wheelGroundContactCount,
-        obstaclePathControlActive,
+        willEnterObstacle,
       );
       this.syncObstacleColliderActivation(linkMap);
 

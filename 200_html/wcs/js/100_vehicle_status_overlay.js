@@ -240,7 +240,7 @@
       return;
     }
 
-    const videoElement = $video[0];
+    const existingVideoElement = $video[0];
     const isVideoVisible = !$video.hasClass("d-none");
     const hasVideoSource = !!String($video.attr("src") || "").trim();
     const isVideoOutputAreaActive = !mediaHiddenByUser && isVideoVisible;
@@ -1661,6 +1661,38 @@
     // road_detect_stream returns stream frames that are better rendered by img.
     if (shouldRenderAsImageStream(normalizedSrc)) {
       showImageSource(normalizedSrc);
+      return;
+    }
+
+    const existingVideoElement = $video[0];
+    const currentVideoSrc = String($video.attr("src") || "");
+    const currentVideoPath =
+      extractRoadDetectStreamFilePathFromUrl(currentVideoSrc);
+    const requestedVideoPath =
+      extractRoadDetectStreamFilePathFromUrl(normalizedSrc);
+    const isSameStreamVideo =
+      requestedVideoPath &&
+      currentVideoPath &&
+      toComparableVideoPath(requestedVideoPath) ===
+        toComparableVideoPath(currentVideoPath);
+    const isSameDirectVideo =
+      !requestedVideoPath &&
+      !currentVideoPath &&
+      normalizedSrc.split("?")[0] === currentVideoSrc.split("?")[0];
+
+    // MQTT updates can append a fresh cache-busting query string for the same
+    // video. Keep the existing media element so pause/resume retains currentTime.
+    if (
+      existingVideoElement &&
+      !$video.hasClass("d-none") &&
+      (isSameStreamVideo || isSameDirectVideo)
+    ) {
+      lastMediaType = "video";
+      lastMediaSource = currentVideoSrc;
+      markOverlayMediaVisibleState();
+      applyCompactOverlayLayout();
+      showOverlay();
+      updateVideoControlButtons();
       return;
     }
 

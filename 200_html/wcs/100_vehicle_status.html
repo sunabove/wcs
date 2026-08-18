@@ -24,7 +24,7 @@
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js" defer></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.3.0/dist/chart.umd.min.js" defer></script>
-    
+
     <!-- MQTT.js CDN -->
     <script src="https://unpkg.com/mqtt@4.3.7/dist/mqtt.min.js"></script>
 
@@ -47,13 +47,13 @@
     <script src="./js/011_mqtt.js" defer></script>
     <script src="./js/014_wcs_chart.js" defer></script>
     <script src="./js/102_mqtt_process_status.js" defer></script>
-    <script src="./js/100_vehicle_status_overlay.js" defer></script>
+    <script src="./js/100_vehicle_status_overlay.js?v=20260818-1" defer></script>
 </head>
 
 <body>
 
     <!-- 상단 메뉴 -->
-    <header class="p-1 text-bg-dark fs-5"> 
+    <header class="p-1 text-bg-dark fs-5">
 
         <div class="container">
             <div class="top-header-row d-flex flex-wrap align-items-center justify-content-between">
@@ -87,21 +87,20 @@
                         </a>
                     </li>
                     <li class="nav-item dropdown">
-                        <a
-                            href="#"
-                            class="nav-link px-2 text-white dropdown-toggle"
-                            role="button"
-                            data-bs-toggle="dropdown"
-                            aria-expanded="false"
-                        >
+                        <a href="#" class="nav-link px-2 text-white dropdown-toggle" role="button"
+                            data-bs-toggle="dropdown" aria-expanded="false">
                             <i class="bi bi-robot me-2"></i>
                             AI
                         </a>
                         <ul class="dropdown-menu dropdown-menu-end bg-black border-secondary">
-                            <li><a class="dropdown-item text-white" href="/road/300_ai_road.html"><i class="bi bi-signpost-2 me-2"></i>road detection</a></li>
-                            <li><a class="dropdown-item text-white" href="/yolo/400_ai_yolo.html"><i class="bi bi-bullseye me-2"></i>yolo</a></li>
-                            <li><a class="dropdown-item text-white" href="/sam2/500_ai_sam2.html"><i class="bi bi-layers me-2"></i>sam</a></li>
-                            <li><a class="dropdown-item text-white" href="/simulation/simulation.html"><i class="bi bi-cpu me-2"></i>simulation</a></li>
+                            <li><a class="dropdown-item text-white" href="/road/300_ai_road.html"><i
+                                        class="bi bi-signpost-2 me-2"></i>road detection</a></li>
+                            <li><a class="dropdown-item text-white" href="/yolo/400_ai_yolo.html"><i
+                                        class="bi bi-bullseye me-2"></i>yolo</a></li>
+                            <li><a class="dropdown-item text-white" href="/sam2/500_ai_sam2.html"><i
+                                        class="bi bi-layers me-2"></i>sam</a></li>
+                            <li><a class="dropdown-item text-white" href="/simulation/simulation.html"><i
+                                        class="bi bi-cpu me-2"></i>simulation</a></li>
                         </ul>
                     </li>
                 </ul>
@@ -119,7 +118,7 @@
 
         <!-- 차량 정보 -->
         <div class="card">
-            
+
             <div class="card-header text-center">
                 <h4 class="mb-0"> Vehicle Status </h4>
             </div>
@@ -146,17 +145,21 @@
                                         <div class="card-body p-1">
                                             <div class="row h-100 g-1">
                                                 <div class="col-md-6 d-flex">
-                                                    <div id="vehicle/surface/state/0" class="card text-center h-100 w-100 disabled">
-                                                        <div class="card-body p-2 d-flex flex-column justify-content-center">
+                                                    <div id="vehicle/surface/state/0"
+                                                        class="card text-center h-100 w-100 disabled">
+                                                        <div
+                                                            class="card-body p-2 d-flex flex-column justify-content-center">
                                                             <h5 class="card-title mb-2 fw-bold">아스팔트</h5>
                                                             <i class="fas fa-road fs-1 my-2"></i>
-                                                            <span class="badge bg-success fs-6 mt-2">양호</span> 
+                                                            <span class="badge bg-success fs-6 mt-2">양호</span>
                                                         </div>
                                                     </div>
                                                 </div>
                                                 <div class="col-md-6 d-flex">
-                                                    <div id="vehicle/surface/state/1" class="card text-center h-100 w-100 disabled">
-                                                        <div class="card-body p-2 d-flex flex-column justify-content-center">
+                                                    <div id="vehicle/surface/state/1"
+                                                        class="card text-center h-100 w-100 disabled">
+                                                        <div
+                                                            class="card-body p-2 d-flex flex-column justify-content-center">
                                                             <h5 class="card-title mb-2">보도블록</h5>
                                                             <i class="fas fa-th-large fs-1 text-warning my-2"></i>
                                                             <span class="badge bg-warning fs-6 mt-2">주의</span>
@@ -164,8 +167,10 @@
                                                     </div>
                                                 </div>
                                                 <div class="col-md-6 d-flex">
-                                                    <div id="vehicle/surface/state/2" class="card text-center h-100 w-100 disabled">
-                                                        <div class="card-body p-2 d-flex flex-column justify-content-center">
+                                                    <div id="vehicle/surface/state/2"
+                                                        class="card text-center h-100 w-100 disabled">
+                                                        <div
+                                                            class="card-body p-2 d-flex flex-column justify-content-center">
                                                             <h5 class="card-title mb-2">흙길</h5>
                                                             <i class="fas fa-mountain fs-1 text-warning my-2"></i>
                                                             <span class="badge bg-warning fs-6 mt-2">주의</span>
@@ -173,10 +178,13 @@
                                                     </div>
                                                 </div>
                                                 <div class="col-md-6 d-flex">
-                                                    <div id="vehicle/surface/state/3" class="card text-center h-100 w-100 disabled">
-                                                        <div class="card-body p-2 d-flex flex-column justify-content-center">
+                                                    <div id="vehicle/surface/state/3"
+                                                        class="card text-center h-100 w-100 disabled">
+                                                        <div
+                                                            class="card-body p-2 d-flex flex-column justify-content-center">
                                                             <h5 class="card-title mb-2">자갈길</h5>
-                                                            <i class="fas fa-exclamation-triangle fs-1 text-warning my-2"></i>
+                                                            <i
+                                                                class="fas fa-exclamation-triangle fs-1 text-warning my-2"></i>
                                                             <span class="badge bg-warning fs-6 mt-2">주의</span>
                                                         </div>
                                                     </div>
@@ -196,64 +204,70 @@
 
                                             <!-- 장애물 종류 -->
                                             <div class="row h-100 g-1">
-                                                    <div class="col-md-6 d-flex">
-                                                    <div id="vehicle/surface/obstacle/0" class="card text-center h-100 w-100 disabled">
-                                                        <div class="card-body p-2 d-flex flex-column justify-content-center">
+                                                <div class="col-md-6 d-flex">
+                                                    <div id="vehicle/surface/obstacle/0"
+                                                        class="card text-center h-100 w-100 disabled">
+                                                        <div
+                                                            class="card-body p-2 d-flex flex-column justify-content-center">
                                                             <h5 class="card-title mb-2 fw-bold">없음</h5>
                                                             <i class="fas fa-check-circle fs-1 text-success my-2"></i>
                                                             <span class="badge bg-success fs-6 mt-2">정상</span>
                                                         </div>
                                                     </div>
                                                 </div>
-                                                    <div class="col-md-6 d-flex">
-                                                    <div id="vehicle/surface/obstacle/1" class="card text-center h-100 w-100 disabled">
-                                                        <div class="card-body p-2 d-flex flex-column justify-content-center">
-                                                                <h5 class="card-title mb-2">단차</h5>
-                                                                <i class="fas fa-road-barrier fs-1 text-warning my-2"></i>
-                                                                <span class="badge bg-warning fs-6 mt-2">주의</span>
+                                                <div class="col-md-6 d-flex">
+                                                    <div id="vehicle/surface/obstacle/1"
+                                                        class="card text-center h-100 w-100 disabled">
+                                                        <div
+                                                            class="card-body p-2 d-flex flex-column justify-content-center">
+                                                            <h5 class="card-title mb-2">단차</h5>
+                                                            <i class="fas fa-road-barrier fs-1 text-warning my-2"></i>
+                                                            <span class="badge bg-warning fs-6 mt-2">주의</span>
                                                         </div>
                                                     </div>
                                                 </div>
-                                                    <div class="col-md-6 d-flex">
-                                                    <div id="vehicle/surface/obstacle/2" class="card text-center h-100 w-100 disabled">
-                                                        <div class="card-body p-2 d-flex flex-column justify-content-center">
+                                                <div class="col-md-6 d-flex">
+                                                    <div id="vehicle/surface/obstacle/2"
+                                                        class="card text-center h-100 w-100 disabled">
+                                                        <div
+                                                            class="card-body p-2 d-flex flex-column justify-content-center">
                                                             <h5 class="card-title mb-2">포트홀</h5>
-                                                            <i class="fas fa-exclamation-triangle fs-1 text-danger my-2"></i>
+                                                            <i
+                                                                class="fas fa-exclamation-triangle fs-1 text-danger my-2"></i>
                                                             <span class="badge bg-danger fs-6 mt-2">위험</span>
                                                         </div>
                                                     </div>
                                                 </div>
-                                                    <div class="col-md-6 d-flex">
-                                                        <div id="vehicle/surface/obstacle/3" class="card text-center h-100 w-100 disabled">
-                                                            <div class="card-body p-2 d-flex flex-column justify-content-center">
-                                                                <h5 class="card-title mb-2">빙판길</h5>
-                                                                <i class="fas fa-snowflake fs-1 text-danger my-2"></i>
-                                                                <span class="badge bg-danger fs-6 mt-2">위험</span>
-                                                            </div>
+                                                <div class="col-md-6 d-flex">
+                                                    <div id="vehicle/surface/obstacle/3"
+                                                        class="card text-center h-100 w-100 disabled">
+                                                        <div
+                                                            class="card-body p-2 d-flex flex-column justify-content-center">
+                                                            <h5 class="card-title mb-2">빙판길</h5>
+                                                            <i class="fas fa-snowflake fs-1 text-danger my-2"></i>
+                                                            <span class="badge bg-danger fs-6 mt-2">위험</span>
                                                         </div>
                                                     </div>
+                                                </div>
                                             </div>
                                             <!-- // 장애물 종류 -->
 
                                             <!-- 센서 융합 -->
-                                            <div id="obstacle-fusion-row" class="fusion-status-row border border-secondary-subtle rounded-3 p-2 mt-2" aria-live="polite">
+                                            <div id="obstacle-fusion-row"
+                                                class="fusion-status-row border border-secondary-subtle rounded-3 p-2 mt-2"
+                                                aria-live="polite">
                                                 <div class="fusion-status-inline d-flex align-items-center">
-                                                    <span id="obstacle-fusion-enabled" class="badge text-bg-secondary">대기중</span>
+                                                    <span id="obstacle-fusion-enabled"
+                                                        class="badge text-bg-secondary">대기중</span>
                                                     <span class="badge text-bg-light border">신뢰도</span>
                                                     <div class="fusion-confidence-slider-wrap flex-grow-1">
-                                                        <input
-                                                            id="obstacle-fusion-confidence-slider"
-                                                            class="form-range fusion-confidence-slider"
-                                                            type="range"
-                                                            min="0"
-                                                            max="100"
-                                                            value="0"
-                                                            step="1"
-                                                            aria-label="센서 융합 신뢰도"
-                                                            disabled
-                                                        >
+                                                        <input id="obstacle-fusion-confidence-slider"
+                                                            class="form-range fusion-confidence-slider" type="range"
+                                                            min="0" max="100" value="0" step="1" aria-label="센서 융합 신뢰도"
+                                                            disabled>
                                                     </div>
-                                                    <div id="obstacle-fusion-confidence-text" class="fusion-confidence-text">-%</div>
+                                                    <div id="obstacle-fusion-confidence-text"
+                                                        class="fusion-confidence-text">-%</div>
                                                 </div>
                                             </div>
                                             <!-- // 센서 융합 -->
@@ -261,40 +275,70 @@
                                             <!-- 장애물 센서 그룹 정보 -->
                                             <div class="obstacle-sensor-row border-0 rounded-3 p-0 mt-2">
                                                 <div id="obstacle-sensor-types" class="obstacle-sensor-types">
-                                                    <div class="obstacle-sensor-chip border rounded disabled" data-sensor-id="ToF">
+                                                    <div class="obstacle-sensor-chip border rounded disabled"
+                                                        data-sensor-id="ToF">
                                                         <span class="obstacle-sensor-chip-body">
                                                             <span class="obstacle-sensor-chip-head">
                                                                 <i class="bi bi-rulers"></i>
                                                                 <span class="obstacle-sensor-chip-label">ToF</span>
                                                             </span>
-                                                            <span class="obstacle-sensor-chip-number" data-sensor-chip-number><span class="obstacle-sensor-chip-number-cell border rounded-1" aria-hidden="true"></span><span class="obstacle-sensor-chip-number-cell border rounded-1" aria-hidden="true"></span><span class="obstacle-sensor-chip-number-cell border rounded-1" aria-hidden="true"></span><span class="obstacle-sensor-chip-number-cell border rounded-1" aria-hidden="true"></span></span>
+                                                            <span class="obstacle-sensor-chip-number"
+                                                                data-sensor-chip-number><span
+                                                                    class="obstacle-sensor-chip-number-cell border rounded-1"
+                                                                    aria-hidden="true"></span><span
+                                                                    class="obstacle-sensor-chip-number-cell border rounded-1"
+                                                                    aria-hidden="true"></span><span
+                                                                    class="obstacle-sensor-chip-number-cell border rounded-1"
+                                                                    aria-hidden="true"></span><span
+                                                                    class="obstacle-sensor-chip-number-cell border rounded-1"
+                                                                    aria-hidden="true"></span></span>
                                                         </span>
                                                     </div>
-                                                    <div class="obstacle-sensor-chip border rounded disabled" data-sensor-id="IMU">
+                                                    <div class="obstacle-sensor-chip border rounded disabled"
+                                                        data-sensor-id="IMU">
                                                         <span class="obstacle-sensor-chip-body">
                                                             <span class="obstacle-sensor-chip-head">
                                                                 <i class="bi bi-compass"></i>
                                                                 <span class="obstacle-sensor-chip-label">IMU</span>
                                                             </span>
-                                                            <span class="obstacle-sensor-chip-number" data-sensor-chip-number><span class="obstacle-sensor-chip-number-cell border rounded-1" aria-hidden="true"></span><span class="obstacle-sensor-chip-number-cell border rounded-1" aria-hidden="true"></span><span class="obstacle-sensor-chip-number-cell border rounded-1" aria-hidden="true"></span><span class="obstacle-sensor-chip-number-cell border rounded-1" aria-hidden="true"></span><span class="obstacle-sensor-chip-number-cell border rounded-1" aria-hidden="true"></span></span>
+                                                            <span class="obstacle-sensor-chip-number"
+                                                                data-sensor-chip-number><span
+                                                                    class="obstacle-sensor-chip-number-cell border rounded-1"
+                                                                    aria-hidden="true"></span><span
+                                                                    class="obstacle-sensor-chip-number-cell border rounded-1"
+                                                                    aria-hidden="true"></span><span
+                                                                    class="obstacle-sensor-chip-number-cell border rounded-1"
+                                                                    aria-hidden="true"></span><span
+                                                                    class="obstacle-sensor-chip-number-cell border rounded-1"
+                                                                    aria-hidden="true"></span><span
+                                                                    class="obstacle-sensor-chip-number-cell border rounded-1"
+                                                                    aria-hidden="true"></span></span>
                                                         </span>
                                                     </div>
-                                                    <div class="obstacle-sensor-chip border rounded disabled" data-sensor-id="Camera">
+                                                    <div class="obstacle-sensor-chip border rounded disabled"
+                                                        data-sensor-id="Camera">
                                                         <span class="obstacle-sensor-chip-body">
                                                             <span class="obstacle-sensor-chip-head">
                                                                 <i class="bi bi-camera-video"></i>
                                                                 <span class="obstacle-sensor-chip-label">Cam</span>
                                                             </span>
-                                                            <span class="obstacle-sensor-chip-number" data-sensor-chip-number><span class="obstacle-sensor-chip-number-cell border rounded-1" aria-hidden="true"></span></span>
+                                                            <span class="obstacle-sensor-chip-number"
+                                                                data-sensor-chip-number><span
+                                                                    class="obstacle-sensor-chip-number-cell border rounded-1"
+                                                                    aria-hidden="true"></span></span>
                                                         </span>
                                                     </div>
-                                                    <div class="obstacle-sensor-chip border rounded disabled" data-sensor-id="Lidar">
+                                                    <div class="obstacle-sensor-chip border rounded disabled"
+                                                        data-sensor-id="Lidar">
                                                         <span class="obstacle-sensor-chip-body">
                                                             <span class="obstacle-sensor-chip-head">
                                                                 <i class="bi bi-broadcast-pin"></i>
                                                                 <span class="obstacle-sensor-chip-label">Lidar</span>
                                                             </span>
-                                                            <span class="obstacle-sensor-chip-number" data-sensor-chip-number><span class="obstacle-sensor-chip-number-cell border rounded-1" aria-hidden="true"></span></span>
+                                                            <span class="obstacle-sensor-chip-number"
+                                                                data-sensor-chip-number><span
+                                                                    class="obstacle-sensor-chip-number-cell border rounded-1"
+                                                                    aria-hidden="true"></span></span>
                                                         </span>
                                                     </div>
                                                 </div>
@@ -313,7 +357,8 @@
                                     </div>
                                     <div class="card-body p-0">
                                         <div class="table-responsive">
-                                            <table class="table table-sm table-bordered mb-0 sensor-info-table" style="font-size: 0.83rem;">
+                                            <table class="table table-sm table-bordered mb-0 sensor-info-table"
+                                                style="font-size: 0.83rem;">
                                                 <thead class="table-light">
                                                     <tr>
                                                         <th class="text-center">센서</th>
@@ -326,15 +371,18 @@
                                                 </thead>
                                                 <tbody id="sensor-info-tbody">
                                                     <tr id="sensor-info-empty-row">
-                                                        <td class="text-center text-muted" colspan="6">센서 데이터 수신 대기중</td>
+                                                        <td class="text-center text-muted" colspan="6">센서 데이터 수신 대기중
+                                                        </td>
                                                     </tr>
                                                     <tr id="sensor-info-row-template" class="d-none">
-                                                        <th class="text-center" scope="row" data-sensor-label>Sensor</th>
+                                                        <th class="text-center" scope="row" data-sensor-label>Sensor
+                                                        </th>
                                                         <td class="text-center" data-sensor-number>0</td>
                                                         <td class="text-center" data-topic-suffix="state">-</td>
                                                         <td class="text-center" data-topic-suffix="value">-</td>
                                                         <td class="text-center" data-topic-suffix="obstacle">-</td>
-                                                        <td class="text-center" data-topic-suffix="obstacle/confidence">-</td>
+                                                        <td class="text-center" data-topic-suffix="obstacle/confidence">
+                                                            -</td>
                                                     </tr>
                                                 </tbody>
                                             </table>
@@ -342,78 +390,69 @@
                                     </div>
                                 </div>
                                 <!-- // 센서 상세 정보 -->
-                                 
+
                             </td>
-                            
+
                             <td class="align-top p-0 vehicle_image">
 
                                 <div class="card text-center h-100 w-100">
 
                                     <div class="card-body d-flex flex-column p-2">
-                                        
+
                                         <div class="flex-grow-1 d-flex align-items-center justify-content-center">
-                                            
+
                                             <!-- 차량 URDF Viewer -->
-                                            <div class="row w-100 m-0"> 
+                                            <div class="row w-100 m-0">
                                                 <div class="col-12 p-0 position-relative">
-                                                    <div class="urdf-container w-100 h-100 overflow-hidden border border-1 vehicle-status-urdf-min-height" 
-                                                        id="vehicle-urdf-viewer" 
-                                                        urdf="/urdf/model/sw_13/urdf/sw.urdf"
-                                                        showWheelInfo="true"
-                                                        showVideo="true"
-                                                        showAudio="true"
-                                                        showViewCube="true"
-                                                        showCompass="true"
-                                                        showAttitude="true"
-                                                        showTransparency="true"
-                                                    > 
+                                                    <div class="urdf-container w-100 h-100 overflow-hidden border border-1 vehicle-status-urdf-min-height"
+                                                        id="vehicle-urdf-viewer" urdf="/urdf/model/sw_13/urdf/sw.urdf"
+                                                        showWheelInfo="true" showVideo="true" showAudio="true"
+                                                        showViewCube="true" showCompass="true" showAttitude="true"
+                                                        showTransparency="true">
                                                     </div>
 
-                                                    <div id="road-detect-overlay" class="road-detect-overlay d-none" aria-label="검출 출력 오버레이">
+                                                    <div id="road-detect-overlay" class="road-detect-overlay d-none"
+                                                        aria-label="검출 출력 오버레이">
                                                         <div class="road-detect-overlay-body">
-                                                            <div class="road-detect-overlay-controls" aria-label="동영상 오버레이 제어">
-                                                                <button
-                                                                    id="road-detect-overlay-loop-toggle"
+                                                            <div class="road-detect-overlay-controls"
+                                                                aria-label="동영상 오버레이 제어">
+                                                                <button id="road-detect-overlay-loop-toggle"
                                                                     type="button"
                                                                     class="btn btn-sm btn-outline-light road-detect-overlay-control-btn"
-                                                                    title="자동 반복 OFF"
-                                                                    aria-label="자동 반복 OFF"
-                                                                ><i class="bi bi-arrow-repeat" aria-hidden="true"></i></button>
-                                                                <button
-                                                                    id="road-detect-overlay-play-toggle"
+                                                                    title="자동 반복 OFF" aria-label="자동 반복 OFF"><i
+                                                                        class="bi bi-arrow-repeat"
+                                                                        aria-hidden="true"></i></button>
+                                                                <button id="road-detect-overlay-play-toggle"
                                                                     type="button"
                                                                     class="btn btn-sm btn-outline-light road-detect-overlay-control-btn"
-                                                                    title="동영상 재생"
-                                                                    aria-label="동영상 재생"
-                                                                ><i class="bi bi-play-fill" aria-hidden="true"></i></button>
-                                                                <button
-                                                                    id="road-detect-overlay-close"
-                                                                    type="button"
+                                                                    title="동영상 재생" aria-label="동영상 재생"><i
+                                                                        class="bi bi-play-fill"
+                                                                        aria-hidden="true"></i></button>
+                                                                <button id="road-detect-overlay-close" type="button"
                                                                     class="btn btn-sm btn-outline-light road-detect-overlay-control-btn road-detect-overlay-close-btn"
-                                                                    title="동영상 닫기"
-                                                                    aria-label="동영상 닫기"
-                                                                ><i class="bi bi-x-lg" aria-hidden="true"></i></button>
+                                                                    title="동영상 닫기" aria-label="동영상 닫기"><i
+                                                                        class="bi bi-x-lg"
+                                                                        aria-hidden="true"></i></button>
                                                             </div>
-                                                            <img id="road-detect-overlay-image" class="road-detect-overlay-media d-none" alt="검출 결과 이미지">
-                                                            <video id="road-detect-overlay-video" class="road-detect-overlay-media d-none" muted playsinline autoplay controls></video>
-                                                            <div id="road-detect-overlay-status" class="road-detect-overlay-status d-none" aria-live="polite">검출 동영상을 로딩중입니다.</div>
+                                                            <img id="road-detect-overlay-image"
+                                                                class="road-detect-overlay-media d-none"
+                                                                alt="검출 결과 이미지">
+                                                            <video id="road-detect-overlay-video"
+                                                                class="road-detect-overlay-media d-none" muted
+                                                                playsinline autoplay controls></video>
+                                                            <div id="road-detect-overlay-status"
+                                                                class="road-detect-overlay-status d-none"
+                                                                aria-live="polite">검출 동영상을 로딩중입니다.</div>
                                                         </div>
                                                     </div>
 
-                                                    <div
-                                                        id="vehicle-audio-hud"
-                                                        class="vehicle-audio-hud"
-                                                    >
-                                                        <div
-                                                            id="vehicle-audio-hud-state"
-                                                            class="vehicle-audio-hud-state"
-                                                        >음성 OFF</div>
-                                                        <div
-                                                            id="vehicle-audio-hud-text"
-                                                            class="vehicle-audio-hud-text"
-                                                        >대기중</div>
+                                                    <div id="vehicle-audio-hud" class="vehicle-audio-hud">
+                                                        <div id="vehicle-audio-hud-state"
+                                                            class="vehicle-audio-hud-state">음성 OFF</div>
+                                                        <div id="vehicle-audio-hud-text" class="vehicle-audio-hud-text">
+                                                            대기중</div>
                                                     </div>
-                                                </div> 
+                                                </div>
                                             </div>
                                             <!-- // 차량 URDF Viewer -->
 
@@ -421,7 +460,7 @@
 
                                     </div>
 
-                                </div> 
+                                </div>
 
                             </td>
 
@@ -437,37 +476,46 @@
                                             <div class="row h-100 g-1">
                                                 <div class="col-md-6 d-flex">
                                                     <div class="card text-center h-100 w-100">
-                                                        <div class="card-body p-2 d-flex flex-column justify-content-center">
+                                                        <div
+                                                            class="card-body p-2 d-flex flex-column justify-content-center">
                                                             <h5 class="card-title mt-0 mb-1 text-nowrap">배터리</h5>
                                                             <i class="bi bi-battery-charging fs-1 text-success"></i>
-                                                            <p id="vehicle/battery/remain_amount" class="card-text fs-5 text-nowrap mb-0">__%</p>
+                                                            <p id="vehicle/battery/remain_amount"
+                                                                class="card-text fs-5 text-nowrap mb-0">__%</p>
                                                         </div>
                                                     </div>
                                                 </div>
                                                 <div class="col-md-6 d-flex">
                                                     <div class="card text-center h-100 w-100">
-                                                        <div class="card-body p-2 d-flex flex-column justify-content-center">
+                                                        <div
+                                                            class="card-body p-2 d-flex flex-column justify-content-center">
                                                             <h5 class="card-title mt-0 mb-1 text-nowrap">주행 가능</h5>
                                                             <i class="bi bi-clock fs-1 text-info"></i>
-                                                            <p id="vehicle/drive/available_time" class="card-text fs-5 text-nowrap mb-0"> ___ 시간 ___ 분</p>
+                                                            <p id="vehicle/drive/available_time"
+                                                                class="card-text fs-5 text-nowrap mb-0"> ___ 시간 ___ 분
+                                                            </p>
                                                         </div>
                                                     </div>
                                                 </div>
                                                 <div class="col-md-6 d-flex">
                                                     <div class="card text-center h-100 w-100">
-                                                        <div class="card-body p-2 d-flex flex-column justify-content-center">
+                                                        <div
+                                                            class="card-body p-2 d-flex flex-column justify-content-center">
                                                             <h5 class="card-title mt-0 mb-1 text-nowrap">주행 시간</h5>
                                                             <i class="bi bi-stopwatch fs-1 text-warning"></i>
-                                                            <p id="vehicle/drive/elapsed_time" class="card-text fs-5 text-nowrap mb-0"> ___ 시간</p>
+                                                            <p id="vehicle/drive/elapsed_time"
+                                                                class="card-text fs-5 text-nowrap mb-0"> ___ 시간</p>
                                                         </div>
                                                     </div>
                                                 </div>
                                                 <div class="col-md-6 d-flex">
                                                     <div class="card text-center h-100 w-100">
-                                                        <div class="card-body p-2 d-flex flex-column justify-content-center">
+                                                        <div
+                                                            class="card-body p-2 d-flex flex-column justify-content-center">
                                                             <h5 class="card-title mt-0 mb-1 text-nowrap">주행 거리</h5>
                                                             <i class="bi bi-speedometer fs-1 text-primary"></i>
-                                                            <p id="vehicle/drive/total_distance" class="card-text fs-5 text-nowrap mb-0"> ____ km</p>
+                                                            <p id="vehicle/drive/total_distance"
+                                                                class="card-text fs-5 text-nowrap mb-0"> ____ km</p>
                                                         </div>
                                                     </div>
                                                 </div>
@@ -475,13 +523,14 @@
 
                                             <div class="run-info-chart-panel mt-2">
                                                 <div class="run-info-chart-body px-2" style="height: 180px;">
-                                                    <canvas id="run-info-history-chart" aria-label="운행 정보 추이 차트"></canvas>
+                                                    <canvas id="run-info-history-chart"
+                                                        aria-label="운행 정보 추이 차트"></canvas>
                                                 </div>
                                             </div>
                                         </div>
                                     </div>
                                 </div>
-                                 <!-- // 운행 정보 -->
+                                <!-- // 운행 정보 -->
 
                                 <!-- 차량 속도 정보 -->
                                 <div class="card mt-2 ms-1">
@@ -492,37 +541,49 @@
                                         <div class="row h-100 g-1">
                                             <div class="col-md-6 d-flex">
                                                 <div class="card text-center h-100 w-100">
-                                                    <div class="card-body p-2 d-flex flex-column justify-content-center">
+                                                    <div
+                                                        class="card-body p-2 d-flex flex-column justify-content-center">
                                                         <h5 class="card-title mt-0 mb-1 text-nowrap">동작 상태</h5>
-                                                        <i id="vehicle/operation/command/icon" class="bi bi-arrow-up-circle fs-1 text-info"></i>
-                                                        <p id="vehicle/operation/command" class="card-text fs-5 text-nowrap mb-0 text-info">___</p>
+                                                        <i id="vehicle/operation/command/icon"
+                                                            class="bi bi-arrow-up-circle fs-1 text-info"></i>
+                                                        <p id="vehicle/operation/command"
+                                                            class="card-text fs-5 text-nowrap mb-0 text-info">___</p>
                                                     </div>
                                                 </div>
                                             </div>
                                             <div class="col-md-6 d-flex">
                                                 <div class="card text-center h-100 w-100">
-                                                    <div class="card-body p-2 d-flex flex-column justify-content-center">
+                                                    <div
+                                                        class="card-body p-2 d-flex flex-column justify-content-center">
                                                         <h5 class="card-title mt-0 mb-1 text-nowrap">현재 속도</h5>
                                                         <i class="bi bi-speedometer2 fs-1 text-primary"></i>
-                                                        <p id="vehicle/linear/speed" class="card-text fs-5 text-nowrap mb-0 text-primary"> __ Km/h</p>
+                                                        <p id="vehicle/linear/speed"
+                                                            class="card-text fs-5 text-nowrap mb-0 text-primary"> __
+                                                            Km/h</p>
                                                     </div>
                                                 </div>
                                             </div>
                                             <div class="col-md-6 d-flex">
                                                 <div class="card text-center h-100 w-100">
-                                                    <div class="card-body p-2 d-flex flex-column justify-content-center">
+                                                    <div
+                                                        class="card-body p-2 d-flex flex-column justify-content-center">
                                                         <h5 class="card-title mt-0 mb-1 text-nowrap">최고 속도</h5>
                                                         <i class="bi bi-speedometer fs-1 text-secondary"></i>
-                                                        <p id="vehicle/linear/max_speed" class="card-text fs-5 text-nowrap mb-0 text-secondary"> __ Km/h</p>
+                                                        <p id="vehicle/linear/max_speed"
+                                                            class="card-text fs-5 text-nowrap mb-0 text-secondary"> __
+                                                            Km/h</p>
                                                     </div>
                                                 </div>
                                             </div>
                                             <div class="col-md-6 d-flex">
                                                 <div class="card text-center h-100 w-100">
-                                                    <div class="card-body p-2 d-flex flex-column justify-content-center">
+                                                    <div
+                                                        class="card-body p-2 d-flex flex-column justify-content-center">
                                                         <h5 class="card-title mt-0 mb-1 text-nowrap">가속도</h5>
                                                         <i class="bi bi-graph-up-arrow fs-1 text-warning"></i>
-                                                        <p id="vehicle/linear/acceleration" class="card-text fs-5 text-nowrap mb-0 text-warning"> __ m/s²</p>
+                                                        <p id="vehicle/linear/acceleration"
+                                                            class="card-text fs-5 text-nowrap mb-0 text-warning"> __
+                                                            m/s²</p>
                                                     </div>
                                                 </div>
                                             </div>
@@ -530,21 +591,22 @@
 
                                         <div class="speed-info-chart-panel mt-2">
                                             <div class="speed-info-chart-body px-2" style="height: 180px;">
-                                                <canvas id="vehicle-speed-history-chart" aria-label="차량 속도 추이 차트"></canvas>
+                                                <canvas id="vehicle-speed-history-chart"
+                                                    aria-label="차량 속도 추이 차트"></canvas>
                                             </div>
                                         </div>
                                     </div>
 
-                                    
+
                                 </div>
                                 <!-- // 차량 속도 정보 -->
 
-                            </td> 
+                            </td>
 
                         </tr>
                     </tbody>
                 </table>
-            </div> 
+            </div>
         </div>
         <!-- // 차량 정보 -->
 

@@ -3263,6 +3263,43 @@ class RapierDriveSimulation {
     return velocityX * obstacleOffsetX + velocityY * obstacleOffsetY > 1e-5;
   }
 
+  isVehiclePositionTouchingObstacle(position) {
+    if (!this.body || !position) {
+      return false;
+    }
+
+    const currentPosition = this.body.translation();
+    const currentCenter = this.getVehicleColliderWorldCenter();
+    const halfExtents = this.getVehicleColliderWorldAabbHalfExtents();
+    if (!currentCenter || !halfExtents) {
+      return false;
+    }
+
+    const nextCenter = new THREE.Vector3(
+      currentCenter.x + position.x - currentPosition.x,
+      currentCenter.y + position.y - currentPosition.y,
+      currentCenter.z + position.z - currentPosition.z,
+    );
+    return this.obstacleColliderInfos.some((obstacleInfo) => {
+      if (
+        obstacleInfo?.isSensor ||
+        !obstacleInfo?.center ||
+        !obstacleInfo?.halfExtents
+      ) {
+        return false;
+      }
+
+      return (
+        Math.abs(nextCenter.x - obstacleInfo.center.x) <=
+          halfExtents.x + obstacleInfo.halfExtents.x &&
+        Math.abs(nextCenter.y - obstacleInfo.center.y) <=
+          halfExtents.y + obstacleInfo.halfExtents.y &&
+        Math.abs(nextCenter.z - obstacleInfo.center.z) <=
+          halfExtents.z + obstacleInfo.halfExtents.z
+      );
+    });
+  }
+
   syncObstacleColliderActivation(linkMap = null) {
     this.obstacleColliderInfos.forEach((obstacleInfo) => {
       if (!obstacleInfo?.collider || obstacleInfo.isSensor) {
@@ -5501,15 +5538,26 @@ class RapierDriveSimulation {
         commandedVelocityX * effectiveDeltaSec;
       this.lowSpeedKinematicPosition.y +=
         commandedVelocityY * effectiveDeltaSec;
-      this.body.setTranslation(
-        new this.rapier.Vector3(
-          this.lowSpeedKinematicPosition.x,
-          this.lowSpeedKinematicPosition.y,
-          this.lowSpeedKinematicPosition.z,
-        ),
-        true,
-      );
-      this.lowSpeedPositionAssistDistanceMeters = assistDistance;
+      if (
+        this.isVehiclePositionTouchingObstacle(this.lowSpeedKinematicPosition)
+      ) {
+        this.lowSpeedKinematicPosition.x -=
+          commandedVelocityX * effectiveDeltaSec;
+        this.lowSpeedKinematicPosition.y -=
+          commandedVelocityY * effectiveDeltaSec;
+        const velocity = this.body.linvel();
+        this.body.setLinvel(new this.rapier.Vector3(0, 0, velocity.z), true);
+      } else {
+        this.body.setTranslation(
+          new this.rapier.Vector3(
+            this.lowSpeedKinematicPosition.x,
+            this.lowSpeedKinematicPosition.y,
+            this.lowSpeedKinematicPosition.z,
+          ),
+          true,
+        );
+        this.lowSpeedPositionAssistDistanceMeters = assistDistance;
+      }
     } else {
       this.lowSpeedKinematicPosition = null;
     }

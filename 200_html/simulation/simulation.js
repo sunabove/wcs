@@ -1205,6 +1205,13 @@ class RapierDriveSimulation {
       );
       this.body.setLinvel(new this.rapier.Vector3(0, 0, 0), true);
       this.body.setAngvel(new this.rapier.Vector3(0, 0, 0), true);
+      Object.values(this.wheelBodiesByKey).forEach((wheelBody) => {
+        if (!wheelBody) {
+          return;
+        }
+        wheelBody.setLinvel(new this.rapier.Vector3(0, 0, 0), true);
+        wheelBody.setAngvel(new this.rapier.Vector3(0, 0, 0), true);
+      });
     }
 
     ["fl", "fr", "rl", "rr"].forEach((key) => {
@@ -4231,6 +4238,28 @@ class RapierDriveSimulation {
     );
   }
 
+  resetWheelBodiesFromVisual() {
+    const linkMap = this.viewer?.robotModel?.links || null;
+    Object.entries(this.wheelLinkNameByKey).forEach(
+      ([wheelKey, wheelLinkName]) => {
+        const wheelBody = this.wheelBodiesByKey[wheelKey];
+        const wheelLink = this.findLinkByName(linkMap, wheelLinkName);
+        if (!wheelBody || !wheelLink) {
+          return;
+        }
+
+        wheelLink.updateWorldMatrix(true, false);
+        const position = wheelLink.getWorldPosition(new THREE.Vector3());
+        wheelBody.setTranslation(
+          new this.rapier.Vector3(position.x, position.y, position.z),
+          true,
+        );
+        wheelBody.setLinvel(new this.rapier.Vector3(0, 0, 0), true);
+        wheelBody.setAngvel(new this.rapier.Vector3(0, 0, 0), true);
+      },
+    );
+  }
+
   syncWheelChartBaselineFromPhysics() {
     Object.keys(this.wheelChartBaselineCenterZByKey).forEach((wheelKey) => {
       this.wheelChartBaselineCenterZByKey[wheelKey] = null;
@@ -5880,6 +5909,7 @@ class RapierDriveSimulation {
 
     // On reset, always return to the URDF-authored pose without extra ground alignment offsets.
     this.renderer.syncVehicle();
+    this.resetWheelBodiesFromVisual();
     this.resetWheelTravelTracking();
     this.syncWheelChartBaselineFromPhysics();
   }

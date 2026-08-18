@@ -2734,10 +2734,12 @@ class RapierDriveSimulation {
       const isUnderbodyPassThroughByHeight = false;
       const isUnderbodyPassThrough = false;
 
-      // Only explicitly pass-through obstacles are sensors. Normal obstacles must
-      // remain solid so physics contact cannot be missed before AABB activation.
+      // Pass-through obstacles and potholes are sensors. The ground-hole
+      // colliders model pothole physics; all other obstacles remain solid.
       if (typeof obstacleColliderDesc.setSensor === "function") {
-        obstacleColliderDesc.setSensor(isPassUnderTagged);
+        obstacleColliderDesc.setSensor(
+          isPassUnderTagged || obstacleProfile.isPotholeObstacle,
+        );
       }
       if (isPassUnderTagged) {
         console.log(
@@ -2775,7 +2777,9 @@ class RapierDriveSimulation {
         },
         linkName: obstacleLinkName,
         normalizedLinkName: normalizedObstacleName,
-        isSensor: Boolean(isPassUnderTagged),
+        isSensor: Boolean(
+          isPassUnderTagged || obstacleProfile.isPotholeObstacle,
+        ),
         isSpatiallyOverlapping: false,
         linkObject: obstacleLink,
         worldBounds: actualBounds.clone(),

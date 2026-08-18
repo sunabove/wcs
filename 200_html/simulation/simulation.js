@@ -5478,7 +5478,19 @@ class RapierDriveSimulation {
       );
       const obstacleReferencePosition = this.body.translation();
       const obstaclePathControlActive = false;
-      const willEnterObstacle = false;
+      const predictedPosition = new THREE.Vector3(
+        obstacleReferencePosition.x +
+          targetVelocityX * this.physicsFixedTimeStepSec,
+        obstacleReferencePosition.y +
+          targetVelocityY * this.physicsFixedTimeStepSec,
+        obstacleReferencePosition.z,
+      );
+      const willEnterObstacle =
+        (keyboardState.isActive || throttleSign !== 0) &&
+        this.isVehiclePathTouchingObstacle(
+          obstacleReferencePosition,
+          predictedPosition,
+        );
 
       if (
         !willEnterObstacle &&
@@ -5523,15 +5535,17 @@ class RapierDriveSimulation {
         );
       }
 
-      this.applyDriveForces(
-        this.physicsFixedTimeStepSec,
-        targetVelocityX,
-        targetVelocityY,
-        throttleSign,
-        effectiveSteerSign,
-        clampedSpeed,
-        wheelGroundContactCount,
-      );
+      if (!willEnterObstacle) {
+        this.applyDriveForces(
+          this.physicsFixedTimeStepSec,
+          targetVelocityX,
+          targetVelocityY,
+          throttleSign,
+          effectiveSteerSign,
+          clampedSpeed,
+          wheelGroundContactCount,
+        );
+      }
       this.applyGroundSupportForces(
         this.physicsFixedTimeStepSec,
         wheelGroundContactCount,

@@ -878,11 +878,11 @@ class RapierDriveSimulation {
       margin.left + ((t - minTimeSec) / effectiveWindowSec) * plotWidth;
     const toY = (z) => margin.top + ((maxZ - z) / (maxZ - minZ)) * plotHeight;
 
-    const maxTickCount = 8;
-    const xStepSec = effectiveWindowSec / Math.max(maxTickCount - 1, 1);
     const xTickValuesSec = [];
-    for (let i = 0; i < maxTickCount; i += 1) {
-      xTickValuesSec.push(minTimeSec + xStepSec * i);
+    const firstTickSec = Math.ceil(minTimeSec);
+    const lastTickSec = Math.floor(windowEndSec);
+    for (let tickSec = firstTickSec; tickSec <= lastTickSec; tickSec += 1) {
+      xTickValuesSec.push(tickSec);
     }
     if (xTickValuesSec.length === 0) {
       xTickValuesSec.push(minTimeSec, windowEndSec);

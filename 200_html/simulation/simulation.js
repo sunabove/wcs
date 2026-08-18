@@ -3355,6 +3355,32 @@ class RapierDriveSimulation {
     });
   }
 
+  isVehiclePathTouchingObstacle(startPosition, endPosition) {
+    if (!startPosition || !endPosition) {
+      return false;
+    }
+
+    const distance = Math.hypot(
+      endPosition.x - startPosition.x,
+      endPosition.y - startPosition.y,
+      endPosition.z - startPosition.z,
+    );
+    const stepCount = Math.max(1, Math.ceil(distance / 0.005));
+    for (let stepIndex = 1; stepIndex <= stepCount; stepIndex += 1) {
+      const progress = stepIndex / stepCount;
+      const samplePosition = new THREE.Vector3(
+        startPosition.x + (endPosition.x - startPosition.x) * progress,
+        startPosition.y + (endPosition.y - startPosition.y) * progress,
+        startPosition.z + (endPosition.z - startPosition.z) * progress,
+      );
+      if (this.isVehiclePositionTouchingObstacle(samplePosition)) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
   getWheelKeysTouchingObstacleAtPosition(obstacleInfo, position) {
     if (
       !this.body ||
@@ -5343,7 +5369,10 @@ class RapierDriveSimulation {
       );
       const willEnterObstacle =
         (keyboardState.isActive || throttleSign !== 0) &&
-        this.isVehiclePositionTouchingObstacle(predictedPosition);
+        this.isVehiclePathTouchingObstacle(
+          currentBodyPosition,
+          predictedPosition,
+        );
       this.predictedObstacleBlockActive ||= willEnterObstacle;
       if (willEnterObstacle) {
         const predictedObstacle = this.obstacleColliderInfos.find(
@@ -5612,7 +5641,12 @@ class RapierDriveSimulation {
             0,
           ),
         );
-      if (this.isVehiclePositionTouchingObstacle(nextPosition)) {
+      if (
+        this.isVehiclePathTouchingObstacle(
+          this.lowSpeedKinematicPosition,
+          nextPosition,
+        )
+      ) {
         this.predictedObstacleBlockActive = true;
         const velocity = this.body.linvel();
         this.body.setLinvel(new this.rapier.Vector3(0, 0, velocity.z), true);

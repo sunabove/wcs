@@ -256,6 +256,7 @@ class RapierDriveSimulation {
     this.hasActivatedSimulationMotion = false;
     this.hasActivatedDynamicGroundClamp = false;
     this.visualSpeedScale = SIM_VISUAL_SPEED_DEFAULT_SCALE;
+    this.lowSpeedPositionAssistDistanceMeters = 0;
     this.debugPanelElement = null;
     this.debugTextElement = null;
     this.debugStatusUpdateIntervalSec = 0.2;
@@ -1098,7 +1099,7 @@ class RapierDriveSimulation {
         z: currentVelocity.z,
       };
 
-      metricsSummary = `metrics: contact=${contactStrengthMetric.toFixed(2)} accel=${this.accelerationMetric.toFixed(2)}`;
+      metricsSummary = `metrics: contact=${contactStrengthMetric.toFixed(2)} accel=${this.accelerationMetric.toFixed(2)} lowAssist=${this.lowSpeedPositionAssistDistanceMeters.toFixed(5)}m`;
     }
 
     const statusLine = `status: ready=${isReady} failed=${isFailed} paused=${isPaused} hooks=${hookState}`;
@@ -4953,6 +4954,7 @@ class RapierDriveSimulation {
     const deltaSec = Math.min((now - this.lastStepTimeMs) / 1000, 0.1);
     this.lastStepTimeMs = now;
     const effectiveDeltaSec = Math.min(deltaSec * this.visualSpeedScale, 0.25);
+    this.lowSpeedPositionAssistDistanceMeters = 0;
 
     const keyboardState = this.vehicleController.getKeyboardState();
     const driveViewer = this.vehicleController.getDriveSource();
@@ -5445,6 +5447,10 @@ class RapierDriveSimulation {
       clampedSpeed <= 0.1;
     if (needsLowSpeedPositionAssist) {
       const translation = this.body.translation();
+      const assistDistance = Math.hypot(
+        commandedVelocityX * effectiveDeltaSec,
+        commandedVelocityY * effectiveDeltaSec,
+      );
       this.body.setTranslation(
         new this.rapier.Vector3(
           translation.x + commandedVelocityX * effectiveDeltaSec,
@@ -5453,6 +5459,7 @@ class RapierDriveSimulation {
         ),
         true,
       );
+      this.lowSpeedPositionAssistDistanceMeters = assistDistance;
     }
 
     const isMoveCommandActive = keyboardState.isActive || throttleSign !== 0;

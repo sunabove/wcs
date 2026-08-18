@@ -3355,6 +3355,65 @@ class RapierDriveSimulation {
     });
   }
 
+  getWheelKeysTouchingObstacleAtPosition(obstacleInfo, position) {
+    if (
+      !this.body ||
+      !obstacleInfo?.center ||
+      !obstacleInfo?.halfExtents ||
+      !position
+    ) {
+      return [];
+    }
+
+    const currentPosition = this.body.translation();
+    const translationDelta = new THREE.Vector3(
+      position.x - currentPosition.x,
+      position.y - currentPosition.y,
+      position.z - currentPosition.z,
+    );
+    return Object.entries(this.wheelCollidersByKey)
+      .filter(([wheelKey, wheelCollider]) => {
+        if (!wheelCollider || typeof wheelCollider.translation !== "function") {
+          return false;
+        }
+
+        const center = wheelCollider.translation();
+        const wheelCenter = new THREE.Vector3(
+          center.x + translationDelta.x,
+          center.y + translationDelta.y,
+          center.z + translationDelta.z,
+        );
+        const radius = Math.max(
+          Number(this.wheelRadiusMetersByKey[wheelKey]) ||
+            Number(this.wheelEffectiveRadiusMeters) ||
+            0,
+          0.05,
+        );
+        const nearestX = THREE.MathUtils.clamp(
+          wheelCenter.x,
+          obstacleInfo.center.x - obstacleInfo.halfExtents.x,
+          obstacleInfo.center.x + obstacleInfo.halfExtents.x,
+        );
+        const nearestY = THREE.MathUtils.clamp(
+          wheelCenter.y,
+          obstacleInfo.center.y - obstacleInfo.halfExtents.y,
+          obstacleInfo.center.y + obstacleInfo.halfExtents.y,
+        );
+        const nearestZ = THREE.MathUtils.clamp(
+          wheelCenter.z,
+          obstacleInfo.center.z - obstacleInfo.halfExtents.z,
+          obstacleInfo.center.z + obstacleInfo.halfExtents.z,
+        );
+        return (
+          (wheelCenter.x - nearestX) ** 2 +
+            (wheelCenter.y - nearestY) ** 2 +
+            (wheelCenter.z - nearestZ) ** 2 <=
+          radius ** 2
+        );
+      })
+      .map(([wheelKey]) => wheelKey);
+  }
+
   syncObstacleColliderActivation(linkMap = null) {
     this.obstacleColliderInfos.forEach((obstacleInfo) => {
       if (!obstacleInfo?.collider || obstacleInfo.isSensor) {
@@ -5286,6 +5345,21 @@ class RapierDriveSimulation {
         (keyboardState.isActive || throttleSign !== 0) &&
         this.isVehiclePositionTouchingObstacle(predictedPosition);
       this.predictedObstacleBlockActive ||= willEnterObstacle;
+      if (willEnterObstacle) {
+        const predictedObstacle = this.obstacleColliderInfos.find(
+          (obstacleInfo) =>
+            obstacleInfo?.linkName === this.lastPredictedObstacleName,
+        );
+        if (predictedObstacle) {
+          predictedObstacle.contactedWheelKeys =
+            this.getWheelKeysTouchingObstacleAtPosition(
+              predictedObstacle,
+              predictedPosition,
+            );
+          this.setObstacleContactHighlight(predictedObstacle, true);
+          this.isVehicleObstacleContact = true;
+        }
+      }
 
       if (
         !willEnterObstacle &&

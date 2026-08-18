@@ -809,13 +809,8 @@ class RapierDriveSimulation {
     ).sort((a, b) => a - b);
     const hasSamples = uniqueSampleTimesSec.length > 0;
     const minTimeSec = Math.max(nowSec - this.wheelZChartWindowSec, 0);
-    const windowEndSec = hasSamples
-      ? Math.max(nowSec, uniqueSampleTimesSec[uniqueSampleTimesSec.length - 1])
-      : nowSec;
-    const effectiveWindowSec = Math.max(
-      windowEndSec - minTimeSec,
-      this.physicsFixedTimeStepSec,
-    );
+    const windowEndSec = minTimeSec + this.wheelZChartWindowSec;
+    const effectiveWindowSec = this.wheelZChartWindowSec;
 
     const visibleSamples = rawSamples.filter(
       (sample) => sample.t >= minTimeSec && sample.t <= windowEndSec,
@@ -879,28 +874,16 @@ class RapierDriveSimulation {
     const toY = (z) => margin.top + ((maxZ - z) / (maxZ - minZ)) * plotHeight;
 
     const xTickValuesSec = [];
-    const firstTickSec = Math.ceil(minTimeSec);
-    const lastTickSec = Math.floor(windowEndSec);
-    for (let tickSec = firstTickSec; tickSec <= lastTickSec; tickSec += 1) {
-      xTickValuesSec.push(tickSec);
-    }
-    if (xTickValuesSec.length === 0) {
-      xTickValuesSec.push(minTimeSec, windowEndSec);
+    for (
+      let tickOffsetSec = 0;
+      tickOffsetSec <= this.wheelZChartWindowSec;
+      tickOffsetSec += 1
+    ) {
+      xTickValuesSec.push(minTimeSec + tickOffsetSec);
     }
 
-    const formatXAxisTimeLabel = (timeSec) => {
-      const absSpanSec = Math.max(effectiveWindowSec, 1e-6);
-      if (absSpanSec >= 3600) {
-        return `${(timeSec / 3600).toFixed(1)}h`;
-      }
-      if (absSpanSec >= 120) {
-        return `${(timeSec / 60).toFixed(1)}m`;
-      }
-      if (absSpanSec < 10) {
-        return `${timeSec.toFixed(1)}s`;
-      }
-      return `${timeSec.toFixed(0)}s`;
-    };
+    const formatXAxisTimeLabel = (timeSec) =>
+      `${Math.round(timeSec - minTimeSec)}s`;
 
     ctx.strokeStyle = "#d6deea";
     ctx.lineWidth = 1;

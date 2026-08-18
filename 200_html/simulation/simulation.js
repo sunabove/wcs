@@ -257,6 +257,11 @@ class RapierDriveSimulation {
     this.hasActivatedDynamicGroundClamp = false;
     this.visualSpeedScale = SIM_VISUAL_SPEED_DEFAULT_SCALE;
     this.lowSpeedPositionAssistDistanceMeters = 0;
+    this.lastDriveCommandState = {
+      throttleSign: 0,
+      steerSign: 0,
+      hasMoveCommand: false,
+    };
     this.debugPanelElement = null;
     this.debugTextElement = null;
     this.debugStatusUpdateIntervalSec = 0.2;
@@ -1101,7 +1106,7 @@ class RapierDriveSimulation {
         z: currentVelocity.z,
       };
 
-      metricsSummary = `metrics: contact=${contactStrengthMetric.toFixed(2)} accel=${this.accelerationMetric.toFixed(2)} lowAssist=${this.lowSpeedPositionAssistDistanceMeters.toFixed(5)}m`;
+      metricsSummary = `metrics: contact=${contactStrengthMetric.toFixed(2)} accel=${this.accelerationMetric.toFixed(2)} lowAssist=${this.lowSpeedPositionAssistDistanceMeters.toFixed(5)}m throttle=${this.lastDriveCommandState.throttleSign} steer=${this.lastDriveCommandState.steerSign} move=${this.lastDriveCommandState.hasMoveCommand ? "Y" : "N"}`;
     }
 
     const statusLine = `status: ready=${isReady} failed=${isFailed} paused=${isPaused} hooks=${hookState}`;
@@ -5023,6 +5028,11 @@ class RapierDriveSimulation {
       this.wheelController.updateGroundContactState();
     const hasDriveCommand =
       keyboardState.isActive || throttleSign !== 0 || steerSign !== 0;
+    this.lastDriveCommandState = {
+      throttleSign,
+      steerSign,
+      hasMoveCommand: hasDriveCommand,
+    };
     if (hasDriveCommand) {
       this.hasActivatedSimulationMotion = true;
     }

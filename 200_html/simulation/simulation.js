@@ -5539,21 +5539,6 @@ class RapierDriveSimulation {
         this.contactSolver.updateVehicleObstacleContact();
       const contactedObstacle =
         this.contactSolver.getApproachInfo()?.obstacleInfo || null;
-      if (
-        hasObstacleContactNow &&
-        this.isVelocityMovingTowardObstacle(
-          contactedObstacle,
-          targetVelocityX,
-          targetVelocityY,
-        )
-      ) {
-        this.rollbackToPreviousPose(previousPose);
-        this.lowSpeedKinematicPosition = new THREE.Vector3(
-          previousPose.x,
-          previousPose.y,
-          previousPose.z,
-        );
-      }
       const isClimbingApproach =
         currentClimbApproach ||
         this.contactSolver.isClimbApproach(

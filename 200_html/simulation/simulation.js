@@ -882,8 +882,7 @@ class RapierDriveSimulation {
       xTickValuesSec.push(minTimeSec + tickOffsetSec);
     }
 
-    const formatXAxisTimeLabel = (timeSec) =>
-      `${Math.round(timeSec - minTimeSec)}s`;
+    const formatXAxisTimeLabel = (timeSec) => `${Math.round(timeSec)}s`;
 
     ctx.strokeStyle = "#d6deea";
     ctx.lineWidth = 1;

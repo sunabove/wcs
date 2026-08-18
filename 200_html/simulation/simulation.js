@@ -4105,6 +4105,21 @@ class RapierDriveSimulation {
     );
   }
 
+  syncWheelChartBaselineFromPhysics() {
+    Object.entries(this.wheelCollidersByKey).forEach(
+      ([wheelKey, wheelCollider]) => {
+        if (!wheelCollider || typeof wheelCollider.translation !== "function") {
+          return;
+        }
+
+        const position = wheelCollider.translation();
+        if (Number.isFinite(position?.z)) {
+          this.wheelChartBaselineCenterZByKey[wheelKey] = position.z;
+        }
+      },
+    );
+  }
+
   syncWheelRotationToBodyTravel() {
     const viewer = this.getDriveSourceViewer();
     if (
@@ -4834,6 +4849,7 @@ class RapierDriveSimulation {
       this.enforceWheelGroundContactAtLoad(linkMap);
       this.addObstacleColliderFromUrdf();
       this.resetWheelTravelTracking();
+      this.syncWheelChartBaselineFromPhysics();
       this.isReady = true;
       this.hasFailed = false;
 
@@ -5880,6 +5896,7 @@ class RapierDriveSimulation {
     // On reset, always return to the URDF-authored pose without extra ground alignment offsets.
     this.renderer.syncVehicle();
     this.resetWheelTravelTracking();
+    this.syncWheelChartBaselineFromPhysics();
   }
 
   async reset() {

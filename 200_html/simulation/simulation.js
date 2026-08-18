@@ -3280,6 +3280,11 @@ class RapierDriveSimulation {
       currentCenter.y + position.y - currentPosition.y,
       currentCenter.z + position.z - currentPosition.z,
     );
+    const translationDelta = new THREE.Vector3(
+      position.x - currentPosition.x,
+      position.y - currentPosition.y,
+      position.z - currentPosition.z,
+    );
     return this.obstacleColliderInfos.some((obstacleInfo) => {
       if (
         obstacleInfo?.isSensor ||
@@ -3289,13 +3294,59 @@ class RapierDriveSimulation {
         return false;
       }
 
-      return (
+      const chassisTouchesObstacle =
         Math.abs(nextCenter.x - obstacleInfo.center.x) <=
           halfExtents.x + obstacleInfo.halfExtents.x &&
         Math.abs(nextCenter.y - obstacleInfo.center.y) <=
           halfExtents.y + obstacleInfo.halfExtents.y &&
         Math.abs(nextCenter.z - obstacleInfo.center.z) <=
-          halfExtents.z + obstacleInfo.halfExtents.z
+          halfExtents.z + obstacleInfo.halfExtents.z;
+      if (chassisTouchesObstacle) {
+        return true;
+      }
+
+      return Object.entries(this.wheelCollidersByKey).some(
+        ([wheelKey, wheelCollider]) => {
+          if (
+            !wheelCollider ||
+            typeof wheelCollider.translation !== "function"
+          ) {
+            return false;
+          }
+
+          const wheelCenter = wheelCollider.translation();
+          const nextWheelCenter = new THREE.Vector3(
+            wheelCenter.x + translationDelta.x,
+            wheelCenter.y + translationDelta.y,
+            wheelCenter.z + translationDelta.z,
+          );
+          const wheelRadius = Math.max(
+            Number(this.wheelRadiusMetersByKey[wheelKey]) ||
+              Number(this.wheelEffectiveRadiusMeters) ||
+              0,
+            0.05,
+          );
+          const nearestX = THREE.MathUtils.clamp(
+            nextWheelCenter.x,
+            obstacleInfo.center.x - obstacleInfo.halfExtents.x,
+            obstacleInfo.center.x + obstacleInfo.halfExtents.x,
+          );
+          const nearestY = THREE.MathUtils.clamp(
+            nextWheelCenter.y,
+            obstacleInfo.center.y - obstacleInfo.halfExtents.y,
+            obstacleInfo.center.y + obstacleInfo.halfExtents.y,
+          );
+          const nearestZ = THREE.MathUtils.clamp(
+            nextWheelCenter.z,
+            obstacleInfo.center.z - obstacleInfo.halfExtents.z,
+            obstacleInfo.center.z + obstacleInfo.halfExtents.z,
+          );
+          const distanceSquared =
+            (nextWheelCenter.x - nearestX) ** 2 +
+            (nextWheelCenter.y - nearestY) ** 2 +
+            (nextWheelCenter.z - nearestZ) ** 2;
+          return distanceSquared <= wheelRadius ** 2;
+        },
       );
     });
   }

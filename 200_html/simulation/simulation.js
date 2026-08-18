@@ -1433,8 +1433,8 @@ class RapierDriveSimulation {
 
   getVehicleForwardVector(yaw) {
     return {
-      x: -Math.cos(yaw),
-      y: -Math.sin(yaw),
+      x: Math.cos(yaw),
+      y: Math.sin(yaw),
     };
   }
 

@@ -5539,7 +5539,53 @@ class RapierDriveSimulation {
           commandedVelocityX,
           commandedVelocityY,
         ));
-    this.lowSpeedKinematicPosition = null;
+
+    const needsLowSpeedStraightAssist =
+      throttleSign !== 0 &&
+      clampedSpeed > 0 &&
+      clampedSpeed <= 0.15 &&
+      !shouldBlockByObstacle;
+    if (needsLowSpeedStraightAssist) {
+      if (!this.lowSpeedKinematicPosition) {
+        const position = this.body.translation();
+        this.lowSpeedKinematicPosition = new THREE.Vector3(
+          position.x,
+          position.y,
+          position.z,
+        );
+      }
+
+      const nextPosition = this.lowSpeedKinematicPosition
+        .clone()
+        .add(
+          new THREE.Vector3(
+            commandedVelocityX * effectiveDeltaSec,
+            commandedVelocityY * effectiveDeltaSec,
+            0,
+          ),
+        );
+      if (this.isVehiclePositionTouchingObstacle(nextPosition)) {
+        this.predictedObstacleBlockActive = true;
+        const velocity = this.body.linvel();
+        this.body.setLinvel(new this.rapier.Vector3(0, 0, velocity.z), true);
+      } else {
+        this.lowSpeedKinematicPosition.copy(nextPosition);
+        this.body.setTranslation(
+          new this.rapier.Vector3(
+            nextPosition.x,
+            nextPosition.y,
+            nextPosition.z,
+          ),
+          true,
+        );
+        this.lowSpeedPositionAssistDistanceMeters = Math.hypot(
+          commandedVelocityX * effectiveDeltaSec,
+          commandedVelocityY * effectiveDeltaSec,
+        );
+      }
+    } else {
+      this.lowSpeedKinematicPosition = null;
+    }
 
     const isMoveCommandActive = keyboardState.isActive || throttleSign !== 0;
     if (isMoveCommandActive && shouldBlockByObstacle) {

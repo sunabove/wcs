@@ -137,7 +137,8 @@ class RoadDetector:
         return label_to_state[best_label]
 
     def _normalize_obstacle_label(self, label):
-        text = str(label or "").strip().lower().replace("-", "_").replace(" ", "_")
+        # Model class labels may contain leading/trailing whitespace or mixed case.
+        text = str(label or "").strip().casefold().replace("-", "_").replace(" ", "_")
         if not text:
             return ""
 
@@ -149,20 +150,20 @@ class RoadDetector:
         return synonyms.get(text, text)
 
     def _resolve_obstacle_state_from_class_counts(self, class_counts):
-        # SurfaceObstacle enum: NONE(0), ICE(1), POT_HOLE(2)
+        # SurfaceObstacle enum: NONE(0), DANCHA(1), POT_HOLE(2)
         if not isinstance(class_counts, dict):
             return 0
 
         for raw_label, raw_count in class_counts.items():
             normalized = self._normalize_obstacle_label(raw_label)
-            if normalized != "pothole":
+            if normalized not in ("dancha", "pothole"):
                 continue
             try:
                 count = int(raw_count)
             except Exception:
                 count = 0
             if count > 0:
-                return 2
+                return 1 if normalized == "dancha" else 2
         return 0
 
     def _get_mqtt_broker_host(self):

@@ -27,6 +27,8 @@ class SurfaceState(IntEnum):
 
 class SurfaceObstacle(IntEnum):
     NONE = 0
+    DANCHA = 1
+    POT_HOLE = 2
 
 
 class MqttConfig:

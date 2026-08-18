@@ -3270,6 +3270,16 @@ class RapierDriveSimulation {
       return false;
     }
 
+    const currentPosition = this.body.translation();
+    const currentCenter = this.getVehicleColliderWorldCenter();
+    const halfExtents = this.getVehicleColliderWorldAabbHalfExtents();
+    if (!currentCenter || !halfExtents) {
+      return false;
+    }
+
+    const nextCenter = new THREE.Vector3(
+      currentCenter.x + position.x - currentPosition.x,
+      currentCenter.y + position.y - currentPosition.y,
       currentCenter.z + position.z - currentPosition.z,
     );
     const translationDelta = new THREE.Vector3(

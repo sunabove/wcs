@@ -3206,6 +3206,17 @@ class RapierDriveSimulation {
       .map(([wheelKey]) => wheelKey);
   }
 
+  isVelocityMovingTowardObstacle(obstacleInfo, velocityX, velocityY) {
+    if (!this.body || !obstacleInfo?.center) {
+      return false;
+    }
+
+    const bodyPosition = this.body.translation();
+    const obstacleOffsetX = obstacleInfo.center.x - bodyPosition.x;
+    const obstacleOffsetY = obstacleInfo.center.y - bodyPosition.y;
+    return velocityX * obstacleOffsetX + velocityY * obstacleOffsetY > 1e-5;
+  }
+
   syncObstacleColliderActivation(linkMap = null) {
     this.obstacleColliderInfos.forEach((obstacleInfo) => {
       if (!obstacleInfo?.collider || obstacleInfo.isSensor) {
@@ -5109,6 +5120,11 @@ class RapierDriveSimulation {
         currentClimbApproach ||
         this.contactSolver.isObstacleTraversalActive(),
       );
+      const isMovingTowardObstacle = this.isVelocityMovingTowardObstacle(
+        currentObstacleApproach?.obstacleInfo || null,
+        targetVelocityX,
+        targetVelocityY,
+      );
 
       if (
         currentClimbApproach ||
@@ -5121,7 +5137,7 @@ class RapierDriveSimulation {
       }
 
       if (
-        !obstaclePathControlActive &&
+        (!obstaclePathControlActive || !isMovingTowardObstacle) &&
         (keyboardState.isActive || throttleSign !== 0)
       ) {
         const velocity = this.body.linvel();
@@ -5167,7 +5183,16 @@ class RapierDriveSimulation {
       this.physicsEngine.step(this.physicsFixedTimeStepSec);
       let hasObstacleContactNow =
         this.contactSolver.updateVehicleObstacleContact();
-      if (hasObstacleContactNow) {
+      const contactedObstacle =
+        this.contactSolver.getApproachInfo()?.obstacleInfo || null;
+      if (
+        hasObstacleContactNow &&
+        this.isVelocityMovingTowardObstacle(
+          contactedObstacle,
+          targetVelocityX,
+          targetVelocityY,
+        )
+      ) {
         this.rollbackToPreviousPose(previousPose);
       }
       const isClimbingApproach =
@@ -5333,8 +5358,16 @@ class RapierDriveSimulation {
     );
 
     const hasMoveCommand = keyboardState.isActive || throttleSign !== 0;
+    const contactedObstacle =
+      this.contactSolver.getApproachInfo()?.obstacleInfo || null;
     const shouldBlockByObstacle =
-      this.blockMotionOnObstacleContact && hasObstacleContact;
+      this.blockMotionOnObstacleContact &&
+      hasObstacleContact &&
+      this.isVelocityMovingTowardObstacle(
+        contactedObstacle,
+        commandedVelocityX,
+        commandedVelocityY,
+      );
     if (hasMoveCommand && !shouldBlockByObstacle) {
       const currentVelocity = this.body.linvel();
       const keepZVelocity =
@@ -5388,7 +5421,12 @@ class RapierDriveSimulation {
     if (
       this.blockMotionOnObstacleContact &&
       hasObstacleContact &&
-      isMoveCommandActive
+      isMoveCommandActive &&
+      this.isVelocityMovingTowardObstacle(
+        contactedObstacle,
+        commandedVelocityX,
+        commandedVelocityY,
+      )
     ) {
       const currentVelocity = this.body.linvel();
       this.body.setLinvel(

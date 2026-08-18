@@ -2535,6 +2535,14 @@ class URDFViewer {
     return rpm * directionSign;
   }
 
+  getDisplayedWheelRpm(key) {
+    const signedRpm = this.getSignedWheelRpm(key);
+    if (this.driveMode === "forward" || this.driveMode === "backward") {
+      return -signedRpm;
+    }
+    return signedRpm;
+  }
+
   formatRpmText(value) {
     const numeric = Number(value);
     if (!Number.isFinite(numeric)) {
@@ -2566,7 +2574,7 @@ class URDFViewer {
 
     const valueElement = this.wheelSpeedValueByKey[key];
     if (valueElement && valueElement.length > 0) {
-      valueElement.text(`${this.getSignedWheelRpm(key)} rpm`);
+      valueElement.text(`${this.getDisplayedWheelRpm(key)} rpm`);
     }
   }
 
@@ -2628,13 +2636,13 @@ class URDFViewer {
 
     const inputElement = this.wheelSpeedInputByKey[key];
     if (inputElement && inputElement.length > 0) {
-      inputElement.val(this.formatRpmText(this.getSignedWheelRpm(key)));
+      inputElement.val(this.formatRpmText(this.getDisplayedWheelRpm(key)));
     }
 
     const valueElement = this.wheelSpeedValueByKey[key];
     if (valueElement && valueElement.length > 0) {
       valueElement.text(
-        `${this.formatRpmText(this.getSignedWheelRpm(key))} rpm`,
+        `${this.formatRpmText(this.getDisplayedWheelRpm(key))} rpm`,
       );
     }
 
@@ -2665,16 +2673,16 @@ class URDFViewer {
       this.convertKmhToRpm(this.driveSpeedKmh, wheelKey);
     const wheelRpmByMode = {
       forward: {
-        fl: rpmForWheel("fl"),
-        fr: rpmForWheel("fr"),
-        rl: rpmForWheel("rl"),
-        rr: rpmForWheel("rr"),
-      },
-      backward: {
         fl: -rpmForWheel("fl"),
         fr: -rpmForWheel("fr"),
         rl: -rpmForWheel("rl"),
         rr: -rpmForWheel("rr"),
+      },
+      backward: {
+        fl: rpmForWheel("fl"),
+        fr: rpmForWheel("fr"),
+        rl: rpmForWheel("rl"),
+        rr: rpmForWheel("rr"),
       },
       left: {
         fl: -rpmForWheel("fl"),

@@ -4597,7 +4597,7 @@ class RapierDriveSimulation {
       const rigidBodyDesc = RAPIER.RigidBodyDesc.dynamic()
         .setTranslation(initialPosition.x, initialPosition.y, initialPosition.z)
         .setRotation(initialQuaternion)
-        .setLinearDamping(3.8)
+        .setLinearDamping(0.2)
         .setAngularDamping(6.0)
         .setCcdEnabled(true);
 

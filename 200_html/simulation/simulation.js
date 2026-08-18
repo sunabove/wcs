@@ -164,6 +164,18 @@ class RapierDriveSimulation {
       rl: null,
       rr: null,
     };
+    this.wheelBodiesByKey = {
+      fl: null,
+      fr: null,
+      rl: null,
+      rr: null,
+    };
+    this.wheelJointsByKey = {
+      fl: null,
+      fr: null,
+      rl: null,
+      rr: null,
+    };
     this.wheelGroundContactState = {
       fl: false,
       fr: false,
@@ -4006,12 +4018,23 @@ class RapierDriveSimulation {
         Math.max(size.x * 0.5, size.z * 0.5, 0.05) + inflation;
       const localCenter = carFrame.worldToLocal(centerWorld.clone());
 
+      const wheelBodyDesc = this.rapier.RigidBodyDesc.dynamic()
+        .setTranslation(centerWorld.x, centerWorld.y, centerWorld.z)
+        .setLinearDamping(0.35)
+        .setAngularDamping(0.15)
+        .setCcdEnabled(true);
+      const wheelBody = this.world.createRigidBody(wheelBodyDesc);
+      if (typeof wheelBody.setCanSleep === "function") {
+        wheelBody.setCanSleep(false);
+      }
+
       const wheelColliderDesc = this.rapier.ColliderDesc.ball(approxRadius)
-        .setTranslation(localCenter.x, localCenter.y, localCenter.z)
         .setFriction(0.0)
         .setRestitution(0.0);
-
-      const wheelCollider = this.world.createCollider(wheelColliderDesc, body);
+      const wheelCollider = this.world.createCollider(
+        wheelColliderDesc,
+        wheelBody,
+      );
       this.vehicleColliders.push(wheelCollider);
       this.wheelColliders.push(wheelCollider);
       const wheelKeyByLinkName = {
@@ -4023,6 +4046,19 @@ class RapierDriveSimulation {
       const wheelKey = wheelKeyByLinkName[wheelLinkName] || null;
       if (wheelKey) {
         this.wheelCollidersByKey[wheelKey] = wheelCollider;
+        this.wheelBodiesByKey[wheelKey] = wheelBody;
+        const axleAxis = new this.rapier.Vector3(0, 1, 0);
+        const jointData = this.rapier.JointData.revolute(
+          new this.rapier.Vector3(localCenter.x, localCenter.y, localCenter.z),
+          new this.rapier.Vector3(0, 0, 0),
+          axleAxis,
+        );
+        this.wheelJointsByKey[wheelKey] = this.world.createImpulseJoint(
+          jointData,
+          body,
+          wheelBody,
+          true,
+        );
       }
       createdWheelColliderCount += 1;
     });

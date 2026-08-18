@@ -5850,47 +5850,63 @@ class RapierDriveSimulation {
   }
 }
 
-const rapierDriveSimulation = new RapierDriveSimulation();
-rapierDriveSimulation.start();
+let rapierDriveSimulation = null;
+
+const withSimulation = (action) => {
+  if (!rapierDriveSimulation) {
+    console.error("[URDF][Simulation] simulation is not initialized");
+    return;
+  }
+  action(rapierDriveSimulation);
+};
 
 globalThis.resetSimulation = function () {
-  rapierDriveSimulation.reset();
+  withSimulation((simulation) => simulation.reset());
 };
 
 globalThis.resetSimulationSpeed = function () {
-  rapierDriveSimulation.resetSpeedSliderToDefault();
+  withSimulation((simulation) => simulation.resetSpeedSliderToDefault());
 };
 
 globalThis.resetSimulationVisualSpeed = function () {
-  rapierDriveSimulation.resetVisualSpeedSliderToDefault();
+  withSimulation((simulation) => simulation.resetVisualSpeedSliderToDefault());
 };
 
 globalThis.resetSimulationAttitude = function () {
-  rapierDriveSimulation.resetRoadAttitude();
+  withSimulation((simulation) => simulation.resetRoadAttitude());
 };
 
 globalThis.resetSimulationRoll = function () {
-  rapierDriveSimulation.resetRoadRoll();
+  withSimulation((simulation) => simulation.resetRoadRoll());
 };
 
 globalThis.resetSimulationPitch = function () {
-  rapierDriveSimulation.resetRoadPitch();
+  withSimulation((simulation) => simulation.resetRoadPitch());
 };
 
 globalThis.setSimulationDriveMode = function (mode) {
-  rapierDriveSimulation.applyDriveModeCommand(mode);
+  withSimulation((simulation) => simulation.applyDriveModeCommand(mode));
 };
 
 globalThis.setSimulationDriveSpeedMps = function (mps) {
-  rapierDriveSimulation.applyDriveSpeedCommandMps(mps);
+  withSimulation((simulation) => simulation.applyDriveSpeedCommandMps(mps));
 };
 
 globalThis.setSimulationDriveSpeedKmh = function (kmh) {
-  rapierDriveSimulation.applyDriveSpeedCommandKmh(kmh);
+  withSimulation((simulation) => simulation.applyDriveSpeedCommandKmh(kmh));
 };
 
 globalThis.setSimulationVisualSpeed = function (scale) {
-  rapierDriveSimulation.applyVisualSpeedScale(
-    rapierDriveSimulation.getVisualSpeedScaleFromSliderValue(scale),
+  withSimulation((simulation) =>
+    simulation.applyVisualSpeedScale(
+      simulation.getVisualSpeedScaleFromSliderValue(scale),
+    ),
   );
 };
+
+try {
+  rapierDriveSimulation = new RapierDriveSimulation();
+  rapierDriveSimulation.start();
+} catch (error) {
+  console.error("[URDF][Simulation] startup failed:", error);
+}

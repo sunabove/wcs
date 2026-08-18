@@ -270,6 +270,7 @@ class RapierDriveSimulation {
     this.visualSpeedScale = SIM_VISUAL_SPEED_DEFAULT_SCALE;
     this.lowSpeedPositionAssistDistanceMeters = 0;
     this.lowSpeedKinematicPosition = null;
+    this.straightDriveReferencePose = null;
     this.predictedObstacleBlockActive = false;
     this.lastPredictedObstacleName = null;
     this.lastDriveCommandState = {
@@ -1237,6 +1238,19 @@ class RapierDriveSimulation {
     if (hasDriveModeChanged) {
       this.lowSpeedKinematicPosition = null;
       this.lastStepTimeMs = 0;
+      if (
+        (normalizedMode === "forward" || normalizedMode === "backward") &&
+        this.body
+      ) {
+        const position = this.body.translation();
+        this.straightDriveReferencePose = {
+          y: position.y,
+          z: position.z,
+          yaw: this.extractYawFromQuaternion(this.body.rotation()),
+        };
+      } else {
+        this.straightDriveReferencePose = null;
+      }
     }
     const isCenterTurn =
       normalizedMode === "left" || normalizedMode === "right";
@@ -5570,22 +5584,18 @@ class RapierDriveSimulation {
         !hasObstacleContactNow &&
         !isClimbingApproach &&
         !isObstaclePathActive &&
-        this.initialPosition &&
-        this.initialQuaternion
+        this.straightDriveReferencePose
       ) {
         const position = this.body.translation();
-        const initialYaw = this.extractYawFromQuaternion(
-          this.initialQuaternion,
-        );
         this.body.setTranslation(
           new this.rapier.Vector3(
             position.x,
-            this.initialPosition.y,
-            this.initialPosition.z,
+            this.straightDriveReferencePose.y,
+            this.straightDriveReferencePose.z,
           ),
           true,
         );
-        this.preserveObstacleHeading(initialYaw);
+        this.preserveObstacleHeading(this.straightDriveReferencePose.yaw);
       }
       if (this.hasActivatedDynamicGroundClamp && !obstaclePathControlActive) {
         this.clampVehicleAboveGround();

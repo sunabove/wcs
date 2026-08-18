@@ -5010,23 +5010,8 @@ class RapierDriveSimulation {
         this.groundContactLocalMinZ = null;
       }
 
-      // Allow low obstacles to pass under the body by trimming the lower part of chassis collider.
-      let colliderMinLocalZ = rawBboxMinLocalZ;
-      let colliderMaxLocalZ = rawBboxMaxLocalZ;
-      if (Number.isFinite(this.wheelLocalMinZ)) {
-        // Raise the lower boundary of the chassis box so it doesn't bump obstacles before wheels
-        const minPassThroughZ = this.wheelLocalMinZ + 0.08;
-        colliderMinLocalZ = Math.max(colliderMinLocalZ, minPassThroughZ);
-      }
-      if (colliderMaxLocalZ - colliderMinLocalZ < 0.04) {
-        colliderMaxLocalZ = colliderMinLocalZ + 0.04;
-      }
-
-      const halfZ = Math.max(
-        (colliderMaxLocalZ - colliderMinLocalZ) * 0.5,
-        0.04,
-      );
-      const adjustedCenterZ = (colliderMaxLocalZ + colliderMinLocalZ) * 0.5;
+      const halfZ = Math.max(halfZBase, 0.06);
+      const adjustedCenterZ = localCenter.z;
 
       const colliderDesc = RAPIER.ColliderDesc.cuboid(halfX, halfY, halfZ)
         .setTranslation(localCenter.x, localCenter.y, adjustedCenterZ)

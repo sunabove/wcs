@@ -5417,6 +5417,24 @@ class RapierDriveSimulation {
       );
     }
 
+    const needsLowSpeedPositionAssist =
+      hasMoveCommand &&
+      !shouldBlockByObstacle &&
+      !hasObstacleContact &&
+      clampedSpeed > 0 &&
+      clampedSpeed <= 0.1;
+    if (needsLowSpeedPositionAssist) {
+      const translation = this.body.translation();
+      this.body.setTranslation(
+        new this.rapier.Vector3(
+          translation.x + commandedVelocityX * effectiveDeltaSec,
+          translation.y + commandedVelocityY * effectiveDeltaSec,
+          translation.z,
+        ),
+        true,
+      );
+    }
+
     const isMoveCommandActive = keyboardState.isActive || throttleSign !== 0;
     if (
       this.blockMotionOnObstacleContact &&

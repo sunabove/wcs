@@ -3157,19 +3157,46 @@ class RapierDriveSimulation {
       return [];
     }
 
-    return Object.entries(this.wheelCollidersByKey).flatMap(
-      ([wheelKey, wheelCollider]) => {
-        if (!wheelCollider) {
-          return [];
-        }
+    const physicsContactedWheelKeys = Object.entries(
+      this.wheelCollidersByKey,
+    ).flatMap(([wheelKey, wheelCollider]) => {
+      if (!wheelCollider) {
+        return [];
+      }
 
-        let isContacting = false;
-        this.world.contactPair(wheelCollider, obstacleInfo.collider, () => {
-          isContacting = true;
-        });
-        return isContacting ? [wheelKey] : [];
-      },
+      let isContacting = false;
+      this.world.contactPair(wheelCollider, obstacleInfo.collider, () => {
+        isContacting = true;
+      });
+      return isContacting ? [wheelKey] : [];
+    });
+    if (physicsContactedWheelKeys.length > 0) {
+      return physicsContactedWheelKeys;
+    }
+
+    const effectiveLinkMap = linkMap || this.viewer?.robotModel?.links || null;
+    const obstacleBounds = this.getObstacleWorldBounds(
+      obstacleInfo,
+      effectiveLinkMap,
     );
+    if (!effectiveLinkMap || !obstacleBounds || obstacleBounds.isEmpty()) {
+      return [];
+    }
+
+    return Object.entries(this.wheelLinkNameByKey)
+      .filter(([, wheelLinkName]) => {
+        const wheelLink = this.findLinkByName(effectiveLinkMap, wheelLinkName);
+        const wheelBounds = this.computeLinkOwnBounds(
+          wheelLink,
+          effectiveLinkMap,
+        );
+        return (
+          wheelBounds &&
+          !wheelBounds.isEmpty() &&
+          wheelBounds.intersectsBox(obstacleBounds)
+        );
+      })
+      .map(([wheelKey]) => wheelKey);
   }
 
   syncObstacleColliderActivation(linkMap = null) {
@@ -5133,6 +5160,9 @@ class RapierDriveSimulation {
       this.physicsEngine.step(this.physicsFixedTimeStepSec);
       let hasObstacleContactNow =
         this.contactSolver.updateVehicleObstacleContact();
+      if (hasObstacleContactNow) {
+        this.rollbackToPreviousPose(previousPose);
+      }
       const isClimbingApproach =
         currentClimbApproach ||
         this.contactSolver.isClimbApproach(

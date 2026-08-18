@@ -10,6 +10,10 @@ const SIM_VISUAL_SPEED_DEFAULT_SCALE = 0.5;
 const SIM_VISUAL_SPEED_MIN_SCALE = 1 / 4;
 const SIM_VISUAL_SPEED_MAX_SCALE = 4;
 const SIM_VISUAL_SPEED_SCALES = [1 / 4, 1 / 3, 1 / 2, 1, 2, 3, 4];
+const COLLISION_GROUP_GROUND = 0x00010002;
+const COLLISION_GROUP_WHEEL = 0x00020005;
+const COLLISION_GROUP_OBSTACLE = 0x0004000a;
+const COLLISION_GROUP_CHASSIS = 0x00080004;
 
 class VehicleModel {
   constructor(runtime) {
@@ -214,7 +218,7 @@ class RapierDriveSimulation {
     this.maxSpeedMps = 100 / 3.6;
     this.maxYawRateRad = THREE.MathUtils.degToRad(25);
     this.centerTurnYawRateScale = 0.15;
-    this.enableWheelPhysicsColliders = true;
+    this.enableWheelPhysicsColliders = false;
     this.blockMotionOnObstacleContact = true;
     this.keepUprightOnFlatGround = true;
     this.isUprightRotationLockActive = false;
@@ -2413,6 +2417,7 @@ class RapierDriveSimulation {
         halfZ,
       )
         .setFriction(0.0)
+        .setCollisionGroups(COLLISION_GROUP_GROUND)
         .setRestitution(0.0);
       const groundCollider = this.world.createCollider(
         groundColliderDesc,
@@ -2762,6 +2767,7 @@ class RapierDriveSimulation {
         obstacleProfile.effectiveHalfZ,
       )
         .setFriction(obstacleProfile.friction)
+        .setCollisionGroups(COLLISION_GROUP_OBSTACLE)
         .setRestitution(obstacleProfile.restitution);
 
       const obstacleTopZ = clampedCenterZ + obstacleProfile.effectiveHalfZ;
@@ -4055,6 +4061,7 @@ class RapierDriveSimulation {
       const wheelColliderDesc = this.rapier.ColliderDesc.ball(approxRadius)
         .setDensity(25.0)
         .setFriction(0.0)
+        .setCollisionGroups(COLLISION_GROUP_WHEEL)
         .setRestitution(0.0);
       const wheelCollider = this.world.createCollider(
         wheelColliderDesc,
@@ -5028,6 +5035,7 @@ class RapierDriveSimulation {
       const colliderDesc = RAPIER.ColliderDesc.cuboid(halfX, halfY, halfZ)
         .setTranslation(localCenter.x, localCenter.y, adjustedCenterZ)
         .setFriction(0.15)
+        .setCollisionGroups(COLLISION_GROUP_CHASSIS)
         .setRestitution(0.0);
 
       this.rapier = RAPIER;
@@ -5386,6 +5394,7 @@ class RapierDriveSimulation {
       qz: previousRotation.z,
       qw: previousRotation.w,
     };
+    const frameStartPosition = this.body.translation();
 
     const currentLinearVelocity = this.body.linvel();
     const currentAngularVelocity = this.body.angvel();
@@ -5762,6 +5771,48 @@ class RapierDriveSimulation {
           globalThis.setWheelAnimationByKey(wheelKey, 0);
         }
       });
+    }
+
+    const shouldAssistLowSpeedForward =
+      throttleSign !== 0 &&
+      Math.abs(effectiveSteerSign) < 1e-3 &&
+      clampedSpeed <= 0.2 &&
+      !hasObstacleContact &&
+      !isClimbingApproachAfterStep &&
+      !this.contactSolver.isObstacleTraversalActive();
+    if (shouldAssistLowSpeedForward) {
+      const forwardX = targetVelocityX / Math.max(clampedSpeed, 1e-6);
+      const forwardY = targetVelocityY / Math.max(clampedSpeed, 1e-6);
+      const currentPosition = this.body.translation();
+      const completedDistance =
+        (currentPosition.x - frameStartPosition.x) * forwardX +
+        (currentPosition.y - frameStartPosition.y) * forwardY;
+      const targetDistance = clampedSpeed * effectiveDeltaSec;
+      const remainingDistance = Math.max(
+        targetDistance - Math.max(completedDistance, 0),
+        0,
+      );
+      if (remainingDistance > 1e-6) {
+        const assistedPosition = new THREE.Vector3(
+          currentPosition.x + forwardX * remainingDistance,
+          currentPosition.y + forwardY * remainingDistance,
+          currentPosition.z,
+        );
+        if (
+          !this.isVehiclePathTouchingObstacle(currentPosition, assistedPosition)
+        ) {
+          this.body.setTranslation(
+            new this.rapier.Vector3(
+              assistedPosition.x,
+              assistedPosition.y,
+              assistedPosition.z,
+            ),
+            true,
+          );
+          this.lowSpeedKinematicPosition = assistedPosition;
+          this.lowSpeedPositionAssistDistanceMeters += remainingDistance;
+        }
+      }
     }
 
     this.constrainCenterTurnPivot();

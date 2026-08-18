@@ -3270,16 +3270,6 @@ class RapierDriveSimulation {
       return false;
     }
 
-    const currentPosition = this.body.translation();
-    const currentCenter = this.getVehicleColliderWorldCenter();
-    const halfExtents = this.getVehicleColliderWorldAabbHalfExtents();
-    if (!currentCenter || !halfExtents) {
-      return false;
-    }
-
-    const nextCenter = new THREE.Vector3(
-      currentCenter.x + position.x - currentPosition.x,
-      currentCenter.y + position.y - currentPosition.y,
       currentCenter.z + position.z - currentPosition.z,
     );
     const translationDelta = new THREE.Vector3(
@@ -5377,25 +5367,8 @@ class RapierDriveSimulation {
       if (willEnterObstacle) {
         const predictedObstacle = this.obstacleColliderInfos.find(
           (obstacleInfo) =>
-            obstacleInfo?.linkName === this.lastPredictedObstacleName,
-        );
-        if (predictedObstacle) {
-          predictedObstacle.contactedWheelKeys =
-            this.getWheelKeysTouchingObstacleAtPosition(
-              predictedObstacle,
-              predictedPosition,
-            );
-          this.setObstacleContactHighlight(predictedObstacle, true);
-          this.isVehicleObstacleContact = true;
-        }
-      }
-
-      if (
-        !willEnterObstacle &&
-        (!obstaclePathControlActive || !isMovingTowardObstacle) &&
         (keyboardState.isActive || throttleSign !== 0)
       ) {
-        const velocity = this.body.linvel();
         this.body.setLinvel(
           new this.rapier.Vector3(targetVelocityX, targetVelocityY, velocity.z),
           true,
@@ -5411,10 +5384,6 @@ class RapierDriveSimulation {
         clampedSpeed,
         wheelGroundContactCount,
       );
-      if (willEnterObstacle) {
-        const velocity = this.body.linvel();
-        this.body.setLinvel(new this.rapier.Vector3(0, 0, velocity.z), true);
-      }
       this.applyGroundSupportForces(
         this.physicsFixedTimeStepSec,
         wheelGroundContactCount,

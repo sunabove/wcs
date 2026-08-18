@@ -2671,18 +2671,19 @@ class URDFViewer {
     this.captureDriveAnimationPoseSnapshot();
     const rpmForWheel = (wheelKey) =>
       this.convertKmhToRpm(this.driveSpeedKmh, wheelKey);
+    const straightDriveRpm = this.convertKmhToRpm(this.driveSpeedKmh);
     const wheelRpmByMode = {
       forward: {
-        fl: -rpmForWheel("fl"),
-        fr: -rpmForWheel("fr"),
-        rl: -rpmForWheel("rl"),
-        rr: -rpmForWheel("rr"),
+        fl: -straightDriveRpm,
+        fr: -straightDriveRpm,
+        rl: -straightDriveRpm,
+        rr: -straightDriveRpm,
       },
       backward: {
-        fl: rpmForWheel("fl"),
-        fr: rpmForWheel("fr"),
-        rl: rpmForWheel("rl"),
-        rr: rpmForWheel("rr"),
+        fl: straightDriveRpm,
+        fr: straightDriveRpm,
+        rl: straightDriveRpm,
+        rr: straightDriveRpm,
       },
       left: {
         fl: -rpmForWheel("fl"),

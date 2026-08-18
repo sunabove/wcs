@@ -2665,16 +2665,16 @@ class URDFViewer {
       this.convertKmhToRpm(this.driveSpeedKmh, wheelKey);
     const wheelRpmByMode = {
       forward: {
-        fl: -rpmForWheel("fl"),
-        fr: -rpmForWheel("fr"),
-        rl: -rpmForWheel("rl"),
-        rr: -rpmForWheel("rr"),
-      },
-      backward: {
         fl: rpmForWheel("fl"),
         fr: rpmForWheel("fr"),
         rl: rpmForWheel("rl"),
         rr: rpmForWheel("rr"),
+      },
+      backward: {
+        fl: -rpmForWheel("fl"),
+        fr: -rpmForWheel("fr"),
+        rl: -rpmForWheel("rl"),
+        rr: -rpmForWheel("rr"),
       },
       left: {
         fl: -rpmForWheel("fl"),

@@ -4085,6 +4085,51 @@ class RapierDriveSimulation {
     return { left, right };
   }
 
+  getWheelTrackWidthMeters() {
+    const leftWheelKeys = ["fl", "rl"];
+    const rightWheelKeys = ["fr", "rr"];
+    const getAverageLateralPosition = (wheelKeys) => {
+      const positions = wheelKeys
+        .map((wheelKey) => this.wheelCollidersByKey[wheelKey])
+        .filter(Boolean)
+        .map((wheelCollider) => wheelCollider.translation())
+        .map((position) => Number(position?.y))
+        .filter(Number.isFinite);
+      if (positions.length === 0) {
+        return null;
+      }
+      return (
+        positions.reduce((sum, position) => sum + position, 0) /
+        positions.length
+      );
+    };
+
+    const leftPosition = getAverageLateralPosition(leftWheelKeys);
+    const rightPosition = getAverageLateralPosition(rightWheelKeys);
+    const trackWidth = Math.abs(leftPosition - rightPosition);
+    return Number.isFinite(trackWidth) && trackWidth > 1e-3 ? trackWidth : 0.64;
+  }
+
+  getCenterTurnYawRate(steerSign, speedMps) {
+    const wheelSides = this.getWheelSideSignedRpm();
+    const wheelRadius = Math.max(
+      Number(this.wheelEffectiveRadiusMeters) || 0,
+      0.05,
+    );
+    const trackWidth = this.getWheelTrackWidthMeters();
+    if (wheelSides) {
+      const rpmDifference = wheelSides.right - wheelSides.left;
+      if (Math.abs(rpmDifference) > 0.1) {
+        return (rpmDifference * Math.PI * 2 * wheelRadius) / (60 * trackWidth);
+      }
+    }
+
+    return (
+      (Math.sign(steerSign) * Math.max(Number(speedMps) || 0, 0) * 2) /
+      trackWidth
+    );
+  }
+
   getDriveSourceViewer() {
     if (this.viewer) {
       return this.viewer;
@@ -4997,7 +5042,7 @@ class RapierDriveSimulation {
         new this.rapier.Vector3(
           currentAngularVelocity.x,
           currentAngularVelocity.y,
-          this.maxYawRateRad * effectiveSteerSign,
+          this.getCenterTurnYawRate(effectiveSteerSign, clampedSpeed),
         ),
         true,
       );

@@ -4061,12 +4061,7 @@ class RapierDriveSimulation {
     this.wheelEffectiveRadiusMeters = Math.max(avgRadius, 0.05);
     const viewer = this.getDriveSourceViewer();
     if (viewer) {
-      viewer.kmhToRpmFactorByWheelKey = Object.fromEntries(
-        Object.entries(wheelRadiusMetersByKey).map(([wheelKey, radius]) => [
-          wheelKey,
-          1000 / (60 * Math.PI * 2 * radius),
-        ]),
-      );
+      viewer.kmhToRpmFactorByWheelKey = {};
     }
     this.configureWheelVisualKinematics();
   }

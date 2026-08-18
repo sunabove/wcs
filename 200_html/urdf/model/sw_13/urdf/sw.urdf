@@ -161,7 +161,7 @@ Stephen Brawner (brawner@gmail.com)
   </link>
 
   <joint name="ground_to_wood_bar_joint" type="fixed">
-    <origin xyz="-3.730 0.0 0.035" rpy="0 0 0" />
+    <origin xyz="3.730 0.0 0.035" rpy="0 0 0" />
     <parent link="ground" />
     <child link="obstacle_wood_bar" />
   </joint>
@@ -190,7 +190,7 @@ Stephen Brawner (brawner@gmail.com)
   </link>
 
   <joint name="ground_to_rock_1_joint" type="fixed">
-    <origin xyz="-1.801 0.315 0.04" rpy="0 0 0" />
+    <origin xyz="1.801 0.315 0.04" rpy="0 0 0" />
     <parent link="ground" />
     <child link="obstacle_rock_1" />
   </joint>

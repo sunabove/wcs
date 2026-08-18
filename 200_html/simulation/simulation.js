@@ -2751,14 +2751,11 @@ class RapierDriveSimulation {
       );
       // Fix: Keep obstacle surface friction low (0.05) so asymmetric contact glides smoothly over instead of locking one side and spinning
       obstacleProfile.friction = 0.05;
-      const clampedCenterZ = !obstacleProfile.isPotholeObstacle
-        ? Math.max(center.z, this.groundZ + obstacleProfile.effectiveHalfZ)
-        : center.z;
 
       const obstacleBodyDesc = this.rapier.RigidBodyDesc.fixed().setTranslation(
         center.x,
         center.y,
-        clampedCenterZ,
+        center.z,
       );
       const obstacleBody = this.world.createRigidBody(obstacleBodyDesc);
       const obstacleColliderDesc = this.rapier.ColliderDesc.cuboid(
@@ -2770,7 +2767,7 @@ class RapierDriveSimulation {
         .setCollisionGroups(COLLISION_GROUP_OBSTACLE)
         .setRestitution(obstacleProfile.restitution);
 
-      const obstacleTopZ = clampedCenterZ + obstacleProfile.effectiveHalfZ;
+      const obstacleTopZ = center.z + obstacleProfile.effectiveHalfZ;
       const wheelContactPlaneZ = this.getWheelContactPlaneZ();
       const passThroughClearance = Math.max(
         Number(this.underbodyPassThroughClearanceMeters) || 0,
@@ -2826,7 +2823,7 @@ class RapierDriveSimulation {
       this.obstacleColliders.push(obstacleCollider);
       this.obstacleColliderInfos.push({
         collider: obstacleCollider,
-        center: new THREE.Vector3(center.x, center.y, clampedCenterZ),
+        center: new THREE.Vector3(center.x, center.y, center.z),
         halfExtents: {
           x: obstacleProfile.effectiveHalfX,
           y: obstacleProfile.effectiveHalfY,

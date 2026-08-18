@@ -5288,16 +5288,7 @@ class RapierDriveSimulation {
       this.predictedObstacleBlockActive ||= willEnterObstacle;
 
       if (
-        currentClimbApproach ||
-        this.contactSolver.isObstacleTraversalActive()
-      ) {
-        this.contactSolver.applyClimbLift(
-          currentObstacleApproach?.obstacleInfo || null,
-          this.physicsFixedTimeStepSec,
-        );
-      }
-
-      if (
+        !willEnterObstacle &&
         (!obstaclePathControlActive || !isMovingTowardObstacle) &&
         (keyboardState.isActive || throttleSign !== 0)
       ) {
@@ -5327,23 +5318,6 @@ class RapierDriveSimulation {
         obstaclePathControlActive,
       );
       this.syncObstacleColliderActivation(linkMap);
-
-      // Force strict forward linear velocity direction inside the fixed physics loop when climbing
-      if (obstaclePathControlActive && Math.abs(effectiveSteerSign) < 1e-3) {
-        const bodyRotation = this.body.rotation();
-        const yaw = this.extractYawFromQuaternion(bodyRotation);
-        const { x: headingX, y: headingY } = this.getVehicleForwardVector(yaw);
-        const speed = clampedSpeed * (throttleSign !== 0 ? throttleSign : 1);
-        const currVel = this.body.linvel();
-
-        // Keep linear velocity strictly forward during obstacle climb.
-        this.body.setLinvel(
-          new this.rapier.Vector3(headingX * speed, headingY * speed, 0),
-          true,
-        );
-        this.body.setAngvel(new this.rapier.Vector3(0, 0, 0), true);
-        this.preserveObstacleHeading();
-      }
 
       this.physicsEngine.step(this.physicsFixedTimeStepSec);
       let hasObstacleContactNow =

@@ -271,6 +271,7 @@ class RapierDriveSimulation {
     this.lowSpeedPositionAssistDistanceMeters = 0;
     this.lowSpeedKinematicPosition = null;
     this.straightDriveReferencePose = null;
+    this.straightDriveWarmupSteps = 0;
     this.predictedObstacleBlockActive = false;
     this.lastPredictedObstacleName = null;
     this.lastDriveCommandState = {
@@ -1248,8 +1249,10 @@ class RapierDriveSimulation {
           z: position.z,
           yaw: this.extractYawFromQuaternion(this.body.rotation()),
         };
+        this.straightDriveWarmupSteps = 6;
       } else {
         this.straightDriveReferencePose = null;
+        this.straightDriveWarmupSteps = 0;
       }
     }
     const isCenterTurn =
@@ -5441,6 +5444,27 @@ class RapierDriveSimulation {
           new this.rapier.Vector3(targetVelocityX, targetVelocityY, velocity.z),
           true,
         );
+      }
+      if (
+        throttleSign !== 0 &&
+        this.straightDriveWarmupSteps > 0 &&
+        !this.isVehicleObstacleContact
+      ) {
+        Object.values(this.wheelBodiesByKey).forEach((wheelBody) => {
+          if (!wheelBody) {
+            return;
+          }
+          const velocity = wheelBody.linvel();
+          wheelBody.setLinvel(
+            new this.rapier.Vector3(
+              targetVelocityX,
+              targetVelocityY,
+              velocity.z,
+            ),
+            true,
+          );
+        });
+        this.straightDriveWarmupSteps -= 1;
       }
 
       this.applyDriveForces(

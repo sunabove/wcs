@@ -5028,8 +5028,7 @@ class RapierDriveSimulation {
       const colliderDesc = RAPIER.ColliderDesc.cuboid(halfX, halfY, halfZ)
         .setTranslation(localCenter.x, localCenter.y, adjustedCenterZ)
         .setFriction(0.15)
-        .setRestitution(0.0)
-        .setSensor(true);
+        .setRestitution(0.0);
 
       this.rapier = RAPIER;
       this.world = world;

@@ -1051,13 +1051,20 @@ class RapierDriveSimulation {
       );
       const traversalPathName =
         this.activeObstacleTraversalPath?.obstacleInfo?.linkName || "n/a";
+      const contactedObstacle = this.obstacleColliderInfos.find(
+        (obstacleInfo) =>
+          Array.isArray(obstacleInfo?.contactedWheelKeys) &&
+          obstacleInfo.contactedWheelKeys.length > 0,
+      );
+      const contactedWheelKeys =
+        contactedObstacle?.contactedWheelKeys?.join(",") || "n/a";
       const gap =
         Number.isFinite(wheelContactPlaneZ) &&
         Number.isFinite(obstacleRock01TopZ)
           ? wheelContactPlaneZ - obstacleRock01TopZ
           : null;
 
-      obstacleSummary = `wheelPlaneZ=${Number.isFinite(wheelContactPlaneZ) ? wheelContactPlaneZ.toFixed(3) : "n/a"} rock01TopZ=${Number.isFinite(obstacleRock01TopZ) ? obstacleRock01TopZ.toFixed(3) : "n/a"} climb=${approachObstacle?.linkName || "n/a"} targetZ=${Number.isFinite(climbTargetZ) ? climbTargetZ.toFixed(3) : "n/a"} path=${traversalPathActive ? "Y" : "N"} pathName=${traversalPathName} pathZ=${Number.isFinite(traversalTargetZ) ? traversalTargetZ.toFixed(3) : "n/a"} underbodyGap=${Number.isFinite(gap) ? gap.toFixed(3) : "n/a"}`;
+      obstacleSummary = `wheelPlaneZ=${Number.isFinite(wheelContactPlaneZ) ? wheelContactPlaneZ.toFixed(3) : "n/a"} rock01TopZ=${Number.isFinite(obstacleRock01TopZ) ? obstacleRock01TopZ.toFixed(3) : "n/a"} climb=${approachObstacle?.linkName || "n/a"} targetZ=${Number.isFinite(climbTargetZ) ? climbTargetZ.toFixed(3) : "n/a"} contactObstacle=${contactedObstacle?.linkName || "n/a"} contactWheels=${contactedWheelKeys} path=${traversalPathActive ? "Y" : "N"} pathName=${traversalPathName} pathZ=${Number.isFinite(traversalTargetZ) ? traversalTargetZ.toFixed(3) : "n/a"} underbodyGap=${Number.isFinite(gap) ? gap.toFixed(3) : "n/a"}`;
       const wheelState = Object.entries(this.wheelGroundContactState || {})
         .map(([key, isContacting]) => `${key}${isContacting ? "Y" : "N"}`)
         .join(" ");

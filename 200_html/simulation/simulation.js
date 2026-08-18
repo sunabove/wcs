@@ -4027,8 +4027,8 @@ class RapierDriveSimulation {
 
       const wheelBodyDesc = this.rapier.RigidBodyDesc.dynamic()
         .setTranslation(centerWorld.x, centerWorld.y, centerWorld.z)
-        .setLinearDamping(0.35)
-        .setAngularDamping(0.15)
+        .setLinearDamping(1.5)
+        .setAngularDamping(1.0)
         .setCcdEnabled(true);
       const wheelBody = this.world.createRigidBody(wheelBodyDesc);
       if (typeof wheelBody.setCanSleep === "function") {
@@ -4036,6 +4036,7 @@ class RapierDriveSimulation {
       }
 
       const wheelColliderDesc = this.rapier.ColliderDesc.ball(approxRadius)
+        .setDensity(25.0)
         .setFriction(0.0)
         .setRestitution(0.0);
       const wheelCollider = this.world.createCollider(
@@ -4054,11 +4055,11 @@ class RapierDriveSimulation {
       if (wheelKey) {
         this.wheelCollidersByKey[wheelKey] = wheelCollider;
         this.wheelBodiesByKey[wheelKey] = wheelBody;
-        const axleAxis = new this.rapier.Vector3(0, 1, 0);
-        const jointData = this.rapier.JointData.revolute(
+        const jointData = this.rapier.JointData.fixed(
           new this.rapier.Vector3(localCenter.x, localCenter.y, localCenter.z),
+          new this.rapier.Quaternion(0, 0, 0, 1),
           new this.rapier.Vector3(0, 0, 0),
-          axleAxis,
+          new this.rapier.Quaternion(0, 0, 0, 1),
         );
         this.wheelJointsByKey[wheelKey] = this.world.createImpulseJoint(
           jointData,

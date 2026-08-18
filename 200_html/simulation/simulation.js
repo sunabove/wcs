@@ -728,7 +728,10 @@ class RapierDriveSimulation {
           wheelLink.getWorldPosition(centerWorld);
         }
 
-        if (!Number.isFinite(this.wheelChartBaselineCenterZByKey[wheelKey])) {
+        if (
+          this.isBodyNearFlatGroundSupport() ||
+          !Number.isFinite(this.wheelChartBaselineCenterZByKey[wheelKey])
+        ) {
           this.wheelChartBaselineCenterZByKey[wheelKey] = centerWorld.z;
         }
 
@@ -4106,18 +4109,9 @@ class RapierDriveSimulation {
   }
 
   syncWheelChartBaselineFromPhysics() {
-    Object.entries(this.wheelCollidersByKey).forEach(
-      ([wheelKey, wheelCollider]) => {
-        if (!wheelCollider || typeof wheelCollider.translation !== "function") {
-          return;
-        }
-
-        const position = wheelCollider.translation();
-        if (Number.isFinite(position?.z)) {
-          this.wheelChartBaselineCenterZByKey[wheelKey] = position.z;
-        }
-      },
-    );
+    Object.keys(this.wheelChartBaselineCenterZByKey).forEach((wheelKey) => {
+      this.wheelChartBaselineCenterZByKey[wheelKey] = null;
+    });
   }
 
   syncWheelRotationToBodyTravel() {

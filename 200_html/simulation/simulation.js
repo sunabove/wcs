@@ -1218,7 +1218,12 @@ class RapierDriveSimulation {
 
   applyDriveModeCommand(mode) {
     const normalizedMode = String(mode || "stop");
+    const hasDriveModeChanged = this.commandedDriveMode !== normalizedMode;
     this.commandedDriveMode = normalizedMode;
+    if (hasDriveModeChanged) {
+      this.lowSpeedKinematicPosition = null;
+      this.lastStepTimeMs = 0;
+    }
     const isCenterTurn =
       normalizedMode === "left" || normalizedMode === "right";
 

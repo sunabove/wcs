@@ -278,6 +278,7 @@ class RapierDriveSimulation {
     this.wheelZChartContext = null;
     this.wheelZChartWindowSec = 10;
     this.wheelZChartElapsedSec = 0;
+    this.wheelZChartMaxZ = null;
     this.wheelZChartLastSampleTimeMs = null;
     this.wheelZChartLastRenderTimeMs = null;
     this.wheelZChartVisibleStorageKey = "wcs.simulation.wheelZChartVisible";
@@ -867,7 +868,13 @@ class RapierDriveSimulation {
     const minCmAligned = Math.floor(rawMinCm / stepCm) * stepCm;
     const maxCmAligned = minCmAligned + stepCm * intervalCount;
     minZ = minCmAligned / 100;
-    maxZ = maxCmAligned / 100;
+    const candidateMaxZ = maxCmAligned / 100;
+    this.wheelZChartMaxZ = Math.max(
+      Number(this.wheelZChartMaxZ) || Number.NEGATIVE_INFINITY,
+      candidateMaxZ,
+      minZ + 0.01,
+    );
+    maxZ = this.wheelZChartMaxZ;
 
     const toX = (t) =>
       margin.left + ((t - minTimeSec) / effectiveWindowSec) * plotWidth;
@@ -5831,6 +5838,7 @@ class RapierDriveSimulation {
       this.wheelZChartHistoryByKey[key] = [];
     });
     this.wheelZChartElapsedSec = 0;
+    this.wheelZChartMaxZ = null;
     this.wheelZChartLastSampleTimeMs = null;
     Object.keys(this.wheelRadiusMetersByKey).forEach((key) => {
       this.wheelRadiusMetersByKey[key] = null;

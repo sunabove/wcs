@@ -5140,7 +5140,7 @@ class RapierDriveSimulation {
         new this.rapier.Vector3(
           currentAngularVelocity.x,
           currentAngularVelocity.y,
-          this.getCenterTurnYawRate(),
+          effectiveSteerSign !== 0 ? this.getCenterTurnYawRate() : 0,
         ),
         true,
       );

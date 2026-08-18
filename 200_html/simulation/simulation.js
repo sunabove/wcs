@@ -200,8 +200,8 @@ class RapierDriveSimulation {
     this.urdfObstacleLinkPrefix = "obstacle_";
     this.passUnderObstacleNamePatterns = [/pass_under/i, /underbody/i];
     this.maxSpeedMps = 100 / 3.6;
-    this.maxYawRateRad = THREE.MathUtils.degToRad(45);
-    this.centerTurnYawRateScale = 0.35;
+    this.maxYawRateRad = THREE.MathUtils.degToRad(25);
+    this.centerTurnYawRateScale = 0.15;
     this.enableWheelPhysicsColliders = true;
     this.blockMotionOnObstacleContact = true;
     this.keepUprightOnFlatGround = true;
@@ -4111,27 +4111,20 @@ class RapierDriveSimulation {
     return Number.isFinite(trackWidth) && trackWidth > 1e-3 ? trackWidth : 0.64;
   }
 
-  getCenterTurnYawRate(steerSign, speedMps) {
+  getCenterTurnYawRate() {
     const wheelSides = this.getWheelSideSignedRpm();
+    if (!wheelSides) {
+      return 0;
+    }
+
     const wheelRadius = Math.max(
       Number(this.wheelEffectiveRadiusMeters) || 0,
       0.05,
     );
     const trackWidth = this.getWheelTrackWidthMeters();
-    let yawRate = 0;
-    if (wheelSides) {
-      const rpmDifference = wheelSides.right - wheelSides.left;
-      if (Math.abs(rpmDifference) > 0.1) {
-        yawRate =
-          (rpmDifference * Math.PI * 2 * wheelRadius) / (60 * trackWidth);
-      }
-    }
-
-    if (Math.abs(yawRate) <= 1e-6) {
-      yawRate =
-        (Math.sign(steerSign) * Math.max(Number(speedMps) || 0, 0) * 2) /
-        trackWidth;
-    }
+    const rpmDifference = wheelSides.right - wheelSides.left;
+    const yawRate =
+      (rpmDifference * Math.PI * 2 * wheelRadius) / (60 * trackWidth);
 
     return THREE.MathUtils.clamp(
       yawRate * this.centerTurnYawRateScale,
@@ -5052,7 +5045,7 @@ class RapierDriveSimulation {
         new this.rapier.Vector3(
           currentAngularVelocity.x,
           currentAngularVelocity.y,
-          this.getCenterTurnYawRate(effectiveSteerSign, clampedSpeed),
+          this.getCenterTurnYawRate(),
         ),
         true,
       );

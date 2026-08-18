@@ -258,6 +258,7 @@ class RapierDriveSimulation {
     this.visualSpeedScale = SIM_VISUAL_SPEED_DEFAULT_SCALE;
     this.lowSpeedPositionAssistDistanceMeters = 0;
     this.lowSpeedKinematicPosition = null;
+    this.predictedObstacleBlockActive = false;
     this.lastPredictedObstacleName = null;
     this.lastDriveCommandState = {
       throttleSign: 0,
@@ -5082,6 +5083,7 @@ class RapierDriveSimulation {
     this.lastStepTimeMs = now;
     const effectiveDeltaSec = Math.min(deltaSec * this.visualSpeedScale, 0.25);
     this.lowSpeedPositionAssistDistanceMeters = 0;
+    this.predictedObstacleBlockActive = false;
 
     const keyboardState = this.vehicleController.getKeyboardState();
     const driveViewer = this.vehicleController.getDriveSource();
@@ -5288,6 +5290,7 @@ class RapierDriveSimulation {
       const willEnterObstacle =
         (keyboardState.isActive || throttleSign !== 0) &&
         this.isVehiclePositionTouchingObstacle(predictedPosition);
+      this.predictedObstacleBlockActive ||= willEnterObstacle;
 
       if (
         currentClimbApproach ||
@@ -5533,175 +5536,24 @@ class RapierDriveSimulation {
     const contactedObstacle =
       this.contactSolver.getApproachInfo()?.obstacleInfo || null;
     const shouldBlockByObstacle =
-      this.blockMotionOnObstacleContact &&
-      hasObstacleContact &&
-      this.isVelocityMovingTowardObstacle(
-        contactedObstacle,
-        commandedVelocityX,
-        commandedVelocityY,
-      );
-    if (hasMoveCommand && !shouldBlockByObstacle) {
-      const currentVelocity = this.body.linvel();
-      const keepZVelocity =
-        this.isBodyNearFlatGroundSupport() && !this.isVehicleObstacleContact
-          ? 0
-          : currentVelocity.z;
-
-      // Fix: Override position and velocity directly along the driving heading vector during obstacle climb to completely bypass physics pivot spinning
-      if (this.isVehicleObstacleContact && Math.abs(steerSign) < 1e-3) {
-        const bodyRotation = this.body.rotation();
-        const yaw = this.extractYawFromQuaternion(bodyRotation);
-        const { x: headingX, y: headingY } = this.getVehicleForwardVector(yaw);
-        const forwardSpeed =
-          clampedSpeed * (throttleSign !== 0 ? throttleSign : 1);
-
-        this.body.setLinvel(
-          new this.rapier.Vector3(
-            headingX * forwardSpeed,
-            headingY * forwardSpeed,
-            keepZVelocity,
-          ),
-          true,
-        );
-        this.body.setAngvel(new this.rapier.Vector3(0, 0, 0), true);
-      } else {
-        this.body.setLinvel(
-          new this.rapier.Vector3(
-            commandedVelocityX,
-            commandedVelocityY,
-            keepZVelocity,
-          ),
-          true,
-        );
-      }
-    } else {
-      const currentVelocity = this.body.linvel();
-      const stopVelocity =
-        Math.abs(currentVelocity.x) < 0.01 &&
-        Math.abs(currentVelocity.y) < 0.01;
-      this.body.setLinvel(
-        new this.rapier.Vector3(
-          stopVelocity ? 0 : currentVelocity.x * 0.05,
-          stopVelocity ? 0 : currentVelocity.y * 0.05,
-          currentVelocity.z,
-        ),
-        true,
-      );
-    }
-
-    const needsLowSpeedPositionAssist =
-      hasMoveCommand &&
-      !shouldBlockByObstacle &&
-      !hasObstacleContact &&
-      clampedSpeed > 0 &&
-      clampedSpeed <= 0.15;
-    if (needsLowSpeedPositionAssist) {
-      if (!this.lowSpeedKinematicPosition) {
-        const translation = this.body.translation();
-        this.lowSpeedKinematicPosition = new THREE.Vector3(
-          translation.x,
-          translation.y,
-          translation.z,
-        );
-      }
-      const assistDistance = Math.hypot(
-        commandedVelocityX * effectiveDeltaSec,
-        commandedVelocityY * effectiveDeltaSec,
-      );
-      this.lowSpeedKinematicPosition.x +=
-        commandedVelocityX * effectiveDeltaSec;
-      this.lowSpeedKinematicPosition.y +=
-        commandedVelocityY * effectiveDeltaSec;
-      if (
-        this.isVehiclePositionTouchingObstacle(this.lowSpeedKinematicPosition)
-      ) {
-        this.lowSpeedKinematicPosition.x -=
-          commandedVelocityX * effectiveDeltaSec;
-        this.lowSpeedKinematicPosition.y -=
-          commandedVelocityY * effectiveDeltaSec;
-        const velocity = this.body.linvel();
-        this.body.setLinvel(new this.rapier.Vector3(0, 0, velocity.z), true);
-      } else {
-        this.body.setTranslation(
-          new this.rapier.Vector3(
-            this.lowSpeedKinematicPosition.x,
-            this.lowSpeedKinematicPosition.y,
-            this.lowSpeedKinematicPosition.z,
-          ),
-          true,
-        );
-        this.lowSpeedPositionAssistDistanceMeters = assistDistance;
-      }
-    } else {
-      this.lowSpeedKinematicPosition = null;
-    }
+      this.predictedObstacleBlockActive ||
+      (this.blockMotionOnObstacleContact &&
+        hasObstacleContact &&
+        this.isVelocityMovingTowardObstacle(
+          contactedObstacle,
+          commandedVelocityX,
+          commandedVelocityY,
+        ));
+    this.lowSpeedKinematicPosition = null;
 
     const isMoveCommandActive = keyboardState.isActive || throttleSign !== 0;
-    if (
-      this.blockMotionOnObstacleContact &&
-      hasObstacleContact &&
-      isMoveCommandActive &&
-      this.isVelocityMovingTowardObstacle(
-        contactedObstacle,
-        commandedVelocityX,
-        commandedVelocityY,
-      )
-    ) {
+    if (isMoveCommandActive && shouldBlockByObstacle) {
       const currentVelocity = this.body.linvel();
       this.body.setLinvel(
         new this.rapier.Vector3(0, 0, currentVelocity.z),
         true,
       );
       this.body.setAngvel(new this.rapier.Vector3(0, 0, 0), true);
-    }
-
-    if (this.activeObstacleTraversalPath && this.isObstacleTraversalActive()) {
-      const traversalPath = this.activeObstacleTraversalPath;
-      const traversalPosition = this.body.translation();
-      const traversalTargetZ = this.getObstacleTraversalTargetZ(traversalPath);
-      const boundedTargetZ = Number.isFinite(traversalTargetZ)
-        ? traversalPosition.z +
-          THREE.MathUtils.clamp(
-            traversalTargetZ - traversalPosition.z,
-            -0.008,
-            0.008,
-          )
-        : traversalPosition.z;
-      this.body.setTranslation(
-        new this.rapier.Vector3(
-          traversalPosition.x,
-          traversalPosition.y,
-          boundedTargetZ,
-        ),
-        true,
-      );
-      const traversalSpeed = Math.min(
-        Math.max(Number(this.commandedSpeedMps) || 0, 0.05),
-        Number(this.maxSpeedMps) || Number.POSITIVE_INFINITY,
-      );
-      this.body.setLinvel(
-        new this.rapier.Vector3(
-          traversalPath.forwardX * traversalSpeed,
-          traversalPath.forwardY * traversalSpeed,
-          0,
-        ),
-        true,
-      );
-    }
-
-    const finalObstaclePathControlActive = Boolean(
-      this.isVehicleObstacleContact ||
-      this.contactSolver.isClimbApproach(
-        this.contactSolver.getApproachInfo()?.obstacleInfo || null,
-      ) ||
-      this.contactSolver.isObstacleTraversalActive(),
-    );
-    if (finalObstaclePathControlActive) {
-      const finalVelocity = this.body.linvel();
-      this.body.setLinvel(
-        new this.rapier.Vector3(finalVelocity.x, finalVelocity.y, 0),
-        true,
-      );
     }
 
     this.constrainCenterTurnPivot();

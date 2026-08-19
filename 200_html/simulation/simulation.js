@@ -4338,6 +4338,10 @@ class RapierDriveSimulation {
       return;
     }
 
+    if (typeof viewer.setWheelRotationDrivenByTravel === "function") {
+      viewer.setWheelRotationDrivenByTravel(true);
+    }
+
     const yaw = this.extractYawFromQuaternion(this.body.rotation());
     const forwardVector = this.getVehicleForwardVector(yaw);
     const distanceMetersByKey = {};
@@ -4670,6 +4674,7 @@ class RapierDriveSimulation {
       .set(rotation.x, rotation.y, rotation.z, rotation.w)
       .normalize();
     this.carFrame.updateMatrixWorld(true);
+    this.syncWheelRotationToBodyTravel();
   }
 
   enforceWheelGroundContactAtLoad(linkMap) {

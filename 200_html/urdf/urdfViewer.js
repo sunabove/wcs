@@ -117,6 +117,7 @@ class URDFViewer {
       rl: 0,
       rr: 0,
     };
+    this.isWheelRotationDrivenByTravel = false;
     this.wheelAnimationTimeScale = 1;
     const wheelVisualRotationSign = Number.parseFloat(
       containerElement.getAttribute("wheel-visual-rotation-sign"),
@@ -2763,7 +2764,71 @@ class URDFViewer {
       : 1;
   }
 
+  setWheelRotationDrivenByTravel(enabled) {
+    this.isWheelRotationDrivenByTravel = enabled === true;
+    if (this.isWheelRotationDrivenByTravel) {
+      Object.keys(this.wheelVisualAngularSpeedRadByKey).forEach((key) => {
+        this.wheelVisualAngularSpeedRadByKey[key] = 0;
+      });
+    }
+  }
+
+  getCarFrameForwardWorld() {
+    const carFrame =
+      this.robotModel?.links?.car_frame || this.robotModel?.root || null;
+    if (!carFrame) {
+      return null;
+    }
+
+    carFrame.updateWorldMatrix(true, false);
+    const carFrameQuaternion = carFrame.getWorldQuaternion(
+      new THREE.Quaternion(),
+    );
+    return new THREE.Vector3(1, 0, 0)
+      .applyQuaternion(carFrameQuaternion)
+      .normalize();
+  }
+
+  getWheelTravelRotationSign(runtimeTarget, forwardWorld) {
+    if (
+      runtimeTarget?.type !== "joint" ||
+      !runtimeTarget.ref ||
+      !forwardWorld
+    ) {
+      return 1;
+    }
+
+    const jointAxis = runtimeTarget.ref.axis;
+    if (!jointAxis) {
+      return 1;
+    }
+
+    const axisLocal = new THREE.Vector3(
+      Number(jointAxis.x),
+      Number(jointAxis.y),
+      Number(jointAxis.z),
+    );
+    if (axisLocal.lengthSq() <= 1e-10) {
+      return 1;
+    }
+
+    runtimeTarget.ref.updateWorldMatrix(true, false);
+    const axisWorld = axisLocal
+      .normalize()
+      .applyQuaternion(
+        runtimeTarget.ref.getWorldQuaternion(new THREE.Quaternion()),
+      )
+      .normalize();
+    const positiveRotationTravel = axisWorld.cross(new THREE.Vector3(0, 0, -1));
+    if (positiveRotationTravel.lengthSq() <= 1e-10) {
+      return 1;
+    }
+
+    return positiveRotationTravel.dot(forwardWorld) >= 0 ? 1 : -1;
+  }
+
   applyWheelTravelDistances(distanceMetersByKey, radiusMetersByKey = {}) {
+    const forwardWorld = this.getCarFrameForwardWorld();
     Object.keys(this.wheelRuntimeTargetByKey).forEach((key) => {
       const runtimeTarget = this.wheelRuntimeTargetByKey[key];
       const distanceMeters = Number(distanceMetersByKey?.[key]);
@@ -2777,8 +2842,11 @@ class URDFViewer {
         return;
       }
 
-      this.wheelAngles[key] +=
-        (this.wheelVisualRotationSign * distanceMeters) / radiusMeters;
+      const rotationSign = this.getWheelTravelRotationSign(
+        runtimeTarget,
+        forwardWorld,
+      );
+      this.wheelAngles[key] += (rotationSign * distanceMeters) / radiusMeters;
       if (runtimeTarget.type === "joint") {
         runtimeTarget.ref.setJointValue(this.wheelAngles[key]);
         return;
@@ -2799,7 +2867,7 @@ class URDFViewer {
   }
 
   applyWheelAnimation(deltaSec) {
-    if (!this.robotModel) {
+    if (!this.robotModel || this.isWheelRotationDrivenByTravel) {
       return;
     }
 

@@ -5458,6 +5458,9 @@ class RapierDriveSimulation {
       this.syncWheelChartBaselineFromPhysics();
       this.isReady = true;
       this.hasFailed = false;
+      this.lastStepTimeMs = 0;
+      this.physicsAccumulatorSec = 0;
+      this.resetPhysicalState();
 
       console.log(
         "[URDF][Simulation] Rapier direction control with URDF obstacle initialized",

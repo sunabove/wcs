@@ -67,6 +67,10 @@
   let cameraOverlayNextRequest = null;
   let cameraOverlayCleanupRequest = null;
   let cameraOverlayInitRequest = null;
+  let roadFileOverlaySessionId = "";
+  let roadFileOverlayPollTimerId = null;
+  let roadFileOverlayNextRequest = null;
+  let roadFileOverlayInitRequest = null;
   let firstFrameTimeoutId = null;
   let firstFrameRequestToken = 0;
   let lastImageFrameAt = 0;
@@ -743,6 +747,137 @@
             })
           );
         };
+
+  function buildRoadDetectStreamInitUrl(fileName) {
+    const streamPath = resolveRoadDetectStreamPath(fileName);
+    const encodedPath = encodePathForRoute(streamPath);
+    if (!encodedPath) {
+      return "";
+    }
+
+    return (
+      "/fast/road_detect_stream_init/" +
+      encodedPath +
+      "?" +
+      $.param(buildRoadDetectQueryOptions({ show_time_bar: true }))
+    );
+  }
+
+  function buildRoadDetectStreamNextUrl(sessionId) {
+    return (
+      "/fast/road_detect_stream_next/" +
+      encodePathForRoute(sessionId) +
+      "?" +
+      $.param({ t: Date.now() })
+    );
+  }
+
+  function clearRoadFileOverlayPoll() {
+    if (roadFileOverlayPollTimerId !== null) {
+      clearTimeout(roadFileOverlayPollTimerId);
+      roadFileOverlayPollTimerId = null;
+    }
+  }
+
+  function pauseRoadFileOverlayStream() {
+    clearRoadFileOverlayPoll();
+    if (
+      roadFileOverlayNextRequest &&
+      typeof roadFileOverlayNextRequest.abort === "function"
+    ) {
+      roadFileOverlayNextRequest.abort();
+    }
+    roadFileOverlayNextRequest = null;
+  }
+
+  function requestRoadFileOverlayNextFrame() {
+    const sessionId = String(roadFileOverlaySessionId || "");
+    if (!sessionId || mediaPlaybackPaused || mediaHiddenByUser) {
+      return;
+    }
+
+    roadFileOverlayNextRequest = $.ajax({
+      url: buildRoadDetectStreamNextUrl(sessionId),
+      method: "GET",
+      timeout: 8000,
+    })
+      .done(function (result) {
+        if (sessionId !== String(roadFileOverlaySessionId || "")) {
+          return;
+        }
+
+        const frameB64 = String(result?.frame || "").trim();
+        if (frameB64) {
+          $image
+            .attr("src", "data:image/jpeg;base64," + frameB64)
+            .removeClass("d-none");
+          markFirstFrameReady();
+        }
+
+        if (result?.has_next === false) {
+          mediaPlaybackPaused = true;
+          setOverlayStatus("일시 정지", true);
+          updateVideoControlButtons();
+          return;
+        }
+
+        const fps = Number(result?.fps || 0);
+        const delayMs = fps > 0 ? Math.round(1000 / fps) : 80;
+        roadFileOverlayPollTimerId = setTimeout(
+          requestRoadFileOverlayNextFrame,
+          Math.max(30, delayMs),
+        );
+      })
+      .fail(function (_jqXHR, textStatus) {
+        if (textStatus === "abort") {
+          return;
+        }
+        roadFileOverlayPollTimerId = setTimeout(
+          requestRoadFileOverlayNextFrame,
+          250,
+        );
+      })
+      .always(function () {
+        roadFileOverlayNextRequest = null;
+      });
+  }
+
+  function startRoadFileOverlayStream(fileName) {
+    const initUrl = buildRoadDetectStreamInitUrl(fileName);
+    if (!initUrl) {
+      return;
+    }
+
+    pauseRoadFileOverlayStream();
+    roadFileOverlaySessionId = "";
+    markOverlayMediaVisibleState();
+    hideAllMedia();
+    startFirstFrameWait();
+    $image.removeClass("d-none");
+    lastMediaType = "image";
+    lastMediaSource = String(fileName || "");
+    mediaPlaybackPaused = false;
+
+    roadFileOverlayInitRequest = $.ajax({
+      url: initUrl,
+      method: "POST",
+      timeout: 8000,
+    })
+      .done(function (result) {
+        const sessionId = String(result?.session_id || "").trim();
+        if (!sessionId || mediaPlaybackPaused || mediaHiddenByUser) {
+          return;
+        }
+        roadFileOverlaySessionId = sessionId;
+        requestRoadFileOverlayNextFrame();
+      })
+      .fail(function () {
+        showTemporaryStatusMessage(FIRST_FRAME_TIMEOUT_MESSAGE);
+      })
+      .always(function () {
+        roadFileOverlayInitRequest = null;
+      });
+  }
 
   function buildCameraDetectStreamInitUrl(cameraIndex) {
     return (
@@ -1660,7 +1795,7 @@
 
     // road_detect_stream returns stream frames that are better rendered by img.
     if (shouldRenderAsImageStream(normalizedSrc)) {
-      showImageSource(normalizedSrc);
+      startRoadFileOverlayStream(latestCurrentVideoFileName);
       return;
     }
 
@@ -1848,6 +1983,8 @@
 
         if (isCameraSelectionActive && cameraSelection) {
           startCameraOverlayStream(cameraSelection);
+        } else if (roadFileOverlaySessionId) {
+          requestRoadFileOverlayNextFrame();
         } else if (latestCurrentVideoFileName) {
           resolveAndShowCurrentVideo(latestCurrentVideoFileName);
         } else {
@@ -1860,6 +1997,8 @@
         mediaPlaybackPaused = true;
         if (isCameraSelectionActive) {
           stopCameraOverlayStream(true);
+        } else if (roadFileOverlaySessionId) {
+          pauseRoadFileOverlayStream();
         } else {
           freezeCurrentImageFrameForPause();
           requestRoadDetectSessionCleanup(latestCurrentVideoFileName);

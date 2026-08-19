@@ -486,6 +486,10 @@
     if (text) {
       $status.text(text);
     }
+    $status.toggleClass(
+      "road-detect-overlay-status-paused",
+      text === "일시 정지",
+    );
     $status.toggleClass("d-none", !visible);
   }
 

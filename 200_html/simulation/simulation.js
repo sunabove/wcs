@@ -4795,12 +4795,22 @@ class RapierDriveSimulation {
       Math.max(arrowShaftLength * 0.45, 0.05),
       0.08,
     );
-    const arrowMaterial = new THREE.MeshBasicMaterial({
-      color: 0x008cff,
+    const arrowMaterial = new THREE.ShaderMaterial({
       depthTest: false,
       depthWrite: false,
       fog: false,
       toneMapped: false,
+      side: THREE.DoubleSide,
+      vertexShader: `
+        void main() {
+          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        }
+      `,
+      fragmentShader: `
+        void main() {
+          gl_FragColor = vec4(0.0, 0.55, 1.0, 1.0);
+        }
+      `,
     });
     const arrowGroup = new THREE.Group();
     arrowGroup.name = "simulation-vehicle-direction-arrows";

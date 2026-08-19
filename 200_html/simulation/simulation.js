@@ -5453,6 +5453,7 @@ class RapierDriveSimulation {
       this.initializeWheelZChartRangeFromObstacles(linkMap);
       this.ensureVehicleDirectionArrows();
       this.ensureVehicleYawIndicator();
+      this.resetWheelBodiesFromVisual();
       this.resetWheelTravelTracking();
       this.syncWheelChartBaselineFromPhysics();
       this.isReady = true;

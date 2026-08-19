@@ -175,14 +175,20 @@
 
     if (autoReplayEnabled) {
       $loopToggleButton
+        .removeClass("btn-outline-light")
+        .addClass("btn-light")
         .addClass("road-detect-overlay-control-btn-active")
         .attr("title", "자동 반복 ON")
-        .attr("aria-label", "자동 반복 ON");
+        .attr("aria-label", "자동 반복 ON")
+        .html('<i class="bi bi-arrow-repeat" aria-hidden="true"></i>');
     } else {
       $loopToggleButton
+        .removeClass("btn-light")
+        .addClass("btn-outline-light")
         .removeClass("road-detect-overlay-control-btn-active")
         .attr("title", "자동 반복 OFF")
-        .attr("aria-label", "자동 반복 OFF");
+        .attr("aria-label", "자동 반복 OFF")
+        .html('<i class="bi bi-play-fill" aria-hidden="true"></i>');
     }
 
     $loopToggleButton.prop("disabled", !isControlEnabled);

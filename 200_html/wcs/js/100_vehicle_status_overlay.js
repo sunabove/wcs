@@ -279,8 +279,12 @@
     if (lastMediaType === "image") {
       const isRoadFileStreamActive =
         !!roadFileOverlaySessionId || !!roadFileOverlayInitRequest;
+      const isRoadFileVideoSelected =
+        !!latestCurrentVideoFileName &&
+        String(lastMediaSource || "") === String(latestCurrentVideoFileName);
       const isImageOutputAreaActive =
-        isImageVisible && (hasImageSource || isRoadFileStreamActive);
+        isImageVisible &&
+        (hasImageSource || isRoadFileStreamActive || isRoadFileVideoSelected);
       if (hasCloseButton) {
         $closeButton.prop("disabled", !isImageOutputAreaActive);
       }

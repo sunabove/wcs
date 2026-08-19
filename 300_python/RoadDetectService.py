@@ -273,7 +273,7 @@ async def road_roi_save_service(
 pass # road_roi_save_service
 
 @router.get("/road_detect_stream/{file_name:path}")
-async def road_detect_stream_service(
+async def road_detect_mov_stream_service(
     file_name: str,
     detect_type: str = Query("road"),
     remove_noisy_masks: bool = Query(True),
@@ -287,7 +287,7 @@ async def road_detect_stream_service(
 
     detector = RoadDetector()
 
-    return detector.road_detect_stream(file_name, detect_type, remove_noisy_masks, show_detect_stats, show_time_bar, include_obstacle, obstacle_conf, mqtt_publish)
+    return detector.road_detect_mov_stream(file_name, detect_type, remove_noisy_masks, show_detect_stats, show_time_bar, include_obstacle, obstacle_conf, mqtt_publish)
 pass # road_detect_stream_service
 
 @router.post("/road_detect_stream_init/{file_name:path}")

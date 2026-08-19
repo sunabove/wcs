@@ -1622,7 +1622,7 @@ class RoadDetector:
         }
     pass # camera_detect_stream_cleanup_all
 
-    def road_detect_stream(self, file_name: str, detect_type: str = "road", remove_noisy_masks: bool = True, show_detect_stats: bool = False, show_time_bar: bool = False, include_obstacle: bool = False, obstacle_conf: float = DEFAULT_OBSTACLE_CONF, mqtt_publish: bool = False) -> StreamingResponse:
+    def road_detect_mov_stream(self, file_name: str, detect_type: str = "road", remove_noisy_masks: bool = True, show_detect_stats: bool = False, show_time_bar: bool = False, include_obstacle: bool = False, obstacle_conf: float = DEFAULT_OBSTACLE_CONF, mqtt_publish: bool = False) -> StreamingResponse:
         """(레거시) 연속 MJPEG 스트리밍 - 하위호환성 유지"""
         input_path = resolve_upload_image_path(file_name)
         if not input_path.exists() or not input_path.is_file():

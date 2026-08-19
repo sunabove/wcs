@@ -203,7 +203,6 @@ class RapierDriveSimulation {
     this.isVehicleObstacleContact = false;
     this.carFrame = null;
     this.vehicleDirectionArrowGroup = null;
-    this.vehicleDirectionArrowSprite = null;
     this.initialPosition = null;
     this.initialQuaternion = null;
     this.vehicleHalfExtents = null;
@@ -4786,62 +4785,69 @@ class RapierDriveSimulation {
 
     const halfX = Math.max(Number(this.vehicleHalfExtents?.x) || 0.3, 0.2);
     const arrowCenterX = Number(this.vehicleColliderLocalCenter.x) || 0;
-    const arrowOriginX = arrowCenterX + halfX + 0.12;
+    const arrowOriginX = arrowCenterX + halfX + 0.04;
     const arrowHeight = Number(this.vehicleColliderLocalCenter.z) || 0;
-    const arrowSize = Math.min(Math.max(halfX * 0.7, 0.16), 0.28);
-    const arrowTexture = this.createVehicleDirectionArrowTexture();
-    const arrowMaterial = new THREE.SpriteMaterial({
-      map: arrowTexture,
-      transparent: true,
+    const arrowShaftRadius = 0.012;
+    const arrowHeadBaseRadius = 0.024;
+    const arrowShaftLength = Math.max(halfX * 0.35, 0.105);
+    const arrowHeadLength = Math.min(
+      Math.max(arrowShaftLength * 0.45, 0.05),
+      0.08,
+    );
+    const arrowMaterial = new THREE.ShaderMaterial({
       depthTest: false,
       depthWrite: false,
       fog: false,
       toneMapped: false,
+      side: THREE.DoubleSide,
+      vertexShader: `
+        void main() {
+          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        }
+      `,
+      fragmentShader: `
+        void main() {
+          gl_FragColor = vec4(0.0, 0.55, 1.0, 1.0);
+        }
+      `,
     });
     const arrowGroup = new THREE.Group();
     arrowGroup.name = "simulation-vehicle-direction-arrows";
 
-    const arrowSprite = new THREE.Sprite(arrowMaterial);
-    arrowSprite.position.set(arrowOriginX, 0, arrowHeight);
-    arrowSprite.scale.set(arrowSize, arrowSize, 1);
-    arrowSprite.renderOrder = 1000;
-    arrowGroup.add(arrowSprite);
+    const shaft = new THREE.Mesh(
+      new THREE.CylinderGeometry(
+        arrowShaftRadius,
+        arrowShaftRadius,
+        arrowShaftLength,
+        16,
+      ),
+      arrowMaterial,
+    );
+    shaft.position.set(arrowOriginX + arrowShaftLength * 0.5, 0, arrowHeight);
+    shaft.rotation.z = -Math.PI / 2;
+    shaft.renderOrder = 1000;
+    arrowGroup.add(shaft);
+
+    const arrowHead = new THREE.Mesh(
+      new THREE.ConeGeometry(arrowHeadBaseRadius, arrowHeadLength, 16),
+      arrowMaterial,
+    );
+    arrowHead.position.set(
+      arrowOriginX + arrowShaftLength + arrowHeadLength * 0.5,
+      0,
+      arrowHeight,
+    );
+    arrowHead.rotation.z = -Math.PI / 2;
+    arrowHead.renderOrder = 1000;
+    arrowGroup.add(arrowHead);
 
     this.vehicleDirectionArrowGroup = arrowGroup;
-    this.vehicleDirectionArrowSprite = arrowSprite;
     this.viewer.scene.add(arrowGroup);
     this.syncVehicleDirectionArrows();
   }
 
-  createVehicleDirectionArrowTexture() {
-    const canvas = document.createElement("canvas");
-    canvas.width = 128;
-    canvas.height = 128;
-    const context = canvas.getContext("2d");
-    context.clearRect(0, 0, canvas.width, canvas.height);
-    context.fillStyle = "#008cff";
-    context.beginPath();
-    context.moveTo(64, 6);
-    context.lineTo(118, 60);
-    context.lineTo(88, 60);
-    context.lineTo(88, 120);
-    context.lineTo(40, 120);
-    context.lineTo(40, 60);
-    context.lineTo(10, 60);
-    context.closePath();
-    context.fill();
-
-    const texture = new THREE.CanvasTexture(canvas);
-    texture.colorSpace = THREE.SRGBColorSpace;
-    return texture;
-  }
-
   syncVehicleDirectionArrows() {
-    if (
-      !this.vehicleDirectionArrowGroup ||
-      !this.vehicleDirectionArrowSprite ||
-      !this.carFrame
-    ) {
+    if (!this.vehicleDirectionArrowGroup || !this.carFrame) {
       return;
     }
 
@@ -4851,35 +4857,6 @@ class RapierDriveSimulation {
       this.vehicleDirectionArrowGroup.quaternion,
     );
     this.vehicleDirectionArrowGroup.updateMatrixWorld(true);
-
-    const camera = this.viewer?.camera || null;
-    if (!camera) {
-      return;
-    }
-
-    camera.updateWorldMatrix(true, false);
-    const carFrameWorldQuaternion = this.carFrame.getWorldQuaternion(
-      new THREE.Quaternion(),
-    );
-    const forwardWorld = new THREE.Vector3(1, 0, 0).applyQuaternion(
-      carFrameWorldQuaternion,
-    );
-    const cameraRight = new THREE.Vector3().setFromMatrixColumn(
-      camera.matrixWorld,
-      0,
-    );
-    const cameraUp = new THREE.Vector3().setFromMatrixColumn(
-      camera.matrixWorld,
-      1,
-    );
-    const screenForwardX = forwardWorld.dot(cameraRight);
-    const screenForwardY = forwardWorld.dot(cameraUp);
-    if (Math.hypot(screenForwardX, screenForwardY) > 1e-4) {
-      this.vehicleDirectionArrowSprite.material.rotation = Math.atan2(
-        -screenForwardX,
-        screenForwardY,
-      );
-    }
   }
 
   enforceWheelGroundContactAtLoad(linkMap) {

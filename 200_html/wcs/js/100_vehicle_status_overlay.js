@@ -220,12 +220,16 @@
     $playToggleButton.removeClass("d-none");
 
     if (lastMediaType === "image") {
+      const isRoadFileStreamActive =
+        !!roadFileOverlaySessionId || !!roadFileOverlayInitRequest;
+      const isImageOutputAreaActive =
+        isImageVisible && (hasImageSource || isRoadFileStreamActive);
       if (hasCloseButton) {
-        $closeButton.prop("disabled", !(isImageVisible && hasImageSource));
+        $closeButton.prop("disabled", !isImageOutputAreaActive);
       }
-      const hasImageMediaSource = !!String(
-        lastMediaSource || $image.attr("src") || "",
-      ).trim();
+      const hasImageMediaSource =
+        !!String(lastMediaSource || $image.attr("src") || "").trim() ||
+        isRoadFileStreamActive;
       updateLoopToggleButton(hasImageMediaSource);
       if (mediaPlaybackPaused) {
         $playToggleButton
@@ -857,6 +861,7 @@
     lastMediaType = "image";
     lastMediaSource = String(fileName || "");
     mediaPlaybackPaused = false;
+    updateVideoControlButtons();
 
     roadFileOverlayInitRequest = $.ajax({
       url: initUrl,

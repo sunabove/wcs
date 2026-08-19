@@ -6137,19 +6137,7 @@ class RapierDriveSimulation {
 
   resetUiStates() {
     this.togglePause(false);
-
-    if (typeof window.setDriveMode === "function") {
-      window.setDriveMode("stop");
-    }
-
     this.resetRoadAttitude();
-
-    const wheelKeys = ["fl", "fr", "rl", "rr"];
-    wheelKeys.forEach((key) => {
-      if (typeof window.setWheelAnimationByKey === "function") {
-        window.setWheelAnimationByKey(key, 0);
-      }
-    });
   }
 
   resetRoadAttitude() {
@@ -6240,15 +6228,12 @@ class RapierDriveSimulation {
       obstacleInfo.isSpatiallyOverlapping = false;
     });
     this.activeObstacleTraversalPath = null;
-    this.hasActivatedSimulationMotion = false;
-    this.hasActivatedDynamicGroundClamp = false;
-    this.straightDriveReferencePose = null;
-    this.straightDriveWarmupSteps = 0;
 
     // On reset, always return to the URDF-authored pose without extra ground alignment offsets.
     this.renderer.syncVehicle();
     this.resetWheelBodiesFromVisual();
-    this.stopSimulationMotion();
+    this.commandedDriveMode = null;
+    this.applyDriveModeCommand("stop");
     this.resetWheelTravelTracking();
     this.syncWheelChartBaselineFromPhysics();
   }

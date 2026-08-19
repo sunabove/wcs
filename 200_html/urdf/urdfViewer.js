@@ -2819,7 +2819,7 @@ class URDFViewer {
         runtimeTarget.ref.getWorldQuaternion(new THREE.Quaternion()),
       )
       .normalize();
-    const positiveRotationTravel = axisWorld.cross(new THREE.Vector3(0, 0, -1));
+    const positiveRotationTravel = new THREE.Vector3(0, 0, -1).cross(axisWorld);
     if (positiveRotationTravel.lengthSq() <= 1e-10) {
       return 1;
     }

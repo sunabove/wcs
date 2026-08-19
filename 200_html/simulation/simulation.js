@@ -280,6 +280,7 @@ class RapierDriveSimulation {
     this.hasActivatedSimulationMotion = false;
     this.hasActivatedDynamicGroundClamp = false;
     this.visualSpeedScale = SIM_VISUAL_SPEED_DEFAULT_SCALE;
+    this.obstacleContactWheelSignedRpmByKey = null;
     this.straightDriveReferencePose = null;
     this.straightDriveWarmupSteps = 0;
     this.lastDriveCommandState = {
@@ -4373,15 +4374,28 @@ class RapierDriveSimulation {
       if (typeof viewer.setWheelRotationDrivenByTravel === "function") {
         viewer.setWheelRotationDrivenByTravel(false);
       }
-      if (typeof viewer.applyDriveMode === "function") {
-        viewer.applyDriveMode(
-          this.commandedDriveMode || "stop",
-          this.mpsToKmh(this.commandedSpeedMps),
+      if (!this.obstacleContactWheelSignedRpmByKey) {
+        this.obstacleContactWheelSignedRpmByKey = Object.fromEntries(
+          ["fl", "fr", "rl", "rr"].map((wheelKey) => [
+            wheelKey,
+            typeof viewer.getSignedWheelRpm === "function"
+              ? viewer.getSignedWheelRpm(wheelKey)
+              : 0,
+          ]),
         );
       }
+      Object.entries(this.obstacleContactWheelSignedRpmByKey).forEach(
+        ([wheelKey, signedRpm]) => {
+          if (typeof viewer.setWheelSpeedRpm === "function") {
+            viewer.setWheelSpeedRpm(wheelKey, signedRpm);
+          }
+        },
+      );
       this.resetWheelTravelTracking();
       return;
     }
+
+    this.obstacleContactWheelSignedRpmByKey = null;
 
     if (typeof viewer.setWheelRotationDrivenByTravel === "function") {
       viewer.setWheelRotationDrivenByTravel(true);
@@ -4877,6 +4891,7 @@ class RapierDriveSimulation {
     );
     this.vehiclePreviousYawRad = null;
     this.vehicleYawDirectionSign = 0;
+    this.obstacleContactWheelSignedRpmByKey = null;
     this.vehicleYawIndicatorGroup = indicatorGroup;
     this.vehicleYawArcLine = arcLine;
     this.vehicleYawRadiusLine = radiusLine;

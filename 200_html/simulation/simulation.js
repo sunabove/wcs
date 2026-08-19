@@ -6240,6 +6240,7 @@ class RapierDriveSimulation {
 
   async reset() {
     this.resetUiStates();
+    this.applyDriveModeCommand("stop");
     this.lastStepTimeMs = 0;
     this.physicsAccumulatorSec = 0;
 

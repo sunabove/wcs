@@ -299,6 +299,7 @@ class RapierDriveSimulation {
     this.wheelZChartContext = null;
     this.wheelZChartWindowSec = 10;
     this.wheelZChartElapsedSec = 0;
+    this.wheelZChartInitialHalfRangeCm = WHEEL_Z_CHART_INITIAL_HALF_RANGE_CM;
     this.wheelZChartHalfRangeCm = WHEEL_Z_CHART_INITIAL_HALF_RANGE_CM;
     this.wheelZChartLastSampleTimeMs = null;
     this.wheelZChartLastRenderTimeMs = null;
@@ -797,6 +798,59 @@ class RapierDriveSimulation {
     this.trimWheelZChartHistory(nowSec);
   }
 
+  initializeWheelZChartRangeFromObstacles(linkMap) {
+    if (!linkMap || this.obstacleColliderInfos.length === 0) {
+      return;
+    }
+
+    const wheelCenterZs = Object.values(this.wheelLinkNameByKey)
+      .map((wheelLinkName) => {
+        const wheelLink = this.findLinkByName(linkMap, wheelLinkName);
+        if (!wheelLink) {
+          return null;
+        }
+
+        wheelLink.updateWorldMatrix(true, true);
+        return wheelLink.getWorldPosition(new THREE.Vector3()).z;
+      })
+      .filter(Number.isFinite);
+    if (wheelCenterZs.length === 0) {
+      return;
+    }
+
+    const obstacleHeights = this.obstacleColliderInfos
+      .filter(
+        (obstacleInfo) =>
+          obstacleInfo?.center && Number.isFinite(obstacleInfo?.halfExtents?.z),
+      )
+      .flatMap((obstacleInfo) => [
+        obstacleInfo.center.z - obstacleInfo.halfExtents.z,
+        obstacleInfo.center.z + obstacleInfo.halfExtents.z,
+      ]);
+    if (obstacleHeights.length === 0) {
+      return;
+    }
+
+    const minWheelCenterZ = Math.min(...wheelCenterZs);
+    const maxWheelCenterZ = Math.max(...wheelCenterZs);
+    const minObstacleZ = Math.min(...obstacleHeights);
+    const maxObstacleZ = Math.max(...obstacleHeights);
+    const requiredHalfRangeCm = Math.max(
+      WHEEL_Z_CHART_INITIAL_HALF_RANGE_CM,
+      Math.abs(minObstacleZ - maxWheelCenterZ) * 100 * 1.12,
+      Math.abs(maxObstacleZ - minWheelCenterZ) * 100 * 1.12,
+    );
+    const initialHalfRangeCm =
+      Math.ceil(requiredHalfRangeCm / WHEEL_Z_CHART_HALF_RANGE_STEP_CM) *
+      WHEEL_Z_CHART_HALF_RANGE_STEP_CM;
+
+    this.wheelZChartInitialHalfRangeCm = initialHalfRangeCm;
+    this.wheelZChartHalfRangeCm = Math.max(
+      this.wheelZChartHalfRangeCm,
+      initialHalfRangeCm,
+    );
+  }
+
   renderWheelZChart(nowSec) {
     const ctx = this.wheelZChartContext;
     const canvas = this.wheelZChartCanvasElement;
@@ -892,7 +946,7 @@ class RapierDriveSimulation {
       Math.abs(maxZ * 100),
     );
     const requiredHalfRangeCm = Math.max(
-      WHEEL_Z_CHART_INITIAL_HALF_RANGE_CM,
+      this.wheelZChartInitialHalfRangeCm,
       observedHalfRangeCm * 1.12,
     );
     const alignedHalfRangeCm =
@@ -5056,6 +5110,7 @@ class RapierDriveSimulation {
       this.addGroundCollider();
       this.enforceWheelGroundContactAtLoad(linkMap);
       this.addObstacleColliderFromUrdf();
+      this.initializeWheelZChartRangeFromObstacles(linkMap);
       this.resetWheelTravelTracking();
       this.syncWheelChartBaselineFromPhysics();
       this.isReady = true;
@@ -5976,7 +6031,7 @@ class RapierDriveSimulation {
       this.wheelZChartHistoryByKey[key] = [];
     });
     this.wheelZChartElapsedSec = 0;
-    this.wheelZChartHalfRangeCm = WHEEL_Z_CHART_INITIAL_HALF_RANGE_CM;
+    this.wheelZChartHalfRangeCm = this.wheelZChartInitialHalfRangeCm;
     this.wheelZChartLastSampleTimeMs = null;
     Object.keys(this.wheelRadiusMetersByKey).forEach((key) => {
       this.wheelRadiusMetersByKey[key] = null;

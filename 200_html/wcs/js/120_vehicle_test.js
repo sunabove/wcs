@@ -391,8 +391,12 @@ $(document).ready(function () {
       );
     } else if (Number(command) === 0) {
       vehicleDirectionWheelKeys.forEach((wheelKey) => {
-        publishWhenConnected(`wheel/${wheelKey}/operation/command`, 0);
-        publishWhenConnected(`wheel/${wheelKey}/angle/speed`, 0);
+        const operationTopic = `wheel/${wheelKey}/operation/command`;
+        const angleSpeedTopic = `wheel/${wheelKey}/angle/speed`;
+        cancelPendingPublish(operationTopic);
+        cancelPendingPublish(angleSpeedTopic);
+        window.WcsMqtt.sendMQTTMessage(operationTopic, 0, 1);
+        window.WcsMqtt.sendMQTTMessage(angleSpeedTopic, 0, 1);
       });
     }
 

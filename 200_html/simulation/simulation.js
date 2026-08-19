@@ -206,7 +206,7 @@ class RapierDriveSimulation {
     this.vehicleYawIndicatorGroup = null;
     this.vehicleYawArcLine = null;
     this.vehicleYawRadiusLine = null;
-    this.vehicleYawSectorMesh = null;
+    this.vehicleYawArcArrowHead = null;
     this.vehicleInitialYawRad = null;
     this.initialPosition = null;
     this.initialQuaternion = null;
@@ -4888,21 +4888,6 @@ class RapierDriveSimulation {
     );
     arcGeometry.setDrawRange(0, 0);
 
-    const sectorGeometry = new THREE.BufferGeometry();
-    sectorGeometry.setAttribute(
-      "position",
-      new THREE.BufferAttribute(new Float32Array((arcSegments + 2) * 3), 3),
-    );
-    const sectorIndices = new Uint16Array(arcSegments * 3);
-    for (let index = 0; index < arcSegments; index += 1) {
-      const offset = index * 3;
-      sectorIndices[offset] = 0;
-      sectorIndices[offset + 1] = index + 1;
-      sectorIndices[offset + 2] = index + 2;
-    }
-    sectorGeometry.setIndex(new THREE.BufferAttribute(sectorIndices, 1));
-    sectorGeometry.setDrawRange(0, 0);
-
     const lineMaterial = new THREE.LineBasicMaterial({
       color: 0x00a8ff,
       depthTest: false,
@@ -4912,23 +4897,6 @@ class RapierDriveSimulation {
     });
     const indicatorGroup = new THREE.Group();
     indicatorGroup.name = "simulation-vehicle-yaw-indicator";
-
-    const sectorMesh = new THREE.Mesh(
-      sectorGeometry,
-      new THREE.MeshBasicMaterial({
-        color: 0x00a8ff,
-        transparent: true,
-        opacity: 0.22,
-        depthTest: false,
-        depthWrite: false,
-        fog: false,
-        toneMapped: false,
-        side: THREE.DoubleSide,
-      }),
-    );
-    sectorMesh.position.z = -0.001;
-    sectorMesh.renderOrder = 999;
-    indicatorGroup.add(sectorMesh);
 
     const arcLine = new THREE.Line(arcGeometry, lineMaterial);
     arcLine.renderOrder = 1000;
@@ -4954,6 +4922,20 @@ class RapierDriveSimulation {
     startRadiusLine.renderOrder = 1000;
     indicatorGroup.add(startRadiusLine);
 
+    const arcArrowHead = new THREE.Mesh(
+      new THREE.ConeGeometry(0.016, 0.04, 12),
+      new THREE.MeshBasicMaterial({
+        color: 0x00a8ff,
+        depthTest: false,
+        depthWrite: false,
+        fog: false,
+        toneMapped: false,
+      }),
+    );
+    arcArrowHead.visible = false;
+    arcArrowHead.renderOrder = 1000;
+    indicatorGroup.add(arcArrowHead);
+
     indicatorGroup.userData.arcRadius = arcRadius;
     indicatorGroup.userData.arcSegments = arcSegments;
     this.vehicleInitialYawRad = this.extractYawFromQuaternion(
@@ -4962,7 +4944,7 @@ class RapierDriveSimulation {
     this.vehicleYawIndicatorGroup = indicatorGroup;
     this.vehicleYawArcLine = arcLine;
     this.vehicleYawRadiusLine = radiusLine;
-    this.vehicleYawSectorMesh = sectorMesh;
+    this.vehicleYawArcArrowHead = arcArrowHead;
     this.viewer.scene.add(indicatorGroup);
     this.syncVehicleYawIndicator();
   }
@@ -4972,7 +4954,7 @@ class RapierDriveSimulation {
       !this.vehicleYawIndicatorGroup ||
       !this.vehicleYawArcLine ||
       !this.vehicleYawRadiusLine ||
-      !this.vehicleYawSectorMesh ||
+      !this.vehicleYawArcArrowHead ||
       !this.carFrame
     ) {
       return;
@@ -5026,21 +5008,6 @@ class RapierDriveSimulation {
       segmentCount > 0 ? segmentCount + 1 : 0,
     );
 
-    const sectorPositions =
-      this.vehicleYawSectorMesh.geometry.attributes.position;
-    sectorPositions.setXYZ(0, 0, 0, 0);
-    for (let index = 0; index <= segmentCount; index += 1) {
-      const angle = segmentCount > 0 ? (yawDelta * index) / segmentCount : 0;
-      sectorPositions.setXYZ(
-        index + 1,
-        Math.cos(angle) * arcRadius,
-        Math.sin(angle) * arcRadius,
-        0,
-      );
-    }
-    sectorPositions.needsUpdate = true;
-    this.vehicleYawSectorMesh.geometry.setDrawRange(0, segmentCount * 3);
-
     const radiusPositions =
       this.vehicleYawRadiusLine.geometry.attributes.position;
     radiusPositions.setXYZ(0, 0, 0, 0);
@@ -5051,6 +5018,29 @@ class RapierDriveSimulation {
       0,
     );
     radiusPositions.needsUpdate = true;
+
+    const isTurning = Math.abs(yawDelta) > 1e-4;
+    this.vehicleYawArcArrowHead.visible = isTurning;
+    if (isTurning) {
+      const rotationSign = Math.sign(yawDelta);
+      const tangent = new THREE.Vector3(
+        -Math.sin(yawDelta) * rotationSign,
+        Math.cos(yawDelta) * rotationSign,
+        0,
+      );
+      const arcEnd = new THREE.Vector3(
+        Math.cos(yawDelta) * arcRadius,
+        Math.sin(yawDelta) * arcRadius,
+        0.003,
+      );
+      this.vehicleYawArcArrowHead.position
+        .copy(arcEnd)
+        .addScaledVector(tangent, 0.02);
+      this.vehicleYawArcArrowHead.quaternion.setFromUnitVectors(
+        new THREE.Vector3(0, 1, 0),
+        tangent,
+      );
+    }
     this.vehicleYawIndicatorGroup.updateMatrixWorld(true);
   }
 

@@ -4784,7 +4784,7 @@ class RapierDriveSimulation {
     }
 
     const halfX = Math.max(Number(this.vehicleHalfExtents?.x) || 0.3, 0.2);
-    const arrowLength = Math.min(Math.max(halfX * 1.2, 0.28), 0.55);
+    const arrowLength = Math.min(Math.max(halfX * 1.2, 0.28), 0.55) * 0.25;
     const arrowCenterX = Number(this.vehicleColliderLocalCenter.x) || 0;
     const arrowOriginX = arrowCenterX + halfX + 0.04;
     const arrowHeight = Number(this.vehicleColliderLocalCenter.z) || 0;
@@ -4796,9 +4796,10 @@ class RapierDriveSimulation {
       new THREE.Vector3(arrowOriginX, 0, arrowHeight),
       arrowLength,
       0x0d6efd,
-      Math.min(arrowLength * 0.18, 0.09),
-      Math.min(arrowLength * 0.11, 0.055),
+      Math.min(Math.max(arrowLength * 0.36, 0.03), 0.06),
+      Math.min(Math.max(arrowLength * 0.24, 0.025), 0.05),
     );
+    arrow.line.material.linewidth = 2;
     arrow.line.material.depthTest = false;
     arrow.cone.material.depthTest = false;
     arrow.renderOrder = 10;

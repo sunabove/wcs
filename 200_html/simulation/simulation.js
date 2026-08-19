@@ -229,7 +229,7 @@ class RapierDriveSimulation {
     this.maxYawRateRad = THREE.MathUtils.degToRad(25);
     this.centerTurnYawRateScale = 0.15;
     this.enableWheelPhysicsColliders = true;
-    this.blockMotionOnObstacleContact = true;
+    this.blockMotionOnObstacleContact = false;
     this.keepUprightOnFlatGround = true;
     this.isUprightRotationLockActive = false;
     this.groundPenetrationToleranceMeters = 0.003;

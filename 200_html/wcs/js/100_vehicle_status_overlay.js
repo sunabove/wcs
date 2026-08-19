@@ -62,6 +62,7 @@
   let mediaHiddenByUser = false;
   let mediaPlaybackPaused = false;
   let autoReplayEnabled = false;
+  let overlayBrowserFullscreen = false;
   let lastMediaType = "";
   let lastMediaSource = "";
   let lastMediaAspectRatio = 16 / 9;
@@ -168,7 +169,7 @@
   }
 
   function isOverlayFullscreen() {
-    return document.fullscreenElement === $overlay[0];
+    return overlayBrowserFullscreen;
   }
 
   function updateFullscreenToggleButton() {
@@ -194,11 +195,9 @@
   }
 
   function exitOverlayFullscreen() {
-    if (isOverlayFullscreen() && document.exitFullscreen) {
-      document.exitFullscreen().catch(function () {
-        // Ignore browser fullscreen exit failures.
-      });
-    }
+    overlayBrowserFullscreen = false;
+    $overlay.removeClass("road-detect-overlay-browser-fullscreen");
+    updateFullscreenToggleButton();
   }
 
   function updateLoopToggleButton(isControlEnabled = false) {
@@ -2169,14 +2168,8 @@
       return;
     }
 
-    if ($overlay[0] && $overlay[0].requestFullscreen) {
-      $overlay[0].requestFullscreen().catch(function () {
-        // Ignore browser fullscreen request failures.
-      });
-    }
-  });
-
-  document.addEventListener("fullscreenchange", function () {
+    overlayBrowserFullscreen = true;
+    $overlay.addClass("road-detect-overlay-browser-fullscreen");
     updateFullscreenToggleButton();
   });
 

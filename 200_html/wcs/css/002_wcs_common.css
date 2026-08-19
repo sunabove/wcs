@@ -19,20 +19,19 @@
   overflow: hidden;
 }
 
-.road-detect-overlay:fullscreen {
+.road-detect-overlay.road-detect-overlay-browser-fullscreen {
+  position: fixed;
   width: 100vw;
   height: 100vh;
-  inset: auto;
+  inset: 0;
+  z-index: 1080;
   border-radius: 0;
   background: #000;
 }
 
-.road-detect-overlay:fullscreen .road-detect-overlay-body {
+.road-detect-overlay.road-detect-overlay-browser-fullscreen
+  .road-detect-overlay-body {
   padding: 0;
-}
-
-.road-detect-overlay:fullscreen::backdrop {
-  background: #000;
 }
 
 .road-detect-overlay-header {

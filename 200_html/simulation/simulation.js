@@ -4803,8 +4803,6 @@ class RapierDriveSimulation {
       0.08,
     );
     const arrowMaterial = new THREE.ShaderMaterial({
-      depthTest: false,
-      depthWrite: false,
       fog: false,
       toneMapped: false,
       side: THREE.DoubleSide,
@@ -4833,7 +4831,6 @@ class RapierDriveSimulation {
     );
     shaft.position.set(arrowOriginX + arrowShaftLength * 0.5, 0, arrowHeight);
     shaft.rotation.z = -Math.PI / 2;
-    shaft.renderOrder = 1000;
     arrowGroup.add(shaft);
 
     const arrowHead = new THREE.Mesh(
@@ -4846,7 +4843,6 @@ class RapierDriveSimulation {
       arrowHeight,
     );
     arrowHead.rotation.z = -Math.PI / 2;
-    arrowHead.renderOrder = 1000;
     arrowGroup.add(arrowHead);
 
     this.vehicleDirectionArrowGroup = arrowGroup;

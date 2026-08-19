@@ -1653,6 +1653,7 @@ class RoadDetector:
             stats_history = {}
             total_frames = int(capture.get(cv2.CAP_PROP_FRAME_COUNT) or 0)
             frame_number = 0
+            stream_started_at = time.monotonic()
             try:
                 while True:
                     if self._is_global_stream_stop_requested():
@@ -1706,6 +1707,11 @@ class RoadDetector:
                     encoded_ok, encoded = cv2.imencode(".jpg", detected_frame, [int(cv2.IMWRITE_JPEG_QUALITY), 80])
                     if not encoded_ok:
                         continue
+
+                    target_frame_at = stream_started_at + ((frame_number - 1) / fps)
+                    remaining_delay = target_frame_at - time.monotonic()
+                    if remaining_delay > 0:
+                        time.sleep(remaining_delay)
 
                     frame_bytes = encoded.tobytes()
                     yield (

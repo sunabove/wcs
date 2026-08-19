@@ -896,13 +896,7 @@ class RapierDriveSimulation {
     const minCmAligned = Math.floor(rawMinCm / stepCm) * stepCm;
     const maxCmAligned = minCmAligned + stepCm * intervalCount;
     minZ = minCmAligned / 100;
-    const candidateMaxZ = maxCmAligned / 100;
-    this.wheelZChartMaxZ = Math.max(
-      Number(this.wheelZChartMaxZ) || Number.NEGATIVE_INFINITY,
-      candidateMaxZ,
-      minZ + 0.01,
-    );
-    maxZ = this.wheelZChartMaxZ;
+    maxZ = maxCmAligned / 100;
 
     const toX = (t) =>
       margin.left + ((t - minTimeSec) / effectiveWindowSec) * plotWidth;

@@ -5685,7 +5685,8 @@ class RapierDriveSimulation {
 
     const deltaSec = Math.min((now - this.lastStepTimeMs) / 1000, 0.1);
     this.lastStepTimeMs = now;
-    const effectiveDeltaSec = Math.min(deltaSec * this.visualSpeedScale, 0.25);
+    // Physics advances in fixed virtual simulation time; visual speed only affects rendering.
+    const simulationDeltaSec = deltaSec;
     this.lowSpeedPositionAssistDistanceMeters = 0;
     this.predictedObstacleBlockActive = false;
 
@@ -5796,7 +5797,7 @@ class RapierDriveSimulation {
     let targetVelocityY = 0;
     if (keyboardState.isActive) {
       lockedRotation = this.body.rotation();
-      const velocitySmoothingAlpha = 1 - Math.exp(-12 * effectiveDeltaSec);
+      const velocitySmoothingAlpha = 1 - Math.exp(-12 * simulationDeltaSec);
       targetVelocityX = keyboardMoveX * clampedSpeed;
       targetVelocityY = keyboardMoveY * clampedSpeed;
       const velocityX =
@@ -5859,7 +5860,7 @@ class RapierDriveSimulation {
 
     // Follow the fixed-step update style from three.js Rapier vehicle controller example.
     this.physicsAccumulatorSec = Math.min(
-      this.physicsAccumulatorSec + effectiveDeltaSec,
+      this.physicsAccumulatorSec + simulationDeltaSec,
       this.physicsFixedTimeStepSec * this.maxPhysicsCatchupSteps,
     );
     const linkMap = this.viewer?.robotModel?.links || null;
@@ -6137,7 +6138,7 @@ class RapierDriveSimulation {
     }
 
     this.maybeLogRuntimeDiagnostics(
-      effectiveDeltaSec,
+      simulationDeltaSec,
       driveViewer,
       clampedSpeed,
       throttleSign,
@@ -6182,7 +6183,7 @@ class RapierDriveSimulation {
       const completedDistance =
         (currentPosition.x - frameStartPosition.x) * forwardX +
         (currentPosition.y - frameStartPosition.y) * forwardY;
-      const targetDistance = clampedSpeed * effectiveDeltaSec;
+      const targetDistance = clampedSpeed * simulationDeltaSec;
       const remainingDistance = Math.max(
         targetDistance - Math.max(completedDistance, 0),
         0,

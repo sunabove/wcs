@@ -478,7 +478,7 @@ $(document).ready(function () {
     applyVehicleCommandWheelHighlight(command);
     applyVehicleDirectionAnimation(command, commandSpeedKmh);
 
-    if (sameCommand && sameSpeed) {
+    if (Number(command) !== 0 && sameCommand && sameSpeed) {
       console.log(
         `[Vehicle Test] 중복 방향 명령 스킵: ${topic} = ${command}, ${speedTopic} = ${roundedSpeedMs}`,
       );

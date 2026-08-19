@@ -4788,7 +4788,7 @@ class RapierDriveSimulation {
     const arrowCenterX = Number(this.vehicleColliderLocalCenter.x) || 0;
     const arrowOriginX = arrowCenterX + halfX + 0.04;
     const arrowHeight = Number(this.vehicleColliderLocalCenter.z) || 0;
-    const arrowShaftRadius = 0.024;
+    const arrowShaftRadius = 0.012;
     const arrowShaftLength = Math.max(arrowLength - 0.05, 0.035) * 3;
     const arrowHeadLength = Math.min(
       Math.max(arrowShaftLength * 0.45, 0.05),

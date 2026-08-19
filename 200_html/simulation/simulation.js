@@ -4788,9 +4788,12 @@ class RapierDriveSimulation {
     const arrowCenterX = Number(this.vehicleColliderLocalCenter.x) || 0;
     const arrowOriginX = arrowCenterX + halfX + 0.04;
     const arrowHeight = Number(this.vehicleColliderLocalCenter.z) || 0;
-    const arrowHeadLength = Math.min(Math.max(arrowLength * 0.55, 0.05), 0.08);
-    const arrowShaftLength = Math.max(arrowLength - arrowHeadLength, 0.035);
-    const arrowHeadRadius = Math.min(Math.max(arrowLength * 0.35, 0.035), 0.06);
+    const arrowShaftRadius = 0.024;
+    const arrowShaftLength = Math.max(arrowLength - 0.05, 0.035) * 3;
+    const arrowHeadLength = Math.min(
+      Math.max(arrowShaftLength * 0.45, 0.05),
+      0.08,
+    );
     const arrowMaterial = new THREE.MeshBasicMaterial({
       color: 0x0d6efd,
       depthTest: false,
@@ -4800,15 +4803,21 @@ class RapierDriveSimulation {
     arrowGroup.name = "simulation-vehicle-direction-arrows";
 
     const shaft = new THREE.Mesh(
-      new THREE.BoxGeometry(arrowShaftLength, 0.038, 0.038),
+      new THREE.CylinderGeometry(
+        arrowShaftRadius,
+        arrowShaftRadius,
+        arrowShaftLength,
+        16,
+      ),
       arrowMaterial,
     );
     shaft.position.set(arrowOriginX + arrowShaftLength * 0.5, 0, arrowHeight);
+    shaft.rotation.z = -Math.PI / 2;
     shaft.renderOrder = 10;
     arrowGroup.add(shaft);
 
     const arrowHead = new THREE.Mesh(
-      new THREE.ConeGeometry(arrowHeadRadius, arrowHeadLength, 4),
+      new THREE.ConeGeometry(arrowShaftRadius, arrowHeadLength, 16),
       arrowMaterial,
     );
     arrowHead.position.set(

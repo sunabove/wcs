@@ -4369,6 +4369,20 @@ class RapierDriveSimulation {
       return;
     }
 
+    if (this.isVehicleObstacleContact) {
+      if (typeof viewer.setWheelRotationDrivenByTravel === "function") {
+        viewer.setWheelRotationDrivenByTravel(false);
+      }
+      if (typeof viewer.applyDriveMode === "function") {
+        viewer.applyDriveMode(
+          this.commandedDriveMode || "stop",
+          this.mpsToKmh(this.commandedSpeedMps),
+        );
+      }
+      this.resetWheelTravelTracking();
+      return;
+    }
+
     if (typeof viewer.setWheelRotationDrivenByTravel === "function") {
       viewer.setWheelRotationDrivenByTravel(true);
     }

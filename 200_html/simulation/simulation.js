@@ -4788,6 +4788,8 @@ class RapierDriveSimulation {
     const arrowCenterX = Number(this.vehicleColliderLocalCenter.x) || 0;
     const arrowOriginX = arrowCenterX + halfX + 0.04;
     const arrowHeight = Number(this.vehicleColliderLocalCenter.z) || 0;
+    const arrowHeadLength = Math.min(Math.max(arrowLength * 0.36, 0.03), 0.06);
+    const arrowShaftLength = Math.max(arrowLength - arrowHeadLength, 0.01);
     const arrowGroup = new THREE.Group();
     arrowGroup.name = "simulation-vehicle-direction-arrows";
 
@@ -4796,14 +4798,23 @@ class RapierDriveSimulation {
       new THREE.Vector3(arrowOriginX, 0, arrowHeight),
       arrowLength,
       0x0d6efd,
-      Math.min(Math.max(arrowLength * 0.36, 0.03), 0.06),
+      arrowHeadLength,
       Math.min(Math.max(arrowLength * 0.24, 0.025), 0.05),
     );
-    arrow.line.material.linewidth = 2;
+    arrow.line.visible = false;
     arrow.line.material.depthTest = false;
     arrow.cone.material.depthTest = false;
     arrow.renderOrder = 10;
     arrowGroup.add(arrow);
+
+    const shaft = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.018, 0.018, arrowShaftLength, 12),
+      new THREE.MeshBasicMaterial({ color: 0x0d6efd, depthTest: false }),
+    );
+    shaft.position.set(arrowOriginX + arrowShaftLength * 0.5, 0, arrowHeight);
+    shaft.rotation.z = -Math.PI / 2;
+    shaft.renderOrder = 10;
+    arrowGroup.add(shaft);
 
     this.vehicleDirectionArrowGroup = arrowGroup;
     this.viewer.scene.add(arrowGroup);

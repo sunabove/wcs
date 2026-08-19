@@ -205,7 +205,6 @@ class RapierDriveSimulation {
     this.vehicleDirectionArrowGroup = null;
     this.vehicleYawIndicatorGroup = null;
     this.vehicleYawArcLine = null;
-    this.vehicleYawPointerLine = null;
     this.vehicleInitialYawRad = null;
     this.initialPosition = null;
     this.initialQuaternion = null;
@@ -4894,13 +4893,6 @@ class RapierDriveSimulation {
       fog: false,
       toneMapped: false,
     });
-    const pointerMaterial = new THREE.LineBasicMaterial({
-      color: 0xffb000,
-      depthTest: false,
-      depthWrite: false,
-      fog: false,
-      toneMapped: false,
-    });
     const indicatorGroup = new THREE.Group();
     indicatorGroup.name = "simulation-vehicle-yaw-indicator";
 
@@ -4918,16 +4910,6 @@ class RapierDriveSimulation {
     arcLine.renderOrder = 1000;
     indicatorGroup.add(arcLine);
 
-    const pointerLine = new THREE.Line(
-      new THREE.BufferGeometry().setFromPoints([
-        new THREE.Vector3(0, 0, 0),
-        new THREE.Vector3(arcRadius, 0, 0),
-      ]),
-      pointerMaterial,
-    );
-    pointerLine.renderOrder = 1000;
-    indicatorGroup.add(pointerLine);
-
     indicatorGroup.userData.arcRadius = arcRadius;
     indicatorGroup.userData.arcSegments = arcSegments;
     this.vehicleInitialYawRad = this.extractYawFromQuaternion(
@@ -4935,7 +4917,6 @@ class RapierDriveSimulation {
     );
     this.vehicleYawIndicatorGroup = indicatorGroup;
     this.vehicleYawArcLine = arcLine;
-    this.vehicleYawPointerLine = pointerLine;
     this.viewer.scene.add(indicatorGroup);
     this.syncVehicleYawIndicator();
   }
@@ -4944,7 +4925,6 @@ class RapierDriveSimulation {
     if (
       !this.vehicleYawIndicatorGroup ||
       !this.vehicleYawArcLine ||
-      !this.vehicleYawPointerLine ||
       !this.carFrame
     ) {
       return;
@@ -4959,7 +4939,7 @@ class RapierDriveSimulation {
     const roofOffset = new THREE.Vector3(
       Number(this.vehicleColliderLocalCenter.x) || 0,
       Number(this.vehicleColliderLocalCenter.y) || 0,
-      (Number(this.vehicleColliderLocalCenter.z) || 0) + halfZ + 0.025,
+      (Number(this.vehicleColliderLocalCenter.z) || 0) + halfZ + 0.06,
     ).applyQuaternion(carQuaternion);
     const initialYaw = Number.isFinite(this.vehicleInitialYawRad)
       ? this.vehicleInitialYawRad
@@ -4997,17 +4977,6 @@ class RapierDriveSimulation {
       0,
       segmentCount > 0 ? segmentCount + 1 : 0,
     );
-
-    const pointerPositions =
-      this.vehicleYawPointerLine.geometry.attributes.position;
-    pointerPositions.setXYZ(0, 0, 0, 0);
-    pointerPositions.setXYZ(
-      1,
-      Math.cos(yawDelta) * arcRadius,
-      Math.sin(yawDelta) * arcRadius,
-      0,
-    );
-    pointerPositions.needsUpdate = true;
     this.vehicleYawIndicatorGroup.updateMatrixWorld(true);
   }
 

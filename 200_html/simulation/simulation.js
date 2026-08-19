@@ -6163,13 +6163,7 @@ class RapierDriveSimulation {
       });
     }
 
-    const shouldAssistLowSpeedForward =
-      throttleSign !== 0 &&
-      Math.abs(effectiveSteerSign) < 1e-3 &&
-      clampedSpeed <= 0.2 &&
-      !hasObstacleContact &&
-      !isClimbingApproachAfterStep &&
-      !this.contactSolver.isObstacleTraversalActive();
+    const shouldAssistLowSpeedForward = false;
     if (shouldAssistLowSpeedForward) {
       const forwardX = targetVelocityX / Math.max(clampedSpeed, 1e-6);
       const forwardY = targetVelocityY / Math.max(clampedSpeed, 1e-6);

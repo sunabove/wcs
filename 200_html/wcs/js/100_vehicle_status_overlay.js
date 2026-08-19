@@ -724,6 +724,10 @@
     firstFrameRequestToken += 1;
     clearFirstFrameTimeout();
     clearTemporaryStatusMessage();
+    if (mediaPlaybackPaused) {
+      setOverlayStatus("일시 정지", true);
+      return;
+    }
     setOverlayStatus("", false);
   }
 

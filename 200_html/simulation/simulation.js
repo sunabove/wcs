@@ -305,7 +305,7 @@ class RapierDriveSimulation {
     this.wheelZChartToggleButtonElement = null;
     this.wheelZChartCanvasElement = null;
     this.wheelZChartContext = null;
-    this.wheelZChartWindowSec = 10;
+    this.wheelZChartWindowSec = 5;
     this.simulationElapsedSec = 0;
     this.wheelZChartInitialHalfRangeCm = WHEEL_Z_CHART_INITIAL_HALF_RANGE_CM;
     this.wheelZChartHalfRangeCm = WHEEL_Z_CHART_INITIAL_HALF_RANGE_CM;

@@ -63,6 +63,8 @@
   let mediaPlaybackPaused = false;
   let autoReplayEnabled = false;
   let overlayBrowserFullscreen = false;
+  let overlayOriginalParent = null;
+  let overlayOriginalNextSibling = null;
   let lastMediaType = "";
   let lastMediaSource = "";
   let lastMediaAspectRatio = 16 / 9;
@@ -197,6 +199,14 @@
   function exitOverlayFullscreen() {
     overlayBrowserFullscreen = false;
     $overlay.removeClass("road-detect-overlay-browser-fullscreen");
+    if (overlayOriginalParent && $overlay[0]) {
+      overlayOriginalParent.insertBefore(
+        $overlay[0],
+        overlayOriginalNextSibling,
+      );
+    }
+    overlayOriginalParent = null;
+    overlayOriginalNextSibling = null;
     updateFullscreenToggleButton();
   }
 
@@ -2168,6 +2178,11 @@
       return;
     }
 
+    overlayOriginalParent = $overlay[0]?.parentNode || null;
+    overlayOriginalNextSibling = $overlay[0]?.nextSibling || null;
+    if ($overlay[0] && document.body) {
+      document.body.appendChild($overlay[0]);
+    }
     overlayBrowserFullscreen = true;
     $overlay.addClass("road-detect-overlay-browser-fullscreen");
     updateFullscreenToggleButton();

@@ -20,11 +20,13 @@
 }
 
 .road-detect-overlay.road-detect-overlay-browser-fullscreen {
-  position: fixed;
-  width: 100vw;
-  height: 100vh;
+  position: fixed !important;
+  width: 100vw !important;
+  min-width: 100vw;
+  height: 100vh !important;
+  min-height: 100vh;
   inset: 0;
-  z-index: 1080;
+  z-index: 2000;
   border-radius: 0;
   background: #000;
 }

@@ -4788,33 +4788,37 @@ class RapierDriveSimulation {
     const arrowCenterX = Number(this.vehicleColliderLocalCenter.x) || 0;
     const arrowOriginX = arrowCenterX + halfX + 0.04;
     const arrowHeight = Number(this.vehicleColliderLocalCenter.z) || 0;
-    const arrowHeadLength = Math.min(Math.max(arrowLength * 0.36, 0.03), 0.06);
-    const arrowShaftLength = Math.max(arrowLength - arrowHeadLength, 0.01);
+    const arrowHeadLength = Math.min(Math.max(arrowLength * 0.55, 0.05), 0.08);
+    const arrowShaftLength = Math.max(arrowLength - arrowHeadLength, 0.035);
+    const arrowHeadRadius = Math.min(Math.max(arrowLength * 0.35, 0.035), 0.06);
+    const arrowMaterial = new THREE.MeshBasicMaterial({
+      color: 0x0d6efd,
+      depthTest: false,
+      depthWrite: false,
+    });
     const arrowGroup = new THREE.Group();
     arrowGroup.name = "simulation-vehicle-direction-arrows";
 
-    const arrow = new THREE.ArrowHelper(
-      new THREE.Vector3(1, 0, 0),
-      new THREE.Vector3(arrowOriginX, 0, arrowHeight),
-      arrowLength,
-      0x0d6efd,
-      arrowHeadLength,
-      Math.min(Math.max(arrowLength * 0.24, 0.025), 0.05),
-    );
-    arrow.line.visible = false;
-    arrow.line.material.depthTest = false;
-    arrow.cone.material.depthTest = false;
-    arrow.renderOrder = 10;
-    arrowGroup.add(arrow);
-
     const shaft = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.018, 0.018, arrowShaftLength, 12),
-      new THREE.MeshBasicMaterial({ color: 0x0d6efd, depthTest: false }),
+      new THREE.BoxGeometry(arrowShaftLength, 0.038, 0.038),
+      arrowMaterial,
     );
     shaft.position.set(arrowOriginX + arrowShaftLength * 0.5, 0, arrowHeight);
-    shaft.rotation.z = -Math.PI / 2;
     shaft.renderOrder = 10;
     arrowGroup.add(shaft);
+
+    const arrowHead = new THREE.Mesh(
+      new THREE.ConeGeometry(arrowHeadRadius, arrowHeadLength, 4),
+      arrowMaterial,
+    );
+    arrowHead.position.set(
+      arrowOriginX + arrowShaftLength + arrowHeadLength * 0.5,
+      0,
+      arrowHeight,
+    );
+    arrowHead.rotation.z = -Math.PI / 2;
+    arrowHead.renderOrder = 10;
+    arrowGroup.add(arrowHead);
 
     this.vehicleDirectionArrowGroup = arrowGroup;
     this.viewer.scene.add(arrowGroup);

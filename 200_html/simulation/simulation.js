@@ -5044,7 +5044,11 @@ class RapierDriveSimulation {
     this.vehicleYawArcArrowHead.visible = isTurning;
     if (isTurning) {
       const rotationSign = this.vehicleYawDirectionSign;
-      const rotationDirection = new THREE.Vector3(0, rotationSign, 0);
+      const arcTangent = new THREE.Vector3(
+        -Math.sin(yawDelta) * rotationSign,
+        Math.cos(yawDelta) * rotationSign,
+        0,
+      );
       const arcEnd = new THREE.Vector3(
         Math.cos(yawDelta) * arcRadius,
         Math.sin(yawDelta) * arcRadius,
@@ -5054,7 +5058,7 @@ class RapierDriveSimulation {
       this.vehicleYawArcArrowHead.rotation.set(
         0,
         0,
-        Math.atan2(rotationDirection.y, rotationDirection.x),
+        Math.atan2(arcTangent.y, arcTangent.x),
       );
     }
     this.vehicleYawIndicatorGroup.updateMatrixWorld(true);

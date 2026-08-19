@@ -355,6 +355,16 @@ $(document).ready(function () {
     .removeClass("btn-outline-secondary text-black")
     .addClass("active btn-secondary text-white");
 
+  function setWheelTestButtonActive(buttonElement) {
+    $("#test-clockwise, #test-counterclockwise, #test-stop")
+      .removeClass("active btn-secondary text-white")
+      .addClass("btn-outline-secondary text-black");
+
+    buttonElement
+      .removeClass("btn-outline-secondary text-black")
+      .addClass("active btn-secondary text-white");
+  }
+
   function stopAllWheels() {
     vehicleDirectionWheelKeys.forEach((wheelKey) => {
       const operationTopic = `wheel/${wheelKey}/operation/command`;
@@ -389,13 +399,7 @@ $(document).ready(function () {
       window.setVehicleWheelHighlightByKey(selectedWheel);
     }
 
-    $("#test-clockwise, #test-counterclockwise, #test-stop")
-      .removeClass("active btn-secondary text-white")
-      .addClass("btn-outline-secondary text-black");
-
-    buttonElement
-      .removeClass("btn-outline-secondary text-black")
-      .addClass("active btn-secondary text-white");
+    setWheelTestButtonActive(buttonElement);
 
     if (Number(command) === 1 || Number(command) === 2) {
       window.WcsMqtt.sendMQTTMessage(topic, command, 1);
@@ -528,7 +532,11 @@ $(document).ready(function () {
 
   $("#test-stop").click(function (event) {
     event.preventDefault();
-    sendWheelCommand(0, $(this), "정지", "⏹️");
+    const $stopButton = $(this);
+    clearWheelCommandBlinkTimers();
+    setWheelTestButtonActive($stopButton);
+    sendWheelCommand(0, $stopButton, "정지", "⏹️");
+    setWheelTestButtonActive($stopButton);
   });
 
   $("#wheelTestSpeedSlider").on("input change", function () {

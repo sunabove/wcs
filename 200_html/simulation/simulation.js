@@ -4413,10 +4413,12 @@ class RapierDriveSimulation {
 
         wheelLink.updateWorldMatrix(true, false);
         const position = wheelLink.getWorldPosition(new THREE.Vector3());
+        const quaternion = wheelLink.getWorldQuaternion(new THREE.Quaternion());
         wheelBody.setTranslation(
           new this.rapier.Vector3(position.x, position.y, position.z),
           true,
         );
+        wheelBody.setRotation(quaternion, true);
         wheelBody.setLinvel(new this.rapier.Vector3(0, 0, 0), true);
         wheelBody.setAngvel(new this.rapier.Vector3(0, 0, 0), true);
       },

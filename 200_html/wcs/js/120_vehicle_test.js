@@ -415,6 +415,10 @@ $(document).ready(function () {
     );
 
     clearWheelCommandBlinkTimers();
+    if (Number(command) === 0) {
+      return;
+    }
+
     // Blink by toggling button classes 2 times
     for (let i = 0; i < 4; i++) {
       const timerId = setTimeout(

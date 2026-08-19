@@ -181,8 +181,14 @@
 
     const hasImageSource = !!String($image.attr("src") || "").trim();
     const hasVideoSource = !!String($video.attr("src") || "").trim();
+    const hasRoadFileVideoSource =
+      !!latestCurrentVideoFileName &&
+      (String(lastMediaSource || "") === String(latestCurrentVideoFileName) ||
+        !!roadFileOverlaySessionId ||
+        !!roadFileOverlayInitRequest);
     const canFullscreen =
-      !mediaHiddenByUser && (hasImageSource || hasVideoSource);
+      !mediaHiddenByUser &&
+      (hasImageSource || hasVideoSource || hasRoadFileVideoSource);
     const isFullscreen = isOverlayFullscreen();
 
     $fullscreenToggleButton

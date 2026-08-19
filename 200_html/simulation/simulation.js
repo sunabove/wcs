@@ -753,10 +753,7 @@ class RapierDriveSimulation {
           wheelLink.getWorldPosition(centerWorld);
         }
 
-        if (
-          this.isBodyNearFlatGroundSupport() ||
-          !Number.isFinite(this.wheelChartBaselineCenterZByKey[wheelKey])
-        ) {
+        if (!Number.isFinite(this.wheelChartBaselineCenterZByKey[wheelKey])) {
           this.wheelChartBaselineCenterZByKey[wheelKey] = centerWorld.z;
         }
 

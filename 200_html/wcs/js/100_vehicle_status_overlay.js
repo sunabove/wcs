@@ -184,8 +184,8 @@
 
     $fullscreenToggleButton
       .prop("disabled", !canFullscreen)
-      .attr("title", isFullscreen ? "복원" : "전체 보기")
-      .attr("aria-label", isFullscreen ? "복원" : "전체 보기")
+      .attr("title", isFullscreen ? "복원" : "전체 화면")
+      .attr("aria-label", isFullscreen ? "복원" : "전체 화면")
       .html(
         isFullscreen
           ? '<i class="bi bi-fullscreen-exit" aria-hidden="true"></i>'

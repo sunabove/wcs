@@ -5050,9 +5050,7 @@ class RapierDriveSimulation {
         Math.sin(yawDelta) * arcRadius,
         0.003,
       );
-      this.vehicleYawArcArrowHead.position
-        .copy(arcEnd)
-        .addScaledVector(rotationDirection, -0.024);
+      this.vehicleYawArcArrowHead.position.copy(arcEnd);
       this.vehicleYawArcArrowHead.rotation.set(
         0,
         0,

@@ -3350,7 +3350,7 @@ class RapierDriveSimulation {
       return [];
     }
 
-    return Object.entries(this.wheelCollidersByKey)
+    const fallbackWheelContactKeys = Object.entries(this.wheelCollidersByKey)
       .filter(([wheelKey, wheelCollider]) => {
         if (!wheelCollider || typeof wheelCollider.translation !== "function") {
           return false;
@@ -3383,6 +3383,30 @@ class RapierDriveSimulation {
           (wheelCenter.y - nearestY) ** 2 +
           (wheelCenter.z - nearestZ) ** 2;
         return distanceSquared <= wheelRadius ** 2;
+      })
+      .map(([wheelKey]) => wheelKey);
+    if (fallbackWheelContactKeys.length > 0) {
+      return fallbackWheelContactKeys;
+    }
+
+    const effectiveLinkMap = linkMap || this.viewer?.robotModel?.links || null;
+    const obstacleBounds = this.getObstacleWorldBounds(
+      obstacleInfo,
+      effectiveLinkMap,
+    );
+    if (!effectiveLinkMap || !obstacleBounds || obstacleBounds.isEmpty()) {
+      return [];
+    }
+
+    return Object.entries(this.wheelLinkNameByKey)
+      .filter(([wheelKey, wheelLinkName]) => {
+        const wheelLink = this.findLinkByName(effectiveLinkMap, wheelLinkName);
+        const wheelBounds = wheelLink
+          ? this.computeLinkOwnBounds(wheelLink, effectiveLinkMap)
+          : null;
+        return Boolean(
+          wheelBounds && wheelBounds.intersectsBox(obstacleBounds),
+        );
       })
       .map(([wheelKey]) => wheelKey);
   }
@@ -5168,9 +5192,8 @@ class RapierDriveSimulation {
         this.getObstacleContactedWheelKeys(obstacleInfo);
       obstacleInfo.hasChassisContact =
         this.isVehicleColliderContactingObstacle(obstacleInfo);
-      obstacleHasContact =
-        obstacleInfo.contactedWheelKeys.length > 0 ||
-        obstacleInfo.hasChassisContact;
+      const hasWheelContact = obstacleInfo.contactedWheelKeys.length > 0;
+      obstacleHasContact = hasWheelContact || obstacleInfo.hasChassisContact;
 
       const isActiveTraversalObstacle =
         this.activeObstacleTraversalPath?.obstacleInfo === obstacleInfo;
@@ -5185,7 +5208,7 @@ class RapierDriveSimulation {
         obstacleInfo.isContactHighlightLatched = false;
       }
 
-      this.setObstacleContactHighlight(obstacleInfo, obstacleHasContact);
+      this.setObstacleContactHighlight(obstacleInfo, hasWheelContact);
       hasContact = hasContact || obstacleHasContact;
     });
 

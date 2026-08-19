@@ -188,7 +188,7 @@
         .removeClass("road-detect-overlay-control-btn-active")
         .attr("title", "자동 반복 OFF")
         .attr("aria-label", "자동 반복 OFF")
-        .html('<i class="bi bi-play-fill" aria-hidden="true"></i>');
+        .html('<i class="bi bi-slash-circle" aria-hidden="true"></i>');
     }
 
     $loopToggleButton.prop("disabled", !isControlEnabled);

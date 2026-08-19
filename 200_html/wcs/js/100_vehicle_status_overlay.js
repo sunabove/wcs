@@ -1933,6 +1933,15 @@
     applyCompactOverlayLayout();
     syncVehicleTransparencyControl();
 
+    const isRoadFileStreamSource =
+      !!latestCurrentVideoFileName &&
+      lastMediaType === "image" &&
+      String(lastMediaSource || "") === String(latestCurrentVideoFileName);
+    if (isRoadFileStreamSource) {
+      resolveAndShowCurrentVideo(latestCurrentVideoFileName);
+      return;
+    }
+
     if (lastMediaType === "video" && lastMediaSource) {
       showVideoSource(lastMediaSource);
       return;

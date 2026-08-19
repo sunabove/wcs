@@ -4967,7 +4967,7 @@ class RapierDriveSimulation {
     const roofOffset = new THREE.Vector3(
       Number(this.vehicleColliderLocalCenter.x) || 0,
       Number(this.vehicleColliderLocalCenter.y) || 0,
-      (Number(this.vehicleColliderLocalCenter.z) || 0) + halfZ,
+      (Number(this.vehicleColliderLocalCenter.z) || 0) + halfZ + 0.01,
     ).applyQuaternion(carQuaternion);
     const initialYaw = Number.isFinite(this.vehicleInitialYawRad)
       ? this.vehicleInitialYawRad

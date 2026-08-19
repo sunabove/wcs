@@ -1327,7 +1327,6 @@ class RapierDriveSimulation {
     this.hasActivatedSimulationMotion = false;
     this.hasActivatedDynamicGroundClamp = false;
     this.clearCenterTurnPivot();
-    this.wheelZChartLastSampleTimeMs = null;
 
     if (this.carFrame) {
       this.syncCarFrameFromBody();
@@ -1339,7 +1338,6 @@ class RapierDriveSimulation {
     const hasDriveModeChanged = this.commandedDriveMode !== normalizedMode;
     this.commandedDriveMode = normalizedMode;
     if (hasDriveModeChanged) {
-      this.lowSpeedKinematicPosition = null;
       this.lastStepTimeMs = 0;
       if (
         (normalizedMode === "forward" || normalizedMode === "backward") &&
@@ -1474,7 +1472,6 @@ class RapierDriveSimulation {
     const hasSpeedChanged = this.commandedSpeedMps !== normalizedMps;
     this.commandedSpeedMps = normalizedMps;
     if (hasSpeedChanged) {
-      this.lowSpeedKinematicPosition = null;
       this.physicsAccumulatorSec = 0;
       this.lastStepTimeMs = 0;
     }
@@ -3412,123 +3409,6 @@ class RapierDriveSimulation {
       isContacting = true;
     });
     return isContacting;
-  }
-
-  isVehiclePositionTouchingObstacle(position) {
-    this.lastPredictedObstacleName = null;
-    if (!this.body || !position) {
-      return false;
-    }
-
-    const currentPosition = this.body.translation();
-    const currentCenter = this.getVehicleColliderWorldCenter();
-    const halfExtents = this.getVehicleColliderWorldAabbHalfExtents();
-    if (!currentCenter || !halfExtents) {
-      return false;
-    }
-
-    const nextCenter = new THREE.Vector3(
-      currentCenter.x + position.x - currentPosition.x,
-      currentCenter.y + position.y - currentPosition.y,
-      currentCenter.z + position.z - currentPosition.z,
-    );
-    const translationDelta = new THREE.Vector3(
-      position.x - currentPosition.x,
-      position.y - currentPosition.y,
-      position.z - currentPosition.z,
-    );
-    return this.obstacleColliderInfos.some((obstacleInfo) => {
-      if (
-        obstacleInfo?.isSensor ||
-        !obstacleInfo?.center ||
-        !obstacleInfo?.halfExtents
-      ) {
-        return false;
-      }
-
-      const chassisTouchesObstacle =
-        Math.abs(nextCenter.x - obstacleInfo.center.x) <=
-          halfExtents.x + obstacleInfo.halfExtents.x &&
-        Math.abs(nextCenter.y - obstacleInfo.center.y) <=
-          halfExtents.y + obstacleInfo.halfExtents.y &&
-        Math.abs(nextCenter.z - obstacleInfo.center.z) <=
-          halfExtents.z + obstacleInfo.halfExtents.z;
-      if (chassisTouchesObstacle) {
-        this.lastPredictedObstacleName = obstacleInfo.linkName || "unknown";
-        return true;
-      }
-
-      const wheelTouchesObstacle = Object.entries(
-        this.wheelCollidersByKey,
-      ).some(([wheelKey, wheelCollider]) => {
-        if (!wheelCollider || typeof wheelCollider.translation !== "function") {
-          return false;
-        }
-
-        const wheelCenter = wheelCollider.translation();
-        const nextWheelCenter = new THREE.Vector3(
-          wheelCenter.x + translationDelta.x,
-          wheelCenter.y + translationDelta.y,
-          wheelCenter.z + translationDelta.z,
-        );
-        const wheelRadius = Math.max(
-          Number(this.wheelRadiusMetersByKey[wheelKey]) ||
-            Number(this.wheelEffectiveRadiusMeters) ||
-            0,
-          0.05,
-        );
-        const nearestX = THREE.MathUtils.clamp(
-          nextWheelCenter.x,
-          obstacleInfo.center.x - obstacleInfo.halfExtents.x,
-          obstacleInfo.center.x + obstacleInfo.halfExtents.x,
-        );
-        const nearestY = THREE.MathUtils.clamp(
-          nextWheelCenter.y,
-          obstacleInfo.center.y - obstacleInfo.halfExtents.y,
-          obstacleInfo.center.y + obstacleInfo.halfExtents.y,
-        );
-        const nearestZ = THREE.MathUtils.clamp(
-          nextWheelCenter.z,
-          obstacleInfo.center.z - obstacleInfo.halfExtents.z,
-          obstacleInfo.center.z + obstacleInfo.halfExtents.z,
-        );
-        const distanceSquared =
-          (nextWheelCenter.x - nearestX) ** 2 +
-          (nextWheelCenter.y - nearestY) ** 2 +
-          (nextWheelCenter.z - nearestZ) ** 2;
-        return distanceSquared <= wheelRadius ** 2;
-      });
-      if (wheelTouchesObstacle) {
-        this.lastPredictedObstacleName = obstacleInfo.linkName || "unknown";
-      }
-      return wheelTouchesObstacle;
-    });
-  }
-
-  isVehiclePathTouchingObstacle(startPosition, endPosition) {
-    if (!startPosition || !endPosition) {
-      return false;
-    }
-
-    const distance = Math.hypot(
-      endPosition.x - startPosition.x,
-      endPosition.y - startPosition.y,
-      endPosition.z - startPosition.z,
-    );
-    const stepCount = Math.max(1, Math.ceil(distance / 0.005));
-    for (let stepIndex = 1; stepIndex <= stepCount; stepIndex += 1) {
-      const progress = stepIndex / stepCount;
-      const samplePosition = new THREE.Vector3(
-        startPosition.x + (endPosition.x - startPosition.x) * progress,
-        startPosition.y + (endPosition.y - startPosition.y) * progress,
-        startPosition.z + (endPosition.z - startPosition.z) * progress,
-      );
-      if (this.isVehiclePositionTouchingObstacle(samplePosition)) {
-        return true;
-      }
-    }
-
-    return false;
   }
 
   getWheelKeysTouchingObstacleAtPosition(obstacleInfo, position) {
@@ -5700,9 +5580,6 @@ class RapierDriveSimulation {
     this.lastStepTimeMs = now;
     // Physics advances in fixed virtual simulation time; visual speed only affects rendering.
     const simulationDeltaSec = deltaSec;
-    this.lowSpeedPositionAssistDistanceMeters = 0;
-    this.predictedObstacleBlockActive = false;
-
     const keyboardState = this.vehicleController.getKeyboardState();
     const driveViewer = this.vehicleController.getDriveSource();
 
@@ -6157,44 +6034,6 @@ class RapierDriveSimulation {
       hasObstacleContact,
     );
 
-    this.lowSpeedKinematicPosition = null;
-
-    const shouldAssistLowSpeedForward = false;
-    if (shouldAssistLowSpeedForward) {
-      const forwardX = targetVelocityX / Math.max(clampedSpeed, 1e-6);
-      const forwardY = targetVelocityY / Math.max(clampedSpeed, 1e-6);
-      const currentPosition = this.body.translation();
-      const completedDistance =
-        (currentPosition.x - frameStartPosition.x) * forwardX +
-        (currentPosition.y - frameStartPosition.y) * forwardY;
-      const targetDistance = clampedSpeed * simulationDeltaSec;
-      const remainingDistance = Math.max(
-        targetDistance - Math.max(completedDistance, 0),
-        0,
-      );
-      if (remainingDistance > 1e-6) {
-        const assistedPosition = new THREE.Vector3(
-          currentPosition.x + forwardX * remainingDistance,
-          currentPosition.y + forwardY * remainingDistance,
-          currentPosition.z,
-        );
-        if (
-          !this.isVehiclePathTouchingObstacle(currentPosition, assistedPosition)
-        ) {
-          this.body.setTranslation(
-            new this.rapier.Vector3(
-              assistedPosition.x,
-              assistedPosition.y,
-              assistedPosition.z,
-            ),
-            true,
-          );
-          this.lowSpeedKinematicPosition = assistedPosition;
-          this.lowSpeedPositionAssistDistanceMeters += remainingDistance;
-        }
-      }
-    }
-
     this.constrainCenterTurnPivot();
 
     const nextPosition = this.body.translation();
@@ -6324,7 +6163,6 @@ class RapierDriveSimulation {
     this.isWheelZChartObstacleContactActive = false;
     this.simulationElapsedSec = 0;
     this.wheelZChartHalfRangeCm = this.wheelZChartInitialHalfRangeCm;
-    this.wheelZChartLastSampleTimeMs = null;
     this.vehiclePreviousYawRad = null;
     this.vehicleYawDirectionSign = 0;
     Object.keys(this.wheelRadiusMetersByKey).forEach((key) => {

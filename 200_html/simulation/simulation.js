@@ -5041,7 +5041,7 @@ class RapierDriveSimulation {
       );
       this.vehicleYawArcArrowHead.position
         .copy(arcEnd)
-        .addScaledVector(tangent, 0.01);
+        .addScaledVector(tangent, -0.024);
       this.vehicleYawArcArrowHead.rotation.set(
         0,
         0,

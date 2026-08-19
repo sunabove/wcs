@@ -205,6 +205,7 @@ class RapierDriveSimulation {
     this.vehicleDirectionArrowGroup = null;
     this.vehicleYawIndicatorGroup = null;
     this.vehicleYawArcLine = null;
+    this.vehicleYawRadiusLine = null;
     this.vehicleInitialYawRad = null;
     this.initialPosition = null;
     this.initialQuaternion = null;
@@ -4896,34 +4897,19 @@ class RapierDriveSimulation {
     const indicatorGroup = new THREE.Group();
     indicatorGroup.name = "simulation-vehicle-yaw-indicator";
 
-    const centerArrowMaterial = new THREE.MeshBasicMaterial({
-      color: 0x00a8ff,
-      depthTest: false,
-      depthWrite: false,
-      fog: false,
-      toneMapped: false,
-    });
-    const centerArrowShaft = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.006, 0.006, 0.05, 12),
-      centerArrowMaterial,
-    );
-    centerArrowShaft.position.z = 0.025;
-    centerArrowShaft.rotation.x = Math.PI / 2;
-    centerArrowShaft.renderOrder = 1000;
-    indicatorGroup.add(centerArrowShaft);
-
-    const centerArrowHead = new THREE.Mesh(
-      new THREE.ConeGeometry(0.016, 0.035, 12),
-      centerArrowMaterial,
-    );
-    centerArrowHead.position.z = 0.0675;
-    centerArrowHead.rotation.x = Math.PI / 2;
-    centerArrowHead.renderOrder = 1000;
-    indicatorGroup.add(centerArrowHead);
-
     const arcLine = new THREE.Line(arcGeometry, lineMaterial);
     arcLine.renderOrder = 1000;
     indicatorGroup.add(arcLine);
+
+    const radiusLine = new THREE.Line(
+      new THREE.BufferGeometry().setFromPoints([
+        new THREE.Vector3(0, 0, 0),
+        new THREE.Vector3(arcRadius, 0, 0),
+      ]),
+      lineMaterial,
+    );
+    radiusLine.renderOrder = 1000;
+    indicatorGroup.add(radiusLine);
 
     indicatorGroup.userData.arcRadius = arcRadius;
     indicatorGroup.userData.arcSegments = arcSegments;
@@ -4932,6 +4918,7 @@ class RapierDriveSimulation {
     );
     this.vehicleYawIndicatorGroup = indicatorGroup;
     this.vehicleYawArcLine = arcLine;
+    this.vehicleYawRadiusLine = radiusLine;
     this.viewer.scene.add(indicatorGroup);
     this.syncVehicleYawIndicator();
   }
@@ -4940,6 +4927,7 @@ class RapierDriveSimulation {
     if (
       !this.vehicleYawIndicatorGroup ||
       !this.vehicleYawArcLine ||
+      !this.vehicleYawRadiusLine ||
       !this.carFrame
     ) {
       return;
@@ -4992,6 +4980,17 @@ class RapierDriveSimulation {
       0,
       segmentCount > 0 ? segmentCount + 1 : 0,
     );
+
+    const radiusPositions =
+      this.vehicleYawRadiusLine.geometry.attributes.position;
+    radiusPositions.setXYZ(0, 0, 0, 0);
+    radiusPositions.setXYZ(
+      1,
+      Math.cos(yawDelta) * arcRadius,
+      Math.sin(yawDelta) * arcRadius,
+      0,
+    );
+    radiusPositions.needsUpdate = true;
     this.vehicleYawIndicatorGroup.updateMatrixWorld(true);
   }
 

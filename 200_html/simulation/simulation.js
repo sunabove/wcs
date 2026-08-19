@@ -362,7 +362,10 @@ class RapierDriveSimulation {
   normalizeDriveSpeedMps(rawValue, fallbackValue = SIM_SPEED_DEFAULT_MPS) {
     const numeric = Number.parseFloat(rawValue);
     const base = Number.isFinite(numeric) ? numeric : fallbackValue;
-    const clamped = Math.max(0, Math.min(SIM_SPEED_MAX_MPS, base));
+    const clamped = Math.max(
+      SIM_SPEED_DEFAULT_MPS,
+      Math.min(SIM_SPEED_MAX_MPS, base),
+    );
     return Math.round(clamped * 10) / 10;
   }
 

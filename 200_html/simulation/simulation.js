@@ -1059,14 +1059,6 @@ class RapierDriveSimulation {
     ctx.setLineDash([]);
     ctx.lineDashOffset = 0;
 
-    const zeroBaselineY = toY(0);
-    ctx.strokeStyle = "#495057";
-    ctx.lineWidth = 1.4;
-    ctx.beginPath();
-    ctx.moveTo(margin.left, zeroBaselineY);
-    ctx.lineTo(margin.left + plotWidth, zeroBaselineY);
-    ctx.stroke();
-
     const legendKeys = ["fl", "fr", "rl", "rr"];
     const legendX = margin.left + plotWidth - 50;
     const legendStartY = margin.top + 14;

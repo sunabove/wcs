@@ -4789,6 +4789,7 @@ class RapierDriveSimulation {
     const arrowOriginX = arrowCenterX + halfX + 0.04;
     const arrowHeight = Number(this.vehicleColliderLocalCenter.z) || 0;
     const arrowShaftRadius = 0.012;
+    const arrowHeadBaseRadius = 0.024;
     const arrowShaftLength = Math.max(arrowLength - 0.05, 0.035) * 3;
     const arrowHeadLength = Math.min(
       Math.max(arrowShaftLength * 0.45, 0.05),
@@ -4817,7 +4818,7 @@ class RapierDriveSimulation {
     arrowGroup.add(shaft);
 
     const arrowHead = new THREE.Mesh(
-      new THREE.ConeGeometry(arrowShaftRadius, arrowHeadLength, 16),
+      new THREE.ConeGeometry(arrowHeadBaseRadius, arrowHeadLength, 16),
       arrowMaterial,
     );
     arrowHead.position.set(

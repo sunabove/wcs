@@ -5842,6 +5842,7 @@ class RapierDriveSimulation {
         .normalize();
     }
     this.carFrame.updateMatrixWorld(true);
+    this.syncWheelRotationToBodyTravel();
   }
 
   async runLoop() {

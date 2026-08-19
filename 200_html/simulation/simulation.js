@@ -5757,6 +5757,8 @@ class RapierDriveSimulation {
         this.enforceFlatGroundRideHeight();
       }
       this.renderer.syncVehicle();
+      this.wheelZChartElapsedSec += this.physicsFixedTimeStepSec;
+      this.sampleWheelCenterZForChart(this.wheelZChartElapsedSec);
       this.physicsAccumulatorSec -= this.physicsFixedTimeStepSec;
       stepIndex += 1;
     }
@@ -5927,34 +5929,7 @@ class RapierDriveSimulation {
     }
 
     this.stepSimulation();
-
-    const nowMs =
-      typeof performance !== "undefined" &&
-      typeof performance.now === "function"
-        ? performance.now()
-        : null;
-    if (nowMs !== null) {
-      const isDriveStopped =
-        String(this.commandedDriveMode || "").toLowerCase() === "stop";
-      if (isDriveStopped) {
-        this.wheelZChartLastSampleTimeMs = null;
-      } else {
-        if (this.wheelZChartLastSampleTimeMs === null) {
-          this.wheelZChartLastSampleTimeMs = nowMs;
-        }
-
-        const frameDeltaSec = Math.min(
-          Math.max((nowMs - this.wheelZChartLastSampleTimeMs) / 1000, 0),
-          0.1,
-        );
-        this.wheelZChartLastSampleTimeMs = nowMs;
-        this.wheelZChartElapsedSec += frameDeltaSec * this.visualSpeedScale;
-        this.sampleWheelCenterZForChart(this.wheelZChartElapsedSec);
-      }
-      this.renderWheelZChart(this.wheelZChartElapsedSec);
-    } else {
-      this.renderWheelZChart(this.wheelZChartElapsedSec);
-    }
+    this.renderWheelZChart(this.wheelZChartElapsedSec);
 
     this.updateDebugPanel(this.physicsFixedTimeStepSec);
     this.simulationLoop.schedule();

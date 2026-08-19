@@ -4922,14 +4922,20 @@ class RapierDriveSimulation {
     startRadiusLine.renderOrder = 1000;
     indicatorGroup.add(startRadiusLine);
 
+    const arcArrowShape = new THREE.Shape();
+    arcArrowShape.moveTo(-0.018, -0.012);
+    arcArrowShape.lineTo(0.024, 0);
+    arcArrowShape.lineTo(-0.018, 0.012);
+    arcArrowShape.closePath();
     const arcArrowHead = new THREE.Mesh(
-      new THREE.ConeGeometry(0.016, 0.04, 12),
+      new THREE.ShapeGeometry(arcArrowShape),
       new THREE.MeshBasicMaterial({
         color: 0x00a8ff,
         depthTest: false,
         depthWrite: false,
         fog: false,
         toneMapped: false,
+        side: THREE.DoubleSide,
       }),
     );
     arcArrowHead.visible = false;
@@ -5035,10 +5041,11 @@ class RapierDriveSimulation {
       );
       this.vehicleYawArcArrowHead.position
         .copy(arcEnd)
-        .addScaledVector(tangent, 0.02);
-      this.vehicleYawArcArrowHead.quaternion.setFromUnitVectors(
-        new THREE.Vector3(0, 1, 0),
-        tangent,
+        .addScaledVector(tangent, 0.01);
+      this.vehicleYawArcArrowHead.rotation.set(
+        0,
+        0,
+        Math.atan2(tangent.y, tangent.x),
       );
     }
     this.vehicleYawIndicatorGroup.updateMatrixWorld(true);

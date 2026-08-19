@@ -876,6 +876,9 @@ class RapierDriveSimulation {
       maxZ = 0.05;
     }
 
+    minZ = Math.min(minZ, 0);
+    maxZ = Math.max(maxZ, 0);
+
     if (maxZ - minZ < 0.001) {
       maxZ += 0.0005;
       minZ -= 0.0005;
@@ -932,6 +935,14 @@ class RapierDriveSimulation {
       ctx.lineTo(gx, margin.top + plotHeight);
       ctx.stroke();
     });
+
+    const zeroBaselineY = toY(0);
+    ctx.strokeStyle = "#6c757d";
+    ctx.lineWidth = 1.4;
+    ctx.beginPath();
+    ctx.moveTo(margin.left, zeroBaselineY);
+    ctx.lineTo(margin.left + plotWidth, zeroBaselineY);
+    ctx.stroke();
 
     ctx.strokeStyle = "#495057";
     ctx.lineWidth = 1.2;

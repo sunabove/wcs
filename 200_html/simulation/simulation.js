@@ -228,7 +228,7 @@ class RapierDriveSimulation {
     this.maxSpeedMps = 100 / 3.6;
     this.maxYawRateRad = THREE.MathUtils.degToRad(25);
     this.centerTurnYawRateScale = 0.15;
-    this.enableWheelPhysicsColliders = false;
+    this.enableWheelPhysicsColliders = true;
     this.blockMotionOnObstacleContact = true;
     this.keepUprightOnFlatGround = true;
     this.isUprightRotationLockActive = false;
@@ -5208,7 +5208,7 @@ class RapierDriveSimulation {
         obstacleInfo.isContactHighlightLatched = false;
       }
 
-      this.setObstacleContactHighlight(obstacleInfo, hasWheelContact);
+      this.setObstacleContactHighlight(obstacleInfo, obstacleHasContact);
       hasContact = hasContact || obstacleHasContact;
     });
 
@@ -5864,19 +5864,7 @@ class RapierDriveSimulation {
       );
       const obstacleReferencePosition = this.body.translation();
       const obstaclePathControlActive = false;
-      const predictedPosition = new THREE.Vector3(
-        obstacleReferencePosition.x +
-          targetVelocityX * this.physicsFixedTimeStepSec,
-        obstacleReferencePosition.y +
-          targetVelocityY * this.physicsFixedTimeStepSec,
-        obstacleReferencePosition.z,
-      );
-      const willEnterObstacle =
-        (keyboardState.isActive || throttleSign !== 0) &&
-        this.isVehiclePathTouchingObstacle(
-          obstacleReferencePosition,
-          predictedPosition,
-        );
+      const willEnterObstacle = false;
 
       if (
         !willEnterObstacle &&

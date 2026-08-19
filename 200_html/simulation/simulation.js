@@ -4896,19 +4896,30 @@ class RapierDriveSimulation {
     const indicatorGroup = new THREE.Group();
     indicatorGroup.name = "simulation-vehicle-yaw-indicator";
 
-    const centerPoint = new THREE.Mesh(
-      new THREE.CircleGeometry(0.018, 16),
-      new THREE.MeshBasicMaterial({
-        color: 0x00a8ff,
-        depthTest: false,
-        depthWrite: false,
-        fog: false,
-        toneMapped: false,
-      }),
+    const centerArrowMaterial = new THREE.MeshBasicMaterial({
+      color: 0x00a8ff,
+      depthTest: false,
+      depthWrite: false,
+      fog: false,
+      toneMapped: false,
+    });
+    const centerArrowShaft = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.006, 0.006, 0.05, 12),
+      centerArrowMaterial,
     );
-    centerPoint.position.z = 0.001;
-    centerPoint.renderOrder = 1000;
-    indicatorGroup.add(centerPoint);
+    centerArrowShaft.position.z = 0.025;
+    centerArrowShaft.rotation.x = Math.PI / 2;
+    centerArrowShaft.renderOrder = 1000;
+    indicatorGroup.add(centerArrowShaft);
+
+    const centerArrowHead = new THREE.Mesh(
+      new THREE.ConeGeometry(0.016, 0.035, 12),
+      centerArrowMaterial,
+    );
+    centerArrowHead.position.z = 0.0675;
+    centerArrowHead.rotation.x = Math.PI / 2;
+    centerArrowHead.renderOrder = 1000;
+    indicatorGroup.add(centerArrowHead);
 
     const arcLine = new THREE.Line(arcGeometry, lineMaterial);
     arcLine.renderOrder = 1000;

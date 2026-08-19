@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- This URDF was automatically created by SolidWorks to URDF Exporter! Originally created by Stephen Brawner (brawner@gmail.com) 
+<!-- This URDF was automatically created by SolidWorks to URDF Exporter! Originally created by
+Stephen Brawner (brawner@gmail.com) 
      Commit Version: 1.6.0-4-g7f85cfe  Build Version: 1.6.7995.38578
      For more information, please see http://wiki.ros.org/sw_urdf_exporter -->
 <robot name="sw5">
@@ -131,7 +132,7 @@
   </link>
 
   <joint name="ground_to_pothole_joint" type="fixed">
-    <origin xyz="0.0 -2.573 0.005" rpy="0 0 0" />
+    <origin xyz="3.6 0.32225 0.005" rpy="0 0 0" />
     <parent link="ground" />
     <child link="obstacle_pothole" />
   </joint>
@@ -160,7 +161,7 @@
   </link>
 
   <joint name="ground_to_wood_bar_joint" type="fixed">
-    <origin xyz="3.730 0.0 0.035" rpy="0 0 0" />
+    <origin xyz="1.2 0 0.035" rpy="0 0 0" />
     <parent link="ground" />
     <child link="obstacle_wood_bar" />
   </joint>
@@ -189,7 +190,7 @@
   </link>
 
   <joint name="ground_to_rock_1_joint" type="fixed">
-    <origin xyz="1.801 0.315 0.04" rpy="0 0 0" />
+    <origin xyz="2.4 0.32225 0.04" rpy="0 0 0" />
     <parent link="ground" />
     <child link="obstacle_rock_1" />
   </joint>
@@ -256,7 +257,7 @@
       </material>
     </visual>
     <collision>
-      <origin xyz="0 0 0" rpy="0 0 0" />  
+      <origin xyz="0 0 0" rpy="0 0 0" />
       <geometry>
         <mesh filename="../meshes/version_marker.STL" scale="0.01 0.01 0.01" />
       </geometry>

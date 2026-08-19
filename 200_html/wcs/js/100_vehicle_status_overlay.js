@@ -2207,6 +2207,15 @@
     updateFullscreenToggleButton();
   });
 
+  $(document).on("keydown.roadDetectOverlayFullscreen", function (event) {
+    if (event.key !== "Escape" || !isOverlayFullscreen()) {
+      return;
+    }
+
+    event.preventDefault();
+    exitOverlayFullscreen();
+  });
+
   $playToggleButton.on("click", function () {
     const hasSelectedVideoFile = !!String(
       latestCurrentVideoFileName || "",

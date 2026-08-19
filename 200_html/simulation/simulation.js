@@ -6242,10 +6242,13 @@ class RapierDriveSimulation {
     this.activeObstacleTraversalPath = null;
     this.hasActivatedSimulationMotion = false;
     this.hasActivatedDynamicGroundClamp = false;
+    this.straightDriveReferencePose = null;
+    this.straightDriveWarmupSteps = 0;
 
     // On reset, always return to the URDF-authored pose without extra ground alignment offsets.
     this.renderer.syncVehicle();
     this.resetWheelBodiesFromVisual();
+    this.stopSimulationMotion();
     this.resetWheelTravelTracking();
     this.syncWheelChartBaselineFromPhysics();
   }

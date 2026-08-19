@@ -6137,6 +6137,7 @@ class RapierDriveSimulation {
 
   resetUiStates() {
     this.togglePause(false);
+    this.applyDriveModeCommand("stop");
     this.resetRoadAttitude();
   }
 
@@ -6240,7 +6241,6 @@ class RapierDriveSimulation {
 
   async reset() {
     this.resetUiStates();
-    this.applyDriveModeCommand("stop");
     this.lastStepTimeMs = 0;
     this.physicsAccumulatorSec = 0;
 

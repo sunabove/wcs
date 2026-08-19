@@ -380,9 +380,8 @@ $(document).ready(function () {
       .removeClass("btn-outline-secondary text-black")
       .addClass("active btn-secondary text-white");
 
-    window.WcsMqtt.sendMQTTMessage(topic, command, 1);
-
     if (Number(command) === 1 || Number(command) === 2) {
+      window.WcsMqtt.sendMQTTMessage(topic, command, 1);
       const signedAngularSpeed =
         Number(command) === 2 ? -angularSpeedAbs : angularSpeedAbs;
       window.WcsMqtt.sendMQTTMessage(
@@ -392,7 +391,8 @@ $(document).ready(function () {
       );
     } else if (Number(command) === 0) {
       vehicleDirectionWheelKeys.forEach((wheelKey) => {
-        window.WcsMqtt.sendMQTTMessage(`wheel/${wheelKey}/angle/speed`, "0", 1);
+        publishWhenConnected(`wheel/${wheelKey}/operation/command`, 0);
+        publishWhenConnected(`wheel/${wheelKey}/angle/speed`, 0);
       });
     }
 

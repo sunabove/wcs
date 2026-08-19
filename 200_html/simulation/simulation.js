@@ -301,6 +301,8 @@ class RapierDriveSimulation {
     this.simulationElapsedSec = 0;
     this.wheelZChartInitialHalfRangeCm = WHEEL_Z_CHART_INITIAL_HALF_RANGE_CM;
     this.wheelZChartHalfRangeCm = WHEEL_Z_CHART_INITIAL_HALF_RANGE_CM;
+    this.wheelZChartObstacleContactEvents = [];
+    this.isWheelZChartObstacleContactActive = false;
     this.wheelZChartLastSampleTimeMs = null;
     this.wheelZChartLastRenderTimeMs = null;
     this.wheelZChartVisibleStorageKey = "wcs.simulation.wheelZChartVisible";
@@ -664,6 +666,27 @@ class RapierDriveSimulation {
       if (keepIndex > 0) {
         this.wheelZChartHistoryByKey[key] = samples.slice(keepIndex);
       }
+    });
+
+    this.wheelZChartObstacleContactEvents =
+      this.wheelZChartObstacleContactEvents.filter(
+        (event) => event.t >= minTimeSec,
+      );
+  }
+
+  recordWheelZChartObstacleContactEvent(isContacting, timeSec) {
+    const isActive = Boolean(isContacting);
+    if (
+      !Number.isFinite(timeSec) ||
+      isActive === this.isWheelZChartObstacleContactActive
+    ) {
+      return;
+    }
+
+    this.isWheelZChartObstacleContactActive = isActive;
+    this.wheelZChartObstacleContactEvents.push({
+      t: timeSec,
+      type: isActive ? "start" : "end",
     });
   }
 
@@ -1063,6 +1086,20 @@ class RapierDriveSimulation {
     });
     ctx.setLineDash([]);
     ctx.lineDashOffset = 0;
+
+    this.wheelZChartObstacleContactEvents
+      .filter((event) => event.t >= minTimeSec && event.t <= windowEndSec)
+      .forEach((event) => {
+        const eventX = toX(event.t);
+        ctx.strokeStyle = event.type === "start" ? "#dc3545" : "#198754";
+        ctx.lineWidth = 1.2;
+        ctx.setLineDash([3, 3]);
+        ctx.beginPath();
+        ctx.moveTo(eventX, margin.top);
+        ctx.lineTo(eventX, margin.top + plotHeight);
+        ctx.stroke();
+      });
+    ctx.setLineDash([]);
 
     const legendKeys = ["fl", "fr", "rl", "rr"];
     const legendX = margin.left + plotWidth - 50;
@@ -5751,6 +5788,10 @@ class RapierDriveSimulation {
       }
       this.renderer.syncVehicle();
       this.simulationElapsedSec += this.physicsFixedTimeStepSec;
+      this.recordWheelZChartObstacleContactEvent(
+        hasObstacleContactNow,
+        this.simulationElapsedSec,
+      );
       this.sampleWheelCenterZForChart(this.simulationElapsedSec);
       this.physicsAccumulatorSec -= this.physicsFixedTimeStepSec;
       stepIndex += 1;
@@ -5999,6 +6040,8 @@ class RapierDriveSimulation {
     Object.keys(this.wheelZChartHistoryByKey).forEach((key) => {
       this.wheelZChartHistoryByKey[key] = [];
     });
+    this.wheelZChartObstacleContactEvents = [];
+    this.isWheelZChartObstacleContactActive = false;
     this.simulationElapsedSec = 0;
     this.wheelZChartHalfRangeCm = this.wheelZChartInitialHalfRangeCm;
     this.wheelZChartLastSampleTimeMs = null;

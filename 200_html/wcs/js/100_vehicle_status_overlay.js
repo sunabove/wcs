@@ -3,6 +3,7 @@
   const $closeButton = $("#road-detect-overlay-close");
   const $playToggleButton = $("#road-detect-overlay-play-toggle");
   const $loopToggleButton = $("#road-detect-overlay-loop-toggle");
+  const $fullscreenToggleButton = $("#road-detect-overlay-fullscreen-toggle");
   const $status = $("#road-detect-overlay-status");
   const $image = $("#road-detect-overlay-image");
   const $video = $("#road-detect-overlay-video");
@@ -166,6 +167,40 @@
       );
   }
 
+  function isOverlayFullscreen() {
+    return document.fullscreenElement === $overlay[0];
+  }
+
+  function updateFullscreenToggleButton() {
+    if ($fullscreenToggleButton.length === 0) {
+      return;
+    }
+
+    const hasImageSource = !!String($image.attr("src") || "").trim();
+    const hasVideoSource = !!String($video.attr("src") || "").trim();
+    const canFullscreen =
+      !mediaHiddenByUser && (hasImageSource || hasVideoSource);
+    const isFullscreen = isOverlayFullscreen();
+
+    $fullscreenToggleButton
+      .prop("disabled", !canFullscreen)
+      .attr("title", isFullscreen ? "복원" : "전체 보기")
+      .attr("aria-label", isFullscreen ? "복원" : "전체 보기")
+      .html(
+        isFullscreen
+          ? '<i class="bi bi-fullscreen-exit" aria-hidden="true"></i>'
+          : '<i class="bi bi-arrows-fullscreen" aria-hidden="true"></i>',
+      );
+  }
+
+  function exitOverlayFullscreen() {
+    if (isOverlayFullscreen() && document.exitFullscreen) {
+      document.exitFullscreen().catch(function () {
+        // Ignore browser fullscreen exit failures.
+      });
+    }
+  }
+
   function updateLoopToggleButton(isControlEnabled = false) {
     if ($loopToggleButton.length === 0) {
       return;
@@ -211,6 +246,7 @@
       if (hasCloseButton) {
         $closeButton.prop("disabled", true);
       }
+      updateFullscreenToggleButton();
       return;
     }
 
@@ -225,6 +261,7 @@
         .attr("aria-label", "동영상 출력")
         .html('<i class="bi bi-play-btn-fill" aria-hidden="true"></i>');
       updateLoopToggleButton(false);
+      updateFullscreenToggleButton();
       return;
     }
 
@@ -242,6 +279,7 @@
         !!String(lastMediaSource || $image.attr("src") || "").trim() ||
         isRoadFileStreamActive;
       updateLoopToggleButton(hasImageMediaSource);
+      updateFullscreenToggleButton();
       if (mediaPlaybackPaused) {
         $playToggleButton
           .prop("disabled", false)
@@ -274,6 +312,7 @@
       videoElement.ended;
 
     updateLoopToggleButton(isVideoReady);
+    updateFullscreenToggleButton();
 
     if (!isVideoReady) {
       $playToggleButton
@@ -1848,6 +1887,7 @@
   }
 
   function hideOverlay() {
+    exitOverlayFullscreen();
     stopCameraOverlayStream(true);
     requestRoadDetectSessionCleanup(latestCurrentVideoFileName);
     setCloseButtonToShowMode(mediaHiddenByUser);
@@ -1858,6 +1898,7 @@
   }
 
   function hideMediaAreaOnly() {
+    exitOverlayFullscreen();
     stopCameraOverlayStream(true);
     requestRoadDetectSessionCleanup(latestCurrentVideoFileName);
     clearFirstFrameTimeout();
@@ -2120,6 +2161,23 @@
 
   $closeButton.on("click", function () {
     hideMediaAreaOnly();
+  });
+
+  $fullscreenToggleButton.on("click", function () {
+    if (isOverlayFullscreen()) {
+      exitOverlayFullscreen();
+      return;
+    }
+
+    if ($overlay[0] && $overlay[0].requestFullscreen) {
+      $overlay[0].requestFullscreen().catch(function () {
+        // Ignore browser fullscreen request failures.
+      });
+    }
+  });
+
+  document.addEventListener("fullscreenchange", function () {
+    updateFullscreenToggleButton();
   });
 
   $playToggleButton.on("click", function () {

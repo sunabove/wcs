@@ -19,6 +19,22 @@
   overflow: hidden;
 }
 
+.road-detect-overlay:fullscreen {
+  width: 100vw;
+  height: 100vh;
+  inset: auto;
+  border-radius: 0;
+  background: #000;
+}
+
+.road-detect-overlay:fullscreen .road-detect-overlay-body {
+  padding: 0;
+}
+
+.road-detect-overlay:fullscreen::backdrop {
+  background: #000;
+}
+
 .road-detect-overlay-header {
   height: 44px;
   padding: 0 12px;

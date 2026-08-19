@@ -198,7 +198,6 @@ class RapierDriveSimulation {
     this.obstacleContactSurfaceToleranceMeters = 0.012;
     this.obstacleApproachDisableSnapDistanceMeters = 0.05;
     this.obstacleDepenetrationEpsilonMeters = 0.015;
-    this.obstacleGeometryContactMarginMeters = 0.06;
     this.obstacleDepenetrationMaxIterations = 8;
     this.isVehicleObstacleContact = false;
     this.carFrame = null;
@@ -229,7 +228,6 @@ class RapierDriveSimulation {
     this.maxYawRateRad = THREE.MathUtils.degToRad(25);
     this.centerTurnYawRateScale = 0.15;
     this.enableWheelPhysicsColliders = true;
-    this.blockMotionOnObstacleContact = false;
     this.keepUprightOnFlatGround = true;
     this.isUprightRotationLockActive = false;
     this.groundPenetrationToleranceMeters = 0.003;
@@ -282,12 +280,8 @@ class RapierDriveSimulation {
     this.hasActivatedSimulationMotion = false;
     this.hasActivatedDynamicGroundClamp = false;
     this.visualSpeedScale = SIM_VISUAL_SPEED_DEFAULT_SCALE;
-    this.lowSpeedPositionAssistDistanceMeters = 0;
-    this.lowSpeedKinematicPosition = null;
     this.straightDriveReferencePose = null;
     this.straightDriveWarmupSteps = 0;
-    this.predictedObstacleBlockActive = false;
-    this.lastPredictedObstacleName = null;
     this.lastDriveCommandState = {
       throttleSign: 0,
       steerSign: 0,
@@ -311,8 +305,6 @@ class RapierDriveSimulation {
     this.wheelZChartHalfRangeCm = WHEEL_Z_CHART_INITIAL_HALF_RANGE_CM;
     this.wheelZChartObstacleContactEvents = [];
     this.isWheelZChartObstacleContactActive = false;
-    this.wheelZChartLastSampleTimeMs = null;
-    this.wheelZChartLastRenderTimeMs = null;
     this.wheelZChartVisibleStorageKey = "wcs.simulation.wheelZChartVisible";
     this.isWheelZChartVisible = this.loadWheelZChartVisibleState();
     this.wheelZChartHistoryByKey = {
@@ -1186,14 +1178,13 @@ class RapierDriveSimulation {
       const contactedWheelKeys =
         contactedObstacle?.contactedWheelKeys?.join(",") || "n/a";
       const hasChassisContact = contactedObstacle?.hasChassisContact === true;
-      const predictedObstacleName = this.lastPredictedObstacleName || "n/a";
       const gap =
         Number.isFinite(wheelContactPlaneZ) &&
         Number.isFinite(obstacleRock01TopZ)
           ? wheelContactPlaneZ - obstacleRock01TopZ
           : null;
 
-      obstacleSummary = `wheelPlaneZ=${Number.isFinite(wheelContactPlaneZ) ? wheelContactPlaneZ.toFixed(3) : "n/a"} rock01TopZ=${Number.isFinite(obstacleRock01TopZ) ? obstacleRock01TopZ.toFixed(3) : "n/a"} climb=${approachObstacle?.linkName || "n/a"} targetZ=${Number.isFinite(climbTargetZ) ? climbTargetZ.toFixed(3) : "n/a"} contactObstacle=${contactedObstacle?.linkName || "n/a"} predictedObstacle=${predictedObstacleName} contactWheels=${contactedWheelKeys} contactChassis=${hasChassisContact ? "Y" : "N"} path=${traversalPathActive ? "Y" : "N"} pathName=${traversalPathName} pathZ=${Number.isFinite(traversalTargetZ) ? traversalTargetZ.toFixed(3) : "n/a"} underbodyGap=${Number.isFinite(gap) ? gap.toFixed(3) : "n/a"}`;
+      obstacleSummary = `wheelPlaneZ=${Number.isFinite(wheelContactPlaneZ) ? wheelContactPlaneZ.toFixed(3) : "n/a"} rock01TopZ=${Number.isFinite(obstacleRock01TopZ) ? obstacleRock01TopZ.toFixed(3) : "n/a"} climb=${approachObstacle?.linkName || "n/a"} targetZ=${Number.isFinite(climbTargetZ) ? climbTargetZ.toFixed(3) : "n/a"} contactObstacle=${contactedObstacle?.linkName || "n/a"} contactWheels=${contactedWheelKeys} contactChassis=${hasChassisContact ? "Y" : "N"} path=${traversalPathActive ? "Y" : "N"} pathName=${traversalPathName} pathZ=${Number.isFinite(traversalTargetZ) ? traversalTargetZ.toFixed(3) : "n/a"} underbodyGap=${Number.isFinite(gap) ? gap.toFixed(3) : "n/a"}`;
       const wheelState = Object.entries(this.wheelGroundContactState || {})
         .map(([key, isContacting]) => `${key}${isContacting ? "Y" : "N"}`)
         .join(" ");
@@ -1227,7 +1218,7 @@ class RapierDriveSimulation {
         z: currentVelocity.z,
       };
 
-      metricsSummary = `metrics: contact=${contactStrengthMetric.toFixed(2)} accel=${this.accelerationMetric.toFixed(2)} lowAssist=${this.lowSpeedPositionAssistDistanceMeters.toFixed(5)}m throttle=${this.lastDriveCommandState.throttleSign} steer=${this.lastDriveCommandState.steerSign} move=${this.lastDriveCommandState.hasMoveCommand ? "Y" : "N"}`;
+      metricsSummary = `metrics: contact=${contactStrengthMetric.toFixed(2)} accel=${this.accelerationMetric.toFixed(2)} throttle=${this.lastDriveCommandState.throttleSign} steer=${this.lastDriveCommandState.steerSign} move=${this.lastDriveCommandState.hasMoveCommand ? "Y" : "N"}`;
     }
 
     const statusLine = `status: ready=${isReady} failed=${isFailed} paused=${isPaused} hooks=${hookState}`;
@@ -3421,17 +3412,6 @@ class RapierDriveSimulation {
       isContacting = true;
     });
     return isContacting;
-  }
-
-  isVelocityMovingTowardObstacle(obstacleInfo, velocityX, velocityY) {
-    if (!this.body || !obstacleInfo?.center) {
-      return false;
-    }
-
-    const bodyPosition = this.body.translation();
-    const obstacleOffsetX = obstacleInfo.center.x - bodyPosition.x;
-    const obstacleOffsetY = obstacleInfo.center.y - bodyPosition.y;
-    return velocityX * obstacleOffsetX + velocityY * obstacleOffsetY > 1e-5;
   }
 
   isVehiclePositionTouchingObstacle(position) {
@@ -6059,18 +6039,6 @@ class RapierDriveSimulation {
           );
         }
       }
-      if (hasObstacleContactNow) {
-        const velocity = this.body.linvel();
-        const dampingFactor = 0.92;
-        this.body.setLinvel(
-          new this.rapier.Vector3(
-            velocity.x * dampingFactor,
-            velocity.y * dampingFactor,
-            velocity.z,
-          ),
-          true,
-        );
-      }
       if (
         throttleSign !== 0 &&
         Math.abs(effectiveSteerSign) < 1e-3 &&
@@ -6189,34 +6157,7 @@ class RapierDriveSimulation {
       hasObstacleContact,
     );
 
-    const hasMoveCommand = keyboardState.isActive || throttleSign !== 0;
-    const contactedObstacle =
-      this.contactSolver.getApproachInfo()?.obstacleInfo || null;
-    const shouldBlockByObstacle =
-      this.blockMotionOnObstacleContact &&
-      hasObstacleContact &&
-      this.isVelocityMovingTowardObstacle(
-        contactedObstacle,
-        commandedVelocityX,
-        commandedVelocityY,
-      );
-
     this.lowSpeedKinematicPosition = null;
-
-    const isMoveCommandActive = keyboardState.isActive || throttleSign !== 0;
-    if (isMoveCommandActive && shouldBlockByObstacle) {
-      const currentVelocity = this.body.linvel();
-      this.body.setLinvel(
-        new this.rapier.Vector3(0, 0, currentVelocity.z),
-        true,
-      );
-      this.body.setAngvel(new this.rapier.Vector3(0, 0, 0), true);
-      ["fl", "fr", "rl", "rr"].forEach((wheelKey) => {
-        if (typeof globalThis.setWheelAnimationByKey === "function") {
-          globalThis.setWheelAnimationByKey(wheelKey, 0);
-        }
-      });
-    }
 
     const shouldAssistLowSpeedForward = false;
     if (shouldAssistLowSpeedForward) {

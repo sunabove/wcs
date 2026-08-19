@@ -12,6 +12,7 @@ $(document).ready(function () {
     typeof window.getVehicleDirectionButtonSelector === "function"
       ? window.getVehicleDirectionButtonSelector()
       : "#vehicle-forward, #vehicle-backward, #vehicle-turn-left, #vehicle-turn-right, #vehicle-stop";
+  let wheelCommandBlinkTimerIds = [];
   let lastVehicleCurrSpeedMsSent = null;
   let lastVehicleDirectionCommandSent = null;
   let latestVehicleMaxSpeedKmh = 100.0;
@@ -354,6 +355,22 @@ $(document).ready(function () {
     .removeClass("btn-outline-secondary text-black")
     .addClass("active btn-secondary text-white");
 
+  function stopAllWheels() {
+    vehicleDirectionWheelKeys.forEach((wheelKey) => {
+      const operationTopic = `wheel/${wheelKey}/operation/command`;
+      const angleSpeedTopic = `wheel/${wheelKey}/angle/speed`;
+      cancelPendingPublish(operationTopic);
+      cancelPendingPublish(angleSpeedTopic);
+      window.WcsMqtt.sendMQTTMessage(operationTopic, 0, 1);
+      window.WcsMqtt.sendMQTTMessage(angleSpeedTopic, 0, 1);
+    });
+  }
+
+  function clearWheelCommandBlinkTimers() {
+    wheelCommandBlinkTimerIds.forEach((timerId) => clearTimeout(timerId));
+    wheelCommandBlinkTimerIds = [];
+  }
+
   function sendWheelCommand(command, buttonElement, actionName, icon) {
     const selectedWheel = $('input[name="wheelTestPosition"]:checked')
       .val()
@@ -390,23 +407,17 @@ $(document).ready(function () {
         1,
       );
     } else if (Number(command) === 0) {
-      vehicleDirectionWheelKeys.forEach((wheelKey) => {
-        const operationTopic = `wheel/${wheelKey}/operation/command`;
-        const angleSpeedTopic = `wheel/${wheelKey}/angle/speed`;
-        cancelPendingPublish(operationTopic);
-        cancelPendingPublish(angleSpeedTopic);
-        window.WcsMqtt.sendMQTTMessage(operationTopic, 0, 1);
-        window.WcsMqtt.sendMQTTMessage(angleSpeedTopic, 0, 1);
-      });
+      stopAllWheels();
     }
 
     console.log(
       `[Vehicle Test] ${icon} ${selectedWheel.toUpperCase()} 바퀴 ${actionName} 명령 전송: ${topic} = ${command}`,
     );
 
+    clearWheelCommandBlinkTimers();
     // Blink by toggling button classes 2 times
     for (let i = 0; i < 4; i++) {
-      setTimeout(
+      const timerId = setTimeout(
         () => {
           if (i % 2 === 0) {
             buttonElement
@@ -420,6 +431,7 @@ $(document).ready(function () {
         },
         (i + 1) * 150,
       );
+      wheelCommandBlinkTimerIds.push(timerId);
     }
   }
 
@@ -510,7 +522,8 @@ $(document).ready(function () {
     sendWheelCommand(2, $(this), "역회전", "↩️");
   });
 
-  $("#test-stop").click(function () {
+  $("#test-stop").click(function (event) {
+    event.preventDefault();
     sendWheelCommand(0, $(this), "정지", "⏹️");
   });
 

@@ -4172,12 +4172,20 @@ class RapierDriveSimulation {
         Number(this.wheelColliderInflationMeters) || 0,
         0,
       );
-      const approxRadius =
-        Math.max(size.x * 0.5, size.z * 0.5, 0.05) + inflation;
+      const wheelDimensions = [size.x, size.y, size.z].sort(
+        (left, right) => left - right,
+      );
+      const wheelHalfWidth = Math.max(wheelDimensions[0] * 0.5, 0.01);
+      const wheelRadius =
+        Math.max(wheelDimensions[1], wheelDimensions[2]) * 0.5 + inflation;
       const localCenter = carFrame.worldToLocal(centerWorld.clone());
+      const wheelQuaternion = wheelLink.getWorldQuaternion(
+        new THREE.Quaternion(),
+      );
 
       const wheelBodyDesc = this.rapier.RigidBodyDesc.dynamic()
         .setTranslation(centerWorld.x, centerWorld.y, centerWorld.z)
+        .setRotation(wheelQuaternion)
         .setLinearDamping(1.5)
         .setAngularDamping(1.0)
         .setCcdEnabled(true);
@@ -4186,7 +4194,10 @@ class RapierDriveSimulation {
         wheelBody.setCanSleep(false);
       }
 
-      const wheelColliderDesc = this.rapier.ColliderDesc.ball(approxRadius)
+      const wheelColliderDesc = this.rapier.ColliderDesc.cylinder(
+        wheelHalfWidth,
+        Math.max(wheelRadius, 0.05),
+      )
         .setDensity(25.0)
         .setFriction(0.0)
         .setCollisionGroups(COLLISION_GROUP_WHEEL)

@@ -202,6 +202,7 @@ class RapierDriveSimulation {
     this.obstacleDepenetrationMaxIterations = 8;
     this.isVehicleObstacleContact = false;
     this.carFrame = null;
+    this.vehicleDirectionArrowGroup = null;
     this.initialPosition = null;
     this.initialQuaternion = null;
     this.vehicleHalfExtents = null;
@@ -4773,7 +4774,57 @@ class RapierDriveSimulation {
       .set(rotation.x, rotation.y, rotation.z, rotation.w)
       .normalize();
     this.carFrame.updateMatrixWorld(true);
+    this.syncVehicleDirectionArrows();
     this.syncWheelRotationToBodyTravel();
+  }
+
+  ensureVehicleDirectionArrows() {
+    if (this.vehicleDirectionArrowGroup?.parent || !this.viewer?.scene) {
+      return;
+    }
+
+    const halfX = Math.max(Number(this.vehicleHalfExtents?.x) || 0.3, 0.2);
+    const halfY = Math.max(Number(this.vehicleHalfExtents?.y) || 0.2, 0.14);
+    const halfZ = Math.max(Number(this.vehicleHalfExtents?.z) || 0.12, 0.06);
+    const arrowLength = Math.min(Math.max(halfX * 1.5, 0.35), 0.8);
+    const arrowOriginX = -arrowLength * 0.5;
+    const arrowHeight =
+      (Number(this.vehicleColliderLocalCenter.z) || 0) + halfZ + 0.1;
+    const arrowSideOffset = halfY + 0.12;
+    const arrowGroup = new THREE.Group();
+    arrowGroup.name = "simulation-vehicle-direction-arrows";
+
+    [arrowSideOffset, -arrowSideOffset].forEach((sideOffset) => {
+      const arrow = new THREE.ArrowHelper(
+        new THREE.Vector3(1, 0, 0),
+        new THREE.Vector3(arrowOriginX, sideOffset, arrowHeight),
+        arrowLength,
+        0x0d6efd,
+        Math.min(arrowLength * 0.35, 0.18),
+        Math.min(arrowLength * 0.22, 0.12),
+      );
+      arrow.line.material.depthTest = false;
+      arrow.cone.material.depthTest = false;
+      arrow.renderOrder = 10;
+      arrowGroup.add(arrow);
+    });
+
+    this.vehicleDirectionArrowGroup = arrowGroup;
+    this.viewer.scene.add(arrowGroup);
+    this.syncVehicleDirectionArrows();
+  }
+
+  syncVehicleDirectionArrows() {
+    if (!this.vehicleDirectionArrowGroup || !this.carFrame) {
+      return;
+    }
+
+    this.carFrame.updateWorldMatrix(true, false);
+    this.carFrame.getWorldPosition(this.vehicleDirectionArrowGroup.position);
+    this.carFrame.getWorldQuaternion(
+      this.vehicleDirectionArrowGroup.quaternion,
+    );
+    this.vehicleDirectionArrowGroup.updateMatrixWorld(true);
   }
 
   enforceWheelGroundContactAtLoad(linkMap) {
@@ -5141,6 +5192,7 @@ class RapierDriveSimulation {
       this.enforceWheelGroundContactAtLoad(linkMap);
       this.addObstacleColliderFromUrdf();
       this.initializeWheelZChartRangeFromObstacles(linkMap);
+      this.ensureVehicleDirectionArrows();
       this.resetWheelTravelTracking();
       this.syncWheelChartBaselineFromPhysics();
       this.isReady = true;

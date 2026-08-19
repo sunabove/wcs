@@ -477,6 +477,11 @@ $(document).ready(function () {
     window.vehicleDirectionCommandActive =
       Number(command) >= 1 && Number(command) <= 4;
 
+    if (Number(command) === 0) {
+      clearWheelCommandBlinkTimers();
+      setWheelTestButtonActive($("#test-stop"));
+    }
+
     $(vehicleButtonSelector)
       .removeClass("active text-white")
       .addClass("text-black");

@@ -10,6 +10,8 @@ const SIM_VISUAL_SPEED_DEFAULT_SCALE = 0.5;
 const SIM_VISUAL_SPEED_MIN_SCALE = 1 / 4;
 const SIM_VISUAL_SPEED_MAX_SCALE = 4;
 const SIM_VISUAL_SPEED_SCALES = [1 / 4, 1 / 3, 1 / 2, 1, 2, 3, 4];
+const WHEEL_Z_CHART_INITIAL_HALF_RANGE_CM = 4;
+const WHEEL_Z_CHART_HALF_RANGE_STEP_CM = 2;
 const COLLISION_GROUP_GROUND = 0x00010002;
 const COLLISION_GROUP_WHEEL = 0x00020005;
 const COLLISION_GROUP_OBSTACLE = 0x0004000a;
@@ -297,7 +299,7 @@ class RapierDriveSimulation {
     this.wheelZChartContext = null;
     this.wheelZChartWindowSec = 10;
     this.wheelZChartElapsedSec = 0;
-    this.wheelZChartMaxZ = null;
+    this.wheelZChartHalfRangeCm = WHEEL_Z_CHART_INITIAL_HALF_RANGE_CM;
     this.wheelZChartLastSampleTimeMs = null;
     this.wheelZChartLastRenderTimeMs = null;
     this.wheelZChartVisibleStorageKey = "wcs.simulation.wheelZChartVisible";
@@ -883,20 +885,25 @@ class RapierDriveSimulation {
       maxZ += 0.0005;
       minZ -= 0.0005;
     }
-    const zPadding = (maxZ - minZ) * 0.12;
-    minZ -= zPadding;
-    maxZ += zPadding;
-
-    // Snap Y-axis to integer centimeter intervals for stable, easy-to-read labels.
+    // Keep a stable zero-centered range; expand only when the data needs it.
     const intervalCount = 4;
-    const rawMinCm = minZ * 100;
-    const rawMaxCm = maxZ * 100;
-    const spanCm = Math.max(rawMaxCm - rawMinCm, 1);
-    const stepCm = Math.max(1, Math.ceil(spanCm / intervalCount));
-    const minCmAligned = Math.floor(rawMinCm / stepCm) * stepCm;
-    const maxCmAligned = minCmAligned + stepCm * intervalCount;
-    minZ = minCmAligned / 100;
-    maxZ = maxCmAligned / 100;
+    const observedHalfRangeCm = Math.max(
+      Math.abs(minZ * 100),
+      Math.abs(maxZ * 100),
+    );
+    const requiredHalfRangeCm = Math.max(
+      WHEEL_Z_CHART_INITIAL_HALF_RANGE_CM,
+      observedHalfRangeCm * 1.12,
+    );
+    const alignedHalfRangeCm =
+      Math.ceil(requiredHalfRangeCm / WHEEL_Z_CHART_HALF_RANGE_STEP_CM) *
+      WHEEL_Z_CHART_HALF_RANGE_STEP_CM;
+    this.wheelZChartHalfRangeCm = Math.max(
+      this.wheelZChartHalfRangeCm,
+      alignedHalfRangeCm,
+    );
+    minZ = -this.wheelZChartHalfRangeCm / 100;
+    maxZ = this.wheelZChartHalfRangeCm / 100;
 
     const toX = (t) =>
       margin.left + ((t - minTimeSec) / effectiveWindowSec) * plotWidth;
@@ -5969,7 +5976,7 @@ class RapierDriveSimulation {
       this.wheelZChartHistoryByKey[key] = [];
     });
     this.wheelZChartElapsedSec = 0;
-    this.wheelZChartMaxZ = null;
+    this.wheelZChartHalfRangeCm = WHEEL_Z_CHART_INITIAL_HALF_RANGE_CM;
     this.wheelZChartLastSampleTimeMs = null;
     Object.keys(this.wheelRadiusMetersByKey).forEach((key) => {
       this.wheelRadiusMetersByKey[key] = null;

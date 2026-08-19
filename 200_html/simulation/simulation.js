@@ -3885,7 +3885,34 @@ class RapierDriveSimulation {
     effectiveDeltaSec,
     obstacleInfo = null,
   ) {
-    return;
+    if (!hasObstacleContactNow || !this.body || !this.rapier) {
+      return;
+    }
+
+    const path =
+      this.activeObstacleTraversalPath ||
+      this.getObstacleTraversalPath(obstacleInfo);
+    if (!path) {
+      return;
+    }
+
+    const targetZ = this.getObstacleTraversalTargetZ(path);
+    const translation = this.body.translation();
+    if (!Number.isFinite(targetZ) || targetZ <= translation.z + 0.001) {
+      return;
+    }
+
+    const maxLiftMeters = Math.max(Number(effectiveDeltaSec) || 0, 0) * 0.8;
+    const nextZ = Math.min(targetZ, translation.z + maxLiftMeters);
+    this.body.setTranslation(
+      new this.rapier.Vector3(translation.x, translation.y, nextZ),
+      true,
+    );
+    const velocity = this.body.linvel();
+    this.body.setLinvel(
+      new this.rapier.Vector3(velocity.x, velocity.y, Math.max(velocity.z, 0)),
+      true,
+    );
   }
 
   preserveObstacleHeading(yaw = null) {
@@ -5950,15 +5977,25 @@ class RapierDriveSimulation {
         this.contactSolver.updateVehicleObstacleContact();
       const contactedObstacle =
         this.contactSolver.getApproachInfo()?.obstacleInfo || null;
+      if (
+        this.activeObstacleTraversalPath &&
+        !this.isObstacleTraversalActive()
+      ) {
+        this.activeObstacleTraversalPath = null;
+      }
+      const traversalPath = contactedObstacle
+        ? this.getObstacleTraversalPath(contactedObstacle)
+        : null;
+      if (!this.activeObstacleTraversalPath && traversalPath) {
+        this.activeObstacleTraversalPath = traversalPath;
+      }
       const isClimbingApproach =
         currentClimbApproach ||
         this.contactSolver.isClimbApproach(
-          currentObstacleApproach?.obstacleInfo || null,
+          contactedObstacle || currentObstacleApproach?.obstacleInfo || null,
         );
       const obstacleInfoForClimb =
-        this.contactSolver.getApproachInfo()?.obstacleInfo ||
-        currentObstacleApproach?.obstacleInfo ||
-        null;
+        contactedObstacle || currentObstacleApproach?.obstacleInfo || null;
       const isObstaclePathActive =
         this.contactSolver.isObstacleTraversalActive();
       this.isVehicleObstacleContact = Boolean(

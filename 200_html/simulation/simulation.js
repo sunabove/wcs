@@ -4810,12 +4810,7 @@ class RapierDriveSimulation {
         obstacleInfo.isContactHighlightLatched = false;
       }
 
-      this.setObstacleContactHighlight(
-        obstacleInfo,
-        obstacleHasContact ||
-          obstacleInfo.isContactHighlightLatched === true ||
-          isActiveTraversalObstacle,
-      );
+      this.setObstacleContactHighlight(obstacleInfo, obstacleHasContact);
       hasContact = hasContact || obstacleHasContact;
     });
 

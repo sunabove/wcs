@@ -4784,29 +4784,25 @@ class RapierDriveSimulation {
     }
 
     const halfX = Math.max(Number(this.vehicleHalfExtents?.x) || 0.3, 0.2);
-    const halfY = Math.max(Number(this.vehicleHalfExtents?.y) || 0.2, 0.14);
     const arrowLength = Math.min(Math.max(halfX * 1.2, 0.28), 0.55);
     const arrowCenterX = Number(this.vehicleColliderLocalCenter.x) || 0;
-    const arrowOriginX = arrowCenterX - arrowLength * 0.5;
+    const arrowOriginX = arrowCenterX + halfX + 0.04;
     const arrowHeight = Number(this.vehicleColliderLocalCenter.z) || 0;
-    const arrowSideOffset = halfY + 0.04;
     const arrowGroup = new THREE.Group();
     arrowGroup.name = "simulation-vehicle-direction-arrows";
 
-    [arrowSideOffset, -arrowSideOffset].forEach((sideOffset) => {
-      const arrow = new THREE.ArrowHelper(
-        new THREE.Vector3(1, 0, 0),
-        new THREE.Vector3(arrowOriginX, sideOffset, arrowHeight),
-        arrowLength,
-        0x0d6efd,
-        Math.min(arrowLength * 0.18, 0.09),
-        Math.min(arrowLength * 0.11, 0.055),
-      );
-      arrow.line.material.depthTest = false;
-      arrow.cone.material.depthTest = false;
-      arrow.renderOrder = 10;
-      arrowGroup.add(arrow);
-    });
+    const arrow = new THREE.ArrowHelper(
+      new THREE.Vector3(1, 0, 0),
+      new THREE.Vector3(arrowOriginX, 0, arrowHeight),
+      arrowLength,
+      0x0d6efd,
+      Math.min(arrowLength * 0.18, 0.09),
+      Math.min(arrowLength * 0.11, 0.055),
+    );
+    arrow.line.material.depthTest = false;
+    arrow.cone.material.depthTest = false;
+    arrow.renderOrder = 10;
+    arrowGroup.add(arrow);
 
     this.vehicleDirectionArrowGroup = arrowGroup;
     this.viewer.scene.add(arrowGroup);

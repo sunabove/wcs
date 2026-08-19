@@ -203,6 +203,10 @@ class RapierDriveSimulation {
     this.isVehicleObstacleContact = false;
     this.carFrame = null;
     this.vehicleDirectionArrowGroup = null;
+    this.vehicleYawIndicatorGroup = null;
+    this.vehicleYawArcLine = null;
+    this.vehicleYawPointerLine = null;
+    this.vehicleInitialYawRad = null;
     this.initialPosition = null;
     this.initialQuaternion = null;
     this.vehicleHalfExtents = null;
@@ -4775,6 +4779,7 @@ class RapierDriveSimulation {
       .normalize();
     this.carFrame.updateMatrixWorld(true);
     this.syncVehicleDirectionArrows();
+    this.syncVehicleYawIndicator();
     this.syncWheelRotationToBodyTravel();
   }
 
@@ -4857,6 +4862,153 @@ class RapierDriveSimulation {
       this.vehicleDirectionArrowGroup.quaternion,
     );
     this.vehicleDirectionArrowGroup.updateMatrixWorld(true);
+  }
+
+  ensureVehicleYawIndicator() {
+    if (
+      this.vehicleYawIndicatorGroup?.parent ||
+      !this.viewer?.scene ||
+      !this.initialQuaternion
+    ) {
+      return;
+    }
+
+    const halfX = Math.max(Number(this.vehicleHalfExtents?.x) || 0.3, 0.2);
+    const halfY = Math.max(Number(this.vehicleHalfExtents?.y) || 0.2, 0.14);
+    const arcRadius = Math.min(
+      Math.max(Math.min(halfX, halfY) * 0.72, 0.12),
+      0.22,
+    );
+    const arcSegments = 64;
+    const arcGeometry = new THREE.BufferGeometry();
+    arcGeometry.setAttribute(
+      "position",
+      new THREE.BufferAttribute(new Float32Array((arcSegments + 1) * 3), 3),
+    );
+    arcGeometry.setDrawRange(0, 0);
+
+    const lineMaterial = new THREE.LineBasicMaterial({
+      color: 0x00a8ff,
+      depthTest: false,
+      depthWrite: false,
+      fog: false,
+      toneMapped: false,
+    });
+    const pointerMaterial = new THREE.LineBasicMaterial({
+      color: 0xffb000,
+      depthTest: false,
+      depthWrite: false,
+      fog: false,
+      toneMapped: false,
+    });
+    const indicatorGroup = new THREE.Group();
+    indicatorGroup.name = "simulation-vehicle-yaw-indicator";
+
+    const baseline = new THREE.Line(
+      new THREE.BufferGeometry().setFromPoints([
+        new THREE.Vector3(0, 0, 0),
+        new THREE.Vector3(arcRadius, 0, 0),
+      ]),
+      lineMaterial,
+    );
+    baseline.renderOrder = 1000;
+    indicatorGroup.add(baseline);
+
+    const arcLine = new THREE.Line(arcGeometry, lineMaterial);
+    arcLine.renderOrder = 1000;
+    indicatorGroup.add(arcLine);
+
+    const pointerLine = new THREE.Line(
+      new THREE.BufferGeometry().setFromPoints([
+        new THREE.Vector3(0, 0, 0),
+        new THREE.Vector3(arcRadius, 0, 0),
+      ]),
+      pointerMaterial,
+    );
+    pointerLine.renderOrder = 1000;
+    indicatorGroup.add(pointerLine);
+
+    indicatorGroup.userData.arcRadius = arcRadius;
+    indicatorGroup.userData.arcSegments = arcSegments;
+    this.vehicleInitialYawRad = this.extractYawFromQuaternion(
+      this.initialQuaternion,
+    );
+    this.vehicleYawIndicatorGroup = indicatorGroup;
+    this.vehicleYawArcLine = arcLine;
+    this.vehicleYawPointerLine = pointerLine;
+    this.viewer.scene.add(indicatorGroup);
+    this.syncVehicleYawIndicator();
+  }
+
+  syncVehicleYawIndicator() {
+    if (
+      !this.vehicleYawIndicatorGroup ||
+      !this.vehicleYawArcLine ||
+      !this.vehicleYawPointerLine ||
+      !this.carFrame
+    ) {
+      return;
+    }
+
+    this.carFrame.updateWorldMatrix(true, false);
+    const carPosition = this.carFrame.getWorldPosition(new THREE.Vector3());
+    const carQuaternion = this.carFrame.getWorldQuaternion(
+      new THREE.Quaternion(),
+    );
+    const halfZ = Math.max(Number(this.vehicleHalfExtents?.z) || 0.12, 0.06);
+    const roofOffset = new THREE.Vector3(
+      Number(this.vehicleColliderLocalCenter.x) || 0,
+      Number(this.vehicleColliderLocalCenter.y) || 0,
+      (Number(this.vehicleColliderLocalCenter.z) || 0) + halfZ + 0.025,
+    ).applyQuaternion(carQuaternion);
+    const initialYaw = Number.isFinite(this.vehicleInitialYawRad)
+      ? this.vehicleInitialYawRad
+      : this.extractYawFromQuaternion(carQuaternion);
+    const currentYaw = this.extractYawFromQuaternion(carQuaternion);
+    const yawDelta = Math.atan2(
+      Math.sin(currentYaw - initialYaw),
+      Math.cos(currentYaw - initialYaw),
+    );
+    const arcRadius = this.vehicleYawIndicatorGroup.userData.arcRadius;
+    const arcSegments = this.vehicleYawIndicatorGroup.userData.arcSegments;
+
+    this.vehicleYawIndicatorGroup.position.copy(carPosition).add(roofOffset);
+    this.vehicleYawIndicatorGroup.quaternion.setFromAxisAngle(
+      new THREE.Vector3(0, 0, 1),
+      initialYaw,
+    );
+
+    const segmentCount = Math.min(
+      arcSegments,
+      Math.ceil((Math.abs(yawDelta) / (Math.PI * 2)) * arcSegments),
+    );
+    const arcPositions = this.vehicleYawArcLine.geometry.attributes.position;
+    for (let index = 0; index <= segmentCount; index += 1) {
+      const angle = segmentCount > 0 ? (yawDelta * index) / segmentCount : 0;
+      arcPositions.setXYZ(
+        index,
+        Math.cos(angle) * arcRadius,
+        Math.sin(angle) * arcRadius,
+        0,
+      );
+    }
+    arcPositions.needsUpdate = true;
+    this.vehicleYawArcLine.geometry.setDrawRange(
+      0,
+      segmentCount > 0 ? segmentCount + 1 : 0,
+    );
+
+    const pointerPositions =
+      this.vehicleYawPointerLine.geometry.attributes.position;
+    pointerPositions.setXYZ(0, 0, 0, 0);
+    pointerPositions.setXYZ(
+      1,
+      Math.cos(yawDelta) * arcRadius,
+      Math.sin(yawDelta) * arcRadius,
+      0,
+    );
+    pointerPositions.needsUpdate = true;
+    this.vehicleYawIndicatorGroup.updateMatrixWorld(true);
   }
 
   enforceWheelGroundContactAtLoad(linkMap) {
@@ -5225,6 +5377,7 @@ class RapierDriveSimulation {
       this.addObstacleColliderFromUrdf();
       this.initializeWheelZChartRangeFromObstacles(linkMap);
       this.ensureVehicleDirectionArrows();
+      this.ensureVehicleYawIndicator();
       this.resetWheelTravelTracking();
       this.syncWheelChartBaselineFromPhysics();
       this.isReady = true;
@@ -6027,6 +6180,7 @@ class RapierDriveSimulation {
         .normalize();
     }
     this.carFrame.updateMatrixWorld(true);
+    this.syncVehicleYawIndicator();
     this.syncWheelRotationToBodyTravel();
   }
 

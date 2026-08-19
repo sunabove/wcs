@@ -208,6 +208,8 @@ class RapierDriveSimulation {
     this.vehicleYawRadiusLine = null;
     this.vehicleYawArcArrowHead = null;
     this.vehicleInitialYawRad = null;
+    this.vehiclePreviousYawRad = null;
+    this.vehicleYawDirectionSign = 0;
     this.initialPosition = null;
     this.initialQuaternion = null;
     this.vehicleHalfExtents = null;
@@ -4947,6 +4949,8 @@ class RapierDriveSimulation {
     this.vehicleInitialYawRad = this.extractYawFromQuaternion(
       this.initialQuaternion,
     );
+    this.vehiclePreviousYawRad = null;
+    this.vehicleYawDirectionSign = 0;
     this.vehicleYawIndicatorGroup = indicatorGroup;
     this.vehicleYawArcLine = arcLine;
     this.vehicleYawRadiusLine = radiusLine;
@@ -4981,6 +4985,16 @@ class RapierDriveSimulation {
       ? this.vehicleInitialYawRad
       : this.extractYawFromQuaternion(carQuaternion);
     const currentYaw = this.extractYawFromQuaternion(carQuaternion);
+    if (Number.isFinite(this.vehiclePreviousYawRad)) {
+      const yawChange = Math.atan2(
+        Math.sin(currentYaw - this.vehiclePreviousYawRad),
+        Math.cos(currentYaw - this.vehiclePreviousYawRad),
+      );
+      if (Math.abs(yawChange) > 1e-5) {
+        this.vehicleYawDirectionSign = Math.sign(yawChange);
+      }
+    }
+    this.vehiclePreviousYawRad = currentYaw;
     const yawDelta = Math.atan2(
       Math.sin(currentYaw - initialYaw),
       Math.cos(currentYaw - initialYaw),
@@ -5025,10 +5039,11 @@ class RapierDriveSimulation {
     );
     radiusPositions.needsUpdate = true;
 
-    const isTurning = Math.abs(yawDelta) > 1e-4;
+    const isTurning =
+      Math.abs(yawDelta) > 1e-4 && this.vehicleYawDirectionSign !== 0;
     this.vehicleYawArcArrowHead.visible = isTurning;
     if (isTurning) {
-      const rotationSign = Math.sign(yawDelta);
+      const rotationSign = this.vehicleYawDirectionSign;
       const rotationDirection = new THREE.Vector3(0, rotationSign, 0);
       const arcEnd = new THREE.Vector3(
         Math.cos(yawDelta) * arcRadius,
@@ -6319,6 +6334,8 @@ class RapierDriveSimulation {
     this.simulationElapsedSec = 0;
     this.wheelZChartHalfRangeCm = this.wheelZChartInitialHalfRangeCm;
     this.wheelZChartLastSampleTimeMs = null;
+    this.vehiclePreviousYawRad = null;
+    this.vehicleYawDirectionSign = 0;
     Object.keys(this.wheelRadiusMetersByKey).forEach((key) => {
       this.wheelRadiusMetersByKey[key] = null;
     });

@@ -391,11 +391,9 @@ $(document).ready(function () {
         1,
       );
     } else if (Number(command) === 0) {
-      window.WcsMqtt.sendMQTTMessage(
-        `wheel/${selectedWheel}/angle/speed`,
-        "0",
-        1,
-      );
+      vehicleDirectionWheelKeys.forEach((wheelKey) => {
+        window.WcsMqtt.sendMQTTMessage(`wheel/${wheelKey}/angle/speed`, "0", 1);
+      });
     }
 
     console.log(

@@ -12,6 +12,7 @@
   const OVERLAY_AUTO_REPLAY_STORAGE_KEY = "wcs.status.overlay.auto_replay";
   const CURRENT_VIDEO_SELECTION_STORAGE_KEY =
     "wcs.vehicle.current_video_file_name.v1";
+  const OVERLAY_MEDIA_PAUSED_STORAGE_KEY = "wcs.status.overlay.media_paused";
 
   if ($overlay.length === 0 || $image.length === 0 || $video.length === 0) {
     return;
@@ -375,6 +376,35 @@
       window.localStorage.setItem(
         CURRENT_VIDEO_SELECTION_STORAGE_KEY,
         String(value || "").trim(),
+      );
+    } catch (error) {
+      // Ignore storage write failures.
+    }
+  }
+
+  function readOverlayMediaPausedState() {
+    try {
+      const rawValue = String(
+        window.localStorage.getItem(OVERLAY_MEDIA_PAUSED_STORAGE_KEY) || "",
+      )
+        .trim()
+        .toLowerCase();
+      return (
+        rawValue === "true" ||
+        rawValue === "1" ||
+        rawValue === "yes" ||
+        rawValue === "on"
+      );
+    } catch (error) {
+      return false;
+    }
+  }
+
+  function writeOverlayMediaPausedState(paused) {
+    try {
+      window.localStorage.setItem(
+        OVERLAY_MEDIA_PAUSED_STORAGE_KEY,
+        paused ? "true" : "false",
       );
     } catch (error) {
       // Ignore storage write failures.
@@ -804,9 +834,13 @@
     roadFileOverlayNextRequest = null;
   }
 
-  function requestRoadFileOverlayNextFrame() {
+  function requestRoadFileOverlayNextFrame(stopAfterFrame = false) {
     const sessionId = String(roadFileOverlaySessionId || "");
-    if (!sessionId || mediaPlaybackPaused || mediaHiddenByUser) {
+    if (
+      !sessionId ||
+      (!stopAfterFrame && mediaPlaybackPaused) ||
+      mediaHiddenByUser
+    ) {
       return;
     }
 
@@ -828,8 +862,16 @@
           markFirstFrameReady();
         }
 
+        if (stopAfterFrame) {
+          mediaPlaybackPaused = true;
+          setOverlayStatus("일시 정지", true);
+          updateVideoControlButtons();
+          return;
+        }
+
         if (result?.has_next === false) {
           mediaPlaybackPaused = true;
+          writeOverlayMediaPausedState(true);
           setOverlayStatus("일시 정지", true);
           updateVideoControlButtons();
           return;
@@ -862,6 +904,7 @@
       return;
     }
 
+    const shouldRestorePausedState = mediaPlaybackPaused;
     pauseRoadFileOverlayStream();
     roadFileOverlaySessionId = "";
     markOverlayMediaVisibleState();
@@ -870,7 +913,7 @@
     $image.removeClass("d-none");
     lastMediaType = "image";
     lastMediaSource = String(fileName || "");
-    mediaPlaybackPaused = false;
+    mediaPlaybackPaused = shouldRestorePausedState;
     updateVideoControlButtons();
 
     roadFileOverlayInitRequest = $.ajax({
@@ -880,11 +923,11 @@
     })
       .done(function (result) {
         const sessionId = String(result?.session_id || "").trim();
-        if (!sessionId || mediaPlaybackPaused || mediaHiddenByUser) {
+        if (!sessionId || mediaHiddenByUser) {
           return;
         }
         roadFileOverlaySessionId = sessionId;
-        requestRoadFileOverlayNextFrame();
+        requestRoadFileOverlayNextFrame(shouldRestorePausedState);
       })
       .fail(function () {
         showTemporaryStatusMessage(FIRST_FRAME_TIMEOUT_MESSAGE);
@@ -1994,6 +2037,7 @@
     if (lastMediaType === "image" && hasImageMediaSource) {
       if (mediaPlaybackPaused) {
         mediaPlaybackPaused = false;
+        writeOverlayMediaPausedState(false);
         setOverlayStatus("", false);
 
         if (isCameraSelectionActive && cameraSelection) {
@@ -2010,6 +2054,7 @@
         }
       } else {
         mediaPlaybackPaused = true;
+        writeOverlayMediaPausedState(true);
         if (isCameraSelectionActive) {
           stopCameraOverlayStream(true);
         } else if (roadFileOverlaySessionId) {
@@ -2036,6 +2081,7 @@
 
     if (videoElement.paused || videoElement.ended) {
       mediaPlaybackPaused = false;
+      writeOverlayMediaPausedState(false);
       clearTemporaryStatusMessage();
       setOverlayStatus("", false);
       if (typeof videoElement.play === "function") {
@@ -2048,6 +2094,7 @@
       }
     } else if (typeof videoElement.pause === "function") {
       mediaPlaybackPaused = true;
+      writeOverlayMediaPausedState(true);
       videoElement.pause();
       setOverlayStatus("일시 정지", true);
     }
@@ -2164,6 +2211,7 @@
 
   mediaHiddenByUser = readOverlayMediaHiddenState();
   autoReplayEnabled = readOverlayAutoReplayState();
+  mediaPlaybackPaused = readOverlayMediaPausedState();
   setCloseButtonToShowMode(mediaHiddenByUser);
   updateVideoControlButtons();
   syncVehicleTransparencyControl();

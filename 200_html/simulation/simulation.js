@@ -4892,8 +4892,6 @@ class RapierDriveSimulation {
 
     const lineMaterial = new THREE.LineBasicMaterial({
       color: 0x00a8ff,
-      depthTest: false,
-      depthWrite: false,
       fog: false,
       toneMapped: false,
     });
@@ -4901,7 +4899,6 @@ class RapierDriveSimulation {
     indicatorGroup.name = "simulation-vehicle-yaw-indicator";
 
     const arcLine = new THREE.Line(arcGeometry, lineMaterial);
-    arcLine.renderOrder = 1000;
     indicatorGroup.add(arcLine);
 
     const radiusLine = new THREE.Line(
@@ -4911,7 +4908,6 @@ class RapierDriveSimulation {
       ]),
       lineMaterial,
     );
-    radiusLine.renderOrder = 1000;
     indicatorGroup.add(radiusLine);
 
     const startRadiusLine = new THREE.Line(
@@ -4921,7 +4917,6 @@ class RapierDriveSimulation {
       ]),
       lineMaterial,
     );
-    startRadiusLine.renderOrder = 1000;
     indicatorGroup.add(startRadiusLine);
 
     const arcArrowShape = new THREE.Shape();
@@ -4933,15 +4928,12 @@ class RapierDriveSimulation {
       new THREE.ShapeGeometry(arcArrowShape),
       new THREE.MeshBasicMaterial({
         color: 0x00a8ff,
-        depthTest: false,
-        depthWrite: false,
         fog: false,
         toneMapped: false,
         side: THREE.DoubleSide,
       }),
     );
     arcArrowHead.visible = false;
-    arcArrowHead.renderOrder = 1000;
     indicatorGroup.add(arcArrowHead);
 
     indicatorGroup.userData.arcRadius = arcRadius;

@@ -13,6 +13,7 @@
   const CURRENT_VIDEO_SELECTION_STORAGE_KEY =
     "wcs.vehicle.current_video_file_name.v1";
   const OVERLAY_MEDIA_PAUSED_STORAGE_KEY = "wcs.status.overlay.media_paused";
+  const OVERLAY_PAUSED_FRAME_STORAGE_KEY = "wcs.status.overlay.paused_frame";
 
   if ($overlay.length === 0 || $image.length === 0 || $video.length === 0) {
     return;
@@ -408,6 +409,47 @@
       );
     } catch (error) {
       // Ignore storage write failures.
+    }
+  }
+
+  function readOverlayPausedFrame(videoFileName) {
+    try {
+      const rawValue = window.sessionStorage.getItem(
+        OVERLAY_PAUSED_FRAME_STORAGE_KEY,
+      );
+      const savedFrame = rawValue ? JSON.parse(rawValue) : null;
+      if (
+        !savedFrame ||
+        normalizePath(savedFrame.fileName) !== normalizePath(videoFileName) ||
+        !String(savedFrame.frameSrc || "").startsWith("data:image/jpeg;base64,")
+      ) {
+        return "";
+      }
+      return String(savedFrame.frameSrc);
+    } catch (error) {
+      return "";
+    }
+  }
+
+  function writeOverlayPausedFrame() {
+    const frameSrc = String($image.attr("src") || "");
+    if (
+      !latestCurrentVideoFileName ||
+      !frameSrc.startsWith("data:image/jpeg;base64,")
+    ) {
+      return;
+    }
+
+    try {
+      window.sessionStorage.setItem(
+        OVERLAY_PAUSED_FRAME_STORAGE_KEY,
+        JSON.stringify({
+          fileName: latestCurrentVideoFileName,
+          frameSrc,
+        }),
+      );
+    } catch (error) {
+      // Ignore storage quota and unavailable-storage failures.
     }
   }
 
@@ -2059,6 +2101,7 @@
           stopCameraOverlayStream(true);
         } else if (roadFileOverlaySessionId) {
           pauseRoadFileOverlayStream();
+          writeOverlayPausedFrame();
         } else {
           freezeCurrentImageFrameForPause();
           requestRoadDetectSessionCleanup(latestCurrentVideoFileName);
@@ -2235,7 +2278,22 @@
   requestRoadDetectSessionCleanupAllOnLoad();
   const savedCurrentVideoSelection = readCurrentVideoSelectionState();
   if (savedCurrentVideoSelection) {
-    resolveAndShowCurrentVideo(savedCurrentVideoSelection);
+    const pausedFrame = mediaPlaybackPaused
+      ? readOverlayPausedFrame(savedCurrentVideoSelection)
+      : "";
+    if (pausedFrame) {
+      latestCurrentVideoFileName = savedCurrentVideoSelection;
+      markOverlayMediaVisibleState();
+      lastMediaType = "image";
+      lastMediaSource = savedCurrentVideoSelection;
+      $image.attr("src", pausedFrame).removeClass("d-none");
+      setOverlayStatus("일시 정지", true);
+      applyCompactOverlayLayout();
+      showOverlay();
+      updateVideoControlButtons();
+    } else {
+      resolveAndShowCurrentVideo(savedCurrentVideoSelection);
+    }
   }
   setInterval(updateOverlayAudioHud, 400);
   setInterval(attemptImageStreamAutoReplay, 500);

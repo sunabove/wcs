@@ -4785,12 +4785,11 @@ class RapierDriveSimulation {
 
     const halfX = Math.max(Number(this.vehicleHalfExtents?.x) || 0.3, 0.2);
     const halfY = Math.max(Number(this.vehicleHalfExtents?.y) || 0.2, 0.14);
-    const halfZ = Math.max(Number(this.vehicleHalfExtents?.z) || 0.12, 0.06);
-    const arrowLength = Math.min(Math.max(halfX * 1.5, 0.35), 0.8);
-    const arrowOriginX = -arrowLength * 0.5;
-    const arrowHeight =
-      (Number(this.vehicleColliderLocalCenter.z) || 0) + halfZ + 0.1;
-    const arrowSideOffset = halfY + 0.12;
+    const arrowLength = Math.min(Math.max(halfX * 1.2, 0.28), 0.55);
+    const arrowCenterX = Number(this.vehicleColliderLocalCenter.x) || 0;
+    const arrowOriginX = arrowCenterX - arrowLength * 0.5;
+    const arrowHeight = Number(this.vehicleColliderLocalCenter.z) || 0;
+    const arrowSideOffset = halfY + 0.04;
     const arrowGroup = new THREE.Group();
     arrowGroup.name = "simulation-vehicle-direction-arrows";
 
@@ -4800,8 +4799,8 @@ class RapierDriveSimulation {
         new THREE.Vector3(arrowOriginX, sideOffset, arrowHeight),
         arrowLength,
         0x0d6efd,
-        Math.min(arrowLength * 0.35, 0.18),
-        Math.min(arrowLength * 0.22, 0.12),
+        Math.min(arrowLength * 0.18, 0.09),
+        Math.min(arrowLength * 0.11, 0.055),
       );
       arrow.line.material.depthTest = false;
       arrow.cone.material.depthTest = false;

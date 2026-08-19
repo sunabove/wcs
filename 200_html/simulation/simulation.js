@@ -886,7 +886,11 @@ class RapierDriveSimulation {
       new Set(rawSamples.map((sample) => sample.t)),
     ).sort((a, b) => a - b);
     const hasSamples = uniqueSampleTimesSec.length > 0;
-    const minTimeSec = Math.max(nowSec - this.wheelZChartWindowSec, 0);
+    const firstSampleTimeSec = hasSamples ? uniqueSampleTimesSec[0] : 0;
+    const minTimeSec = Math.max(
+      nowSec - this.wheelZChartWindowSec,
+      firstSampleTimeSec,
+    );
     const windowEndSec = minTimeSec + this.wheelZChartWindowSec;
     const effectiveWindowSec = this.wheelZChartWindowSec;
 

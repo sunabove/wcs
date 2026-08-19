@@ -280,6 +280,12 @@ class RapierDriveSimulation {
     this.hasActivatedSimulationMotion = false;
     this.hasActivatedDynamicGroundClamp = false;
     this.visualSpeedScale = SIM_VISUAL_SPEED_DEFAULT_SCALE;
+    this.wheelVisualRotationDirectionByKey = {
+      fl: -1,
+      fr: -1,
+      rl: -1,
+      rr: -1,
+    };
     this.straightDriveReferencePose = null;
     this.straightDriveWarmupSteps = 0;
     this.lastDriveCommandState = {
@@ -4373,12 +4379,17 @@ class RapierDriveSimulation {
       if (typeof viewer.setWheelRotationDrivenByTravel === "function") {
         viewer.setWheelRotationDrivenByTravel(false);
       }
-      if (typeof viewer.applyDriveMode === "function") {
-        viewer.applyDriveMode(
-          this.commandedDriveMode || "stop",
-          this.mpsToKmh(this.commandedSpeedMps),
-        );
-      }
+      const rpmMagnitude =
+        typeof viewer.convertKmhToRpm === "function"
+          ? viewer.convertKmhToRpm(this.mpsToKmh(this.commandedSpeedMps))
+          : 0;
+      Object.entries(this.wheelVisualRotationDirectionByKey).forEach(
+        ([wheelKey, direction]) => {
+          if (typeof viewer.setWheelSpeedRpm === "function") {
+            viewer.setWheelSpeedRpm(wheelKey, rpmMagnitude * direction);
+          }
+        },
+      );
       this.resetWheelTravelTracking();
       return;
     }
@@ -4417,7 +4428,17 @@ class RapierDriveSimulation {
       },
     );
 
+    const previousWheelAngles = { ...viewer.wheelAngles };
     viewer.applyWheelTravelDistances(distanceMetersByKey, radiusMetersByKey);
+    Object.keys(this.wheelVisualRotationDirectionByKey).forEach((wheelKey) => {
+      const angleDelta =
+        Number(viewer.wheelAngles?.[wheelKey]) -
+        Number(previousWheelAngles[wheelKey]);
+      if (Number.isFinite(angleDelta) && Math.abs(angleDelta) > 1e-8) {
+        this.wheelVisualRotationDirectionByKey[wheelKey] =
+          Math.sign(angleDelta);
+      }
+    });
   }
 
   getAverageSignedWheelRpm() {
@@ -6179,6 +6200,12 @@ class RapierDriveSimulation {
     this.wheelZChartHalfRangeCm = this.wheelZChartInitialHalfRangeCm;
     this.vehiclePreviousYawRad = null;
     this.vehicleYawDirectionSign = 0;
+    this.wheelVisualRotationDirectionByKey = {
+      fl: -1,
+      fr: -1,
+      rl: -1,
+      rr: -1,
+    };
     Object.keys(this.wheelRadiusMetersByKey).forEach((key) => {
       this.wheelRadiusMetersByKey[key] = null;
     });

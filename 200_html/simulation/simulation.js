@@ -274,6 +274,7 @@ class RapierDriveSimulation {
     };
     this.commandedDriveMode = "stop";
     this.commandedSpeedMps = SIM_SPEED_DEFAULT_MPS;
+    this.hasInstalledCommandButtonFlash = false;
     this.centerTurnPivotWorld = null;
     this.centerTurnPivotLocal = null;
     this.isPaused = false;
@@ -6071,11 +6072,30 @@ class RapierDriveSimulation {
     this.initDebugPanel();
     this.initializeSpeedSliderPreference();
     this.initializeVisualSpeedSliderPreference();
+    this.installCommandButtonFlash();
     this.attachKeyboardControls();
     this.installDriveCommandHooks();
     this.syncInitialDriveStateFromUi();
     this.updateDebugPanel(this.debugStatusUpdateIntervalSec);
     this.simulationLoop.schedule();
+  }
+
+  installCommandButtonFlash() {
+    if (this.hasInstalledCommandButtonFlash) {
+      return;
+    }
+
+    document.addEventListener("click", (event) => {
+      const button = event.target.closest("button[data-simulation-flash]");
+      if (!button) {
+        return;
+      }
+
+      button.classList.remove("simulation-command-flash");
+      void button.offsetWidth;
+      button.classList.add("simulation-command-flash");
+    });
+    this.hasInstalledCommandButtonFlash = true;
   }
 
   resetUiStates() {

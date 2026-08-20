@@ -287,6 +287,7 @@ class RapierDriveSimulation {
       rr: -1,
     };
     this.isWheelRotationStopped = false;
+    this.isDriveStartPreparationPending = false;
     this.straightDriveReferencePose = null;
     this.straightDriveWarmupSteps = 0;
     this.lastDriveCommandState = {
@@ -1355,6 +1356,14 @@ class RapierDriveSimulation {
 
   applyDriveModeCommand(mode) {
     const normalizedMode = String(mode || "stop");
+    if (normalizedMode !== "stop" && this.isDriveStartPreparationPending) {
+      this.isDriveStartPreparationPending = false;
+      this.stopWheelRotation();
+      this.resetWheelBodiesFromVisual();
+      this.resetWheelTravelTracking();
+      requestAnimationFrame(() => this.applyDriveModeCommand(normalizedMode));
+      return;
+    }
     if (normalizedMode !== "stop") {
       this.isWheelRotationStopped = false;
     }
@@ -6267,6 +6276,7 @@ class RapierDriveSimulation {
       obstacleInfo.isSpatiallyOverlapping = false;
     });
     this.activeObstacleTraversalPath = null;
+    this.isDriveStartPreparationPending = true;
 
     // On reset, always return to the URDF-authored pose without extra ground alignment offsets.
     this.renderer.syncVehicle();

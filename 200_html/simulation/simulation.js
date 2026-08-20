@@ -2045,13 +2045,6 @@ class RapierDriveSimulation {
     };
   }
 
-  getKeyboardNudgeDistance() {
-    const halfWidth = Number(this.vehicleHalfExtents?.y);
-    const fullWidth =
-      Number.isFinite(halfWidth) && halfWidth > 0 ? halfWidth * 2 : 0.5;
-    return fullWidth / 10;
-  }
-
   updateSpeedSliderVisual(sliderElement) {
     if (!sliderElement) {
       return;
@@ -3285,28 +3278,6 @@ class RapierDriveSimulation {
     );
   }
 
-  getVehicleObstacleSeparationBounds() {
-    const vehicleCenter = this.getVehicleColliderWorldCenter();
-    if (!vehicleCenter) {
-      return null;
-    }
-
-    const baseHalfExtents = this.getVehicleColliderWorldAabbHalfExtents() || {
-      x: 0,
-      y: 0,
-      z: 0,
-    };
-
-    return {
-      center: vehicleCenter,
-      halfExtents: {
-        x: Number(baseHalfExtents.x) || 0,
-        y: Number(baseHalfExtents.y) || 0,
-        z: Number(baseHalfExtents.z) || 0,
-      },
-    };
-  }
-
   getVehicleColliderWorldAabbHalfExtents() {
     if (!this.body || !this.vehicleColliderHalfExtents) {
       return null;
@@ -3390,65 +3361,6 @@ class RapierDriveSimulation {
     return isContacting;
   }
 
-  getWheelKeysTouchingObstacleAtPosition(obstacleInfo, position) {
-    if (
-      !this.body ||
-      !obstacleInfo?.center ||
-      !obstacleInfo?.halfExtents ||
-      !position
-    ) {
-      return [];
-    }
-
-    const currentPosition = this.body.translation();
-    const translationDelta = new THREE.Vector3(
-      position.x - currentPosition.x,
-      position.y - currentPosition.y,
-      position.z - currentPosition.z,
-    );
-    return Object.entries(this.wheelCollidersByKey)
-      .filter(([wheelKey, wheelCollider]) => {
-        if (!wheelCollider || typeof wheelCollider.translation !== "function") {
-          return false;
-        }
-
-        const center = wheelCollider.translation();
-        const wheelCenter = new THREE.Vector3(
-          center.x + translationDelta.x,
-          center.y + translationDelta.y,
-          center.z + translationDelta.z,
-        );
-        const radius = Math.max(
-          Number(this.wheelRadiusMetersByKey[wheelKey]) ||
-            Number(this.wheelEffectiveRadiusMeters) ||
-            0,
-          0.05,
-        );
-        const nearestX = THREE.MathUtils.clamp(
-          wheelCenter.x,
-          obstacleInfo.center.x - obstacleInfo.halfExtents.x,
-          obstacleInfo.center.x + obstacleInfo.halfExtents.x,
-        );
-        const nearestY = THREE.MathUtils.clamp(
-          wheelCenter.y,
-          obstacleInfo.center.y - obstacleInfo.halfExtents.y,
-          obstacleInfo.center.y + obstacleInfo.halfExtents.y,
-        );
-        const nearestZ = THREE.MathUtils.clamp(
-          wheelCenter.z,
-          obstacleInfo.center.z - obstacleInfo.halfExtents.z,
-          obstacleInfo.center.z + obstacleInfo.halfExtents.z,
-        );
-        return (
-          (wheelCenter.x - nearestX) ** 2 +
-            (wheelCenter.y - nearestY) ** 2 +
-            (wheelCenter.z - nearestZ) ** 2 <=
-          radius ** 2
-        );
-      })
-      .map(([wheelKey]) => wheelKey);
-  }
-
   syncObstacleColliderActivation(linkMap = null) {
     this.obstacleColliderInfos.forEach((obstacleInfo) => {
       if (!obstacleInfo?.collider || obstacleInfo.isSensor) {
@@ -3460,32 +3372,6 @@ class RapierDriveSimulation {
         linkMap,
       );
       obstacleInfo.isSpatiallyOverlapping = isSpatiallyOverlapping;
-    });
-  }
-
-  isVehicleNearObstacleSurface(obstacleInfo, linkMap = null) {
-    const vehicleObbs = this.getVehicleCollisionObbs(linkMap);
-    if (vehicleObbs.length === 0) {
-      return false;
-    }
-
-    const obstacleObb = this.getObstacleCollisionObb(obstacleInfo, linkMap);
-    if (!obstacleObb) {
-      return false;
-    }
-
-    return vehicleObbs.some((vehicleObb) => {
-      const verticalGap =
-        Math.abs(obstacleObb.center.z - vehicleObb.center.z) -
-        (obstacleObb.halfExtents.z + vehicleObb.halfExtents.z);
-      const horizontalSeparation = Math.max(
-        Math.abs(obstacleObb.center.x - vehicleObb.center.x) -
-          (obstacleObb.halfExtents.x + vehicleObb.halfExtents.x),
-        Math.abs(obstacleObb.center.y - vehicleObb.center.y) -
-          (obstacleObb.halfExtents.y + vehicleObb.halfExtents.y),
-      );
-      const nearSurface = verticalGap <= 0.002 && horizontalSeparation <= 0.002;
-      return nearSurface || this.obbIntersects(vehicleObb, obstacleObb, 0.001);
     });
   }
 
@@ -3864,26 +3750,6 @@ class RapierDriveSimulation {
 
   isVehicleNearObstacleSupportZone() {
     return false;
-  }
-
-  isObstacleBelowWheelContactPlane(obstacleInfo) {
-    if (!this.body || !obstacleInfo?.center || !obstacleInfo?.halfExtents) {
-      return false;
-    }
-
-    if (!Number.isFinite(this.wheelLocalMinZ)) {
-      return false;
-    }
-
-    const bodyPosition = this.body.translation();
-    const wheelContactPlaneZ = bodyPosition.z + this.wheelLocalMinZ;
-    const obstacleTopZ = obstacleInfo.center.z + obstacleInfo.halfExtents.z;
-    const clearance = Math.max(
-      Number(this.underbodyPassThroughClearanceMeters) || 0,
-      0,
-    );
-
-    return obstacleTopZ < wheelContactPlaneZ - clearance;
   }
 
   getWheelContactPlaneZ() {
@@ -4523,27 +4389,6 @@ class RapierDriveSimulation {
     return rpmSum / signedRpms.length;
   }
 
-  getViewerActivityScore(viewer) {
-    if (!viewer) {
-      return -1;
-    }
-
-    const mode = String(viewer?.driveMode || "").toLowerCase();
-    const avgRpm = this.getAverageSignedWheelRpmForViewer(viewer);
-    const speedKmh = Math.max(Number(viewer?.driveSpeedKmh) || 0, 0);
-
-    let score = 0;
-    if (mode && mode !== "stop") {
-      score += 100;
-    }
-    if (Number.isFinite(avgRpm)) {
-      score += Math.min(Math.abs(avgRpm), 200);
-    }
-    score += Math.min(speedKmh, 50);
-
-    return score;
-  }
-
   getWheelSideSignedRpm() {
     const viewer = this.getDriveSourceViewer();
     if (!viewer) {
@@ -4706,26 +4551,6 @@ class RapierDriveSimulation {
 
     return (
       this.groundZ - this.groundContactLocalMinZ - this.groundContactBiasMeters
-    );
-  }
-
-  alignVehicleWheelContactToGround() {
-    if (
-      !this.body ||
-      !Number.isFinite(this.groundZ) ||
-      !Number.isFinite(this.groundContactLocalMinZ)
-    ) {
-      return;
-    }
-
-    const translation = this.body.translation();
-    const targetZ = this.getGroundContactTargetZ();
-    if (!Number.isFinite(targetZ)) {
-      return;
-    }
-    this.body.setTranslation(
-      new this.rapier.Vector3(translation.x, translation.y, targetZ),
-      true,
     );
   }
 
@@ -5289,33 +5114,6 @@ class RapierDriveSimulation {
     return hasContact;
   }
 
-  rollbackToPreviousPose(previousPose) {
-    if (!previousPose || !this.body || !this.rapier || !this.carFrame) {
-      return;
-    }
-
-    this.body.setTranslation(
-      new this.rapier.Vector3(previousPose.x, previousPose.y, previousPose.z),
-      true,
-    );
-    this.body.setRotation(
-      {
-        x: previousPose.qx,
-        y: previousPose.qy,
-        z: previousPose.qz,
-        w: previousPose.qw,
-      },
-      true,
-    );
-    this.body.setLinvel(new this.rapier.Vector3(0, 0, 0), true);
-    this.body.setAngvel(new this.rapier.Vector3(0, 0, 0), true);
-
-    this.carFrame.position.set(previousPose.x, previousPose.y, previousPose.z);
-    this.carFrame.quaternion
-      .set(previousPose.qx, previousPose.qy, previousPose.qz, previousPose.qw)
-      .normalize();
-  }
-
   setUprightRotationLockEnabled(isEnabled) {
     if (!this.body) {
       return;
@@ -5809,8 +5607,6 @@ class RapierDriveSimulation {
     this.isVehicleObstacleContact = Boolean(
       wasObstacleContact || isObstacleApproachForClimb,
     );
-    let commandedVelocityX = 0;
-    let commandedVelocityY = 0;
     const isNearFlatGroundSupport = this.isBodyNearFlatGroundSupport();
 
     if (this.keepUprightOnFlatGround) {
@@ -5818,19 +5614,6 @@ class RapierDriveSimulation {
         isNearFlatGroundSupport && !this.isVehicleObstacleContact,
       );
     }
-
-    const previousTranslation = this.body.translation();
-    const previousRotation = this.body.rotation();
-    const previousPose = {
-      x: previousTranslation.x,
-      y: previousTranslation.y,
-      z: previousTranslation.z,
-      qx: previousRotation.x,
-      qy: previousRotation.y,
-      qz: previousRotation.z,
-      qw: previousRotation.w,
-    };
-    const frameStartPosition = this.body.translation();
 
     const currentLinearVelocity = this.body.linvel();
     const currentAngularVelocity = this.body.angvel();
@@ -5848,8 +5631,6 @@ class RapierDriveSimulation {
       const velocityY =
         currentLinearVelocity.y +
         (targetVelocityY - currentLinearVelocity.y) * velocitySmoothingAlpha;
-      commandedVelocityX = targetVelocityX;
-      commandedVelocityY = targetVelocityY;
 
       const nextVelocityZ = wasObstacleContact
         ? currentLinearVelocity.z
@@ -5874,8 +5655,6 @@ class RapierDriveSimulation {
       const forwardVector = this.getVehicleForwardVector(yaw);
       targetVelocityX = forwardVector.x * clampedSpeed * throttleSign;
       targetVelocityY = forwardVector.y * clampedSpeed * throttleSign;
-      commandedVelocityX = targetVelocityX;
-      commandedVelocityY = targetVelocityY;
 
       const nextVelocityZ = wasObstacleContact
         ? currentLinearVelocity.z

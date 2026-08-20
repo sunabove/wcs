@@ -5919,8 +5919,8 @@ class RapierDriveSimulation {
         this.body.rotation(),
       );
       const obstacleReferencePosition = this.body.translation();
-      const obstaclePathControlActive = false;
-      const willEnterObstacle = false;
+      let obstaclePathControlActive = false;
+      let willEnterObstacle = false;
 
       const preStepTraversalApproach =
         this.getObstacleTraversalApproachInfo()?.obstacleInfo || null;
@@ -5932,7 +5932,9 @@ class RapierDriveSimulation {
       if (preStepTraversalPath) {
         this.activeObstacleTraversalPath = preStepTraversalPath;
       }
-      if (this.isObstacleTraversalActive()) {
+      obstaclePathControlActive = this.isObstacleTraversalActive();
+      willEnterObstacle = obstaclePathControlActive;
+      if (obstaclePathControlActive) {
         this.applyObstacleClimbLift(
           true,
           this.physicsFixedTimeStepSec,

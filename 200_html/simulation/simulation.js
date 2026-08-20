@@ -3779,10 +3779,8 @@ class RapierDriveSimulation {
       return;
     }
 
-    const maxLiftMeters = Math.max(Number(effectiveDeltaSec) || 0, 0) * 0.8;
-    const nextZ = Math.min(targetZ, translation.z + maxLiftMeters);
     this.body.setTranslation(
-      new this.rapier.Vector3(translation.x, translation.y, nextZ),
+      new this.rapier.Vector3(translation.x, translation.y, targetZ),
       true,
     );
     const velocity = this.body.linvel();

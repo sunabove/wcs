@@ -6325,6 +6325,7 @@ class RapierDriveSimulation {
     this.applyDriveModeCommand("stop");
     this.stopWheelRotation();
     this.settlePhysicsAfterReset();
+    this.isDriveStartPreparationPending = false;
     this.resetWheelTravelTracking();
     this.syncWheelChartBaselineFromPhysics();
   }

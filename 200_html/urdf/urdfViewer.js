@@ -2537,11 +2537,7 @@ class URDFViewer {
   }
 
   getDisplayedWheelRpm(key) {
-    const signedRpm = this.getSignedWheelRpm(key);
-    if (this.driveMode === "forward" || this.driveMode === "backward") {
-      return -signedRpm;
-    }
-    return signedRpm;
+    return this.getSignedWheelRpm(key);
   }
 
   formatRpmText(value) {
@@ -2675,16 +2671,16 @@ class URDFViewer {
     const straightDriveRpm = this.convertKmhToRpm(this.driveSpeedKmh);
     const wheelRpmByMode = {
       forward: {
-        fl: -straightDriveRpm,
-        fr: -straightDriveRpm,
-        rl: -straightDriveRpm,
-        rr: -straightDriveRpm,
-      },
-      backward: {
         fl: straightDriveRpm,
         fr: straightDriveRpm,
         rl: straightDriveRpm,
         rr: straightDriveRpm,
+      },
+      backward: {
+        fl: -straightDriveRpm,
+        fr: -straightDriveRpm,
+        rl: -straightDriveRpm,
+        rr: -straightDriveRpm,
       },
       left: {
         fl: -rpmForWheel("fl"),
@@ -2827,6 +2823,14 @@ class URDFViewer {
     return positiveRotationTravel.dot(forwardWorld) >= 0 ? 1 : -1;
   }
 
+  getWheelAnimationRotationSign(runtimeTarget, forwardWorld) {
+    if (runtimeTarget?.type === "joint") {
+      return this.getWheelTravelRotationSign(runtimeTarget, forwardWorld);
+    }
+
+    return this.wheelVisualRotationSign;
+  }
+
   applyWheelTravelDistances(distanceMetersByKey, radiusMetersByKey = {}) {
     const forwardWorld = this.getCarFrameForwardWorld();
     Object.keys(this.wheelRuntimeTargetByKey).forEach((key) => {
@@ -2872,6 +2876,7 @@ class URDFViewer {
     }
 
     const scaledDeltaSec = deltaSec * this.wheelAnimationTimeScale;
+    const forwardWorld = this.getCarFrameForwardWorld();
 
     Object.keys(this.wheelSpeedRpmByKey).forEach((key) => {
       const runtimeTarget = this.wheelRuntimeTargetByKey[key];
@@ -2881,8 +2886,12 @@ class URDFViewer {
 
       const wheelAngularSpeedRad = this.wheelAngularSpeedRadByKey[key] || 0;
       const wheelDirection = this.wheelDirectionSignByKey[key] || 1;
+      const rotationSign = this.getWheelAnimationRotationSign(
+        runtimeTarget,
+        forwardWorld,
+      );
       const targetAngularSpeedRad =
-        this.wheelVisualRotationSign * wheelDirection * wheelAngularSpeedRad;
+        rotationSign * wheelDirection * wheelAngularSpeedRad;
       let clampedAngleStep = targetAngularSpeedRad * scaledDeltaSec;
 
       if (this.enableWheelVisualFilter) {

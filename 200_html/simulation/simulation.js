@@ -3649,11 +3649,10 @@ class RapierDriveSimulation {
       : bodyPosition.z;
     const obstacleTargetZ = this.getObstacleClimbTargetZ(obstacleInfo);
 
-    // A single contacted wheel should be allowed to climb via wheel contact and body pitch/roll.
-    // Global body-height traversal is reserved for a shared axle/support contact.
+    // Start the climb path as soon as any wheel contacts the obstacle.
+    // At low speed, waiting for a second wheel can prevent the climb path from activating.
     if (
       !hasWheelContact ||
-      obstacleInfo.contactedWheelKeys.length < 2 ||
       !Number.isFinite(obstacleTargetZ) ||
       lateralOffset > 0.8 ||
       obstacleTargetZ <= groundTargetZ + 0.004

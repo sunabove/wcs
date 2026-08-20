@@ -286,6 +286,7 @@ class RapierDriveSimulation {
       rl: -1,
       rr: -1,
     };
+    this.isWheelRotationStopped = false;
     this.straightDriveReferencePose = null;
     this.straightDriveWarmupSteps = 0;
     this.lastDriveCommandState = {
@@ -1340,15 +1341,24 @@ class RapierDriveSimulation {
   }
 
   stopWheelRotation() {
+    this.isWheelRotationStopped = true;
+    const viewer = this.getDriveSourceViewer();
+    if (typeof viewer?.setWheelRotationDrivenByTravel === "function") {
+      viewer.setWheelRotationDrivenByTravel(false);
+    }
     ["fl", "fr", "rl", "rr"].forEach((key) => {
       if (typeof globalThis.setWheelAnimationByKey === "function") {
         globalThis.setWheelAnimationByKey(key, 0);
       }
     });
+    this.resetWheelTravelTracking();
   }
 
   applyDriveModeCommand(mode) {
     const normalizedMode = String(mode || "stop");
+    if (normalizedMode !== "stop") {
+      this.isWheelRotationStopped = false;
+    }
     const hasDriveModeChanged = this.commandedDriveMode !== normalizedMode;
     this.commandedDriveMode = normalizedMode;
     if (hasDriveModeChanged) {
@@ -4380,6 +4390,14 @@ class RapierDriveSimulation {
       typeof viewer.applyWheelTravelDistances !== "function" ||
       !this.body
     ) {
+      return;
+    }
+
+    if (this.isWheelRotationStopped) {
+      if (typeof viewer.setWheelRotationDrivenByTravel === "function") {
+        viewer.setWheelRotationDrivenByTravel(false);
+      }
+      this.resetWheelTravelTracking();
       return;
     }
 

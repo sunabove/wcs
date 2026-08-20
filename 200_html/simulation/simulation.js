@@ -202,6 +202,8 @@ class RapierDriveSimulation {
     this.isVehicleObstacleContact = false;
     this.carFrame = null;
     this.vehicleDirectionArrowGroup = null;
+    this.wheelGroundContactMarkerGroup = null;
+    this.wheelGroundContactMarkerByKey = {};
     this.vehicleYawIndicatorGroup = null;
     this.vehicleYawArcLine = null;
     this.vehicleYawRadiusLine = null;
@@ -4765,6 +4767,7 @@ class RapierDriveSimulation {
       .normalize();
     this.carFrame.updateMatrixWorld(true);
     this.syncVehicleDirectionArrows();
+    this.syncWheelGroundContactMarkers();
     this.syncVehicleYawIndicator();
     this.syncWheelRotationToBodyTravel();
   }
@@ -4846,6 +4849,73 @@ class RapierDriveSimulation {
       this.vehicleDirectionArrowGroup.quaternion,
     );
     this.vehicleDirectionArrowGroup.updateMatrixWorld(true);
+  }
+
+  ensureWheelGroundContactMarkers() {
+    if (this.wheelGroundContactMarkerGroup?.parent || !this.viewer?.scene) {
+      return;
+    }
+
+    const markerGroup = new THREE.Group();
+    markerGroup.name = "simulation-wheel-ground-contact-markers";
+    const markerGeometry = new THREE.CircleGeometry(1, 32);
+    ["fl", "fr", "rl", "rr"].forEach((wheelKey) => {
+      const marker = new THREE.Mesh(
+        markerGeometry,
+        new THREE.MeshBasicMaterial({
+          color: 0x1f2937,
+          depthTest: false,
+          transparent: true,
+          opacity: 0.16,
+        }),
+      );
+      marker.name = `simulation-wheel-ground-contact-${wheelKey}`;
+      marker.renderOrder = 10;
+      markerGroup.add(marker);
+      this.wheelGroundContactMarkerByKey[wheelKey] = marker;
+    });
+
+    this.wheelGroundContactMarkerGroup = markerGroup;
+    this.viewer.scene.add(markerGroup);
+    this.syncWheelGroundContactMarkers();
+  }
+
+  syncWheelGroundContactMarkers() {
+    if (!this.wheelGroundContactMarkerGroup) {
+      return;
+    }
+
+    Object.entries(this.wheelGroundContactMarkerByKey).forEach(
+      ([wheelKey, marker]) => {
+        const wheelCollider = this.wheelCollidersByKey?.[wheelKey] || null;
+        if (!marker || !wheelCollider) {
+          if (marker) {
+            marker.visible = false;
+          }
+          return;
+        }
+
+        const wheelPosition = wheelCollider.translation();
+        const yaw = this.body
+          ? this.extractYawFromQuaternion(this.body.rotation())
+          : 0;
+        marker.position.set(
+          wheelPosition.x,
+          wheelPosition.y,
+          this.groundZ + 0.003,
+        );
+        const isContacting = Boolean(this.wheelGroundContactState[wheelKey]);
+        marker.rotation.z = yaw;
+        marker.scale.set(
+          isContacting ? 0.12 : 0.075,
+          isContacting ? 0.06 : 0.038,
+          1,
+        );
+        marker.material.color.set(isContacting ? 0x14532d : 0x1f2937);
+        marker.material.opacity = isContacting ? 0.55 : 0.16;
+        marker.visible = true;
+      },
+    );
   }
 
   ensureVehicleYawIndicator() {
@@ -5384,6 +5454,7 @@ class RapierDriveSimulation {
       this.addObstacleColliderFromUrdf();
       this.initializeWheelZChartRangeFromObstacles(linkMap);
       this.ensureVehicleDirectionArrows();
+      this.ensureWheelGroundContactMarkers();
       this.ensureVehicleYawIndicator();
       this.resetWheelBodiesFromVisual();
       this.resetWheelTravelTracking();

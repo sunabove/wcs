@@ -36,178 +36,167 @@
         </div>
         <div class="row justify-content-center">
 
-            <div class="row">
-
-                <div class="card shadow border border-primary-subtle rounded-4 overflow-hidden simulation-viewer-card">
-                    <div class="card-body p-0">
-                        <div class="robot-container urdf-container w-100 rounded-4 overflow-hidden border border-primary border-2"
-                            id="robot-container-1" urdf="/urdf/model/sw_14/urdf/sw.urdf" showAttitude="true"
-                            showViewCube="true" showCompass="true" showTransparency="true">
-                        </div>
+            <div class="card shadow border border-primary-subtle rounded-4 overflow-hidden simulation-viewer-card">
+                <div class="card-body p-0">
+                    <div class="robot-container urdf-container w-100 rounded-4 overflow-hidden border border-primary border-2"
+                        id="robot-container-1" urdf="/urdf/model/sw_14/urdf/sw.urdf" showAttitude="true"
+                        showViewCube="true" showCompass="true" showTransparency="true">
                     </div>
                 </div>
+            </div>
 
-                <div class="mt-3 mb-0" id="control-panels-row">
-                    <div class="row g-3">
-                        <div class="col-4">
-                            <div class="h-100 d-flex flex-column gap-2 px-3 py-3 rounded border border-primary-subtle bg-white"
-                                id="wheel-animation-panel">
-                                <div class="row g-2">
-                                    <div class="col-12 col-md-6">
-                                        <div
-                                            class="d-flex align-items-center gap-2 px-2 py-2 rounded border bg-light h-100">
-                                            <span class="small text-nowrap fw-semibold wheel-position-label">FL</span>
-                                            <input type="range" class="form-range wheel-rpm-slider m-0"
-                                                id="wheel-speed-rpm-fl" min="-120" max="120" step="10" value="0"
-                                                oninput="this.style.setProperty('--slider-percent', (((this.value - this.min) * 100) / (this.max - this.min)) + '%'); setWheelAnimationByKey('fl', this.value)">
-                                            <span class="small text-nowrap fw-semibold wheel-rpm-value"
-                                                id="wheel-speed-rpm-value-fl">0 rpm</span>
-                                        </div>
-                                    </div>
-                                    <div class="col-12 col-md-6">
-                                        <div
-                                            class="d-flex align-items-center gap-2 px-2 py-2 rounded border bg-light h-100">
-                                            <span class="small text-nowrap fw-semibold wheel-position-label">FR</span>
-                                            <input type="range" class="form-range wheel-rpm-slider m-0"
-                                                id="wheel-speed-rpm-fr" min="-120" max="120" step="10" value="0"
-                                                oninput="this.style.setProperty('--slider-percent', (((this.value - this.min) * 100) / (this.max - this.min)) + '%'); setWheelAnimationByKey('fr', this.value)">
-                                            <span class="small text-nowrap fw-semibold wheel-rpm-value"
-                                                id="wheel-speed-rpm-value-fr">0 rpm</span>
-                                        </div>
-                                    </div>
-                                    <div class="col-12 col-md-6">
-                                        <div
-                                            class="d-flex align-items-center gap-2 px-2 py-2 rounded border bg-light h-100">
-                                            <span class="small text-nowrap fw-semibold wheel-position-label">RL</span>
-                                            <input type="range" class="form-range wheel-rpm-slider m-0"
-                                                id="wheel-speed-rpm-rl" min="-120" max="120" step="10" value="0"
-                                                oninput="this.style.setProperty('--slider-percent', (((this.value - this.min) * 100) / (this.max - this.min)) + '%'); setWheelAnimationByKey('rl', this.value)">
-                                            <span class="small text-nowrap fw-semibold wheel-rpm-value"
-                                                id="wheel-speed-rpm-value-rl">0 rpm</span>
-                                        </div>
-                                    </div>
-                                    <div class="col-12 col-md-6">
-                                        <div
-                                            class="d-flex align-items-center gap-2 px-2 py-2 rounded border bg-light h-100">
-                                            <span class="small text-nowrap fw-semibold wheel-position-label">RR</span>
-                                            <input type="range" class="form-range wheel-rpm-slider m-0"
-                                                id="wheel-speed-rpm-rr" min="-120" max="120" step="10" value="0"
-                                                oninput="this.style.setProperty('--slider-percent', (((this.value - this.min) * 100) / (this.max - this.min)) + '%'); setWheelAnimationByKey('rr', this.value)">
-                                            <span class="small text-nowrap fw-semibold wheel-rpm-value"
-                                                id="wheel-speed-rpm-value-rr">0 rpm</span>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="col-4">
-                            <div class="h-100 d-flex flex-column justify-content-center gap-2 px-3 py-3 rounded border border-primary-subtle bg-white"
-                                id="drive-control-panel">
-                                <div class="d-flex justify-content-center w-100 overflow-auto">
-                                    <div class="d-inline-flex flex-nowrap align-items-center gap-2 drive-button-list">
-                                        <button type="button" class="btn btn-outline-primary btn-sm"
-                                            id="drive-btn-forward"
-                                            onclick="setSimulationDriveMode('forward')">전진</button>
-                                        <button type="button" class="btn btn-outline-secondary btn-sm"
-                                            id="drive-btn-backward"
-                                            onclick="setSimulationDriveMode('backward')">후진</button>
-                                        <button type="button" class="btn btn-outline-primary btn-sm" id="drive-btn-left"
-                                            onclick="setSimulationDriveMode('left')">좌회전</button>
-                                        <button type="button" class="btn btn-outline-primary btn-sm"
-                                            id="drive-btn-right" onclick="setSimulationDriveMode('right')">우회전</button>
-                                        <button type="button" class="btn btn-outline-danger btn-sm" id="drive-btn-stop"
-                                            onclick="stopSimulationWheelRotation()">정지</button>
-                                        <button type="button" class="btn btn-outline-warning btn-sm text-nowrap"
-                                            id="drive-btn-reset" onclick="resetSimulation()">초기화</button>
-                                    </div>
-                                </div>
-                                <div class="d-flex justify-content-center align-items-center mt-2">
+            <div class="mt-3 mb-0" id="control-panels-row">
+                <div class="row g-3">
+                    <div class="col-4">
+                        <div class="h-100 d-flex flex-column gap-2 px-3 py-3 rounded border border-primary-subtle bg-white"
+                            id="wheel-animation-panel">
+                            <div class="row g-2">
+                                <div class="col-12 col-md-6">
                                     <div
-                                        class="d-flex align-items-center gap-2 px-3 py-2 rounded border bg-light w-100">
-                                        <span class="small text-nowrap fw-semibold">속도</span>
-                                        <div class="slider-with-ticks flex-grow-1 position-relative">
-                                            <div class="slider-tick-scale slider-tick-scale-speed" aria-hidden="true">
-                                            </div>
-                                            <input type="range" class="form-range m-0" id="drive-speed-mps" min="0.1"
-                                                max="2" step="0.1" value="0.1"
-                                                oninput="this.style.setProperty('--slider-percent', (((this.value - this.min) * 100) / (this.max - this.min)) + '%'); setSimulationDriveSpeedMps(this.value)">
-                                        </div>
-                                        <div class="d-flex align-items-center gap-2 ms-auto flex-shrink-0">
-                                            <input type="number"
-                                                class="form-control form-control-sm text-end flex-shrink-0"
-                                                id="drive-speed-mps-input" min="0.1" max="2" step="0.1" value="0.1"
-                                                aria-label="속도 값" style="width: 5.25rem;">
-                                            <span class="small text-nowrap fw-semibold text-start flex-shrink-0"
-                                                id="drive-speed-mps-value">m/s</span>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="d-flex justify-content-center align-items-center mt-2">
-                                    <div
-                                        class="d-flex align-items-center gap-2 px-3 py-2 rounded border bg-light w-100">
-                                        <span class="small text-nowrap fw-semibold">배속</span>
-                                        <div class="slider-with-ticks flex-grow-1 position-relative">
-                                            <div class="slider-tick-scale slider-tick-scale-visual" aria-hidden="true">
-                                            </div>
-                                            <input type="range" class="form-range m-0"
-                                                id="simulation-visual-speed-scale" min="1" max="7" step="1" value="3"
-                                                oninput="this.style.setProperty('--slider-percent', (((this.value - this.min) * 100) / (this.max - this.min)) + '%'); setSimulationVisualSpeed(this.value)">
-                                        </div>
-                                        <div class="d-flex align-items-center gap-2 ms-auto flex-shrink-0">
-                                            <input type="text"
-                                                class="form-control form-control-sm text-end flex-shrink-0"
-                                                id="simulation-visual-speed-scale-input" value="1/2" readonly
-                                                aria-label="배속 값" style="width: 5.25rem;">
-                                            <span class="small text-nowrap fw-semibold text-start flex-shrink-0"
-                                                id="simulation-visual-speed-scale-value">x</span>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="col-4">
-                            <div class="h-100 d-flex align-items-start justify-content-center px-3 py-3 rounded border border-primary-subtle bg-white"
-                                id="ramp-control-panel">
-                                <div class="d-flex flex-column gap-2 w-100 align-items-center">
-                                    <div
-                                        class="d-flex align-items-center gap-2 px-2 py-2 rounded border bg-light h-100 w-100">
-                                        <span class="small text-nowrap fw-semibold" style="width: 50px;">Roll</span>
+                                        class="d-flex align-items-center gap-2 px-2 py-2 rounded border bg-light h-100">
+                                        <span class="small text-nowrap fw-semibold wheel-position-label">FL</span>
                                         <input type="range" class="form-range wheel-rpm-slider m-0"
-                                            id="road-roll-angle-deg" min="-30" max="30" step="1" value="0"
-                                            oninput="setRoadRollAngleDeg(this.value)">
+                                            id="wheel-speed-rpm-fl" min="-120" max="120" step="10" value="0"
+                                            oninput="this.style.setProperty('--slider-percent', (((this.value - this.min) * 100) / (this.max - this.min)) + '%'); setWheelAnimationByKey('fl', this.value)">
                                         <span class="small text-nowrap fw-semibold wheel-rpm-value"
-                                            id="road-roll-angle-deg-value">0°</span>
-                                        <button type="button"
-                                            class="btn btn-outline-secondary btn-sm text-nowrap flex-shrink-0 small"
-                                            id="road-roll-reset" onclick="resetSimulationRoll()">초기화</button>
+                                            id="wheel-speed-rpm-value-fl">0 rpm</span>
                                     </div>
+                                </div>
+                                <div class="col-12 col-md-6">
                                     <div
-                                        class="d-flex align-items-center gap-2 px-2 py-2 rounded border bg-light h-100 w-100">
-                                        <span class="small text-nowrap fw-semibold" style="width: 50px;">Pitch</span>
+                                        class="d-flex align-items-center gap-2 px-2 py-2 rounded border bg-light h-100">
+                                        <span class="small text-nowrap fw-semibold wheel-position-label">FR</span>
                                         <input type="range" class="form-range wheel-rpm-slider m-0"
-                                            id="road-pitch-angle-deg" min="-30" max="30" step="1" value="0"
-                                            oninput="setRoadPitchAngleDeg(this.value)">
+                                            id="wheel-speed-rpm-fr" min="-120" max="120" step="10" value="0"
+                                            oninput="this.style.setProperty('--slider-percent', (((this.value - this.min) * 100) / (this.max - this.min)) + '%'); setWheelAnimationByKey('fr', this.value)">
                                         <span class="small text-nowrap fw-semibold wheel-rpm-value"
-                                            id="road-pitch-angle-deg-value">0°</span>
-                                        <button type="button"
-                                            class="btn btn-outline-secondary btn-sm text-nowrap flex-shrink-0 small"
-                                            id="road-pitch-reset" onclick="resetSimulationPitch()">초기화</button>
+                                            id="wheel-speed-rpm-value-fr">0 rpm</span>
+                                    </div>
+                                </div>
+                                <div class="col-12 col-md-6">
+                                    <div
+                                        class="d-flex align-items-center gap-2 px-2 py-2 rounded border bg-light h-100">
+                                        <span class="small text-nowrap fw-semibold wheel-position-label">RL</span>
+                                        <input type="range" class="form-range wheel-rpm-slider m-0"
+                                            id="wheel-speed-rpm-rl" min="-120" max="120" step="10" value="0"
+                                            oninput="this.style.setProperty('--slider-percent', (((this.value - this.min) * 100) / (this.max - this.min)) + '%'); setWheelAnimationByKey('rl', this.value)">
+                                        <span class="small text-nowrap fw-semibold wheel-rpm-value"
+                                            id="wheel-speed-rpm-value-rl">0 rpm</span>
+                                    </div>
+                                </div>
+                                <div class="col-12 col-md-6">
+                                    <div
+                                        class="d-flex align-items-center gap-2 px-2 py-2 rounded border bg-light h-100">
+                                        <span class="small text-nowrap fw-semibold wheel-position-label">RR</span>
+                                        <input type="range" class="form-range wheel-rpm-slider m-0"
+                                            id="wheel-speed-rpm-rr" min="-120" max="120" step="10" value="0"
+                                            oninput="this.style.setProperty('--slider-percent', (((this.value - this.min) * 100) / (this.max - this.min)) + '%'); setWheelAnimationByKey('rr', this.value)">
+                                        <span class="small text-nowrap fw-semibold wheel-rpm-value"
+                                            id="wheel-speed-rpm-value-rr">0 rpm</span>
                                     </div>
                                 </div>
                             </div>
                         </div>
                     </div>
-                </div>
 
-                <div class="card mt-3 mb-0 border border-secondary-subtle" id="simulation-debug-panel" role="status">
-                    <div class="card-header py-2 px-3 small fw-semibold text-primary">Simulation Debug</div>
-                    <div class="card-body py-2 px-3">
-                        <div id="simulation-debug-text" class="small">대기 중...</div>
+                    <div class="col-4">
+                        <div class="h-100 d-flex flex-column justify-content-center gap-2 px-3 py-3 rounded border border-primary-subtle bg-white"
+                            id="drive-control-panel">
+                            <div class="d-flex justify-content-center w-100 overflow-auto">
+                                <div class="d-inline-flex flex-nowrap align-items-center gap-2 drive-button-list">
+                                    <button type="button" class="btn btn-outline-primary btn-sm" id="drive-btn-forward"
+                                        onclick="setSimulationDriveMode('forward')">전진</button>
+                                    <button type="button" class="btn btn-outline-secondary btn-sm"
+                                        id="drive-btn-backward" onclick="setSimulationDriveMode('backward')">후진</button>
+                                    <button type="button" class="btn btn-outline-primary btn-sm" id="drive-btn-left"
+                                        onclick="setSimulationDriveMode('left')">좌회전</button>
+                                    <button type="button" class="btn btn-outline-primary btn-sm" id="drive-btn-right"
+                                        onclick="setSimulationDriveMode('right')">우회전</button>
+                                    <button type="button" class="btn btn-outline-danger btn-sm" id="drive-btn-stop"
+                                        onclick="stopSimulationWheelRotation()">정지</button>
+                                    <button type="button" class="btn btn-outline-warning btn-sm text-nowrap"
+                                        id="drive-btn-reset" onclick="resetSimulation()">초기화</button>
+                                </div>
+                            </div>
+                            <div class="d-flex justify-content-center align-items-center mt-2">
+                                <div class="d-flex align-items-center gap-2 px-3 py-2 rounded border bg-light w-100">
+                                    <span class="small text-nowrap fw-semibold">속도</span>
+                                    <div class="slider-with-ticks flex-grow-1 position-relative">
+                                        <div class="slider-tick-scale slider-tick-scale-speed" aria-hidden="true">
+                                        </div>
+                                        <input type="range" class="form-range m-0" id="drive-speed-mps" min="0.1"
+                                            max="2" step="0.1" value="0.1"
+                                            oninput="this.style.setProperty('--slider-percent', (((this.value - this.min) * 100) / (this.max - this.min)) + '%'); setSimulationDriveSpeedMps(this.value)">
+                                    </div>
+                                    <div class="d-flex align-items-center gap-2 ms-auto flex-shrink-0">
+                                        <input type="number" class="form-control form-control-sm text-end flex-shrink-0"
+                                            id="drive-speed-mps-input" min="0.1" max="2" step="0.1" value="0.1"
+                                            aria-label="속도 값" style="width: 5.25rem;">
+                                        <span class="small text-nowrap fw-semibold text-start flex-shrink-0"
+                                            id="drive-speed-mps-value">m/s</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="d-flex justify-content-center align-items-center mt-2">
+                                <div class="d-flex align-items-center gap-2 px-3 py-2 rounded border bg-light w-100">
+                                    <span class="small text-nowrap fw-semibold">배속</span>
+                                    <div class="slider-with-ticks flex-grow-1 position-relative">
+                                        <div class="slider-tick-scale slider-tick-scale-visual" aria-hidden="true">
+                                        </div>
+                                        <input type="range" class="form-range m-0" id="simulation-visual-speed-scale"
+                                            min="1" max="7" step="1" value="3"
+                                            oninput="this.style.setProperty('--slider-percent', (((this.value - this.min) * 100) / (this.max - this.min)) + '%'); setSimulationVisualSpeed(this.value)">
+                                    </div>
+                                    <div class="d-flex align-items-center gap-2 ms-auto flex-shrink-0">
+                                        <input type="text" class="form-control form-control-sm text-end flex-shrink-0"
+                                            id="simulation-visual-speed-scale-input" value="1/2" readonly
+                                            aria-label="배속 값" style="width: 5.25rem;">
+                                        <span class="small text-nowrap fw-semibold text-start flex-shrink-0"
+                                            id="simulation-visual-speed-scale-value">x</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-4">
+                        <div class="h-100 d-flex align-items-start justify-content-center px-3 py-3 rounded border border-primary-subtle bg-white"
+                            id="ramp-control-panel">
+                            <div class="d-flex flex-column gap-2 w-100 align-items-center">
+                                <div
+                                    class="d-flex align-items-center gap-2 px-2 py-2 rounded border bg-light h-100 w-100">
+                                    <span class="small text-nowrap fw-semibold" style="width: 50px;">Roll</span>
+                                    <input type="range" class="form-range wheel-rpm-slider m-0" id="road-roll-angle-deg"
+                                        min="-30" max="30" step="1" value="0" oninput="setRoadRollAngleDeg(this.value)">
+                                    <span class="small text-nowrap fw-semibold wheel-rpm-value"
+                                        id="road-roll-angle-deg-value">0°</span>
+                                    <button type="button"
+                                        class="btn btn-outline-secondary btn-sm text-nowrap flex-shrink-0 small"
+                                        id="road-roll-reset" onclick="resetSimulationRoll()">초기화</button>
+                                </div>
+                                <div
+                                    class="d-flex align-items-center gap-2 px-2 py-2 rounded border bg-light h-100 w-100">
+                                    <span class="small text-nowrap fw-semibold" style="width: 50px;">Pitch</span>
+                                    <input type="range" class="form-range wheel-rpm-slider m-0"
+                                        id="road-pitch-angle-deg" min="-30" max="30" step="1" value="0"
+                                        oninput="setRoadPitchAngleDeg(this.value)">
+                                    <span class="small text-nowrap fw-semibold wheel-rpm-value"
+                                        id="road-pitch-angle-deg-value">0°</span>
+                                    <button type="button"
+                                        class="btn btn-outline-secondary btn-sm text-nowrap flex-shrink-0 small"
+                                        id="road-pitch-reset" onclick="resetSimulationPitch()">초기화</button>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
+            </div>
 
+            <div class="card mt-3 mb-0 border border-secondary-subtle" id="simulation-debug-panel" role="status">
+                <div class="card-header py-2 px-3 small fw-semibold text-primary">Simulation Debug</div>
+                <div class="card-body py-2 px-3">
+                    <div id="simulation-debug-text" class="small">대기 중...</div>
+                </div>
             </div>
         </div>
     </div>

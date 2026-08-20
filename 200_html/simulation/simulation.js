@@ -5933,6 +5933,17 @@ class RapierDriveSimulation {
           obstacleInfoForClimb,
           this.physicsFixedTimeStepSec,
         );
+        if (throttleSign !== 0 && Math.abs(effectiveSteerSign) < 1e-3) {
+          const velocity = this.body.linvel();
+          this.body.setLinvel(
+            new this.rapier.Vector3(
+              targetVelocityX,
+              targetVelocityY,
+              velocity.z,
+            ),
+            true,
+          );
+        }
       } else {
         const velocity = this.body.linvel();
         const approachSpeed = Math.hypot(velocity.x, velocity.y);
@@ -6249,17 +6260,9 @@ class RapierDriveSimulation {
       this.viewer?.robotModel?.links || null,
     );
     this.resetWheelBodiesFromVisual();
-    const viewer = this.getDriveSourceViewer();
-    if (typeof viewer?.setWheelRotationDrivenByTravel === "function") {
-      viewer.setWheelRotationDrivenByTravel(false);
-    }
-    ["fl", "fr", "rl", "rr"].forEach((key) => {
-      if (typeof globalThis.setWheelAnimationByKey === "function") {
-        globalThis.setWheelAnimationByKey(key, 0);
-      }
-    });
     this.commandedDriveMode = null;
     this.applyDriveModeCommand("stop");
+    this.stopWheelRotation();
     this.resetWheelTravelTracking();
     this.syncWheelChartBaselineFromPhysics();
   }

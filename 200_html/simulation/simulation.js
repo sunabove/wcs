@@ -4911,7 +4911,7 @@ class RapierDriveSimulation {
           isContacting ? 0.06 : 0.038,
           1,
         );
-        marker.material.color.set(isContacting ? 0x14532d : 0x1f2937);
+        marker.material.color.set(isContacting ? 0x111111 : 0x1f2937);
         marker.material.opacity = isContacting ? 0.55 : 0.16;
         marker.visible = true;
       },

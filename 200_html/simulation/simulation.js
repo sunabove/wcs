@@ -5798,8 +5798,10 @@ class RapierDriveSimulation {
       this.physicsAccumulatorSec >= this.physicsFixedTimeStepSec &&
       stepIndex < this.maxPhysicsCatchupSteps
     ) {
-      const currentObstacleApproach = null;
-      const currentClimbApproach = false;
+      const currentObstacleApproach = this.contactSolver.getApproachInfo();
+      const currentClimbApproach = this.contactSolver.isClimbApproach(
+        currentObstacleApproach?.obstacleInfo || null,
+      );
       const obstacleHeadingYaw = this.extractYawFromQuaternion(
         this.body.rotation(),
       );

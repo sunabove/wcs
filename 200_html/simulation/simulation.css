@@ -51,15 +51,6 @@ body {
   text-align: right;
 }
 
-.road-angle-label {
-  width: 60px;
-}
-
-.road-angle-value {
-  min-width: 40px;
-  text-align: right;
-}
-
 #simulation-debug-panel {
   display: none;
   font-family: Consolas, "Courier New", monospace;

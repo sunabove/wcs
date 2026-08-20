@@ -31,7 +31,14 @@ body {
   box-shadow: inset 0 0 0 1px rgba(13, 110, 253, 0.08);
 }
 
-.wheel-rpm-value,
+.wheel-rpm-value {
+  flex: 0 0 4.5rem;
+  width: 4.5rem;
+  overflow: hidden;
+  text-align: right;
+  text-overflow: ellipsis;
+}
+
 #simulation-visual-speed-scale-value {
   min-width: 40px;
   text-align: right;
@@ -187,6 +194,8 @@ body {
 
 .wheel-rpm-slider {
   --slider-percent: 50%;
+  flex: 1 1 0;
+  min-width: 0;
   height: 0.5rem;
   border-radius: 999px;
   background: linear-gradient(

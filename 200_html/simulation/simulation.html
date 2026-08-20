@@ -123,16 +123,16 @@
                                         style="min-width: max-content; white-space: nowrap;">
                                         <button type="button" class="btn btn-outline-primary btn-sm"
                                             id="drive-btn-forward" data-simulation-flash data-simulation-control
-                                            onclick="runSimulationControl(this, () => setSimulationDriveMode('forward'))">전진</button>
+                                            onclick="setSimulationDriveMode('forward')">전진</button>
                                         <button type="button" class="btn btn-outline-secondary btn-sm"
                                             id="drive-btn-backward" data-simulation-flash data-simulation-control
-                                            onclick="runSimulationControl(this, () => setSimulationDriveMode('backward'))">후진</button>
+                                            onclick="setSimulationDriveMode('backward')">후진</button>
                                         <button type="button" class="btn btn-outline-primary btn-sm" id="drive-btn-left"
                                             data-simulation-flash data-simulation-control
-                                            onclick="runSimulationControl(this, () => setSimulationDriveMode('left'))">좌회전</button>
+                                            onclick="setSimulationDriveMode('left')">좌회전</button>
                                         <button type="button" class="btn btn-outline-primary btn-sm"
                                             id="drive-btn-right" data-simulation-flash data-simulation-control
-                                            onclick="runSimulationControl(this, () => setSimulationDriveMode('right'))">우회전</button>
+                                            onclick="setSimulationDriveMode('right')">우회전</button>
                                         <button type="button" class="btn btn-outline-danger btn-sm" id="drive-btn-stop"
                                             data-simulation-flash data-simulation-control
                                             onclick="runSimulationControl(this, () => setSimulationDriveMode('stop'))">정지</button>

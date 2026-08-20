@@ -3366,69 +3366,7 @@ class RapierDriveSimulation {
       return physicsContactedWheelKeys;
     }
 
-    if (!obstacleInfo.center || !obstacleInfo.halfExtents) {
-      return [];
-    }
-
-    const fallbackWheelContactKeys = Object.entries(this.wheelCollidersByKey)
-      .filter(([wheelKey, wheelCollider]) => {
-        if (!wheelCollider || typeof wheelCollider.translation !== "function") {
-          return false;
-        }
-
-        const wheelCenter = wheelCollider.translation();
-        const wheelRadius = Math.max(
-          Number(this.wheelRadiusMetersByKey[wheelKey]) ||
-            Number(this.wheelEffectiveRadiusMeters) ||
-            0,
-          0.05,
-        );
-        const nearestX = THREE.MathUtils.clamp(
-          wheelCenter.x,
-          obstacleInfo.center.x - obstacleInfo.halfExtents.x,
-          obstacleInfo.center.x + obstacleInfo.halfExtents.x,
-        );
-        const nearestY = THREE.MathUtils.clamp(
-          wheelCenter.y,
-          obstacleInfo.center.y - obstacleInfo.halfExtents.y,
-          obstacleInfo.center.y + obstacleInfo.halfExtents.y,
-        );
-        const nearestZ = THREE.MathUtils.clamp(
-          wheelCenter.z,
-          obstacleInfo.center.z - obstacleInfo.halfExtents.z,
-          obstacleInfo.center.z + obstacleInfo.halfExtents.z,
-        );
-        const distanceSquared =
-          (wheelCenter.x - nearestX) ** 2 +
-          (wheelCenter.y - nearestY) ** 2 +
-          (wheelCenter.z - nearestZ) ** 2;
-        return distanceSquared <= wheelRadius ** 2;
-      })
-      .map(([wheelKey]) => wheelKey);
-    if (fallbackWheelContactKeys.length > 0) {
-      return fallbackWheelContactKeys;
-    }
-
-    const effectiveLinkMap = linkMap || this.viewer?.robotModel?.links || null;
-    const obstacleBounds = this.getObstacleWorldBounds(
-      obstacleInfo,
-      effectiveLinkMap,
-    );
-    if (!effectiveLinkMap || !obstacleBounds || obstacleBounds.isEmpty()) {
-      return [];
-    }
-
-    return Object.entries(this.wheelLinkNameByKey)
-      .filter(([wheelKey, wheelLinkName]) => {
-        const wheelLink = this.findLinkByName(effectiveLinkMap, wheelLinkName);
-        const wheelBounds = wheelLink
-          ? this.computeLinkOwnBounds(wheelLink, effectiveLinkMap)
-          : null;
-        return Boolean(
-          wheelBounds && wheelBounds.intersectsBox(obstacleBounds),
-        );
-      })
-      .map(([wheelKey]) => wheelKey);
+    return [];
   }
 
   isVehicleColliderContactingObstacle(obstacleInfo) {

@@ -3540,7 +3540,7 @@ class RapierDriveSimulation {
           Math.abs(forwardY) * obstacleInfo.halfExtents.y;
         const obstacleFront = alongForward - halfForward;
         const obstacleRear = alongForward + halfForward;
-        const rampLength = Math.max(0.32, Math.min(0.45, halfForward * 1.2));
+        const rampLength = Math.max(0.45, Math.min(0.65, halfForward * 1.5));
         const targetZ = this.getObstacleClimbTargetZ(obstacleInfo);
         return {
           obstacleInfo,
@@ -3638,7 +3638,7 @@ class RapierDriveSimulation {
       Math.abs(forwardY) * obstacleInfo.halfExtents.y;
     const obstacleFront = centerAlongForward - halfForward;
     const obstacleRear = centerAlongForward + halfForward;
-    const rampLength = Math.max(0.32, Math.min(0.45, halfForward * 1.2));
+    const rampLength = Math.max(0.45, Math.min(0.65, halfForward * 1.5));
     const measuredGroundTargetZ = this.getGroundContactTargetZ();
     const groundTargetZ = Number.isFinite(measuredGroundTargetZ)
       ? measuredGroundTargetZ

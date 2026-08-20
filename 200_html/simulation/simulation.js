@@ -4943,8 +4943,8 @@ class RapierDriveSimulation {
           isContacting ? 0.06 : 0.045,
           1,
         );
-        marker.material.color.set(isContacting ? 0x111111 : 0xfacc15);
-        marker.material.opacity = isContacting ? 0.55 : 0.42;
+        marker.material.color.set(isContacting ? 0xfacc15 : 0x111111);
+        marker.material.opacity = isContacting ? 0.42 : 0.55;
         marker.visible = true;
       },
     );
@@ -6433,11 +6433,13 @@ class RapierDriveSimulation {
     this.applyDriveModeCommand("stop");
     this.stopWheelRotation();
     this.settlePhysicsAfterReset();
+    this.renderer.syncVehicle();
+    this.syncCarFrameFromBody();
     this.alignVehicleToGroundByWheelGap(
       this.viewer?.robotModel?.links || null,
       0,
     );
-    this.renderer.syncVehicle();
+    this.syncCarFrameFromBody();
     this.resetWheelBodiesFromVisual();
     this.updateWheelGroundContactState();
     this.syncWheelGroundContactMarkers();

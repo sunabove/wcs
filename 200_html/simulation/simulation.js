@@ -4419,10 +4419,15 @@ class RapierDriveSimulation {
         typeof viewer.convertKmhToRpm === "function"
           ? viewer.convertKmhToRpm(this.mpsToKmh(this.commandedSpeedMps))
           : 0;
+      const driveMode = String(this.commandedDriveMode || "").toLowerCase();
+      const commandedWheelDirection = driveMode === "backward" ? 1 : -1;
       Object.entries(this.wheelVisualRotationDirectionByKey).forEach(
-        ([wheelKey, direction]) => {
+        ([wheelKey]) => {
           if (typeof viewer.setWheelSpeedRpm === "function") {
-            viewer.setWheelSpeedRpm(wheelKey, rpmMagnitude * direction);
+            viewer.setWheelSpeedRpm(
+              wheelKey,
+              rpmMagnitude * commandedWheelDirection,
+            );
           }
         },
       );

@@ -5809,6 +5809,35 @@ class RapierDriveSimulation {
       const obstaclePathControlActive = false;
       const willEnterObstacle = false;
 
+      const preStepTraversalApproach =
+        this.getObstacleTraversalApproachInfo()?.obstacleInfo || null;
+      const preStepTraversalPath =
+        this.activeObstacleTraversalPath ||
+        (preStepTraversalApproach
+          ? this.getObstacleTraversalPath(preStepTraversalApproach)
+          : null);
+      if (preStepTraversalPath) {
+        this.activeObstacleTraversalPath = preStepTraversalPath;
+      }
+      if (this.isObstacleTraversalActive()) {
+        this.applyObstacleClimbLift(
+          true,
+          this.physicsFixedTimeStepSec,
+          preStepTraversalPath.obstacleInfo,
+        );
+        if (throttleSign !== 0 && Math.abs(effectiveSteerSign) < 1e-3) {
+          const velocity = this.body.linvel();
+          this.body.setLinvel(
+            new this.rapier.Vector3(
+              targetVelocityX,
+              targetVelocityY,
+              velocity.z,
+            ),
+            true,
+          );
+        }
+      }
+
       if (
         !willEnterObstacle &&
         (keyboardState.isActive || throttleSign !== 0)

@@ -6241,7 +6241,20 @@ class RapierDriveSimulation {
 
     // On reset, always return to the URDF-authored pose without extra ground alignment offsets.
     this.renderer.syncVehicle();
+    this.estimateWheelEffectiveRadiusMeters(
+      this.carFrame,
+      this.viewer?.robotModel?.links || null,
+    );
     this.resetWheelBodiesFromVisual();
+    const viewer = this.getDriveSourceViewer();
+    if (typeof viewer?.setWheelRotationDrivenByTravel === "function") {
+      viewer.setWheelRotationDrivenByTravel(false);
+    }
+    ["fl", "fr", "rl", "rr"].forEach((key) => {
+      if (typeof globalThis.setWheelAnimationByKey === "function") {
+        globalThis.setWheelAnimationByKey(key, 0);
+      }
+    });
     this.commandedDriveMode = null;
     this.applyDriveModeCommand("stop");
     this.resetWheelTravelTracking();

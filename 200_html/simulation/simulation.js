@@ -244,7 +244,8 @@ class RapierDriveSimulation {
     this.flatGroundVerticalVelocitySnapThresholdMps = 0.35;
     this.maxLiftWithoutObstacleMeters = 0.03;
     this.maxLiftWithObstacleMeters = 0.24;
-    this.obstacleClimbMaxRiseSpeedMps = 0.7;
+    this.obstacleClimbMinRiseSpeedMps = 0.7;
+    this.obstacleClimbMaxRiseSpeedMps = 1.5;
     this.isInitializing = false;
     this.isReady = false;
     this.hasFailed = false;
@@ -3692,9 +3693,21 @@ class RapierDriveSimulation {
       return;
     }
 
+    const climbHeight = Math.max(
+      Number(path.obstacleTargetZ) - Number(path.groundTargetZ),
+      0,
+    );
+    const rampLength = Math.max(Number(path.rampLength) || 0, 0.01);
+    const commandedSpeedMps = Math.max(this.getCommandedDriveSpeedMps(), 0.1);
+    const requiredRiseSpeed =
+      (climbHeight * commandedSpeedMps * 1.8) / rampLength;
+    const riseSpeed = THREE.MathUtils.clamp(
+      requiredRiseSpeed,
+      Math.max(Number(this.obstacleClimbMinRiseSpeedMps) || 0, 0),
+      Math.max(Number(this.obstacleClimbMaxRiseSpeedMps) || 0, 0),
+    );
     const maxRiseDistance =
-      Math.max(Number(this.obstacleClimbMaxRiseSpeedMps) || 0, 0) *
-      Math.max(Number(effectiveDeltaSec) || 0, 0);
+      riseSpeed * Math.max(Number(effectiveDeltaSec) || 0, 0);
     const nextZ = Math.min(targetZ, translation.z + maxRiseDistance);
     if (nextZ <= translation.z + 1e-6) {
       return;

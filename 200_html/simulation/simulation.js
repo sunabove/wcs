@@ -5457,6 +5457,8 @@ class RapierDriveSimulation {
       this.ensureWheelGroundContactMarkers();
       this.ensureVehicleYawIndicator();
       this.resetWheelBodiesFromVisual();
+      this.updateWheelGroundContactState();
+      this.syncWheelGroundContactMarkers();
       this.resetWheelTravelTracking();
       this.syncWheelChartBaselineFromPhysics();
       this.isReady = true;
@@ -6408,6 +6410,8 @@ class RapierDriveSimulation {
     );
     this.renderer.syncVehicle();
     this.resetWheelBodiesFromVisual();
+    this.updateWheelGroundContactState();
+    this.syncWheelGroundContactMarkers();
     this.isDriveStartPreparationPending = false;
     this.resetWheelTravelTracking();
     this.syncWheelChartBaselineFromPhysics();

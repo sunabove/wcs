@@ -4415,30 +4415,6 @@ class RapierDriveSimulation {
       return;
     }
 
-    if (this.isVehicleObstacleContact) {
-      if (typeof viewer.setWheelRotationDrivenByTravel === "function") {
-        viewer.setWheelRotationDrivenByTravel(false);
-      }
-      const rpmMagnitude =
-        typeof viewer.convertKmhToRpm === "function"
-          ? viewer.convertKmhToRpm(this.mpsToKmh(this.commandedSpeedMps))
-          : 0;
-      const driveMode = String(this.commandedDriveMode || "").toLowerCase();
-      const commandedWheelDirection = driveMode === "backward" ? 1 : -1;
-      Object.entries(this.wheelVisualRotationDirectionByKey).forEach(
-        ([wheelKey]) => {
-          if (typeof viewer.setWheelSpeedRpm === "function") {
-            viewer.setWheelSpeedRpm(
-              wheelKey,
-              rpmMagnitude * commandedWheelDirection,
-            );
-          }
-        },
-      );
-      this.resetWheelTravelTracking();
-      return;
-    }
-
     if (typeof viewer.setWheelRotationDrivenByTravel === "function") {
       viewer.setWheelRotationDrivenByTravel(true);
     }

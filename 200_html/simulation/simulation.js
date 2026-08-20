@@ -1351,7 +1351,6 @@ class RapierDriveSimulation {
         globalThis.setWheelAnimationByKey(key, 0);
       }
     });
-    this.resetWheelTravelTracking();
   }
 
   applyDriveModeCommand(mode) {
@@ -6189,6 +6188,18 @@ class RapierDriveSimulation {
       rl: -1,
       rr: -1,
     };
+    this.isWheelRotationStopped = false;
+    this.hasActivatedSimulationMotion = false;
+    this.hasActivatedDynamicGroundClamp = false;
+    this.straightDriveReferencePose = null;
+    this.straightDriveWarmupSteps = 0;
+    this.postObstacleGroundRecoverRemainingSec = 0;
+    this.lastDriveCommandState = {
+      throttleSign: 0,
+      steerSign: 0,
+      hasMoveCommand: false,
+    };
+    this.clearCenterTurnPivot();
     Object.keys(this.wheelRadiusMetersByKey).forEach((key) => {
       this.wheelRadiusMetersByKey[key] = null;
     });
@@ -6210,6 +6221,10 @@ class RapierDriveSimulation {
     this.body.setLinvel(new this.rapier.Vector3(0, 0, 0), true);
     this.body.setAngvel(new this.rapier.Vector3(0, 0, 0), true);
     this.isVehicleObstacleContact = false;
+    this.keyHoldState.ArrowUp = 0;
+    this.keyHoldState.ArrowDown = 0;
+    this.keyHoldState.ArrowLeft = 0;
+    this.keyHoldState.ArrowRight = 0;
     this.obstacleColliderInfos.forEach((obstacleInfo) => {
       obstacleInfo.isContactHighlightLatched = false;
       obstacleInfo.contactHighlightPendingUntilMs = 0;

@@ -458,7 +458,7 @@ class RapierDriveSimulation {
     title.style.lineHeight = "1.1";
     title.style.textAlign = "center";
     title.style.width = "100%";
-    title.textContent = "Wheel Z Position";
+    title.textContent = "Wheel Bottom Height";
 
     const toggleButton = document.createElement("button");
     toggleButton.type = "button";
@@ -784,10 +784,6 @@ class RapierDriveSimulation {
           wheelLink.getWorldPosition(centerWorld);
         }
 
-        if (!Number.isFinite(this.wheelChartBaselineCenterZByKey[wheelKey])) {
-          this.wheelChartBaselineCenterZByKey[wheelKey] = centerWorld.z;
-        }
-
         let chartCenterWorldZ = centerWorld.z;
         const traversalPath = this.activeObstacleTraversalPath;
         if (traversalPath && this.isObstacleTraversalActive()) {
@@ -810,9 +806,9 @@ class RapierDriveSimulation {
           }
         }
 
-        const wheelCenterHeightDelta =
-          chartCenterWorldZ - this.wheelChartBaselineCenterZByKey[wheelKey];
-        if (!Number.isFinite(wheelCenterHeightDelta)) {
+        const wheelBottomHeight =
+          chartCenterWorldZ - wheelRadiusMeters - this.groundZ;
+        if (!Number.isFinite(wheelBottomHeight)) {
           return;
         }
 
@@ -820,7 +816,7 @@ class RapierDriveSimulation {
         const latestSample = wheelHistory[wheelHistory.length - 1];
         const sample = {
           t: nowSec,
-          z: wheelCenterHeightDelta,
+          z: wheelBottomHeight,
         };
         if (latestSample && Math.abs(latestSample.t - nowSec) < 1e-6) {
           wheelHistory[wheelHistory.length - 1] = sample;

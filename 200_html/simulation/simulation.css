@@ -9,33 +9,22 @@
 }
 
 .simulation-command-flash {
-  animation: simulation-command-flash 760ms ease-in-out;
+  animation: simulation-command-flash 420ms ease-out;
 }
 
 @keyframes simulation-command-flash {
   0%,
   100% {
     box-shadow: none;
-    transform: scale(1);
     filter: none;
   }
 
-  14%,
-  44%,
-  72% {
+  45% {
     border-color: #ffc107;
     background-color: #ffd43b;
     color: #1f2937;
     box-shadow: 0 0 0 0.32rem rgba(255, 193, 7, 0.5);
-    transform: scale(1.08);
     filter: contrast(1.15);
-  }
-
-  29%,
-  58% {
-    box-shadow: 0 0 0 0.08rem rgba(255, 193, 7, 0.16);
-    transform: scale(1);
-    filter: none;
   }
 }
 

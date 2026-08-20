@@ -5966,11 +5966,7 @@ class RapierDriveSimulation {
         this.straightDriveWarmupSteps -= 1;
       }
 
-      if (
-        throttleSign !== 0 &&
-        Math.abs(effectiveSteerSign) < 1e-3 &&
-        !this.isVehicleObstacleContact
-      ) {
+      if (throttleSign !== 0 && Math.abs(effectiveSteerSign) < 1e-3) {
         this.stabilizeWheelBodiesForStraightDrive(
           targetVelocityX,
           targetVelocityY,

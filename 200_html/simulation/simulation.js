@@ -244,6 +244,7 @@ class RapierDriveSimulation {
     this.flatGroundVerticalVelocitySnapThresholdMps = 0.35;
     this.maxLiftWithoutObstacleMeters = 0.03;
     this.maxLiftWithObstacleMeters = 0.24;
+    this.obstacleClimbMaxRiseSpeedMps = 0.7;
     this.isInitializing = false;
     this.isReady = false;
     this.hasFailed = false;
@@ -3517,6 +3518,17 @@ class RapierDriveSimulation {
     return targetBodyZ;
   }
 
+  hasWheelSupportForObstacleTraversal(obstacleInfo = null) {
+    const hasGroundSupport = Object.values(
+      this.wheelGroundContactState || {},
+    ).some(Boolean);
+    if (hasGroundSupport) {
+      return true;
+    }
+
+    return this.getObstacleContactedWheelKeys(obstacleInfo).length > 0;
+  }
+
   getObstacleTraversalPath(obstacleInfo = null) {
     if (!this.body || !obstacleInfo?.center || !obstacleInfo?.halfExtents) {
       return null;
@@ -3658,7 +3670,12 @@ class RapierDriveSimulation {
     effectiveDeltaSec,
     obstacleInfo = null,
   ) {
-    if (!hasObstacleContactNow || !this.body || !this.rapier) {
+    if (
+      !hasObstacleContactNow ||
+      !this.body ||
+      !this.rapier ||
+      !this.hasWheelSupportForObstacleTraversal(obstacleInfo)
+    ) {
       return;
     }
 
@@ -3675,8 +3692,16 @@ class RapierDriveSimulation {
       return;
     }
 
+    const maxRiseDistance =
+      Math.max(Number(this.obstacleClimbMaxRiseSpeedMps) || 0, 0) *
+      Math.max(Number(effectiveDeltaSec) || 0, 0);
+    const nextZ = Math.min(targetZ, translation.z + maxRiseDistance);
+    if (nextZ <= translation.z + 1e-6) {
+      return;
+    }
+
     this.body.setTranslation(
-      new this.rapier.Vector3(translation.x, translation.y, targetZ),
+      new this.rapier.Vector3(translation.x, translation.y, nextZ),
       true,
     );
     const velocity = this.body.linvel();

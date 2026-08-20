@@ -4732,7 +4732,7 @@ class RapierDriveSimulation {
     }
 
     const translation = this.body.translation();
-    const alignedZ = translation.z - Math.max(wheelGroundGap, 0.002);
+    const alignedZ = translation.z - wheelGroundGap;
     this.body.setTranslation(
       new this.rapier.Vector3(translation.x, translation.y, alignedZ),
       true,
@@ -5357,11 +5357,25 @@ class RapierDriveSimulation {
         this.addWheelCollidersFromUrdf(body, carFrame, linkMap);
       }
 
-      this.initialPosition = initialPosition.clone();
-      this.initialQuaternion = initialQuaternion.clone();
       this.vehicleHalfExtents = { x: halfX, y: halfY, z: halfZ };
       this.addGroundCollider();
       this.enforceWheelGroundContactAtLoad(linkMap);
+      this.alignVehicleToGroundByWheelGap(linkMap, 0);
+      this.renderer.syncVehicle();
+      this.resetWheelBodiesFromVisual();
+      const groundedPosition = this.body.translation();
+      const groundedRotation = this.body.rotation();
+      this.initialPosition = new THREE.Vector3(
+        groundedPosition.x,
+        groundedPosition.y,
+        groundedPosition.z,
+      );
+      this.initialQuaternion = new THREE.Quaternion(
+        groundedRotation.x,
+        groundedRotation.y,
+        groundedRotation.z,
+        groundedRotation.w,
+      );
       this.addObstacleColliderFromUrdf();
       this.initializeWheelZChartRangeFromObstacles(linkMap);
       this.ensureVehicleDirectionArrows();
@@ -6310,6 +6324,12 @@ class RapierDriveSimulation {
     this.applyDriveModeCommand("stop");
     this.stopWheelRotation();
     this.settlePhysicsAfterReset();
+    this.alignVehicleToGroundByWheelGap(
+      this.viewer?.robotModel?.links || null,
+      0,
+    );
+    this.renderer.syncVehicle();
+    this.resetWheelBodiesFromVisual();
     this.isDriveStartPreparationPending = false;
     this.resetWheelTravelTracking();
     this.syncWheelChartBaselineFromPhysics();

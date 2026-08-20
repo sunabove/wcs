@@ -5978,6 +5978,7 @@ class RapierDriveSimulation {
       this.syncObstacleColliderActivation(linkMap);
 
       this.physicsEngine.step(this.physicsFixedTimeStepSec);
+      this.wheelController.updateGroundContactState();
       let hasObstacleContactNow =
         this.contactSolver.updateVehicleObstacleContact();
       const contactedObstacle =

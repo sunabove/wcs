@@ -246,6 +246,8 @@ class RapierDriveSimulation {
     this.maxLiftWithObstacleMeters = 0.24;
     this.obstacleClimbMinRiseSpeedMps = 0.7;
     this.obstacleClimbMaxRiseSpeedMps = 1.5;
+    this.obstacleTraversalSupportGraceSec = 0.12;
+    this.obstacleTraversalSupportGraceRemainingSec = 0;
     this.isInitializing = false;
     this.isReady = false;
     this.hasFailed = false;
@@ -3519,15 +3521,26 @@ class RapierDriveSimulation {
     return targetBodyZ;
   }
 
-  hasWheelSupportForObstacleTraversal(obstacleInfo = null) {
+  hasWheelSupportForObstacleTraversal(obstacleInfo = null, deltaSec = 0) {
     const hasGroundSupport = Object.values(
       this.wheelGroundContactState || {},
     ).some(Boolean);
-    if (hasGroundSupport) {
+    const hasObstacleSupport =
+      this.getObstacleContactedWheelKeys(obstacleInfo).length > 0;
+    if (hasGroundSupport || hasObstacleSupport) {
+      this.obstacleTraversalSupportGraceRemainingSec = Math.max(
+        Number(this.obstacleTraversalSupportGraceSec) || 0,
+        0,
+      );
       return true;
     }
 
-    return this.getObstacleContactedWheelKeys(obstacleInfo).length > 0;
+    this.obstacleTraversalSupportGraceRemainingSec = Math.max(
+      0,
+      (Number(this.obstacleTraversalSupportGraceRemainingSec) || 0) -
+        Math.max(Number(deltaSec) || 0, 0),
+    );
+    return this.obstacleTraversalSupportGraceRemainingSec > 0;
   }
 
   getObstacleTraversalPath(obstacleInfo = null) {
@@ -3671,19 +3684,17 @@ class RapierDriveSimulation {
     effectiveDeltaSec,
     obstacleInfo = null,
   ) {
-    if (
-      !hasObstacleContactNow ||
-      !this.body ||
-      !this.rapier ||
-      !this.hasWheelSupportForObstacleTraversal(obstacleInfo)
-    ) {
+    if (!hasObstacleContactNow || !this.body || !this.rapier) {
       return;
     }
 
     const path =
       this.activeObstacleTraversalPath ||
       this.getObstacleTraversalPath(obstacleInfo);
-    if (!path) {
+    if (
+      !path ||
+      !this.hasWheelSupportForObstacleTraversal(obstacleInfo, effectiveDeltaSec)
+    ) {
       return;
     }
 
@@ -5841,6 +5852,7 @@ class RapierDriveSimulation {
         !this.isObstacleTraversalActive()
       ) {
         this.activeObstacleTraversalPath = null;
+        this.obstacleTraversalSupportGraceRemainingSec = 0;
       }
       const traversalPath = traversalApproachObstacle
         ? this.getObstacleTraversalPath(traversalApproachObstacle)
@@ -6217,6 +6229,7 @@ class RapierDriveSimulation {
     this.straightDriveReferencePose = null;
     this.straightDriveWarmupSteps = 0;
     this.postObstacleGroundRecoverRemainingSec = 0;
+    this.obstacleTraversalSupportGraceRemainingSec = 0;
     this.lastDriveCommandState = {
       throttleSign: 0,
       steerSign: 0,

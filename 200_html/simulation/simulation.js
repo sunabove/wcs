@@ -3513,6 +3513,58 @@ class RapierDriveSimulation {
     return null;
   }
 
+  getObstacleTraversalApproachInfo() {
+    if (!this.body || !Array.isArray(this.obstacleColliderInfos)) {
+      return null;
+    }
+
+    const bodyPosition = this.body.translation();
+    const yaw = this.extractYawFromQuaternion(this.body.rotation());
+    const { x: forwardX, y: forwardY } = this.getVehicleForwardVector(yaw);
+
+    const candidates = this.obstacleColliderInfos
+      .filter(
+        (obstacleInfo) =>
+          obstacleInfo &&
+          !obstacleInfo.isSensor &&
+          obstacleInfo.center &&
+          obstacleInfo.halfExtents,
+      )
+      .map((obstacleInfo) => {
+        const dx = obstacleInfo.center.x - bodyPosition.x;
+        const dy = obstacleInfo.center.y - bodyPosition.y;
+        const alongForward = dx * forwardX + dy * forwardY;
+        const lateralOffset = Math.abs(dx * forwardY - dy * forwardX);
+        const halfForward =
+          Math.abs(forwardX) * obstacleInfo.halfExtents.x +
+          Math.abs(forwardY) * obstacleInfo.halfExtents.y;
+        const obstacleFront = alongForward - halfForward;
+        const obstacleRear = alongForward + halfForward;
+        const rampLength = Math.max(0.32, Math.min(0.45, halfForward * 1.2));
+        const targetZ = this.getObstacleClimbTargetZ(obstacleInfo);
+        return {
+          obstacleInfo,
+          obstacleFront,
+          obstacleRear,
+          lateralOffset,
+          rampLength,
+          targetZ,
+        };
+      })
+      .filter(
+        (candidate) =>
+          Number.isFinite(candidate.targetZ) &&
+          candidate.lateralOffset <= 0.8 &&
+          candidate.obstacleFront <= candidate.rampLength &&
+          candidate.obstacleRear >= -candidate.rampLength,
+      )
+      .sort((left, right) => left.obstacleFront - right.obstacleFront);
+
+    return candidates.length > 0
+      ? { obstacleInfo: candidates[0].obstacleInfo }
+      : null;
+  }
+
   isObstacleInFrontForClimb(obstacleInfo = null) {
     if (!this.body || !obstacleInfo?.center) {
       return false;
@@ -3581,9 +3633,6 @@ class RapierDriveSimulation {
     const dy = obstacleInfo.center.y - bodyPosition.y;
     const centerAlongForward = dx * forwardX + dy * forwardY;
     const lateralOffset = Math.abs(dx * forwardY - dy * forwardX);
-    const hasWheelContact =
-      Array.isArray(obstacleInfo.contactedWheelKeys) &&
-      obstacleInfo.contactedWheelKeys.length > 0;
     const halfForward =
       Math.abs(forwardX) * obstacleInfo.halfExtents.x +
       Math.abs(forwardY) * obstacleInfo.halfExtents.y;
@@ -3596,10 +3645,9 @@ class RapierDriveSimulation {
       : bodyPosition.z;
     const obstacleTargetZ = this.getObstacleClimbTargetZ(obstacleInfo);
 
-    // Start the climb path as soon as any wheel contacts the obstacle.
-    // At low speed, waiting for a second wheel can prevent the climb path from activating.
+    // Traversal can start from the forward approach zone; red highlighting
+    // remains exclusively driven by real Rapier collider contacts.
     if (
-      !hasWheelContact ||
       !Number.isFinite(obstacleTargetZ) ||
       lateralOffset > 0.8 ||
       obstacleTargetZ <= groundTargetZ + 0.004
@@ -5827,14 +5875,16 @@ class RapierDriveSimulation {
         this.contactSolver.updateVehicleObstacleContact();
       const contactedObstacle =
         this.contactSolver.getApproachInfo()?.obstacleInfo || null;
+      const traversalApproachObstacle =
+        this.getObstacleTraversalApproachInfo()?.obstacleInfo || null;
       if (
         this.activeObstacleTraversalPath &&
         !this.isObstacleTraversalActive()
       ) {
         this.activeObstacleTraversalPath = null;
       }
-      const traversalPath = contactedObstacle
-        ? this.getObstacleTraversalPath(contactedObstacle)
+      const traversalPath = traversalApproachObstacle
+        ? this.getObstacleTraversalPath(traversalApproachObstacle)
         : null;
       if (!this.activeObstacleTraversalPath && traversalPath) {
         this.activeObstacleTraversalPath = traversalPath;
@@ -5845,7 +5895,11 @@ class RapierDriveSimulation {
           contactedObstacle || currentObstacleApproach?.obstacleInfo || null,
         );
       const obstacleInfoForClimb =
-        contactedObstacle || currentObstacleApproach?.obstacleInfo || null;
+        contactedObstacle ||
+        this.activeObstacleTraversalPath?.obstacleInfo ||
+        traversalApproachObstacle ||
+        currentObstacleApproach?.obstacleInfo ||
+        null;
       const isObstaclePathActive =
         this.contactSolver.isObstacleTraversalActive();
       this.isVehicleObstacleContact = Boolean(

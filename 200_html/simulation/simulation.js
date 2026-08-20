@@ -1339,6 +1339,14 @@ class RapierDriveSimulation {
     }
   }
 
+  stopWheelRotation() {
+    ["fl", "fr", "rl", "rr"].forEach((key) => {
+      if (typeof globalThis.setWheelAnimationByKey === "function") {
+        globalThis.setWheelAnimationByKey(key, 0);
+      }
+    });
+  }
+
   applyDriveModeCommand(mode) {
     const normalizedMode = String(mode || "stop");
     const hasDriveModeChanged = this.commandedDriveMode !== normalizedMode;
@@ -6294,6 +6302,10 @@ globalThis.resetSimulationPitch = function () {
 
 globalThis.setSimulationDriveMode = function (mode) {
   withSimulation((simulation) => simulation.applyDriveModeCommand(mode));
+};
+
+globalThis.stopSimulationWheelRotation = function () {
+  withSimulation((simulation) => simulation.stopWheelRotation());
 };
 
 globalThis.setSimulationDriveSpeedMps = function (mps) {

@@ -4863,10 +4863,11 @@ class RapierDriveSimulation {
       const marker = new THREE.Mesh(
         markerGeometry,
         new THREE.MeshBasicMaterial({
-          color: 0x1f2937,
-          depthTest: false,
+          color: 0x64748b,
+          depthTest: true,
+          depthWrite: false,
           transparent: true,
-          opacity: 0.16,
+          opacity: 0.42,
         }),
       );
       marker.name = `simulation-wheel-ground-contact-${wheelKey}`;
@@ -4907,12 +4908,12 @@ class RapierDriveSimulation {
         const isContacting = Boolean(this.wheelGroundContactState[wheelKey]);
         marker.rotation.z = yaw;
         marker.scale.set(
-          isContacting ? 0.12 : 0.075,
-          isContacting ? 0.06 : 0.038,
+          isContacting ? 0.12 : 0.09,
+          isContacting ? 0.06 : 0.045,
           1,
         );
-        marker.material.color.set(isContacting ? 0x111111 : 0x1f2937);
-        marker.material.opacity = isContacting ? 0.55 : 0.16;
+        marker.material.color.set(isContacting ? 0x111111 : 0x64748b);
+        marker.material.opacity = isContacting ? 0.55 : 0.42;
         marker.visible = true;
       },
     );

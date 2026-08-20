@@ -4889,23 +4889,39 @@ class RapierDriveSimulation {
     Object.entries(this.wheelGroundContactMarkerByKey).forEach(
       ([wheelKey, marker]) => {
         const wheelCollider = this.wheelCollidersByKey?.[wheelKey] || null;
-        if (!marker || !wheelCollider) {
+        const wheelLink = this.findLinkByName(
+          this.vehicleModel.links,
+          this.wheelLinkNameByKey[wheelKey],
+        );
+        if (!marker || (!wheelCollider && !wheelLink)) {
           if (marker) {
             marker.visible = false;
           }
           return;
         }
 
-        const wheelPosition = wheelCollider.translation();
+        const wheelBounds = wheelLink
+          ? this.computeLinkOwnBounds(wheelLink, this.vehicleModel.links)
+          : null;
+        const wheelPosition = wheelBounds?.isEmpty()
+          ? null
+          : wheelBounds?.getCenter(new THREE.Vector3());
+        const fallbackWheelPosition = wheelCollider?.translation() || null;
+        const shadowX = wheelPosition?.x ?? fallbackWheelPosition?.x;
+        const shadowY = wheelPosition?.y ?? fallbackWheelPosition?.y;
+        if (!Number.isFinite(shadowX) || !Number.isFinite(shadowY)) {
+          marker.visible = false;
+          return;
+        }
         const yaw = this.body
           ? this.extractYawFromQuaternion(this.body.rotation())
           : 0;
-        marker.position.set(
-          wheelPosition.x,
-          wheelPosition.y,
-          this.groundZ + 0.003,
-        );
-        const isContacting = Boolean(this.wheelGroundContactState[wheelKey]);
+        marker.position.set(shadowX, shadowY, this.groundZ + 0.003);
+        const isVisualWheelAtGround =
+          !wheelBounds || wheelBounds.min.z <= this.groundZ + 0.005;
+        const isContacting =
+          Boolean(this.wheelGroundContactState[wheelKey]) &&
+          isVisualWheelAtGround;
         marker.rotation.z = yaw;
         marker.scale.set(
           isContacting ? 0.12 : 0.09,

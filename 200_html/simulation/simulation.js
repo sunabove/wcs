@@ -816,10 +816,17 @@ class RapierDriveSimulation {
           return;
         }
 
-        this.wheelZChartHistoryByKey[wheelKey].push({
+        const wheelHistory = this.wheelZChartHistoryByKey[wheelKey];
+        const latestSample = wheelHistory[wheelHistory.length - 1];
+        const sample = {
           t: nowSec,
           z: wheelCenterHeightDelta,
-        });
+        };
+        if (latestSample && Math.abs(latestSample.t - nowSec) < 1e-6) {
+          wheelHistory[wheelHistory.length - 1] = sample;
+        } else {
+          wheelHistory.push(sample);
+        }
       },
     );
 
@@ -1339,6 +1346,7 @@ class RapierDriveSimulation {
     if (this.carFrame) {
       this.syncCarFrameFromBody();
     }
+    this.sampleWheelCenterZForChart(this.simulationElapsedSec);
   }
 
   stopWheelRotation() {
@@ -6333,6 +6341,7 @@ class RapierDriveSimulation {
     this.isDriveStartPreparationPending = false;
     this.resetWheelTravelTracking();
     this.syncWheelChartBaselineFromPhysics();
+    this.sampleWheelCenterZForChart(this.simulationElapsedSec);
   }
 
   async reset() {

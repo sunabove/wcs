@@ -5357,6 +5357,8 @@ class RapierDriveSimulation {
         this.addWheelCollidersFromUrdf(body, carFrame, linkMap);
       }
 
+      this.initialPosition = initialPosition.clone();
+      this.initialQuaternion = initialQuaternion.clone();
       this.vehicleHalfExtents = { x: halfX, y: halfY, z: halfZ };
       this.addGroundCollider();
       this.enforceWheelGroundContactAtLoad(linkMap);

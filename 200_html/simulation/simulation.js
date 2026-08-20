@@ -5239,40 +5239,6 @@ class RapierDriveSimulation {
       return;
     }
     this.runtimeDiagnosticsElapsedSec = 0;
-
-    const bodyPos = this.body.translation();
-    const bodyVel = this.body.linvel();
-    const avgRpm = this.getAverageSignedWheelRpmForViewer(driveViewer);
-    const driveMode = String(driveViewer?.driveMode || "n/a");
-    const driveSpeedKmh = Number(driveViewer?.driveSpeedKmh);
-    const sourceId = String(driveViewer?.container?.id || "unknown");
-    console.log("[URDF][Simulation][diag]", {
-      sourceId,
-      driveMode,
-      driveSpeedKmh: Number.isFinite(driveSpeedKmh)
-        ? Number(driveSpeedKmh.toFixed(3))
-        : null,
-      avgSignedWheelRpm: Number.isFinite(avgRpm)
-        ? Number(avgRpm.toFixed(3))
-        : null,
-      clampedSpeedMps: Number(clampedSpeed.toFixed(4)),
-      throttleSign,
-      steerSign,
-      hasObstacleContact,
-      pos: {
-        x: Number(bodyPos.x.toFixed(4)),
-        y: Number(bodyPos.y.toFixed(4)),
-        z: Number(bodyPos.z.toFixed(4)),
-      },
-      vel: {
-        x: Number(bodyVel.x.toFixed(4)),
-        y: Number(bodyVel.y.toFixed(4)),
-        z: Number(bodyVel.z.toFixed(4)),
-      },
-      groundZ: Number.isFinite(this.groundZ)
-        ? Number(this.groundZ.toFixed(4))
-        : null,
-    });
   }
 
   async ensureRapierInitialized() {

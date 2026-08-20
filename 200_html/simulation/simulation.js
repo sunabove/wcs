@@ -6314,6 +6314,8 @@ class RapierDriveSimulation {
         obstacleInfo.collider.setSensor(Boolean(obstacleInfo.isSensor));
       }
       obstacleInfo.isSpatiallyOverlapping = false;
+      obstacleInfo.contactedWheelKeys = [];
+      obstacleInfo.hasChassisContact = false;
     });
     this.activeObstacleTraversalPath = null;
     this.isDriveStartPreparationPending = true;

@@ -6148,6 +6148,21 @@ class RapierDriveSimulation {
     this.resetRoadAttitude();
   }
 
+  syncResetDriveButtonState() {
+    const buttonIds = [
+      "drive-btn-forward",
+      "drive-btn-backward",
+      "drive-btn-left",
+      "drive-btn-right",
+      "drive-btn-stop",
+      "drive-btn-reset",
+    ];
+    buttonIds.forEach((buttonId) => {
+      document.getElementById(buttonId)?.classList.remove("active");
+    });
+    document.getElementById("drive-btn-reset")?.classList.add("active");
+  }
+
   resetRoadAttitude() {
     this.resetRoadRoll();
     this.resetRoadPitch();
@@ -6281,6 +6296,7 @@ class RapierDriveSimulation {
     }
 
     this.resetPhysicalState();
+    this.syncResetDriveButtonState();
   }
 }
 

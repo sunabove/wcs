@@ -4016,6 +4016,10 @@ class RapierDriveSimulation {
       return;
     }
 
+    if (!this.isBodyNearFlatGroundSupport()) {
+      return;
+    }
+
     const targetZ = Number(this.initialPosition?.z);
     if (!Number.isFinite(targetZ)) {
       return;

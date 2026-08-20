@@ -4347,6 +4347,21 @@ class RapierDriveSimulation {
     );
   }
 
+  settlePhysicsAfterReset() {
+    if (!this.world || !this.body || !this.rapier) {
+      return;
+    }
+
+    this.physicsEngine.step(this.physicsFixedTimeStepSec);
+    this.renderer.syncVehicle();
+    this.resetWheelBodiesFromVisual();
+    this.physicsEngine.step(this.physicsFixedTimeStepSec);
+
+    this.body.setLinvel(new this.rapier.Vector3(0, 0, 0), true);
+    this.body.setAngvel(new this.rapier.Vector3(0, 0, 0), true);
+    this.renderer.syncVehicle();
+  }
+
   stabilizeWheelBodiesForStraightDrive(targetVelocityX, targetVelocityY) {
     if (!this.body || !this.rapier) {
       return;
@@ -6288,6 +6303,7 @@ class RapierDriveSimulation {
     this.commandedDriveMode = null;
     this.applyDriveModeCommand("stop");
     this.stopWheelRotation();
+    this.settlePhysicsAfterReset();
     this.resetWheelTravelTracking();
     this.syncWheelChartBaselineFromPhysics();
   }

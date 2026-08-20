@@ -4751,9 +4751,11 @@ class RapierDriveSimulation {
     }
 
     const halfX = Math.max(Number(this.vehicleHalfExtents?.x) || 0.3, 0.2);
+    const halfZ = Math.max(Number(this.vehicleHalfExtents?.z) || 0.2, 0.1);
     const arrowCenterX = Number(this.vehicleColliderLocalCenter.x) || 0;
     const arrowOriginX = arrowCenterX + halfX + 0.04;
-    const arrowHeight = Number(this.vehicleColliderLocalCenter.z) || 0;
+    const arrowHeight =
+      (Number(this.vehicleColliderLocalCenter.z) || 0) + halfZ * 0.75;
     const arrowShaftRadius = 0.012;
     const arrowHeadBaseRadius = 0.024;
     const arrowShaftLength = Math.max(halfX * 0.35, 0.105);

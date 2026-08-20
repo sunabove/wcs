@@ -4934,9 +4934,13 @@ class RapierDriveSimulation {
           !wheelBounds || wheelBounds.min.z <= this.groundZ + 0.005;
         const isOnFlatGround =
           !this.isVehicleObstacleContact && !this.isVehicleOverHoleRegion();
+        const isInitialGroundedState =
+          !this.hasActivatedSimulationMotion && !this.isVehicleObstacleContact;
         const isContacting =
-          isVisualWheelAtGround &&
-          (isOnFlatGround || Boolean(this.wheelGroundContactState[wheelKey]));
+          isInitialGroundedState ||
+          (isVisualWheelAtGround &&
+            (isOnFlatGround ||
+              Boolean(this.wheelGroundContactState[wheelKey])));
         marker.rotation.z = yaw;
         marker.scale.set(
           isContacting ? 0.12 : 0.09,
@@ -6401,6 +6405,12 @@ class RapierDriveSimulation {
     this.body.setLinvel(new this.rapier.Vector3(0, 0, 0), true);
     this.body.setAngvel(new this.rapier.Vector3(0, 0, 0), true);
     this.isVehicleObstacleContact = false;
+    this.wheelGroundContactState = {
+      fl: false,
+      fr: false,
+      rl: false,
+      rr: false,
+    };
     this.keyHoldState.ArrowUp = 0;
     this.keyHoldState.ArrowDown = 0;
     this.keyHoldState.ArrowLeft = 0;

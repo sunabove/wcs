@@ -806,8 +806,11 @@ class RapierDriveSimulation {
           }
         }
 
-        const wheelBottomHeight =
+        const measuredWheelBottomHeight =
           chartCenterWorldZ - wheelRadiusMeters - this.groundZ;
+        const wheelBottomHeight = this.isVehicleOverHoleRegion()
+          ? measuredWheelBottomHeight
+          : Math.max(measuredWheelBottomHeight, 0);
         if (!Number.isFinite(wheelBottomHeight)) {
           return;
         }

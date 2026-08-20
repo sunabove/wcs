@@ -4919,9 +4919,11 @@ class RapierDriveSimulation {
         marker.position.set(shadowX, shadowY, this.groundZ + 0.003);
         const isVisualWheelAtGround =
           !wheelBounds || wheelBounds.min.z <= this.groundZ + 0.005;
+        const isOnFlatGround =
+          !this.isVehicleObstacleContact && !this.isVehicleOverHoleRegion();
         const isContacting =
-          Boolean(this.wheelGroundContactState[wheelKey]) &&
-          isVisualWheelAtGround;
+          isVisualWheelAtGround &&
+          (isOnFlatGround || Boolean(this.wheelGroundContactState[wheelKey]));
         marker.rotation.z = yaw;
         marker.scale.set(
           isContacting ? 0.12 : 0.09,

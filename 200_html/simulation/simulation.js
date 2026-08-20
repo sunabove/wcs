@@ -4420,6 +4420,19 @@ class RapierDriveSimulation {
       return;
     }
 
+    const driveMode = String(
+      this.commandedDriveMode || viewer.driveMode || "stop",
+    ).toLowerCase();
+    const isCommandDriven = ["forward", "backward", "left", "right"].includes(
+      driveMode,
+    );
+    if (isCommandDriven) {
+      if (typeof viewer.setWheelRotationDrivenByTravel === "function") {
+        viewer.setWheelRotationDrivenByTravel(false);
+      }
+      return;
+    }
+
     if (typeof viewer.setWheelRotationDrivenByTravel === "function") {
       viewer.setWheelRotationDrivenByTravel(true);
     }

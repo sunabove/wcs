@@ -235,3 +235,4 @@ marimo/_lsp/
 __marimo__/
 .vscode/settings.json
 200_html/index.nginx-debian.html
+300_python/mqtt_manager_state.json

@@ -4863,7 +4863,7 @@ class RapierDriveSimulation {
       const marker = new THREE.Mesh(
         markerGeometry,
         new THREE.MeshBasicMaterial({
-          color: 0x64748b,
+          color: 0xfacc15,
           depthTest: true,
           depthWrite: false,
           transparent: true,
@@ -4912,7 +4912,7 @@ class RapierDriveSimulation {
           isContacting ? 0.06 : 0.045,
           1,
         );
-        marker.material.color.set(isContacting ? 0x111111 : 0x64748b);
+        marker.material.color.set(isContacting ? 0x111111 : 0xfacc15);
         marker.material.opacity = isContacting ? 0.55 : 0.42;
         marker.visible = true;
       },

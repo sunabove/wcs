@@ -6283,57 +6283,102 @@ let rapierDriveSimulation = null;
 const withSimulation = (action) => {
   if (!rapierDriveSimulation) {
     console.error("[URDF][Simulation] simulation is not initialized");
-    return;
+    return null;
   }
-  action(rapierDriveSimulation);
+  return action(rapierDriveSimulation);
 };
 
 globalThis.resetSimulation = function () {
-  withSimulation((simulation) => simulation.reset());
+  return withSimulation((simulation) => simulation.reset());
 };
 
 globalThis.resetSimulationSpeed = function () {
-  withSimulation((simulation) => simulation.resetSpeedSliderToDefault());
+  return withSimulation((simulation) => simulation.resetSpeedSliderToDefault());
 };
 
 globalThis.resetSimulationVisualSpeed = function () {
-  withSimulation((simulation) => simulation.resetVisualSpeedSliderToDefault());
+  return withSimulation((simulation) =>
+    simulation.resetVisualSpeedSliderToDefault(),
+  );
 };
 
 globalThis.resetSimulationAttitude = function () {
-  withSimulation((simulation) => simulation.resetRoadAttitude());
+  return withSimulation((simulation) => simulation.resetRoadAttitude());
 };
 
 globalThis.resetSimulationRoll = function () {
-  withSimulation((simulation) => simulation.resetRoadRoll());
+  return withSimulation((simulation) => simulation.resetRoadRoll());
 };
 
 globalThis.resetSimulationPitch = function () {
-  withSimulation((simulation) => simulation.resetRoadPitch());
+  return withSimulation((simulation) => simulation.resetRoadPitch());
 };
 
 globalThis.setSimulationDriveMode = function (mode) {
-  withSimulation((simulation) => simulation.applyDriveModeCommand(mode));
+  return withSimulation((simulation) => simulation.applyDriveModeCommand(mode));
 };
 
 globalThis.stopSimulationWheelRotation = function () {
-  withSimulation((simulation) => simulation.stopWheelRotation());
+  return withSimulation((simulation) => simulation.stopWheelRotation());
 };
 
 globalThis.setSimulationDriveSpeedMps = function (mps) {
-  withSimulation((simulation) => simulation.applyDriveSpeedCommandMps(mps));
+  return withSimulation((simulation) =>
+    simulation.applyDriveSpeedCommandMps(mps),
+  );
 };
 
 globalThis.setSimulationDriveSpeedKmh = function (kmh) {
-  withSimulation((simulation) => simulation.applyDriveSpeedCommandKmh(kmh));
+  return withSimulation((simulation) =>
+    simulation.applyDriveSpeedCommandKmh(kmh),
+  );
 };
 
 globalThis.setSimulationVisualSpeed = function (scale) {
-  withSimulation((simulation) =>
+  return withSimulation((simulation) =>
     simulation.applyVisualSpeedScale(
       simulation.getVisualSpeedScaleFromSliderValue(scale),
     ),
   );
+};
+
+let isSimulationControlBusy = false;
+
+globalThis.runSimulationControl = function (button, action) {
+  if (isSimulationControlBusy || typeof action !== "function") {
+    return Promise.resolve();
+  }
+
+  const controlButtons = Array.from(
+    document.querySelectorAll("button[data-simulation-control]"),
+  );
+  const initiallyDisabled = new Map(
+    controlButtons.map((controlButton) => [
+      controlButton,
+      controlButton.disabled,
+    ]),
+  );
+  isSimulationControlBusy = true;
+  controlButtons.forEach((controlButton) => {
+    controlButton.disabled = true;
+    controlButton.setAttribute("aria-busy", "true");
+  });
+
+  let result;
+  try {
+    result = action();
+  } catch (error) {
+    console.error("[URDF][Simulation] control command failed:", error);
+    result = null;
+  }
+
+  return Promise.resolve(result).finally(() => {
+    controlButtons.forEach((controlButton) => {
+      controlButton.disabled = initiallyDisabled.get(controlButton) === true;
+      controlButton.removeAttribute("aria-busy");
+    });
+    isSimulationControlBusy = false;
+  });
 };
 
 try {

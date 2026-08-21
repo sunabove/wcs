@@ -5883,12 +5883,66 @@ class RapierDriveSimulation {
     this.initializeSpeedSliderPreference();
     this.initializeVisualSpeedSliderPreference();
     this.installCommandButtonFlash();
+    this.installSliderTickClickHandlers();
     this.attachKeyboardControls();
     this.installDriveCommandHooks();
     this.syncInitialDriveStateFromUi();
     this.syncPauseButtonState();
     this.updateDebugPanel(this.debugStatusUpdateIntervalSec);
     this.simulationLoop.schedule();
+  }
+
+  installSliderTickClickHandlers() {
+    const tickBindings = [
+      {
+        tickSelector: ".slider-tick-scale-speed",
+        sliderId: "drive-speed-mps",
+      },
+      {
+        tickSelector: ".slider-tick-scale-visual",
+        sliderId: "simulation-visual-speed-scale",
+      },
+    ];
+
+    tickBindings.forEach(({ tickSelector, sliderId }) => {
+      const tickElement = document.querySelector(tickSelector);
+      const sliderElement = document.getElementById(sliderId);
+      if (!tickElement || !sliderElement) {
+        return;
+      }
+
+      tickElement.addEventListener("click", (event) => {
+        const tickBounds = tickElement.getBoundingClientRect();
+        const minValue = Number.parseFloat(sliderElement.min);
+        const maxValue = Number.parseFloat(sliderElement.max);
+        const stepValue = Number.parseFloat(sliderElement.step) || 1;
+        if (
+          tickBounds.width <= 0 ||
+          !Number.isFinite(minValue) ||
+          !Number.isFinite(maxValue) ||
+          maxValue <= minValue
+        ) {
+          return;
+        }
+
+        // The tick strip is inset to match the slider track, so ratio maps straight to value.
+        const ratio = THREE.MathUtils.clamp(
+          (event.clientX - tickBounds.left) / tickBounds.width,
+          0,
+          1,
+        );
+        const rawValue = minValue + ratio * (maxValue - minValue);
+        const snappedValue = THREE.MathUtils.clamp(
+          minValue + Math.round((rawValue - minValue) / stepValue) * stepValue,
+          minValue,
+          maxValue,
+        );
+
+        sliderElement.value = String(snappedValue);
+        sliderElement.dispatchEvent(new Event("input", { bubbles: true }));
+        sliderElement.dispatchEvent(new Event("change", { bubbles: true }));
+      });
+    });
   }
 
   installCommandButtonFlash() {

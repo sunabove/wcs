@@ -1950,16 +1950,19 @@ class RapierDriveSimulation {
           event.key === " " ||
           event.key === "Spacebar";
         if (isSpaceKey) {
-          // Space activates a focused button; skip so the command does not run twice.
-          if (event.target?.closest?.("button")) {
-            return;
+          event.preventDefault();
+          // Blur first so a focused control button cannot also activate on this key.
+          if (
+            typeof event.target?.blur === "function" &&
+            event.target.closest?.("button")
+          ) {
+            event.target.blur();
           }
           if (event.ctrlKey) {
             this.reset();
           } else {
             this.togglePause();
           }
-          event.preventDefault();
           return;
         }
 

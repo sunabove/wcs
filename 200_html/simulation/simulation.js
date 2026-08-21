@@ -275,7 +275,6 @@ class RapierDriveSimulation {
     this.centerTurnPivotWorld = null;
     this.centerTurnPivotLocal = null;
     this.isPaused = false;
-    this.pauseStateSnapshot = null;
     this.hasInstalledDriveCommandHooks = false;
     this.hasActivatedSimulationMotion = false;
     this.hasActivatedDynamicGroundClamp = false;
@@ -1385,8 +1384,8 @@ class RapierDriveSimulation {
       ) {
         const position = this.body.translation();
         this.straightDriveReferencePose = {
+          x: position.x,
           y: position.y,
-          z: position.z,
           yaw: this.extractYawFromQuaternion(this.body.rotation()),
         };
         this.straightDriveWarmupSteps = 6;
@@ -1813,36 +1812,6 @@ class RapierDriveSimulation {
     );
   }
 
-  getSignedWheelRpmSnapshotByKey(viewer) {
-    if (!viewer) {
-      return null;
-    }
-
-    const wheelKeys = ["fl", "fr", "rl", "rr"];
-    const snapshot = {};
-    wheelKeys.forEach((key) => {
-      let signedRpm = null;
-      if (typeof viewer.getSignedWheelRpm === "function") {
-        const value = Number(viewer.getSignedWheelRpm(key));
-        if (Number.isFinite(value)) {
-          signedRpm = value;
-        }
-      }
-
-      if (!Number.isFinite(signedRpm)) {
-        const rpm = Number(viewer?.wheelSpeedRpmByKey?.[key]);
-        const sign = Number(viewer?.wheelDirectionSignByKey?.[key]);
-        if (Number.isFinite(rpm)) {
-          signedRpm = rpm * (Number.isFinite(sign) ? sign : 1);
-        }
-      }
-
-      snapshot[key] = Number.isFinite(signedRpm) ? signedRpm : 0;
-    });
-
-    return snapshot;
-  }
-
   togglePause(forcePaused = null) {
     const nextPausedState =
       typeof forcePaused === "boolean" ? forcePaused : !this.isPaused;
@@ -1851,62 +1820,25 @@ class RapierDriveSimulation {
       return;
     }
 
+    // Pause only freezes simulation time; the drive command is kept so resume continues it.
     this.isPaused = nextPausedState;
     this.lastStepTimeMs = 0;
-
-    if (this.isPaused) {
-      const driveViewer = this.getDriveSourceViewer();
-      const snapshotDriveMode = String(
-        this.commandedDriveMode ||
-          driveViewer?.driveMode ||
-          this.viewer?.driveMode ||
-          "stop",
-      );
-      const snapshotSpeedMps = this.normalizeDriveSpeedMps(
-        Number.isFinite(Number(this.commandedSpeedMps))
-          ? this.commandedSpeedMps
-          : this.kmhToMps(Number(driveViewer?.driveSpeedKmh) || 0),
-        SIM_SPEED_DEFAULT_MPS,
-      );
-      this.pauseStateSnapshot = {
-        driveMode: snapshotDriveMode,
-        speedMps: snapshotSpeedMps,
-        wheelSignedRpmByKey: this.getSignedWheelRpmSnapshotByKey(driveViewer),
-      };
-
-      // Pause mode should freeze visual wheel rotation as well.
-      this.applyDriveModeCommand("stop");
-      ["fl", "fr", "rl", "rr"].forEach((key) => {
-        if (typeof globalThis.setWheelAnimationByKey === "function") {
-          globalThis.setWheelAnimationByKey(key, 0);
-        }
-      });
-
-      if (this.body && this.rapier) {
-        this.body.setLinvel(new this.rapier.Vector3(0, 0, 0), true);
-        this.body.setAngvel(new this.rapier.Vector3(0, 0, 0), true);
-      }
-    } else if (this.pauseStateSnapshot) {
-      const snapshot = this.pauseStateSnapshot;
-      this.applyDriveSpeedCommandMps(snapshot.speedMps);
-      this.applyDriveModeCommand(snapshot.driveMode);
-
-      if (snapshot.driveMode === "stop" && snapshot.wheelSignedRpmByKey) {
-        Object.entries(snapshot.wheelSignedRpmByKey).forEach(
-          ([key, signedRpm]) => {
-            if (typeof globalThis.setWheelAnimationByKey === "function") {
-              globalThis.setWheelAnimationByKey(key, signedRpm);
-            }
-          },
-        );
-      }
-
-      this.pauseStateSnapshot = null;
-    }
+    this.physicsAccumulatorSec = 0;
 
     this.updateDebugPanel(this.debugStatusUpdateIntervalSec);
     this.syncPauseButtonState();
     console.log(`[URDF][Simulation] ${this.isPaused ? "Paused" : "Resumed"}`);
+  }
+
+  handleSpaceShortcut() {
+    const isDriveIdle =
+      String(this.commandedDriveMode || "stop").toLowerCase() === "stop";
+    if (!this.isPaused && isDriveIdle) {
+      this.applyDriveModeCommand("forward");
+      return;
+    }
+
+    this.togglePause();
   }
 
   syncPauseButtonState() {
@@ -1961,7 +1893,7 @@ class RapierDriveSimulation {
           if (event.ctrlKey) {
             this.reset();
           } else {
-            this.togglePause();
+            this.handleSpaceShortcut();
           }
           return;
         }
@@ -5671,15 +5603,11 @@ class RapierDriveSimulation {
         this.body.setAngvel(new this.rapier.Vector3(0, 0, 0), true);
 
         // Lateral lock only; vertical position belongs to the wheel support plane.
+        // Hold the straight line through the start point along the commanded heading.
         if (this.straightDriveReferencePose) {
-          const position = this.body.translation();
-          this.body.setTranslation(
-            new this.rapier.Vector3(
-              position.x,
-              this.straightDriveReferencePose.y,
-              position.z,
-            ),
-            true,
+          this.suppressObstacleLateralDrift(
+            this.straightDriveReferencePose,
+            this.straightDriveReferencePose.yaw,
           );
           this.preserveObstacleHeading(this.straightDriveReferencePose.yaw);
         }

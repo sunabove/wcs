@@ -239,6 +239,7 @@ class RapierDriveSimulation {
     this.groundContactBiasMeters = 0;
     this.groundZ = 0;
     this.groundGrid = null;
+    this.groundGridPatches = null;
     this.holeRegions = [];
     this.urdfObstacleLinkPrefix = "obstacle_";
     this.passUnderObstacleNamePatterns = [/pass_under/i, /underbody/i];
@@ -2537,7 +2538,31 @@ class RapierDriveSimulation {
       );
     });
 
+    this.groundGridPatches = groundPatches;
     this.addGroundSurfaceGrid(groundPatches);
+  }
+
+  getGroundGridOriginXY() {
+    const linkMap = this.viewer?.robotModel?.links || null;
+    const frontWheelPositions = ["fl", "fr"]
+      .map((wheelKey) =>
+        this.findLinkByName(linkMap, this.wheelLinkNameByKey[wheelKey]),
+      )
+      .filter(Boolean)
+      .map((wheelLink) => {
+        wheelLink.updateWorldMatrix(true, false);
+        return wheelLink.getWorldPosition(new THREE.Vector3());
+      });
+
+    if (frontWheelPositions.length === 0) {
+      return { x: 0, y: 0 };
+    }
+
+    const count = frontWheelPositions.length;
+    return {
+      x: frontWheelPositions.reduce((sum, p) => sum + p.x, 0) / count,
+      y: frontWheelPositions.reduce((sum, p) => sum + p.y, 0) / count,
+    };
   }
 
   addGroundSurfaceGrid(groundPatches) {
@@ -2552,6 +2577,14 @@ class RapierDriveSimulation {
 
     // One cell equals one wheel revolution, so travel per rotation is readable on the ground.
     const gridSpacingMeters = this.getWheelCircumferenceMeters();
+    // Phase the grid so a line falls on the front wheel contact point at load/reset.
+    const gridOrigin = this.getGroundGridOriginXY();
+    const snapUp = (value, origin) =>
+      origin +
+      Math.ceil((value - origin) / gridSpacingMeters) * gridSpacingMeters;
+    const snapDown = (value, origin) =>
+      origin +
+      Math.floor((value - origin) / gridSpacingMeters) * gridSpacingMeters;
     const gridZ = this.groundZ + 0.001;
     const vertices = [];
     const colors = [];
@@ -2564,14 +2597,10 @@ class RapierDriveSimulation {
     };
 
     groundPatches.forEach((patch) => {
-      const minX =
-        Math.ceil(patch.minX / gridSpacingMeters) * gridSpacingMeters;
-      const maxX =
-        Math.floor(patch.maxX / gridSpacingMeters) * gridSpacingMeters;
-      const minY =
-        Math.ceil(patch.minY / gridSpacingMeters) * gridSpacingMeters;
-      const maxY =
-        Math.floor(patch.maxY / gridSpacingMeters) * gridSpacingMeters;
+      const minX = snapUp(patch.minX, gridOrigin.x);
+      const maxX = snapDown(patch.maxX, gridOrigin.x);
+      const minY = snapUp(patch.minY, gridOrigin.y);
+      const maxY = snapDown(patch.maxY, gridOrigin.y);
 
       for (let x = minX; x <= maxX + 1e-8; x += gridSpacingMeters) {
         appendLine(x, patch.minY, x, patch.maxY, true);
@@ -6096,6 +6125,7 @@ class RapierDriveSimulation {
     this.resetWheelTravelTracking();
     this.syncWheelChartBaselineFromPhysics();
     this.sampleWheelCenterZForChart(this.simulationElapsedSec);
+    this.addGroundSurfaceGrid(this.groundGridPatches);
   }
 
   async reset() {

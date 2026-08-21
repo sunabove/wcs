@@ -248,6 +248,7 @@ class RapierDriveSimulation {
     this.groundGrid = null;
     this.groundGridPatches = null;
     this.groundExtensionGroup = null;
+    this.extensionPotholeLinerGroup = null;
     this.groundExtensionMaterial = null;
     this.authoredGroundRect = null;
     this.groundInteriorMaterialBySource = null;
@@ -2585,6 +2586,17 @@ class RapierDriveSimulation {
     authoredHole.closePath();
     outerShape.holes.push(authoredHole);
 
+    // Potholes outside the authored plate are cut straight into the frame.
+    this.getHoleRegionsOutsideAuthoredPlate().forEach((holeRegion) => {
+      const holePath = new THREE.Path();
+      holePath.moveTo(holeRegion.minX, holeRegion.minY);
+      holePath.lineTo(holeRegion.maxX, holeRegion.minY);
+      holePath.lineTo(holeRegion.maxX, holeRegion.maxY);
+      holePath.lineTo(holeRegion.minX, holeRegion.maxY);
+      holePath.closePath();
+      outerShape.holes.push(holePath);
+    });
+
     const frameMesh = new THREE.Mesh(
       new THREE.ShapeGeometry(outerShape),
       this.getGroundExtensionMaterial(authoredMesh.material),
@@ -2597,6 +2609,121 @@ class RapierDriveSimulation {
 
     groundLink.add(frameMesh);
     this.groundExtensionGroup = frameMesh;
+    this.rebuildExtensionPotholeLiners(groundLink, authoredMesh.material);
+  }
+
+  getHoleRegionsOutsideAuthoredPlate() {
+    const authoredRect = this.authoredGroundRect;
+    if (!authoredRect || !Array.isArray(this.holeRegions)) {
+      return [];
+    }
+
+    return this.holeRegions.filter(
+      (holeRegion) =>
+        holeRegion.minX >= authoredRect.maxX ||
+        holeRegion.maxX <= authoredRect.minX ||
+        holeRegion.minY >= authoredRect.maxY ||
+        holeRegion.maxY <= authoredRect.minY,
+    );
+  }
+
+  rebuildExtensionPotholeLiners(groundLink, authoredMaterial) {
+    if (this.extensionPotholeLinerGroup?.parent) {
+      this.extensionPotholeLinerGroup.parent.remove(
+        this.extensionPotholeLinerGroup,
+      );
+      this.extensionPotholeLinerGroup.traverse((node) =>
+        node.geometry?.dispose(),
+      );
+    }
+
+    const outsideRegions = this.getHoleRegionsOutsideAuthoredPlate();
+    if (outsideRegions.length === 0) {
+      this.extensionPotholeLinerGroup = null;
+      return;
+    }
+
+    const interiorMaterial = this.getGroundInteriorMaterial(authoredMaterial);
+    const linerGroup = new THREE.Group();
+    linerGroup.name = "simulation-extension-pothole-liners";
+    linerGroup.userData.isSimulationGeneratedGround = true;
+
+    outsideRegions.forEach((holeRegion) => {
+      const width = holeRegion.maxX - holeRegion.minX;
+      const depth = holeRegion.maxY - holeRegion.minY;
+      const pitDepth = Math.max(Number(holeRegion.depthMeters) || 0, 0.001);
+      const centerX = (holeRegion.minX + holeRegion.maxX) * 0.5;
+      const centerY = (holeRegion.minY + holeRegion.maxY) * 0.5;
+
+      // Floor plus four walls; the frame already provides the opening at the top.
+      const faces = [
+        {
+          size: [width, depth],
+          position: [centerX, centerY, this.groundZ - pitDepth],
+          rotation: [0, 0, 0],
+        },
+        {
+          size: [width, pitDepth],
+          position: [centerX, holeRegion.minY, this.groundZ - pitDepth * 0.5],
+          rotation: [Math.PI / 2, 0, 0],
+        },
+        {
+          size: [width, pitDepth],
+          position: [centerX, holeRegion.maxY, this.groundZ - pitDepth * 0.5],
+          rotation: [Math.PI / 2, 0, 0],
+        },
+        {
+          size: [depth, pitDepth],
+          position: [holeRegion.minX, centerY, this.groundZ - pitDepth * 0.5],
+          rotation: [Math.PI / 2, 0, Math.PI / 2],
+        },
+        {
+          size: [depth, pitDepth],
+          position: [holeRegion.maxX, centerY, this.groundZ - pitDepth * 0.5],
+          rotation: [Math.PI / 2, 0, Math.PI / 2],
+        },
+      ];
+
+      faces.forEach((face) => {
+        const faceMesh = new THREE.Mesh(
+          new THREE.PlaneGeometry(face.size[0], face.size[1]),
+          interiorMaterial,
+        );
+        faceMesh.position.copy(
+          groundLink.worldToLocal(new THREE.Vector3(...face.position)),
+        );
+        faceMesh.rotation.set(...face.rotation);
+        faceMesh.userData.isSimulationGeneratedGround = true;
+        linerGroup.add(faceMesh);
+      });
+    });
+
+    groundLink.add(linerGroup);
+    this.extensionPotholeLinerGroup = linerGroup;
+  }
+
+  addPotholeRegion(centerX, centerY, sizeX, sizeY, depthMeters) {
+    const halfX = Math.max(Number(sizeX) || 0, 0.01) * 0.5;
+    const halfY = Math.max(Number(sizeY) || 0, 0.01) * 0.5;
+    const depth = Math.max(Number(depthMeters) || 0, 0.01);
+    if (!Array.isArray(this.holeRegions)) {
+      this.holeRegions = [];
+    }
+
+    // Wheel support reads holeRegions every substep, so driving reacts immediately.
+    this.holeRegions.push({
+      linkName: null,
+      minX: centerX - halfX,
+      maxX: centerX + halfX,
+      minY: centerY - halfY,
+      maxY: centerY + halfY,
+      depthMeters: depth,
+      floorZ: this.groundZ - depth,
+      isRecessed: true,
+    });
+
+    this.addGroundSurfaceExtension();
+    return true;
   }
 
   getGroundExtensionMaterial(authoredMaterial) {
@@ -6592,6 +6719,18 @@ globalThis.setSimulationDriveMode = function (mode) {
 
 globalThis.toggleSimulationPause = function (forcePaused = null) {
   return withSimulation((simulation) => simulation.togglePause(forcePaused));
+};
+
+globalThis.addSimulationPothole = function (
+  centerX,
+  centerY,
+  sizeX = 0.15,
+  sizeY = 0.15,
+  depthMeters = 0.1,
+) {
+  return withSimulation((simulation) =>
+    simulation.addPotholeRegion(centerX, centerY, sizeX, sizeY, depthMeters),
+  );
 };
 
 globalThis.stopSimulationWheelRotation = function () {

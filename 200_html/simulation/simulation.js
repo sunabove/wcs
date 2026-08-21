@@ -2166,7 +2166,6 @@ class RapierDriveSimulation {
   applyVisualSpeedScale(value) {
     const normalizedScale = this.normalizeVisualSpeedScale(value);
     this.visualSpeedScale = normalizedScale;
-    this.configureWheelVisualKinematics();
 
     const speedSlider = document.getElementById(
       "simulation-visual-speed-scale",
@@ -2244,7 +2243,6 @@ class RapierDriveSimulation {
         speedSlider.value,
       );
       this.visualSpeedScale = normalizedScale;
-      this.configureWheelVisualKinematics();
       const sliderValue =
         this.getVisualSpeedSliderValueFromScale(normalizedScale);
       speedSlider.value = String(sliderValue);
@@ -4101,8 +4099,9 @@ class RapierDriveSimulation {
     }
 
     viewer.kmhToRpmFactor = 1000 / (60 * Math.PI * 2 * wheelRadiusMeters);
+    // Playback scale belongs to simulation time only; scaling here too would double-apply it.
     if (typeof viewer.setWheelAnimationTimeScale === "function") {
-      viewer.setWheelAnimationTimeScale(this.visualSpeedScale);
+      viewer.setWheelAnimationTimeScale(1);
     }
     if (typeof viewer.setWheelVisualFilterEnabled === "function") {
       viewer.setWheelVisualFilterEnabled(false);

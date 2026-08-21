@@ -5584,8 +5584,6 @@ class RapierDriveSimulation {
     this.syncObstacleColliderActivation(context.linkMap);
 
     this.physicsEngine.step(fixedStepSec);
-    context.wheelGroundContactCount =
-      this.wheelController.updateGroundContactState();
 
     const supportProfile = this.getWheelSupportProfile();
     this.lastWheelSupportProfile = supportProfile;
@@ -5593,6 +5591,8 @@ class RapierDriveSimulation {
       supportProfile &&
       supportProfile.averageLift > WHEEL_SUPPORT_MIN_LIFT_METERS,
     );
+    context.wheelGroundContactCount =
+      this.wheelController.updateGroundContactState();
 
     const hasObstacleContactNow =
       this.contactSolver.updateVehicleObstacleContact();

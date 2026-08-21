@@ -1915,7 +1915,7 @@ class RapierDriveSimulation {
       return;
     }
 
-    pauseButton.textContent = this.isPaused ? "재개" : "일시정지";
+    pauseButton.textContent = this.isPaused ? "재개" : "정지";
     pauseButton.setAttribute("aria-pressed", this.isPaused ? "true" : "false");
     pauseButton.classList.toggle("active", this.isPaused);
   }

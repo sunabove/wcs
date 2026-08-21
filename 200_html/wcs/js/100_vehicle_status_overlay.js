@@ -90,6 +90,9 @@
   let temporaryStatusHideTimerId = null;
   let hasStoredOverlayMediaHiddenState = false;
   const FIRST_FRAME_TIMEOUT_MS = 10000;
+  // Transparent 1x1 placeholder; avoids broken-image rendering before the first frame.
+  const BLANK_IMAGE_SRC =
+    "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7";
   const LOADING_MESSAGE = "로딩중입니다.";
   const FIRST_FRAME_TIMEOUT_MESSAGE = "동영상이 로딩되지 않았습니다.";
   const NO_SELECTED_VIDEO_MESSAGE = "현재 선택된 동영상이 없습니다.";
@@ -170,6 +173,15 @@
       );
   }
 
+  function getOverlayImageSource() {
+    const source = String($image.attr("src") || "").trim();
+    return source === BLANK_IMAGE_SRC ? "" : source;
+  }
+
+  function clearOverlayImageSource() {
+    $image.attr("src", BLANK_IMAGE_SRC);
+  }
+
   function isOverlayFullscreen() {
     return overlayBrowserFullscreen;
   }
@@ -179,7 +191,7 @@
       return;
     }
 
-    const hasImageSource = !!String($image.attr("src") || "").trim();
+    const hasImageSource = !!getOverlayImageSource();
     const hasVideoSource = !!String($video.attr("src") || "").trim();
     const hasRoadFileVideoSource =
       !!latestCurrentVideoFileName &&
@@ -256,7 +268,7 @@
   function updateVideoControlButtons() {
     const hasCloseButton = $closeButton.length > 0;
     const isImageVisible = $image.length > 0 && !$image.hasClass("d-none");
-    const hasImageSource = !!String($image.attr("src") || "").trim();
+    const hasImageSource = !!getOverlayImageSource();
     if ($playToggleButton.length === 0 || $video.length === 0) {
       if (hasCloseButton) {
         $closeButton.prop("disabled", true);
@@ -295,7 +307,8 @@
         $closeButton.prop("disabled", !isImageOutputAreaActive);
       }
       const hasImageMediaSource =
-        !!String(lastMediaSource || $image.attr("src") || "").trim() ||
+        !!String(lastMediaSource || "").trim() ||
+        !!getOverlayImageSource() ||
         isRoadFileStreamActive;
       updateLoopToggleButton(hasImageMediaSource);
       updateFullscreenToggleButton();
@@ -493,7 +506,7 @@
   }
 
   function writeOverlayPausedFrame() {
-    const frameSrc = String($image.attr("src") || "");
+    const frameSrc = getOverlayImageSource();
     if (
       !latestCurrentVideoFileName ||
       !frameSrc.startsWith("data:image/jpeg;base64,")
@@ -1880,7 +1893,9 @@
       mediaPlaybackPaused = false;
       markFirstFrameReady();
     }
-    $image.attr("src", "").addClass("d-none");
+    // Blank src ("") would resolve to the page URL and render a broken image.
+    clearOverlayImageSource();
+    $image.addClass("d-none");
 
     if ($video[0]) {
       if (typeof $video[0].pause === "function") {
@@ -1893,7 +1908,7 @@
         $video[0].load();
       }
     }
-    $video.attr("src", "").addClass("d-none");
+    $video.removeAttr("src").addClass("d-none");
     updateVideoControlButtons();
     if (resetMemory) {
       setOverlayStatus("", false);
@@ -2222,7 +2237,7 @@
     ).trim();
     const hasKnownMediaSource = !!String(lastMediaSource || "").trim();
     const hasVideoSource = !!String($video.attr("src") || "").trim();
-    const hasImageSource = !!String($image.attr("src") || "").trim();
+    const hasImageSource = !!getOverlayImageSource();
     const cameraSelection = parseCameraSelection(latestCurrentVideoFileName);
     const isCameraSelectionActive = !!cameraSelection;
     if (
@@ -2325,7 +2340,7 @@
   });
 
   $image.on("load", function () {
-    if (!this.naturalWidth || !this.naturalHeight) {
+    if (!this.naturalWidth || !this.naturalHeight || !getOverlayImageSource()) {
       return;
     }
     imageStreamNeedsReplay = false;
@@ -2336,8 +2351,13 @@
   });
 
   $image.on("error", function () {
-    const hasImageSource = !!String($image.attr("src") || "").trim();
-    if (mediaHiddenByUser || $image.hasClass("d-none") || !hasImageSource) {
+    const hasImageSource = !!getOverlayImageSource();
+    if (!hasImageSource) {
+      return;
+    }
+    // Swap back to the placeholder so a failed frame never renders as a broken image.
+    clearOverlayImageSource();
+    if (mediaHiddenByUser || $image.hasClass("d-none")) {
       return;
     }
     imageStreamNeedsReplay = true;

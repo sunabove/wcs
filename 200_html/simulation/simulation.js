@@ -2544,14 +2544,14 @@ class RapierDriveSimulation {
     if (!this.viewer?.scene || !Array.isArray(groundPatches)) {
       return;
     }
-
     if (this.groundGrid) {
       this.viewer.scene.remove(this.groundGrid);
       this.groundGrid.geometry.dispose();
       this.groundGrid.material.dispose();
     }
 
-    const gridSpacingMeters = 0.1;
+    // One cell equals one wheel revolution, so travel per rotation is readable on the ground.
+    const gridSpacingMeters = this.getWheelCircumferenceMeters();
     const gridZ = this.groundZ + 0.001;
     const vertices = [];
     const colors = [];
@@ -4050,6 +4050,14 @@ class RapierDriveSimulation {
       viewer.kmhToRpmFactorByWheelKey = {};
     }
     this.configureWheelVisualKinematics();
+  }
+
+  getWheelCircumferenceMeters() {
+    const wheelRadius = Math.max(
+      Number(this.wheelEffectiveRadiusMeters) || 0,
+      0.05,
+    );
+    return Math.PI * 2 * wheelRadius;
   }
 
   configureWheelVisualKinematics() {

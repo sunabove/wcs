@@ -216,10 +216,6 @@ class RapierDriveSimulation {
     this.obstacleColliders = [];
     this.obstacleColliderInfos = [];
     this.activeObstacleTraversalPath = null;
-    this.obstacleContactSurfaceToleranceMeters = 0.012;
-    this.obstacleApproachDisableSnapDistanceMeters = 0.05;
-    this.obstacleDepenetrationEpsilonMeters = 0.015;
-    this.obstacleDepenetrationMaxIterations = 8;
     this.isVehicleObstacleContact = false;
     this.carFrame = null;
     this.vehicleDirectionArrowGroup = null;
@@ -244,7 +240,6 @@ class RapierDriveSimulation {
     this.groundZ = 0;
     this.groundGrid = null;
     this.holeRegions = [];
-    this.underbodyPassThroughClearanceMeters = 0.02;
     this.urdfObstacleLinkPrefix = "obstacle_";
     this.passUnderObstacleNamePatterns = [/pass_under/i, /underbody/i];
     this.maxSpeedMps = 100 / 3.6;
@@ -254,13 +249,6 @@ class RapierDriveSimulation {
     this.keepUprightOnFlatGround = true;
     this.isUprightRotationLockActive = false;
     this.groundPenetrationToleranceMeters = 0.003;
-    this.bodyGroundClampActivationMarginMeters = 0.004;
-    this.wheelGroundHardClampOffsetMeters = 0.001;
-    this.wheelGroundClampActivationMarginMeters = 0.003;
-    this.postObstacleGroundReattachToleranceMeters = 0.001;
-    this.postObstacleGroundReattachBlend = 0.75;
-    this.postObstacleGroundRecoverDurationSec = 0.35;
-    this.postObstacleGroundRecoverRemainingSec = 0;
     this.flatGroundSnapDistanceMeters = 0.01;
     this.flatGroundVerticalVelocitySnapThresholdMps = 0.35;
     this.lastWheelSupportProfile = null;
@@ -362,7 +350,6 @@ class RapierDriveSimulation {
       rl: null,
       rr: null,
     };
-    this.wheelColliderInflationMeters = 0;
   }
 
   kmhToMps(kmh) {
@@ -2763,7 +2750,6 @@ class RapierDriveSimulation {
     }
 
     const linkMap = this.vehicleModel.links;
-    const wheelLateralBands = this.getWheelLateralContactBands(linkMap);
     const obstacleLinkNames = this.getObstacleLinkNamesFromMap(linkMap);
     if (obstacleLinkNames.length === 0) {
       console.warn(
@@ -2823,47 +2809,10 @@ class RapierDriveSimulation {
         .setCollisionGroups(COLLISION_GROUP_OBSTACLE)
         .setRestitution(obstacleProfile.restitution);
 
-      const obstacleTopZ = center.z + obstacleProfile.effectiveHalfZ;
-      const wheelContactPlaneZ = this.getWheelContactPlaneZ();
-      const passThroughClearance = Math.max(
-        Number(this.underbodyPassThroughClearanceMeters) || 0,
-        0,
-      );
-      const obstacleMinY = center.y - halfY;
-      const obstacleMaxY = center.y + halfY;
-      const overlapsWheelBand = wheelLateralBands.some((band) => {
-        if (!band) {
-          return false;
-        }
-
-        return obstacleMaxY >= band.minY && obstacleMinY <= band.maxY;
-      });
-
-      // Do not auto-convert low obstacles to sensors.
-      // Automatic conversion can disable wheel collision and cause visual penetration.
-      const isUnderbodyPassThroughByHeight = false;
-      const isUnderbodyPassThrough = false;
-
       // Obstacles never block motion: traversal height comes from wheel support geometry,
       // so solver pushback would only stall the vehicle at higher speeds.
       if (typeof obstacleColliderDesc.setSensor === "function") {
         obstacleColliderDesc.setSensor(true);
-      }
-      if (isPassUnderTagged) {
-        console.log(
-          "[URDF][Simulation] obstacle treated as pass-under sensor:",
-          {
-            obstacleLinkName,
-            isPassUnderTagged,
-            isUnderbodyPassThroughByHeight,
-            overlapsWheelBand,
-            obstacleTopZ: Number(obstacleTopZ.toFixed(4)),
-            wheelContactPlaneZ: Number.isFinite(wheelContactPlaneZ)
-              ? Number(wheelContactPlaneZ.toFixed(4))
-              : null,
-            passThroughClearance: Number(passThroughClearance.toFixed(4)),
-          },
-        );
       }
 
       if (isOriginObject) {
@@ -2896,39 +2845,6 @@ class RapierDriveSimulation {
         `[URDF][Simulation] obstacle collider created from URDF link: ${obstacleLinkName}`,
       );
     });
-  }
-
-  getWheelLateralContactBands(linkMap) {
-    if (!linkMap) {
-      return [];
-    }
-
-    const wheelLinkNames = ["wheel_fl", "wheel_fr", "wheel_rl", "wheel_rr"];
-    const bands = [];
-
-    wheelLinkNames.forEach((wheelLinkName) => {
-      const wheelLink = this.findLinkByName(linkMap, wheelLinkName);
-      if (!wheelLink) {
-        return;
-      }
-
-      wheelLink.updateWorldMatrix(true, true);
-      const wheelBounds =
-        this.computeLinkOwnBounds(wheelLink, linkMap) || new THREE.Box3();
-      if (wheelBounds.isEmpty()) {
-        return;
-      }
-
-      const wheelCenter = wheelBounds.getCenter(new THREE.Vector3());
-      const wheelSize = wheelBounds.getSize(new THREE.Vector3());
-      const wheelRadius = Math.max(wheelSize.x * 0.5, wheelSize.z * 0.5, 0.05);
-      bands.push({
-        minY: wheelCenter.y - wheelRadius,
-        maxY: wheelCenter.y + wheelRadius,
-      });
-    });
-
-    return bands;
   }
 
   getObstacleWorldBounds(obstacleInfo, linkMap = null) {
@@ -3625,7 +3541,7 @@ class RapierDriveSimulation {
       },
     );
 
-    if (samples.length < 3) {
+    if (samples.length === 0) {
       return null;
     }
 
@@ -3633,6 +3549,17 @@ class RapierDriveSimulation {
     const meanX = samples.reduce((sum, s) => sum + s.x, 0) / count;
     const meanY = samples.reduce((sum, s) => sum + s.y, 0) / count;
     const meanLift = samples.reduce((sum, s) => sum + s.lift, 0) / count;
+
+    // Fewer than three contact points cannot define a plane; keep the lift, drop the tilt.
+    if (count < 3) {
+      return {
+        liftByKey,
+        supportObstacleByKey,
+        averageLift: Math.max(meanLift, 0),
+        pitchRad: 0,
+        rollRad: 0,
+      };
+    }
 
     let sumXX = 0;
     let sumYY = 0;
@@ -3777,10 +3704,6 @@ class RapierDriveSimulation {
     );
   }
 
-  isVehicleNearObstacleSupportZone() {
-    return false;
-  }
-
   getWheelContactPlaneZ() {
     if (!this.body || !Number.isFinite(this.wheelLocalMinZ)) {
       return null;
@@ -3852,11 +3775,7 @@ class RapierDriveSimulation {
       return false;
     }
 
-    if (
-      this.isVehicleObstacleContact ||
-      this.isVehicleOverHoleRegion() ||
-      this.isVehicleNearObstacleSupportZone()
-    ) {
+    if (this.isVehicleObstacleContact || this.isVehicleOverHoleRegion()) {
       return false;
     }
 
@@ -4327,11 +4246,6 @@ class RapierDriveSimulation {
           Math.sign(angleDelta);
       }
     });
-  }
-
-  getAverageSignedWheelRpm() {
-    const viewer = this.getDriveSourceViewer();
-    return this.getAverageSignedWheelRpmForViewer(viewer);
   }
 
   getAverageSignedWheelRpmForViewer(viewer) {
@@ -5715,14 +5629,6 @@ class RapierDriveSimulation {
       }
     }
 
-    this.postObstacleGroundRecoverRemainingSec = hasObstacleControl
-      ? Math.max(Number(this.postObstacleGroundRecoverDurationSec) || 0, 0)
-      : Math.max(
-          0,
-          (Number(this.postObstacleGroundRecoverRemainingSec) || 0) -
-            fixedStepSec,
-        );
-
     if (hasObstacleControl) {
       if (isStraightDrive) {
         this.setBodyPlanarVelocity(targetVelocityX, targetVelocityY);
@@ -5912,6 +5818,9 @@ class RapierDriveSimulation {
       this.renderer.syncVehicle();
       return;
     }
+
+    // Support geometry is recomputed per substep; drop the previous frame's snapshot.
+    this.lastWheelSupportProfile = null;
 
     const contactState = this.refreshObstacleContactState();
     const isNearFlatGroundSupport = this.isBodyNearFlatGroundSupport();
@@ -6107,7 +6016,6 @@ class RapierDriveSimulation {
     this.hasActivatedDynamicGroundClamp = false;
     this.straightDriveReferencePose = null;
     this.straightDriveWarmupSteps = 0;
-    this.postObstacleGroundRecoverRemainingSec = 0;
     this.lastWheelSupportProfile = null;
     this.lastDriveCommandState = {
       throttleSign: 0,

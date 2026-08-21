@@ -2339,6 +2339,12 @@ class RapierDriveSimulation {
     const groundMaxX = groundCenterX + GROUND_EXTENSION_HALF_SIZE_METERS;
     const groundMinY = groundCenterY - GROUND_EXTENSION_HALF_SIZE_METERS;
     const groundMaxY = groundCenterY + GROUND_EXTENSION_HALF_SIZE_METERS;
+    this.groundSurfaceRect = {
+      minX: groundMinX,
+      maxX: groundMaxX,
+      minY: groundMinY,
+      maxY: groundMaxY,
+    };
 
     const holeLinkNames = Object.keys(linkMap).filter((name) =>
       /hole|pothole/i.test(name),
@@ -2529,92 +2535,139 @@ class RapierDriveSimulation {
     });
 
     this.groundGridPatches = groundPatches;
-    this.addGroundSurfaceExtension();
-    void this.carveGroundVisualForHoles();
+    this.rebuildGroundSurfaceMesh();
     this.addGroundSurfaceGrid(groundPatches);
   }
 
-  addGroundSurfaceExtension() {
+  rebuildGroundSurfaceMesh() {
     const linkMap = this.viewer?.robotModel?.links || null;
     const groundLink =
       this.findLinkByName(linkMap, "ground") ||
       this.findLinkByName(linkMap, "ground_link") ||
       this.findLinkByName(linkMap, "ground_patch") ||
       null;
-    const authoredRect = this.authoredGroundRect;
-    if (!groundLink || !authoredRect) {
+    const surfaceRect = this.groundSurfaceRect;
+    if (!groundLink || !surfaceRect) {
       return;
     }
 
-    const authoredMesh = this.collectLinkOwnMeshes(groundLink, linkMap)[0];
+    const authoredMeshes = this.collectLinkOwnMeshes(groundLink, linkMap);
+    const authoredMesh = authoredMeshes[0];
     if (!authoredMesh) {
       return;
     }
 
-    if (this.groundExtensionGroup?.parent) {
-      this.groundExtensionGroup.parent.remove(this.groundExtensionGroup);
-      this.groundExtensionGroup.geometry?.dispose();
+    const surfaceMaterial = Array.isArray(authoredMesh.material)
+      ? authoredMesh.material[0]
+      : authoredMesh.material;
+    const interiorMaterial = this.getGroundInteriorMaterial(surfaceMaterial);
+    const authoredBounds = new THREE.Box3().setFromObject(authoredMesh);
+    const thickness = Math.max(
+      authoredBounds.max.z - authoredBounds.min.z,
+      0.01,
+    );
+
+    if (this.groundSurfaceGroup?.parent) {
+      this.groundSurfaceGroup.parent.remove(this.groundSurfaceGroup);
+      this.groundSurfaceGroup.traverse((node) => node.geometry?.dispose());
     }
 
-    // Single flat frame with the authored plate as a hole: no thickness, no overlap,
-    // so there are no side faces or coplanar pairs to produce seams.
-    const outerShape = new THREE.Shape();
-    outerShape.moveTo(
-      authoredRect.minX - GROUND_EXTENSION_HALF_SIZE_METERS,
-      authoredRect.minY - GROUND_EXTENSION_HALF_SIZE_METERS,
-    );
-    outerShape.lineTo(
-      authoredRect.maxX + GROUND_EXTENSION_HALF_SIZE_METERS,
-      authoredRect.minY - GROUND_EXTENSION_HALF_SIZE_METERS,
-    );
-    outerShape.lineTo(
-      authoredRect.maxX + GROUND_EXTENSION_HALF_SIZE_METERS,
-      authoredRect.maxY + GROUND_EXTENSION_HALF_SIZE_METERS,
-    );
-    outerShape.lineTo(
-      authoredRect.minX - GROUND_EXTENSION_HALF_SIZE_METERS,
-      authoredRect.maxY + GROUND_EXTENSION_HALF_SIZE_METERS,
-    );
-    outerShape.closePath();
+    const appendRectPath = (path, rect) => {
+      path.moveTo(rect.minX, rect.minY);
+      path.lineTo(rect.maxX, rect.minY);
+      path.lineTo(rect.maxX, rect.maxY);
+      path.lineTo(rect.minX, rect.maxY);
+      path.closePath();
+    };
 
-    const authoredHole = new THREE.Path();
-    authoredHole.moveTo(authoredRect.minX, authoredRect.minY);
-    authoredHole.lineTo(authoredRect.maxX, authoredRect.minY);
-    authoredHole.lineTo(authoredRect.maxX, authoredRect.maxY);
-    authoredHole.lineTo(authoredRect.minX, authoredRect.maxY);
-    authoredHole.closePath();
-    outerShape.holes.push(authoredHole);
+    const groundShape = new THREE.Shape();
+    appendRectPath(groundShape, surfaceRect);
+    (this.holeRegions || []).forEach((holeRegion) => {
+      const holePath = new THREE.Path();
+      appendRectPath(holePath, holeRegion);
+      groundShape.holes.push(holePath);
+    });
 
-    const frameMesh = new THREE.Mesh(
-      new THREE.ShapeGeometry(outerShape),
-      this.getGroundExtensionMaterial(authoredMesh.material),
+    // Extrusion gives hole walls for free and splits caps/walls into material groups,
+    // so potholes can be added or moved by rebuilding this one mesh.
+    const surfaceGroup = new THREE.Group();
+    surfaceGroup.name = "simulation-ground-surface";
+    const slabMesh = new THREE.Mesh(
+      new THREE.ExtrudeGeometry(groundShape, {
+        depth: thickness,
+        bevelEnabled: false,
+      }),
+      [surfaceMaterial, interiorMaterial],
     );
-    frameMesh.name = "simulation-ground-extension";
-    frameMesh.position.copy(
+    slabMesh.position.z = -thickness;
+    surfaceGroup.add(slabMesh);
+
+    (this.holeRegions || []).forEach((holeRegion) => {
+      const width = holeRegion.maxX - holeRegion.minX;
+      const depth = holeRegion.maxY - holeRegion.minY;
+      if (width <= 1e-4 || depth <= 1e-4) {
+        return;
+      }
+
+      const floorMesh = new THREE.Mesh(
+        new THREE.PlaneGeometry(width, depth),
+        interiorMaterial,
+      );
+      floorMesh.position.set(
+        (holeRegion.minX + holeRegion.maxX) * 0.5,
+        (holeRegion.minY + holeRegion.maxY) * 0.5,
+        -(Number(holeRegion.depthMeters) || 0),
+      );
+      surfaceGroup.add(floorMesh);
+    });
+
+    surfaceGroup.position.copy(
       groundLink.worldToLocal(new THREE.Vector3(0, 0, this.groundZ)),
     );
-    frameMesh.userData.isSimulationGeneratedGround = true;
+    surfaceGroup.userData.isSimulationGeneratedGround = true;
+    surfaceGroup.traverse((node) => {
+      node.userData.isSimulationGeneratedGround = true;
+    });
 
-    groundLink.add(frameMesh);
-    this.groundExtensionGroup = frameMesh;
+    authoredMeshes.forEach((mesh) => {
+      mesh.visible = false;
+    });
+    this.hideHoleObstacleVisuals(linkMap);
+
+    groundLink.add(surfaceGroup);
+    this.groundSurfaceGroup = surfaceGroup;
   }
 
-  getGroundExtensionMaterial(authoredMaterial) {
-    if (this.groundExtensionMaterial) {
-      return this.groundExtensionMaterial;
-    }
+  hideHoleObstacleVisuals(linkMap) {
+    (this.holeRegions || []).forEach((holeRegion) => {
+      const holeLink = holeRegion.linkName
+        ? this.findLinkByName(linkMap, holeRegion.linkName)
+        : null;
+      // The pit is real ground geometry now, so the authored volume would only z-fight.
+      this.collectLinkOwnMeshes(holeLink, linkMap).forEach((mesh) => {
+        mesh.visible = false;
+      });
+    });
+  }
 
-    const material = authoredMaterial?.clone
-      ? authoredMaterial.clone()
-      : new THREE.MeshStandardMaterial();
-    // Opaque so the far field reads as solid ground instead of showing the sky through it.
-    material.transparent = false;
-    material.opacity = 1;
-    material.side = THREE.DoubleSide;
-    material.name = "ground_extension_mat";
+  addGroundPotholeRegion(centerX, centerY, sizeX, sizeY, depthMeters) {
+    const halfX = Math.max(Number(sizeX) || 0, 0.01) * 0.5;
+    const halfY = Math.max(Number(sizeY) || 0, 0.01) * 0.5;
+    const depth = Math.max(Number(depthMeters) || 0, 0.01);
 
-    this.groundExtensionMaterial = material;
-    return material;
+    this.holeRegions.push({
+      linkName: null,
+      minX: centerX - halfX,
+      maxX: centerX + halfX,
+      minY: centerY - halfY,
+      maxY: centerY + halfY,
+      depthMeters: depth,
+      floorZ: this.groundZ - depth,
+    });
+
+    this.rebuildGroundSurfaceMesh();
+    this.lastWheelSupportProfile = null;
+    return this.holeRegions[this.holeRegions.length - 1];
   }
 
   collectLinkOwnMeshes(linkObject, linkMap) {

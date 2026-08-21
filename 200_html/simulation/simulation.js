@@ -3914,6 +3914,7 @@ class RapierDriveSimulation {
       0.05,
     );
     const liftByKey = {};
+    const supportZByKey = {};
     const supportObstacleByKey = {};
     const samples = [];
 
@@ -3922,6 +3923,7 @@ class RapierDriveSimulation {
     Object.entries(this.wheelLinkNameByKey).forEach(
       ([wheelKey, wheelLinkName]) => {
         liftByKey[wheelKey] = 0;
+        supportZByKey[wheelKey] = this.groundZ;
         supportObstacleByKey[wheelKey] = null;
 
         const wheelLink = this.findLinkByName(linkMap, wheelLinkName);
@@ -3937,7 +3939,6 @@ class RapierDriveSimulation {
         this.obstacleColliderInfos.forEach((obstacleInfo) => {
           if (
             !obstacleInfo ||
-            obstacleInfo.isSensor ||
             !obstacleInfo.center ||
             !obstacleInfo.halfExtents
           ) {
@@ -4008,6 +4009,7 @@ class RapierDriveSimulation {
 
         const lift = supportZ - this.groundZ;
         liftByKey[wheelKey] = lift;
+        supportZByKey[wheelKey] = supportZ;
         supportObstacleByKey[wheelKey] =
           lift > WHEEL_SUPPORT_MIN_LIFT_METERS ? supportObstacle : null;
 
@@ -4030,6 +4032,7 @@ class RapierDriveSimulation {
     if (count < 3) {
       return {
         liftByKey,
+        supportZByKey,
         supportObstacleByKey,
         averageLift: Math.max(meanLift, 0),
         pitchRad: 0,
@@ -4068,6 +4071,7 @@ class RapierDriveSimulation {
 
     return {
       liftByKey,
+      supportZByKey,
       supportObstacleByKey,
       // Signed: positive on obstacles, negative inside potholes.
       averageLift: liftAtOrigin,
@@ -5092,6 +5096,9 @@ class RapierDriveSimulation {
       return;
     }
 
+    const supportProfile =
+      this.lastWheelSupportProfile || this.getWheelSupportProfile();
+
     Object.entries(this.wheelGroundContactMarkerByKey).forEach(
       ([wheelKey, marker]) => {
         const wheelCollider = this.wheelCollidersByKey?.[wheelKey] || null;
@@ -5122,16 +5129,22 @@ class RapierDriveSimulation {
         const yaw = this.body
           ? this.extractYawFromQuaternion(this.body.rotation())
           : 0;
-        marker.position.set(shadowX, shadowY, this.groundZ + 0.003);
-        const isContacting = Boolean(this.wheelGroundContactState[wheelKey]);
+        const supportZ = Number(supportProfile?.supportZByKey?.[wheelKey]);
+        const markerZ = Number.isFinite(supportZ)
+          ? supportZ + 0.003
+          : this.groundZ + 0.003;
+        const isGroundContact =
+          Math.abs(Number(supportProfile?.liftByKey?.[wheelKey]) || 0) <=
+          WHEEL_SUPPORT_MIN_LIFT_METERS;
+        marker.position.set(shadowX, shadowY, markerZ);
         marker.rotation.z = yaw;
         marker.scale.set(
-          isContacting ? 0.12 : 0.09,
-          isContacting ? 0.06 : 0.045,
+          isGroundContact ? 0.12 : 0.09,
+          isGroundContact ? 0.06 : 0.045,
           1,
         );
-        marker.material.color.set(isContacting ? 0xfacc15 : 0x111111);
-        marker.material.opacity = isContacting ? 0.42 : 0.55;
+        marker.material.color.set(isGroundContact ? 0xfacc15 : 0x6c757d);
+        marker.material.opacity = isGroundContact ? 0.42 : 0.62;
         marker.visible = true;
       },
     );

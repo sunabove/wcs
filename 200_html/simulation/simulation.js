@@ -12,10 +12,40 @@ const SIM_VISUAL_SPEED_MAX_SCALE = 4;
 const SIM_VISUAL_SPEED_SCALES = [1 / 4, 1 / 3, 1 / 2, 1, 2, 3, 4];
 const WHEEL_Z_CHART_INITIAL_HALF_RANGE_CM = 4;
 const WHEEL_Z_CHART_HALF_RANGE_STEP_CM = 2;
+// Chassis (0x0008) deliberately excludes ground (filter 0x0002); ground contact is handled by manual clamping.
 const COLLISION_GROUP_GROUND = 0x00010002;
 const COLLISION_GROUP_WHEEL = 0x00020005;
 const COLLISION_GROUP_OBSTACLE = 0x0004000a;
 const COLLISION_GROUP_CHASSIS = 0x00080004;
+
+// Contacts are frictionless by design; drive/turn motion is imposed by velocity control, not tire friction.
+const GROUND_COLLIDER_FRICTION = 0.0;
+const WHEEL_COLLIDER_FRICTION = 0.0;
+const OBSTACLE_COLLIDER_FRICTION = 0.05;
+
+const VEHICLE_WHEELBASE_METERS = 0.64;
+const VEHICLE_TRACK_WIDTH_FALLBACK_METERS = 0.64;
+const OBSTACLE_RAMP_MIN_LENGTH_METERS = 0.45;
+const OBSTACLE_RAMP_MAX_LENGTH_METERS = 0.65;
+const OBSTACLE_RAMP_HALF_FORWARD_SCALE = 1.5;
+const OBSTACLE_MAX_LATERAL_OFFSET_METERS = 0.8;
+const OBSTACLE_MAX_TILT_DEG = 22;
+// Extra horizontal reach around a wheel center that still counts as standing on an obstacle.
+const WHEEL_SUPPORT_FOOTPRINT_RATIO = 0.35;
+
+const WHEEL_RPM_COMMAND_THRESHOLD = 0.2;
+const STEER_SIGN_EPSILON = 1e-3;
+const DRIVE_TRACTION_SCALE_AIRBORNE = 0.35;
+const DRIVE_ACCEL_IMPULSE_BASE = 0.25;
+const DRIVE_ACCEL_IMPULSE_SPEED_GAIN = 0.08;
+const DRIVE_ACCEL_IMPULSE_MIN = 0.3;
+const DRIVE_DRAG_BASE = 0.08;
+const DRIVE_DRAG_SPEED_GAIN = 0.08;
+const DRIVE_DRAG_MAX = 0.22;
+const DRIVE_IDLE_DRAG_SCALE = 0.04;
+const DRIVE_STEERING_TORQUE_SCALE = 0.012;
+const DRIVE_YAW_DAMPING_SCALE = 0.06;
+const DRIVE_FREE_ROLL_DECAY = 0.92;
 
 class VehicleModel {
   constructor(runtime) {
@@ -113,10 +143,6 @@ class ContactSolver {
 class VehicleController {
   constructor(runtime) {
     this.runtime = runtime;
-  }
-
-  getKeyboardState() {
-    return this.runtime.getKeyboardDriveState();
   }
 
   getDriveSource() {
@@ -228,7 +254,7 @@ class RapierDriveSimulation {
     this.passUnderObstacleNamePatterns = [/pass_under/i, /underbody/i];
     this.maxSpeedMps = 100 / 3.6;
     this.maxYawRateRad = THREE.MathUtils.degToRad(25);
-    this.centerTurnYawRateScale = 0.15;
+    this.centerTurnYawRateScale = 1;
     this.enableWheelPhysicsColliders = true;
     this.keepUprightOnFlatGround = true;
     this.isUprightRotationLockActive = false;
@@ -259,23 +285,11 @@ class RapierDriveSimulation {
     this.accelerationMetric = 0;
     this.maxPhysicsCatchupSteps = 6;
     this.hasLoggedGroundDiagnostics = false;
-    this.lastVelocitySnapshot = null;
-    this.contactStrengthMetric = 0;
-    this.accelerationMetric = 0;
-    this.runtimeDiagnosticsElapsedSec = 0;
-    this.debugStatusElapsedSec = 0;
-    this.postObstacleGroundRecoverRemainingSec = 0;
-    this.isUprightRotationLockActive = false;
     this.enableRuntimeDiagnostics = true;
     this.runtimeDiagnosticsIntervalSec = 1;
     this.runtimeDiagnosticsElapsedSec = 0;
+    this.debugStatusElapsedSec = 0;
     this.isKeyboardControlEnabled = true;
-    this.keyHoldState = {
-      ArrowUp: 0,
-      ArrowDown: 0,
-      ArrowLeft: 0,
-      ArrowRight: 0,
-    };
     this.commandedDriveMode = "stop";
     this.commandedSpeedMps = SIM_SPEED_DEFAULT_MPS;
     this.hasInstalledCommandButtonFlash = false;
@@ -1265,7 +1279,8 @@ class RapierDriveSimulation {
       return;
     }
 
-    let hasHookedAnyCommand = false;
+    let hasHookedDriveMode = typeof globalThis.setDriveMode !== "function";
+    let hasHookedDriveSpeed = typeof globalThis.setDriveSpeedKmh !== "function";
 
     const originalSetDriveMode = globalThis.setDriveMode;
     if (typeof originalSetDriveMode === "function") {
@@ -1273,7 +1288,7 @@ class RapierDriveSimulation {
         this.commandedDriveMode = String(mode || "stop");
         return originalSetDriveMode(mode);
       };
-      hasHookedAnyCommand = true;
+      hasHookedDriveMode = true;
     }
 
     const originalSetDriveSpeedKmh = globalThis.setDriveSpeedKmh;
@@ -1288,11 +1303,12 @@ class RapierDriveSimulation {
         }
         return originalSetDriveSpeedKmh(kmh);
       };
-      hasHookedAnyCommand = true;
+      hasHookedDriveSpeed = true;
     }
 
-    // Keep retrying on later frames until command functions are available and wrapped.
-    this.hasInstalledDriveCommandHooks = hasHookedAnyCommand;
+    // Keep retrying on later frames until every available command function is wrapped.
+    this.hasInstalledDriveCommandHooks =
+      hasHookedDriveMode && hasHookedDriveSpeed;
   }
 
   syncInitialDriveStateFromUi() {
@@ -1552,10 +1568,9 @@ class RapierDriveSimulation {
     }
 
     if (Array.isArray(window.urdfViewers)) {
-      const matched = window.urdfViewers.find((viewer) => {
-        const urdfPath = String(viewer?.urdfPath || "");
-        return urdfPath.includes("/model/vehicle/vehicle.urdf");
-      });
+      const matched = window.urdfViewers.find((viewer) =>
+        String(viewer?.urdfPath || "").includes("/urdf/model/"),
+      );
 
       if (matched) {
         return matched;
@@ -1881,11 +1896,6 @@ class RapierDriveSimulation {
         wheelSignedRpmByKey: this.getSignedWheelRpmSnapshotByKey(driveViewer),
       };
 
-      this.keyHoldState.ArrowUp = 0;
-      this.keyHoldState.ArrowDown = 0;
-      this.keyHoldState.ArrowLeft = 0;
-      this.keyHoldState.ArrowRight = 0;
-
       // Pause mode should freeze visual wheel rotation as well.
       this.applyDriveModeCommand("stop");
       ["fl", "fr", "rl", "rr"].forEach((key) => {
@@ -1950,6 +1960,10 @@ class RapierDriveSimulation {
           event.key === " " ||
           event.key === "Spacebar";
         if (isSpaceKey) {
+          // Space activates a focused button; skip so the command does not run twice.
+          if (event.target?.closest?.("button")) {
+            return;
+          }
           if (event.ctrlKey) {
             this.reset();
           } else {
@@ -1975,79 +1989,6 @@ class RapierDriveSimulation {
       },
       { passive: false },
     );
-
-    window.addEventListener(
-      "keyup",
-      (event) => {
-        if (!handledKeys.has(event.key)) {
-          return;
-        }
-
-        this.keyHoldState[event.key] = 0;
-        event.preventDefault();
-      },
-      { passive: false },
-    );
-
-    window.addEventListener("blur", () => {
-      this.keyHoldState.ArrowUp = 0;
-      this.keyHoldState.ArrowDown = 0;
-      this.keyHoldState.ArrowLeft = 0;
-      this.keyHoldState.ArrowRight = 0;
-    });
-  }
-
-  isFrontFacingViewActive() {
-    const faceKey = String(
-      this.viewer?.viewCubeActiveFaceKey || "",
-    ).toLowerCase();
-    if (faceKey) {
-      return faceKey === "front";
-    }
-
-    const camera = this.viewer?.camera || null;
-    const target = this.viewer?.controls?.target || null;
-    if (!camera || !target) {
-      return false;
-    }
-
-    const cameraOffset = camera.position.clone().sub(target);
-    if (cameraOffset.lengthSq() < 1e-8) {
-      return false;
-    }
-
-    const direction = cameraOffset.normalize();
-    const absX = Math.abs(direction.x);
-    const absY = Math.abs(direction.y);
-    const absZ = Math.abs(direction.z);
-
-    if (absX >= absY && absX >= absZ) {
-      return direction.x >= 0;
-    }
-
-    return false;
-  }
-
-  getKeyboardDriveState() {
-    const upPressed = this.keyHoldState.ArrowUp === 1;
-    const downPressed = this.keyHoldState.ArrowDown === 1;
-    const leftPressed = this.keyHoldState.ArrowLeft === 1;
-    const rightPressed = this.keyHoldState.ArrowRight === 1;
-
-    const moveX = (upPressed ? 1 : 0) - (downPressed ? 1 : 0);
-    const lateralBase = (leftPressed ? 1 : 0) - (rightPressed ? 1 : 0);
-    const lateralSign = this.isFrontFacingViewActive() ? -1 : 1;
-    const moveYRaw = lateralBase * lateralSign;
-    const magnitude = Math.hypot(moveX, moveYRaw);
-    const moveY = magnitude > 0 ? moveYRaw / magnitude : 0;
-    const normalizedMoveX = magnitude > 0 ? moveX / magnitude : 0;
-    const isActive = moveX !== 0 || moveY !== 0;
-
-    return {
-      isActive,
-      moveX: normalizedMoveX,
-      moveY,
-    };
   }
 
   updateSpeedSliderVisual(sliderElement) {
@@ -2537,7 +2478,6 @@ class RapierDriveSimulation {
       halfX,
       halfY,
       halfZ,
-      friction = 0.25,
     ) => {
       const groundBodyDesc = this.rapier.RigidBodyDesc.fixed().setTranslation(
         centerX,
@@ -2550,7 +2490,7 @@ class RapierDriveSimulation {
         halfY,
         halfZ,
       )
-        .setFriction(0.0)
+        .setFriction(GROUND_COLLIDER_FRICTION)
         .setCollisionGroups(COLLISION_GROUP_GROUND)
         .setRestitution(0.0);
       const groundCollider = this.world.createCollider(
@@ -2582,7 +2522,6 @@ class RapierDriveSimulation {
         halfX,
         halfY,
         groundHalfThickness,
-        0.25,
       );
     });
 
@@ -2606,7 +2545,6 @@ class RapierDriveSimulation {
         holeHalfX,
         holeHalfY,
         holeFloorHalfThickness,
-        0.5,
       );
     });
 
@@ -2764,7 +2702,8 @@ class RapierDriveSimulation {
     let effectiveHalfX = Math.max(halfX, 0.001);
     let effectiveHalfY = Math.max(halfY, 0.001);
     let effectiveHalfZ = Math.max(halfZ, 0.005);
-    let friction = 1.4;
+    // Low uniform friction keeps asymmetric contact from locking one side and spinning the vehicle.
+    const friction = OBSTACLE_COLLIDER_FRICTION;
     let restitution = 0.02;
 
     if (!isObstacleFamily) {
@@ -2785,19 +2724,16 @@ class RapierDriveSimulation {
       effectiveHalfX = Math.max(effectiveHalfX, 0.07);
       effectiveHalfY = Math.max(effectiveHalfY, 0.08);
       effectiveHalfZ = Math.max(effectiveHalfZ, 0.025);
-      friction = 0.18;
       restitution = 0.0;
     } else if (isHemisphereLike) {
       effectiveHalfX = Math.max(effectiveHalfX, 0.06);
       effectiveHalfY = Math.max(effectiveHalfY, 0.06);
       effectiveHalfZ = Math.max(effectiveHalfZ, 0.02);
-      friction = 0.25;
       restitution = 0.0;
     } else if (isBarLike) {
       effectiveHalfX = Math.max(effectiveHalfX, 0.04);
       effectiveHalfY = Math.max(effectiveHalfY, 0.75);
       effectiveHalfZ = Math.max(effectiveHalfZ, 0.015);
-      friction = 0.35;
       restitution = 0.0;
     } else {
       const maxExtent = Math.max(
@@ -2806,11 +2742,9 @@ class RapierDriveSimulation {
         effectiveHalfZ,
       );
       if (maxExtent > 0.25) {
-        friction = 0.6;
         restitution = 0.0;
       } else if (maxExtent < 0.08) {
         effectiveHalfZ = Math.max(effectiveHalfZ, 0.008);
-        friction = 0.4;
         restitution = 0.0;
       }
     }
@@ -2883,8 +2817,6 @@ class RapierDriveSimulation {
         halfY,
         halfZ,
       );
-      // Fix: Keep obstacle surface friction low (0.05) so asymmetric contact glides smoothly over instead of locking one side and spinning
-      obstacleProfile.friction = 0.05;
 
       const obstacleBodyDesc = this.rapier.RigidBodyDesc.fixed().setTranslation(
         center.x,
@@ -3380,12 +3312,6 @@ class RapierDriveSimulation {
     });
   }
 
-  resolveVehicleObstacleInterpenetration() {
-    // Disabled artificial position/velocity snapping.
-    // Let Rapier's physics engine handle rigid body contacts naturally.
-    return false;
-  }
-
   getObstacleApproachInfo() {
     if (!this.body || !Array.isArray(this.obstacleColliderInfos)) {
       return null;
@@ -3440,7 +3366,13 @@ class RapierDriveSimulation {
           Math.abs(forwardY) * obstacleInfo.halfExtents.y;
         const obstacleFront = alongForward - halfForward;
         const obstacleRear = alongForward + halfForward;
-        const rampLength = Math.max(0.45, Math.min(0.65, halfForward * 1.5));
+        const rampLength = Math.max(
+          OBSTACLE_RAMP_MIN_LENGTH_METERS,
+          Math.min(
+            OBSTACLE_RAMP_MAX_LENGTH_METERS,
+            halfForward * OBSTACLE_RAMP_HALF_FORWARD_SCALE,
+          ),
+        );
         const targetZ = this.getObstacleClimbTargetZ(obstacleInfo);
         return {
           obstacleInfo,
@@ -3454,7 +3386,7 @@ class RapierDriveSimulation {
       .filter(
         (candidate) =>
           Number.isFinite(candidate.targetZ) &&
-          candidate.lateralOffset <= 0.8 &&
+          candidate.lateralOffset <= OBSTACLE_MAX_LATERAL_OFFSET_METERS &&
           candidate.obstacleFront <= candidate.rampLength &&
           candidate.obstacleRear >= -candidate.rampLength,
       )
@@ -3553,14 +3485,17 @@ class RapierDriveSimulation {
     const { x: forwardX, y: forwardY } = this.getVehicleForwardVector(yaw);
     const dx = obstacleInfo.center.x - bodyPosition.x;
     const dy = obstacleInfo.center.y - bodyPosition.y;
-    const centerAlongForward = dx * forwardX + dy * forwardY;
     const lateralOffset = Math.abs(dx * forwardY - dy * forwardX);
     const halfForward =
       Math.abs(forwardX) * obstacleInfo.halfExtents.x +
       Math.abs(forwardY) * obstacleInfo.halfExtents.y;
-    const obstacleFront = centerAlongForward - halfForward;
-    const obstacleRear = centerAlongForward + halfForward;
-    const rampLength = Math.max(0.45, Math.min(0.65, halfForward * 1.5));
+    const rampLength = Math.max(
+      OBSTACLE_RAMP_MIN_LENGTH_METERS,
+      Math.min(
+        OBSTACLE_RAMP_MAX_LENGTH_METERS,
+        halfForward * OBSTACLE_RAMP_HALF_FORWARD_SCALE,
+      ),
+    );
     const measuredGroundTargetZ = this.getGroundContactTargetZ();
     const groundTargetZ = Number.isFinite(measuredGroundTargetZ)
       ? measuredGroundTargetZ
@@ -3571,7 +3506,7 @@ class RapierDriveSimulation {
     // remains exclusively driven by real Rapier collider contacts.
     if (
       !Number.isFinite(obstacleTargetZ) ||
-      lateralOffset > 0.8 ||
+      lateralOffset > OBSTACLE_MAX_LATERAL_OFFSET_METERS ||
       obstacleTargetZ <= groundTargetZ + 0.004
     ) {
       return null;
@@ -3659,7 +3594,7 @@ class RapierDriveSimulation {
       return 0;
     }
 
-    const wheelbaseMeters = 0.64;
+    const wheelbaseMeters = VEHICLE_WHEELBASE_METERS;
     const frontTargetZ = this.getObstacleTraversalTargetZ(
       path,
       wheelbaseMeters * 0.5,
@@ -3674,9 +3609,121 @@ class RapierDriveSimulation {
 
     return THREE.MathUtils.clamp(
       -Math.atan2(frontTargetZ - rearTargetZ, wheelbaseMeters),
-      THREE.MathUtils.degToRad(-22),
-      THREE.MathUtils.degToRad(22),
+      THREE.MathUtils.degToRad(-OBSTACLE_MAX_TILT_DEG),
+      THREE.MathUtils.degToRad(OBSTACLE_MAX_TILT_DEG),
     );
+  }
+
+  getWheelSupportProfile() {
+    const linkMap = this.viewer?.robotModel?.links || null;
+    if (!linkMap || !this.carFrame || !Number.isFinite(this.groundZ)) {
+      return null;
+    }
+
+    const footprintMargin =
+      Math.max(Number(this.wheelEffectiveRadiusMeters) || 0, 0.05) *
+      WHEEL_SUPPORT_FOOTPRINT_RATIO;
+    const liftByKey = {};
+    const samples = [];
+
+    this.carFrame.updateWorldMatrix(true, false);
+
+    Object.entries(this.wheelLinkNameByKey).forEach(
+      ([wheelKey, wheelLinkName]) => {
+        liftByKey[wheelKey] = 0;
+
+        const wheelLink = this.findLinkByName(linkMap, wheelLinkName);
+        if (!wheelLink) {
+          return;
+        }
+
+        wheelLink.updateWorldMatrix(true, false);
+        const wheelPosition = wheelLink.getWorldPosition(new THREE.Vector3());
+        let supportZ = this.groundZ;
+
+        this.obstacleColliderInfos.forEach((obstacleInfo) => {
+          if (
+            !obstacleInfo ||
+            obstacleInfo.isSensor ||
+            !obstacleInfo.center ||
+            !obstacleInfo.halfExtents
+          ) {
+            return;
+          }
+
+          const isOverObstacle =
+            Math.abs(wheelPosition.x - obstacleInfo.center.x) <=
+              obstacleInfo.halfExtents.x + footprintMargin &&
+            Math.abs(wheelPosition.y - obstacleInfo.center.y) <=
+              obstacleInfo.halfExtents.y + footprintMargin;
+          if (!isOverObstacle) {
+            return;
+          }
+
+          supportZ = Math.max(
+            supportZ,
+            obstacleInfo.center.z + obstacleInfo.halfExtents.z,
+          );
+        });
+
+        const lift = Math.max(supportZ - this.groundZ, 0);
+        liftByKey[wheelKey] = lift;
+
+        // Chassis-local offsets keep the tilt fit independent of URDF axis conventions.
+        const localOffset = this.carFrame.worldToLocal(wheelPosition.clone());
+        samples.push({ x: localOffset.x, y: localOffset.y, lift });
+      },
+    );
+
+    if (samples.length < 3) {
+      return null;
+    }
+
+    const count = samples.length;
+    const meanX = samples.reduce((sum, s) => sum + s.x, 0) / count;
+    const meanY = samples.reduce((sum, s) => sum + s.y, 0) / count;
+    const meanLift = samples.reduce((sum, s) => sum + s.lift, 0) / count;
+
+    let sumXX = 0;
+    let sumYY = 0;
+    let sumXY = 0;
+    let sumXL = 0;
+    let sumYL = 0;
+    samples.forEach((sample) => {
+      const dx = sample.x - meanX;
+      const dy = sample.y - meanY;
+      const dl = sample.lift - meanLift;
+      sumXX += dx * dx;
+      sumYY += dy * dy;
+      sumXY += dx * dy;
+      sumXL += dx * dl;
+      sumYL += dy * dl;
+    });
+
+    // Least-squares support plane through the wheel contact points: lift = gradX*x + gradY*y + liftAtOrigin.
+    const determinant = sumXX * sumYY - sumXY * sumXY;
+    const gradX =
+      Math.abs(determinant) > 1e-9
+        ? (sumYY * sumXL - sumXY * sumYL) / determinant
+        : 0;
+    const gradY =
+      Math.abs(determinant) > 1e-9
+        ? (sumXX * sumYL - sumXY * sumXL) / determinant
+        : 0;
+    const liftAtOrigin = meanLift - gradX * meanX - gradY * meanY;
+    const maxTiltRad = THREE.MathUtils.degToRad(OBSTACLE_MAX_TILT_DEG);
+
+    return {
+      liftByKey,
+      // Chassis origin rises only as much as the support plane, so wheels off the obstacle stay grounded.
+      averageLift: Math.max(liftAtOrigin, 0),
+      pitchRad: THREE.MathUtils.clamp(
+        -Math.atan(gradX),
+        -maxTiltRad,
+        maxTiltRad,
+      ),
+      rollRad: THREE.MathUtils.clamp(Math.atan(gradY), -maxTiltRad, maxTiltRad),
+    };
   }
 
   applyObstacleClimbLift(
@@ -3698,7 +3745,12 @@ class RapierDriveSimulation {
       return;
     }
 
-    const targetZ = this.getObstacleTraversalTargetZ(path);
+    const supportProfile = this.getWheelSupportProfile();
+    const groundTargetZ = Number(path.groundTargetZ);
+    const targetZ =
+      supportProfile && Number.isFinite(groundTargetZ)
+        ? groundTargetZ + supportProfile.averageLift
+        : this.getObstacleTraversalTargetZ(path);
     const translation = this.body.translation();
     if (!Number.isFinite(targetZ) || targetZ <= translation.z + 0.001) {
       return;
@@ -3961,16 +4013,6 @@ class RapierDriveSimulation {
     );
   }
 
-  enforceMeasuredWheelGroundLimit(linkMap) {
-    // Disabled artificial teleportation to prevent jittering during obstacle passage.
-    return false;
-  }
-
-  settleVehicleToGroundAfterObstacle(linkMap) {
-    // Disabled artificial position snapping.
-    return false;
-  }
-
   addWheelCollidersFromUrdf(body, carFrame, linkMap) {
     if (!this.world || !this.rapier || !body || !carFrame || !linkMap) {
       return;
@@ -4030,7 +4072,7 @@ class RapierDriveSimulation {
         Math.max(wheelRadius, 0.05),
       )
         .setDensity(25.0)
-        .setFriction(0.0)
+        .setFriction(WHEEL_COLLIDER_FRICTION)
         .setCollisionGroups(COLLISION_GROUP_WHEEL)
         .setRestitution(0.0);
       const wheelCollider = this.world.createCollider(
@@ -4508,7 +4550,9 @@ class RapierDriveSimulation {
     const leftPosition = getAverageLateralPosition(leftWheelKeys);
     const rightPosition = getAverageLateralPosition(rightWheelKeys);
     const trackWidth = Math.abs(leftPosition - rightPosition);
-    return Number.isFinite(trackWidth) && trackWidth > 1e-3 ? trackWidth : 0.64;
+    return Number.isFinite(trackWidth) && trackWidth > 1e-3
+      ? trackWidth
+      : VEHICLE_TRACK_WIDTH_FALLBACK_METERS;
   }
 
   getCenterTurnYawRate() {
@@ -4564,10 +4608,11 @@ class RapierDriveSimulation {
     ) {
       const wheelAngularSpeedRadPerSec =
         Math.abs(avgSignedWheelRpm) * ((Math.PI * 2) / 60);
-      const speedByWheel =
+      // Vehicle travel follows wheel rotation whenever the wheels are actually turning.
+      return (
         wheelAngularSpeedRadPerSec *
-        Math.max(this.wheelEffectiveRadiusMeters, 0.05);
-      return Math.max(speedByWheel, speedBySlider, fallbackByHook);
+        Math.max(this.wheelEffectiveRadiusMeters, 0.05)
+      );
     }
 
     return Math.max(speedBySlider, fallbackByHook);
@@ -5375,13 +5420,18 @@ class RapierDriveSimulation {
       return;
     }
 
-    const tractionScale = wheelGroundContactCount > 0 ? 1 : 0.35;
+    const tractionScale =
+      wheelGroundContactCount > 0 ? 1 : DRIVE_TRACTION_SCALE_AIRBORNE;
     const currentLinearVelocity = this.body.linvel();
     const currentAngularVelocity = this.body.angvel();
     const velocityErrorX = targetVelocityX - currentLinearVelocity.x;
     const velocityErrorY = targetVelocityY - currentLinearVelocity.y;
     const accelerationImpulseScale =
-      Math.max(0.25 + Math.max(clampedSpeed, 0) * 0.08, 0.3) * tractionScale;
+      Math.max(
+        DRIVE_ACCEL_IMPULSE_BASE +
+          Math.max(clampedSpeed, 0) * DRIVE_ACCEL_IMPULSE_SPEED_GAIN,
+        DRIVE_ACCEL_IMPULSE_MIN,
+      ) * tractionScale;
     const impulseX =
       velocityErrorX * accelerationImpulseScale * effectiveDeltaSec;
     const impulseY =
@@ -5398,7 +5448,10 @@ class RapierDriveSimulation {
     );
     if (currentSpeed > 0.001) {
       const dragScale =
-        Math.min(0.08 + currentSpeed * 0.08, 0.22) *
+        Math.min(
+          DRIVE_DRAG_BASE + currentSpeed * DRIVE_DRAG_SPEED_GAIN,
+          DRIVE_DRAG_MAX,
+        ) *
         tractionScale *
         effectiveDeltaSec;
       this.body.applyImpulse(
@@ -5412,10 +5465,12 @@ class RapierDriveSimulation {
     }
 
     if (Math.abs(throttleSign) < 1e-6 && Math.abs(steerSign) < 1e-6) {
+      const idleDragScale =
+        DRIVE_IDLE_DRAG_SCALE * tractionScale * effectiveDeltaSec;
       this.body.applyImpulse(
         new this.rapier.Vector3(
-          -currentLinearVelocity.x * 0.04 * tractionScale * effectiveDeltaSec,
-          -currentLinearVelocity.y * 0.04 * tractionScale * effectiveDeltaSec,
+          -currentLinearVelocity.x * idleDragScale,
+          -currentLinearVelocity.y * idleDragScale,
           0,
         ),
         true,
@@ -5424,7 +5479,7 @@ class RapierDriveSimulation {
 
     const steeringTorque =
       (Number.isFinite(steerSign) ? steerSign : 0) *
-      0.012 *
+      DRIVE_STEERING_TORQUE_SCALE *
       tractionScale *
       effectiveDeltaSec;
     if (Math.abs(steeringTorque) > 1e-6) {
@@ -5435,14 +5490,20 @@ class RapierDriveSimulation {
     }
 
     // Suppress unwanted rotation (yaw spin) caused by asymmetric wheel obstacle collision
-    if (this.isVehicleObstacleContact && Math.abs(steerSign) < 1e-3) {
+    if (
+      this.isVehicleObstacleContact &&
+      Math.abs(steerSign) < STEER_SIGN_EPSILON
+    ) {
       this.body.setAngvel(new this.rapier.Vector3(0, 0, 0), true);
     } else if (
       Math.abs(currentAngularVelocity.z) > 0.001 &&
       Math.abs(steerSign) < 1e-6
     ) {
       const yawDampingTorque =
-        -currentAngularVelocity.z * 0.06 * tractionScale * effectiveDeltaSec;
+        -currentAngularVelocity.z *
+        DRIVE_YAW_DAMPING_SCALE *
+        tractionScale *
+        effectiveDeltaSec;
       this.body.applyTorqueImpulse(
         new this.rapier.Vector3(0, 0, yawDampingTorque),
         true,
@@ -5507,11 +5568,6 @@ class RapierDriveSimulation {
     }
   }
 
-  applyObstacleContactImpulse(effectiveDeltaSec, obstacleInfo = null) {
-    // Do not apply artificial push back impulse to allow smooth climbing
-    return;
-  }
-
   updateWheelGroundContactState() {
     if (!this.world || !this.body || !this.rapier) {
       return 0;
@@ -5545,6 +5601,378 @@ class RapierDriveSimulation {
     return contactCount;
   }
 
+  resolveDriveSigns(driveViewer) {
+    const driveMode = String(
+      this.commandedDriveMode ||
+        driveViewer?.driveMode ||
+        this.viewer?.driveMode ||
+        "stop",
+    );
+
+    if (driveMode === "forward") {
+      return { throttleSign: 1, steerSign: 0 };
+    }
+    if (driveMode === "backward") {
+      return { throttleSign: -1, steerSign: 0 };
+    }
+    if (driveMode === "left") {
+      return { throttleSign: 0, steerSign: 1 };
+    }
+    if (driveMode === "right") {
+      return { throttleSign: 0, steerSign: -1 };
+    }
+
+    // No explicit mode: infer intent from the visual wheel rotation state.
+    const wheelSides = this.getWheelSideSignedRpm();
+    if (!wheelSides) {
+      return { throttleSign: 0, steerSign: 0 };
+    }
+
+    const avgSignedRpm = (wheelSides.left + wheelSides.right) * 0.5;
+    const rpmDifference = wheelSides.right - wheelSides.left;
+    return {
+      throttleSign:
+        Math.abs(avgSignedRpm) > WHEEL_RPM_COMMAND_THRESHOLD
+          ? Math.sign(avgSignedRpm)
+          : 0,
+      steerSign:
+        Math.abs(rpmDifference) > WHEEL_RPM_COMMAND_THRESHOLD
+          ? Math.sign(rpmDifference)
+          : 0,
+    };
+  }
+
+  refreshObstacleContactState() {
+    const hasColliderContact =
+      this.contactSolver.updateVehicleObstacleContact();
+    const approachInfo = this.contactSolver.getApproachInfo();
+    const isClimbApproach = this.contactSolver.isClimbApproach(
+      approachInfo?.obstacleInfo || null,
+    );
+
+    this.isVehicleObstacleContact = Boolean(
+      hasColliderContact || isClimbApproach,
+    );
+    return { hasColliderContact, approachInfo, isClimbApproach };
+  }
+
+  setBodyPlanarVelocity(targetVelocityX, targetVelocityY) {
+    const velocity = this.body.linvel();
+    this.body.setLinvel(
+      new this.rapier.Vector3(targetVelocityX, targetVelocityY, velocity.z),
+      true,
+    );
+  }
+
+  applyCommandedBodyMotion(
+    context,
+    hasObstacleContact,
+    isNearFlatGroundSupport,
+  ) {
+    const currentLinearVelocity = this.body.linvel();
+    const currentAngularVelocity = this.body.angvel();
+    const yaw = this.extractYawFromQuaternion(this.body.rotation());
+    const forwardVector = this.getVehicleForwardVector(yaw);
+
+    context.targetVelocityX =
+      forwardVector.x * context.clampedSpeed * context.throttleSign;
+    context.targetVelocityY =
+      forwardVector.y * context.clampedSpeed * context.throttleSign;
+
+    const nextVelocityZ =
+      !hasObstacleContact && isNearFlatGroundSupport
+        ? 0
+        : currentLinearVelocity.z;
+    this.body.setLinvel(
+      new this.rapier.Vector3(
+        currentLinearVelocity.x,
+        currentLinearVelocity.y,
+        nextVelocityZ,
+      ),
+      true,
+    );
+    this.body.setAngvel(
+      new this.rapier.Vector3(
+        currentAngularVelocity.x,
+        currentAngularVelocity.y,
+        context.effectiveSteerSign !== 0 ? this.getCenterTurnYawRate() : 0,
+      ),
+      true,
+    );
+  }
+
+  runPhysicsSubstep(context) {
+    const fixedStepSec = this.physicsFixedTimeStepSec;
+    const {
+      throttleSign,
+      effectiveSteerSign,
+      targetVelocityX,
+      targetVelocityY,
+    } = context;
+    const isStraightDrive =
+      throttleSign !== 0 && Math.abs(effectiveSteerSign) < STEER_SIGN_EPSILON;
+
+    const preStepApproach = this.contactSolver.getApproachInfo();
+    const preStepClimbApproach = this.contactSolver.isClimbApproach(
+      preStepApproach?.obstacleInfo || null,
+    );
+    const headingYaw = this.extractYawFromQuaternion(this.body.rotation());
+    const referencePosition = this.body.translation();
+
+    const preStepTraversalApproach =
+      this.getObstacleTraversalApproachInfo()?.obstacleInfo || null;
+    const preStepTraversalPath =
+      this.activeObstacleTraversalPath ||
+      (preStepTraversalApproach
+        ? this.getObstacleTraversalPath(preStepTraversalApproach)
+        : null);
+    if (preStepTraversalPath) {
+      this.activeObstacleTraversalPath = preStepTraversalPath;
+    }
+
+    const isTraversalControlActive = this.isObstacleTraversalActive();
+    if (isTraversalControlActive) {
+      this.applyObstacleClimbLift(
+        true,
+        fixedStepSec,
+        preStepTraversalPath.obstacleInfo,
+      );
+      if (isStraightDrive) {
+        this.setBodyPlanarVelocity(targetVelocityX, targetVelocityY);
+      }
+    } else if (throttleSign !== 0) {
+      this.setBodyPlanarVelocity(targetVelocityX, targetVelocityY);
+    }
+
+    if (
+      throttleSign !== 0 &&
+      this.straightDriveWarmupSteps > 0 &&
+      !this.isVehicleObstacleContact
+    ) {
+      Object.values(this.wheelBodiesByKey).forEach((wheelBody) => {
+        if (!wheelBody) {
+          return;
+        }
+        const velocity = wheelBody.linvel();
+        wheelBody.setLinvel(
+          new this.rapier.Vector3(targetVelocityX, targetVelocityY, velocity.z),
+          true,
+        );
+      });
+      this.straightDriveWarmupSteps -= 1;
+    }
+
+    if (isStraightDrive) {
+      this.stabilizeWheelBodiesForStraightDrive(
+        targetVelocityX,
+        targetVelocityY,
+      );
+    }
+
+    if (!isTraversalControlActive) {
+      this.applyDriveForces(
+        fixedStepSec,
+        targetVelocityX,
+        targetVelocityY,
+        throttleSign,
+        effectiveSteerSign,
+        context.clampedSpeed,
+        context.wheelGroundContactCount,
+      );
+    }
+    this.applyGroundSupportForces(
+      fixedStepSec,
+      context.wheelGroundContactCount,
+      isTraversalControlActive,
+    );
+    this.syncObstacleColliderActivation(context.linkMap);
+
+    this.physicsEngine.step(fixedStepSec);
+    context.wheelGroundContactCount =
+      this.wheelController.updateGroundContactState();
+
+    const hasObstacleContactNow =
+      this.contactSolver.updateVehicleObstacleContact();
+    const contactedObstacle =
+      this.contactSolver.getApproachInfo()?.obstacleInfo || null;
+    const postStepTraversalApproach =
+      this.getObstacleTraversalApproachInfo()?.obstacleInfo || null;
+    if (this.activeObstacleTraversalPath && !this.isObstacleTraversalActive()) {
+      this.activeObstacleTraversalPath = null;
+      this.obstacleTraversalSupportGraceRemainingSec = 0;
+    }
+    if (!this.activeObstacleTraversalPath && postStepTraversalApproach) {
+      this.activeObstacleTraversalPath = this.getObstacleTraversalPath(
+        postStepTraversalApproach,
+      );
+    }
+
+    const isClimbingApproach =
+      preStepClimbApproach ||
+      this.contactSolver.isClimbApproach(
+        contactedObstacle || preStepApproach?.obstacleInfo || null,
+      );
+    const obstacleInfoForClimb =
+      contactedObstacle ||
+      this.activeObstacleTraversalPath?.obstacleInfo ||
+      postStepTraversalApproach ||
+      preStepApproach?.obstacleInfo ||
+      null;
+    const isObstaclePathActive = this.contactSolver.isObstacleTraversalActive();
+    const hasObstacleControl = Boolean(
+      hasObstacleContactNow || isClimbingApproach || isObstaclePathActive,
+    );
+    this.isVehicleObstacleContact = hasObstacleControl;
+
+    if (Math.abs(effectiveSteerSign) < STEER_SIGN_EPSILON) {
+      this.preserveObstacleHeading(headingYaw);
+      this.body.setAngvel(new this.rapier.Vector3(0, 0, 0), true);
+      if (hasObstacleControl) {
+        this.suppressObstacleLateralDrift(referencePosition, headingYaw);
+        this.suppressObstacleLateralSlip();
+      }
+    }
+
+    this.postObstacleGroundRecoverRemainingSec = hasObstacleControl
+      ? Math.max(Number(this.postObstacleGroundRecoverDurationSec) || 0, 0)
+      : Math.max(
+          0,
+          (Number(this.postObstacleGroundRecoverRemainingSec) || 0) -
+            fixedStepSec,
+        );
+
+    if (hasObstacleControl) {
+      this.contactSolver.applyClimbLift(obstacleInfoForClimb, fixedStepSec);
+      if (isStraightDrive) {
+        this.setBodyPlanarVelocity(targetVelocityX, targetVelocityY);
+      }
+    } else {
+      const velocity = this.body.linvel();
+      if (Math.hypot(velocity.x, velocity.y) > 0.02) {
+        this.body.setLinvel(
+          new this.rapier.Vector3(
+            velocity.x * DRIVE_FREE_ROLL_DECAY,
+            velocity.y * DRIVE_FREE_ROLL_DECAY,
+            velocity.z,
+          ),
+          true,
+        );
+      }
+
+      if (isStraightDrive) {
+        this.preserveObstacleHeading(headingYaw);
+        this.setBodyPlanarVelocity(targetVelocityX, targetVelocityY);
+        this.body.setAngvel(new this.rapier.Vector3(0, 0, 0), true);
+
+        if (this.straightDriveReferencePose) {
+          const position = this.body.translation();
+          this.body.setTranslation(
+            new this.rapier.Vector3(
+              position.x,
+              this.straightDriveReferencePose.y,
+              this.straightDriveReferencePose.z,
+            ),
+            true,
+          );
+          this.preserveObstacleHeading(this.straightDriveReferencePose.yaw);
+        }
+      }
+    }
+
+    if (this.hasActivatedDynamicGroundClamp && !isTraversalControlActive) {
+      this.clampVehicleAboveGround();
+    }
+
+    if (
+      !hasObstacleControl &&
+      !this.contactSolver.isObstacleTraversalActive()
+    ) {
+      this.stabilizeFlatGroundVerticalMotion();
+      this.enforceFlatGroundRideHeight();
+    }
+
+    // Center turn must keep the 4-wheel center fixed on every substep, not just per frame.
+    this.constrainCenterTurnPivot();
+
+    this.renderer.syncVehicle();
+    this.simulationElapsedSec += fixedStepSec;
+    this.recordWheelZChartObstacleContactEvent(
+      hasObstacleContactNow,
+      this.simulationElapsedSec,
+    );
+    this.sampleWheelCenterZForChart(this.simulationElapsedSec);
+  }
+
+  finalizeObstacleFrame(context) {
+    const finalApproach = this.contactSolver.getApproachInfo();
+    const hasObstacleContact =
+      this.contactSolver.updateVehicleObstacleContact();
+    if (hasObstacleContact || this.contactSolver.isObstacleTraversalActive()) {
+      this.contactSolver.applyClimbLift(
+        finalApproach?.obstacleInfo || null,
+        this.physicsFixedTimeStepSec,
+      );
+    }
+
+    const isClimbingApproach = this.contactSolver.isClimbApproach(
+      context.obstacleApproach?.obstacleInfo || null,
+    );
+    this.isVehicleObstacleContact = Boolean(
+      hasObstacleContact || isClimbingApproach,
+    );
+    if (
+      this.isVehicleObstacleContact &&
+      Math.abs(context.effectiveSteerSign) < STEER_SIGN_EPSILON
+    ) {
+      this.preserveObstacleHeading();
+      this.suppressObstacleLateralSlip();
+      this.body.setAngvel(new this.rapier.Vector3(0, 0, 0), true);
+    }
+    if (this.keepUprightOnFlatGround) {
+      this.setUprightRotationLockEnabled(!this.isVehicleObstacleContact);
+    }
+
+    return hasObstacleContact;
+  }
+
+  syncCarFrameVisualPose() {
+    const nextPosition = this.body.translation();
+    const nextRotation = this.body.rotation();
+
+    this.carFrame.position.set(nextPosition.x, nextPosition.y, nextPosition.z);
+    this.carFrame.quaternion
+      .set(nextRotation.x, nextRotation.y, nextRotation.z, nextRotation.w)
+      .normalize();
+
+    if (this.activeObstacleTraversalPath && this.isObstacleTraversalActive()) {
+      const supportProfile = this.getWheelSupportProfile();
+      const traversalYaw = this.extractYawFromQuaternion(nextRotation);
+      const traversalPitch = supportProfile
+        ? supportProfile.pitchRad
+        : this.getObstacleTraversalPitch(this.activeObstacleTraversalPath);
+      const traversalRoll = supportProfile ? supportProfile.rollRad : 0;
+      const yawRotation = new THREE.Quaternion().setFromAxisAngle(
+        new THREE.Vector3(0, 0, 1),
+        traversalYaw,
+      );
+      const pitchRotation = new THREE.Quaternion().setFromAxisAngle(
+        new THREE.Vector3(0, 1, 0),
+        traversalPitch,
+      );
+      const rollRotation = new THREE.Quaternion().setFromAxisAngle(
+        new THREE.Vector3(1, 0, 0),
+        traversalRoll,
+      );
+      this.carFrame.quaternion
+        .copy(yawRotation.multiply(pitchRotation).multiply(rollRotation))
+        .normalize();
+    }
+
+    this.carFrame.updateMatrixWorld(true);
+    this.syncVehicleYawIndicator();
+    this.syncWheelRotationToBodyTravel();
+  }
+
   stepSimulation() {
     if (!this.isReady) {
       return;
@@ -5576,59 +6004,24 @@ class RapierDriveSimulation {
       this.lastStepTimeMs = now;
     }
 
-    const deltaSec = Math.min((now - this.lastStepTimeMs) / 1000, 0.1);
-    this.lastStepTimeMs = now;
     // Physics advances in fixed virtual simulation time; visual speed only affects rendering.
-    const simulationDeltaSec = deltaSec;
-    const keyboardState = this.vehicleController.getKeyboardState();
+    const simulationDeltaSec = Math.min(
+      (now - this.lastStepTimeMs) / 1000,
+      0.1,
+    );
+    this.lastStepTimeMs = now;
+
     const driveViewer = this.vehicleController.getDriveSource();
-
-    let throttleSign = 0;
-    let steerSign = 0;
-    let keyboardMoveX = 0;
-    let keyboardMoveY = 0;
-    if (keyboardState.isActive) {
-      keyboardMoveX = keyboardState.moveX;
-      keyboardMoveY = keyboardState.moveY;
-    } else {
-      const driveMode = String(
-        this.commandedDriveMode ||
-          driveViewer?.driveMode ||
-          this.viewer?.driveMode ||
-          "stop",
-      );
-      if (driveMode === "forward") {
-        throttleSign = 1;
-      } else if (driveMode === "backward") {
-        throttleSign = -1;
-      } else if (driveMode === "left") {
-        throttleSign = 0;
-        steerSign = 1;
-      } else if (driveMode === "right") {
-        throttleSign = 0;
-        steerSign = -1;
-      } else {
-        const wheelSides = this.getWheelSideSignedRpm();
-        if (wheelSides) {
-          const avgSignedRpm = (wheelSides.left + wheelSides.right) * 0.5;
-          const rpmDiff = wheelSides.right - wheelSides.left;
-          if (Math.abs(avgSignedRpm) > 0.2) {
-            throttleSign = avgSignedRpm > 0 ? 1 : -1;
-          }
-          if (Math.abs(rpmDiff) > 0.2) {
-            steerSign = rpmDiff > 0 ? 1 : -1;
-          }
-        }
-      }
-    }
-
-    const speedMps = this.vehicleController.getSpeedMps();
-    const clampedSpeed = Math.min(speedMps, this.maxSpeedMps);
+    const { throttleSign, steerSign } = this.resolveDriveSigns(driveViewer);
+    const clampedSpeed = Math.min(
+      this.vehicleController.getSpeedMps(),
+      this.maxSpeedMps,
+    );
     const effectiveSteerSign = clampedSpeed > 1e-3 ? steerSign : 0;
     const wheelGroundContactCount =
       this.wheelController.updateGroundContactState();
-    const hasDriveCommand =
-      keyboardState.isActive || throttleSign !== 0 || steerSign !== 0;
+    const hasDriveCommand = throttleSign !== 0 || steerSign !== 0;
+
     this.lastDriveCommandState = {
       throttleSign,
       steerSign,
@@ -5636,6 +6029,7 @@ class RapierDriveSimulation {
     };
     if (hasDriveCommand) {
       this.hasActivatedSimulationMotion = true;
+      this.hasActivatedDynamicGroundClamp = true;
     }
 
     if (!this.hasActivatedSimulationMotion) {
@@ -5645,414 +6039,46 @@ class RapierDriveSimulation {
       return;
     }
 
-    if (hasDriveCommand) {
-      this.hasActivatedDynamicGroundClamp = true;
-    }
-    const wasObstacleContact =
-      this.contactSolver.updateVehicleObstacleContact();
-    const obstacleApproach = this.contactSolver.getApproachInfo();
-    const isObstacleApproachForClimb = this.contactSolver.isClimbApproach(
-      obstacleApproach?.obstacleInfo || null,
-    );
-    this.isVehicleObstacleContact = Boolean(
-      wasObstacleContact || isObstacleApproachForClimb,
-    );
+    const contactState = this.refreshObstacleContactState();
     const isNearFlatGroundSupport = this.isBodyNearFlatGroundSupport();
-
     if (this.keepUprightOnFlatGround) {
       this.setUprightRotationLockEnabled(
         isNearFlatGroundSupport && !this.isVehicleObstacleContact,
       );
     }
 
-    const currentLinearVelocity = this.body.linvel();
-    const currentAngularVelocity = this.body.angvel();
-    let lockedRotation = null;
-    let targetVelocityX = 0;
-    let targetVelocityY = 0;
-    if (keyboardState.isActive) {
-      lockedRotation = this.body.rotation();
-      const velocitySmoothingAlpha = 1 - Math.exp(-12 * simulationDeltaSec);
-      targetVelocityX = keyboardMoveX * clampedSpeed;
-      targetVelocityY = keyboardMoveY * clampedSpeed;
-      const velocityX =
-        currentLinearVelocity.x +
-        (targetVelocityX - currentLinearVelocity.x) * velocitySmoothingAlpha;
-      const velocityY =
-        currentLinearVelocity.y +
-        (targetVelocityY - currentLinearVelocity.y) * velocitySmoothingAlpha;
-
-      const nextVelocityZ = wasObstacleContact
-        ? currentLinearVelocity.z
-        : isNearFlatGroundSupport
-          ? 0
-          : currentLinearVelocity.z;
-      this.body.setLinvel(
-        new this.rapier.Vector3(velocityX, velocityY, nextVelocityZ),
-        true,
-      );
-      this.body.setAngvel(
-        new this.rapier.Vector3(
-          isNearFlatGroundSupport ? 0 : currentAngularVelocity.x,
-          isNearFlatGroundSupport ? 0 : currentAngularVelocity.y,
-          0,
-        ),
-        true,
-      );
-    } else {
-      const bodyRotation = this.body.rotation();
-      const yaw = this.extractYawFromQuaternion(bodyRotation);
-      const forwardVector = this.getVehicleForwardVector(yaw);
-      targetVelocityX = forwardVector.x * clampedSpeed * throttleSign;
-      targetVelocityY = forwardVector.y * clampedSpeed * throttleSign;
-
-      const nextVelocityZ = wasObstacleContact
-        ? currentLinearVelocity.z
-        : isNearFlatGroundSupport
-          ? 0
-          : currentLinearVelocity.z;
-      this.body.setLinvel(
-        new this.rapier.Vector3(
-          currentLinearVelocity.x,
-          currentLinearVelocity.y,
-          nextVelocityZ,
-        ),
-        true,
-      );
-      this.body.setAngvel(
-        new this.rapier.Vector3(
-          currentAngularVelocity.x,
-          currentAngularVelocity.y,
-          effectiveSteerSign !== 0 ? this.getCenterTurnYawRate() : 0,
-        ),
-        true,
-      );
-    }
+    const context = {
+      throttleSign,
+      effectiveSteerSign,
+      clampedSpeed,
+      targetVelocityX: 0,
+      targetVelocityY: 0,
+      wheelGroundContactCount,
+      linkMap: this.viewer?.robotModel?.links || null,
+      obstacleApproach: contactState.approachInfo,
+    };
+    this.applyCommandedBodyMotion(
+      context,
+      contactState.hasColliderContact,
+      isNearFlatGroundSupport,
+    );
 
     // Follow the fixed-step update style from three.js Rapier vehicle controller example.
     this.physicsAccumulatorSec = Math.min(
       this.physicsAccumulatorSec + simulationDeltaSec,
       this.physicsFixedTimeStepSec * this.maxPhysicsCatchupSteps,
     );
-    const linkMap = this.viewer?.robotModel?.links || null;
     let stepIndex = 0;
     while (
       this.physicsAccumulatorSec >= this.physicsFixedTimeStepSec &&
       stepIndex < this.maxPhysicsCatchupSteps
     ) {
-      const currentObstacleApproach = this.contactSolver.getApproachInfo();
-      const currentClimbApproach = this.contactSolver.isClimbApproach(
-        currentObstacleApproach?.obstacleInfo || null,
-      );
-      const obstacleHeadingYaw = this.extractYawFromQuaternion(
-        this.body.rotation(),
-      );
-      const obstacleReferencePosition = this.body.translation();
-      let obstaclePathControlActive = false;
-      let willEnterObstacle = false;
-
-      const preStepTraversalApproach =
-        this.getObstacleTraversalApproachInfo()?.obstacleInfo || null;
-      const preStepTraversalPath =
-        this.activeObstacleTraversalPath ||
-        (preStepTraversalApproach
-          ? this.getObstacleTraversalPath(preStepTraversalApproach)
-          : null);
-      if (preStepTraversalPath) {
-        this.activeObstacleTraversalPath = preStepTraversalPath;
-      }
-      obstaclePathControlActive = this.isObstacleTraversalActive();
-      willEnterObstacle = obstaclePathControlActive;
-      if (obstaclePathControlActive) {
-        this.applyObstacleClimbLift(
-          true,
-          this.physicsFixedTimeStepSec,
-          preStepTraversalPath.obstacleInfo,
-        );
-        if (throttleSign !== 0 && Math.abs(effectiveSteerSign) < 1e-3) {
-          const velocity = this.body.linvel();
-          this.body.setLinvel(
-            new this.rapier.Vector3(
-              targetVelocityX,
-              targetVelocityY,
-              velocity.z,
-            ),
-            true,
-          );
-        }
-      }
-
-      if (
-        !willEnterObstacle &&
-        (keyboardState.isActive || throttleSign !== 0)
-      ) {
-        const velocity = this.body.linvel();
-        this.body.setLinvel(
-          new this.rapier.Vector3(targetVelocityX, targetVelocityY, velocity.z),
-          true,
-        );
-      }
-      if (
-        throttleSign !== 0 &&
-        this.straightDriveWarmupSteps > 0 &&
-        !this.isVehicleObstacleContact
-      ) {
-        Object.values(this.wheelBodiesByKey).forEach((wheelBody) => {
-          if (!wheelBody) {
-            return;
-          }
-          const velocity = wheelBody.linvel();
-          wheelBody.setLinvel(
-            new this.rapier.Vector3(
-              targetVelocityX,
-              targetVelocityY,
-              velocity.z,
-            ),
-            true,
-          );
-        });
-        this.straightDriveWarmupSteps -= 1;
-      }
-
-      if (throttleSign !== 0 && Math.abs(effectiveSteerSign) < 1e-3) {
-        this.stabilizeWheelBodiesForStraightDrive(
-          targetVelocityX,
-          targetVelocityY,
-        );
-      }
-
-      if (!willEnterObstacle) {
-        this.applyDriveForces(
-          this.physicsFixedTimeStepSec,
-          targetVelocityX,
-          targetVelocityY,
-          throttleSign,
-          effectiveSteerSign,
-          clampedSpeed,
-          wheelGroundContactCount,
-        );
-      }
-      this.applyGroundSupportForces(
-        this.physicsFixedTimeStepSec,
-        wheelGroundContactCount,
-        willEnterObstacle,
-      );
-      this.syncObstacleColliderActivation(linkMap);
-
-      this.physicsEngine.step(this.physicsFixedTimeStepSec);
-      this.wheelController.updateGroundContactState();
-      let hasObstacleContactNow =
-        this.contactSolver.updateVehicleObstacleContact();
-      const contactedObstacle =
-        this.contactSolver.getApproachInfo()?.obstacleInfo || null;
-      const traversalApproachObstacle =
-        this.getObstacleTraversalApproachInfo()?.obstacleInfo || null;
-      if (
-        this.activeObstacleTraversalPath &&
-        !this.isObstacleTraversalActive()
-      ) {
-        this.activeObstacleTraversalPath = null;
-        this.obstacleTraversalSupportGraceRemainingSec = 0;
-      }
-      const traversalPath = traversalApproachObstacle
-        ? this.getObstacleTraversalPath(traversalApproachObstacle)
-        : null;
-      if (!this.activeObstacleTraversalPath && traversalPath) {
-        this.activeObstacleTraversalPath = traversalPath;
-      }
-      const isClimbingApproach =
-        currentClimbApproach ||
-        this.contactSolver.isClimbApproach(
-          contactedObstacle || currentObstacleApproach?.obstacleInfo || null,
-        );
-      const obstacleInfoForClimb =
-        contactedObstacle ||
-        this.activeObstacleTraversalPath?.obstacleInfo ||
-        traversalApproachObstacle ||
-        currentObstacleApproach?.obstacleInfo ||
-        null;
-      const isObstaclePathActive =
-        this.contactSolver.isObstacleTraversalActive();
-      this.isVehicleObstacleContact = Boolean(
-        hasObstacleContactNow || isClimbingApproach || isObstaclePathActive,
-      );
-      if (Math.abs(effectiveSteerSign) < 1e-3) {
-        this.preserveObstacleHeading(obstacleHeadingYaw);
-        this.body.setAngvel(new this.rapier.Vector3(0, 0, 0), true);
-        if (
-          hasObstacleContactNow ||
-          isClimbingApproach ||
-          isObstaclePathActive
-        ) {
-          this.suppressObstacleLateralDrift(
-            obstacleReferencePosition,
-            obstacleHeadingYaw,
-          );
-          this.suppressObstacleLateralSlip();
-        }
-      }
-      if (hasObstacleContactNow || isClimbingApproach || isObstaclePathActive) {
-        this.postObstacleGroundRecoverRemainingSec = Math.max(
-          Number(this.postObstacleGroundRecoverDurationSec) || 0,
-          0,
-        );
-      } else {
-        this.postObstacleGroundRecoverRemainingSec = Math.max(
-          0,
-          (Number(this.postObstacleGroundRecoverRemainingSec) || 0) -
-            this.physicsFixedTimeStepSec,
-        );
-      }
-      const resolvedInterpenetration =
-        this.resolveVehicleObstacleInterpenetration();
-      if (resolvedInterpenetration) {
-        hasObstacleContactNow =
-          this.contactSolver.updateVehicleObstacleContact();
-      }
-      if (hasObstacleContactNow && obstacleApproach?.obstacleInfo) {
-        this.applyObstacleContactImpulse(
-          this.physicsFixedTimeStepSec,
-          obstacleApproach.obstacleInfo,
-        );
-      }
-      if (hasObstacleContactNow || isClimbingApproach || isObstaclePathActive) {
-        this.contactSolver.applyClimbLift(
-          obstacleInfoForClimb,
-          this.physicsFixedTimeStepSec,
-        );
-        if (throttleSign !== 0 && Math.abs(effectiveSteerSign) < 1e-3) {
-          const velocity = this.body.linvel();
-          this.body.setLinvel(
-            new this.rapier.Vector3(
-              targetVelocityX,
-              targetVelocityY,
-              velocity.z,
-            ),
-            true,
-          );
-        }
-      } else {
-        const velocity = this.body.linvel();
-        const approachSpeed = Math.hypot(velocity.x, velocity.y);
-        if (approachSpeed > 0.02) {
-          this.body.setLinvel(
-            new this.rapier.Vector3(
-              velocity.x * 0.92,
-              velocity.y * 0.92,
-              velocity.z,
-            ),
-            true,
-          );
-        }
-      }
-      if (
-        throttleSign !== 0 &&
-        Math.abs(effectiveSteerSign) < 1e-3 &&
-        !hasObstacleContactNow &&
-        !isClimbingApproach &&
-        !isObstaclePathActive
-      ) {
-        const velocity = this.body.linvel();
-        this.preserveObstacleHeading(obstacleHeadingYaw);
-        this.body.setLinvel(
-          new this.rapier.Vector3(targetVelocityX, targetVelocityY, velocity.z),
-          true,
-        );
-        this.body.setAngvel(new this.rapier.Vector3(0, 0, 0), true);
-      }
-      if (
-        throttleSign !== 0 &&
-        Math.abs(effectiveSteerSign) < 1e-3 &&
-        !hasObstacleContactNow &&
-        !isClimbingApproach &&
-        !isObstaclePathActive &&
-        this.straightDriveReferencePose
-      ) {
-        const position = this.body.translation();
-        this.body.setTranslation(
-          new this.rapier.Vector3(
-            position.x,
-            this.straightDriveReferencePose.y,
-            this.straightDriveReferencePose.z,
-          ),
-          true,
-        );
-        this.preserveObstacleHeading(this.straightDriveReferencePose.yaw);
-      }
-      if (this.hasActivatedDynamicGroundClamp && !obstaclePathControlActive) {
-        this.clampVehicleAboveGround();
-      }
-      this.renderer.syncVehicle();
-      const adjustedByWheelClamp = hasObstacleContactNow
-        ? this.enforceMeasuredWheelGroundLimit(linkMap)
-        : false;
-      if (adjustedByWheelClamp) {
-        this.renderer.syncVehicle();
-      }
-      const adjustedByGroundReattach =
-        this.settleVehicleToGroundAfterObstacle(linkMap);
-      if (adjustedByGroundReattach) {
-        this.renderer.syncVehicle();
-      }
-      const hasObstacleControlAfterStep = Boolean(
-        hasObstacleContactNow ||
-        isClimbingApproach ||
-        isObstaclePathActive ||
-        this.contactSolver.isObstacleTraversalActive(),
-      );
-      if (!hasObstacleControlAfterStep) {
-        this.stabilizeFlatGroundVerticalMotion();
-        this.enforceFlatGroundRideHeight();
-      }
-      this.renderer.syncVehicle();
-      this.simulationElapsedSec += this.physicsFixedTimeStepSec;
-      this.recordWheelZChartObstacleContactEvent(
-        hasObstacleContactNow,
-        this.simulationElapsedSec,
-      );
-      this.sampleWheelCenterZForChart(this.simulationElapsedSec);
+      this.runPhysicsSubstep(context);
       this.physicsAccumulatorSec -= this.physicsFixedTimeStepSec;
       stepIndex += 1;
     }
 
-    const finalObstacleApproach = this.contactSolver.getApproachInfo();
-    const finalObstacleContact =
-      this.contactSolver.updateVehicleObstacleContact();
-    if (
-      finalObstacleContact ||
-      this.contactSolver.isObstacleTraversalActive()
-    ) {
-      this.contactSolver.applyClimbLift(
-        finalObstacleApproach?.obstacleInfo || null,
-        this.physicsFixedTimeStepSec,
-      );
-    }
-
-    if (
-      keyboardState.isActive &&
-      lockedRotation &&
-      this.isBodyNearFlatGroundSupport()
-    ) {
-      this.body.setRotation(lockedRotation, true);
-      this.body.setAngvel(new this.rapier.Vector3(0, 0, 0), true);
-    }
-
-    const hasObstacleContact =
-      this.contactSolver.updateVehicleObstacleContact();
-    const isClimbingApproachAfterStep = this.contactSolver.isClimbApproach(
-      obstacleApproach?.obstacleInfo || null,
-    );
-    this.isVehicleObstacleContact = Boolean(
-      hasObstacleContact || isClimbingApproachAfterStep,
-    );
-    if (this.isVehicleObstacleContact && Math.abs(effectiveSteerSign) < 1e-3) {
-      this.preserveObstacleHeading();
-      this.suppressObstacleLateralSlip();
-      this.body.setAngvel(new this.rapier.Vector3(0, 0, 0), true);
-    }
-    if (this.keepUprightOnFlatGround) {
-      this.setUprightRotationLockEnabled(!this.isVehicleObstacleContact);
-    }
+    const hasObstacleContact = this.finalizeObstacleFrame(context);
 
     this.maybeLogRuntimeDiagnostics(
       simulationDeltaSec,
@@ -6064,58 +6090,37 @@ class RapierDriveSimulation {
     );
 
     this.constrainCenterTurnPivot();
-
-    const nextPosition = this.body.translation();
-    const nextRotation = this.body.rotation();
-
-    this.carFrame.position.set(nextPosition.x, nextPosition.y, nextPosition.z);
-    this.carFrame.quaternion
-      .set(nextRotation.x, nextRotation.y, nextRotation.z, nextRotation.w)
-      .normalize();
-    if (this.activeObstacleTraversalPath && this.isObstacleTraversalActive()) {
-      const traversalYaw = this.extractYawFromQuaternion(nextRotation);
-      const traversalPitch = this.getObstacleTraversalPitch(
-        this.activeObstacleTraversalPath,
-      );
-      const yawRotation = new THREE.Quaternion().setFromAxisAngle(
-        new THREE.Vector3(0, 0, 1),
-        traversalYaw,
-      );
-      const pitchRotation = new THREE.Quaternion().setFromAxisAngle(
-        new THREE.Vector3(0, 1, 0),
-        traversalPitch,
-      );
-      this.carFrame.quaternion
-        .copy(yawRotation.multiply(pitchRotation))
-        .normalize();
-    }
-    this.carFrame.updateMatrixWorld(true);
-    this.syncVehicleYawIndicator();
-    this.syncWheelRotationToBodyTravel();
+    this.syncCarFrameVisualPose();
   }
 
   async runLoop() {
-    // If command APIs are bound after this module starts, retry hook installation.
-    this.installDriveCommandHooks();
+    try {
+      // If command APIs are bound after this module starts, retry hook installation.
+      this.installDriveCommandHooks();
 
-    if (!this.viewer) {
-      this.viewer = this.findSimulationViewer();
+      if (!this.viewer) {
+        this.viewer = this.findSimulationViewer();
+      }
+
+      if (this.viewer) {
+        this.ensureWheelZChartOverlay();
+      }
+
+      if (this.viewer && !this.isReady && !this.hasFailed) {
+        await this.ensureRapierInitialized();
+      }
+
+      this.stepSimulation();
+      this.trimWheelZChartHistory(this.simulationElapsedSec);
+      this.renderWheelZChart(this.simulationElapsedSec);
+
+      this.updateDebugPanel(this.physicsFixedTimeStepSec);
+    } catch (error) {
+      console.error("[URDF][Simulation] frame update failed:", error);
+    } finally {
+      // Always reschedule so a single frame error cannot stop the simulation permanently.
+      this.simulationLoop.schedule();
     }
-
-    if (this.viewer) {
-      this.ensureWheelZChartOverlay();
-    }
-
-    if (this.viewer && !this.isReady && !this.hasFailed) {
-      await this.ensureRapierInitialized();
-    }
-
-    this.stepSimulation();
-    this.trimWheelZChartHistory(this.simulationElapsedSec);
-    this.renderWheelZChart(this.simulationElapsedSec);
-
-    this.updateDebugPanel(this.physicsFixedTimeStepSec);
-    this.simulationLoop.schedule();
   }
 
   start() {
@@ -6263,10 +6268,6 @@ class RapierDriveSimulation {
       rl: false,
       rr: false,
     };
-    this.keyHoldState.ArrowUp = 0;
-    this.keyHoldState.ArrowDown = 0;
-    this.keyHoldState.ArrowLeft = 0;
-    this.keyHoldState.ArrowRight = 0;
     this.obstacleColliderInfos.forEach((obstacleInfo) => {
       obstacleInfo.isContactHighlightLatched = false;
       obstacleInfo.contactHighlightPendingUntilMs = 0;

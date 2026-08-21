@@ -23,7 +23,6 @@ const GROUND_COLLIDER_FRICTION = 0.0;
 const WHEEL_COLLIDER_FRICTION = 0.0;
 const OBSTACLE_COLLIDER_FRICTION = 0.05;
 
-const VEHICLE_WHEELBASE_METERS = 0.64;
 const VEHICLE_TRACK_WIDTH_FALLBACK_METERS = 0.64;
 const OBSTACLE_RAMP_MIN_LENGTH_METERS = 0.45;
 const OBSTACLE_RAMP_MAX_LENGTH_METERS = 0.65;
@@ -129,10 +128,6 @@ class ContactSolver {
 
   isObstacleTraversalActive() {
     return this.runtime.isObstacleTraversalActive();
-  }
-
-  applyClimbLift(obstacleInfo, fixedTimeStepSec) {
-    this.runtime.applyObstacleClimbLift(true, fixedTimeStepSec, obstacleInfo);
   }
 
   preserveHeading(yaw = null) {
@@ -268,12 +263,7 @@ class RapierDriveSimulation {
     this.postObstacleGroundRecoverRemainingSec = 0;
     this.flatGroundSnapDistanceMeters = 0.01;
     this.flatGroundVerticalVelocitySnapThresholdMps = 0.35;
-    this.maxLiftWithoutObstacleMeters = 0.03;
-    this.maxLiftWithObstacleMeters = 0.24;
-    this.obstacleClimbMinRiseSpeedMps = 0.7;
-    this.obstacleClimbMaxRiseSpeedMps = 1.5;
-    this.obstacleTraversalSupportGraceSec = 0.12;
-    this.obstacleTraversalSupportGraceRemainingSec = 0;
+    this.lastWheelSupportProfile = null;
     this.isInitializing = false;
     this.isReady = false;
     this.hasFailed = false;
@@ -3453,28 +3443,6 @@ class RapierDriveSimulation {
     return targetBodyZ;
   }
 
-  hasWheelSupportForObstacleTraversal(obstacleInfo = null, deltaSec = 0) {
-    const hasGroundSupport = Object.values(
-      this.wheelGroundContactState || {},
-    ).some(Boolean);
-    const hasObstacleSupport =
-      this.getObstacleContactedWheelKeys(obstacleInfo).length > 0;
-    if (hasGroundSupport || hasObstacleSupport) {
-      this.obstacleTraversalSupportGraceRemainingSec = Math.max(
-        Number(this.obstacleTraversalSupportGraceSec) || 0,
-        0,
-      );
-      return true;
-    }
-
-    this.obstacleTraversalSupportGraceRemainingSec = Math.max(
-      0,
-      (Number(this.obstacleTraversalSupportGraceRemainingSec) || 0) -
-        Math.max(Number(deltaSec) || 0, 0),
-    );
-    return this.obstacleTraversalSupportGraceRemainingSec > 0;
-  }
-
   getObstacleTraversalPath(obstacleInfo = null) {
     if (!this.body || !obstacleInfo?.center || !obstacleInfo?.halfExtents) {
       return null;
@@ -3586,31 +3554,6 @@ class RapierDriveSimulation {
     return (
       path.groundTargetZ +
       (path.obstacleTargetZ - path.groundTargetZ) * smoothProgress
-    );
-  }
-
-  getObstacleTraversalPitch(path) {
-    if (!path) {
-      return 0;
-    }
-
-    const wheelbaseMeters = VEHICLE_WHEELBASE_METERS;
-    const frontTargetZ = this.getObstacleTraversalTargetZ(
-      path,
-      wheelbaseMeters * 0.5,
-    );
-    const rearTargetZ = this.getObstacleTraversalTargetZ(
-      path,
-      -wheelbaseMeters * 0.5,
-    );
-    if (!Number.isFinite(frontTargetZ) || !Number.isFinite(rearTargetZ)) {
-      return 0;
-    }
-
-    return THREE.MathUtils.clamp(
-      -Math.atan2(frontTargetZ - rearTargetZ, wheelbaseMeters),
-      THREE.MathUtils.degToRad(-OBSTACLE_MAX_TILT_DEG),
-      THREE.MathUtils.degToRad(OBSTACLE_MAX_TILT_DEG),
     );
   }
 
@@ -3965,42 +3908,6 @@ class RapierDriveSimulation {
         angularVelocity.y * 0.75,
         angularVelocity.z,
       ),
-      true,
-    );
-  }
-
-  enforceFlatGroundRideHeight() {
-    if (!this.body || !this.rapier) {
-      return;
-    }
-
-    if (this.isVehicleObstacleContact || this.isVehicleOverHoleRegion()) {
-      return;
-    }
-
-    if (!this.isBodyNearFlatGroundSupport()) {
-      return;
-    }
-
-    const targetZ = Number(this.initialPosition?.z);
-    if (!Number.isFinite(targetZ)) {
-      return;
-    }
-
-    const translation = this.body.translation();
-    if (Math.abs(targetZ - translation.z) < 1e-6) {
-      return;
-    }
-
-    // Hard-lock vertical ride height on flat road to suppress persistent jitter.
-    this.body.setTranslation(
-      new this.rapier.Vector3(translation.x, translation.y, targetZ),
-      true,
-    );
-
-    const velocity = this.body.linvel();
-    this.body.setLinvel(
-      new this.rapier.Vector3(velocity.x, velocity.y, 0),
       true,
     );
   }
@@ -5723,16 +5630,7 @@ class RapierDriveSimulation {
     }
 
     const isTraversalControlActive = this.isObstacleTraversalActive();
-    if (isTraversalControlActive) {
-      this.applyObstacleClimbLift(
-        true,
-        fixedStepSec,
-        preStepTraversalPath.obstacleInfo,
-      );
-      if (isStraightDrive) {
-        this.setBodyPlanarVelocity(targetVelocityX, targetVelocityY);
-      }
-    } else if (throttleSign !== 0) {
+    if (isTraversalControlActive || throttleSign !== 0) {
       this.setBodyPlanarVelocity(targetVelocityX, targetVelocityY);
     }
 
@@ -5783,6 +5681,13 @@ class RapierDriveSimulation {
     context.wheelGroundContactCount =
       this.wheelController.updateGroundContactState();
 
+    const supportProfile = this.getWheelSupportProfile();
+    this.lastWheelSupportProfile = supportProfile;
+    const isOnObstacleSupport = Boolean(
+      supportProfile &&
+      supportProfile.averageLift > WHEEL_SUPPORT_MIN_LIFT_METERS,
+    );
+
     const hasObstacleContactNow =
       this.contactSolver.updateVehicleObstacleContact();
     const contactedObstacle =
@@ -5791,7 +5696,6 @@ class RapierDriveSimulation {
       this.getObstacleTraversalApproachInfo()?.obstacleInfo || null;
     if (this.activeObstacleTraversalPath && !this.isObstacleTraversalActive()) {
       this.activeObstacleTraversalPath = null;
-      this.obstacleTraversalSupportGraceRemainingSec = 0;
     }
     if (!this.activeObstacleTraversalPath && postStepTraversalApproach) {
       this.activeObstacleTraversalPath = this.getObstacleTraversalPath(
@@ -5804,12 +5708,6 @@ class RapierDriveSimulation {
       this.contactSolver.isClimbApproach(
         contactedObstacle || preStepApproach?.obstacleInfo || null,
       );
-    const obstacleInfoForClimb =
-      contactedObstacle ||
-      this.activeObstacleTraversalPath?.obstacleInfo ||
-      postStepTraversalApproach ||
-      preStepApproach?.obstacleInfo ||
-      null;
     const isObstaclePathActive = this.contactSolver.isObstacleTraversalActive();
     const hasObstacleControl = Boolean(
       hasObstacleContactNow || isClimbingApproach || isObstaclePathActive,
@@ -5834,7 +5732,6 @@ class RapierDriveSimulation {
         );
 
     if (hasObstacleControl) {
-      this.contactSolver.applyClimbLift(obstacleInfoForClimb, fixedStepSec);
       if (isStraightDrive) {
         this.setBodyPlanarVelocity(targetVelocityX, targetVelocityY);
       }
@@ -5856,13 +5753,14 @@ class RapierDriveSimulation {
         this.setBodyPlanarVelocity(targetVelocityX, targetVelocityY);
         this.body.setAngvel(new this.rapier.Vector3(0, 0, 0), true);
 
+        // Lateral lock only; vertical position belongs to the wheel support plane.
         if (this.straightDriveReferencePose) {
           const position = this.body.translation();
           this.body.setTranslation(
             new this.rapier.Vector3(
               position.x,
               this.straightDriveReferencePose.y,
-              this.straightDriveReferencePose.z,
+              position.z,
             ),
             true,
           );
@@ -5871,17 +5769,16 @@ class RapierDriveSimulation {
       }
     }
 
-    if (this.hasActivatedDynamicGroundClamp && !isTraversalControlActive) {
+    if (this.hasActivatedDynamicGroundClamp && !isOnObstacleSupport) {
       this.clampVehicleAboveGround();
     }
 
-    if (
-      !hasObstacleControl &&
-      !this.contactSolver.isObstacleTraversalActive()
-    ) {
+    if (!isOnObstacleSupport && !hasObstacleControl) {
       this.stabilizeFlatGroundVerticalMotion();
-      this.enforceFlatGroundRideHeight();
     }
+
+    // Wheel support geometry is the single source of truth for ride height.
+    this.applyWheelSupportRideHeight(supportProfile);
 
     // Center turn must keep the 4-wheel center fixed on every substep, not just per frame.
     this.constrainCenterTurnPivot();
@@ -5896,15 +5793,8 @@ class RapierDriveSimulation {
   }
 
   finalizeObstacleFrame(context) {
-    const finalApproach = this.contactSolver.getApproachInfo();
     const hasObstacleContact =
       this.contactSolver.updateVehicleObstacleContact();
-    if (hasObstacleContact || this.contactSolver.isObstacleTraversalActive()) {
-      this.contactSolver.applyClimbLift(
-        finalApproach?.obstacleInfo || null,
-        this.physicsFixedTimeStepSec,
-      );
-    }
 
     const isClimbingApproach = this.contactSolver.isClimbApproach(
       context.obstacleApproach?.obstacleInfo || null,
@@ -5936,24 +5826,24 @@ class RapierDriveSimulation {
       .set(nextRotation.x, nextRotation.y, nextRotation.z, nextRotation.w)
       .normalize();
 
-    if (this.activeObstacleTraversalPath && this.isObstacleTraversalActive()) {
-      const supportProfile = this.getWheelSupportProfile();
+    const supportProfile =
+      this.lastWheelSupportProfile || this.getWheelSupportProfile();
+    if (
+      supportProfile &&
+      supportProfile.averageLift > WHEEL_SUPPORT_MIN_LIFT_METERS
+    ) {
       const traversalYaw = this.extractYawFromQuaternion(nextRotation);
-      const traversalPitch = supportProfile
-        ? supportProfile.pitchRad
-        : this.getObstacleTraversalPitch(this.activeObstacleTraversalPath);
-      const traversalRoll = supportProfile ? supportProfile.rollRad : 0;
       const yawRotation = new THREE.Quaternion().setFromAxisAngle(
         new THREE.Vector3(0, 0, 1),
         traversalYaw,
       );
       const pitchRotation = new THREE.Quaternion().setFromAxisAngle(
         new THREE.Vector3(0, 1, 0),
-        traversalPitch,
+        supportProfile.pitchRad,
       );
       const rollRotation = new THREE.Quaternion().setFromAxisAngle(
         new THREE.Vector3(1, 0, 0),
-        traversalRoll,
+        supportProfile.rollRad,
       );
       this.carFrame.quaternion
         .copy(yawRotation.multiply(pitchRotation).multiply(rollRotation))
@@ -6226,7 +6116,7 @@ class RapierDriveSimulation {
     this.straightDriveReferencePose = null;
     this.straightDriveWarmupSteps = 0;
     this.postObstacleGroundRecoverRemainingSec = 0;
-    this.obstacleTraversalSupportGraceRemainingSec = 0;
+    this.lastWheelSupportProfile = null;
     this.lastDriveCommandState = {
       throttleSign: 0,
       steerSign: 0,

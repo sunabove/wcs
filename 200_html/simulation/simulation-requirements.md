@@ -28,4 +28,8 @@
 
 - 시뮬레이션 정지 상태에서 차량 제어(전진/후진/좌회전/우회전) 버튼을 클릭하면 해당 기능으로 시뮬레애션을 재개합니다.
 
-- urdf model의 ellipsoid_surface와 ground를 무한 확장하는 좋은 방법은?
+- urdf model의 ellipsoid_surface와 ground를 무한 확장
+
+- 0.1 m/s 속도에서만 음각 obstacle_pothole을 통과하지 못합니다.
+
+

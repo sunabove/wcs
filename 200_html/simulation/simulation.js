@@ -31,7 +31,6 @@ const OBSTACLE_MAX_LATERAL_OFFSET_METERS = 0.8;
 const OBSTACLE_MAX_TILT_DEG = 22;
 // Half-width of the drivable ground built around the authored plate.
 const GROUND_EXTENSION_HALF_SIZE_METERS = 100;
-const GROUND_EXTENSION_DEPTH_OFFSET_METERS = 0.002;
 // Carved pothole walls use a fixed contrasting color so the pit shape stays readable.
 const GROUND_INTERIOR_COLOR = 0x243447;
 const GROUND_INTERIOR_EMISSIVE = 0x0d141d;
@@ -249,6 +248,7 @@ class RapierDriveSimulation {
     this.groundGrid = null;
     this.groundGridPatches = null;
     this.groundExtensionGroup = null;
+    this.authoredGroundRect = null;
     this.groundInteriorMaterialBySource = null;
     this.hasCarvedGroundVisual = false;
     this.holeRegions = [];
@@ -2326,6 +2326,12 @@ class RapierDriveSimulation {
         : fallbackGroundSize * 0.5;
 
     // Drivable area is extended far past the authored plate so edges never enter view.
+    this.authoredGroundRect = {
+      minX: authoredMinX,
+      maxX: authoredMaxX,
+      minY: authoredMinY,
+      maxY: authoredMaxY,
+    };
     const groundCenterX = (authoredMinX + authoredMaxX) * 0.5;
     const groundCenterY = (authoredMinY + authoredMaxY) * 0.5;
     const groundMinX = groundCenterX - GROUND_EXTENSION_HALF_SIZE_METERS;
@@ -2517,24 +2523,24 @@ class RapierDriveSimulation {
     });
 
     this.groundGridPatches = groundPatches;
-    this.addGroundSurfaceExtension(groundPatches);
+    this.addGroundSurfaceExtension();
     void this.carveGroundVisualForHoles();
     this.addGroundSurfaceGrid(groundPatches);
   }
 
-  addGroundSurfaceExtension(groundPatches) {
+  addGroundSurfaceExtension() {
     const linkMap = this.viewer?.robotModel?.links || null;
     const groundLink =
       this.findLinkByName(linkMap, "ground") ||
       this.findLinkByName(linkMap, "ground_link") ||
       this.findLinkByName(linkMap, "ground_patch") ||
       null;
-    if (!groundLink || !Array.isArray(groundPatches)) {
+    const authoredRect = this.authoredGroundRect;
+    if (!groundLink || !authoredRect) {
       return;
     }
 
-    const authoredMeshes = this.collectLinkOwnMeshes(groundLink, linkMap);
-    const authoredMesh = authoredMeshes[0];
+    const authoredMesh = this.collectLinkOwnMeshes(groundLink, linkMap)[0];
     if (!authoredMesh) {
       return;
     }
@@ -2549,14 +2555,42 @@ class RapierDriveSimulation {
       authoredBounds.max.z - authoredBounds.min.z,
       0.01,
     );
-    // Sits just under the authored plate so the two never z-fight where they overlap.
-    const topZ = this.groundZ - GROUND_EXTENSION_DEPTH_OFFSET_METERS;
+
+    // A frame around the authored plate: never overlaps it, so no z-fighting and no strips
+    // running through the pothole.
+    const frameRects = [
+      {
+        minX: authoredRect.minX - GROUND_EXTENSION_HALF_SIZE_METERS,
+        maxX: authoredRect.minX,
+        minY: authoredRect.minY - GROUND_EXTENSION_HALF_SIZE_METERS,
+        maxY: authoredRect.maxY + GROUND_EXTENSION_HALF_SIZE_METERS,
+      },
+      {
+        minX: authoredRect.maxX,
+        maxX: authoredRect.maxX + GROUND_EXTENSION_HALF_SIZE_METERS,
+        minY: authoredRect.minY - GROUND_EXTENSION_HALF_SIZE_METERS,
+        maxY: authoredRect.maxY + GROUND_EXTENSION_HALF_SIZE_METERS,
+      },
+      {
+        minX: authoredRect.minX,
+        maxX: authoredRect.maxX,
+        minY: authoredRect.minY - GROUND_EXTENSION_HALF_SIZE_METERS,
+        maxY: authoredRect.minY,
+      },
+      {
+        minX: authoredRect.minX,
+        maxX: authoredRect.maxX,
+        minY: authoredRect.maxY,
+        maxY: authoredRect.maxY + GROUND_EXTENSION_HALF_SIZE_METERS,
+      },
+    ];
+
     const extensionGroup = new THREE.Group();
     extensionGroup.name = "simulation-ground-extension";
 
-    groundPatches.forEach((patch) => {
-      const width = patch.maxX - patch.minX;
-      const depth = patch.maxY - patch.minY;
+    frameRects.forEach((rect) => {
+      const width = rect.maxX - rect.minX;
+      const depth = rect.maxY - rect.minY;
       if (width <= 1e-4 || depth <= 1e-4) {
         return;
       }
@@ -2568,9 +2602,9 @@ class RapierDriveSimulation {
       patchMesh.position.copy(
         groundLink.worldToLocal(
           new THREE.Vector3(
-            (patch.minX + patch.maxX) * 0.5,
-            (patch.minY + patch.maxY) * 0.5,
-            topZ - thickness * 0.5,
+            (rect.minX + rect.maxX) * 0.5,
+            (rect.minY + rect.maxY) * 0.5,
+            this.groundZ - thickness * 0.5,
           ),
         ),
       );

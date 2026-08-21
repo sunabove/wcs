@@ -2468,6 +2468,11 @@ class RapierDriveSimulation {
         .setFriction(GROUND_COLLIDER_FRICTION)
         .setCollisionGroups(COLLISION_GROUP_GROUND)
         .setRestitution(0.0);
+      // Ride height is imposed kinematically; solid ground walls would only stall the
+      // vehicle against pothole edges at low speed.
+      if (typeof groundColliderDesc.setSensor === "function") {
+        groundColliderDesc.setSensor(true);
+      }
       const groundCollider = this.world.createCollider(
         groundColliderDesc,
         groundBody,

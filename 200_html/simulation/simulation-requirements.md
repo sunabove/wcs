@@ -30,6 +30,8 @@
 
 - urdf model의 ellipsoid_surface와 ground를 무한 확장
 
+- 무한 확장된 ground에도 obstacle_pothole을 동적으로 음각할 예정입니다.
+
 - 0.1 m/s 속도에서만 음각 obstacle_pothole을 통과하지 못합니다.
 
 

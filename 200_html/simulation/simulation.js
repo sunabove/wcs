@@ -2844,12 +2844,10 @@ class RapierDriveSimulation {
       const isUnderbodyPassThroughByHeight = false;
       const isUnderbodyPassThrough = false;
 
-      // Pass-through obstacles and potholes are sensors. The ground-hole
-      // colliders model pothole physics; all other obstacles remain solid.
+      // Obstacles never block motion: traversal height comes from wheel support geometry,
+      // so solver pushback would only stall the vehicle at higher speeds.
       if (typeof obstacleColliderDesc.setSensor === "function") {
-        obstacleColliderDesc.setSensor(
-          isPassUnderTagged || obstacleProfile.isPotholeObstacle,
-        );
+        obstacleColliderDesc.setSensor(true);
       }
       if (isPassUnderTagged) {
         console.log(
@@ -3252,40 +3250,24 @@ class RapierDriveSimulation {
   }
 
   getObstacleContactedWheelKeys(obstacleInfo, linkMap = null) {
-    if (!this.world || !obstacleInfo?.collider) {
+    if (!obstacleInfo) {
       return [];
     }
 
-    const physicsContactedWheelKeys = Object.entries(
-      this.wheelCollidersByKey,
-    ).flatMap(([wheelKey, wheelCollider]) => {
-      if (!wheelCollider) {
-        return [];
-      }
-
-      let isContacting = false;
-      this.world.contactPair(wheelCollider, obstacleInfo.collider, () => {
-        isContacting = true;
-      });
-      return isContacting ? [wheelKey] : [];
-    });
-    if (physicsContactedWheelKeys.length > 0) {
-      return physicsContactedWheelKeys;
+    const supportProfile =
+      this.lastWheelSupportProfile ||
+      (this.lastWheelSupportProfile = this.getWheelSupportProfile());
+    if (!supportProfile?.supportObstacleByKey) {
+      return [];
     }
 
-    return [];
+    return Object.entries(supportProfile.supportObstacleByKey)
+      .filter(([, supportObstacle]) => supportObstacle === obstacleInfo)
+      .map(([wheelKey]) => wheelKey);
   }
 
   isVehicleColliderContactingObstacle(obstacleInfo) {
-    if (!this.world || !this.vehicleCollider || !obstacleInfo?.collider) {
-      return false;
-    }
-
-    let isContacting = false;
-    this.world.contactPair(this.vehicleCollider, obstacleInfo.collider, () => {
-      isContacting = true;
-    });
-    return isContacting;
+    return this.isVehicleAabbTouchingObstacle(obstacleInfo);
   }
 
   syncObstacleColliderActivation(linkMap = null) {
@@ -3568,6 +3550,7 @@ class RapierDriveSimulation {
       0.05,
     );
     const liftByKey = {};
+    const supportObstacleByKey = {};
     const samples = [];
 
     this.carFrame.updateWorldMatrix(true, false);
@@ -3575,6 +3558,7 @@ class RapierDriveSimulation {
     Object.entries(this.wheelLinkNameByKey).forEach(
       ([wheelKey, wheelLinkName]) => {
         liftByKey[wheelKey] = 0;
+        supportObstacleByKey[wheelKey] = null;
 
         const wheelLink = this.findLinkByName(linkMap, wheelLinkName);
         if (!wheelLink) {
@@ -3584,6 +3568,7 @@ class RapierDriveSimulation {
         wheelLink.updateWorldMatrix(true, false);
         const wheelPosition = wheelLink.getWorldPosition(new THREE.Vector3());
         let supportZ = this.groundZ;
+        let supportObstacle = null;
 
         this.obstacleColliderInfos.forEach((obstacleInfo) => {
           if (
@@ -3622,11 +3607,17 @@ class RapierDriveSimulation {
               ),
             ) -
             wheelRadius;
-          supportZ = Math.max(supportZ, cornerSupportZ);
+          if (cornerSupportZ <= supportZ) {
+            return;
+          }
+          supportZ = cornerSupportZ;
+          supportObstacle = obstacleInfo;
         });
 
         const lift = Math.max(supportZ - this.groundZ, 0);
         liftByKey[wheelKey] = lift;
+        supportObstacleByKey[wheelKey] =
+          lift > WHEEL_SUPPORT_MIN_LIFT_METERS ? supportObstacle : null;
 
         // Chassis-local offsets keep the tilt fit independent of URDF axis conventions.
         const localOffset = this.carFrame.worldToLocal(wheelPosition.clone());
@@ -3674,6 +3665,7 @@ class RapierDriveSimulation {
 
     return {
       liftByKey,
+      supportObstacleByKey,
       // Chassis origin rises only as much as the support plane, so wheels off the obstacle stay grounded.
       averageLift: Math.max(liftAtOrigin, 0),
       pitchRad: THREE.MathUtils.clamp(
@@ -6158,7 +6150,7 @@ class RapierDriveSimulation {
         obstacleInfo?.collider &&
         typeof obstacleInfo.collider.setSensor === "function"
       ) {
-        obstacleInfo.collider.setSensor(Boolean(obstacleInfo.isSensor));
+        obstacleInfo.collider.setSensor(true);
       }
       obstacleInfo.isSpatiallyOverlapping = false;
       obstacleInfo.contactedWheelKeys = [];

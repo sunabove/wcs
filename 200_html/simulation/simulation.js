@@ -295,6 +295,7 @@ class RapierDriveSimulation {
       hasMoveCommand: false,
     };
     this.debugPanelElement = null;
+    this.sliderTickTooltipElement = null;
     this.debugTextElement = null;
     this.debugStatusUpdateIntervalSec = 0.2;
     this.debugStatusElapsedSec = 0;
@@ -5905,7 +5906,7 @@ class RapierDriveSimulation {
     this.initializeSpeedSliderPreference();
     this.initializeVisualSpeedSliderPreference();
     this.installCommandButtonFlash();
-    this.installSliderTickClickHandlers();
+    this.installSliderTickInteractions();
     this.attachKeyboardControls();
     this.installDriveCommandHooks();
     this.syncInitialDriveStateFromUi();
@@ -5914,19 +5915,75 @@ class RapierDriveSimulation {
     this.simulationLoop.schedule();
   }
 
-  installSliderTickClickHandlers() {
+  getSliderTickValueAt(sliderElement, tickElement, clientX) {
+    const tickBounds = tickElement.getBoundingClientRect();
+    const minValue = Number.parseFloat(sliderElement.min);
+    const maxValue = Number.parseFloat(sliderElement.max);
+    const stepValue = Number.parseFloat(sliderElement.step) || 1;
+    if (
+      tickBounds.width <= 0 ||
+      !Number.isFinite(minValue) ||
+      !Number.isFinite(maxValue) ||
+      maxValue <= minValue
+    ) {
+      return null;
+    }
+
+    // The tick strip is inset to match the slider track, so ratio maps straight to value.
+    const ratio = THREE.MathUtils.clamp(
+      (clientX - tickBounds.left) / tickBounds.width,
+      0,
+      1,
+    );
+    const rawValue = minValue + ratio * (maxValue - minValue);
+    return THREE.MathUtils.clamp(
+      minValue + Math.round((rawValue - minValue) / stepValue) * stepValue,
+      minValue,
+      maxValue,
+    );
+  }
+
+  ensureSliderTickTooltip() {
+    if (this.sliderTickTooltipElement) {
+      return this.sliderTickTooltipElement;
+    }
+
+    const tooltip = document.createElement("div");
+    tooltip.id = "slider-tick-tooltip";
+    tooltip.className = "position-fixed badge text-bg-dark shadow-sm";
+    tooltip.style.zIndex = "1080";
+    tooltip.style.pointerEvents = "none";
+    tooltip.style.transform = "translate(-50%, -130%)";
+    tooltip.style.display = "none";
+    document.body.appendChild(tooltip);
+    this.sliderTickTooltipElement = tooltip;
+    return tooltip;
+  }
+
+  hideSliderTickTooltip() {
+    if (this.sliderTickTooltipElement) {
+      this.sliderTickTooltipElement.style.display = "none";
+    }
+  }
+
+  installSliderTickInteractions() {
     const tickBindings = [
       {
         tickSelector: ".slider-tick-scale-speed",
         sliderId: "drive-speed-mps",
+        formatValue: (value) => `${value.toFixed(1)} m/s`,
       },
       {
         tickSelector: ".slider-tick-scale-visual",
         sliderId: "simulation-visual-speed-scale",
+        formatValue: (value) =>
+          this.formatVisualSpeedScaleLabel(
+            this.getVisualSpeedScaleFromSliderValue(value),
+          ),
       },
     ];
 
-    tickBindings.forEach(({ tickSelector, sliderId }) => {
+    tickBindings.forEach(({ tickSelector, sliderId, formatValue }) => {
       const tickElement = document.querySelector(tickSelector);
       const sliderElement = document.getElementById(sliderId);
       if (!tickElement || !sliderElement) {
@@ -5934,36 +5991,44 @@ class RapierDriveSimulation {
       }
 
       tickElement.addEventListener("click", (event) => {
-        const tickBounds = tickElement.getBoundingClientRect();
-        const minValue = Number.parseFloat(sliderElement.min);
-        const maxValue = Number.parseFloat(sliderElement.max);
-        const stepValue = Number.parseFloat(sliderElement.step) || 1;
-        if (
-          tickBounds.width <= 0 ||
-          !Number.isFinite(minValue) ||
-          !Number.isFinite(maxValue) ||
-          maxValue <= minValue
-        ) {
+        const tickValue = this.getSliderTickValueAt(
+          sliderElement,
+          tickElement,
+          event.clientX,
+        );
+        if (tickValue === null) {
           return;
         }
 
-        // The tick strip is inset to match the slider track, so ratio maps straight to value.
-        const ratio = THREE.MathUtils.clamp(
-          (event.clientX - tickBounds.left) / tickBounds.width,
-          0,
-          1,
-        );
-        const rawValue = minValue + ratio * (maxValue - minValue);
-        const snappedValue = THREE.MathUtils.clamp(
-          minValue + Math.round((rawValue - minValue) / stepValue) * stepValue,
-          minValue,
-          maxValue,
-        );
-
-        sliderElement.value = String(snappedValue);
+        sliderElement.value = String(tickValue);
         sliderElement.dispatchEvent(new Event("input", { bubbles: true }));
         sliderElement.dispatchEvent(new Event("change", { bubbles: true }));
       });
+
+      tickElement.addEventListener("mousemove", (event) => {
+        const tickValue = this.getSliderTickValueAt(
+          sliderElement,
+          tickElement,
+          event.clientX,
+        );
+        if (tickValue === null) {
+          return;
+        }
+
+        const tooltip = this.ensureSliderTickTooltip();
+        tooltip.textContent = formatValue(tickValue);
+        tooltip.style.left = `${event.clientX}px`;
+        tooltip.style.top = `${tickElement.getBoundingClientRect().top}px`;
+        tooltip.style.display = "block";
+      });
+
+      tickElement.addEventListener("mouseleave", () =>
+        this.hideSliderTickTooltip(),
+      );
+    });
+
+    window.addEventListener("scroll", () => this.hideSliderTickTooltip(), {
+      passive: true,
     });
   }
 

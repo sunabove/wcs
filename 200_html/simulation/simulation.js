@@ -248,6 +248,7 @@ class RapierDriveSimulation {
     this.groundGrid = null;
     this.groundGridPatches = null;
     this.groundExtensionGroup = null;
+    this.groundExtensionMaterial = null;
     this.authoredGroundRect = null;
     this.groundInteriorMaterialBySource = null;
     this.hasCarvedGroundVisual = false;
@@ -2547,74 +2548,68 @@ class RapierDriveSimulation {
 
     if (this.groundExtensionGroup?.parent) {
       this.groundExtensionGroup.parent.remove(this.groundExtensionGroup);
-      this.groundExtensionGroup.traverse((node) => node.geometry?.dispose());
+      this.groundExtensionGroup.geometry?.dispose();
     }
 
-    const authoredBounds = new THREE.Box3().setFromObject(authoredMesh);
-    const thickness = Math.max(
-      authoredBounds.max.z - authoredBounds.min.z,
-      0.01,
+    // Single flat frame with the authored plate as a hole: no thickness, no overlap,
+    // so there are no side faces or coplanar pairs to produce seams.
+    const outerShape = new THREE.Shape();
+    outerShape.moveTo(
+      authoredRect.minX - GROUND_EXTENSION_HALF_SIZE_METERS,
+      authoredRect.minY - GROUND_EXTENSION_HALF_SIZE_METERS,
     );
+    outerShape.lineTo(
+      authoredRect.maxX + GROUND_EXTENSION_HALF_SIZE_METERS,
+      authoredRect.minY - GROUND_EXTENSION_HALF_SIZE_METERS,
+    );
+    outerShape.lineTo(
+      authoredRect.maxX + GROUND_EXTENSION_HALF_SIZE_METERS,
+      authoredRect.maxY + GROUND_EXTENSION_HALF_SIZE_METERS,
+    );
+    outerShape.lineTo(
+      authoredRect.minX - GROUND_EXTENSION_HALF_SIZE_METERS,
+      authoredRect.maxY + GROUND_EXTENSION_HALF_SIZE_METERS,
+    );
+    outerShape.closePath();
 
-    // A frame around the authored plate: never overlaps it, so no z-fighting and no strips
-    // running through the pothole.
-    const frameRects = [
-      {
-        minX: authoredRect.minX - GROUND_EXTENSION_HALF_SIZE_METERS,
-        maxX: authoredRect.minX,
-        minY: authoredRect.minY - GROUND_EXTENSION_HALF_SIZE_METERS,
-        maxY: authoredRect.maxY + GROUND_EXTENSION_HALF_SIZE_METERS,
-      },
-      {
-        minX: authoredRect.maxX,
-        maxX: authoredRect.maxX + GROUND_EXTENSION_HALF_SIZE_METERS,
-        minY: authoredRect.minY - GROUND_EXTENSION_HALF_SIZE_METERS,
-        maxY: authoredRect.maxY + GROUND_EXTENSION_HALF_SIZE_METERS,
-      },
-      {
-        minX: authoredRect.minX,
-        maxX: authoredRect.maxX,
-        minY: authoredRect.minY - GROUND_EXTENSION_HALF_SIZE_METERS,
-        maxY: authoredRect.minY,
-      },
-      {
-        minX: authoredRect.minX,
-        maxX: authoredRect.maxX,
-        minY: authoredRect.maxY,
-        maxY: authoredRect.maxY + GROUND_EXTENSION_HALF_SIZE_METERS,
-      },
-    ];
+    const authoredHole = new THREE.Path();
+    authoredHole.moveTo(authoredRect.minX, authoredRect.minY);
+    authoredHole.lineTo(authoredRect.maxX, authoredRect.minY);
+    authoredHole.lineTo(authoredRect.maxX, authoredRect.maxY);
+    authoredHole.lineTo(authoredRect.minX, authoredRect.maxY);
+    authoredHole.closePath();
+    outerShape.holes.push(authoredHole);
 
-    const extensionGroup = new THREE.Group();
-    extensionGroup.name = "simulation-ground-extension";
+    const frameMesh = new THREE.Mesh(
+      new THREE.ShapeGeometry(outerShape),
+      this.getGroundExtensionMaterial(authoredMesh.material),
+    );
+    frameMesh.name = "simulation-ground-extension";
+    frameMesh.position.copy(
+      groundLink.worldToLocal(new THREE.Vector3(0, 0, this.groundZ)),
+    );
+    frameMesh.userData.isSimulationGeneratedGround = true;
 
-    frameRects.forEach((rect) => {
-      const width = rect.maxX - rect.minX;
-      const depth = rect.maxY - rect.minY;
-      if (width <= 1e-4 || depth <= 1e-4) {
-        return;
-      }
+    groundLink.add(frameMesh);
+    this.groundExtensionGroup = frameMesh;
+  }
 
-      const patchMesh = new THREE.Mesh(
-        new THREE.BoxGeometry(width, depth, thickness),
-        authoredMesh.material,
-      );
-      patchMesh.position.copy(
-        groundLink.worldToLocal(
-          new THREE.Vector3(
-            (rect.minX + rect.maxX) * 0.5,
-            (rect.minY + rect.maxY) * 0.5,
-            this.groundZ - thickness * 0.5,
-          ),
-        ),
-      );
-      patchMesh.userData.isSimulationGeneratedGround = true;
-      extensionGroup.add(patchMesh);
-    });
+  getGroundExtensionMaterial(authoredMaterial) {
+    if (this.groundExtensionMaterial) {
+      return this.groundExtensionMaterial;
+    }
 
-    extensionGroup.userData.isSimulationGeneratedGround = true;
-    groundLink.add(extensionGroup);
-    this.groundExtensionGroup = extensionGroup;
+    const material = authoredMaterial?.clone
+      ? authoredMaterial.clone()
+      : new THREE.MeshStandardMaterial();
+    // Opaque so the far field reads as solid ground instead of showing the sky through it.
+    material.transparent = false;
+    material.opacity = 1;
+    material.side = THREE.DoubleSide;
+    material.name = "ground_extension_mat";
+
+    this.groundExtensionMaterial = material;
+    return material;
   }
 
   collectLinkOwnMeshes(linkObject, linkMap) {

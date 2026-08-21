@@ -29,6 +29,9 @@ const OBSTACLE_RAMP_MAX_LENGTH_METERS = 0.65;
 const OBSTACLE_RAMP_HALF_FORWARD_SCALE = 1.5;
 const OBSTACLE_MAX_LATERAL_OFFSET_METERS = 0.8;
 const OBSTACLE_MAX_TILT_DEG = 22;
+// Half-width of the drivable ground built around the authored plate.
+const GROUND_EXTENSION_HALF_SIZE_METERS = 100;
+const GROUND_EXTENSION_DEPTH_OFFSET_METERS = 0.002;
 // Lift below this is treated as flat ground.
 const WHEEL_SUPPORT_MIN_LIFT_METERS = 0.0005;
 
@@ -240,6 +243,7 @@ class RapierDriveSimulation {
     this.groundZ = 0;
     this.groundGrid = null;
     this.groundGridPatches = null;
+    this.groundExtensionGroup = null;
     this.hasCarvedGroundVisual = false;
     this.holeRegions = [];
     this.urdfObstacleLinkPrefix = "obstacle_";
@@ -2298,22 +2302,30 @@ class RapierDriveSimulation {
     }
 
     const fallbackGroundSize = 60;
-    const groundMinX =
+    const authoredMinX =
       groundBounds && !groundBounds.isEmpty()
         ? groundBounds.min.x
         : -fallbackGroundSize * 0.5;
-    const groundMaxX =
+    const authoredMaxX =
       groundBounds && !groundBounds.isEmpty()
         ? groundBounds.max.x
         : fallbackGroundSize * 0.5;
-    const groundMinY =
+    const authoredMinY =
       groundBounds && !groundBounds.isEmpty()
         ? groundBounds.min.y
         : -fallbackGroundSize * 0.5;
-    const groundMaxY =
+    const authoredMaxY =
       groundBounds && !groundBounds.isEmpty()
         ? groundBounds.max.y
         : fallbackGroundSize * 0.5;
+
+    // Drivable area is extended far past the authored plate so edges never enter view.
+    const groundCenterX = (authoredMinX + authoredMaxX) * 0.5;
+    const groundCenterY = (authoredMinY + authoredMaxY) * 0.5;
+    const groundMinX = groundCenterX - GROUND_EXTENSION_HALF_SIZE_METERS;
+    const groundMaxX = groundCenterX + GROUND_EXTENSION_HALF_SIZE_METERS;
+    const groundMinY = groundCenterY - GROUND_EXTENSION_HALF_SIZE_METERS;
+    const groundMaxY = groundCenterY + GROUND_EXTENSION_HALF_SIZE_METERS;
 
     const holeLinkNames = Object.keys(linkMap).filter((name) =>
       /hole|pothole/i.test(name),
@@ -2499,8 +2511,67 @@ class RapierDriveSimulation {
     });
 
     this.groundGridPatches = groundPatches;
+    this.addGroundSurfaceExtension(groundPatches);
     void this.carveGroundVisualForHoles();
     this.addGroundSurfaceGrid(groundPatches);
+  }
+
+  addGroundSurfaceExtension(groundPatches) {
+    const linkMap = this.viewer?.robotModel?.links || null;
+    const groundLink =
+      this.findLinkByName(linkMap, "ground") ||
+      this.findLinkByName(linkMap, "ground_link") ||
+      this.findLinkByName(linkMap, "ground_patch") ||
+      null;
+    if (!groundLink || !Array.isArray(groundPatches)) {
+      return;
+    }
+
+    const authoredMesh = this.collectLinkOwnMeshes(groundLink, linkMap)[0];
+    if (!authoredMesh) {
+      return;
+    }
+
+    if (this.groundExtensionGroup?.parent) {
+      this.groundExtensionGroup.parent.remove(this.groundExtensionGroup);
+      this.groundExtensionGroup.traverse((node) => node.geometry?.dispose());
+    }
+
+    const authoredBounds = new THREE.Box3().setFromObject(authoredMesh);
+    const thickness = Math.max(
+      authoredBounds.max.z - authoredBounds.min.z,
+      0.01,
+    );
+    // Sits just under the authored plate so the two never z-fight where they overlap.
+    const topZ = this.groundZ - GROUND_EXTENSION_DEPTH_OFFSET_METERS;
+    const extensionGroup = new THREE.Group();
+    extensionGroup.name = "simulation-ground-extension";
+
+    groundPatches.forEach((patch) => {
+      const width = patch.maxX - patch.minX;
+      const depth = patch.maxY - patch.minY;
+      if (width <= 1e-4 || depth <= 1e-4) {
+        return;
+      }
+
+      const patchMesh = new THREE.Mesh(
+        new THREE.BoxGeometry(width, depth, thickness),
+        authoredMesh.material,
+      );
+      patchMesh.position.copy(
+        groundLink.worldToLocal(
+          new THREE.Vector3(
+            (patch.minX + patch.maxX) * 0.5,
+            (patch.minY + patch.maxY) * 0.5,
+            topZ - thickness * 0.5,
+          ),
+        ),
+      );
+      extensionGroup.add(patchMesh);
+    });
+
+    groundLink.add(extensionGroup);
+    this.groundExtensionGroup = extensionGroup;
   }
 
   collectLinkOwnMeshes(linkObject, linkMap) {

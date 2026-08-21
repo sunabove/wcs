@@ -1904,7 +1904,19 @@ class RapierDriveSimulation {
     }
 
     this.updateDebugPanel(this.debugStatusUpdateIntervalSec);
+    this.syncPauseButtonState();
     console.log(`[URDF][Simulation] ${this.isPaused ? "Paused" : "Resumed"}`);
+  }
+
+  syncPauseButtonState() {
+    const pauseButton = document.getElementById("drive-btn-pause");
+    if (!pauseButton) {
+      return;
+    }
+
+    pauseButton.textContent = this.isPaused ? "재개" : "일시정지";
+    pauseButton.setAttribute("aria-pressed", this.isPaused ? "true" : "false");
+    pauseButton.classList.toggle("active", this.isPaused);
   }
 
   attachKeyboardControls() {
@@ -5914,6 +5926,7 @@ class RapierDriveSimulation {
     this.attachKeyboardControls();
     this.installDriveCommandHooks();
     this.syncInitialDriveStateFromUi();
+    this.syncPauseButtonState();
     this.updateDebugPanel(this.debugStatusUpdateIntervalSec);
     this.simulationLoop.schedule();
   }
@@ -5938,6 +5951,7 @@ class RapierDriveSimulation {
 
   resetUiStates() {
     this.togglePause(false);
+    this.syncPauseButtonState();
     this.applyDriveModeCommand("stop");
     this.resetRoadAttitude();
   }
@@ -6150,6 +6164,10 @@ globalThis.resetSimulationPitch = function () {
 
 globalThis.setSimulationDriveMode = function (mode) {
   return withSimulation((simulation) => simulation.applyDriveModeCommand(mode));
+};
+
+globalThis.toggleSimulationPause = function (forcePaused = null) {
+  return withSimulation((simulation) => simulation.togglePause(forcePaused));
 };
 
 globalThis.stopSimulationWheelRotation = function () {

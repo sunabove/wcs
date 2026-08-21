@@ -32,6 +32,9 @@ const OBSTACLE_MAX_TILT_DEG = 22;
 // Half-width of the drivable ground built around the authored plate.
 const GROUND_EXTENSION_HALF_SIZE_METERS = 100;
 const GROUND_EXTENSION_DEPTH_OFFSET_METERS = 0.002;
+// Carved pothole walls use a fixed contrasting color so the pit shape stays readable.
+const GROUND_INTERIOR_COLOR = 0x243447;
+const GROUND_INTERIOR_EMISSIVE = 0x0d141d;
 // Lift below this is treated as flat ground.
 const WHEEL_SUPPORT_MIN_LIFT_METERS = 0.0005;
 
@@ -244,6 +247,7 @@ class RapierDriveSimulation {
     this.groundGrid = null;
     this.groundGridPatches = null;
     this.groundExtensionGroup = null;
+    this.groundInteriorMaterialBySource = null;
     this.hasCarvedGroundVisual = false;
     this.holeRegions = [];
     this.urdfObstacleLinkPrefix = "obstacle_";
@@ -2527,7 +2531,8 @@ class RapierDriveSimulation {
       return;
     }
 
-    const authoredMesh = this.collectLinkOwnMeshes(groundLink, linkMap)[0];
+    const authoredMeshes = this.collectLinkOwnMeshes(groundLink, linkMap);
+    const authoredMesh = authoredMeshes[0];
     if (!authoredMesh) {
       return;
     }
@@ -2602,6 +2607,35 @@ class RapierDriveSimulation {
     return meshes;
   }
 
+  getGroundInteriorMaterial(surfaceMaterial) {
+    if (!this.groundInteriorMaterialBySource) {
+      this.groundInteriorMaterialBySource = new Map();
+    }
+    const cached = this.groundInteriorMaterialBySource.get(surfaceMaterial);
+    if (cached) {
+      return cached;
+    }
+
+    const interiorMaterial = surfaceMaterial?.clone
+      ? surfaceMaterial.clone()
+      : new THREE.MeshStandardMaterial();
+    if (interiorMaterial.color) {
+      interiorMaterial.color.setHex(GROUND_INTERIOR_COLOR);
+    }
+    if (interiorMaterial.emissive) {
+      // Keeps the pit readable when it falls into shadow.
+      interiorMaterial.emissive.setHex(GROUND_INTERIOR_EMISSIVE);
+    }
+    interiorMaterial.transparent = false;
+    interiorMaterial.opacity = 1;
+    // Cut walls are viewed from inside the slab, so both faces must render.
+    interiorMaterial.side = THREE.DoubleSide;
+    interiorMaterial.name = "ground_interior_mat";
+
+    this.groundInteriorMaterialBySource.set(surfaceMaterial, interiorMaterial);
+    return interiorMaterial;
+  }
+
   async carveGroundVisualForHoles() {
     const linkMap = this.viewer?.robotModel?.links || null;
     const groundLink =
@@ -2618,9 +2652,8 @@ class RapierDriveSimulation {
       return;
     }
 
-    const groundMesh =
-      this.collectLinkOwnMeshes(groundLink, linkMap)[0] || null;
-    if (!groundMesh) {
+    const groundMeshes = this.collectLinkOwnMeshes(groundLink, linkMap);
+    if (groundMeshes.length === 0) {
       return;
     }
 
@@ -2630,54 +2663,74 @@ class RapierDriveSimulation {
     try {
       const csgModule = await import("three-csg-ts");
       const CSG = csgModule?.CSG || csgModule?.default?.CSG || null;
-      if (!CSG || typeof CSG.subtract !== "function") {
-        throw new Error("three-csg-ts CSG.subtract not available");
+      if (
+        !CSG ||
+        typeof CSG.fromMesh !== "function" ||
+        typeof CSG.toMesh !== "function"
+      ) {
+        throw new Error("three-csg-ts CSG API not available");
       }
 
-      groundMesh.updateWorldMatrix(true, false);
-      const groundWorldInverse = new THREE.Matrix4()
-        .copy(groundMesh.matrixWorld)
-        .invert();
-      let carvedGeometry = groundMesh.geometry.clone();
-
-      this.holeRegions.forEach((holeRegion) => {
+      const holeMeshesByRegion = this.holeRegions.map((holeRegion) => {
         const holeLink = holeRegion.linkName
           ? this.findLinkByName(linkMap, holeRegion.linkName)
           : null;
-        const holeMeshes = this.collectLinkOwnMeshes(holeLink, linkMap);
-        if (holeMeshes.length === 0) {
-          return;
-        }
+        return this.collectLinkOwnMeshes(holeLink, linkMap);
+      });
 
-        holeMeshes.forEach((holeMesh) => {
-          holeMesh.updateWorldMatrix(true, false);
-          // Both operands share the ground mesh's local frame so identity matrices are valid for CSG.
-          const holeGeometry = holeMesh.geometry
-            .clone()
-            .applyMatrix4(
-              new THREE.Matrix4().multiplyMatrices(
-                groundWorldInverse,
-                holeMesh.matrixWorld,
-              ),
+      groundMeshes.forEach((groundMesh) => {
+        const surfaceMaterial = Array.isArray(groundMesh.material)
+          ? groundMesh.material[0]
+          : groundMesh.material;
+        const interiorMaterial =
+          this.getGroundInteriorMaterial(surfaceMaterial);
+
+        groundMesh.updateWorldMatrix(true, false);
+        const groundWorldInverse = new THREE.Matrix4()
+          .copy(groundMesh.matrixWorld)
+          .invert();
+        let carvedGeometry = groundMesh.geometry.clone();
+
+        holeMeshesByRegion.forEach((holeMeshes) => {
+          holeMeshes.forEach((holeMesh) => {
+            holeMesh.updateWorldMatrix(true, false);
+            // Both operands share the ground mesh's local frame so identity matrices are valid for CSG.
+            const holeGeometry = holeMesh.geometry
+              .clone()
+              .applyMatrix4(
+                new THREE.Matrix4().multiplyMatrices(
+                  groundWorldInverse,
+                  holeMesh.matrixWorld,
+                ),
+              );
+            const baseMesh = new THREE.Mesh(carvedGeometry, surfaceMaterial);
+            const cutterMesh = new THREE.Mesh(holeGeometry, interiorMaterial);
+            baseMesh.updateMatrix();
+            cutterMesh.updateMatrix();
+
+            // Object index becomes the geometry group, so cut walls get their own material slot.
+            const resultMesh = CSG.toMesh(
+              CSG.fromMesh(baseMesh, 0).subtract(CSG.fromMesh(cutterMesh, 1)),
+              baseMesh.matrix,
+              [surfaceMaterial, interiorMaterial],
             );
-          const baseMesh = new THREE.Mesh(carvedGeometry, groundMesh.material);
-          const cutterMesh = new THREE.Mesh(holeGeometry, groundMesh.material);
-          baseMesh.updateMatrix();
-          cutterMesh.updateMatrix();
-
-          const resultMesh = CSG.subtract(baseMesh, cutterMesh);
-          carvedGeometry.dispose();
-          holeGeometry.dispose();
-          carvedGeometry = resultMesh.geometry;
+            carvedGeometry.dispose();
+            holeGeometry.dispose();
+            carvedGeometry = resultMesh.geometry;
+          });
         });
 
+        groundMesh.geometry.dispose();
+        groundMesh.geometry = carvedGeometry;
+        groundMesh.material = [surfaceMaterial, interiorMaterial];
+      });
+
+      holeMeshesByRegion.forEach((holeMeshes) => {
         holeMeshes.forEach((holeMesh) => {
           holeMesh.visible = false;
         });
       });
 
-      groundMesh.geometry.dispose();
-      groundMesh.geometry = carvedGeometry;
       this.hasCarvedGroundVisual = true;
       console.log(
         "[URDF][Simulation] ground visual carved by pothole volume (CSG)",

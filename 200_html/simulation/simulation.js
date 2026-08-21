@@ -4675,17 +4675,7 @@ class RapierDriveSimulation {
           ? this.extractYawFromQuaternion(this.body.rotation())
           : 0;
         marker.position.set(shadowX, shadowY, this.groundZ + 0.003);
-        const isVisualWheelAtGround =
-          !wheelBounds || wheelBounds.min.z <= this.groundZ + 0.005;
-        const isOnFlatGround =
-          !this.isVehicleObstacleContact && !this.isVehicleOverHoleRegion();
-        const isInitialGroundedState =
-          !this.hasActivatedSimulationMotion && !this.isVehicleObstacleContact;
-        const isContacting =
-          isInitialGroundedState ||
-          (isVisualWheelAtGround &&
-            (isOnFlatGround ||
-              Boolean(this.wheelGroundContactState[wheelKey])));
+        const isContacting = Boolean(this.wheelGroundContactState[wheelKey]);
         marker.rotation.z = yaw;
         marker.scale.set(
           isContacting ? 0.12 : 0.09,
@@ -5397,29 +5387,16 @@ class RapierDriveSimulation {
   }
 
   updateWheelGroundContactState() {
-    if (!this.world || !this.body || !this.rapier) {
-      return 0;
-    }
-
-    const wheelKeys = ["fl", "fr", "rl", "rr"];
+    const supportProfile =
+      this.lastWheelSupportProfile ||
+      (this.lastWheelSupportProfile = this.getWheelSupportProfile());
+    const isOverHole = this.isVehicleOverHoleRegion();
     let contactCount = 0;
-    wheelKeys.forEach((wheelKey) => {
-      const wheelCollider = this.wheelCollidersByKey?.[wheelKey] || null;
-      if (!wheelCollider) {
-        this.wheelGroundContactState[wheelKey] = false;
-        return;
-      }
 
-      let isContacting = false;
-      this.groundColliders.forEach((groundCollider) => {
-        if (isContacting) {
-          return;
-        }
-        this.world.contactPair(wheelCollider, groundCollider, () => {
-          isContacting = true;
-        });
-      });
-
+    // Rapier contact events toggle frame to frame on frictionless wheels; support height is stable.
+    ["fl", "fr", "rl", "rr"].forEach((wheelKey) => {
+      const lift = Number(supportProfile?.liftByKey?.[wheelKey]) || 0;
+      const isContacting = !isOverHole && lift <= WHEEL_SUPPORT_MIN_LIFT_METERS;
       this.wheelGroundContactState[wheelKey] = isContacting;
       if (isContacting) {
         contactCount += 1;

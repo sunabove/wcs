@@ -132,8 +132,10 @@ Stephen Brawner (brawner@gmail.com)
     </collision>
   </link>
 
+  <!-- Mesh origin is at the pothole corner, so shift by half its 0.15 width to center on the left
+  wheel line (y = 0.315). -->
   <joint name="ground_to_pothole_joint" type="fixed">
-    <origin xyz="3.6 0.32225 0.1" rpy="0 0 0" />
+    <origin xyz="3.6 0.24 0.1" rpy="0 0 0" />
     <parent link="ground" />
     <child link="obstacle_pothole" />
   </joint>

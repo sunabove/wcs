@@ -240,7 +240,7 @@ class RapierDriveSimulation {
     this.groundZ = 0;
     this.groundGrid = null;
     this.groundGridPatches = null;
-    this.groundVisualPatchGroup = null;
+    this.hasCarvedGroundVisual = false;
     this.holeRegions = [];
     this.urdfObstacleLinkPrefix = "obstacle_";
     this.passUnderObstacleNamePatterns = [/pass_under/i, /underbody/i];
@@ -2499,11 +2499,39 @@ class RapierDriveSimulation {
     });
 
     this.groundGridPatches = groundPatches;
-    this.carveGroundVisualForHoles(groundPatches);
+    void this.carveGroundVisualForHoles();
     this.addGroundSurfaceGrid(groundPatches);
   }
 
-  carveGroundVisualForHoles(groundPatches) {
+  collectLinkOwnMeshes(linkObject, linkMap) {
+    if (!linkObject) {
+      return [];
+    }
+
+    const otherLinkRoots = Object.values(linkMap || {}).filter(
+      (root) =>
+        root &&
+        root !== linkObject &&
+        this.isDescendantObject3D(root, linkObject),
+    );
+    const meshes = [];
+    linkObject.updateWorldMatrix(true, true);
+    linkObject.traverse((node) => {
+      if (!node?.isMesh || !node.geometry) {
+        return;
+      }
+      const belongsToOtherLink = otherLinkRoots.some(
+        (root) => node === root || this.isDescendantObject3D(node, root),
+      );
+      if (!belongsToOtherLink) {
+        meshes.push(node);
+      }
+    });
+
+    return meshes;
+  }
+
+  async carveGroundVisualForHoles() {
     const linkMap = this.viewer?.robotModel?.links || null;
     const groundLink =
       this.findLinkByName(linkMap, "ground") ||
@@ -2512,80 +2540,83 @@ class RapierDriveSimulation {
       null;
     if (
       !groundLink ||
-      !Array.isArray(groundPatches) ||
-      groundPatches.length === 0 ||
       !Array.isArray(this.holeRegions) ||
-      this.holeRegions.length === 0
+      this.holeRegions.length === 0 ||
+      this.hasCarvedGroundVisual
     ) {
       return;
     }
 
-    const otherLinkRoots = Object.values(linkMap || {}).filter(
-      (root) =>
-        root &&
-        root !== groundLink &&
-        this.isDescendantObject3D(root, groundLink),
-    );
-    const groundMeshes = [];
-    groundLink.updateWorldMatrix(true, true);
-    groundLink.traverse((node) => {
-      if (!node?.isMesh || !node.geometry) {
-        return;
-      }
-      const belongsToOtherLink = otherLinkRoots.some(
-        (root) => node === root || this.isDescendantObject3D(node, root),
-      );
-      if (!belongsToOtherLink) {
-        groundMeshes.push(node);
-      }
-    });
-
-    if (groundMeshes.length === 0) {
+    const groundMesh =
+      this.collectLinkOwnMeshes(groundLink, linkMap)[0] || null;
+    if (!groundMesh) {
       return;
     }
 
-    const groundBounds = new THREE.Box3().setFromObject(groundMeshes[0]);
-    const thickness = Math.max(groundBounds.max.z - groundBounds.min.z, 0.002);
-    const patchMaterial = groundMeshes[0].material;
+    // Recess first so the subtracted volume sits exactly where the pit should be.
+    this.recessHoleObstacleVisuals(linkMap);
 
-    if (this.groundVisualPatchGroup?.parent) {
-      this.groundVisualPatchGroup.parent.remove(this.groundVisualPatchGroup);
-      this.groundVisualPatchGroup.traverse((node) => node.geometry?.dispose());
-    }
-
-    // Rebuild the ground slab from hole-subtracted patches so potholes read as recesses.
-    const patchGroup = new THREE.Group();
-    patchGroup.name = "simulation-ground-visual-patches";
-    groundPatches.forEach((patch) => {
-      const width = patch.maxX - patch.minX;
-      const depth = patch.maxY - patch.minY;
-      if (width <= 1e-4 || depth <= 1e-4) {
-        return;
+    try {
+      const csgModule = await import("three-csg-ts");
+      const CSG = csgModule?.CSG || csgModule?.default?.CSG || null;
+      if (!CSG || typeof CSG.subtract !== "function") {
+        throw new Error("three-csg-ts CSG.subtract not available");
       }
 
-      const patchMesh = new THREE.Mesh(
-        new THREE.BoxGeometry(width, depth, thickness),
-        patchMaterial,
-      );
-      patchMesh.position.copy(
-        groundLink.worldToLocal(
-          new THREE.Vector3(
-            (patch.minX + patch.maxX) * 0.5,
-            (patch.minY + patch.maxY) * 0.5,
-            this.groundZ - thickness * 0.5,
-          ),
-        ),
-      );
-      patchGroup.add(patchMesh);
-    });
+      groundMesh.updateWorldMatrix(true, false);
+      const groundWorldInverse = new THREE.Matrix4()
+        .copy(groundMesh.matrixWorld)
+        .invert();
+      let carvedGeometry = groundMesh.geometry.clone();
 
-    groundMeshes.forEach((mesh) => {
-      mesh.visible = false;
-    });
-    groundLink.add(patchGroup);
-    this.groundVisualPatchGroup = patchGroup;
+      this.holeRegions.forEach((holeRegion) => {
+        const holeLink = holeRegion.linkName
+          ? this.findLinkByName(linkMap, holeRegion.linkName)
+          : null;
+        const holeMeshes = this.collectLinkOwnMeshes(holeLink, linkMap);
+        if (holeMeshes.length === 0) {
+          return;
+        }
 
-    this.recessHoleObstacleVisuals(linkMap);
+        holeMeshes.forEach((holeMesh) => {
+          holeMesh.updateWorldMatrix(true, false);
+          // Both operands share the ground mesh's local frame so identity matrices are valid for CSG.
+          const holeGeometry = holeMesh.geometry
+            .clone()
+            .applyMatrix4(
+              new THREE.Matrix4().multiplyMatrices(
+                groundWorldInverse,
+                holeMesh.matrixWorld,
+              ),
+            );
+          const baseMesh = new THREE.Mesh(carvedGeometry, groundMesh.material);
+          const cutterMesh = new THREE.Mesh(holeGeometry, groundMesh.material);
+          baseMesh.updateMatrix();
+          cutterMesh.updateMatrix();
+
+          const resultMesh = CSG.subtract(baseMesh, cutterMesh);
+          carvedGeometry.dispose();
+          holeGeometry.dispose();
+          carvedGeometry = resultMesh.geometry;
+        });
+
+        holeMeshes.forEach((holeMesh) => {
+          holeMesh.visible = false;
+        });
+      });
+
+      groundMesh.geometry.dispose();
+      groundMesh.geometry = carvedGeometry;
+      this.hasCarvedGroundVisual = true;
+      console.log(
+        "[URDF][Simulation] ground visual carved by pothole volume (CSG)",
+      );
+    } catch (error) {
+      console.warn(
+        "[URDF][Simulation] ground CSG carving unavailable; pothole stays as a surface recess:",
+        error,
+      );
+    }
   }
 
   recessHoleObstacleVisuals(linkMap) {

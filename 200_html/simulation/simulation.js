@@ -1418,6 +1418,28 @@ class RapierDriveSimulation {
       const speedKmh = Math.max(this.mpsToKmh(this.commandedSpeedMps), 0);
       viewer.applyDriveMode(normalizedMode, speedKmh);
     }
+
+    this.syncDriveModeButtonState();
+  }
+
+  syncDriveModeButtonState() {
+    const buttonIdByMode = {
+      forward: "drive-btn-forward",
+      backward: "drive-btn-backward",
+      left: "drive-btn-left",
+      right: "drive-btn-right",
+      stop: "drive-btn-stop",
+    };
+    const activeButtonId =
+      buttonIdByMode[String(this.commandedDriveMode || "stop").toLowerCase()] ||
+      null;
+
+    Object.values(buttonIdByMode).forEach((buttonId) => {
+      document
+        .getElementById(buttonId)
+        ?.classList.toggle("active", buttonId === activeButtonId);
+    });
+    document.getElementById("drive-btn-reset")?.classList.remove("active");
   }
 
   clearCenterTurnPivot() {

@@ -35,6 +35,8 @@ const GROUND_EXTENSION_DEPTH_OFFSET_METERS = 0.002;
 // Carved pothole walls use a fixed contrasting color so the pit shape stays readable.
 const GROUND_INTERIOR_COLOR = 0x243447;
 const GROUND_INTERIOR_EMISSIVE = 0x0d141d;
+// Cutter overshoot above the surface; coplanar faces make BSP CSG emit stray full-size polygons.
+const CSG_CUTTER_OVERSHOOT_METERS = 0.01;
 // Lift below this is treated as flat ground.
 const WHEEL_SUPPORT_MIN_LIFT_METERS = 0.0005;
 
@@ -2636,6 +2638,25 @@ class RapierDriveSimulation {
     return interiorMaterial;
   }
 
+  extendCutterAboveSurface(cutterGeometry) {
+    cutterGeometry.computeBoundingBox();
+    const bounds = cutterGeometry.boundingBox;
+    if (!bounds) {
+      return;
+    }
+
+    const height = bounds.max.z - bounds.min.z;
+    if (height <= 1e-6) {
+      return;
+    }
+
+    // Grow only upward, keeping the pit floor exactly where the geometry defines it.
+    const scaleZ = (height + CSG_CUTTER_OVERSHOOT_METERS) / height;
+    cutterGeometry.translate(0, 0, -bounds.min.z);
+    cutterGeometry.scale(1, 1, scaleZ);
+    cutterGeometry.translate(0, 0, bounds.min.z);
+  }
+
   async carveGroundVisualForHoles() {
     const linkMap = this.viewer?.robotModel?.links || null;
     const groundLink =
@@ -2703,6 +2724,7 @@ class RapierDriveSimulation {
                   holeMesh.matrixWorld,
                 ),
               );
+            this.extendCutterAboveSurface(holeGeometry);
             const baseMesh = new THREE.Mesh(carvedGeometry, surfaceMaterial);
             const cutterMesh = new THREE.Mesh(holeGeometry, interiorMaterial);
             baseMesh.updateMatrix();

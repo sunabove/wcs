@@ -262,7 +262,7 @@ class RapierDriveSimulation {
     this.lastVelocitySnapshot = null;
     this.contactStrengthMetric = 0;
     this.accelerationMetric = 0;
-    this.maxPhysicsCatchupSteps = 6;
+    this.maxPhysicsCatchupSteps = 12;
     this.hasLoggedGroundDiagnostics = false;
     this.enableRuntimeDiagnostics = true;
     this.runtimeDiagnosticsIntervalSec = 1;
@@ -4237,19 +4237,7 @@ class RapierDriveSimulation {
       return;
     }
 
-    const driveMode = String(
-      this.commandedDriveMode || viewer.driveMode || "stop",
-    ).toLowerCase();
-    const isCommandDriven = ["forward", "backward", "left", "right"].includes(
-      driveMode,
-    );
-    if (isCommandDriven) {
-      if (typeof viewer.setWheelRotationDrivenByTravel === "function") {
-        viewer.setWheelRotationDrivenByTravel(false);
-      }
-      return;
-    }
-
+    // Rolling without slip: angle comes from measured travel, never from an animation clock.
     if (typeof viewer.setWheelRotationDrivenByTravel === "function") {
       viewer.setWheelRotationDrivenByTravel(true);
     }
@@ -5815,11 +5803,10 @@ class RapierDriveSimulation {
       this.lastStepTimeMs = now;
     }
 
-    // Physics advances in fixed virtual simulation time; visual speed only affects rendering.
-    const simulationDeltaSec = Math.min(
-      (now - this.lastStepTimeMs) / 1000,
-      0.1,
-    );
+    // Playback scale stretches simulation time itself, so wheel arc and travel stay in lockstep.
+    const visualSpeedScale = Math.max(Number(this.visualSpeedScale) || 1, 0.01);
+    const simulationDeltaSec =
+      Math.min((now - this.lastStepTimeMs) / 1000, 0.1) * visualSpeedScale;
     this.lastStepTimeMs = now;
 
     const driveViewer = this.vehicleController.getDriveSource();

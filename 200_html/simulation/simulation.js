@@ -2574,9 +2574,11 @@ class RapierDriveSimulation {
           ),
         ),
       );
+      patchMesh.userData.isSimulationGeneratedGround = true;
       extensionGroup.add(patchMesh);
     });
 
+    extensionGroup.userData.isSimulationGeneratedGround = true;
     groundLink.add(extensionGroup);
     this.groundExtensionGroup = extensionGroup;
   }
@@ -2596,6 +2598,11 @@ class RapierDriveSimulation {
     linkObject.updateWorldMatrix(true, true);
     linkObject.traverse((node) => {
       if (!node?.isMesh || !node.geometry) {
+        return;
+      }
+
+      // Meshes this class generated are not authored URDF geometry.
+      if (node.userData?.isSimulationGeneratedGround) {
         return;
       }
       const belongsToOtherLink = otherLinkRoots.some(

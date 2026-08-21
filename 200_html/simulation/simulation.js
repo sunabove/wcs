@@ -30,8 +30,8 @@ const OBSTACLE_RAMP_MAX_LENGTH_METERS = 0.65;
 const OBSTACLE_RAMP_HALF_FORWARD_SCALE = 1.5;
 const OBSTACLE_MAX_LATERAL_OFFSET_METERS = 0.8;
 const OBSTACLE_MAX_TILT_DEG = 22;
-// Extra horizontal reach around a wheel center that still counts as standing on an obstacle.
-const WHEEL_SUPPORT_FOOTPRINT_RATIO = 0.35;
+// Lift below this is treated as flat ground.
+const WHEEL_SUPPORT_MIN_LIFT_METERS = 0.0005;
 
 const WHEEL_RPM_COMMAND_THRESHOLD = 0.2;
 const STEER_SIGN_EPSILON = 1e-3;
@@ -3620,9 +3620,10 @@ class RapierDriveSimulation {
       return null;
     }
 
-    const footprintMargin =
-      Math.max(Number(this.wheelEffectiveRadiusMeters) || 0, 0.05) *
-      WHEEL_SUPPORT_FOOTPRINT_RATIO;
+    const wheelRadius = Math.max(
+      Number(this.wheelEffectiveRadiusMeters) || 0,
+      0.05,
+    );
     const liftByKey = {};
     const samples = [];
 
@@ -3651,19 +3652,34 @@ class RapierDriveSimulation {
             return;
           }
 
-          const isOverObstacle =
-            Math.abs(wheelPosition.x - obstacleInfo.center.x) <=
-              obstacleInfo.halfExtents.x + footprintMargin &&
-            Math.abs(wheelPosition.y - obstacleInfo.center.y) <=
-              obstacleInfo.halfExtents.y + footprintMargin;
-          if (!isOverObstacle) {
+          const gapX = Math.max(
+            Math.abs(wheelPosition.x - obstacleInfo.center.x) -
+              obstacleInfo.halfExtents.x,
+            0,
+          );
+          const gapY = Math.max(
+            Math.abs(wheelPosition.y - obstacleInfo.center.y) -
+              obstacleInfo.halfExtents.y,
+            0,
+          );
+          const horizontalGap = Math.hypot(gapX, gapY);
+          if (horizontalGap >= wheelRadius) {
             return;
           }
 
-          supportZ = Math.max(
-            supportZ,
-            obstacleInfo.center.z + obstacleInfo.halfExtents.z,
-          );
+          // Wheel rim riding the top edge: center stays on a circle of radius r around the corner.
+          const obstacleTopZ =
+            obstacleInfo.center.z + obstacleInfo.halfExtents.z;
+          const cornerSupportZ =
+            obstacleTopZ +
+            Math.sqrt(
+              Math.max(
+                wheelRadius * wheelRadius - horizontalGap * horizontalGap,
+                0,
+              ),
+            ) -
+            wheelRadius;
+          supportZ = Math.max(supportZ, cornerSupportZ);
         });
 
         const lift = Math.max(supportZ - this.groundZ, 0);
@@ -3726,65 +3742,41 @@ class RapierDriveSimulation {
     };
   }
 
-  applyObstacleClimbLift(
-    hasObstacleContactNow,
-    effectiveDeltaSec,
-    obstacleInfo = null,
-  ) {
-    if (!hasObstacleContactNow || !this.body || !this.rapier) {
-      return;
+  applyWheelSupportRideHeight(supportProfile) {
+    if (!this.body || !this.rapier || !supportProfile) {
+      return false;
     }
 
-    const path =
-      this.activeObstacleTraversalPath ||
-      this.getObstacleTraversalPath(obstacleInfo);
-    if (
-      !path ||
-      !this.hasWheelSupportForObstacleTraversal(obstacleInfo, effectiveDeltaSec)
-    ) {
-      return;
+    // Holes keep their free-fall behavior instead of being pinned to the support plane.
+    if (this.isVehicleOverHoleRegion()) {
+      return false;
     }
 
-    const supportProfile = this.getWheelSupportProfile();
-    const groundTargetZ = Number(path.groundTargetZ);
-    const targetZ =
-      supportProfile && Number.isFinite(groundTargetZ)
-        ? groundTargetZ + supportProfile.averageLift
-        : this.getObstacleTraversalTargetZ(path);
+    const measuredFlatZ = this.getGroundContactTargetZ();
+    const flatZ = Number.isFinite(Number(this.initialPosition?.z))
+      ? Number(this.initialPosition.z)
+      : measuredFlatZ;
+    if (!Number.isFinite(flatZ)) {
+      return false;
+    }
+
+    const targetZ = flatZ + supportProfile.averageLift;
     const translation = this.body.translation();
-    if (!Number.isFinite(targetZ) || targetZ <= translation.z + 0.001) {
-      return;
+    if (Math.abs(targetZ - translation.z) < 1e-6) {
+      return true;
     }
 
-    const climbHeight = Math.max(
-      Number(path.obstacleTargetZ) - Number(path.groundTargetZ),
-      0,
-    );
-    const rampLength = Math.max(Number(path.rampLength) || 0, 0.01);
-    const commandedSpeedMps = Math.max(this.getCommandedDriveSpeedMps(), 0.1);
-    const requiredRiseSpeed =
-      (climbHeight * commandedSpeedMps * 1.8) / rampLength;
-    const riseSpeed = THREE.MathUtils.clamp(
-      requiredRiseSpeed,
-      Math.max(Number(this.obstacleClimbMinRiseSpeedMps) || 0, 0),
-      Math.max(Number(this.obstacleClimbMaxRiseSpeedMps) || 0, 0),
-    );
-    const maxRiseDistance =
-      riseSpeed * Math.max(Number(effectiveDeltaSec) || 0, 0);
-    const nextZ = Math.min(targetZ, translation.z + maxRiseDistance);
-    if (nextZ <= translation.z + 1e-6) {
-      return;
-    }
-
+    // Ride height tracks wheel support geometry exactly, so climbing never depends on speed.
     this.body.setTranslation(
-      new this.rapier.Vector3(translation.x, translation.y, nextZ),
+      new this.rapier.Vector3(translation.x, translation.y, targetZ),
       true,
     );
     const velocity = this.body.linvel();
     this.body.setLinvel(
-      new this.rapier.Vector3(velocity.x, velocity.y, Math.max(velocity.z, 0)),
+      new this.rapier.Vector3(velocity.x, velocity.y, 0),
       true,
     );
+    return true;
   }
 
   preserveObstacleHeading(yaw = null) {

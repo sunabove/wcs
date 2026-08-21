@@ -1373,6 +1373,8 @@ class RapierDriveSimulation {
     }
     if (normalizedMode !== "stop") {
       this.isWheelRotationStopped = false;
+      // A drive command resumes a paused simulation instead of being swallowed by it.
+      this.togglePause(false);
     }
     const hasDriveModeChanged = this.commandedDriveMode !== normalizedMode;
     this.commandedDriveMode = normalizedMode;
@@ -1904,9 +1906,6 @@ class RapierDriveSimulation {
 
         const nextDriveMode = driveModeByArrowKey[event.key] || null;
         if (nextDriveMode) {
-          if (this.isPaused) {
-            this.togglePause(false);
-          }
           this.applyDriveModeCommand(nextDriveMode);
           event.preventDefault();
           return;

@@ -5761,6 +5761,8 @@ class RapierDriveSimulation {
     }
 
     this.carFrame.updateMatrixWorld(true);
+    // Arrows are synced here, after tilt is applied, so they follow pitch/roll and not just yaw.
+    this.syncVehicleDirectionArrows();
     this.syncVehicleYawIndicator();
     this.syncWheelRotationToBodyTravel();
   }

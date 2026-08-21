@@ -240,6 +240,7 @@ class RapierDriveSimulation {
     this.groundZ = 0;
     this.groundGrid = null;
     this.groundGridPatches = null;
+    this.groundVisualPatchGroup = null;
     this.holeRegions = [];
     this.urdfObstacleLinkPrefix = "obstacle_";
     this.passUnderObstacleNamePatterns = [/pass_under/i, /underbody/i];
@@ -2345,6 +2346,7 @@ class RapierDriveSimulation {
       // Engrave downward from the ground surface by the pothole's own height.
       const depthMeters = Math.max(holeBounds.max.z - holeBounds.min.z, 0.01);
       holeRegions.push({
+        linkName: holeLinkName,
         minX: clampedMinX,
         maxX: clampedMaxX,
         minY: clampedMinY,
@@ -2497,7 +2499,109 @@ class RapierDriveSimulation {
     });
 
     this.groundGridPatches = groundPatches;
+    this.carveGroundVisualForHoles(groundPatches);
     this.addGroundSurfaceGrid(groundPatches);
+  }
+
+  carveGroundVisualForHoles(groundPatches) {
+    const linkMap = this.viewer?.robotModel?.links || null;
+    const groundLink =
+      this.findLinkByName(linkMap, "ground") ||
+      this.findLinkByName(linkMap, "ground_link") ||
+      this.findLinkByName(linkMap, "ground_patch") ||
+      null;
+    if (
+      !groundLink ||
+      !Array.isArray(groundPatches) ||
+      groundPatches.length === 0 ||
+      !Array.isArray(this.holeRegions) ||
+      this.holeRegions.length === 0
+    ) {
+      return;
+    }
+
+    const otherLinkRoots = Object.values(linkMap || {}).filter(
+      (root) =>
+        root &&
+        root !== groundLink &&
+        this.isDescendantObject3D(root, groundLink),
+    );
+    const groundMeshes = [];
+    groundLink.updateWorldMatrix(true, true);
+    groundLink.traverse((node) => {
+      if (!node?.isMesh || !node.geometry) {
+        return;
+      }
+      const belongsToOtherLink = otherLinkRoots.some(
+        (root) => node === root || this.isDescendantObject3D(node, root),
+      );
+      if (!belongsToOtherLink) {
+        groundMeshes.push(node);
+      }
+    });
+
+    if (groundMeshes.length === 0) {
+      return;
+    }
+
+    const groundBounds = new THREE.Box3().setFromObject(groundMeshes[0]);
+    const thickness = Math.max(groundBounds.max.z - groundBounds.min.z, 0.002);
+    const patchMaterial = groundMeshes[0].material;
+
+    if (this.groundVisualPatchGroup?.parent) {
+      this.groundVisualPatchGroup.parent.remove(this.groundVisualPatchGroup);
+      this.groundVisualPatchGroup.traverse((node) => node.geometry?.dispose());
+    }
+
+    // Rebuild the ground slab from hole-subtracted patches so potholes read as recesses.
+    const patchGroup = new THREE.Group();
+    patchGroup.name = "simulation-ground-visual-patches";
+    groundPatches.forEach((patch) => {
+      const width = patch.maxX - patch.minX;
+      const depth = patch.maxY - patch.minY;
+      if (width <= 1e-4 || depth <= 1e-4) {
+        return;
+      }
+
+      const patchMesh = new THREE.Mesh(
+        new THREE.BoxGeometry(width, depth, thickness),
+        patchMaterial,
+      );
+      patchMesh.position.copy(
+        groundLink.worldToLocal(
+          new THREE.Vector3(
+            (patch.minX + patch.maxX) * 0.5,
+            (patch.minY + patch.maxY) * 0.5,
+            this.groundZ - thickness * 0.5,
+          ),
+        ),
+      );
+      patchGroup.add(patchMesh);
+    });
+
+    groundMeshes.forEach((mesh) => {
+      mesh.visible = false;
+    });
+    groundLink.add(patchGroup);
+    this.groundVisualPatchGroup = patchGroup;
+
+    this.recessHoleObstacleVisuals(linkMap);
+  }
+
+  recessHoleObstacleVisuals(linkMap) {
+    this.holeRegions.forEach((holeRegion) => {
+      const holeLink = holeRegion.linkName
+        ? this.findLinkByName(linkMap, holeRegion.linkName)
+        : null;
+      if (!holeLink || holeRegion.isRecessed) {
+        return;
+      }
+
+      // Sink the volume so its top face is flush with the ground surface.
+      holeLink.position.z -= Number(holeRegion.depthMeters) || 0;
+      holeLink.updateWorldMatrix(true, true);
+      holeRegion.isRecessed = true;
+    });
   }
 
   getGroundGridOriginXY() {

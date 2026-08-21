@@ -1649,14 +1649,16 @@
       return;
     }
 
-    const initialWidth = getCompactOverlayInitialWidth(lastMediaAspectRatio);
+    const initialBox = getCompactOverlayBoxByAspect(lastMediaAspectRatio);
 
     // Top-center compact overlay, constrained to less than half of viewer size.
     $overlay.attr(
       "style",
       "inset:auto;top:10px;left:50%;transform:translateX(-50%);width:" +
-        initialWidth +
-        "px;height:min(46%, 420px);z-index:60;display:flex;flex-direction:column;background:rgba(0,0,0,0.82);border-radius:1rem;overflow:hidden;",
+        initialBox.width +
+        "px;height:" +
+        initialBox.height +
+        "px;z-index:60;display:flex;flex-direction:column;background:rgba(0,0,0,0.82);border-radius:1rem;overflow:hidden;",
     );
     overlayLayoutMode = "compact";
 
@@ -1672,12 +1674,7 @@
       return liveHeight;
     }
 
-    const viewerHeight = Number($viewer.outerHeight() || 0);
-    if (!Number.isFinite(viewerHeight) || viewerHeight <= 0) {
-      return 220;
-    }
-
-    return Math.min(420, Math.max(180, viewerHeight * 0.46));
+    return getCompactOverlayMaxHeight();
   }
 
   function applyVehicleViewerDragByOverlayHeight() {
@@ -1732,20 +1729,36 @@
     return Math.max(220, Math.min(760, Math.round(viewerWidth * 0.5)));
   }
 
-  function getCompactOverlayInitialWidth(aspectRatio) {
-    const ratio = Number(aspectRatio);
-    const safeRatio = Number.isFinite(ratio) && ratio > 0 ? ratio : 16 / 9;
-
+  function getCompactOverlayMaxHeight() {
     const viewerHeight = Number($viewer.outerHeight() || 0);
     if (!Number.isFinite(viewerHeight) || viewerHeight <= 0) {
-      return getCompactOverlayMaxWidth();
+      return 220;
     }
 
-    const overlayHeight = Math.min(420, Math.max(180, viewerHeight * 0.46));
-    const mediaHeight = Math.max(0, overlayHeight - 16);
-    const estimatedWidth = Math.round(mediaHeight * safeRatio + 16);
+    return Math.min(420, Math.max(180, viewerHeight * 0.46));
+  }
 
-    return Math.min(getCompactOverlayMaxWidth(), Math.max(220, estimatedWidth));
+  function getCompactOverlayBoxByAspect(aspectRatio) {
+    const ratio = Number(aspectRatio);
+    const safeRatio = Number.isFinite(ratio) && ratio > 0 ? ratio : 16 / 9;
+    const maxWidth = getCompactOverlayMaxWidth();
+    const maxHeight = getCompactOverlayMaxHeight();
+
+    // Body padding is 8px * 2 in CSS.
+    let mediaHeight = Math.max(0, maxHeight - 16);
+    let mediaWidth = mediaHeight * safeRatio;
+
+    // Shrink height too when the aspect-derived width hits the horizontal limit,
+    // otherwise object-fit leaves letterbox gaps above and below the media.
+    if (mediaWidth + 16 > maxWidth) {
+      mediaWidth = Math.max(0, maxWidth - 16);
+      mediaHeight = safeRatio > 0 ? mediaWidth / safeRatio : mediaHeight;
+    }
+
+    return {
+      width: Math.max(220, Math.round(mediaWidth + 16)),
+      height: Math.max(120, Math.round(mediaHeight + 16)),
+    };
   }
 
   function applyCompactOverlayWidthByAspect(aspectRatio) {
@@ -1753,31 +1766,18 @@
     if (
       !Number.isFinite(ratio) ||
       ratio <= 0 ||
-      overlayLayoutMode !== "compact"
+      overlayLayoutMode !== "compact" ||
+      !$overlay[0]
     ) {
       return;
     }
 
-    const overlayElement = $overlay[0];
-    if (!overlayElement) {
-      return;
-    }
-
-    const overlayHeight = Number(overlayElement.clientHeight || 0);
-    if (!Number.isFinite(overlayHeight) || overlayHeight <= 0) {
-      return;
-    }
-
-    // Body padding is 8px * 2 in CSS.
-    const mediaHeight = Math.max(0, overlayHeight - 16);
-    const mediaWidth = mediaHeight * ratio;
-    const targetWidth = Math.round(mediaWidth + 16);
-    const clampedWidth = Math.min(
-      getCompactOverlayMaxWidth(),
-      Math.max(220, targetWidth),
-    );
-
-    $overlay.css("width", clampedWidth + "px");
+    const box = getCompactOverlayBoxByAspect(ratio);
+    $overlay.css({
+      width: box.width + "px",
+      height: box.height + "px",
+    });
+    applyVehicleViewerDragByOverlayHeight();
   }
 
   function applyCollapsedOverlayLayout() {

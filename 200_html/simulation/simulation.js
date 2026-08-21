@@ -2320,12 +2320,15 @@ class RapierDriveSimulation {
         return;
       }
 
+      // Engrave downward from the ground surface by the pothole's own height.
+      const depthMeters = Math.max(holeBounds.max.z - holeBounds.min.z, 0.01);
       holeRegions.push({
         minX: clampedMinX,
         maxX: clampedMaxX,
         minY: clampedMinY,
         maxY: clampedMaxY,
-        floorZ: holeBounds.min.z,
+        depthMeters,
+        floorZ: this.groundZ - depthMeters,
       });
     });
 
@@ -3504,7 +3507,35 @@ class RapierDriveSimulation {
           supportObstacle = obstacleInfo;
         });
 
-        const lift = Math.max(supportZ - this.groundZ, 0);
+        if (!supportObstacle) {
+          (this.holeRegions || []).forEach((holeRegion) => {
+            const insideDistance = Math.min(
+              wheelPosition.x - holeRegion.minX,
+              holeRegion.maxX - wheelPosition.x,
+              wheelPosition.y - holeRegion.minY,
+              holeRegion.maxY - wheelPosition.y,
+            );
+            if (insideDistance <= 0) {
+              return;
+            }
+
+            // Mirror of the climb case: the rim rides the near edge until the hole is wide enough to swallow it.
+            const reach = Math.min(insideDistance, wheelRadius);
+            const edgeDrop =
+              wheelRadius -
+              Math.sqrt(Math.max(wheelRadius * wheelRadius - reach * reach, 0));
+            const depthMeters = Math.max(
+              Number(holeRegion.depthMeters) || 0,
+              0,
+            );
+            supportZ = Math.min(
+              supportZ,
+              this.groundZ - Math.min(depthMeters, edgeDrop),
+            );
+          });
+        }
+
+        const lift = supportZ - this.groundZ;
         liftByKey[wheelKey] = lift;
         supportObstacleByKey[wheelKey] =
           lift > WHEEL_SUPPORT_MIN_LIFT_METERS ? supportObstacle : null;
@@ -3567,8 +3598,8 @@ class RapierDriveSimulation {
     return {
       liftByKey,
       supportObstacleByKey,
-      // Chassis origin rises only as much as the support plane, so wheels off the obstacle stay grounded.
-      averageLift: Math.max(liftAtOrigin, 0),
+      // Signed: positive on obstacles, negative inside potholes.
+      averageLift: liftAtOrigin,
       pitchRad: THREE.MathUtils.clamp(
         -Math.atan(gradX),
         -maxTiltRad,
@@ -3580,11 +3611,6 @@ class RapierDriveSimulation {
 
   applyWheelSupportRideHeight(supportProfile) {
     if (!this.body || !this.rapier || !supportProfile) {
-      return false;
-    }
-
-    // Holes keep their free-fall behavior instead of being pinned to the support plane.
-    if (this.isVehicleOverHoleRegion()) {
       return false;
     }
 
@@ -5341,13 +5367,12 @@ class RapierDriveSimulation {
     const supportProfile =
       this.lastWheelSupportProfile ||
       (this.lastWheelSupportProfile = this.getWheelSupportProfile());
-    const isOverHole = this.isVehicleOverHoleRegion();
     let contactCount = 0;
 
     // Rapier contact events toggle frame to frame on frictionless wheels; support height is stable.
     ["fl", "fr", "rl", "rr"].forEach((wheelKey) => {
       const lift = Number(supportProfile?.liftByKey?.[wheelKey]) || 0;
-      const isContacting = !isOverHole && lift <= WHEEL_SUPPORT_MIN_LIFT_METERS;
+      const isContacting = lift <= WHEEL_SUPPORT_MIN_LIFT_METERS;
       this.wheelGroundContactState[wheelKey] = isContacting;
       if (isContacting) {
         contactCount += 1;
@@ -5540,7 +5565,7 @@ class RapierDriveSimulation {
     this.lastWheelSupportProfile = supportProfile;
     const isOnObstacleSupport = Boolean(
       supportProfile &&
-      supportProfile.averageLift > WHEEL_SUPPORT_MIN_LIFT_METERS,
+      Math.abs(supportProfile.averageLift) > WHEEL_SUPPORT_MIN_LIFT_METERS,
     );
     context.wheelGroundContactCount =
       this.wheelController.updateGroundContactState();
@@ -5675,7 +5700,7 @@ class RapierDriveSimulation {
       this.lastWheelSupportProfile || this.getWheelSupportProfile();
     if (
       supportProfile &&
-      supportProfile.averageLift > WHEEL_SUPPORT_MIN_LIFT_METERS
+      Math.abs(supportProfile.averageLift) > WHEEL_SUPPORT_MIN_LIFT_METERS
     ) {
       const traversalYaw = this.extractYawFromQuaternion(nextRotation);
       const yawRotation = new THREE.Quaternion().setFromAxisAngle(

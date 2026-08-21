@@ -4827,10 +4827,13 @@ class RapierDriveSimulation {
     const arcSegments = this.vehicleYawIndicatorGroup.userData.arcSegments;
 
     this.vehicleYawIndicatorGroup.position.copy(carPosition).add(roofOffset);
-    this.vehicleYawIndicatorGroup.quaternion.setFromAxisAngle(
-      new THREE.Vector3(0, 0, 1),
-      initialYaw,
-    );
+    // Arc angles stay measured from the initial heading, but the disc lies on the tilted roof.
+    const bodyTiltQuaternion = new THREE.Quaternion()
+      .setFromAxisAngle(new THREE.Vector3(0, 0, 1), -currentYaw)
+      .multiply(carQuaternion);
+    this.vehicleYawIndicatorGroup.quaternion
+      .setFromAxisAngle(new THREE.Vector3(0, 0, 1), initialYaw)
+      .multiply(bodyTiltQuaternion);
 
     const segmentCount = Math.min(
       arcSegments,

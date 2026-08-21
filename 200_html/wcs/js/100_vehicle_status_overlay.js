@@ -340,8 +340,9 @@
     const isPaused =
       !isVideoReady ||
       mediaPlaybackPaused ||
-      videoElement.paused ||
-      videoElement.ended;
+      !existingVideoElement ||
+      existingVideoElement.paused ||
+      existingVideoElement.ended;
 
     updateLoopToggleButton(isVideoReady);
     updateFullscreenToggleButton();

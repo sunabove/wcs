@@ -53,7 +53,7 @@ Stephen Brawner (brawner@gmail.com)
     <visual>
       <origin xyz="0 0 0" rpy="0 0 0" />
       <geometry>
-        <box size="8.786 6.5 0.01" />
+        <box size="8.786 6.5 0.2" />
       </geometry>
       <material name="ground_mat">
         <color rgba="0.8 0.47 0.13 0.8" />
@@ -62,13 +62,14 @@ Stephen Brawner (brawner@gmail.com)
     <collision>
       <origin xyz="0 0 0" rpy="0 0 0" />
       <geometry>
-        <box size="8.786 6.5 0.01" />
+        <box size="8.786 6.5 0.2" />
       </geometry>
     </collision>
   </link>
 
+  <!-- Ground is twice the pothole height (0.1 m) thick, with its top face at world z = 0. -->
   <joint name="ellipsoid_to_ground_joint" type="fixed">
-    <origin xyz="0 0 0.30" rpy="0 0 0" />
+    <origin xyz="0 0 0.20" rpy="0 0 0" />
     <parent link="ellipsoid_surface" />
     <child link="ground" />
   </joint>
@@ -100,7 +101,7 @@ Stephen Brawner (brawner@gmail.com)
   </link>
 
   <joint name="ground_to_sphere_joint" type="fixed">
-    <origin xyz="0 0 0.0" rpy="0 0 0" />
+    <origin xyz="0 0 0.095" rpy="0 0 0" />
     <parent link="ground" />
     <child link="ground_sphere" />
   </joint>
@@ -132,7 +133,7 @@ Stephen Brawner (brawner@gmail.com)
   </link>
 
   <joint name="ground_to_pothole_joint" type="fixed">
-    <origin xyz="3.6 0.32225 0.005" rpy="0 0 0" />
+    <origin xyz="3.6 0.32225 0.1" rpy="0 0 0" />
     <parent link="ground" />
     <child link="obstacle_pothole" />
   </joint>
@@ -161,7 +162,7 @@ Stephen Brawner (brawner@gmail.com)
   </link>
 
   <joint name="ground_to_wood_bar_joint" type="fixed">
-    <origin xyz="1.2 0 0.035" rpy="0 0 0" />
+    <origin xyz="1.2 0 0.13" rpy="0 0 0" />
     <parent link="ground" />
     <child link="obstacle_wood_bar" />
   </joint>
@@ -190,7 +191,7 @@ Stephen Brawner (brawner@gmail.com)
   </link>
 
   <joint name="ground_to_rock_1_joint" type="fixed">
-    <origin xyz="2.4 0.32225 0.04" rpy="0 0 0" />
+    <origin xyz="2.4 0.32225 0.135" rpy="0 0 0" />
     <parent link="ground" />
     <child link="obstacle_rock_1" />
   </joint>
@@ -241,7 +242,7 @@ Stephen Brawner (brawner@gmail.com)
   </link>
 
   <joint name="ground_to_car_frame_joint" type="fixed">
-    <origin xyz="0 0 0.0239" rpy="0 0 0" />
+    <origin xyz="0 0 0.1189" rpy="0 0 0" />
     <parent link="ground" />
     <child link="car_frame" />
   </joint>

@@ -6718,6 +6718,13 @@ globalThis.setSimulationDriveMode = function (mode) {
   return withSimulation((simulation) => simulation.applyDriveModeCommand(mode));
 };
 
+window.addEventListener("wcs:simulation-drive-command", (event) => {
+  const mode = event?.detail?.mode;
+  if (typeof mode === "string") {
+    globalThis.setSimulationDriveMode(mode);
+  }
+});
+
 globalThis.toggleSimulationPause = function (forcePaused = null) {
   return withSimulation((simulation) => simulation.togglePause(forcePaused));
 };

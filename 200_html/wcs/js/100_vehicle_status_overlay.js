@@ -1850,6 +1850,20 @@
 
     stopCameraOverlayStream(true);
 
+    // Retained MQTT echo after page load re-selects the same file; restarting the
+    // frame stream here would replay the loading/pause status a second time.
+    if (
+      lastMediaType === "image" &&
+      (!!roadFileOverlaySessionId || !!roadFileOverlayInitRequest) &&
+      toComparableVideoPath(lastMediaSource) ===
+        toComparableVideoPath(normalizedFile)
+    ) {
+      applyCompactOverlayLayout();
+      showOverlay();
+      updateVideoControlButtons();
+      return;
+    }
+
     const requestedStreamPath = resolveRoadDetectStreamPath(normalizedFile);
     const currentStreamPath =
       extractRoadDetectStreamFilePathFromUrl(lastMediaSource);

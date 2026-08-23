@@ -1602,13 +1602,21 @@ function applyWheelAngleSpeedMessage(topic, value) {
   }
 
   const wheelKeys = ["fr", "fl", "rr", "rl"];
-  const angleSpeeds = String(value)
-    .split(",")
-    .map(function (item) {
-      return Number(item.trim());
-    });
+  const payloadParts = String(value).split(",");
   if (
-    angleSpeeds.length !== wheelKeys.length ||
+    payloadParts.length !== wheelKeys.length ||
+    payloadParts.some(function (item) {
+      return item.trim() === "";
+    })
+  ) {
+    mqttLog(`[MQTT] 잘못된 wheel/angle/speed payload: ${value}`);
+    return;
+  }
+
+  const angleSpeeds = payloadParts.map(function (item) {
+    return Number(item.trim());
+  });
+  if (
     angleSpeeds.some(function (speed) {
       return !Number.isFinite(speed);
     })
@@ -1622,6 +1630,12 @@ function applyWheelAngleSpeedMessage(topic, value) {
     const angleSpeed = angleSpeeds[index];
     applyWheelAngularVelocityToViewer(wheelTopic, angleSpeed);
     applyDerivedWheelLinearSpeed(wheelTopic, angleSpeed);
+
+    const $angleSpeedElement = $(`[id="${wheelTopic}"]`);
+    if ($angleSpeedElement.length > 0) {
+      $angleSpeedElement.text(getFormattedTopicValue(wheelTopic, angleSpeed));
+      updateTargetElementCss($angleSpeedElement);
+    }
   });
 }
 

@@ -1,4 +1,5 @@
 import json
+import math
 import os
 import platform
 import signal
@@ -26,6 +27,8 @@ class SurfaceObstacle(IntEnum):
 
 class MqttConfig:
     WHEEL_IDS = ["fl", "fr", "rr", "rl"]
+    VEHICLE_CONTROL_WHEEL_IDS = ("fr", "fl", "rr", "rl")
+    WHEEL_ANGLE_SPEED_TOPIC = "wheel/angle/speed"
 
     SENSOR_DEFINITIONS = [
         {"id": "ToF", "count": 4, "enabled": True},
@@ -50,7 +53,6 @@ class MqttConfig:
     WHEEL_PUBLISH_SPECS = [
         ("wheel/{wheel_str_id}/id",           lambda mgr, wid: MqttConfig.WHEEL_ID_MAPPING[wid]),
         ("wheel/{wheel_str_id}/radius",       lambda mgr, wid: MqttConfig.WHEEL_RADIUS_M),
-        ("wheel/{wheel_str_id}/angle/speed",  lambda mgr, wid: float(mgr.wheel_rpm_by_id.get(wid, 0.0))),
         ("wheel/{wheel_str_id}/linear/speed", lambda mgr, wid: float(mgr.wheel_speed_by_id.get(wid, 0.0))),
         ("wheel/{wheel_str_id}/power",        lambda mgr, wid: float(mgr.wheel_power_by_id.get(wid, 0.0))),
         ("wheel/{wheel_str_id}/pid/p",        lambda mgr, wid: float(mgr.wheel_pid_by_id.get(wid, {}).get("p", 0.0))),
@@ -337,6 +339,24 @@ class MqttManager:
         if not topic_text.startswith("wheel/"):
             return False
 
+        if topic_text == MqttConfig.WHEEL_ANGLE_SPEED_TOPIC:
+            payload_parts = str(payload or "").split(",")
+            if len(payload_parts) != len(MqttConfig.VEHICLE_CONTROL_WHEEL_IDS):
+                return False
+
+            try:
+                angle_speeds = [float(part.strip()) for part in payload_parts]
+            except (TypeError, ValueError):
+                return False
+
+            if not all(math.isfinite(speed) for speed in angle_speeds):
+                return False
+
+            self.wheel_rpm_by_id.update(
+                zip(MqttConfig.VEHICLE_CONTROL_WHEEL_IDS, angle_speeds)
+            )
+            return True
+
         parts = topic_text.split("/")
         if len(parts) < 3:
             return False
@@ -490,6 +510,12 @@ class MqttManager:
                 for template, value_getter in MqttConfig.WHEEL_PUBLISH_SPECS:
                     topic = template.format(wheel_str_id=wheel_str_id)
                     self._publish(topic, value_getter(self, wheel_str_id))
+
+            wheel_angle_speed_payload = ",".join(
+                str(float(self.wheel_rpm_by_id.get(wheel_id, 0.0)))
+                for wheel_id in MqttConfig.VEHICLE_CONTROL_WHEEL_IDS
+            )
+            self._publish(MqttConfig.WHEEL_ANGLE_SPEED_TOPIC, wheel_angle_speed_payload)
 
             for topic, payload_resolver, log_tag in MqttConfig.INITIAL_CONNECT_TOPIC_SPECS:
                 payload = payload_resolver(self)

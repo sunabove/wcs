@@ -19,6 +19,8 @@ $(document).ready(function () {
   );
   const pendingPublishTimers = {};
   const vehicleDirectionWheelKeys = ["fl", "fr", "rl", "rr"];
+  const vehicleAngleSpeedPayloadWheelKeys = ["fr", "fl", "rr", "rl"];
+  const vehicleAngleSpeedTopic = "wheel/angle/speed";
   const vehicleCommandSpeedScale = {
     0: 0.0,
     1: 1.0,
@@ -1162,12 +1164,12 @@ $(document).ready(function () {
       return false;
     }
 
-    Object.entries(wheelAngleSpeedByKey).forEach(function ([
-      wheelKey,
-      angleSpeed,
-    ]) {
-      publishWhenConnected(`wheel/${wheelKey}/angle/speed`, angleSpeed);
-    });
+    const payload = vehicleAngleSpeedPayloadWheelKeys
+      .map(function (wheelKey) {
+        return wheelAngleSpeedByKey[wheelKey];
+      })
+      .join(",");
+    publishWhenConnected(vehicleAngleSpeedTopic, payload);
 
     return true;
   }

@@ -1,6 +1,8 @@
 $(document).ready(function () {
   const pendingPublishTimers = {};
   const vehicleDirectionWheelKeys = ["fl", "fr", "rl", "rr"];
+  const vehicleAngleSpeedPayloadWheelKeys = ["fr", "fl", "rr", "rl"];
+  const vehicleAngleSpeedTopic = "wheel/angle/speed";
   const vehicleCommandSpeedScale = {
     0: 0.0,
     1: 1.0,
@@ -219,7 +221,7 @@ $(document).ready(function () {
   $("#vehicle-stop").addClass("active text-white").removeClass("text-black");
 
   function applyVehicleDirectionAnimation(command, speedKmh) {
-    // 휠 애니메이션은 서버가 발행한 wheel/*/angle/speed 토픽으로만 반영한다.
+    // 휠 애니메이션은 MQTT wheel/angle/speed 토픽으로만 반영한다.
     // 테스트 페이지에서는 방향 명령에 따른 로컬 URDF 구동(추정 애니메이션)을 수행하지 않는다.
     void command;
     void speedKmh;
@@ -286,9 +288,10 @@ $(document).ready(function () {
       return false;
     }
 
-    Object.entries(wheelAngleSpeedByKey).forEach(([wheelKey, angleSpeed]) => {
-      publishWhenConnected(`wheel/${wheelKey}/angle/speed`, angleSpeed);
-    });
+    const payload = vehicleAngleSpeedPayloadWheelKeys
+      .map((wheelKey) => wheelAngleSpeedByKey[wheelKey])
+      .join(",");
+    publishWhenConnected(vehicleAngleSpeedTopic, payload);
 
     return true;
   }

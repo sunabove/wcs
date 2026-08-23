@@ -8,7 +8,7 @@ from mqttManager import MqttConfig, MqttManager
 
 
 class MqttManagerWheelControlTest(unittest.TestCase):
-    def test_vehicle_control_topics_are_wheel_angle_speeds_only(self):
+    def test_vehicle_control_uses_one_ordered_wheel_angle_speed_payload(self):
         initial_vehicle_topics = {
             topic
             for topic, _payload_resolver, _log_tag in MqttConfig.INITIAL_CONNECT_TOPIC_SPECS
@@ -22,13 +22,13 @@ class MqttManagerWheelControlTest(unittest.TestCase):
             wheel_id: 0.0 for wheel_id in MqttConfig.WHEEL_IDS
         }
 
-        expected_speeds = {"fr": 2.5, "fl": 2.5, "rr": -2.5, "rl": -2.5}
-        for wheel_id, speed in expected_speeds.items():
-            self.assertTrue(
-                manager._store_wheel_message(
-                    f"wheel/{wheel_id}/angle/speed", str(speed)
-                )
-            )
+        self.assertEqual(("fr", "fl", "rr", "rl"), MqttConfig.VEHICLE_CONTROL_WHEEL_IDS)
+        self.assertEqual("wheel/angle/speed", MqttConfig.WHEEL_ANGLE_SPEED_TOPIC)
+
+        expected_speeds = {"fl": 2.5, "fr": 2.5, "rr": -2.5, "rl": -2.5}
+        self.assertTrue(
+            manager._store_wheel_message("wheel/angle/speed", "2.5,2.5,-2.5,-2.5")
+        )
 
         self.assertEqual(expected_speeds, manager.wheel_rpm_by_id)
         self.assertFalse(
@@ -36,6 +36,20 @@ class MqttManagerWheelControlTest(unittest.TestCase):
         )
         self.assertFalse(
             manager._store_vehicle_message("vehicle/operation/command", "1")
+        )
+
+    def test_invalid_aggregate_payload_does_not_partially_update_wheels(self):
+        manager = object.__new__(MqttManager)
+        manager.wheel_rpm_by_id = {
+            wheel_id: 1.0 for wheel_id in MqttConfig.WHEEL_IDS
+        }
+
+        self.assertFalse(
+            manager._store_wheel_message("wheel/angle/speed", "2.0,invalid,3.0,4.0")
+        )
+        self.assertEqual(
+            {wheel_id: 1.0 for wheel_id in MqttConfig.WHEEL_IDS},
+            manager.wheel_rpm_by_id,
         )
 
 

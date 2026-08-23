@@ -8,13 +8,6 @@ from enum import IntEnum
 
 import paho.mqtt.client as mqtt
 
-class OperationCommand(IntEnum):
-    STOP = 0
-    FORWARD = 1
-    REVERSE = 2
-    TURN_LEFT = 3
-    TURN_RIGHT = 4
-
 
 class VehicleExecState(IntEnum):
     STOP = 0
@@ -72,10 +65,8 @@ class MqttConfig:
         ("vehicle/drive/available_time", lambda mgr: int(mgr.drive_available_time), "DRIVE"),
         ("vehicle/drive/elapsed_time", lambda mgr: int(mgr.drive_elapsed_time), "DRIVE"),
         ("vehicle/drive/total_distance", lambda mgr: int(mgr.drive_total_distance), "DRIVE"),
-        ("vehicle/linear/speed", lambda mgr: round(mgr.linear_speed, 3), "VEHICLE"),
         ("vehicle/linear/max_speed", lambda mgr: round(mgr.max_speed, 2), "VEHICLE"),
         ("vehicle/linear/acceleration", lambda mgr: round(mgr.linear_acceleration, 3), "VEHICLE"),
-        ("vehicle/operation/command", lambda mgr: mgr.operation_command.value, "VEHICLE"),
         ("vehicle/operation/state", lambda mgr: mgr.operation_state.value, "VEHICLE"),
         ("vehicle/surface/state", lambda mgr: mgr.surface_state.value, "SURFACE"),
         ("vehicle/surface/obstacle", lambda mgr: mgr.surface_obstacle.value, "OBSTACLE"),
@@ -122,10 +113,8 @@ class MqttManager:
         self.drive_elapsed_time = 0
         self.drive_total_distance = 0
 
-        self.linear_speed = 0.0
         self.max_speed = 13.9
         self.linear_acceleration = 0.0
-        self.operation_command = OperationCommand.FORWARD
         self.operation_state = VehicleExecState.RUN
         self.surface_state = SurfaceState.ASPHALT
         self.surface_obstacle = SurfaceObstacle.NONE
@@ -393,20 +382,11 @@ class MqttManager:
 
         metric = topic_text[len("vehicle/"):]
 
-        if metric == "operation/command":
-            try:
-                self.operation_command = OperationCommand(int(self._parse_numeric_payload(payload)))
-            except (ValueError, KeyError):
-                pass
-            return True
         if metric == "operation/state":
             try:
                 self.operation_state = VehicleExecState(int(self._parse_numeric_payload(payload)))
             except (ValueError, KeyError):
                 pass
-            return True
-        if metric == "linear/speed":
-            self.linear_speed = float(self._parse_numeric_payload(payload))
             return True
         if metric == "linear/max_speed":
             self.max_speed = float(self._parse_numeric_payload(payload))

@@ -297,12 +297,11 @@ $(document).ready(function () {
     const { selectedButtonId, selectedCommand, selectedSpeedKmh } =
       getActiveVehicleCommandContext();
 
-    publishWhenConnected("vehicle/operation/command", selectedCommand);
     publishVehicleWheelAngleSpeeds(selectedCommand, selectedSpeedKmh);
     applyVehicleCommandWheelHighlight(selectedCommand);
     applyVehicleDirectionAnimation(selectedCommand, selectedSpeedKmh);
     console.log(
-      `[Vehicle Test] 📨 초기 방향 제어 명령 발행: vehicle/operation/command = ${selectedCommand} (${selectedButtonId})`,
+      `[Vehicle Test] 📨 초기 휠 각속도 발행: command=${selectedCommand} (${selectedButtonId})`,
     );
 
     // Blink the selected button by toggling classes 2 times
@@ -444,8 +443,6 @@ $(document).ready(function () {
   }
 
   function sendVehicleCommand(command, buttonElement, actionName, icon) {
-    const topic = "vehicle/operation/command";
-    const speedTopic = "vehicle/linear/speed";
     const sliderSpeedKmh =
       Number.parseFloat($("#vehicleCurrSpeedSlider").val()) || 0;
     const sliderMaxKmh = Number.parseFloat(
@@ -493,19 +490,16 @@ $(document).ready(function () {
 
     if (Number(command) !== 0 && sameCommand && sameSpeed) {
       console.log(
-        `[Vehicle Test] 중복 방향 명령 스킵: ${topic} = ${command}, ${speedTopic} = ${roundedSpeedMs}`,
+        `[Vehicle Test] 중복 휠 각속도 명령 스킵: command=${command}, speed=${roundedSpeedMs} m/s`,
       );
       return;
     }
 
-    publishWhenConnected(speedTopic, roundedSpeedMs);
-    lastVehicleCurrSpeedMsSent = roundedSpeedMs;
-
-    publishWhenConnected(topic, command);
     publishVehicleWheelAngleSpeeds(command, commandSpeedKmh);
+    lastVehicleCurrSpeedMsSent = roundedSpeedMs;
     lastVehicleDirectionCommandSent = Number(command);
     console.log(
-      `[Vehicle Test] ${icon} 차량 ${actionName} 명령 전송: ${topic} = ${command}, ${speedTopic} = ${roundedSpeedMs}`,
+      `[Vehicle Test] ${icon} 차량 ${actionName} 휠 각속도 전송: command=${command}, speed=${roundedSpeedMs} m/s`,
     );
 
     // Blink by toggling button classes 2 times
@@ -570,24 +564,10 @@ $(document).ready(function () {
     sendVehicleCommand(0, $(this), "정지", "⏹️");
   });
 
-  $("#vehicleCurrSpeedSlider").on("input change", function (event) {
+  $("#vehicleCurrSpeedSlider").on("input change", function () {
     const speedKmh = Number.parseFloat($(this).val()) || 0;
-    const speedMs = speedKmh / 3.6;
-    const roundedSpeedMs = Number(speedMs.toFixed(2));
 
     updateVehicleSpeedUi(speedKmh, true);
-
-    const isSameSpeed =
-      lastVehicleCurrSpeedMsSent !== null &&
-      Math.abs(roundedSpeedMs - lastVehicleCurrSpeedMsSent) < 0.0001;
-    const isFinalChange = event.type === "change";
-    if (isSameSpeed && !isFinalChange) {
-      return;
-    }
-
-    const topic = "vehicle/linear/speed";
-    sendMQTTMessage(topic, roundedSpeedMs, 1);
-    lastVehicleCurrSpeedMsSent = roundedSpeedMs;
 
     const selectedButton = $(vehicleButtonSelector).filter(".active").first();
     const selectedButtonId = selectedButton.length
@@ -598,11 +578,10 @@ $(document).ready(function () {
         ? window.getVehicleCommandByButtonId(selectedButtonId)
         : 0;
     applyVehicleDirectionAnimation(selectedCommand, speedKmh);
-    publishWhenConnected("vehicle/operation/command", selectedCommand);
     publishVehicleWheelAngleSpeeds(selectedCommand, speedKmh);
 
     console.log(
-      `[Vehicle Test] 🚀 현재 속도 설정 - ${speedKmh.toFixed(1)} Km/h (${roundedSpeedMs.toFixed(2)} m/s): ${topic} = ${roundedSpeedMs}`,
+      `[Vehicle Test] 🚀 휠 각속도 갱신 - ${speedKmh.toFixed(1)} Km/h, command=${selectedCommand}`,
     );
   });
 

@@ -1,322 +1,444 @@
 $(document).ready(function () {
-    const maxSpeedTopic = 'vehicle/linear/max_speed';
-    const vehicleOperationCommandTopic = 'vehicle/operation/command';
-    const $wcsVideoInputTabs = $('#wcs-video-input-tabs');
-    const $wcsSampleVideoTab = $('#wcs-input-sample-video-tab');
-    const $wcsSampleVideoPane = $('#wcs-input-sample-video-pane');
-    const $wcsCameraPane = $('#wcs-input-camera-pane');
-    const $wcsCameraTab = $('#wcs-input-camera-tab');
-    const $wcsCameraDeviceList = $('#wcs-camera-device-list');
-    const vehicleDirectionButtonSelector = (typeof window.getVehicleDirectionButtonSelector === 'function')
-        ? window.getVehicleDirectionButtonSelector()
-        : '#vehicle-forward, #vehicle-backward, #vehicle-turn-left, #vehicle-turn-right, #vehicle-stop';
-    const wcsSampleVideoItemTemplate = document.getElementById('wcs-sample-video-item-template');
-    const wcsCameraDeviceItemTemplate = document.getElementById('wcs-camera-device-item-template');
-    const pendingPublishTimers = {};
-    const vehicleDirectionWheelKeys = ['fl', 'fr', 'rl', 'rr'];
-    const vehicleCommandSpeedScale = {
-        0: 0.0,
-        1: 1.0,
-        2: 0.8,
-        3: 0.6,
-        4: 0.6,
+  const maxSpeedTopic = "vehicle/linear/max_speed";
+  const vehicleOperationCommandTopic = "vehicle/operation/command";
+  const $wcsVideoInputTabs = $("#wcs-video-input-tabs");
+  const $wcsSampleVideoTab = $("#wcs-input-sample-video-tab");
+  const $wcsSampleVideoPane = $("#wcs-input-sample-video-pane");
+  const $wcsCameraPane = $("#wcs-input-camera-pane");
+  const $wcsCameraTab = $("#wcs-input-camera-tab");
+  const $wcsCameraDeviceList = $("#wcs-camera-device-list");
+  const vehicleDirectionButtonSelector =
+    typeof window.getVehicleDirectionButtonSelector === "function"
+      ? window.getVehicleDirectionButtonSelector()
+      : "#vehicle-forward, #vehicle-backward, #vehicle-turn-left, #vehicle-turn-right, #vehicle-stop";
+  const wcsSampleVideoItemTemplate = document.getElementById(
+    "wcs-sample-video-item-template",
+  );
+  const wcsCameraDeviceItemTemplate = document.getElementById(
+    "wcs-camera-device-item-template",
+  );
+  const pendingPublishTimers = {};
+  const vehicleDirectionWheelKeys = ["fl", "fr", "rl", "rr"];
+  const vehicleCommandSpeedScale = {
+    0: 0.0,
+    1: 1.0,
+    2: 0.8,
+    3: 0.6,
+    4: 0.6,
+  };
+  const SAMPLE_VIDEO_BROWSER_STORAGE_KEY =
+    "wcs.setting.sample_video_browser.v1";
+  const VIDEO_INPUT_TAB_STORAGE_KEY = "wcs.setting.video_input_tab.v1";
+  const CURRENT_VIDEO_SELECTION_STORAGE_KEY =
+    "wcs.vehicle.current_video_file_name.v1";
+  const OBSTACLE_SENSOR_DEFINITIONS = [
+    { id: "ToF", count: 4, target: "거리,장애물", enabled: true },
+    { id: "IMU", count: 5, target: "가속도,각속도", enabled: true },
+    { id: "Current", count: 4, target: "전류", enabled: true },
+    { id: "Camera", count: 1, target: "장애물", enabled: true },
+    { id: "Lidar", count: 1, target: "거리,장애물", enabled: true },
+  ];
+  const obstacleSensorSettingById = {};
+  const obstacleSensorRowValueByKey = {};
+  const $obstacleSensorValueTbody = $("#obstacle-sensor-value-tbody");
+  const $toggleObstacleSensorSettingsButton = $(
+    "#disable-obstacle-sensor-settings",
+  );
+  const obstacleSensorPublishBlinkUntilByKey = {};
+  const OBSTACLE_SENSOR_PUBLISH_BLINK_TOTAL_MS = 6200;
+  let isSampleVideosLoaded = false;
+  let isSampleVideosLoading = false;
+  let isCameraDevicesLoaded = false;
+  let isCameraDevicesLoading = false;
+  let sampleVideoBrowserPath = "video";
+  let sampleVideoShowAllFiles = false;
+  let currentVideoFileName = "";
+  let currentCameraDeviceIndex = null;
+  let isDirectionInitSyncWindow = true;
+  let pendingDirectionCommandValue = null;
+  let pendingDirectionCommandTimer = null;
+  let lastVehicleCurrSpeedMsSent = null;
+  let lastVehicleDirectionCommandSent = null;
+  let runInfoSimulationTimer = null;
+  let runInfoSimulationBlinkTimer = null;
+  let videoPublishToastCounter = 0;
+
+  const RUN_INFO_SIMULATION_DEFAULTS = {
+    batteryPercent: 95,
+    availableMinutes: 180,
+    elapsedMinutes: 0,
+    distanceKm: 0,
+    intervalSec: 2,
+    speedKmh: 8,
+    maxSpeedKmh: 30,
+    accelerationMs2: 0.3,
+    batteryDrainPerHour: 3,
+    autoStep: true,
+  };
+
+  function clampNumber(value, min, max, fallback = 0) {
+    const numericValue = Number.parseFloat(value);
+    if (!Number.isFinite(numericValue)) {
+      return fallback;
+    }
+    return Math.max(min, Math.min(max, numericValue));
+  }
+
+  function updateRunInfoSimulationStateLabel(text, isRunning = false) {
+    const running = Boolean(isRunning);
+    const $state = $("#sim-runinfo-state");
+    if ($state.length === 0) {
+      return;
+    }
+
+    $state
+      .text(String(text || "").trim() || "정지")
+      .toggleClass("text-bg-success", running)
+      .toggleClass("text-bg-secondary", !running);
+
+    const $startButton = $("#sim-runinfo-start");
+    const $stopButton = $("#sim-runinfo-stop");
+
+    if ($startButton.length > 0) {
+      $startButton
+        .prop("disabled", running)
+        .toggleClass("btn-warning", !running)
+        .toggleClass("text-dark", !running)
+        .toggleClass("btn-primary", running);
+    }
+
+    if ($stopButton.length > 0) {
+      $stopButton
+        .prop("disabled", !running)
+        .toggleClass("btn-outline-secondary", !running)
+        .toggleClass("btn-outline-danger", running);
+    }
+
+    const $panel = $("#sim-runinfo-panel");
+    if ($panel.length > 0) {
+      $panel.toggleClass("runinfo-sim-stopped", !running);
+    }
+  }
+
+  function triggerRunInfoSimulationPublishBlink() {
+    const $panel = $("#sim-runinfo-panel");
+    if ($panel.length === 0) {
+      return;
+    }
+
+    $panel.removeClass("runinfo-sim-publish-blink");
+    void $panel[0].offsetWidth;
+    $panel.addClass("runinfo-sim-publish-blink");
+
+    if (runInfoSimulationBlinkTimer) {
+      clearTimeout(runInfoSimulationBlinkTimer);
+      runInfoSimulationBlinkTimer = null;
+    }
+
+    runInfoSimulationBlinkTimer = setTimeout(function () {
+      $panel.removeClass("runinfo-sim-publish-blink");
+      runInfoSimulationBlinkTimer = null;
+    }, 760);
+  }
+
+  function getRunInfoSimulationStateFromInputs() {
+    return {
+      batteryPercent: clampNumber(
+        $("#sim-battery-remain-amount").val(),
+        0,
+        100,
+        RUN_INFO_SIMULATION_DEFAULTS.batteryPercent,
+      ),
+      availableMinutes: clampNumber(
+        $("#sim-drive-available-time-min").val(),
+        0,
+        100000,
+        RUN_INFO_SIMULATION_DEFAULTS.availableMinutes,
+      ),
+      elapsedMinutes: clampNumber(
+        $("#sim-drive-elapsed-time-min").val(),
+        0,
+        100000,
+        RUN_INFO_SIMULATION_DEFAULTS.elapsedMinutes,
+      ),
+      distanceKm: clampNumber(
+        $("#sim-drive-total-distance-km").val(),
+        0,
+        1000000,
+        RUN_INFO_SIMULATION_DEFAULTS.distanceKm,
+      ),
     };
-    const SAMPLE_VIDEO_BROWSER_STORAGE_KEY = 'wcs.setting.sample_video_browser.v1';
-    const VIDEO_INPUT_TAB_STORAGE_KEY = 'wcs.setting.video_input_tab.v1';
-    const CURRENT_VIDEO_SELECTION_STORAGE_KEY = 'wcs.vehicle.current_video_file_name.v1';
-    const OBSTACLE_SENSOR_DEFINITIONS = [
-        { id: 'ToF', count: 4, target: '거리,장애물', enabled: true },
-        { id: 'IMU', count: 5, target: '가속도,각속도', enabled: true },
-        { id: 'Current', count: 4, target: '전류', enabled: true },
-        { id: 'Camera', count: 1, target: '장애물', enabled: true },
-        { id: 'Lidar', count: 1, target: '거리,장애물', enabled: true },
-    ];
-    const obstacleSensorSettingById = {};
-    const obstacleSensorRowValueByKey = {};
-    const $obstacleSensorValueTbody = $('#obstacle-sensor-value-tbody');
-    const $toggleObstacleSensorSettingsButton = $('#disable-obstacle-sensor-settings');
-    const obstacleSensorPublishBlinkUntilByKey = {};
-    const OBSTACLE_SENSOR_PUBLISH_BLINK_TOTAL_MS = 6200;
-    let isSampleVideosLoaded = false;
-    let isSampleVideosLoading = false;
-    let isCameraDevicesLoaded = false;
-    let isCameraDevicesLoading = false;
-    let sampleVideoBrowserPath = 'video';
-    let sampleVideoShowAllFiles = false;
-    let currentVideoFileName = '';
-    let currentCameraDeviceIndex = null;
-    let isDirectionInitSyncWindow = true;
-    let pendingDirectionCommandValue = null;
-    let pendingDirectionCommandTimer = null;
-    let lastVehicleCurrSpeedMsSent = null;
-    let lastVehicleDirectionCommandSent = null;
-    let runInfoSimulationTimer = null;
-    let runInfoSimulationBlinkTimer = null;
-    let videoPublishToastCounter = 0;
+  }
 
-    const RUN_INFO_SIMULATION_DEFAULTS = {
-        batteryPercent: 95,
-        availableMinutes: 180,
-        elapsedMinutes: 0,
-        distanceKm: 0,
-        intervalSec: 2,
-        speedKmh: 8,
-        maxSpeedKmh: 30,
-        accelerationMs2: 0.3,
-        batteryDrainPerHour: 3,
-        autoStep: true,
+  function getRunInfoSimulationOptionsFromInputs() {
+    return {
+      intervalSec: clampNumber(
+        $("#sim-runinfo-interval-sec").val(),
+        1,
+        60,
+        RUN_INFO_SIMULATION_DEFAULTS.intervalSec,
+      ),
+      speedKmh: clampNumber(
+        $("#sim-runinfo-speed-kmh").val(),
+        0,
+        120,
+        RUN_INFO_SIMULATION_DEFAULTS.speedKmh,
+      ),
+      maxSpeedKmh: clampNumber(
+        $("#sim-runinfo-max-speed-kmh").val(),
+        0,
+        200,
+        RUN_INFO_SIMULATION_DEFAULTS.maxSpeedKmh,
+      ),
+      accelerationMs2: clampNumber(
+        $("#sim-runinfo-acceleration-ms2").val(),
+        -10,
+        10,
+        RUN_INFO_SIMULATION_DEFAULTS.accelerationMs2,
+      ),
+      batteryDrainPerHour: clampNumber(
+        $("#sim-runinfo-battery-drain-per-hour").val(),
+        0,
+        100,
+        RUN_INFO_SIMULATION_DEFAULTS.batteryDrainPerHour,
+      ),
+      autoStep: $("#sim-runinfo-auto-step").is(":checked"),
+    };
+  }
+
+  function writeRunInfoSimulationStateToInputs(state) {
+    $("#sim-battery-remain-amount").val(
+      Number(state.batteryPercent).toFixed(1),
+    );
+    $("#sim-drive-available-time-min").val(
+      Math.round(Number(state.availableMinutes)),
+    );
+    $("#sim-drive-elapsed-time-min").val(
+      Math.round(Number(state.elapsedMinutes)),
+    );
+    $("#sim-drive-total-distance-km").val(Number(state.distanceKm).toFixed(2));
+  }
+
+  function publishRunInfoSimulationState(state, options = {}) {
+    const availableSec = Math.round(
+      Math.max(0, Number(state.availableMinutes) * 60),
+    );
+    const elapsedSec = Math.round(
+      Math.max(0, Number(state.elapsedMinutes) * 60),
+    );
+    const distanceM = Math.round(Math.max(0, Number(state.distanceKm) * 1000));
+    const batteryPercent = Number(
+      Math.max(0, Math.min(100, Number(state.batteryPercent))).toFixed(1),
+    );
+    const currentSpeedMs = Number(
+      (Math.max(0, Number(options.speedKmh) || 0) / 3.6).toFixed(3),
+    );
+    const maxSpeedMs = Number(
+      (Math.max(0, Number(options.maxSpeedKmh) || 0) / 3.6).toFixed(3),
+    );
+    const accelerationMs2 = Number(
+      (Number(options.accelerationMs2) || 0).toFixed(3),
+    );
+
+    sendMQTTMessage("vehicle/battery/remain_amount", batteryPercent);
+    sendMQTTMessage("vehicle/drive/available_time", availableSec);
+    sendMQTTMessage("vehicle/drive/elapsed_time", elapsedSec);
+    sendMQTTMessage("vehicle/drive/total_distance", distanceM);
+    sendMQTTMessage("vehicle/linear/speed", currentSpeedMs);
+    sendMQTTMessage("vehicle/linear/max_speed", maxSpeedMs);
+    sendMQTTMessage("vehicle/linear/acceleration", accelerationMs2);
+    triggerRunInfoSimulationPublishBlink();
+  }
+
+  function stopRunInfoSimulation() {
+    if (runInfoSimulationTimer) {
+      clearInterval(runInfoSimulationTimer);
+      runInfoSimulationTimer = null;
+    }
+
+    if (runInfoSimulationBlinkTimer) {
+      clearTimeout(runInfoSimulationBlinkTimer);
+      runInfoSimulationBlinkTimer = null;
+    }
+
+    $("#sim-runinfo-panel").removeClass("runinfo-sim-publish-blink");
+    updateRunInfoSimulationStateLabel("정지", false);
+  }
+
+  function restoreRunInfoSimulationDefaults() {
+    $("#sim-battery-remain-amount").val(
+      RUN_INFO_SIMULATION_DEFAULTS.batteryPercent,
+    );
+    $("#sim-drive-available-time-min").val(
+      RUN_INFO_SIMULATION_DEFAULTS.availableMinutes,
+    );
+    $("#sim-drive-elapsed-time-min").val(
+      RUN_INFO_SIMULATION_DEFAULTS.elapsedMinutes,
+    );
+    $("#sim-drive-total-distance-km").val(
+      RUN_INFO_SIMULATION_DEFAULTS.distanceKm,
+    );
+    $("#sim-runinfo-interval-sec").val(
+      RUN_INFO_SIMULATION_DEFAULTS.intervalSec,
+    );
+    $("#sim-runinfo-speed-kmh").val(RUN_INFO_SIMULATION_DEFAULTS.speedKmh);
+    $("#sim-runinfo-max-speed-kmh").val(
+      RUN_INFO_SIMULATION_DEFAULTS.maxSpeedKmh,
+    );
+    $("#sim-runinfo-acceleration-ms2").val(
+      RUN_INFO_SIMULATION_DEFAULTS.accelerationMs2,
+    );
+    $("#sim-runinfo-battery-drain-per-hour").val(
+      RUN_INFO_SIMULATION_DEFAULTS.batteryDrainPerHour,
+    );
+    $("#sim-runinfo-auto-step").prop(
+      "checked",
+      RUN_INFO_SIMULATION_DEFAULTS.autoStep,
+    );
+  }
+
+  function startRunInfoSimulation() {
+    stopRunInfoSimulation();
+
+    let state = getRunInfoSimulationStateFromInputs();
+    const options = getRunInfoSimulationOptionsFromInputs();
+    const intervalMs = Math.round(options.intervalSec * 1000);
+
+    const tick = function () {
+      if (options.autoStep) {
+        const elapsedMinutesDelta = options.intervalSec / 60;
+        state.elapsedMinutes = Math.max(
+          0,
+          state.elapsedMinutes + elapsedMinutesDelta,
+        );
+        state.availableMinutes = Math.max(
+          0,
+          state.availableMinutes - elapsedMinutesDelta,
+        );
+        state.distanceKm = Math.max(
+          0,
+          state.distanceKm + (options.speedKmh * options.intervalSec) / 3600,
+        );
+        state.batteryPercent = Math.max(
+          0,
+          state.batteryPercent -
+            (options.batteryDrainPerHour * options.intervalSec) / 3600,
+        );
+      }
+
+      writeRunInfoSimulationStateToInputs(state);
+      publishRunInfoSimulationState(state, options);
     };
 
-    function clampNumber(value, min, max, fallback = 0) {
-        const numericValue = Number.parseFloat(value);
-        if (!Number.isFinite(numericValue)) {
-            return fallback;
-        }
-        return Math.max(min, Math.min(max, numericValue));
+    tick();
+    runInfoSimulationTimer = setInterval(tick, intervalMs);
+    updateRunInfoSimulationStateLabel(
+      `${options.intervalSec}초 주기 동작중`,
+      true,
+    );
+  }
+
+  function sendMQTTMessage(topic, message, qos = 1) {
+    if (
+      !window.WcsMqtt ||
+      typeof window.WcsMqtt.sendMQTTMessage !== "function"
+    ) {
+      console.error(
+        "[WCS Setting] MQTT sender is unavailable:",
+        topic,
+        message,
+      );
+      return false;
     }
 
-    function updateRunInfoSimulationStateLabel(text, isRunning = false) {
-        const running = Boolean(isRunning);
-        const $state = $('#sim-runinfo-state');
-        if ($state.length === 0) {
-            return;
-        }
+    return window.WcsMqtt.sendMQTTMessage(topic, message, qos);
+  }
 
-        $state
-            .text(String(text || '').trim() || '정지')
-            .toggleClass('text-bg-success', running)
-            .toggleClass('text-bg-secondary', !running);
-
-        const $startButton = $('#sim-runinfo-start');
-        const $stopButton = $('#sim-runinfo-stop');
-
-        if ($startButton.length > 0) {
-            $startButton
-                .prop('disabled', running)
-                .toggleClass('btn-warning', !running)
-                .toggleClass('text-dark', !running)
-                .toggleClass('btn-primary', running);
-        }
-
-        if ($stopButton.length > 0) {
-            $stopButton
-                .prop('disabled', !running)
-                .toggleClass('btn-outline-secondary', !running)
-                .toggleClass('btn-outline-danger', running);
-        }
-
-        const $panel = $('#sim-runinfo-panel');
-        if ($panel.length > 0) {
-            $panel.toggleClass('runinfo-sim-stopped', !running);
-        }
+  function getOrCreateToastContainer() {
+    let container = document.getElementById("wcs-setting-toast-container");
+    if (container) {
+      return container;
     }
 
-    function triggerRunInfoSimulationPublishBlink() {
-        const $panel = $('#sim-runinfo-panel');
-        if ($panel.length === 0) {
-            return;
-        }
+    container = document.createElement("div");
+    container.id = "wcs-setting-toast-container";
+    container.className = "toast-container position-fixed p-2";
+    container.style.zIndex = "1080";
+    document.body.appendChild(container);
+    return container;
+  }
 
-        $panel.removeClass('runinfo-sim-publish-blink');
-        void $panel[0].offsetWidth;
-        $panel.addClass('runinfo-sim-publish-blink');
-
-        if (runInfoSimulationBlinkTimer) {
-            clearTimeout(runInfoSimulationBlinkTimer);
-            runInfoSimulationBlinkTimer = null;
-        }
-
-        runInfoSimulationBlinkTimer = setTimeout(function () {
-            $panel.removeClass('runinfo-sim-publish-blink');
-            runInfoSimulationBlinkTimer = null;
-        }, 760);
+  function positionToastContainerNearAnchor(container, anchorElement) {
+    if (!container) {
+      return;
     }
 
-    function getRunInfoSimulationStateFromInputs() {
-        return {
-            batteryPercent: clampNumber($('#sim-battery-remain-amount').val(), 0, 100, RUN_INFO_SIMULATION_DEFAULTS.batteryPercent),
-            availableMinutes: clampNumber($('#sim-drive-available-time-min').val(), 0, 100000, RUN_INFO_SIMULATION_DEFAULTS.availableMinutes),
-            elapsedMinutes: clampNumber($('#sim-drive-elapsed-time-min').val(), 0, 100000, RUN_INFO_SIMULATION_DEFAULTS.elapsedMinutes),
-            distanceKm: clampNumber($('#sim-drive-total-distance-km').val(), 0, 1000000, RUN_INFO_SIMULATION_DEFAULTS.distanceKm),
-        };
+    const margin = 12;
+    const defaultTop = margin;
+    const defaultRight = margin;
+    const viewportWidth =
+      window.innerWidth || document.documentElement.clientWidth || 0;
+    const viewportHeight =
+      window.innerHeight || document.documentElement.clientHeight || 0;
+
+    if (
+      !anchorElement ||
+      typeof anchorElement.getBoundingClientRect !== "function"
+    ) {
+      container.style.top = `${defaultTop}px`;
+      container.style.left = "";
+      container.style.right = `${defaultRight}px`;
+      container.style.bottom = "";
+      return;
     }
 
-    function getRunInfoSimulationOptionsFromInputs() {
-        return {
-            intervalSec: clampNumber($('#sim-runinfo-interval-sec').val(), 1, 60, RUN_INFO_SIMULATION_DEFAULTS.intervalSec),
-            speedKmh: clampNumber($('#sim-runinfo-speed-kmh').val(), 0, 120, RUN_INFO_SIMULATION_DEFAULTS.speedKmh),
-            maxSpeedKmh: clampNumber($('#sim-runinfo-max-speed-kmh').val(), 0, 200, RUN_INFO_SIMULATION_DEFAULTS.maxSpeedKmh),
-            accelerationMs2: clampNumber($('#sim-runinfo-acceleration-ms2').val(), -10, 10, RUN_INFO_SIMULATION_DEFAULTS.accelerationMs2),
-            batteryDrainPerHour: clampNumber($('#sim-runinfo-battery-drain-per-hour').val(), 0, 100, RUN_INFO_SIMULATION_DEFAULTS.batteryDrainPerHour),
-            autoStep: $('#sim-runinfo-auto-step').is(':checked'),
-        };
+    const rect = anchorElement.getBoundingClientRect();
+    const estimatedToastWidth = 320;
+    const estimatedToastHeight = 76;
+
+    let top = rect.top;
+    let left = rect.right + margin;
+
+    if (left + estimatedToastWidth > viewportWidth - margin) {
+      left = rect.left - estimatedToastWidth - margin;
+    }
+    if (left < margin) {
+      left = Math.max(
+        margin,
+        Math.min(viewportWidth - estimatedToastWidth - margin, rect.left),
+      );
     }
 
-    function writeRunInfoSimulationStateToInputs(state) {
-        $('#sim-battery-remain-amount').val(Number(state.batteryPercent).toFixed(1));
-        $('#sim-drive-available-time-min').val(Math.round(Number(state.availableMinutes)));
-        $('#sim-drive-elapsed-time-min').val(Math.round(Number(state.elapsedMinutes)));
-        $('#sim-drive-total-distance-km').val(Number(state.distanceKm).toFixed(2));
+    if (top + estimatedToastHeight > viewportHeight - margin) {
+      top = viewportHeight - estimatedToastHeight - margin;
+    }
+    if (top < margin) {
+      top = margin;
     }
 
-    function publishRunInfoSimulationState(state, options = {}) {
-        const availableSec = Math.round(Math.max(0, Number(state.availableMinutes) * 60));
-        const elapsedSec = Math.round(Math.max(0, Number(state.elapsedMinutes) * 60));
-        const distanceM = Math.round(Math.max(0, Number(state.distanceKm) * 1000));
-        const batteryPercent = Number(Math.max(0, Math.min(100, Number(state.batteryPercent))).toFixed(1));
-        const currentSpeedMs = Number((Math.max(0, Number(options.speedKmh) || 0) / 3.6).toFixed(3));
-        const maxSpeedMs = Number((Math.max(0, Number(options.maxSpeedKmh) || 0) / 3.6).toFixed(3));
-        const accelerationMs2 = Number((Number(options.accelerationMs2) || 0).toFixed(3));
+    container.style.top = `${Math.round(top)}px`;
+    container.style.left = `${Math.round(left)}px`;
+    container.style.right = "";
+    container.style.bottom = "";
+  }
 
-        sendMQTTMessage('vehicle/battery/remain_amount', batteryPercent);
-        sendMQTTMessage('vehicle/drive/available_time', availableSec);
-        sendMQTTMessage('vehicle/drive/elapsed_time', elapsedSec);
-        sendMQTTMessage('vehicle/drive/total_distance', distanceM);
-        sendMQTTMessage('vehicle/linear/speed', currentSpeedMs);
-        sendMQTTMessage('vehicle/linear/max_speed', maxSpeedMs);
-        sendMQTTMessage('vehicle/linear/acceleration', accelerationMs2);
-        triggerRunInfoSimulationPublishBlink();
-    }
+  function showVideoPublishToast(published, fileName, anchorElement) {
+    const safeFileName = String(fileName || "").trim() || "(미선택)";
+    const title = published ? "동영상 선택 발행" : "동영상 선택 발행 실패";
+    const body = `vehicle/current_video/file_name: ${safeFileName}`;
+    const toastClass = published ? "text-bg-success" : "text-bg-danger";
 
-    function stopRunInfoSimulation() {
-        if (runInfoSimulationTimer) {
-            clearInterval(runInfoSimulationTimer);
-            runInfoSimulationTimer = null;
-        }
+    const container = getOrCreateToastContainer();
+    positionToastContainerNearAnchor(container, anchorElement);
+    const toastElement = document.createElement("div");
+    videoPublishToastCounter += 1;
+    toastElement.id = `wcs-setting-video-publish-toast-${videoPublishToastCounter}`;
+    toastElement.className = `toast align-items-center border-0 ${toastClass}`;
+    toastElement.setAttribute("role", "alert");
+    toastElement.setAttribute("aria-live", "assertive");
+    toastElement.setAttribute("aria-atomic", "true");
 
-        if (runInfoSimulationBlinkTimer) {
-            clearTimeout(runInfoSimulationBlinkTimer);
-            runInfoSimulationBlinkTimer = null;
-        }
-
-        $('#sim-runinfo-panel').removeClass('runinfo-sim-publish-blink');
-        updateRunInfoSimulationStateLabel('정지', false);
-    }
-
-    function restoreRunInfoSimulationDefaults() {
-        $('#sim-battery-remain-amount').val(RUN_INFO_SIMULATION_DEFAULTS.batteryPercent);
-        $('#sim-drive-available-time-min').val(RUN_INFO_SIMULATION_DEFAULTS.availableMinutes);
-        $('#sim-drive-elapsed-time-min').val(RUN_INFO_SIMULATION_DEFAULTS.elapsedMinutes);
-        $('#sim-drive-total-distance-km').val(RUN_INFO_SIMULATION_DEFAULTS.distanceKm);
-        $('#sim-runinfo-interval-sec').val(RUN_INFO_SIMULATION_DEFAULTS.intervalSec);
-        $('#sim-runinfo-speed-kmh').val(RUN_INFO_SIMULATION_DEFAULTS.speedKmh);
-        $('#sim-runinfo-max-speed-kmh').val(RUN_INFO_SIMULATION_DEFAULTS.maxSpeedKmh);
-        $('#sim-runinfo-acceleration-ms2').val(RUN_INFO_SIMULATION_DEFAULTS.accelerationMs2);
-        $('#sim-runinfo-battery-drain-per-hour').val(RUN_INFO_SIMULATION_DEFAULTS.batteryDrainPerHour);
-        $('#sim-runinfo-auto-step').prop('checked', RUN_INFO_SIMULATION_DEFAULTS.autoStep);
-    }
-
-    function startRunInfoSimulation() {
-        stopRunInfoSimulation();
-
-        let state = getRunInfoSimulationStateFromInputs();
-        const options = getRunInfoSimulationOptionsFromInputs();
-        const intervalMs = Math.round(options.intervalSec * 1000);
-
-        const tick = function () {
-            if (options.autoStep) {
-                const elapsedMinutesDelta = options.intervalSec / 60;
-                state.elapsedMinutes = Math.max(0, state.elapsedMinutes + elapsedMinutesDelta);
-                state.availableMinutes = Math.max(0, state.availableMinutes - elapsedMinutesDelta);
-                state.distanceKm = Math.max(0, state.distanceKm + (options.speedKmh * options.intervalSec / 3600));
-                state.batteryPercent = Math.max(0, state.batteryPercent - (options.batteryDrainPerHour * options.intervalSec / 3600));
-            }
-
-            writeRunInfoSimulationStateToInputs(state);
-            publishRunInfoSimulationState(state, options);
-        };
-
-        tick();
-        runInfoSimulationTimer = setInterval(tick, intervalMs);
-        updateRunInfoSimulationStateLabel(`${options.intervalSec}초 주기 동작중`, true);
-    }
-
-    function sendMQTTMessage(topic, message, qos = 1) {
-        if (!window.WcsMqtt || typeof window.WcsMqtt.sendMQTTMessage !== 'function') {
-            console.error('[WCS Setting] MQTT sender is unavailable:', topic, message);
-            return false;
-        }
-
-        return window.WcsMqtt.sendMQTTMessage(topic, message, qos);
-    }
-
-    function getOrCreateToastContainer() {
-        let container = document.getElementById('wcs-setting-toast-container');
-        if (container) {
-            return container;
-        }
-
-        container = document.createElement('div');
-        container.id = 'wcs-setting-toast-container';
-        container.className = 'toast-container position-fixed p-2';
-        container.style.zIndex = '1080';
-        document.body.appendChild(container);
-        return container;
-    }
-
-    function positionToastContainerNearAnchor(container, anchorElement) {
-        if (!container) {
-            return;
-        }
-
-        const margin = 12;
-        const defaultTop = margin;
-        const defaultRight = margin;
-        const viewportWidth = window.innerWidth || document.documentElement.clientWidth || 0;
-        const viewportHeight = window.innerHeight || document.documentElement.clientHeight || 0;
-
-        if (!anchorElement || typeof anchorElement.getBoundingClientRect !== 'function') {
-            container.style.top = `${defaultTop}px`;
-            container.style.left = '';
-            container.style.right = `${defaultRight}px`;
-            container.style.bottom = '';
-            return;
-        }
-
-        const rect = anchorElement.getBoundingClientRect();
-        const estimatedToastWidth = 320;
-        const estimatedToastHeight = 76;
-
-        let top = rect.top;
-        let left = rect.right + margin;
-
-        if (left + estimatedToastWidth > viewportWidth - margin) {
-            left = rect.left - estimatedToastWidth - margin;
-        }
-        if (left < margin) {
-            left = Math.max(margin, Math.min(viewportWidth - estimatedToastWidth - margin, rect.left));
-        }
-
-        if (top + estimatedToastHeight > viewportHeight - margin) {
-            top = viewportHeight - estimatedToastHeight - margin;
-        }
-        if (top < margin) {
-            top = margin;
-        }
-
-        container.style.top = `${Math.round(top)}px`;
-        container.style.left = `${Math.round(left)}px`;
-        container.style.right = '';
-        container.style.bottom = '';
-    }
-
-    function showVideoPublishToast(published, fileName, anchorElement) {
-        const safeFileName = String(fileName || '').trim() || '(미선택)';
-        const title = published ? '동영상 선택 발행' : '동영상 선택 발행 실패';
-        const body = `vehicle/current_video/file_name: ${safeFileName}`;
-        const toastClass = published ? 'text-bg-success' : 'text-bg-danger';
-
-        const container = getOrCreateToastContainer();
-        positionToastContainerNearAnchor(container, anchorElement);
-        const toastElement = document.createElement('div');
-        videoPublishToastCounter += 1;
-        toastElement.id = `wcs-setting-video-publish-toast-${videoPublishToastCounter}`;
-        toastElement.className = `toast align-items-center border-0 ${toastClass}`;
-        toastElement.setAttribute('role', 'alert');
-        toastElement.setAttribute('aria-live', 'assertive');
-        toastElement.setAttribute('aria-atomic', 'true');
-
-        toastElement.innerHTML = `
+    toastElement.innerHTML = `
             <div class="d-flex">
                 <div class="toast-body">
                     <div class="fw-semibold mb-1">${title}</div>
@@ -326,259 +448,285 @@ $(document).ready(function () {
             </div>
         `;
 
-        container.appendChild(toastElement);
+    container.appendChild(toastElement);
 
-        if (window.bootstrap && window.bootstrap.Toast) {
-            const toast = new window.bootstrap.Toast(toastElement, { delay: 2600 });
-            toastElement.addEventListener('hidden.bs.toast', function () {
-                toastElement.remove();
-            }, { once: true });
-            toast.show();
-            return;
-        }
-
-        window.setTimeout(function () {
-            toastElement.remove();
-        }, 2600);
+    if (window.bootstrap && window.bootstrap.Toast) {
+      const toast = new window.bootstrap.Toast(toastElement, { delay: 2600 });
+      toastElement.addEventListener(
+        "hidden.bs.toast",
+        function () {
+          toastElement.remove();
+        },
+        { once: true },
+      );
+      toast.show();
+      return;
     }
 
-    function updateVehicleMaxSpeedUi(speedKmh, shouldPublish = true) {
-        const numericKmh = Number.parseFloat(speedKmh);
-        const normalizedKmh = Number.isFinite(numericKmh) ? Math.max(0, Math.min(100, numericKmh)) : 0;
-        const roundedKmh = Math.round(normalizedKmh);
+    window.setTimeout(function () {
+      toastElement.remove();
+    }, 2600);
+  }
 
-        $('#vehicle-max-speed').val(roundedKmh);
-        $('#vehicle-max-speed-value').text(`${roundedKmh} Km/h`);
+  function updateVehicleMaxSpeedUi(speedKmh, shouldPublish = true) {
+    const numericKmh = Number.parseFloat(speedKmh);
+    const normalizedKmh = Number.isFinite(numericKmh)
+      ? Math.max(0, Math.min(100, numericKmh))
+      : 0;
+    const roundedKmh = Math.round(normalizedKmh);
 
-        if (shouldPublish) {
-            const speedMs = Number((roundedKmh / 3.6).toFixed(2));
-            window.WcsMqtt.sendMQTTMessage(maxSpeedTopic, speedMs);
-        }
+    $("#vehicle-max-speed").val(roundedKmh);
+    $("#vehicle-max-speed-value").text(`${roundedKmh} Km/h`);
+
+    if (shouldPublish) {
+      const speedMs = Number((roundedKmh / 3.6).toFixed(2));
+      window.WcsMqtt.sendMQTTMessage(maxSpeedTopic, speedMs);
+    }
+  }
+
+  function updateVehicleRollAngleUi(rollAngleDeg, shouldPublish = true) {
+    const numericRoll = Number.parseInt(rollAngleDeg, 10);
+    const normalizedRoll = Number.isFinite(numericRoll)
+      ? Math.max(-30, Math.min(30, numericRoll))
+      : 0;
+
+    $("#vehicle-roll-angle").val(normalizedRoll);
+    $("#vehicle-roll-angle-value").text(`${normalizedRoll}°`);
+
+    if (shouldPublish) {
+      const rollAngleRad = (normalizedRoll * Math.PI) / 180;
+      window.WcsMqtt.sendMQTTMessage("vehicle/road/roll_angle", rollAngleRad);
+    }
+  }
+
+  function updateVehiclePitchAngleUi(pitchAngleDeg, shouldPublish = true) {
+    const numericPitch = Number.parseInt(pitchAngleDeg, 10);
+    const normalizedPitch = Number.isFinite(numericPitch)
+      ? Math.max(-30, Math.min(30, numericPitch))
+      : 0;
+
+    $("#vehicle-pitch-angle").val(normalizedPitch);
+    $("#vehicle-pitch-angle-value").text(`${normalizedPitch}°`);
+
+    if (shouldPublish) {
+      const pitchAngleRad = (normalizedPitch * Math.PI) / 180;
+      window.WcsMqtt.sendMQTTMessage("vehicle/road/pitch_angle", pitchAngleRad);
+    }
+  }
+
+  function upsertObstacleSensorSetting(sensorId, partialValue) {
+    const safeId = String(sensorId || "").trim();
+    if (!safeId) {
+      return;
     }
 
-    function updateVehicleRollAngleUi(rollAngleDeg, shouldPublish = true) {
-        const numericRoll = Number.parseInt(rollAngleDeg, 10);
-        const normalizedRoll = Number.isFinite(numericRoll) ? Math.max(-30, Math.min(30, numericRoll)) : 0;
-
-        $('#vehicle-roll-angle').val(normalizedRoll);
-        $('#vehicle-roll-angle-value').text(`${normalizedRoll}°`);
-
-        if (shouldPublish) {
-            const rollAngleRad = (normalizedRoll * Math.PI) / 180;
-            window.WcsMqtt.sendMQTTMessage('vehicle/road/roll_angle', rollAngleRad);
-        }
+    if (!obstacleSensorSettingById[safeId]) {
+      obstacleSensorSettingById[safeId] = {
+        id: safeId,
+        count: 1,
+        target: "",
+        enabled: true,
+      };
     }
 
-    function updateVehiclePitchAngleUi(pitchAngleDeg, shouldPublish = true) {
-        const numericPitch = Number.parseInt(pitchAngleDeg, 10);
-        const normalizedPitch = Number.isFinite(numericPitch) ? Math.max(-30, Math.min(30, numericPitch)) : 0;
+    obstacleSensorSettingById[safeId] = {
+      ...obstacleSensorSettingById[safeId],
+      ...partialValue,
+    };
+  }
 
-        $('#vehicle-pitch-angle').val(normalizedPitch);
-        $('#vehicle-pitch-angle-value').text(`${normalizedPitch}°`);
+  function getOrderedObstacleSensorSettings() {
+    return OBSTACLE_SENSOR_DEFINITIONS.map(
+      (sensorDef) => obstacleSensorSettingById[sensorDef.id] || sensorDef,
+    ).map((sensorDef) => ({
+      id: String(sensorDef.id),
+      count: Math.max(1, Number.parseInt(sensorDef.count, 10) || 1),
+      target: String(sensorDef.target || ""),
+      enabled: Boolean(sensorDef.enabled),
+    }));
+  }
 
-        if (shouldPublish) {
-            const pitchAngleRad = (normalizedPitch * Math.PI) / 180;
-            window.WcsMqtt.sendMQTTMessage('vehicle/road/pitch_angle', pitchAngleRad);
-        }
+  function getSensorRowKey(sensorId, sensorIndex) {
+    return `${String(sensorId)}#${Number.parseInt(sensorIndex, 10)}`;
+  }
+
+  function getDefaultSensorValue(sensorId) {
+    return 0;
+  }
+
+  function getDefaultSensorConfidence(sensorId) {
+    return 0;
+  }
+
+  function getSensorValueSliderSpec(sensorId) {
+    switch (String(sensorId)) {
+      case "ToF":
+      case "Lidar":
+        return { min: 0, max: 5, step: 0.01, decimals: 2 };
+      case "Current":
+        return { min: 0, max: 20, step: 0.01, decimals: 2 };
+      case "IMU":
+        return { min: -20, max: 20, step: 0.01, decimals: 2 };
+      case "Camera":
+        return { min: 0, max: 3, step: 1, decimals: 0 };
+      default:
+        return { min: 0, max: 10, step: 0.01, decimals: 2 };
+    }
+  }
+
+  function normalizeSensorValueById(sensorId, rawValue) {
+    const spec = getSensorValueSliderSpec(sensorId);
+    const numericValue = Number.parseFloat(rawValue);
+    const fallback = getDefaultSensorValue(sensorId);
+    const safeValue = Number.isFinite(numericValue) ? numericValue : fallback;
+    const clamped = Math.max(spec.min, Math.min(spec.max, safeValue));
+
+    if (spec.decimals === 0) {
+      return Math.round(clamped);
     }
 
-    function upsertObstacleSensorSetting(sensorId, partialValue) {
-        const safeId = String(sensorId || '').trim();
-        if (!safeId) {
-            return;
-        }
+    return Number(clamped.toFixed(spec.decimals));
+  }
 
-        if (!obstacleSensorSettingById[safeId]) {
-            obstacleSensorSettingById[safeId] = {
-                id: safeId,
-                count: 1,
-                target: '',
-                enabled: true,
-            };
-        }
+  function normalizeSensorConfidence(rawValue) {
+    const numericConfidence = Number.parseFloat(rawValue);
+    const safeConfidence = Number.isFinite(numericConfidence)
+      ? numericConfidence
+      : 0;
+    return Number(Math.max(0, Math.min(1, safeConfidence)).toFixed(3));
+  }
 
-        obstacleSensorSettingById[safeId] = {
-            ...obstacleSensorSettingById[safeId],
-            ...partialValue,
-        };
+  function upsertObstacleSensorRowValue(sensorId, sensorIndex, partialValue) {
+    const safeId = String(sensorId || "").trim();
+    const safeIndex = Number.parseInt(sensorIndex, 10);
+    if (!safeId || !Number.isFinite(safeIndex) || safeIndex < 0) {
+      return;
     }
 
-    function getOrderedObstacleSensorSettings() {
-        return OBSTACLE_SENSOR_DEFINITIONS
-            .map((sensorDef) => obstacleSensorSettingById[sensorDef.id] || sensorDef)
-            .map((sensorDef) => ({
-                id: String(sensorDef.id),
-                count: Math.max(1, Number.parseInt(sensorDef.count, 10) || 1),
-                target: String(sensorDef.target || ''),
-                enabled: Boolean(sensorDef.enabled),
-            }));
+    const rowKey = getSensorRowKey(safeId, safeIndex);
+    if (!obstacleSensorRowValueByKey[rowKey]) {
+      const sensorSetting = obstacleSensorSettingById[safeId] || {};
+      obstacleSensorRowValueByKey[rowKey] = {
+        id: safeId,
+        index: safeIndex,
+        value: getDefaultSensorValue(safeId),
+        confidence: getDefaultSensorConfidence(safeId),
+        enabled: Boolean(sensorSetting.enabled ?? true),
+      };
     }
 
-    function getSensorRowKey(sensorId, sensorIndex) {
-        return `${String(sensorId)}#${Number.parseInt(sensorIndex, 10)}`;
-    }
+    obstacleSensorRowValueByKey[rowKey] = {
+      ...obstacleSensorRowValueByKey[rowKey],
+      ...partialValue,
+    };
+  }
 
-    function getDefaultSensorValue(sensorId) {
-        return 0;
-    }
-
-    function getDefaultSensorConfidence(sensorId) {
-        return 0;
-    }
-
-    function getSensorValueSliderSpec(sensorId) {
-        switch (String(sensorId)) {
-            case 'ToF':
-            case 'Lidar':
-                return { min: 0, max: 5, step: 0.01, decimals: 2 };
-            case 'Current':
-                return { min: 0, max: 20, step: 0.01, decimals: 2 };
-            case 'IMU':
-                return { min: -20, max: 20, step: 0.01, decimals: 2 };
-            case 'Camera':
-                return { min: 0, max: 3, step: 1, decimals: 0 };
-            default:
-                return { min: 0, max: 10, step: 0.01, decimals: 2 };
-        }
-    }
-
-    function normalizeSensorValueById(sensorId, rawValue) {
-        const spec = getSensorValueSliderSpec(sensorId);
-        const numericValue = Number.parseFloat(rawValue);
-        const fallback = getDefaultSensorValue(sensorId);
-        const safeValue = Number.isFinite(numericValue) ? numericValue : fallback;
-        const clamped = Math.max(spec.min, Math.min(spec.max, safeValue));
-
-        if (spec.decimals === 0) {
-            return Math.round(clamped);
-        }
-
-        return Number(clamped.toFixed(spec.decimals));
-    }
-
-    function normalizeSensorConfidence(rawValue) {
-        const numericConfidence = Number.parseFloat(rawValue);
-        const safeConfidence = Number.isFinite(numericConfidence) ? numericConfidence : 0;
-        return Number(Math.max(0, Math.min(1, safeConfidence)).toFixed(3));
-    }
-
-    function upsertObstacleSensorRowValue(sensorId, sensorIndex, partialValue) {
-        const safeId = String(sensorId || '').trim();
-        const safeIndex = Number.parseInt(sensorIndex, 10);
-        if (!safeId || !Number.isFinite(safeIndex) || safeIndex < 0) {
-            return;
-        }
-
-        const rowKey = getSensorRowKey(safeId, safeIndex);
+  function getOrderedObstacleSensorRows() {
+    const rows = [];
+    getOrderedObstacleSensorSettings().forEach((sensorDef) => {
+      for (
+        let sensorIndex = 0;
+        sensorIndex < sensorDef.count;
+        sensorIndex += 1
+      ) {
+        const rowKey = getSensorRowKey(sensorDef.id, sensorIndex);
         if (!obstacleSensorRowValueByKey[rowKey]) {
-            const sensorSetting = obstacleSensorSettingById[safeId] || {};
-            obstacleSensorRowValueByKey[rowKey] = {
-                id: safeId,
-                index: safeIndex,
-                value: getDefaultSensorValue(safeId),
-                confidence: getDefaultSensorConfidence(safeId),
-                enabled: Boolean(sensorSetting.enabled ?? true),
-            };
+          upsertObstacleSensorRowValue(sensorDef.id, sensorIndex, {});
         }
 
-        obstacleSensorRowValueByKey[rowKey] = {
-            ...obstacleSensorRowValueByKey[rowKey],
-            ...partialValue,
-        };
-    }
-
-    function getOrderedObstacleSensorRows() {
-        const rows = [];
-        getOrderedObstacleSensorSettings().forEach((sensorDef) => {
-            for (let sensorIndex = 0; sensorIndex < sensorDef.count; sensorIndex += 1) {
-                const rowKey = getSensorRowKey(sensorDef.id, sensorIndex);
-                if (!obstacleSensorRowValueByKey[rowKey]) {
-                    upsertObstacleSensorRowValue(sensorDef.id, sensorIndex, {});
-                }
-
-                rows.push({
-                    ...obstacleSensorRowValueByKey[rowKey],
-                    enabled: Boolean(obstacleSensorRowValueByKey[rowKey].enabled ?? sensorDef.enabled),
-                });
-            }
+        rows.push({
+          ...obstacleSensorRowValueByKey[rowKey],
+          enabled: Boolean(
+            obstacleSensorRowValueByKey[rowKey].enabled ?? sensorDef.enabled,
+          ),
         });
-        return rows;
+      }
+    });
+    return rows;
+  }
+
+  function renderObstacleSensorSettings() {
+    // Sensor list UI was removed; keep table rendering entrypoint intact.
+    renderObstacleSensorValueTable();
+  }
+
+  function renderObstacleSensorValueTable() {
+    if ($obstacleSensorValueTbody.length === 0) {
+      return;
     }
 
-    function renderObstacleSensorSettings() {
-        // Sensor list UI was removed; keep table rendering entrypoint intact.
-        renderObstacleSensorValueTable();
+    const rows = getOrderedObstacleSensorRows();
+    const groupRowCountBySensorId = {};
+    const groupRenderedBySensorId = {};
+    const groupStyleClassBySensorId = {};
+    let groupStyleIndex = 0;
+
+    rows.forEach((row) => {
+      const sensorId = String(row.id || "");
+      groupRowCountBySensorId[sensorId] =
+        (groupRowCountBySensorId[sensorId] || 0) + 1;
+
+      if (!groupStyleClassBySensorId[sensorId]) {
+        groupStyleClassBySensorId[sensorId] =
+          groupStyleIndex % 2 === 0
+            ? "obstacle-sensor-group-even"
+            : "obstacle-sensor-group-odd";
+        groupStyleIndex += 1;
+      }
+    });
+
+    $obstacleSensorValueTbody.empty();
+
+    if (rows.length === 0) {
+      $obstacleSensorValueTbody.append(
+        '<tr><td colspan="7" class="text-center text-muted py-2">센서 항목이 없습니다.</td></tr>',
+      );
+      return;
     }
 
-    function renderObstacleSensorValueTable() {
-        if ($obstacleSensorValueTbody.length === 0) {
-            return;
-        }
+    rows.forEach((row) => {
+      const sensorLabel = String(row.id || "");
+      const sensorNumber = Number.parseInt(row.index, 10) + 1;
+      const isEnabled = Boolean(row.enabled);
+      const valueNumber = normalizeSensorValueById(sensorLabel, row.value);
+      const confidenceNumber = normalizeSensorConfidence(row.confidence);
+      const valueSpec = getSensorValueSliderSpec(sensorLabel);
 
-        const rows = getOrderedObstacleSensorRows();
-        const groupRowCountBySensorId = {};
-        const groupRenderedBySensorId = {};
-        const groupStyleClassBySensorId = {};
-        let groupStyleIndex = 0;
+      const rowDisabledClass = isEnabled
+        ? ""
+        : " obstacle-sensor-value-row-disabled";
+      const disabledAttr = isEnabled ? "" : " disabled";
+      const buttonDisabledAttr = "";
+      const shouldRenderGroupReset = !groupRenderedBySensorId[sensorLabel];
+      const groupStyleClass = groupStyleClassBySensorId[sensorLabel] || "";
+      const groupStartClass = shouldRenderGroupReset
+        ? " obstacle-sensor-group-start"
+        : "";
+      if (shouldRenderGroupReset) {
+        groupRenderedBySensorId[sensorLabel] = true;
+      }
 
-        rows.forEach((row) => {
-            const sensorId = String(row.id || '');
-            groupRowCountBySensorId[sensorId] = (groupRowCountBySensorId[sensorId] || 0) + 1;
-
-            if (!groupStyleClassBySensorId[sensorId]) {
-                groupStyleClassBySensorId[sensorId] = groupStyleIndex % 2 === 0
-                    ? 'obstacle-sensor-group-even'
-                    : 'obstacle-sensor-group-odd';
-                groupStyleIndex += 1;
-            }
-        });
-
-        $obstacleSensorValueTbody.empty();
-
-        if (rows.length === 0) {
-            $obstacleSensorValueTbody.append('<tr><td colspan="7" class="text-center text-muted py-2">센서 항목이 없습니다.</td></tr>');
-            return;
-        }
-
-        rows.forEach((row) => {
-            const sensorLabel = String(row.id || '');
-            const sensorNumber = Number.parseInt(row.index, 10) + 1;
-            const isEnabled = Boolean(row.enabled);
-            const valueNumber = normalizeSensorValueById(sensorLabel, row.value);
-            const confidenceNumber = normalizeSensorConfidence(row.confidence);
-            const valueSpec = getSensorValueSliderSpec(sensorLabel);
-
-            const rowDisabledClass = isEnabled ? '' : ' obstacle-sensor-value-row-disabled';
-            const disabledAttr = isEnabled ? '' : ' disabled';
-            const buttonDisabledAttr = '';
-            const shouldRenderGroupReset = !groupRenderedBySensorId[sensorLabel];
-            const groupStyleClass = groupStyleClassBySensorId[sensorLabel] || '';
-            const groupStartClass = shouldRenderGroupReset ? ' obstacle-sensor-group-start' : '';
-            if (shouldRenderGroupReset) {
-                groupRenderedBySensorId[sensorLabel] = true;
-            }
-
-            const groupResetCellHtml = shouldRenderGroupReset
-                ? `<td class="text-center" rowspan="${groupRowCountBySensorId[sensorLabel]}">
+      const groupResetCellHtml = shouldRenderGroupReset
+        ? `<td class="text-center" rowspan="${groupRowCountBySensorId[sensorLabel]}">
                         <div class="obstacle-sensor-group-action-wrap">
                             <button type="button" class="btn btn-outline-secondary btn-sm obstacle-sensor-row-reset-group" ${buttonDisabledAttr}>그룹 초기화</button>
                                 <button type="button" class="btn btn-primary btn-sm obstacle-sensor-row-apply-group" ${buttonDisabledAttr}>그룹 적용</button>
                         </div>
                     </td>`
-                : '';
+        : "";
 
-            const html = `
+      const html = `
                 <tr class="${groupStyleClass}${groupStartClass}${rowDisabledClass}" data-sensor-id="${sensorLabel}" data-sensor-index="${row.index}">
                     <td class="text-center fw-semibold" data-sensor-column="name"><span class="obstacle-sensor-publish-text">${sensorLabel}</span></td>
                     <td class="text-center" data-sensor-column="number" data-sensor-column-index="${row.index}"><span class="obstacle-sensor-publish-text">${sensorNumber}</span></td>
                     <td class="text-center">
                         <button
                             type="button"
-                            class="btn btn-sm obstacle-sensor-row-state-toggle ${isEnabled ? 'btn-success' : 'btn-outline-secondary'}"
-                            data-enabled="${isEnabled ? '1' : '0'}"
-                            aria-pressed="${isEnabled ? 'true' : 'false'}"
+                            class="btn btn-sm obstacle-sensor-row-state-toggle ${isEnabled ? "btn-success" : "btn-outline-secondary"}"
+                            data-enabled="${isEnabled ? "1" : "0"}"
+                            aria-pressed="${isEnabled ? "true" : "false"}"
                         >
-                            ${isEnabled ? 'ON' : 'OFF'}
+                            ${isEnabled ? "ON" : "OFF"}
                         </button>
                     </td>
                     <td>
@@ -617,1530 +765,1873 @@ $(document).ready(function () {
                     ${groupResetCellHtml}
                 </tr>
             `;
-            $obstacleSensorValueTbody.append(html);
+      $obstacleSensorValueTbody.append(html);
+    });
+
+    restoreObstacleSensorPublishBlinkState();
+    updateObstacleSensorToggleButtonUi();
+  }
+
+  function areAllObstacleSensorRowsDisabled() {
+    const rows = getOrderedObstacleSensorRows();
+    return rows.length > 0 && rows.every((row) => !Boolean(row.enabled));
+  }
+
+  function updateObstacleSensorToggleButtonUi() {
+    if ($toggleObstacleSensorSettingsButton.length === 0) {
+      return;
+    }
+
+    const allDisabled = areAllObstacleSensorRowsDisabled();
+    $toggleObstacleSensorSettingsButton
+      .toggleClass("btn-outline-danger", !allDisabled)
+      .toggleClass("btn-outline-success", allDisabled)
+      .text(allDisabled ? "전체 활성화" : "전체 비활성화");
+  }
+
+  function resetObstacleSensorSettings() {
+    OBSTACLE_SENSOR_DEFINITIONS.forEach((sensorDef) => {
+      upsertObstacleSensorSetting(sensorDef.id, {
+        count: sensorDef.count,
+        target: sensorDef.target,
+        enabled: sensorDef.enabled,
+      });
+
+      for (
+        let sensorIndex = 0;
+        sensorIndex < sensorDef.count;
+        sensorIndex += 1
+      ) {
+        upsertObstacleSensorRowValue(sensorDef.id, sensorIndex, {
+          value: getDefaultSensorValue(sensorDef.id),
+          confidence: getDefaultSensorConfidence(sensorDef.id),
         });
+      }
+    });
+    renderObstacleSensorSettings();
+  }
 
-        restoreObstacleSensorPublishBlinkState();
-        updateObstacleSensorToggleButtonUi();
-    }
+  function setAllObstacleSensorSettingsEnabled(enabled) {
+    const nextEnabled = Boolean(enabled);
+    OBSTACLE_SENSOR_DEFINITIONS.forEach((sensorDef) => {
+      upsertObstacleSensorSetting(sensorDef.id, {
+        count: sensorDef.count,
+        target: sensorDef.target,
+        enabled: nextEnabled,
+      });
 
-    function areAllObstacleSensorRowsDisabled() {
-        const rows = getOrderedObstacleSensorRows();
-        return rows.length > 0 && rows.every((row) => !Boolean(row.enabled));
-    }
-
-    function updateObstacleSensorToggleButtonUi() {
-        if ($toggleObstacleSensorSettingsButton.length === 0) {
-            return;
-        }
-
-        const allDisabled = areAllObstacleSensorRowsDisabled();
-        $toggleObstacleSensorSettingsButton
-            .toggleClass('btn-outline-danger', !allDisabled)
-            .toggleClass('btn-outline-success', allDisabled)
-            .text(allDisabled ? '전체 활성화' : '전체 비활성화');
-    }
-
-    function resetObstacleSensorSettings() {
-        OBSTACLE_SENSOR_DEFINITIONS.forEach((sensorDef) => {
-            upsertObstacleSensorSetting(sensorDef.id, {
-                count: sensorDef.count,
-                target: sensorDef.target,
-                enabled: sensorDef.enabled,
-            });
-
-            for (let sensorIndex = 0; sensorIndex < sensorDef.count; sensorIndex += 1) {
-                upsertObstacleSensorRowValue(sensorDef.id, sensorIndex, {
-                    value: getDefaultSensorValue(sensorDef.id),
-                    confidence: getDefaultSensorConfidence(sensorDef.id),
-                });
-            }
+      for (
+        let sensorIndex = 0;
+        sensorIndex < sensorDef.count;
+        sensorIndex += 1
+      ) {
+        upsertObstacleSensorRowValue(sensorDef.id, sensorIndex, {
+          enabled: nextEnabled,
         });
-        renderObstacleSensorSettings();
-    }
+      }
+    });
 
-    function setAllObstacleSensorSettingsEnabled(enabled) {
-        const nextEnabled = Boolean(enabled);
-        OBSTACLE_SENSOR_DEFINITIONS.forEach((sensorDef) => {
-            upsertObstacleSensorSetting(sensorDef.id, {
-                count: sensorDef.count,
-                target: sensorDef.target,
-                enabled: nextEnabled,
-            });
+    renderObstacleSensorSettings();
+  }
 
-            for (let sensorIndex = 0; sensorIndex < sensorDef.count; sensorIndex += 1) {
-                upsertObstacleSensorRowValue(sensorDef.id, sensorIndex, {
-                    enabled: nextEnabled,
-                });
-            }
+  function initializeObstacleSensorSettingsDefaults() {
+    OBSTACLE_SENSOR_DEFINITIONS.forEach((sensorDef) => {
+      if (!obstacleSensorSettingById[sensorDef.id]) {
+        upsertObstacleSensorSetting(sensorDef.id, {
+          count: sensorDef.count,
+          target: sensorDef.target,
+          enabled: sensorDef.enabled,
         });
+      }
 
-        renderObstacleSensorSettings();
+      for (
+        let sensorIndex = 0;
+        sensorIndex < sensorDef.count;
+        sensorIndex += 1
+      ) {
+        const rowKey = getSensorRowKey(sensorDef.id, sensorIndex);
+        if (!obstacleSensorRowValueByKey[rowKey]) {
+          upsertObstacleSensorRowValue(sensorDef.id, sensorIndex, {
+            value: getDefaultSensorValue(sensorDef.id),
+            confidence: getDefaultSensorConfidence(sensorDef.id),
+          });
+        }
+      }
+    });
+
+    renderObstacleSensorSettings();
+  }
+
+  function publishObstacleSensorSettings() {
+    const publishedRowKeys = [];
+    const settings = getOrderedObstacleSensorSettings();
+    settings.forEach((sensorDef) => {
+      window.WcsMqtt.sendMQTTMessage(
+        `sensor/${sensorDef.id}/count`,
+        sensorDef.count,
+      );
+      window.WcsMqtt.sendMQTTMessage(
+        `sensor/${sensorDef.id}/target`,
+        sensorDef.target,
+      );
+      window.WcsMqtt.sendMQTTMessage(
+        `sensor/${sensorDef.id}/enabled`,
+        sensorDef.enabled ? 1 : 0,
+      );
+    });
+
+    getOrderedObstacleSensorRows().forEach((row) => {
+      publishedRowKeys.push(getSensorRowKey(row.id, row.index));
+
+      const sensorValue = normalizeSensorValueById(row.id, row.value);
+      const sensorConfidence = normalizeSensorConfidence(row.confidence);
+
+      if (row.enabled) {
+        window.WcsMqtt.sendMQTTMessage(
+          `sensor/${row.id}/${row.index}/value`,
+          sensorValue,
+        );
+        window.WcsMqtt.sendMQTTMessage(
+          `sensor/${row.id}/${row.index}/obstacle/confidence`,
+          sensorConfidence,
+        );
+      }
+      window.WcsMqtt.sendMQTTMessage(
+        `sensor/${row.id}/${row.index}/state`,
+        row.enabled ? 1 : 0,
+      );
+    });
+
+    window.WcsMqtt.sendMQTTMessage(
+      "obstacle/sensor/settings",
+      JSON.stringify(settings),
+    );
+    triggerObstacleSensorPublishBlink(publishedRowKeys);
+  }
+
+  function publishSingleObstacleSensorRow(sensorId, sensorIndex) {
+    const rowKey = getSensorRowKey(sensorId, sensorIndex);
+    const row = obstacleSensorRowValueByKey[rowKey];
+    if (!row) {
+      return;
     }
 
-    function initializeObstacleSensorSettingsDefaults() {
-        OBSTACLE_SENSOR_DEFINITIONS.forEach((sensorDef) => {
-            if (!obstacleSensorSettingById[sensorDef.id]) {
-                upsertObstacleSensorSetting(sensorDef.id, {
-                    count: sensorDef.count,
-                    target: sensorDef.target,
-                    enabled: sensorDef.enabled,
-                });
-            }
+    const sensorValue = normalizeSensorValueById(row.id, row.value);
+    const sensorConfidence = normalizeSensorConfidence(row.confidence);
+    const enabled = Boolean(row.enabled ?? true);
 
-            for (let sensorIndex = 0; sensorIndex < sensorDef.count; sensorIndex += 1) {
-                const rowKey = getSensorRowKey(sensorDef.id, sensorIndex);
-                if (!obstacleSensorRowValueByKey[rowKey]) {
-                    upsertObstacleSensorRowValue(sensorDef.id, sensorIndex, {
-                        value: getDefaultSensorValue(sensorDef.id),
-                        confidence: getDefaultSensorConfidence(sensorDef.id),
-                    });
-                }
-            }
-        });
+    window.WcsMqtt.sendMQTTMessage(
+      `sensor/${row.id}/${row.index}/value`,
+      sensorValue,
+    );
+    window.WcsMqtt.sendMQTTMessage(
+      `sensor/${row.id}/${row.index}/obstacle/confidence`,
+      sensorConfidence,
+    );
+    window.WcsMqtt.sendMQTTMessage(
+      `sensor/${row.id}/${row.index}/state`,
+      enabled ? 1 : 0,
+    );
+    triggerObstacleSensorPublishBlink([rowKey]);
+  }
 
-        renderObstacleSensorSettings();
+  function publishObstacleSensorGroup(sensorId) {
+    getOrderedObstacleSensorRows().forEach((row) => {
+      if (String(row.id) === String(sensorId)) {
+        publishSingleObstacleSensorRow(row.id, row.index);
+      }
+    });
+  }
+
+  function triggerObstacleSensorPublishBlink(rowKeys) {
+    const uniqueRowKeys = Array.from(
+      new Set(Array.isArray(rowKeys) ? rowKeys : []),
+    );
+    if (uniqueRowKeys.length === 0) {
+      return;
     }
 
-    function publishObstacleSensorSettings() {
-        const publishedRowKeys = [];
-        const settings = getOrderedObstacleSensorSettings();
-        settings.forEach((sensorDef) => {
-            window.WcsMqtt.sendMQTTMessage(`sensor/${sensorDef.id}/count`, sensorDef.count);
-            window.WcsMqtt.sendMQTTMessage(`sensor/${sensorDef.id}/target`, sensorDef.target);
-            window.WcsMqtt.sendMQTTMessage(`sensor/${sensorDef.id}/enabled`, sensorDef.enabled ? 1 : 0);
-        });
+    const blinkUntil = Date.now() + OBSTACLE_SENSOR_PUBLISH_BLINK_TOTAL_MS;
 
-        getOrderedObstacleSensorRows().forEach((row) => {
-            publishedRowKeys.push(getSensorRowKey(row.id, row.index));
+    uniqueRowKeys.forEach((rowKey) => {
+      obstacleSensorPublishBlinkUntilByKey[rowKey] = blinkUntil;
+      applyObstacleSensorPublishBlinkToRowKey(rowKey);
+    });
+  }
 
-            const sensorValue = normalizeSensorValueById(row.id, row.value);
-            const sensorConfidence = normalizeSensorConfidence(row.confidence);
+  function restoreObstacleSensorPublishBlinkState() {
+    const now = Date.now();
+    Object.keys(obstacleSensorPublishBlinkUntilByKey).forEach((rowKey) => {
+      if ((obstacleSensorPublishBlinkUntilByKey[rowKey] || 0) <= now) {
+        delete obstacleSensorPublishBlinkUntilByKey[rowKey];
+        return;
+      }
 
-            if (row.enabled) {
-                window.WcsMqtt.sendMQTTMessage(`sensor/${row.id}/${row.index}/value`, sensorValue);
-                window.WcsMqtt.sendMQTTMessage(`sensor/${row.id}/${row.index}/obstacle/confidence`, sensorConfidence);
-            }
-            window.WcsMqtt.sendMQTTMessage(`sensor/${row.id}/${row.index}/state`, row.enabled ? 1 : 0);
-        });
+      applyObstacleSensorPublishBlinkToRowKey(rowKey);
+    });
+  }
 
-        window.WcsMqtt.sendMQTTMessage('obstacle/sensor/settings', JSON.stringify(settings));
-        triggerObstacleSensorPublishBlink(publishedRowKeys);
+  function applyObstacleSensorPublishBlinkToRowKey(rowKey) {
+    const blinkUntil = obstacleSensorPublishBlinkUntilByKey[rowKey] || 0;
+    if (blinkUntil <= Date.now()) {
+      delete obstacleSensorPublishBlinkUntilByKey[rowKey];
+      return;
     }
 
-    function publishSingleObstacleSensorRow(sensorId, sensorIndex) {
-        const rowKey = getSensorRowKey(sensorId, sensorIndex);
-        const row = obstacleSensorRowValueByKey[rowKey];
-        if (!row) {
-            return;
-        }
-
-        const sensorValue = normalizeSensorValueById(row.id, row.value);
-        const sensorConfidence = normalizeSensorConfidence(row.confidence);
-        const enabled = Boolean(row.enabled ?? true);
-
-        window.WcsMqtt.sendMQTTMessage(`sensor/${row.id}/${row.index}/value`, sensorValue);
-        window.WcsMqtt.sendMQTTMessage(`sensor/${row.id}/${row.index}/obstacle/confidence`, sensorConfidence);
-        window.WcsMqtt.sendMQTTMessage(`sensor/${row.id}/${row.index}/state`, enabled ? 1 : 0);
-        triggerObstacleSensorPublishBlink([rowKey]);
+    const remainingMs = Math.max(0, blinkUntil - Date.now());
+    const [sensorId, sensorIndexText] = String(rowKey || "").split("#");
+    if (!sensorId || sensorIndexText === undefined) {
+      return;
     }
 
-    function publishObstacleSensorGroup(sensorId) {
-        getOrderedObstacleSensorRows().forEach((row) => {
-            if (String(row.id) === String(sensorId)) {
-                publishSingleObstacleSensorRow(row.id, row.index);
-            }
-        });
+    const sensorIndex = Number.parseInt(sensorIndexText, 10);
+    if (!Number.isFinite(sensorIndex)) {
+      return;
     }
 
-    function triggerObstacleSensorPublishBlink(rowKeys) {
-        const uniqueRowKeys = Array.from(new Set(Array.isArray(rowKeys) ? rowKeys : []));
-        if (uniqueRowKeys.length === 0) {
-            return;
-        }
-
-        const blinkUntil = Date.now() + OBSTACLE_SENSOR_PUBLISH_BLINK_TOTAL_MS;
-
-        uniqueRowKeys.forEach((rowKey) => {
-            obstacleSensorPublishBlinkUntilByKey[rowKey] = blinkUntil;
-            applyObstacleSensorPublishBlinkToRowKey(rowKey);
-        });
+    const $row = $obstacleSensorValueTbody.find(
+      `tr[data-sensor-id="${sensorId}"][data-sensor-index="${sensorIndex}"]`,
+    );
+    if ($row.length === 0) {
+      return;
     }
 
-    function restoreObstacleSensorPublishBlinkState() {
-        const now = Date.now();
-        Object.keys(obstacleSensorPublishBlinkUntilByKey).forEach((rowKey) => {
-            if ((obstacleSensorPublishBlinkUntilByKey[rowKey] || 0) <= now) {
-                delete obstacleSensorPublishBlinkUntilByKey[rowKey];
-                return;
-            }
+    $row
+      .find('[data-sensor-column="name"], [data-sensor-column="number"]')
+      .each(function () {
+        this.classList.remove("obstacle-sensor-publish-cell-blink");
+        void this.offsetWidth;
+        this.classList.add("obstacle-sensor-publish-cell-blink");
+      });
 
-            applyObstacleSensorPublishBlinkToRowKey(rowKey);
-        });
+    $row.find(".obstacle-sensor-publish-text").each(function () {
+      this.classList.remove("obstacle-sensor-publish-blink");
+      void this.offsetWidth;
+      this.classList.add("obstacle-sensor-publish-blink");
+    });
+
+    window.setTimeout(function () {
+      if ((obstacleSensorPublishBlinkUntilByKey[rowKey] || 0) > Date.now()) {
+        return;
+      }
+
+      delete obstacleSensorPublishBlinkUntilByKey[rowKey];
+      const $latestRow = $obstacleSensorValueTbody.find(
+        `tr[data-sensor-id="${sensorId}"][data-sensor-index="${sensorIndex}"]`,
+      );
+      $latestRow
+        .find('[data-sensor-column="name"], [data-sensor-column="number"]')
+        .removeClass("obstacle-sensor-publish-cell-blink");
+      $latestRow
+        .find(".obstacle-sensor-publish-text")
+        .removeClass("obstacle-sensor-publish-blink");
+    }, remainingMs + 80);
+  }
+
+  function updateVehicleDirectionControlUi(command) {
+    if (typeof window.syncVehicleDirectionButtons === "function") {
+      const synced = window.syncVehicleDirectionButtons(
+        command,
+        vehicleDirectionButtonSelector,
+      );
+      if (synced) {
+        return;
+      }
     }
 
-    function applyObstacleSensorPublishBlinkToRowKey(rowKey) {
-        const blinkUntil = obstacleSensorPublishBlinkUntilByKey[rowKey] || 0;
-        if (blinkUntil <= Date.now()) {
-            delete obstacleSensorPublishBlinkUntilByKey[rowKey];
-            return;
-        }
+    const activeButtonId =
+      typeof window.getVehicleButtonIdByCommand === "function"
+        ? window.getVehicleButtonIdByCommand(command)
+        : "vehicle-stop";
 
-        const remainingMs = Math.max(0, blinkUntil - Date.now());
-        const [sensorId, sensorIndexText] = String(rowKey || '').split('#');
-        if (!sensorId || sensorIndexText === undefined) {
-            return;
-        }
+    $(vehicleDirectionButtonSelector)
+      .removeClass("active text-white")
+      .addClass("text-black");
 
-        const sensorIndex = Number.parseInt(sensorIndexText, 10);
-        if (!Number.isFinite(sensorIndex)) {
-            return;
-        }
+    $("#" + activeButtonId)
+      .addClass("active text-white")
+      .removeClass("text-black");
+  }
 
-        const $row = $obstacleSensorValueTbody.find(`tr[data-sensor-id="${sensorId}"][data-sensor-index="${sensorIndex}"]`);
-        if ($row.length === 0) {
-            return;
-        }
-
-        $row.find('[data-sensor-column="name"], [data-sensor-column="number"]').each(function () {
-            this.classList.remove('obstacle-sensor-publish-cell-blink');
-            void this.offsetWidth;
-            this.classList.add('obstacle-sensor-publish-cell-blink');
-        });
-
-        $row.find('.obstacle-sensor-publish-text').each(function () {
-            this.classList.remove('obstacle-sensor-publish-blink');
-            void this.offsetWidth;
-            this.classList.add('obstacle-sensor-publish-blink');
-        });
-
-        window.setTimeout(function () {
-            if ((obstacleSensorPublishBlinkUntilByKey[rowKey] || 0) > Date.now()) {
-                return;
-            }
-
-            delete obstacleSensorPublishBlinkUntilByKey[rowKey];
-            const $latestRow = $obstacleSensorValueTbody.find(`tr[data-sensor-id="${sensorId}"][data-sensor-index="${sensorIndex}"]`);
-            $latestRow.find('[data-sensor-column="name"], [data-sensor-column="number"]').removeClass('obstacle-sensor-publish-cell-blink');
-            $latestRow.find('.obstacle-sensor-publish-text').removeClass('obstacle-sensor-publish-blink');
-        }, remainingMs + 80);
+  function getVehicleWheelRadiusByKey(wheelKey) {
+    const normalizedWheelKey = String(wheelKey || "")
+      .trim()
+      .toLowerCase();
+    const radius = Number(window.wheelRadiusById?.[normalizedWheelKey]);
+    if (!Number.isFinite(radius) || radius <= 0) {
+      return null;
     }
 
-    function updateVehicleDirectionControlUi(command) {
-        if (typeof window.syncVehicleDirectionButtons === 'function') {
-            const synced = window.syncVehicleDirectionButtons(command, vehicleDirectionButtonSelector);
-            if (synced) {
-                return;
-            }
-        }
+    return radius;
+  }
 
-        const activeButtonId = (typeof window.getVehicleButtonIdByCommand === 'function')
-            ? window.getVehicleButtonIdByCommand(command)
-            : 'vehicle-stop';
+  function hasAllVehicleWheelRadii() {
+    return vehicleDirectionWheelKeys.every(
+      (wheelKey) => getVehicleWheelRadiusByKey(wheelKey) !== null,
+    );
+  }
 
-        $(vehicleDirectionButtonSelector)
-            .removeClass('active text-white')
-            .addClass('text-black');
+  function cancelPendingPublish(topic) {
+    if (pendingPublishTimers[topic]) {
+      clearTimeout(pendingPublishTimers[topic]);
+      pendingPublishTimers[topic] = null;
+    }
+  }
 
-        $('#' + activeButtonId)
-            .addClass('active text-white')
-            .removeClass('text-black');
+  function publishWhenConnected(
+    topic,
+    payload,
+    retries = 20,
+    intervalMs = 250,
+  ) {
+    cancelPendingPublish(topic);
+
+    const isConnected = Boolean(
+      window.mqttClient && window.mqttClient.connected,
+    );
+    if (isConnected) {
+      sendMQTTMessage(topic, payload, 1);
+      return;
     }
 
-    function getVehicleWheelRadiusByKey(wheelKey) {
-        const normalizedWheelKey = String(wheelKey || '').trim().toLowerCase();
-        const radius = Number(window.wheelRadiusById?.[normalizedWheelKey]);
-        if (!Number.isFinite(radius) || radius <= 0) {
-            return null;
-        }
-
-        return radius;
+    if (retries <= 0) {
+      return;
     }
 
-    function hasAllVehicleWheelRadii() {
-        return vehicleDirectionWheelKeys.every((wheelKey) => getVehicleWheelRadiusByKey(wheelKey) !== null);
+    pendingPublishTimers[topic] = setTimeout(function () {
+      pendingPublishTimers[topic] = null;
+      publishWhenConnected(topic, payload, retries - 1, intervalMs);
+    }, intervalMs);
+  }
+
+  function buildVehicleWheelAngleSpeedByCommand(command, speedKmh) {
+    const commandNumber = Number(command);
+    const baseSpeedMs = Math.max(0, Number(speedKmh) || 0) / 3.6;
+    const speedScale = vehicleCommandSpeedScale[commandNumber] ?? 1.0;
+    const effectiveSpeedMs = baseSpeedMs * speedScale;
+    const inPlaceTurn = commandNumber === 3 || commandNumber === 4;
+
+    return vehicleDirectionWheelKeys.reduce((accumulator, wheelKey) => {
+      const wheelRadiusM = getVehicleWheelRadiusByKey(wheelKey);
+      if (wheelRadiusM === null) {
+        accumulator[wheelKey] = null;
+        return accumulator;
+      }
+
+      const isLeftWheel = wheelKey === "fl" || wheelKey === "rl";
+      let signedSpeedMs = 0;
+
+      switch (commandNumber) {
+        case 1:
+          signedSpeedMs = effectiveSpeedMs;
+          break;
+        case 2:
+          signedSpeedMs = -effectiveSpeedMs;
+          break;
+        case 3:
+          signedSpeedMs = isLeftWheel ? -effectiveSpeedMs : effectiveSpeedMs;
+          break;
+        case 4:
+          signedSpeedMs = isLeftWheel ? effectiveSpeedMs : -effectiveSpeedMs;
+          break;
+        case 0:
+        default:
+          signedSpeedMs = 0;
+          break;
+      }
+
+      if (!inPlaceTurn && commandNumber !== 0) {
+        signedSpeedMs =
+          commandNumber === 2
+            ? -Math.abs(signedSpeedMs)
+            : Math.abs(signedSpeedMs);
+      }
+
+      accumulator[wheelKey] = Number((signedSpeedMs / wheelRadiusM).toFixed(3));
+      return accumulator;
+    }, {});
+  }
+
+  function publishVehicleWheelAngleSpeeds(command, speedKmh) {
+    const wheelAngleSpeedByKey = buildVehicleWheelAngleSpeedByCommand(
+      command,
+      speedKmh,
+    );
+
+    if (!hasAllVehicleWheelRadii()) {
+      return false;
     }
 
-    function cancelPendingPublish(topic) {
-        if (pendingPublishTimers[topic]) {
-            clearTimeout(pendingPublishTimers[topic]);
-            pendingPublishTimers[topic] = null;
-        }
+    Object.entries(wheelAngleSpeedByKey).forEach(function ([
+      wheelKey,
+      angleSpeed,
+    ]) {
+      publishWhenConnected(`wheel/${wheelKey}/angle/speed`, angleSpeed);
+    });
+
+    return true;
+  }
+
+  function sendVehicleDirectionCommand(command) {
+    const numericCommand = Number(command);
+    const latestSpeedMs = Number(window.latestVehicleLinearSpeedMs);
+    const sliderMaxKmh = Number.parseFloat($("#vehicle-max-speed").val());
+    const effectiveMaxKmh = Number.isFinite(sliderMaxKmh)
+      ? Math.max(0, sliderMaxKmh)
+      : 0;
+
+    let commandSpeedKmh = Number.isFinite(latestSpeedMs)
+      ? Math.max(0, latestSpeedMs * 3.6)
+      : 0;
+
+    if (numericCommand !== 0 && commandSpeedKmh <= 0 && effectiveMaxKmh > 0) {
+      commandSpeedKmh = Number((effectiveMaxKmh * 0.1).toFixed(1));
     }
 
-    function publishWhenConnected(topic, payload, retries = 20, intervalMs = 250) {
-        cancelPendingPublish(topic);
+    const speedMs = commandSpeedKmh / 3.6;
+    const roundedSpeedMs = Number(speedMs.toFixed(2));
+    const sameCommand =
+      Number(lastVehicleDirectionCommandSent) === Number(numericCommand);
+    const sameSpeed =
+      lastVehicleCurrSpeedMsSent !== null &&
+      Math.abs(roundedSpeedMs - lastVehicleCurrSpeedMsSent) < 0.0001;
 
-        const isConnected = Boolean(window.mqttClient && window.mqttClient.connected);
-        if (isConnected) {
-            sendMQTTMessage(topic, payload, 1);
-            return;
-        }
-
-        if (retries <= 0) {
-            return;
-        }
-
-        pendingPublishTimers[topic] = setTimeout(function () {
-            pendingPublishTimers[topic] = null;
-            publishWhenConnected(topic, payload, retries - 1, intervalMs);
-        }, intervalMs);
+    isDirectionInitSyncWindow = false;
+    if (pendingDirectionCommandTimer) {
+      clearTimeout(pendingDirectionCommandTimer);
+      pendingDirectionCommandTimer = null;
+      pendingDirectionCommandValue = null;
     }
 
-    function buildVehicleWheelAngleSpeedByCommand(command, speedKmh) {
-        const commandNumber = Number(command);
-        const baseSpeedMs = Math.max(0, Number(speedKmh) || 0) / 3.6;
-        const speedScale = vehicleCommandSpeedScale[commandNumber] ?? 1.0;
-        const effectiveSpeedMs = baseSpeedMs * speedScale;
-        const inPlaceTurn = commandNumber === 3 || commandNumber === 4;
-
-        return vehicleDirectionWheelKeys.reduce((accumulator, wheelKey) => {
-            const wheelRadiusM = getVehicleWheelRadiusByKey(wheelKey);
-            if (wheelRadiusM === null) {
-                accumulator[wheelKey] = null;
-                return accumulator;
-            }
-
-            const isLeftWheel = wheelKey === 'fl' || wheelKey === 'rl';
-            let signedSpeedMs = 0;
-
-            switch (commandNumber) {
-                case 1:
-                    signedSpeedMs = effectiveSpeedMs;
-                    break;
-                case 2:
-                    signedSpeedMs = -effectiveSpeedMs;
-                    break;
-                case 3:
-                    signedSpeedMs = isLeftWheel ? -effectiveSpeedMs : effectiveSpeedMs;
-                    break;
-                case 4:
-                    signedSpeedMs = isLeftWheel ? effectiveSpeedMs : -effectiveSpeedMs;
-                    break;
-                case 0:
-                default:
-                    signedSpeedMs = 0;
-                    break;
-            }
-
-            if (!inPlaceTurn && commandNumber !== 0) {
-                signedSpeedMs = commandNumber === 2 ? -Math.abs(signedSpeedMs) : Math.abs(signedSpeedMs);
-            }
-
-            accumulator[wheelKey] = Number((signedSpeedMs / wheelRadiusM).toFixed(3));
-            return accumulator;
-        }, {});
+    window.vehicleDirectionCommandActive =
+      numericCommand >= 1 && numericCommand <= 4;
+    if (window.vehicleDirectionCommandActive) {
+      window.suppressAutoStopUntil = Date.now() + 1500;
     }
 
-    function publishVehicleWheelAngleSpeeds(command, speedKmh) {
-        const wheelAngleSpeedByKey = buildVehicleWheelAngleSpeedByCommand(command, speedKmh);
+    updateVehicleDirectionControlUi(numericCommand);
 
-        if (!hasAllVehicleWheelRadii()) {
-            return false;
-        }
-
-        Object.entries(wheelAngleSpeedByKey).forEach(function ([wheelKey, angleSpeed]) {
-            publishWhenConnected(`wheel/${wheelKey}/angle/speed`, angleSpeed);
-        });
-
-        return true;
+    if (sameCommand && sameSpeed) {
+      return;
     }
 
-    function sendVehicleDirectionCommand(command) {
-        const numericCommand = Number(command);
-        const latestSpeedMs = Number(window.latestVehicleLinearSpeedMs);
-        const sliderMaxKmh = Number.parseFloat($('#vehicle-max-speed').val());
-        const effectiveMaxKmh = Number.isFinite(sliderMaxKmh) ? Math.max(0, sliderMaxKmh) : 0;
+    publishVehicleWheelAngleSpeeds(numericCommand, commandSpeedKmh);
+    lastVehicleCurrSpeedMsSent = roundedSpeedMs;
+    lastVehicleDirectionCommandSent = Number(numericCommand);
+  }
 
-        let commandSpeedKmh = Number.isFinite(latestSpeedMs)
-            ? Math.max(0, latestSpeedMs * 3.6)
-            : 0;
-
-        if (numericCommand !== 0 && commandSpeedKmh <= 0 && effectiveMaxKmh > 0) {
-            commandSpeedKmh = Number((effectiveMaxKmh * 0.1).toFixed(1));
-        }
-
-        const speedMs = commandSpeedKmh / 3.6;
-        const roundedSpeedMs = Number(speedMs.toFixed(2));
-        const sameCommand = Number(lastVehicleDirectionCommandSent) === Number(numericCommand);
-        const sameSpeed = lastVehicleCurrSpeedMsSent !== null && Math.abs(roundedSpeedMs - lastVehicleCurrSpeedMsSent) < 0.0001;
-
-        isDirectionInitSyncWindow = false;
-        if (pendingDirectionCommandTimer) {
-            clearTimeout(pendingDirectionCommandTimer);
-            pendingDirectionCommandTimer = null;
-            pendingDirectionCommandValue = null;
-        }
-
-        window.vehicleDirectionCommandActive = numericCommand >= 1 && numericCommand <= 4;
-        if (window.vehicleDirectionCommandActive) {
-            window.suppressAutoStopUntil = Date.now() + 1500;
-        }
-
-        updateVehicleDirectionControlUi(numericCommand);
-
-        if (sameCommand && sameSpeed) {
-            return;
-        }
-
-        publishWhenConnected('vehicle/linear/speed', roundedSpeedMs);
-        lastVehicleCurrSpeedMsSent = roundedSpeedMs;
-
-        publishWhenConnected(vehicleOperationCommandTopic, numericCommand);
-        publishVehicleWheelAngleSpeeds(numericCommand, commandSpeedKmh);
-        lastVehicleDirectionCommandSent = Number(numericCommand);
+  function handleVehicleDirectionUpdate(value) {
+    const numericValue = Number.parseInt(value, 10);
+    if (!Number.isFinite(numericValue)) {
+      return;
     }
 
-    function handleVehicleDirectionUpdate(value) {
-        const numericValue = Number.parseInt(value, 10);
-        if (!Number.isFinite(numericValue)) {
-            return;
+    if (isDirectionInitSyncWindow) {
+      pendingDirectionCommandValue = numericValue;
+
+      if (pendingDirectionCommandTimer) {
+        clearTimeout(pendingDirectionCommandTimer);
+      }
+
+      pendingDirectionCommandTimer = setTimeout(function () {
+        if (Number.isFinite(pendingDirectionCommandValue)) {
+          updateVehicleDirectionControlUi(pendingDirectionCommandValue);
         }
+        pendingDirectionCommandTimer = null;
+        pendingDirectionCommandValue = null;
+      }, 220);
 
-        if (isDirectionInitSyncWindow) {
-            pendingDirectionCommandValue = numericValue;
-
-            if (pendingDirectionCommandTimer) {
-                clearTimeout(pendingDirectionCommandTimer);
-            }
-
-            pendingDirectionCommandTimer = setTimeout(function () {
-                if (Number.isFinite(pendingDirectionCommandValue)) {
-                    updateVehicleDirectionControlUi(pendingDirectionCommandValue);
-                }
-                pendingDirectionCommandTimer = null;
-                pendingDirectionCommandValue = null;
-            }, 220);
-
-            return;
-        }
-
-        updateVehicleDirectionControlUi(numericValue);
+      return;
     }
 
-    const normalizePath = typeof window.wcsNormalizePath === 'function'
-        ? window.wcsNormalizePath
-        : function (pathValue) {
-            return String(pathValue || '').trim().replace(/\\/g, '/').replace(/^\/+/, '');
+    updateVehicleDirectionControlUi(numericValue);
+  }
+
+  const normalizePath =
+    typeof window.wcsNormalizePath === "function"
+      ? window.wcsNormalizePath
+      : function (pathValue) {
+          return String(pathValue || "")
+            .trim()
+            .replace(/\\/g, "/")
+            .replace(/^\/+/, "");
         };
 
-    const encodePathForRoute = typeof window.wcsEncodePathForRoute === 'function'
-        ? window.wcsEncodePathForRoute
-        : function (pathValue) {
-            return normalizePath(pathValue)
-                .split('/')
-                .filter(function (segment) { return segment.length > 0; })
-                .map(function (segment) { return encodeURIComponent(segment); })
-                .join('/');
+  const encodePathForRoute =
+    typeof window.wcsEncodePathForRoute === "function"
+      ? window.wcsEncodePathForRoute
+      : function (pathValue) {
+          return normalizePath(pathValue)
+            .split("/")
+            .filter(function (segment) {
+              return segment.length > 0;
+            })
+            .map(function (segment) {
+              return encodeURIComponent(segment);
+            })
+            .join("/");
         };
 
-    const buildVideoThumbnailUrl = typeof window.wcsBuildVideoThumbnailUrl === 'function'
-        ? window.wcsBuildVideoThumbnailUrl
-        : function (fileName) {
-            return '/fast/video_thumbnail/' + encodePathForRoute(fileName) + '?t=' + Date.now();
+  const buildVideoThumbnailUrl =
+    typeof window.wcsBuildVideoThumbnailUrl === "function"
+      ? window.wcsBuildVideoThumbnailUrl
+      : function (fileName) {
+          return (
+            "/fast/video_thumbnail/" +
+            encodePathForRoute(fileName) +
+            "?t=" +
+            Date.now()
+          );
         };
 
-    const buildSampleBrowserUrl = typeof window.wcsBuildSampleBrowserUrl === 'function'
-        ? window.wcsBuildSampleBrowserUrl
-        : function (folderName) {
-            return '/fast/sample_browser/' + encodePathForRoute(folderName);
+  const buildSampleBrowserUrl =
+    typeof window.wcsBuildSampleBrowserUrl === "function"
+      ? window.wcsBuildSampleBrowserUrl
+      : function (folderName) {
+          return "/fast/sample_browser/" + encodePathForRoute(folderName);
         };
 
-    const buildSamplesUrl = typeof window.wcsBuildSamplesUrl === 'function'
-        ? window.wcsBuildSamplesUrl
-        : function (folderName) {
-            return '/fast/samples/' + encodePathForRoute(folderName);
+  const buildSamplesUrl =
+    typeof window.wcsBuildSamplesUrl === "function"
+      ? window.wcsBuildSamplesUrl
+      : function (folderName) {
+          return "/fast/samples/" + encodePathForRoute(folderName);
         };
 
-    function buildCameraDevicesUrl() {
-        return '/fast/camera/devices';
+  function buildCameraDevicesUrl() {
+    return "/fast/camera/devices";
+  }
+
+  function buildCurrentVideoValueFromCamera(index, name) {
+    const numericIndex = Number(index);
+    const safeName = String(name || "").trim();
+    if (Number.isFinite(numericIndex) && numericIndex >= 0) {
+      return "camera_" + numericIndex;
     }
 
-    function buildCurrentVideoValueFromCamera(index, name) {
-        const numericIndex = Number(index);
-        const safeName = String(name || '').trim();
-        if (Number.isFinite(numericIndex) && numericIndex >= 0) {
-            return 'camera_' + numericIndex;
-        }
+    // Keep a deterministic fallback without spaces/special chars.
+    const normalizedName = safeName
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "_")
+      .replace(/^_+|_+$/g, "");
+    return normalizedName ? "camera_" + normalizedName : "camera_0";
+  }
 
-        // Keep a deterministic fallback without spaces/special chars.
-        const normalizedName = safeName
-            .toLowerCase()
-            .replace(/[^a-z0-9]+/g, '_')
-            .replace(/^_+|_+$/g, '');
-        return normalizedName ? ('camera_' + normalizedName) : 'camera_0';
+  function parseCameraIndexFromCurrentVideoValue(value) {
+    const text = String(value || "")
+      .trim()
+      .toLowerCase();
+    const matched = text.match(/^camera_(\d+)$/);
+    if (!matched) {
+      return null;
     }
 
-    function parseCameraIndexFromCurrentVideoValue(value) {
-        const text = String(value || '').trim().toLowerCase();
-        const matched = text.match(/^camera_(\d+)$/);
-        if (!matched) {
-            return null;
-        }
-
-        const index = Number(matched[1]);
-        if (!Number.isFinite(index) || index < 0) {
-            return null;
-        }
-
-        return index;
+    const index = Number(matched[1]);
+    if (!Number.isFinite(index) || index < 0) {
+      return null;
     }
 
-    const normalizeSampleFolderPath = typeof window.wcsNormalizeSampleFolderPath === 'function'
-        ? window.wcsNormalizeSampleFolderPath
-        : function (folderPath, baseFolder) {
-            const normalized = normalizePath(folderPath).replace(/^samples\//, '');
-            if (!normalized) {
-                return baseFolder;
-            }
-            return normalized;
+    return index;
+  }
+
+  const normalizeSampleFolderPath =
+    typeof window.wcsNormalizeSampleFolderPath === "function"
+      ? window.wcsNormalizeSampleFolderPath
+      : function (folderPath, baseFolder) {
+          const normalized = normalizePath(folderPath).replace(
+            /^samples\//,
+            "",
+          );
+          if (!normalized) {
+            return baseFolder;
+          }
+          return normalized;
         };
 
-    function getVideoPathVariants(pathValue) {
-        const normalized = normalizePath(pathValue);
-        if (!normalized) {
-            return [];
-        }
+  function getVideoPathVariants(pathValue) {
+    const normalized = normalizePath(pathValue);
+    if (!normalized) {
+      return [];
+    }
 
-        const variants = new Set();
-        const addVariant = function (value) {
-            const safeValue = normalizePath(value);
-            if (safeValue) {
-                variants.add(safeValue);
-            }
+    const variants = new Set();
+    const addVariant = function (value) {
+      const safeValue = normalizePath(value);
+      if (safeValue) {
+        variants.add(safeValue);
+      }
+    };
+
+    addVariant(normalized);
+
+    const withoutSamplesPrefix = normalized.replace(/^samples\//, "");
+    addVariant(withoutSamplesPrefix);
+
+    const withoutVideoPrefix = withoutSamplesPrefix.replace(/^video\//, "");
+    addVariant(withoutVideoPrefix);
+
+    if (withoutVideoPrefix) {
+      addVariant("video/" + withoutVideoPrefix);
+      addVariant("samples/video/" + withoutVideoPrefix);
+    }
+
+    return Array.from(variants);
+  }
+
+  function isSameSelectedVideoPath(leftPath, rightPath) {
+    const leftVariants = getVideoPathVariants(leftPath);
+    const rightVariants = getVideoPathVariants(rightPath);
+    if (leftVariants.length === 0 || rightVariants.length === 0) {
+      return false;
+    }
+
+    const rightSet = new Set(rightVariants);
+    return leftVariants.some(function (candidate) {
+      return rightSet.has(candidate);
+    });
+  }
+
+  function applyCurrentVideoHighlight() {
+    if ($wcsSampleVideoPane.length === 0) {
+      return;
+    }
+
+    const normalizedCurrent = normalizePath(currentVideoFileName);
+    const $items = $wcsSampleVideoPane.find(".sample-video-item");
+    $items.removeClass("selected-sample");
+
+    if (!normalizedCurrent) {
+      return;
+    }
+
+    $items.each(function () {
+      const itemFileName = normalizePath($(this).attr("data-file-name"));
+      if (isSameSelectedVideoPath(itemFileName, normalizedCurrent)) {
+        $(this).addClass("selected-sample");
+      }
+    });
+  }
+
+  function applyCurrentCameraHighlight() {
+    if ($wcsCameraPane.length === 0) {
+      return;
+    }
+
+    const $items = $wcsCameraPane.find(".wcs-camera-device-item");
+    $items.removeClass("active");
+
+    if (
+      !Number.isFinite(currentCameraDeviceIndex) ||
+      Number(currentCameraDeviceIndex) < 0
+    ) {
+      return;
+    }
+
+    $items.each(function () {
+      const itemIndex = Number($(this).attr("data-camera-index"));
+      if (itemIndex === Number(currentCameraDeviceIndex)) {
+        $(this).addClass("active");
+      }
+    });
+  }
+
+  function moveSampleVideoThumbnailsToBottom() {
+    if ($wcsSampleVideoPane.length === 0) {
+      return;
+    }
+
+    const $thumbnailScroll = $wcsSampleVideoPane
+      .children(".sample-thumbnail-scroll")
+      .first();
+    if ($thumbnailScroll.length === 0) {
+      return;
+    }
+
+    $thumbnailScroll.appendTo($wcsSampleVideoPane);
+  }
+
+  const buildFolderLabel =
+    typeof window.wcsBuildFolderLabel === "function"
+      ? function (baseFolder, folderPath) {
+          return window.wcsBuildFolderLabel(baseFolder, folderPath, {
+            leafOnly: false,
+            defaultLabel: "기본 폴더",
+          });
+        }
+      : function (baseFolder, folderPath) {
+          const normalized = normalizeSampleFolderPath(folderPath, baseFolder);
+          if (normalized === baseFolder) {
+            return "기본 폴더";
+          }
+          return normalized.replace(new RegExp("^" + baseFolder + "/?"), "");
         };
 
-        addVariant(normalized);
-
-        const withoutSamplesPrefix = normalized.replace(/^samples\//, '');
-        addVariant(withoutSamplesPrefix);
-
-        const withoutVideoPrefix = withoutSamplesPrefix.replace(/^video\//, '');
-        addVariant(withoutVideoPrefix);
-
-        if (withoutVideoPrefix) {
-            addVariant('video/' + withoutVideoPrefix);
-            addVariant('samples/video/' + withoutVideoPrefix);
+  const buildSampleBrowserHeader =
+    typeof window.wcsBuildSampleBrowserHeader === "function"
+      ? function (baseFolder, currentFolderPath, showAllFiles) {
+          const $header = window.wcsBuildSampleBrowserHeader({
+            baseFolder: baseFolder,
+            currentFolderPath: currentFolderPath,
+            showAllFiles: showAllFiles,
+            includeClearSelectionButton: true,
+            clearSelectionLabel: "동영상 미선택",
+            showPathLabel: false,
+          });
+          $header.addClass("wcs-sample-video-selection-controls mt-2");
+          return $header;
         }
+      : function (baseFolder, currentFolderPath, showAllFiles) {
+          const normalizedCurrent = normalizeSampleFolderPath(
+            currentFolderPath,
+            baseFolder,
+          );
+          const $header = $(
+            '<div class="d-flex flex-wrap align-items-center gap-2 mb-2 mt-2 wcs-sample-video-selection-controls"></div>',
+          );
+          const $homeButton = $(
+            '<button type="button" class="btn btn-sm btn-outline-secondary sample-folder-home"><i class="bi bi-house-door me-1"></i>루트</button>',
+          ).attr("data-base-folder", baseFolder);
+          const $allFilesToggleWrap = $(
+            '<div class="form-check form-check-inline mb-0"></div>',
+          );
+          const toggleId = "sample-folder-all-" + baseFolder;
+          const $allFilesToggle = $(
+            '<input class="form-check-input sample-folder-all-toggle" type="checkbox">',
+          )
+            .attr("id", toggleId)
+            .attr("data-base-folder", baseFolder)
+            .prop("checked", Boolean(showAllFiles));
+          const $allFilesToggleLabel = $(
+            '<label class="form-check-label small" style="cursor:pointer;"></label>',
+          )
+            .attr("for", toggleId)
+            .text("모든 파일");
+          $allFilesToggleWrap
+            .append($allFilesToggle)
+            .append($allFilesToggleLabel);
+          const $clearSelectionButton = $(
+            '<button type="button" class="btn btn-sm btn-outline-danger sample-video-clear-selection"><i class="bi bi-x-circle me-1"></i>동영상 미선택</button>',
+          );
 
-        return Array.from(variants);
-    }
+          const parentPath =
+            normalizedCurrent.indexOf(baseFolder + "/") === 0
+              ? normalizedCurrent.split("/").slice(0, -1).join("/")
+              : "";
+          const hasParent =
+            Boolean(parentPath) && normalizedCurrent !== baseFolder;
+          const $upButton = $(
+            '<button type="button" class="btn btn-sm btn-outline-secondary sample-folder-up"><i class="bi bi-arrow-up-circle me-1"></i>상위</button>',
+          )
+            .attr("data-base-folder", baseFolder)
+            .attr("data-parent-folder", hasParent ? parentPath : baseFolder)
+            .prop("disabled", !hasParent);
 
-    function isSameSelectedVideoPath(leftPath, rightPath) {
-        const leftVariants = getVideoPathVariants(leftPath);
-        const rightVariants = getVideoPathVariants(rightPath);
-        if (leftVariants.length === 0 || rightVariants.length === 0) {
-            return false;
-        }
-
-        const rightSet = new Set(rightVariants);
-        return leftVariants.some(function (candidate) {
-            return rightSet.has(candidate);
-        });
-    }
-
-    function applyCurrentVideoHighlight() {
-        if ($wcsSampleVideoPane.length === 0) {
-            return;
-        }
-
-        const normalizedCurrent = normalizePath(currentVideoFileName);
-        const $items = $wcsSampleVideoPane.find('.sample-video-item');
-        $items.removeClass('selected-sample');
-
-        if (!normalizedCurrent) {
-            return;
-        }
-
-        $items.each(function () {
-            const itemFileName = normalizePath($(this).attr('data-file-name'));
-            if (isSameSelectedVideoPath(itemFileName, normalizedCurrent)) {
-                $(this).addClass('selected-sample');
-            }
-        });
-    }
-
-    function applyCurrentCameraHighlight() {
-        if ($wcsCameraPane.length === 0) {
-            return;
-        }
-
-        const $items = $wcsCameraPane.find('.wcs-camera-device-item');
-        $items.removeClass('active');
-
-        if (!Number.isFinite(currentCameraDeviceIndex) || Number(currentCameraDeviceIndex) < 0) {
-            return;
-        }
-
-        $items.each(function () {
-            const itemIndex = Number($(this).attr('data-camera-index'));
-            if (itemIndex === Number(currentCameraDeviceIndex)) {
-                $(this).addClass('active');
-            }
-        });
-    }
-
-    function moveSampleVideoThumbnailsToBottom() {
-        if ($wcsSampleVideoPane.length === 0) {
-            return;
-        }
-
-        const $thumbnailScroll = $wcsSampleVideoPane.children('.sample-thumbnail-scroll').first();
-        if ($thumbnailScroll.length === 0) {
-            return;
-        }
-
-        $thumbnailScroll.appendTo($wcsSampleVideoPane);
-    }
-
-    const buildFolderLabel = typeof window.wcsBuildFolderLabel === 'function'
-        ? function (baseFolder, folderPath) {
-            return window.wcsBuildFolderLabel(baseFolder, folderPath, {
-                leafOnly: false,
-                defaultLabel: '기본 폴더',
-            });
-        }
-        : function (baseFolder, folderPath) {
-            const normalized = normalizeSampleFolderPath(folderPath, baseFolder);
-            if (normalized === baseFolder) {
-                return '기본 폴더';
-            }
-            return normalized.replace(new RegExp('^' + baseFolder + '/?'), '');
+          $header
+            .append($homeButton)
+            .append($upButton)
+            .append($allFilesToggleWrap)
+            .append($clearSelectionButton);
+          return $header;
         };
 
-    const buildSampleBrowserHeader = typeof window.wcsBuildSampleBrowserHeader === 'function'
-        ? function (baseFolder, currentFolderPath, showAllFiles) {
-            const $header = window.wcsBuildSampleBrowserHeader({
-                baseFolder: baseFolder,
-                currentFolderPath: currentFolderPath,
-                showAllFiles: showAllFiles,
-                includeClearSelectionButton: true,
-                clearSelectionLabel: '동영상 미선택',
-                showPathLabel: false,
-            });
-            $header.addClass('wcs-sample-video-selection-controls mt-2');
-            return $header;
+  const renderSampleFolderTiles =
+    typeof window.wcsRenderSampleFolderTiles === "function"
+      ? function (baseFolder, childFolders) {
+          return window.wcsRenderSampleFolderTiles({
+            baseFolder: baseFolder,
+            childFolders: childFolders,
+            paneSelector: "video",
+            leafOnlyLabel: false,
+          });
         }
-        : function (baseFolder, currentFolderPath, showAllFiles) {
-            const normalizedCurrent = normalizeSampleFolderPath(currentFolderPath, baseFolder);
-            const $header = $('<div class="d-flex flex-wrap align-items-center gap-2 mb-2 mt-2 wcs-sample-video-selection-controls"></div>');
-            const $homeButton = $('<button type="button" class="btn btn-sm btn-outline-secondary sample-folder-home"><i class="bi bi-house-door me-1"></i>루트</button>')
-                .attr('data-base-folder', baseFolder);
-            const $allFilesToggleWrap = $('<div class="form-check form-check-inline mb-0"></div>');
-            const toggleId = 'sample-folder-all-' + baseFolder;
-            const $allFilesToggle = $('<input class="form-check-input sample-folder-all-toggle" type="checkbox">')
-                .attr('id', toggleId)
-                .attr('data-base-folder', baseFolder)
-                .prop('checked', Boolean(showAllFiles));
-            const $allFilesToggleLabel = $('<label class="form-check-label small" style="cursor:pointer;"></label>')
-                .attr('for', toggleId)
-                .text('모든 파일');
-            $allFilesToggleWrap.append($allFilesToggle).append($allFilesToggleLabel);
-            const $clearSelectionButton = $('<button type="button" class="btn btn-sm btn-outline-danger sample-video-clear-selection"><i class="bi bi-x-circle me-1"></i>동영상 미선택</button>');
+      : function (baseFolder, childFolders) {
+          const $wrapper = $('<div class="d-flex flex-wrap gap-2 mb-2"></div>');
+          const folders = Array.isArray(childFolders) ? childFolders : [];
 
-            const parentPath = normalizedCurrent.indexOf(baseFolder + '/') === 0
-                ? normalizedCurrent.split('/').slice(0, -1).join('/')
-                : '';
-            const hasParent = Boolean(parentPath) && normalizedCurrent !== baseFolder;
-            const $upButton = $('<button type="button" class="btn btn-sm btn-outline-secondary sample-folder-up"><i class="bi bi-arrow-up-circle me-1"></i>상위</button>')
-                .attr('data-base-folder', baseFolder)
-                .attr('data-parent-folder', hasParent ? parentPath : baseFolder)
-                .prop('disabled', !hasParent);
-
-            $header.append($homeButton).append($upButton).append($allFilesToggleWrap).append($clearSelectionButton);
-            return $header;
-        };
-
-    const renderSampleFolderTiles = typeof window.wcsRenderSampleFolderTiles === 'function'
-        ? function (baseFolder, childFolders) {
-            return window.wcsRenderSampleFolderTiles({
-                baseFolder: baseFolder,
-                childFolders: childFolders,
-                paneSelector: 'video',
-                leafOnlyLabel: false,
-            });
-        }
-        : function (baseFolder, childFolders) {
-            const $wrapper = $('<div class="d-flex flex-wrap gap-2 mb-2"></div>');
-            const folders = Array.isArray(childFolders) ? childFolders : [];
-
-            if (folders.length === 0) {
-                return $wrapper;
-            }
-
-            folders.forEach(function (folderPath) {
-                const normalizedFolder = normalizeSampleFolderPath(folderPath, baseFolder);
-                const label = buildFolderLabel(baseFolder, normalizedFolder);
-                const $button = $('<button type="button" class="btn btn-light border sample-folder-item"></button>')
-                    .attr('data-pane', 'video')
-                    .attr('data-folder-path', normalizedFolder)
-                    .append('<i class="bi bi-folder-fill text-warning me-1"></i>')
-                    .append($('<span class="small"></span>').text(label || normalizedFolder));
-                $wrapper.append($button);
-            });
-
+          if (folders.length === 0) {
             return $wrapper;
+          }
+
+          folders.forEach(function (folderPath) {
+            const normalizedFolder = normalizeSampleFolderPath(
+              folderPath,
+              baseFolder,
+            );
+            const label = buildFolderLabel(baseFolder, normalizedFolder);
+            const $button = $(
+              '<button type="button" class="btn btn-light border sample-folder-item"></button>',
+            )
+              .attr("data-pane", "video")
+              .attr("data-folder-path", normalizedFolder)
+              .append('<i class="bi bi-folder-fill text-warning me-1"></i>')
+              .append(
+                $('<span class="small"></span>').text(
+                  label || normalizedFolder,
+                ),
+              );
+            $wrapper.append($button);
+          });
+
+          return $wrapper;
         };
 
-    function saveSampleVideoBrowserStateToStorage() {
-        if (typeof window.localStorage === 'undefined') {
-            return;
-        }
-
-        const payload = {
-            folder: normalizeSampleFolderPath(sampleVideoBrowserPath, 'video'),
-            showAll: Boolean(sampleVideoShowAllFiles),
-        };
-
-        try {
-            window.localStorage.setItem(SAMPLE_VIDEO_BROWSER_STORAGE_KEY, JSON.stringify(payload));
-        } catch (error) {
-            // Ignore storage write errors.
-        }
+  function saveSampleVideoBrowserStateToStorage() {
+    if (typeof window.localStorage === "undefined") {
+      return;
     }
 
-    function restoreSampleVideoBrowserStateFromStorage() {
-        if (typeof window.localStorage === 'undefined') {
-            return;
-        }
+    const payload = {
+      folder: normalizeSampleFolderPath(sampleVideoBrowserPath, "video"),
+      showAll: Boolean(sampleVideoShowAllFiles),
+    };
 
-        let parsed = null;
-        try {
-            const raw = window.localStorage.getItem(SAMPLE_VIDEO_BROWSER_STORAGE_KEY);
-            if (!raw) {
-                return;
-            }
-            parsed = JSON.parse(raw);
-        } catch (error) {
-            return;
-        }
+    try {
+      window.localStorage.setItem(
+        SAMPLE_VIDEO_BROWSER_STORAGE_KEY,
+        JSON.stringify(payload),
+      );
+    } catch (error) {
+      // Ignore storage write errors.
+    }
+  }
 
-        if (!parsed || typeof parsed !== 'object') {
-            return;
-        }
-
-        sampleVideoBrowserPath = normalizeSampleFolderPath(parsed.folder, 'video');
-        sampleVideoShowAllFiles = false;
+  function restoreSampleVideoBrowserStateFromStorage() {
+    if (typeof window.localStorage === "undefined") {
+      return;
     }
 
-    function saveSelectedVideoInputTabToStorage(tabId) {
-        if (!tabId || typeof window.localStorage === 'undefined') {
-            return;
-        }
-
-        try {
-            window.localStorage.setItem(VIDEO_INPUT_TAB_STORAGE_KEY, String(tabId));
-        } catch (error) {
-            // Ignore storage write errors.
-        }
+    let parsed = null;
+    try {
+      const raw = window.localStorage.getItem(SAMPLE_VIDEO_BROWSER_STORAGE_KEY);
+      if (!raw) {
+        return;
+      }
+      parsed = JSON.parse(raw);
+    } catch (error) {
+      return;
     }
 
-    function saveCurrentVideoSelectionToStorage(value) {
-        if (typeof window.localStorage === 'undefined') {
-            return;
-        }
-
-        try {
-            window.localStorage.setItem(CURRENT_VIDEO_SELECTION_STORAGE_KEY, String(value || '').trim());
-        } catch (error) {
-            // Ignore storage write errors.
-        }
+    if (!parsed || typeof parsed !== "object") {
+      return;
     }
 
-    function restoreSelectedVideoInputTabFromStorage() {
-        if ($wcsVideoInputTabs.length === 0 || typeof window.localStorage === 'undefined') {
-            return;
-        }
+    sampleVideoBrowserPath = normalizeSampleFolderPath(parsed.folder, "video");
+    sampleVideoShowAllFiles = false;
+  }
 
-        let tabId = '';
-        try {
-            tabId = String(window.localStorage.getItem(VIDEO_INPUT_TAB_STORAGE_KEY) || '').trim();
-        } catch (error) {
-            return;
-        }
-
-        if (!tabId) {
-            return;
-        }
-
-        const $tabButton = $('#' + tabId);
-        if ($tabButton.length === 0 || !$wcsVideoInputTabs.has($tabButton).length) {
-            return;
-        }
-
-        if (window.bootstrap && window.bootstrap.Tab && typeof window.bootstrap.Tab.getOrCreateInstance === 'function') {
-            window.bootstrap.Tab.getOrCreateInstance($tabButton[0]).show();
-            return;
-        }
-
-        $tabButton.trigger('click');
+  function saveSelectedVideoInputTabToStorage(tabId) {
+    if (!tabId || typeof window.localStorage === "undefined") {
+      return;
     }
 
-    function extractSampleVideoFiles(result) {
-        if (Array.isArray(result)) {
-            return result;
-        }
-        if (result && Array.isArray(result.files)) {
-            return result.files;
-        }
-        if (result && Array.isArray(result.video_files)) {
-            return result.video_files;
-        }
-        if (result && Array.isArray(result.image_files)) {
-            return result.image_files;
-        }
-        return [];
+    try {
+      window.localStorage.setItem(VIDEO_INPUT_TAB_STORAGE_KEY, String(tabId));
+    } catch (error) {
+      // Ignore storage write errors.
+    }
+  }
+
+  function saveCurrentVideoSelectionToStorage(value) {
+    if (typeof window.localStorage === "undefined") {
+      return;
     }
 
-    const renderSampleVideoThumbnails = typeof window.wcsRenderSampleVideoThumbnails === 'function'
-        ? function (browserData, showAllFiles) {
-            return window.wcsRenderSampleVideoThumbnails({
-                pane: $wcsSampleVideoPane,
-                browserData: browserData,
-                showAllFiles: showAllFiles,
-                baseFolder: 'video',
-                paneSelector: 'video',
-                itemTemplate: wcsSampleVideoItemTemplate,
-                emptyMessage: '',
-                normalizePath: normalizePath,
-                normalizeSampleFolderPath: normalizeSampleFolderPath,
-                buildSampleBrowserHeader: buildSampleBrowserHeader,
-                renderSampleFolderTiles: function (baseFolder, currentFolderPath, childFolders) {
-                    return renderSampleFolderTiles(baseFolder, childFolders);
-                },
-                buildVideoThumbnailUrl: buildVideoThumbnailUrl,
-                onAfterRender: function () {
-                    applyCurrentVideoHighlight();
-                    moveSampleVideoThumbnailsToBottom();
-                },
-            });
+    try {
+      window.localStorage.setItem(
+        CURRENT_VIDEO_SELECTION_STORAGE_KEY,
+        String(value || "").trim(),
+      );
+    } catch (error) {
+      // Ignore storage write errors.
+    }
+  }
+
+  function restoreSelectedVideoInputTabFromStorage() {
+    if (
+      $wcsVideoInputTabs.length === 0 ||
+      typeof window.localStorage === "undefined"
+    ) {
+      return;
+    }
+
+    let tabId = "";
+    try {
+      tabId = String(
+        window.localStorage.getItem(VIDEO_INPUT_TAB_STORAGE_KEY) || "",
+      ).trim();
+    } catch (error) {
+      return;
+    }
+
+    if (!tabId) {
+      return;
+    }
+
+    const $tabButton = $("#" + tabId);
+    if ($tabButton.length === 0 || !$wcsVideoInputTabs.has($tabButton).length) {
+      return;
+    }
+
+    if (
+      window.bootstrap &&
+      window.bootstrap.Tab &&
+      typeof window.bootstrap.Tab.getOrCreateInstance === "function"
+    ) {
+      window.bootstrap.Tab.getOrCreateInstance($tabButton[0]).show();
+      return;
+    }
+
+    $tabButton.trigger("click");
+  }
+
+  function extractSampleVideoFiles(result) {
+    if (Array.isArray(result)) {
+      return result;
+    }
+    if (result && Array.isArray(result.files)) {
+      return result.files;
+    }
+    if (result && Array.isArray(result.video_files)) {
+      return result.video_files;
+    }
+    if (result && Array.isArray(result.image_files)) {
+      return result.image_files;
+    }
+    return [];
+  }
+
+  const renderSampleVideoThumbnails =
+    typeof window.wcsRenderSampleVideoThumbnails === "function"
+      ? function (browserData, showAllFiles) {
+          return window.wcsRenderSampleVideoThumbnails({
+            pane: $wcsSampleVideoPane,
+            browserData: browserData,
+            showAllFiles: showAllFiles,
+            baseFolder: "video",
+            paneSelector: "video",
+            itemTemplate: wcsSampleVideoItemTemplate,
+            emptyMessage: "",
+            normalizePath: normalizePath,
+            normalizeSampleFolderPath: normalizeSampleFolderPath,
+            buildSampleBrowserHeader: buildSampleBrowserHeader,
+            renderSampleFolderTiles: function (
+              baseFolder,
+              currentFolderPath,
+              childFolders,
+            ) {
+              return renderSampleFolderTiles(baseFolder, childFolders);
+            },
+            buildVideoThumbnailUrl: buildVideoThumbnailUrl,
+            onAfterRender: function () {
+              applyCurrentVideoHighlight();
+              moveSampleVideoThumbnailsToBottom();
+            },
+          });
         }
-        : function (browserData, showAllFiles) {
-            if ($wcsSampleVideoPane.length === 0) {
-                return;
-            }
+      : function (browserData, showAllFiles) {
+          if ($wcsSampleVideoPane.length === 0) {
+            return;
+          }
 
-            const currentFolder = normalizeSampleFolderPath(browserData && browserData.current_folder, 'video');
-            const childFolders = browserData && Array.isArray(browserData.folders) ? browserData.folders : [];
-            const fileNames = browserData && Array.isArray(browserData.files) ? browserData.files : [];
-            const $header = buildSampleBrowserHeader('video', currentFolder, Boolean(showAllFiles));
+          const currentFolder = normalizeSampleFolderPath(
+            browserData && browserData.current_folder,
+            "video",
+          );
+          const childFolders =
+            browserData && Array.isArray(browserData.folders)
+              ? browserData.folders
+              : [];
+          const fileNames =
+            browserData && Array.isArray(browserData.files)
+              ? browserData.files
+              : [];
+          const $header = buildSampleBrowserHeader(
+            "video",
+            currentFolder,
+            Boolean(showAllFiles),
+          );
 
-            $wcsSampleVideoPane.empty();
-            if (!showAllFiles) {
-                $wcsSampleVideoPane.append(renderSampleFolderTiles('video', childFolders));
-            }
+          $wcsSampleVideoPane.empty();
+          if (!showAllFiles) {
+            $wcsSampleVideoPane.append(
+              renderSampleFolderTiles("video", childFolders),
+            );
+          }
 
-            $wcsSampleVideoPane.append($header);
+          $wcsSampleVideoPane.append($header);
 
-            if (!Array.isArray(fileNames) || fileNames.length === 0) {
-                moveSampleVideoThumbnailsToBottom();
-                return;
-            }
-
-            const $scrollContainer = $('<div class="sample-thumbnail-scroll"></div>');
-            const $track = $('<div class="sample-thumbnail-track"></div>');
-
-            fileNames.forEach(function (fileName) {
-                const safeFileName = normalizePath(fileName);
-                const thumbnailUrl = buildVideoThumbnailUrl(safeFileName);
-                const label = safeFileName.split('/').pop() || safeFileName;
-
-                if (!wcsSampleVideoItemTemplate || !wcsSampleVideoItemTemplate.content) {
-                    return;
-                }
-
-                const node = wcsSampleVideoItemTemplate.content.firstElementChild.cloneNode(true);
-                const button = node.querySelector('.sample-video-item');
-                const thumbnailImage = node.querySelector('.sample-video-thumbnail');
-                const video = node.querySelector('video');
-                const caption = node.querySelector('.small');
-
-                if (button) {
-                    button.setAttribute('data-file-name', safeFileName);
-                }
-                if (thumbnailImage) {
-                    thumbnailImage.setAttribute('src', thumbnailUrl);
-                    thumbnailImage.setAttribute('alt', label);
-                } else if (video) {
-                    video.removeAttribute('src');
-                    video.setAttribute('poster', thumbnailUrl);
-                    video.setAttribute('preload', 'none');
-                    if (typeof video.load === 'function') {
-                        video.load();
-                    }
-                }
-                if (caption) {
-                    caption.setAttribute('title', safeFileName);
-                    caption.textContent = label;
-                }
-
-                $track.append(node);
-            });
-
-            $scrollContainer.append($track);
-            $wcsSampleVideoPane.append($scrollContainer);
-            applyCurrentVideoHighlight();
+          if (!Array.isArray(fileNames) || fileNames.length === 0) {
             moveSampleVideoThumbnailsToBottom();
-        };
-
-    const loadSampleVideos = typeof window.wcsLoadSampleVideos === 'function'
-        ? function (folderPath, showAllFiles) {
-            return window.wcsLoadSampleVideos({
-                pane: $wcsSampleVideoPane,
-                folderPath: folderPath,
-                currentFolderPath: sampleVideoBrowserPath,
-                showAllFiles: showAllFiles,
-                isLoading: isSampleVideosLoading,
-                baseFolder: 'video',
-                loadingMessage: '샘플 동영상을 불러오는 중...',
-                allFilesErrorMessage: '샘플 동영상 목록을 불러오지 못했습니다.',
-                browserErrorMessage: '샘플 폴더를 불러오지 못했습니다.',
-                normalizeSampleFolderPath: normalizeSampleFolderPath,
-                buildSamplesUrl: buildSamplesUrl,
-                buildSampleBrowserUrl: buildSampleBrowserUrl,
-                extractSampleVideoFiles: extractSampleVideoFiles,
-                renderSampleVideoThumbnails: renderSampleVideoThumbnails,
-                setLoading: function (next) {
-                    isSampleVideosLoading = Boolean(next);
-                },
-                setCurrentFolderPath: function (nextPath) {
-                    sampleVideoBrowserPath = nextPath;
-                },
-                setShowAllFiles: function (nextShowAll) {
-                    sampleVideoShowAllFiles = Boolean(nextShowAll);
-                },
-                saveBrowserState: saveSampleVideoBrowserStateToStorage,
-                onLoaded: function () {
-                    isSampleVideosLoaded = true;
-                    moveSampleVideoThumbnailsToBottom();
-                },
-            });
-        }
-        : function (folderPath, showAllFiles) {
-            if ($wcsSampleVideoPane.length === 0) {
-                return;
-            }
-            if (isSampleVideosLoading) {
-                return;
-            }
-
-            isSampleVideosLoading = true;
-            sampleVideoBrowserPath = normalizeSampleFolderPath(folderPath || sampleVideoBrowserPath, 'video');
-            sampleVideoShowAllFiles = Boolean(showAllFiles);
-            saveSampleVideoBrowserStateToStorage();
-
-            $wcsSampleVideoPane.html('<div class="text-muted text-center py-3">샘플 동영상을 불러오는 중...</div>');
-
-            if (sampleVideoShowAllFiles) {
-                $.ajax({
-                    url: buildSamplesUrl('video'),
-                    method: 'GET'
-                }).done(function (result) {
-                    const allFileNames = extractSampleVideoFiles(result);
-                    renderSampleVideoThumbnails({
-                        current_folder: 'samples/video',
-                        folders: [],
-                        files: allFileNames,
-                    }, true);
-                    isSampleVideosLoaded = true;
-                }).fail(function (jqXHR) {
-                    console.error('Sample video all-files error:', jqXHR.status, jqXHR.responseText);
-                    $wcsSampleVideoPane.html('<div class="text-danger text-center py-3">샘플 동영상 목록을 불러오지 못했습니다.</div>');
-                }).always(function () {
-                    isSampleVideosLoading = false;
-                });
-                return;
-            }
-
-            $.ajax({
-                url: buildSampleBrowserUrl(sampleVideoBrowserPath),
-                method: 'GET'
-            }).done(function (result) {
-                renderSampleVideoThumbnails(result || {}, false);
-                isSampleVideosLoaded = true;
-            }).fail(function (jqXHR) {
-                console.error('Sample video browser error:', jqXHR.status, jqXHR.responseText);
-                $wcsSampleVideoPane.html('<div class="text-danger text-center py-3">샘플 폴더를 불러오지 못했습니다.</div>');
-            }).always(function () {
-                isSampleVideosLoading = false;
-            });
-        };
-
-    const ensureSampleVideosLoaded = typeof window.wcsEnsureSampleVideosLoaded === 'function'
-        ? function () {
-            return window.wcsEnsureSampleVideosLoaded({
-                isLoaded: isSampleVideosLoaded,
-                loadSampleVideos: loadSampleVideos,
-                folderPath: sampleVideoBrowserPath,
-                showAllFiles: sampleVideoShowAllFiles,
-            });
-        }
-        : function () {
-            if (!isSampleVideosLoaded) {
-                loadSampleVideos(sampleVideoBrowserPath, sampleVideoShowAllFiles);
-            }
-        };
-
-    function renderCameraDeviceList(devices) {
-        if ($wcsCameraDeviceList.length === 0) {
             return;
-        }
+          }
 
-        const items = Array.isArray(devices) ? devices : [];
-        if (items.length === 0) {
-            $wcsCameraDeviceList.html('<div class="text-muted text-center py-2">열 수 있는 카메라 장치가 없습니다.</div>');
-            return;
-        }
+          const $scrollContainer = $(
+            '<div class="sample-thumbnail-scroll"></div>',
+          );
+          const $track = $('<div class="sample-thumbnail-track"></div>');
 
-        if (!wcsCameraDeviceItemTemplate || !wcsCameraDeviceItemTemplate.content) {
-            $wcsCameraDeviceList.html('<div class="text-danger text-center py-3 w-100">카메라 템플릿을 찾지 못했습니다.</div>');
-            return;
-        }
+          fileNames.forEach(function (fileName) {
+            const safeFileName = normalizePath(fileName);
+            const thumbnailUrl = buildVideoThumbnailUrl(safeFileName);
+            const label = safeFileName.split("/").pop() || safeFileName;
 
-        const $track = $('<div class="d-flex flex-nowrap gap-2"></div>');
-
-        items.forEach(function (item) {
-            const index = Number(item && item.index);
-            if (!Number.isFinite(index) || index < 0) {
-                return;
+            if (
+              !wcsSampleVideoItemTemplate ||
+              !wcsSampleVideoItemTemplate.content
+            ) {
+              return;
             }
 
-            const name = String((item && item.name) || ('Camera ' + index));
-            const width = Number((item && item.width) || 0);
-            const height = Number((item && item.height) || 0);
-            const fps = Number((item && item.fps) || 0);
-            const details = [];
-
-            if (width > 0 && height > 0) {
-                details.push(width + 'x' + height);
-            }
-            if (fps > 0) {
-                details.push(fps.toFixed(1) + ' fps');
-            }
-
-            const node = wcsCameraDeviceItemTemplate.content.firstElementChild.cloneNode(true);
-            const button = node;
-            const nameNode = node.querySelector('.camera-device-name');
-            const detailNode = node.querySelector('.camera-device-detail');
+            const node =
+              wcsSampleVideoItemTemplate.content.firstElementChild.cloneNode(
+                true,
+              );
+            const button = node.querySelector(".sample-video-item");
+            const thumbnailImage = node.querySelector(
+              ".sample-video-thumbnail",
+            );
+            const video = node.querySelector("video");
+            const caption = node.querySelector(".small");
 
             if (button) {
-                button.setAttribute('data-camera-index', String(index));
-                button.setAttribute('data-camera-name', name);
-                button.classList.toggle('active', Number(currentCameraDeviceIndex) === index);
+              button.setAttribute("data-file-name", safeFileName);
             }
-            if (nameNode) {
-                nameNode.textContent = name;
+            if (thumbnailImage) {
+              thumbnailImage.setAttribute("src", thumbnailUrl);
+              thumbnailImage.setAttribute("alt", label);
+            } else if (video) {
+              video.removeAttribute("src");
+              video.setAttribute("poster", thumbnailUrl);
+              video.setAttribute("preload", "none");
+              if (typeof video.load === "function") {
+                video.load();
+              }
             }
-            if (detailNode) {
-                detailNode.textContent = details.join(' / ') || '열림 확인';
+            if (caption) {
+              caption.setAttribute("title", safeFileName);
+              caption.textContent = label;
             }
 
             $track.append(node);
-        });
-
-        if ($track.children().length === 0) {
-            $wcsCameraDeviceList.html('<div class="text-muted text-center py-2">열 수 있는 카메라 장치가 없습니다.</div>');
-            return;
-        }
-
-        $wcsCameraDeviceList.empty().append($track);
-    }
-
-    function loadCameraDevices(forceReload) {
-        if ($wcsCameraDeviceList.length === 0) {
-            return;
-        }
-
-        if (isCameraDevicesLoading) {
-            return;
-        }
-
-        if (!forceReload && isCameraDevicesLoaded) {
-            return;
-        }
-
-        isCameraDevicesLoading = true;
-        $wcsCameraDeviceList.html('<div class="text-muted text-center py-2">카메라 장치를 확인하는 중...</div>');
-
-        $.ajax({
-            url: buildCameraDevicesUrl(),
-            method: 'GET'
-        }).done(function (result) {
-            const devices = Array.isArray(result)
-                ? result
-                : (result && Array.isArray(result.devices) ? result.devices : []);
-            renderCameraDeviceList(devices);
-            isCameraDevicesLoaded = true;
-        }).fail(function (jqXHR) {
-            console.error('Camera device list error:', jqXHR.status, jqXHR.responseText);
-            $wcsCameraDeviceList.html('<div class="text-danger text-center py-2">카메라 장치 목록을 불러오지 못했습니다.</div>');
-        }).always(function () {
-            isCameraDevicesLoading = false;
-        });
-    }
-
-    function syncObstacleSensorRowControls($row) {
-        const sensorId = String($row.attr('data-sensor-id') || '').trim();
-        const sensorIndex = Number.parseInt($row.attr('data-sensor-index'), 10);
-        if (!sensorId || !Number.isFinite(sensorIndex)) {
-            return null;
-        }
-
-        const normalizedValue = normalizeSensorValueById(sensorId, $row.find('.obstacle-sensor-row-value').val());
-        $row.find('.obstacle-sensor-row-value').val(normalizedValue);
-        $row.find('.obstacle-sensor-row-value-text').text(normalizedValue);
-
-        const normalizedConfidence = normalizeSensorConfidence($row.find('.obstacle-sensor-row-confidence').val());
-        $row.find('.obstacle-sensor-row-confidence').val(normalizedConfidence);
-        $row.find('.obstacle-sensor-row-confidence-text').text(normalizedConfidence);
-
-        upsertObstacleSensorRowValue(sensorId, sensorIndex, {
-            value: normalizedValue,
-            confidence: normalizedConfidence,
-        });
-
-        return { sensorId, sensorIndex };
-    }
-
-    $obstacleSensorValueTbody.on('input', '.obstacle-sensor-row-value, .obstacle-sensor-row-confidence', function () {
-        const $row = $(this).closest('tr[data-sensor-id][data-sensor-index]');
-        syncObstacleSensorRowControls($row);
-    });
-
-    $obstacleSensorValueTbody.on('change', '.obstacle-sensor-row-value, .obstacle-sensor-row-confidence', function () {
-        const $row = $(this).closest('tr[data-sensor-id][data-sensor-index]');
-        const syncResult = syncObstacleSensorRowControls($row);
-        if (!syncResult) {
-            return;
-        }
-
-        publishSingleObstacleSensorRow(syncResult.sensorId, syncResult.sensorIndex);
-    });
-
-    $obstacleSensorValueTbody.on('click', '.obstacle-sensor-row-state-toggle', function () {
-        const $row = $(this).closest('tr[data-sensor-id][data-sensor-index]');
-        const sensorId = String($row.attr('data-sensor-id') || '').trim();
-        const sensorIndex = Number.parseInt($row.attr('data-sensor-index'), 10);
-        if (!sensorId || !Number.isFinite(sensorIndex)) {
-            return;
-        }
-
-        const currentEnabled = String($(this).attr('data-enabled') || '0') === '1';
-        const isEnabled = !currentEnabled;
-        upsertObstacleSensorRowValue(sensorId, sensorIndex, {
-            enabled: isEnabled,
-        });
-
-        renderObstacleSensorValueTable();
-        publishSingleObstacleSensorRow(sensorId, sensorIndex);
-    });
-
-    $('#reset-obstacle-sensor-settings').on('click', function () {
-        resetObstacleSensorSettings();
-        publishObstacleSensorSettings();
-    });
-
-    $('#disable-obstacle-sensor-settings').on('click', function () {
-        const shouldEnable = areAllObstacleSensorRowsDisabled();
-        setAllObstacleSensorSettingsEnabled(shouldEnable);
-        publishObstacleSensorSettings();
-    });
-
-    $obstacleSensorValueTbody.on('click', '.obstacle-sensor-row-reset-value', function () {
-        const $row = $(this).closest('tr[data-sensor-id][data-sensor-index]');
-        const sensorId = String($row.attr('data-sensor-id') || '').trim();
-        const sensorIndex = Number.parseInt($row.attr('data-sensor-index'), 10);
-        if (!sensorId || !Number.isFinite(sensorIndex)) {
-            return;
-        }
-
-        upsertObstacleSensorRowValue(sensorId, sensorIndex, {
-            value: getDefaultSensorValue(sensorId),
-        });
-
-        renderObstacleSensorValueTable();
-        publishSingleObstacleSensorRow(sensorId, sensorIndex);
-    });
-
-    $obstacleSensorValueTbody.on('click', '.obstacle-sensor-row-reset-confidence', function () {
-        const $row = $(this).closest('tr[data-sensor-id][data-sensor-index]');
-        const sensorId = String($row.attr('data-sensor-id') || '').trim();
-        const sensorIndex = Number.parseInt($row.attr('data-sensor-index'), 10);
-        if (!sensorId || !Number.isFinite(sensorIndex)) {
-            return;
-        }
-
-        upsertObstacleSensorRowValue(sensorId, sensorIndex, {
-            confidence: getDefaultSensorConfidence(sensorId),
-        });
-
-        renderObstacleSensorValueTable();
-        publishSingleObstacleSensorRow(sensorId, sensorIndex);
-    });
-
-    $obstacleSensorValueTbody.on('click', '.obstacle-sensor-row-reset-all', function () {
-        const $row = $(this).closest('tr[data-sensor-id][data-sensor-index]');
-        const sensorId = String($row.attr('data-sensor-id') || '').trim();
-        const sensorIndex = Number.parseInt($row.attr('data-sensor-index'), 10);
-        if (!sensorId || !Number.isFinite(sensorIndex)) {
-            return;
-        }
-
-        upsertObstacleSensorRowValue(sensorId, sensorIndex, {
-            value: getDefaultSensorValue(sensorId),
-            confidence: getDefaultSensorConfidence(sensorId),
-        });
-
-        renderObstacleSensorValueTable();
-        publishSingleObstacleSensorRow(sensorId, sensorIndex);
-    });
-
-    $obstacleSensorValueTbody.on('click', '.obstacle-sensor-row-reset-group', function () {
-        const $row = $(this).closest('tr[data-sensor-id][data-sensor-index]');
-        const sensorId = String($row.attr('data-sensor-id') || '').trim();
-        if (!sensorId) {
-            return;
-        }
-
-        getOrderedObstacleSensorRows().forEach((row) => {
-            if (String(row.id) === sensorId) {
-                upsertObstacleSensorRowValue(row.id, row.index, {
-                    value: getDefaultSensorValue(row.id),
-                    confidence: getDefaultSensorConfidence(row.id),
-                });
-            }
-        });
-
-        renderObstacleSensorValueTable();
-        publishObstacleSensorGroup(sensorId);
-    });
-
-    $obstacleSensorValueTbody.on('click', '.obstacle-sensor-row-apply-group', function () {
-        const $row = $(this).closest('tr[data-sensor-id][data-sensor-index]');
-        const sensorId = String($row.attr('data-sensor-id') || '').trim();
-        if (!sensorId) {
-            return;
-        }
-
-        publishObstacleSensorGroup(sensorId);
-    });
-
-    $('#apply-obstacle-sensor-settings').on('click', function () {
-        publishObstacleSensorSettings();
-    });
-
-    $('#vehicle-max-speed').on('input', function () {
-        updateVehicleMaxSpeedUi($(this).val(), false);
-    });
-
-    $('#vehicle-max-speed').on('change', function () {
-        updateVehicleMaxSpeedUi($(this).val(), true);
-    });
-
-    $wcsSampleVideoPane.on('click', '.sample-video-item', function () {
-        $wcsSampleVideoPane.find('.sample-video-item.selected-sample').removeClass('selected-sample');
-        $(this).addClass('selected-sample');
-
-        const selectedVideoFileName = String($(this).attr('data-file-name') || '').trim();
-        if (selectedVideoFileName) {
-            currentVideoFileName = normalizePath(selectedVideoFileName);
-            currentCameraDeviceIndex = null;
-            applyCurrentCameraHighlight();
-            saveCurrentVideoSelectionToStorage(selectedVideoFileName);
-            const published = sendMQTTMessage('vehicle/current_video/file_name', selectedVideoFileName);
-            showVideoPublishToast(Boolean(published), selectedVideoFileName, this);
-        }
-    });
-
-    $wcsSampleVideoPane.on('click', '.sample-folder-item', function () {
-        const folderPath = String($(this).attr('data-folder-path') || '').trim();
-        loadSampleVideos(folderPath, sampleVideoShowAllFiles);
-    });
-
-    $wcsSampleVideoPane.on('click', '.sample-folder-home', function () {
-        const baseFolder = String($(this).attr('data-base-folder') || 'video').trim() || 'video';
-        loadSampleVideos(baseFolder, sampleVideoShowAllFiles);
-    });
-
-    $wcsSampleVideoPane.on('click', '.sample-folder-up', function () {
-        const baseFolder = String($(this).attr('data-base-folder') || 'video').trim() || 'video';
-        const parentFolder = String($(this).attr('data-parent-folder') || baseFolder).trim() || baseFolder;
-        loadSampleVideos(parentFolder, sampleVideoShowAllFiles);
-    });
-
-    $wcsSampleVideoPane.on('change', '.sample-folder-all-toggle', function () {
-        const shouldShowAll = $(this).is(':checked');
-        loadSampleVideos(sampleVideoBrowserPath, shouldShowAll);
-    });
-
-    $wcsSampleVideoPane.on('click', '.sample-video-clear-selection', function () {
-        currentVideoFileName = '';
-        applyCurrentVideoHighlight();
-        saveCurrentVideoSelectionToStorage('');
-        const published = sendMQTTMessage('vehicle/current_video/file_name', '');
-        showVideoPublishToast(Boolean(published), '', this);
-    });
-
-    $wcsCameraPane.on('click', '.wcs-camera-device-item', function () {
-        const index = Number($(this).attr('data-camera-index'));
-        if (!Number.isFinite(index) || index < 0) {
-            return;
-        }
-
-        const cameraName = String($(this).attr('data-camera-name') || ('Camera ' + index));
-        const currentVideoValue = buildCurrentVideoValueFromCamera(index, cameraName);
-
-        currentCameraDeviceIndex = index;
-        currentVideoFileName = '';
-        applyCurrentVideoHighlight();
-        $wcsCameraPane.find('.wcs-camera-device-item.active').removeClass('active');
-        $(this).addClass('active');
-
-        saveCurrentVideoSelectionToStorage(currentVideoValue);
-        const published = sendMQTTMessage('vehicle/current_video/file_name', currentVideoValue);
-        showVideoPublishToast(Boolean(published), currentVideoValue, this);
-    });
-
-    $wcsCameraPane.on('click', '.wcs-camera-clear-selection', function () {
-        currentCameraDeviceIndex = null;
-        currentVideoFileName = '';
-        applyCurrentVideoHighlight();
-        $wcsCameraPane.find('.wcs-camera-device-item.active').removeClass('active');
-
-        saveCurrentVideoSelectionToStorage('');
-        const published = sendMQTTMessage('vehicle/current_video/file_name', '');
-        showVideoPublishToast(Boolean(published), '', this);
-    });
-
-    $wcsCameraTab.on('shown.bs.tab', function () {
-        loadCameraDevices(false);
-    });
-
-    $wcsVideoInputTabs.on('shown.bs.tab', "button[data-bs-toggle='tab']", function (event) {
-        const tabId = $(event.target).attr('id');
-        saveSelectedVideoInputTabToStorage(tabId);
-    });
-
-    $('#reset-vehicle-max-speed').on('click', function () {
-        updateVehicleMaxSpeedUi(50, true);
-    });
-
-    $(vehicleDirectionButtonSelector).on('click', function () {
-        const command = (typeof window.getVehicleCommandByButtonId === 'function')
-            ? window.getVehicleCommandByButtonId($(this).attr('id'))
-            : 0;
-        sendVehicleDirectionCommand(command);
-    });
-
-    window.addEventListener('wcs:vehicle-direction-update', function (event) {
-        const detail = event && event.detail ? event.detail : null;
-        if (!detail) {
-            return;
-        }
-
-        handleVehicleDirectionUpdate(detail.value);
-    });
-
-    if (Number.isFinite(window.latestVehicleOperationCommand)) {
-        updateVehicleDirectionControlUi(window.latestVehicleOperationCommand);
-    } else if (window.latestVehicleOperationState === 0) {
-        updateVehicleDirectionControlUi(0);
-    } else {
-        updateVehicleDirectionControlUi(0);
-    }
-
-    setTimeout(function () {
-        isDirectionInitSyncWindow = false;
-
-        if (pendingDirectionCommandTimer) {
-            clearTimeout(pendingDirectionCommandTimer);
-            pendingDirectionCommandTimer = null;
-        }
-
-        if (Number.isFinite(pendingDirectionCommandValue)) {
-            updateVehicleDirectionControlUi(pendingDirectionCommandValue);
-            pendingDirectionCommandValue = null;
-        }
-    }, 1200);
-
-    if (typeof window.prcessMqttMessage === 'function' && !window.wcsSettingMaxSpeedHooked) {
-        const originalProcessMqtt = window.prcessMqttMessage;
-        window.prcessMqttMessage = function (topic, value) {
-            originalProcessMqtt(topic, value);
-
-            if (topic === 'vehicle/linear/max_speed') {
-                const numericMs = Number.parseFloat(value);
-                if (Number.isFinite(numericMs)) {
-                    updateVehicleMaxSpeedUi(numericMs * 3.6, false);
-                }
-            }
-
-            if (topic === 'vehicle/linear/speed') {
-                const numericMs = Number.parseFloat(value);
-                if (Number.isFinite(numericMs)) {
-                    lastVehicleCurrSpeedMsSent = Number(numericMs.toFixed(2));
-                }
-            }
-
-            if (topic === 'vehicle/surface/state') {
-                const normalized = String(value).trim();
-                if ($(`#surface-state option[value="${normalized}"]`).length > 0) {
-                    $('#surface-state').val(normalized);
-                }
-            }
-
-            if (topic === 'vehicle/surface/obstacle') {
-                const normalized = String(value).trim();
-                if ($(`#surface-obstacle option[value="${normalized}"]`).length > 0) {
-                    $('#surface-obstacle').val(normalized);
-                }
-            }
-
-            if (topic === 'vehicle/current_video/file_name') {
-                const cameraIndex = parseCameraIndexFromCurrentVideoValue(value);
-                if (cameraIndex !== null) {
-                    currentCameraDeviceIndex = cameraIndex;
-                    currentVideoFileName = '';
-                } else {
-                    currentCameraDeviceIndex = null;
-                    currentVideoFileName = normalizePath(value);
-                }
-
-                applyCurrentVideoHighlight();
-                applyCurrentCameraHighlight();
-                saveCurrentVideoSelectionToStorage(value);
-            }
-
-            const sensorCountMatch = String(topic || '').match(/^sensor\/([^/]+)\/count$/);
-            if (sensorCountMatch) {
-                const sensorId = sensorCountMatch[1];
-                const sensorCount = Math.max(1, Math.min(16, Number.parseInt(value, 10) || 1));
-                upsertObstacleSensorSetting(sensorId, { count: sensorCount });
-                renderObstacleSensorSettings();
-            }
-
-            const sensorTargetMatch = String(topic || '').match(/^sensor\/([^/]+)\/target$/);
-            if (sensorTargetMatch) {
-                const sensorId = sensorTargetMatch[1];
-                upsertObstacleSensorSetting(sensorId, { target: String(value || '') });
-                renderObstacleSensorSettings();
-            }
-
-            const sensorEnabledMatch = String(topic || '').match(/^sensor\/([^/]+)\/enabled$/);
-            if (sensorEnabledMatch) {
-                const sensorId = sensorEnabledMatch[1];
-                const enabledText = String(value || '').trim().toLowerCase();
-                const enabled = enabledText === '1' || enabledText === 'true' || enabledText === 'on' || enabledText === 'yes';
-                upsertObstacleSensorSetting(sensorId, { enabled: enabled });
-                renderObstacleSensorSettings();
-            }
-
-            const sensorValueMatch = String(topic || '').match(/^sensor\/([^/]+)\/(\d+)\/value$/);
-            if (sensorValueMatch) {
-                const sensorId = sensorValueMatch[1];
-                const sensorIndex = Number.parseInt(sensorValueMatch[2], 10);
-                const normalizedValue = normalizeSensorValueById(sensorId, value);
-                upsertObstacleSensorRowValue(sensorId, sensorIndex, { value: normalizedValue });
-                renderObstacleSensorValueTable();
-            }
-
-            const sensorConfidenceMatch = String(topic || '').match(/^sensor\/([^/]+)\/(\d+)\/obstacle\/confidence$/);
-            if (sensorConfidenceMatch) {
-                const sensorId = sensorConfidenceMatch[1];
-                const sensorIndex = Number.parseInt(sensorConfidenceMatch[2], 10);
-                const normalizedConfidence = normalizeSensorConfidence(value);
-                upsertObstacleSensorRowValue(sensorId, sensorIndex, { confidence: normalizedConfidence });
-                renderObstacleSensorValueTable();
-            }
-
-            const sensorStateMatch = String(topic || '').match(/^sensor\/([^/]+)\/(\d+)\/state$/);
-            if (sensorStateMatch) {
-                const sensorId = sensorStateMatch[1];
-                const sensorIndex = Number.parseInt(sensorStateMatch[2], 10);
-                const stateText = String(value || '').trim().toLowerCase();
-                const enabled = stateText === '1' || stateText === 'true' || stateText === 'on' || stateText === 'yes';
-                upsertObstacleSensorRowValue(sensorId, sensorIndex, { enabled: enabled });
-                renderObstacleSensorValueTable();
-            }
-
-            if (topic === vehicleOperationCommandTopic) {
-                const parsedCommand = Number.parseInt(value, 10);
-                if (Number.isFinite(parsedCommand)) {
-                    lastVehicleDirectionCommandSent = parsedCommand;
-                }
-                handleVehicleDirectionUpdate(value);
-            }
-
+          });
+
+          $scrollContainer.append($track);
+          $wcsSampleVideoPane.append($scrollContainer);
+          applyCurrentVideoHighlight();
+          moveSampleVideoThumbnailsToBottom();
         };
-        window.wcsSettingMaxSpeedHooked = true;
+
+  const loadSampleVideos =
+    typeof window.wcsLoadSampleVideos === "function"
+      ? function (folderPath, showAllFiles) {
+          return window.wcsLoadSampleVideos({
+            pane: $wcsSampleVideoPane,
+            folderPath: folderPath,
+            currentFolderPath: sampleVideoBrowserPath,
+            showAllFiles: showAllFiles,
+            isLoading: isSampleVideosLoading,
+            baseFolder: "video",
+            loadingMessage: "샘플 동영상을 불러오는 중...",
+            allFilesErrorMessage: "샘플 동영상 목록을 불러오지 못했습니다.",
+            browserErrorMessage: "샘플 폴더를 불러오지 못했습니다.",
+            normalizeSampleFolderPath: normalizeSampleFolderPath,
+            buildSamplesUrl: buildSamplesUrl,
+            buildSampleBrowserUrl: buildSampleBrowserUrl,
+            extractSampleVideoFiles: extractSampleVideoFiles,
+            renderSampleVideoThumbnails: renderSampleVideoThumbnails,
+            setLoading: function (next) {
+              isSampleVideosLoading = Boolean(next);
+            },
+            setCurrentFolderPath: function (nextPath) {
+              sampleVideoBrowserPath = nextPath;
+            },
+            setShowAllFiles: function (nextShowAll) {
+              sampleVideoShowAllFiles = Boolean(nextShowAll);
+            },
+            saveBrowserState: saveSampleVideoBrowserStateToStorage,
+            onLoaded: function () {
+              isSampleVideosLoaded = true;
+              moveSampleVideoThumbnailsToBottom();
+            },
+          });
+        }
+      : function (folderPath, showAllFiles) {
+          if ($wcsSampleVideoPane.length === 0) {
+            return;
+          }
+          if (isSampleVideosLoading) {
+            return;
+          }
+
+          isSampleVideosLoading = true;
+          sampleVideoBrowserPath = normalizeSampleFolderPath(
+            folderPath || sampleVideoBrowserPath,
+            "video",
+          );
+          sampleVideoShowAllFiles = Boolean(showAllFiles);
+          saveSampleVideoBrowserStateToStorage();
+
+          $wcsSampleVideoPane.html(
+            '<div class="text-muted text-center py-3">샘플 동영상을 불러오는 중...</div>',
+          );
+
+          if (sampleVideoShowAllFiles) {
+            $.ajax({
+              url: buildSamplesUrl("video"),
+              method: "GET",
+            })
+              .done(function (result) {
+                const allFileNames = extractSampleVideoFiles(result);
+                renderSampleVideoThumbnails(
+                  {
+                    current_folder: "samples/video",
+                    folders: [],
+                    files: allFileNames,
+                  },
+                  true,
+                );
+                isSampleVideosLoaded = true;
+              })
+              .fail(function (jqXHR) {
+                console.error(
+                  "Sample video all-files error:",
+                  jqXHR.status,
+                  jqXHR.responseText,
+                );
+                $wcsSampleVideoPane.html(
+                  '<div class="text-danger text-center py-3">샘플 동영상 목록을 불러오지 못했습니다.</div>',
+                );
+              })
+              .always(function () {
+                isSampleVideosLoading = false;
+              });
+            return;
+          }
+
+          $.ajax({
+            url: buildSampleBrowserUrl(sampleVideoBrowserPath),
+            method: "GET",
+          })
+            .done(function (result) {
+              renderSampleVideoThumbnails(result || {}, false);
+              isSampleVideosLoaded = true;
+            })
+            .fail(function (jqXHR) {
+              console.error(
+                "Sample video browser error:",
+                jqXHR.status,
+                jqXHR.responseText,
+              );
+              $wcsSampleVideoPane.html(
+                '<div class="text-danger text-center py-3">샘플 폴더를 불러오지 못했습니다.</div>',
+              );
+            })
+            .always(function () {
+              isSampleVideosLoading = false;
+            });
+        };
+
+  const ensureSampleVideosLoaded =
+    typeof window.wcsEnsureSampleVideosLoaded === "function"
+      ? function () {
+          return window.wcsEnsureSampleVideosLoaded({
+            isLoaded: isSampleVideosLoaded,
+            loadSampleVideos: loadSampleVideos,
+            folderPath: sampleVideoBrowserPath,
+            showAllFiles: sampleVideoShowAllFiles,
+          });
+        }
+      : function () {
+          if (!isSampleVideosLoaded) {
+            loadSampleVideos(sampleVideoBrowserPath, sampleVideoShowAllFiles);
+          }
+        };
+
+  function renderCameraDeviceList(devices) {
+    if ($wcsCameraDeviceList.length === 0) {
+      return;
     }
 
-    $('#surface-state').on('change', function () {
-        const surfaceValue = $('#surface-state').val();
-        sendMQTTMessage('vehicle/surface/state', surfaceValue);
+    const items = Array.isArray(devices) ? devices : [];
+    if (items.length === 0) {
+      $wcsCameraDeviceList.html(
+        '<div class="text-muted text-center py-2">열 수 있는 카메라 장치가 없습니다.</div>',
+      );
+      return;
+    }
+
+    if (!wcsCameraDeviceItemTemplate || !wcsCameraDeviceItemTemplate.content) {
+      $wcsCameraDeviceList.html(
+        '<div class="text-danger text-center py-3 w-100">카메라 템플릿을 찾지 못했습니다.</div>',
+      );
+      return;
+    }
+
+    const $track = $('<div class="d-flex flex-nowrap gap-2"></div>');
+
+    items.forEach(function (item) {
+      const index = Number(item && item.index);
+      if (!Number.isFinite(index) || index < 0) {
+        return;
+      }
+
+      const name = String((item && item.name) || "Camera " + index);
+      const width = Number((item && item.width) || 0);
+      const height = Number((item && item.height) || 0);
+      const fps = Number((item && item.fps) || 0);
+      const details = [];
+
+      if (width > 0 && height > 0) {
+        details.push(width + "x" + height);
+      }
+      if (fps > 0) {
+        details.push(fps.toFixed(1) + " fps");
+      }
+
+      const node =
+        wcsCameraDeviceItemTemplate.content.firstElementChild.cloneNode(true);
+      const button = node;
+      const nameNode = node.querySelector(".camera-device-name");
+      const detailNode = node.querySelector(".camera-device-detail");
+
+      if (button) {
+        button.setAttribute("data-camera-index", String(index));
+        button.setAttribute("data-camera-name", name);
+        button.classList.toggle(
+          "active",
+          Number(currentCameraDeviceIndex) === index,
+        );
+      }
+      if (nameNode) {
+        nameNode.textContent = name;
+      }
+      if (detailNode) {
+        detailNode.textContent = details.join(" / ") || "열림 확인";
+      }
+
+      $track.append(node);
     });
 
-    $('#surface-obstacle').on('change', function () {
-        const obstacleValue = $('#surface-obstacle').val();
-        sendMQTTMessage('vehicle/surface/obstacle', obstacleValue);
+    if ($track.children().length === 0) {
+      $wcsCameraDeviceList.html(
+        '<div class="text-muted text-center py-2">열 수 있는 카메라 장치가 없습니다.</div>',
+      );
+      return;
+    }
+
+    $wcsCameraDeviceList.empty().append($track);
+  }
+
+  function loadCameraDevices(forceReload) {
+    if ($wcsCameraDeviceList.length === 0) {
+      return;
+    }
+
+    if (isCameraDevicesLoading) {
+      return;
+    }
+
+    if (!forceReload && isCameraDevicesLoaded) {
+      return;
+    }
+
+    isCameraDevicesLoading = true;
+    $wcsCameraDeviceList.html(
+      '<div class="text-muted text-center py-2">카메라 장치를 확인하는 중...</div>',
+    );
+
+    $.ajax({
+      url: buildCameraDevicesUrl(),
+      method: "GET",
+    })
+      .done(function (result) {
+        const devices = Array.isArray(result)
+          ? result
+          : result && Array.isArray(result.devices)
+            ? result.devices
+            : [];
+        renderCameraDeviceList(devices);
+        isCameraDevicesLoaded = true;
+      })
+      .fail(function (jqXHR) {
+        console.error(
+          "Camera device list error:",
+          jqXHR.status,
+          jqXHR.responseText,
+        );
+        $wcsCameraDeviceList.html(
+          '<div class="text-danger text-center py-2">카메라 장치 목록을 불러오지 못했습니다.</div>',
+        );
+      })
+      .always(function () {
+        isCameraDevicesLoading = false;
+      });
+  }
+
+  function syncObstacleSensorRowControls($row) {
+    const sensorId = String($row.attr("data-sensor-id") || "").trim();
+    const sensorIndex = Number.parseInt($row.attr("data-sensor-index"), 10);
+    if (!sensorId || !Number.isFinite(sensorIndex)) {
+      return null;
+    }
+
+    const normalizedValue = normalizeSensorValueById(
+      sensorId,
+      $row.find(".obstacle-sensor-row-value").val(),
+    );
+    $row.find(".obstacle-sensor-row-value").val(normalizedValue);
+    $row.find(".obstacle-sensor-row-value-text").text(normalizedValue);
+
+    const normalizedConfidence = normalizeSensorConfidence(
+      $row.find(".obstacle-sensor-row-confidence").val(),
+    );
+    $row.find(".obstacle-sensor-row-confidence").val(normalizedConfidence);
+    $row
+      .find(".obstacle-sensor-row-confidence-text")
+      .text(normalizedConfidence);
+
+    upsertObstacleSensorRowValue(sensorId, sensorIndex, {
+      value: normalizedValue,
+      confidence: normalizedConfidence,
     });
 
-    $('#sim-runinfo-start').on('click', function () {
-        startRunInfoSimulation();
-    });
+    return { sensorId, sensorIndex };
+  }
 
-    $('#sim-runinfo-stop').on('click', function () {
-        stopRunInfoSimulation();
-    });
+  $obstacleSensorValueTbody.on(
+    "input",
+    ".obstacle-sensor-row-value, .obstacle-sensor-row-confidence",
+    function () {
+      const $row = $(this).closest("tr[data-sensor-id][data-sensor-index]");
+      syncObstacleSensorRowControls($row);
+    },
+  );
 
-    $('#sim-runinfo-publish-once').on('click', function () {
-        const state = getRunInfoSimulationStateFromInputs();
-        const options = getRunInfoSimulationOptionsFromInputs();
-        writeRunInfoSimulationStateToInputs(state);
-        publishRunInfoSimulationState(state, options);
-        updateRunInfoSimulationStateLabel('1회 발행 완료', false);
-    });
+  $obstacleSensorValueTbody.on(
+    "change",
+    ".obstacle-sensor-row-value, .obstacle-sensor-row-confidence",
+    function () {
+      const $row = $(this).closest("tr[data-sensor-id][data-sensor-index]");
+      const syncResult = syncObstacleSensorRowControls($row);
+      if (!syncResult) {
+        return;
+      }
 
-    $('#sim-runinfo-reset').on('click', function () {
-        stopRunInfoSimulation();
-        restoreRunInfoSimulationDefaults();
-    });
+      publishSingleObstacleSensorRow(
+        syncResult.sensorId,
+        syncResult.sensorIndex,
+      );
+    },
+  );
 
-    $('#vehicle-roll-angle').on('input', function () {
-        updateVehicleRollAngleUi($(this).val(), false);
-    });
+  $obstacleSensorValueTbody.on(
+    "click",
+    ".obstacle-sensor-row-state-toggle",
+    function () {
+      const $row = $(this).closest("tr[data-sensor-id][data-sensor-index]");
+      const sensorId = String($row.attr("data-sensor-id") || "").trim();
+      const sensorIndex = Number.parseInt($row.attr("data-sensor-index"), 10);
+      if (!sensorId || !Number.isFinite(sensorIndex)) {
+        return;
+      }
 
-    $('#vehicle-roll-angle').on('change', function () {
-        updateVehicleRollAngleUi($(this).val(), true);
-    });
+      const currentEnabled =
+        String($(this).attr("data-enabled") || "0") === "1";
+      const isEnabled = !currentEnabled;
+      upsertObstacleSensorRowValue(sensorId, sensorIndex, {
+        enabled: isEnabled,
+      });
 
-    $('#reset-vehicle-roll-angle').on('click', function () {
-        updateVehicleRollAngleUi(0, true);
-    });
+      renderObstacleSensorValueTable();
+      publishSingleObstacleSensorRow(sensorId, sensorIndex);
+    },
+  );
 
-    $('#vehicle-pitch-angle').on('input', function () {
-        updateVehiclePitchAngleUi($(this).val(), false);
-    });
+  $("#reset-obstacle-sensor-settings").on("click", function () {
+    resetObstacleSensorSettings();
+    publishObstacleSensorSettings();
+  });
 
-    $('#vehicle-pitch-angle').on('change', function () {
-        updateVehiclePitchAngleUi($(this).val(), true);
-    });
+  $("#disable-obstacle-sensor-settings").on("click", function () {
+    const shouldEnable = areAllObstacleSensorRowsDisabled();
+    setAllObstacleSensorSettingsEnabled(shouldEnable);
+    publishObstacleSensorSettings();
+  });
 
-    $('#reset-vehicle-pitch-angle').on('click', function () {
-        updateVehiclePitchAngleUi(0, true);
-    });
+  $obstacleSensorValueTbody.on(
+    "click",
+    ".obstacle-sensor-row-reset-value",
+    function () {
+      const $row = $(this).closest("tr[data-sensor-id][data-sensor-index]");
+      const sensorId = String($row.attr("data-sensor-id") || "").trim();
+      const sensorIndex = Number.parseInt($row.attr("data-sensor-index"), 10);
+      if (!sensorId || !Number.isFinite(sensorIndex)) {
+        return;
+      }
 
-    restoreSampleVideoBrowserStateFromStorage();
-    initializeObstacleSensorSettingsDefaults();
+      upsertObstacleSensorRowValue(sensorId, sensorIndex, {
+        value: getDefaultSensorValue(sensorId),
+      });
+
+      renderObstacleSensorValueTable();
+      publishSingleObstacleSensorRow(sensorId, sensorIndex);
+    },
+  );
+
+  $obstacleSensorValueTbody.on(
+    "click",
+    ".obstacle-sensor-row-reset-confidence",
+    function () {
+      const $row = $(this).closest("tr[data-sensor-id][data-sensor-index]");
+      const sensorId = String($row.attr("data-sensor-id") || "").trim();
+      const sensorIndex = Number.parseInt($row.attr("data-sensor-index"), 10);
+      if (!sensorId || !Number.isFinite(sensorIndex)) {
+        return;
+      }
+
+      upsertObstacleSensorRowValue(sensorId, sensorIndex, {
+        confidence: getDefaultSensorConfidence(sensorId),
+      });
+
+      renderObstacleSensorValueTable();
+      publishSingleObstacleSensorRow(sensorId, sensorIndex);
+    },
+  );
+
+  $obstacleSensorValueTbody.on(
+    "click",
+    ".obstacle-sensor-row-reset-all",
+    function () {
+      const $row = $(this).closest("tr[data-sensor-id][data-sensor-index]");
+      const sensorId = String($row.attr("data-sensor-id") || "").trim();
+      const sensorIndex = Number.parseInt($row.attr("data-sensor-index"), 10);
+      if (!sensorId || !Number.isFinite(sensorIndex)) {
+        return;
+      }
+
+      upsertObstacleSensorRowValue(sensorId, sensorIndex, {
+        value: getDefaultSensorValue(sensorId),
+        confidence: getDefaultSensorConfidence(sensorId),
+      });
+
+      renderObstacleSensorValueTable();
+      publishSingleObstacleSensorRow(sensorId, sensorIndex);
+    },
+  );
+
+  $obstacleSensorValueTbody.on(
+    "click",
+    ".obstacle-sensor-row-reset-group",
+    function () {
+      const $row = $(this).closest("tr[data-sensor-id][data-sensor-index]");
+      const sensorId = String($row.attr("data-sensor-id") || "").trim();
+      if (!sensorId) {
+        return;
+      }
+
+      getOrderedObstacleSensorRows().forEach((row) => {
+        if (String(row.id) === sensorId) {
+          upsertObstacleSensorRowValue(row.id, row.index, {
+            value: getDefaultSensorValue(row.id),
+            confidence: getDefaultSensorConfidence(row.id),
+          });
+        }
+      });
+
+      renderObstacleSensorValueTable();
+      publishObstacleSensorGroup(sensorId);
+    },
+  );
+
+  $obstacleSensorValueTbody.on(
+    "click",
+    ".obstacle-sensor-row-apply-group",
+    function () {
+      const $row = $(this).closest("tr[data-sensor-id][data-sensor-index]");
+      const sensorId = String($row.attr("data-sensor-id") || "").trim();
+      if (!sensorId) {
+        return;
+      }
+
+      publishObstacleSensorGroup(sensorId);
+    },
+  );
+
+  $("#apply-obstacle-sensor-settings").on("click", function () {
+    publishObstacleSensorSettings();
+  });
+
+  $("#vehicle-max-speed").on("input", function () {
+    updateVehicleMaxSpeedUi($(this).val(), false);
+  });
+
+  $("#vehicle-max-speed").on("change", function () {
+    updateVehicleMaxSpeedUi($(this).val(), true);
+  });
+
+  $wcsSampleVideoPane.on("click", ".sample-video-item", function () {
+    $wcsSampleVideoPane
+      .find(".sample-video-item.selected-sample")
+      .removeClass("selected-sample");
+    $(this).addClass("selected-sample");
+
+    const selectedVideoFileName = String(
+      $(this).attr("data-file-name") || "",
+    ).trim();
+    if (selectedVideoFileName) {
+      currentVideoFileName = normalizePath(selectedVideoFileName);
+      currentCameraDeviceIndex = null;
+      applyCurrentCameraHighlight();
+      saveCurrentVideoSelectionToStorage(selectedVideoFileName);
+      const published = sendMQTTMessage(
+        "vehicle/current_video/file_name",
+        selectedVideoFileName,
+      );
+      showVideoPublishToast(Boolean(published), selectedVideoFileName, this);
+    }
+  });
+
+  $wcsSampleVideoPane.on("click", ".sample-folder-item", function () {
+    const folderPath = String($(this).attr("data-folder-path") || "").trim();
+    loadSampleVideos(folderPath, sampleVideoShowAllFiles);
+  });
+
+  $wcsSampleVideoPane.on("click", ".sample-folder-home", function () {
+    const baseFolder =
+      String($(this).attr("data-base-folder") || "video").trim() || "video";
+    loadSampleVideos(baseFolder, sampleVideoShowAllFiles);
+  });
+
+  $wcsSampleVideoPane.on("click", ".sample-folder-up", function () {
+    const baseFolder =
+      String($(this).attr("data-base-folder") || "video").trim() || "video";
+    const parentFolder =
+      String($(this).attr("data-parent-folder") || baseFolder).trim() ||
+      baseFolder;
+    loadSampleVideos(parentFolder, sampleVideoShowAllFiles);
+  });
+
+  $wcsSampleVideoPane.on("change", ".sample-folder-all-toggle", function () {
+    const shouldShowAll = $(this).is(":checked");
+    loadSampleVideos(sampleVideoBrowserPath, shouldShowAll);
+  });
+
+  $wcsSampleVideoPane.on("click", ".sample-video-clear-selection", function () {
+    currentVideoFileName = "";
+    applyCurrentVideoHighlight();
+    saveCurrentVideoSelectionToStorage("");
+    const published = sendMQTTMessage("vehicle/current_video/file_name", "");
+    showVideoPublishToast(Boolean(published), "", this);
+  });
+
+  $wcsCameraPane.on("click", ".wcs-camera-device-item", function () {
+    const index = Number($(this).attr("data-camera-index"));
+    if (!Number.isFinite(index) || index < 0) {
+      return;
+    }
+
+    const cameraName = String(
+      $(this).attr("data-camera-name") || "Camera " + index,
+    );
+    const currentVideoValue = buildCurrentVideoValueFromCamera(
+      index,
+      cameraName,
+    );
+
+    currentCameraDeviceIndex = index;
+    currentVideoFileName = "";
+    applyCurrentVideoHighlight();
+    $wcsCameraPane.find(".wcs-camera-device-item.active").removeClass("active");
+    $(this).addClass("active");
+
+    saveCurrentVideoSelectionToStorage(currentVideoValue);
+    const published = sendMQTTMessage(
+      "vehicle/current_video/file_name",
+      currentVideoValue,
+    );
+    showVideoPublishToast(Boolean(published), currentVideoValue, this);
+  });
+
+  $wcsCameraPane.on("click", ".wcs-camera-clear-selection", function () {
+    currentCameraDeviceIndex = null;
+    currentVideoFileName = "";
+    applyCurrentVideoHighlight();
+    $wcsCameraPane.find(".wcs-camera-device-item.active").removeClass("active");
+
+    saveCurrentVideoSelectionToStorage("");
+    const published = sendMQTTMessage("vehicle/current_video/file_name", "");
+    showVideoPublishToast(Boolean(published), "", this);
+  });
+
+  $wcsCameraTab.on("shown.bs.tab", function () {
+    loadCameraDevices(false);
+  });
+
+  $wcsVideoInputTabs.on(
+    "shown.bs.tab",
+    "button[data-bs-toggle='tab']",
+    function (event) {
+      const tabId = $(event.target).attr("id");
+      saveSelectedVideoInputTabToStorage(tabId);
+    },
+  );
+
+  $("#reset-vehicle-max-speed").on("click", function () {
+    updateVehicleMaxSpeedUi(50, true);
+  });
+
+  $(vehicleDirectionButtonSelector).on("click", function () {
+    const command =
+      typeof window.getVehicleCommandByButtonId === "function"
+        ? window.getVehicleCommandByButtonId($(this).attr("id"))
+        : 0;
+    sendVehicleDirectionCommand(command);
+  });
+
+  window.addEventListener("wcs:vehicle-direction-update", function (event) {
+    const detail = event && event.detail ? event.detail : null;
+    if (!detail) {
+      return;
+    }
+
+    handleVehicleDirectionUpdate(detail.value);
+  });
+
+  if (Number.isFinite(window.latestVehicleOperationCommand)) {
+    updateVehicleDirectionControlUi(window.latestVehicleOperationCommand);
+  } else if (window.latestVehicleOperationState === 0) {
+    updateVehicleDirectionControlUi(0);
+  } else {
+    updateVehicleDirectionControlUi(0);
+  }
+
+  setTimeout(function () {
+    isDirectionInitSyncWindow = false;
+
+    if (pendingDirectionCommandTimer) {
+      clearTimeout(pendingDirectionCommandTimer);
+      pendingDirectionCommandTimer = null;
+    }
+
+    if (Number.isFinite(pendingDirectionCommandValue)) {
+      updateVehicleDirectionControlUi(pendingDirectionCommandValue);
+      pendingDirectionCommandValue = null;
+    }
+  }, 1200);
+
+  if (
+    typeof window.prcessMqttMessage === "function" &&
+    !window.wcsSettingMaxSpeedHooked
+  ) {
+    const originalProcessMqtt = window.prcessMqttMessage;
+    window.prcessMqttMessage = function (topic, value) {
+      originalProcessMqtt(topic, value);
+
+      if (topic === "vehicle/linear/max_speed") {
+        const numericMs = Number.parseFloat(value);
+        if (Number.isFinite(numericMs)) {
+          updateVehicleMaxSpeedUi(numericMs * 3.6, false);
+        }
+      }
+
+      if (topic === "vehicle/linear/speed") {
+        const numericMs = Number.parseFloat(value);
+        if (Number.isFinite(numericMs)) {
+          lastVehicleCurrSpeedMsSent = Number(numericMs.toFixed(2));
+        }
+      }
+
+      if (topic === "vehicle/surface/state") {
+        const normalized = String(value).trim();
+        if ($(`#surface-state option[value="${normalized}"]`).length > 0) {
+          $("#surface-state").val(normalized);
+        }
+      }
+
+      if (topic === "vehicle/surface/obstacle") {
+        const normalized = String(value).trim();
+        if ($(`#surface-obstacle option[value="${normalized}"]`).length > 0) {
+          $("#surface-obstacle").val(normalized);
+        }
+      }
+
+      if (topic === "vehicle/current_video/file_name") {
+        const cameraIndex = parseCameraIndexFromCurrentVideoValue(value);
+        if (cameraIndex !== null) {
+          currentCameraDeviceIndex = cameraIndex;
+          currentVideoFileName = "";
+        } else {
+          currentCameraDeviceIndex = null;
+          currentVideoFileName = normalizePath(value);
+        }
+
+        applyCurrentVideoHighlight();
+        applyCurrentCameraHighlight();
+        saveCurrentVideoSelectionToStorage(value);
+      }
+
+      const sensorCountMatch = String(topic || "").match(
+        /^sensor\/([^/]+)\/count$/,
+      );
+      if (sensorCountMatch) {
+        const sensorId = sensorCountMatch[1];
+        const sensorCount = Math.max(
+          1,
+          Math.min(16, Number.parseInt(value, 10) || 1),
+        );
+        upsertObstacleSensorSetting(sensorId, { count: sensorCount });
+        renderObstacleSensorSettings();
+      }
+
+      const sensorTargetMatch = String(topic || "").match(
+        /^sensor\/([^/]+)\/target$/,
+      );
+      if (sensorTargetMatch) {
+        const sensorId = sensorTargetMatch[1];
+        upsertObstacleSensorSetting(sensorId, { target: String(value || "") });
+        renderObstacleSensorSettings();
+      }
+
+      const sensorEnabledMatch = String(topic || "").match(
+        /^sensor\/([^/]+)\/enabled$/,
+      );
+      if (sensorEnabledMatch) {
+        const sensorId = sensorEnabledMatch[1];
+        const enabledText = String(value || "")
+          .trim()
+          .toLowerCase();
+        const enabled =
+          enabledText === "1" ||
+          enabledText === "true" ||
+          enabledText === "on" ||
+          enabledText === "yes";
+        upsertObstacleSensorSetting(sensorId, { enabled: enabled });
+        renderObstacleSensorSettings();
+      }
+
+      const sensorValueMatch = String(topic || "").match(
+        /^sensor\/([^/]+)\/(\d+)\/value$/,
+      );
+      if (sensorValueMatch) {
+        const sensorId = sensorValueMatch[1];
+        const sensorIndex = Number.parseInt(sensorValueMatch[2], 10);
+        const normalizedValue = normalizeSensorValueById(sensorId, value);
+        upsertObstacleSensorRowValue(sensorId, sensorIndex, {
+          value: normalizedValue,
+        });
+        renderObstacleSensorValueTable();
+      }
+
+      const sensorConfidenceMatch = String(topic || "").match(
+        /^sensor\/([^/]+)\/(\d+)\/obstacle\/confidence$/,
+      );
+      if (sensorConfidenceMatch) {
+        const sensorId = sensorConfidenceMatch[1];
+        const sensorIndex = Number.parseInt(sensorConfidenceMatch[2], 10);
+        const normalizedConfidence = normalizeSensorConfidence(value);
+        upsertObstacleSensorRowValue(sensorId, sensorIndex, {
+          confidence: normalizedConfidence,
+        });
+        renderObstacleSensorValueTable();
+      }
+
+      const sensorStateMatch = String(topic || "").match(
+        /^sensor\/([^/]+)\/(\d+)\/state$/,
+      );
+      if (sensorStateMatch) {
+        const sensorId = sensorStateMatch[1];
+        const sensorIndex = Number.parseInt(sensorStateMatch[2], 10);
+        const stateText = String(value || "")
+          .trim()
+          .toLowerCase();
+        const enabled =
+          stateText === "1" ||
+          stateText === "true" ||
+          stateText === "on" ||
+          stateText === "yes";
+        upsertObstacleSensorRowValue(sensorId, sensorIndex, {
+          enabled: enabled,
+        });
+        renderObstacleSensorValueTable();
+      }
+
+      if (topic === vehicleOperationCommandTopic) {
+        const parsedCommand = Number.parseInt(value, 10);
+        if (Number.isFinite(parsedCommand)) {
+          lastVehicleDirectionCommandSent = parsedCommand;
+        }
+        handleVehicleDirectionUpdate(value);
+      }
+    };
+    window.wcsSettingMaxSpeedHooked = true;
+  }
+
+  $("#surface-state").on("change", function () {
+    const surfaceValue = $("#surface-state").val();
+    sendMQTTMessage("vehicle/surface/state", surfaceValue);
+  });
+
+  $("#surface-obstacle").on("change", function () {
+    const obstacleValue = $("#surface-obstacle").val();
+    sendMQTTMessage("vehicle/surface/obstacle", obstacleValue);
+  });
+
+  $("#sim-runinfo-start").on("click", function () {
+    startRunInfoSimulation();
+  });
+
+  $("#sim-runinfo-stop").on("click", function () {
+    stopRunInfoSimulation();
+  });
+
+  $("#sim-runinfo-publish-once").on("click", function () {
+    const state = getRunInfoSimulationStateFromInputs();
+    const options = getRunInfoSimulationOptionsFromInputs();
+    writeRunInfoSimulationStateToInputs(state);
+    publishRunInfoSimulationState(state, options);
+    updateRunInfoSimulationStateLabel("1회 발행 완료", false);
+  });
+
+  $("#sim-runinfo-reset").on("click", function () {
+    stopRunInfoSimulation();
     restoreRunInfoSimulationDefaults();
-    ensureSampleVideosLoaded();
-    restoreSelectedVideoInputTabFromStorage();
+  });
 
-    if ($wcsSampleVideoTab.length > 0 && $wcsSampleVideoTab.hasClass('active')) {
-        saveSelectedVideoInputTabToStorage('wcs-input-sample-video-tab');
-    }
+  $("#vehicle-roll-angle").on("input", function () {
+    updateVehicleRollAngleUi($(this).val(), false);
+  });
 
-    window.addEventListener('beforeunload', function () {
-        stopRunInfoSimulation();
-    });
+  $("#vehicle-roll-angle").on("change", function () {
+    updateVehicleRollAngleUi($(this).val(), true);
+  });
+
+  $("#reset-vehicle-roll-angle").on("click", function () {
+    updateVehicleRollAngleUi(0, true);
+  });
+
+  $("#vehicle-pitch-angle").on("input", function () {
+    updateVehiclePitchAngleUi($(this).val(), false);
+  });
+
+  $("#vehicle-pitch-angle").on("change", function () {
+    updateVehiclePitchAngleUi($(this).val(), true);
+  });
+
+  $("#reset-vehicle-pitch-angle").on("click", function () {
+    updateVehiclePitchAngleUi(0, true);
+  });
+
+  restoreSampleVideoBrowserStateFromStorage();
+  initializeObstacleSensorSettingsDefaults();
+  restoreRunInfoSimulationDefaults();
+  ensureSampleVideosLoaded();
+  restoreSelectedVideoInputTabFromStorage();
+
+  if ($wcsSampleVideoTab.length > 0 && $wcsSampleVideoTab.hasClass("active")) {
+    saveSelectedVideoInputTabToStorage("wcs-input-sample-video-tab");
+  }
+
+  window.addEventListener("beforeunload", function () {
+    stopRunInfoSimulation();
+  });
 });

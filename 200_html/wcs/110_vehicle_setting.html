@@ -28,7 +28,7 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js" defer></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.3.0/dist/chart.umd.min.js" defer></script>
 
-     <!-- MQTT.js CDN -->
+    <!-- MQTT.js CDN -->
     <script src="https://unpkg.com/mqtt@4.3.7/dist/mqtt.min.js"></script>
 
     <!-- Import map for module resolution -->
@@ -48,7 +48,7 @@
     <script src="./js/010_wcs_common.js" defer></script>
     <script type="module" src="../urdf/urdfViewer.js"></script>
     <script src="./js/011_mqtt.js" defer></script>
-    <script src="./js/102_mqtt_process_status.js" defer></script>
+    <script src="./js/102_mqtt_process_status.js?v=20260824-wheel-angle-speed-batch" defer></script>
     <script src="./js/110_vehicle_setting.js" defer></script>
 </head>
 
@@ -89,21 +89,20 @@
                         </a>
                     </li>
                     <li class="nav-item dropdown">
-                        <a
-                            href="#"
-                            class="nav-link px-2 text-white dropdown-toggle"
-                            role="button"
-                            data-bs-toggle="dropdown"
-                            aria-expanded="false"
-                        >
+                        <a href="#" class="nav-link px-2 text-white dropdown-toggle" role="button"
+                            data-bs-toggle="dropdown" aria-expanded="false">
                             <i class="bi bi-robot me-2"></i>
                             AI
                         </a>
                         <ul class="dropdown-menu dropdown-menu-end bg-black border-secondary">
-                            <li><a class="dropdown-item text-white" href="/road/300_ai_road.html"><i class="bi bi-signpost-2 me-2"></i>road detection</a></li>
-                            <li><a class="dropdown-item text-white" href="/yolo/400_ai_yolo.html"><i class="bi bi-bullseye me-2"></i>yolo</a></li>
-                            <li><a class="dropdown-item text-white" href="/sam2/500_ai_sam2.html"><i class="bi bi-layers me-2"></i>sam</a></li>
-                            <li><a class="dropdown-item text-white" href="/simulation/simulation.html"><i class="bi bi-cpu me-2"></i>simulation</a></li>
+                            <li><a class="dropdown-item text-white" href="/road/300_ai_road.html"><i
+                                        class="bi bi-signpost-2 me-2"></i>road detection</a></li>
+                            <li><a class="dropdown-item text-white" href="/yolo/400_ai_yolo.html"><i
+                                        class="bi bi-bullseye me-2"></i>yolo</a></li>
+                            <li><a class="dropdown-item text-white" href="/sam2/500_ai_sam2.html"><i
+                                        class="bi bi-layers me-2"></i>sam</a></li>
+                            <li><a class="dropdown-item text-white" href="/simulation/simulation.html"><i
+                                        class="bi bi-cpu me-2"></i>simulation</a></li>
                         </ul>
                     </li>
                 </ul>
@@ -117,10 +116,10 @@
     </header>
     <!-- // 상단 메뉴 -->
 
-    <main class="container-fluid my-4"> 
+    <main class="container-fluid my-4">
 
         <div class="card">
-            
+
             <div class="card-header text-center">
                 <h4 class="mb-0">Wheel Setting</h4>
             </div>
@@ -129,7 +128,7 @@
 
                 <table class="table table-borderless w-100 m-0 vehicle-setting-layout-table">
                     <colgroup>
-                        <col >
+                        <col>
                         <col width="300px;">
                         <col width="300px;">
                     </colgroup>
@@ -148,17 +147,14 @@
                                     <div class="card-body d-flex flex-column">
 
                                         <!-- 차량 이미지 -->
-                                        <div class="row"> 
+                                        <div class="row">
                                             <div class="col-md-12 p-2 d-flex align-items-center justify-content-center">
-                                                <div class="urdf-container w-100 h-100 border border-dark border-1 vehicle-urdf-min-height" 
-                                                    id="vehicle-urdf-viewer" 
-                                                    urdf="/urdf/model/vehicle/vehicle.urdf"
+                                                <div class="urdf-container w-100 h-100 border border-dark border-1 vehicle-urdf-min-height"
+                                                    id="vehicle-urdf-viewer" urdf="/urdf/model/vehicle/vehicle.urdf"
                                                     cameraPose="-0.981, 0.007, 1.200|-0.005, 0.059, 0.008|0.987, 0.027, 0.158"
-                                                    showViewCube="true"
-                                                    showAttitude="false"
-                                                > 
+                                                    showViewCube="true" showAttitude="false">
                                                 </div>
-                                            </div> 
+                                            </div>
                                         </div>
                                         <!-- // 차량 이미지 -->
 
@@ -176,76 +172,94 @@
                                         <h4 class="mb-0"> Setting </h4>
                                     </div>
                                     <div class="card-body">
-                                
-                                <!-- 바퀴 선택 버튼 -->
-                                <div class="mb-4">
-                                    <label class="form-label fw-bold"><i class="bi bi-bullseye me-2"></i>바퀴 선택</label>
-                                    <div class="btn-group w-100" role="group" aria-label="Wheel selection">
-                                        <input type="radio" class="btn-check" name="wheelPosition" id="wheel-fl" value="FL" checked>
-                                        <label class="btn btn-outline-secondary" for="wheel-fl">FL</label>
 
-                                        <input type="radio" class="btn-check" name="wheelPosition" id="wheel-fr" value="FR">
-                                        <label class="btn btn-outline-secondary" for="wheel-fr">FR</label>
+                                        <!-- 바퀴 선택 버튼 -->
+                                        <div class="mb-4">
+                                            <label class="form-label fw-bold"><i class="bi bi-bullseye me-2"></i>바퀴
+                                                선택</label>
+                                            <div class="btn-group w-100" role="group" aria-label="Wheel selection">
+                                                <input type="radio" class="btn-check" name="wheelPosition" id="wheel-fl"
+                                                    value="FL" checked>
+                                                <label class="btn btn-outline-secondary" for="wheel-fl">FL</label>
 
-                                        <input type="radio" class="btn-check" name="wheelPosition" id="wheel-rl" value="RL">
-                                        <label class="btn btn-outline-secondary" for="wheel-rl">RL</label>
+                                                <input type="radio" class="btn-check" name="wheelPosition" id="wheel-fr"
+                                                    value="FR">
+                                                <label class="btn btn-outline-secondary" for="wheel-fr">FR</label>
 
-                                        <input type="radio" class="btn-check" name="wheelPosition" id="wheel-rr" value="RR">
-                                        <label class="btn btn-outline-secondary" for="wheel-rr">RR</label>
-                                    </div>
-                                </div>
+                                                <input type="radio" class="btn-check" name="wheelPosition" id="wheel-rl"
+                                                    value="RL">
+                                                <label class="btn btn-outline-secondary" for="wheel-rl">RL</label>
 
-                                <!-- 차량 최고 속도 설정 -->
-                                <div class="mb-4">
-                                    <label for="maxSpeed" class="form-label fw-bold"><i class="bi bi-speedometer2 me-2"></i>
-                                        차량 최고 속도
-                                    </label>
-                                    <div class="input-group">
-                                        <input type="number" class="form-control text-end" id="maxSpeed" value="4" step="0.1" min="0" max="10">
-                                        <span class="input-group-text text-center setting-unit-chip">km/s</span>
-                                        <button type="button" id="max_speed_set_btn" class="btn btn-outline-secondary setting-action-btn">설정</button>
-                                    </div>
-                                </div>
+                                                <input type="radio" class="btn-check" name="wheelPosition" id="wheel-rr"
+                                                    value="RR">
+                                                <label class="btn btn-outline-secondary" for="wheel-rr">RR</label>
+                                            </div>
+                                        </div>
 
-                                <!-- ToF 캘리브레이션 -->
-                                <div class="mb-3">
-                                    <label for="tofCalibration" class="form-label fw-bold"><i class="bi bi-radar me-2"></i>ToF 캘리브레이션</label>
-                                    <div class="input-group">
-                                        <input type="number" class="form-control text-end" id="tofCalibration" value="-0.2" step="0.1">
-                                        <span class="input-group-text text-center setting-unit-chip">cm</span>
-                                        <button type="button" id="tof_calibration_btn" class="btn btn-outline-secondary setting-action-btn">실행</button> 
-                                    </div>
-                                    <div class="form-text text-muted mt-1 ms-3">
-                                        <i class="bi bi-info-circle me-1"></i>
-                                        <small>ToF 센서의 거리 측정 오차를 보정합니다. 음수는 측정값을 감소시키고, 양수는 증가시킵니다.</small>
-                                    </div>
-                                </div> 
+                                        <!-- 차량 최고 속도 설정 -->
+                                        <div class="mb-4">
+                                            <label for="maxSpeed" class="form-label fw-bold"><i
+                                                    class="bi bi-speedometer2 me-2"></i>
+                                                차량 최고 속도
+                                            </label>
+                                            <div class="input-group">
+                                                <input type="number" class="form-control text-end" id="maxSpeed"
+                                                    value="4" step="0.1" min="0" max="10">
+                                                <span class="input-group-text text-center setting-unit-chip">km/s</span>
+                                                <button type="button" id="max_speed_set_btn"
+                                                    class="btn btn-outline-secondary setting-action-btn">설정</button>
+                                            </div>
+                                        </div>
 
-                                <!-- 바퀴 ID 설정 -->
-                                <div class="mb-3">
-                                    <label class="form-label fw-bold"><i class="bi bi-tag me-2"></i>바퀴 ID</label>
-                                    <div class="btn-group w-100 mb-2" role="group" aria-label="Wheel ID selection">
-                                        <input type="radio" class="btn-check" name="wheelId" id="wheel-id-1" value="1" checked>
-                                        <label class="btn btn-outline-secondary" for="wheel-id-1">1</label>
+                                        <!-- ToF 캘리브레이션 -->
+                                        <div class="mb-3">
+                                            <label for="tofCalibration" class="form-label fw-bold"><i
+                                                    class="bi bi-radar me-2"></i>ToF 캘리브레이션</label>
+                                            <div class="input-group">
+                                                <input type="number" class="form-control text-end" id="tofCalibration"
+                                                    value="-0.2" step="0.1">
+                                                <span class="input-group-text text-center setting-unit-chip">cm</span>
+                                                <button type="button" id="tof_calibration_btn"
+                                                    class="btn btn-outline-secondary setting-action-btn">실행</button>
+                                            </div>
+                                            <div class="form-text text-muted mt-1 ms-3">
+                                                <i class="bi bi-info-circle me-1"></i>
+                                                <small>ToF 센서의 거리 측정 오차를 보정합니다. 음수는 측정값을 감소시키고, 양수는 증가시킵니다.</small>
+                                            </div>
+                                        </div>
 
-                                        <input type="radio" class="btn-check" name="wheelId" id="wheel-id-2" value="2">
-                                        <label class="btn btn-outline-secondary" for="wheel-id-2">2</label>
+                                        <!-- 바퀴 ID 설정 -->
+                                        <div class="mb-3">
+                                            <label class="form-label fw-bold"><i class="bi bi-tag me-2"></i>바퀴
+                                                ID</label>
+                                            <div class="btn-group w-100 mb-2" role="group"
+                                                aria-label="Wheel ID selection">
+                                                <input type="radio" class="btn-check" name="wheelId" id="wheel-id-1"
+                                                    value="1" checked>
+                                                <label class="btn btn-outline-secondary" for="wheel-id-1">1</label>
 
-                                        <input type="radio" class="btn-check" name="wheelId" id="wheel-id-3" value="3">
-                                        <label class="btn btn-outline-secondary" for="wheel-id-3">3</label>
+                                                <input type="radio" class="btn-check" name="wheelId" id="wheel-id-2"
+                                                    value="2">
+                                                <label class="btn btn-outline-secondary" for="wheel-id-2">2</label>
 
-                                        <input type="radio" class="btn-check" name="wheelId" id="wheel-id-4" value="4">
-                                        <label class="btn btn-outline-secondary" for="wheel-id-4">4</label> 
+                                                <input type="radio" class="btn-check" name="wheelId" id="wheel-id-3"
+                                                    value="3">
+                                                <label class="btn btn-outline-secondary" for="wheel-id-3">3</label>
 
-                                        <button type="button" id="wheel_id_set_btn" class="btn btn-outline-secondary setting-action-btn">
-                                            설정
-                                        </button>
-                                    </div>
-                                    <div class="form-text text-muted mt-1 ms-3">
-                                        <i class="bi bi-info-circle me-1"></i>
-                                        <small>바퀴 ID 변경 시 자동으로 설정됩니다.</small>
-                                    </div>
-                                </div>
+                                                <input type="radio" class="btn-check" name="wheelId" id="wheel-id-4"
+                                                    value="4">
+                                                <label class="btn btn-outline-secondary" for="wheel-id-4">4</label>
+
+                                                <button type="button" id="wheel_id_set_btn"
+                                                    class="btn btn-outline-secondary setting-action-btn">
+                                                    설정
+                                                </button>
+                                            </div>
+                                            <div class="form-text text-muted mt-1 ms-3">
+                                                <i class="bi bi-info-circle me-1"></i>
+                                                <small>바퀴 ID 변경 시 자동으로 설정됩니다.</small>
+                                            </div>
+                                        </div>
 
                                     </div>
                                 </div>
@@ -254,7 +268,7 @@
 
                             <!-- 바퀴 속성 정보 -->
                             <td class="align-top ps-0">
-                                <div id="wheelDataCard" class="card h-100 w-100"> 
+                                <div id="wheelDataCard" class="card h-100 w-100">
                                     <div class="card-header text-center">
                                         <h4 class="mb-0"> Wheel </h4>
                                     </div>
@@ -263,12 +277,12 @@
                                         <table id="wheelDataTable" class="table table-bordered table-striped m-0 ">
                                             <colgroup>
                                                 <col width="33%;">
-                                                <col >
+                                                <col>
                                             </colgroup>
 
                                             <thead class="table-dark">
                                                 <tr>
-                                                    <th class="text-center" scope="col" colspan="2">Wheel</th> 
+                                                    <th class="text-center" scope="col" colspan="2">Wheel</th>
                                                 </tr>
                                             </thead>
 
@@ -300,10 +314,10 @@
                                                 <tr>
                                                     <th class="text-center" scope="row">KD</th>
                                                     <td id="wheel/fl/pid/d" class="text-end">0.5</td>
-                                                </tr>  
+                                                </tr>
                                             </tbody>
 
-                                        </table> 
+                                        </table>
                                     </div>
                                 </div>
                             </td>
@@ -312,7 +326,7 @@
                         </tr>
                     </tbody>
                 </table>
-                    
+
             </div>
         </div>
 
@@ -320,7 +334,7 @@
 
     <footer class="text-center py-4">
         <p class="mb-0">&copy; 2024 Wheel Control System. All rights reserved.</p>
-    </footer> 
+    </footer>
 
 </body>
 

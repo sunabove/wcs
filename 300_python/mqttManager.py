@@ -334,6 +334,12 @@ class MqttManager:
         except Exception as e:
             print(f"[MQTT] Message processing error: {e}")
 
+    def _build_wheel_angle_speed_payload(self):
+        return ",".join(
+            str(float(self.wheel_rpm_by_id.get(wheel_id, 0.0)))
+            for wheel_id in MqttConfig.VEHICLE_CONTROL_WHEEL_IDS
+        )
+
     def _store_wheel_message(self, topic, payload):
         topic_text = str(topic or "").strip()
         if not topic_text.startswith("wheel/"):
@@ -511,11 +517,10 @@ class MqttManager:
                     topic = template.format(wheel_str_id=wheel_str_id)
                     self._publish(topic, value_getter(self, wheel_str_id))
 
-            wheel_angle_speed_payload = ",".join(
-                str(float(self.wheel_rpm_by_id.get(wheel_id, 0.0)))
-                for wheel_id in MqttConfig.VEHICLE_CONTROL_WHEEL_IDS
+            self._publish(
+                MqttConfig.WHEEL_ANGLE_SPEED_TOPIC,
+                self._build_wheel_angle_speed_payload(),
             )
-            self._publish(MqttConfig.WHEEL_ANGLE_SPEED_TOPIC, wheel_angle_speed_payload)
 
             for topic, payload_resolver, log_tag in MqttConfig.INITIAL_CONNECT_TOPIC_SPECS:
                 payload = payload_resolver(self)

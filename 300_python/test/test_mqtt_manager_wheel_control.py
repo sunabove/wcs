@@ -31,6 +31,7 @@ class MqttManagerWheelControlTest(unittest.TestCase):
         )
 
         self.assertEqual(expected_speeds, manager.wheel_rpm_by_id)
+        self.assertEqual("2.5,2.5,-2.5,-2.5", manager._build_wheel_angle_speed_payload())
         self.assertFalse(
             manager._store_vehicle_message("vehicle/linear/speed", "1.0")
         )

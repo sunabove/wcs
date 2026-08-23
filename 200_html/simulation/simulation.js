@@ -6340,6 +6340,8 @@ class RapierDriveSimulation {
         await this.ensureRapierInitialized();
       }
 
+      applyPendingSimulationWheelAngleSpeedCommand();
+
       this.stepSimulation();
       this.trimWheelZChartHistory(this.simulationElapsedSec);
       this.renderWheelZChart(this.simulationElapsedSec);
@@ -6679,6 +6681,7 @@ class RapierDriveSimulation {
 }
 
 let rapierDriveSimulation = null;
+let lastAppliedSimulationWheelCommand = null;
 
 const withSimulation = (action) => {
   if (!rapierDriveSimulation) {
@@ -6718,12 +6721,53 @@ globalThis.setSimulationDriveMode = function (mode) {
   return withSimulation((simulation) => simulation.applyDriveModeCommand(mode));
 };
 
-window.addEventListener("wcs:simulation-drive-command", (event) => {
-  const mode = event?.detail?.mode;
-  if (typeof mode === "string") {
-    globalThis.setSimulationDriveMode(mode);
+function applySimulationWheelAngleSpeedCommand(command) {
+  if (!command || typeof command.mode !== "string") {
+    return false;
   }
+
+  return withSimulation((simulation) => {
+    simulation.applyDriveSpeedCommandMps(command.speedMps);
+    simulation.applyDriveModeCommand(command.mode);
+
+    Object.entries(command.wheelRpmByKey || {}).forEach(([wheelKey, rpm]) => {
+      if (typeof globalThis.setWheelAnimationByKey === "function") {
+        globalThis.setWheelAnimationByKey(wheelKey, rpm);
+      }
+    });
+    if (simulation.isReady) {
+      lastAppliedSimulationWheelCommand = command;
+    }
+    return true;
+  });
+}
+
+function applyPendingSimulationWheelAngleSpeedCommand() {
+  const latestCommand = globalThis.latestSimulationWheelAngleSpeedCommand;
+  if (!latestCommand || latestCommand === lastAppliedSimulationWheelCommand) {
+    return;
+  }
+  applySimulationWheelAngleSpeedCommand(latestCommand);
+}
+
+window.addEventListener("wcs:simulation-wheel-angle-speed", (event) => {
+  applySimulationWheelAngleSpeedCommand(event?.detail);
 });
+
+globalThis.getSimulationWheelRadiusMetersByKey = function () {
+  return withSimulation((simulation) => {
+    const fallbackRadius = Math.max(
+      Number(simulation.wheelEffectiveRadiusMeters) || 0.16,
+      0.05,
+    );
+    return ["fr", "fl", "rr", "rl"].reduce((result, wheelKey) => {
+      const radius = Number(simulation.wheelRadiusMetersByKey?.[wheelKey]);
+      result[wheelKey] =
+        Number.isFinite(radius) && radius > 0 ? radius : fallbackRadius;
+      return result;
+    }, {});
+  });
+};
 
 globalThis.toggleSimulationPause = function (forcePaused = null) {
   return withSimulation((simulation) => simulation.togglePause(forcePaused));
@@ -6807,6 +6851,9 @@ globalThis.runSimulationControl = function (button, action) {
 try {
   rapierDriveSimulation = new RapierDriveSimulation();
   rapierDriveSimulation.start();
+  applySimulationWheelAngleSpeedCommand(
+    globalThis.latestSimulationWheelAngleSpeedCommand,
+  );
 } catch (error) {
   console.error("[URDF][Simulation] startup failed:", error);
 }

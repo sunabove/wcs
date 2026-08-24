@@ -1,0 +1,1168 @@
+<?xml version="1.0"?>
+<robot name="vehicle_4wd">
+
+  <!-- Materials -->
+  <material name="body_dark">
+    <color rgba="0.20 0.23 0.28 1.0" />
+  </material>
+
+  <material name="body_light">
+    <color rgba="0.40 0.43 0.48 0.9" />
+  </material>
+
+  <material name="tire">
+    <color rgba="0.06 0.06 0.06 1.0" />
+  </material>
+
+  <material name="tire_tread_texture">
+    <texture filename="textures/tire_tread.png" />
+  </material>
+
+  <material name="tread_mark">
+    <color rgba="0.32 0.33 0.36 1.0" />
+  </material>
+
+  <material name="ground_surface">
+    <color rgba="0.18 0.18 0.18 0.7" />
+  </material>
+
+  <material name="obstacle_rock">
+    <color rgba="0.86 0.20 0.20 0.7" />
+  </material>
+
+  <material name="obstacle_rock_blue">
+    <color rgba="0.20 0.42 0.90 0.7" />
+  </material>
+
+  <material name="obstacle_rock_orange">
+    <color rgba="0.95 0.52 0.12 0.8" />
+  </material>
+
+  <material name="green">
+    <color rgba="0.00 1.00 0.00 1.0" />
+  </material>
+
+  <material name="ellipsoid_surface">
+    <color rgba="0.76 0.62 0.40 0.55" />
+  </material>
+
+  <material name="rim">
+    <color rgba="0.80 0.82 0.85 1.0" />
+  </material>
+
+  <material name="head_light">
+    <color rgba="1.00 0.98 0.85 1.0" />
+  </material>
+
+  <material name="brake_light">
+    <color rgba="0.95 0.08 0.08 1.0" />
+  </material>
+
+  <material name="plate_white">
+    <color rgba="0.95 0.95 0.95 1.0" />
+  </material>
+
+  <material name="text_black">
+    <color rgba="0.10 0.10 0.10 1.0" />
+  </material>
+
+  <material name="hole_yellow">
+    <color rgba="1.00 0.92 0.16 0.9" />
+  </material>
+
+  <!-- Root link kept for compatibility -->
+  <link name="origin">
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <sphere radius="0.0202192662" />
+      </geometry>
+      <material name="green" />
+    </visual>
+  </link>
+
+  <!-- Main body (car_frame style) -->
+  <link name="car_frame">
+    <visual>
+      <origin xyz="0.0286439773 0 0.0606577985" rpy="0 0 0" />
+      <geometry>
+        <box size="0.5054816544 0.3032889926 0.111205964" />
+      </geometry>
+      <material name="body_light" />
+    </visual>
+
+    <!-- Wheel axles -->
+    <visual>
+      <origin xyz="0.1668089459 0.176918579 0.0303288993" rpy="1.5707963 0 0" />
+      <geometry>
+        <cylinder radius="0.0101096331" length="0.0505481654" />
+      </geometry>
+      <material name="rim" />
+    </visual>
+
+    <visual>
+      <origin xyz="0.1668089459 -0.176918579 0.0303288993" rpy="1.5707963 0 0" />
+      <geometry>
+        <cylinder radius="0.0101096331" length="0.0505481654" />
+      </geometry>
+      <material name="rim" />
+    </visual>
+
+    <visual>
+      <origin xyz="-0.1668089459 0.176918579 0.0303288993" rpy="1.5707963 0 0" />
+      <geometry>
+        <cylinder radius="0.0101096331" length="0.0505481654" />
+      </geometry>
+      <material name="rim" />
+    </visual>
+
+    <visual>
+      <origin xyz="-0.1668089459 -0.176918579 0.0303288993" rpy="1.5707963 0 0" />
+      <geometry>
+        <cylinder radius="0.0101096331" length="0.0505481654" />
+      </geometry>
+      <material name="rim" />
+    </visual>
+
+    <!-- Front head lights -->
+    <visual>
+      <origin xyz="0.2850916531 0.0909866978 0.0606577985" rpy="0 1.5707963 0" />
+      <geometry>
+        <cylinder radius="0.0212302295" length="0.0101096331" />
+      </geometry>
+      <material name="head_light" />
+    </visual>
+
+    <visual>
+      <origin xyz="0.2850916531 -0.0909866978 0.0606577985" rpy="0 1.5707963 0" />
+      <geometry>
+        <cylinder radius="0.0212302295" length="0.0101096331" />
+      </geometry>
+      <material name="head_light" />
+    </visual>
+
+    <!-- Rear brake lights -->
+    <visual>
+      <origin xyz="-0.2224119279 0.0909866978 0.0505481654" rpy="0 0 0" />
+      <geometry>
+        <box size="0.0050548165 0.0454933489 0.0176918579" />
+      </geometry>
+      <material name="brake_light" />
+    </visual>
+
+    <visual>
+      <origin xyz="-0.2224119279 -0.0909866978 0.0505481654" rpy="0 0 0" />
+      <geometry>
+        <box size="0.0050548165 0.0454933489 0.0176918579" />
+      </geometry>
+      <material name="brake_light" />
+    </visual>
+
+    <!-- Rear license plate -->
+    <visual>
+      <origin xyz="-0.2284777078 0 0.0505481654" rpy="0 0 0" />
+      <geometry>
+        <box size="0.0050548165 0.1213155971 0.0303288993" />
+      </geometry>
+      <material name="plate_white" />
+    </visual>
+
+
+    <collision>
+      <origin xyz="0.0303288993 0 0.0606577985" rpy="0 0 0" />
+      <geometry>
+        <box size="0.5155912875 0.3133986257 0.1213155971" />
+      </geometry>
+    </collision>
+
+    <inertial>
+      <origin xyz="0.0303288993 0 0.0606577985" rpy="0 0 0" />
+      <mass value="40.0" />
+      <inertia ixx="2.6" ixy="0" ixz="0" iyy="4.8" iyz="0" izz="6.0" />
+    </inertial>
+  </link>
+
+  <joint name="origin_to_ground" type="fixed">
+    <parent link="origin" />
+    <child link="ground" />
+    <origin xyz="0 0 0" rpy="0 0 0" />
+  </joint>
+
+  <!-- Ground patch under the vehicle (2x vehicle body length) -->
+  <link name="ground">
+    <visual>
+      <origin xyz="0 0 -0.1263704136" rpy="0 0 0" />
+      <geometry>
+        <box size="6.3084110466 1.4153486322 0.2527408272" />
+      </geometry>
+      <material name="ground_surface" />
+    </visual>
+    <collision>
+      <origin xyz="0 0 -0.1263704136" rpy="0 0 0" />
+      <geometry>
+        <box size="6.3084110466 1.4153486322 0.2527408272" />
+      </geometry>
+    </collision>
+  </link>
+
+  <link name="ellipsoid_surface">
+    <visual>
+      <origin xyz="0 0 -0.0010109633" rpy="0 0 0" />
+      <geometry>
+        <box size="7.6331773664 2.4220658951 0.0025274083" />
+      </geometry>
+      <material name="ellipsoid_surface" />
+    </visual>
+  </link>
+
+  <joint name="ground_to_car_frame" type="fixed">
+    <parent link="ground" />
+    <child link="car_frame" />
+    <origin xyz="0 0 0.0505481654" rpy="0 0 0" />
+  </joint>
+
+  <!-- Simulation obstacle (fixed curb / step) -->
+  <link name="obstacle_rock_03">
+    <visual>
+      <origin xyz="0 0 0.0063185207" rpy="0 0 0" />
+      <geometry>
+        <box size="0.1213155971 0.1718637625 0.0126370414" />
+      </geometry>
+      <material name="obstacle_rock" />
+    </visual>
+    <collision>
+      <origin xyz="0 0 0.0063185207" rpy="0 0 0" />
+      <geometry>
+        <box size="0.2224119279 0.1718637625 0.0126370414" />
+      </geometry>
+    </collision>
+  </link>
+
+  <joint name="obstacle_rock_03_joint" type="fixed">
+    <parent link="ground" />
+    <child link="obstacle_rock_03" />
+    <origin xyz="2.0606970604 0.2021926618 0" rpy="0 0 0" />
+  </joint>
+
+  <link name="obstacle_rock_01">
+    <visual>
+      <origin xyz="0 0 0.0126370414" rpy="0 0 0" />
+      <geometry>
+        <box size="0.1213155971 0.1718637625 0.0252740827" />
+      </geometry>
+      <material name="obstacle_rock_orange" />
+    </visual>
+    <collision>
+      <origin xyz="0 0 0.0126370414" rpy="0 0 0" />
+      <geometry>
+        <box size="0.2224119279 0.1718637625 0.0252740827" />
+      </geometry>
+    </collision>
+  </link>
+
+  <joint name="obstacle_rock_01_joint" type="fixed">
+    <parent link="ground" />
+    <child link="obstacle_rock_01" />
+    <origin xyz="0.7026194996 0 0" rpy="0 0 0" />
+  </joint>
+
+  <link name="obstacle_rock_02">
+    <visual>
+      <origin xyz="0 0 0.0126370414" rpy="0 0 0" />
+      <geometry>
+        <box size="0.2224119279 0.6065779853 0.0252740827" />
+      </geometry>
+      <material name="obstacle_rock_blue" />
+    </visual>
+    <collision>
+      <origin xyz="0 0 0.0126370414" rpy="0 0 0" />
+      <geometry>
+        <box size="0.2224119279 0.3032889926 0.0252740827" />
+      </geometry>
+    </collision>
+  </link>
+
+  <joint name="obstacle_rock_02_joint" type="fixed">
+    <parent link="ground" />
+    <child link="obstacle_rock_02" />
+    <origin xyz="1.3816330059 0 0" rpy="0 0 0" />
+  </joint>
+
+  <!-- Visual hole placed in front of the 3rd obstacle with same x spacing -->
+  <link name="hole_01">
+    <visual>
+      <origin xyz="0 0 -0.0126370414" rpy="0 0 0" />
+      <geometry>
+        <box size="0.1617541294 0.6065779853 0.0252740827" />
+      </geometry>
+      <material name="hole_yellow" />
+    </visual>
+  </link>
+
+  <joint name="hole_01_joint" type="fixed">
+    <parent link="ground" />
+    <child link="hole_01" />
+    <origin xyz="2.7397105667 0 0" rpy="0 0 0" />
+  </joint>
+
+  <joint name="origin_to_ellipsoid_surface" type="fixed">
+    <parent link="origin" />
+    <child link="ellipsoid_surface" />
+    <origin xyz="0 0 -0.252993568" rpy="0 0 0" />
+  </joint>
+
+  <!-- Front-left wheel -->
+  <link name="wheel_fl">
+    <visual>
+      <origin xyz="0 0 0" rpy="1.5707963 0 0" />
+      <geometry>
+        <cylinder radius="0.0808770647" length="0.0505481654" />
+      </geometry>
+      <material name="tire_tread_texture" />
+    </visual>
+
+    <visual>
+      <origin xyz="0 0 0" rpy="1.5707963 0 0" />
+      <geometry>
+        <cylinder radius="0.0454933489" length="0.055602982" />
+      </geometry>
+      <material name="rim" />
+    </visual>
+
+    <collision>
+      <origin xyz="0 0 0" rpy="1.5707963 0 0" />
+      <geometry>
+        <cylinder radius="0.0808770647" length="0.0505481654" />
+      </geometry>
+    </collision>
+
+    <inertial>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <mass value="1.8" />
+      <inertia ixx="0.020" ixy="0" ixz="0" iyy="0.012" iyz="0" izz="0.020" />
+    </inertial>
+  </link>
+
+  <!-- Front-left hub gear (internal wheel gear) -->
+  <link name="gear_fl">
+    <!-- Outer internal ring gear body -->
+    <visual>
+      <origin xyz="0 0 0" rpy="1.5707963 0 0" />
+      <geometry>
+        <cylinder radius="0.0581303903" length="0.0151644496" />
+      </geometry>
+      <material name="rim" />
+    </visual>
+
+    <!-- Ring cavity (visual-only cut impression) -->
+    <visual>
+      <origin xyz="0 0 0" rpy="1.5707963 0 0" />
+      <geometry>
+        <cylinder radius="0.0465043122" length="0.0156699313" />
+      </geometry>
+      <material name="body_dark" />
+    </visual>
+
+    <!-- Sun gear core -->
+    <visual>
+      <origin xyz="0 0 0" rpy="1.5707963 0 0" />
+      <geometry>
+        <cylinder radius="0.0212302295" length="0.0141534863" />
+      </geometry>
+      <material name="body_light" />
+    </visual>
+
+    <visual>
+      <origin xyz="0 0 0" rpy="1.5707963 0 0" />
+      <geometry>
+        <cylinder radius="0.0080877065" length="0.0161754129" />
+      </geometry>
+      <material name="rim" />
+    </visual>
+
+    <!-- Ring internal teeth -->
+    <visual>
+      <origin xyz="0.0485262388 0 0" rpy="0 0.0000000 0" />
+      <geometry>
+        <box size="0.0050548165 0.0141534863 0.0050548165" />
+      </geometry>
+      <material name="tread_mark" />
+    </visual>
+    <visual>
+      <origin xyz="0.0343120947 0 0.0343120947" rpy="0 0.7853982 0" />
+      <geometry>
+        <box size="0.0050548165 0.0141534863 0.0050548165" />
+      </geometry>
+      <material name="tread_mark" />
+    </visual>
+    <visual>
+      <origin xyz="0 0 0.0485262388" rpy="0 1.5707963 0" />
+      <geometry>
+        <box size="0.0050548165 0.0141534863 0.0050548165" />
+      </geometry>
+      <material name="tread_mark" />
+    </visual>
+    <visual>
+      <origin xyz="-0.0343120947 0 0.0343120947" rpy="0 2.3561945 0" />
+      <geometry>
+        <box size="0.0050548165 0.0141534863 0.0050548165" />
+      </geometry>
+      <material name="tread_mark" />
+    </visual>
+    <visual>
+      <origin xyz="-0.0485262388 0 0" rpy="0 3.1415927 0" />
+      <geometry>
+        <box size="0.0050548165 0.0141534863 0.0050548165" />
+      </geometry>
+      <material name="tread_mark" />
+    </visual>
+    <visual>
+      <origin xyz="-0.0343120947 0 -0.0343120947" rpy="0 -2.3561945 0" />
+      <geometry>
+        <box size="0.0050548165 0.0141534863 0.0050548165" />
+      </geometry>
+      <material name="tread_mark" />
+    </visual>
+    <visual>
+      <origin xyz="0 0 -0.0485262388" rpy="0 -1.5707963 0" />
+      <geometry>
+        <box size="0.0050548165 0.0141534863 0.0050548165" />
+      </geometry>
+      <material name="tread_mark" />
+    </visual>
+    <visual>
+      <origin xyz="0.0343120947 0 -0.0343120947" rpy="0 -0.7853982 0" />
+      <geometry>
+        <box size="0.0050548165 0.0141534863 0.0050548165" />
+      </geometry>
+      <material name="tread_mark" />
+    </visual>
+
+    <!-- Sun gear teeth -->
+    <visual>
+      <origin xyz="0.0267905277 0 0" rpy="0 0.0000000 0" />
+      <geometry>
+        <box size="0.0050548165 0.0121315597 0.0045493349" />
+      </geometry>
+      <material name="rim" />
+    </visual>
+    <visual>
+      <origin xyz="0.0189454524 0 0.0189454524" rpy="0 0.7853982 0" />
+      <geometry>
+        <box size="0.0050548165 0.0121315597 0.0045493349" />
+      </geometry>
+      <material name="rim" />
+    </visual>
+    <visual>
+      <origin xyz="0 0 0.0267905277" rpy="0 1.5707963 0" />
+      <geometry>
+        <box size="0.0050548165 0.0121315597 0.0045493349" />
+      </geometry>
+      <material name="rim" />
+    </visual>
+    <visual>
+      <origin xyz="-0.0189454524 0 0.0189454524" rpy="0 2.3561945 0" />
+      <geometry>
+        <box size="0.0050548165 0.0121315597 0.0045493349" />
+      </geometry>
+      <material name="rim" />
+    </visual>
+    <visual>
+      <origin xyz="-0.0267905277 0 0" rpy="0 3.1415927 0" />
+      <geometry>
+        <box size="0.0050548165 0.0121315597 0.0045493349" />
+      </geometry>
+      <material name="rim" />
+    </visual>
+    <visual>
+      <origin xyz="-0.0189454524 0 -0.0189454524" rpy="0 -2.3561945 0" />
+      <geometry>
+        <box size="0.0050548165 0.0121315597 0.0045493349" />
+      </geometry>
+      <material name="rim" />
+    </visual>
+    <visual>
+      <origin xyz="0 0 -0.0267905277" rpy="0 -1.5707963 0" />
+      <geometry>
+        <box size="0.0050548165 0.0121315597 0.0045493349" />
+      </geometry>
+      <material name="rim" />
+    </visual>
+    <visual>
+      <origin xyz="0.0189454524 0 -0.0189454524" rpy="0 -0.7853982 0" />
+      <geometry>
+        <box size="0.0050548165 0.0121315597 0.0045493349" />
+      </geometry>
+      <material name="rim" />
+    </visual>
+
+    <inertial>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <mass value="0.08" />
+      <inertia ixx="0.00008" ixy="0" ixz="0" iyy="0.00005" iyz="0" izz="0.00008" />
+    </inertial>
+  </link>
+
+  <joint name="joint_gear_fl" type="continuous">
+    <parent link="car_frame" />
+    <child link="gear_fl" />
+    <origin xyz="0.1668089459 0.2375763776 0.0303288993" rpy="0 0 0" />
+    <axis xyz="0 0.5054816544 0" />
+    <dynamics damping="0.03" friction="0.01" />
+  </joint>
+
+  <joint name="joint_fl" type="continuous">
+    <parent link="car_frame" />
+    <child link="wheel_fl" />
+    <origin xyz="0.1668089459 0.2021926618 0.0303288993" rpy="0 0 0" />
+    <axis xyz="0 0.5054816544 0" />
+    <mimic joint="joint_gear_fl" multiplier="1.0" offset="0.0" />
+    <dynamics damping="0.05" friction="0.02" />
+  </joint>
+
+  <!-- Front-right wheel -->
+  <link name="wheel_fr">
+    <visual>
+      <origin xyz="0 0 0" rpy="1.5707963 0 0" />
+      <geometry>
+        <cylinder radius="0.0808770647" length="0.0505481654" />
+      </geometry>
+      <material name="tire_tread_texture" />
+    </visual>
+
+    <visual>
+      <origin xyz="0 0 0" rpy="1.5707963 0 0" />
+      <geometry>
+        <cylinder radius="0.0454933489" length="0.055602982" />
+      </geometry>
+      <material name="rim" />
+    </visual>
+
+    <collision>
+      <origin xyz="0 0 0" rpy="1.5707963 0 0" />
+      <geometry>
+        <cylinder radius="0.0808770647" length="0.0505481654" />
+      </geometry>
+    </collision>
+
+    <inertial>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <mass value="1.8" />
+      <inertia ixx="0.020" ixy="0" ixz="0" iyy="0.012" iyz="0" izz="0.020" />
+    </inertial>
+  </link>
+
+  <!-- Front-right hub gear (internal wheel gear) -->
+  <link name="gear_fr">
+    <!-- Outer internal ring gear body -->
+    <visual>
+      <origin xyz="0 0 0" rpy="1.5707963 0 0" />
+      <geometry>
+        <cylinder radius="0.0581303903" length="0.0151644496" />
+      </geometry>
+      <material name="rim" />
+    </visual>
+
+    <!-- Ring cavity (visual-only cut impression) -->
+    <visual>
+      <origin xyz="0 0 0" rpy="1.5707963 0 0" />
+      <geometry>
+        <cylinder radius="0.0465043122" length="0.0156699313" />
+      </geometry>
+      <material name="body_dark" />
+    </visual>
+
+    <!-- Sun gear core -->
+    <visual>
+      <origin xyz="0 0 0" rpy="1.5707963 0 0" />
+      <geometry>
+        <cylinder radius="0.0212302295" length="0.0141534863" />
+      </geometry>
+      <material name="body_light" />
+    </visual>
+
+    <visual>
+      <origin xyz="0 0 0" rpy="1.5707963 0 0" />
+      <geometry>
+        <cylinder radius="0.0080877065" length="0.0161754129" />
+      </geometry>
+      <material name="rim" />
+    </visual>
+
+    <!-- Ring internal teeth -->
+    <visual>
+      <origin xyz="0.0485262388 0 0" rpy="0 0.0000000 0" />
+      <geometry>
+        <box size="0.0050548165 0.0141534863 0.0050548165" />
+      </geometry>
+      <material name="tread_mark" />
+    </visual>
+    <visual>
+      <origin xyz="0.0343120947 0 0.0343120947" rpy="0 0.7853982 0" />
+      <geometry>
+        <box size="0.0050548165 0.0141534863 0.0050548165" />
+      </geometry>
+      <material name="tread_mark" />
+    </visual>
+    <visual>
+      <origin xyz="0 0 0.0485262388" rpy="0 1.5707963 0" />
+      <geometry>
+        <box size="0.0050548165 0.0141534863 0.0050548165" />
+      </geometry>
+      <material name="tread_mark" />
+    </visual>
+    <visual>
+      <origin xyz="-0.0343120947 0 0.0343120947" rpy="0 2.3561945 0" />
+      <geometry>
+        <box size="0.0050548165 0.0141534863 0.0050548165" />
+      </geometry>
+      <material name="tread_mark" />
+    </visual>
+    <visual>
+      <origin xyz="-0.0485262388 0 0" rpy="0 3.1415927 0" />
+      <geometry>
+        <box size="0.0050548165 0.0141534863 0.0050548165" />
+      </geometry>
+      <material name="tread_mark" />
+    </visual>
+    <visual>
+      <origin xyz="-0.0343120947 0 -0.0343120947" rpy="0 -2.3561945 0" />
+      <geometry>
+        <box size="0.0050548165 0.0141534863 0.0050548165" />
+      </geometry>
+      <material name="tread_mark" />
+    </visual>
+    <visual>
+      <origin xyz="0 0 -0.0485262388" rpy="0 -1.5707963 0" />
+      <geometry>
+        <box size="0.0050548165 0.0141534863 0.0050548165" />
+      </geometry>
+      <material name="tread_mark" />
+    </visual>
+    <visual>
+      <origin xyz="0.0343120947 0 -0.0343120947" rpy="0 -0.7853982 0" />
+      <geometry>
+        <box size="0.0050548165 0.0141534863 0.0050548165" />
+      </geometry>
+      <material name="tread_mark" />
+    </visual>
+
+    <!-- Sun gear teeth -->
+    <visual>
+      <origin xyz="0.0267905277 0 0" rpy="0 0.0000000 0" />
+      <geometry>
+        <box size="0.0050548165 0.0121315597 0.0045493349" />
+      </geometry>
+      <material name="rim" />
+    </visual>
+    <visual>
+      <origin xyz="0.0189454524 0 0.0189454524" rpy="0 0.7853982 0" />
+      <geometry>
+        <box size="0.0050548165 0.0121315597 0.0045493349" />
+      </geometry>
+      <material name="rim" />
+    </visual>
+    <visual>
+      <origin xyz="0 0 0.0267905277" rpy="0 1.5707963 0" />
+      <geometry>
+        <box size="0.0050548165 0.0121315597 0.0045493349" />
+      </geometry>
+      <material name="rim" />
+    </visual>
+    <visual>
+      <origin xyz="-0.0189454524 0 0.0189454524" rpy="0 2.3561945 0" />
+      <geometry>
+        <box size="0.0050548165 0.0121315597 0.0045493349" />
+      </geometry>
+      <material name="rim" />
+    </visual>
+    <visual>
+      <origin xyz="-0.0267905277 0 0" rpy="0 3.1415927 0" />
+      <geometry>
+        <box size="0.0050548165 0.0121315597 0.0045493349" />
+      </geometry>
+      <material name="rim" />
+    </visual>
+    <visual>
+      <origin xyz="-0.0189454524 0 -0.0189454524" rpy="0 -2.3561945 0" />
+      <geometry>
+        <box size="0.0050548165 0.0121315597 0.0045493349" />
+      </geometry>
+      <material name="rim" />
+    </visual>
+    <visual>
+      <origin xyz="0 0 -0.0267905277" rpy="0 -1.5707963 0" />
+      <geometry>
+        <box size="0.0050548165 0.0121315597 0.0045493349" />
+      </geometry>
+      <material name="rim" />
+    </visual>
+    <visual>
+      <origin xyz="0.0189454524 0 -0.0189454524" rpy="0 -0.7853982 0" />
+      <geometry>
+        <box size="0.0050548165 0.0121315597 0.0045493349" />
+      </geometry>
+      <material name="rim" />
+    </visual>
+
+    <inertial>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <mass value="0.08" />
+      <inertia ixx="0.00008" ixy="0" ixz="0" iyy="0.00005" iyz="0" izz="0.00008" />
+    </inertial>
+  </link>
+
+  <joint name="joint_gear_fr" type="continuous">
+    <parent link="car_frame" />
+    <child link="gear_fr" />
+    <origin xyz="0.1668089459 -0.2375763776 0.0303288993" rpy="0 0 0" />
+    <axis xyz="0 0.5054816544 0" />
+    <dynamics damping="0.03" friction="0.01" />
+  </joint>
+
+  <joint name="joint_fr" type="continuous">
+    <parent link="car_frame" />
+    <child link="wheel_fr" />
+    <origin xyz="0.1668089459 -0.2021926618 0.0303288993" rpy="0 0 0" />
+    <axis xyz="0 0.5054816544 0" />
+    <mimic joint="joint_gear_fr" multiplier="1.0" offset="0.0" />
+    <dynamics damping="0.05" friction="0.02" />
+  </joint>
+
+  <!-- Rear-left wheel -->
+  <link name="wheel_rl">
+    <visual>
+      <origin xyz="0 0 0" rpy="1.5707963 0 0" />
+      <geometry>
+        <cylinder radius="0.0808770647" length="0.0505481654" />
+      </geometry>
+      <material name="tire_tread_texture" />
+    </visual>
+
+    <visual>
+      <origin xyz="0 0 0" rpy="1.5707963 0 0" />
+      <geometry>
+        <cylinder radius="0.0454933489" length="0.055602982" />
+      </geometry>
+      <material name="rim" />
+    </visual>
+
+    <collision>
+      <origin xyz="0 0 0" rpy="1.5707963 0 0" />
+      <geometry>
+        <cylinder radius="0.0808770647" length="0.0505481654" />
+      </geometry>
+    </collision>
+
+    <inertial>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <mass value="1.8" />
+      <inertia ixx="0.020" ixy="0" ixz="0" iyy="0.012" iyz="0" izz="0.020" />
+    </inertial>
+  </link>
+
+  <!-- Rear-left hub gear (internal wheel gear) -->
+  <link name="gear_rl">
+    <!-- Outer internal ring gear body -->
+    <visual>
+      <origin xyz="0 0 0" rpy="1.5707963 0 0" />
+      <geometry>
+        <cylinder radius="0.0581303903" length="0.0151644496" />
+      </geometry>
+      <material name="rim" />
+    </visual>
+
+    <!-- Ring cavity (visual-only cut impression) -->
+    <visual>
+      <origin xyz="0 0 0" rpy="1.5707963 0 0" />
+      <geometry>
+        <cylinder radius="0.0465043122" length="0.0156699313" />
+      </geometry>
+      <material name="body_dark" />
+    </visual>
+
+    <!-- Sun gear core -->
+    <visual>
+      <origin xyz="0 0 0" rpy="1.5707963 0 0" />
+      <geometry>
+        <cylinder radius="0.0212302295" length="0.0141534863" />
+      </geometry>
+      <material name="body_light" />
+    </visual>
+
+    <visual>
+      <origin xyz="0 0 0" rpy="1.5707963 0 0" />
+      <geometry>
+        <cylinder radius="0.0080877065" length="0.0161754129" />
+      </geometry>
+      <material name="rim" />
+    </visual>
+
+    <!-- Ring internal teeth -->
+    <visual>
+      <origin xyz="0.0485262388 0 0" rpy="0 0.0000000 0" />
+      <geometry>
+        <box size="0.0050548165 0.0141534863 0.0050548165" />
+      </geometry>
+      <material name="tread_mark" />
+    </visual>
+    <visual>
+      <origin xyz="0.0343120947 0 0.0343120947" rpy="0 0.7853982 0" />
+      <geometry>
+        <box size="0.0050548165 0.0141534863 0.0050548165" />
+      </geometry>
+      <material name="tread_mark" />
+    </visual>
+    <visual>
+      <origin xyz="0 0 0.0485262388" rpy="0 1.5707963 0" />
+      <geometry>
+        <box size="0.0050548165 0.0141534863 0.0050548165" />
+      </geometry>
+      <material name="tread_mark" />
+    </visual>
+    <visual>
+      <origin xyz="-0.0343120947 0 0.0343120947" rpy="0 2.3561945 0" />
+      <geometry>
+        <box size="0.0050548165 0.0141534863 0.0050548165" />
+      </geometry>
+      <material name="tread_mark" />
+    </visual>
+    <visual>
+      <origin xyz="-0.0485262388 0 0" rpy="0 3.1415927 0" />
+      <geometry>
+        <box size="0.0050548165 0.0141534863 0.0050548165" />
+      </geometry>
+      <material name="tread_mark" />
+    </visual>
+    <visual>
+      <origin xyz="-0.0343120947 0 -0.0343120947" rpy="0 -2.3561945 0" />
+      <geometry>
+        <box size="0.0050548165 0.0141534863 0.0050548165" />
+      </geometry>
+      <material name="tread_mark" />
+    </visual>
+    <visual>
+      <origin xyz="0 0 -0.0485262388" rpy="0 -1.5707963 0" />
+      <geometry>
+        <box size="0.0050548165 0.0141534863 0.0050548165" />
+      </geometry>
+      <material name="tread_mark" />
+    </visual>
+    <visual>
+      <origin xyz="0.0343120947 0 -0.0343120947" rpy="0 -0.7853982 0" />
+      <geometry>
+        <box size="0.0050548165 0.0141534863 0.0050548165" />
+      </geometry>
+      <material name="tread_mark" />
+    </visual>
+
+    <!-- Sun gear teeth -->
+    <visual>
+      <origin xyz="0.0267905277 0 0" rpy="0 0.0000000 0" />
+      <geometry>
+        <box size="0.0050548165 0.0121315597 0.0045493349" />
+      </geometry>
+      <material name="rim" />
+    </visual>
+    <visual>
+      <origin xyz="0.0189454524 0 0.0189454524" rpy="0 0.7853982 0" />
+      <geometry>
+        <box size="0.0050548165 0.0121315597 0.0045493349" />
+      </geometry>
+      <material name="rim" />
+    </visual>
+    <visual>
+      <origin xyz="0 0 0.0267905277" rpy="0 1.5707963 0" />
+      <geometry>
+        <box size="0.0050548165 0.0121315597 0.0045493349" />
+      </geometry>
+      <material name="rim" />
+    </visual>
+    <visual>
+      <origin xyz="-0.0189454524 0 0.0189454524" rpy="0 2.3561945 0" />
+      <geometry>
+        <box size="0.0050548165 0.0121315597 0.0045493349" />
+      </geometry>
+      <material name="rim" />
+    </visual>
+    <visual>
+      <origin xyz="-0.0267905277 0 0" rpy="0 3.1415927 0" />
+      <geometry>
+        <box size="0.0050548165 0.0121315597 0.0045493349" />
+      </geometry>
+      <material name="rim" />
+    </visual>
+    <visual>
+      <origin xyz="-0.0189454524 0 -0.0189454524" rpy="0 -2.3561945 0" />
+      <geometry>
+        <box size="0.0050548165 0.0121315597 0.0045493349" />
+      </geometry>
+      <material name="rim" />
+    </visual>
+    <visual>
+      <origin xyz="0 0 -0.0267905277" rpy="0 -1.5707963 0" />
+      <geometry>
+        <box size="0.0050548165 0.0121315597 0.0045493349" />
+      </geometry>
+      <material name="rim" />
+    </visual>
+    <visual>
+      <origin xyz="0.0189454524 0 -0.0189454524" rpy="0 -0.7853982 0" />
+      <geometry>
+        <box size="0.0050548165 0.0121315597 0.0045493349" />
+      </geometry>
+      <material name="rim" />
+    </visual>
+
+    <inertial>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <mass value="0.08" />
+      <inertia ixx="0.00008" ixy="0" ixz="0" iyy="0.00005" iyz="0" izz="0.00008" />
+    </inertial>
+  </link>
+
+  <joint name="joint_gear_rl" type="continuous">
+    <parent link="car_frame" />
+    <child link="gear_rl" />
+    <origin xyz="-0.1668089459 0.2375763776 0.0303288993" rpy="0 0 0" />
+    <axis xyz="0 0.5054816544 0" />
+    <dynamics damping="0.03" friction="0.01" />
+  </joint>
+
+  <joint name="joint_rl" type="continuous">
+    <parent link="car_frame" />
+    <child link="wheel_rl" />
+    <origin xyz="-0.1668089459 0.2021926618 0.0303288993" rpy="0 0 0" />
+    <axis xyz="0 0.5054816544 0" />
+    <mimic joint="joint_gear_rl" multiplier="1.0" offset="0.0" />
+    <dynamics damping="0.05" friction="0.02" />
+  </joint>
+
+  <!-- Rear-right wheel -->
+  <link name="wheel_rr">
+    <visual>
+      <origin xyz="0 0 0" rpy="1.5707963 0 0" />
+      <geometry>
+        <cylinder radius="0.0808770647" length="0.0505481654" />
+      </geometry>
+      <material name="tire_tread_texture" />
+    </visual>
+
+    <visual>
+      <origin xyz="0 0 0" rpy="1.5707963 0 0" />
+      <geometry>
+        <cylinder radius="0.0454933489" length="0.055602982" />
+      </geometry>
+      <material name="rim" />
+    </visual>
+
+    <collision>
+      <origin xyz="0 0 0" rpy="1.5707963 0 0" />
+      <geometry>
+        <cylinder radius="0.0808770647" length="0.0505481654" />
+      </geometry>
+    </collision>
+
+    <inertial>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <mass value="1.8" />
+      <inertia ixx="0.020" ixy="0" ixz="0" iyy="0.012" iyz="0" izz="0.020" />
+    </inertial>
+  </link>
+
+  <!-- Rear-right hub gear (internal wheel gear) -->
+  <link name="gear_rr">
+    <!-- Outer internal ring gear body -->
+    <visual>
+      <origin xyz="0 0 0" rpy="1.5707963 0 0" />
+      <geometry>
+        <cylinder radius="0.0581303903" length="0.0151644496" />
+      </geometry>
+      <material name="rim" />
+    </visual>
+
+    <!-- Ring cavity (visual-only cut impression) -->
+    <visual>
+      <origin xyz="0 0 0" rpy="1.5707963 0 0" />
+      <geometry>
+        <cylinder radius="0.0465043122" length="0.0156699313" />
+      </geometry>
+      <material name="body_dark" />
+    </visual>
+
+    <!-- Sun gear core -->
+    <visual>
+      <origin xyz="0 0 0" rpy="1.5707963 0 0" />
+      <geometry>
+        <cylinder radius="0.0212302295" length="0.0141534863" />
+      </geometry>
+      <material name="body_light" />
+    </visual>
+
+    <visual>
+      <origin xyz="0 0 0" rpy="1.5707963 0 0" />
+      <geometry>
+        <cylinder radius="0.0080877065" length="0.0161754129" />
+      </geometry>
+      <material name="rim" />
+    </visual>
+
+    <!-- Ring internal teeth -->
+    <visual>
+      <origin xyz="0.0485262388 0 0" rpy="0 0.0000000 0" />
+      <geometry>
+        <box size="0.0050548165 0.0141534863 0.0050548165" />
+      </geometry>
+      <material name="tread_mark" />
+    </visual>
+    <visual>
+      <origin xyz="0.0343120947 0 0.0343120947" rpy="0 0.7853982 0" />
+      <geometry>
+        <box size="0.0050548165 0.0141534863 0.0050548165" />
+      </geometry>
+      <material name="tread_mark" />
+    </visual>
+    <visual>
+      <origin xyz="0 0 0.0485262388" rpy="0 1.5707963 0" />
+      <geometry>
+        <box size="0.0050548165 0.0141534863 0.0050548165" />
+      </geometry>
+      <material name="tread_mark" />
+    </visual>
+    <visual>
+      <origin xyz="-0.0343120947 0 0.0343120947" rpy="0 2.3561945 0" />
+      <geometry>
+        <box size="0.0050548165 0.0141534863 0.0050548165" />
+      </geometry>
+      <material name="tread_mark" />
+    </visual>
+    <visual>
+      <origin xyz="-0.0485262388 0 0" rpy="0 3.1415927 0" />
+      <geometry>
+        <box size="0.0050548165 0.0141534863 0.0050548165" />
+      </geometry>
+      <material name="tread_mark" />
+    </visual>
+    <visual>
+      <origin xyz="-0.0343120947 0 -0.0343120947" rpy="0 -2.3561945 0" />
+      <geometry>
+        <box size="0.0050548165 0.0141534863 0.0050548165" />
+      </geometry>
+      <material name="tread_mark" />
+    </visual>
+    <visual>
+      <origin xyz="0 0 -0.0485262388" rpy="0 -1.5707963 0" />
+      <geometry>
+        <box size="0.0050548165 0.0141534863 0.0050548165" />
+      </geometry>
+      <material name="tread_mark" />
+    </visual>
+    <visual>
+      <origin xyz="0.0343120947 0 -0.0343120947" rpy="0 -0.7853982 0" />
+      <geometry>
+        <box size="0.0050548165 0.0141534863 0.0050548165" />
+      </geometry>
+      <material name="tread_mark" />
+    </visual>
+
+    <!-- Sun gear teeth -->
+    <visual>
+      <origin xyz="0.0267905277 0 0" rpy="0 0.0000000 0" />
+      <geometry>
+        <box size="0.0050548165 0.0121315597 0.0045493349" />
+      </geometry>
+      <material name="rim" />
+    </visual>
+    <visual>
+      <origin xyz="0.0189454524 0 0.0189454524" rpy="0 0.7853982 0" />
+      <geometry>
+        <box size="0.0050548165 0.0121315597 0.0045493349" />
+      </geometry>
+      <material name="rim" />
+    </visual>
+    <visual>
+      <origin xyz="0 0 0.0267905277" rpy="0 1.5707963 0" />
+      <geometry>
+        <box size="0.0050548165 0.0121315597 0.0045493349" />
+      </geometry>
+      <material name="rim" />
+    </visual>
+    <visual>
+      <origin xyz="-0.0189454524 0 0.0189454524" rpy="0 2.3561945 0" />
+      <geometry>
+        <box size="0.0050548165 0.0121315597 0.0045493349" />
+      </geometry>
+      <material name="rim" />
+    </visual>
+    <visual>
+      <origin xyz="-0.0267905277 0 0" rpy="0 3.1415927 0" />
+      <geometry>
+        <box size="0.0050548165 0.0121315597 0.0045493349" />
+      </geometry>
+      <material name="rim" />
+    </visual>
+    <visual>
+      <origin xyz="-0.0189454524 0 -0.0189454524" rpy="0 -2.3561945 0" />
+      <geometry>
+        <box size="0.0050548165 0.0121315597 0.0045493349" />
+      </geometry>
+      <material name="rim" />
+    </visual>
+    <visual>
+      <origin xyz="0 0 -0.0267905277" rpy="0 -1.5707963 0" />
+      <geometry>
+        <box size="0.0050548165 0.0121315597 0.0045493349" />
+      </geometry>
+      <material name="rim" />
+    </visual>
+    <visual>
+      <origin xyz="0.0189454524 0 -0.0189454524" rpy="0 -0.7853982 0" />
+      <geometry>
+        <box size="0.0050548165 0.0121315597 0.0045493349" />
+      </geometry>
+      <material name="rim" />
+    </visual>
+
+    <inertial>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <mass value="0.08" />
+      <inertia ixx="0.00008" ixy="0" ixz="0" iyy="0.00005" iyz="0" izz="0.00008" />
+    </inertial>
+  </link>
+
+  <joint name="joint_gear_rr" type="continuous">
+    <parent link="car_frame" />
+    <child link="gear_rr" />
+    <origin xyz="-0.1668089459 -0.2375763776 0.0303288993" rpy="0 0 0" />
+    <axis xyz="0 0.5054816544 0" />
+    <dynamics damping="0.03" friction="0.01" />
+  </joint>
+
+  <joint name="joint_rr" type="continuous">
+    <parent link="car_frame" />
+    <child link="wheel_rr" />
+    <origin xyz="-0.1668089459 -0.2021926618 0.0303288993" rpy="0 0 0" />
+    <axis xyz="0 0.5054816544 0" />
+    <mimic joint="joint_gear_rr" multiplier="1.0" offset="0.0" />
+    <dynamics damping="0.05" friction="0.02" />
+  </joint>
+
+  <!-- Optional wheel-ground friction tuning for Gazebo -->
+  <gazebo reference="wheel_fl">
+    <mu1>1.0</mu1>
+    <mu2>1.0</mu2>
+  </gazebo>
+  <gazebo reference="wheel_fr">
+    <mu1>1.0</mu1>
+    <mu2>1.0</mu2>
+  </gazebo>
+  <gazebo reference="wheel_rl">
+    <mu1>1.0</mu1>
+    <mu2>1.0</mu2>
+  </gazebo>
+  <gazebo reference="wheel_rr">
+    <mu1>1.0</mu1>
+    <mu2>1.0</mu2>
+  </gazebo>
+
+</robot>

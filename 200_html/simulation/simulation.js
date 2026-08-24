@@ -2435,7 +2435,8 @@ class RapierDriveSimulation {
       });
     });
 
-    this.holeRegions = holeRegions;
+    this.authoredPotholeTemplate = holeRegions[0] || null;
+    this.holeRegions = [];
 
     const subtractRect = (rect, cutRect) => {
       const overlapMinX = Math.max(rect.minX, cutRect.minX);
@@ -2492,7 +2493,7 @@ class RapierDriveSimulation {
         maxY: groundMaxY,
       },
     ];
-    holeRegions.forEach((holeRegion) => {
+    this.holeRegions.forEach((holeRegion) => {
       const nextPatches = [];
       groundPatches.forEach((patch) => {
         nextPatches.push(...subtractRect(patch, holeRegion));
@@ -2559,7 +2560,7 @@ class RapierDriveSimulation {
       );
     });
 
-    holeRegions.forEach((holeRegion) => {
+    this.holeRegions.forEach((holeRegion) => {
       const holeHalfX = (holeRegion.maxX - holeRegion.minX) * 0.5;
       const holeHalfY = (holeRegion.maxY - holeRegion.minY) * 0.5;
       if (
@@ -2878,24 +2879,41 @@ class RapierDriveSimulation {
     cutterGeometry.translate(0, 0, bounds.min.z);
   }
 
-  async carveGroundVisualForHoles() {
+  async carveGroundVisualForHoles(forceRebuild = false) {
     const linkMap = this.viewer?.robotModel?.links || null;
     const groundLink =
       this.findLinkByName(linkMap, "ground") ||
       this.findLinkByName(linkMap, "ground_link") ||
       this.findLinkByName(linkMap, "ground_patch") ||
       null;
-    if (
-      !groundLink ||
-      !Array.isArray(this.holeRegions) ||
-      this.holeRegions.length === 0 ||
-      this.hasCarvedGroundVisual
-    ) {
+    if (!groundLink || !Array.isArray(this.holeRegions)) {
       return;
     }
 
     const groundMeshes = this.collectLinkOwnMeshes(groundLink, linkMap);
     if (groundMeshes.length === 0) {
+      return;
+    }
+
+    groundMeshes.forEach((groundMesh) => {
+      if (!this.groundVisualSourceByMesh.has(groundMesh)) {
+        this.groundVisualSourceByMesh.set(
+          groundMesh,
+          groundMesh.geometry.clone(),
+        );
+      }
+      if (forceRebuild) {
+        groundMesh.geometry.dispose();
+        groundMesh.geometry = this.groundVisualSourceByMesh
+          .get(groundMesh)
+          .clone();
+      }
+    });
+    if (this.holeRegions.length === 0) {
+      this.hasCarvedGroundVisual = false;
+      return;
+    }
+    if (this.hasCarvedGroundVisual && !forceRebuild) {
       return;
     }
 
@@ -3511,7 +3529,7 @@ class RapierDriveSimulation {
   }
 
   getObstacleWorldBounds(obstacleInfo, linkMap = null) {
-    if (!obstacleInfo) {
+    if (!obstacleInfo?.isActive) {
       return null;
     }
 
@@ -4154,6 +4172,7 @@ class RapierDriveSimulation {
         this.obstacleColliderInfos.forEach((obstacleInfo) => {
           if (
             !obstacleInfo ||
+            !obstacleInfo.isActive ||
             !obstacleInfo.center ||
             !obstacleInfo.halfExtents
           ) {
@@ -5884,6 +5903,9 @@ class RapierDriveSimulation {
       this.lastStepTimeMs = 0;
       this.physicsAccumulatorSec = 0;
       this.resetPhysicalState();
+      void this.applyDynamicSurfaceObstacle(
+        globalThis.latestSimulationSurfaceObstacle ?? 0,
+      );
 
       console.log(
         "[URDF][Simulation] Rapier direction control with URDF obstacle initialized",
@@ -6914,6 +6936,7 @@ class RapierDriveSimulation {
 
 let rapierDriveSimulation = null;
 let lastAppliedSimulationWheelCommand = null;
+let lastAppliedSimulationSurfaceObstacle = null;
 
 const withSimulation = (action) => {
   if (!rapierDriveSimulation) {
@@ -6986,6 +7009,34 @@ function applyPendingSimulationWheelAngleSpeedCommand() {
 window.addEventListener("wcs:simulation-wheel-angle-speed", (event) => {
   applySimulationWheelAngleSpeedCommand(event?.detail);
 });
+
+function applySimulationSurfaceObstacle(obstacleValue) {
+  const normalizedValue = Number(obstacleValue);
+  if (
+    !Number.isInteger(normalizedValue) ||
+    normalizedValue < 0 ||
+    normalizedValue > 2
+  ) {
+    return false;
+  }
+
+  return withSimulation((simulation) => {
+    if (!simulation.isReady) {
+      return false;
+    }
+    lastAppliedSimulationSurfaceObstacle = normalizedValue;
+    return simulation.applyDynamicSurfaceObstacle(normalizedValue);
+  });
+}
+
+window.addEventListener("wcs:simulation-surface-obstacle", (event) => {
+  applySimulationSurfaceObstacle(event?.detail?.value);
+});
+
+globalThis.setSimulationSurfaceObstacle = function (obstacleValue) {
+  globalThis.latestSimulationSurfaceObstacle = Number(obstacleValue);
+  return applySimulationSurfaceObstacle(obstacleValue);
+};
 
 globalThis.getSimulationWheelRadiusMetersByKey = function () {
   return withSimulation((simulation) => {
@@ -7087,6 +7138,11 @@ try {
   applySimulationWheelAngleSpeedCommand(
     globalThis.latestSimulationWheelAngleSpeedCommand,
   );
+  if (lastAppliedSimulationSurfaceObstacle === null) {
+    applySimulationSurfaceObstacle(
+      globalThis.latestSimulationSurfaceObstacle ?? 0,
+    );
+  }
 } catch (error) {
   console.error("[URDF][Simulation] startup failed:", error);
 }

@@ -4332,7 +4332,7 @@ class URDFViewer {
         );
         const bounds = new THREE.Box3();
         const inverseWheelWorld = new THREE.Matrix4();
-        let explicitCylinderRadius = null;
+        const wheelLocalPoints = [];
         let hasMesh = false;
 
         wheelLink.updateWorldMatrix(true, true);
@@ -4360,24 +4360,15 @@ class URDFViewer {
             inverseWheelWorld,
             node.matrixWorld,
           );
-          const geometryParams = node.geometry.parameters || {};
-          if (
-            Number.isFinite(geometryParams.radiusTop) &&
-            Number.isFinite(geometryParams.radiusBottom)
-          ) {
-            const radialScaleX = new THREE.Vector3()
-              .setFromMatrixColumn(meshToWheel, 0)
-              .length();
-            const radialScaleZ = new THREE.Vector3()
-              .setFromMatrixColumn(meshToWheel, 2)
-              .length();
-            const cylinderRadius =
-              Math.max(geometryParams.radiusTop, geometryParams.radiusBottom) *
-              Math.max(radialScaleX, radialScaleZ);
-            explicitCylinderRadius = Math.max(
-              explicitCylinderRadius || 0,
-              cylinderRadius,
-            );
+          const positionAttribute = node.geometry.getAttribute("position");
+          if (positionAttribute) {
+            for (let index = 0; index < positionAttribute.count; index += 1) {
+              wheelLocalPoints.push(
+                new THREE.Vector3()
+                  .fromBufferAttribute(positionAttribute, index)
+                  .applyMatrix4(meshToWheel),
+              );
+            }
           }
           bounds.union(
             node.geometry.boundingBox.clone().applyMatrix4(meshToWheel),
@@ -4392,10 +4383,23 @@ class URDFViewer {
         const dimensions = bounds
           .getSize(new THREE.Vector3())
           .toArray()
-          .sort((left, right) => left - right);
-        radiusByKey[wheelKey] = Number.isFinite(explicitCylinderRadius)
-          ? explicitCylinderRadius
-          : (dimensions[1] + dimensions[2]) * 0.25;
+          .map((value, axisIndex) => ({ value, axisIndex }))
+          .sort((left, right) => left.value - right.value);
+        const radialAxisIndexes = [
+          dimensions[1].axisIndex,
+          dimensions[2].axisIndex,
+        ];
+        const center = bounds.getCenter(new THREE.Vector3());
+        const measuredRadius = wheelLocalPoints.reduce((largest, point) => {
+          const radialA =
+            point.getComponent(radialAxisIndexes[0]) -
+            center.getComponent(radialAxisIndexes[0]);
+          const radialB =
+            point.getComponent(radialAxisIndexes[1]) -
+            center.getComponent(radialAxisIndexes[1]);
+          return Math.max(largest, Math.hypot(radialA, radialB));
+        }, 0);
+        radiusByKey[wheelKey] = measuredRadius;
       },
     );
 

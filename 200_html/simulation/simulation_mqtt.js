@@ -20,6 +20,7 @@
   let lastPublishedWheelRadiusSignature = null;
   let initialClientConnectObserved = false;
   let initialWheelSyncCompleted = false;
+  let pendingStartupLocalCommand = null;
   const latestWheelLinearSpeedByKey = WHEEL_KEYS.reduce(function (
     result,
     wheelKey,
@@ -153,7 +154,12 @@
       latestWheelLinearSpeedByKey[wheelKey] = 0;
     });
     initialWheelSyncCompleted = true;
-    dispatchStopCommand();
+    if (pendingStartupLocalCommand) {
+      dispatchWheelCommand(pendingStartupLocalCommand);
+      pendingStartupLocalCommand = null;
+    } else {
+      dispatchStopCommand();
+    }
   }
 
   function flushPendingWheelLinearSpeeds() {
@@ -227,8 +233,6 @@
       return false;
     }
 
-    completeInitialWheelSync();
-
     if (
       !window.WcsMqtt ||
       typeof window.WcsMqtt.sendMQTTMessage !== "function"
@@ -249,7 +253,20 @@
       return false;
     }
 
-    return window.WcsMqtt.sendMQTTMessage(WHEEL_ANGLE_SPEED_TOPIC, payload, 1);
+    const published = window.WcsMqtt.sendMQTTMessage(
+      WHEEL_ANGLE_SPEED_TOPIC,
+      payload,
+      1,
+    );
+    if (published && !initialWheelSyncCompleted) {
+      pendingStartupLocalCommand = buildWheelCommand(
+        parseWheelAngleSpeeds(payload),
+      );
+      if (pendingStartupLocalCommand) {
+        dispatchWheelCommand(pendingStartupLocalCommand);
+      }
+    }
+    return published;
   };
 
   window.prcessMqttMessage = function (topic, value) {

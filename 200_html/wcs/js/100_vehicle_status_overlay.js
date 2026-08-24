@@ -1999,12 +1999,27 @@
   function hideMediaAreaOnly() {
     exitOverlayFullscreen();
     stopCameraOverlayStream(true);
+    if (roadFileOverlaySessionId || roadFileOverlayInitRequest) {
+      writeOverlayPausedFrame();
+      writeOverlayPausedFramePosition();
+      pauseRoadFileOverlayStream();
+      if (
+        roadFileOverlayInitRequest &&
+        typeof roadFileOverlayInitRequest.abort === "function"
+      ) {
+        roadFileOverlayInitRequest.abort();
+      }
+      roadFileOverlayInitRequest = null;
+      roadFileOverlaySessionId = "";
+      roadFileOverlayReachedEnd = false;
+    }
     requestRoadDetectSessionCleanup(latestCurrentVideoFileName);
     clearFirstFrameTimeout();
     clearTemporaryStatusMessage();
     mediaHiddenByUser = true;
-    mediaPlaybackPaused = false;
+    mediaPlaybackPaused = true;
     writeOverlayMediaHiddenState(true);
+    writeOverlayMediaPausedState(true);
     hideAllMedia(false);
     setOverlayStatus("", false);
     applyCollapsedOverlayLayout();
@@ -2017,32 +2032,32 @@
     clearTemporaryStatusMessage();
     setOverlayStatus("", false);
     mediaHiddenByUser = false;
-    mediaPlaybackPaused = false;
+    mediaPlaybackPaused = true;
     writeOverlayMediaHiddenState(false);
+    writeOverlayMediaPausedState(true);
     setCloseButtonToShowMode(false);
     applyCompactOverlayLayout();
     syncVehicleTransparencyControl();
 
-    const isRoadFileStreamSource =
-      !!latestCurrentVideoFileName &&
-      lastMediaType === "image" &&
-      String(lastMediaSource || "") === String(latestCurrentVideoFileName);
-    if (isRoadFileStreamSource) {
-      resolveAndShowCurrentVideo(latestCurrentVideoFileName);
-      return;
+    if (lastMediaType === "video" && lastMediaSource) {
+      $video.attr("src", lastMediaSource).removeClass("d-none");
+      if ($video[0] && typeof $video[0].load === "function") {
+        $video[0].load();
+      }
+    } else if (lastMediaType === "image") {
+      const pausedFrame = readOverlayPausedFrame(latestCurrentVideoFileName);
+      const restorableImageSource = pausedFrame || lastMediaSource;
+      const isStreamSelection =
+        !!parseCameraSelection(latestCurrentVideoFileName) ||
+        String(lastMediaSource || "") === String(latestCurrentVideoFileName);
+      if (restorableImageSource && (!isStreamSelection || pausedFrame)) {
+        $image.attr("src", restorableImageSource).removeClass("d-none");
+      }
     }
 
-    if (lastMediaType === "video" && lastMediaSource) {
-      showVideoSource(lastMediaSource);
-      return;
-    }
-    if (lastMediaType === "image" && lastMediaSource) {
-      showImageSource(lastMediaSource);
-      return;
-    }
-    if (latestCurrentVideoFileName) {
-      resolveAndShowCurrentVideo(latestCurrentVideoFileName);
-    }
+    showOverlay();
+    setOverlayStatus("일시 정지", true);
+    updateVideoControlButtons();
   }
 
   function showImageSource(src) {

@@ -53,6 +53,22 @@ class MqttManagerWheelControlTest(unittest.TestCase):
             manager.wheel_rpm_by_id,
         )
 
+    def test_measured_wheel_radius_is_cached_for_initial_publication(self):
+        manager = object.__new__(MqttManager)
+        manager.wheel_radius_by_id = {
+            wheel_id: MqttConfig.WHEEL_RADIUS_M for wheel_id in MqttConfig.WHEEL_IDS
+        }
+
+        self.assertTrue(manager._store_wheel_message("wheel/fr/radius", "0.080873311"))
+        self.assertEqual(0.080873311, manager.wheel_radius_by_id["fr"])
+
+        radius_getter = next(
+            value_getter
+            for topic_template, value_getter in MqttConfig.WHEEL_PUBLISH_SPECS
+            if topic_template == "wheel/{wheel_str_id}/radius"
+        )
+        self.assertEqual(0.080873311, radius_getter(manager, "fr"))
+
 
 if __name__ == "__main__":
     unittest.main()

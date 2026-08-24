@@ -1630,6 +1630,54 @@ class RapierDriveSimulation {
     return this.computeLinkOwnBoundsWithMeshFilter(linkObject, linkMap, null);
   }
 
+  computeLinkLocalBounds(linkObject, linkMap) {
+    if (!linkObject) {
+      return null;
+    }
+
+    const otherLinkRoots = Object.values(linkMap || {}).filter(
+      (root) =>
+        root &&
+        root !== linkObject &&
+        this.isDescendantObject3D(root, linkObject),
+    );
+    const bounds = new THREE.Box3();
+    const inverseLinkWorld = new THREE.Matrix4();
+    let hasMesh = false;
+
+    linkObject.updateWorldMatrix(true, true);
+    inverseLinkWorld.copy(linkObject.matrixWorld).invert();
+
+    linkObject.traverse((node) => {
+      if (!node?.isMesh || !node.geometry) {
+        return;
+      }
+
+      const belongsToOtherLink = otherLinkRoots.some(
+        (root) => node === root || this.isDescendantObject3D(node, root),
+      );
+      if (belongsToOtherLink) {
+        return;
+      }
+
+      if (!node.geometry.boundingBox) {
+        node.geometry.computeBoundingBox();
+      }
+      if (!node.geometry.boundingBox) {
+        return;
+      }
+
+      const meshToLink = new THREE.Matrix4().multiplyMatrices(
+        inverseLinkWorld,
+        node.matrixWorld,
+      );
+      bounds.union(node.geometry.boundingBox.clone().applyMatrix4(meshToLink));
+      hasMesh = true;
+    });
+
+    return hasMesh ? bounds : null;
+  }
+
   computeLinkOwnBoundsWithMeshFilter(linkObject, linkMap, meshFilter) {
     if (!linkObject) {
       return null;
@@ -4487,15 +4535,17 @@ class RapierDriveSimulation {
           return;
         }
 
-        wheelLink.updateWorldMatrix(true, true);
         const wheelBounds =
-          this.computeLinkOwnBounds(wheelLink, linkMap) || new THREE.Box3();
+          this.computeLinkLocalBounds(wheelLink, linkMap) || new THREE.Box3();
         if (wheelBounds.isEmpty()) {
           return;
         }
 
-        const size = wheelBounds.getSize(new THREE.Vector3());
-        const radius = Math.max(size.x * 0.5, size.z * 0.5, 0.05);
+        const dimensions = wheelBounds
+          .getSize(new THREE.Vector3())
+          .toArray()
+          .sort((left, right) => left - right);
+        const radius = Math.max((dimensions[1] + dimensions[2]) * 0.25, 0.05);
         this.wheelRadiusMetersByKey[wheelKey] = radius;
         wheelRadiusMetersByKey[wheelKey] = radius;
         radii.push(radius);
@@ -4514,6 +4564,10 @@ class RapierDriveSimulation {
       viewer.kmhToRpmFactorByWheelKey = {};
     }
     this.configureWheelVisualKinematics();
+
+    if (typeof globalThis.publishSimulationWheelRadii === "function") {
+      globalThis.publishSimulationWheelRadii(wheelRadiusMetersByKey);
+    }
   }
 
   getWheelCircumferenceMeters() {

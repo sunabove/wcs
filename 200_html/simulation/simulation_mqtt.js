@@ -3,6 +3,10 @@
   const WHEEL_KEYS = ["fr", "fl", "rr", "rl"];
   const DEFAULT_WHEEL_RADIUS_METERS = 0.16;
   const ANGULAR_SPEED_EPSILON = 1e-6;
+  const WHEEL_RADIUS_PUBLISH_RETRY_COUNT = 40;
+  const WHEEL_RADIUS_PUBLISH_RETRY_INTERVAL_MS = 250;
+  let pendingWheelRadiusPublishTimer = null;
+  let lastPublishedWheelRadiusSignature = null;
   const wheelDirectionByMode = {
     stop: { fr: 0, fl: 0, rr: 0, rl: 0 },
     forward: { fr: 1, fl: 1, rr: 1, rl: 1 },
@@ -26,6 +30,79 @@
       return result;
     }, {});
   }
+
+  function normalizeMeasuredWheelRadii(radiusByKey) {
+    const normalizedRadii = {};
+
+    for (const wheelKey of WHEEL_KEYS) {
+      const radius = Number(radiusByKey?.[wheelKey]);
+      if (!Number.isFinite(radius) || radius <= 0) {
+        return null;
+      }
+      normalizedRadii[wheelKey] = Number(radius.toFixed(9));
+    }
+
+    return normalizedRadii;
+  }
+
+  function publishMeasuredWheelRadii(radiusByKey, retriesRemaining) {
+    const normalizedRadii = normalizeMeasuredWheelRadii(radiusByKey);
+    if (!normalizedRadii) {
+      console.warn(
+        "[Simulation][MQTT] Invalid measured wheel radii:",
+        radiusByKey,
+      );
+      return false;
+    }
+
+    const signature = WHEEL_KEYS.map(function (wheelKey) {
+      return normalizedRadii[wheelKey];
+    }).join(",");
+    if (signature === lastPublishedWheelRadiusSignature) {
+      return true;
+    }
+
+    if (
+      !window.mqttClient?.connected ||
+      !window.WcsMqtt ||
+      typeof window.WcsMqtt.sendMQTTMessage !== "function"
+    ) {
+      if (retriesRemaining <= 0) {
+        console.warn("[Simulation][MQTT] Wheel radius publish timed out.");
+        return false;
+      }
+
+      window.clearTimeout(pendingWheelRadiusPublishTimer);
+      pendingWheelRadiusPublishTimer = window.setTimeout(function () {
+        pendingWheelRadiusPublishTimer = null;
+        publishMeasuredWheelRadii(normalizedRadii, retriesRemaining - 1);
+      }, WHEEL_RADIUS_PUBLISH_RETRY_INTERVAL_MS);
+      return false;
+    }
+
+    const published = WHEEL_KEYS.every(function (wheelKey) {
+      return window.WcsMqtt.sendMQTTMessage(
+        `wheel/${wheelKey}/radius`,
+        normalizedRadii[wheelKey],
+        1,
+      );
+    });
+    if (published) {
+      lastPublishedWheelRadiusSignature = signature;
+      console.log(
+        "[Simulation][MQTT] Measured wheel radii published:",
+        normalizedRadii,
+      );
+    }
+    return published;
+  }
+
+  window.publishSimulationWheelRadii = function (radiusByKey) {
+    return publishMeasuredWheelRadii(
+      radiusByKey,
+      WHEEL_RADIUS_PUBLISH_RETRY_COUNT,
+    );
+  };
 
   function parseWheelAngleSpeeds(value) {
     const parts = String(value).split(",");

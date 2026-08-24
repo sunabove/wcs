@@ -38,7 +38,7 @@ class MqttConfig:
         {"id": "Lidar", "count": 1, "enabled": True},
     ]
 
-    WHEEL_RADIUS_M = 0.32
+    WHEEL_RADIUS_M = 0.08087331
 
     WHEEL_ID_MAPPING = {
         "fl": 1,
@@ -52,7 +52,7 @@ class MqttConfig:
 
     WHEEL_PUBLISH_SPECS = [
         ("wheel/{wheel_str_id}/id",           lambda mgr, wid: MqttConfig.WHEEL_ID_MAPPING[wid]),
-        ("wheel/{wheel_str_id}/radius",       lambda mgr, wid: MqttConfig.WHEEL_RADIUS_M),
+        ("wheel/{wheel_str_id}/radius",       lambda mgr, wid: float(mgr.wheel_radius_by_id.get(wid, MqttConfig.WHEEL_RADIUS_M))),
         ("wheel/{wheel_str_id}/linear/speed", lambda mgr, wid: float(mgr.wheel_speed_by_id.get(wid, 0.0))),
         ("wheel/{wheel_str_id}/power",        lambda mgr, wid: float(mgr.wheel_power_by_id.get(wid, 0.0))),
         ("wheel/{wheel_str_id}/pid/p",        lambda mgr, wid: float(mgr.wheel_pid_by_id.get(wid, {}).get("p", 0.0))),
@@ -131,6 +131,9 @@ class MqttManager:
         }
         self.wheel_rpm_by_id = {wheel_id: 0.0 for wheel_id in MqttConfig.WHEEL_IDS}
         self.wheel_speed_by_id = {wheel_id: 0.0 for wheel_id in MqttConfig.WHEEL_IDS}
+        self.wheel_radius_by_id = {
+            wheel_id: MqttConfig.WHEEL_RADIUS_M for wheel_id in MqttConfig.WHEEL_IDS
+        }
         self.wheel_tof_distance_by_id = {wheel_id: 0.0 for wheel_id in MqttConfig.WHEEL_IDS}
         self.wheel_axis_angle_by_id = {wheel_id: 0.0 for wheel_id in MqttConfig.WHEEL_IDS}
 
@@ -378,6 +381,11 @@ class MqttManager:
             return True
         if metric == "linear/speed":
             self.wheel_speed_by_id[wheel_str_id] = self._parse_numeric_payload(payload)
+            return True
+        if metric == "radius":
+            radius = float(self._parse_numeric_payload(payload))
+            if math.isfinite(radius) and radius > 0:
+                self.wheel_radius_by_id[wheel_str_id] = radius
             return True
         if metric == "power":
             self.wheel_power_by_id[wheel_str_id] = self._parse_numeric_payload(payload)

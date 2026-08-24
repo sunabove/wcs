@@ -21,6 +21,7 @@
     result[wheelKey] = 0;
     return result;
   }, {});
+  const pendingWheelLinearSpeedKeys = new Set();
 
   function getWheelRadiusMetersByKey() {
     const providedRadii =
@@ -139,7 +140,13 @@
       return true;
     }
 
-    latestWheelLinearSpeedByKey[topicMatch[1].toLowerCase()] = linearSpeedMps;
+    const wheelKey = topicMatch[1].toLowerCase();
+    latestWheelLinearSpeedByKey[wheelKey] = linearSpeedMps;
+    pendingWheelLinearSpeedKeys.add(wheelKey);
+    if (pendingWheelLinearSpeedKeys.size < WHEEL_KEYS.length) {
+      return true;
+    }
+
     const angleSpeedByKey = wheelCommand.linearToAngleSpeedByKey(
       latestWheelLinearSpeedByKey,
       getWheelRadiusMetersByKey(),
@@ -150,6 +157,7 @@
 
     const command = buildWheelCommand(angleSpeedByKey);
     if (command) {
+      pendingWheelLinearSpeedKeys.clear();
       dispatchWheelCommand(command);
     }
     return true;

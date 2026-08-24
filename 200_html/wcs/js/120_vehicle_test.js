@@ -148,15 +148,7 @@ $(document).ready(function () {
       : 0.1;
     $("#vehicleCurrSpeedSlider").val(normalizedMps.toFixed(1));
 
-    const sliderMaxMps = Number.parseFloat(
-      $("#vehicleCurrSpeedSlider").attr("max"),
-    );
-    const effectiveMaxMps = Number.isFinite(sliderMaxMps)
-      ? Math.max(0.1, sliderMaxMps)
-      : Math.max(0.1, latestVehicleMaxSpeedMps);
-    $('[id="vehicle/linear/speed"]').text(
-      `${normalizedMps.toFixed(1)}/${effectiveMaxMps.toFixed(1)} m/s`,
-    );
+    $('[id="vehicle/linear/speed"]').text(`${normalizedMps.toFixed(1)} m/s`);
 
     if (isManual) {
       window.vehicleSpeedUiManualUntil = Date.now() + 1500;

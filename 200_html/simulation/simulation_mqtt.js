@@ -13,9 +13,13 @@
   const WHEEL_RADIUS_PUBLISH_RETRY_COUNT = 40;
   const WHEEL_RADIUS_PUBLISH_RETRY_INTERVAL_MS = 250;
   const WHEEL_LINEAR_SPEED_BATCH_WAIT_MS = 150;
+  const INITIAL_SYNC_UNLOCK_TIMEOUT_MS = 3000;
   let pendingWheelRadiusPublishTimer = null;
   let pendingWheelLinearSpeedTimer = null;
+  let initialSyncUnlockTimer = null;
   let lastPublishedWheelRadiusSignature = null;
+  let initialClientConnectObserved = false;
+  let initialWheelSyncCompleted = false;
   const latestWheelLinearSpeedByKey = WHEEL_KEYS.reduce(function (
     result,
     wheelKey,
@@ -128,6 +132,30 @@
     );
   }
 
+  function dispatchStopCommand() {
+    const command = buildWheelCommand({ fr: 0, fl: 0, rr: 0, rl: 0 });
+    if (command) {
+      dispatchWheelCommand(command);
+    }
+  }
+
+  function completeInitialWheelSync() {
+    if (initialWheelSyncCompleted) {
+      return;
+    }
+
+    window.clearTimeout(initialSyncUnlockTimer);
+    initialSyncUnlockTimer = null;
+    window.clearTimeout(pendingWheelLinearSpeedTimer);
+    pendingWheelLinearSpeedTimer = null;
+    pendingWheelLinearSpeedKeys.clear();
+    WHEEL_KEYS.forEach(function (wheelKey) {
+      latestWheelLinearSpeedByKey[wheelKey] = 0;
+    });
+    initialWheelSyncCompleted = true;
+    dispatchStopCommand();
+  }
+
   function flushPendingWheelLinearSpeeds() {
     if (pendingWheelLinearSpeedKeys.size === 0) {
       return false;
@@ -159,6 +187,10 @@
     );
     if (!topicMatch) {
       return false;
+    }
+
+    if (!initialWheelSyncCompleted) {
+      return true;
     }
 
     const receivedSpeed = Number(value);
@@ -195,6 +227,8 @@
       return false;
     }
 
+    completeInitialWheelSync();
+
     if (
       !window.WcsMqtt ||
       typeof window.WcsMqtt.sendMQTTMessage !== "function"
@@ -219,6 +253,16 @@
   };
 
   window.prcessMqttMessage = function (topic, value) {
+    if (topic === "client/connect") {
+      initialClientConnectObserved = true;
+      window.clearTimeout(initialSyncUnlockTimer);
+      initialSyncUnlockTimer = window.setTimeout(
+        completeInitialWheelSync,
+        INITIAL_SYNC_UNLOCK_TIMEOUT_MS,
+      );
+      return;
+    }
+
     if (applyIndividualWheelSpeedMessage(topic, value)) {
       return;
     }
@@ -236,9 +280,18 @@
       return;
     }
 
+    if (!initialWheelSyncCompleted) {
+      if (initialClientConnectObserved) {
+        completeInitialWheelSync();
+      }
+      return;
+    }
+
     const command = buildWheelCommand(angleSpeedByKey);
     if (command) {
       dispatchWheelCommand(command);
     }
   };
+
+  dispatchStopCommand();
 })();

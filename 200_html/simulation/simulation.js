@@ -5773,17 +5773,18 @@ class RapierDriveSimulation {
       treeGroup.add(needleCluster);
     });
 
-    const treePosition = this.getGroundPositionAtCameraView(
-      SCENE_TREE_VIEW_POSITION,
+    const treePlacement = this.getSceneTreeBehindVehiclePlacement(
+      Math.sign(SCENE_TREE_VIEW_POSITION.x) || -1,
     );
-    if (!treePosition) {
+    if (!treePlacement) {
       return;
     }
 
-    treeGroup.position.copy(treePosition);
+    treeGroup.position.copy(treePlacement.position);
     treeGroup.position.z += 0.002;
     this.viewer.scene.add(treeGroup);
     this.sceneTreeGroup = treeGroup;
+    this.sceneTreeCornerSide = treePlacement.side;
   }
 
   getGroundPositionAtCameraView(viewPosition) {
@@ -5799,6 +5800,43 @@ class RapierDriveSimulation {
       new THREE.Plane(new THREE.Vector3(0, 0, 1), -this.groundZ),
       new THREE.Vector3(),
     );
+  }
+
+  getSceneTreeBehindVehiclePlacement(preferredSide) {
+    if (!this.carFrame) {
+      return null;
+    }
+
+    this.carFrame.updateWorldMatrix(true, false);
+    const vehiclePosition = this.carFrame.getWorldPosition(new THREE.Vector3());
+    const normalizedPreferredSide = preferredSide < 0 ? -1 : 1;
+    const placements = [normalizedPreferredSide, -normalizedPreferredSide]
+      .map((side) => ({
+        side,
+        position: this.getGroundPositionAtCameraView(
+          new THREE.Vector2(
+            Math.abs(SCENE_TREE_VIEW_POSITION.x) * side,
+            SCENE_TREE_VIEW_POSITION.y,
+          ),
+        ),
+      }))
+      .filter((placement) => placement.position);
+    if (placements.length === 0) {
+      return null;
+    }
+
+    const behindPlacement = placements.find(
+      (placement) => placement.position.y < vehiclePosition.y,
+    );
+    if (behindPlacement) {
+      return behindPlacement;
+    }
+
+    const fallbackPlacement = placements[0];
+    fallbackPlacement.position.y =
+      vehiclePosition.y -
+      Math.max(Math.abs(fallbackPlacement.position.y - vehiclePosition.y), 0.5);
+    return fallbackPlacement;
   }
 
   updateSceneTreePlacement(nowMs = performance.now()) {
@@ -5818,21 +5856,17 @@ class RapierDriveSimulation {
       return;
     }
 
-    const nextSide = this.sceneTreeCornerSide < 0 ? 1 : -1;
-    const nextViewPosition = new THREE.Vector2(
-      Math.abs(SCENE_TREE_VIEW_POSITION.x) * nextSide,
-      SCENE_TREE_VIEW_POSITION.y,
+    const nextPlacement = this.getSceneTreeBehindVehiclePlacement(
+      this.sceneTreeCornerSide < 0 ? 1 : -1,
     );
-    const nextTreePosition =
-      this.getGroundPositionAtCameraView(nextViewPosition);
-    if (!nextTreePosition) {
+    if (!nextPlacement) {
       return;
     }
 
-    treeGroup.position.copy(nextTreePosition);
+    treeGroup.position.copy(nextPlacement.position);
     treeGroup.position.z += 0.002;
     treeGroup.updateMatrixWorld(true);
-    this.sceneTreeCornerSide = nextSide;
+    this.sceneTreeCornerSide = nextPlacement.side;
   }
 
   scheduleInitialVehicleCameraFit() {

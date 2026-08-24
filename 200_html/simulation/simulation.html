@@ -18,7 +18,7 @@
     <script src="../wcs/js/010_wcs_common.js" defer></script>
     <script src="../wcs/js/012_vehicle_wheel_command.js?v=20260824-linear-speed-receive" defer></script>
     <script src="../wcs/js/011_mqtt.js?v=20260824-wheel-angle-speed-receive" defer></script>
-    <script src="simulation_mqtt.js?v=20260824-startup-command-restore" defer></script>
+    <script src="simulation_mqtt.js?v=20260824-obstacle-controls" defer></script>
 
     <!-- Import map for module resolution -->
     <script type="importmap">
@@ -257,6 +257,25 @@
                                                     class="w-100 btn btn-outline-secondary btn-sm text-nowrap small"
                                                     id="road-pitch-reset" data-simulation-flash data-simulation-control
                                                     onclick="runSimulationControl(this, () => resetSimulationPitch())">초기화</button>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td colspan="4" class="px-2 py-2 align-middle border rounded bg-light">
+                                                <div class="d-flex align-items-center gap-2">
+                                                    <span class="small text-nowrap fw-semibold">장애물</span>
+                                                    <div class="btn-group btn-group-sm flex-grow-1" role="group"
+                                                        aria-label="장애물 상태 발행">
+                                                        <button type="button" class="btn btn-outline-secondary active"
+                                                            data-surface-obstacle-value="0" aria-pressed="true"
+                                                            onclick="runSimulationMqttObstacleCommand(0)">없음</button>
+                                                        <button type="button" class="btn btn-outline-warning"
+                                                            data-surface-obstacle-value="1" aria-pressed="false"
+                                                            onclick="runSimulationMqttObstacleCommand(1)">단차</button>
+                                                        <button type="button" class="btn btn-outline-danger"
+                                                            data-surface-obstacle-value="2" aria-pressed="false"
+                                                            onclick="runSimulationMqttObstacleCommand(2)">포트홀</button>
+                                                    </div>
+                                                </div>
                                             </td>
                                         </tr>
                                     </tbody>

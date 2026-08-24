@@ -8,6 +8,7 @@
   }
 
   const WHEEL_ANGLE_SPEED_TOPIC = wheelCommand.TOPIC;
+  const SURFACE_OBSTACLE_TOPIC = "vehicle/surface/obstacle";
   const WHEEL_KEYS = wheelCommand.WHEEL_KEYS;
   const DEFAULT_WHEEL_RADIUS_METERS = 0.16;
   const WHEEL_RADIUS_PUBLISH_RETRY_COUNT = 40;
@@ -140,6 +141,27 @@
     }
   }
 
+  function syncSurfaceObstacleButtons(obstacleValue) {
+    const normalizedValue = Number(obstacleValue);
+    if (
+      !Number.isInteger(normalizedValue) ||
+      normalizedValue < 0 ||
+      normalizedValue > 2
+    ) {
+      return false;
+    }
+
+    document
+      .querySelectorAll("[data-surface-obstacle-value]")
+      .forEach(function (button) {
+        const isActive =
+          Number(button.dataset.surfaceObstacleValue) === normalizedValue;
+        button.classList.toggle("active", isActive);
+        button.setAttribute("aria-pressed", String(isActive));
+      });
+    return true;
+  }
+
   function completeInitialWheelSync() {
     if (initialWheelSyncCompleted) {
       return;
@@ -269,6 +291,39 @@
     return published;
   };
 
+  window.runSimulationMqttObstacleCommand = function (obstacleValue) {
+    const normalizedValue = Number(obstacleValue);
+    if (
+      !Number.isInteger(normalizedValue) ||
+      normalizedValue < 0 ||
+      normalizedValue > 2
+    ) {
+      console.warn(
+        "[Simulation][MQTT] Invalid surface obstacle:",
+        obstacleValue,
+      );
+      return false;
+    }
+
+    if (
+      !window.WcsMqtt ||
+      typeof window.WcsMqtt.sendMQTTMessage !== "function"
+    ) {
+      console.warn("[Simulation][MQTT] MQTT client is unavailable.");
+      return false;
+    }
+
+    const published = window.WcsMqtt.sendMQTTMessage(
+      SURFACE_OBSTACLE_TOPIC,
+      normalizedValue,
+      1,
+    );
+    if (published) {
+      syncSurfaceObstacleButtons(normalizedValue);
+    }
+    return published;
+  };
+
   window.prcessMqttMessage = function (topic, value) {
     if (topic === "client/connect") {
       initialClientConnectObserved = true;
@@ -277,6 +332,11 @@
         completeInitialWheelSync,
         INITIAL_SYNC_UNLOCK_TIMEOUT_MS,
       );
+      return;
+    }
+
+    if (topic === SURFACE_OBSTACLE_TOPIC) {
+      syncSurfaceObstacleButtons(value);
       return;
     }
 
@@ -311,4 +371,5 @@
   };
 
   dispatchStopCommand();
+  syncSurfaceObstacleButtons(0);
 })();

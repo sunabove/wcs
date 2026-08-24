@@ -249,6 +249,9 @@ class RapierDriveSimulation {
     this.groundGridPatches = null;
     this.groundExtensionGroup = null;
     this.extensionPotholeLinerGroup = null;
+    this.dynamicPotholeRegion = null;
+    this.authoredPotholeTemplate = null;
+    this.groundVisualSourceByMesh = new Map();
     this.groundExtensionMaterial = null;
     this.authoredGroundRect = null;
     this.groundInteriorMaterialBySource = null;
@@ -3323,6 +3326,7 @@ class RapierDriveSimulation {
       );
       this.obstacleColliders.push(obstacleCollider);
       this.obstacleColliderInfos.push({
+        body: obstacleBody,
         collider: obstacleCollider,
         center: new THREE.Vector3(center.x, center.y, center.z),
         halfExtents: {
@@ -3338,11 +3342,172 @@ class RapierDriveSimulation {
         isSpatiallyOverlapping: false,
         linkObject: obstacleLink,
         worldBounds: actualBounds.clone(),
+        originalCenter: new THREE.Vector3(center.x, center.y, center.z),
+        originalWorldBounds: actualBounds.clone(),
+        isActive: false,
       });
       console.log(
         `[URDF][Simulation] obstacle collider created from URDF link: ${obstacleLinkName}`,
       );
     });
+
+    this.hideDynamicSurfaceObstacles();
+  }
+
+  hideDynamicSurfaceObstacles() {
+    this.obstacleColliderInfos.forEach((obstacleInfo) => {
+      obstacleInfo.isActive = false;
+      if (obstacleInfo.linkObject) {
+        obstacleInfo.linkObject.visible = false;
+      }
+      if (typeof obstacleInfo.collider?.setEnabled === "function") {
+        obstacleInfo.collider.setEnabled(false);
+      }
+    });
+    this.lastWheelSupportProfile = null;
+  }
+
+  getDynamicObstaclePlacement(lateralWheelKeys = []) {
+    if (!this.body || !this.carFrame) {
+      return null;
+    }
+
+    const bodyPosition = this.body.translation();
+    const yaw = this.extractYawFromQuaternion(this.body.rotation());
+    const forward = this.getVehicleForwardVector(yaw);
+    const left = { x: -forward.y, y: forward.x };
+    const linkMap = this.viewer?.robotModel?.links || null;
+    const wheelPositions = Object.entries(this.wheelLinkNameByKey)
+      .map(([wheelKey, wheelLinkName]) => {
+        const wheelLink = this.findLinkByName(linkMap, wheelLinkName);
+        if (!wheelLink) {
+          return null;
+        }
+        wheelLink.updateWorldMatrix(true, false);
+        return {
+          wheelKey,
+          position: wheelLink.getWorldPosition(new THREE.Vector3()),
+        };
+      })
+      .filter(Boolean);
+    const frontOffset = wheelPositions.reduce((maximum, wheel) => {
+      const dx = wheel.position.x - bodyPosition.x;
+      const dy = wheel.position.y - bodyPosition.y;
+      return Math.max(maximum, dx * forward.x + dy * forward.y);
+    }, 0);
+    const lateralWheels = wheelPositions.filter((wheel) =>
+      lateralWheelKeys.includes(wheel.wheelKey),
+    );
+    const lateralOffset =
+      lateralWheels.length > 0
+        ? lateralWheels.reduce((sum, wheel) => {
+            const dx = wheel.position.x - bodyPosition.x;
+            const dy = wheel.position.y - bodyPosition.y;
+            return sum + dx * left.x + dy * left.y;
+          }, 0) / lateralWheels.length
+        : 0;
+    const forwardOffset = frontOffset + 0.3;
+
+    return {
+      x: bodyPosition.x + forward.x * forwardOffset + left.x * lateralOffset,
+      y: bodyPosition.y + forward.y * forwardOffset + left.y * lateralOffset,
+    };
+  }
+
+  moveObstacleInfoTo(obstacleInfo, centerX, centerY) {
+    if (!obstacleInfo?.center || !obstacleInfo?.halfExtents) {
+      return false;
+    }
+
+    const targetCenter = new THREE.Vector3(
+      centerX,
+      centerY,
+      this.groundZ + obstacleInfo.halfExtents.z,
+    );
+    const delta = targetCenter.clone().sub(obstacleInfo.center);
+    const linkObject = obstacleInfo.linkObject;
+    if (linkObject?.parent) {
+      linkObject.updateWorldMatrix(true, false);
+      const linkWorldPosition = linkObject.getWorldPosition(
+        new THREE.Vector3(),
+      );
+      linkObject.position.copy(
+        linkObject.parent.worldToLocal(linkWorldPosition.add(delta)),
+      );
+      linkObject.updateWorldMatrix(true, true);
+      linkObject.visible = true;
+    }
+    obstacleInfo.body?.setTranslation(
+      { x: targetCenter.x, y: targetCenter.y, z: targetCenter.z },
+      true,
+    );
+    obstacleInfo.collider?.setEnabled?.(true);
+    obstacleInfo.center.copy(targetCenter);
+    obstacleInfo.worldBounds = obstacleInfo.originalWorldBounds
+      .clone()
+      .translate(targetCenter.clone().sub(obstacleInfo.originalCenter));
+    obstacleInfo.isActive = true;
+    return true;
+  }
+
+  async applyDynamicSurfaceObstacle(obstacleValue) {
+    const normalizedValue = Number(obstacleValue);
+    if (
+      !Number.isInteger(normalizedValue) ||
+      normalizedValue < 0 ||
+      normalizedValue > 2
+    ) {
+      return false;
+    }
+
+    this.hideDynamicSurfaceObstacles();
+    if (this.dynamicPotholeRegion) {
+      this.holeRegions = this.holeRegions.filter(
+        (holeRegion) => holeRegion !== this.dynamicPotholeRegion,
+      );
+      this.dynamicPotholeRegion = null;
+    }
+
+    if (normalizedValue === 1) {
+      const placement = this.getDynamicObstaclePlacement();
+      const stepObstacle = this.obstacleColliderInfos.find((obstacleInfo) =>
+        /wood|bar/i.test(obstacleInfo.normalizedLinkName),
+      );
+      if (placement && stepObstacle) {
+        this.moveObstacleInfoTo(stepObstacle, placement.x, placement.y);
+      }
+    } else if (normalizedValue === 2) {
+      const placement = this.getDynamicObstaclePlacement(["fl", "rl"]);
+      const template = this.authoredPotholeTemplate;
+      if (placement && template) {
+        const width = template.maxX - template.minX;
+        const height = template.maxY - template.minY;
+        this.dynamicPotholeRegion = {
+          linkName: template.linkName,
+          minX: placement.x - width * 0.5,
+          maxX: placement.x + width * 0.5,
+          minY: placement.y - height * 0.5,
+          maxY: placement.y + height * 0.5,
+          depthMeters: template.depthMeters,
+          floorZ: this.groundZ - template.depthMeters,
+          isRecessed: true,
+        };
+        this.holeRegions.push(this.dynamicPotholeRegion);
+        const potholeObstacle = this.obstacleColliderInfos.find(
+          (obstacleInfo) => /pothole/i.test(obstacleInfo.normalizedLinkName),
+        );
+        if (potholeObstacle) {
+          this.moveObstacleInfoTo(potholeObstacle, placement.x, placement.y);
+          potholeObstacle.isActive = false;
+          potholeObstacle.collider?.setEnabled?.(false);
+        }
+      }
+    }
+
+    this.lastWheelSupportProfile = null;
+    this.addGroundSurfaceExtension();
+    await this.carveGroundVisualForHoles(true);
+    return true;
   }
 
   getObstacleWorldBounds(obstacleInfo, linkMap = null) {

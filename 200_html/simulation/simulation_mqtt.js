@@ -162,6 +162,21 @@
     return true;
   }
 
+  function dispatchSurfaceObstacle(obstacleValue) {
+    const normalizedValue = Number(obstacleValue);
+    if (!syncSurfaceObstacleButtons(normalizedValue)) {
+      return false;
+    }
+
+    window.latestSimulationSurfaceObstacle = normalizedValue;
+    window.dispatchEvent(
+      new CustomEvent("wcs:simulation-surface-obstacle", {
+        detail: { value: normalizedValue },
+      }),
+    );
+    return true;
+  }
+
   function completeInitialWheelSync() {
     if (initialWheelSyncCompleted) {
       return;
@@ -319,7 +334,7 @@
       1,
     );
     if (published) {
-      syncSurfaceObstacleButtons(normalizedValue);
+      dispatchSurfaceObstacle(normalizedValue);
     }
     return published;
   };
@@ -336,7 +351,7 @@
     }
 
     if (topic === SURFACE_OBSTACLE_TOPIC) {
-      syncSurfaceObstacleButtons(value);
+      dispatchSurfaceObstacle(value);
       return;
     }
 
@@ -371,5 +386,5 @@
   };
 
   dispatchStopCommand();
-  syncSurfaceObstacleButtons(0);
+  dispatchSurfaceObstacle(0);
 })();

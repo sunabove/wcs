@@ -5501,7 +5501,7 @@ class RapierDriveSimulation {
       if (
         !Number.isFinite(occupancy) ||
         occupancy <= 0 ||
-        occupancy >= INITIAL_VEHICLE_CAMERA_OCCUPANCY
+        Math.abs(occupancy - INITIAL_VEHICLE_CAMERA_OCCUPANCY) <= 0.005
       ) {
         break;
       }

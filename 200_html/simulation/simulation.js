@@ -5502,6 +5502,57 @@ class RapierDriveSimulation {
     return Math.max((maxX - minX) * 0.5, (maxY - minY) * 0.5);
   }
 
+  isBoundsOutsideCameraView(bounds) {
+    const camera = this.viewer?.camera || null;
+    if (!camera || !bounds || bounds.isEmpty()) {
+      return false;
+    }
+
+    camera.updateMatrixWorld(true);
+    const projectedCorners = [];
+    let hasCornerInFrontOfCamera = false;
+    [bounds.min.x, bounds.max.x].forEach((x) => {
+      [bounds.min.y, bounds.max.y].forEach((y) => {
+        [bounds.min.z, bounds.max.z].forEach((z) => {
+          const corner = new THREE.Vector3(x, y, z);
+          const cameraSpaceCorner = corner
+            .clone()
+            .applyMatrix4(camera.matrixWorldInverse);
+          hasCornerInFrontOfCamera ||= cameraSpaceCorner.z < -camera.near;
+          projectedCorners.push(corner.project(camera));
+        });
+      });
+    });
+
+    if (!hasCornerInFrontOfCamera) {
+      return true;
+    }
+
+    const minX = Math.min(...projectedCorners.map((corner) => corner.x));
+    const maxX = Math.max(...projectedCorners.map((corner) => corner.x));
+    const minY = Math.min(...projectedCorners.map((corner) => corner.y));
+    const maxY = Math.max(...projectedCorners.map((corner) => corner.y));
+    return maxX < -1 || minX > 1 || maxY < -1 || minY > 1;
+  }
+
+  centerCameraOnBounds(bounds) {
+    const camera = this.viewer?.camera || null;
+    const controls = this.viewer?.controls || null;
+    if (!camera || !controls || !bounds || bounds.isEmpty()) {
+      return;
+    }
+
+    const centerOffset = bounds
+      .getCenter(new THREE.Vector3())
+      .sub(controls.target);
+    camera.position.add(centerOffset);
+    controls.target.add(centerOffset);
+    if (this.viewer.goalTarget?.isVector3) {
+      this.viewer.goalTarget.add(centerOffset);
+    }
+    controls.update();
+  }
+
   fitInitialCameraToVehicle() {
     if (
       this.hasFitInitialVehicleCamera ||
@@ -5513,18 +5564,21 @@ class RapierDriveSimulation {
       return false;
     }
 
-    if (this.viewer.hasStoredCameraPose) {
-      this.viewer.snapshotInitialCameraPose?.();
-      this.hasFitInitialVehicleCamera = true;
-      return true;
-    }
-
     const bounds = this.computeChassisBounds(
       this.carFrame,
       this.viewer.robotModel?.links || null,
     );
     if (!bounds || bounds.isEmpty()) {
       return false;
+    }
+
+    if (this.viewer.hasStoredCameraPose) {
+      if (this.isBoundsOutsideCameraView(bounds)) {
+        this.centerCameraOnBounds(bounds);
+      }
+      this.viewer.snapshotInitialCameraPose?.();
+      this.hasFitInitialVehicleCamera = true;
+      return true;
     }
 
     const camera = this.viewer.camera;

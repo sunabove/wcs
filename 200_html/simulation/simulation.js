@@ -2718,39 +2718,43 @@ class RapierDriveSimulation {
         {
           size: [width, depth],
           position: [centerX, centerY, this.groundZ - pitDepth],
-          rotation: [0, 0, 0],
+          rotateX: 0,
+          rotateZ: 0,
         },
         {
           size: [width, pitDepth],
           position: [centerX, holeRegion.minY, this.groundZ - pitDepth * 0.5],
-          rotation: [Math.PI / 2, 0, 0],
+          rotateX: Math.PI / 2,
+          rotateZ: 0,
         },
         {
           size: [width, pitDepth],
           position: [centerX, holeRegion.maxY, this.groundZ - pitDepth * 0.5],
-          rotation: [Math.PI / 2, 0, 0],
+          rotateX: Math.PI / 2,
+          rotateZ: 0,
         },
         {
           size: [depth, pitDepth],
           position: [holeRegion.minX, centerY, this.groundZ - pitDepth * 0.5],
-          rotation: [Math.PI / 2, 0, Math.PI / 2],
+          rotateX: Math.PI / 2,
+          rotateZ: Math.PI / 2,
         },
         {
           size: [depth, pitDepth],
           position: [holeRegion.maxX, centerY, this.groundZ - pitDepth * 0.5],
-          rotation: [Math.PI / 2, 0, Math.PI / 2],
+          rotateX: Math.PI / 2,
+          rotateZ: Math.PI / 2,
         },
       ];
 
       faces.forEach((face) => {
-        const faceMesh = new THREE.Mesh(
-          new THREE.PlaneGeometry(face.size[0], face.size[1]),
-          interiorMaterial,
-        );
+        const geometry = new THREE.PlaneGeometry(face.size[0], face.size[1]);
+        geometry.rotateX(face.rotateX);
+        geometry.rotateZ(face.rotateZ);
+        const faceMesh = new THREE.Mesh(geometry, interiorMaterial);
         faceMesh.position.copy(
           groundLink.worldToLocal(new THREE.Vector3(...face.position)),
         );
-        faceMesh.rotation.set(...face.rotation);
         faceMesh.userData.isSimulationGeneratedGround = true;
         linerGroup.add(faceMesh);
       });

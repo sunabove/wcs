@@ -32,6 +32,7 @@ const OBSTACLE_MAX_TILT_DEG = 22;
 const DYNAMIC_OBSTACLE_FORWARD_DISTANCE_METERS = 1;
 const INITIAL_VEHICLE_CAMERA_OCCUPANCY = 0.8;
 const SCENE_TREE_VIEW_POSITION = new THREE.Vector2(-0.78, -0.3);
+const SCENE_TREE_VISIBILITY_CHECK_INTERVAL_MS = 150;
 // Half-width of the drivable ground built around the authored plate.
 const GROUND_EXTENSION_HALF_SIZE_METERS = 100;
 // Carved pothole walls use a fixed contrasting color so the pit shape stays readable.
@@ -255,6 +256,8 @@ class RapierDriveSimulation {
     this.groundGridPatches = null;
     this.groundExtensionGroup = null;
     this.sceneTreeGroup = null;
+    this.sceneTreeCornerSide = Math.sign(SCENE_TREE_VIEW_POSITION.x) || -1;
+    this.sceneTreeLastVisibilityCheckAtMs = 0;
     this.extensionPotholeLinerGroup = null;
     this.dynamicPotholeRegion = null;
     this.isDynamicObstacleRemovalRequested = false;
@@ -5770,17 +5773,8 @@ class RapierDriveSimulation {
       treeGroup.add(needleCluster);
     });
 
-    const camera = this.viewer.camera;
-    camera.updateMatrixWorld(true);
-    const raycaster = new THREE.Raycaster();
-    raycaster.setFromCamera(SCENE_TREE_VIEW_POSITION, camera);
-    const groundPlane = new THREE.Plane(
-      new THREE.Vector3(0, 0, 1),
-      -this.groundZ,
-    );
-    const treePosition = raycaster.ray.intersectPlane(
-      groundPlane,
-      new THREE.Vector3(),
+    const treePosition = this.getGroundPositionAtCameraView(
+      SCENE_TREE_VIEW_POSITION,
     );
     if (!treePosition) {
       return;
@@ -5790,6 +5784,55 @@ class RapierDriveSimulation {
     treeGroup.position.z += 0.002;
     this.viewer.scene.add(treeGroup);
     this.sceneTreeGroup = treeGroup;
+  }
+
+  getGroundPositionAtCameraView(viewPosition) {
+    const camera = this.viewer?.camera || null;
+    if (!camera || !viewPosition) {
+      return null;
+    }
+
+    camera.updateMatrixWorld(true);
+    const raycaster = new THREE.Raycaster();
+    raycaster.setFromCamera(viewPosition, camera);
+    return raycaster.ray.intersectPlane(
+      new THREE.Plane(new THREE.Vector3(0, 0, 1), -this.groundZ),
+      new THREE.Vector3(),
+    );
+  }
+
+  updateSceneTreePlacement(nowMs = performance.now()) {
+    const treeGroup = this.sceneTreeGroup;
+    if (
+      !treeGroup?.parent ||
+      nowMs - this.sceneTreeLastVisibilityCheckAtMs <
+        SCENE_TREE_VISIBILITY_CHECK_INTERVAL_MS
+    ) {
+      return;
+    }
+    this.sceneTreeLastVisibilityCheckAtMs = nowMs;
+
+    treeGroup.updateWorldMatrix(true, true);
+    const treeBounds = new THREE.Box3().setFromObject(treeGroup);
+    if (!this.isBoundsOutsideCameraView(treeBounds)) {
+      return;
+    }
+
+    const nextSide = this.sceneTreeCornerSide < 0 ? 1 : -1;
+    const nextViewPosition = new THREE.Vector2(
+      Math.abs(SCENE_TREE_VIEW_POSITION.x) * nextSide,
+      SCENE_TREE_VIEW_POSITION.y,
+    );
+    const nextTreePosition =
+      this.getGroundPositionAtCameraView(nextViewPosition);
+    if (!nextTreePosition) {
+      return;
+    }
+
+    treeGroup.position.copy(nextTreePosition);
+    treeGroup.position.z += 0.002;
+    treeGroup.updateMatrixWorld(true);
+    this.sceneTreeCornerSide = nextSide;
   }
 
   scheduleInitialVehicleCameraFit() {
@@ -7189,6 +7232,7 @@ class RapierDriveSimulation {
       applyPendingSimulationWheelAngleSpeedCommand();
 
       this.stepSimulation();
+      this.updateSceneTreePlacement();
       this.trimWheelZChartHistory(this.simulationElapsedSec);
       this.renderWheelZChart(this.simulationElapsedSec);
 

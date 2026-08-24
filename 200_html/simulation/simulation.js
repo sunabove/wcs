@@ -3475,19 +3475,29 @@ class RapierDriveSimulation {
       return false;
     }
 
-    const bodyPosition = this.body.translation();
-    const distancePastCenter =
-      (bodyPosition.x - centerX) * forwardX +
-      (bodyPosition.y - centerY) * forwardY;
     const obstacleHalfForward =
       Math.abs(forwardX) * Math.max(Number(halfExtentX) || 0, 0) +
       Math.abs(forwardY) * Math.max(Number(halfExtentY) || 0, 0);
-    const vehicleHalfExtents =
-      this.getVehicleColliderWorldAabbHalfExtents() || { x: 0, y: 0 };
-    const vehicleHalfForward =
-      Math.abs(forwardX) * vehicleHalfExtents.x +
-      Math.abs(forwardY) * vehicleHalfExtents.y;
-    return distancePastCenter > obstacleHalfForward + vehicleHalfForward;
+    const obstacleForwardEdge =
+      centerX * forwardX + centerY * forwardY + obstacleHalfForward;
+    const vehicleBounds = this.getVehicleCollisionBounds();
+    if (vehicleBounds.length === 0) {
+      return false;
+    }
+
+    const vehicleRearEdge = vehicleBounds.reduce((rearEdge, bounds) => {
+      const center = bounds.getCenter(new THREE.Vector3());
+      const halfExtents = bounds
+        .getSize(new THREE.Vector3())
+        .multiplyScalar(0.5);
+      const halfForward =
+        Math.abs(forwardX) * halfExtents.x + Math.abs(forwardY) * halfExtents.y;
+      return Math.min(
+        rearEdge,
+        center.x * forwardX + center.y * forwardY - halfForward,
+      );
+    }, Number.POSITIVE_INFINITY);
+    return vehicleRearEdge > obstacleForwardEdge;
   }
 
   async removePassedDynamicSurfaceObstacles() {

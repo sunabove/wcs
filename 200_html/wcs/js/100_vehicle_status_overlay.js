@@ -80,6 +80,8 @@
   let roadFileOverlayNextRequest = null;
   let roadFileOverlayInitRequest = null;
   let roadFileOverlayFrameNumber = 0;
+  let roadFileOverlayReachedEnd = false;
+  let videoPlaybackRequestToken = 0;
   let firstFrameTimeoutId = null;
   let firstFrameRequestToken = 0;
   let lastImageFrameAt = 0;
@@ -1026,6 +1028,7 @@
 
         const frameB64 = String(result?.frame || "").trim();
         if (frameB64) {
+          roadFileOverlayReachedEnd = false;
           const frameNumber = Number(result?.frame_number);
           if (Number.isInteger(frameNumber) && frameNumber > 0) {
             roadFileOverlayFrameNumber = frameNumber;
@@ -1044,6 +1047,7 @@
         }
 
         if (result?.has_next === false) {
+          roadFileOverlayReachedEnd = true;
           mediaPlaybackPaused = true;
           writeOverlayMediaPausedState(true);
           setOverlayStatus("일시 정지", true);
@@ -1085,6 +1089,7 @@
     pauseRoadFileOverlayStream();
     roadFileOverlaySessionId = "";
     roadFileOverlayFrameNumber = 0;
+    roadFileOverlayReachedEnd = false;
     markOverlayMediaVisibleState();
     hideAllMedia();
     startFirstFrameWait();
@@ -2119,12 +2124,7 @@
       $video[0].load();
     }
     if ($video[0] && typeof $video[0].play === "function") {
-      const playPromise = $video[0].play();
-      if (playPromise && typeof playPromise.catch === "function") {
-        playPromise.catch(function () {
-          // Ignore autoplay policy rejections.
-        });
-      }
+      requestVideoPlayback($video[0]);
     }
 
     updateVideoControlButtons();
@@ -2140,6 +2140,77 @@
       lastMediaAspectRatio = videoElement.videoWidth / videoElement.videoHeight;
       applyCompactOverlayWidthByAspect(lastMediaAspectRatio);
     }
+  }
+
+  function requestVideoPlayback(videoElement) {
+    if (!videoElement || typeof videoElement.play !== "function") {
+      return;
+    }
+
+    const requestToken = ++videoPlaybackRequestToken;
+    if (videoElement.ended) {
+      try {
+        videoElement.currentTime = 0;
+      } catch (error) {
+        // Continue with the browser's current playback position.
+      }
+    }
+
+    const markPlaybackFailed = function () {
+      if (requestToken !== videoPlaybackRequestToken) {
+        return;
+      }
+      mediaPlaybackPaused = true;
+      writeOverlayMediaPausedState(true);
+      setOverlayStatus("일시 정지", true);
+      updateVideoControlButtons();
+    };
+
+    const attemptPlayback = function (allowCanPlayRetry) {
+      if (requestToken !== videoPlaybackRequestToken) {
+        return;
+      }
+
+      let playPromise;
+      try {
+        playPromise = videoElement.play();
+      } catch (error) {
+        markPlaybackFailed();
+        return;
+      }
+
+      if (!playPromise || typeof playPromise.catch !== "function") {
+        return;
+      }
+
+      playPromise.catch(function (error) {
+        if (requestToken !== videoPlaybackRequestToken) {
+          return;
+        }
+
+        const canRetryAfterLoad =
+          allowCanPlayRetry &&
+          (videoElement.readyState < 3 || error?.name === "AbortError");
+        if (!canRetryAfterLoad) {
+          markPlaybackFailed();
+          return;
+        }
+
+        const retryPlayback = function () {
+          videoElement.removeEventListener("canplay", retryPlayback);
+          videoElement.removeEventListener("loadeddata", retryPlayback);
+          attemptPlayback(false);
+        };
+        videoElement.addEventListener("canplay", retryPlayback, {
+          once: true,
+        });
+        videoElement.addEventListener("loadeddata", retryPlayback, {
+          once: true,
+        });
+      });
+    };
+
+    attemptPlayback(true);
   }
 
   function handleOverlayMqttTopic(topic, value) {
@@ -2283,7 +2354,19 @@
         if (isCameraSelectionActive && cameraSelection) {
           startCameraOverlayStream(cameraSelection);
         } else if (roadFileOverlaySessionId) {
-          requestRoadFileOverlayNextFrame();
+          if (roadFileOverlayReachedEnd) {
+            roadFileOverlayReachedEnd = false;
+            roadFileOverlayFrameNumber = 0;
+            $.ajax({
+              url: buildRoadDetectStreamSeekUrl(roadFileOverlaySessionId, 1),
+              method: "POST",
+              timeout: 5000,
+            }).always(function () {
+              requestRoadFileOverlayNextFrame();
+            });
+          } else {
+            requestRoadFileOverlayNextFrame();
+          }
         } else if (latestCurrentVideoFileName) {
           resolveAndShowCurrentVideo(latestCurrentVideoFileName);
         } else {
@@ -2326,15 +2409,9 @@
       writeOverlayMediaPausedState(false);
       clearTemporaryStatusMessage();
       setOverlayStatus("", false);
-      if (typeof videoElement.play === "function") {
-        const playPromise = videoElement.play();
-        if (playPromise && typeof playPromise.catch === "function") {
-          playPromise.catch(function () {
-            // Ignore autoplay policy rejections for manual resume.
-          });
-        }
-      }
+      requestVideoPlayback(videoElement);
     } else if (typeof videoElement.pause === "function") {
+      videoPlaybackRequestToken += 1;
       mediaPlaybackPaused = true;
       writeOverlayMediaPausedState(true);
       videoElement.pause();

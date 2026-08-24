@@ -299,6 +299,7 @@ class RapierDriveSimulation {
       rr: -1,
     };
     this.isWheelRotationStopped = false;
+    this.isWheelRotationDrivenByCommand = false;
     this.isDriveStartPreparationPending = false;
     this.straightDriveReferencePose = null;
     this.straightDriveWarmupSteps = 0;
@@ -4719,7 +4720,7 @@ class RapierDriveSimulation {
       return;
     }
 
-    if (this.isWheelRotationStopped) {
+    if (this.isWheelRotationStopped || this.isWheelRotationDrivenByCommand) {
       if (typeof viewer.setWheelRotationDrivenByTravel === "function") {
         viewer.setWheelRotationDrivenByTravel(false);
       }
@@ -6781,6 +6782,7 @@ function applySimulationWheelAngleSpeedCommand(command) {
   }
 
   return withSimulation((simulation) => {
+    simulation.isWheelRotationDrivenByCommand = true;
     simulation.applyDriveSpeedCommandMps(command.speedMps);
     simulation.applyDriveModeCommand(command.mode);
 

@@ -29,6 +29,7 @@ const OBSTACLE_RAMP_MAX_LENGTH_METERS = 0.65;
 const OBSTACLE_RAMP_HALF_FORWARD_SCALE = 1.5;
 const OBSTACLE_MAX_LATERAL_OFFSET_METERS = 0.8;
 const OBSTACLE_MAX_TILT_DEG = 22;
+const DYNAMIC_OBSTACLE_FORWARD_DISTANCE_METERS = 1;
 // Half-width of the drivable ground built around the authored plate.
 const GROUND_EXTENSION_HALF_SIZE_METERS = 100;
 // Carved pothole walls use a fixed contrasting color so the pit shape stays readable.
@@ -252,6 +253,7 @@ class RapierDriveSimulation {
     this.dynamicPotholeRegion = null;
     this.authoredPotholeTemplate = null;
     this.groundVisualSourceByMesh = new Map();
+    this.groundVisualMaterialSourceByMesh = new Map();
     this.groundExtensionMaterial = null;
     this.authoredGroundRect = null;
     this.groundInteriorMaterialBySource = null;
@@ -2901,12 +2903,18 @@ class RapierDriveSimulation {
           groundMesh,
           groundMesh.geometry.clone(),
         );
+        this.groundVisualMaterialSourceByMesh.set(
+          groundMesh,
+          groundMesh.material,
+        );
       }
       if (forceRebuild) {
         groundMesh.geometry.dispose();
         groundMesh.geometry = this.groundVisualSourceByMesh
           .get(groundMesh)
           .clone();
+        groundMesh.material =
+          this.groundVisualMaterialSourceByMesh.get(groundMesh);
       }
     });
     if (this.holeRegions.length === 0) {
@@ -3408,11 +3416,6 @@ class RapierDriveSimulation {
         };
       })
       .filter(Boolean);
-    const frontOffset = wheelPositions.reduce((maximum, wheel) => {
-      const dx = wheel.position.x - bodyPosition.x;
-      const dy = wheel.position.y - bodyPosition.y;
-      return Math.max(maximum, dx * forward.x + dy * forward.y);
-    }, 0);
     const lateralWheels = wheelPositions.filter((wheel) =>
       lateralWheelKeys.includes(wheel.wheelKey),
     );
@@ -3424,11 +3427,15 @@ class RapierDriveSimulation {
             return sum + dx * left.x + dy * left.y;
           }, 0) / lateralWheels.length
         : 0;
-    const forwardOffset = frontOffset + 0.3;
-
     return {
-      x: bodyPosition.x + forward.x * forwardOffset + left.x * lateralOffset,
-      y: bodyPosition.y + forward.y * forwardOffset + left.y * lateralOffset,
+      x:
+        bodyPosition.x +
+        forward.x * DYNAMIC_OBSTACLE_FORWARD_DISTANCE_METERS +
+        left.x * lateralOffset,
+      y:
+        bodyPosition.y +
+        forward.y * DYNAMIC_OBSTACLE_FORWARD_DISTANCE_METERS +
+        left.y * lateralOffset,
     };
   }
 

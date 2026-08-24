@@ -1,4 +1,5 @@
 (function () {
+  const previousMqttMessageHandler = window.prcessMqttMessage;
   const wheelCommand = window.WcsVehicleWheelCommand;
   if (!wheelCommand) {
     console.error(
@@ -340,6 +341,10 @@
   };
 
   window.prcessMqttMessage = function (topic, value) {
+    if (typeof previousMqttMessageHandler === "function") {
+      previousMqttMessageHandler(topic, value);
+    }
+
     if (topic === "client/connect") {
       initialClientConnectObserved = true;
       window.clearTimeout(initialSyncUnlockTimer);

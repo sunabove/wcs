@@ -45,7 +45,7 @@ const CSG_CUTTER_OVERSHOOT_METERS = 0.01;
 const WHEEL_SUPPORT_MIN_LIFT_METERS = 0.0005;
 // Obstacle-impact wheel flex: peak lateral kick applied to inner_wheel_*_joint the instant a wheel
 // first touches an obstacle, eased back to 0 as the wheel climbs up onto it.
-const WHEEL_OBSTACLE_FLEX_PEAK_RAD = THREE.MathUtils.degToRad(30);
+const WHEEL_OBSTACLE_FLEX_PEAK_RAD = THREE.MathUtils.degToRad(45);
 const WHEEL_OBSTACLE_FLEX_SMOOTHING_HZ = 12;
 
 const WHEEL_RPM_COMMAND_THRESHOLD = 0.2;

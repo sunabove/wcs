@@ -22,7 +22,7 @@ $(document).ready(function () {
       : "#vehicle-forward, #vehicle-backward, #vehicle-turn-left, #vehicle-turn-right, #vehicle-stop";
   let wheelCommandBlinkTimerIds = [];
   let lastVehicleCurrSpeedMsSent = null;
-  let latestVehicleMaxSpeedKmh = 100.0;
+  let latestVehicleMaxSpeedMps = 27.8;
   let vehicleWheelRadiusReadyLogged = false;
   let lastVehicleWheelRadiusSyncSignature = null;
   let vehicleDirectionCommandIssuedByUser = false;
@@ -65,7 +65,7 @@ $(document).ready(function () {
       return {
         selectedButtonId: "vehicle-stop",
         selectedCommand: 0,
-        selectedSpeedKmh: 0,
+        selectedSpeedMps: 0.1,
       };
     }
 
@@ -77,13 +77,15 @@ $(document).ready(function () {
       typeof window.getVehicleCommandByButtonId === "function"
         ? window.getVehicleCommandByButtonId(selectedButtonId)
         : 0;
-    const selectedSpeedKmh =
-      Number.parseFloat($("#vehicleCurrSpeedSlider").val()) || 0;
+    const selectedSpeedMps = Math.max(
+      0.1,
+      Number.parseFloat($("#vehicleCurrSpeedSlider").val()) || 0.1,
+    );
 
     return {
       selectedButtonId,
       selectedCommand,
-      selectedSpeedKmh,
+      selectedSpeedMps,
     };
   }
 
@@ -119,15 +121,15 @@ $(document).ready(function () {
     }
 
     lastVehicleWheelRadiusSyncSignature = radiusSignature;
-    const { selectedCommand, selectedSpeedKmh } =
+    const { selectedCommand, selectedSpeedMps } =
       getActiveVehicleCommandContext();
     const isPublished = publishVehicleWheelAngleSpeeds(
       selectedCommand,
-      selectedSpeedKmh,
+      selectedSpeedMps,
     );
     if (isPublished) {
       console.log(
-        `[Vehicle Test] 📏 휠 반경 수신 후 각속도 동기화: ${reason}, command=${selectedCommand}, speed=${selectedSpeedKmh.toFixed(1)} Km/h`,
+        `[Vehicle Test] 📏 휠 반경 수신 후 각속도 동기화: ${reason}, command=${selectedCommand}, speed=${selectedSpeedMps.toFixed(1)} m/s`,
       );
     }
   }
@@ -139,21 +141,21 @@ $(document).ready(function () {
     }
   }
 
-  function updateVehicleSpeedUi(speedKmh, isManual = false) {
-    const numericKmh = Number.parseFloat(speedKmh);
-    const normalizedKmh = Number.isFinite(numericKmh)
-      ? Math.max(0, numericKmh)
-      : 0;
-    $("#vehicleCurrSpeedSlider").val(normalizedKmh);
+  function updateVehicleSpeedUi(speedMps, isManual = false) {
+    const numericMps = Number.parseFloat(speedMps);
+    const normalizedMps = Number.isFinite(numericMps)
+      ? Math.max(0.1, numericMps)
+      : 0.1;
+    $("#vehicleCurrSpeedSlider").val(normalizedMps.toFixed(1));
 
-    const sliderMaxKmh = Number.parseFloat(
+    const sliderMaxMps = Number.parseFloat(
       $("#vehicleCurrSpeedSlider").attr("max"),
     );
-    const effectiveMaxKmh = Number.isFinite(sliderMaxKmh)
-      ? Math.max(0.1, sliderMaxKmh)
-      : Math.max(0.1, latestVehicleMaxSpeedKmh);
+    const effectiveMaxMps = Number.isFinite(sliderMaxMps)
+      ? Math.max(0.1, sliderMaxMps)
+      : Math.max(0.1, latestVehicleMaxSpeedMps);
     $('[id="vehicle/linear/speed"]').text(
-      `${Math.round(normalizedKmh)}/${Math.round(effectiveMaxKmh)} Km/h`,
+      `${normalizedMps.toFixed(1)}/${effectiveMaxMps.toFixed(1)} m/s`,
     );
 
     if (isManual) {
@@ -168,11 +170,11 @@ $(document).ready(function () {
     }
 
     if (topic === "vehicle/linear/speed") {
-      const speedKmh = Math.max(0, numericMs * 3.6);
-      updateVehicleSpeedUi(speedKmh, false);
+      const speedMps = Math.max(0.1, numericMs);
+      updateVehicleSpeedUi(speedMps, false);
       lastVehicleCurrSpeedMsSent = Number(numericMs.toFixed(2));
       console.log(
-        `[Vehicle Test] 📥 초기 UI 동기화(linear): ${speedKmh.toFixed(1)} Km/h`,
+        `[Vehicle Test] 📥 초기 UI 동기화(linear): ${speedMps.toFixed(1)} m/s`,
       );
     }
   }
@@ -187,13 +189,13 @@ $(document).ready(function () {
       return;
     }
 
-    const maxKmh = Math.max(0, numericMs * 3.6);
-    const normalizedMaxKmh = Number(maxKmh.toFixed(1));
-    $("#vehicleCurrSpeedSlider").attr("max", normalizedMaxKmh);
-    latestVehicleMaxSpeedKmh = normalizedMaxKmh;
+    const normalizedMaxMps = Math.max(0.1, Number(numericMs.toFixed(1)));
+    $("#vehicleCurrSpeedSlider").attr("max", normalizedMaxMps.toFixed(1));
+    latestVehicleMaxSpeedMps = normalizedMaxMps;
 
-    const currKmh = Number.parseFloat($("#vehicleCurrSpeedSlider").val()) || 0;
-    updateVehicleSpeedUi(currKmh, false);
+    const currentSpeedMps =
+      Number.parseFloat($("#vehicleCurrSpeedSlider").val()) || 0.1;
+    updateVehicleSpeedUi(Math.min(currentSpeedMps, normalizedMaxMps), false);
   }
 
   if (
@@ -314,30 +316,30 @@ $(document).ready(function () {
 
   syncInitialVehicleStopUi();
 
-  function applyVehicleDirectionAnimation(command, speedKmh) {
+  function applyVehicleDirectionAnimation(command, speedMps) {
     // 휠 애니메이션은 MQTT wheel/angle/speed 토픽으로만 반영한다.
     // 테스트 페이지에서는 방향 명령에 따른 로컬 URDF 구동(추정 애니메이션)을 수행하지 않는다.
     void command;
-    void speedKmh;
+    void speedMps;
   }
 
-  function buildVehicleWheelAngleSpeedByCommand(command, speedKmh) {
+  function buildVehicleWheelAngleSpeedByCommand(command, speedMps) {
     const commandNumber = Number(command);
-    const baseSpeedMs = Math.max(0, Number(speedKmh) || 0) / 3.6;
+    const baseSpeedMps = Math.max(0.1, Number(speedMps) || 0.1);
     const speedScale = vehicleCommandSpeedScale[commandNumber] ?? 1.0;
 
     return wheelCommand.buildAngleSpeedByKey({
       command: commandNumber,
-      speedMps: baseSpeedMs,
+      speedMps: baseSpeedMps,
       speedScale,
       radiusByKey: window.wheelRadiusById,
     });
   }
 
-  function publishVehicleWheelAngleSpeeds(command, speedKmh) {
+  function publishVehicleWheelAngleSpeeds(command, speedMps) {
     const wheelAngleSpeedByKey = buildVehicleWheelAngleSpeedByCommand(
       command,
-      speedKmh,
+      speedMps,
     );
 
     if (!hasAllVehicleWheelRadii()) {
@@ -358,7 +360,7 @@ $(document).ready(function () {
 
   function publishVehicleStopCommandOnLoad() {
     const selectedCommand = 0;
-    const selectedSpeedKmh = 0;
+    const selectedSpeedMps = 0.1;
     const stopPayload = wheelCommand.serializeAngleSpeeds({
       fr: 0,
       fl: 0,
@@ -369,7 +371,7 @@ $(document).ready(function () {
     publishWhenConnected(vehicleAngleSpeedTopic, stopPayload);
     syncInitialVehicleStopUi();
     applyVehicleCommandWheelHighlight(selectedCommand);
-    applyVehicleDirectionAnimation(selectedCommand, selectedSpeedKmh);
+    applyVehicleDirectionAnimation(selectedCommand, selectedSpeedMps);
     console.log(
       `[Vehicle Test] 📨 초기 정지 각속도 발행: ${vehicleAngleSpeedTopic} = ${stopPayload}`,
     );
@@ -478,26 +480,11 @@ $(document).ready(function () {
 
   function sendVehicleCommand(command, buttonElement, actionName, icon) {
     vehicleDirectionCommandIssuedByUser = true;
-    const sliderSpeedKmh =
-      Number.parseFloat($("#vehicleCurrSpeedSlider").val()) || 0;
-    const sliderMaxKmh = Number.parseFloat(
-      $("#vehicleCurrSpeedSlider").attr("max"),
+    const commandSpeedMps = Math.max(
+      0.1,
+      Number.parseFloat($("#vehicleCurrSpeedSlider").val()) || 0.1,
     );
-    const effectiveMaxKmh = Number.isFinite(sliderMaxKmh)
-      ? Math.max(0, sliderMaxKmh)
-      : Math.max(0, latestVehicleMaxSpeedKmh);
-
-    let commandSpeedKmh = sliderSpeedKmh;
-    if (Number(command) !== 0 && commandSpeedKmh <= 0 && effectiveMaxKmh > 0) {
-      commandSpeedKmh = Number((effectiveMaxKmh * 0.1).toFixed(1));
-      updateVehicleSpeedUi(commandSpeedKmh, true);
-      console.log(
-        `[Vehicle Test] ⚙️ 현재 속도 0 감지: 최고 속도의 10%로 보정 (${commandSpeedKmh.toFixed(1)} Km/h)`,
-      );
-    }
-
-    const speedMs = commandSpeedKmh / 3.6;
-    const roundedSpeedMs = Number(speedMs.toFixed(2));
+    const roundedSpeedMps = Number(commandSpeedMps.toFixed(1));
     window.suppressAutoStopUntil = Date.now() + 1500;
     window.manualWheelTestActive = false;
     window.manualWheelTestWheel = null;
@@ -516,12 +503,12 @@ $(document).ready(function () {
     buttonElement.addClass("active text-white").removeClass("text-black");
 
     applyVehicleCommandWheelHighlight(command);
-    applyVehicleDirectionAnimation(command, commandSpeedKmh);
+    applyVehicleDirectionAnimation(command, commandSpeedMps);
 
-    publishVehicleWheelAngleSpeeds(command, commandSpeedKmh);
-    lastVehicleCurrSpeedMsSent = roundedSpeedMs;
+    publishVehicleWheelAngleSpeeds(command, commandSpeedMps);
+    lastVehicleCurrSpeedMsSent = roundedSpeedMps;
     console.log(
-      `[Vehicle Test] ${icon} 차량 ${actionName} 휠 각속도 전송: command=${command}, speed=${roundedSpeedMs} m/s`,
+      `[Vehicle Test] ${icon} 차량 ${actionName} 휠 각속도 전송: command=${command}, speed=${roundedSpeedMps.toFixed(1)} m/s`,
     );
 
     // Blink by toggling button classes 2 times
@@ -587,9 +574,9 @@ $(document).ready(function () {
   });
 
   $("#vehicleCurrSpeedSlider").on("input change", function () {
-    const speedKmh = Number.parseFloat($(this).val()) || 0;
+    const speedMps = Math.max(0.1, Number.parseFloat($(this).val()) || 0.1);
 
-    updateVehicleSpeedUi(speedKmh, true);
+    updateVehicleSpeedUi(speedMps, true);
 
     const selectedButton = $(vehicleButtonSelector).filter(".active").first();
     const selectedButtonId = selectedButton.length
@@ -599,11 +586,11 @@ $(document).ready(function () {
       typeof window.getVehicleCommandByButtonId === "function"
         ? window.getVehicleCommandByButtonId(selectedButtonId)
         : 0;
-    applyVehicleDirectionAnimation(selectedCommand, speedKmh);
-    publishVehicleWheelAngleSpeeds(selectedCommand, speedKmh);
+    applyVehicleDirectionAnimation(selectedCommand, speedMps);
+    publishVehicleWheelAngleSpeeds(selectedCommand, speedMps);
 
     console.log(
-      `[Vehicle Test] 🚀 휠 각속도 갱신 - ${speedKmh.toFixed(1)} Km/h, command=${selectedCommand}`,
+      `[Vehicle Test] 🚀 휠 각속도 갱신 - ${speedMps.toFixed(1)} m/s, command=${selectedCommand}`,
     );
   });
 
@@ -614,12 +601,14 @@ $(document).ready(function () {
     }
 
     const latestSpeedMs = Number(window.latestVehicleLinearSpeedMs);
-    const fallbackSpeedKmh =
-      Number.parseFloat($("#vehicleCurrSpeedSlider").val()) || 0;
-    const speedKmh = Number.isFinite(latestSpeedMs)
-      ? Math.max(0, latestSpeedMs * 3.6)
-      : fallbackSpeedKmh;
+    const fallbackSpeedMps = Math.max(
+      0.1,
+      Number.parseFloat($("#vehicleCurrSpeedSlider").val()) || 0.1,
+    );
+    const speedMps = Number.isFinite(latestSpeedMs)
+      ? Math.max(0.1, latestSpeedMs)
+      : fallbackSpeedMps;
 
-    applyVehicleDirectionAnimation(commandValue, speedKmh);
+    applyVehicleDirectionAnimation(commandValue, speedMps);
   });
 });

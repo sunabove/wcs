@@ -26,6 +26,7 @@ $(document).ready(function () {
   let latestVehicleMaxSpeedKmh = 100.0;
   let vehicleWheelRadiusReadyLogged = false;
   let lastVehicleWheelRadiusSyncSignature = null;
+  let vehicleDirectionCommandIssuedByUser = false;
   window.vehicleSpeedUiManualUntil = 0;
   window.suppressAutoStopUntil = 0;
   window.manualWheelTestActive = false;
@@ -61,6 +62,14 @@ $(document).ready(function () {
   }
 
   function getActiveVehicleCommandContext() {
+    if (!vehicleDirectionCommandIssuedByUser) {
+      return {
+        selectedButtonId: "vehicle-stop",
+        selectedCommand: 0,
+        selectedSpeedKmh: 0,
+      };
+    }
+
     const selectedButton = $(vehicleButtonSelector).filter(".active").first();
     const selectedButtonId = selectedButton.length
       ? selectedButton.attr("id")
@@ -328,15 +337,22 @@ $(document).ready(function () {
     return true;
   }
 
-  function publishSelectedVehicleCommandOnLoad() {
-    const { selectedButtonId, selectedCommand, selectedSpeedKmh } =
-      getActiveVehicleCommandContext();
+  function publishVehicleStopCommandOnLoad() {
+    const selectedButtonId = "vehicle-stop";
+    const selectedCommand = 0;
+    const selectedSpeedKmh = 0;
+    const stopPayload = wheelCommand.serializeAngleSpeeds({
+      fr: 0,
+      fl: 0,
+      rr: 0,
+      rl: 0,
+    });
 
-    publishVehicleWheelAngleSpeeds(selectedCommand, selectedSpeedKmh);
+    publishWhenConnected(vehicleAngleSpeedTopic, stopPayload);
     applyVehicleCommandWheelHighlight(selectedCommand);
     applyVehicleDirectionAnimation(selectedCommand, selectedSpeedKmh);
     console.log(
-      `[Vehicle Test] 📨 초기 휠 각속도 발행: command=${selectedCommand} (${selectedButtonId})`,
+      `[Vehicle Test] 📨 초기 정지 각속도 발행: ${vehicleAngleSpeedTopic} = ${stopPayload}`,
     );
 
     // Blink the selected button by toggling classes 2 times
@@ -361,7 +377,7 @@ $(document).ready(function () {
     }
   }
 
-  publishSelectedVehicleCommandOnLoad();
+  publishVehicleStopCommandOnLoad();
 
   function applyVehicleCommandWheelHighlight(command) {
     const commandNumber = Number(command);
@@ -463,6 +479,7 @@ $(document).ready(function () {
   }
 
   function sendVehicleCommand(command, buttonElement, actionName, icon) {
+    vehicleDirectionCommandIssuedByUser = true;
     const sliderSpeedKmh =
       Number.parseFloat($("#vehicleCurrSpeedSlider").val()) || 0;
     const sliderMaxKmh = Number.parseFloat(

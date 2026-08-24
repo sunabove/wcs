@@ -22,7 +22,6 @@ $(document).ready(function () {
       : "#vehicle-forward, #vehicle-backward, #vehicle-turn-left, #vehicle-turn-right, #vehicle-stop";
   let wheelCommandBlinkTimerIds = [];
   let lastVehicleCurrSpeedMsSent = null;
-  let lastVehicleDirectionCommandSent = null;
   let latestVehicleMaxSpeedKmh = 100.0;
   let vehicleWheelRadiusReadyLogged = false;
   let lastVehicleWheelRadiusSyncSignature = null;
@@ -499,11 +498,6 @@ $(document).ready(function () {
 
     const speedMs = commandSpeedKmh / 3.6;
     const roundedSpeedMs = Number(speedMs.toFixed(2));
-    const sameCommand =
-      Number(lastVehicleDirectionCommandSent) === Number(command);
-    const sameSpeed =
-      lastVehicleCurrSpeedMsSent !== null &&
-      Math.abs(roundedSpeedMs - lastVehicleCurrSpeedMsSent) < 0.0001;
     window.suppressAutoStopUntil = Date.now() + 1500;
     window.manualWheelTestActive = false;
     window.manualWheelTestWheel = null;
@@ -524,16 +518,8 @@ $(document).ready(function () {
     applyVehicleCommandWheelHighlight(command);
     applyVehicleDirectionAnimation(command, commandSpeedKmh);
 
-    if (Number(command) !== 0 && sameCommand && sameSpeed) {
-      console.log(
-        `[Vehicle Test] 중복 휠 각속도 명령 스킵: command=${command}, speed=${roundedSpeedMs} m/s`,
-      );
-      return;
-    }
-
     publishVehicleWheelAngleSpeeds(command, commandSpeedKmh);
     lastVehicleCurrSpeedMsSent = roundedSpeedMs;
-    lastVehicleDirectionCommandSent = Number(command);
     console.log(
       `[Vehicle Test] ${icon} 차량 ${actionName} 휠 각속도 전송: command=${command}, speed=${roundedSpeedMs} m/s`,
     );

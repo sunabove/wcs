@@ -60,7 +60,6 @@ $(document).ready(function () {
   let pendingDirectionCommandValue = null;
   let pendingDirectionCommandTimer = null;
   let lastVehicleCurrSpeedMsSent = null;
-  let lastVehicleDirectionCommandSent = null;
   let runInfoSimulationTimer = null;
   let runInfoSimulationBlinkTimer = null;
   let videoPublishToastCounter = 0;
@@ -1192,11 +1191,6 @@ $(document).ready(function () {
 
     const speedMs = commandSpeedKmh / 3.6;
     const roundedSpeedMs = Number(speedMs.toFixed(2));
-    const sameCommand =
-      Number(lastVehicleDirectionCommandSent) === Number(numericCommand);
-    const sameSpeed =
-      lastVehicleCurrSpeedMsSent !== null &&
-      Math.abs(roundedSpeedMs - lastVehicleCurrSpeedMsSent) < 0.0001;
 
     isDirectionInitSyncWindow = false;
     if (pendingDirectionCommandTimer) {
@@ -1213,13 +1207,8 @@ $(document).ready(function () {
 
     updateVehicleDirectionControlUi(numericCommand);
 
-    if (sameCommand && sameSpeed) {
-      return;
-    }
-
     publishVehicleWheelAngleSpeeds(numericCommand, commandSpeedKmh);
     lastVehicleCurrSpeedMsSent = roundedSpeedMs;
-    lastVehicleDirectionCommandSent = Number(numericCommand);
   }
 
   function handleVehicleDirectionUpdate(value) {
@@ -2558,10 +2547,6 @@ $(document).ready(function () {
       }
 
       if (topic === vehicleOperationCommandTopic) {
-        const parsedCommand = Number.parseInt(value, 10);
-        if (Number.isFinite(parsedCommand)) {
-          lastVehicleDirectionCommandSent = parsedCommand;
-        }
         handleVehicleDirectionUpdate(value);
       }
     };

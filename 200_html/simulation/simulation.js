@@ -45,7 +45,7 @@ const CSG_CUTTER_OVERSHOOT_METERS = 0.01;
 const WHEEL_SUPPORT_MIN_LIFT_METERS = 0.0005;
 // Obstacle-impact wheel flex: peak lateral kick applied to inner_wheel_*_joint the instant a wheel
 // first touches an obstacle, eased back to 0 as the wheel climbs up onto it.
-const WHEEL_OBSTACLE_FLEX_PEAK_RAD = THREE.MathUtils.degToRad(6);
+const WHEEL_OBSTACLE_FLEX_PEAK_RAD = THREE.MathUtils.degToRad(30);
 const WHEEL_OBSTACLE_FLEX_SMOOTHING_HZ = 12;
 
 const WHEEL_RPM_COMMAND_THRESHOLD = 0.2;
@@ -4577,16 +4577,20 @@ class RapierDriveSimulation {
 
     const alpha =
       WHEEL_OBSTACLE_FLEX_SMOOTHING_HZ > 0
-        ? 1 - Math.exp(-WHEEL_OBSTACLE_FLEX_SMOOTHING_HZ * Math.max(deltaSec, 0))
+        ? 1 -
+          Math.exp(-WHEEL_OBSTACLE_FLEX_SMOOTHING_HZ * Math.max(deltaSec, 0))
         : 1;
 
     Object.keys(this.innerWheelJointNameByKey).forEach((wheelKey) => {
-      const supportObstacle = supportProfile?.supportObstacleByKey?.[wheelKey] || null;
+      const supportObstacle =
+        supportProfile?.supportObstacleByKey?.[wheelKey] || null;
       let targetAngleRad = 0;
 
       if (supportObstacle?.center && supportObstacle?.halfExtents) {
         const obstacleHeightMeters = Math.max(
-          supportObstacle.center.z + supportObstacle.halfExtents.z - this.groundZ,
+          supportObstacle.center.z +
+            supportObstacle.halfExtents.z -
+            this.groundZ,
           0.01,
         );
         const liftMeters = Number(supportProfile.liftByKey?.[wheelKey]) || 0;

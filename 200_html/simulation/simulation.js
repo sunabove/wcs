@@ -31,6 +31,7 @@ const OBSTACLE_MAX_LATERAL_OFFSET_METERS = 0.8;
 const OBSTACLE_MAX_TILT_DEG = 22;
 const DYNAMIC_OBSTACLE_FORWARD_DISTANCE_METERS = 1;
 const INITIAL_VEHICLE_CAMERA_OCCUPANCY = 0.8;
+const SCENE_TREE_VIEW_POSITION = new THREE.Vector2(-0.72, -0.52);
 // Half-width of the drivable ground built around the authored plate.
 const GROUND_EXTENSION_HALF_SIZE_METERS = 100;
 // Carved pothole walls use a fixed contrasting color so the pit shape stays readable.
@@ -253,6 +254,7 @@ class RapierDriveSimulation {
     this.groundGrid = null;
     this.groundGridPatches = null;
     this.groundExtensionGroup = null;
+    this.sceneTreeGroup = null;
     this.extensionPotholeLinerGroup = null;
     this.dynamicPotholeRegion = null;
     this.isDynamicObstacleRemovalRequested = false;
@@ -5656,6 +5658,86 @@ class RapierDriveSimulation {
     return true;
   }
 
+  ensureSceneTree() {
+    if (this.sceneTreeGroup?.parent || !this.viewer?.scene) {
+      return;
+    }
+
+    const vehicleBounds = this.computeChassisBounds(
+      this.carFrame,
+      this.viewer.robotModel?.links || null,
+    );
+    if (!vehicleBounds || vehicleBounds.isEmpty()) {
+      return;
+    }
+
+    const vehicleHeight = vehicleBounds.getSize(new THREE.Vector3()).z;
+    const treeHeight = THREE.MathUtils.clamp(vehicleHeight * 2.4, 0.9, 2.2);
+    const trunkHeight = treeHeight * 0.42;
+    const trunkRadius = treeHeight * 0.055;
+    const treeGroup = new THREE.Group();
+    treeGroup.name = "simulation-scene-tree";
+
+    const trunk = new THREE.Mesh(
+      new THREE.CylinderGeometry(
+        trunkRadius * 1.12,
+        trunkRadius,
+        trunkHeight,
+        12,
+      ),
+      new THREE.MeshStandardMaterial({
+        color: 0x79502f,
+        roughness: 0.92,
+      }),
+    );
+    trunk.rotation.x = Math.PI / 2;
+    trunk.position.z = trunkHeight * 0.5;
+    treeGroup.add(trunk);
+
+    const foliageMaterial = new THREE.MeshStandardMaterial({
+      color: 0x2f7d3d,
+      roughness: 0.88,
+    });
+    const lowerFoliageHeight = treeHeight * 0.52;
+    const upperFoliageHeight = treeHeight * 0.42;
+    const lowerFoliage = new THREE.Mesh(
+      new THREE.ConeGeometry(treeHeight * 0.22, lowerFoliageHeight, 14),
+      foliageMaterial,
+    );
+    lowerFoliage.rotation.x = Math.PI / 2;
+    lowerFoliage.position.z = trunkHeight + lowerFoliageHeight * 0.38;
+    treeGroup.add(lowerFoliage);
+
+    const upperFoliage = new THREE.Mesh(
+      new THREE.ConeGeometry(treeHeight * 0.17, upperFoliageHeight, 14),
+      foliageMaterial.clone(),
+    );
+    upperFoliage.rotation.x = Math.PI / 2;
+    upperFoliage.position.z = treeHeight - upperFoliageHeight * 0.5;
+    treeGroup.add(upperFoliage);
+
+    const camera = this.viewer.camera;
+    camera.updateMatrixWorld(true);
+    const raycaster = new THREE.Raycaster();
+    raycaster.setFromCamera(SCENE_TREE_VIEW_POSITION, camera);
+    const groundPlane = new THREE.Plane(
+      new THREE.Vector3(0, 0, 1),
+      -this.groundZ,
+    );
+    const treePosition = raycaster.ray.intersectPlane(
+      groundPlane,
+      new THREE.Vector3(),
+    );
+    if (!treePosition) {
+      return;
+    }
+
+    treeGroup.position.copy(treePosition);
+    treeGroup.position.z += 0.002;
+    this.viewer.scene.add(treeGroup);
+    this.sceneTreeGroup = treeGroup;
+  }
+
   scheduleInitialVehicleCameraFit() {
     if (
       this.hasFitInitialVehicleCamera ||
@@ -5668,6 +5750,7 @@ class RapierDriveSimulation {
     const attemptFit = () => {
       if (this.fitInitialCameraToVehicle()) {
         this.isInitialVehicleCameraFitScheduled = false;
+        this.ensureSceneTree();
         return;
       }
       requestAnimationFrame(attemptFit);

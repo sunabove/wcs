@@ -32,6 +32,7 @@ const OBSTACLE_MAX_TILT_DEG = 22;
 const DYNAMIC_OBSTACLE_FORWARD_DISTANCE_METERS = 1;
 const INITIAL_VEHICLE_CAMERA_OCCUPANCY = 0.8;
 const SCENE_TREE_VIEW_POSITION = new THREE.Vector2(-0.78, -0.3);
+const SCENE_TREE_MIN_BEHIND_DISTANCE_METERS = 0.8;
 const SCENE_TREE_VISIBILITY_CHECK_INTERVAL_MS = 150;
 // Half-width of the drivable ground built around the authored plate.
 const GROUND_EXTENSION_HALF_SIZE_METERS = 100;
@@ -5825,17 +5826,17 @@ class RapierDriveSimulation {
       return null;
     }
 
+    const minimumTreeY =
+      vehiclePosition.y - SCENE_TREE_MIN_BEHIND_DISTANCE_METERS;
     const behindPlacement = placements.find(
-      (placement) => placement.position.y < vehiclePosition.y,
+      (placement) => placement.position.y <= minimumTreeY,
     );
     if (behindPlacement) {
       return behindPlacement;
     }
 
     const fallbackPlacement = placements[0];
-    fallbackPlacement.position.y =
-      vehiclePosition.y -
-      Math.max(Math.abs(fallbackPlacement.position.y - vehiclePosition.y), 0.5);
+    fallbackPlacement.position.y = minimumTreeY;
     return fallbackPlacement;
   }
 

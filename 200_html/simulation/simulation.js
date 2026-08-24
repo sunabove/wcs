@@ -5673,20 +5673,20 @@ class RapierDriveSimulation {
 
     const vehicleHeight = vehicleBounds.getSize(new THREE.Vector3()).z;
     const treeHeight = THREE.MathUtils.clamp(vehicleHeight * 1.2, 0.45, 1.1);
-    const trunkHeight = treeHeight * 0.62;
-    const trunkRadius = treeHeight * 0.055;
+    const trunkHeight = treeHeight * 0.94;
+    const trunkRadius = treeHeight * 0.042;
     const treeGroup = new THREE.Group();
     treeGroup.name = "simulation-scene-tree";
 
     const trunk = new THREE.Mesh(
       new THREE.CylinderGeometry(
-        trunkRadius * 0.68,
-        trunkRadius * 1.28,
+        trunkRadius * 0.58,
+        trunkRadius * 1.22,
         trunkHeight,
         10,
       ),
       new THREE.MeshStandardMaterial({
-        color: 0x6f492c,
+        color: 0x68442b,
         roughness: 1,
       }),
     );
@@ -5709,45 +5709,44 @@ class RapierDriveSimulation {
     };
 
     [
-      [0.42, 0.19, 0.04, 0],
-      [0.49, 0.17, 0.07, 2.2],
-      [0.56, 0.15, 0.08, 4.25],
-      [0.61, 0.12, 0.09, 1.15],
-    ].forEach(([heightRatio, lengthRatio, riseRatio, angle]) => {
-      const start = new THREE.Vector3(0, 0, treeHeight * heightRatio);
-      const end = new THREE.Vector3(
-        Math.cos(angle) * treeHeight * lengthRatio,
-        Math.sin(angle) * treeHeight * lengthRatio,
-        treeHeight * (heightRatio + riseRatio),
-      );
-      addBranch(start, end, trunkRadius * 0.48);
+      [0.4, 0.24, 6, 0.1],
+      [0.55, 0.2, 6, 0.58],
+      [0.69, 0.16, 5, 0.22],
+      [0.81, 0.11, 5, 0.76],
+    ].forEach(([heightRatio, lengthRatio, branchCount, angleOffset]) => {
+      for (let branchIndex = 0; branchIndex < branchCount; branchIndex += 1) {
+        const angle = angleOffset + (Math.PI * 2 * branchIndex) / branchCount;
+        const start = new THREE.Vector3(0, 0, treeHeight * heightRatio);
+        const end = new THREE.Vector3(
+          Math.cos(angle) * treeHeight * lengthRatio,
+          Math.sin(angle) * treeHeight * lengthRatio,
+          treeHeight * (heightRatio + 0.035),
+        );
+        addBranch(start, end, trunkRadius * 0.4);
+      }
     });
 
-    const foliageMaterials = [0x2e6f3e, 0x3f8248, 0x4b8f50].map(
+    const needleMaterials = [0x1f5634, 0x28653a, 0x347443].map(
       (color) =>
         new THREE.MeshStandardMaterial({
           color,
-          roughness: 0.96,
+          roughness: 0.94,
         }),
     );
-    const foliageRadius = treeHeight * 0.18;
     [
-      [0, 0, 0.72, 1.18, 1.02, 0.94, 0],
-      [-0.14, 0.01, 0.67, 0.92, 0.85, 0.78, 1],
-      [0.13, 0.04, 0.68, 0.88, 0.95, 0.8, 2],
-      [-0.03, -0.13, 0.7, 0.92, 0.84, 0.86, 2],
-      [0.05, 0.13, 0.73, 0.86, 0.9, 0.82, 1],
-      [-0.06, 0.02, 0.84, 0.88, 0.82, 0.84, 0],
-      [0.08, -0.04, 0.8, 0.78, 0.76, 0.72, 1],
-    ].forEach(([x, y, z, scaleX, scaleY, scaleZ, materialIndex]) => {
-      const foliage = new THREE.Mesh(
-        new THREE.IcosahedronGeometry(foliageRadius, 1),
-        foliageMaterials[materialIndex],
+      [0.52, 0.27, 0.34, 0],
+      [0.65, 0.22, 0.3, 1],
+      [0.77, 0.17, 0.27, 2],
+      [0.88, 0.115, 0.25, 1],
+    ].forEach(([centerZ, radius, height, materialIndex], tierIndex) => {
+      const needleTier = new THREE.Mesh(
+        new THREE.ConeGeometry(treeHeight * radius, treeHeight * height, 14),
+        needleMaterials[materialIndex],
       );
-      foliage.position.set(x * treeHeight, y * treeHeight, z * treeHeight);
-      foliage.scale.set(scaleX, scaleY, scaleZ);
-      foliage.rotation.set(x * 1.7, y * 1.4, (x - y) * 2.1);
-      treeGroup.add(foliage);
+      needleTier.rotation.x = Math.PI / 2;
+      needleTier.rotation.z = tierIndex * 0.37;
+      needleTier.position.z = treeHeight * centerZ;
+      treeGroup.add(needleTier);
     });
 
     const camera = this.viewer.camera;

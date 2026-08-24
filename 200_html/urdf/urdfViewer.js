@@ -235,7 +235,21 @@ class URDFViewer {
     this.carFrameOpacity = this.showTransparency
       ? this.loadCarFrameOpacity()
       : 1;
-    this.cameraPoseStorageKey = this.getCameraPoseStorageKey();
+    this.persistCameraPose = this.parseBooleanAttribute(
+      containerElement.getAttribute("persistCameraPose"),
+      true,
+    );
+    const cameraPoseStorageKey = this.getCameraPoseStorageKey();
+    this.cameraPoseStorageKey = this.persistCameraPose
+      ? cameraPoseStorageKey
+      : null;
+    if (!this.persistCameraPose && typeof window.localStorage !== "undefined") {
+      try {
+        window.localStorage.removeItem(cameraPoseStorageKey);
+      } catch (error) {
+        // Ignore storage removal errors in restricted browser modes.
+      }
+    }
     if (this.showWheelInfo) {
       this.isWheelInfoOverlayVisible = this.loadWheelInfoOverlayVisibleState();
     }

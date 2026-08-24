@@ -236,6 +236,7 @@ class RapierDriveSimulation {
     this.vehicleInitialYawRad = null;
     this.vehiclePreviousYawRad = null;
     this.vehicleYawDirectionSign = 0;
+    this.cameraFollowPreviousVehiclePosition = null;
     this.initialPosition = null;
     this.initialQuaternion = null;
     this.vehicleHalfExtents = null;
@@ -5394,10 +5395,44 @@ class RapierDriveSimulation {
       .set(rotation.x, rotation.y, rotation.z, rotation.w)
       .normalize();
     this.carFrame.updateMatrixWorld(true);
+    this.syncCameraToVehicleTranslation(position);
     this.syncVehicleDirectionArrows();
     this.syncWheelGroundContactMarkers();
     this.syncVehicleYawIndicator();
     this.syncWheelRotationToBodyTravel();
+  }
+
+  syncCameraToVehicleTranslation(position) {
+    const currentVehiclePosition = new THREE.Vector3(
+      position.x,
+      position.y,
+      position.z,
+    );
+    if (!this.cameraFollowPreviousVehiclePosition) {
+      this.cameraFollowPreviousVehiclePosition = currentVehiclePosition;
+      return;
+    }
+
+    const translationDelta = currentVehiclePosition
+      .clone()
+      .sub(this.cameraFollowPreviousVehiclePosition);
+    this.cameraFollowPreviousVehiclePosition.copy(currentVehiclePosition);
+    if (!this.isReady || translationDelta.lengthSq() <= 1e-12) {
+      return;
+    }
+
+    const camera = this.viewer?.camera || null;
+    const controls = this.viewer?.controls || null;
+    if (!camera || !controls) {
+      return;
+    }
+
+    camera.position.add(translationDelta);
+    controls.target.add(translationDelta);
+    if (this.viewer.goalTarget?.isVector3) {
+      this.viewer.goalTarget.add(translationDelta);
+    }
+    controls.update();
   }
 
   ensureVehicleDirectionArrows() {

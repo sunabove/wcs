@@ -2052,8 +2052,58 @@ class URDFViewer {
 
     const linkMap = this.robotModel.links || {};
     const carFrame = linkMap.car_frame || null;
-    const focusRoot = carFrame || this.robotModel;
-    const bbox = new THREE.Box3().setFromObject(focusRoot);
+    const bbox = new THREE.Box3();
+
+    if (carFrame) {
+      const childLinkRoots = Object.values(linkMap).filter((linkRoot) => {
+        if (!linkRoot || linkRoot === carFrame) {
+          return false;
+        }
+
+        let parent = linkRoot.parent;
+        while (parent) {
+          if (parent === carFrame) {
+            return true;
+          }
+          parent = parent.parent;
+        }
+        return false;
+      });
+
+      carFrame.updateWorldMatrix(true, true);
+      carFrame.traverse((node) => {
+        if (!node?.isMesh || !node.geometry) {
+          return;
+        }
+
+        const belongsToChildLink = childLinkRoots.some((linkRoot) => {
+          let current = node;
+          while (current) {
+            if (current === linkRoot) {
+              return true;
+            }
+            current = current.parent;
+          }
+          return false;
+        });
+        if (belongsToChildLink) {
+          return;
+        }
+
+        if (!node.geometry.boundingBox) {
+          node.geometry.computeBoundingBox();
+        }
+        if (node.geometry.boundingBox) {
+          bbox.union(
+            node.geometry.boundingBox.clone().applyMatrix4(node.matrixWorld),
+          );
+        }
+      });
+    }
+
+    if (bbox.isEmpty()) {
+      bbox.setFromObject(this.robotModel);
+    }
 
     if (bbox.isEmpty()) {
       return {

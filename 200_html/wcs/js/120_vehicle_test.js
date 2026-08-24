@@ -1,8 +1,14 @@
 $(document).ready(function () {
+  const wheelCommand = window.WcsVehicleWheelCommand;
+  if (!wheelCommand) {
+    console.error("[Vehicle Test] Shared wheel command module is unavailable.");
+    return;
+  }
+
   const pendingPublishTimers = {};
-  const vehicleDirectionWheelKeys = ["fl", "fr", "rl", "rr"];
-  const vehicleAngleSpeedPayloadWheelKeys = ["fr", "fl", "rr", "rl"];
-  const vehicleAngleSpeedTopic = "wheel/angle/speed";
+  const vehicleDirectionWheelKeys = wheelCommand.WHEEL_KEYS;
+  const vehicleAngleSpeedPayloadWheelKeys = wheelCommand.WHEEL_KEYS;
+  const vehicleAngleSpeedTopic = wheelCommand.TOPIC;
   const vehicleCommandSpeedScale = {
     0: 0.0,
     1: 1.0,
@@ -291,48 +297,13 @@ $(document).ready(function () {
     const commandNumber = Number(command);
     const baseSpeedMs = Math.max(0, Number(speedKmh) || 0) / 3.6;
     const speedScale = vehicleCommandSpeedScale[commandNumber] ?? 1.0;
-    const effectiveSpeedMs = baseSpeedMs * speedScale;
-    const inPlaceTurn = commandNumber === 3 || commandNumber === 4;
 
-    return vehicleDirectionWheelKeys.reduce((accumulator, wheelKey) => {
-      const wheelRadiusM = getVehicleWheelRadiusByKey(wheelKey);
-      if (wheelRadiusM === null) {
-        accumulator[wheelKey] = null;
-        return accumulator;
-      }
-
-      const isLeftWheel = wheelKey === "fl" || wheelKey === "rl";
-      let signedSpeedMs = 0;
-
-      switch (commandNumber) {
-        case 1:
-          signedSpeedMs = effectiveSpeedMs;
-          break;
-        case 2:
-          signedSpeedMs = -effectiveSpeedMs;
-          break;
-        case 3:
-          signedSpeedMs = isLeftWheel ? -effectiveSpeedMs : effectiveSpeedMs;
-          break;
-        case 4:
-          signedSpeedMs = isLeftWheel ? effectiveSpeedMs : -effectiveSpeedMs;
-          break;
-        case 0:
-        default:
-          signedSpeedMs = 0;
-          break;
-      }
-
-      if (!inPlaceTurn && commandNumber !== 0) {
-        signedSpeedMs =
-          commandNumber === 2
-            ? -Math.abs(signedSpeedMs)
-            : Math.abs(signedSpeedMs);
-      }
-
-      accumulator[wheelKey] = Number((signedSpeedMs / wheelRadiusM).toFixed(3));
-      return accumulator;
-    }, {});
+    return wheelCommand.buildAngleSpeedByKey({
+      command: commandNumber,
+      speedMps: baseSpeedMs,
+      speedScale,
+      radiusByKey: window.wheelRadiusById,
+    });
   }
 
   function publishVehicleWheelAngleSpeeds(command, speedKmh) {
@@ -348,9 +319,10 @@ $(document).ready(function () {
       return false;
     }
 
-    const payload = vehicleAngleSpeedPayloadWheelKeys
-      .map((wheelKey) => wheelAngleSpeedByKey[wheelKey])
-      .join(",");
+    const payload = wheelCommand.serializeAngleSpeeds(wheelAngleSpeedByKey);
+    if (payload === null) {
+      return false;
+    }
     publishWhenConnected(vehicleAngleSpeedTopic, payload);
 
     return true;

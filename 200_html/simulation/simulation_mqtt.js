@@ -1,19 +1,19 @@
 (function () {
-  const WHEEL_ANGLE_SPEED_TOPIC = "wheel/angle/speed";
-  const WHEEL_KEYS = ["fr", "fl", "rr", "rl"];
+  const wheelCommand = window.WcsVehicleWheelCommand;
+  if (!wheelCommand) {
+    console.error(
+      "[Simulation][MQTT] Shared wheel command module is unavailable.",
+    );
+    return;
+  }
+
+  const WHEEL_ANGLE_SPEED_TOPIC = wheelCommand.TOPIC;
+  const WHEEL_KEYS = wheelCommand.WHEEL_KEYS;
   const DEFAULT_WHEEL_RADIUS_METERS = 0.16;
-  const ANGULAR_SPEED_EPSILON = 1e-6;
   const WHEEL_RADIUS_PUBLISH_RETRY_COUNT = 40;
   const WHEEL_RADIUS_PUBLISH_RETRY_INTERVAL_MS = 250;
   let pendingWheelRadiusPublishTimer = null;
   let lastPublishedWheelRadiusSignature = null;
-  const wheelDirectionByMode = {
-    stop: { fr: 0, fl: 0, rr: 0, rl: 0 },
-    forward: { fr: 1, fl: 1, rr: 1, rl: 1 },
-    backward: { fr: -1, fl: -1, rr: -1, rl: -1 },
-    left: { fr: 1, fl: -1, rr: 1, rl: -1 },
-    right: { fr: -1, fl: 1, rr: -1, rl: 1 },
-  };
 
   function getWheelRadiusMetersByKey() {
     const providedRadii =
@@ -21,14 +21,10 @@
         ? window.getSimulationWheelRadiusMetersByKey()
         : null;
 
-    return WHEEL_KEYS.reduce(function (result, wheelKey) {
-      const radius = Number(providedRadii?.[wheelKey]);
-      result[wheelKey] =
-        Number.isFinite(radius) && radius > 0
-          ? radius
-          : DEFAULT_WHEEL_RADIUS_METERS;
-      return result;
-    }, {});
+    return wheelCommand.normalizeRadii(
+      providedRadii,
+      DEFAULT_WHEEL_RADIUS_METERS,
+    );
   }
 
   function normalizeMeasuredWheelRadii(radiusByKey) {
@@ -105,95 +101,14 @@
   };
 
   function parseWheelAngleSpeeds(value) {
-    const parts = String(value).split(",");
-    if (
-      parts.length !== WHEEL_KEYS.length ||
-      parts.some(function (part) {
-        return part.trim() === "";
-      })
-    ) {
-      return null;
-    }
-
-    const speeds = parts.map(function (part) {
-      return Number(part.trim());
-    });
-    if (
-      speeds.some(function (speed) {
-        return !Number.isFinite(speed);
-      })
-    ) {
-      return null;
-    }
-
-    return WHEEL_KEYS.reduce(function (result, wheelKey, index) {
-      result[wheelKey] = speeds[index];
-      return result;
-    }, {});
-  }
-
-  function resolveDriveMode(angleSpeedByKey) {
-    const leftSpeed = (angleSpeedByKey.fl + angleSpeedByKey.rl) * 0.5;
-    const rightSpeed = (angleSpeedByKey.fr + angleSpeedByKey.rr) * 0.5;
-    const leftStopped = Math.abs(leftSpeed) <= ANGULAR_SPEED_EPSILON;
-    const rightStopped = Math.abs(rightSpeed) <= ANGULAR_SPEED_EPSILON;
-
-    if (leftStopped && rightStopped) {
-      return "stop";
-    }
-    if (
-      leftSpeed > ANGULAR_SPEED_EPSILON &&
-      rightSpeed > ANGULAR_SPEED_EPSILON
-    ) {
-      return "forward";
-    }
-    if (
-      leftSpeed < -ANGULAR_SPEED_EPSILON &&
-      rightSpeed < -ANGULAR_SPEED_EPSILON
-    ) {
-      return "backward";
-    }
-    if (
-      leftSpeed < -ANGULAR_SPEED_EPSILON &&
-      rightSpeed > ANGULAR_SPEED_EPSILON
-    ) {
-      return "left";
-    }
-    if (
-      leftSpeed > ANGULAR_SPEED_EPSILON &&
-      rightSpeed < -ANGULAR_SPEED_EPSILON
-    ) {
-      return "right";
-    }
-
-    return Math.abs(leftSpeed + rightSpeed) >= Math.abs(rightSpeed - leftSpeed)
-      ? leftSpeed + rightSpeed >= 0
-        ? "forward"
-        : "backward"
-      : rightSpeed - leftSpeed >= 0
-        ? "left"
-        : "right";
+    return wheelCommand.parsePayload(value);
   }
 
   function buildWheelCommand(angleSpeedByKey) {
-    const wheelRadiusByKey = getWheelRadiusMetersByKey();
-    const speedMps =
-      WHEEL_KEYS.reduce(function (sum, wheelKey) {
-        return (
-          sum + Math.abs(angleSpeedByKey[wheelKey]) * wheelRadiusByKey[wheelKey]
-        );
-      }, 0) / WHEEL_KEYS.length;
-    const wheelRpmByKey = WHEEL_KEYS.reduce(function (result, wheelKey) {
-      result[wheelKey] = (angleSpeedByKey[wheelKey] * 60) / (2 * Math.PI);
-      return result;
-    }, {});
-
-    return {
-      mode: resolveDriveMode(angleSpeedByKey),
-      speedMps,
+    return wheelCommand.buildReceivedCommand(
       angleSpeedByKey,
-      wheelRpmByKey,
-    };
+      getWheelRadiusMetersByKey(),
+    );
   }
 
   function dispatchWheelCommand(command) {
@@ -204,9 +119,8 @@
   }
 
   window.runSimulationMqttDriveCommand = function (mode) {
-    const normalizedMode = String(mode || "stop").toLowerCase();
-    const wheelDirections = wheelDirectionByMode[normalizedMode];
-    if (!wheelDirections) {
+    const normalizedMode = wheelCommand.normalizeMode(mode);
+    if (!normalizedMode) {
       console.warn("[Simulation][MQTT] Invalid drive mode:", mode);
       return false;
     }
@@ -221,12 +135,15 @@
 
     const speedInput = document.getElementById("drive-speed-mps");
     const speedMps = Math.max(Number(speedInput?.value) || 0, 0);
-    const wheelRadiusByKey = getWheelRadiusMetersByKey();
-    const payload = WHEEL_KEYS.map(function (wheelKey) {
-      const angularSpeed =
-        (wheelDirections[wheelKey] * speedMps) / wheelRadiusByKey[wheelKey];
-      return Number(angularSpeed.toFixed(3));
-    }).join(",");
+    const payload = wheelCommand.buildPayload({
+      mode: normalizedMode,
+      speedMps,
+      radiusByKey: getWheelRadiusMetersByKey(),
+    });
+    if (payload === null) {
+      console.warn("[Simulation][MQTT] Wheel radius data is unavailable.");
+      return false;
+    }
 
     return window.WcsMqtt.sendMQTTMessage(WHEEL_ANGLE_SPEED_TOPIC, payload, 1);
   };
@@ -245,6 +162,9 @@
       return;
     }
 
-    dispatchWheelCommand(buildWheelCommand(angleSpeedByKey));
+    const command = buildWheelCommand(angleSpeedByKey);
+    if (command) {
+      dispatchWheelCommand(command);
+    }
   };
 })();

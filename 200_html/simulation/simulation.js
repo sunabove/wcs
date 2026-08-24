@@ -5673,80 +5673,101 @@ class RapierDriveSimulation {
 
     const vehicleHeight = vehicleBounds.getSize(new THREE.Vector3()).z;
     const treeHeight = THREE.MathUtils.clamp(vehicleHeight * 1.2, 0.45, 1.1);
-    const trunkHeight = treeHeight * 0.94;
-    const trunkRadius = treeHeight * 0.042;
     const treeGroup = new THREE.Group();
     treeGroup.name = "simulation-scene-tree";
-
-    const trunk = new THREE.Mesh(
-      new THREE.CylinderGeometry(
-        trunkRadius * 0.58,
-        trunkRadius * 1.22,
-        trunkHeight,
-        10,
-      ),
-      new THREE.MeshStandardMaterial({
-        color: 0x68442b,
-        roughness: 1,
-      }),
-    );
-    trunk.rotation.x = Math.PI / 2;
-    trunk.position.z = trunkHeight * 0.5;
-    treeGroup.add(trunk);
-
-    const branchMaterial = trunk.material.clone();
+    const trunkMaterial = new THREE.MeshStandardMaterial({
+      color: 0x70442b,
+      roughness: 1,
+    });
     const branchUp = new THREE.Vector3(0, 1, 0);
-    const addBranch = (start, end, radius) => {
+    const addWoodSegment = (start, end, startRadius, endRadius) => {
       const direction = end.clone().sub(start);
-      const branchLength = direction.length();
-      const branch = new THREE.Mesh(
-        new THREE.CylinderGeometry(radius * 0.58, radius, branchLength, 8),
-        branchMaterial,
+      const segmentLength = direction.length();
+      const segment = new THREE.Mesh(
+        new THREE.CylinderGeometry(endRadius, startRadius, segmentLength, 9),
+        trunkMaterial,
       );
-      branch.position.copy(start).add(end).multiplyScalar(0.5);
-      branch.quaternion.setFromUnitVectors(branchUp, direction.normalize());
-      treeGroup.add(branch);
+      segment.position.copy(start).add(end).multiplyScalar(0.5);
+      segment.quaternion.setFromUnitVectors(branchUp, direction.normalize());
+      treeGroup.add(segment);
     };
 
     [
-      [0.4, 0.24, 6, 0.1],
-      [0.55, 0.2, 6, 0.58],
-      [0.69, 0.16, 5, 0.22],
-      [0.81, 0.11, 5, 0.76],
-    ].forEach(([heightRatio, lengthRatio, branchCount, angleOffset]) => {
-      for (let branchIndex = 0; branchIndex < branchCount; branchIndex += 1) {
-        const angle = angleOffset + (Math.PI * 2 * branchIndex) / branchCount;
-        const start = new THREE.Vector3(0, 0, treeHeight * heightRatio);
-        const end = new THREE.Vector3(
-          Math.cos(angle) * treeHeight * lengthRatio,
-          Math.sin(angle) * treeHeight * lengthRatio,
-          treeHeight * (heightRatio + 0.035),
-        );
-        addBranch(start, end, trunkRadius * 0.4);
-      }
+      [[0, 0, 0], [0.015, 0, 0.3], 0.058, 0.047],
+      [[0.015, 0, 0.3], [-0.012, 0.008, 0.55], 0.047, 0.036],
+      [[-0.012, 0.008, 0.55], [0.035, -0.004, 0.76], 0.036, 0.027],
+      [[0.035, -0.004, 0.76], [0.018, 0.012, 0.94], 0.027, 0.014],
+    ].forEach(([start, end, startRadius, endRadius]) => {
+      addWoodSegment(
+        new THREE.Vector3(...start).multiplyScalar(treeHeight),
+        new THREE.Vector3(...end).multiplyScalar(treeHeight),
+        treeHeight * startRadius,
+        treeHeight * endRadius,
+      );
     });
 
-    const needleMaterials = [0x1f5634, 0x28653a, 0x347443].map(
+    const branchDefinitions = [
+      [[-0.005, 0.005, 0.48], [-0.3, 0.035, 0.56], 0.026],
+      [[-0.012, 0.008, 0.57], [0.29, -0.045, 0.65], 0.024],
+      [[0.022, 0, 0.67], [-0.22, -0.15, 0.75], 0.021],
+      [[0.035, -0.004, 0.74], [0.2, 0.14, 0.82], 0.018],
+      [[0.02, 0.008, 0.84], [-0.12, 0.1, 0.9], 0.014],
+    ];
+    branchDefinitions.forEach(([start, end, radius]) => {
+      const startPoint = new THREE.Vector3(...start).multiplyScalar(treeHeight);
+      const endPoint = new THREE.Vector3(...end).multiplyScalar(treeHeight);
+      addWoodSegment(
+        startPoint,
+        endPoint,
+        treeHeight * radius,
+        treeHeight * radius * 0.42,
+      );
+      const twigDirection = endPoint
+        .clone()
+        .sub(startPoint)
+        .multiplyScalar(0.32);
+      const twigEnd = endPoint
+        .clone()
+        .add(twigDirection)
+        .add(new THREE.Vector3(0, 0, treeHeight * 0.035));
+      addWoodSegment(
+        endPoint,
+        twigEnd,
+        treeHeight * radius * 0.42,
+        treeHeight * radius * 0.18,
+      );
+    });
+
+    const needleMaterials = [0x1d5631, 0x28683a, 0x347846].map(
       (color) =>
         new THREE.MeshStandardMaterial({
           color,
-          roughness: 0.94,
+          roughness: 0.97,
         }),
     );
     [
-      [0.52, 0.27, 0.34, 0],
-      [0.65, 0.22, 0.3, 1],
-      [0.77, 0.17, 0.27, 2],
-      [0.88, 0.115, 0.25, 1],
-    ].forEach(([centerZ, radius, height, materialIndex], tierIndex) => {
-      const needleTier = new THREE.Mesh(
-        new THREE.ConeGeometry(treeHeight * radius, treeHeight * height, 14),
+      [-0.38, 0.045, 0.59, 1.35, 0.7, 0.42, 0],
+      [-0.27, -0.015, 0.61, 1.0, 0.66, 0.38, 1],
+      [0.38, -0.065, 0.68, 1.35, 0.72, 0.4, 1],
+      [0.27, 0.02, 0.7, 0.9, 0.65, 0.36, 2],
+      [-0.28, -0.2, 0.78, 1.18, 0.78, 0.4, 0],
+      [-0.12, -0.09, 0.8, 0.9, 0.66, 0.36, 1],
+      [0.27, 0.19, 0.85, 1.05, 0.72, 0.38, 2],
+      [-0.13, 0.13, 0.92, 0.88, 0.68, 0.4, 1],
+      [0.02, 0.02, 0.96, 0.82, 0.7, 0.44, 0],
+    ].forEach(([x, y, z, scaleX, scaleY, scaleZ, materialIndex]) => {
+      const needleCluster = new THREE.Mesh(
+        new THREE.IcosahedronGeometry(treeHeight * 0.115, 1),
         needleMaterials[materialIndex],
       );
-      needleTier.rotation.x = Math.PI / 2;
-      needleTier.rotation.z = tierIndex * 0.37;
-      needleTier.position.z = treeHeight * centerZ;
-      treeGroup.add(needleTier);
+      needleCluster.position.set(
+        treeHeight * x,
+        treeHeight * y,
+        treeHeight * z,
+      );
+      needleCluster.scale.set(scaleX, scaleY, scaleZ);
+      needleCluster.rotation.z = (x - y) * 1.8;
+      treeGroup.add(needleCluster);
     });
 
     const camera = this.viewer.camera;

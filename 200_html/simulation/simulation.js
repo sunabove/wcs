@@ -4090,6 +4090,7 @@ class RapierDriveSimulation {
       .filter(
         (obstacleInfo) =>
           obstacleInfo &&
+          obstacleInfo.isActive &&
           !obstacleInfo.isSensor &&
           obstacleInfo.center &&
           obstacleInfo.halfExtents,
@@ -4255,6 +4256,10 @@ class RapierDriveSimulation {
   }
 
   isObstacleTraversalActive() {
+    if (!this.activeObstacleTraversalPath?.obstacleInfo?.isActive) {
+      return false;
+    }
+
     const distances = this.getObstacleTraversalDistances(
       this.activeObstacleTraversalPath,
     );

@@ -3624,6 +3624,44 @@ class RapierDriveSimulation {
     return true;
   }
 
+  hasUnfinishedDynamicSurfaceObstacle(obstacleValue) {
+    if (obstacleValue === 1) {
+      return this.obstacleColliderInfos.some(
+        (obstacleInfo) =>
+          obstacleInfo?.isActive &&
+          obstacleInfo.isDynamicSurfaceObstacle &&
+          !(
+            obstacleInfo.hasDynamicVehicleContact &&
+            this.hasVehiclePassedDynamicObstacle(
+              obstacleInfo.center?.x,
+              obstacleInfo.center?.y,
+              obstacleInfo.halfExtents?.x,
+              obstacleInfo.halfExtents?.y,
+              obstacleInfo.dynamicForward?.x,
+              obstacleInfo.dynamicForward?.y,
+            )
+          ),
+      );
+    }
+
+    if (obstacleValue === 2 && this.dynamicPotholeRegion) {
+      const potholeRegion = this.dynamicPotholeRegion;
+      return !(
+        potholeRegion.hasDynamicVehicleContact &&
+        this.hasVehiclePassedDynamicObstacle(
+          (potholeRegion.minX + potholeRegion.maxX) * 0.5,
+          (potholeRegion.minY + potholeRegion.maxY) * 0.5,
+          (potholeRegion.maxX - potholeRegion.minX) * 0.5,
+          (potholeRegion.maxY - potholeRegion.minY) * 0.5,
+          potholeRegion.forwardX,
+          potholeRegion.forwardY,
+        )
+      );
+    }
+
+    return false;
+  }
+
   async applyDynamicSurfaceObstacle(obstacleValue) {
     const normalizedValue = Number(obstacleValue);
     if (
@@ -3637,6 +3675,10 @@ class RapierDriveSimulation {
     if (normalizedValue === 0) {
       this.isDynamicObstacleRemovalRequested = true;
       await this.removePassedDynamicSurfaceObstacles();
+      return true;
+    }
+
+    if (this.hasUnfinishedDynamicSurfaceObstacle(normalizedValue)) {
       return true;
     }
 

@@ -4218,6 +4218,7 @@ class URDFViewer {
         this.resolveWheelAnimationTargets();
         this.resolveWheelHighlightTargets();
         this.applyRoadAttitudeAngles();
+        this.publishMeasuredWheelRadii();
 
         if (this.showTransparency) {
           this.scheduleInitialCarFrameOpacitySync();
@@ -4298,6 +4299,101 @@ class URDFViewer {
       (error) => {
         console.error("[URDF] ❌ URDF 로드 실패:", error);
       },
+    );
+  }
+
+  measureWheelRadiusMetersByKey() {
+    const linkMap = this.robotModel?.links || null;
+    if (!linkMap) {
+      return null;
+    }
+
+    const isDescendant = (child, ancestor) => {
+      let current = child?.parent || null;
+      while (current) {
+        if (current === ancestor) {
+          return true;
+        }
+        current = current.parent;
+      }
+      return false;
+    };
+    const radiusByKey = {};
+
+    Object.entries(this.wheelLinkNameByKey).forEach(
+      ([wheelKey, wheelLinkName]) => {
+        const wheelLink = linkMap[wheelLinkName] || null;
+        if (!wheelLink) {
+          return;
+        }
+
+        const otherLinkRoots = Object.values(linkMap).filter(
+          (link) => link && link !== wheelLink && isDescendant(link, wheelLink),
+        );
+        const bounds = new THREE.Box3();
+        const inverseWheelWorld = new THREE.Matrix4();
+        let hasMesh = false;
+
+        wheelLink.updateWorldMatrix(true, true);
+        inverseWheelWorld.copy(wheelLink.matrixWorld).invert();
+        wheelLink.traverse((node) => {
+          if (!node?.isMesh || !node.geometry) {
+            return;
+          }
+          if (
+            otherLinkRoots.some(
+              (link) => node === link || isDescendant(node, link),
+            )
+          ) {
+            return;
+          }
+
+          if (!node.geometry.boundingBox) {
+            node.geometry.computeBoundingBox();
+          }
+          if (!node.geometry.boundingBox) {
+            return;
+          }
+
+          const meshToWheel = new THREE.Matrix4().multiplyMatrices(
+            inverseWheelWorld,
+            node.matrixWorld,
+          );
+          bounds.union(
+            node.geometry.boundingBox.clone().applyMatrix4(meshToWheel),
+          );
+          hasMesh = true;
+        });
+
+        if (!hasMesh || bounds.isEmpty()) {
+          return;
+        }
+
+        const dimensions = bounds
+          .getSize(new THREE.Vector3())
+          .toArray()
+          .sort((left, right) => left - right);
+        radiusByKey[wheelKey] = (dimensions[1] + dimensions[2]) * 0.25;
+      },
+    );
+
+    return Object.keys(radiusByKey).length === 4 ? radiusByKey : null;
+  }
+
+  publishMeasuredWheelRadii() {
+    const radiusByKey = this.measureWheelRadiusMetersByKey();
+    if (!radiusByKey) {
+      return;
+    }
+
+    window.dispatchEvent(
+      new CustomEvent("wcs:urdf-wheel-radii-ready", {
+        detail: {
+          viewerId: this.container.id,
+          urdfPath: this.urdfPath,
+          radiusByKey,
+        },
+      }),
     );
   }
 

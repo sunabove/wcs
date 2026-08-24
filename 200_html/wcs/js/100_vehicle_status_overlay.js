@@ -1714,8 +1714,8 @@
     overlayLayoutMode = "compact";
 
     applyCompactOverlayWidthByAspect(lastMediaAspectRatio);
-    applyVehicleViewerDragByOverlayHeight();
     applyVehicleViewerZoomByOverlayMode();
+    applyVehicleViewerDragByOverlayHeight();
   }
 
   function getCompactOverlayTargetHeightPx() {

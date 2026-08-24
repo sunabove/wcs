@@ -428,7 +428,67 @@ class URDFViewer {
       return;
     }
 
-    const poseText = this.getCurrentCameraPoseValueText();
+    const visiblePosition = this.camera.position.clone();
+    const visibleTarget = this.controls.target.clone();
+    const cameraOffset = visiblePosition.clone().sub(visibleTarget);
+    const visibleDistance = cameraOffset.length();
+    const overlayZoomOutRatio = Number(this.overlayZoomOutRatio) || 0;
+    const baseDistance =
+      Number.isFinite(visibleDistance) && visibleDistance > 0.0001
+        ? visibleDistance / Math.max(1 + overlayZoomOutRatio, 0.001)
+        : visibleDistance;
+    const baseTarget = visibleTarget.clone();
+    const overlayDragPixels = Number(this.overlayDragPanPixels) || 0;
+    const containerHeight = Number(
+      this.container?.clientHeight ||
+        this.container?.getBoundingClientRect?.().height ||
+        0,
+    );
+
+    if (overlayDragPixels > 0 && containerHeight > 0 && visibleDistance > 0) {
+      let worldPerPixel = 0;
+      if (this.camera.isPerspectiveCamera) {
+        const fovRad = THREE.MathUtils.degToRad(this.camera.fov || 50);
+        worldPerPixel =
+          (2 * visibleDistance * Math.tan(fovRad / 2)) / containerHeight;
+      } else if (this.camera.isOrthographicCamera) {
+        const frustumHeight =
+          (this.camera.top - this.camera.bottom) /
+          Math.max(this.camera.zoom || 1, 0.001);
+        worldPerPixel = frustumHeight / containerHeight;
+      }
+
+      const viewDirection = visibleTarget
+        .clone()
+        .sub(visiblePosition)
+        .normalize();
+      const cameraRight = new THREE.Vector3()
+        .crossVectors(viewDirection, this.camera.up)
+        .normalize();
+      const screenUp = new THREE.Vector3()
+        .crossVectors(cameraRight, viewDirection)
+        .normalize();
+      if (worldPerPixel > 0 && screenUp.lengthSq() > 0) {
+        baseTarget.addScaledVector(
+          screenUp,
+          -overlayDragPixels * worldPerPixel,
+        );
+      }
+    }
+
+    const basePosition =
+      cameraOffset.lengthSq() > 0
+        ? baseTarget
+            .clone()
+            .add(cameraOffset.normalize().multiplyScalar(baseDistance))
+        : visiblePosition;
+    const formatPositionValue = (value) => {
+      const numberValue = Number(value);
+      return Number.isFinite(numberValue) ? numberValue.toFixed(3) : "0.000";
+    };
+    const formatVector = (vector) =>
+      [vector.x, vector.y, vector.z].map(formatPositionValue).join(", ");
+    const poseText = `${formatVector(basePosition)}|${formatVector(baseTarget)}|${formatVector(this.camera.up)}`;
     if (!poseText) {
       return;
     }
@@ -4159,16 +4219,16 @@ class URDFViewer {
   markInitialCameraPoseReady() {
     this.isInitialCameraPoseReady = true;
 
-    if (this.pendingOverlayDragPixels != null) {
-      const queuedPixels = this.pendingOverlayDragPixels;
-      this.pendingOverlayDragPixels = null;
-      this.setOverlayVerticalDragPixels(queuedPixels);
-    }
-
     if (this.pendingOverlayZoomOutRatio != null) {
       const queuedZoomOutRatio = this.pendingOverlayZoomOutRatio;
       this.pendingOverlayZoomOutRatio = null;
       this.setOverlayZoomOutRatio(queuedZoomOutRatio);
+    }
+
+    if (this.pendingOverlayDragPixels != null) {
+      const queuedPixels = this.pendingOverlayDragPixels;
+      this.pendingOverlayDragPixels = null;
+      this.setOverlayVerticalDragPixels(queuedPixels);
     }
   }
 

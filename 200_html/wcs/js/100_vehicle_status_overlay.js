@@ -297,6 +297,12 @@
     $playToggleButton.removeClass("d-none");
 
     if (lastMediaType === "image") {
+      const cameraSelection = parseCameraSelection(latestCurrentVideoFileName);
+      const isCameraStreamStarting =
+        !!cameraSelection && !!cameraOverlayInitRequest;
+      const isCameraStreamActive =
+        !!cameraSelection &&
+        (!!cameraOverlaySessionId || isCameraStreamStarting);
       const isRoadFileStreamActive =
         !!roadFileOverlaySessionId || !!roadFileOverlayInitRequest;
       const isRoadFileVideoSelected =
@@ -304,16 +310,30 @@
         String(lastMediaSource || "") === String(latestCurrentVideoFileName);
       const isImageOutputAreaActive =
         isImageVisible &&
-        (hasImageSource || isRoadFileStreamActive || isRoadFileVideoSelected);
+        (hasImageSource ||
+          isCameraStreamActive ||
+          isRoadFileStreamActive ||
+          isRoadFileVideoSelected);
       if (hasCloseButton) {
         $closeButton.prop("disabled", !isImageOutputAreaActive);
       }
       const hasImageMediaSource =
         !!String(lastMediaSource || "").trim() ||
         !!getOverlayImageSource() ||
+        isCameraStreamActive ||
         isRoadFileStreamActive;
       updateLoopToggleButton(hasImageMediaSource);
       updateFullscreenToggleButton();
+      if (isCameraStreamStarting) {
+        $playToggleButton
+          .prop("disabled", true)
+          .attr("title", "카메라 연결 중")
+          .attr("aria-label", "카메라 연결 중")
+          .html(
+            '<span class="spinner-border spinner-border-sm" aria-hidden="true"></span>',
+          );
+        return;
+      }
       if (mediaPlaybackPaused) {
         $playToggleButton
           .prop("disabled", false)
@@ -1307,22 +1327,35 @@
     if (
       selectionKey &&
       selectionKey === cameraOverlaySelectionKey &&
-      cameraOverlaySessionId
+      (cameraOverlaySessionId || cameraOverlayInitRequest)
     ) {
       markOverlayMediaVisibleState();
       applyCompactOverlayLayout();
       showOverlay();
+      updateVideoControlButtons();
       return;
     }
 
     stopCameraOverlayStream(true);
     cameraOverlaySelectionKey = selectionKey;
+    lastMediaType = "image";
+    lastMediaSource = "";
+    mediaPlaybackPaused = false;
+    writeOverlayMediaPausedState(false);
+    markOverlayMediaVisibleState();
+    applyCompactOverlayLayout();
+    showOverlay();
+    startFirstFrameWait();
 
-    cameraOverlayInitRequest = $.ajax({
+    const initRequest = $.ajax({
       url: buildCameraDetectStreamInitUrl(selection.index),
       method: "POST",
       timeout: 5000,
-    })
+    });
+    cameraOverlayInitRequest = initRequest;
+    updateVideoControlButtons();
+
+    initRequest
       .done(function (result) {
         const sessionId = String(
           result && result.session_id ? result.session_id : "",
@@ -1342,11 +1375,23 @@
         showOverlay();
         requestCameraOverlayNextFrame();
       })
-      .fail(function () {
+      .fail(function (_jqXHR, textStatus) {
+        if (
+          textStatus === "abort" ||
+          cameraOverlaySelectionKey !== selectionKey ||
+          mediaHiddenByUser
+        ) {
+          return;
+        }
+        mediaPlaybackPaused = true;
+        writeOverlayMediaPausedState(true);
         setOverlayStatus(FIRST_FRAME_TIMEOUT_MESSAGE, true);
       })
       .always(function () {
-        cameraOverlayInitRequest = null;
+        if (cameraOverlayInitRequest === initRequest) {
+          cameraOverlayInitRequest = null;
+          updateVideoControlButtons();
+        }
       });
   }
 
@@ -2338,6 +2383,10 @@
 
     if (mediaHiddenByUser) {
       restoreMediaAreaOnly();
+      return;
+    }
+
+    if (isCameraSelectionActive && cameraOverlayInitRequest) {
       return;
     }
 

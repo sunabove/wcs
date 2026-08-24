@@ -30,7 +30,7 @@ const OBSTACLE_RAMP_HALF_FORWARD_SCALE = 1.5;
 const OBSTACLE_MAX_LATERAL_OFFSET_METERS = 0.8;
 const OBSTACLE_MAX_TILT_DEG = 22;
 const DYNAMIC_OBSTACLE_FORWARD_DISTANCE_METERS = 1;
-const INITIAL_VEHICLE_CAMERA_OCCUPANCY = 0.25;
+const INITIAL_VEHICLE_CAMERA_OCCUPANCY = 0.8;
 // Half-width of the drivable ground built around the authored plate.
 const GROUND_EXTENSION_HALF_SIZE_METERS = 100;
 // Carved pothole walls use a fixed contrasting color so the pit shape stays readable.
@@ -5471,6 +5471,12 @@ class RapierDriveSimulation {
       return false;
     }
 
+    if (this.viewer.hasStoredCameraPose) {
+      this.viewer.snapshotInitialCameraPose?.();
+      this.hasFitInitialVehicleCamera = true;
+      return true;
+    }
+
     const bounds = this.computeChassisBounds(
       this.carFrame,
       this.viewer.robotModel?.links || null,
@@ -5488,35 +5494,62 @@ class RapierDriveSimulation {
     }
     cameraDirection.normalize();
 
+    const viewDirection = cameraDirection.clone().negate();
+    const cameraRight = new THREE.Vector3().crossVectors(
+      viewDirection,
+      camera.up,
+    );
+    if (cameraRight.lengthSq() <= 1e-8) {
+      cameraRight.crossVectors(viewDirection, new THREE.Vector3(0, 1, 0));
+    }
+    if (cameraRight.lengthSq() <= 1e-8) {
+      cameraRight.crossVectors(viewDirection, new THREE.Vector3(1, 0, 0));
+    }
+    cameraRight.normalize();
+    const cameraUp = new THREE.Vector3()
+      .crossVectors(cameraRight, viewDirection)
+      .normalize();
+    const halfVerticalFovTangent = Math.tan(
+      THREE.MathUtils.degToRad(camera.fov) * 0.5,
+    );
+    const halfHorizontalFovTangent = halfVerticalFovTangent * camera.aspect;
+    let cameraDistance = 0.01;
+
+    [bounds.min.x, bounds.max.x].forEach((x) => {
+      [bounds.min.y, bounds.max.y].forEach((y) => {
+        [bounds.min.z, bounds.max.z].forEach((z) => {
+          const cornerOffset = new THREE.Vector3(x, y, z).sub(center);
+          const distanceAlongCameraDirection =
+            cornerOffset.dot(cameraDirection);
+          const horizontalDistance =
+            distanceAlongCameraDirection +
+            Math.abs(cornerOffset.dot(cameraRight)) /
+              (INITIAL_VEHICLE_CAMERA_OCCUPANCY * halfHorizontalFovTangent);
+          const verticalDistance =
+            distanceAlongCameraDirection +
+            Math.abs(cornerOffset.dot(cameraUp)) /
+              (INITIAL_VEHICLE_CAMERA_OCCUPANCY * halfVerticalFovTangent);
+          cameraDistance = Math.max(
+            cameraDistance,
+            horizontalDistance,
+            verticalDistance,
+          );
+        });
+      });
+    });
+
     controls.target.copy(center);
     this.viewer.goalTarget?.copy(center);
-    let cameraDistance = Math.max(camera.position.distanceTo(center), 0.01);
+    controls.minDistance = cameraDistance * 0.2;
+    controls.maxDistance = cameraDistance * 8;
     camera.position
       .copy(center)
       .addScaledVector(cameraDirection, cameraDistance);
     controls.update();
 
-    for (let iteration = 0; iteration < 3; iteration += 1) {
-      const occupancy = this.getCameraProjectedBoundsOccupancy(bounds);
-      if (
-        !Number.isFinite(occupancy) ||
-        occupancy <= 0 ||
-        Math.abs(occupancy - INITIAL_VEHICLE_CAMERA_OCCUPANCY) <= 0.005
-      ) {
-        break;
-      }
-      cameraDistance *= occupancy / INITIAL_VEHICLE_CAMERA_OCCUPANCY;
-      camera.position
-        .copy(center)
-        .addScaledVector(cameraDirection, cameraDistance);
-      controls.update();
-    }
-
     camera.near = Math.max(cameraDistance / 100, 0.01);
     camera.far = Math.max(cameraDistance * 100, 10);
     camera.updateProjectionMatrix();
-    controls.minDistance = cameraDistance * 0.2;
-    controls.maxDistance = cameraDistance * 8;
     this.viewer.resetDirectionalLight?.(
       controls.target,
       Math.max(bounds.getBoundingSphere(new THREE.Sphere()).radius, 0.001),

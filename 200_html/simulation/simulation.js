@@ -6700,8 +6700,20 @@ class RapierDriveSimulation {
     this.applyDriveModeCommand("stop");
     this.stopWheelRotation();
     this.settlePhysicsAfterReset();
+    this.body.setTranslation(
+      new this.rapier.Vector3(
+        this.initialPosition.x,
+        this.initialPosition.y,
+        this.initialPosition.z,
+      ),
+      true,
+    );
+    this.body.setRotation(this.initialQuaternion, true);
+    this.body.setLinvel(new this.rapier.Vector3(0, 0, 0), true);
+    this.body.setAngvel(new this.rapier.Vector3(0, 0, 0), true);
     this.renderer.syncVehicle();
     this.syncCarFrameFromBody();
+    this.resetWheelBodiesFromVisual();
     this.alignVehicleToGroundByWheelGap(
       this.viewer?.robotModel?.links || null,
       0,

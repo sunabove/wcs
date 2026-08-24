@@ -2102,10 +2102,6 @@ class URDFViewer {
     }
 
     if (bbox.isEmpty()) {
-      bbox.setFromObject(this.robotModel);
-    }
-
-    if (bbox.isEmpty()) {
       return {
         center: fallbackTarget,
         size: fallbackSize,

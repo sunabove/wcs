@@ -43,6 +43,10 @@ const GROUND_INTERIOR_EMISSIVE = 0x0d141d;
 const CSG_CUTTER_OVERSHOOT_METERS = 0.01;
 // Lift below this is treated as flat ground.
 const WHEEL_SUPPORT_MIN_LIFT_METERS = 0.0005;
+// Obstacle-impact wheel flex: peak lateral kick applied to inner_wheel_*_joint the instant a wheel
+// first touches an obstacle, eased back to 0 as the wheel climbs up onto it.
+const WHEEL_OBSTACLE_FLEX_PEAK_RAD = THREE.MathUtils.degToRad(6);
+const WHEEL_OBSTACLE_FLEX_SMOOTHING_HZ = 12;
 
 const WHEEL_RPM_COMMAND_THRESHOLD = 0.2;
 const STEER_SIGN_EPSILON = 1e-3;
@@ -220,6 +224,20 @@ class RapierDriveSimulation {
       fr: false,
       rl: false,
       rr: false,
+    };
+    // Steering-axis (vertical) joint on each wheel's swing knuckle; driven only for the
+    // obstacle-impact flex effect below, not for actual steering.
+    this.innerWheelJointNameByKey = {
+      fl: "inner_wheel_fl_joint",
+      fr: "inner_wheel_fr_joint",
+      rl: "inner_wheel_rl_joint",
+      rr: "inner_wheel_rr_joint",
+    };
+    this.wheelObstacleFlexAngleRadByKey = {
+      fl: 0,
+      fr: 0,
+      rl: 0,
+      rr: 0,
     };
     this.previousWheelColliderPositionByKey = {};
     this.groundColliders = [];
@@ -4548,6 +4566,52 @@ class RapierDriveSimulation {
     };
   }
 
+  // Visual-only: on the frame a wheel first contacts an obstacle it snaps toward a lateral flex
+  // angle on inner_wheel_{key}_joint (the vertical swing-knuckle axis), then eases back to 0 as
+  // climbProgress (lift / obstacle height) rises — i.e. as the wheel settles on top of it.
+  updateWheelObstacleFlex(supportProfile, deltaSec) {
+    const jointMap = this.viewer?.robotModel?.joints;
+    if (!jointMap) {
+      return;
+    }
+
+    const alpha =
+      WHEEL_OBSTACLE_FLEX_SMOOTHING_HZ > 0
+        ? 1 - Math.exp(-WHEEL_OBSTACLE_FLEX_SMOOTHING_HZ * Math.max(deltaSec, 0))
+        : 1;
+
+    Object.keys(this.innerWheelJointNameByKey).forEach((wheelKey) => {
+      const supportObstacle = supportProfile?.supportObstacleByKey?.[wheelKey] || null;
+      let targetAngleRad = 0;
+
+      if (supportObstacle?.center && supportObstacle?.halfExtents) {
+        const obstacleHeightMeters = Math.max(
+          supportObstacle.center.z + supportObstacle.halfExtents.z - this.groundZ,
+          0.01,
+        );
+        const liftMeters = Number(supportProfile.liftByKey?.[wheelKey]) || 0;
+        const climbProgress = THREE.MathUtils.clamp(
+          liftMeters / obstacleHeightMeters,
+          0,
+          1,
+        );
+        // Peak right as contact begins (climbProgress ~ 0), restored once fully climbed on (~ 1).
+        targetAngleRad = WHEEL_OBSTACLE_FLEX_PEAK_RAD * (1 - climbProgress);
+      }
+
+      const currentAngleRad =
+        Number(this.wheelObstacleFlexAngleRadByKey[wheelKey]) || 0;
+      const nextAngleRad =
+        currentAngleRad + (targetAngleRad - currentAngleRad) * alpha;
+      this.wheelObstacleFlexAngleRadByKey[wheelKey] = nextAngleRad;
+
+      const joint = jointMap[this.innerWheelJointNameByKey[wheelKey]];
+      if (joint && typeof joint.setJointValue === "function") {
+        joint.setJointValue(nextAngleRad);
+      }
+    });
+  }
+
   applyWheelSupportRideHeight(supportProfile) {
     if (!this.body || !this.rapier || !supportProfile) {
       return false;
@@ -7047,6 +7111,7 @@ class RapierDriveSimulation {
 
     // Wheel support geometry is the single source of truth for ride height.
     this.applyWheelSupportRideHeight(supportProfile);
+    this.updateWheelObstacleFlex(supportProfile, fixedStepSec);
 
     // Center turn must keep the 4-wheel center fixed on every substep, not just per frame.
     this.constrainCenterTurnPivot();
@@ -7544,6 +7609,16 @@ class RapierDriveSimulation {
       rl: false,
       rr: false,
     };
+    Object.keys(this.wheelObstacleFlexAngleRadByKey).forEach((wheelKey) => {
+      this.wheelObstacleFlexAngleRadByKey[wheelKey] = 0;
+      const joint =
+        this.viewer?.robotModel?.joints?.[
+          this.innerWheelJointNameByKey[wheelKey]
+        ];
+      if (joint && typeof joint.setJointValue === "function") {
+        joint.setJointValue(0);
+      }
+    });
     this.obstacleColliderInfos.forEach((obstacleInfo) => {
       this.setObstacleContactHighlight(obstacleInfo, false, true);
       if (

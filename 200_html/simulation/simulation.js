@@ -3432,7 +3432,7 @@ class RapierDriveSimulation {
     };
   }
 
-  moveObstacleInfoTo(obstacleInfo, centerX, centerY) {
+  moveObstacleInfoTo(obstacleInfo, centerX, centerY, centerZ = null) {
     if (!obstacleInfo?.center || !obstacleInfo?.halfExtents) {
       return false;
     }
@@ -3440,7 +3440,9 @@ class RapierDriveSimulation {
     const targetCenter = new THREE.Vector3(
       centerX,
       centerY,
-      this.groundZ + obstacleInfo.halfExtents.z,
+      Number.isFinite(centerZ)
+        ? centerZ
+        : this.groundZ + obstacleInfo.halfExtents.z,
     );
     const delta = targetCenter.clone().sub(obstacleInfo.center);
     const linkObject = obstacleInfo.linkObject;
@@ -3515,7 +3517,12 @@ class RapierDriveSimulation {
           (obstacleInfo) => /pothole/i.test(obstacleInfo.normalizedLinkName),
         );
         if (potholeObstacle) {
-          this.moveObstacleInfoTo(potholeObstacle, placement.x, placement.y);
+          this.moveObstacleInfoTo(
+            potholeObstacle,
+            placement.x,
+            placement.y,
+            this.groundZ - potholeObstacle.halfExtents.z,
+          );
           potholeObstacle.isActive = false;
           potholeObstacle.collider?.setEnabled?.(false);
         }

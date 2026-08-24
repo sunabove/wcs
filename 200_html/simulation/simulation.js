@@ -251,6 +251,8 @@ class RapierDriveSimulation {
     this.groundExtensionGroup = null;
     this.extensionPotholeLinerGroup = null;
     this.dynamicPotholeRegion = null;
+    this.isDynamicObstacleRemovalRequested = false;
+    this.isRemovingPassedDynamicObstacles = false;
     this.authoredPotholeTemplate = null;
     this.groundVisualSourceByMesh = new Map();
     this.groundVisualMaterialSourceByMesh = new Map();
@@ -3115,7 +3117,7 @@ class RapierDriveSimulation {
     this.viewer.scene.add(this.groundGrid);
   }
 
-  isVehicleOverHoleRegion() {
+  isVehicleOverHoleRegion(targetHoleRegion = null) {
     if (
       !this.body ||
       !Array.isArray(this.holeRegions) ||
@@ -3137,7 +3139,10 @@ class RapierDriveSimulation {
     const vehicleMinY = translation.y - halfY;
     const vehicleMaxY = translation.y + halfY;
 
-    return this.holeRegions.some((holeRegion) => {
+    const holeRegions = targetHoleRegion
+      ? [targetHoleRegion]
+      : this.holeRegions;
+    return holeRegions.some((holeRegion) => {
       if (!holeRegion) {
         return false;
       }
@@ -3382,15 +3387,26 @@ class RapierDriveSimulation {
 
   hideDynamicSurfaceObstacles() {
     this.obstacleColliderInfos.forEach((obstacleInfo) => {
-      obstacleInfo.isActive = false;
-      if (obstacleInfo.linkObject) {
-        obstacleInfo.linkObject.visible = false;
-      }
-      if (typeof obstacleInfo.collider?.setEnabled === "function") {
-        obstacleInfo.collider.setEnabled(false);
-      }
+      this.hideDynamicSurfaceObstacle(obstacleInfo);
     });
     this.lastWheelSupportProfile = null;
+  }
+
+  hideDynamicSurfaceObstacle(obstacleInfo) {
+    if (!obstacleInfo) {
+      return;
+    }
+
+    obstacleInfo.isActive = false;
+    obstacleInfo.isDynamicSurfaceObstacle = false;
+    obstacleInfo.hasDynamicVehicleContact = false;
+    obstacleInfo.dynamicForward = null;
+    if (obstacleInfo.linkObject) {
+      obstacleInfo.linkObject.visible = false;
+    }
+    if (typeof obstacleInfo.collider?.setEnabled === "function") {
+      obstacleInfo.collider.setEnabled(false);
+    }
   }
 
   getDynamicObstaclePlacement(lateralWheelKeys = []) {
@@ -3436,7 +3452,120 @@ class RapierDriveSimulation {
         bodyPosition.y +
         forward.y * DYNAMIC_OBSTACLE_FORWARD_DISTANCE_METERS +
         left.y * lateralOffset,
+      forwardX: forward.x,
+      forwardY: forward.y,
     };
+  }
+
+  hasVehiclePassedDynamicObstacle(
+    centerX,
+    centerY,
+    halfExtentX,
+    halfExtentY,
+    forwardX,
+    forwardY,
+  ) {
+    if (
+      !this.body ||
+      !Number.isFinite(centerX) ||
+      !Number.isFinite(centerY) ||
+      !Number.isFinite(forwardX) ||
+      !Number.isFinite(forwardY)
+    ) {
+      return false;
+    }
+
+    const bodyPosition = this.body.translation();
+    const distancePastCenter =
+      (bodyPosition.x - centerX) * forwardX +
+      (bodyPosition.y - centerY) * forwardY;
+    const obstacleHalfForward =
+      Math.abs(forwardX) * Math.max(Number(halfExtentX) || 0, 0) +
+      Math.abs(forwardY) * Math.max(Number(halfExtentY) || 0, 0);
+    const vehicleHalfExtents =
+      this.getVehicleColliderWorldAabbHalfExtents() || { x: 0, y: 0 };
+    const vehicleHalfForward =
+      Math.abs(forwardX) * vehicleHalfExtents.x +
+      Math.abs(forwardY) * vehicleHalfExtents.y;
+    return distancePastCenter > obstacleHalfForward + vehicleHalfForward;
+  }
+
+  async removePassedDynamicSurfaceObstacles() {
+    if (
+      !this.isDynamicObstacleRemovalRequested ||
+      this.isRemovingPassedDynamicObstacles
+    ) {
+      return false;
+    }
+
+    const passedObstacles = this.obstacleColliderInfos.filter(
+      (obstacleInfo) =>
+        obstacleInfo?.isActive &&
+        obstacleInfo.isDynamicSurfaceObstacle &&
+        obstacleInfo.hasDynamicVehicleContact &&
+        this.hasVehiclePassedDynamicObstacle(
+          obstacleInfo.center?.x,
+          obstacleInfo.center?.y,
+          obstacleInfo.halfExtents?.x,
+          obstacleInfo.halfExtents?.y,
+          obstacleInfo.dynamicForward?.x,
+          obstacleInfo.dynamicForward?.y,
+        ),
+    );
+    const potholeRegion = this.dynamicPotholeRegion;
+    const potholeHalfX = potholeRegion
+      ? (potholeRegion.maxX - potholeRegion.minX) * 0.5
+      : 0;
+    const potholeHalfY = potholeRegion
+      ? (potholeRegion.maxY - potholeRegion.minY) * 0.5
+      : 0;
+    const hasPassedPothole = Boolean(
+      potholeRegion?.hasDynamicVehicleContact &&
+      this.hasVehiclePassedDynamicObstacle(
+        (potholeRegion.minX + potholeRegion.maxX) * 0.5,
+        (potholeRegion.minY + potholeRegion.maxY) * 0.5,
+        potholeHalfX,
+        potholeHalfY,
+        potholeRegion.forwardX,
+        potholeRegion.forwardY,
+      ),
+    );
+
+    if (passedObstacles.length === 0 && !hasPassedPothole) {
+      return false;
+    }
+
+    this.isRemovingPassedDynamicObstacles = true;
+    try {
+      passedObstacles.forEach((obstacleInfo) =>
+        this.hideDynamicSurfaceObstacle(obstacleInfo),
+      );
+
+      if (hasPassedPothole) {
+        this.holeRegions = this.holeRegions.filter(
+          (holeRegion) => holeRegion !== potholeRegion,
+        );
+        this.dynamicPotholeRegion = null;
+        const potholeObstacle = this.obstacleColliderInfos.find(
+          (obstacleInfo) => /pothole/i.test(obstacleInfo.normalizedLinkName),
+        );
+        this.hideDynamicSurfaceObstacle(potholeObstacle);
+        this.addGroundSurfaceExtension();
+        await this.carveGroundVisualForHoles(true);
+      }
+
+      const hasRemainingDynamicObstacle = this.obstacleColliderInfos.some(
+        (obstacleInfo) =>
+          obstacleInfo?.isActive && obstacleInfo.isDynamicSurfaceObstacle,
+      );
+      if (!hasRemainingDynamicObstacle && !this.dynamicPotholeRegion) {
+        this.isDynamicObstacleRemovalRequested = false;
+      }
+      this.lastWheelSupportProfile = null;
+      return true;
+    } finally {
+      this.isRemovingPassedDynamicObstacles = false;
+    }
   }
 
   moveObstacleInfoTo(obstacleInfo, centerX, centerY, centerZ = null) {
@@ -3487,6 +3616,13 @@ class RapierDriveSimulation {
       return false;
     }
 
+    if (normalizedValue === 0) {
+      this.isDynamicObstacleRemovalRequested = true;
+      await this.removePassedDynamicSurfaceObstacles();
+      return true;
+    }
+
+    this.isDynamicObstacleRemovalRequested = false;
     this.hideDynamicSurfaceObstacles();
     if (this.dynamicPotholeRegion) {
       this.holeRegions = this.holeRegions.filter(
@@ -3502,6 +3638,12 @@ class RapierDriveSimulation {
       );
       if (placement && stepObstacle) {
         this.moveObstacleInfoTo(stepObstacle, placement.x, placement.y);
+        stepObstacle.isDynamicSurfaceObstacle = true;
+        stepObstacle.hasDynamicVehicleContact = false;
+        stepObstacle.dynamicForward = {
+          x: placement.forwardX,
+          y: placement.forwardY,
+        };
       }
     } else if (normalizedValue === 2) {
       const placement = this.getDynamicObstaclePlacement(["fl", "rl"]);
@@ -3518,6 +3660,9 @@ class RapierDriveSimulation {
           depthMeters: template.depthMeters,
           floorZ: this.groundZ - template.depthMeters,
           isRecessed: true,
+          hasDynamicVehicleContact: false,
+          forwardX: placement.forwardX,
+          forwardY: placement.forwardY,
         };
         this.holeRegions.push(this.dynamicPotholeRegion);
         const potholeObstacle = this.obstacleColliderInfos.find(
@@ -5710,6 +5855,9 @@ class RapierDriveSimulation {
       obstacleInfo.contactedWheelKeys =
         this.getObstacleContactedWheelKeys(obstacleInfo);
       const hasWheelSupport = obstacleInfo.contactedWheelKeys.length > 0;
+      if (obstacleInfo.isDynamicSurfaceObstacle && hasWheelSupport) {
+        obstacleInfo.hasDynamicVehicleContact = true;
+      }
       // AABB overlap is intentionally retained as proximity for motion control, not UI contact.
       obstacleInfo.hasChassisProximity =
         this.isVehicleColliderContactingObstacle(obstacleInfo);
@@ -5720,6 +5868,16 @@ class RapierDriveSimulation {
       hasContact =
         hasContact || hasWheelSupport || obstacleInfo.hasChassisProximity;
     });
+
+    if (
+      this.dynamicPotholeRegion &&
+      this.isVehicleOverHoleRegion(this.dynamicPotholeRegion)
+    ) {
+      this.dynamicPotholeRegion.hasDynamicVehicleContact = true;
+    }
+    if (this.isDynamicObstacleRemovalRequested) {
+      void this.removePassedDynamicSurfaceObstacles();
+    }
 
     if (hasContact !== this.isVehicleObstacleContact) {
       this.isVehicleObstacleContact = hasContact;

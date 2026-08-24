@@ -1978,9 +1978,10 @@ class URDFViewer {
     }
 
     const focusBounds = this.getPrimaryFocusBounds();
-    const nextTarget = focusBounds.center;
-    const currentDistanceFromChassisCenter =
-      this.camera.position.distanceTo(nextTarget);
+    const nextTarget = focusBounds.center.clone();
+    const currentDistanceFromChassisCenter = this.camera.position.distanceTo(
+      this.controls.target,
+    );
     const nextDistance =
       Number.isFinite(currentDistanceFromChassisCenter) &&
       currentDistanceFromChassisCenter > 0.001
@@ -1990,6 +1991,36 @@ class URDFViewer {
             faceKey,
             this.cameraFitMarginRatio,
           );
+    const overlayDragPixels = Number(this.overlayDragPanPixels) || 0;
+    const containerHeight = Number(
+      this.container?.clientHeight ||
+        this.container?.getBoundingClientRect?.().height ||
+        0,
+    );
+    if (overlayDragPixels > 0 && containerHeight > 0) {
+      let worldPerPixel = 0;
+      if (this.camera.isPerspectiveCamera) {
+        const fovRad = THREE.MathUtils.degToRad(this.camera.fov || 50);
+        worldPerPixel =
+          (2 * nextDistance * Math.tan(fovRad / 2)) / containerHeight;
+      } else if (this.camera.isOrthographicCamera) {
+        const frustumHeight =
+          (this.camera.top - this.camera.bottom) /
+          Math.max(this.camera.zoom || 1, 0.001);
+        worldPerPixel = frustumHeight / containerHeight;
+      }
+
+      const viewDirection = faceVectors.direction.clone().negate();
+      const cameraRight = new THREE.Vector3()
+        .crossVectors(viewDirection, faceVectors.up)
+        .normalize();
+      const screenUp = new THREE.Vector3()
+        .crossVectors(cameraRight, viewDirection)
+        .normalize();
+      if (worldPerPixel > 0 && screenUp.lengthSq() > 0) {
+        nextTarget.addScaledVector(screenUp, overlayDragPixels * worldPerPixel);
+      }
+    }
     const nextPosition = nextTarget
       .clone()
       .add(faceVectors.direction.multiplyScalar(nextDistance));

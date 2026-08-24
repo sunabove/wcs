@@ -153,21 +153,26 @@
     return true;
   }
 
-  function applyWheelLinearSpeedMessage(topic, value) {
+  function applyIndividualWheelSpeedMessage(topic, value) {
     const topicMatch = String(topic || "").match(
-      /^wheel\/(fr|fl|rr|rl)\/linear\/speed$/i,
+      /^wheel\/(fr|fl|rr|rl)\/(linear|angle)\/speed$/i,
     );
     if (!topicMatch) {
       return false;
     }
 
-    const linearSpeedMps = Number(value);
-    if (!Number.isFinite(linearSpeedMps)) {
+    const receivedSpeed = Number(value);
+    if (!Number.isFinite(receivedSpeed)) {
       console.warn(`[Simulation][MQTT] Invalid ${topic} payload:`, value);
       return true;
     }
 
     const wheelKey = topicMatch[1].toLowerCase();
+    const speedType = topicMatch[2].toLowerCase();
+    const linearSpeedMps =
+      speedType === "angle"
+        ? receivedSpeed * getWheelRadiusMetersByKey()[wheelKey]
+        : receivedSpeed;
     latestWheelLinearSpeedByKey[wheelKey] = linearSpeedMps;
     pendingWheelLinearSpeedKeys.add(wheelKey);
     if (pendingWheelLinearSpeedKeys.size === WHEEL_KEYS.length) {
@@ -214,7 +219,7 @@
   };
 
   window.prcessMqttMessage = function (topic, value) {
-    if (applyWheelLinearSpeedMessage(topic, value)) {
+    if (applyIndividualWheelSpeedMessage(topic, value)) {
       return;
     }
 

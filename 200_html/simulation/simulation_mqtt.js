@@ -14,6 +14,13 @@
   const WHEEL_RADIUS_PUBLISH_RETRY_INTERVAL_MS = 250;
   let pendingWheelRadiusPublishTimer = null;
   let lastPublishedWheelRadiusSignature = null;
+  const latestWheelLinearSpeedByKey = WHEEL_KEYS.reduce(function (
+    result,
+    wheelKey,
+  ) {
+    result[wheelKey] = 0;
+    return result;
+  }, {});
 
   function getWheelRadiusMetersByKey() {
     const providedRadii =
@@ -118,6 +125,36 @@
     );
   }
 
+  function applyWheelLinearSpeedMessage(topic, value) {
+    const topicMatch = String(topic || "").match(
+      /^wheel\/(fr|fl|rr|rl)\/linear\/speed$/i,
+    );
+    if (!topicMatch) {
+      return false;
+    }
+
+    const linearSpeedMps = Number(value);
+    if (!Number.isFinite(linearSpeedMps)) {
+      console.warn(`[Simulation][MQTT] Invalid ${topic} payload:`, value);
+      return true;
+    }
+
+    latestWheelLinearSpeedByKey[topicMatch[1].toLowerCase()] = linearSpeedMps;
+    const angleSpeedByKey = wheelCommand.linearToAngleSpeedByKey(
+      latestWheelLinearSpeedByKey,
+      getWheelRadiusMetersByKey(),
+    );
+    if (!angleSpeedByKey) {
+      return true;
+    }
+
+    const command = buildWheelCommand(angleSpeedByKey);
+    if (command) {
+      dispatchWheelCommand(command);
+    }
+    return true;
+  }
+
   window.runSimulationMqttDriveCommand = function (mode) {
     const normalizedMode = wheelCommand.normalizeMode(mode);
     if (!normalizedMode) {
@@ -149,6 +186,10 @@
   };
 
   window.prcessMqttMessage = function (topic, value) {
+    if (applyWheelLinearSpeedMessage(topic, value)) {
+      return;
+    }
+
     if (topic !== WHEEL_ANGLE_SPEED_TOPIC) {
       return;
     }

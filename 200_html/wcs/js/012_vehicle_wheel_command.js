@@ -87,6 +87,23 @@
     return serializeAngleSpeeds(buildAngleSpeedByKey(options));
   }
 
+  function linearToAngleSpeedByKey(linearSpeedByKey, radiusByKey) {
+    const normalizedRadii = normalizeRadii(radiusByKey);
+    if (!normalizedRadii) {
+      return null;
+    }
+
+    const angleSpeedByKey = {};
+    for (const wheelKey of WHEEL_KEYS) {
+      const linearSpeed = Number(linearSpeedByKey?.[wheelKey]);
+      if (!Number.isFinite(linearSpeed)) {
+        return null;
+      }
+      angleSpeedByKey[wheelKey] = linearSpeed / normalizedRadii[wheelKey];
+    }
+    return angleSpeedByKey;
+  }
+
   function parsePayload(value) {
     const parts = String(value).split(",");
     if (
@@ -188,6 +205,7 @@
     buildAngleSpeedByKey,
     serializeAngleSpeeds,
     buildPayload,
+    linearToAngleSpeedByKey,
     parsePayload,
     resolveMode,
     buildReceivedCommand,

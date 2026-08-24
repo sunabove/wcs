@@ -399,17 +399,6 @@ $(document).ready(function () {
       .addClass("active btn-secondary text-white");
   }
 
-  function stopAllWheels() {
-    vehicleDirectionWheelKeys.forEach((wheelKey) => {
-      const operationTopic = `wheel/${wheelKey}/operation/command`;
-      const angleSpeedTopic = `wheel/${wheelKey}/angle/speed`;
-      cancelPendingPublish(operationTopic);
-      cancelPendingPublish(angleSpeedTopic);
-      window.WcsMqtt.sendMQTTMessage(operationTopic, 0, 1);
-      window.WcsMqtt.sendMQTTMessage(angleSpeedTopic, 0, 1);
-    });
-  }
-
   function clearWheelCommandBlinkTimers() {
     wheelCommandBlinkTimerIds.forEach((timerId) => clearTimeout(timerId));
     wheelCommandBlinkTimerIds = [];
@@ -419,7 +408,7 @@ $(document).ready(function () {
     const selectedWheel = $('input[name="wheelTestPosition"]:checked')
       .val()
       .toLowerCase();
-    const topic = `wheel/${selectedWheel}/operation/command`;
+    const topic = `wheel/${selectedWheel}/angle/speed`;
     const angularSpeedAbs =
       Number.parseFloat($("#wheelTestSpeedSlider").val()) || 0;
     window.suppressAutoStopUntil = Date.now() + 1500;
@@ -435,21 +424,17 @@ $(document).ready(function () {
 
     setWheelTestButtonActive(buttonElement);
 
-    if (Number(command) === 1 || Number(command) === 2) {
-      window.WcsMqtt.sendMQTTMessage(topic, command, 1);
-      const signedAngularSpeed =
-        Number(command) === 2 ? -angularSpeedAbs : angularSpeedAbs;
-      window.WcsMqtt.sendMQTTMessage(
-        `wheel/${selectedWheel}/angle/speed`,
-        signedAngularSpeed,
-        1,
-      );
-    } else if (Number(command) === 0) {
-      stopAllWheels();
-    }
+    const signedAngularSpeed =
+      Number(command) === 0
+        ? 0
+        : Number(command) === 2
+          ? -angularSpeedAbs
+          : angularSpeedAbs;
+    cancelPendingPublish(topic);
+    window.WcsMqtt.sendMQTTMessage(topic, signedAngularSpeed, 1);
 
     console.log(
-      `[Vehicle Test] ${icon} ${selectedWheel.toUpperCase()} 바퀴 ${actionName} 명령 전송: ${topic} = ${command}`,
+      `[Vehicle Test] ${icon} ${selectedWheel.toUpperCase()} 바퀴 ${actionName} 속도 전송: ${topic} = ${signedAngularSpeed} rad/s`,
     );
 
     clearWheelCommandBlinkTimers();

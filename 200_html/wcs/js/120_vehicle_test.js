@@ -88,6 +88,28 @@ $(document).ready(function () {
     };
   }
 
+  function syncInitialVehicleStopUi() {
+    if (vehicleDirectionCommandIssuedByUser) {
+      return;
+    }
+
+    if (typeof window.syncVehicleDirectionButtons === "function") {
+      window.syncVehicleDirectionButtons(0, vehicleButtonSelector);
+    } else {
+      $(vehicleButtonSelector)
+        .removeClass("active text-white")
+        .addClass("text-black");
+      $("#vehicle-stop")
+        .addClass("active text-white")
+        .removeClass("text-black");
+    }
+
+    if (typeof window.clearVehicleWheelHighlights === "function") {
+      window.clearVehicleWheelHighlights();
+    }
+    window.vehicleDirectionCommandActive = false;
+  }
+
   function syncVehicleWheelAngleSpeedsFromActiveCommand(reason = "sync") {
     const radiusSignature = getVehicleWheelRadiusSignature();
     if (
@@ -182,6 +204,7 @@ $(document).ready(function () {
     const originalProcessMqtt = window.prcessMqttMessage;
     window.prcessMqttMessage = function (topic, value) {
       originalProcessMqtt(topic, value);
+      syncInitialVehicleStopUi();
 
       if (topic === "vehicle/linear/speed") {
         initializeVehicleSpeedUiFromMqtt(topic, value);
@@ -290,10 +313,7 @@ $(document).ready(function () {
     window.setVehicleWheelHighlightByKey(initialWheel);
   }
 
-  $(vehicleButtonSelector)
-    .removeClass("active text-white")
-    .addClass("text-black");
-  $("#vehicle-stop").addClass("active text-white").removeClass("text-black");
+  syncInitialVehicleStopUi();
 
   function applyVehicleDirectionAnimation(command, speedKmh) {
     // 휠 애니메이션은 MQTT wheel/angle/speed 토픽으로만 반영한다.
@@ -338,7 +358,6 @@ $(document).ready(function () {
   }
 
   function publishVehicleStopCommandOnLoad() {
-    const selectedButtonId = "vehicle-stop";
     const selectedCommand = 0;
     const selectedSpeedKmh = 0;
     const stopPayload = wheelCommand.serializeAngleSpeeds({
@@ -349,32 +368,12 @@ $(document).ready(function () {
     });
 
     publishWhenConnected(vehicleAngleSpeedTopic, stopPayload);
+    syncInitialVehicleStopUi();
     applyVehicleCommandWheelHighlight(selectedCommand);
     applyVehicleDirectionAnimation(selectedCommand, selectedSpeedKmh);
     console.log(
       `[Vehicle Test] 📨 초기 정지 각속도 발행: ${vehicleAngleSpeedTopic} = ${stopPayload}`,
     );
-
-    // Blink the selected button by toggling classes 2 times
-    const selectedButton = $(`#${selectedButtonId}`);
-    if (selectedButton.length) {
-      for (let i = 0; i < 4; i++) {
-        setTimeout(
-          () => {
-            if (i % 2 === 0) {
-              selectedButton
-                .removeClass("active text-white")
-                .addClass("text-black");
-            } else {
-              selectedButton
-                .addClass("active text-white")
-                .removeClass("text-black");
-            }
-          },
-          (i + 1) * 150,
-        );
-      }
-    }
   }
 
   publishVehicleStopCommandOnLoad();

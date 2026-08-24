@@ -12,7 +12,9 @@
   const DEFAULT_WHEEL_RADIUS_METERS = 0.16;
   const WHEEL_RADIUS_PUBLISH_RETRY_COUNT = 40;
   const WHEEL_RADIUS_PUBLISH_RETRY_INTERVAL_MS = 250;
+  const WHEEL_LINEAR_SPEED_BATCH_WAIT_MS = 150;
   let pendingWheelRadiusPublishTimer = null;
+  let pendingWheelLinearSpeedTimer = null;
   let lastPublishedWheelRadiusSignature = null;
   const latestWheelLinearSpeedByKey = WHEEL_KEYS.reduce(function (
     result,
@@ -126,6 +128,31 @@
     );
   }
 
+  function flushPendingWheelLinearSpeeds() {
+    if (pendingWheelLinearSpeedKeys.size === 0) {
+      return false;
+    }
+
+    window.clearTimeout(pendingWheelLinearSpeedTimer);
+    pendingWheelLinearSpeedTimer = null;
+    const angleSpeedByKey = wheelCommand.linearToAngleSpeedByKey(
+      latestWheelLinearSpeedByKey,
+      getWheelRadiusMetersByKey(),
+    );
+    if (!angleSpeedByKey) {
+      return false;
+    }
+
+    const command = buildWheelCommand(angleSpeedByKey);
+    if (!command) {
+      return false;
+    }
+
+    pendingWheelLinearSpeedKeys.clear();
+    dispatchWheelCommand(command);
+    return true;
+  }
+
   function applyWheelLinearSpeedMessage(topic, value) {
     const topicMatch = String(topic || "").match(
       /^wheel\/(fr|fl|rr|rl)\/linear\/speed$/i,
@@ -143,23 +170,16 @@
     const wheelKey = topicMatch[1].toLowerCase();
     latestWheelLinearSpeedByKey[wheelKey] = linearSpeedMps;
     pendingWheelLinearSpeedKeys.add(wheelKey);
-    if (pendingWheelLinearSpeedKeys.size < WHEEL_KEYS.length) {
+    if (pendingWheelLinearSpeedKeys.size === WHEEL_KEYS.length) {
+      flushPendingWheelLinearSpeeds();
       return true;
     }
 
-    const angleSpeedByKey = wheelCommand.linearToAngleSpeedByKey(
-      latestWheelLinearSpeedByKey,
-      getWheelRadiusMetersByKey(),
+    window.clearTimeout(pendingWheelLinearSpeedTimer);
+    pendingWheelLinearSpeedTimer = window.setTimeout(
+      flushPendingWheelLinearSpeeds,
+      WHEEL_LINEAR_SPEED_BATCH_WAIT_MS,
     );
-    if (!angleSpeedByKey) {
-      return true;
-    }
-
-    const command = buildWheelCommand(angleSpeedByKey);
-    if (command) {
-      pendingWheelLinearSpeedKeys.clear();
-      dispatchWheelCommand(command);
-    }
     return true;
   }
 

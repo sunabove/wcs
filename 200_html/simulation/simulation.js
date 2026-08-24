@@ -31,7 +31,7 @@ const OBSTACLE_MAX_LATERAL_OFFSET_METERS = 0.8;
 const OBSTACLE_MAX_TILT_DEG = 22;
 const DYNAMIC_OBSTACLE_FORWARD_DISTANCE_METERS = 1;
 const INITIAL_VEHICLE_CAMERA_OCCUPANCY = 0.8;
-const SCENE_TREE_VIEW_POSITION = new THREE.Vector2(-0.72, -0.34);
+const SCENE_TREE_VIEW_POSITION = new THREE.Vector2(-0.78, -0.3);
 // Half-width of the drivable ground built around the authored plate.
 const GROUND_EXTENSION_HALF_SIZE_METERS = 100;
 // Carved pothole walls use a fixed contrasting color so the pit shape stays readable.

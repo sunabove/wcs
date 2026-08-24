@@ -19,6 +19,7 @@ $(document).ready(function () {
   let lastVehicleDirectionCommandSent = null;
   let latestVehicleMaxSpeedKmh = 100.0;
   let vehicleWheelRadiusReadyLogged = false;
+  let lastVehicleWheelRadiusSyncSignature = null;
   window.vehicleSpeedUiManualUntil = 0;
   window.suppressAutoStopUntil = 0;
   window.manualWheelTestActive = false;
@@ -43,6 +44,16 @@ $(document).ready(function () {
     );
   }
 
+  function getVehicleWheelRadiusSignature() {
+    if (!hasAllVehicleWheelRadii()) {
+      return null;
+    }
+
+    return vehicleAngleSpeedPayloadWheelKeys
+      .map((wheelKey) => getVehicleWheelRadiusByKey(wheelKey).toFixed(9))
+      .join(",");
+  }
+
   function getActiveVehicleCommandContext() {
     const selectedButton = $(vehicleButtonSelector).filter(".active").first();
     const selectedButtonId = selectedButton.length
@@ -63,6 +74,15 @@ $(document).ready(function () {
   }
 
   function syncVehicleWheelAngleSpeedsFromActiveCommand(reason = "sync") {
+    const radiusSignature = getVehicleWheelRadiusSignature();
+    if (
+      radiusSignature === null ||
+      radiusSignature === lastVehicleWheelRadiusSyncSignature
+    ) {
+      return;
+    }
+
+    lastVehicleWheelRadiusSyncSignature = radiusSignature;
     const { selectedCommand, selectedSpeedKmh } =
       getActiveVehicleCommandContext();
     const isPublished = publishVehicleWheelAngleSpeeds(
@@ -197,6 +217,46 @@ $(document).ready(function () {
       pendingPublishTimers[topic] = null;
       publishWhenConnected(topic, payload, retries - 1, intervalMs);
     }, intervalMs);
+  }
+
+  function applyMeasuredVehicleWheelRadii(detail) {
+    if (detail?.viewerId !== "vehicle-urdf-viewer") {
+      return false;
+    }
+
+    const measuredRadii = {};
+    for (const wheelKey of vehicleAngleSpeedPayloadWheelKeys) {
+      const radius = Number(detail.radiusByKey?.[wheelKey]);
+      if (!Number.isFinite(radius) || radius <= 0) {
+        return false;
+      }
+      measuredRadii[wheelKey] = Number(radius.toFixed(9));
+    }
+
+    window.wheelRadiusById = window.wheelRadiusById || {};
+    Object.assign(window.wheelRadiusById, measuredRadii);
+    vehicleAngleSpeedPayloadWheelKeys.forEach((wheelKey) => {
+      publishWhenConnected(`wheel/${wheelKey}/radius`, measuredRadii[wheelKey]);
+    });
+
+    console.log("[Vehicle Test] 모델 휠 반경 측정 완료:", measuredRadii);
+    syncVehicleWheelAngleSpeedsFromActiveCommand("urdf-wheel-radius");
+    return true;
+  }
+
+  window.addEventListener("wcs:urdf-wheel-radii-ready", function (event) {
+    applyMeasuredVehicleWheelRadii(event.detail);
+  });
+
+  const loadedVehicleViewer =
+    window.urdfViewersById?.["vehicle-urdf-viewer"] || null;
+  if (
+    typeof loadedVehicleViewer?.measureWheelRadiusMetersByKey === "function"
+  ) {
+    applyMeasuredVehicleWheelRadii({
+      viewerId: "vehicle-urdf-viewer",
+      radiusByKey: loadedVehicleViewer.measureWheelRadiusMetersByKey(),
+    });
   }
 
   $('input[name="wheelTestPosition"]').change(function () {

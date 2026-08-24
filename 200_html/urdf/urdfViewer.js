@@ -4332,6 +4332,7 @@ class URDFViewer {
         );
         const bounds = new THREE.Box3();
         const inverseWheelWorld = new THREE.Matrix4();
+        let explicitCylinderRadius = null;
         let hasMesh = false;
 
         wheelLink.updateWorldMatrix(true, true);
@@ -4359,6 +4360,25 @@ class URDFViewer {
             inverseWheelWorld,
             node.matrixWorld,
           );
+          const geometryParams = node.geometry.parameters || {};
+          if (
+            Number.isFinite(geometryParams.radiusTop) &&
+            Number.isFinite(geometryParams.radiusBottom)
+          ) {
+            const radialScaleX = new THREE.Vector3()
+              .setFromMatrixColumn(meshToWheel, 0)
+              .length();
+            const radialScaleZ = new THREE.Vector3()
+              .setFromMatrixColumn(meshToWheel, 2)
+              .length();
+            const cylinderRadius =
+              Math.max(geometryParams.radiusTop, geometryParams.radiusBottom) *
+              Math.max(radialScaleX, radialScaleZ);
+            explicitCylinderRadius = Math.max(
+              explicitCylinderRadius || 0,
+              cylinderRadius,
+            );
+          }
           bounds.union(
             node.geometry.boundingBox.clone().applyMatrix4(meshToWheel),
           );
@@ -4373,7 +4393,9 @@ class URDFViewer {
           .getSize(new THREE.Vector3())
           .toArray()
           .sort((left, right) => left - right);
-        radiusByKey[wheelKey] = (dimensions[1] + dimensions[2]) * 0.25;
+        radiusByKey[wheelKey] = Number.isFinite(explicitCylinderRadius)
+          ? explicitCylinderRadius
+          : (dimensions[1] + dimensions[2]) * 0.25;
       },
     );
 

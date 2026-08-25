@@ -5935,6 +5935,19 @@ class RapierDriveSimulation {
     );
   }
 
+  // Trees recycle onto a fixed world-X lattice spaced 10 ground-grid cells apart (the grid
+  // cell itself already tracks the wheel circumference dynamically), so the same tree mesh
+  // can be repositioned onto whichever lattice slot is due, instead of allocating one tree
+  // per slot up front.
+  getSceneTreeXGridSpacingMeters() {
+    return Math.max(this.getWheelCircumferenceMeters() * 10, 0.5);
+  }
+
+  snapWorldXToSceneTreeGrid(worldX) {
+    const xSpacingMeters = this.getSceneTreeXGridSpacingMeters();
+    return Math.round(worldX / xSpacingMeters) * xSpacingMeters;
+  }
+
   getSceneTreeBehindVehiclePlacement(preferredSide) {
     if (!this.carFrame) {
       return null;
@@ -5957,6 +5970,11 @@ class RapierDriveSimulation {
     if (placements.length === 0) {
       return null;
     }
+
+    // X is snapped onto the fixed lattice; Y keeps the existing behind-vehicle placement logic.
+    placements.forEach((placement) => {
+      placement.position.x = this.snapWorldXToSceneTreeGrid(placement.position.x);
+    });
 
     const minimumTreeY =
       vehiclePosition.y - SCENE_TREE_MIN_BEHIND_DISTANCE_METERS;

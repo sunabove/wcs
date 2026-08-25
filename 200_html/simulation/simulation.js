@@ -3176,7 +3176,7 @@ class RapierDriveSimulation {
     this.sceneTreeGridOriginX = gridOrigin.x + gridSpacingMeters * 5;
     this.sceneTreeGridOriginY = gridOrigin.y;
     this.resetSceneTreePool();
-    // Single static "COBOT SYSTEM" signpost at grid column 0 (the origin line itself),
+    // Single static "COBOT SYSTEM" ground marker at grid column 0 (the origin line itself),
     // 5 grid cells out on Y. Recomputed here alongside the tree origin so it stays put on
     // this now-static grid rather than drifting if the grid's phase shifts on reset.
     this.cobotSystemSignPosition = new THREE.Vector2(

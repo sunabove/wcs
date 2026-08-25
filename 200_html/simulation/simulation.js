@@ -31,12 +31,6 @@ const OBSTACLE_MAX_LATERAL_OFFSET_METERS = 0.8;
 const OBSTACLE_MAX_TILT_DEG = 22;
 const DYNAMIC_OBSTACLE_FORWARD_DISTANCE_METERS = 1;
 const INITIAL_VEHICLE_CAMERA_OCCUPANCY = 0.8;
-const SCENE_TREE_MIN_BEHIND_DISTANCE_METERS = 2.4;
-// A wide/shallow camera view makes near ground cover very little of the screen and far
-// ground a lot, so a single fixed "behind vehicle" depth can't reach most of what's on
-// screen. Each lattice column probes these multiples of the minimum distance, nearest
-// first, and uses whichever is actually visible.
-const SCENE_TREE_DEPTH_PROBE_MULTIPLIERS = [1, 2, 4, 8, 16, 32, 64];
 const SCENE_TREE_VISIBILITY_CHECK_INTERVAL_MS = 150;
 // Safety cap on simultaneous trees so a degenerate camera/grid state can't spawn an
 // unbounded row; normal on-screen counts stay far below this.
@@ -288,10 +282,7 @@ class RapierDriveSimulation {
     // Snapshot of the ground grid's phase origin, taken once per addGroundSurfaceGrid()
     // call (load/reset) - see the comment there for why this must not track the vehicle.
     this.sceneTreeGridOriginX = null;
-    // All trees share this one Y forever, computed lazily on first use and frozen from
-    // then on (cleared alongside the pool in resetSceneTreePool()) - see
-    // getSceneTreeRowY().
-    this.sceneTreeRowY = null;
+    this.sceneTreeGridOriginY = null;
     this.sceneTreeLastVisibilityCheckAtMs = 0;
     this.extensionPotholeLinerGroup = null;
     this.dynamicPotholeRegion = null;
@@ -3176,6 +3167,7 @@ class RapierDriveSimulation {
     // every tick - otherwise trees drift out of phase with this now-static grid as the
     // vehicle drives, i.e. they visually "follow" the vehicle instead of staying put.
     this.sceneTreeGridOriginX = gridOrigin.x;
+    this.sceneTreeGridOriginY = gridOrigin.y;
     this.resetSceneTreePool();
     const snapUp = (value, origin) =>
       origin +
@@ -5980,10 +5972,14 @@ class RapierDriveSimulation {
   }
 
   // The grid (and the tree lattice phased from it) is only rebuilt at load/reset - see
-  // addGroundSurfaceGrid(), which snapshots sceneTreeGridOriginX there. Falls back to a
+  // addGroundSurfaceGrid(), which snapshots sceneTreeGridOriginX/Y there. Falls back to a
   // live read only if trees are asked for before the grid has ever been built once.
   getSceneTreeGridOriginX() {
     return this.sceneTreeGridOriginX ?? this.getGroundGridOriginXY().x;
+  }
+
+  getSceneTreeGridOriginY() {
+    return this.sceneTreeGridOriginY ?? this.getGroundGridOriginXY().y;
   }
 
   // Removes every pooled tree so the next update() rebuilds from scratch against the
@@ -5996,9 +5992,6 @@ class RapierDriveSimulation {
       });
     }
     this.sceneTreeGroupsByLatticeX.clear();
-    // Let the shared row Y be picked fresh too, since the vehicle's pose (and so what
-    // depth is on screen) may differ after this reset.
-    this.sceneTreeRowY = null;
   }
 
   // Snaps onto the SAME lattice the rendered ground grid uses: addGroundSurfaceGrid()
@@ -6054,44 +6047,15 @@ class RapierDriveSimulation {
     return xs;
   }
 
-  // Picked once and frozen (see this.sceneTreeRowY / resetSceneTreePool()) so every tree,
-  // for the rest of the session, sits on this exact same Y - a single shared "behind
-  // vehicle" depth only works for a steep-down camera; in a wide/shallow view the ground
-  // right behind the vehicle covers very little of the screen, so this instead tries a
-  // few increasingly farther depths and keeps whichever shows the most lattice columns.
-  getSceneTreeRowY(vehiclePosition, startX, xSpacingMeters, treeHeight) {
-    if (this.sceneTreeRowY !== null) {
-      return this.sceneTreeRowY;
-    }
-
-    let bestY = null;
-    let bestCount = 0;
-    SCENE_TREE_DEPTH_PROBE_MULTIPLIERS.forEach((multiplier) => {
-      const y =
-        vehiclePosition.y - SCENE_TREE_MIN_BEHIND_DISTANCE_METERS * multiplier;
-      const count = this.collectVisibleSceneTreeColumnsAtY(
-        y,
-        startX,
-        xSpacingMeters,
-        treeHeight,
-      ).length;
-      if (count > bestCount) {
-        bestCount = count;
-        bestY = y;
-      }
-    });
-
-    if (bestY === null) {
-      // Nothing visible at any probed depth yet (e.g. camera not settled) - try again
-      // next tick instead of freezing a bad value.
-      return null;
-    }
-
-    this.sceneTreeRowY = bestY;
-    return bestY;
+  // Deterministic and constant for the whole session (until the next load/reset): exactly
+  // 10 grid cells behind the frozen grid origin on Y, the same way tree X snaps to every
+  // 10th cell from that origin. No per-frame camera probing, so every tree - now and
+  // later - sits on this exact same Y.
+  getSceneTreeRowY() {
+    return this.getSceneTreeGridOriginY() - this.getSceneTreeXGridSpacingMeters();
   }
 
-  // Determines which lattice columns should show a tree right now, all on the one frozen
+  // Determines which lattice columns should show a tree right now, all on the one fixed
   // row Y (see getSceneTreeRowY).
   getVisibleSceneTreeRowPlacement() {
     if (!this.carFrame) {
@@ -6107,15 +6071,7 @@ class RapierDriveSimulation {
 
     const xSpacingMeters = this.getSceneTreeXGridSpacingMeters();
     const startX = this.snapWorldXToSceneTreeGrid(vehiclePosition.x);
-    const rowY = this.getSceneTreeRowY(
-      vehiclePosition,
-      startX,
-      xSpacingMeters,
-      treeHeight,
-    );
-    if (rowY === null) {
-      return null;
-    }
+    const rowY = this.getSceneTreeRowY();
 
     const xs = this.collectVisibleSceneTreeColumnsAtY(
       rowY,

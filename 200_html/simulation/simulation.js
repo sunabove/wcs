@@ -5961,15 +5961,24 @@ class RapierDriveSimulation {
     return Math.max(this.getWheelCircumferenceMeters() * 10, 0.5);
   }
 
+  // Snaps onto the SAME lattice the rendered ground grid uses: addGroundSurfaceGrid()
+  // phases its lines from getGroundGridOriginXY() (the front-wheel contact point at
+  // load/reset), not world X=0, so trees must snap from that same origin or they drift
+  // out of phase with the visible grid lines instead of sitting on every 10th one.
   snapWorldXToSceneTreeGrid(worldX) {
     const xSpacingMeters = this.getSceneTreeXGridSpacingMeters();
-    return Math.round(worldX / xSpacingMeters) * xSpacingMeters;
+    const originX = this.getGroundGridOriginXY().x;
+    return (
+      originX +
+      Math.round((worldX - originX) / xSpacingMeters) * xSpacingMeters
+    );
   }
 
   // Determines the row of trees that should be on screen right now: a shared Y (unchanged
   // from the old single-tree "behind vehicle" rule) and every lattice X between the ground
-  // points under the left/right screen edges. Tree count therefore tracks how many 10-cell
-  // lattice slots the visible ground currently spans - i.e. (visible grid columns / 10).
+  // points under the true left/right screen edges (NDC x = -1/+1, not an inset corner), so
+  // tree count matches (visible grid columns / 10) exactly - including rounding down to 0
+  // once fewer than 10 columns are visible, e.g. when zoomed in tight.
   getVisibleSceneTreeRowPlacement() {
     if (!this.carFrame) {
       return null;
@@ -5979,16 +5988,10 @@ class RapierDriveSimulation {
     const vehiclePosition = this.carFrame.getWorldPosition(new THREE.Vector3());
 
     const leftGroundPosition = this.getGroundPositionAtCameraView(
-      new THREE.Vector2(
-        -Math.abs(SCENE_TREE_VIEW_POSITION.x),
-        SCENE_TREE_VIEW_POSITION.y,
-      ),
+      new THREE.Vector2(-1, SCENE_TREE_VIEW_POSITION.y),
     );
     const rightGroundPosition = this.getGroundPositionAtCameraView(
-      new THREE.Vector2(
-        Math.abs(SCENE_TREE_VIEW_POSITION.x),
-        SCENE_TREE_VIEW_POSITION.y,
-      ),
+      new THREE.Vector2(1, SCENE_TREE_VIEW_POSITION.y),
     );
     if (!leftGroundPosition || !rightGroundPosition) {
       return null;
@@ -6005,20 +6008,19 @@ class RapierDriveSimulation {
     );
 
     const xSpacingMeters = this.getSceneTreeXGridSpacingMeters();
+    const originX = this.getGroundGridOriginXY().x;
     const rangeMinX = Math.min(leftGroundPosition.x, rightGroundPosition.x);
     const rangeMaxX = Math.max(leftGroundPosition.x, rightGroundPosition.x);
-    const firstLatticeX = Math.ceil(rangeMinX / xSpacingMeters) * xSpacingMeters;
-    const lastLatticeX = Math.floor(rangeMaxX / xSpacingMeters) * xSpacingMeters;
+    const firstLatticeX =
+      originX +
+      Math.ceil((rangeMinX - originX) / xSpacingMeters) * xSpacingMeters;
+    const lastLatticeX =
+      originX +
+      Math.floor((rangeMaxX - originX) / xSpacingMeters) * xSpacingMeters;
 
     const latticeXs = [];
     for (let x = firstLatticeX; x <= lastLatticeX + 1e-6; x += xSpacingMeters) {
       latticeXs.push(x);
-    }
-    // Keep at least one tree visible even when zoomed in tighter than one lattice cell.
-    if (latticeXs.length === 0) {
-      latticeXs.push(
-        this.snapWorldXToSceneTreeGrid((rangeMinX + rangeMaxX) / 2),
-      );
     }
 
     if (latticeXs.length > SCENE_TREE_MAX_COUNT) {

@@ -1242,7 +1242,9 @@ class RapierDriveSimulation {
       bodySummary = `pos=(${pos.x.toFixed(3)}, ${pos.y.toFixed(3)}, ${pos.z.toFixed(3)}) vel=(${vel.x.toFixed(3)}, ${vel.y.toFixed(3)}, ${vel.z.toFixed(3)})`;
 
       const wheelContactPlaneZ = this.getWheelContactPlaneZ();
-      const obstacleRock01TopZ = this.getObstacleTopZByName("obstacle_rock_01");
+      // Matches the actual URDF link name (obstacle_rock_1, no leading zero) - the old
+      // "obstacle_rock_01" never matched anything, so this debug field always read n/a.
+      const obstacleRock01TopZ = this.getObstacleTopZByName("obstacle_rock_1");
       const approachObstacle =
         this.getObstacleApproachInfo()?.obstacleInfo || null;
       const climbTargetZ = this.getObstacleClimbTargetZ(approachObstacle);

@@ -5938,7 +5938,10 @@ class RapierDriveSimulation {
   createCobotSystemSignTexture() {
     const canvas = document.createElement("canvas");
     canvas.width = 480;
-    canvas.height = 220;
+    // Top/bottom margin is (canvas.height - text height) / 2; halving canvas.height's
+    // slack over the text (220 -> 140) halves that margin while leaving the font size
+    // and left/right margin (canvas.width, unchanged) alone.
+    canvas.height = 140;
     const context = canvas.getContext("2d");
     context.fillStyle = "#f2ede2";
     context.fillRect(0, 0, canvas.width, canvas.height);
@@ -5978,7 +5981,7 @@ class RapierDriveSimulation {
     // Matches the sign texture's aspect ratio so the plaque doesn't stretch it. Halved
     // from the original vehicle-relative size per request.
     const panelWidthMeters = signHeightMeters * 0.5;
-    const panelHeightMeters = panelWidthMeters * (220 / 480);
+    const panelHeightMeters = panelWidthMeters * (140 / 480);
     const panel = new THREE.Mesh(
       new THREE.PlaneGeometry(panelWidthMeters, panelHeightMeters),
       new THREE.MeshBasicMaterial({

@@ -6035,7 +6035,7 @@ class RapierDriveSimulation {
       panelWidthMeters *
       (COBOT_SYSTEM_SIGN_TEXTURE_BORDER_MARGIN_PX / COBOT_SYSTEM_SIGN_TEXTURE_WIDTH_PX);
     const screwInsetMeters = borderMarginMeters / 2;
-    const screwRadiusMeters = borderMarginMeters * 0.4;
+    const screwRadiusMeters = borderMarginMeters * 0.4 * (2 / 3);
     const screwDepthMeters = screwRadiusMeters * 0.3;
     const screwGeometry = new THREE.CylinderGeometry(
       screwRadiusMeters,

@@ -286,7 +286,7 @@ class RapierDriveSimulation {
     this.sceneTreeLastVisibilityCheckAtMs = 0;
     // Single static "COBOT SYSTEM" ground marker - see addGroundSurfaceGrid() /
     // ensureCobotSystemSign().
-    this.cobotSystemSignMesh = null;
+    this.cobotSystemSignGroup = null;
     this.cobotSystemSignPosition = null;
     this.extensionPotholeLinerGroup = null;
     this.dynamicPotholeRegion = null;
@@ -3176,11 +3176,13 @@ class RapierDriveSimulation {
     this.sceneTreeGridOriginX = gridOrigin.x + gridSpacingMeters * 5;
     this.sceneTreeGridOriginY = gridOrigin.y;
     this.resetSceneTreePool();
-    // Single static "COBOT SYSTEM" ground marker at grid column 0 (the origin line itself),
-    // 5 grid cells out on Y. Recomputed here alongside the tree origin so it stays put on
-    // this now-static grid rather than drifting if the grid's phase shifts on reset.
+    // Single static "COBOT SYSTEM" ground marker, centered on world X=0 (not the grid
+    // origin - Y is grid-relative but X is a literal world coordinate here) and 5 grid
+    // cells out on Y from the grid origin. Recomputed here alongside the tree origin so
+    // it stays put on this now-static grid rather than drifting if the grid's phase
+    // shifts on reset.
     this.cobotSystemSignPosition = new THREE.Vector2(
-      gridOrigin.x,
+      0,
       gridOrigin.y + gridSpacingMeters * 5,
     );
     this.ensureCobotSystemSign();
@@ -5963,12 +5965,16 @@ class RapierDriveSimulation {
   }
 
   // Builds the single static "COBOT SYSTEM" marker: just the text plaque itself (no
-  // post/milestone body), lying flat on the ground like a floor marker. Unlike scene
-  // trees there's only ever one instance, so this is called once and reused (see
-  // ensureCobotSystemSign). Sized off signHeightMeters (see ensureCobotSystemSign -
+  // post/milestone body), standing upright with its bottom edge planted at the group's
+  // local origin (so ensureCobotSystemSign can position that origin on the ground).
+  // Unlike scene trees there's only ever one instance, so this is called once and reused
+  // (see ensureCobotSystemSign). Sized off signHeightMeters (see ensureCobotSystemSign -
   // derived from the same vehicle-relative height as scene trees) rather than a fixed
   // real-world size, so it stays in scale with the vehicle/trees.
   buildCobotSystemSignMesh(signHeightMeters) {
+    const signGroup = new THREE.Group();
+    signGroup.name = "simulation-cobot-system-sign";
+
     // Matches the sign texture's aspect ratio so the plaque doesn't stretch it.
     const panelWidthMeters = signHeightMeters;
     const panelHeightMeters = panelWidthMeters * (220 / 480);
@@ -5980,10 +5986,14 @@ class RapierDriveSimulation {
         transparent: true,
       }),
     );
-    // PlaneGeometry already lies flat (normal +Z) by default, exactly right for a marker
-    // resting on the ground - no rotation needed.
-    panel.name = "simulation-cobot-system-sign";
-    return panel;
+    // PlaneGeometry lies flat (normal +Z) by default; rotate it upright so its normal
+    // points along -Y and its local "up" edge points along world Z, then lift it so its
+    // bottom edge (not its center) sits at the group's local Z=0.
+    panel.rotation.x = Math.PI / 2;
+    panel.position.z = panelHeightMeters / 2;
+    signGroup.add(panel);
+
+    return signGroup;
   }
 
   // The grid (and this sign's position) is only rebuilt at load/reset - see
@@ -5995,7 +6005,7 @@ class RapierDriveSimulation {
     }
     const gridOrigin = this.getGroundGridOriginXY();
     return new THREE.Vector2(
-      gridOrigin.x,
+      0,
       gridOrigin.y + this.getWheelCircumferenceMeters() * 5,
     );
   }
@@ -6008,7 +6018,7 @@ class RapierDriveSimulation {
       return;
     }
 
-    if (!this.cobotSystemSignMesh) {
+    if (!this.cobotSystemSignGroup) {
       // Same vehicle-relative height scene trees use (see getSceneTreeHeightMeters) -
       // returns null until the vehicle's chassis bounds are measurable, in which case
       // building is retried from scheduleInitialVehicleCameraFit()'s success callback
@@ -6017,19 +6027,19 @@ class RapierDriveSimulation {
       if (!treeHeight) {
         return;
       }
-      this.cobotSystemSignMesh = this.buildCobotSystemSignMesh(treeHeight * 0.95);
+      this.cobotSystemSignGroup = this.buildCobotSystemSignMesh(treeHeight * 0.95);
     }
-    if (!this.cobotSystemSignMesh.parent) {
-      this.viewer.scene.add(this.cobotSystemSignMesh);
+    if (!this.cobotSystemSignGroup.parent) {
+      this.viewer.scene.add(this.cobotSystemSignGroup);
     }
 
     const position = this.getCobotSystemSignPosition();
-    this.cobotSystemSignMesh.position.set(
+    this.cobotSystemSignGroup.position.set(
       position.x,
       position.y,
       this.groundZ + 0.002,
     );
-    this.cobotSystemSignMesh.updateMatrixWorld(true);
+    this.cobotSystemSignGroup.updateMatrixWorld(true);
   }
 
   getSceneTreeHeightMeters() {

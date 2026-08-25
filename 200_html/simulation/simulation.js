@@ -284,6 +284,10 @@ class RapierDriveSimulation {
     this.sceneTreeGridOriginX = null;
     this.sceneTreeGridOriginY = null;
     this.sceneTreeLastVisibilityCheckAtMs = 0;
+    // Single static "COBOT SYSTEM" signpost - see addGroundSurfaceGrid() /
+    // ensureCobotSystemSign().
+    this.cobotSystemSignGroup = null;
+    this.cobotSystemSignPosition = null;
     this.extensionPotholeLinerGroup = null;
     this.dynamicPotholeRegion = null;
     this.isDynamicObstacleRemovalRequested = false;
@@ -3172,6 +3176,14 @@ class RapierDriveSimulation {
     this.sceneTreeGridOriginX = gridOrigin.x + gridSpacingMeters * 5;
     this.sceneTreeGridOriginY = gridOrigin.y;
     this.resetSceneTreePool();
+    // Single static "COBOT SYSTEM" signpost at grid column 0 (the origin line itself),
+    // 5 grid cells out on Y. Recomputed here alongside the tree origin so it stays put on
+    // this now-static grid rather than drifting if the grid's phase shifts on reset.
+    this.cobotSystemSignPosition = new THREE.Vector2(
+      gridOrigin.x,
+      gridOrigin.y + gridSpacingMeters * 5,
+    );
+    this.ensureCobotSystemSign();
     const snapUp = (value, origin) =>
       origin +
       Math.ceil((value - origin) / gridSpacingMeters) * gridSpacingMeters;
@@ -5916,6 +5928,128 @@ class RapierDriveSimulation {
     return treeGroup;
   }
 
+  // Draws "COBOT SYSTEM" onto a canvas and wraps it as a texture for the sign panel below.
+  // Built once and reused for the life of the single sign instance (see
+  // buildCobotSystemSignMesh / ensureCobotSystemSign).
+  createCobotSystemSignTexture() {
+    const canvas = document.createElement("canvas");
+    canvas.width = 512;
+    canvas.height = 160;
+    const context = canvas.getContext("2d");
+    context.fillStyle = "#f5f7fa";
+    context.fillRect(0, 0, canvas.width, canvas.height);
+    context.lineWidth = 10;
+    context.strokeStyle = "#1d3557";
+    context.strokeRect(5, 5, canvas.width - 10, canvas.height - 10);
+    context.fillStyle = "#1d3557";
+    context.font =
+      "bold 74px 'Trebuchet MS', 'Segoe UI', sans-serif";
+    context.textAlign = "center";
+    context.textBaseline = "middle";
+    context.fillText("COBOT SYSTEM", canvas.width / 2, canvas.height / 2 + 4);
+
+    const texture = new THREE.CanvasTexture(canvas);
+    if (THREE.SRGBColorSpace) {
+      texture.colorSpace = THREE.SRGBColorSpace;
+    }
+    return texture;
+  }
+
+  // Builds the single static "COBOT SYSTEM" signpost mesh: a pole plus a double-sided
+  // text panel so it reads correctly from either side. Unlike scene trees there's only
+  // ever one instance, so this is called once and reused (see ensureCobotSystemSign).
+  // Sized off signHeightMeters (see ensureCobotSystemSign - derived from the same
+  // vehicle-relative height as scene trees) rather than a fixed real-world sign height,
+  // so it stays in scale with the vehicle/trees instead of towering over them.
+  buildCobotSystemSignMesh(signHeightMeters) {
+    const signGroup = new THREE.Group();
+    signGroup.name = "simulation-cobot-system-sign";
+
+    const poleHeightMeters = signHeightMeters;
+    const poleRadiusMeters = signHeightMeters * 0.018;
+    const pole = new THREE.Mesh(
+      new THREE.CylinderGeometry(
+        poleRadiusMeters,
+        poleRadiusMeters * 1.2,
+        poleHeightMeters,
+        12,
+      ),
+      new THREE.MeshStandardMaterial({
+        color: 0x4b4f56,
+        roughness: 0.75,
+        metalness: 0.2,
+      }),
+    );
+    pole.rotation.x = Math.PI / 2;
+    pole.position.z = poleHeightMeters / 2;
+    signGroup.add(pole);
+
+    // Matches the 512x160 sign texture's aspect ratio so the panel doesn't stretch it.
+    const panelWidthMeters = signHeightMeters * 0.85;
+    const panelHeightMeters = panelWidthMeters * (160 / 512);
+    const panel = new THREE.Mesh(
+      new THREE.PlaneGeometry(panelWidthMeters, panelHeightMeters),
+      new THREE.MeshBasicMaterial({
+        map: this.createCobotSystemSignTexture(),
+        side: THREE.DoubleSide,
+        transparent: true,
+      }),
+    );
+    // PlaneGeometry lies flat (normal +Z) by default; rotate it upright so its normal
+    // points along Y and its local "up" edge points along world Z.
+    panel.rotation.x = Math.PI / 2;
+    panel.position.z = poleHeightMeters - panelHeightMeters * 0.65;
+    signGroup.add(panel);
+
+    return signGroup;
+  }
+
+  // The grid (and this sign's position) is only rebuilt at load/reset - see
+  // addGroundSurfaceGrid(), which snapshots cobotSystemSignPosition there. Falls back to
+  // a live read only if the sign is asked for before the grid has ever been built once.
+  getCobotSystemSignPosition() {
+    if (this.cobotSystemSignPosition) {
+      return this.cobotSystemSignPosition;
+    }
+    const gridOrigin = this.getGroundGridOriginXY();
+    return new THREE.Vector2(
+      gridOrigin.x,
+      gridOrigin.y + this.getWheelCircumferenceMeters() * 5,
+    );
+  }
+
+  // Lazily builds (once) and (re)positions the single "COBOT SYSTEM" signpost at
+  // getCobotSystemSignPosition() (frozen alongside the tree/grid origin in
+  // addGroundSurfaceGrid() - see there for why this must not track the vehicle).
+  ensureCobotSystemSign() {
+    if (!this.viewer?.scene) {
+      return;
+    }
+
+    if (!this.cobotSystemSignGroup) {
+      // Same vehicle-relative height scene trees use (see getSceneTreeHeightMeters) -
+      // returns null until the vehicle's chassis bounds are measurable, in which case
+      // building is retried from scheduleInitialVehicleCameraFit()'s success callback
+      // (same as ensureSceneTree()).
+      const treeHeight = this.getSceneTreeHeightMeters();
+      if (!treeHeight) {
+        return;
+      }
+      this.cobotSystemSignGroup = this.buildCobotSystemSignMesh(treeHeight * 1.6);
+    }
+    if (!this.cobotSystemSignGroup.parent) {
+      this.viewer.scene.add(this.cobotSystemSignGroup);
+    }
+
+    const position = this.getCobotSystemSignPosition();
+    this.cobotSystemSignGroup.position.set(
+      position.x,
+      position.y,
+      this.groundZ + 0.002,
+    );
+    this.cobotSystemSignGroup.updateMatrixWorld(true);
+  }
+
   getSceneTreeHeightMeters() {
     const vehicleBounds = this.computeChassisBounds(
       this.carFrame,
@@ -6156,6 +6290,7 @@ class RapierDriveSimulation {
       if (this.fitInitialCameraToVehicle()) {
         this.isInitialVehicleCameraFitScheduled = false;
         this.ensureSceneTree();
+        this.ensureCobotSystemSign();
         return;
       }
       requestAnimationFrame(attemptFit);

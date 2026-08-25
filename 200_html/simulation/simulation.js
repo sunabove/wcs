@@ -5990,7 +5990,9 @@ class RapierDriveSimulation {
     // Matches the sign texture's aspect ratio so the plaque doesn't stretch it. Halved
     // from the original vehicle-relative size per request.
     const panelWidthMeters = signHeightMeters * 0.5;
-    const panelHeightMeters = panelWidthMeters * (140 / 480);
+    const panelHeightMeters =
+      panelWidthMeters *
+      (COBOT_SYSTEM_SIGN_TEXTURE_HEIGHT_PX / COBOT_SYSTEM_SIGN_TEXTURE_WIDTH_PX);
     // A physical plaque, not a paper-thin plane - a modest board thickness.
     const panelThicknessMeters = panelWidthMeters * 0.06;
 
@@ -6023,17 +6025,23 @@ class RapierDriveSimulation {
       ],
     );
     // Four corner "mounting screw" heads on the front face, like a plaque bolted to its
-    // post. Added as children of panel (in the box's own local, pre-rotation frame) so
-    // they ride along with panel's rotation/position below instead of needing their own.
-    const screwRadiusMeters = Math.min(panelWidthMeters, panelHeightMeters) * 0.06;
-    const screwDepthMeters = panelThicknessMeters * 0.6;
-    const screwInsetXMeters = panelWidthMeters * 0.08;
-    const screwInsetYMeters = panelHeightMeters * 0.22;
+    // post - plain flat circles (a thin disc, not a raised button), centered in the band
+    // between the box's outer edge and the texture's inner border rectangle. Both
+    // margins work out equal in world units: the border is the same 16px on both canvas
+    // axes, and the panel's aspect ratio matches the canvas's, so 16px maps to the same
+    // physical distance on X and Y. Added as children of panel (in the box's own local,
+    // pre-rotation frame) so they ride along with panel's rotation/position below.
+    const borderMarginMeters =
+      panelWidthMeters *
+      (COBOT_SYSTEM_SIGN_TEXTURE_BORDER_MARGIN_PX / COBOT_SYSTEM_SIGN_TEXTURE_WIDTH_PX);
+    const screwInsetMeters = borderMarginMeters / 2;
+    const screwRadiusMeters = borderMarginMeters * 0.4;
+    const screwDepthMeters = screwRadiusMeters * 0.3;
     const screwGeometry = new THREE.CylinderGeometry(
       screwRadiusMeters,
       screwRadiusMeters,
       screwDepthMeters,
-      16,
+      24,
     );
     const screwMaterial = new THREE.MeshStandardMaterial({
       color: 0x4b4f56,
@@ -6051,9 +6059,9 @@ class RapierDriveSimulation {
       // stands proud of the front face (local +Z, same face the text texture is on).
       screw.rotation.x = Math.PI / 2;
       screw.position.set(
-        signX * (panelWidthMeters / 2 - screwInsetXMeters),
-        signY * (panelHeightMeters / 2 - screwInsetYMeters),
-        panelThicknessMeters / 2 + screwDepthMeters / 2 - 0.001,
+        signX * (panelWidthMeters / 2 - screwInsetMeters),
+        signY * (panelHeightMeters / 2 - screwInsetMeters),
+        panelThicknessMeters / 2 + screwDepthMeters / 2 - 0.0005,
       );
       panel.add(screw);
     });

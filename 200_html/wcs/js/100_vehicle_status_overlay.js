@@ -200,9 +200,14 @@
       (String(lastMediaSource || "") === String(latestCurrentVideoFileName) ||
         !!roadFileOverlaySessionId ||
         !!roadFileOverlayInitRequest);
+    // A hidden overlay with a known selection is still restorable (the click handler
+    // below restores it before entering fullscreen), so don't block on mediaHiddenByUser
+    // alone - only when there's truly nothing to show.
     const canFullscreen =
-      !mediaHiddenByUser &&
-      (hasImageSource || hasVideoSource || hasRoadFileVideoSource);
+      hasImageSource ||
+      hasVideoSource ||
+      hasRoadFileVideoSource ||
+      !!latestCurrentVideoFileName;
     const isFullscreen = isOverlayFullscreen();
 
     $fullscreenToggleButton
@@ -230,17 +235,16 @@
     updateFullscreenToggleButton();
   }
 
-  function updateLoopToggleButton(isControlEnabled = false) {
+  function updateLoopToggleButton() {
     if ($loopToggleButton.length === 0) {
       return;
     }
 
-    if (mediaHiddenByUser) {
-      $loopToggleButton.addClass("d-none");
-      return;
-    }
-
-    $loopToggleButton.removeClass("d-none");
+    // Auto-replay is just a stored preference (see writeOverlayAutoReplayState) that gets
+    // applied whenever a video actually starts playing - toggling it doesn't require media
+    // to be visible right now, so keep it clickable rather than hiding/disabling it while
+    // the overlay is closed or nothing is loaded yet.
+    $loopToggleButton.removeClass("d-none").prop("disabled", false);
 
     if (autoReplayEnabled) {
       $loopToggleButton
@@ -259,8 +263,6 @@
         .attr("aria-label", "자동 반복 OFF")
         .html('<i class="bi bi-slash-circle" aria-hidden="true"></i>');
     }
-
-    $loopToggleButton.prop("disabled", !isControlEnabled);
 
     if ($video.length > 0 && !$video.hasClass("d-none")) {
       $video.prop("loop", autoReplayEnabled && lastMediaType === "video");
@@ -289,7 +291,7 @@
         .attr("title", "동영상 출력")
         .attr("aria-label", "동영상 출력")
         .html('<i class="bi bi-play-btn-fill" aria-hidden="true"></i>');
-      updateLoopToggleButton(false);
+      updateLoopToggleButton();
       updateFullscreenToggleButton();
       return;
     }
@@ -317,12 +319,7 @@
       if (hasCloseButton) {
         $closeButton.prop("disabled", !isImageOutputAreaActive);
       }
-      const hasImageMediaSource =
-        !!String(lastMediaSource || "").trim() ||
-        !!getOverlayImageSource() ||
-        isCameraStreamActive ||
-        isRoadFileStreamActive;
-      updateLoopToggleButton(hasImageMediaSource);
+      updateLoopToggleButton();
       updateFullscreenToggleButton();
       if (isCameraStreamStarting) {
         $playToggleButton
@@ -366,7 +363,7 @@
       existingVideoElement.paused ||
       existingVideoElement.ended;
 
-    updateLoopToggleButton(isVideoReady);
+    updateLoopToggleButton();
     updateFullscreenToggleButton();
 
     if (!isVideoReady) {
@@ -2053,6 +2050,16 @@
       if (restorableImageSource && (!isStreamSelection || pausedFrame)) {
         $image.attr("src", restorableImageSource).removeClass("d-none");
       }
+    } else if (latestCurrentVideoFileName) {
+      // The overlay was hidden before any video was ever actually loaded: MQTT updates
+      // to the current video file name while hidden only remember the selection (see
+      // resolveAndShowCurrentVideo's early return) without touching lastMediaType/
+      // lastMediaSource, so there was nothing above to restore. Resolve it now that the
+      // overlay is visible again, instead of leaving both media elements empty and every
+      // control button (which all key off an actual visible source) stuck disabled.
+      showOverlay();
+      resolveAndShowCurrentVideo(latestCurrentVideoFileName);
+      return;
     }
 
     showOverlay();
@@ -2356,6 +2363,12 @@
     if (isOverlayFullscreen()) {
       exitOverlayFullscreen();
       return;
+    }
+
+    if (mediaHiddenByUser) {
+      // Same restore path as the play/output button - media loads in just like it would
+      // from a normal click, fullscreen chrome just wraps around it immediately.
+      restoreMediaAreaOnly();
     }
 
     overlayOriginalParent = $overlay[0]?.parentNode || null;

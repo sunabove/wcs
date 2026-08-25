@@ -34,6 +34,9 @@ const INITIAL_VEHICLE_CAMERA_OCCUPANCY = 0.8;
 const SCENE_TREE_VIEW_POSITION = new THREE.Vector2(-0.78, -0.3);
 const SCENE_TREE_MIN_BEHIND_DISTANCE_METERS = 2.4;
 const SCENE_TREE_VISIBILITY_CHECK_INTERVAL_MS = 150;
+// Safety cap on simultaneous trees so a degenerate camera/grid state can't spawn an
+// unbounded row; normal on-screen counts stay far below this.
+const SCENE_TREE_MAX_COUNT = 24;
 // Half-width of the drivable ground built around the authored plate.
 const GROUND_EXTENSION_HALF_SIZE_METERS = 100;
 // Carved pothole walls use a fixed contrasting color so the pit shape stays readable.
@@ -274,8 +277,10 @@ class RapierDriveSimulation {
     this.groundGrid = null;
     this.groundGridPatches = null;
     this.groundExtensionGroup = null;
-    this.sceneTreeGroup = null;
-    this.sceneTreeCornerSide = Math.sign(SCENE_TREE_VIEW_POSITION.x) || -1;
+    // Pool of trees currently on screen, keyed by their lattice X (fixed string key so
+    // float rounding can't create duplicate slots). Reused/cloned from sceneTreeTemplate.
+    this.sceneTreeGroupsByLatticeX = new Map();
+    this.sceneTreeTemplate = null;
     this.sceneTreeLastVisibilityCheckAtMs = 0;
     this.extensionPotholeLinerGroup = null;
     this.dynamicPotholeRegion = null;
@@ -5794,21 +5799,10 @@ class RapierDriveSimulation {
     return true;
   }
 
-  ensureSceneTree() {
-    if (this.sceneTreeGroup?.parent || !this.viewer?.scene) {
-      return;
-    }
-
-    const vehicleBounds = this.computeChassisBounds(
-      this.carFrame,
-      this.viewer.robotModel?.links || null,
-    );
-    if (!vehicleBounds || vehicleBounds.isEmpty()) {
-      return;
-    }
-
-    const vehicleHeight = vehicleBounds.getSize(new THREE.Vector3()).z;
-    const treeHeight = THREE.MathUtils.clamp(vehicleHeight * 1.2, 0.45, 1.1);
+  // Builds one tree's geometry/materials from scratch. Called once to make the shared
+  // template (see getSceneTreeTemplate); every on-screen tree after that is a .clone(),
+  // which shares the template's geometry/material buffers instead of allocating its own.
+  buildSceneTreeMesh(treeHeight) {
     const treeGroup = new THREE.Group();
     treeGroup.name = "simulation-scene-tree";
     const trunkMaterial = new THREE.MeshStandardMaterial({
@@ -5906,18 +5900,42 @@ class RapierDriveSimulation {
       treeGroup.add(needleCluster);
     });
 
-    const treePlacement = this.getSceneTreeBehindVehiclePlacement(
-      Math.sign(SCENE_TREE_VIEW_POSITION.x) || -1,
+    return treeGroup;
+  }
+
+  getSceneTreeHeightMeters() {
+    const vehicleBounds = this.computeChassisBounds(
+      this.carFrame,
+      this.viewer?.robotModel?.links || null,
     );
-    if (!treePlacement) {
-      return;
+    if (!vehicleBounds || vehicleBounds.isEmpty()) {
+      return null;
     }
 
-    treeGroup.position.copy(treePlacement.position);
-    treeGroup.position.z += 0.002;
-    this.viewer.scene.add(treeGroup);
-    this.sceneTreeGroup = treeGroup;
-    this.sceneTreeCornerSide = treePlacement.side;
+    const vehicleHeight = vehicleBounds.getSize(new THREE.Vector3()).z;
+    return THREE.MathUtils.clamp(vehicleHeight * 1.2, 0.45, 1.1);
+  }
+
+  // Lazily built once and reused via .clone() for every tree instance thereafter (vehicle
+  // size, and so tree height, doesn't change during a session).
+  getSceneTreeTemplate() {
+    if (this.sceneTreeTemplate) {
+      return this.sceneTreeTemplate;
+    }
+
+    const treeHeight = this.getSceneTreeHeightMeters();
+    if (!treeHeight) {
+      return null;
+    }
+
+    this.sceneTreeTemplate = this.buildSceneTreeMesh(treeHeight);
+    return this.sceneTreeTemplate;
+  }
+
+  ensureSceneTree() {
+    // Historic entry point (called once the initial camera fit completes); just forces an
+    // immediate row population instead of waiting for the next throttled tick.
+    this.updateSceneTreePlacement(performance.now(), true);
   }
 
   getGroundPositionAtCameraView(viewPosition) {
@@ -5948,52 +5966,79 @@ class RapierDriveSimulation {
     return Math.round(worldX / xSpacingMeters) * xSpacingMeters;
   }
 
-  getSceneTreeBehindVehiclePlacement(preferredSide) {
+  // Determines the row of trees that should be on screen right now: a shared Y (unchanged
+  // from the old single-tree "behind vehicle" rule) and every lattice X between the ground
+  // points under the left/right screen edges. Tree count therefore tracks how many 10-cell
+  // lattice slots the visible ground currently spans - i.e. (visible grid columns / 10).
+  getVisibleSceneTreeRowPlacement() {
     if (!this.carFrame) {
       return null;
     }
 
     this.carFrame.updateWorldMatrix(true, false);
     const vehiclePosition = this.carFrame.getWorldPosition(new THREE.Vector3());
-    const normalizedPreferredSide = preferredSide < 0 ? -1 : 1;
-    const placements = [normalizedPreferredSide, -normalizedPreferredSide]
-      .map((side) => ({
-        side,
-        position: this.getGroundPositionAtCameraView(
-          new THREE.Vector2(
-            Math.abs(SCENE_TREE_VIEW_POSITION.x) * side,
-            SCENE_TREE_VIEW_POSITION.y,
-          ),
-        ),
-      }))
-      .filter((placement) => placement.position);
-    if (placements.length === 0) {
+
+    const leftGroundPosition = this.getGroundPositionAtCameraView(
+      new THREE.Vector2(
+        -Math.abs(SCENE_TREE_VIEW_POSITION.x),
+        SCENE_TREE_VIEW_POSITION.y,
+      ),
+    );
+    const rightGroundPosition = this.getGroundPositionAtCameraView(
+      new THREE.Vector2(
+        Math.abs(SCENE_TREE_VIEW_POSITION.x),
+        SCENE_TREE_VIEW_POSITION.y,
+      ),
+    );
+    if (!leftGroundPosition || !rightGroundPosition) {
       return null;
     }
 
-    // X is snapped onto the fixed lattice; Y keeps the existing behind-vehicle placement logic.
-    placements.forEach((placement) => {
-      placement.position.x = this.snapWorldXToSceneTreeGrid(placement.position.x);
-    });
-
+    // Same clamp as before: use the raycast depth if it's already far enough behind the
+    // vehicle, otherwise pull it back to the minimum behind-distance.
     const minimumTreeY =
       vehiclePosition.y - SCENE_TREE_MIN_BEHIND_DISTANCE_METERS;
-    const behindPlacement = placements.find(
-      (placement) => placement.position.y <= minimumTreeY,
+    const rowY = Math.min(
+      leftGroundPosition.y,
+      rightGroundPosition.y,
+      minimumTreeY,
     );
-    if (behindPlacement) {
-      return behindPlacement;
+
+    const xSpacingMeters = this.getSceneTreeXGridSpacingMeters();
+    const rangeMinX = Math.min(leftGroundPosition.x, rightGroundPosition.x);
+    const rangeMaxX = Math.max(leftGroundPosition.x, rightGroundPosition.x);
+    const firstLatticeX = Math.ceil(rangeMinX / xSpacingMeters) * xSpacingMeters;
+    const lastLatticeX = Math.floor(rangeMaxX / xSpacingMeters) * xSpacingMeters;
+
+    const latticeXs = [];
+    for (let x = firstLatticeX; x <= lastLatticeX + 1e-6; x += xSpacingMeters) {
+      latticeXs.push(x);
+    }
+    // Keep at least one tree visible even when zoomed in tighter than one lattice cell.
+    if (latticeXs.length === 0) {
+      latticeXs.push(
+        this.snapWorldXToSceneTreeGrid((rangeMinX + rangeMaxX) / 2),
+      );
     }
 
-    const fallbackPlacement = placements[0];
-    fallbackPlacement.position.y = minimumTreeY;
-    return fallbackPlacement;
+    if (latticeXs.length > SCENE_TREE_MAX_COUNT) {
+      const excess = latticeXs.length - SCENE_TREE_MAX_COUNT;
+      const trimStart = Math.floor(excess / 2);
+      return {
+        y: rowY,
+        xs: latticeXs.slice(trimStart, trimStart + SCENE_TREE_MAX_COUNT),
+      };
+    }
+
+    return { y: rowY, xs: latticeXs };
   }
 
-  updateSceneTreePlacement(nowMs = performance.now()) {
-    const treeGroup = this.sceneTreeGroup;
+  updateSceneTreePlacement(nowMs = performance.now(), forceUpdate = false) {
+    if (!this.viewer?.scene) {
+      return;
+    }
     if (
-      !treeGroup?.parent ||
+      !forceUpdate &&
       nowMs - this.sceneTreeLastVisibilityCheckAtMs <
         SCENE_TREE_VISIBILITY_CHECK_INTERVAL_MS
     ) {
@@ -6001,23 +6046,39 @@ class RapierDriveSimulation {
     }
     this.sceneTreeLastVisibilityCheckAtMs = nowMs;
 
-    treeGroup.updateWorldMatrix(true, true);
-    const treeBounds = new THREE.Box3().setFromObject(treeGroup);
-    if (!this.isBoundsOutsideCameraView(treeBounds)) {
+    const template = this.getSceneTreeTemplate();
+    const rowPlacement = this.getVisibleSceneTreeRowPlacement();
+    if (!template || !rowPlacement) {
       return;
     }
 
-    const nextPlacement = this.getSceneTreeBehindVehiclePlacement(
-      this.sceneTreeCornerSide < 0 ? 1 : -1,
-    );
-    if (!nextPlacement) {
-      return;
-    }
+    const treeZ = this.groundZ + 0.002;
+    const desiredKeys = new Set();
+    rowPlacement.xs.forEach((x) => {
+      const key = x.toFixed(3);
+      desiredKeys.add(key);
 
-    treeGroup.position.copy(nextPlacement.position);
-    treeGroup.position.z += 0.002;
-    treeGroup.updateMatrixWorld(true);
-    this.sceneTreeCornerSide = nextPlacement.side;
+      let treeGroup = this.sceneTreeGroupsByLatticeX.get(key);
+      if (!treeGroup) {
+        treeGroup = template.clone();
+        this.viewer.scene.add(treeGroup);
+        this.sceneTreeGroupsByLatticeX.set(key, treeGroup);
+      }
+      treeGroup.position.set(x, rowPlacement.y, treeZ);
+      treeGroup.updateMatrixWorld(true);
+    });
+
+    // Prune slots that scrolled out of view so the pool tracks what's on screen rather than
+    // growing without bound. Geometry/materials are shared with the template, so removing
+    // from the scene (no dispose) is enough to free this instance.
+    Array.from(this.sceneTreeGroupsByLatticeX.keys()).forEach((key) => {
+      if (desiredKeys.has(key)) {
+        return;
+      }
+      const staleTreeGroup = this.sceneTreeGroupsByLatticeX.get(key);
+      this.viewer.scene.remove(staleTreeGroup);
+      this.sceneTreeGroupsByLatticeX.delete(key);
+    });
   }
 
   scheduleInitialVehicleCameraFit() {

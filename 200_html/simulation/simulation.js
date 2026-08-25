@@ -5990,11 +5990,12 @@ class RapierDriveSimulation {
         transparent: true,
       }),
     );
-    // PlaneGeometry lies flat (normal +Z) by default; rotate it upright so its normal
-    // points along -Y and its local "up" edge points along world Z. The geometric front
-    // face (the correctly-oriented, non-mirrored side of the DoubleSide texture) faces
-    // -Y this way.
-    panel.rotation.x = Math.PI / 2;
+    // PlaneGeometry lies flat (normal +Z) by default. rotation.x alone would stand it up
+    // facing -Y; adding rotation.y = PI spins it 180 deg around its own vertical axis
+    // first, so the geometric front face (the correctly-oriented, non-mirrored side of
+    // the DoubleSide texture) faces +Y instead - readable head-on from +Y, per request -
+    // while "up" still maps to world Z (text stays right-side up, not flipped upside down).
+    panel.rotation.set(Math.PI / 2, Math.PI, 0);
     panel.position.z = panelHeightMeters / 2;
     signGroup.add(panel);
 

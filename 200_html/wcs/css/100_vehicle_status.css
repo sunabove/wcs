@@ -4,6 +4,13 @@
   table-layout: fixed;
 }
 
+/* .urdf-container (002_wcs_common.css) caps at max-height: 400px; this page relies on the
+   h-100 stretch chain (card-body -> flex-grow-1 -> row -> col-12 -> viewer) to fill the
+   actual <tr> height instead, so that cap must be lifted here. */
+#vehicle-urdf-viewer.urdf-container {
+  max-height: none;
+}
+
 .road-detect-overlay-controls {
   position: absolute;
   top: 10px;

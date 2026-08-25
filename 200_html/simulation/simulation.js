@@ -3166,7 +3166,10 @@ class RapierDriveSimulation {
     // re-reading the (constantly moving, once driving starts) front-wheel position on
     // every tick - otherwise trees drift out of phase with this now-static grid as the
     // vehicle drives, i.e. they visually "follow" the vehicle instead of staying put.
-    this.sceneTreeGridOriginX = gridOrigin.x;
+    // Offset by 5 ground-grid cells so the tree lattice's first slot sits on the 5th grid
+    // line instead of right on the origin line - the spacing between trees (10 grid
+    // cells, see getSceneTreeXGridSpacingMeters) is unchanged, only the starting phase.
+    this.sceneTreeGridOriginX = gridOrigin.x + gridSpacingMeters * 5;
     this.sceneTreeGridOriginY = gridOrigin.y;
     this.resetSceneTreePool();
     const snapUp = (value, origin) =>
@@ -5972,10 +5975,16 @@ class RapierDriveSimulation {
   }
 
   // The grid (and the tree lattice phased from it) is only rebuilt at load/reset - see
-  // addGroundSurfaceGrid(), which snapshots sceneTreeGridOriginX/Y there. Falls back to a
-  // live read only if trees are asked for before the grid has ever been built once.
+  // addGroundSurfaceGrid(), which snapshots sceneTreeGridOriginX/Y there (with the same
+  // +5-grid-cell phase offset applied). Falls back to a live read only if trees are asked
+  // for before the grid has ever been built once.
   getSceneTreeGridOriginX() {
-    return this.sceneTreeGridOriginX ?? this.getGroundGridOriginXY().x;
+    if (this.sceneTreeGridOriginX != null) {
+      return this.sceneTreeGridOriginX;
+    }
+    return (
+      this.getGroundGridOriginXY().x + this.getWheelCircumferenceMeters() * 5
+    );
   }
 
   getSceneTreeGridOriginY() {

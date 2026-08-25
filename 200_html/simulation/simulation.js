@@ -41,9 +41,14 @@ const COBOT_SYSTEM_SIGN_BACKGROUND_COLOR = 0xf2ede2;
 // Shared with the corner-screw placement below, so the screws can sit exactly between
 // the texture's outer edge and its inner border rectangle instead of at an unrelated,
 // hand-picked inset.
-const COBOT_SYSTEM_SIGN_TEXTURE_WIDTH_PX = 480;
-const COBOT_SYSTEM_SIGN_TEXTURE_HEIGHT_PX = 140;
-const COBOT_SYSTEM_SIGN_TEXTURE_BORDER_MARGIN_PX = 16;
+// "COBOT SYSTEM" at the texture's font measures ~369px wide / ~38px tall; canvas size is
+// text size + 2x margin, so canvas = (old canvas + text size) / 2 halves that margin -
+// 480x140 -> 424x89 halves the left/right and top/bottom text margins per request.
+const COBOT_SYSTEM_SIGN_TEXTURE_WIDTH_PX = 424;
+const COBOT_SYSTEM_SIGN_TEXTURE_HEIGHT_PX = 89;
+// Gap between the texture's outer edge and its inner border rectangle; +25% (16 -> 20)
+// per request.
+const COBOT_SYSTEM_SIGN_TEXTURE_BORDER_MARGIN_PX = 20;
 // Half-width of the drivable ground built around the authored plate.
 const GROUND_EXTENSION_HALF_SIZE_METERS = 100;
 // Carved pothole walls use a fixed contrasting color so the pit shape stays readable.

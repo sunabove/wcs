@@ -1,504 +1,500 @@
 .vehicle-status-layout-table {
-    border-collapse: separate;
-    border-spacing: 0;
-    table-layout: fixed;
-}
-
-.vehicle-status-urdf-min-height {
-    min-height: 80vh;
+  border-collapse: separate;
+  border-spacing: 0;
+  table-layout: fixed;
 }
 
 .road-detect-overlay-controls {
-    position: absolute;
-    top: 10px;
-    right: 10px;
-    z-index: 2;
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    padding: 3px 5px;
-    border-radius: 999px;
-    background: rgba(17, 24, 39, 0.45);
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 5px;
+  border-radius: 999px;
+  background: rgba(17, 24, 39, 0.45);
 }
 
 .road-detect-overlay-control-btn {
-    width: 32px;
-    height: 32px;
-    padding: 0;
-    border-radius: 999px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    background-color: rgba(255, 255, 255, 0.95);
-    color: #0f172a;
-    border-color: rgba(255, 255, 255, 0.95);
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background-color: rgba(255, 255, 255, 0.95);
+  color: #0f172a;
+  border-color: rgba(255, 255, 255, 0.95);
 }
 
 .road-detect-overlay-control-btn:hover,
 .road-detect-overlay-control-btn:focus,
 .road-detect-overlay-control-btn:focus-visible,
 .road-detect-overlay-control-btn:active {
-    background-color: rgba(255, 255, 255, 0.95);
-    color: #0f172a;
-    border-color: rgba(255, 255, 255, 0.95);
-    box-shadow: none;
+  background-color: rgba(255, 255, 255, 0.95);
+  color: #0f172a;
+  border-color: rgba(255, 255, 255, 0.95);
+  box-shadow: none;
 }
 
 .road-detect-overlay-control-btn i {
-    line-height: 1;
-    font-size: 0.95rem;
+  line-height: 1;
+  font-size: 0.95rem;
 }
 
 .road-detect-overlay-control-btn:disabled {
-    opacity: 0.8;
-    color: #6b7280;
-    background-color: rgba(229, 231, 235, 0.96);
-    border-color: rgba(229, 231, 235, 0.96);
+  opacity: 0.8;
+  color: #6b7280;
+  background-color: rgba(229, 231, 235, 0.96);
+  border-color: rgba(229, 231, 235, 0.96);
 }
 
 .road-detect-overlay-control-btn-active {
-    background-color: #0d6efd;
-    color: #fff;
-    border-color: #0d6efd;
+  background-color: #0d6efd;
+  color: #fff;
+  border-color: #0d6efd;
 }
 
 .road-detect-overlay-control-btn-active:hover,
 .road-detect-overlay-control-btn-active:focus,
 .road-detect-overlay-control-btn-active:focus-visible,
 .road-detect-overlay-control-btn-active:active {
-    background-color: #0d6efd;
-    color: #fff;
-    border-color: #0d6efd;
-    box-shadow: none;
+  background-color: #0d6efd;
+  color: #fff;
+  border-color: #0d6efd;
+  box-shadow: none;
 }
 
 #road-detect-overlay-loop-toggle {
-    background-color: rgba(148, 163, 184, 0.92);
-    color: #1f2937;
-    border-color: rgba(148, 163, 184, 0.92);
+  background-color: rgba(148, 163, 184, 0.92);
+  color: #1f2937;
+  border-color: rgba(148, 163, 184, 0.92);
 }
 
 #road-detect-overlay-loop-toggle:hover,
 #road-detect-overlay-loop-toggle:focus,
 #road-detect-overlay-loop-toggle:focus-visible,
 #road-detect-overlay-loop-toggle:active {
-    background-color: rgba(148, 163, 184, 0.92);
-    color: #1f2937;
-    border-color: rgba(148, 163, 184, 0.92);
+  background-color: rgba(148, 163, 184, 0.92);
+  color: #1f2937;
+  border-color: rgba(148, 163, 184, 0.92);
 }
 
 #road-detect-overlay-loop-toggle.road-detect-overlay-control-btn-active {
-    background-color: rgba(255, 255, 255, 0.98);
-    color: #111827;
-    border-color: rgba(255, 255, 255, 0.98);
+  background-color: rgba(255, 255, 255, 0.98);
+  color: #111827;
+  border-color: rgba(255, 255, 255, 0.98);
 }
 
 #road-detect-overlay-loop-toggle.road-detect-overlay-control-btn-active:hover,
 #road-detect-overlay-loop-toggle.road-detect-overlay-control-btn-active:focus,
 #road-detect-overlay-loop-toggle.road-detect-overlay-control-btn-active:focus-visible,
 #road-detect-overlay-loop-toggle.road-detect-overlay-control-btn-active:active {
-    background-color: rgba(255, 255, 255, 0.98);
-    color: #111827;
-    border-color: rgba(255, 255, 255, 0.98);
+  background-color: rgba(255, 255, 255, 0.98);
+  color: #111827;
+  border-color: rgba(255, 255, 255, 0.98);
 }
 
 .road-detect-overlay-close-btn .overlay-toggle-icon-close {
-    font-size: 0.95rem;
+  font-size: 0.95rem;
 }
 
 .vehicle-audio-hud {
-    position: absolute;
-    left: 50%;
-    bottom: 10px;
-    transform: translateX(-50%);
-    z-index: 24;
-    max-width: 92%;
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    pointer-events: auto;
+  position: absolute;
+  left: 50%;
+  bottom: 10px;
+  transform: translateX(-50%);
+  z-index: 24;
+  max-width: 92%;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  pointer-events: auto;
 }
 
 .vehicle-audio-hud-state {
-    padding: 4px 10px;
-    border-radius: 999px;
-    background: rgba(108, 117, 125, 0.72);
-    color: #fff;
-    font-size: 12px;
-    white-space: nowrap;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgba(108, 117, 125, 0.72);
+  color: #fff;
+  font-size: 12px;
+  white-space: nowrap;
 }
 
 .vehicle-audio-hud-text {
-    max-width: min(62vw, 540px);
-    padding: 4px 10px;
-    border-radius: 999px;
-    background: rgba(33, 37, 41, 0.62);
-    color: #fff;
-    font-size: 12px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+  max-width: min(62vw, 540px);
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgba(33, 37, 41, 0.62);
+  color: #fff;
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .wheel-info-table {
-    table-layout: fixed;
+  table-layout: fixed;
 }
 
 .wheel-info-head-cell {
-    padding: 0.14rem 0.2rem;
-    white-space: nowrap;
+  padding: 0.14rem 0.2rem;
+  white-space: nowrap;
 }
 
 .wheel-info-body-cell {
-    padding: 0.12rem 0.2rem;
-    vertical-align: middle;
-    white-space: nowrap;
+  padding: 0.12rem 0.2rem;
+  vertical-align: middle;
+  white-space: nowrap;
 }
 
 /* Keep 4 status items in a single row on desktop for each status section. */
 #roadSurfaceInfo .row > .col-md-6,
 #obstacleInfo .row > .col-md-6,
 #runInfo .row > .col-md-6 {
-    flex: 0 0 25%;
-    max-width: 25%;
+  flex: 0 0 25%;
+  max-width: 25%;
 }
 
 #roadSurfaceInfo .card-body,
 #obstacleInfo .card-body,
 #runInfo .card-body {
-    padding: 0.6rem;
+  padding: 0.6rem;
 }
 
 #roadSurfaceInfo .card-title,
 #obstacleInfo .card-title,
 #runInfo .card-title {
-    font-size: 1rem;
-    line-height: 1.25;
+  font-size: 1rem;
+  line-height: 1.25;
 }
 
 #roadSurfaceInfo i,
 #obstacleInfo i,
 #runInfo i {
-    font-size: 1.8rem !important;
+  font-size: 1.8rem !important;
 }
 
 #roadSurfaceInfo .badge,
 #obstacleInfo .badge,
 #runInfo .badge {
-    font-size: 0.85rem !important;
+  font-size: 0.85rem !important;
 }
 
 .obstacle-sensor-row {
-    margin-top: 0.6rem;
-    padding: 0.55rem 0.65rem;
-    background: linear-gradient(180deg, #f8f9fa 0%, #eef2f6 100%);
+  margin-top: 0.6rem;
+  padding: 0.55rem 0.65rem;
+  background: linear-gradient(180deg, #f8f9fa 0%, #eef2f6 100%);
 }
 
 .fusion-status-row {
-    background: linear-gradient(180deg, #f8f9fa 0%, #eef2f6 100%);
-    overflow: hidden;
+  background: linear-gradient(180deg, #f8f9fa 0%, #eef2f6 100%);
+  overflow: hidden;
 }
 
 .fusion-confidence-slider-wrap {
-    flex: 1 1 auto;
-    min-width: 0;
-    margin-left: 0.15rem;
-    display: inline-flex;
-    align-items: center;
+  flex: 1 1 auto;
+  min-width: 0;
+  margin-left: 0.15rem;
+  display: inline-flex;
+  align-items: center;
 }
 
 .fusion-confidence-text {
-    display: inline-flex;
-    align-items: center;
-    justify-content: flex-end;
-    min-width: 44px;
-    padding: 0 0.35rem;
-    margin-left: 0;
-    font-size: 0.8rem;
-    line-height: 1.1;
-    font-weight: 600;
-    color: #495057;
-    text-align: right;
-    white-space: nowrap;
-    flex: 0 0 auto;
-    height: 1.5rem;
-    border: 1px solid #ced4da;
-    border-radius: 0.25rem;
-    background-color: #fff;
-    box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.05);
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  min-width: 44px;
+  padding: 0 0.35rem;
+  margin-left: 0;
+  font-size: 0.8rem;
+  line-height: 1.1;
+  font-weight: 600;
+  color: #495057;
+  text-align: right;
+  white-space: nowrap;
+  flex: 0 0 auto;
+  height: 1.5rem;
+  border: 1px solid #ced4da;
+  border-radius: 0.25rem;
+  background-color: #fff;
+  box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.05);
 }
 
 .fusion-confidence-slider {
-    margin: 0;
-    pointer-events: none;
+  margin: 0;
+  pointer-events: none;
 }
 
 .fusion-confidence-slider:disabled {
-    opacity: 1;
+  opacity: 1;
 }
 
 .fusion-status-inline {
-    flex-wrap: nowrap;
-    min-width: 0;
-    gap: 0.22rem;
-    align-items: center;
+  flex-wrap: nowrap;
+  min-width: 0;
+  gap: 0.22rem;
+  align-items: center;
 }
 
 .fusion-status-inline > .badge {
-    display: inline-flex;
-    align-items: center;
-    height: 1.6rem;
-    padding: 0 0.45rem;
-    line-height: 1;
-    box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  height: 1.6rem;
+  padding: 0 0.45rem;
+  line-height: 1;
+  box-sizing: border-box;
 }
 
 #obstacle-fusion-enabled {
-    border: 1px solid transparent;
+  border: 1px solid transparent;
 }
 
 .fusion-confidence-slider-scale {
-    font-size: 0.72rem;
-    color: #5c6773;
-    line-height: 1;
+  font-size: 0.72rem;
+  color: #5c6773;
+  line-height: 1;
 }
 
 .obstacle-sensor-row-title {
-    margin-bottom: 0.45rem;
-    font-size: 0.82rem;
-    font-weight: 700;
-    color: #5c6773;
+  margin-bottom: 0.45rem;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #5c6773;
 }
 
 .obstacle-sensor-types {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
-    gap: 0.32rem;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
+  gap: 0.32rem;
 }
 
 .obstacle-sensor-chip {
-    display: inline-flex;
-    align-items: stretch;
-    justify-content: center;
-    padding: 0.32rem 0.14rem;
-    --bs-border-color: #c7d2da;
-    background: #ffffff;
-    color: #6b7680;
-    font-size: 0.84rem;
-    font-weight: 600;
-    line-height: 1;
-    width: 100%;
-    transition: all 0.18s ease;
+  display: inline-flex;
+  align-items: stretch;
+  justify-content: center;
+  padding: 0.32rem 0.14rem;
+  --bs-border-color: #c7d2da;
+  background: #ffffff;
+  color: #6b7680;
+  font-size: 0.84rem;
+  font-weight: 600;
+  line-height: 1;
+  width: 100%;
+  transition: all 0.18s ease;
 }
 
 .obstacle-sensor-chip-body {
-    display: inline-flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: flex-start;
-    min-width: 0;
-    width: 100%;
-    height: 100%;
-    text-align: center;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  min-width: 0;
+  width: 100%;
+  height: 100%;
+  text-align: center;
 }
 
 .obstacle-sensor-chip-head {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    flex: 0 0 auto;
-    gap: 0.38rem;
-    width: 100%;
-    line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  gap: 0.38rem;
+  width: 100%;
+  line-height: 1;
 }
 
 .obstacle-sensor-chip-label {
-    display: inline-block;
-    text-align: center;
-    line-height: 1;
+  display: inline-block;
+  text-align: center;
+  line-height: 1;
 }
 
 .obstacle-sensor-chip-number {
-    margin-top: 0.38rem;
-    display: inline-flex;
-    flex: 1 1 auto;
-    align-items: center;
-    justify-content: center;
-    gap: 0.14rem;
-    font-size: 0.72em;
-    font-weight: 500;
-    line-height: 1;
-    opacity: 0.92;
-    min-height: 1.2rem;
-    width: 100%;
-    overflow-x: auto;
-    overflow-y: hidden;
-    height: 100%;
+  margin-top: 0.38rem;
+  display: inline-flex;
+  flex: 1 1 auto;
+  align-items: center;
+  justify-content: center;
+  gap: 0.14rem;
+  font-size: 0.72em;
+  font-weight: 500;
+  line-height: 1;
+  opacity: 0.92;
+  min-height: 1.2rem;
+  width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  height: 100%;
 }
 
 .obstacle-sensor-chip-number-cell {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 0.792rem;
-    flex: 0 0 0.792rem;
-    min-width: 0;
-    padding: 0.08rem 0;
-    --bs-border-color: #aeb8c2;
-    background: #c1c9d1;
-    height: 0.792rem;
-    box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 0.792rem;
+  flex: 0 0 0.792rem;
+  min-width: 0;
+  padding: 0.08rem 0;
+  --bs-border-color: #aeb8c2;
+  background: #c1c9d1;
+  height: 0.792rem;
+  box-sizing: border-box;
 }
 
 .obstacle-sensor-chip-number-cell.active {
-    background: currentColor;
-    opacity: 0.92;
+  background: currentColor;
+  opacity: 0.92;
 }
 
 @keyframes obstacle-sensor-chip-blink {
-    0% {
-        transform: scale(1);
-        box-shadow: 0 0 0 rgba(25, 135, 84, 0);
-    }
-    35% {
-        transform: scale(1.02);
-        box-shadow: 0 0 0.45rem rgba(25, 135, 84, 0.35);
-    }
-    100% {
-        transform: scale(1);
-        box-shadow: 0 0 0 rgba(25, 135, 84, 0);
-    }
+  0% {
+    transform: scale(1);
+    box-shadow: 0 0 0 rgba(25, 135, 84, 0);
+  }
+  35% {
+    transform: scale(1.02);
+    box-shadow: 0 0 0.45rem rgba(25, 135, 84, 0.35);
+  }
+  100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 rgba(25, 135, 84, 0);
+  }
 }
 
 @keyframes obstacle-sensor-chip-cell-blink {
-    0% {
-        filter: brightness(1);
-    }
-    35% {
-        filter: brightness(1.28);
-    }
-    100% {
-        filter: brightness(1);
-    }
+  0% {
+    filter: brightness(1);
+  }
+  35% {
+    filter: brightness(1.28);
+  }
+  100% {
+    filter: brightness(1);
+  }
 }
 
 .obstacle-sensor-chip-blink {
-    animation: obstacle-sensor-chip-blink 0.8s ease;
+  animation: obstacle-sensor-chip-blink 0.8s ease;
 }
 
 .obstacle-sensor-chip-number-cell-blink {
-    animation: obstacle-sensor-chip-cell-blink 0.8s ease;
+  animation: obstacle-sensor-chip-cell-blink 0.8s ease;
 }
 
 #obstacleInfo .obstacle-sensor-chip i {
-    font-size: 1.5em !important;
+  font-size: 1.5em !important;
 }
 
 .obstacle-sensor-chip.disabled {
-    background: #ffffff;
-    --bs-border-color: #212529;
-    border: 1px solid #212529 !important;
-    color: #6f7780;
+  background: #ffffff;
+  --bs-border-color: #212529;
+  border: 1px solid #212529 !important;
+  color: #6f7780;
 }
 
 .obstacle-sensor-chip.disabled .obstacle-sensor-chip-number-cell {
-    background: #9ea8b2;
-    --bs-border-color: #212529;
-    border: 1px solid #212529 !important;
+  background: #9ea8b2;
+  --bs-border-color: #212529;
+  border: 1px solid #212529 !important;
 }
 
 .obstacle-sensor-chip.active {
-    background: #ffffff;
-    --bs-border-color: #63c98a;
-    border-color: #63c98a !important;
-    color: #198754;
+  background: #ffffff;
+  --bs-border-color: #63c98a;
+  border-color: #63c98a !important;
+  color: #198754;
 }
 
 .obstacle-sensor-chip.partial {
-    background: #ffffff;
-    --bs-border-color: #f2c94c;
-    border: 1px solid #f2c94c !important;
-    color: #c69214;
+  background: #ffffff;
+  --bs-border-color: #f2c94c;
+  border: 1px solid #f2c94c !important;
+  color: #c69214;
 }
 
 .obstacle-sensor-chip.active .obstacle-sensor-chip-head,
 .obstacle-sensor-chip.active .obstacle-sensor-chip-head i,
 .obstacle-sensor-chip.active .obstacle-sensor-chip-label,
 .obstacle-sensor-chip.active .obstacle-sensor-chip-number {
-    color: #198754;
+  color: #198754;
 }
 
 .obstacle-sensor-chip.partial .obstacle-sensor-chip-head,
 .obstacle-sensor-chip.partial .obstacle-sensor-chip-head i,
 .obstacle-sensor-chip.partial .obstacle-sensor-chip-label {
-    color: #c69214;
+  color: #c69214;
 }
 
 .obstacle-sensor-chip.disabled .obstacle-sensor-chip-head,
 .obstacle-sensor-chip.disabled .obstacle-sensor-chip-head i,
 .obstacle-sensor-chip.disabled .obstacle-sensor-chip-label,
 .obstacle-sensor-chip.disabled .obstacle-sensor-chip-number {
-    color: #6f7780;
+  color: #6f7780;
 }
 
 .obstacle-sensor-chip.partial .obstacle-sensor-chip-number {
-    color: #c69214;
+  color: #c69214;
 }
 
 .obstacle-sensor-chip.disabled .obstacle-sensor-chip-head,
 .obstacle-sensor-chip.disabled .obstacle-sensor-chip-head i,
 .obstacle-sensor-chip.disabled .obstacle-sensor-chip-label {
-    color: #7f8a95;
+  color: #7f8a95;
 }
 
 .obstacle-sensor-chip.sensor-received .obstacle-sensor-chip-label {
-    font-weight: 700;
+  font-weight: 700;
 }
 
 #runInfo .card-text {
-    font-size: 1.05rem !important;
-    line-height: 1.2;
+  font-size: 1.05rem !important;
+  line-height: 1.2;
 }
 
 .run-info-chart-panel,
 .speed-info-chart-panel {
-    border: 1px solid #d9e0e6;
-    border-radius: 0.5rem;
-    background: linear-gradient(180deg, #fbfcfd 0%, #f3f6f9 100%);
+  border: 1px solid #d9e0e6;
+  border-radius: 0.5rem;
+  background: linear-gradient(180deg, #fbfcfd 0%, #f3f6f9 100%);
 }
 
 .run-info-chart-body,
 .speed-info-chart-body {
-    padding-top: 0.35rem;
+  padding-top: 0.35rem;
 }
 
 .run-info-chart-header h6 {
-    font-size: 0.9rem;
-    font-weight: 700;
-    color: #43515c;
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: #43515c;
 }
 
 #run-info-history-chart {
-    width: 100% !important;
-    height: 100% !important;
+  width: 100% !important;
+  height: 100% !important;
 }
 
 .speed-info-chart-body {
-    height: 100%;
+  height: 100%;
 }
 
 #vehicle-speed-history-chart {
-    width: 100% !important;
-    height: 100% !important;
+  width: 100% !important;
+  height: 100% !important;
 }
 
 @media (max-width: 1400px) {
-    #roadSurfaceInfo .row > .col-md-6,
-    #obstacleInfo .row > .col-md-6,
-    #runInfo .row > .col-md-6 {
-        flex: 0 0 50%;
-        max-width: 50%;
-    }
+  #roadSurfaceInfo .row > .col-md-6,
+  #obstacleInfo .row > .col-md-6,
+  #runInfo .row > .col-md-6 {
+    flex: 0 0 50%;
+    max-width: 50%;
+  }
 }
 
 /* Unselected surface/obstacle cards are shown in neutral gray tones. */
@@ -508,110 +504,110 @@
 [id^="vehicle/surface/obstacle/"].disabled .card-title,
 [id^="vehicle/surface/state/"].disabled .card-text,
 [id^="vehicle/surface/obstacle/"].disabled .card-text {
-    color: #7f8790 !important;
+  color: #7f8790 !important;
 }
 
 [id^="vehicle/surface/state/"].disabled .badge,
 [id^="vehicle/surface/obstacle/"].disabled .badge {
-    color: #f1f3f5 !important;
-    background-color: #9aa0a6 !important;
-    border-color: #9aa0a6 !important;
+  color: #f1f3f5 !important;
+  background-color: #9aa0a6 !important;
+  border-color: #9aa0a6 !important;
 }
 
 #sensorInfo .card-header h4 {
-    font-size: 1.1rem;
+  font-size: 1.1rem;
 }
 
 #sensor-info-tbody td.sensor-state-inactive {
-    color: #8a949e !important;
-    font-weight: 600 !important;
+  color: #8a949e !important;
+  font-weight: 600 !important;
 }
 
 #sensor-info-tbody td.sensor-state-active {
-    color: #1f9d57 !important;
-    font-weight: 700 !important;
+  color: #1f9d57 !important;
+  font-weight: 700 !important;
 }
 
 #sensor-info-tbody tr.sensor-info-row-inactive td,
 #sensor-info-tbody tr.sensor-info-row-inactive th {
-    color: #8a949e !important;
-    font-weight: 600 !important;
+  color: #8a949e !important;
+  font-weight: 600 !important;
 }
 
 #sensor-info-tbody tr.sensor-info-row-inactive td *,
 #sensor-info-tbody tr.sensor-info-row-inactive th * {
-    color: #8a949e !important;
+  color: #8a949e !important;
 }
 
 .sensor-info-table {
-    table-layout: fixed;
+  table-layout: fixed;
 }
 
 #sensorInfo .table-responsive {
-    max-height: 180px;
-    overflow-y: auto;
-    overflow-x: hidden;
+  max-height: 180px;
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 
 #sensorInfo .sensor-info-table thead th {
-    position: sticky;
-    top: 0;
-    z-index: 2;
-    background: #f8f9fa;
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: #f8f9fa;
 }
 
 .sensor-info-table th,
 .sensor-info-table td {
-    padding: 0.16rem 0.18rem;
-    vertical-align: middle;
-    white-space: nowrap;
+  padding: 0.16rem 0.18rem;
+  vertical-align: middle;
+  white-space: nowrap;
 }
 
 @keyframes sensor-text-blink {
-    0% {
-        opacity: 1;
-    }
-    50% {
-        opacity: 0.35;
-    }
-    100% {
-        opacity: 1;
-    }
+  0% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
+  100% {
+    opacity: 1;
+  }
 }
 
 #sensor-info-tbody tr.sensor-info-row-blink > th,
 #sensor-info-tbody tr.sensor-info-row-blink > td {
-    animation: sensor-text-blink 0.8s ease;
+  animation: sensor-text-blink 0.8s ease;
 }
 
 #sensor-info-tbody [data-sensor-number] {
-    color: var(--bs-body-color);
-    font-weight: 700;
+  color: var(--bs-body-color);
+  font-weight: 700;
 }
 
 #sensor-info-tbody [data-sensor-label] {
-    color: var(--bs-body-color);
+  color: var(--bs-body-color);
 }
 
 /* Hide only the outer frame of the bordered table. */
 .sensor-info-table.table-bordered > :not(caption) > tr > :first-child {
-    border-left: 0;
+  border-left: 0;
 }
 
 .sensor-info-table.table-bordered > :not(caption) > tr > :last-child {
-    border-right: 0;
+  border-right: 0;
 }
 
 .sensor-info-table.table-bordered > thead > tr:first-child > * {
-    border-top: 0;
+  border-top: 0;
 }
 
 .sensor-info-table.table-bordered > tbody > tr:last-child > * {
-    border-bottom: 0;
+  border-bottom: 0;
 }
 
 .sensor-source-cell {
-    max-width: 120px;
-    overflow: hidden;
-    text-overflow: ellipsis;
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }

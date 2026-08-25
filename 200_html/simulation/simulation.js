@@ -6016,6 +6016,42 @@ class RapierDriveSimulation {
         plainMaterial,
       ],
     );
+    // Four corner "mounting screw" heads on the front face, like a plaque bolted to its
+    // post. Added as children of panel (in the box's own local, pre-rotation frame) so
+    // they ride along with panel's rotation/position below instead of needing their own.
+    const screwRadiusMeters = Math.min(panelWidthMeters, panelHeightMeters) * 0.06;
+    const screwDepthMeters = panelThicknessMeters * 0.6;
+    const screwInsetXMeters = panelWidthMeters * 0.08;
+    const screwInsetYMeters = panelHeightMeters * 0.22;
+    const screwGeometry = new THREE.CylinderGeometry(
+      screwRadiusMeters,
+      screwRadiusMeters,
+      screwDepthMeters,
+      16,
+    );
+    const screwMaterial = new THREE.MeshStandardMaterial({
+      color: 0x4b4f56,
+      roughness: 0.4,
+      metalness: 0.7,
+    });
+    [
+      [-1, -1],
+      [1, -1],
+      [-1, 1],
+      [1, 1],
+    ].forEach(([signX, signY]) => {
+      const screw = new THREE.Mesh(screwGeometry, screwMaterial);
+      // CylinderGeometry's axis is local Y by default; rotate it onto local Z so it
+      // stands proud of the front face (local +Z, same face the text texture is on).
+      screw.rotation.x = Math.PI / 2;
+      screw.position.set(
+        signX * (panelWidthMeters / 2 - screwInsetXMeters),
+        signY * (panelHeightMeters / 2 - screwInsetYMeters),
+        panelThicknessMeters / 2 + screwDepthMeters / 2 - 0.001,
+      );
+      panel.add(screw);
+    });
+
     // A flat plane's local +Z is its normal (front face); rotation.x alone would stand it
     // up facing -Y; adding rotation.y = PI spins it 180 deg around its own vertical axis
     // first, so the text face (local +Z) ends up facing +Y instead - readable head-on

@@ -316,7 +316,6 @@ class RapierDriveSimulation {
     this.runtimeDiagnosticsIntervalSec = 1;
     this.runtimeDiagnosticsElapsedSec = 0;
     this.debugStatusElapsedSec = 0;
-    this.isKeyboardControlEnabled = true;
     this.commandedDriveMode = "stop";
     this.commandedSpeedMps = SIM_SPEED_DEFAULT_MPS;
     this.hasInstalledCommandButtonFlash = false;
@@ -1975,11 +1974,24 @@ class RapierDriveSimulation {
     pauseButton.classList.toggle("active", this.isPaused);
   }
 
-  attachKeyboardControls() {
-    if (!this.isKeyboardControlEnabled) {
-      return;
+  // Reads the "controlKeyboard" attribute live (rather than caching it once) so keyboard
+  // control reflects the container's current markup even if the viewer isn't ready yet
+  // when the listener is first attached.
+  isKeyboardControlEnabled() {
+    const containerElement =
+      this.viewer?.container || document.getElementById("robot-container-1");
+    if (!containerElement) {
+      return false;
     }
 
+    return (
+      String(containerElement.getAttribute("controlKeyboard") || "")
+        .trim()
+        .toLowerCase() === "true"
+    );
+  }
+
+  attachKeyboardControls() {
     const handledKeys = new Set([
       "ArrowUp",
       "ArrowDown",
@@ -1997,6 +2009,10 @@ class RapierDriveSimulation {
       "keydown",
       (event) => {
         if (this.isTextInputElement(event.target)) {
+          return;
+        }
+
+        if (!this.isKeyboardControlEnabled()) {
           return;
         }
 

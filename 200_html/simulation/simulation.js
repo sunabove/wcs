@@ -41,8 +41,12 @@ const COBOT_SYSTEM_SIGN_BACKGROUND_COLOR = 0xf2ede2;
 // Shared with the corner-screw placement below, so the screws can sit exactly between
 // the texture's outer edge and its inner border rectangle instead of at an unrelated,
 // hand-picked inset.
-const COBOT_SYSTEM_SIGN_TEXTURE_WIDTH_PX = 480;
-const COBOT_SYSTEM_SIGN_TEXTURE_HEIGHT_PX = 140;
+// "COBOT SYSTEM" at the texture's font measures ~369px wide / ~38px tall; text-to-border
+// margin is (canvas - 2*borderMargin - text) / 2, so canvas = text/2 + borderMargin +
+// oldCanvas/2 halves that margin while borderMargin (outer edge to border rect) is
+// unchanged - 480x140 -> 440x105 per request.
+const COBOT_SYSTEM_SIGN_TEXTURE_WIDTH_PX = 440;
+const COBOT_SYSTEM_SIGN_TEXTURE_HEIGHT_PX = 105;
 const COBOT_SYSTEM_SIGN_TEXTURE_BORDER_MARGIN_PX = 16;
 // Half-width of the drivable ground built around the authored plate.
 const GROUND_EXTENSION_HALF_SIZE_METERS = 100;

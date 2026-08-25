@@ -488,11 +488,7 @@
 #run-info-history-chart {
   width: 100% !important;
   height: 100% !important;
-}
-
-.speed-info-chart-body {
-  height: 100%;
-}
+} 
 
 #vehicle-speed-history-chart {
   width: 100% !important;

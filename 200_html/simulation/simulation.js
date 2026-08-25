@@ -288,6 +288,10 @@ class RapierDriveSimulation {
     // Snapshot of the ground grid's phase origin, taken once per addGroundSurfaceGrid()
     // call (load/reset) - see the comment there for why this must not track the vehicle.
     this.sceneTreeGridOriginX = null;
+    // All trees share this one Y forever, computed lazily on first use and frozen from
+    // then on (cleared alongside the pool in resetSceneTreePool()) - see
+    // getSceneTreeRowY().
+    this.sceneTreeRowY = null;
     this.sceneTreeLastVisibilityCheckAtMs = 0;
     this.extensionPotholeLinerGroup = null;
     this.dynamicPotholeRegion = null;
@@ -5992,6 +5996,9 @@ class RapierDriveSimulation {
       });
     }
     this.sceneTreeGroupsByLatticeX.clear();
+    // Let the shared row Y be picked fresh too, since the vehicle's pose (and so what
+    // depth is on screen) may differ after this reset.
+    this.sceneTreeRowY = null;
   }
 
   // Snaps onto the SAME lattice the rendered ground grid uses: addGroundSurfaceGrid()
@@ -6007,14 +6014,85 @@ class RapierDriveSimulation {
     );
   }
 
-  // Determines which lattice columns should show a tree right now, and at what depth. A
-  // single shared "behind vehicle" depth (the old approach) only works for a narrow,
-  // steep-down camera: in a wide/shallow view the ground near the vehicle covers very
-  // little of the screen while the ground far away covers most of it (perspective), so
-  // forcing every tree onto one close row left most of the visibly-gridded ground with no
-  // tree at all. Instead each column is probed at a few increasingly farther depths and
-  // placed at whichever is actually on screen - so a column only visible near the horizon
-  // still gets a tree, while a column near the vehicle keeps the original close distance.
+  isSceneTreeSlotVisible(x, y, treeHeight, halfSlotMeters) {
+    const bounds = new THREE.Box3(
+      new THREE.Vector3(x - halfSlotMeters, y - halfSlotMeters, this.groundZ),
+      new THREE.Vector3(
+        x + halfSlotMeters,
+        y + halfSlotMeters,
+        this.groundZ + treeHeight,
+      ),
+    );
+    return !this.isBoundsOutsideCameraView(bounds);
+  }
+
+  // Walks outward from the vehicle's own lattice column at a given shared Y, collecting
+  // every column that's actually on screen there (stopping each direction after 2 misses
+  // in a row), capped at SCENE_TREE_MAX_COUNT.
+  collectVisibleSceneTreeColumnsAtY(y, startX, xSpacingMeters, treeHeight) {
+    const halfSlotMeters = xSpacingMeters * 0.25;
+    const xs = [];
+    if (this.isSceneTreeSlotVisible(startX, y, treeHeight, halfSlotMeters)) {
+      xs.push(startX);
+    }
+    [1, -1].forEach((direction) => {
+      let consecutiveMisses = 0;
+      for (
+        let step = 1;
+        consecutiveMisses < 2 && xs.length < SCENE_TREE_MAX_COUNT;
+        step += 1
+      ) {
+        const x = startX + direction * step * xSpacingMeters;
+        if (this.isSceneTreeSlotVisible(x, y, treeHeight, halfSlotMeters)) {
+          xs.push(x);
+          consecutiveMisses = 0;
+        } else {
+          consecutiveMisses += 1;
+        }
+      }
+    });
+    return xs;
+  }
+
+  // Picked once and frozen (see this.sceneTreeRowY / resetSceneTreePool()) so every tree,
+  // for the rest of the session, sits on this exact same Y - a single shared "behind
+  // vehicle" depth only works for a steep-down camera; in a wide/shallow view the ground
+  // right behind the vehicle covers very little of the screen, so this instead tries a
+  // few increasingly farther depths and keeps whichever shows the most lattice columns.
+  getSceneTreeRowY(vehiclePosition, startX, xSpacingMeters, treeHeight) {
+    if (this.sceneTreeRowY !== null) {
+      return this.sceneTreeRowY;
+    }
+
+    let bestY = null;
+    let bestCount = 0;
+    SCENE_TREE_DEPTH_PROBE_MULTIPLIERS.forEach((multiplier) => {
+      const y =
+        vehiclePosition.y - SCENE_TREE_MIN_BEHIND_DISTANCE_METERS * multiplier;
+      const count = this.collectVisibleSceneTreeColumnsAtY(
+        y,
+        startX,
+        xSpacingMeters,
+        treeHeight,
+      ).length;
+      if (count > bestCount) {
+        bestCount = count;
+        bestY = y;
+      }
+    });
+
+    if (bestY === null) {
+      // Nothing visible at any probed depth yet (e.g. camera not settled) - try again
+      // next tick instead of freezing a bad value.
+      return null;
+    }
+
+    this.sceneTreeRowY = bestY;
+    return bestY;
+  }
+
+  // Determines which lattice columns should show a tree right now, all on the one frozen
+  // row Y (see getSceneTreeRowY).
   getVisibleSceneTreeRowPlacement() {
     if (!this.carFrame) {
       return null;
@@ -6028,59 +6106,24 @@ class RapierDriveSimulation {
     }
 
     const xSpacingMeters = this.getSceneTreeXGridSpacingMeters();
-    const halfSlotMeters = xSpacingMeters * 0.25;
-    const candidateDepthsMeters = SCENE_TREE_DEPTH_PROBE_MULTIPLIERS.map(
-      (multiplier) => SCENE_TREE_MIN_BEHIND_DISTANCE_METERS * multiplier,
-    );
-
-    const findVisibleYForX = (x) => {
-      for (const depthMeters of candidateDepthsMeters) {
-        const y = vehiclePosition.y - depthMeters;
-        const bounds = new THREE.Box3(
-          new THREE.Vector3(x - halfSlotMeters, y - halfSlotMeters, this.groundZ),
-          new THREE.Vector3(
-            x + halfSlotMeters,
-            y + halfSlotMeters,
-            this.groundZ + treeHeight,
-          ),
-        );
-        if (!this.isBoundsOutsideCameraView(bounds)) {
-          return y;
-        }
-      }
-      return null;
-    };
-
     const startX = this.snapWorldXToSceneTreeGrid(vehiclePosition.x);
-    const yByX = new Map();
-    const tryAddColumn = (x) => {
-      if (yByX.size >= SCENE_TREE_MAX_COUNT || yByX.has(x)) {
-        return false;
-      }
-      const y = findVisibleYForX(x);
-      if (y === null) {
-        return false;
-      }
-      yByX.set(x, y);
-      return true;
-    };
+    const rowY = this.getSceneTreeRowY(
+      vehiclePosition,
+      startX,
+      xSpacingMeters,
+      treeHeight,
+    );
+    if (rowY === null) {
+      return null;
+    }
 
-    tryAddColumn(startX);
-    [1, -1].forEach((direction) => {
-      let consecutiveMisses = 0;
-      for (
-        let step = 1;
-        consecutiveMisses < 2 && yByX.size < SCENE_TREE_MAX_COUNT;
-        step += 1
-      ) {
-        const x = startX + direction * step * xSpacingMeters;
-        consecutiveMisses = tryAddColumn(x) ? 0 : consecutiveMisses + 1;
-      }
-    });
-
-    // originX/xSpacingMeters guarantee startX (and every step from it) already lands on
-    // the lattice, so no extra snapping is needed here.
-    return yByX.size > 0 ? { yByX } : null;
+    const xs = this.collectVisibleSceneTreeColumnsAtY(
+      rowY,
+      startX,
+      xSpacingMeters,
+      treeHeight,
+    );
+    return xs.length > 0 ? { y: rowY, xs } : null;
   }
 
   updateSceneTreePlacement(nowMs = performance.now(), forceUpdate = false) {
@@ -6104,7 +6147,7 @@ class RapierDriveSimulation {
 
     const treeZ = this.groundZ + 0.002;
     const desiredKeys = new Set();
-    placement.yByX.forEach((y, x) => {
+    placement.xs.forEach((x) => {
       const key = x.toFixed(3);
       desiredKeys.add(key);
 
@@ -6116,7 +6159,7 @@ class RapierDriveSimulation {
       }
 
       const treeGroup = template.clone();
-      treeGroup.position.set(x, y, treeZ);
+      treeGroup.position.set(x, placement.y, treeZ);
       treeGroup.updateMatrixWorld(true);
       this.viewer.scene.add(treeGroup);
       this.sceneTreeGroupsByLatticeX.set(key, treeGroup);

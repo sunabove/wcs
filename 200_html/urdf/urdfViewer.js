@@ -4874,25 +4874,44 @@ class URDFViewer {
     });
   }
 
+  // Applies the container's current box size to the renderer/camera. Shared by the window
+  // "resize" listener and the ResizeObserver below, since either can legitimately change
+  // the container's actual size without the other firing (e.g. a CSS-driven layout change
+  // - like a table row growing to fit a min-height'd sibling cell - never dispatches a
+  // window resize event, so init()'s one-time getBoundingClientRect() read can otherwise be
+  // stuck at a stale, too-small size until an actual window resize happens to correct it).
+  applyContainerResize() {
+    const newRect = this.container.getBoundingClientRect();
+    const newWidth = Math.max(newRect.width, 1);
+    const newHeight = Math.max(newRect.height, 1);
+
+    this.camera.aspect = newWidth / newHeight;
+    this.camera.updateProjectionMatrix();
+    this.renderer.setSize(newWidth, newHeight, false);
+    this.renderer.domElement.style.width = "100%";
+    this.renderer.domElement.style.height = "100%";
+
+    if (this.compassRenderer) {
+      this.compassRenderer.setPixelRatio(
+        Math.min(window.devicePixelRatio || 1, 2),
+      );
+      this.compassRenderer.setSize(48, 48, false);
+    }
+  }
+
   setupResizeHandler() {
-    window.addEventListener("resize", () => {
-      const newRect = this.container.getBoundingClientRect();
-      const newWidth = Math.max(newRect.width, 1);
-      const newHeight = Math.max(newRect.height, 1);
+    window.addEventListener("resize", () => this.applyContainerResize());
 
-      this.camera.aspect = newWidth / newHeight;
-      this.camera.updateProjectionMatrix();
-      this.renderer.setSize(newWidth, newHeight, false);
-      this.renderer.domElement.style.width = "100%";
-      this.renderer.domElement.style.height = "100%";
-
-      if (this.compassRenderer) {
-        this.compassRenderer.setPixelRatio(
-          Math.min(window.devicePixelRatio || 1, 2),
-        );
-        this.compassRenderer.setSize(48, 48, false);
-      }
-    });
+    // Catches container-size changes that don't come with a window resize event - e.g. the
+    // table row this container sits in settling to its final (min-height-driven) height
+    // shortly after the initial layout, which otherwise left the canvas rendered at
+    // init()'s smaller, stale size until the next real window resize.
+    if (typeof ResizeObserver !== "undefined") {
+      this.containerResizeObserver = new ResizeObserver(() => {
+        this.applyContainerResize();
+      });
+      this.containerResizeObserver.observe(this.container);
+    }
   }
 
   animate() {

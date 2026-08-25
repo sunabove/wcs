@@ -334,6 +334,8 @@ class RapierDriveSimulation {
     };
     this.isWheelRotationStopped = false;
     this.isWheelRotationDrivenByCommand = false;
+    // Snapshot of per-wheel visual RPM taken when pausing, restored on resume; see togglePause().
+    this.pausedWheelSpeedRpmByKey = null;
     this.isDriveStartPreparationPending = false;
     this.straightDriveReferencePose = null;
     this.straightDriveWarmupSteps = 0;
@@ -1947,9 +1949,46 @@ class RapierDriveSimulation {
     this.lastStepTimeMs = 0;
     this.physicsAccumulatorSec = 0;
 
+    // stepSimulation() (and the travel-driven wheel sync it triggers) is skipped while
+    // paused, but the URDF viewer runs its own render loop and keeps spinning wheels from
+    // their last commanded RPM every frame regardless. Freeze/restore that RPM explicitly
+    // so the wheels actually stop when the simulation does.
+    if (this.isPaused) {
+      this.freezeWheelRotationForPause();
+    } else {
+      this.restoreWheelRotationAfterPause();
+    }
+
     this.updateDebugPanel(this.debugStatusUpdateIntervalSec);
     this.syncPauseButtonState();
     console.log(`[URDF][Simulation] ${this.isPaused ? "Paused" : "Resumed"}`);
+  }
+
+  freezeWheelRotationForPause() {
+    const viewer = this.getDriveSourceViewer();
+    this.pausedWheelSpeedRpmByKey = viewer?.wheelSpeedRpmByKey
+      ? { ...viewer.wheelSpeedRpmByKey }
+      : null;
+
+    ["fl", "fr", "rl", "rr"].forEach((key) => {
+      if (typeof globalThis.setWheelAnimationByKey === "function") {
+        globalThis.setWheelAnimationByKey(key, 0);
+      }
+    });
+  }
+
+  restoreWheelRotationAfterPause() {
+    const savedRpmByKey = this.pausedWheelSpeedRpmByKey;
+    this.pausedWheelSpeedRpmByKey = null;
+    if (!savedRpmByKey) {
+      return;
+    }
+
+    Object.entries(savedRpmByKey).forEach(([key, rpm]) => {
+      if (typeof globalThis.setWheelAnimationByKey === "function") {
+        globalThis.setWheelAnimationByKey(key, rpm);
+      }
+    });
   }
 
   handleSpaceShortcut() {

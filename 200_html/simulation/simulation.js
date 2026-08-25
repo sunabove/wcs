@@ -284,9 +284,9 @@ class RapierDriveSimulation {
     this.sceneTreeGridOriginX = null;
     this.sceneTreeGridOriginY = null;
     this.sceneTreeLastVisibilityCheckAtMs = 0;
-    // Single static "COBOT SYSTEM" signpost - see addGroundSurfaceGrid() /
+    // Single static "COBOT SYSTEM" ground marker - see addGroundSurfaceGrid() /
     // ensureCobotSystemSign().
-    this.cobotSystemSignGroup = null;
+    this.cobotSystemSignMesh = null;
     this.cobotSystemSignPosition = null;
     this.extensionPotholeLinerGroup = null;
     this.dynamicPotholeRegion = null;
@@ -6008,7 +6008,7 @@ class RapierDriveSimulation {
       return;
     }
 
-    if (!this.cobotSystemSignGroup) {
+    if (!this.cobotSystemSignMesh) {
       // Same vehicle-relative height scene trees use (see getSceneTreeHeightMeters) -
       // returns null until the vehicle's chassis bounds are measurable, in which case
       // building is retried from scheduleInitialVehicleCameraFit()'s success callback
@@ -6017,19 +6017,19 @@ class RapierDriveSimulation {
       if (!treeHeight) {
         return;
       }
-      this.cobotSystemSignGroup = this.buildCobotSystemSignMesh(treeHeight * 0.95);
+      this.cobotSystemSignMesh = this.buildCobotSystemSignMesh(treeHeight * 0.95);
     }
-    if (!this.cobotSystemSignGroup.parent) {
-      this.viewer.scene.add(this.cobotSystemSignGroup);
+    if (!this.cobotSystemSignMesh.parent) {
+      this.viewer.scene.add(this.cobotSystemSignMesh);
     }
 
     const position = this.getCobotSystemSignPosition();
-    this.cobotSystemSignGroup.position.set(
+    this.cobotSystemSignMesh.position.set(
       position.x,
       position.y,
       this.groundZ + 0.002,
     );
-    this.cobotSystemSignGroup.updateMatrixWorld(true);
+    this.cobotSystemSignMesh.updateMatrixWorld(true);
   }
 
   getSceneTreeHeightMeters() {

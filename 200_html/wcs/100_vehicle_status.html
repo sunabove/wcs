@@ -356,7 +356,8 @@
                                 <!-- // 장애물 정보 -->
 
                                 <!-- 센서 상세 정보 -->
-                                <div id="sensorInfo" class="card mt-2 me-1">
+                                <div id="sensorInfo" class="card mt-2 me-1"
+                                    style="max-height: 220px;  overflow-y: auto;  overflow-x: hidden;">
                                     <div class="card-header text-center">
                                         <h4 class="mb-0">센서 정보</h4>
                                     </div>
@@ -409,7 +410,7 @@
                                             <!-- 차량 URDF Viewer -->
                                             <div class="row w-100 m-0">
                                                 <div class="col-12 p-0 position-relative">
-                                                    <div class="urdf-container w-100 overflow-hidden border border-1" 
+                                                    <div class="urdf-container w-100 overflow-hidden border border-1"
                                                         id="vehicle-urdf-viewer" urdf="/urdf/model/sw_15/urdf/sw.urdf"
                                                         showWheelInfo="true" showVideo="true" showAudio="true"
                                                         showViewCube="true" showCompass="true" showAttitude="true"

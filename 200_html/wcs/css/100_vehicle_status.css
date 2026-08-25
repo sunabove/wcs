@@ -554,12 +554,6 @@
   table-layout: fixed;
 }
 
-#sensorInfo .table-responsive {
-  max-height: 220px;
-  overflow-y: auto;
-  overflow-x: hidden;
-}
-
 #sensorInfo .sensor-info-table thead th {
   position: sticky;
   top: 0;

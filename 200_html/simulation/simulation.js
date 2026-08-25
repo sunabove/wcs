@@ -53,6 +53,13 @@ const GROUND_INTERIOR_EMISSIVE = 0x0d141d;
 const CSG_CUTTER_OVERSHOOT_METERS = 0.01;
 // Lift below this is treated as flat ground.
 const WHEEL_SUPPORT_MIN_LIFT_METERS = 0.0005;
+// getWheelSupportProfile()'s 4-wheel ride-height plane fit is weighted by each sample's
+// own lift (see there) so a climbing wheel pulls the plane toward itself instead of being
+// averaged down by still-grounded wheels - a sharp-edged obstacle's flat top isn't
+// reachable by an unweighted plane through points that include ground-level wheels, which
+// left the climbing wheel visibly short of the obstacle surface. Weight per meter of lift;
+// a wheel sitting on a ~0.06m step gets roughly triple a grounded wheel's pull.
+const WHEEL_SUPPORT_LIFT_WEIGHT_PER_METER = 35;
 // Obstacle-impact wheel flex: peak lateral kick applied to inner_wheel_*_joint the instant a wheel
 // first touches an obstacle, eased back to 0 as the wheel climbs up onto it.
 const WHEEL_OBSTACLE_FLEX_PEAK_RAD = THREE.MathUtils.degToRad(45);
@@ -4604,9 +4611,20 @@ class RapierDriveSimulation {
     }
 
     const count = samples.length;
-    const meanX = samples.reduce((sum, s) => sum + s.x, 0) / count;
-    const meanY = samples.reduce((sum, s) => sum + s.y, 0) / count;
-    const meanLift = samples.reduce((sum, s) => sum + s.lift, 0) / count;
+    // Climbing wheels (higher lift) pull the fit toward themselves - see
+    // WHEEL_SUPPORT_LIFT_WEIGHT_PER_METER. A flat-ground wheel (lift 0) still keeps
+    // weight 1 so an all-flat frame fits a sensible, non-degenerate plane.
+    const weights = samples.map(
+      (s) => 1 + WHEEL_SUPPORT_LIFT_WEIGHT_PER_METER * Math.max(s.lift, 0),
+    );
+    const totalWeight = weights.reduce((sum, w) => sum + w, 0);
+    const meanX =
+      samples.reduce((sum, s, i) => sum + weights[i] * s.x, 0) / totalWeight;
+    const meanY =
+      samples.reduce((sum, s, i) => sum + weights[i] * s.y, 0) / totalWeight;
+    const meanLift =
+      samples.reduce((sum, s, i) => sum + weights[i] * s.lift, 0) /
+      totalWeight;
 
     // Fewer than three contact points cannot define a plane; keep the lift, drop the tilt.
     if (count < 3) {
@@ -4625,15 +4643,16 @@ class RapierDriveSimulation {
     let sumXY = 0;
     let sumXL = 0;
     let sumYL = 0;
-    samples.forEach((sample) => {
+    samples.forEach((sample, i) => {
+      const weight = weights[i];
       const dx = sample.x - meanX;
       const dy = sample.y - meanY;
       const dl = sample.lift - meanLift;
-      sumXX += dx * dx;
-      sumYY += dy * dy;
-      sumXY += dx * dy;
-      sumXL += dx * dl;
-      sumYL += dy * dl;
+      sumXX += weight * dx * dx;
+      sumYY += weight * dy * dy;
+      sumXY += weight * dx * dy;
+      sumXL += weight * dx * dl;
+      sumYL += weight * dy * dl;
     });
 
     // Least-squares support plane through the wheel contact points: lift = gradX*x + gradY*y + liftAtOrigin.

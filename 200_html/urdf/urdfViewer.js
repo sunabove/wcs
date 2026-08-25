@@ -2428,6 +2428,23 @@ class URDFViewer {
 
     this.controls.addEventListener("end", () => {
       this.isDragging = false;
+
+      // setOverlayZoomOutRatio()/setOverlayVerticalDragPixels() (used to zoom/pan the
+      // camera out of the way of the video overlay) compute each new adjustment as a
+      // relative delta from their own remembered overlayZoomOutRatio/overlayDragPanPixels
+      // - they assume the camera hasn't moved except through themselves since the last
+      // call. A real user drag/wheel interaction (enableZoom/enablePan are both on)
+      // breaks that assumption: the next overlay open/close then divides out or reapplies
+      // an offset against a base that no longer means what it used to, and repeating
+      // that (drag the view around while the overlay is open, close it, reopen it, ...)
+      // compounds into the camera's distance run away - the reported "geographic area
+      // shrinks/grows a lot" bug. Absorb the user's end state as the new baseline so the
+      // next overlay adjustment starts fresh instead of compounding on stale bookkeeping.
+      this.overlayZoomOutRatio = 0;
+      this.overlayDragPanPixels = 0;
+      this.goalTarget.copy(this.controls.target);
+      this.goalTargetVerticalOffset = 0;
+
       this.logCameraInfos(true);
       this.saveCurrentCameraPoseToStorage();
       this.updateCameraToastOverlay();

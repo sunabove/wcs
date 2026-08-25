@@ -1613,7 +1613,7 @@ class RapierDriveSimulation {
   }
 
   findSimulationViewer() {
-    const viewerById = window.urdfViewersById?.["robot-container-1"] || null;
+    const viewerById = window.urdfViewersById?.["vehicle-urdf-viewer"] || null;
     if (viewerById) {
       return viewerById;
     }
@@ -1979,7 +1979,7 @@ class RapierDriveSimulation {
   // when the listener is first attached.
   isKeyboardControlEnabled() {
     const containerElement =
-      this.viewer?.container || document.getElementById("robot-container-1");
+      this.viewer?.container || document.getElementById("vehicle-urdf-viewer");
     if (!containerElement) {
       return false;
     }
@@ -5426,16 +5426,12 @@ class RapierDriveSimulation {
       return this.viewer;
     }
 
-    const byId = window.urdfViewersById?.["robot-container-1"] || null;
+    const byId = window.urdfViewersById?.["vehicle-urdf-viewer"] || null;
     if (byId) {
       return byId;
     }
 
-    return (
-      window.activeURDFViewer ||
-      window.urdfViewersById?.["vehicle-urdf-viewer"] ||
-      null
-    );
+    return window.activeURDFViewer || null;
   }
 
   getCommandedDriveSpeedMps() {

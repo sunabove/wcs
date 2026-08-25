@@ -32,6 +32,11 @@ const OBSTACLE_MAX_TILT_DEG = 22;
 const DYNAMIC_OBSTACLE_FORWARD_DISTANCE_METERS = 1;
 const INITIAL_VEHICLE_CAMERA_OCCUPANCY = 0.8;
 const SCENE_TREE_MIN_BEHIND_DISTANCE_METERS = 2.4;
+// A wide/shallow camera view makes near ground cover very little of the screen and far
+// ground a lot, so a single fixed "behind vehicle" depth can't reach most of what's on
+// screen. Each lattice column probes these multiples of the minimum distance, nearest
+// first, and uses whichever is actually visible.
+const SCENE_TREE_DEPTH_PROBE_MULTIPLIERS = [1, 2, 4, 8, 16, 32, 64];
 const SCENE_TREE_VISIBILITY_CHECK_INTERVAL_MS = 150;
 // Safety cap on simultaneous trees so a degenerate camera/grid state can't spawn an
 // unbounded row; normal on-screen counts stay far below this.
@@ -6002,12 +6007,14 @@ class RapierDriveSimulation {
     );
   }
 
-  // Determines the row of trees that should be on screen right now: a shared Y (unchanged
-  // from the old single-tree "behind vehicle" rule) and every lattice X spanned by the
-  // ground under the viewport's 4 corners. Sampling only one fixed screen row (as before)
-  // undercounts: perspective means the ground visible near the horizon (upper screen) is
-  // far wider than near the camera, so lattice columns that are genuinely on screen up
-  // there were missing a tree entirely. Corner sampling covers the true visible footprint.
+  // Determines which lattice columns should show a tree right now, and at what depth. A
+  // single shared "behind vehicle" depth (the old approach) only works for a narrow,
+  // steep-down camera: in a wide/shallow view the ground near the vehicle covers very
+  // little of the screen while the ground far away covers most of it (perspective), so
+  // forcing every tree onto one close row left most of the visibly-gridded ground with no
+  // tree at all. Instead each column is probed at a few increasingly farther depths and
+  // placed at whichever is actually on screen - so a column only visible near the horizon
+  // still gets a tree, while a column near the vehicle keeps the original close distance.
   getVisibleSceneTreeRowPlacement() {
     if (!this.carFrame) {
       return null;
@@ -6015,65 +6022,65 @@ class RapierDriveSimulation {
 
     this.carFrame.updateWorldMatrix(true, false);
     const vehiclePosition = this.carFrame.getWorldPosition(new THREE.Vector3());
-
-    const cornerGroundPositions = [
-      new THREE.Vector2(-1, -1),
-      new THREE.Vector2(1, -1),
-      new THREE.Vector2(-1, 1),
-      new THREE.Vector2(1, 1),
-    ]
-      .map((ndc) => this.getGroundPositionAtCameraView(ndc))
-      .filter(Boolean);
-    if (cornerGroundPositions.length === 0) {
+    const treeHeight = this.getSceneTreeHeightMeters();
+    if (!treeHeight) {
       return null;
     }
 
-    // Same clamp as before: use the nearest sampled depth if it's already far enough
-    // behind the vehicle, otherwise pull it back to the minimum behind-distance.
-    const minimumTreeY =
-      vehiclePosition.y - SCENE_TREE_MIN_BEHIND_DISTANCE_METERS;
-    const rowY = Math.min(
-      Math.min(...cornerGroundPositions.map((position) => position.y)),
-      minimumTreeY,
-    );
-
     const xSpacingMeters = this.getSceneTreeXGridSpacingMeters();
-    const originX = this.getSceneTreeGridOriginX();
-    // A corner ray nearly parallel to the ground (looking toward the horizon) can hit the
-    // plane extremely far away; clamp to a generous but bounded window around the vehicle
-    // so that edge case can't make the lattice loop below iterate without bound.
-    const maxRangeMetersFromVehicle =
-      xSpacingMeters * (SCENE_TREE_MAX_COUNT + 4);
-    const rangeMinX = Math.max(
-      Math.min(...cornerGroundPositions.map((position) => position.x)),
-      vehiclePosition.x - maxRangeMetersFromVehicle,
+    const halfSlotMeters = xSpacingMeters * 0.25;
+    const candidateDepthsMeters = SCENE_TREE_DEPTH_PROBE_MULTIPLIERS.map(
+      (multiplier) => SCENE_TREE_MIN_BEHIND_DISTANCE_METERS * multiplier,
     );
-    const rangeMaxX = Math.min(
-      Math.max(...cornerGroundPositions.map((position) => position.x)),
-      vehiclePosition.x + maxRangeMetersFromVehicle,
-    );
-    const firstLatticeX =
-      originX +
-      Math.ceil((rangeMinX - originX) / xSpacingMeters) * xSpacingMeters;
-    const lastLatticeX =
-      originX +
-      Math.floor((rangeMaxX - originX) / xSpacingMeters) * xSpacingMeters;
 
-    const latticeXs = [];
-    for (let x = firstLatticeX; x <= lastLatticeX + 1e-6; x += xSpacingMeters) {
-      latticeXs.push(x);
-    }
+    const findVisibleYForX = (x) => {
+      for (const depthMeters of candidateDepthsMeters) {
+        const y = vehiclePosition.y - depthMeters;
+        const bounds = new THREE.Box3(
+          new THREE.Vector3(x - halfSlotMeters, y - halfSlotMeters, this.groundZ),
+          new THREE.Vector3(
+            x + halfSlotMeters,
+            y + halfSlotMeters,
+            this.groundZ + treeHeight,
+          ),
+        );
+        if (!this.isBoundsOutsideCameraView(bounds)) {
+          return y;
+        }
+      }
+      return null;
+    };
 
-    if (latticeXs.length > SCENE_TREE_MAX_COUNT) {
-      const excess = latticeXs.length - SCENE_TREE_MAX_COUNT;
-      const trimStart = Math.floor(excess / 2);
-      return {
-        y: rowY,
-        xs: latticeXs.slice(trimStart, trimStart + SCENE_TREE_MAX_COUNT),
-      };
-    }
+    const startX = this.snapWorldXToSceneTreeGrid(vehiclePosition.x);
+    const yByX = new Map();
+    const tryAddColumn = (x) => {
+      if (yByX.size >= SCENE_TREE_MAX_COUNT || yByX.has(x)) {
+        return false;
+      }
+      const y = findVisibleYForX(x);
+      if (y === null) {
+        return false;
+      }
+      yByX.set(x, y);
+      return true;
+    };
 
-    return { y: rowY, xs: latticeXs };
+    tryAddColumn(startX);
+    [1, -1].forEach((direction) => {
+      let consecutiveMisses = 0;
+      for (
+        let step = 1;
+        consecutiveMisses < 2 && yByX.size < SCENE_TREE_MAX_COUNT;
+        step += 1
+      ) {
+        const x = startX + direction * step * xSpacingMeters;
+        consecutiveMisses = tryAddColumn(x) ? 0 : consecutiveMisses + 1;
+      }
+    });
+
+    // originX/xSpacingMeters guarantee startX (and every step from it) already lands on
+    // the lattice, so no extra snapping is needed here.
+    return yByX.size > 0 ? { yByX } : null;
   }
 
   updateSceneTreePlacement(nowMs = performance.now(), forceUpdate = false) {
@@ -6090,14 +6097,14 @@ class RapierDriveSimulation {
     this.sceneTreeLastVisibilityCheckAtMs = nowMs;
 
     const template = this.getSceneTreeTemplate();
-    const rowPlacement = this.getVisibleSceneTreeRowPlacement();
-    if (!template || !rowPlacement) {
+    const placement = this.getVisibleSceneTreeRowPlacement();
+    if (!template || !placement) {
       return;
     }
 
     const treeZ = this.groundZ + 0.002;
     const desiredKeys = new Set();
-    rowPlacement.xs.forEach((x) => {
+    placement.yByX.forEach((y, x) => {
       const key = x.toFixed(3);
       desiredKeys.add(key);
 
@@ -6109,7 +6116,7 @@ class RapierDriveSimulation {
       }
 
       const treeGroup = template.clone();
-      treeGroup.position.set(x, rowPlacement.y, treeZ);
+      treeGroup.position.set(x, y, treeZ);
       treeGroup.updateMatrixWorld(true);
       this.viewer.scene.add(treeGroup);
       this.sceneTreeGroupsByLatticeX.set(key, treeGroup);

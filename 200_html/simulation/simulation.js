@@ -5929,24 +5929,31 @@ class RapierDriveSimulation {
   }
 
   // Draws "COBOT SYSTEM" onto a canvas and wraps it as a texture for the sign panel below.
-  // Built once and reused for the life of the single sign instance (see
+  // Sized with generous blank margin around the text on every side (unlike a tight,
+  // edge-to-edge label) to read like an engraved milestone plaque rather than a road
+  // sign. Built once and reused for the life of the single sign instance (see
   // buildCobotSystemSignMesh / ensureCobotSystemSign).
   createCobotSystemSignTexture() {
     const canvas = document.createElement("canvas");
-    canvas.width = 512;
-    canvas.height = 160;
+    canvas.width = 480;
+    canvas.height = 220;
     const context = canvas.getContext("2d");
-    context.fillStyle = "#f5f7fa";
+    context.fillStyle = "#f2ede2";
     context.fillRect(0, 0, canvas.width, canvas.height);
-    context.lineWidth = 10;
-    context.strokeStyle = "#1d3557";
-    context.strokeRect(5, 5, canvas.width - 10, canvas.height - 10);
-    context.fillStyle = "#1d3557";
-    context.font =
-      "bold 74px 'Trebuchet MS', 'Segoe UI', sans-serif";
+    const borderMargin = 16;
+    context.lineWidth = 6;
+    context.strokeStyle = "#5c5346";
+    context.strokeRect(
+      borderMargin,
+      borderMargin,
+      canvas.width - borderMargin * 2,
+      canvas.height - borderMargin * 2,
+    );
+    context.fillStyle = "#3a3428";
+    context.font = "bold 52px 'Trebuchet MS', 'Segoe UI', sans-serif";
     context.textAlign = "center";
     context.textBaseline = "middle";
-    context.fillText("COBOT SYSTEM", canvas.width / 2, canvas.height / 2 + 4);
+    context.fillText("COBOT SYSTEM", canvas.width / 2, canvas.height / 2 + 2);
 
     const texture = new THREE.CanvasTexture(canvas);
     if (THREE.SRGBColorSpace) {
@@ -5955,38 +5962,44 @@ class RapierDriveSimulation {
     return texture;
   }
 
-  // Builds the single static "COBOT SYSTEM" signpost mesh: a pole plus a double-sided
-  // text panel so it reads correctly from either side. Unlike scene trees there's only
-  // ever one instance, so this is called once and reused (see ensureCobotSystemSign).
-  // Sized off signHeightMeters (see ensureCobotSystemSign - derived from the same
-  // vehicle-relative height as scene trees) rather than a fixed real-world sign height,
-  // so it stays in scale with the vehicle/trees instead of towering over them.
+  // Builds the single static "COBOT SYSTEM" marker mesh: a short, stout rounded-top post
+  // (milestone-style, not a thin pole+sign) with a double-sided text plaque set against
+  // its front face. Unlike scene trees there's only ever one instance, so this is called
+  // once and reused (see ensureCobotSystemSign). Sized off signHeightMeters (see
+  // ensureCobotSystemSign - derived from the same vehicle-relative height as scene trees)
+  // rather than a fixed real-world size, so it stays in scale with the vehicle/trees.
   buildCobotSystemSignMesh(signHeightMeters) {
     const signGroup = new THREE.Group();
     signGroup.name = "simulation-cobot-system-sign";
 
-    const poleHeightMeters = signHeightMeters;
-    const poleRadiusMeters = signHeightMeters * 0.018;
-    const pole = new THREE.Mesh(
-      new THREE.CylinderGeometry(
-        poleRadiusMeters,
-        poleRadiusMeters * 1.2,
-        poleHeightMeters,
-        12,
+    // CapsuleGeometry (cylinder + two hemispherical caps) standing on end gives the
+    // classic rounded-top milestone silhouette in one piece. The bottom cap is sunk
+    // slightly below ground so it reads as "planted" rather than resting on top of it.
+    const bodyRadiusMeters = signHeightMeters * 0.24;
+    const bodyStraightLengthMeters = Math.max(
+      signHeightMeters - bodyRadiusMeters * 2,
+      bodyRadiusMeters * 0.4,
+    );
+    const body = new THREE.Mesh(
+      new THREE.CapsuleGeometry(
+        bodyRadiusMeters,
+        bodyStraightLengthMeters,
+        6,
+        16,
       ),
       new THREE.MeshStandardMaterial({
-        color: 0x4b4f56,
-        roughness: 0.75,
-        metalness: 0.2,
+        color: 0xcac2b3,
+        roughness: 0.92,
       }),
     );
-    pole.rotation.x = Math.PI / 2;
-    pole.position.z = poleHeightMeters / 2;
-    signGroup.add(pole);
+    body.rotation.x = Math.PI / 2;
+    body.position.z = signHeightMeters / 2 - bodyRadiusMeters * 0.5;
+    signGroup.add(body);
 
-    // Matches the 512x160 sign texture's aspect ratio so the panel doesn't stretch it.
-    const panelWidthMeters = signHeightMeters * 0.85;
-    const panelHeightMeters = panelWidthMeters * (160 / 512);
+    // Matches the sign texture's aspect ratio so the plaque doesn't stretch it, and is
+    // narrow enough to sit within the post's straight (non-domed) section.
+    const panelWidthMeters = bodyRadiusMeters * 2.3;
+    const panelHeightMeters = panelWidthMeters * (220 / 480);
     const panel = new THREE.Mesh(
       new THREE.PlaneGeometry(panelWidthMeters, panelHeightMeters),
       new THREE.MeshBasicMaterial({
@@ -5996,9 +6009,11 @@ class RapierDriveSimulation {
       }),
     );
     // PlaneGeometry lies flat (normal +Z) by default; rotate it upright so its normal
-    // points along Y and its local "up" edge points along world Z.
+    // points along -Y and its local "up" edge points along world Z, then push it out
+    // just past the post's curved surface so it doesn't clip into the body.
     panel.rotation.x = Math.PI / 2;
-    panel.position.z = poleHeightMeters - panelHeightMeters * 0.65;
+    panel.position.y = -(bodyRadiusMeters + signHeightMeters * 0.01);
+    panel.position.z = signHeightMeters * 0.52;
     signGroup.add(panel);
 
     return signGroup;
@@ -6035,7 +6050,7 @@ class RapierDriveSimulation {
       if (!treeHeight) {
         return;
       }
-      this.cobotSystemSignGroup = this.buildCobotSystemSignMesh(treeHeight * 1.6);
+      this.cobotSystemSignGroup = this.buildCobotSystemSignMesh(treeHeight * 0.95);
     }
     if (!this.cobotSystemSignGroup.parent) {
       this.viewer.scene.add(this.cobotSystemSignGroup);

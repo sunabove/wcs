@@ -4,17 +4,6 @@
   table-layout: fixed;
 }
 
-/* Percentage heights (h-100) can't cross the <table>/<tr>/<td> boundary in this layout -
-   nothing in that chain has a definite (non-auto) height for children to resolve against,
-   so h-100 on the viewer never actually fills the row. Anchor with a viewport-relative
-   min-height instead (same approach as 110_vehicle_setting.css / 120_vehicle_test.css),
-   and lift .urdf-container's max-height: 400px (002_wcs_common.css) which would otherwise
-   cap it well below that. */
-#vehicle-urdf-viewer.urdf-container {
-  height: 500px;
-  max-height: none;
-}
-
 .road-detect-overlay-controls {
   position: absolute;
   top: 10px;

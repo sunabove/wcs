@@ -35,6 +35,9 @@ const SCENE_TREE_VISIBILITY_CHECK_INTERVAL_MS = 150;
 // Safety cap on simultaneous trees so a degenerate camera/grid state can't spawn an
 // unbounded row; normal on-screen counts stay far below this.
 const SCENE_TREE_MAX_COUNT = 24;
+// Single shared tone for the "COBOT SYSTEM" sign's plain faces (box edges/back) and its
+// text texture's background, so the whole board reads as one uniform color.
+const COBOT_SYSTEM_SIGN_BACKGROUND_COLOR = 0xf2ede2;
 // Half-width of the drivable ground built around the authored plate.
 const GROUND_EXTENSION_HALF_SIZE_METERS = 100;
 // Carved pothole walls use a fixed contrasting color so the pit shape stays readable.
@@ -5943,7 +5946,7 @@ class RapierDriveSimulation {
     // and left/right margin (canvas.width, unchanged) alone.
     canvas.height = 140;
     const context = canvas.getContext("2d");
-    context.fillStyle = "#f2ede2";
+    context.fillStyle = `#${COBOT_SYSTEM_SIGN_BACKGROUND_COLOR.toString(16).padStart(6, "0")}`;
     context.fillRect(0, 0, canvas.width, canvas.height);
     const borderMargin = 16;
     context.lineWidth = 6;
@@ -5988,14 +5991,11 @@ class RapierDriveSimulation {
     // BoxGeometry face material order is [+X, -X, +Y, -Y, +Z, -Z] (local axes, before the
     // rotation below is applied). The text goes on local +Z (the face that ends up
     // pointing world +Y, readable head-on from +Y - see the rotation comment); every
-    // other face (the 4 edge faces plus the back) gets a plain material matching the
-    // plaque's stone/frame tones, so the added thickness reads as a solid board.
-    const edgeMaterial = new THREE.MeshStandardMaterial({
-      color: 0x5c5346,
-      roughness: 0.85,
-    });
-    const backMaterial = new THREE.MeshStandardMaterial({
-      color: 0xf2ede2,
+    // other face (the 4 edge faces plus the back) shares the same plain color as the
+    // texture's own background (see COBOT_SYSTEM_SIGN_BACKGROUND_COLOR) so the whole
+    // board reads as one uniform color instead of a two-tone frame.
+    const plainMaterial = new THREE.MeshStandardMaterial({
+      color: COBOT_SYSTEM_SIGN_BACKGROUND_COLOR,
       roughness: 0.85,
     });
     const frontMaterial = new THREE.MeshBasicMaterial({
@@ -6008,12 +6008,12 @@ class RapierDriveSimulation {
         panelThicknessMeters,
       ),
       [
-        edgeMaterial,
-        edgeMaterial,
-        edgeMaterial,
-        edgeMaterial,
+        plainMaterial,
+        plainMaterial,
+        plainMaterial,
+        plainMaterial,
         frontMaterial,
-        backMaterial,
+        plainMaterial,
       ],
     );
     // A flat plane's local +Z is its normal (front face); rotation.x alone would stand it

@@ -38,6 +38,12 @@ const SCENE_TREE_MAX_COUNT = 24;
 // Single shared tone for the "COBOT SYSTEM" sign's plain faces (box edges/back) and its
 // text texture's background, so the whole board reads as one uniform color.
 const COBOT_SYSTEM_SIGN_BACKGROUND_COLOR = 0xf2ede2;
+// Shared with the corner-screw placement below, so the screws can sit exactly between
+// the texture's outer edge and its inner border rectangle instead of at an unrelated,
+// hand-picked inset.
+const COBOT_SYSTEM_SIGN_TEXTURE_WIDTH_PX = 480;
+const COBOT_SYSTEM_SIGN_TEXTURE_HEIGHT_PX = 140;
+const COBOT_SYSTEM_SIGN_TEXTURE_BORDER_MARGIN_PX = 16;
 // Half-width of the drivable ground built around the authored plate.
 const GROUND_EXTENSION_HALF_SIZE_METERS = 100;
 // Carved pothole walls use a fixed contrasting color so the pit shape stays readable.
@@ -5940,15 +5946,15 @@ class RapierDriveSimulation {
   // buildCobotSystemSignMesh / ensureCobotSystemSign).
   createCobotSystemSignTexture() {
     const canvas = document.createElement("canvas");
-    canvas.width = 480;
     // Top/bottom margin is (canvas.height - text height) / 2; halving canvas.height's
     // slack over the text (220 -> 140) halves that margin while leaving the font size
     // and left/right margin (canvas.width, unchanged) alone.
-    canvas.height = 140;
+    canvas.width = COBOT_SYSTEM_SIGN_TEXTURE_WIDTH_PX;
+    canvas.height = COBOT_SYSTEM_SIGN_TEXTURE_HEIGHT_PX;
     const context = canvas.getContext("2d");
     context.fillStyle = `#${COBOT_SYSTEM_SIGN_BACKGROUND_COLOR.toString(16).padStart(6, "0")}`;
     context.fillRect(0, 0, canvas.width, canvas.height);
-    const borderMargin = 16;
+    const borderMargin = COBOT_SYSTEM_SIGN_TEXTURE_BORDER_MARGIN_PX;
     context.lineWidth = 6;
     context.strokeStyle = "#5c5346";
     context.strokeRect(

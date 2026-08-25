@@ -11,7 +11,7 @@
    and lift .urdf-container's max-height: 400px (002_wcs_common.css) which would otherwise
    cap it well below that. */
 #vehicle-urdf-viewer.urdf-container {
-  min-height: 80vh;
+  min-height: 100vh;
   max-height: none;
 }
 

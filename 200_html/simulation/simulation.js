@@ -5982,19 +5982,44 @@ class RapierDriveSimulation {
     // from the original vehicle-relative size per request.
     const panelWidthMeters = signHeightMeters * 0.5;
     const panelHeightMeters = panelWidthMeters * (140 / 480);
+    // A physical plaque, not a paper-thin plane - a modest board thickness.
+    const panelThicknessMeters = panelWidthMeters * 0.06;
+
+    // BoxGeometry face material order is [+X, -X, +Y, -Y, +Z, -Z] (local axes, before the
+    // rotation below is applied). The text goes on local +Z (the face that ends up
+    // pointing world +Y, readable head-on from +Y - see the rotation comment); every
+    // other face (the 4 edge faces plus the back) gets a plain material matching the
+    // plaque's stone/frame tones, so the added thickness reads as a solid board.
+    const edgeMaterial = new THREE.MeshStandardMaterial({
+      color: 0x5c5346,
+      roughness: 0.85,
+    });
+    const backMaterial = new THREE.MeshStandardMaterial({
+      color: 0xf2ede2,
+      roughness: 0.85,
+    });
+    const frontMaterial = new THREE.MeshBasicMaterial({
+      map: this.createCobotSystemSignTexture(),
+    });
     const panel = new THREE.Mesh(
-      new THREE.PlaneGeometry(panelWidthMeters, panelHeightMeters),
-      new THREE.MeshBasicMaterial({
-        map: this.createCobotSystemSignTexture(),
-        side: THREE.DoubleSide,
-        transparent: true,
-      }),
+      new THREE.BoxGeometry(
+        panelWidthMeters,
+        panelHeightMeters,
+        panelThicknessMeters,
+      ),
+      [
+        edgeMaterial,
+        edgeMaterial,
+        edgeMaterial,
+        edgeMaterial,
+        frontMaterial,
+        backMaterial,
+      ],
     );
-    // PlaneGeometry lies flat (normal +Z) by default. rotation.x alone would stand it up
-    // facing -Y; adding rotation.y = PI spins it 180 deg around its own vertical axis
-    // first, so the geometric front face (the correctly-oriented, non-mirrored side of
-    // the DoubleSide texture) faces +Y instead - readable head-on from +Y, per request -
-    // while "up" still maps to world Z (text stays right-side up, not flipped upside down).
+    // A flat plane's local +Z is its normal (front face); rotation.x alone would stand it
+    // up facing -Y; adding rotation.y = PI spins it 180 deg around its own vertical axis
+    // first, so the text face (local +Z) ends up facing +Y instead - readable head-on
+    // from +Y, per request - while "up" still maps to world Z (text stays right-side up).
     panel.rotation.set(Math.PI / 2, Math.PI, 0);
     panel.position.z = panelHeightMeters / 2;
     signGroup.add(panel);

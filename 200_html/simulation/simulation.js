@@ -5975,8 +5975,9 @@ class RapierDriveSimulation {
     const signGroup = new THREE.Group();
     signGroup.name = "simulation-cobot-system-sign";
 
-    // Matches the sign texture's aspect ratio so the plaque doesn't stretch it.
-    const panelWidthMeters = signHeightMeters;
+    // Matches the sign texture's aspect ratio so the plaque doesn't stretch it. Halved
+    // from the original vehicle-relative size per request.
+    const panelWidthMeters = signHeightMeters * 0.5;
     const panelHeightMeters = panelWidthMeters * (220 / 480);
     const panel = new THREE.Mesh(
       new THREE.PlaneGeometry(panelWidthMeters, panelHeightMeters),
@@ -5986,10 +5987,12 @@ class RapierDriveSimulation {
         transparent: true,
       }),
     );
-    // PlaneGeometry lies flat (normal +Z) by default; rotate it upright so its normal
-    // points along -Y and its local "up" edge points along world Z, then lift it so its
-    // bottom edge (not its center) sits at the group's local Z=0.
-    panel.rotation.x = Math.PI / 2;
+    // PlaneGeometry lies flat (normal +Z) by default. rotation.x alone would stand it up
+    // facing -Y (as it originally did); adding rotation.y = PI spins it 180 deg around
+    // its own vertical axis first, so the geometric front face (the correctly-oriented,
+    // non-mirrored side of the DoubleSide texture) ends up facing +Y instead - i.e. the
+    // opposite direction - while "up" still maps to world Z (text stays right-side up).
+    panel.rotation.set(Math.PI / 2, Math.PI, 0);
     panel.position.z = panelHeightMeters / 2;
     signGroup.add(panel);
 

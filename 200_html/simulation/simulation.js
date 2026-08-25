@@ -6060,14 +6060,18 @@ class RapierDriveSimulation {
       const key = x.toFixed(3);
       desiredKeys.add(key);
 
-      let treeGroup = this.sceneTreeGroupsByLatticeX.get(key);
-      if (!treeGroup) {
-        treeGroup = template.clone();
-        this.viewer.scene.add(treeGroup);
-        this.sceneTreeGroupsByLatticeX.set(key, treeGroup);
+      // A tree's position is set once, at creation, and never touched again - an already
+      // visible tree must not drift/slide as the vehicle moves, only newly spawned ones
+      // get placed.
+      if (this.sceneTreeGroupsByLatticeX.has(key)) {
+        return;
       }
+
+      const treeGroup = template.clone();
       treeGroup.position.set(x, rowPlacement.y, treeZ);
       treeGroup.updateMatrixWorld(true);
+      this.viewer.scene.add(treeGroup);
+      this.sceneTreeGroupsByLatticeX.set(key, treeGroup);
     });
 
     // Prune slots that scrolled out of view so the pool tracks what's on screen rather than

@@ -4866,8 +4866,28 @@ class RapierDriveSimulation {
         (left, right) => left - right,
       );
       const wheelHalfWidth = Math.max(wheelDimensions[0] * 0.5, 0.01);
+      // Prefer the wheel-local-frame radius (matches the ground grid and visual
+      // rotation speed). The world-AABB estimate below is only a fallback: the
+      // wheel's spin axis is not world-axis-aligned once the swing/steering
+      // joint chain is applied, so its world AABB understates the true radius
+      // and previously made the physics wheel roll a shorter distance per
+      // rotation than the grid (and visual spin) assumed.
+      const wheelKeyByLinkName = {
+        wheel_fl: "fl",
+        wheel_fr: "fr",
+        wheel_rl: "rl",
+        wheel_rr: "rr",
+      };
+      const wheelKey = wheelKeyByLinkName[wheelLinkName] || null;
+      const localFrameRadius = wheelKey
+        ? Number(this.wheelRadiusMetersByKey?.[wheelKey])
+        : NaN;
+      const worldAabbRadius =
+        Math.max(wheelDimensions[1], wheelDimensions[2]) * 0.5;
       const wheelRadius =
-        Math.max(wheelDimensions[1], wheelDimensions[2]) * 0.5 + inflation;
+        (Number.isFinite(localFrameRadius) && localFrameRadius > 0
+          ? localFrameRadius
+          : worldAabbRadius) + inflation;
       const localCenter = carFrame.worldToLocal(centerWorld.clone());
       const wheelQuaternion = wheelLink.getWorldQuaternion(
         new THREE.Quaternion(),
@@ -4898,13 +4918,6 @@ class RapierDriveSimulation {
       );
       this.vehicleColliders.push(wheelCollider);
       this.wheelColliders.push(wheelCollider);
-      const wheelKeyByLinkName = {
-        wheel_fl: "fl",
-        wheel_fr: "fr",
-        wheel_rl: "rl",
-        wheel_rr: "rr",
-      };
-      const wheelKey = wheelKeyByLinkName[wheelLinkName] || null;
       if (wheelKey) {
         this.wheelCollidersByKey[wheelKey] = wheelCollider;
         this.wheelBodiesByKey[wheelKey] = wheelBody;

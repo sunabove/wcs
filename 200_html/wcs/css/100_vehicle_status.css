@@ -4,10 +4,14 @@
   table-layout: fixed;
 }
 
-/* .urdf-container (002_wcs_common.css) caps at max-height: 400px; this page relies on the
-   h-100 stretch chain (card-body -> flex-grow-1 -> row -> col-12 -> viewer) to fill the
-   actual <tr> height instead, so that cap must be lifted here. */
+/* Percentage heights (h-100) can't cross the <table>/<tr>/<td> boundary in this layout -
+   nothing in that chain has a definite (non-auto) height for children to resolve against,
+   so h-100 on the viewer never actually fills the row. Anchor with a viewport-relative
+   min-height instead (same approach as 110_vehicle_setting.css / 120_vehicle_test.css),
+   and lift .urdf-container's max-height: 400px (002_wcs_common.css) which would otherwise
+   cap it well below that. */
 #vehicle-urdf-viewer.urdf-container {
+  min-height: 80vh;
   max-height: none;
 }
 

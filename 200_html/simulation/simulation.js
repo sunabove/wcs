@@ -281,6 +281,9 @@ class RapierDriveSimulation {
     // float rounding can't create duplicate slots). Reused/cloned from sceneTreeTemplate.
     this.sceneTreeGroupsByLatticeX = new Map();
     this.sceneTreeTemplate = null;
+    // Snapshot of the ground grid's phase origin, taken once per addGroundSurfaceGrid()
+    // call (load/reset) - see the comment there for why this must not track the vehicle.
+    this.sceneTreeGridOriginX = null;
     this.sceneTreeLastVisibilityCheckAtMs = 0;
     this.extensionPotholeLinerGroup = null;
     this.dynamicPotholeRegion = null;
@@ -3159,6 +3162,13 @@ class RapierDriveSimulation {
     const gridSpacingMeters = this.getWheelCircumferenceMeters();
     // Phase the grid so a line falls on the front wheel contact point at load/reset.
     const gridOrigin = this.getGroundGridOriginXY();
+    // Freeze this same origin for the scene trees: the grid itself is only rebuilt at
+    // load/reset, so the tree lattice must snapshot the origin here too rather than
+    // re-reading the (constantly moving, once driving starts) front-wheel position on
+    // every tick - otherwise trees drift out of phase with this now-static grid as the
+    // vehicle drives, i.e. they visually "follow" the vehicle instead of staying put.
+    this.sceneTreeGridOriginX = gridOrigin.x;
+    this.resetSceneTreePool();
     const snapUp = (value, origin) =>
       origin +
       Math.ceil((value - origin) / gridSpacingMeters) * gridSpacingMeters;
@@ -5961,13 +5971,32 @@ class RapierDriveSimulation {
     return Math.max(this.getWheelCircumferenceMeters() * 10, 0.5);
   }
 
+  // The grid (and the tree lattice phased from it) is only rebuilt at load/reset - see
+  // addGroundSurfaceGrid(), which snapshots sceneTreeGridOriginX there. Falls back to a
+  // live read only if trees are asked for before the grid has ever been built once.
+  getSceneTreeGridOriginX() {
+    return this.sceneTreeGridOriginX ?? this.getGroundGridOriginXY().x;
+  }
+
+  // Removes every pooled tree so the next update() rebuilds from scratch against the
+  // current (just-frozen) lattice origin - needed after a reset, where the grid's phase
+  // may have shifted, so old trees would otherwise sit off the new grid lines forever.
+  resetSceneTreePool() {
+    if (this.viewer?.scene) {
+      this.sceneTreeGroupsByLatticeX.forEach((treeGroup) => {
+        this.viewer.scene.remove(treeGroup);
+      });
+    }
+    this.sceneTreeGroupsByLatticeX.clear();
+  }
+
   // Snaps onto the SAME lattice the rendered ground grid uses: addGroundSurfaceGrid()
   // phases its lines from getGroundGridOriginXY() (the front-wheel contact point at
   // load/reset), not world X=0, so trees must snap from that same origin or they drift
   // out of phase with the visible grid lines instead of sitting on every 10th one.
   snapWorldXToSceneTreeGrid(worldX) {
     const xSpacingMeters = this.getSceneTreeXGridSpacingMeters();
-    const originX = this.getGroundGridOriginXY().x;
+    const originX = this.getSceneTreeGridOriginX();
     return (
       originX +
       Math.round((worldX - originX) / xSpacingMeters) * xSpacingMeters
@@ -6008,7 +6037,7 @@ class RapierDriveSimulation {
     );
 
     const xSpacingMeters = this.getSceneTreeXGridSpacingMeters();
-    const originX = this.getGroundGridOriginXY().x;
+    const originX = this.getSceneTreeGridOriginX();
     const rangeMinX = Math.min(leftGroundPosition.x, rightGroundPosition.x);
     const rangeMaxX = Math.max(leftGroundPosition.x, rightGroundPosition.x);
     const firstLatticeX =

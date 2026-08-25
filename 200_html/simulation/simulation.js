@@ -5962,43 +5962,15 @@ class RapierDriveSimulation {
     return texture;
   }
 
-  // Builds the single static "COBOT SYSTEM" marker mesh: a short, stout rounded-top post
-  // (milestone-style, not a thin pole+sign) with a double-sided text plaque set against
-  // its front face. Unlike scene trees there's only ever one instance, so this is called
-  // once and reused (see ensureCobotSystemSign). Sized off signHeightMeters (see
-  // ensureCobotSystemSign - derived from the same vehicle-relative height as scene trees)
-  // rather than a fixed real-world size, so it stays in scale with the vehicle/trees.
+  // Builds the single static "COBOT SYSTEM" marker: just the text plaque itself (no
+  // post/milestone body), lying flat on the ground like a floor marker. Unlike scene
+  // trees there's only ever one instance, so this is called once and reused (see
+  // ensureCobotSystemSign). Sized off signHeightMeters (see ensureCobotSystemSign -
+  // derived from the same vehicle-relative height as scene trees) rather than a fixed
+  // real-world size, so it stays in scale with the vehicle/trees.
   buildCobotSystemSignMesh(signHeightMeters) {
-    const signGroup = new THREE.Group();
-    signGroup.name = "simulation-cobot-system-sign";
-
-    // CapsuleGeometry (cylinder + two hemispherical caps) standing on end gives the
-    // classic rounded-top milestone silhouette in one piece. The bottom cap is sunk
-    // slightly below ground so it reads as "planted" rather than resting on top of it.
-    const bodyRadiusMeters = signHeightMeters * 0.24;
-    const bodyStraightLengthMeters = Math.max(
-      signHeightMeters - bodyRadiusMeters * 2,
-      bodyRadiusMeters * 0.4,
-    );
-    const body = new THREE.Mesh(
-      new THREE.CapsuleGeometry(
-        bodyRadiusMeters,
-        bodyStraightLengthMeters,
-        6,
-        16,
-      ),
-      new THREE.MeshStandardMaterial({
-        color: 0xcac2b3,
-        roughness: 0.92,
-      }),
-    );
-    body.rotation.x = Math.PI / 2;
-    body.position.z = signHeightMeters / 2 - bodyRadiusMeters * 0.5;
-    signGroup.add(body);
-
-    // Matches the sign texture's aspect ratio so the plaque doesn't stretch it, and is
-    // narrow enough to sit within the post's straight (non-domed) section.
-    const panelWidthMeters = bodyRadiusMeters * 2.3;
+    // Matches the sign texture's aspect ratio so the plaque doesn't stretch it.
+    const panelWidthMeters = signHeightMeters;
     const panelHeightMeters = panelWidthMeters * (220 / 480);
     const panel = new THREE.Mesh(
       new THREE.PlaneGeometry(panelWidthMeters, panelHeightMeters),
@@ -6008,15 +5980,10 @@ class RapierDriveSimulation {
         transparent: true,
       }),
     );
-    // PlaneGeometry lies flat (normal +Z) by default; rotate it upright so its normal
-    // points along -Y and its local "up" edge points along world Z, then push it out
-    // just past the post's curved surface so it doesn't clip into the body.
-    panel.rotation.x = Math.PI / 2;
-    panel.position.y = -(bodyRadiusMeters + signHeightMeters * 0.01);
-    panel.position.z = signHeightMeters * 0.52;
-    signGroup.add(panel);
-
-    return signGroup;
+    // PlaneGeometry already lies flat (normal +Z) by default, exactly right for a marker
+    // resting on the ground - no rotation needed.
+    panel.name = "simulation-cobot-system-sign";
+    return panel;
   }
 
   // The grid (and this sign's position) is only rebuilt at load/reset - see

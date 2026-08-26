@@ -6043,10 +6043,17 @@ class RapierDriveSimulation {
       wheelRevolutions.reduce((sum, value) => sum + value, 0) /
       wheelRevolutions.length;
 
+    // Temporary extra fields (visual/anim/travel/cmd) while tracking down why
+    // revolutions still read 2x grid cells despite the two scales matching in theory -
+    // remove once resolved.
     this.driveDiagnosticsOverlayElement.textContent =
       `회전수: ${avgWheelRevolutions.toFixed(2)} ` +
       `그리드: ${gridCells.toFixed(2)} ` +
-      `원주: ${circumferenceMeters.toFixed(3)}m`;
+      `원주: ${circumferenceMeters.toFixed(3)}m ` +
+      `| visual: ${Number(this.visualSpeedScale).toFixed(2)} ` +
+      `anim: ${Number(viewer?.wheelAnimationTimeScale).toFixed(2)} ` +
+      `travel: ${viewer?.isWheelRotationDrivenByTravel ? "Y" : "N"} ` +
+      `cmd: ${this.isWheelRotationDrivenByCommand ? "Y" : "N"}`;
   }
 
   /**

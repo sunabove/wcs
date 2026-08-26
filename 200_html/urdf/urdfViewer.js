@@ -223,6 +223,16 @@ class URDFViewer {
       containerElement.getAttribute("hideHoleCuttersAfterCarving"),
       true,
     );
+    this.enableGroundHoleShading = this.parseBooleanAttribute(
+      containerElement.getAttribute("enableGroundHoleShading"),
+      true,
+    );
+    // Vertex-color tint multiplied onto the carved pothole walls/floor so the
+    // cavity reads as a depression even when the top surface and the CSG-cut
+    // faces share the exact same base material/lighting.
+    this.groundHoleRimShadeColor = new THREE.Color(0x5c584f);
+    this.groundHoleDeepShadeColor = new THREE.Color(0x28251f);
+    this.groundHoleShadeFullDepthMeters = 0.06;
     this.wheelInfoOverlayElement = null;
     this.wheelInfoToggleButtonElement = null;
     this.wheelInfoOverlayStorageKey = this.getWheelInfoOverlayStorageKey();
@@ -4631,6 +4641,136 @@ class URDFViewer {
     }
   }
 
+  getGroundSurfaceAxisInfo(geometry) {
+    if (!geometry) {
+      return null;
+    }
+
+    if (!geometry.boundingBox) {
+      geometry.computeBoundingBox();
+    }
+
+    const box = geometry.boundingBox;
+    if (!box) {
+      return null;
+    }
+
+    const size = new THREE.Vector3();
+    box.getSize(size);
+
+    // The ground patch is a thin slab; its thinnest dimension is the surface
+    // normal axis, and the slab's top face along that axis is the drivable
+    // surface that potholes are carved down from.
+    let axis = "y";
+    let minSize = Infinity;
+    ["x", "y", "z"].forEach((candidateAxis) => {
+      if (size[candidateAxis] < minSize) {
+        minSize = size[candidateAxis];
+        axis = candidateAxis;
+      }
+    });
+
+    return { axis, top: box.max[axis] };
+  }
+
+  /**
+   * Darkens the CSG-carved walls/floor of a pothole cavity with baked vertex
+   * colors so the depression is visible regardless of viewing angle or
+   * lighting direction, instead of relying purely on normal-based shading
+   * (which made the 4 cut faces look identical to the untouched ground).
+   * Returns the geometry to use going forward (may be a new instance).
+   */
+  applyGroundHoleShading(geometry, groundSurfaceAxisInfo) {
+    if (!this.enableGroundHoleShading || !groundSurfaceAxisInfo) {
+      return geometry;
+    }
+
+    const workingGeometry = geometry.index ? geometry.toNonIndexed() : geometry;
+    if (workingGeometry !== geometry) {
+      geometry.dispose();
+    }
+
+    const positionAttribute = workingGeometry.getAttribute("position");
+    if (!positionAttribute) {
+      return workingGeometry;
+    }
+
+    const { axis, top } = groundSurfaceAxisInfo;
+    const epsilonMeters = 1e-4;
+    const fullDepthMeters = Math.max(this.groundHoleShadeFullDepthMeters, epsilonMeters);
+    const rimColor = this.groundHoleRimShadeColor;
+    const deepColor = this.groundHoleDeepShadeColor;
+    const surfaceColor = new THREE.Color(1, 1, 1);
+    const shadedColor = new THREE.Color();
+
+    const vertexA = new THREE.Vector3();
+    const vertexB = new THREE.Vector3();
+    const vertexC = new THREE.Vector3();
+    const colors = new Float32Array(positionAttribute.count * 3);
+    const triangleCount = Math.floor(positionAttribute.count / 3);
+
+    for (let triangleIndex = 0; triangleIndex < triangleCount; triangleIndex += 1) {
+      const i0 = triangleIndex * 3;
+      const i1 = i0 + 1;
+      const i2 = i0 + 2;
+      vertexA.fromBufferAttribute(positionAttribute, i0);
+      vertexB.fromBufferAttribute(positionAttribute, i1);
+      vertexC.fromBufferAttribute(positionAttribute, i2);
+
+      const centroidHeight = (vertexA[axis] + vertexB[axis] + vertexC[axis]) / 3;
+      const depthBelowSurface = top - centroidHeight;
+
+      let colorToWrite;
+      if (depthBelowSurface > epsilonMeters) {
+        const depthRatio = THREE.MathUtils.clamp(
+          depthBelowSurface / fullDepthMeters,
+          0,
+          1,
+        );
+        shadedColor.copy(rimColor).lerp(deepColor, depthRatio);
+        colorToWrite = shadedColor;
+      } else {
+        colorToWrite = surfaceColor;
+      }
+
+      [i0, i1, i2].forEach((vertexIndex) => {
+        colors[vertexIndex * 3] = colorToWrite.r;
+        colors[vertexIndex * 3 + 1] = colorToWrite.g;
+        colors[vertexIndex * 3 + 2] = colorToWrite.b;
+      });
+    }
+
+    workingGeometry.setAttribute("color", new THREE.BufferAttribute(colors, 3));
+    return workingGeometry;
+  }
+
+  /**
+   * Clones the ground mesh's material(s) and turns on vertexColors so the
+   * baked pothole shading from applyGroundHoleShading() actually renders.
+   * Cloning keeps unrelated meshes that may share the same material instance
+   * (e.g. other untouched ground patches) unaffected.
+   */
+  enableGroundHoleShadingMaterial(node) {
+    if (!this.enableGroundHoleShading || !node.material) {
+      return;
+    }
+
+    const isMaterialArray = Array.isArray(node.material);
+    const materials = isMaterialArray ? node.material : [node.material];
+    const shadedMaterials = materials.map((material) => {
+      if (!material) {
+        return material;
+      }
+
+      const shadedMaterial = material.clone ? material.clone() : material;
+      shadedMaterial.vertexColors = true;
+      shadedMaterial.needsUpdate = true;
+      return shadedMaterial;
+    });
+
+    node.material = isMaterialArray ? shadedMaterials : shadedMaterials[0];
+  }
+
   applyGroundHoleCarvingByCSG() {
     if (!this.enableGroundHoleCarving || !this.robotModel) {
       return;
@@ -4690,17 +4830,25 @@ class URDFViewer {
           return;
         }
 
+        const groundSurfaceAxisInfo = this.getGroundSurfaceAxisInfo(
+          node.geometry,
+        );
+
         cutterMeshes.forEach((cutterMesh) => {
           const previousResultMesh = resultMesh;
           resultMesh = CSG.subtract(resultMesh, cutterMesh);
           this.disposeTemporaryMesh(previousResultMesh);
         });
 
-        const localGeometry = resultMesh.geometry.clone();
+        let localGeometry = resultMesh.geometry.clone();
         const inverseWorld = new THREE.Matrix4()
           .copy(node.matrixWorld)
           .invert();
         localGeometry.applyMatrix4(inverseWorld);
+        localGeometry = this.applyGroundHoleShading(
+          localGeometry,
+          groundSurfaceAxisInfo,
+        );
         localGeometry.computeVertexNormals();
         localGeometry.computeBoundingBox();
         localGeometry.computeBoundingSphere();
@@ -4708,6 +4856,7 @@ class URDFViewer {
         node.geometry.dispose();
         node.geometry = localGeometry;
         node.updateMatrixWorld(true);
+        this.enableGroundHoleShadingMaterial(node);
 
         this.disposeTemporaryMesh(resultMesh);
         carvedMeshCount += 1;

@@ -3121,6 +3121,10 @@ class RapierDriveSimulation {
           .copy(groundMesh.matrixWorld)
           .invert();
         let carvedGeometry = groundMesh.geometry.clone();
+        // Tracks whether the next subtract is the very first one, explicitly - see the
+        // baseObjectIndex comment below for why this can't be inferred from
+        // carvedGeometry.groups.length.
+        let isFirstSubtract = true;
 
         holeMeshesByRegion.forEach((holeMeshes) => {
           holeMeshes.forEach((holeMesh) => {
@@ -3156,19 +3160,25 @@ class RapierDriveSimulation {
             cutterMesh.updateMatrix();
 
             // Object index becomes the geometry group, so cut walls get their own material slot.
-            // Forcing objectIndex 0 here would work for the very first hole (carvedGeometry is
-            // still the pristine, group-less ground box at that point) but is wrong for every
-            // subsequent one: CSG.fromMesh(mesh, objectIndex) with a *defined* objectIndex makes
-            // three-csg-ts ignore whatever groups already exist on carvedGeometry and stamps
-            // every polygon — including the interior walls an earlier subtract just carved with
-            // material index 1 — back to 0. That silently turned every hole but the last-carved
-            // one back into flat surfaceMaterial. Passing undefined once real groups exist makes
-            // it read carvedGeometry's own per-polygon group index instead, so earlier holes'
-            // interior faces keep their material 1 tag through later subtracts.
-            const baseObjectIndex =
-              carvedGeometry.groups && carvedGeometry.groups.length > 0
-                ? undefined
-                : 0;
+            // Forcing objectIndex 0 on the very first hole and undefined afterward matters for
+            // two different reasons, so isFirstSubtract is tracked explicitly rather than
+            // inferred from carvedGeometry.groups.length:
+            //  - On the first hole, carvedGeometry is the *pristine* ground box. THREE.Box-
+            //    Geometry always ships with 6 native per-face groups (materialIndex 0-5, one
+            //    per face) even though it's a single material - groups.length is already > 0
+            //    on a mesh nobody has CSG'd yet. Passing objectIndex=undefined here would make
+            //    three-csg-ts read the box's own native face groups (0-5) instead of a single
+            //    uniform tag, scattering the ground's polygons across 6 "shared" values when
+            //    the [surfaceMaterial, interiorMaterial] array only has slots 0 and 1 - faces
+            //    that ended up on materialIndex 2-5 (including the box's actual top/driving
+            //    face) got no material at all. That's what showed up as a large dark, wrongly-
+            //    shaded wedge across part of the ground even with only one small pothole.
+            //  - On the second-and-later hole, objectIndex must be undefined instead: forcing 0
+            //    would make three-csg-ts ignore the *real* CSG-assigned groups already on
+            //    carvedGeometry and stamp every polygon back to 0 - including interior walls an
+            //    earlier subtract just tagged with material index 1 - silently turning every
+            //    hole but the last-carved one back into flat surfaceMaterial.
+            const baseObjectIndex = isFirstSubtract ? 0 : undefined;
             const resultMesh = CSG.toMesh(
               CSG.fromMesh(baseMesh, baseObjectIndex).subtract(
                 CSG.fromMesh(cutterMesh, 1),
@@ -3179,6 +3189,7 @@ class RapierDriveSimulation {
             carvedGeometry.dispose();
             holeGeometry.dispose();
             carvedGeometry = resultMesh.geometry;
+            isFirstSubtract = false;
           });
         });
 

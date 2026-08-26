@@ -4444,7 +4444,16 @@ class URDFViewer {
   }
 
   loadURDF() {
-    const loader = new URDFLoader();
+    // URDFLoader's onComplete (below) fires as soon as the joint/link *tree* is parsed,
+    // but each <mesh filename=...> (STL/DAE/OBJ) it references keeps loading
+    // asynchronously afterward and gets attached to its link as it individually
+    // resolves. Since the render loop runs continuously, that showed up as the model
+    // visibly assembling piece by piece instead of appearing all at once. A dedicated
+    // LoadingManager - shared with the mesh sub-loaders URDFLoader constructs
+    // internally - lets us wait for every one of those loads to actually finish before
+    // revealing the model; see the visible/onLoad handling below.
+    const loadingManager = new THREE.LoadingManager();
+    const loader = new URDFLoader(loadingManager);
 
     console.log(`[URDF] URDF 파일 로딩 중... (${this.urdfPath})`);
 
@@ -4455,6 +4464,9 @@ class URDFViewer {
         console.log("[URDF] ✅ URDF 로드 성공");
 
         this.scene.add(robot);
+        // Hidden until revealRobotAndFitCamera() below confirms every referenced mesh
+        // file has actually finished loading.
+        robot.visible = false;
         this.robotModel = robot;
         this.applyGroundHoleCarvingByCSG();
         this.carFrameAlertMaterials = [];
@@ -4483,8 +4495,19 @@ class URDFViewer {
           this.applyWheelHighlightByKey(window.pendingVehicleWheelHighlightKey);
         }
 
-        // 자동 피팅 로직
-        setTimeout(() => {
+        // 자동 피팅 로직 - runs once every referenced mesh file has actually finished
+        // loading (see the loadingManager comment above this callback), not after a
+        // blind delay: a fixed timeout either fires too early on a slow connection (fit
+        // computed from an incomplete bounding box, and the model still visibly missing
+        // pieces at the moment it's revealed) or just wastes time waiting on a fast one.
+        let hasRevealedRobot = false;
+        const revealRobotAndFitCamera = () => {
+          if (hasRevealedRobot) {
+            return;
+          }
+          hasRevealedRobot = true;
+          robot.visible = true;
+
           const bbox = new THREE.Box3().setFromObject(robot);
           const center = bbox.getCenter(new THREE.Vector3());
           const size = bbox.getSize(new THREE.Vector3());
@@ -4532,7 +4555,23 @@ class URDFViewer {
           this.markInitialCameraPoseReady();
 
           console.log("[URDF] ✅ 카메라/클리핑/컨트롤 범위 갱신 완료");
-        }, 200);
+        };
+
+        if (loadingManager.itemsTotal > loadingManager.itemsLoaded) {
+          loadingManager.onLoad = revealRobotAndFitCamera;
+          // Safety net: a mesh file that fails to load never reaches itemEnd() (three.js's
+          // LoadingManager only routes a failure to onError, not itemEnd), which would
+          // otherwise leave itemsLoaded permanently short of itemsTotal and the robot
+          // hidden forever. Fall back to revealing (whatever did load) after a generous
+          // wait instead of risking a permanently blank viewer.
+          setTimeout(revealRobotAndFitCamera, 8000);
+        } else {
+          // Nothing was left pending by the time this ran - e.g. an all-primitive URDF
+          // with no external mesh files, or every mesh happened to resolve synchronously
+          // (already cached) before we got here. LoadingManager only ever fires onLoad
+          // from inside itemEnd(), so it would never fire on its own in that case.
+          revealRobotAndFitCamera();
+        }
       },
       (progress) => {
         if (progress?.total) {

@@ -58,6 +58,15 @@ class URDFViewer {
     // single frame during a drag/zoom, which flickered the ground shadow.
     this.directionalLightUpdateThrottleMs = 150;
     this.lastInteractiveDirectionalLightUpdateMs = 0;
+    // Set by simulation.js around its own vehicle-follow camera updates (see
+    // syncCameraToVehicleTranslation() there) - those call controls.update() every
+    // physics step while driving, which fires the "change" listener below just like a
+    // real orbit drag would. Left unguarded, that repositioned the shadow-casting light
+    // (which is camera-relative - see resetDirectionalLight()) every throttle interval
+    // for as long as the vehicle kept moving, i.e. continuously - reading as the entire
+    // ground flashing/recoloring every ~150ms during simulation driving, not just the
+    // brief shimmer during an actual user drag this throttle was built for.
+    this.suppressInteractiveDirectionalLightFollow = false;
     this.goalTarget = new THREE.Vector3(0, 0, 0);
     this.goalTargetVerticalOffset = 0;
     this.overlayDragPanPixels = 0;
@@ -2526,17 +2535,19 @@ class URDFViewer {
       // light roughly following the camera during interaction without the per-frame
       // shadow-map churn; the "end" handler above does one last unthrottled call so the
       // light/shadow end up exactly right once the camera actually settles.
-      const nowMs = performance.now();
-      if (
-        !this.lastInteractiveDirectionalLightUpdateMs ||
-        nowMs - this.lastInteractiveDirectionalLightUpdateMs >=
-          this.directionalLightUpdateThrottleMs
-      ) {
-        this.lastInteractiveDirectionalLightUpdateMs = nowMs;
-        this.resetDirectionalLight(
-          this.controls.target,
-          this.directionalLightRadius,
-        );
+      if (!this.suppressInteractiveDirectionalLightFollow) {
+        const nowMs = performance.now();
+        if (
+          !this.lastInteractiveDirectionalLightUpdateMs ||
+          nowMs - this.lastInteractiveDirectionalLightUpdateMs >=
+            this.directionalLightUpdateThrottleMs
+        ) {
+          this.lastInteractiveDirectionalLightUpdateMs = nowMs;
+          this.resetDirectionalLight(
+            this.controls.target,
+            this.directionalLightRadius,
+          );
+        }
       }
       this.updateViewCubeOverlay();
       this.updateCompassOverlay();

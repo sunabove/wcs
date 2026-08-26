@@ -297,9 +297,11 @@ class RapierDriveSimulation {
     this.wheelGroundContactMarkerByKey = {};
     this.vehicleYawIndicatorGroup = null;
     this.vehicleYawPieMesh = null;
-    this.vehicleInitialYawRad = null;
-    this.vehiclePreviousYawRad = null;
-    this.vehicleAccumulatedYawRad = 0;
+    // The pie's "start"/zero-angle reference heading - continuously chases the
+    // vehicle's actual current heading (see syncVehicleYawIndicator()), rather than
+    // staying pinned to wherever the vehicle started.
+    this.vehicleYawTrailingRad = null;
+    this.vehicleYawIndicatorLastSyncMs = null;
     this.cameraFollowPreviousVehiclePosition = null;
     this.hasFitInitialVehicleCamera = false;
     this.isInitialVehicleCameraFitScheduled = false;
@@ -6863,14 +6865,10 @@ class RapierDriveSimulation {
 
     indicatorGroup.userData.arcRadius = arcRadius;
     indicatorGroup.userData.arcSegments = arcSegments;
-    this.vehicleInitialYawRad = this.extractYawFromQuaternion(
+    this.vehicleYawTrailingRad = this.extractYawFromQuaternion(
       this.initialQuaternion,
     );
-    this.vehiclePreviousYawRad = null;
-    // Continuously accumulated (unwrapped) heading change since initialYaw - see
-    // syncVehicleYawIndicator() for why this can't just be `currentYaw - initialYaw`
-    // wrapped to (-pi, pi].
-    this.vehicleAccumulatedYawRad = 0;
+    this.vehicleYawIndicatorLastSyncMs = null;
     this.vehicleYawIndicatorGroup = indicatorGroup;
     this.vehicleYawPieMesh = pieMesh;
     this.viewer.scene.add(indicatorGroup);

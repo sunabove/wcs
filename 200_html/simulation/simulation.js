@@ -8586,10 +8586,11 @@ class RapierDriveSimulation {
 
     // On reset, always return to the URDF-authored pose without extra ground alignment offsets.
     this.renderer.syncVehicle();
-    this.estimateWheelEffectiveRadiusMeters(
-      this.carFrame,
-      this.viewer?.robotModel?.links || null,
-    );
+    // Wheel radius is measured once, right after the model finishes loading (see
+    // ensureRapierInitialized() above) - the geometry it's measured from doesn't change
+    // across a reset, so remeasuring here was redundant (and, before
+    // configureWheelVisualKinematics() was fixed, actively harmful: it re-forced
+    // wheelAnimationTimeScale back to a stale value on every reset).
     this.resetWheelBodiesFromVisual();
     this.commandedDriveMode = null;
     this.applyDriveModeCommand("stop");

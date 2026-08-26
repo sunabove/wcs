@@ -6912,9 +6912,6 @@ class RapierDriveSimulation {
       );
       this.vehicleAccumulatedYawRad =
         (Number(this.vehicleAccumulatedYawRad) || 0) + yawChange;
-      if (Math.abs(yawChange) > 1e-5) {
-        this.vehicleYawDirectionSign = Math.sign(yawChange);
-      }
     }
     this.vehiclePreviousYawRad = currentYaw;
     const yawDelta = Number(this.vehicleAccumulatedYawRad) || 0;

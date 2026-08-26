@@ -1011,6 +1011,12 @@ class URDFViewer {
     this.renderer.domElement.style.width = "100%";
     this.renderer.domElement.style.height = "100%";
     this.renderer.domElement.style.display = "block";
+    // Hidden until loadURDF()'s revealRobotAndFitCamera() shows it again: otherwise the
+    // canvas starts painting the scene background (currently sky blue) the moment the
+    // renderer exists, well before the model has finished loading, so the container
+    // flashes as a blank sky-colored rectangle and only then does the model pop in on
+    // top of it - instead of the sky and the model appearing together in one frame.
+    this.renderer.domElement.style.visibility = "hidden";
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     this.container.appendChild(this.renderer.domElement);
@@ -4582,6 +4588,10 @@ class URDFViewer {
           this.snapshotInitialCameraPose();
           this.logCameraInfos(true);
           this.markInitialCameraPoseReady();
+          // Show the canvas now that the model and its camera fit are both ready, so the
+          // background and the fully-assembled model appear together in the same frame
+          // instead of the background flashing alone first.
+          this.renderer.domElement.style.visibility = "visible";
 
           console.log("[URDF] ✅ 카메라/클리핑/컨트롤 범위 갱신 완료");
         };
@@ -4608,6 +4618,9 @@ class URDFViewer {
       },
       (error) => {
         console.error("[URDF] ❌ URDF 로드 실패:", error);
+        // The URDF file itself never resolved, so onComplete above never ran and never
+        // got the chance to reveal the canvas - leave it hidden forever otherwise.
+        this.renderer.domElement.style.visibility = "visible";
       },
     );
   }

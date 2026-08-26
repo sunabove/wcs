@@ -230,8 +230,12 @@ class URDFViewer {
     // Vertex-color tint multiplied onto the carved pothole walls/floor so the
     // cavity reads as a depression even when the top surface and the CSG-cut
     // faces share the exact same base material/lighting.
-    this.groundHoleRimShadeColor = new THREE.Color(0x5c584f);
-    this.groundHoleDeepShadeColor = new THREE.Color(0x28251f);
+    this.groundHoleRimShadeColor = new THREE.Color(0x433f37);
+    this.groundHoleDeepShadeColor = new THREE.Color(0x15130f);
+    // Fallback only: used when a carved cavity has no measurable depth (e.g.
+    // a degenerate/near-zero-height cutter). Normally the actual carved
+    // depth of each cavity is measured and used instead — see
+    // applyGroundHoleShading().
     this.groundHoleShadeFullDepthMeters = 0.06;
     this.wheelInfoOverlayElement = null;
     this.wheelInfoToggleButtonElement = null;
@@ -4697,7 +4701,10 @@ class URDFViewer {
 
     const { axis, top } = groundSurfaceAxisInfo;
     const epsilonMeters = 1e-4;
-    const fullDepthMeters = Math.max(this.groundHoleShadeFullDepthMeters, epsilonMeters);
+    const configuredFullDepthMeters = Math.max(
+      this.groundHoleShadeFullDepthMeters,
+      epsilonMeters,
+    );
     const rimColor = this.groundHoleRimShadeColor;
     const deepColor = this.groundHoleDeepShadeColor;
     const surfaceColor = new THREE.Color(1, 1, 1);
@@ -4708,17 +4715,40 @@ class URDFViewer {
     const vertexC = new THREE.Vector3();
     const colors = new Float32Array(positionAttribute.count * 3);
     const triangleCount = Math.floor(positionAttribute.count / 3);
+    const depthBelowSurfaceByTriangle = new Float32Array(triangleCount);
+
+    // First pass: measure how deep this specific carved cavity actually goes.
+    // Hole depth varies a lot between models/meshes (a couple cm for a thin
+    // box cutter vs several cm for a sculpted STL), so normalizing against a
+    // single fixed constant made shallow holes barely darker than the rim
+    // color and never reach the dark "deep" color at all. Normalizing by the
+    // observed max depth instead guarantees every carved cavity spans the
+    // full rim-to-deep gradient, regardless of how deep it physically is.
+    let observedMaxDepthMeters = 0;
+    for (let triangleIndex = 0; triangleIndex < triangleCount; triangleIndex += 1) {
+      const i0 = triangleIndex * 3;
+      vertexA.fromBufferAttribute(positionAttribute, i0);
+      vertexB.fromBufferAttribute(positionAttribute, i0 + 1);
+      vertexC.fromBufferAttribute(positionAttribute, i0 + 2);
+
+      const centroidHeight = (vertexA[axis] + vertexB[axis] + vertexC[axis]) / 3;
+      const depthBelowSurface = top - centroidHeight;
+      depthBelowSurfaceByTriangle[triangleIndex] = depthBelowSurface;
+      if (depthBelowSurface > observedMaxDepthMeters) {
+        observedMaxDepthMeters = depthBelowSurface;
+      }
+    }
+
+    const fullDepthMeters =
+      observedMaxDepthMeters > epsilonMeters
+        ? observedMaxDepthMeters
+        : configuredFullDepthMeters;
 
     for (let triangleIndex = 0; triangleIndex < triangleCount; triangleIndex += 1) {
       const i0 = triangleIndex * 3;
       const i1 = i0 + 1;
       const i2 = i0 + 2;
-      vertexA.fromBufferAttribute(positionAttribute, i0);
-      vertexB.fromBufferAttribute(positionAttribute, i1);
-      vertexC.fromBufferAttribute(positionAttribute, i2);
-
-      const centroidHeight = (vertexA[axis] + vertexB[axis] + vertexC[axis]) / 3;
-      const depthBelowSurface = top - centroidHeight;
+      const depthBelowSurface = depthBelowSurfaceByTriangle[triangleIndex];
 
       let colorToWrite;
       if (depthBelowSurface > epsilonMeters) {

@@ -73,6 +73,11 @@ const GROUND_INTERIOR_WALL_EMISSIVE = 0x2a1509;
 const GROUND_INTERIOR_WALL_NORMAL_Z_THRESHOLD = 0.5;
 // Cutter overshoot above the surface; coplanar faces make BSP CSG emit stray full-size polygons.
 const CSG_CUTTER_OVERSHOOT_METERS = 0.01;
+// How quickly the vehicle yaw-indicator pie's "start" reference heading catches up to
+// the vehicle's actual current heading - see syncVehicleYawIndicator(). Smaller = the
+// pie collapses to nothing faster once the vehicle stops turning; larger = it shows a
+// longer "recent rotation" window.
+const RECENT_YAW_INDICATOR_TIME_CONSTANT_SEC = 0.5;
 // Lift below this is treated as flat ground.
 const WHEEL_SUPPORT_MIN_LIFT_METERS = 0.0005;
 // getWheelSupportProfile()'s 4-wheel ride-height plane fit is weighted by each sample's

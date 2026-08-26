@@ -2384,6 +2384,27 @@ class RapierDriveSimulation {
     const normalizedScale = this.normalizeVisualSpeedScale(value);
     this.visualSpeedScale = normalizedScale;
 
+    // visualSpeedScale (default 0.5 - see SIM_VISUAL_SPEED_DEFAULT_SCALE) only scales
+    // stepSimulation()'s physics delta time, i.e. how fast the body actually moves.
+    // Wheel rotation driven by MQTT-received commands (isWheelRotationDrivenByCommand,
+    // set whenever a wheel/angle/speed message arrives - see
+    // applySimulationWheelAngleSpeedCommand()) goes through urdfViewer.js's separate
+    // RPM-clock animation instead (applyWheelAnimation(), gated by its own
+    // wheelAnimationTimeScale, default 1 and never otherwise touched) rather than the
+    // travel-distance-driven path used while free-driving. Left unsynced, the wheel mesh
+    // spun at full real-time rate while the body it should represent moved at half that
+    // - exactly the "wheel completes 2 revolutions per 1 grid cell crossed" mismatch.
+    // Every page embedding this viewer is affected equally since the 0.5 default and
+    // this desync both come from here, not from anything page-specific.
+    [this.getDriveSourceViewer(), this.viewer].forEach((candidateViewer) => {
+      if (
+        candidateViewer &&
+        typeof candidateViewer.setWheelAnimationTimeScale === "function"
+      ) {
+        candidateViewer.setWheelAnimationTimeScale(normalizedScale);
+      }
+    });
+
     const speedSlider = document.getElementById(
       "simulation-visual-speed-scale",
     );
@@ -7501,6 +7522,13 @@ class RapierDriveSimulation {
       this.syncWheelGroundContactMarkers();
       this.resetWheelTravelTracking();
       this.syncWheelChartBaselineFromPhysics();
+      // applyVisualSpeedScale() may have already run (e.g. during start(), from a
+      // persisted preference) before this.viewer existed to receive it - re-apply now
+      // that it definitely does, so the wheel mesh's RPM-clock animation rate
+      // (wheelAnimationTimeScale) doesn't stay stuck at its 1.0 default while
+      // stepSimulation() moves the body at visualSpeedScale instead. See
+      // applyVisualSpeedScale() for the full explanation.
+      this.applyVisualSpeedScale(this.visualSpeedScale);
       this.isReady = true;
       this.hasFailed = false;
       this.lastStepTimeMs = 0;

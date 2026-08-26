@@ -1,10 +1,10 @@
 <package format="2">
-  <name>sw16</name>
+  <name>sw17</name>
   <version>1.0.0</version>
   <description>
-    <p>URDF Description package for sw16</p>
+    <p>URDF Description package for sw17</p>
     <p>This package contains configuration data, 3D models and launch files
-for sw16 robot</p>
+for sw17 robot</p>
   </description>
   <author>TODO</author>
   <maintainer email="TODO@email.com" />

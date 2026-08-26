@@ -116,7 +116,7 @@
     <visual>
       <origin xyz="0 0 0" rpy="0 0 0" />
       <geometry>
-        <mesh filename="../meshes/pothole.STL" scale="0.01 0.01 0.01" />
+        <mesh filename="package://sw17/meshes/pothole.STL" scale="0.01 0.01 0.01" />
       </geometry>
       <material name="pothole_mat">
         <color rgba="0.8 0.3 0.3 1.0" />
@@ -125,7 +125,7 @@
     <collision>
       <origin xyz="0 0 0" rpy="0 0 0" />
       <geometry>
-        <mesh filename="../meshes/pothole.STL" scale="0.01 0.01 0.01" />
+        <mesh filename="package://sw17/meshes/pothole.STL" scale="0.01 0.01 0.01" />
       </geometry>
     </collision>
   </link>
@@ -145,7 +145,7 @@
     <visual>
       <origin xyz="0 0 0" rpy="0 0 0" />
       <geometry>
-        <box size="0.08 1.5 0.06" />
+        <box size="0.10 1.5 0.05" />
       </geometry>
       <material name="wood_mat">
         <color rgba="0.55 0.35 0.15 1.0" />
@@ -196,7 +196,7 @@
 
   <!-- =================================================================== -->
   <!-- ROBOT LINKS & JOINTS (car_frame, swing, wheels, gears) -->
-  <!-- Robot body taken from the sw4 file -->
+  <!-- Robot body replaced with sw17 version; all mesh paths point to sw17 -->
   <!-- =================================================================== -->
   <link
     name="car_frame">
@@ -220,7 +220,7 @@
         rpy="0 0 3.14159265358979" />
       <geometry>
         <mesh
-          filename="../meshes/car_frame.STL" />
+          filename="package://sw17/meshes/car_frame.STL" />
       </geometry>
       <material
         name="">
@@ -234,7 +234,7 @@
         rpy="0 0 3.14159265358979" />
       <geometry>
         <mesh
-          filename="../meshes/car_frame.STL" />
+          filename="package://sw17/meshes/car_frame.STL" />
       </geometry>
     </collision>
   </link>
@@ -249,7 +249,7 @@
     <visual>
       <origin xyz="0 0 0" rpy="0 0 0" />
       <geometry>
-        <mesh filename="../meshes/version_marker.STL" scale="0.01 0.01 0.01" />
+        <mesh filename="package://sw17/meshes/version_marker.STL" scale="0.01 0.01 0.01" />
       </geometry>
       <material name="version_marker_mat">
         <color rgba="1.0 0.0 0.0 1" />
@@ -258,7 +258,7 @@
     <collision>
       <origin xyz="0 0 0" rpy="0 0 0" />  
       <geometry>
-        <mesh filename="../meshes/version_marker.STL" scale="0.01 0.01 0.01" />
+        <mesh filename="package://sw17/meshes/version_marker.STL" scale="0.01 0.01 0.01" />
       </geometry>
     </collision>
   </link>
@@ -277,16 +277,16 @@
     name="swing_link">
     <inertial>
       <origin
-        xyz="-0.0273355916585125 -0.0287903676257647 2.89027422336719E-08"
+        xyz="-0.0273355916585125 -0.0287903676257647 2.89027423442371E-08"
         rpy="0 0 0" />
       <mass
         value="1.44344385530313" />
       <inertia
-        ixx="0.00529337280538952"
-        ixy="-3.64864367307083E-06"
-        ixz="-2.47940935716782E-06"
+        ixx="0.00529337280538951"
+        ixy="-3.64864367307075E-06"
+        ixz="-2.47940935716905E-06"
         iyy="0.00598687173589354"
-        iyz="5.36294117235269E-10"
+        iyz="5.36294117364018E-10"
         izz="0.00290322324922313" />
     </inertial>
     <visual>
@@ -295,7 +295,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="../meshes/swing_link.STL" />
+          filename="package://sw17/meshes/swing_link.STL" />
       </geometry>
       <material
         name="">
@@ -309,7 +309,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="../meshes/swing_link.STL" />
+          filename="package://sw17/meshes/swing_link.STL" />
       </geometry>
     </collision>
   </link>
@@ -335,14 +335,14 @@
     name="inner_gear_rl">
     <inertial>
       <origin
-        xyz="5.68499051889493E-07 7.63716316804983E-05 -0.0149805703213809"
+        xyz="5.68499051889493E-07 7.63716316805052E-05 -0.0149805703213809"
         rpy="0 0 0" />
       <mass
         value="0.0110327332596441" />
       <inertia
         ixx="4.80829060566523E-06"
         ixy="-3.01977896116383E-11"
-        ixz="1.64764447803552E-10"
+        ixz="1.64764447803543E-10"
         iyy="4.80952617762222E-06"
         iyz="-3.00538459560614E-08"
         izz="7.04246785452798E-07" />
@@ -353,7 +353,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="../meshes/inner_gear_rl.STL" />
+          filename="package://sw17/meshes/inner_gear_rl.STL" />
       </geometry>
       <material
         name="">
@@ -367,12 +367,12 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="../meshes/inner_gear_rl.STL" />
+          filename="package://sw17/meshes/inner_gear_rl.STL" />
       </geometry>
     </collision>
   </link>
   <joint
-    name="inner_gear_rl_joint"
+    name="inner_gaer_rl_joint"
     type="continuous">
     <origin
       xyz="0 -0.133 0.32225"
@@ -394,10 +394,10 @@
         value="0.00025716399851268" />
       <inertia
         ixx="4.98603252287869E-09"
-        ixy="2.03563978870472E-24"
-        ixz="8.34552951043084E-25"
+        ixy="1.82884463556646E-24"
+        ixz="7.59651533938796E-25"
         iyy="1.00563812140731E-09"
-        iyz="2.31001276382072E-25"
+        iyz="2.73979929938495E-25"
         izz="4.39682524684318E-09" />
     </inertial>
     <visual>
@@ -406,7 +406,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="../meshes/gear_marker_rl.STL" />
+          filename="package://sw17/meshes/gear_marker_rl.STL" />
       </geometry>
       <material
         name="">
@@ -420,7 +420,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="../meshes/gear_marker_rl.STL" />
+          filename="package://sw17/meshes/gear_marker_rl.STL" />
       </geometry>
     </collision>
   </link>
@@ -428,7 +428,7 @@
     name="gear_marker_rl_joint"
     type="fixed">
     <origin
-      xyz="0 0 0.00600000000000001"
+      xyz="0 0 0.006"
       rpy="0 0 0" />
     <parent
       link="inner_gear_rl" />
@@ -459,7 +459,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="../meshes/inner_wheel_rl.STL" />
+          filename="package://sw17/meshes/inner_wheel_rl.STL" />
       </geometry>
       <material
         name="">
@@ -473,7 +473,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="../meshes/inner_wheel_rl.STL" />
+          filename="package://sw17/meshes/inner_wheel_rl.STL" />
       </geometry>
     </collision>
   </link>
@@ -494,16 +494,16 @@
     name="wheel_rl">
     <inertial>
       <origin
-        xyz="-0.001562739705886 -0.000131316876807515 2.79373952472017E-07"
+        xyz="-0.00156273970588588 -0.000131316876807515 2.79373952416506E-07"
         rpy="0 0 0" />
       <mass
         value="0.165142633558275" />
       <inertia
-        ixx="0.000907319831290132"
-        ixy="9.21658701292544E-09"
-        ixz="-1.96276226441759E-11"
+        ixx="0.000907319831290131"
+        ixy="9.21658701294885E-09"
+        ixz="-1.96276226475895E-11"
         iyy="0.000464100110679714"
-        iyz="-3.35033565768488E-09"
+        iyz="-3.35033565737129E-09"
         izz="0.000462525250528816" />
     </inertial>
     <visual>
@@ -512,7 +512,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="../meshes/wheel_rl.STL" />
+          filename="package://sw17/meshes/wheel_rl.STL" />
       </geometry>
       <material
         name="">
@@ -526,7 +526,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="../meshes/wheel_rl.STL" />
+          filename="package://sw17/meshes/wheel_rl.STL" />
       </geometry>
     </collision>
   </link>
@@ -552,11 +552,11 @@
       <mass
         value="0.0350523985722445" />
       <inertia
-        ixx="4.42121651078555E-06"
-        ixy="-4.78970661892705E-20"
-        ixz="-7.10521236656888E-20"
+        ixx="4.42121651078554E-06"
+        ixy="-4.54750813557152E-20"
+        ixz="-6.93849183746079E-20"
         iyy="3.67633196288507E-05"
-        iyz="3.28841221858915E-22"
+        iyz="-7.93695963849464E-22"
         izz="3.57142588184518E-05" />
     </inertial>
     <visual>
@@ -565,7 +565,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="../meshes/marker_rl.STL" />
+          filename="package://sw17/meshes/marker_rl.STL" />
       </geometry>
       <material
         name="">
@@ -579,7 +579,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="../meshes/marker_rl.STL" />
+          filename="package://sw17/meshes/marker_rl.STL" />
       </geometry>
     </collision>
   </link>
@@ -609,7 +609,7 @@
         ixy="3.36004195884918E-08"
         ixz="-5.61507233129707E-09"
         iyy="3.88759680999378E-05"
-        iyz="-7.02195906235155E-10"
+        iyz="-7.02195906235157E-10"
         izz="7.64579543953779E-05" />
     </inertial>
     <visual>
@@ -618,7 +618,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="../meshes/cover_rl.STL" />
+          filename="package://sw17/meshes/cover_rl.STL" />
       </geometry>
       <material
         name="">
@@ -632,7 +632,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="../meshes/cover_rl.STL" />
+          filename="package://sw17/meshes/cover_rl.STL" />
       </geometry>
     </collision>
   </link>
@@ -653,15 +653,15 @@
     name="inner_gear_rr">
     <inertial>
       <origin
-        xyz="5.68499051945004E-07 7.63716316805E-05 -0.0149805703213809"
+        xyz="5.68499051945004E-07 7.63716316805017E-05 -0.014980570321381"
         rpy="0 0 0" />
       <mass
         value="0.011032733259644" />
       <inertia
         ixx="4.80829060566522E-06"
-        ixy="-3.01977896133059E-11"
-        ixz="1.64764447801133E-10"
-        iyy="4.80952617762221E-06"
+        ixy="-3.01977896133589E-11"
+        ixz="1.64764447801149E-10"
+        iyy="4.8095261776222E-06"
         iyz="-3.00538459560614E-08"
         izz="7.04246785452794E-07" />
     </inertial>
@@ -671,7 +671,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="../meshes/inner_gear_rr.STL" />
+          filename="package://sw17/meshes/inner_gear_rr.STL" />
       </geometry>
       <material
         name="">
@@ -685,7 +685,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="../meshes/inner_gear_rr.STL" />
+          filename="package://sw17/meshes/inner_gear_rr.STL" />
       </geometry>
     </collision>
   </link>
@@ -712,10 +712,10 @@
         value="0.000257163998512678" />
       <inertia
         ixx="4.98603252287866E-09"
-        ixy="4.53656867197051E-24"
-        ixz="1.22813655056612E-24"
+        ixy="4.78860026485776E-24"
+        ixz="1.12993226393835E-24"
         iyy="1.00563812140728E-09"
-        iyz="3.26417631284086E-24"
+        iyz="3.49890926965703E-24"
         izz="4.39682524684315E-09" />
     </inertial>
     <visual>
@@ -724,7 +724,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="../meshes/gear_marker_rr.STL" />
+          filename="package://sw17/meshes/gear_marker_rr.STL" />
       </geometry>
       <material
         name="">
@@ -738,7 +738,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="../meshes/gear_marker_rr.STL" />
+          filename="package://sw17/meshes/gear_marker_rr.STL" />
       </geometry>
     </collision>
   </link>
@@ -746,7 +746,7 @@
     name="gear_marker_rr_joint"
     type="fixed">
     <origin
-      xyz="0 0 0.00600000000000001"
+      xyz="0 0 0.006"
       rpy="0 0 0" />
     <parent
       link="inner_gear_rr" />
@@ -777,7 +777,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="../meshes/inner_wheel_rr.STL" />
+          filename="package://sw17/meshes/inner_wheel_rr.STL" />
       </geometry>
       <material
         name="">
@@ -791,7 +791,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="../meshes/inner_wheel_rr.STL" />
+          filename="package://sw17/meshes/inner_wheel_rr.STL" />
       </geometry>
     </collision>
   </link>
@@ -812,17 +812,17 @@
     name="wheel_rr">
     <inertial>
       <origin
-        xyz="-0.00156273970588572 0.000131316876807612 -2.7937395213895E-07"
+        xyz="-0.00156273970588583 0.000131316876817528 -2.79374017531087E-07"
         rpy="0 0 0" />
       <mass
         value="0.165142633558274" />
       <inertia
-        ixx="0.000907319831290129"
-        ixy="-9.21658701263872E-09"
-        ixz="1.96276228595072E-11"
-        iyy="0.000464100110679713"
-        iyz="-3.35033565680581E-09"
-        izz="0.000462525250528813" />
+        ixx="0.00090731983129013"
+        ixy="-9.21658700820897E-09"
+        ixz="1.96275938328329E-11"
+        iyy="0.000464100110679909"
+        iyz="-3.35033628609186E-09"
+        izz="0.000462525250528618" />
     </inertial>
     <visual>
       <origin
@@ -830,7 +830,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="../meshes/wheel_rr.STL" />
+          filename="package://sw17/meshes/wheel_rr.STL" />
       </geometry>
       <material
         name="">
@@ -844,7 +844,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="../meshes/wheel_rr.STL" />
+          filename="package://sw17/meshes/wheel_rr.STL" />
       </geometry>
     </collision>
   </link>
@@ -870,11 +870,11 @@
       <mass
         value="0.0350523985722444" />
       <inertia
-        ixx="4.42121651078569E-06"
-        ixy="-5.475273910611E-20"
-        ixz="-9.03428622892884E-20"
+        ixx="4.42121651078567E-06"
+        ixy="-5.28402975298874E-20"
+        ixz="-9.02274323795986E-20"
         iyy="3.67633196288506E-05"
-        iyz="3.29726097123104E-21"
+        iyz="-1.17617990555265E-22"
         izz="3.57142588184519E-05" />
     </inertial>
     <visual>
@@ -883,7 +883,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="../meshes/marker_rr.STL" />
+          filename="package://sw17/meshes/marker_rr.STL" />
       </geometry>
       <material
         name="">
@@ -897,7 +897,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="../meshes/marker_rr.STL" />
+          filename="package://sw17/meshes/marker_rr.STL" />
       </geometry>
     </collision>
   </link>
@@ -925,9 +925,9 @@
       <inertia
         ixx="3.76248166455624E-05"
         ixy="3.36004195884911E-08"
-        ixz="-5.61507233125263E-09"
+        ixz="-5.61507233125262E-09"
         iyy="3.88759680999377E-05"
-        iyz="-7.02195906241697E-10"
+        iyz="-7.02195906241699E-10"
         izz="7.64579543953779E-05" />
     </inertial>
     <visual>
@@ -936,7 +936,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="../meshes/cover_rr.STL" />
+          filename="package://sw17/meshes/cover_rr.STL" />
       </geometry>
       <material
         name="">
@@ -950,7 +950,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="../meshes/cover_rr.STL" />
+          filename="package://sw17/meshes/cover_rr.STL" />
       </geometry>
     </collision>
   </link>
@@ -976,9 +976,9 @@
       <mass
         value="0.0110327332596441" />
       <inertia
-        ixx="4.80829060566523E-06"
-        ixy="-3.01977896124854E-11"
-        ixz="1.64764447787993E-10"
+        ixx="4.80829060566524E-06"
+        ixy="-3.01977896124324E-11"
+        ixz="1.64764447787965E-10"
         iyy="4.80952617762222E-06"
         iyz="-3.00538459560626E-08"
         izz="7.04246785452801E-07" />
@@ -989,7 +989,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="../meshes/inner_gear_fl.STL" />
+          filename="package://sw17/meshes/inner_gear_fl.STL" />
       </geometry>
       <material
         name="">
@@ -1003,7 +1003,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="../meshes/inner_gear_fl.STL" />
+          filename="package://sw17/meshes/inner_gear_fl.STL" />
       </geometry>
     </collision>
   </link>
@@ -1030,10 +1030,10 @@
         value="0.000257163998512678" />
       <inertia
         ixx="4.98603252287864E-09"
-        ixy="7.38646437615711E-24"
-        ixz="-3.44196548915243E-25"
-        iyy="1.00563812140728E-09"
-        iyz="-4.29310001094839E-25"
+        ixy="7.00518581255845E-24"
+        ixz="-3.23441561425079E-25"
+        iyy="1.00563812140729E-09"
+        iyz="-2.89216787911309E-25"
         izz="4.39682524684314E-09" />
     </inertial>
     <visual>
@@ -1042,7 +1042,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="../meshes/gear_marker_fl.STL" />
+          filename="package://sw17/meshes/gear_marker_fl.STL" />
       </geometry>
       <material
         name="">
@@ -1056,7 +1056,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="../meshes/gear_marker_fl.STL" />
+          filename="package://sw17/meshes/gear_marker_fl.STL" />
       </geometry>
     </collision>
   </link>
@@ -1077,13 +1077,13 @@
     name="inner_wheel_fl">
     <inertial>
       <origin
-        xyz="-0.00261832313479413 0.0436166291145294 -0.0104233484656811"
+        xyz="-0.00261832313479413 0.0436166291145294 -0.010423348465681"
         rpy="0 0 0" />
       <mass
         value="0.257556919292698" />
       <inertia
         ixx="0.000352310782843601"
-        ixy="-1.12191004252322E-06"
+        ixy="-1.12191004252321E-06"
         ixz="-2.12088293725005E-07"
         iyy="0.000370932469728746"
         iyz="3.53301558696707E-06"
@@ -1095,7 +1095,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="../meshes/inner_wheel_fl.STL" />
+          filename="package://sw17/meshes/inner_wheel_fl.STL" />
       </geometry>
       <material
         name="">
@@ -1109,7 +1109,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="../meshes/inner_wheel_fl.STL" />
+          filename="package://sw17/meshes/inner_wheel_fl.STL" />
       </geometry>
     </collision>
   </link>
@@ -1130,17 +1130,17 @@
     name="wheel_fl">
     <inertial>
       <origin
-        xyz="-0.00156273970588588 -0.000131316876807508 2.79373952388751E-07"
+        xyz="-0.00156273970588577 -0.000131316876742067 2.79373962380758E-07"
         rpy="0 0 0" />
       <mass
         value="0.165142633558274" />
       <inertia
-        ixx="0.000907319831290128"
-        ixy="9.21658701271734E-09"
-        ixz="-1.96276242383239E-11"
-        iyy="0.000464100110679714"
-        iyz="-3.35033565802894E-09"
-        izz="0.000462525250528812" />
+        ixx="0.000907319831290153"
+        ixy="9.21658704174592E-09"
+        ixz="-1.96276198540648E-11"
+        iyy="0.000464100110679926"
+        iyz="-3.3503362989912E-09"
+        izz="0.000462525250528625" />
     </inertial>
     <visual>
       <origin
@@ -1148,7 +1148,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="../meshes/wheel_fl.STL" />
+          filename="package://sw17/meshes/wheel_fl.STL" />
       </geometry>
       <material
         name="">
@@ -1162,7 +1162,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="../meshes/wheel_fl.STL" />
+          filename="package://sw17/meshes/wheel_fl.STL" />
       </geometry>
     </collision>
   </link>
@@ -1188,12 +1188,12 @@
       <mass
         value="0.0350523985722444" />
       <inertia
-        ixx="4.42121651078552E-06"
-        ixy="-2.7813120916483E-20"
-        ixz="2.32348435859302E-20"
+        ixx="4.4212165107855E-06"
+        ixy="-2.5192612735915E-20"
+        ixz="2.29259820060281E-20"
         iyy="3.67633196288506E-05"
-        iyz="-1.85408747480345E-21"
-        izz="3.57142588184517E-05" />
+        iyz="-6.54616569606381E-21"
+        izz="3.57142588184516E-05" />
     </inertial>
     <visual>
       <origin
@@ -1201,7 +1201,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="../meshes/marker_fl.STL" />
+          filename="package://sw17/meshes/marker_fl.STL" />
       </geometry>
       <material
         name="">
@@ -1215,7 +1215,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="../meshes/marker_fl.STL" />
+          filename="package://sw17/meshes/marker_fl.STL" />
       </geometry>
     </collision>
   </link>
@@ -1242,10 +1242,10 @@
         value="0.0355492073745058" />
       <inertia
         ixx="3.76248166455624E-05"
-        ixy="3.3600419588488E-08"
-        ixz="-5.61507233117656E-09"
+        ixy="3.36004195884881E-08"
+        ixz="-5.61507233117658E-09"
         iyy="3.88759680999378E-05"
-        iyz="-7.02195906237178E-10"
+        iyz="-7.02195906237176E-10"
         izz="7.64579543953779E-05" />
     </inertial>
     <visual>
@@ -1254,7 +1254,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="../meshes/cover_fl.STL" />
+          filename="package://sw17/meshes/cover_fl.STL" />
       </geometry>
       <material
         name="">
@@ -1268,7 +1268,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="../meshes/cover_fl.STL" />
+          filename="package://sw17/meshes/cover_fl.STL" />
       </geometry>
     </collision>
   </link>
@@ -1276,8 +1276,8 @@
     name="cover_fl_joint"
     type="fixed">
     <origin
-      xyz="-0.00287628069627605 0.0479137455158353 0.00774999999999976"
-      rpy="3.14159265358979 0 -3.08163422030932" />
+      xyz="-0.0028763 0.047914 0.00775"
+      rpy="3.1416 0 -3.0816" />
     <parent
       link="inner_wheel_fl" />
     <child
@@ -1296,7 +1296,7 @@
       <inertia
         ixx="4.80829060566523E-06"
         ixy="-3.01977896106325E-11"
-        ixz="1.64764447786779E-10"
+        ixz="1.64764447786867E-10"
         iyy="4.80952617762221E-06"
         iyz="-3.00538459560703E-08"
         izz="7.04246785452794E-07" />
@@ -1307,7 +1307,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="../meshes/inner_gear_fr.STL" />
+          filename="package://sw17/meshes/inner_gear_fr.STL" />
       </geometry>
       <material
         name="">
@@ -1321,7 +1321,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="../meshes/inner_gear_fr.STL" />
+          filename="package://sw17/meshes/inner_gear_fr.STL" />
       </geometry>
     </collision>
   </link>
@@ -1342,17 +1342,17 @@
     name="gear_marker_fr">
     <inertial>
       <origin
-        xyz="-2.77555756156289E-17 0.0110943575193751 -0.00295000000000001"
+        xyz="-2.77555756156289E-17 0.0110943575193751 -0.00294999999999995"
         rpy="0 0 0" />
       <mass
         value="0.000257163998512678" />
       <inertia
         ixx="4.98603252287865E-09"
-        ixy="-1.9516292577423E-24"
-        ixz="-6.91554361874292E-25"
+        ixy="-2.48800418619465E-24"
+        ixz="-8.11080071782058E-25"
         iyy="1.00563812140728E-09"
-        iyz="-6.55612170901568E-26"
-        izz="4.39682524684315E-09" />
+        iyz="9.48731964853235E-26"
+        izz="4.39682524684314E-09" />
     </inertial>
     <visual>
       <origin
@@ -1360,7 +1360,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="../meshes/gear_marker_fr.STL" />
+          filename="package://sw17/meshes/gear_marker_fr.STL" />
       </geometry>
       <material
         name="">
@@ -1374,7 +1374,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="../meshes/gear_marker_fr.STL" />
+          filename="package://sw17/meshes/gear_marker_fr.STL" />
       </geometry>
     </collision>
   </link>
@@ -1382,7 +1382,7 @@
     name="gear_marker_fr_joint"
     type="fixed">
     <origin
-      xyz="0 0 0.006"
+      xyz="0 0 0.00600000000000001"
       rpy="0 0 0" />
     <parent
       link="inner_gear_fr" />
@@ -1395,7 +1395,7 @@
     name="inner_wheel_fr">
     <inertial>
       <origin
-        xyz="-0.00261832313479415 0.0436166291145294 -0.0104233484656811"
+        xyz="-0.00261832313479415 0.0436166291145295 -0.0104233484656811"
         rpy="0 0 0" />
       <mass
         value="0.257556919292697" />
@@ -1413,7 +1413,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="../meshes/inner_wheel_fr.STL" />
+          filename="package://sw17/meshes/inner_wheel_fr.STL" />
       </geometry>
       <material
         name="">
@@ -1427,7 +1427,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="../meshes/inner_wheel_fr.STL" />
+          filename="package://sw17/meshes/inner_wheel_fr.STL" />
       </geometry>
     </collision>
   </link>
@@ -1448,17 +1448,17 @@
     name="wheel_fr">
     <inertial>
       <origin
-        xyz="-0.00156273970588583 0.000131316876807272 -2.79373952499773E-07"
+        xyz="-0.00156273970588588 0.000131316876751761 -2.79374027856161E-07"
         rpy="0 0 0" />
       <mass
         value="0.165142633558276" />
       <inertia
-        ixx="0.000907319831290136"
-        ixy="-9.21658701288718E-09"
-        ixz="1.96276244222484E-11"
-        iyy="0.000464100110679716"
-        iyz="-3.35033565658832E-09"
-        izz="0.000462525250528818" />
+        ixx="0.00090731983129016"
+        ixy="-9.21658703746882E-09"
+        ixz="1.96275909675628E-11"
+        iyy="0.000464100110680123"
+        iyz="-3.35033692644901E-09"
+        izz="0.000462525250528436" />
     </inertial>
     <visual>
       <origin
@@ -1466,7 +1466,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="../meshes/wheel_fr.STL" />
+          filename="package://sw17/meshes/wheel_fr.STL" />
       </geometry>
       <material
         name="">
@@ -1480,7 +1480,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="../meshes/wheel_fr.STL" />
+          filename="package://sw17/meshes/wheel_fr.STL" />
       </geometry>
     </collision>
   </link>
@@ -1506,11 +1506,11 @@
       <mass
         value="0.0350523985722445" />
       <inertia
-        ixx="4.42121651078541E-06"
-        ixy="-2.30022384738746E-20"
-        ixz="3.51237687998265E-20"
+        ixx="4.42121651078542E-06"
+        ixy="-9.67470444442021E-21"
+        ixz="3.30079576876465E-20"
         iyy="3.67633196288506E-05"
-        iyz="-2.88717789940908E-22"
+        iyz="2.51077423625936E-21"
         izz="3.57142588184516E-05" />
     </inertial>
     <visual>
@@ -1519,7 +1519,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="../meshes/marker_fr.STL" />
+          filename="package://sw17/meshes/marker_fr.STL" />
       </geometry>
       <material
         name="">
@@ -1533,7 +1533,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="../meshes/marker_fr.STL" />
+          filename="package://sw17/meshes/marker_fr.STL" />
       </geometry>
     </collision>
   </link>
@@ -1560,10 +1560,10 @@
         value="0.0355492073745058" />
       <inertia
         ixx="3.76248166455624E-05"
-        ixy="3.36004195884859E-08"
-        ixz="-5.61507233125255E-09"
+        ixy="3.36004195884858E-08"
+        ixz="-5.61507233125258E-09"
         iyy="3.88759680999378E-05"
-        iyz="-7.02195906242058E-10"
+        iyz="-7.02195906242059E-10"
         izz="7.64579543953779E-05" />
     </inertial>
     <visual>
@@ -1572,7 +1572,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="../meshes/cover_fr.STL" />
+          filename="package://sw17/meshes/cover_fr.STL" />
       </geometry>
       <material
         name="">
@@ -1586,7 +1586,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="../meshes/cover_fr.STL" />
+          filename="package://sw17/meshes/cover_fr.STL" />
       </geometry>
     </collision>
   </link>

@@ -6888,6 +6888,10 @@ class RapierDriveSimulation {
       this.initialQuaternion,
     );
     this.vehiclePreviousYawRad = null;
+    // Continuously accumulated (unwrapped) heading change since initialYaw - see
+    // syncVehicleYawIndicator() for why this can't just be `currentYaw - initialYaw`
+    // wrapped to (-pi, pi].
+    this.vehicleAccumulatedYawRad = 0;
     this.vehicleYawDirectionSign = 0;
     this.vehicleYawIndicatorGroup = indicatorGroup;
     this.vehicleYawArcLine = arcLine;

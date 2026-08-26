@@ -33,7 +33,7 @@
         }
     </script>
     <script type="module" src="../urdf/urdfViewer.js?v=20260826-throttle-shadow-light-update"></script>
-    <script type="module" src="simulation.js?v=20260826-hole-wheel-chart-diff"></script>
+    <script type="module" src="simulation.js?v=20260826-stop-pause-label-rename"></script>
 </head>
 
 <body class="bg-body-secondary" style="margin: 0; padding: 0; font-family: 'Trebuchet MS', 'Segoe UI', sans-serif;">
@@ -148,11 +148,11 @@
                                             onclick="runSimulationMqttDriveCommand('right')">우회전</button>
                                         <button type="button" class="btn btn-outline-danger btn-sm" id="drive-btn-stop"
                                             data-simulation-flash data-simulation-control
-                                            onclick="runSimulationControl(this, () => runSimulationMqttDriveCommand('stop'))">멈춤</button>
+                                            onclick="runSimulationControl(this, () => runSimulationMqttDriveCommand('stop'))">정지</button>
                                         <button type="button" class="btn btn-outline-dark btn-sm text-nowrap"
                                             id="drive-btn-pause" data-simulation-flash data-simulation-control
-                                            aria-pressed="false" title="정지 / 재개 (Space)"
-                                            onclick="toggleSimulationPause()">정지</button>
+                                            aria-pressed="false" title="일시정지 / 재개 (Space)"
+                                            onclick="toggleSimulationPause()">일시정지</button>
                                         <button type="button" class="btn btn-outline-warning btn-sm text-nowrap"
                                             id="drive-btn-reset" data-simulation-flash data-simulation-control
                                             onclick="runSimulationControl(this, () => resetSimulation())">초기화</button>

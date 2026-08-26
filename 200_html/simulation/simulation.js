@@ -51,9 +51,17 @@ const COBOT_SYSTEM_SIGN_TEXTURE_HEIGHT_PX = 105;
 const COBOT_SYSTEM_SIGN_TEXTURE_BORDER_MARGIN_PX = 16;
 // Half-width of the drivable ground built around the authored plate.
 const GROUND_EXTENSION_HALF_SIZE_METERS = 100;
-// Carved pothole walls use a fixed contrasting color so the pit shape stays readable.
-const GROUND_INTERIOR_COLOR = 0x243447;
-const GROUND_INTERIOR_EMISSIVE = 0x0d141d;
+// Carved pothole interior uses fixed contrasting colors so the pit shape stays readable.
+// The floor (roughly horizontal, facing up into the cavity) and the walls (roughly
+// vertical, the 4 faces bordering the undisturbed ground at the rim) get two distinct
+// colors rather than one, so the cavity's shape reads clearly even head-on/top-down,
+// where the walls barely catch any shading from lighting alone.
+const GROUND_INTERIOR_FLOOR_COLOR = 0x243447;
+const GROUND_INTERIOR_FLOOR_EMISSIVE = 0x0d141d;
+const GROUND_INTERIOR_WALL_COLOR = 0x8a4a2e;
+const GROUND_INTERIOR_WALL_EMISSIVE = 0x2a1509;
+// Triangle normal |z| at/above this is classified as floor; below it, as wall.
+const GROUND_INTERIOR_WALL_NORMAL_Z_THRESHOLD = 0.5;
 // Cutter overshoot above the surface; coplanar faces make BSP CSG emit stray full-size polygons.
 const CSG_CUTTER_OVERSHOOT_METERS = 0.01;
 // Lift below this is treated as flat ground.
@@ -2818,7 +2826,8 @@ class RapierDriveSimulation {
       return;
     }
 
-    const interiorMaterial = this.getGroundInteriorMaterial(authoredMaterial);
+    const floorMaterial = this.getGroundInteriorMaterial(authoredMaterial, "floor");
+    const wallMaterial = this.getGroundInteriorMaterial(authoredMaterial, "wall");
     const linerGroup = new THREE.Group();
     linerGroup.name = "simulation-extension-pothole-liners";
     linerGroup.userData.isSimulationGeneratedGround = true;
@@ -2837,30 +2846,35 @@ class RapierDriveSimulation {
           position: [centerX, centerY, this.groundZ - pitDepth],
           rotateX: 0,
           rotateZ: 0,
+          material: floorMaterial,
         },
         {
           size: [width, pitDepth],
           position: [centerX, holeRegion.minY, this.groundZ - pitDepth * 0.5],
           rotateX: Math.PI / 2,
           rotateZ: 0,
+          material: wallMaterial,
         },
         {
           size: [width, pitDepth],
           position: [centerX, holeRegion.maxY, this.groundZ - pitDepth * 0.5],
           rotateX: Math.PI / 2,
           rotateZ: 0,
+          material: wallMaterial,
         },
         {
           size: [depth, pitDepth],
           position: [holeRegion.minX, centerY, this.groundZ - pitDepth * 0.5],
           rotateX: Math.PI / 2,
           rotateZ: Math.PI / 2,
+          material: wallMaterial,
         },
         {
           size: [depth, pitDepth],
           position: [holeRegion.maxX, centerY, this.groundZ - pitDepth * 0.5],
           rotateX: Math.PI / 2,
           rotateZ: Math.PI / 2,
+          material: wallMaterial,
         },
       ];
 
@@ -2868,7 +2882,7 @@ class RapierDriveSimulation {
         const geometry = new THREE.PlaneGeometry(face.size[0], face.size[1]);
         geometry.rotateX(face.rotateX);
         geometry.rotateZ(face.rotateZ);
-        const faceMesh = new THREE.Mesh(geometry, interiorMaterial);
+        const faceMesh = new THREE.Mesh(geometry, face.material);
         faceMesh.position.copy(
           groundLink.worldToLocal(new THREE.Vector3(...face.position)),
         );
@@ -2956,11 +2970,19 @@ class RapierDriveSimulation {
     return meshes;
   }
 
-  getGroundInteriorMaterial(surfaceMaterial) {
+  // role: "floor" (default, roughly horizontal cavity bottom) or "wall" (the 4 roughly
+  // vertical faces bordering the undisturbed ground at the rim) - each gets its own
+  // fixed, distinct color so the pit's shape reads clearly even head-on/top-down.
+  getGroundInteriorMaterial(surfaceMaterial, role = "floor") {
     if (!this.groundInteriorMaterialBySource) {
       this.groundInteriorMaterialBySource = new Map();
     }
-    const cached = this.groundInteriorMaterialBySource.get(surfaceMaterial);
+    let byRole = this.groundInteriorMaterialBySource.get(surfaceMaterial);
+    if (!byRole) {
+      byRole = new Map();
+      this.groundInteriorMaterialBySource.set(surfaceMaterial, byRole);
+    }
+    const cached = byRole.get(role);
     if (cached) {
       return cached;
     }
@@ -2968,20 +2990,26 @@ class RapierDriveSimulation {
     const interiorMaterial = surfaceMaterial?.clone
       ? surfaceMaterial.clone()
       : new THREE.MeshStandardMaterial();
+    const color =
+      role === "wall" ? GROUND_INTERIOR_WALL_COLOR : GROUND_INTERIOR_FLOOR_COLOR;
+    const emissive =
+      role === "wall"
+        ? GROUND_INTERIOR_WALL_EMISSIVE
+        : GROUND_INTERIOR_FLOOR_EMISSIVE;
     if (interiorMaterial.color) {
-      interiorMaterial.color.setHex(GROUND_INTERIOR_COLOR);
+      interiorMaterial.color.setHex(color);
     }
     if (interiorMaterial.emissive) {
       // Keeps the pit readable when it falls into shadow.
-      interiorMaterial.emissive.setHex(GROUND_INTERIOR_EMISSIVE);
+      interiorMaterial.emissive.setHex(emissive);
     }
     interiorMaterial.transparent = false;
     interiorMaterial.opacity = 1;
     // Cut walls are viewed from inside the slab, so both faces must render.
     interiorMaterial.side = THREE.DoubleSide;
-    interiorMaterial.name = "ground_interior_mat";
+    interiorMaterial.name = `ground_interior_${role}_mat`;
 
-    this.groundInteriorMaterialBySource.set(surfaceMaterial, interiorMaterial);
+    byRole.set(role, interiorMaterial);
     return interiorMaterial;
   }
 
@@ -3042,6 +3070,60 @@ class RapierDriveSimulation {
     cutterGeometry.translate(0, 0, -minZ);
     cutterGeometry.scale(1, 1, scaleZ);
     cutterGeometry.translate(0, 0, minZ);
+  }
+
+  /**
+   * Splits a cutter geometry's own triangles into two groups by face normal - "wall"
+   * (materialIndex 1, roughly vertical faces) and "floor" (materialIndex 2, roughly
+   * horizontal ones) - so the cavity surface the CSG subtract in carveGroundVisualForHoles()
+   * derives from this cutter keeps that same split instead of one flat interior color.
+   * Mutates cutterGeometry in place (adds an index and .groups); safe to call on both the
+   * STL-derived convex hull and a plain box cutter.
+   */
+  classifyCutterFacesByWallOrFloor(cutterGeometry) {
+    const positionAttribute = cutterGeometry.getAttribute("position");
+    if (!positionAttribute) {
+      return;
+    }
+
+    // Work per-triangle-vertex, independent of whether the geometry is indexed, matching
+    // how CSG.fromGeometry() itself walks the geometry.
+    const sourceIndex = cutterGeometry.index
+      ? cutterGeometry.index.array
+      : null;
+    const triangleCount = sourceIndex
+      ? sourceIndex.length / 3
+      : positionAttribute.count / 3;
+
+    const a = new THREE.Vector3();
+    const b = new THREE.Vector3();
+    const c = new THREE.Vector3();
+    const wallIndices = [];
+    const floorIndices = [];
+
+    for (let t = 0; t < triangleCount; t += 1) {
+      const i0 = sourceIndex ? sourceIndex[t * 3] : t * 3;
+      const i1 = sourceIndex ? sourceIndex[t * 3 + 1] : t * 3 + 1;
+      const i2 = sourceIndex ? sourceIndex[t * 3 + 2] : t * 3 + 2;
+      a.fromBufferAttribute(positionAttribute, i0);
+      b.fromBufferAttribute(positionAttribute, i1);
+      c.fromBufferAttribute(positionAttribute, i2);
+      const normalZ = b
+        .clone()
+        .sub(a)
+        .cross(c.clone().sub(a))
+        .normalize().z;
+      const bucket =
+        Math.abs(normalZ) >= GROUND_INTERIOR_WALL_NORMAL_Z_THRESHOLD
+          ? floorIndices
+          : wallIndices;
+      bucket.push(i0, i1, i2);
+    }
+
+    cutterGeometry.setIndex(wallIndices.concat(floorIndices));
+    cutterGeometry.clearGroups();
+    cutterGeometry.addGroup(0, wallIndices.length, 1);
+    cutterGeometry.addGroup(wallIndices.length, floorIndices.length, 2);
   }
 
   async carveGroundVisualForHoles(forceRebuild = false) {
@@ -3113,8 +3195,14 @@ class RapierDriveSimulation {
         const surfaceMaterial = Array.isArray(groundMesh.material)
           ? groundMesh.material[0]
           : groundMesh.material;
-        const interiorMaterial =
-          this.getGroundInteriorMaterial(surfaceMaterial);
+        const floorMaterial = this.getGroundInteriorMaterial(
+          surfaceMaterial,
+          "floor",
+        );
+        const wallMaterial = this.getGroundInteriorMaterial(
+          surfaceMaterial,
+          "wall",
+        );
 
         groundMesh.updateWorldMatrix(true, false);
         const groundWorldInverse = new THREE.Matrix4()
@@ -3154,8 +3242,15 @@ class RapierDriveSimulation {
             const holeGeometry = this.buildClosedCutterGeometry(openHoleGeometry);
             openHoleGeometry.dispose();
             this.extendCutterAboveSurface(holeGeometry);
+            // Split the cutter's own faces into "wall" (material 1) vs "floor" (material 2)
+            // by normal direction, so the newly-exposed cavity surface the CSG subtract below
+            // derives from the cutter keeps that same split instead of one flat interior color.
+            this.classifyCutterFacesByWallOrFloor(holeGeometry);
             const baseMesh = new THREE.Mesh(carvedGeometry, surfaceMaterial);
-            const cutterMesh = new THREE.Mesh(holeGeometry, interiorMaterial);
+            // cutterMesh.material is never actually read by CSG.fromMesh()/toMesh() below
+            // (only .geometry and .matrix are) - the wall/floor split comes purely from the
+            // groups classifyCutterFacesByWallOrFloor() set on holeGeometry.
+            const cutterMesh = new THREE.Mesh(holeGeometry, wallMaterial);
             baseMesh.updateMatrix();
             cutterMesh.updateMatrix();
 
@@ -3169,22 +3264,25 @@ class RapierDriveSimulation {
             //    on a mesh nobody has CSG'd yet. Passing objectIndex=undefined here would make
             //    three-csg-ts read the box's own native face groups (0-5) instead of a single
             //    uniform tag, scattering the ground's polygons across 6 "shared" values when
-            //    the [surfaceMaterial, interiorMaterial] array only has slots 0 and 1 - faces
-            //    that ended up on materialIndex 2-5 (including the box's actual top/driving
-            //    face) got no material at all. That's what showed up as a large dark, wrongly-
-            //    shaded wedge across part of the ground even with only one small pothole.
+            //    the material array only has slots 0-2 - faces that ended up on materialIndex
+            //    3-5 (including the box's actual top/driving face) got no material at all.
+            //    That's what showed up as a large dark, wrongly-shaded wedge across part of the
+            //    ground even with only one small pothole.
             //  - On the second-and-later hole, objectIndex must be undefined instead: forcing 0
             //    would make three-csg-ts ignore the *real* CSG-assigned groups already on
             //    carvedGeometry and stamp every polygon back to 0 - including interior walls an
-            //    earlier subtract just tagged with material index 1 - silently turning every
+            //    earlier subtract just tagged with material index 1 or 2 - silently turning every
             //    hole but the last-carved one back into flat surfaceMaterial.
+            // For the cutter, objectIndex is left undefined too, so three-csg-ts reads the
+            // wall/floor groups classifyCutterFacesByWallOrFloor() just set, instead of
+            // stamping every cutter polygon with one shared index.
             const baseObjectIndex = isFirstSubtract ? 0 : undefined;
             const resultMesh = CSG.toMesh(
               CSG.fromMesh(baseMesh, baseObjectIndex).subtract(
-                CSG.fromMesh(cutterMesh, 1),
+                CSG.fromMesh(cutterMesh, undefined),
               ),
               baseMesh.matrix,
-              [surfaceMaterial, interiorMaterial],
+              [surfaceMaterial, wallMaterial, floorMaterial],
             );
             carvedGeometry.dispose();
             holeGeometry.dispose();
@@ -3195,7 +3293,7 @@ class RapierDriveSimulation {
 
         groundMesh.geometry.dispose();
         groundMesh.geometry = carvedGeometry;
-        groundMesh.material = [surfaceMaterial, interiorMaterial];
+        groundMesh.material = [surfaceMaterial, wallMaterial, floorMaterial];
       });
 
       holeMeshesByRegion.forEach((holeMeshes) => {

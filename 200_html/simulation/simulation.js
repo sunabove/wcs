@@ -913,7 +913,14 @@ class RapierDriveSimulation {
         } else if (wheelSupportProfile) {
           const wheelSupportZ =
             wheelSupportProfile.supportZByKey?.[wheelKey];
-          if (Number.isFinite(wheelSupportZ)) {
+          // supportZByKey only ever moves a wheel *down* from groundZ (the hole branch
+          // in getWheelSupportProfile() is a running Math.min against groundZ), so
+          // "below groundZ" reliably means the hole logic actually engaged for this
+          // particular wheel. Gate on that instead of applying it to every wheel
+          // unconditionally: a wheel nowhere near the hole would otherwise get pinned to
+          // a flat groundZ here and lose whatever real chassis tilt the physics body
+          // actually has from the *other* wheel(s) that are in the hole.
+          if (Number.isFinite(wheelSupportZ) && wheelSupportZ < this.groundZ) {
             // supportZByKey holds each wheel's own contact/floor target - i.e. wheel
             // *bottom* height, matching the obstacle-ramp branch above's convention -
             // so add the radius back to get a comparable wheel-center Z.

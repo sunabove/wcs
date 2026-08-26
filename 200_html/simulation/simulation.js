@@ -5531,9 +5531,15 @@ class RapierDriveSimulation {
     }
 
     viewer.kmhToRpmFactor = 1000 / (60 * Math.PI * 2 * wheelRadiusMeters);
-    // Playback scale belongs to simulation time only; scaling here too would double-apply it.
+    // NOTE: this used to unconditionally force wheelAnimationTimeScale back to 1 here
+    // ("playback scale belongs to simulation time only"), which silently undid
+    // applyVisualSpeedScale()'s sync (see its comment) every time wheel radius was
+    // (re)measured - the actual cause of the "wheel spins 2x per grid cell crossed"
+    // bug whenever visualSpeedScale != 1 (confirmed via the drive-diagnostics overlay:
+    // ratio was exactly 1:1 at visual=1.00, exactly 2:1 at visual=0.50). Re-apply the
+    // current playback scale instead of clobbering it.
     if (typeof viewer.setWheelAnimationTimeScale === "function") {
-      viewer.setWheelAnimationTimeScale(1);
+      viewer.setWheelAnimationTimeScale(this.visualSpeedScale);
     }
     if (typeof viewer.setWheelVisualFilterEnabled === "function") {
       viewer.setWheelVisualFilterEnabled(false);

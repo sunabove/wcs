@@ -5995,10 +5995,27 @@ class RapierDriveSimulation {
    * though every relevant formula and measurement checks out mathematically. Created
    * lazily so it works on any page regardless of whether that page's HTML has a
    * dedicated debug panel (see initDebugPanel(), which simulation.html has but other
-   * pages embedding this viewer don't).
+   * pages embedding this viewer don't). Off by default - opt in per page with
+   * showDriveDiagnostics="true" on the urdf-viewer container element.
    */
   updateDriveDiagnosticsOverlay(position) {
     if (!this.viewer?.container) {
+      return;
+    }
+
+    // Off by default - this is a debugging aid (see the block comment above), not
+    // something a normal viewer of the page should see. Enable per-page by adding
+    // showDriveDiagnostics="true" to the urdf-viewer container element, same convention
+    // as showAttitude/showViewCube/etc. (see URDFViewer's constructor).
+    const isDriveDiagnosticsEnabled = this.viewer.parseBooleanAttribute(
+      this.viewer.container.getAttribute("showDriveDiagnostics"),
+      false,
+    );
+    if (!isDriveDiagnosticsEnabled) {
+      if (this.driveDiagnosticsOverlayElement) {
+        this.driveDiagnosticsOverlayElement.remove();
+        this.driveDiagnosticsOverlayElement = null;
+      }
       return;
     }
 

@@ -3431,13 +3431,13 @@ class RapierDriveSimulation {
     this.sceneTreeGridOriginY = gridOrigin.y;
     this.resetSceneTreePool();
     // Single static "COBOT SYSTEM" ground marker, centered on world X=0 (not the grid
-    // origin - Y is grid-relative but X is a literal world coordinate here) and 5 grid
+    // origin - Y is grid-relative but X is a literal world coordinate here) and 3 grid
     // cells out on Y from the grid origin. Recomputed here alongside the tree origin so
     // it stays put on this now-static grid rather than drifting if the grid's phase
     // shifts on reset.
     this.cobotSystemSignPosition = new THREE.Vector2(
       0,
-      gridOrigin.y + gridSpacingMeters * 5,
+      gridOrigin.y + gridSpacingMeters * 3,
     );
     this.ensureCobotSystemSign();
     const snapUp = (value, origin) =>

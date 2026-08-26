@@ -56,8 +56,8 @@ const GROUND_EXTENSION_HALF_SIZE_METERS = 100;
 // the perspective convergence stacks many semi-transparent lines into the same few
 // screen pixels, reading as a bright hazy band instead of a horizon. The color must
 // match the scene background urdfViewer.js sets (this.scene.background, currently
-// 0x87ceeb) so faded-out geometry blends into it instead of fading to a visible tint.
-const GROUND_FOG_COLOR = 0x87ceeb;
+// 0xb8d8ea) so faded-out geometry blends into it instead of fading to a visible tint.
+const GROUND_FOG_COLOR = 0xb8d8ea;
 const GROUND_FOG_NEAR_METERS = 3;
 const GROUND_FOG_FAR_METERS = 11;
 // Carved pothole interior uses fixed contrasting colors so the pit shape stays readable.

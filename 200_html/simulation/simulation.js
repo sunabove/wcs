@@ -1880,10 +1880,17 @@ class RapierDriveSimulation {
   }
 
   computeChassisBounds(carFrame, linkMap) {
-    const fallbackBounds = new THREE.Box3().setFromObject(carFrame);
+    // Must check for null before touching carFrame: Box3.setFromObject() calls
+    // object.updateWorldMatrix() on whatever it's given, so calling it on a null/
+    // undefined carFrame (this ran unconditionally, before the guard below) threw
+    // "Cannot read properties of null (reading 'updateWorldMatrix')" instead of falling
+    // back gracefully - seen when this runs before the model's carFrame link has
+    // resolved yet.
     if (!carFrame || !linkMap) {
-      return fallbackBounds;
+      return new THREE.Box3();
     }
+
+    const fallbackBounds = new THREE.Box3().setFromObject(carFrame);
 
     const obstacleLinkNames = this.getObstacleLinkNamesFromMap(linkMap);
     const obstacleRoots = obstacleLinkNames

@@ -296,6 +296,7 @@ class RapierDriveSimulation {
     this.vehicleYawArcArrowHead = null;
     this.vehicleInitialYawRad = null;
     this.vehiclePreviousYawRad = null;
+    this.vehicleAccumulatedYawRad = 0;
     this.vehicleYawDirectionSign = 0;
     this.cameraFollowPreviousVehiclePosition = null;
     this.hasFitInitialVehicleCamera = false;
@@ -6928,19 +6929,27 @@ class RapierDriveSimulation {
       : this.extractYawFromQuaternion(carQuaternion);
     const currentYaw = this.extractYawFromQuaternion(carQuaternion);
     if (Number.isFinite(this.vehiclePreviousYawRad)) {
+      // Per-frame delta is always small, so wrapping it to (-pi, pi] is safe here (it
+      // can never actually be near the wrap boundary) - unlike wrapping the *absolute*
+      // currentYaw - initialYaw difference below, which used to be how yawDelta itself
+      // was computed and silently discarded anything past +-180 degrees of total
+      // rotation: once the vehicle turned e.g. 181 degrees from its start heading, that
+      // wrapped straight to -179 degrees, snapping the arc/arrow to the opposite side
+      // instead of continuing smoothly toward a full turn. Accumulating each frame's
+      // small, safely-wrapped delta instead gives an unwrapped, continuously growing
+      // total that has no such ceiling.
       const yawChange = Math.atan2(
         Math.sin(currentYaw - this.vehiclePreviousYawRad),
         Math.cos(currentYaw - this.vehiclePreviousYawRad),
       );
+      this.vehicleAccumulatedYawRad =
+        (Number(this.vehicleAccumulatedYawRad) || 0) + yawChange;
       if (Math.abs(yawChange) > 1e-5) {
         this.vehicleYawDirectionSign = Math.sign(yawChange);
       }
     }
     this.vehiclePreviousYawRad = currentYaw;
-    const yawDelta = Math.atan2(
-      Math.sin(currentYaw - initialYaw),
-      Math.cos(currentYaw - initialYaw),
-    );
+    const yawDelta = Number(this.vehicleAccumulatedYawRad) || 0;
     const arcRadius = this.vehicleYawIndicatorGroup.userData.arcRadius;
     const arcSegments = this.vehicleYawIndicatorGroup.userData.arcSegments;
 
@@ -8258,6 +8267,7 @@ class RapierDriveSimulation {
     this.simulationElapsedSec = 0;
     this.wheelZChartHalfRangeCm = this.wheelZChartInitialHalfRangeCm;
     this.vehiclePreviousYawRad = null;
+    this.vehicleAccumulatedYawRad = 0;
     this.vehicleYawDirectionSign = 0;
     this.wheelVisualRotationDirectionByKey = {
       fl: -1,

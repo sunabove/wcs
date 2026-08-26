@@ -312,6 +312,10 @@ class RapierDriveSimulation {
     this.vehicleYawTrailingRad = null;
     this.vehicleYawIndicatorLastSyncMs = null;
     this.cameraFollowPreviousVehiclePosition = null;
+    // See maybeFollowDirectionalLightToVehicle() - last point the shadow-casting light
+    // was centered on, so it only re-centers in occasional discrete jumps as the vehicle
+    // drives rather than every physics step (which read as the ground flashing).
+    this.directionalLightFollowCenter = null;
     this.hasFitInitialVehicleCamera = false;
     this.isInitialVehicleCameraFitScheduled = false;
     this.initialPosition = null;
@@ -6156,12 +6160,48 @@ class RapierDriveSimulation {
       return;
     }
 
+    // controls.update() below fires OrbitControls' "change" event just like a real
+    // orbit drag would, which urdfViewer.js's setupCameraAngleLogging() listens for to
+    // reposition the (camera-relative) shadow-casting light. Left unguarded, that ran
+    // every physics step for as long as the vehicle kept moving - i.e. continuously -
+    // which read as the whole ground flashing/recoloring during driving. Suppress it
+    // here; maybeFollowDirectionalLightToVehicle() below re-centers the light instead,
+    // but only in occasional discrete jumps instead of a steady drip of small ones.
+    this.viewer.suppressInteractiveDirectionalLightFollow = true;
     camera.position.add(translationDelta);
     controls.target.add(translationDelta);
     if (this.viewer.goalTarget?.isVector3) {
       this.viewer.goalTarget.add(translationDelta);
     }
     controls.update();
+    this.viewer.suppressInteractiveDirectionalLightFollow = false;
+    this.maybeFollowDirectionalLightToVehicle(controls.target);
+  }
+
+  /**
+   * Re-centers the shadow-casting light on the vehicle in occasional discrete jumps
+   * instead of every physics step - see the comment in syncCameraToVehicleTranslation()
+   * for why continuous repositioning reads as the ground flashing. The light's shadow
+   * frustum (see resetDirectionalLight() in urdfViewer.js) spans roughly
+   * directionalLightRadius * 3, so re-centering once the vehicle has drifted half that
+   * far keeps it well within coverage without ever needing to move every frame.
+   */
+  maybeFollowDirectionalLightToVehicle(target) {
+    if (!this.viewer || typeof this.viewer.resetDirectionalLight !== "function") {
+      return;
+    }
+
+    if (!this.directionalLightFollowCenter) {
+      this.directionalLightFollowCenter = target.clone();
+      return;
+    }
+
+    const driftMeters = target.distanceTo(this.directionalLightFollowCenter);
+    const radius = Math.max(Number(this.viewer.directionalLightRadius) || 1, 0.001);
+    if (driftMeters > radius * 0.5) {
+      this.directionalLightFollowCenter.copy(target);
+      this.viewer.resetDirectionalLight(target, radius);
+    }
   }
 
   getCameraProjectedBoundsOccupancy(bounds) {

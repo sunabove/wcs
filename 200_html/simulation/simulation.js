@@ -58,8 +58,8 @@ const GROUND_EXTENSION_HALF_SIZE_METERS = 100;
 // match the scene background urdfViewer.js sets (this.scene.background, currently
 // 0xf8f8f8) so faded-out geometry blends into it instead of fading to a visible tint.
 const GROUND_FOG_COLOR = 0xf8f8f8;
-const GROUND_FOG_NEAR_METERS = 6;
-const GROUND_FOG_FAR_METERS = 22;
+const GROUND_FOG_NEAR_METERS = 3;
+const GROUND_FOG_FAR_METERS = 11;
 // Carved pothole interior uses fixed contrasting colors so the pit shape stays readable.
 // The floor (roughly horizontal, facing up into the cavity) and the walls (roughly
 // vertical, the 4 faces bordering the undisturbed ground at the rim) get two distinct

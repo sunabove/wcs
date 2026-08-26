@@ -2083,7 +2083,8 @@ class RapierDriveSimulation {
       return;
     }
 
-    pauseButton.textContent = this.isPaused ? "재개" : "일시정지";
+    // Same 4-character length in both states so the button doesn't resize on toggle.
+    pauseButton.textContent = this.isPaused ? "이어하기" : "일시정지";
     pauseButton.setAttribute("aria-pressed", this.isPaused ? "true" : "false");
     pauseButton.classList.toggle("active", this.isPaused);
   }

@@ -33,7 +33,7 @@
         }
     </script>
     <script type="module" src="../urdf/urdfViewer.js?v=20260826-throttle-shadow-light-update"></script>
-    <script type="module" src="simulation.js?v=20260826-grid-line-green"></script>
+    <script type="module" src="simulation.js?v=20260826-pause-label-fixed-width"></script>
 </head>
 
 <body class="bg-body-secondary" style="margin: 0; padding: 0; font-family: 'Trebuchet MS', 'Segoe UI', sans-serif;">
@@ -151,7 +151,7 @@
                                             onclick="runSimulationControl(this, () => runSimulationMqttDriveCommand('stop'))">정지</button>
                                         <button type="button" class="btn btn-outline-dark btn-sm text-nowrap"
                                             id="drive-btn-pause" data-simulation-flash data-simulation-control
-                                            aria-pressed="false" title="일시정지 / 재개 (Space)"
+                                            aria-pressed="false" title="일시정지 / 이어하기 (Space)"
                                             onclick="toggleSimulationPause()">일시정지</button>
                                         <button type="button" class="btn btn-outline-warning btn-sm text-nowrap"
                                             id="drive-btn-reset" data-simulation-flash data-simulation-control

@@ -5422,6 +5422,14 @@ class RapierDriveSimulation {
     const avgRadius =
       radii.reduce((sum, radius) => sum + radius, 0) / radii.length;
     this.wheelEffectiveRadiusMeters = Math.max(avgRadius, 0.05);
+    console.log(
+      "[URDF][Simulation] wheel radius measured:",
+      wheelRadiusMetersByKey,
+      "-> effective:",
+      this.wheelEffectiveRadiusMeters,
+      "circumference:",
+      this.getWheelCircumferenceMeters(),
+    );
     const viewer = this.getDriveSourceViewer();
     if (viewer) {
       viewer.kmhToRpmFactorByWheelKey = {};

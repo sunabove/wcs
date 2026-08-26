@@ -838,6 +838,23 @@ class RapierDriveSimulation {
     }
 
     const linkMap = this.vehicleModel.links;
+    // Steps/rocks get a scripted per-wheel ramp profile (activeObstacleTraversalPath,
+    // built from obstacleColliderInfos below) that gives each wheel its own target Z
+    // as a smooth function of how far *that wheel* is along the ramp - which is why the
+    // 4-wheel chart visibly differs while crossing one (front and rear wheels are at
+    // different points on the ramp at any given moment). getObstacleTraversalPath()
+    // only ever builds that profile from obstacleColliderInfos (raised obstacles); holes
+    // have no equivalent, so without this, the chart fell back to each wheel's raw
+    // rigid-body position here - which barely differs between wheels, since the chassis
+    // moves as one rigid body and a hole under only one or two wheels doesn't, on its
+    // own, change just those wheels' *reported* world position. getWheelSupportProfile()
+    // already computes each wheel's own pit-floor/edge support target independently
+    // (supportZByKey) the same way the obstacle ramp does for steps - reuse it below so
+    // a hole shows up as a per-wheel difference on the chart too.
+    const wheelSupportProfile = this.isVehicleOverHoleRegion()
+      ? this.getWheelSupportProfile()
+      : null;
+
     Object.entries(this.wheelLinkNameByKey).forEach(
       ([wheelKey, wheelLinkName]) => {
         const wheelLink = this.findLinkByName(linkMap, wheelLinkName);
@@ -892,6 +909,15 @@ class RapierDriveSimulation {
               chartCenterWorldZ =
                 wheelTargetBodyZ + (centerWorld.z - bodyPosition.z);
             }
+          }
+        } else if (wheelSupportProfile) {
+          const wheelSupportZ =
+            wheelSupportProfile.supportZByKey?.[wheelKey];
+          if (Number.isFinite(wheelSupportZ)) {
+            // supportZByKey holds each wheel's own contact/floor target - i.e. wheel
+            // *bottom* height, matching the obstacle-ramp branch above's convention -
+            // so add the radius back to get a comparable wheel-center Z.
+            chartCenterWorldZ = wheelSupportZ + wheelRadiusMeters;
           }
         }
 

@@ -7185,7 +7185,19 @@ class RapierDriveSimulation {
       return;
     }
 
-    if (!this.viewer?.robotModel) {
+    // robotModel exists (and its link/joint *tree* is fully built) as soon as
+    // urdf-loader's onComplete fires, but each <mesh filename=...> it references keeps
+    // loading asynchronously after that - see loadURDF() in urdfViewer.js. Since this
+    // only ever runs once (isReady/isInitializing above never let it re-enter),
+    // estimateWheelEffectiveRadiusMeters() below getting called before the wheel STL
+    // meshes have actually attached measured an empty bounding box for every wheel and
+    // silently kept the constructor's default wheelEffectiveRadiusMeters (0.16m,
+    // ~2x too large for a real wheel) forever - which is what made the ground grid
+    // (spaced by wheel circumference) take two wheel revolutions to cross one cell
+    // instead of one. urdfViewer.js keeps robotModel.visible false until every one of
+    // those mesh loads has actually finished, so gate on that instead of just
+    // robotModel's own existence - runLoop() retries this every frame regardless.
+    if (!this.viewer?.robotModel || this.viewer.robotModel.visible === false) {
       return;
     }
 

@@ -317,6 +317,7 @@ class RapierDriveSimulation {
     this.groundZ = 0;
     this.groundGrid = null;
     this.groundGridPatches = null;
+    this.groundGridBuiltCircumferenceMeters = null;
     this.groundExtensionGroup = null;
     // Pool of trees currently on screen, keyed by their lattice X (fixed string key so
     // float rounding can't create duplicate slots). Reused/cloned from sceneTreeTemplate.
@@ -3429,6 +3430,10 @@ class RapierDriveSimulation {
 
     // One cell equals one wheel revolution, so travel per rotation is readable on the ground.
     const gridSpacingMeters = this.getWheelCircumferenceMeters();
+    // Remembered so estimateWheelEffectiveRadiusMeters() can tell whether a *later*,
+    // more accurate measurement actually changes the circumference enough to be worth
+    // rebuilding this grid for - see the rebuild check there.
+    this.groundGridBuiltCircumferenceMeters = gridSpacingMeters;
     // Phase the grid so a line falls on the front wheel contact point at load/reset.
     const gridOrigin = this.getGroundGridOriginXY();
     // Freeze this same origin for the scene trees: the grid itself is only rebuilt at
@@ -5435,6 +5440,29 @@ class RapierDriveSimulation {
       viewer.kmhToRpmFactorByWheelKey = {};
     }
     this.configureWheelVisualKinematics();
+
+    // If the ground grid was already built (addGroundSurfaceGrid() records the
+    // circumference it used, in groundGridBuiltCircumferenceMeters, for exactly this
+    // check) using an earlier - possibly stale/default - radius before this measurement
+    // ran, its cell spacing would otherwise stay wrong forever: nothing else ever
+    // revisits it. This can only ever make the grid *more* correct, so there's no harm
+    // in always checking, regardless of what caused the earlier measurement to be off.
+    if (
+      this.groundGridPatches &&
+      Number.isFinite(this.groundGridBuiltCircumferenceMeters) &&
+      Math.abs(
+        this.getWheelCircumferenceMeters() -
+          this.groundGridBuiltCircumferenceMeters,
+      ) > 0.001
+    ) {
+      console.log(
+        "[URDF][Simulation] ground grid circumference stale, rebuilding:",
+        this.groundGridBuiltCircumferenceMeters,
+        "->",
+        this.getWheelCircumferenceMeters(),
+      );
+      this.addGroundSurfaceGrid(this.groundGridPatches);
+    }
 
     // window.wheelRadiusById is what 102_mqtt_process_status.js / 120_vehicle_test.js /
     // 200_wcs_setting.js read (see their getVehicleWheelRadiusByKey()-style lookups) -

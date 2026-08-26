@@ -4448,12 +4448,42 @@ class URDFViewer {
     // but each <mesh filename=...> (STL/DAE/OBJ) it references keeps loading
     // asynchronously afterward and gets attached to its link as it individually
     // resolves. Since the render loop runs continuously, that showed up as the model
-    // visibly assembling piece by piece instead of appearing all at once. A dedicated
-    // LoadingManager - shared with the mesh sub-loaders URDFLoader constructs
-    // internally - lets us wait for every one of those loads to actually finish before
-    // revealing the model; see the visible/onLoad handling below.
-    const loadingManager = new THREE.LoadingManager();
-    const loader = new URDFLoader(loadingManager);
+    // visibly assembling piece by piece instead of appearing all at once.
+    //
+    // A previous attempt at this hooked a THREE.LoadingManager's itemsTotal/itemsLoaded/
+    // onLoad instead of the counter below, on the assumption that URDFLoader's mesh
+    // sub-loaders (STLLoader/ColladaLoader, constructed with that same manager) drive it
+    // reliably enough to gate on - that didn't actually eliminate the piece-by-piece
+    // reveal in practice, so don't reintroduce it without confirming why first. Counting
+    // loadMeshCb's own start/done calls directly - URDFLoader's own public hook for
+    // "load this mesh file", captured into parse() by reference before any mesh loading
+    // begins (see parse()'s `const loadMeshCb = this.loadMeshCb`) - has no such
+    // indirection to go wrong.
+    let pendingMeshLoadCount = 0;
+    let hasParsedUrdfStructure = false;
+    let hasRevealedRobot = false;
+    // Reassigned inside onComplete below, once `robot` actually exists, to the real
+    // implementation (which closes over it directly). Calls to
+    // revealOnceEverythingIsLoaded() before that point are always no-ops anyway, since
+    // hasParsedUrdfStructure only flips to true inside that same onComplete.
+    let revealRobotAndFitCamera = () => {};
+    const revealOnceEverythingIsLoaded = () => {
+      if (hasRevealedRobot || !hasParsedUrdfStructure || pendingMeshLoadCount > 0) {
+        return;
+      }
+      revealRobotAndFitCamera();
+    };
+
+    const loader = new URDFLoader();
+    const loadMeshDirectly = loader.defaultMeshLoader.bind(loader);
+    loader.loadMeshCb = (path, manager, done) => {
+      pendingMeshLoadCount += 1;
+      loadMeshDirectly(path, manager, (mesh, err) => {
+        pendingMeshLoadCount -= 1;
+        done(mesh, err);
+        revealOnceEverythingIsLoaded();
+      });
+    };
 
     console.log(`[URDF] URDF 파일 로딩 중... (${this.urdfPath})`);
 
@@ -4496,12 +4526,11 @@ class URDFViewer {
         }
 
         // 자동 피팅 로직 - runs once every referenced mesh file has actually finished
-        // loading (see the loadingManager comment above this callback), not after a
-        // blind delay: a fixed timeout either fires too early on a slow connection (fit
+        // loading (see loadMeshCb's wrapper above this callback), not after a blind
+        // delay: a fixed timeout either fires too early on a slow connection (fit
         // computed from an incomplete bounding box, and the model still visibly missing
         // pieces at the moment it's revealed) or just wastes time waiting on a fast one.
-        let hasRevealedRobot = false;
-        const revealRobotAndFitCamera = () => {
+        revealRobotAndFitCamera = () => {
           if (hasRevealedRobot) {
             return;
           }
@@ -4557,21 +4586,19 @@ class URDFViewer {
           console.log("[URDF] ✅ 카메라/클리핑/컨트롤 범위 갱신 완료");
         };
 
-        if (loadingManager.itemsTotal > loadingManager.itemsLoaded) {
-          loadingManager.onLoad = revealRobotAndFitCamera;
-          // Safety net: a mesh file that fails to load never reaches itemEnd() (three.js's
-          // LoadingManager only routes a failure to onError, not itemEnd), which would
-          // otherwise leave itemsLoaded permanently short of itemsTotal and the robot
-          // hidden forever. Fall back to revealing (whatever did load) after a generous
-          // wait instead of risking a permanently blank viewer.
-          setTimeout(revealRobotAndFitCamera, 8000);
-        } else {
-          // Nothing was left pending by the time this ran - e.g. an all-primitive URDF
-          // with no external mesh files, or every mesh happened to resolve synchronously
-          // (already cached) before we got here. LoadingManager only ever fires onLoad
-          // from inside itemEnd(), so it would never fire on its own in that case.
-          revealRobotAndFitCamera();
-        }
+        hasParsedUrdfStructure = true;
+        // Safety net: defaultMeshLoader() never calls its `done` callback at all for a
+        // mesh file that fails to load (no onError is wired to the underlying
+        // STLLoader/ColladaLoader.load() call), which would otherwise leave
+        // pendingMeshLoadCount stuck above zero and the robot hidden forever. Fall back
+        // to revealing (whatever did load) after a generous wait instead of risking a
+        // permanently blank viewer.
+        setTimeout(revealRobotAndFitCamera, 8000);
+        // Covers both "no mesh files were ever pending" (an all-primitive URDF) and
+        // "every mesh file had already finished loading by the time parse() returned"
+        // (e.g. served from cache) - in either case no future loadMeshCb completion will
+        // ever fire to trigger revealOnceEverythingIsLoaded() on its own.
+        revealOnceEverythingIsLoaded();
       },
       (progress) => {
         if (progress?.total) {

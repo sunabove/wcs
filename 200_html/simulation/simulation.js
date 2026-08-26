@@ -291,13 +291,10 @@ class RapierDriveSimulation {
     this.wheelGroundContactMarkerGroup = null;
     this.wheelGroundContactMarkerByKey = {};
     this.vehicleYawIndicatorGroup = null;
-    this.vehicleYawArcLine = null;
-    this.vehicleYawRadiusLine = null;
-    this.vehicleYawArcArrowHead = null;
+    this.vehicleYawPieMesh = null;
     this.vehicleInitialYawRad = null;
     this.vehiclePreviousYawRad = null;
     this.vehicleAccumulatedYawRad = 0;
-    this.vehicleYawDirectionSign = 0;
     this.cameraFollowPreviousVehiclePosition = null;
     this.hasFitInitialVehicleCamera = false;
     this.isInitialVehicleCameraFitScheduled = false;
@@ -6822,58 +6819,42 @@ class RapierDriveSimulation {
       0.22,
     );
     const arcSegments = 64;
-    const arcGeometry = new THREE.BufferGeometry();
-    arcGeometry.setAttribute(
+
+    // A filled pie slice from angle 0 (initial heading) to the current accumulated
+    // yawDelta: one shared center vertex plus arcSegments+1 rim vertices, all
+    // preallocated - how much of the pie is actually drawn is controlled by
+    // setDrawRange() each frame in syncVehicleYawIndicator(), the same way the old arc
+    // line's visible length was.
+    const pieVertexCount = arcSegments + 2;
+    const pieGeometry = new THREE.BufferGeometry();
+    pieGeometry.setAttribute(
       "position",
-      new THREE.BufferAttribute(new Float32Array((arcSegments + 1) * 3), 3),
+      new THREE.BufferAttribute(new Float32Array(pieVertexCount * 3), 3),
     );
-    arcGeometry.setDrawRange(0, 0);
+    const pieIndex = new Uint16Array(arcSegments * 3);
+    for (let segmentIndex = 0; segmentIndex < arcSegments; segmentIndex += 1) {
+      pieIndex[segmentIndex * 3] = 0;
+      pieIndex[segmentIndex * 3 + 1] = segmentIndex + 1;
+      pieIndex[segmentIndex * 3 + 2] = segmentIndex + 2;
+    }
+    pieGeometry.setIndex(new THREE.BufferAttribute(pieIndex, 1));
+    pieGeometry.setDrawRange(0, 0);
 
-    const lineMaterial = new THREE.LineBasicMaterial({
-      color: 0x00a8ff,
-      fog: false,
-      toneMapped: false,
-    });
-    const indicatorGroup = new THREE.Group();
-    indicatorGroup.name = "simulation-vehicle-yaw-indicator";
-
-    const arcLine = new THREE.Line(arcGeometry, lineMaterial);
-    indicatorGroup.add(arcLine);
-
-    const radiusLine = new THREE.Line(
-      new THREE.BufferGeometry().setFromPoints([
-        new THREE.Vector3(0, 0, 0),
-        new THREE.Vector3(arcRadius, 0, 0),
-      ]),
-      lineMaterial,
-    );
-    indicatorGroup.add(radiusLine);
-
-    const startRadiusLine = new THREE.Line(
-      new THREE.BufferGeometry().setFromPoints([
-        new THREE.Vector3(0, 0, 0),
-        new THREE.Vector3(arcRadius, 0, 0),
-      ]),
-      lineMaterial,
-    );
-    indicatorGroup.add(startRadiusLine);
-
-    const arcArrowShape = new THREE.Shape();
-    arcArrowShape.moveTo(-0.018, -0.012);
-    arcArrowShape.lineTo(0.024, 0);
-    arcArrowShape.lineTo(-0.018, 0.012);
-    arcArrowShape.closePath();
-    const arcArrowHead = new THREE.Mesh(
-      new THREE.ShapeGeometry(arcArrowShape),
+    const pieMesh = new THREE.Mesh(
+      pieGeometry,
       new THREE.MeshBasicMaterial({
         color: 0x00a8ff,
+        transparent: true,
+        opacity: 0.55,
+        side: THREE.DoubleSide,
         fog: false,
         toneMapped: false,
-        side: THREE.DoubleSide,
       }),
     );
-    arcArrowHead.visible = false;
-    indicatorGroup.add(arcArrowHead);
+
+    const indicatorGroup = new THREE.Group();
+    indicatorGroup.name = "simulation-vehicle-yaw-indicator";
+    indicatorGroup.add(pieMesh);
 
     indicatorGroup.userData.arcRadius = arcRadius;
     indicatorGroup.userData.arcSegments = arcSegments;
@@ -6885,11 +6866,8 @@ class RapierDriveSimulation {
     // syncVehicleYawIndicator() for why this can't just be `currentYaw - initialYaw`
     // wrapped to (-pi, pi].
     this.vehicleAccumulatedYawRad = 0;
-    this.vehicleYawDirectionSign = 0;
     this.vehicleYawIndicatorGroup = indicatorGroup;
-    this.vehicleYawArcLine = arcLine;
-    this.vehicleYawRadiusLine = radiusLine;
-    this.vehicleYawArcArrowHead = arcArrowHead;
+    this.vehicleYawPieMesh = pieMesh;
     this.viewer.scene.add(indicatorGroup);
     this.syncVehicleYawIndicator();
   }
@@ -8260,7 +8238,6 @@ class RapierDriveSimulation {
     this.wheelZChartHalfRangeCm = this.wheelZChartInitialHalfRangeCm;
     this.vehiclePreviousYawRad = null;
     this.vehicleAccumulatedYawRad = 0;
-    this.vehicleYawDirectionSign = 0;
     this.wheelVisualRotationDirectionByKey = {
       fl: -1,
       fr: -1,

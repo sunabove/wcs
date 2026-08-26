@@ -7,7 +7,7 @@ const SIM_SPEED_LEGACY_STORAGE_KEY = "wcs.simulation.driveSpeedKmh";
 const SIM_SPEED_DEFAULT_MPS = 0.1;
 const SIM_SPEED_MAX_MPS = 2.0;
 const SIM_VISUAL_SPEED_STORAGE_KEY = "wcs.simulation.visualSpeedScale";
-const SIM_VISUAL_SPEED_DEFAULT_SCALE = 0.5;
+const SIM_VISUAL_SPEED_DEFAULT_SCALE = 1;
 const SIM_VISUAL_SPEED_MIN_SCALE = 1 / 4;
 const SIM_VISUAL_SPEED_MAX_SCALE = 4;
 const SIM_VISUAL_SPEED_SCALES = [1 / 4, 1 / 3, 1 / 2, 1, 2, 3, 4];
@@ -2384,7 +2384,7 @@ class RapierDriveSimulation {
     const normalizedScale = this.normalizeVisualSpeedScale(value);
     this.visualSpeedScale = normalizedScale;
 
-    // visualSpeedScale (default 0.5 - see SIM_VISUAL_SPEED_DEFAULT_SCALE) only scales
+    // visualSpeedScale (default 1 - see SIM_VISUAL_SPEED_DEFAULT_SCALE) only scales
     // stepSimulation()'s physics delta time, i.e. how fast the body actually moves.
     // Wheel rotation driven by MQTT-received commands (isWheelRotationDrivenByCommand,
     // set whenever a wheel/angle/speed message arrives - see

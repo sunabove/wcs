@@ -51,6 +51,15 @@ const COBOT_SYSTEM_SIGN_TEXTURE_HEIGHT_PX = 105;
 const COBOT_SYSTEM_SIGN_TEXTURE_BORDER_MARGIN_PX = 16;
 // Half-width of the drivable ground built around the authored plate.
 const GROUND_EXTENSION_HALF_SIZE_METERS = 100;
+// Fog range - see addGroundSurfaceGrid() for why: the ground grid's lines converge
+// toward the horizon over that 100m extension, and without fog to fade them out first,
+// the perspective convergence stacks many semi-transparent lines into the same few
+// screen pixels, reading as a bright hazy band instead of a horizon. The color must
+// match the scene background urdfViewer.js sets (this.scene.background, currently
+// 0xf8f8f8) so faded-out geometry blends into it instead of fading to a visible tint.
+const GROUND_FOG_COLOR = 0xf8f8f8;
+const GROUND_FOG_NEAR_METERS = 20;
+const GROUND_FOG_FAR_METERS = 80;
 // Carved pothole interior uses fixed contrasting colors so the pit shape stays readable.
 // The floor (roughly horizontal, facing up into the cavity) and the walls (roughly
 // vertical, the 4 faces bordering the undisturbed ground at the rim) get two distinct
@@ -3391,6 +3400,15 @@ class RapierDriveSimulation {
     if (!this.viewer?.scene || !Array.isArray(groundPatches)) {
       return;
     }
+
+    if (!this.viewer.scene.fog) {
+      this.viewer.scene.fog = new THREE.Fog(
+        GROUND_FOG_COLOR,
+        GROUND_FOG_NEAR_METERS,
+        GROUND_FOG_FAR_METERS,
+      );
+    }
+
     if (this.groundGrid) {
       this.viewer.scene.remove(this.groundGrid);
       this.groundGrid.geometry.dispose();

@@ -3029,9 +3029,19 @@ class RapierDriveSimulation {
 
     // Grow only upward, keeping the pit floor exactly where the geometry defines it.
     const scaleZ = (height + CSG_CUTTER_OVERSHOOT_METERS) / height;
-    cutterGeometry.translate(0, 0, -bounds.min.z);
+    // Snapshot into a primitive before touching the geometry: BufferGeometry.translate()/
+    // .scale() both route through applyMatrix4(), which - once boundingBox has been computed
+    // once (it just was, above) - silently recomputes `this.boundingBox` in place on every
+    // call. `bounds` is a live reference to that same object, so reading `bounds.min.z` again
+    // for the final translate (after the geometry has already been shifted and scaled) would
+    // pick up the *new*, already-transformed floor position instead of the original one -
+    // leaving the cutter mistranslated back to roughly its pre-extend position (floating at
+    // the surface instead of embedded in the ground) and making the CSG subtract that follows
+    // a near no-op, which is what let the whole ground keep rendering as one flat material.
+    const minZ = bounds.min.z;
+    cutterGeometry.translate(0, 0, -minZ);
     cutterGeometry.scale(1, 1, scaleZ);
-    cutterGeometry.translate(0, 0, bounds.min.z);
+    cutterGeometry.translate(0, 0, minZ);
   }
 
   async carveGroundVisualForHoles(forceRebuild = false) {

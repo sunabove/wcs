@@ -1,6 +1,11 @@
 // shared UI components for WCS pages
 
-const WCS_MQTT_HEADER_COMPONENT_PATH = './020_component_mqtt.html';
+// Root-relative, not "./020_component_mqtt.html": this script is shared across pages in
+// several different top-level directories (200_html/wcs/, 200_html/simulation/, etc.),
+// and a relative fetch() resolves against the *including page's* URL, not this script's
+// own location - it only happened to work for pages that live in 200_html/wcs/ itself,
+// 404ing (with the fallback header UI below silently covering for it) everywhere else.
+const WCS_MQTT_HEADER_COMPONENT_PATH = '/wcs/020_component_mqtt.html';
 const WCS_MQTT_HEADER_FALLBACK_HTML = [
     '<div class="mqtt-status-message-inline d-flex flex-nowrap align-items-center border rounded-3 px-2 py-1">',
     '    <div id="mqtt-status-container" class="d-flex flex-nowrap align-items-center me-3">',

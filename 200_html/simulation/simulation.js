@@ -6934,29 +6934,37 @@ class RapierDriveSimulation {
     const arcSegments = this.vehicleYawIndicatorGroup.userData.arcSegments;
 
     this.vehicleYawIndicatorGroup.position.copy(carPosition).add(roofOffset);
-    // Arc angles stay measured from the trailing reference, but the disc lies on the tilted roof.
-    const bodyTiltQuaternion = new THREE.Quaternion()
-      .setFromAxisAngle(new THREE.Vector3(0, 0, 1), -currentYaw)
-      .multiply(carQuaternion);
-    this.vehicleYawIndicatorGroup.quaternion
-      .setFromAxisAngle(new THREE.Vector3(0, 0, 1), trailingYaw)
-      .multiply(bodyTiltQuaternion);
+    // Copy the roof's actual current orientation directly - same pattern as
+    // syncVehicleDirectionArrows() - rather than trying to cancel currentYaw out of
+    // carQuaternion and reapply trailingYaw in its place: that RotZ(-currentYaw) *
+    // carQuaternion trick only exactly cancels the yaw component when yaw and the
+    // roll/pitch tilt are the *only* rotation and don't interact, which isn't true in
+    // general for a combined tilt+yaw orientation - it left the disc's own "yaw=0"
+    // direction (and therefore the whole pie) very slightly misaligned from the
+    // vehicle's actual current forward centerline whenever there was any roof tilt.
+    // Copying carQuaternion exactly removes that approximation entirely: local +X below
+    // is now, always, exactly the vehicle's current forward direction.
+    this.vehicleYawIndicatorGroup.quaternion.copy(carQuaternion);
 
-    // Fill a pie slice from angle 0 (trailing reference) to yawDelta - vertex 0 is the
-    // shared center, vertices 1..segmentCount+1 trace the rim; the index buffer built in
-    // ensureVehicleYawIndicator() fans triangles out from the center to each consecutive
-    // rim pair, so only drawing the first segmentCount*3 indices shows exactly that much
-    // of the pie.
+    // Fill a pie slice from the trailing reference to the vehicle's current heading -
+    // vertex 0 is the shared center, vertices 1..segmentCount+1 trace the rim; the index
+    // buffer built in ensureVehicleYawIndicator() fans triangles out from the center to
+    // each consecutive rim pair, so only drawing the first segmentCount*3 indices shows
+    // exactly that much of the pie. Local angle 0 is now the group's own +X axis (the
+    // vehicle's current forward direction, per the quaternion copy above), so the sweep
+    // runs from -sweepDelta (the trailing reference) up to exactly 0 (current) instead
+    // of 0..yawDelta the way it did when local +X was pinned to the trailing direction
+    // instead.
+    const sweepDelta = -yawDelta;
     const segmentCount = Math.min(
       arcSegments,
-      Math.ceil((Math.abs(yawDelta) / (Math.PI * 2)) * arcSegments),
+      Math.ceil((Math.abs(sweepDelta) / (Math.PI * 2)) * arcSegments),
     );
     const piePositions = this.vehicleYawPieMesh.geometry.attributes.position;
     piePositions.setXYZ(0, 0, 0, 0);
     for (let index = 0; index <= segmentCount; index += 1) {
-      // Negated: yawDelta grows positive as the vehicle turns one way, but the pie
-      // should sweep open in the opposite rotational sense from that raw sign.
-      const angle = segmentCount > 0 ? (-yawDelta * index) / segmentCount : 0;
+      const t = segmentCount > 0 ? index / segmentCount : 0;
+      const angle = sweepDelta * (t - 1);
       piePositions.setXYZ(
         index + 1,
         Math.cos(angle) * arcRadius,

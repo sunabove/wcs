@@ -6653,15 +6653,13 @@ class RapierDriveSimulation {
       fog: false,
       toneMapped: false,
       side: THREE.DoubleSide,
-      // The arrow sits just past the vehicle's half-extent (halfX + 4cm) along its
-      // forward axis, but the actual body/bumper mesh isn't guaranteed to stay within
-      // that extent - where it pokes out further, the body ends up between the camera
-      // and the arrow when viewed from angles near the front, and normal depth testing
-      // then lets the (opaque, depth-writing) body occlude it. This is a gizmo-style
-      // indicator, not scene geometry, so it should always read through regardless of
-      // viewing angle - disable depth test/write and force it to draw last instead.
-      depthTest: false,
-      depthWrite: false,
+      // Normal depth test/write: the arrow is scene geometry sitting just in front of
+      // the vehicle, not a screen-space gizmo, so it's expected to be occluded by the
+      // body when actually behind it from the current viewing angle (e.g. side-on).
+      // depthTest: false was tried to keep it visible from near-front angles, but it
+      // read as the arrow going translucent instead of fixing anything, so it's been
+      // dropped - the front-angle disappearing case, if it recurs, needs a different fix
+      // (e.g. moving the arrow further out, or accepting foreshortening from head-on).
       vertexShader: `
         void main() {
           gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
@@ -6687,11 +6685,6 @@ class RapierDriveSimulation {
     );
     shaft.position.set(arrowOriginX + arrowShaftLength * 0.5, 0, arrowHeight);
     shaft.rotation.z = -Math.PI / 2;
-    // renderOrder is read per-mesh by the renderer, not inherited from the parent group -
-    // set on both meshes so they draw after ordinary (depth-tested) scene geometry
-    // instead of being sorted/occluded by whatever they happen to sit behind now that
-    // depth test is off (see arrowMaterial above).
-    shaft.renderOrder = 999;
     arrowGroup.add(shaft);
 
     const arrowHead = new THREE.Mesh(
@@ -6704,7 +6697,6 @@ class RapierDriveSimulation {
       arrowHeight,
     );
     arrowHead.rotation.z = -Math.PI / 2;
-    arrowHead.renderOrder = 999;
     arrowGroup.add(arrowHead);
 
     this.vehicleDirectionArrowGroup = arrowGroup;

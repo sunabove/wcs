@@ -6940,8 +6940,7 @@ class RapierDriveSimulation {
     const piePositions = this.vehicleYawPieMesh.geometry.attributes.position;
     piePositions.setXYZ(0, 0, 0, 0);
     for (let index = 0; index <= segmentCount; index += 1) {
-      // Negated so the pie sweeps the opposite rotational sense from a raw yawDelta.
-      const angle = segmentCount > 0 ? (-yawDelta * index) / segmentCount : 0;
+      const angle = segmentCount > 0 ? (yawDelta * index) / segmentCount : 0;
       piePositions.setXYZ(
         index + 1,
         Math.cos(angle) * arcRadius,

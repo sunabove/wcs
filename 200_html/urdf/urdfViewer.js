@@ -122,6 +122,41 @@ class URDFViewer {
       rl: "wheel_rl",
       rr: "wheel_rr",
     };
+    // sw_17's wheel pods drive the wheel (spin axis: local -x) through a bevel gear pair
+    // whose pinion - inner_gear_{key} - spins about a different axis (local z). Rotating
+    // wheel_{key}_joint alone therefore leaves that pinion visually motionless even
+    // though physically it has to turn first for the wheel to turn at all. See
+    // resolveInnerGearJointTargets()/ensureInnerGearRatioMeasured()/
+    // applyInnerGearRotation() below - harmless no-op on models (vehicle.urdf, sw_14,
+    // sw_15) that don't have this joint.
+    this.innerGearJointNameByKey = {
+      fl: "inner_gear_fl_joint",
+      fr: "inner_gear_fr_joint",
+      rl: "inner_gear_rl_joint",
+      rr: "inner_gear_rr_joint",
+    };
+    this.innerGearLinkNameByKey = {
+      fl: "inner_gear_fl",
+      fr: "inner_gear_fr",
+      rl: "inner_gear_rl",
+      rr: "inner_gear_rr",
+    };
+    this.innerGearRuntimeTargetByKey = {
+      fl: null,
+      fr: null,
+      rl: null,
+      rr: null,
+    };
+    // Populated lazily by ensureInnerGearRatioMeasured() once both links' mesh geometry
+    // has actually finished loading (null until then, re-tried every call - see
+    // urdf-loader-progressive-mesh-reveal in the project memory for why mesh files can
+    // still be pending well after the joint/link tree itself has parsed).
+    this.innerGearRatioByKey = {
+      fl: null,
+      fr: null,
+      rl: null,
+      rr: null,
+    };
     this.wheelAngles = {
       fl: 0,
       fr: 0,
@@ -3112,6 +3147,9 @@ class URDFViewer {
         forwardWorld,
       );
       this.wheelAngles[key] += (rotationSign * distanceMeters) / radiusMeters;
+      // Must happen before the wheel joint itself is driven - see the comment on
+      // innerGearJointNameByKey in the constructor.
+      this.applyInnerGearRotation(key);
       if (runtimeTarget.type === "joint") {
         runtimeTarget.ref.setJointValue(this.wheelAngles[key]);
         return;
@@ -3195,6 +3233,10 @@ class URDFViewer {
       }
 
       this.wheelAngles[key] += clampedAngleStep;
+
+      // Must happen before the wheel joint itself is driven - see the comment on
+      // innerGearJointNameByKey in the constructor.
+      this.applyInnerGearRotation(key);
 
       if (runtimeTarget.type === "joint") {
         runtimeTarget.ref.setJointValue(this.wheelAngles[key]);
@@ -3582,6 +3624,118 @@ class URDFViewer {
         `[URDF] ${key.toUpperCase()} 휠 대상(조인트/링크)을 찾지 못했습니다.`,
       );
     });
+
+    this.resolveInnerGearJointTargets();
+  }
+
+  // See the comment on innerGearJointNameByKey in the constructor. No-op (leaves every
+  // key null) on models that don't have these joints at all - applyInnerGearRotation()
+  // below then just skips that wheel every frame, same as an unresolved wheel target.
+  resolveInnerGearJointTargets() {
+    const jointMap = this.robotModel?.joints || {};
+
+    Object.keys(this.innerGearJointNameByKey).forEach((key) => {
+      const jointName = this.innerGearJointNameByKey[key];
+      const joint = jointMap[jointName] || null;
+      this.innerGearRuntimeTargetByKey[key] =
+        joint && typeof joint.setJointValue === "function" ? joint : null;
+      // Force a re-measure against this (possibly new) model's geometry.
+      this.innerGearRatioByKey[key] = null;
+
+      if (this.innerGearRuntimeTargetByKey[key]) {
+        console.log(`[URDF] ${key.toUpperCase()} 내부 기어 조인트 연결:`, jointName);
+      }
+    });
+  }
+
+  // Local (untransformed) bounding radius of a link's own mesh, used to auto-derive the
+  // wheel<->inner-gear ratio from the model's actual geometry instead of a hardcoded
+  // constant - same "average of the two larger box dimensions, halved" approach
+  // simulation.js's estimateWheelEffectiveRadiusMeters() uses for the wheel radius
+  // itself, so the two stay consistent with each other. Every <mesh> visual in this
+  // wheel-pod assembly sits at origin xyz="0 0 0" relative to its own link (see
+  // sw17.urdf), so the mesh's own geometry.boundingBox already *is* the link's local
+  // bounding box - no extra transform math needed.
+  measureLinkLocalRadius(link) {
+    if (!link) {
+      return null;
+    }
+
+    let mesh = null;
+    link.traverse((child) => {
+      if (!mesh && child.isMesh && child.geometry) {
+        mesh = child;
+      }
+    });
+    if (!mesh) {
+      return null;
+    }
+
+    if (!mesh.geometry.boundingBox) {
+      mesh.geometry.computeBoundingBox();
+    }
+
+    const size = mesh.geometry.boundingBox
+      .getSize(new THREE.Vector3())
+      .toArray()
+      .sort((a, b) => a - b);
+    const radius = (size[1] + size[2]) * 0.25;
+    return radius > 1e-6 ? radius : null;
+  }
+
+  // Returns null (not an error - just "not measurable yet") until both links' mesh
+  // files have actually finished loading; see urdf-loader-progressive-mesh-reveal in
+  // the project memory for why that can lag well behind the joint/link tree parsing.
+  // Callers re-try every frame via applyInnerGearRotation() until this succeeds once,
+  // then it's cached for the rest of this model's lifetime.
+  ensureInnerGearRatioMeasured(key) {
+    const cachedRatio = this.innerGearRatioByKey[key];
+    if (Number.isFinite(cachedRatio)) {
+      return cachedRatio;
+    }
+
+    const linkMap = this.robotModel?.links || {};
+    const wheelRadius = this.measureLinkLocalRadius(
+      linkMap[this.wheelLinkNameByKey[key]],
+    );
+    const gearRadius = this.measureLinkLocalRadius(
+      linkMap[this.innerGearLinkNameByKey[key]],
+    );
+    if (!wheelRadius || !gearRadius) {
+      return null;
+    }
+
+    // Bevel-gear pair meshing at their pitch radii: matching tangential speed at the
+    // contact point means angularSpeed_gear * gearRadius == angularSpeed_wheel *
+    // wheelRadius, i.e. the (smaller, faster-spinning) pinion must turn by
+    // wheelAngle * (wheelRadius / gearRadius) for every wheelAngle the wheel itself
+    // turns by.
+    const ratio = wheelRadius / gearRadius;
+    this.innerGearRatioByKey[key] = ratio;
+    console.log(`[URDF] ${key.toUpperCase()} 내부 기어비 자동 계산:`, {
+      wheelRadius,
+      gearRadius,
+      ratio,
+    });
+    return ratio;
+  }
+
+  // Drives inner_gear_{key}_joint from the same wheelAngles[key] the wheel joint itself
+  // is about to be set from, scaled by the auto-measured gear ratio. Sign is assumed to
+  // match the wheel's (untested against the actual bevel-gear handedness in the mesh -
+  // flip this if the pinion is ever observed spinning opposite the wheel).
+  applyInnerGearRotation(key) {
+    const gearJoint = this.innerGearRuntimeTargetByKey[key];
+    if (!gearJoint) {
+      return;
+    }
+
+    const ratio = this.ensureInnerGearRatioMeasured(key);
+    if (!Number.isFinite(ratio)) {
+      return;
+    }
+
+    gearJoint.setJointValue(this.wheelAngles[key] * ratio);
   }
 
   logCameraInfos(force) {

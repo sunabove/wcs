@@ -372,7 +372,7 @@
     </collision>
   </link>
   <joint
-    name="inner_gaer_rl_joint"
+    name="inner_gear_rl_joint"
     type="continuous">
     <origin
       xyz="0 -0.133 0.32225"

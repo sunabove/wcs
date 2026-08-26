@@ -985,7 +985,7 @@ class URDFViewer {
 
     // Scene 생성
     this.scene = new THREE.Scene();
-    this.scene.background = new THREE.Color(0xf8f8f8);
+    this.scene.background = new THREE.Color(0x87ceeb);
 
     // Camera 생성
     this.camera = new THREE.PerspectiveCamera(50, width / height, 0.01, 1000);

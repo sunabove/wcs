@@ -2,6 +2,9 @@ import * as THREE from "three";
 import URDFLoader from "urdf-loader";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { CSG } from "three-csg-ts";
+import { LineSegments2 } from "three/examples/jsm/lines/LineSegments2.js";
+import { LineSegmentsGeometry } from "three/examples/jsm/lines/LineSegmentsGeometry.js";
+import { LineMaterial } from "three/examples/jsm/lines/LineMaterial.js";
 
 const $ = window.jQuery;
 const VEHICLE_AUDIO_STORAGE_KEY = "wcs.vehicle.showAudio";
@@ -232,13 +235,22 @@ class URDFViewer {
     // faces share the exact same base material/lighting.
     this.groundHoleRimShadeColor = new THREE.Color(0x433f37);
     this.groundHoleDeepShadeColor = new THREE.Color(0x15130f);
-    // Rim/deep shading alone was too subtle from steep top-down angles: the
-    // walls foreshorten to almost nothing and only the (nearly flat, nearly
-    // uniformly colored) floor is visible, so the cavity read as a flat
-    // discolored patch rather than a hole. A near-black outline forced along
-    // the crease where the undisturbed surface meets the carved wall gives a
-    // depth cue that survives regardless of viewing angle or lighting.
+    // Vertex-color shading alone was too subtle from steep top-down angles:
+    // the walls foreshorten to almost nothing and only the (nearly flat,
+    // nearly uniformly colored) floor is visible, so the cavity read as a
+    // flat discolored patch rather than a hole. On top of that, drawn line
+    // segments trace every hard crease of the carved cavity — rim, the
+    // corners between adjacent walls, and each wall-to-floor seam — in a
+    // fixed screen-space width, so the cavity's outline stays crisp and
+    // visible regardless of viewing angle, lighting, or how coarsely the
+    // CSG result happened to be triangulated. See attachGroundHoleEdgeLines().
     this.groundHoleEdgeLineColor = new THREE.Color(0x0a0806);
+    this.groundHoleEdgeLineWidthPixels = 2.5;
+    // Line2/LineMaterial objects currently attached for carved cavities, kept
+    // around so applyContainerResize() can keep their resolution uniform in
+    // sync with the actual render target size (required for correct
+    // constant-pixel-width lines) and so they can be disposed together.
+    this.groundHoleEdgeLineObjects = [];
     // Fallback only: used when a carved cavity has no measurable depth (e.g.
     // a degenerate/near-zero-height cutter). Normally the actual carved
     // depth of each cavity is measured and used instead — see
@@ -4797,6 +4809,89 @@ class URDFViewer {
   }
 
   /**
+   * Traces every hard crease of a carved pothole cavity — the rim where it
+   * meets the undisturbed ground, the corners between adjacent CSG-cut
+   * walls, and each wall-to-floor seam — with a constant-screen-width line
+   * in a strongly contrasting color. Vertex-color shading (applyGroundHole-
+   * Shading()) darkens the faces themselves, but that's easy to miss from a
+   * steep top-down angle where the walls foreshorten to almost nothing;
+   * drawn lines stay legible regardless of viewing angle, lighting, or
+   * triangulation density. Replaces any edge-line overlay previously
+   * attached to this node (e.g. from an earlier carve pass).
+   */
+  attachGroundHoleEdgeLines(node, geometry, groundSurfaceAxisInfo) {
+    if (node.userData.groundHoleEdgeLines) {
+      const previousLines = node.userData.groundHoleEdgeLines;
+      node.remove(previousLines);
+      previousLines.geometry.dispose();
+      previousLines.material.dispose();
+      const objectIndex = this.groundHoleEdgeLineObjects.indexOf(previousLines);
+      if (objectIndex !== -1) {
+        this.groundHoleEdgeLineObjects.splice(objectIndex, 1);
+      }
+      node.userData.groundHoleEdgeLines = null;
+    }
+
+    if (!this.enableGroundHoleShading || !groundSurfaceAxisInfo) {
+      return;
+    }
+
+    // Detect every hard-angle crease in the carved geometry (rim, wall-wall
+    // corners, wall-floor seams) via three.js's own face-normal comparison,
+    // then keep only the ones that actually border the cavity — i.e. at
+    // least one endpoint sits below the original ground surface. Without
+    // that filter this would also outline the ground mesh's own outer
+    // boundary (both endpoints at depth ~0), which has nothing to do with
+    // the pothole.
+    const { axis, top } = groundSurfaceAxisInfo;
+    const epsilonMeters = 1e-4;
+    const allEdges = new THREE.EdgesGeometry(geometry, 20);
+    const edgePositions = allEdges.getAttribute("position");
+    const vertex = new THREE.Vector3();
+    const cavityEdgePositions = [];
+    if (edgePositions) {
+      const segmentCount = Math.floor(edgePositions.count / 2);
+      for (let segmentIndex = 0; segmentIndex < segmentCount; segmentIndex += 1) {
+        const i0 = segmentIndex * 2;
+        const i1 = i0 + 1;
+        vertex.fromBufferAttribute(edgePositions, i0);
+        const depthA = top - vertex[axis];
+        const ax = vertex.x, ay = vertex.y, az = vertex.z;
+        vertex.fromBufferAttribute(edgePositions, i1);
+        const depthB = top - vertex[axis];
+        if (depthA > epsilonMeters || depthB > epsilonMeters) {
+          cavityEdgePositions.push(ax, ay, az, vertex.x, vertex.y, vertex.z);
+        }
+      }
+    }
+    allEdges.dispose();
+
+    if (cavityEdgePositions.length === 0) {
+      return;
+    }
+
+    const edgeLineGeometry = new LineSegmentsGeometry();
+    edgeLineGeometry.setPositions(cavityEdgePositions);
+
+    const containerRect = this.container.getBoundingClientRect();
+    const edgeLineMaterial = new LineMaterial({
+      color: this.groundHoleEdgeLineColor.getHex(),
+      linewidth: this.groundHoleEdgeLineWidthPixels,
+      worldUnits: false,
+      resolution: new THREE.Vector2(
+        Math.max(containerRect.width, 1),
+        Math.max(containerRect.height, 1),
+      ),
+    });
+
+    const edgeLines = new LineSegments2(edgeLineGeometry, edgeLineMaterial);
+    edgeLines.computeLineDistances();
+    node.add(edgeLines);
+    node.userData.groundHoleEdgeLines = edgeLines;
+    this.groundHoleEdgeLineObjects.push(edgeLines);
+  }
+
+  /**
    * Clones the ground mesh's material(s) and turns on vertexColors so the
    * baked pothole shading from applyGroundHoleShading() actually renders.
    * Cloning keeps unrelated meshes that may share the same material instance
@@ -4909,6 +5004,7 @@ class URDFViewer {
         node.geometry = localGeometry;
         node.updateMatrixWorld(true);
         this.enableGroundHoleShadingMaterial(node);
+        this.attachGroundHoleEdgeLines(node, localGeometry, groundSurfaceAxisInfo);
 
         this.disposeTemporaryMesh(resultMesh);
         carvedMeshCount += 1;
@@ -5114,6 +5210,16 @@ class URDFViewer {
         Math.min(window.devicePixelRatio || 1, 2),
       );
       this.compassRenderer.setSize(48, 48, false);
+    }
+
+    // LineMaterial (used by the pothole edge-line overlay) computes its
+    // constant screen-space line width from this resolution uniform — if it
+    // goes stale after a resize, the outline width silently drifts from what
+    // groundHoleEdgeLineWidthPixels asked for.
+    if (this.groundHoleEdgeLineObjects && this.groundHoleEdgeLineObjects.length > 0) {
+      this.groundHoleEdgeLineObjects.forEach((edgeLines) => {
+        edgeLines.material.resolution.set(newWidth, newHeight);
+      });
     }
   }
 

@@ -291,6 +291,7 @@ class RapierDriveSimulation {
     // comparison unreliable).
     this.driveDiagnosticsTraveledMeters = 0;
     this.driveDiagnosticsPreviousPosition = null;
+    this.driveDiagnosticsWheelAngleBaselineByKey = {};
     this.driveDiagnosticsOverlayElement = null;
     this.groundColliders = [];
     this.vehicleColliderLocalCenter = new THREE.Vector3(0, 0, 0);
@@ -6009,20 +6010,43 @@ class RapierDriveSimulation {
         ? this.driveDiagnosticsTraveledMeters / circumferenceMeters
         : 0;
     const viewer = this.getDriveSourceViewer() || this.viewer;
+    const baselineByKey = this.driveDiagnosticsWheelAngleBaselineByKey || {};
     const wheelRevolutions = ["fl", "fr", "rl", "rr"].map((wheelKey) => {
       const angleRad = Number(viewer?.wheelAngles?.[wheelKey]);
-      return Number.isFinite(angleRad) ? Math.abs(angleRad) / (Math.PI * 2) : 0;
+      const baselineRad = Number(baselineByKey[wheelKey]) || 0;
+      return Number.isFinite(angleRad)
+        ? Math.abs(angleRad - baselineRad) / (Math.PI * 2)
+        : 0;
     });
     const avgWheelRevolutions =
       wheelRevolutions.reduce((sum, value) => sum + value, 0) /
       wheelRevolutions.length;
 
     this.driveDiagnosticsOverlayElement.textContent =
-      `이동거리: ${this.driveDiagnosticsTraveledMeters.toFixed(3)}m ` +
-      `(그리드 ${gridCells.toFixed(2)}칸, 원주 ${circumferenceMeters.toFixed(3)}m)\n` +
-      `휠 회전수: FL ${wheelRevolutions[0].toFixed(2)} FR ${wheelRevolutions[1].toFixed(2)} ` +
-      `RL ${wheelRevolutions[2].toFixed(2)} RR ${wheelRevolutions[3].toFixed(2)} ` +
-      `(평균 ${avgWheelRevolutions.toFixed(2)})`;
+      `회전수: ${avgWheelRevolutions.toFixed(2)}\n` +
+      `그리드: ${gridCells.toFixed(2)}\n` +
+      `원주: ${circumferenceMeters.toFixed(3)}m`;
+  }
+
+  /**
+   * Zeroes the drive-diagnostics overlay's traveled-distance and wheel-revolution
+   * counters, without touching the underlying accumulators they're derived from
+   * (driveDiagnosticsTraveledMeters is the exception - see below) - so the numbers read
+   * "since this point" instead of "since simulation start". Called when the vehicle
+   * finishes passing an obstacle (see the isVehicleObstacleContact ON->OFF transition),
+   * so each obstacle crossing gets its own clean grid-count-vs-revolution-count
+   * comparison instead of carrying over whatever accumulated before it.
+   */
+  resetDriveDiagnosticsBaseline() {
+    this.driveDiagnosticsTraveledMeters = 0;
+    const viewer = this.getDriveSourceViewer() || this.viewer;
+    this.driveDiagnosticsWheelAngleBaselineByKey = ["fl", "fr", "rl", "rr"].reduce(
+      (result, wheelKey) => {
+        result[wheelKey] = Number(viewer?.wheelAngles?.[wheelKey]) || 0;
+        return result;
+      },
+      {},
+    );
   }
 
   syncCameraToVehicleTranslation(position) {
@@ -7256,6 +7280,12 @@ class RapierDriveSimulation {
       console.log(
         `[URDF][Simulation] vehicle-obstacle contact: ${hasContact ? "ON" : "OFF"}`,
       );
+      if (!hasContact) {
+        // Just finished passing the obstacle - start this obstacle's grid-count-vs-
+        // revolution-count comparison fresh instead of carrying over whatever
+        // accumulated before/during it.
+        this.resetDriveDiagnosticsBaseline();
+      }
     }
 
     return hasContact;
@@ -8394,6 +8424,7 @@ class RapierDriveSimulation {
     this.vehicleYawIndicatorLastSyncMs = null;
     this.driveDiagnosticsTraveledMeters = 0;
     this.driveDiagnosticsPreviousPosition = null;
+    this.driveDiagnosticsWheelAngleBaselineByKey = {};
     this.wheelVisualRotationDirectionByKey = {
       fl: -1,
       fr: -1,

@@ -3100,8 +3100,23 @@ class RapierDriveSimulation {
             cutterMesh.updateMatrix();
 
             // Object index becomes the geometry group, so cut walls get their own material slot.
+            // Forcing objectIndex 0 here would work for the very first hole (carvedGeometry is
+            // still the pristine, group-less ground box at that point) but is wrong for every
+            // subsequent one: CSG.fromMesh(mesh, objectIndex) with a *defined* objectIndex makes
+            // three-csg-ts ignore whatever groups already exist on carvedGeometry and stamps
+            // every polygon — including the interior walls an earlier subtract just carved with
+            // material index 1 — back to 0. That silently turned every hole but the last-carved
+            // one back into flat surfaceMaterial. Passing undefined once real groups exist makes
+            // it read carvedGeometry's own per-polygon group index instead, so earlier holes'
+            // interior faces keep their material 1 tag through later subtracts.
+            const baseObjectIndex =
+              carvedGeometry.groups && carvedGeometry.groups.length > 0
+                ? undefined
+                : 0;
             const resultMesh = CSG.toMesh(
-              CSG.fromMesh(baseMesh, 0).subtract(CSG.fromMesh(cutterMesh, 1)),
+              CSG.fromMesh(baseMesh, baseObjectIndex).subtract(
+                CSG.fromMesh(cutterMesh, 1),
+              ),
               baseMesh.matrix,
               [surfaceMaterial, interiorMaterial],
             );

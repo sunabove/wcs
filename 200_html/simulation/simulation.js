@@ -6895,47 +6895,58 @@ class RapierDriveSimulation {
       Number(this.vehicleColliderLocalCenter.y) || 0,
       (Number(this.vehicleColliderLocalCenter.z) || 0) + halfZ + 0.01,
     ).applyQuaternion(carQuaternion);
-    const initialYaw = Number.isFinite(this.vehicleInitialYawRad)
-      ? this.vehicleInitialYawRad
-      : this.extractYawFromQuaternion(carQuaternion);
     const currentYaw = this.extractYawFromQuaternion(carQuaternion);
-    if (Number.isFinite(this.vehiclePreviousYawRad)) {
-      // Per-frame delta is always small, so wrapping it to (-pi, pi] is safe here (it
-      // can never actually be near the wrap boundary) - unlike wrapping the *absolute*
-      // currentYaw - initialYaw difference below, which used to be how yawDelta itself
-      // was computed and silently discarded anything past +-180 degrees of total
-      // rotation: once the vehicle turned e.g. 181 degrees from its start heading, that
-      // wrapped straight to -179 degrees, snapping the arc/arrow to the opposite side
-      // instead of continuing smoothly toward a full turn. Accumulating each frame's
-      // small, safely-wrapped delta instead gives an unwrapped, continuously growing
-      // total that has no such ceiling.
-      const yawChange = Math.atan2(
-        Math.sin(currentYaw - this.vehiclePreviousYawRad),
-        Math.cos(currentYaw - this.vehiclePreviousYawRad),
+
+    // The pie's "start" (zero-angle) reference continuously chases the vehicle's own
+    // current heading instead of staying pinned to wherever the vehicle started, so the
+    // indicator reads as "how much have you been turning lately" rather than "total
+    // rotation since load". RECENT_YAW_INDICATOR_TIME_CONSTANT_SEC sets how fast it
+    // catches up: actively turning keeps the reference lagging behind (a visible pie
+    // slice); holding a heading lets it fully catch up (the pie collapses to nothing).
+    const nowMs = performance.now();
+    if (!Number.isFinite(this.vehicleYawTrailingRad)) {
+      this.vehicleYawTrailingRad = currentYaw;
+    } else if (Number.isFinite(this.vehicleYawIndicatorLastSyncMs)) {
+      const dtSec = THREE.MathUtils.clamp(
+        (nowMs - this.vehicleYawIndicatorLastSyncMs) / 1000,
+        0,
+        0.2,
       );
-      this.vehicleAccumulatedYawRad =
-        (Number(this.vehicleAccumulatedYawRad) || 0) + yawChange;
+      const catchUpAlpha =
+        1 - Math.exp(-dtSec / RECENT_YAW_INDICATOR_TIME_CONSTANT_SEC);
+      const gapFromTrailing = Math.atan2(
+        Math.sin(currentYaw - this.vehicleYawTrailingRad),
+        Math.cos(currentYaw - this.vehicleYawTrailingRad),
+      );
+      this.vehicleYawTrailingRad += gapFromTrailing * catchUpAlpha;
     }
-    this.vehiclePreviousYawRad = currentYaw;
-    const yawDelta = Number(this.vehicleAccumulatedYawRad) || 0;
+    this.vehicleYawIndicatorLastSyncMs = nowMs;
+
+    const trailingYaw = this.vehicleYawTrailingRad;
+    // Small by construction (the trailing reference never lags far behind), so wrapping
+    // to (-pi, pi] here is safe and doesn't need the unwrap-and-accumulate treatment a
+    // *cumulative-since-start* version of this angle would.
+    const yawDelta = Math.atan2(
+      Math.sin(currentYaw - trailingYaw),
+      Math.cos(currentYaw - trailingYaw),
+    );
     const arcRadius = this.vehicleYawIndicatorGroup.userData.arcRadius;
     const arcSegments = this.vehicleYawIndicatorGroup.userData.arcSegments;
 
     this.vehicleYawIndicatorGroup.position.copy(carPosition).add(roofOffset);
-    // Arc angles stay measured from the initial heading, but the disc lies on the tilted roof.
+    // Arc angles stay measured from the trailing reference, but the disc lies on the tilted roof.
     const bodyTiltQuaternion = new THREE.Quaternion()
       .setFromAxisAngle(new THREE.Vector3(0, 0, 1), -currentYaw)
       .multiply(carQuaternion);
     this.vehicleYawIndicatorGroup.quaternion
-      .setFromAxisAngle(new THREE.Vector3(0, 0, 1), initialYaw)
+      .setFromAxisAngle(new THREE.Vector3(0, 0, 1), trailingYaw)
       .multiply(bodyTiltQuaternion);
 
-    // Fill a pie slice from angle 0 (initial heading) to yawDelta - vertex 0 is the
+    // Fill a pie slice from angle 0 (trailing reference) to yawDelta - vertex 0 is the
     // shared center, vertices 1..segmentCount+1 trace the rim; the index buffer built in
     // ensureVehicleYawIndicator() fans triangles out from the center to each consecutive
     // rim pair, so only drawing the first segmentCount*3 indices shows exactly that much
-    // of the pie (0 when not turning, the full circle once |yawDelta| reaches a full
-    // 2*pi turn).
+    // of the pie.
     const segmentCount = Math.min(
       arcSegments,
       Math.ceil((Math.abs(yawDelta) / (Math.PI * 2)) * arcSegments),
@@ -8207,8 +8218,8 @@ class RapierDriveSimulation {
     this.isWheelZChartObstacleContactActive = false;
     this.simulationElapsedSec = 0;
     this.wheelZChartHalfRangeCm = this.wheelZChartInitialHalfRangeCm;
-    this.vehiclePreviousYawRad = null;
-    this.vehicleAccumulatedYawRad = 0;
+    this.vehicleYawTrailingRad = null;
+    this.vehicleYawIndicatorLastSyncMs = null;
     this.wheelVisualRotationDirectionByKey = {
       fl: -1,
       fr: -1,

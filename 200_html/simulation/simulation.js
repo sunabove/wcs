@@ -5436,6 +5436,18 @@ class RapierDriveSimulation {
     }
     this.configureWheelVisualKinematics();
 
+    // window.wheelRadiusById is what 102_mqtt_process_status.js / 120_vehicle_test.js /
+    // 200_wcs_setting.js read (see their getVehicleWheelRadiusByKey()-style lookups) -
+    // previously it was only ever populated by round-tripping through MQTT
+    // (publishSimulationWheelRadii() below publishes to wheel/<key>/radius, and a
+    // separate MQTT message handler on receipt sets window.wheelRadiusById). On a page
+    // that also runs this same simulation.js in-process (e.g. 100_vehicle_status.html),
+    // that round trip is unnecessary indirection and a source of staleness - set it
+    // directly from the measurement we just made instead, so anything reading it on this
+    // page sees the same value simulation.js itself is using, with no MQTT dependency.
+    globalThis.wheelRadiusById = globalThis.wheelRadiusById || {};
+    Object.assign(globalThis.wheelRadiusById, wheelRadiusMetersByKey);
+
     if (typeof globalThis.publishSimulationWheelRadii === "function") {
       globalThis.publishSimulationWheelRadii(wheelRadiusMetersByKey);
     }

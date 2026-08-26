@@ -6087,8 +6087,10 @@ class RapierDriveSimulation {
       `회전수: ${avgWheelRevolutions.toFixed(2)} ` +
       `그리드: ${gridCells.toFixed(2)} ` +
       `원주: ${circumferenceMeters.toFixed(3)}m\n` +
-      `속도: ${currentSpeedMps.toFixed(3)}m/s ` +
-      `RPM: ${currentRpm.toFixed(1)}`;
+      `속도: ${currentSpeedMps.toFixed(3)} m/s ` +
+      `RPM: ${currentRpm.toFixed(1)} ` +
+      `visual: ${Number(this.visualSpeedScale).toFixed(2)} ` +
+      `anim: ${Number(viewer?.wheelAnimationTimeScale).toFixed(2)}`;
   }
 
   /**

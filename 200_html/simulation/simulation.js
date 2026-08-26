@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { ConvexGeometry } from "three/examples/jsm/geometries/ConvexGeometry.js";
 
 const RAPIER_CDN = "https://cdn.skypack.dev/@dimforge/rapier3d-compat@0.11.2";
 const SIM_SPEED_STORAGE_KEY = "wcs.simulation.driveSpeedMps";
@@ -2984,6 +2985,36 @@ class RapierDriveSimulation {
     return interiorMaterial;
   }
 
+  /**
+   * Returns a closed (watertight) copy of a hole/cutter geometry, built as the
+   * convex hull of its own vertices. See the call site in
+   * carveGroundVisualForHoles() for why an open source mesh isn't safe to feed
+   * straight into a CSG boolean.
+   */
+  buildClosedCutterGeometry(sourceGeometry) {
+    const positionAttribute = sourceGeometry.getAttribute("position");
+    if (!positionAttribute || positionAttribute.count < 4) {
+      return sourceGeometry.clone();
+    }
+
+    const points = [];
+    const vertex = new THREE.Vector3();
+    for (let i = 0; i < positionAttribute.count; i += 1) {
+      vertex.fromBufferAttribute(positionAttribute, i);
+      points.push(vertex.clone());
+    }
+
+    try {
+      return new ConvexGeometry(points);
+    } catch (error) {
+      console.warn(
+        "[URDF][Simulation] convex-hull cutter build failed; using the source hole geometry as-is (CSG result may be unreliable if it isn't watertight):",
+        error,
+      );
+      return sourceGeometry.clone();
+    }
+  }
+
   extendCutterAboveSurface(cutterGeometry) {
     cutterGeometry.computeBoundingBox();
     const bounds = cutterGeometry.boundingBox;
@@ -3085,7 +3116,7 @@ class RapierDriveSimulation {
           holeMeshes.forEach((holeMesh) => {
             holeMesh.updateWorldMatrix(true, false);
             // Both operands share the ground mesh's local frame so identity matrices are valid for CSG.
-            const holeGeometry = holeMesh.geometry
+            const openHoleGeometry = holeMesh.geometry
               .clone()
               .applyMatrix4(
                 new THREE.Matrix4().multiplyMatrices(
@@ -3093,6 +3124,21 @@ class RapierDriveSimulation {
                   holeMesh.matrixWorld,
                 ),
               );
+            // An authored hole mesh isn't guaranteed to be a closed, watertight solid -
+            // e.g. pothole.STL is only the 6 side walls of a hexagonal prism (12
+            // triangles, exactly 2 per side, no top/bottom cap). An open shell isn't a
+            // valid CSG operand: the BSP inside/outside classification the boolean
+            // subtract relies on breaks down on it, and can misclassify most of the
+            // *ground* itself as "inside" the cutter - which is what made the whole
+            // ground render as interiorMaterial instead of just the pit. Using the
+            // cutter's own convex hull guarantees a closed volume no matter how the
+            // source mesh was modeled, and exactly reproduces the footprint for any
+            // already-convex hole (a plain box hole, like vehicle.urdf's hole_01, is
+            // unaffected - its own vertices' hull is the same box). A genuinely concave
+            // hole shape would get filled out to its convex envelope; there's no such
+            // shape among the current models.
+            const holeGeometry = this.buildClosedCutterGeometry(openHoleGeometry);
+            openHoleGeometry.dispose();
             this.extendCutterAboveSurface(holeGeometry);
             const baseMesh = new THREE.Mesh(carvedGeometry, surfaceMaterial);
             const cutterMesh = new THREE.Mesh(holeGeometry, interiorMaterial);

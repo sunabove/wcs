@@ -6023,8 +6023,8 @@ class RapierDriveSimulation {
       wheelRevolutions.length;
 
     this.driveDiagnosticsOverlayElement.textContent =
-      `회전수: ${avgWheelRevolutions.toFixed(2)}\n` +
-      `그리드: ${gridCells.toFixed(2)}\n` +
+      `회전수: ${avgWheelRevolutions.toFixed(2)} ` +
+      `그리드: ${gridCells.toFixed(2)} ` +
       `원주: ${circumferenceMeters.toFixed(3)}m`;
   }
 

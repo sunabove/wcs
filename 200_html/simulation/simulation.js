@@ -6875,9 +6875,7 @@ class RapierDriveSimulation {
   syncVehicleYawIndicator() {
     if (
       !this.vehicleYawIndicatorGroup ||
-      !this.vehicleYawArcLine ||
-      !this.vehicleYawRadiusLine ||
-      !this.vehicleYawArcArrowHead ||
+      !this.vehicleYawPieMesh ||
       !this.carFrame
     ) {
       return;

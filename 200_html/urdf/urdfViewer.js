@@ -53,6 +53,11 @@ class URDFViewer {
     this.referenceToggleStep = 0;
     this.directionalLight = null;
     this.directionalLightRadius = 1;
+    // See the controls "change" listener in setupCameraAngleLogging() for why this
+    // throttle exists: it keeps the shadow-casting light from being repositioned every
+    // single frame during a drag/zoom, which flickered the ground shadow.
+    this.directionalLightUpdateThrottleMs = 150;
+    this.lastInteractiveDirectionalLightUpdateMs = 0;
     this.goalTarget = new THREE.Vector3(0, 0, 0);
     this.goalTargetVerticalOffset = 0;
     this.overlayDragPanPixels = 0;
@@ -2478,6 +2483,12 @@ class URDFViewer {
       this.goalTarget.copy(this.controls.target);
       this.goalTargetVerticalOffset = 0;
 
+      // Land on an accurate light/shadow position now that the camera has actually
+      // stopped, since the "change" handler below throttles this during the drag itself.
+      this.resetDirectionalLight(
+        this.controls.target,
+        this.directionalLightRadius,
+      );
       this.logCameraInfos(true);
       this.saveCurrentCameraPoseToStorage();
       this.updateCameraToastOverlay();
@@ -2485,10 +2496,30 @@ class URDFViewer {
     });
 
     this.controls.addEventListener("change", () => {
-      this.resetDirectionalLight(
-        this.controls.target,
-        this.directionalLightRadius,
-      );
+      // resetDirectionalLight() moves the shadow-casting light's position and its
+      // shadow-camera frustum (recomputing shadow.camera.left/right/top/bottom/near/far
+      // and calling updateProjectionMatrix()). "change" fires on every single frame of a
+      // drag/zoom - and, with damping enabled, keeps firing for a bit after the pointer
+      // is released/the wheel stops - so calling it unthrottled here moved the shadow map
+      // a tiny amount every frame. Each of those tiny moves shifts which texels of the
+      // (fixed-resolution) shadow map line up with the ground, which reads as the ground
+      // shadow flickering/shimmering during - and for a few damping frames after - every
+      // orbit, pan, or wheel zoom. Throttling this to a few times a second keeps the
+      // light roughly following the camera during interaction without the per-frame
+      // shadow-map churn; the "end" handler above does one last unthrottled call so the
+      // light/shadow end up exactly right once the camera actually settles.
+      const nowMs = performance.now();
+      if (
+        !this.lastInteractiveDirectionalLightUpdateMs ||
+        nowMs - this.lastInteractiveDirectionalLightUpdateMs >=
+          this.directionalLightUpdateThrottleMs
+      ) {
+        this.lastInteractiveDirectionalLightUpdateMs = nowMs;
+        this.resetDirectionalLight(
+          this.controls.target,
+          this.directionalLightRadius,
+        );
+      }
       this.updateViewCubeOverlay();
       this.updateCompassOverlay();
       this.logCameraInfos(false);

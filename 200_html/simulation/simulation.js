@@ -7210,6 +7210,23 @@ class RapierDriveSimulation {
       return;
     }
 
+    // Belt-and-suspenders on top of the robotModel.visible check above: verify the
+    // specific geometry estimateWheelEffectiveRadiusMeters() below is about to measure
+    // is actually there, rather than only trusting that general signal - a model with
+    // enough separate mesh files (sw_17's wheel assembly is ~6 STL files per wheel) can
+    // still have a wheel's own mesh pending when the 8s safety-timeout fallback in
+    // loadURDF() forces robotModel.visible true early. Wait for every wheel link
+    // specifically instead of proceeding on a partial measurement.
+    const allWheelsHaveMeasurableGeometry = Object.values(
+      this.wheelLinkNameByKey,
+    ).every((wheelLinkName) => {
+      const wheelLink = this.findLinkByName(linkMap, wheelLinkName);
+      return !!(wheelLink && this.computeLinkLocalBounds(wheelLink, linkMap));
+    });
+    if (!allWheelsHaveMeasurableGeometry) {
+      return;
+    }
+
     this.isInitializing = true;
 
     try {

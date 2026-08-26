@@ -6162,19 +6162,19 @@ class RapierDriveSimulation {
 
     // controls.update() below fires OrbitControls' "change" event just like a real
     // orbit drag would, which urdfViewer.js's setupCameraAngleLogging() listens for to
-    // reposition the (camera-relative) shadow-casting light. Left unguarded, that ran
-    // every physics step for as long as the vehicle kept moving - i.e. continuously -
-    // which read as the whole ground flashing/recoloring during driving. Suppress it
-    // here; maybeFollowDirectionalLightToVehicle() below re-centers the light instead,
-    // but only in occasional discrete jumps instead of a steady drip of small ones.
-    this.viewer.suppressInteractiveDirectionalLightFollow = true;
+    // reposition the (camera-relative) shadow-casting light. That relight is suppressed
+    // for good once driving starts (see the suppressInteractiveDirectionalLightFollow
+    // flag set in ensureRapierInitialized()) - damping keeps "change" firing for several
+    // frames after any single external target move, so toggling the flag only around
+    // this one call was not enough to catch those follow-on frames.
+    // maybeFollowDirectionalLightToVehicle() below re-centers the light instead, in
+    // occasional discrete jumps instead of a steady drip of small ones.
     camera.position.add(translationDelta);
     controls.target.add(translationDelta);
     if (this.viewer.goalTarget?.isVector3) {
       this.viewer.goalTarget.add(translationDelta);
     }
     controls.update();
-    this.viewer.suppressInteractiveDirectionalLightFollow = false;
     this.maybeFollowDirectionalLightToVehicle(controls.target);
   }
 
@@ -7630,6 +7630,17 @@ class RapierDriveSimulation {
       // stepSimulation() moves the body at visualSpeedScale instead. See
       // applyVisualSpeedScale() for the full explanation.
       this.applyVisualSpeedScale(this.visualSpeedScale);
+      // Permanent, not toggled per-call: OrbitControls has damping enabled, so a single
+      // external target/position move (from syncCameraToVehicleTranslation, called every
+      // physics step while driving) keeps firing "change" for several subsequent frames
+      // as the damping settles - well after any per-call flag toggle around just that one
+      // controls.update() would already be back off. Simulation.js owns the camera and
+      // the light (via maybeFollowDirectionalLightToVehicle()) for the rest of this
+      // viewer's life once driving starts, so suppress the interactive listener's own
+      // relight for good rather than chasing every frame that could still fire it.
+      if (this.viewer) {
+        this.viewer.suppressInteractiveDirectionalLightFollow = true;
+      }
       this.isReady = true;
       this.hasFailed = false;
       this.lastStepTimeMs = 0;

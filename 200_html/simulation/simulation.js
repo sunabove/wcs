@@ -6040,6 +6040,7 @@ class RapierDriveSimulation {
         "color: #fff",
         "font: 12px/1.4 Consolas, 'Courier New', monospace",
         "white-space: pre",
+        "text-align: left",
         "cursor: pointer",
       ].join(";");
       overlay.title = "클릭하면 파일명과 함께 클립보드로 복사됩니다";

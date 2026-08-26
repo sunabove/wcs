@@ -6927,59 +6927,30 @@ class RapierDriveSimulation {
       .setFromAxisAngle(new THREE.Vector3(0, 0, 1), initialYaw)
       .multiply(bodyTiltQuaternion);
 
+    // Fill a pie slice from angle 0 (initial heading) to yawDelta - vertex 0 is the
+    // shared center, vertices 1..segmentCount+1 trace the rim; the index buffer built in
+    // ensureVehicleYawIndicator() fans triangles out from the center to each consecutive
+    // rim pair, so only drawing the first segmentCount*3 indices shows exactly that much
+    // of the pie (0 when not turning, the full circle once |yawDelta| reaches a full
+    // 2*pi turn).
     const segmentCount = Math.min(
       arcSegments,
       Math.ceil((Math.abs(yawDelta) / (Math.PI * 2)) * arcSegments),
     );
-    const arcPositions = this.vehicleYawArcLine.geometry.attributes.position;
+    const piePositions = this.vehicleYawPieMesh.geometry.attributes.position;
+    piePositions.setXYZ(0, 0, 0, 0);
     for (let index = 0; index <= segmentCount; index += 1) {
       const angle = segmentCount > 0 ? (yawDelta * index) / segmentCount : 0;
-      arcPositions.setXYZ(
-        index,
+      piePositions.setXYZ(
+        index + 1,
         Math.cos(angle) * arcRadius,
         Math.sin(angle) * arcRadius,
         0,
       );
     }
-    arcPositions.needsUpdate = true;
-    this.vehicleYawArcLine.geometry.setDrawRange(
-      0,
-      segmentCount > 0 ? segmentCount + 1 : 0,
-    );
+    piePositions.needsUpdate = true;
+    this.vehicleYawPieMesh.geometry.setDrawRange(0, segmentCount * 3);
 
-    const radiusPositions =
-      this.vehicleYawRadiusLine.geometry.attributes.position;
-    radiusPositions.setXYZ(0, 0, 0, 0);
-    radiusPositions.setXYZ(
-      1,
-      Math.cos(yawDelta) * arcRadius,
-      Math.sin(yawDelta) * arcRadius,
-      0,
-    );
-    radiusPositions.needsUpdate = true;
-
-    const isTurning =
-      Math.abs(yawDelta) > 1e-4 && this.vehicleYawDirectionSign !== 0;
-    this.vehicleYawArcArrowHead.visible = isTurning;
-    if (isTurning) {
-      const rotationSign = this.vehicleYawDirectionSign;
-      const arcTangent = new THREE.Vector3(
-        -Math.sin(yawDelta) * rotationSign,
-        Math.cos(yawDelta) * rotationSign,
-        0,
-      );
-      const arcEnd = new THREE.Vector3(
-        Math.cos(yawDelta) * arcRadius,
-        Math.sin(yawDelta) * arcRadius,
-        0.003,
-      );
-      this.vehicleYawArcArrowHead.position.copy(arcEnd);
-      this.vehicleYawArcArrowHead.rotation.set(
-        0,
-        0,
-        Math.atan2(arcTangent.y, arcTangent.x),
-      );
-    }
     this.vehicleYawIndicatorGroup.updateMatrixWorld(true);
   }
 

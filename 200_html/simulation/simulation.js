@@ -3432,7 +3432,9 @@ class RapierDriveSimulation {
     const vertices = [];
     const colors = [];
     const verticalLineColor = new THREE.Color(0x22c55e);
-    const horizontalLineColor = new THREE.Color(0xf8f9fa);
+    // A pale tint of the same green (rather than a plain white) so the two directions
+    // read as one cohesive grid instead of two unrelated colors.
+    const horizontalLineColor = new THREE.Color(0xbbf7d0);
     const appendLine = (x1, y1, x2, y2, isVertical) => {
       vertices.push(x1, y1, gridZ, x2, y2, gridZ);
       const color = isVertical ? verticalLineColor : horizontalLineColor;

@@ -4481,6 +4481,21 @@ class URDFViewer {
     };
 
     const loader = new URDFLoader();
+    // Some models (e.g. sw_17's sw17.urdf) author their <mesh filename="..."> as ROS
+    // "package://sw17/meshes/foo.STL" URIs instead of a plain relative path like
+    // "../meshes/foo.STL" (which is what sw_14/sw_15's URDFs use, and which resolves
+    // correctly on its own via URDFLoader's workingPath). A package:// URI isn't a
+    // fetchable URL at all in the browser, so it has to be rewritten first.
+    // URDFLoader's `packages` option can be a function taking the package name (e.g.
+    // "sw17") and returning the directory to resolve it against; it does NOT prepend
+    // workingPath itself for package:// paths (unlike plain relative ones), so the
+    // directory has to be derived from urdfPath here rather than assumed. Every model
+    // seen so far keeps its meshes one level up from its own urdf/ folder regardless of
+    // the package name/number, so package://<anything>/<relPath> always maps to
+    // "<urdf file's own directory>/../<relPath>" - i.e. exactly the "../" a plain
+    // relative mesh path would already use.
+    const urdfDirectory = this.urdfPath.replace(/\/[^/]*$/, "");
+    loader.packages = () => `${urdfDirectory}/..`;
     const loadMeshDirectly = loader.defaultMeshLoader.bind(loader);
     loader.loadMeshCb = (path, manager, done) => {
       pendingMeshLoadCount += 1;

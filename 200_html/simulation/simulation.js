@@ -284,6 +284,14 @@ class RapierDriveSimulation {
       rr: 0,
     };
     this.previousWheelColliderPositionByKey = {};
+    // Diagnostic-only: lets updateDriveDiagnosticsOverlay() show actual traveled
+    // distance / grid cells crossed / wheel revolutions side by side, so "does 1 grid
+    // cell really equal 1 wheel revolution" can be checked with numbers instead of by
+    // eye (camera framing/perspective differences between pages made the by-eye
+    // comparison unreliable).
+    this.driveDiagnosticsTraveledMeters = 0;
+    this.driveDiagnosticsPreviousPosition = null;
+    this.driveDiagnosticsOverlayElement = null;
     this.groundColliders = [];
     this.vehicleColliderLocalCenter = new THREE.Vector3(0, 0, 0);
     this.vehicleColliderHalfExtents = { x: 0.1, y: 0.1, z: 0.1 };
@@ -5943,6 +5951,78 @@ class RapierDriveSimulation {
     this.syncWheelGroundContactMarkers();
     this.syncVehicleYawIndicator();
     this.syncWheelRotationToBodyTravel();
+    this.updateDriveDiagnosticsOverlay(position);
+  }
+
+  /**
+   * Small floating overlay showing actual traveled distance / grid cells crossed /
+   * cumulative wheel revolutions side by side, so "does 1 grid cell really equal 1
+   * wheel revolution" can be read off as numbers instead of judged by eye - camera
+   * framing (zoom/angle) differs between pages that embed this viewer, which made an
+   * eyeballed comparison of "how many grid lines pass per wheel spin" unreliable even
+   * though every relevant formula and measurement checks out mathematically. Created
+   * lazily so it works on any page regardless of whether that page's HTML has a
+   * dedicated debug panel (see initDebugPanel(), which simulation.html has but other
+   * pages embedding this viewer don't).
+   */
+  updateDriveDiagnosticsOverlay(position) {
+    if (!this.viewer?.container) {
+      return;
+    }
+
+    if (this.driveDiagnosticsPreviousPosition) {
+      const dx = position.x - this.driveDiagnosticsPreviousPosition.x;
+      const dy = position.y - this.driveDiagnosticsPreviousPosition.y;
+      this.driveDiagnosticsTraveledMeters += Math.hypot(dx, dy);
+    }
+    this.driveDiagnosticsPreviousPosition = { x: position.x, y: position.y };
+
+    if (!this.driveDiagnosticsOverlayElement) {
+      const overlay = document.createElement("div");
+      overlay.id = "simulation-drive-diagnostics-overlay";
+      overlay.style.cssText = [
+        "position: absolute",
+        "left: 0.5rem",
+        "bottom: 0.5rem",
+        "z-index: 5",
+        "padding: 0.35rem 0.6rem",
+        "border-radius: 0.35rem",
+        "background: rgba(17, 17, 17, 0.72)",
+        "color: #fff",
+        "font: 12px/1.4 Consolas, 'Courier New', monospace",
+        "white-space: pre",
+        "pointer-events: none",
+      ].join(";");
+      const containerPosition = getComputedStyle(
+        this.viewer.container,
+      ).position;
+      if (containerPosition === "static") {
+        this.viewer.container.style.position = "relative";
+      }
+      this.viewer.container.appendChild(overlay);
+      this.driveDiagnosticsOverlayElement = overlay;
+    }
+
+    const circumferenceMeters = this.getWheelCircumferenceMeters();
+    const gridCells =
+      circumferenceMeters > 0
+        ? this.driveDiagnosticsTraveledMeters / circumferenceMeters
+        : 0;
+    const viewer = this.getDriveSourceViewer() || this.viewer;
+    const wheelRevolutions = ["fl", "fr", "rl", "rr"].map((wheelKey) => {
+      const angleRad = Number(viewer?.wheelAngles?.[wheelKey]);
+      return Number.isFinite(angleRad) ? Math.abs(angleRad) / (Math.PI * 2) : 0;
+    });
+    const avgWheelRevolutions =
+      wheelRevolutions.reduce((sum, value) => sum + value, 0) /
+      wheelRevolutions.length;
+
+    this.driveDiagnosticsOverlayElement.textContent =
+      `이동거리: ${this.driveDiagnosticsTraveledMeters.toFixed(3)}m ` +
+      `(그리드 ${gridCells.toFixed(2)}칸, 원주 ${circumferenceMeters.toFixed(3)}m)\n` +
+      `휠 회전수: FL ${wheelRevolutions[0].toFixed(2)} FR ${wheelRevolutions[1].toFixed(2)} ` +
+      `RL ${wheelRevolutions[2].toFixed(2)} RR ${wheelRevolutions[3].toFixed(2)} ` +
+      `(평균 ${avgWheelRevolutions.toFixed(2)})`;
   }
 
   syncCameraToVehicleTranslation(position) {
@@ -8312,6 +8392,8 @@ class RapierDriveSimulation {
     this.wheelZChartHalfRangeCm = this.wheelZChartInitialHalfRangeCm;
     this.vehicleYawTrailingRad = null;
     this.vehicleYawIndicatorLastSyncMs = null;
+    this.driveDiagnosticsTraveledMeters = 0;
+    this.driveDiagnosticsPreviousPosition = null;
     this.wheelVisualRotationDirectionByKey = {
       fl: -1,
       fr: -1,

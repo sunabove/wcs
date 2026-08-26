@@ -33,7 +33,7 @@
         }
     </script>
     <script type="module" src="../urdf/urdfViewer.js?v=20260826-pothole-crease-lines"></script>
-    <script type="module" src="simulation.js?v=20260824-pine-behind-vehicle"></script>
+    <script type="module" src="simulation.js?v=20260826-single-pass-ground-carve"></script>
 </head>
 
 <body class="bg-body-secondary" style="margin: 0; padding: 0; font-family: 'Trebuchet MS', 'Segoe UI', sans-serif;">
@@ -55,7 +55,7 @@
                         id="vehicle-urdf-viewer" urdf="/urdf/model/sw_15/urdf/sw.urdf" showAttitude="true"
                         style="aspect-ratio: 16 / 9; height: auto; min-height: 260px; max-height: 70vh;"
                         showViewCube="true" showCompass="true" showTransparency="true" persistCameraPose="true"
-                        controlKeyboard="true">
+                        controlKeyboard="true" enableGroundHoleCarving="false">
                     </div>
                 </div>
             </div>

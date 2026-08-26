@@ -993,7 +993,19 @@ class URDFViewer {
     this.camera.up.copy(this.cameraUp);
 
     // Renderer 생성
-    this.renderer = new THREE.WebGLRenderer({ antialias: true });
+    // logarithmicDepthBuffer: camera.near/far get set to a ~1:10000 ratio once the model
+    // is fitted (see the cameraFit setup below), and several near-coplanar ground layers
+    // (ground, ground grid, ground extension - only ~mm apart) sit far from the camera at
+    // times. A standard linear depth buffer doesn't have enough precision across that
+    // range, so those layers z-fight - which flavor wins changes with sub-pixel camera
+    // motion, reading as the ground flickering, worse at grazing/oblique viewing angles
+    // where the depth difference between layers projects to fewer distinguishable
+    // buffer steps. A logarithmic depth buffer keeps precision usable across the whole
+    // near/far range instead of concentrating it near the camera.
+    this.renderer = new THREE.WebGLRenderer({
+      antialias: true,
+      logarithmicDepthBuffer: true,
+    });
     // Keep canvas size tied to container CSS to avoid cumulative inline-height growth on resize.
     this.renderer.setSize(width, height, false);
     this.renderer.domElement.style.width = "100%";

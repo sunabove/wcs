@@ -232,6 +232,13 @@ class URDFViewer {
     // faces share the exact same base material/lighting.
     this.groundHoleRimShadeColor = new THREE.Color(0x433f37);
     this.groundHoleDeepShadeColor = new THREE.Color(0x15130f);
+    // Rim/deep shading alone was too subtle from steep top-down angles: the
+    // walls foreshorten to almost nothing and only the (nearly flat, nearly
+    // uniformly colored) floor is visible, so the cavity read as a flat
+    // discolored patch rather than a hole. A near-black outline forced along
+    // the crease where the undisturbed surface meets the carved wall gives a
+    // depth cue that survives regardless of viewing angle or lighting.
+    this.groundHoleEdgeLineColor = new THREE.Color(0x0a0806);
     // Fallback only: used when a carved cavity has no measurable depth (e.g.
     // a degenerate/near-zero-height cutter). Normally the actual carved
     // depth of each cavity is measured and used instead — see
@@ -4707,6 +4714,7 @@ class URDFViewer {
     );
     const rimColor = this.groundHoleRimShadeColor;
     const deepColor = this.groundHoleDeepShadeColor;
+    const edgeLineColor = this.groundHoleEdgeLineColor;
     const surfaceColor = new THREE.Color(1, 1, 1);
     const shadedColor = new THREE.Color();
 
@@ -4744,6 +4752,15 @@ class URDFViewer {
         ? observedMaxDepthMeters
         : configuredFullDepthMeters;
 
+    // Band of "just below the surface" triangles that get forced to a flat
+    // near-black outline instead of the smooth rim→deep gradient, so the
+    // cavity boundary reads as a distinct line even when the walls are
+    // foreshortened to near-invisibility by a steep top-down viewing angle.
+    // Scales with the cavity's own depth (thin ring on a shallow scrape,
+    // thicker on a deep hole) but is capped so it never swallows the whole
+    // gradient on a shallow cavity.
+    const edgeBandMeters = Math.min(fullDepthMeters * 0.25, 0.015);
+
     for (let triangleIndex = 0; triangleIndex < triangleCount; triangleIndex += 1) {
       const i0 = triangleIndex * 3;
       const i1 = i0 + 1;
@@ -4752,13 +4769,18 @@ class URDFViewer {
 
       let colorToWrite;
       if (depthBelowSurface > epsilonMeters) {
-        const depthRatio = THREE.MathUtils.clamp(
-          depthBelowSurface / fullDepthMeters,
-          0,
-          1,
-        );
-        shadedColor.copy(rimColor).lerp(deepColor, depthRatio);
-        colorToWrite = shadedColor;
+        if (depthBelowSurface <= edgeBandMeters) {
+          colorToWrite = edgeLineColor;
+        } else {
+          const depthRatio = THREE.MathUtils.clamp(
+            (depthBelowSurface - edgeBandMeters) /
+              (fullDepthMeters - edgeBandMeters),
+            0,
+            1,
+          );
+          shadedColor.copy(rimColor).lerp(deepColor, depthRatio);
+          colorToWrite = shadedColor;
+        }
       } else {
         colorToWrite = surfaceColor;
       }

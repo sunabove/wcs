@@ -6013,8 +6013,16 @@ class RapierDriveSimulation {
         "color: #fff",
         "font: 12px/1.4 Consolas, 'Courier New', monospace",
         "white-space: pre",
-        "pointer-events: none",
+        "cursor: pointer",
       ].join(";");
+      overlay.title = "클릭하면 파일명과 함께 클립보드로 복사됩니다";
+      overlay.addEventListener("click", () => {
+        const fileName =
+          location.pathname.split("/").filter(Boolean).pop() ||
+          location.pathname;
+        const textToCopy = `${fileName}\n${overlay.textContent}`;
+        this.copyDriveDiagnosticsTextToClipboard(overlay, textToCopy);
+      });
       const containerPosition = getComputedStyle(
         this.viewer.container,
       ).position;
@@ -6054,6 +6062,46 @@ class RapierDriveSimulation {
       `anim: ${Number(viewer?.wheelAnimationTimeScale).toFixed(2)} ` +
       `travel: ${viewer?.isWheelRotationDrivenByTravel ? "Y" : "N"} ` +
       `cmd: ${this.isWheelRotationDrivenByCommand ? "Y" : "N"}`;
+  }
+
+  /**
+   * Copies the drive-diagnostics overlay's current text (with the page's filename
+   * prepended, so a pasted-back line can be traced to which of the several pages that
+   * embed this simulation it came from) to the clipboard, with a brief background-flash
+   * as click feedback and a document.execCommand fallback for non-secure contexts.
+   */
+  copyDriveDiagnosticsTextToClipboard(overlay, textToCopy) {
+    const flashFeedback = () => {
+      const originalBackground = overlay.style.background;
+      overlay.style.background = "rgba(34, 197, 94, 0.85)";
+      setTimeout(() => {
+        overlay.style.background = originalBackground;
+      }, 200);
+    };
+
+    const copyViaFallback = () => {
+      const tempTextArea = document.createElement("textarea");
+      tempTextArea.value = textToCopy;
+      tempTextArea.setAttribute("readonly", "");
+      tempTextArea.style.position = "fixed";
+      tempTextArea.style.left = "-9999px";
+      tempTextArea.style.top = "-9999px";
+      document.body.appendChild(tempTextArea);
+      tempTextArea.select();
+      try {
+        document.execCommand("copy");
+        flashFeedback();
+      } catch (error) {
+        console.warn("[URDF][Simulation] 진단 정보 복사 실패:", error);
+      }
+      document.body.removeChild(tempTextArea);
+    };
+
+    if (navigator.clipboard && typeof navigator.clipboard.writeText === "function") {
+      navigator.clipboard.writeText(textToCopy).then(flashFeedback).catch(copyViaFallback);
+    } else {
+      copyViaFallback();
+    }
   }
 
   /**

@@ -7394,7 +7394,13 @@ class RapierDriveSimulation {
     }
     this.vehicleYawPreviousRawRad = currentYaw;
 
-    const yawDelta = this.vehicleYawAccumulatedRad;
+    // vehicleYawAccumulatedRad itself is left to grow without bound (so it keeps
+    // tracking correctly no matter how many full turns the vehicle makes), but the pie
+    // is a single circle and can't visually distinguish e.g. 400deg of rotation from
+    // 40deg - reduce to the remainder of the current lap for display. JS's %
+    // preserves the dividend's sign, so a negative (reverse-direction) cumulative
+    // total still reduces to a small negative remainder rather than flipping sign.
+    const yawDelta = this.vehicleYawAccumulatedRad % (Math.PI * 2);
     const arcRadius = this.vehicleYawIndicatorGroup.userData.arcRadius;
     const arcSegments = this.vehicleYawIndicatorGroup.userData.arcSegments;
 

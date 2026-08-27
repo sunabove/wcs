@@ -99,11 +99,10 @@ const WHEEL_SUPPORT_LIFT_WEIGHT_PER_METER = 35;
 // wheel's current obstacle lift.
 const WHEEL_CLIMB_CARRIER_SMOOTHING_HZ = 12;
 // Direction the carrier orbits to sweep the wheel forward-and-up over an obstacle's
-// leading edge, relative to the geometric IK angle updateWheelClimbGait() solves for -
-// not yet verified against the real mechanism's handedness (no live hardware/video
-// timing to check against, only the reference stills), flip if the wheel is ever seen
-// orbiting backward into the step instead of up and over it.
-const WHEEL_CLIMB_CARRIER_SIGN = 1;
+// leading edge, relative to the geometric IK angle updateWheelClimbGait() solves for.
+// Flipped to -1 (2026-08-27) after visual check in-browser showed +1 orbiting the
+// carrier backward into the step instead of up and over it.
+const WHEEL_CLIMB_CARRIER_SIGN = -1;
 
 const WHEEL_RPM_COMMAND_THRESHOLD = 0.2;
 const STEER_SIGN_EPSILON = 1e-3;

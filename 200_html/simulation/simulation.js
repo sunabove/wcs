@@ -5224,21 +5224,37 @@ class RapierDriveSimulation {
   // formula) is what makes this safe: every candidate hi bound the search narrows to is
   // one that's already verified clear, so the final angle is *never below* what's
   // needed - it can't converge to a value that leaves the wheel's own circle resting
-  // inside the obstacle, however far off the previous frame's angle was. It also
-  // self-consistently accounts for whatever height the chassis ride height has already
-  // contributed (the position it reads back reflects that), so this never
-  // "double-counts" lift on top of it. Applied with no smoothing/lag (unlike the old
-  // flex hack) for the same reason applyWheelSupportRideHeight() itself has none: a
-  // lagged carrier angle could sit inside the obstacle for the few frames it takes to
-  // catch up.
+  // inside the obstacle, however far off the previous frame's angle was. Applied with no
+  // smoothing/lag (unlike the old flex hack) for the same reason
+  // applyWheelSupportRideHeight() itself has none: a lagged carrier angle could sit
+  // inside the obstacle for the few frames it takes to catch up.
+  //
+  // Bisection reads the wheel's position against a *flattened* chassis reference (this
+  // wheel's real current X/Y/yaw, but Z/pitch/roll reset to the flat-ground baseline),
+  // not the chassis's actual, currently-adapted pose. applyWheelSupportRideHeight() has
+  // already run this step and independently lifts/tilts the whole chassis toward every
+  // wheel's own requirement - bisecting against that *live* pose let the chassis's own
+  // plane fit "absorb" most or all of a symmetric obstacle (both front wheels meeting a
+  // wide bar together is a pure-pitch case the fit alone can already satisfy with ~zero
+  // residual for either wheel), leaving the carrier almost nothing left to visibly do -
+  // the opposite of the real hardware, where the carrier arm is what visibly bends to
+  // climb and then straightens again once resting (confirmed against reference video/
+  // photos of the real unit). Flattening the reference makes the carrier target the
+  // *full* geometric requirement independent of whatever the chassis separately does,
+  // so it's always the primary, visible actor for any obstacle within its own
+  // ~2*orbitRadius reach - taller obstacles still lean on the chassis's own lift on top
+  // of this, same as before. Only ever touches carFrame's Z/orientation, restored
+  // immediately after this method returns, before anything renders.
   updateWheelClimbGait(supportProfile) {
     const viewer = this.viewer;
     const jointMap = viewer?.robotModel?.joints;
     const linkMap = viewer?.robotModel?.links;
+    const carFrame = this.carFrame;
     if (
       !viewer ||
       !jointMap ||
       !linkMap ||
+      !carFrame ||
       typeof viewer.setInnerWheelCarrierAngle !== "function"
     ) {
       return;
@@ -5248,6 +5264,22 @@ class RapierDriveSimulation {
       Number(this.wheelEffectiveRadiusMeters) || 0,
       0.05,
     );
+
+    const savedCarFramePosition = carFrame.position.clone();
+    const savedCarFrameQuaternion = carFrame.quaternion.clone();
+    const flatZ = Number.isFinite(Number(this.initialPosition?.z))
+      ? Number(this.initialPosition.z)
+      : this.getGroundContactTargetZ();
+    const canFlattenChassis = Number.isFinite(flatZ);
+    if (canFlattenChassis) {
+      const yawOnlyRad = this.extractYawFromQuaternion(savedCarFrameQuaternion);
+      carFrame.position.z = flatZ;
+      carFrame.quaternion.setFromAxisAngle(
+        new THREE.Vector3(0, 0, 1),
+        yawOnlyRad,
+      );
+      carFrame.updateMatrixWorld(true);
+    }
 
     Object.keys(this.innerWheelJointNameByKey).forEach((wheelKey) => {
       const carrierJoint = jointMap[this.innerWheelJointNameByKey[wheelKey]];
@@ -5339,6 +5371,12 @@ class RapierDriveSimulation {
       this.wheelClimbCarrierAngleRadByKey[wheelKey] = signedCarrierAngleRad;
       viewer.setInnerWheelCarrierAngle(wheelKey, signedCarrierAngleRad);
     });
+
+    if (canFlattenChassis) {
+      carFrame.position.copy(savedCarFramePosition);
+      carFrame.quaternion.copy(savedCarFrameQuaternion);
+      carFrame.updateMatrixWorld(true);
+    }
   }
 
   applyWheelSupportRideHeight(supportProfile) {

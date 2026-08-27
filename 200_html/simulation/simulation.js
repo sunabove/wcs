@@ -304,10 +304,12 @@ class RapierDriveSimulation {
     this.wheelGroundContactMarkerByKey = {};
     this.vehicleYawIndicatorGroup = null;
     this.vehicleYawPieMesh = null;
-    // Cumulative rotation the pie displays, tracked as an unwrap-and-accumulate
-    // running total from the vehicle's initial heading at load - see
-    // syncVehicleYawIndicator().
+    // Cumulative rotation from the vehicle's initial heading at load, tracked as an
+    // unwrap-and-accumulate running total (unbounded) plus a separately,
+    // incrementally-wrapped single-lap version of the same value the pie actually
+    // draws - see syncVehicleYawIndicator().
     this.vehicleYawAccumulatedRad = null;
+    this.vehicleYawDisplayRad = null;
     this.vehicleYawPreviousRawRad = null;
     this.cameraFollowPreviousVehiclePosition = null;
     // See maybeFollowDirectionalLightToVehicle() - last point the shadow-casting light
@@ -7383,10 +7385,12 @@ class RapierDriveSimulation {
     // instead) - accumulate the *per-step* wrapped delta every sync instead of a
     // single wrap of the total, the same way odometry integrates heading, so this
     // keeps tracking correctly past any number of full rotations.
+    let stepDelta = 0;
     if (!Number.isFinite(this.vehicleYawAccumulatedRad)) {
       this.vehicleYawAccumulatedRad = 0;
+      this.vehicleYawDisplayRad = 0;
     } else if (Number.isFinite(this.vehicleYawPreviousRawRad)) {
-      const stepDelta = Math.atan2(
+      stepDelta = Math.atan2(
         Math.sin(currentYaw - this.vehicleYawPreviousRawRad),
         Math.cos(currentYaw - this.vehicleYawPreviousRawRad),
       );
@@ -7397,10 +7401,28 @@ class RapierDriveSimulation {
     // vehicleYawAccumulatedRad itself is left to grow without bound (so it keeps
     // tracking correctly no matter how many full turns the vehicle makes), but the pie
     // is a single circle and can't visually distinguish e.g. 400deg of rotation from
-    // 40deg - reduce to the remainder of the current lap for display. JS's %
-    // preserves the dividend's sign, so a negative (reverse-direction) cumulative
-    // total still reduces to a small negative remainder rather than flipping sign.
-    const yawDelta = this.vehicleYawAccumulatedRad % (Math.PI * 2);
+    // 40deg - it needs reducing to a single-lap remainder for display. A *stateless*
+    // wrap (accumulated % 360) was tried first and looked fine turning steadily one
+    // way, but is asymmetric across a reversal: increasing accumulated resets the
+    // remainder 360->0 right as it crosses a multiple of 360 (reads fine, like an
+    // odometer rolling over), while *decreasing* back across that same multiple
+    // - i.e. reversing direction shortly after passing it - snapped the remainder
+    // 0->360 instead, an instant full-circle jump for a near-zero actual rotation.
+    // Wrapping this value's own running total incrementally, by a full lap only when
+    // *it* crosses +-180deg, is symmetric regardless of direction and lands the wrap
+    // exactly on the one angle (a half-circle sweep) that looks identical from either
+    // side - so a reversal right at that boundary is seamless instead of jarring.
+    if (!Number.isFinite(this.vehicleYawDisplayRad)) {
+      this.vehicleYawDisplayRad = 0;
+    } else {
+      this.vehicleYawDisplayRad += stepDelta;
+      if (this.vehicleYawDisplayRad > Math.PI) {
+        this.vehicleYawDisplayRad -= Math.PI * 2;
+      } else if (this.vehicleYawDisplayRad <= -Math.PI) {
+        this.vehicleYawDisplayRad += Math.PI * 2;
+      }
+    }
+    const yawDelta = this.vehicleYawDisplayRad;
     const arcRadius = this.vehicleYawIndicatorGroup.userData.arcRadius;
     const arcSegments = this.vehicleYawIndicatorGroup.userData.arcSegments;
 
@@ -8802,6 +8824,7 @@ class RapierDriveSimulation {
     this.simulationElapsedSec = 0;
     this.wheelZChartHalfRangeCm = this.wheelZChartInitialHalfRangeCm;
     this.vehicleYawAccumulatedRad = null;
+    this.vehicleYawDisplayRad = null;
     this.vehicleYawPreviousRawRad = null;
     this.driveDiagnosticsTraveledMeters = 0;
     this.driveDiagnosticsPreviousPosition = null;

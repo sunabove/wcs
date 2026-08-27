@@ -1032,20 +1032,6 @@ class URDFViewer {
     const containerRect = this.container.getBoundingClientRect();
     const width = containerRect.width;
     const height = containerRect.height;
-    // TEMP DEBUG (remove once the half-size-on-load root cause is confirmed).
-    console.log("[URDF][DEBUG] init() container measurement", {
-      containerId: this.container.id,
-      width,
-      height,
-      computedHeight: window.getComputedStyle(this.container).height,
-      computedWidth: window.getComputedStyle(this.container).width,
-      offsetParentSize: this.container.offsetParent
-        ? {
-            w: this.container.offsetParent.clientWidth,
-            h: this.container.offsetParent.clientHeight,
-          }
-        : "n/a",
-    });
 
     // Scene 생성
     this.scene = new THREE.Scene();
@@ -4816,28 +4802,6 @@ class URDFViewer {
           // background and the fully-assembled model appear together in the same frame
           // instead of the background flashing alone first.
           this.renderer.domElement.style.visibility = "visible";
-
-          // TEMP DEBUG (remove once the half-size-on-load root cause is confirmed).
-          const containerRectAtReveal = this.container.getBoundingClientRect();
-          const canvasRectAtReveal =
-            this.renderer.domElement.getBoundingClientRect();
-          console.log("[URDF][DEBUG] reveal-time size check", {
-            containerId: this.container.id,
-            containerRect: {
-              w: containerRectAtReveal.width,
-              h: containerRectAtReveal.height,
-            },
-            canvasRect: {
-              w: canvasRectAtReveal.width,
-              h: canvasRectAtReveal.height,
-            },
-            canvasDrawingBuffer: {
-              w: this.renderer.domElement.width,
-              h: this.renderer.domElement.height,
-            },
-            cameraAspect: this.camera.aspect,
-            pixelRatio: this.renderer.getPixelRatio(),
-          });
 
           console.log("[URDF] ✅ 카메라/클리핑/컨트롤 범위 갱신 완료");
         };

@@ -12,6 +12,12 @@
        depends on viewport height, not width. Tune down further if still slightly
        taller than the viewport. */
     height: 70vh;
+    /* .urdf-container's own max-height: 400px (002_wcs_common.css) still applies -
+       height and max-height are different properties, so specificity doesn't decide
+       between them; the browser clamps height to max-height whenever height is larger.
+       Without this the viewer renders at that 400px cap instead of 70vh (visibly much
+       smaller than intended) - see the fuller explanation in 100_vehicle_status.css. */
+    max-height: none;
 }
 
 .speed-value-chip {

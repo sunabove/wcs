@@ -5339,15 +5339,31 @@ class URDFViewer {
   // (also z=0.005), and obstacle_wood_bar's bottom sits only 5mm above it. At a grazing
   // angle those near-zero depth differences fall within the GPU's per-pixel depth
   // precision, so which layer wins the depth test flips frame to frame - read as the
-  // ground area flickering. glPolygonOffset resolves this deterministically regardless
+  // ground area flickering. glPolygonOffset resolves that deterministically regardless
   // of viewing angle by biasing each layer's rendered depth apart: the background
   // reference plane (ellipsoid_surface) is pushed away, the ground slab stays neutral,
   // and anything meant to sit visibly on top of the ground (obstacle_*) is pulled
   // toward the camera so it always wins.
+  //
+  // ellipsoid_surface and ground are also both semi-transparent (rgba alpha 0.5 and 0.8
+  // in sw17.urdf), and ellipsoid_surface's larger XY footprint means its translucent
+  // apron is visible around the ground's perimeter, overlapping it in screen space from
+  // most angles. Three.js draws transparent objects in a separate pass, back-to-front,
+  // ordered by each object's distance to the camera - with depthWrite left at its
+  // default (true), that per-object distance sort is what decides draw order, and for
+  // two large, nearly-parallel, closely-spaced transparent slabs like these the
+  // "which one is farther" answer can flip between frames from sub-pixel camera motion
+  // alone (independent of the opaque z-fighting above, and NOT something
+  // polygonOffset touches - it only affects the depth test, not this distance sort).
+  // That's the second, likely dominant, flicker source. Pinning it down with an
+  // explicit renderOrder and depthWrite=false removes the ambiguity: draw order becomes
+  // fixed (ellipsoid_surface, then ground, then obstacles) instead of camera-distance
+  // dependent, and since neither of these two write depth, they can't fight each other
+  // in the depth buffer either.
   applyGroundLayerPolygonOffsetSeparation() {
     const linkMap = this.robotModel?.links || {};
 
-    const setLayerPolygonOffset = (link, offsetAmount) => {
+    const setLayerRenderTuning = (link, offsetAmount, renderOrder, options = {}) => {
       if (!link) {
         return;
       }
@@ -5356,6 +5372,8 @@ class URDFViewer {
         if (!node?.isMesh || !node.material) {
           return;
         }
+
+        node.renderOrder = renderOrder;
 
         const materials = Array.isArray(node.material)
           ? node.material
@@ -5367,17 +5385,32 @@ class URDFViewer {
           material.polygonOffset = true;
           material.polygonOffsetFactor = offsetAmount;
           material.polygonOffsetUnits = offsetAmount;
+          // Check opacity rather than trusting material.transparent to already be set -
+          // URDFLoader isn't guaranteed to have flipped it on just because the URDF's
+          // <color rgba> alpha was below 1.
+          if (
+            options.disableDepthWriteIfTransparent &&
+            Number.isFinite(material.opacity) &&
+            material.opacity < 1
+          ) {
+            material.transparent = true;
+            material.depthWrite = false;
+          }
           material.needsUpdate = true;
         });
       });
     };
 
-    setLayerPolygonOffset(linkMap.ellipsoid_surface, 2);
-    setLayerPolygonOffset(linkMap.ground || linkMap.ground_patch, 1);
+    setLayerRenderTuning(linkMap.ellipsoid_surface, 2, 0, {
+      disableDepthWriteIfTransparent: true,
+    });
+    setLayerRenderTuning(linkMap.ground || linkMap.ground_patch, 1, 1, {
+      disableDepthWriteIfTransparent: true,
+    });
 
     Object.keys(linkMap)
       .filter((linkKey) => /^obstacle_/i.test(linkKey))
-      .forEach((linkKey) => setLayerPolygonOffset(linkMap[linkKey], -1));
+      .forEach((linkKey) => setLayerRenderTuning(linkMap[linkKey], -1, 2));
   }
 
   resolveWheelHighlightTargets() {

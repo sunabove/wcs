@@ -7835,6 +7835,18 @@ class RapierDriveSimulation {
       return;
     }
 
+    // urdfViewer.js already flipped robotModel.visible true the moment its own mesh
+    // loads finished (see [[urdf-loader-progressive-mesh-reveal]]), but the ground
+    // grid/scene trees/sign/direction arrows/wheel markers/yaw indicator below are all
+    // still to be built, and RAPIER itself (imported + initialized just below) is a
+    // real async network+WASM load that can take a further noticeable moment. Left
+    // alone, that showed up as the vehicle model popping in first, then the rest of the
+    // scene popping in separately a beat later. Hide the model again here (this branch
+    // only ever runs once per load, guarded by isReady/isInitializing above, so there's
+    // no risk of re-triggering this every frame) and reveal it together with
+    // everything else in one batch right before isReady flips true below.
+    this.viewer.robotModel.visible = false;
+
     this.isInitializing = true;
 
     try {
@@ -7969,6 +7981,31 @@ class RapierDriveSimulation {
       if (this.viewer) {
         this.viewer.suppressInteractiveDirectionalLightFollow = true;
       }
+      // Reveal the vehicle model together with everything addGroundCollider() /
+      // ensureVehicleDirectionArrows() / ensureWheelGroundContactMarkers() /
+      // ensureVehicleYawIndicator() just built above (ground grid, scene trees, the
+      // COBOT SYSTEM sign, direction arrows, wheel contact markers, yaw indicator) in
+      // one batch, undoing the visible=false set near the top of this method - see the
+      // comment there for why the model was hidden again in the first place.
+      this.viewer.robotModel.visible = true;
+      if (this.groundGrid) {
+        this.groundGrid.visible = true;
+      }
+      this.sceneTreeGroupsByLatticeX.forEach((treeGroup) => {
+        treeGroup.visible = true;
+      });
+      if (this.cobotSystemSignGroup) {
+        this.cobotSystemSignGroup.visible = true;
+      }
+      if (this.vehicleDirectionArrowGroup) {
+        this.vehicleDirectionArrowGroup.visible = true;
+      }
+      if (this.wheelGroundContactMarkerGroup) {
+        this.wheelGroundContactMarkerGroup.visible = true;
+      }
+      if (this.vehicleYawIndicatorGroup) {
+        this.vehicleYawIndicatorGroup.visible = true;
+      }
       this.isReady = true;
       this.hasFailed = false;
       this.lastStepTimeMs = 0;
@@ -7984,6 +8021,14 @@ class RapierDriveSimulation {
       );
     } catch (error) {
       this.hasFailed = true;
+      // The visible=false set near the top of this method (before this try block) was
+      // only ever meant to be hidden for the few frames until the reveal-together block
+      // above ran - if RAPIER itself fails to load/init, that block never runs, so
+      // without this the model would stay invisible forever instead of just losing
+      // physics. Better to show a static, undriveable model than an empty scene.
+      if (this.viewer?.robotModel) {
+        this.viewer.robotModel.visible = true;
+      }
       console.warn("[URDF][Simulation] Rapier initialization failed:", error);
     } finally {
       this.isInitializing = false;

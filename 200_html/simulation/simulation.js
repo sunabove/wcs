@@ -5006,8 +5006,40 @@ class RapierDriveSimulation {
           return;
         }
 
+        // Read this wheel's *nominal* (carrier-neutral) position for obstacle
+        // proximity/lift below, not its current climb-orbited position. Using the live
+        // (possibly-orbited) position here closes a feedback loop with
+        // updateWheelClimbGait(): climbing shifts the wheel's world position via
+        // inner_wheel_{key}_joint, which shifts perceived obstacle proximity (gapX/gapY
+        // below), which shifts the climb target, ... That loop was harmless as long as
+        // the carrier never actually moved, but once it started orbiting it let the
+        // wheel read as "already past the obstacle" - lift snapping straight to 0 in a
+        // single frame - well before the chassis had actually carried it clear, sinking
+        // the wheel into the step right after it fully climbed on. Temporarily zero the
+        // carrier joint to read the nominal position, then restore its actual current
+        // angle - getWorldPosition()'s own updateWorldMatrix(true, false) call walks
+        // and refreshes the whole ancestor chain each time, and the render loop's own
+        // matrix update fixes the momentarily-stale climb pose again before anything is
+        // actually drawn. No-op (and no behavior change at all) for a wheel whose
+        // carrier isn't currently orbiting.
+        const carrierJoint =
+          this.viewer?.robotModel?.joints?.[
+            this.innerWheelJointNameByKey[wheelKey]
+          ];
+        const currentCarrierAngleRad =
+          Number(this.wheelClimbCarrierAngleRadByKey[wheelKey]) || 0;
+        const carrierIsOrbiting =
+          carrierJoint &&
+          typeof carrierJoint.setJointValue === "function" &&
+          currentCarrierAngleRad !== 0;
+        if (carrierIsOrbiting) {
+          carrierJoint.setJointValue(0);
+        }
         wheelLink.updateWorldMatrix(true, false);
         const wheelPosition = wheelLink.getWorldPosition(new THREE.Vector3());
+        if (carrierIsOrbiting) {
+          carrierJoint.setJointValue(currentCarrierAngleRad);
+        }
         let supportZ = this.groundZ;
         let supportObstacle = null;
 

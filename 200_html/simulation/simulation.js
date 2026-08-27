@@ -7344,9 +7344,31 @@ class RapierDriveSimulation {
       }),
     );
 
+    // Traces the pie's own boundary - both straight radius edges plus the arc - as a
+    // solid outline on top of the translucent fill, so the slice reads clearly even
+    // where it's thin or seen against a similarly-colored background. Shares the pie's
+    // own position buffer (not a copy) rather than duplicating vertex data: vertex 0
+    // is the shared center and 1..arcSegments+1 trace the rim in the same order the
+    // pie mesh already writes them in syncVehicleYawIndicator(), so a LineLoop over
+    // exactly those vertices - center -> first rim point -> ...along the arc... -> last
+    // rim point -> back to center - is precisely the slice's outline with no separate
+    // update logic needed beyond keeping its own draw range in sync (below).
+    const outlineGeometry = new THREE.BufferGeometry();
+    outlineGeometry.setAttribute("position", pieGeometry.attributes.position);
+    outlineGeometry.setDrawRange(0, 0);
+    const pieOutline = new THREE.LineLoop(
+      outlineGeometry,
+      new THREE.LineBasicMaterial({
+        color: 0x00a8ff,
+        fog: false,
+        toneMapped: false,
+      }),
+    );
+
     const indicatorGroup = new THREE.Group();
     indicatorGroup.name = "simulation-vehicle-yaw-indicator";
     indicatorGroup.add(pieMesh);
+    indicatorGroup.add(pieOutline);
 
     indicatorGroup.userData.arcRadius = arcRadius;
     indicatorGroup.userData.arcSegments = arcSegments;
@@ -7358,6 +7380,7 @@ class RapierDriveSimulation {
     this.vehicleYawAccumulatedRad = 0;
     this.vehicleYawIndicatorGroup = indicatorGroup;
     this.vehicleYawPieMesh = pieMesh;
+    this.vehicleYawPieOutline = pieOutline;
     this.viewer.scene.add(indicatorGroup);
     this.syncVehicleYawIndicator();
   }
@@ -7456,6 +7479,13 @@ class RapierDriveSimulation {
     }
     piePositions.needsUpdate = true;
     this.vehicleYawPieMesh.geometry.setDrawRange(0, segmentCount * 3);
+    // Center + however many rim points are currently in play (same segmentCount the
+    // pie fill above just used) - a LineLoop draw range of that length traces exactly
+    // center -> first rim point -> ...arc... -> last rim point -> back to center,
+    // sharing the same (already-updated) position buffer as the fill.
+    if (this.vehicleYawPieOutline) {
+      this.vehicleYawPieOutline.geometry.setDrawRange(0, segmentCount + 2);
+    }
 
     this.vehicleYawIndicatorGroup.updateMatrixWorld(true);
   }

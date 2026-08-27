@@ -61,15 +61,16 @@ const GROUND_EXTENSION_HALF_SIZE_METERS = 100;
 // match the scene background urdfViewer.js sets (this.scene.background, currently
 // 0x87ceeb) so faded-out geometry blends into it instead of fading to a visible tint.
 const GROUND_FOG_COLOR = 0x87ceeb;
-// Pulled in further (was 3/11m): the ground grid's own material only started
-// actually *receiving* this fog once LineMaterial got fog:true wired up (see
-// addGroundSurfaceGrid()) - before that this range never got a chance to prove out
-// against the real haze it was designed for. Even fully faded by 11m, enough grid
-// lines were still visible with partial opacity in the 3-11m band for their
-// perspective convergence to still read as hazy; a tighter band shows fewer of them
-// before they're gone.
-const GROUND_FOG_NEAR_METERS = 1.5;
-const GROUND_FOG_FAR_METERS = 6;
+// Tried pulling this in to 1.5/6m at one point to hide the grid's horizon
+// convergence sooner. scene.fog is shared by every fog-enabled material in the
+// scene, not just the ground grid, though - the vehicle body (and anything else
+// using a standard material with the usual fog:true default) got visibly hazy too
+// well before 6m, which is worse than the problem this was meant to fix. Back to
+// the original range; the grid-only mitigations below (lower opacity/linewidth,
+// and fog:true on the grid material itself) are what should stay scoped to just
+// the grid.
+const GROUND_FOG_NEAR_METERS = 3;
+const GROUND_FOG_FAR_METERS = 11;
 // Carved pothole interior uses fixed contrasting colors so the pit shape stays readable.
 // The floor (roughly horizontal, facing up into the cavity) and the walls (roughly
 // vertical, the 4 faces bordering the undisturbed ground at the rim) get two distinct

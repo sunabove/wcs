@@ -3642,13 +3642,16 @@ class RapierDriveSimulation {
     });
   }
 
-  // Same idea as isVehicleOverHoleRegion() above, but per-wheel instead of whole-chassis:
-  // true from the moment any single wheel's own footprint first touches a hole region
-  // (wheelRadius as its margin, the same way isVehicleOverHoleRegion() uses the vehicle's
-  // own half-extents) until it clears it, rather than for as long as any part of the
-  // chassis bounding box overlaps the hole - which starts well before a wheel actually
-  // gets there and ends well after the last wheel has left. Used for the pothole red
-  // alert (setPotholeSurfaceAlertActive()) so it tracks actual wheel-hole contact.
+  // Same idea as isVehicleOverHoleRegion() above, but per-wheel instead of whole-chassis,
+  // and testing the wheel's actual ground-contact point rather than its full footprint:
+  // on flat ground a rolling wheel only ever touches down directly beneath its own axle
+  // (X/Y match the wheel center exactly - the radius is a Z offset, not an XY one), so
+  // expanding the hit-test outward by wheelRadius in every direction (as an earlier
+  // version of this did) lit the alert up as soon as the wheel's leading edge was still
+  // wheelRadius away from the hole - well before it actually touched. A tiny tolerance
+  // (not 0) only exists to absorb float/collider noise at the exact boundary. True from
+  // the moment a wheel's contact point first enters a hole region until it leaves it.
+  // Used for the pothole red alert (setPotholeSurfaceAlertActive()).
   isAnyWheelOverHoleRegion(targetHoleRegion = null) {
     const linkMap = this.viewer?.robotModel?.links || null;
     const holeRegions = targetHoleRegion
@@ -3660,10 +3663,7 @@ class RapierDriveSimulation {
       return false;
     }
 
-    const wheelRadius = Math.max(
-      Number(this.wheelEffectiveRadiusMeters) || 0,
-      0.03,
-    );
+    const contactPointToleranceMeters = 0.005;
     const wheelWorldPosition = new THREE.Vector3();
 
     return Object.values(this.wheelLinkNameByKey).some((wheelLinkName) => {
@@ -3681,11 +3681,15 @@ class RapierDriveSimulation {
         }
 
         const overlapX =
-          wheelWorldPosition.x + wheelRadius >= holeRegion.minX &&
-          wheelWorldPosition.x - wheelRadius <= holeRegion.maxX;
+          wheelWorldPosition.x + contactPointToleranceMeters >=
+            holeRegion.minX &&
+          wheelWorldPosition.x - contactPointToleranceMeters <=
+            holeRegion.maxX;
         const overlapY =
-          wheelWorldPosition.y + wheelRadius >= holeRegion.minY &&
-          wheelWorldPosition.y - wheelRadius <= holeRegion.maxY;
+          wheelWorldPosition.y + contactPointToleranceMeters >=
+            holeRegion.minY &&
+          wheelWorldPosition.y - contactPointToleranceMeters <=
+            holeRegion.maxY;
         return overlapX && overlapY;
       });
     });

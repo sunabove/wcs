@@ -28,6 +28,14 @@
      tune down further if it's still slightly taller than the viewport on a given page.
   */
   height: 85vh;
+  /* .urdf-container's own max-height: 400px (002_wcs_common.css) still applies here -
+     height and max-height are different properties, not competing declarations of the
+     same one, so specificity doesn't decide between them: the browser applies both and
+     clamps height to max-height whenever height is larger, regardless of which rule is
+     "stronger". Dropped this the same moment min/max-height became a single `height`
+     above, which left the viewer rendering at that 400px cap (visibly ~half the
+     intended 85vh) instead of never having gotten this far in the first place. */
+  max-height: none;
 }
 
 .road-detect-overlay-controls {

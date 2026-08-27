@@ -1108,19 +1108,42 @@ class URDFViewer {
     this.scene.add(ambientLight);
 
     // 바닥 그리드와 축 추가
-    const gridHelper = new THREE.GridHelper(10, 20, 0x888888, 0xcccccc);
+    // Built from LineSegments2/LineMaterial (same technique as
+    // attachGroundHoleEdgeLines()'s pothole outline) instead of plain
+    // THREE.GridHelper: GridHelper's LineBasicMaterial rasterizes each line at a fixed
+    // 1px in screen space with whatever antialiasing the GPU/driver happens to do for
+    // thin primitives, which is inconsistent enough that at grazing camera angles
+    // (e.g. the view-cube L/R side views) sub-pixel camera motion - even just the
+    // residual OrbitControls damping tail after a real drag/zoom, well before it fully
+    // settles - visibly shimmers/flickers each line frame to frame. LineMaterial
+    // computes each line's actual screen-space coverage in its fragment shader and
+    // antialiases that directly, which is far more stable under the same camera
+    // motion. Geometry/coloring is pulled from a throwaway THREE.GridHelper instead of
+    // reimplementing its line-position math here.
+    const gridHelperSource = new THREE.GridHelper(10, 20, 0x888888, 0xcccccc);
+    const gridLineGeometry = new LineSegmentsGeometry();
+    gridLineGeometry.setPositions(
+      gridHelperSource.geometry.getAttribute("position").array,
+    );
+    gridLineGeometry.setColors(
+      gridHelperSource.geometry.getAttribute("color").array,
+    );
+    gridHelperSource.geometry.dispose();
+
+    const gridLineMaterial = new LineMaterial({
+      vertexColors: true,
+      linewidth: 1.25,
+      worldUnits: false,
+      resolution: new THREE.Vector2(Math.max(width, 1), Math.max(height, 1)),
+      transparent: true,
+      depthTest: false,
+      depthWrite: false,
+    });
+
+    const gridHelper = new LineSegments2(gridLineGeometry, gridLineMaterial);
     gridHelper.rotation.x = Math.PI / 2;
     gridHelper.visible = false;
     gridHelper.renderOrder = 999;
-    if (Array.isArray(gridHelper.material)) {
-      gridHelper.material.forEach((material) => {
-        material.depthTest = false;
-        material.depthWrite = false;
-      });
-    } else if (gridHelper.material) {
-      gridHelper.material.depthTest = false;
-      gridHelper.material.depthWrite = false;
-    }
     this.scene.add(gridHelper);
     this.xyGridHelper = gridHelper;
 
@@ -2558,14 +2581,6 @@ class URDFViewer {
     });
 
     this.controls.addEventListener("change", () => {
-      // TEMP DEBUG (remove once the grid-flicker root cause is confirmed): proves
-      // whether OrbitControls is actually receiving input (drag/wheel/trackpad) at the
-      // moments the grid appears to flicker, vs. the flicker having some other cause
-      // that only coincidentally lines up with cursor movement.
-      console.log(
-        "[URDF][DEBUG] controls change fired",
-        performance.now().toFixed(0),
-      );
       // resetDirectionalLight() moves the shadow-casting light's position and its
       // shadow-camera frustum (recomputing shadow.camera.left/right/top/bottom/near/far
       // and calling updateProjectionMatrix()). "change" fires on every single frame of a
@@ -5612,6 +5627,9 @@ class URDFViewer {
       this.groundHoleEdgeLineObjects.forEach((edgeLines) => {
         edgeLines.material.resolution.set(newWidth, newHeight);
       });
+    }
+    if (this.xyGridHelper?.material?.resolution) {
+      this.xyGridHelper.material.resolution.set(newWidth, newHeight);
     }
   }
 

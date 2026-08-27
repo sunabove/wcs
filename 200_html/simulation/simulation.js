@@ -71,19 +71,6 @@ const GROUND_FOG_COLOR = 0x87ceeb;
 // the grid.
 const GROUND_FOG_NEAR_METERS = 3;
 const GROUND_FOG_FAR_METERS = 11;
-// How far the ground *grid overlay* itself extends from its own origin - deliberately
-// much smaller than GROUND_EXTENSION_HALF_SIZE_METERS (the ground plane itself still
-// covers the full 100m). Fog and low opacity/linewidth alone couldn't fully hide the
-// horizon haze: fading each line's alpha doesn't stop dozens of them converging into
-// the same few screen pixels from still accumulating back toward solid-looking
-// coverage at a grazing angle - and the worst of that convergence happens well
-// *inside* GROUND_FOG_FAR_METERS (11m), where fog has only partially faded lines out,
-// not past it (where fog already hides everything regardless of how far the grid
-// geometry itself extends). Deliberately kept a couple meters *under*
-// GROUND_FOG_FAR_METERS rather than at or beyond it, so the grid's own hard edge sits
-// where fog has already faded things most of the way out - masking the cutoff
-// instead of drawing attention to it. See addGroundSurfaceGrid().
-const GRID_VISIBLE_HALF_EXTENT_METERS = 9;
 // Carved pothole interior uses fixed contrasting colors so the pit shape stays readable.
 // The floor (roughly horizontal, facing up into the cavity) and the walls (roughly
 // vertical, the 4 faces bordering the undisturbed ground at the rim) get two distinct
@@ -3603,63 +3590,17 @@ class RapierDriveSimulation {
       colors.push(color.r, color.g, color.b, color.r, color.g, color.b);
     };
 
-    // Bounding both how many lines exist AND how far each one stretches to
-    // GRID_VISIBLE_HALF_EXTENT_METERS around the grid origin, rather than out to
-    // whatever the (100m-radius) ground extension's own patches reach: fog and lower
-    // opacity/linewidth (see the LineMaterial construction below) only partially
-    // mask the fact that dozens of lines converging into a handful of screen pixels
-    // at a grazing camera angle accumulate back toward full-looking coverage even at
-    // low individual opacity - fading each line doesn't help once there are enough of
-    // them stacked in the same pixels. Simply not extending the grid geometry that
-    // far removes the convergence at the source instead of trying to hide it after
-    // the fact; the ground itself still extends the full 100m, only its grid overlay
-    // is capped.
     groundPatches.forEach((patch) => {
-      const clampedPatchMinX = Math.max(
-        patch.minX,
-        gridOrigin.x - GRID_VISIBLE_HALF_EXTENT_METERS,
-      );
-      const clampedPatchMaxX = Math.min(
-        patch.maxX,
-        gridOrigin.x + GRID_VISIBLE_HALF_EXTENT_METERS,
-      );
-      const clampedPatchMinY = Math.max(
-        patch.minY,
-        gridOrigin.y - GRID_VISIBLE_HALF_EXTENT_METERS,
-      );
-      const clampedPatchMaxY = Math.min(
-        patch.maxY,
-        gridOrigin.y + GRID_VISIBLE_HALF_EXTENT_METERS,
-      );
-      if (
-        clampedPatchMinX >= clampedPatchMaxX ||
-        clampedPatchMinY >= clampedPatchMaxY
-      ) {
-        return;
-      }
-
-      const minX = Math.max(
-        snapUp(patch.minX, gridOrigin.x),
-        clampedPatchMinX,
-      );
-      const maxX = Math.min(
-        snapDown(patch.maxX, gridOrigin.x),
-        clampedPatchMaxX,
-      );
-      const minY = Math.max(
-        snapUp(patch.minY, gridOrigin.y),
-        clampedPatchMinY,
-      );
-      const maxY = Math.min(
-        snapDown(patch.maxY, gridOrigin.y),
-        clampedPatchMaxY,
-      );
+      const minX = snapUp(patch.minX, gridOrigin.x);
+      const maxX = snapDown(patch.maxX, gridOrigin.x);
+      const minY = snapUp(patch.minY, gridOrigin.y);
+      const maxY = snapDown(patch.maxY, gridOrigin.y);
 
       for (let x = minX; x <= maxX + 1e-8; x += gridSpacingMeters) {
-        appendLine(x, clampedPatchMinY, x, clampedPatchMaxY, true);
+        appendLine(x, patch.minY, x, patch.maxY, true);
       }
       for (let y = minY; y <= maxY + 1e-8; y += gridSpacingMeters) {
-        appendLine(clampedPatchMinX, y, clampedPatchMaxX, y, false);
+        appendLine(patch.minX, y, patch.maxX, y, false);
       }
     });
 

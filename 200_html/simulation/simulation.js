@@ -103,6 +103,16 @@ const WHEEL_CLIMB_CARRIER_SIGN = -1;
 // comment there for why this is safe to slow down (unlike the climb itself, which must
 // always jump straight to the bisected angle to guarantee no penetration).
 const WHEEL_CLIMB_CARRIER_RESTORE_RATE_RAD_PER_SEC = Math.PI * 0.6;
+// Upper bound updateWheelClimbGait()'s bisection searches within. The carrier's own
+// orbit is a full circle mathematically, but past roughly 90-110 degrees the wheel is
+// swinging back up *over* the pivot rather than out and up in front of it - not a
+// realistic climbing trajectory for this mechanism (matches the reference photos, which
+// never show the middle wheel past roughly this point). Capping the search here means
+// a wheel pod alone tops out at orbitRadius*(1-cos(this)) of lift (~1.3x orbitRadius,
+// comfortably above most obstacle heights this project's obstacle set uses); anything
+// beyond that shortfall still gets covered by the chassis's own separate ride-height
+// lift (applyWheelSupportRideHeight()), unaffected by this cap.
+const WHEEL_CLIMB_CARRIER_MAX_ANGLE_RAD = Math.PI * 0.6;
 
 const WHEEL_RPM_COMMAND_THRESHOLD = 0.2;
 const STEER_SIGN_EPSILON = 1e-3;
@@ -5321,6 +5331,25 @@ class RapierDriveSimulation {
         const obstacleTopZ =
           supportObstacle.center.z + supportObstacle.halfExtents.z;
 
+        // obstacleTopZ + sqrt(...) - wheelRadiusMeters (below) is the same corner-riding
+        // formula getWheelSupportProfile() uses for supportZ/liftByKey - but there it's
+        // only ever consumed as supportZ - this.groundZ (see the comment on liftByKey),
+        // a *lift* amount added on top of the chassis's own flat-ground translation, not
+        // a literal world Z. wheelPosition.z here is a real, absolute world Z, so
+        // comparing it directly against that raw formula would be comparing two
+        // different references - a wheel already resting correctly on flat ground (no
+        // climb needed at all) would still come out "below" it. flatRestAxleZ anchors
+        // this wheel's own flat-ground rest height (angle 0, same flattened chassis
+        // heightSurplusAtAngle() itself probes against) once up front, so
+        // (wheelPosition.z - flatRestAxleZ) - i.e. how much *this angle's own carrier
+        // rotation* has raised the wheel above that baseline - can be compared apples to
+        // apples against the same requiredLiftMeters getWheelSupportProfile() would
+        // report for this exact horizontal position.
+        carrierJoint.setJointValue(0);
+        const flatRestAxleZ = wheelLink.getWorldPosition(
+          new THREE.Vector3(),
+        ).z;
+
         // heightSurplus >= 0 means "already clear (at or above the required height for
         // this position)"; treats being fully outside the obstacle's horizontal reach
         // (gap >= wheelRadius) the same way - both mean this angle needs no more climb.
@@ -5341,7 +5370,7 @@ class RapierDriveSimulation {
           if (horizontalGap >= wheelRadiusMeters) {
             return Infinity;
           }
-          const targetZ =
+          const requiredLiftMeters =
             obstacleTopZ +
             Math.sqrt(
               Math.max(
@@ -5350,17 +5379,23 @@ class RapierDriveSimulation {
                 0,
               ),
             ) -
-            wheelRadiusMeters;
-          return wheelPosition.z - targetZ;
+            wheelRadiusMeters -
+            this.groundZ;
+          const carrierContributionMeters = wheelPosition.z - flatRestAxleZ;
+          return carrierContributionMeters - requiredLiftMeters;
         };
 
         if (heightSurplusAtAngle(0) < 0) {
           // Not already clear at rest - bisect for the smallest (unsigned) magnitude in
-          // [0, pi] that is: the search invariant (high always verified clear, low
-          // never verified clear) guarantees the result can't undershoot into the
-          // obstacle, regardless of how far off the previous frame's angle was.
+          // [0, WHEEL_CLIMB_CARRIER_MAX_ANGLE_RAD]: the search invariant (high always
+          // verified clear, low never verified clear) guarantees the result can't
+          // undershoot into the obstacle, regardless of how far off the previous
+          // frame's angle was. If the carrier maxes out its whole search range without
+          // ever finding clearance, highRad simply stays at that max - the wheel pod
+          // alone can't fully cover this obstacle, and the remainder is left to
+          // applyWheelSupportRideHeight()'s own chassis-level lift instead.
           let lowRad = 0;
-          let highRad = Math.PI;
+          let highRad = WHEEL_CLIMB_CARRIER_MAX_ANGLE_RAD;
           for (let iteration = 0; iteration < 20; iteration += 1) {
             const midRad = (lowRad + highRad) * 0.5;
             if (heightSurplusAtAngle(midRad) >= 0) {

@@ -5373,14 +5373,6 @@ class URDFViewer {
         `[URDF] ✅ CSG ground carving applied with ${cutterMeshes.length} cutter(s).`,
       );
     }
-    // TEMP DEBUG (remove once the pothole-highlight root cause is confirmed).
-    console.log(
-      "[URDF][DEBUG] groundHoleCavityAlertTargets populated:",
-      this.groundHoleCavityAlertTargets.length,
-      this.groundHoleCavityAlertTargets.map(
-        (target) => target.geometry?.userData?.potholeCavityVertexIndices?.length,
-      ),
-    );
   }
 
   // Toggles the carved pothole cavity itself (the actual depression cut into the

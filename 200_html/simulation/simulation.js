@@ -3103,6 +3103,67 @@ class RapierDriveSimulation {
     return interiorMaterial;
   }
 
+  // Toggles the carved pothole cavity's wall/floor materials (getGroundInteriorMaterial()
+  // above, cached in groundInteriorMaterialBySource) between their normal cavity color
+  // and a flat red alert color, so the depression itself visibly lights up while the
+  // vehicle is over/colliding with it (see updateObstacleContactState()). Deliberately
+  // does NOT touch materialBySource's role-0/"surface" entries anywhere - only the wall/
+  // floor materials the pit's own carved-out faces use - so the surrounding undisturbed
+  // ground never flashes red along with it. Note this is a distinct visual system from
+  // urdfViewer.js's own applyGroundHoleShading()/setGroundHoleCavityAlertActive(): this
+  // page carves its ground with its own materials-per-region approach
+  // (carveGroundVisualForHoles(), enabled via enableGroundHoleCarving="false" on this
+  // page's urdf-container specifically to suppress urdfViewer's built-in carving so the
+  // two don't fight over the same geometry) instead of vertex-color shading.
+  setPotholeSurfaceAlertActive(isActive) {
+    if (this.isPotholeSurfaceAlertActive === isActive) {
+      return;
+    }
+    this.isPotholeSurfaceAlertActive = isActive;
+
+    if (!this.groundInteriorMaterialBySource) {
+      return;
+    }
+
+    if (!this.potholeSurfaceAlertColor) {
+      this.potholeSurfaceAlertColor = new THREE.Color(0xff0000);
+      this.potholeSurfaceAlertEmissive = new THREE.Color(0x660000);
+    }
+
+    this.groundInteriorMaterialBySource.forEach((byRole) => {
+      byRole.forEach((material) => {
+        if (!material) {
+          return;
+        }
+        if (material.color && !material.userData.__potholeAlertBaseColor) {
+          material.userData.__potholeAlertBaseColor = material.color.clone();
+        }
+        if (
+          material.emissive &&
+          !material.userData.__potholeAlertBaseEmissive
+        ) {
+          material.userData.__potholeAlertBaseEmissive =
+            material.emissive.clone();
+        }
+
+        if (isActive) {
+          material.color?.copy(this.potholeSurfaceAlertColor);
+          material.emissive?.copy(this.potholeSurfaceAlertEmissive);
+        } else {
+          if (material.userData.__potholeAlertBaseColor) {
+            material.color.copy(material.userData.__potholeAlertBaseColor);
+          }
+          if (material.userData.__potholeAlertBaseEmissive) {
+            material.emissive.copy(
+              material.userData.__potholeAlertBaseEmissive,
+            );
+          }
+        }
+        material.needsUpdate = true;
+      });
+    });
+  }
+
   /**
    * Returns a closed (watertight) copy of a hole/cutter geometry, built as the
    * convex hull of its own vertices. See the call site in
@@ -7428,39 +7489,26 @@ class RapierDriveSimulation {
       // obstacles placed by the *dynamic* obstacle system (moveObstacleInfoTo()); the
       // static, URDF-authored obstacle_pothole is never marked active, so this stayed
       // permanently false. isVehicleOverHoleRegion() is the mechanism that's actually
-      // meant for "is the vehicle currently over this hole" and doesn't have that
-      // gate - reuse it here against authoredPotholeTemplate (the static pothole's own
-      // region, captured once at ground setup) instead of this.holeRegions itself,
-      // which - by design - only ever holds *dynamically* added hole regions.
+      // meant for "is the vehicle currently over this hole" and doesn't have that gate.
+      // Checked two ways: against authoredPotholeTemplate (the static pothole's own
+      // original region, captured once at ground setup) AND with no argument at all,
+      // which falls back to this.holeRegions - because addPotholeRegion()/
+      // applyDynamicSurfaceObstacle() can *replace* the drivable pothole with a
+      // dynamically-repositioned one pushed into this.holeRegions, at a different
+      // location than the original authored one; either can be "the" pothole the
+      // vehicle is actually driving over depending on how this page's obstacle state
+      // was set, so both need checking.
       const isContacting = isPotholeSensor
-        ? this.isVehicleOverHoleRegion(this.authoredPotholeTemplate)
+        ? this.isVehicleOverHoleRegion(this.authoredPotholeTemplate) ||
+          this.isVehicleOverHoleRegion()
         : hasWheelSupport;
       if (isPotholeSensor) {
-        // TEMP DEBUG (remove once the pothole-highlight root cause is confirmed):
-        // throttled so it doesn't spam every physics substep.
-        const nowMs = performance.now();
-        if (!this.__potholeDebugLastLogMs || nowMs - this.__potholeDebugLastLogMs > 500) {
-          this.__potholeDebugLastLogMs = nowMs;
-          console.log("[URDF][Simulation][DEBUG] pothole contact check", {
-            bodyPos: this.body?.translation
-              ? { x: this.body.translation().x, y: this.body.translation().y }
-              : "n/a",
-            authoredPotholeTemplate: this.authoredPotholeTemplate,
-            isContacting,
-            hasViewer: !!this.viewer,
-            hasViewerMethod:
-              typeof this.viewer?.setGroundHoleCavityAlertActive,
-            cavityAlertTargetsCount:
-              this.viewer?.groundHoleCavityAlertTargets?.length,
-          });
-        }
         // The pothole cutter link (obstacleInfo.linkObject) is pure CSG-subtraction
-        // geometry with nothing to look at, hidden after carving
-        // (hideHoleCuttersAfterCarving) - setObstacleContactHighlight() tints THAT
-        // mesh, so it would have no visible effect here. What's actually visible is
-        // the depression carved into the ground itself, so light that up instead - see
-        // setGroundHoleCavityAlertActive() in urdfViewer.js.
-        this.viewer?.setGroundHoleCavityAlertActive?.(isContacting);
+        // geometry with nothing to look at, hidden after carving - and this page's own
+        // carveGroundVisualForHoles() (not urdfViewer.js's carving, which is disabled
+        // here) is what actually built the visible cavity. Light *that* surface up
+        // instead - see setPotholeSurfaceAlertActive() above.
+        this.setPotholeSurfaceAlertActive(isContacting);
       } else {
         this.setObstacleContactHighlight(obstacleInfo, isContacting);
       }

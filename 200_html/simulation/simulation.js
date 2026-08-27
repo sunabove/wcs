@@ -7385,7 +7385,24 @@ class RapierDriveSimulation {
 
     let hasContact = false;
     this.obstacleColliderInfos.forEach((obstacleInfo) => {
-      if (!obstacleInfo?.collider || obstacleInfo.isSensor) {
+      if (!obstacleInfo?.collider) {
+        this.setObstacleContactHighlight(obstacleInfo, false);
+        return;
+      }
+
+      // A pothole sensor is a depression a wheel drops INTO, not something it rests on
+      // top of, so "wheel support" (hasWheelSupport below) never fires for it the way
+      // it does for obstacle_wood_bar/obstacle_rock_1 - it would stay permanently
+      // unhighlighted if treated like every other isSensor obstacle (e.g. pass-under-
+      // tagged ones, which really should never highlight). Detect it the same way
+      // isVehicleOverHoleRegion() does for the dynamic pothole region below: chassis
+      // AABB overlap with the obstacle, which is true for exactly as long as the
+      // vehicle is passing over it.
+      const isPotholeSensor =
+        obstacleInfo.isSensor &&
+        /pothole/i.test(obstacleInfo.normalizedLinkName);
+
+      if (obstacleInfo.isSensor && !isPotholeSensor) {
         this.setObstacleContactHighlight(obstacleInfo, false);
         return;
       }
@@ -7400,9 +7417,22 @@ class RapierDriveSimulation {
       obstacleInfo.hasChassisProximity =
         this.isVehicleColliderContactingObstacle(obstacleInfo);
 
-      // Red means a wheel is physically supported by this obstacle's top surface.
-      // It never represents an AABB approach or an anticipated collision.
-      this.setObstacleContactHighlight(obstacleInfo, hasWheelSupport);
+      // Red means a wheel is physically supported by this obstacle's top surface - or,
+      // for a pothole sensor, that the vehicle is currently passing over it. It never
+      // represents an AABB approach or an anticipated collision otherwise.
+      const isContacting = isPotholeSensor
+        ? obstacleInfo.hasChassisProximity
+        : hasWheelSupport;
+      // applyGroundHoleCarvingByCSG() in urdfViewer.js hides the pothole cutter link
+      // (hideHoleCuttersAfterCarving, on by default) once its shape has been carved out
+      // of the ground - it's otherwise pure geometry with nothing to look at, sitting
+      // exactly inside the cavity it cut. Tinting an invisible mesh red would have no
+      // visible effect, so reveal it only for the moment the vehicle is actually over
+      // the hole; it goes back to hidden the instant that's no longer true.
+      if (isPotholeSensor && obstacleInfo.linkObject) {
+        obstacleInfo.linkObject.visible = isContacting;
+      }
+      this.setObstacleContactHighlight(obstacleInfo, isContacting);
       hasContact =
         hasContact || hasWheelSupport || obstacleInfo.hasChassisProximity;
     });

@@ -76,11 +76,6 @@ const GROUND_INTERIOR_WALL_EMISSIVE = 0x2a1509;
 const GROUND_INTERIOR_WALL_NORMAL_Z_THRESHOLD = 0.5;
 // Cutter overshoot above the surface; coplanar faces make BSP CSG emit stray full-size polygons.
 const CSG_CUTTER_OVERSHOOT_METERS = 0.01;
-// How quickly the vehicle yaw-indicator pie's "start" reference heading catches up to
-// the vehicle's actual current heading - see syncVehicleYawIndicator(). Smaller = the
-// pie collapses to nothing faster once the vehicle stops turning; larger = it shows a
-// longer "recent rotation" window.
-const RECENT_YAW_INDICATOR_TIME_CONSTANT_SEC = 0.5;
 // Lift below this is treated as flat ground.
 const WHEEL_SUPPORT_MIN_LIFT_METERS = 0.0005;
 // getWheelSupportProfile()'s 4-wheel ride-height plane fit is weighted by each sample's
@@ -309,11 +304,11 @@ class RapierDriveSimulation {
     this.wheelGroundContactMarkerByKey = {};
     this.vehicleYawIndicatorGroup = null;
     this.vehicleYawPieMesh = null;
-    // The pie's "start"/zero-angle reference heading - continuously chases the
-    // vehicle's actual current heading (see syncVehicleYawIndicator()), rather than
-    // staying pinned to wherever the vehicle started.
-    this.vehicleYawTrailingRad = null;
-    this.vehicleYawIndicatorLastSyncMs = null;
+    // Cumulative rotation the pie displays, tracked as an unwrap-and-accumulate
+    // running total from the vehicle's initial heading at load - see
+    // syncVehicleYawIndicator().
+    this.vehicleYawAccumulatedRad = null;
+    this.vehicleYawPreviousRawRad = null;
     this.cameraFollowPreviousVehiclePosition = null;
     // See maybeFollowDirectionalLightToVehicle() - last point the shadow-casting light
     // was centered on, so it only re-centers in occasional discrete jumps as the vehicle
@@ -7344,10 +7339,12 @@ class RapierDriveSimulation {
 
     indicatorGroup.userData.arcRadius = arcRadius;
     indicatorGroup.userData.arcSegments = arcSegments;
-    this.vehicleYawTrailingRad = this.extractYawFromQuaternion(
+    // Fixed reference heading the pie accumulates rotation *from* - see the
+    // unwrap-and-accumulate comment in syncVehicleYawIndicator().
+    this.vehicleYawPreviousRawRad = this.extractYawFromQuaternion(
       this.initialQuaternion,
     );
-    this.vehicleYawIndicatorLastSyncMs = null;
+    this.vehicleYawAccumulatedRad = 0;
     this.vehicleYawIndicatorGroup = indicatorGroup;
     this.vehicleYawPieMesh = pieMesh;
     this.viewer.scene.add(indicatorGroup);
@@ -7376,39 +7373,28 @@ class RapierDriveSimulation {
     ).applyQuaternion(carQuaternion);
     const currentYaw = this.extractYawFromQuaternion(carQuaternion);
 
-    // The pie's "start" (zero-angle) reference continuously chases the vehicle's own
-    // current heading instead of staying pinned to wherever the vehicle started, so the
-    // indicator reads as "how much have you been turning lately" rather than "total
-    // rotation since load". RECENT_YAW_INDICATOR_TIME_CONSTANT_SEC sets how fast it
-    // catches up: actively turning keeps the reference lagging behind (a visible pie
-    // slice); holding a heading lets it fully catch up (the pie collapses to nothing).
-    const nowMs = performance.now();
-    if (!Number.isFinite(this.vehicleYawTrailingRad)) {
-      this.vehicleYawTrailingRad = currentYaw;
-    } else if (Number.isFinite(this.vehicleYawIndicatorLastSyncMs)) {
-      const dtSec = THREE.MathUtils.clamp(
-        (nowMs - this.vehicleYawIndicatorLastSyncMs) / 1000,
-        0,
-        0.2,
+    // The pie always shows the vehicle's absolute heading relative to its initial
+    // direction at load (a fixed reference), not "recent turning activity" - it
+    // doesn't shrink back to nothing while driving straight, only while actually
+    // un-turning back toward the start heading. currentYaw itself is a single
+    // atan2() result, always wrapped to (-pi, pi], so it can't be diffed directly
+    // against the fixed initial heading once cumulative rotation exceeds that range
+    // (a >180 deg turn would show as if the vehicle turned the other, shorter way
+    // instead) - accumulate the *per-step* wrapped delta every sync instead of a
+    // single wrap of the total, the same way odometry integrates heading, so this
+    // keeps tracking correctly past any number of full rotations.
+    if (!Number.isFinite(this.vehicleYawAccumulatedRad)) {
+      this.vehicleYawAccumulatedRad = 0;
+    } else if (Number.isFinite(this.vehicleYawPreviousRawRad)) {
+      const stepDelta = Math.atan2(
+        Math.sin(currentYaw - this.vehicleYawPreviousRawRad),
+        Math.cos(currentYaw - this.vehicleYawPreviousRawRad),
       );
-      const catchUpAlpha =
-        1 - Math.exp(-dtSec / RECENT_YAW_INDICATOR_TIME_CONSTANT_SEC);
-      const gapFromTrailing = Math.atan2(
-        Math.sin(currentYaw - this.vehicleYawTrailingRad),
-        Math.cos(currentYaw - this.vehicleYawTrailingRad),
-      );
-      this.vehicleYawTrailingRad += gapFromTrailing * catchUpAlpha;
+      this.vehicleYawAccumulatedRad += stepDelta;
     }
-    this.vehicleYawIndicatorLastSyncMs = nowMs;
+    this.vehicleYawPreviousRawRad = currentYaw;
 
-    const trailingYaw = this.vehicleYawTrailingRad;
-    // Small by construction (the trailing reference never lags far behind), so wrapping
-    // to (-pi, pi] here is safe and doesn't need the unwrap-and-accumulate treatment a
-    // *cumulative-since-start* version of this angle would.
-    const yawDelta = Math.atan2(
-      Math.sin(currentYaw - trailingYaw),
-      Math.cos(currentYaw - trailingYaw),
-    );
+    const yawDelta = this.vehicleYawAccumulatedRad;
     const arcRadius = this.vehicleYawIndicatorGroup.userData.arcRadius;
     const arcSegments = this.vehicleYawIndicatorGroup.userData.arcSegments;
 
@@ -8809,8 +8795,8 @@ class RapierDriveSimulation {
     this.isWheelZChartObstacleContactActive = false;
     this.simulationElapsedSec = 0;
     this.wheelZChartHalfRangeCm = this.wheelZChartInitialHalfRangeCm;
-    this.vehicleYawTrailingRad = null;
-    this.vehicleYawIndicatorLastSyncMs = null;
+    this.vehicleYawAccumulatedRad = null;
+    this.vehicleYawPreviousRawRad = null;
     this.driveDiagnosticsTraveledMeters = 0;
     this.driveDiagnosticsPreviousPosition = null;
     this.driveDiagnosticsWheelAngleBaselineByKey = {};

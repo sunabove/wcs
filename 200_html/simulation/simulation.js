@@ -93,11 +93,6 @@ const WHEEL_SUPPORT_MIN_LIFT_METERS = 0.0005;
 // left the climbing wheel visibly short of the obstacle surface. Weight per meter of lift;
 // a wheel sitting on a ~0.06m step gets roughly triple a grounded wheel's pull.
 const WHEEL_SUPPORT_LIFT_WEIGHT_PER_METER = 35;
-// Wheel-pod climb gait: how quickly inner_wheel_*_joint (the wheel pod's orbiting
-// carrier arm - see the comment on innerWheelJointNameByKey in urdfViewer.js) eases
-// toward the target orbit angle updateWheelClimbGait() computes each frame from that
-// wheel's current obstacle lift.
-const WHEEL_CLIMB_CARRIER_SMOOTHING_HZ = 12;
 // Direction the carrier orbits to sweep the wheel forward-and-up over an obstacle's
 // leading edge, relative to the geometric IK angle updateWheelClimbGait() solves for.
 // Flipped to -1 (2026-08-27) after visual check in-browser showed +1 orbiting the
@@ -5212,55 +5207,137 @@ class RapierDriveSimulation {
   // both keep being driven exactly as before, independently, by urdfViewer.js's
   // travel-distance rolling logic (applyWheelTravelDistances()/applyWheelAnimation()) -
   // this only ever touches the carrier.
-  updateWheelClimbGait(supportProfile, deltaSec) {
+  //
+  // The carrier angle has to account for the wheel's own physical radius, not just its
+  // axle height: a naive lift = orbitRadius*(1-cos angle) IK only targets the right axle
+  // *height*, ignoring that orbiting the carrier also sweeps the wheel forward
+  // (orbitRadius*sin angle) - for a wheel whose own radius is several times orbitRadius,
+  // reaching the target height at the wrong horizontal position can still let the
+  // wheel's rim clip into the obstacle's face mid-swing, or leave it sitting proud of
+  // (or sunk into) the top surface once "fully climbed". Instead, each wheel with an
+  // active supportObstacle bisects its own carrier angle within this same frame: pose
+  // the joint at a candidate angle, read the wheel link's *true* resulting world
+  // position (three.js's own forward kinematics - not worth re-deriving this
+  // mechanism's exact 3D geometry by hand), and check whether that position already
+  // clears the same wheel-radius-aware corner-riding height getWheelSupportProfile()
+  // uses for the chassis. Bisection (not a Newton-style single jump from the lift
+  // formula) is what makes this safe: every candidate hi bound the search narrows to is
+  // one that's already verified clear, so the final angle is *never below* what's
+  // needed - it can't converge to a value that leaves the wheel's own circle resting
+  // inside the obstacle, however far off the previous frame's angle was. It also
+  // self-consistently accounts for whatever height the chassis ride height has already
+  // contributed (the position it reads back reflects that), so this never
+  // "double-counts" lift on top of it. Applied with no smoothing/lag (unlike the old
+  // flex hack) for the same reason applyWheelSupportRideHeight() itself has none: a
+  // lagged carrier angle could sit inside the obstacle for the few frames it takes to
+  // catch up.
+  updateWheelClimbGait(supportProfile) {
     const viewer = this.viewer;
-    if (!viewer || typeof viewer.setInnerWheelCarrierAngle !== "function") {
+    const jointMap = viewer?.robotModel?.joints;
+    const linkMap = viewer?.robotModel?.links;
+    if (
+      !viewer ||
+      !jointMap ||
+      !linkMap ||
+      typeof viewer.setInnerWheelCarrierAngle !== "function"
+    ) {
       return;
     }
 
-    const alpha =
-      WHEEL_CLIMB_CARRIER_SMOOTHING_HZ > 0
-        ? 1 -
-          Math.exp(-WHEEL_CLIMB_CARRIER_SMOOTHING_HZ * Math.max(deltaSec, 0))
-        : 1;
+    const wheelRadiusMeters = Math.max(
+      Number(this.wheelEffectiveRadiusMeters) || 0,
+      0.05,
+    );
 
     Object.keys(this.innerWheelJointNameByKey).forEach((wheelKey) => {
+      const carrierJoint = jointMap[this.innerWheelJointNameByKey[wheelKey]];
+      const wheelLink = this.findLinkByName(
+        linkMap,
+        this.wheelLinkNameByKey[wheelKey],
+      );
       const orbitRadiusMeters =
         typeof viewer.measureInnerWheelOrbitRadiusMeters === "function"
           ? viewer.measureInnerWheelOrbitRadiusMeters(wheelKey)
           : null;
       const supportObstacle =
         supportProfile?.supportObstacleByKey?.[wheelKey] || null;
-      let targetAngleRad = 0;
+
+      let carrierAngleRad = 0;
 
       if (
+        carrierJoint &&
+        typeof carrierJoint.setJointValue === "function" &&
+        wheelLink &&
         supportObstacle?.center &&
         supportObstacle?.halfExtents &&
         Number.isFinite(orbitRadiusMeters) &&
         orbitRadiusMeters > 0
       ) {
-        const liftMeters = Number(supportProfile.liftByKey?.[wheelKey]) || 0;
-        // Inverse kinematics on the carrier's own orbit circle: swinging the wheel's
-        // axle up by `lift` meters needs lift = orbitRadius * (1 - cos(angle)), i.e.
-        // angle = acos(1 - lift/orbitRadius). liftMeters can exceed what a single
-        // wheel pod's ~5cm orbit can account for on its own (the chassis's own
-        // kinematic ride-height fit in applyWheelSupportRideHeight() covers the rest),
-        // so clamp the ratio to the angle's full [0, pi] range (ratio in [0, 2]).
-        const liftRatio = THREE.MathUtils.clamp(
-          liftMeters / orbitRadiusMeters,
-          0,
-          2,
-        );
-        targetAngleRad = WHEEL_CLIMB_CARRIER_SIGN * Math.acos(1 - liftRatio);
+        const obstacleTopZ =
+          supportObstacle.center.z + supportObstacle.halfExtents.z;
+
+        // heightSurplus >= 0 means "already clear (at or above the required height for
+        // this position)"; treats being fully outside the obstacle's horizontal reach
+        // (gap >= wheelRadius) the same way - both mean this angle needs no more climb.
+        const heightSurplusAtAngle = (angleRad) => {
+          carrierJoint.setJointValue(WHEEL_CLIMB_CARRIER_SIGN * angleRad);
+          const wheelPosition = wheelLink.getWorldPosition(new THREE.Vector3());
+          const gapX = Math.max(
+            Math.abs(wheelPosition.x - supportObstacle.center.x) -
+              supportObstacle.halfExtents.x,
+            0,
+          );
+          const gapY = Math.max(
+            Math.abs(wheelPosition.y - supportObstacle.center.y) -
+              supportObstacle.halfExtents.y,
+            0,
+          );
+          const horizontalGap = Math.hypot(gapX, gapY);
+          if (horizontalGap >= wheelRadiusMeters) {
+            return Infinity;
+          }
+          const targetZ =
+            obstacleTopZ +
+            Math.sqrt(
+              Math.max(
+                wheelRadiusMeters * wheelRadiusMeters -
+                  horizontalGap * horizontalGap,
+                0,
+              ),
+            ) -
+            wheelRadiusMeters;
+          return wheelPosition.z - targetZ;
+        };
+
+        if (heightSurplusAtAngle(0) < 0) {
+          // Not already clear at rest - bisect for the smallest (unsigned) magnitude in
+          // [0, pi] that is: the search invariant (high always verified clear, low
+          // never verified clear) guarantees the result can't undershoot into the
+          // obstacle, regardless of how far off the previous frame's angle was.
+          let lowRad = 0;
+          let highRad = Math.PI;
+          for (let iteration = 0; iteration < 20; iteration += 1) {
+            const midRad = (lowRad + highRad) * 0.5;
+            if (heightSurplusAtAngle(midRad) >= 0) {
+              highRad = midRad;
+            } else {
+              lowRad = midRad;
+            }
+          }
+          carrierAngleRad = highRad;
+        }
       }
 
-      const currentAngleRad =
-        Number(this.wheelClimbCarrierAngleRadByKey[wheelKey]) || 0;
-      const nextAngleRad =
-        currentAngleRad + (targetAngleRad - currentAngleRad) * alpha;
-      this.wheelClimbCarrierAngleRadByKey[wheelKey] = nextAngleRad;
-
-      viewer.setInnerWheelCarrierAngle(wheelKey, nextAngleRad);
+      // carrierAngleRad itself is the unsigned bisection magnitude (heightSurplusAtAngle()
+      // above applies WHEEL_CLIMB_CARRIER_SIGN separately, only to actually move the
+      // joint while probing candidate angles) - everything downstream that reads
+      // wheelClimbCarrierAngleRadByKey (getWheelSupportProfile()'s own carrier
+      // zero/restore, and urdfViewer.js's applyInnerGearRotation() carrier correction)
+      // needs the real signed angle that ends up applied to
+      // inner_wheel_{key}_joint, so convert it here before publishing it.
+      const signedCarrierAngleRad = WHEEL_CLIMB_CARRIER_SIGN * carrierAngleRad;
+      this.wheelClimbCarrierAngleRadByKey[wheelKey] = signedCarrierAngleRad;
+      viewer.setInnerWheelCarrierAngle(wheelKey, signedCarrierAngleRad);
     });
   }
 
@@ -8531,7 +8608,7 @@ class RapierDriveSimulation {
 
     // Wheel support geometry is the single source of truth for ride height.
     this.applyWheelSupportRideHeight(supportProfile);
-    this.updateWheelClimbGait(supportProfile, fixedStepSec);
+    this.updateWheelClimbGait(supportProfile);
 
     // Center turn must keep the 4-wheel center fixed on every substep, not just per frame.
     this.constrainCenterTurnPivot();

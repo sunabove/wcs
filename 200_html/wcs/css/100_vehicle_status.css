@@ -24,10 +24,15 @@
      and whatever else shares the page) taller than the viewport. A single fixed height
      - vh-based, so it doesn't depend on this table layout having a definite height
      anywhere in its ancestor chain either - leaves the loop no range to creep across at
-     all. 85vh leaves headroom for the rest of the page's chrome above/around this row;
-     tune down further if it's still slightly taller than the viewport on a given page.
-  */
-  height: 85vh;
+     all. A plain vh value approximates the page chrome above this row (header +
+     main/card/card-body padding) as a fixed *fraction* of the viewport, which is why
+     85vh under-filled the remaining space on a page whose chrome doesn't actually scale
+     with viewport height - it's a roughly-70-90px band regardless of window size, not
+     15vh of it. calc(100vh - Npx) subtracts that band directly instead: the N is that
+     fixed chrome height *plus* the small bottom margin actually wanted, leaving the
+     viewer filling whatever's left of the viewport rather than a guessed percentage of
+     it. Re-measure and adjust N if this page's header/margins change. */
+  height: calc(100vh - 90px);
   /* .urdf-container's own max-height: 400px (002_wcs_common.css) still applies here -
      height and max-height are different properties, not competing declarations of the
      same one, so specificity doesn't decide between them: the browser applies both and

@@ -7367,7 +7367,9 @@ class RapierDriveSimulation {
     const pieOutline = new THREE.LineLoop(
       outlineGeometry,
       new THREE.LineBasicMaterial({
-        color: 0x00a8ff,
+        // Darker/more saturated than the fill's 0x00a8ff so the outline reads as a
+        // distinct edge against the translucent fill instead of blending into it.
+        color: 0x00426b,
         fog: false,
         toneMapped: false,
       }),

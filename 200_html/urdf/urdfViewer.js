@@ -4685,6 +4685,7 @@ class URDFViewer {
         robot.visible = false;
         this.robotModel = robot;
         this.applyGroundHoleCarvingByCSG();
+        this.applyGroundLayerPolygonOffsetSeparation();
         this.carFrameAlertMaterials = [];
         this.isCarFrameAlertActive = false;
         this.resolveWheelAnimationTargets();
@@ -5329,6 +5330,54 @@ class URDFViewer {
         `[URDF] ✅ CSG ground carving applied with ${cutterMeshes.length} cutter(s).`,
       );
     }
+  }
+
+  // Ground-family visual layers z-fight at grazing camera angles (worst case: view-cube
+  // L/R side views combined with zooming) even with logarithmicDepthBuffer enabled,
+  // because some of them are exactly or near coplanar by design - e.g. in sw17.urdf,
+  // obstacle_rock_1's bottom face (z=0.005 in world) lands exactly on ground's top face
+  // (also z=0.005), and obstacle_wood_bar's bottom sits only 5mm above it. At a grazing
+  // angle those near-zero depth differences fall within the GPU's per-pixel depth
+  // precision, so which layer wins the depth test flips frame to frame - read as the
+  // ground area flickering. glPolygonOffset resolves this deterministically regardless
+  // of viewing angle by biasing each layer's rendered depth apart: the background
+  // reference plane (ellipsoid_surface) is pushed away, the ground slab stays neutral,
+  // and anything meant to sit visibly on top of the ground (obstacle_*) is pulled
+  // toward the camera so it always wins.
+  applyGroundLayerPolygonOffsetSeparation() {
+    const linkMap = this.robotModel?.links || {};
+
+    const setLayerPolygonOffset = (link, offsetAmount) => {
+      if (!link) {
+        return;
+      }
+
+      link.traverse((node) => {
+        if (!node?.isMesh || !node.material) {
+          return;
+        }
+
+        const materials = Array.isArray(node.material)
+          ? node.material
+          : [node.material];
+        materials.forEach((material) => {
+          if (!material) {
+            return;
+          }
+          material.polygonOffset = true;
+          material.polygonOffsetFactor = offsetAmount;
+          material.polygonOffsetUnits = offsetAmount;
+          material.needsUpdate = true;
+        });
+      });
+    };
+
+    setLayerPolygonOffset(linkMap.ellipsoid_surface, 2);
+    setLayerPolygonOffset(linkMap.ground || linkMap.ground_patch, 1);
+
+    Object.keys(linkMap)
+      .filter((linkKey) => /^obstacle_/i.test(linkKey))
+      .forEach((linkKey) => setLayerPolygonOffset(linkMap[linkKey], -1));
   }
 
   resolveWheelHighlightTargets() {

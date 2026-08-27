@@ -7341,6 +7341,18 @@ class RapierDriveSimulation {
     pieGeometry.setIndex(new THREE.BufferAttribute(pieIndex, 1));
     pieGeometry.setDrawRange(0, 0);
 
+    // depthTest:false (both here and on the outline below): the pie sits only 1cm
+    // above the roof (roofOffset), which is close enough that ordinary depth testing
+    // against the actual roof mesh - never perfectly flat, and vehicleHalfExtents.z is
+    // an approximation rather than an exact match to it - let parts of the roof win
+    // the depth test in patches, especially from an oblique viewing angle where small
+    // real height differences project to a much larger apparent depth difference than
+    // they do looking straight down. That read as random gaps scattered through the
+    // middle of an otherwise "filled" pie. This is a small always-on-top UI-style
+    // indicator, not something that needs to be physically occluded by the car body
+    // it's drawn on, so disabling the depth test entirely (and rendering after
+    // everything else via renderOrder) is simpler and more robust than trying to
+    // nudge the offset/depth bias just right.
     const pieMesh = new THREE.Mesh(
       pieGeometry,
       new THREE.MeshBasicMaterial({
@@ -7350,8 +7362,10 @@ class RapierDriveSimulation {
         side: THREE.DoubleSide,
         fog: false,
         toneMapped: false,
+        depthTest: false,
       }),
     );
+    pieMesh.renderOrder = 10;
 
     // Traces the pie's own boundary - both straight radius edges plus the arc - as a
     // solid outline on top of the translucent fill, so the slice reads clearly even
@@ -7373,8 +7387,12 @@ class RapierDriveSimulation {
         color: 0x00426b,
         fog: false,
         toneMapped: false,
+        // Same reasoning as pieMesh's depthTest:false above - keeps the outline from
+        // patchily disappearing behind the roof mesh at oblique angles too.
+        depthTest: false,
       }),
     );
+    pieOutline.renderOrder = 11;
 
     const indicatorGroup = new THREE.Group();
     indicatorGroup.name = "simulation-vehicle-yaw-indicator";

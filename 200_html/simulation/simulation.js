@@ -3607,12 +3607,22 @@ class RapierDriveSimulation {
     // against the ground has to be resolved by the *renderer*, not by geometric
     // separation. polygonOffset does that - but only works on LineSegments2 (each line
     // is a screen-facing quad, i.e. triangles), not plain gl.LINES.
-    // transparent is deliberately left off (fully opaque) rather than the original
-    // opacity:0.65: LineMaterial's real per-pixel coverage antialiasing, combined with
-    // alpha blending, made the many near-parallel lines that converge together at the
-    // horizon sum into a hazy wash when this was tried with transparent:true earlier.
-    // Opaque means each pixel just shows whichever line is frontmost, with no
-    // blending to accumulate - closer to how the old hard-edged gl.LINES rendered.
+    //
+    // transparent:true (kept, not switched to fully opaque): the ground's own material
+    // is itself semi-transparent (urdfViewer.js's applyGroundLayerPolygonOffsetSeparation()
+    // gives it depthWrite:false specifically because of that) - three.js renders the
+    // entire opaque list before the entire transparent list regardless of renderOrder,
+    // so an *opaque* grid always got drawn, then painted over by the transparent
+    // ground layer on top, which is what made the grid nearly invisible over the
+    // original (authored) ground plate while still showing fine over the extension
+    // area's own (opaque) material. Staying transparent keeps the grid in the same
+    // render pass as the ground so it can actually draw after it - renderOrder below
+    // (2, higher than ground's own 1 - see applyGroundLayerPolygonOffsetSeparation())
+    // makes that "after" deterministic instead of leaving it to distance-based sort.
+    // The lower opacity (0.5, down from 0.65) is a partial mitigation for the
+    // horizon-haze this transparency reintroduces (many overlapping near-parallel
+    // lines blending together) - won't eliminate it the way fully opaque did, but
+    // should reduce it; revisit if it's still too hazy.
     const geometry = new LineSegmentsGeometry();
     geometry.setPositions(vertices);
     geometry.setColors(colors);
@@ -3620,7 +3630,8 @@ class RapierDriveSimulation {
     const containerRect = this.viewer.container.getBoundingClientRect();
     const material = new LineMaterial({
       vertexColors: true,
-      transparent: false,
+      transparent: true,
+      opacity: 0.5,
       depthWrite: false,
       linewidth: 1.25,
       worldUnits: false,
@@ -3635,7 +3646,7 @@ class RapierDriveSimulation {
 
     this.groundGrid = new LineSegments2(geometry, material);
     this.groundGrid.name = "simulation-ground-grid";
-    this.groundGrid.renderOrder = 1;
+    this.groundGrid.renderOrder = 2;
     this.viewer.scene.add(this.groundGrid);
 
     // Reuses urdfViewer.js's existing resize plumbing (applyContainerResize() keeps

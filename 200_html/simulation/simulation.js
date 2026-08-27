@@ -98,21 +98,23 @@ const WHEEL_SUPPORT_LIFT_WEIGHT_PER_METER = 35;
 // Flipped to -1 (2026-08-27) after visual check in-browser showed +1 orbiting the
 // carrier backward into the step instead of up and over it.
 const WHEEL_CLIMB_CARRIER_SIGN = -1;
-// Caps how fast the carrier can straighten back out once the bisected safe angle in
-// updateWheelClimbGait() drops (obstacle clearing/cleared) - see the rate-limiting
-// comment there for why this is safe to slow down (unlike the climb itself, which must
-// always jump straight to the bisected angle to guarantee no penetration).
-const WHEEL_CLIMB_CARRIER_RESTORE_RATE_RAD_PER_SEC = Math.PI * 0.6;
-// Upper bound updateWheelClimbGait()'s bisection searches within. The carrier's own
-// orbit is a full circle mathematically, but past roughly 90-110 degrees the wheel is
-// swinging back up *over* the pivot rather than out and up in front of it - not a
-// realistic climbing trajectory for this mechanism (matches the reference photos, which
-// never show the middle wheel past roughly this point). Capping the search here means
-// a wheel pod alone tops out at orbitRadius*(1-cos(this)) of lift (~1.3x orbitRadius,
-// comfortably above most obstacle heights this project's obstacle set uses); anything
-// beyond that shortfall still gets covered by the chassis's own separate ride-height
-// lift (applyWheelSupportRideHeight()), unaffected by this cap.
-const WHEEL_CLIMB_CARRIER_MAX_ANGLE_RAD = Math.PI * 0.6;
+// Upper bound updateWheelClimbGait()'s bisection searches within - the middle wheel
+// (inner_wheel_{key}_joint) climbs by tilting at most this far before straightening back
+// out, matching the real hardware's own limited swing (tuned down from an earlier
+// ~108deg guess once a taller test obstacle showed the carrier searching all the way out
+// to a physically nonsensical ~180deg flip). Any obstacle-height shortfall beyond what
+// orbitRadius*(1-cos(this)) of lift alone can cover is left to the chassis's own
+// separate ride-height lift (applyWheelSupportRideHeight()), unaffected by this cap.
+const WHEEL_CLIMB_CARRIER_MAX_ANGLE_RAD = THREE.MathUtils.degToRad(15);
+// How long a full climb-to-max-angle-and-back cycle's straightening half takes - see the
+// rate-limiting comment in updateWheelClimbGait() for why only that direction (not the
+// climb itself, which must always jump straight to the bisected angle to guarantee no
+// penetration) is safe to pace out over time instead of snapping back instantly.
+// Expressed as a duration (not a flat deg/sec rate) so it stays proportionate if
+// WHEEL_CLIMB_CARRIER_MAX_ANGLE_RAD above is ever retuned.
+const WHEEL_CLIMB_CARRIER_RESTORE_DURATION_SEC = 0.5;
+const WHEEL_CLIMB_CARRIER_RESTORE_RATE_RAD_PER_SEC =
+  WHEEL_CLIMB_CARRIER_MAX_ANGLE_RAD / WHEEL_CLIMB_CARRIER_RESTORE_DURATION_SEC;
 
 const WHEEL_RPM_COMMAND_THRESHOLD = 0.2;
 const STEER_SIGN_EPSILON = 1e-3;

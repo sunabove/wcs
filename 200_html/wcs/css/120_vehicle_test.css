@@ -5,14 +5,13 @@
 }
 
 .vehicle-urdf-min-height {
-    min-height: 70vh;
-    /* Same runaway-on-resize risk as #vehicle-urdf-viewer in 100_vehicle_status.css -
-       see the comment there. .urdf-container's own max-height: 400px (002_wcs_common.css)
-       doesn't actually help here: with min-height (70vh, normally >400px) larger than
-       max-height, the CSS spec resolves that conflict in min-height's favor, so the
-       cap is effectively ignored. Give it a cap bigger than the min-height floor so it
-       actually applies. */
-    max-height: 100vh;
+    /* Fixed, not a min/max-height range: see the height comment in
+       #vehicle-urdf-viewer (100_vehicle_status.css) for the runaway-on-resize
+       mechanism a range still leaves room for. A single vh-based value also means a
+       purely horizontal window resize (width-only) can't move this at all - vh
+       depends on viewport height, not width. Tune down further if still slightly
+       taller than the viewport. */
+    height: 70vh;
 }
 
 .speed-value-chip {

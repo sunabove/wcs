@@ -11,19 +11,23 @@
    and lift .urdf-container's max-height: 400px (002_wcs_common.css) which would otherwise
    cap it well below that. */
 #vehicle-urdf-viewer.urdf-container {
-  min-height: 88vh;
-  /* Uncapped (max-height: none) let this runaway on resize: the viewer's <canvas> has
-     no definite-height parent to resolve its own height:100% against (see the comment
-     above), so it falls back to its width/height *attributes* - the actual device-pixel
-     buffer size urdfViewer.js's renderer.setSize() writes there, which can be well
-     above the container's CSS size (devicePixelRatio > 1, etc.). That inflated canvas
-     then grows this auto-height container to match, which the ResizeObserver in
+  /* A min/max-height *range* (previously min-height:88vh + max-height:100vh) still let
+     this creep to whatever the top of that range was on every resize: the viewer's
+     <canvas> has no definite-height parent to resolve its own height:100% against (see
+     the comment above), so it falls back to its width/height *attributes* - the actual
+     device-pixel buffer size urdfViewer.js's renderer.setSize() writes there, which can
+     be well above the container's CSS size (devicePixelRatio > 1, etc.). That inflated
+     canvas then grows this auto-height container to match, which the ResizeObserver in
      urdfViewer.js's setupResizeHandler() picks up as a size change and resizes the
-     renderer again from - compounding a little further each pass instead of settling,
-     and pushing the container (and the vertical scrollbar with it) taller than the
-     viewport. Capping max-height gives the loop a ceiling to settle against.
+     renderer again from - compounding a little further each pass until it hits the
+     max-height ceiling, which still left it (plus this row's own title text/padding,
+     and whatever else shares the page) taller than the viewport. A single fixed height
+     - vh-based, so it doesn't depend on this table layout having a definite height
+     anywhere in its ancestor chain either - leaves the loop no range to creep across at
+     all. 85vh leaves headroom for the rest of the page's chrome above/around this row;
+     tune down further if it's still slightly taller than the viewport on a given page.
   */
-  max-height: 100vh;
+  height: 85vh;
 }
 
 .road-detect-overlay-controls {

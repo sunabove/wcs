@@ -7398,10 +7398,7 @@ class RapierDriveSimulation {
       // top of, so "wheel support" (hasWheelSupport below) never fires for it the way
       // it does for obstacle_wood_bar/obstacle_rock_1 - it would stay permanently
       // unhighlighted if treated like every other isSensor obstacle (e.g. pass-under-
-      // tagged ones, which really should never highlight). Detect it the same way
-      // isVehicleOverHoleRegion() does for the dynamic pothole region below: chassis
-      // AABB overlap with the obstacle, which is true for exactly as long as the
-      // vehicle is passing over it.
+      // tagged ones, which really should never highlight).
       const isPotholeSensor =
         obstacleInfo.isSensor &&
         /pothole/i.test(obstacleInfo.normalizedLinkName);
@@ -7424,8 +7421,19 @@ class RapierDriveSimulation {
       // Red means a wheel is physically supported by this obstacle's top surface - or,
       // for a pothole sensor, that the vehicle is currently passing over it. It never
       // represents an AABB approach or an anticipated collision otherwise.
+      //
+      // hasChassisProximity (above) can't be used for the pothole case: it goes
+      // through getObstacleWorldBounds(), which returns null unless
+      // obstacleInfo.isActive is true - and isActive is only ever flipped on for
+      // obstacles placed by the *dynamic* obstacle system (moveObstacleInfoTo()); the
+      // static, URDF-authored obstacle_pothole is never marked active, so this stayed
+      // permanently false. isVehicleOverHoleRegion() is the mechanism that's actually
+      // meant for "is the vehicle currently over this hole" and doesn't have that
+      // gate - reuse it here against authoredPotholeTemplate (the static pothole's own
+      // region, captured once at ground setup) instead of this.holeRegions itself,
+      // which - by design - only ever holds *dynamically* added hole regions.
       const isContacting = isPotholeSensor
-        ? obstacleInfo.hasChassisProximity
+        ? this.isVehicleOverHoleRegion(this.authoredPotholeTemplate)
         : hasWheelSupport;
       if (isPotholeSensor) {
         // The pothole cutter link (obstacleInfo.linkObject) is pure CSG-subtraction
@@ -7439,7 +7447,10 @@ class RapierDriveSimulation {
         this.setObstacleContactHighlight(obstacleInfo, isContacting);
       }
       hasContact =
-        hasContact || hasWheelSupport || obstacleInfo.hasChassisProximity;
+        hasContact ||
+        hasWheelSupport ||
+        obstacleInfo.hasChassisProximity ||
+        (isPotholeSensor && isContacting);
     });
 
     if (

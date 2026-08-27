@@ -7344,17 +7344,19 @@ class RapierDriveSimulation {
     // The pie should behave like any other object in the scene - occluded by the
     // car body (and anything else) when something sits between it and the camera,
     // including from underneath the vehicle. Depth testing stays on for that reason;
-    // what it fights against is that the pie sits only 1cm above the roof (roofOffset),
-    // close enough that the roof mesh - never perfectly flat, and vehicleHalfExtents.z
-    // is an approximation rather than an exact match to it - can win the depth test in
-    // patches, especially from an oblique angle where small real height differences
-    // project to a much larger apparent depth difference than they do looking straight
-    // down. polygonOffset nudges the pie's own depth slightly toward the camera to win
-    // those near-ties without disabling the test altogether, so normal occlusion by
-    // everything else (roof included, from below) still applies. depthWrite is off so
-    // the fill's nudged-closer depth can't itself occlude the outline below, which
-    // shares these exact vertex positions but (being a line, not a triangle) can't get
-    // the same polygonOffset nudge and would otherwise lose the depth test against it.
+    // what it fights against is that the real roof mesh isn't flat while the pie sits
+    // on a flat plane just above it (see the roofOffset comment in
+    // syncVehicleYawIndicator() for why that clearance needs to be a real few
+    // centimeters, not the ~0 it used to be), so the roof can still win the depth test
+    // in patches at a grazing/oblique angle where small real height differences project
+    // to a much larger apparent depth difference than they do looking straight down.
+    // polygonOffset nudges the pie's own depth slightly toward the camera on top of
+    // that clearance, as a second line of defense against exactly those grazing-angle
+    // ties, without disabling the test altogether - so normal occlusion by everything
+    // else (roof included, from below) still applies. depthWrite is off so the fill's
+    // nudged-closer depth can't itself occlude the outline below, which shares these
+    // exact vertex positions but (being a line, not a triangle) can't get the same
+    // polygonOffset nudge and would otherwise lose the depth test against it.
     const pieMesh = new THREE.Mesh(
       pieGeometry,
       new THREE.MeshBasicMaterial({
@@ -7366,8 +7368,8 @@ class RapierDriveSimulation {
         toneMapped: false,
         depthWrite: false,
         polygonOffset: true,
-        polygonOffsetFactor: -4,
-        polygonOffsetUnits: -4,
+        polygonOffsetFactor: -8,
+        polygonOffsetUnits: -8,
       }),
     );
 
@@ -7433,10 +7435,21 @@ class RapierDriveSimulation {
       new THREE.Quaternion(),
     );
     const halfZ = Math.max(Number(this.vehicleHalfExtents?.z) || 0.12, 0.06);
+    // The "+0.01" here used to read as "1cm above the roof", but halfZ (== the physics
+    // collider's own half-height) is itself already shrunk by chassisMarginZ (0.01, see
+    // ensureRapierInitialized()) versus the chassis's real bounding-box half-size, so
+    // the two 0.01s exactly cancelled out - the pie actually sat right at the flat
+    // bbox-top plane, not above it. Since the real roof mesh isn't flat (it dips below
+    // and rises above that flat approximation from spot to spot), that near-zero
+    // clearance is what produced the torn/starburst gaps in the pie fill at oblique
+    // angles: parts of the roof geometry poked back through the polygonOffset nudge
+    // entirely. Padding out to a real ~3cm clearance above the bbox top keeps the pie
+    // above the roof's actual surface variation everywhere, while still reading as
+    // "sitting on the roof" given the pie's own ~20cm radius.
     const roofOffset = new THREE.Vector3(
       Number(this.vehicleColliderLocalCenter.x) || 0,
       Number(this.vehicleColliderLocalCenter.y) || 0,
-      (Number(this.vehicleColliderLocalCenter.z) || 0) + halfZ + 0.01,
+      (Number(this.vehicleColliderLocalCenter.z) || 0) + halfZ + 0.04,
     ).applyQuaternion(carQuaternion);
     const currentYaw = this.extractYawFromQuaternion(carQuaternion);
 

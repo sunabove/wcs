@@ -7426,14 +7426,7 @@ class RapierDriveSimulation {
     // runs from -sweepDelta (the trailing reference) up to exactly 0 (current) instead
     // of 0..yawDelta the way it did when local +X was pinned to the trailing direction
     // instead.
-    // Positive here (not -yawDelta): a positive yawDelta is a left turn, and increasing
-    // local angle sweeps toward +Y in this group's frame - but +Y in the *rendered*
-    // vehicle body frame is the vehicle's right side, not left (opposite of the X-
-    // forward/Y-left convention extractYawFromQuaternion()/getVehicleForwardVector()
-    // assume), so the un-negated sweep is what actually lands the pie on the same side
-    // as the real turn direction. Without this the pie appeared on the vehicle's right
-    // for a left turn and vice versa.
-    const sweepDelta = yawDelta;
+    const sweepDelta = -yawDelta;
     const segmentCount = Math.min(
       arcSegments,
       Math.ceil((Math.abs(sweepDelta) / (Math.PI * 2)) * arcSegments),

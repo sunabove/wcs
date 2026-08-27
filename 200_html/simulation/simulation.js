@@ -1,5 +1,8 @@
 import * as THREE from "three";
 import { ConvexGeometry } from "three/examples/jsm/geometries/ConvexGeometry.js";
+import { LineSegments2 } from "three/examples/jsm/lines/LineSegments2.js";
+import { LineSegmentsGeometry } from "three/examples/jsm/lines/LineSegmentsGeometry.js";
+import { LineMaterial } from "three/examples/jsm/lines/LineMaterial.js";
 
 const RAPIER_CDN = "https://cdn.skypack.dev/@dimforge/rapier3d-compat@0.11.2";
 const SIM_SPEED_STORAGE_KEY = "wcs.simulation.driveSpeedMps";
@@ -3521,6 +3524,12 @@ class RapierDriveSimulation {
       this.viewer.scene.remove(this.groundGrid);
       this.groundGrid.geometry.dispose();
       this.groundGrid.material.dispose();
+      const staleIndex = this.viewer.groundHoleEdgeLineObjects?.indexOf(
+        this.groundGrid,
+      );
+      if (Number.isInteger(staleIndex) && staleIndex !== -1) {
+        this.viewer.groundHoleEdgeLineObjects.splice(staleIndex, 1);
+      }
     }
 
     // One cell equals one wheel revolution, so travel per rotation is readable on the ground.
@@ -3558,13 +3567,14 @@ class RapierDriveSimulation {
     const snapDown = (value, origin) =>
       origin +
       Math.floor((value - origin) / gridSpacingMeters) * gridSpacingMeters;
-    // 1mm above the ground originally - close enough that, at the depth-buffer
-    // precision available near the horizon, distant grid lines and the ground surface
-    // fell in the same texel, so whichever won flickered with every sub-pixel camera
-    // bounce while the vehicle crossed an obstacle. 3cm keeps the grid visually flush
-    // with the ground (no perceptible "floating" gap) while giving the depth test a
-    // comfortably unambiguous separation to resolve even at distance.
-    const gridZ = this.groundZ + 0.03;
+    // Kept right at the ground surface (not raised): obstacle_rock_1 sits with its
+    // bottom flush against the ground (no gap at all), so *any* Z large enough to
+    // separate the grid from the ground in the depth buffer is also large enough to
+    // slice visibly through the lower part of that obstacle - raising this to 3cm at
+    // one point fixed the depth-buffer flicker but visibly ran the grid through the
+    // middle of both obstacle_wood_bar and obstacle_rock_1. The depth-buffer
+    // separation this needs instead comes from the material's polygonOffset below.
+    const gridZ = this.groundZ + 0.001;
     const vertices = [];
     const colors = [];
     const verticalLineColor = new THREE.Color(0x22c55e);
@@ -3591,31 +3601,56 @@ class RapierDriveSimulation {
       }
     });
 
-    // Tried LineSegments2/LineMaterial here at one point (constant-pixel-width,
-    // properly antialiased lines, and polygonOffset actually works on it unlike plain
-    // gl.LINES) to fix the z-fight flicker described above. It did fix the flicker,
-    // but LineMaterial's real per-pixel coverage antialiasing blends the many
-    // near-parallel lines that converge close together at the horizon into a hazy
-    // wash, which looked worse than the flicker it replaced. Reverted to plain
-    // THREE.LineSegments/LineBasicMaterial (crisp, no haze) and fixed the z-fight the
-    // other way instead - see the gridZ separation comment above.
-    const geometry = new THREE.BufferGeometry();
-    geometry.setAttribute(
-      "position",
-      new THREE.Float32BufferAttribute(vertices, 3),
-    );
-    geometry.setAttribute("color", new THREE.Float32BufferAttribute(colors, 3));
-    const material = new THREE.LineBasicMaterial({
+    // LineSegments2/LineMaterial rather than plain THREE.LineSegments/LineBasicMaterial:
+    // this grid sits right at the ground surface (gridZ above - can't be raised without
+    // visibly slicing through obstacles, see that comment), so the z-fight flicker
+    // against the ground has to be resolved by the *renderer*, not by geometric
+    // separation. polygonOffset does that - but only works on LineSegments2 (each line
+    // is a screen-facing quad, i.e. triangles), not plain gl.LINES.
+    // transparent is deliberately left off (fully opaque) rather than the original
+    // opacity:0.65: LineMaterial's real per-pixel coverage antialiasing, combined with
+    // alpha blending, made the many near-parallel lines that converge together at the
+    // horizon sum into a hazy wash when this was tried with transparent:true earlier.
+    // Opaque means each pixel just shows whichever line is frontmost, with no
+    // blending to accumulate - closer to how the old hard-edged gl.LINES rendered.
+    const geometry = new LineSegmentsGeometry();
+    geometry.setPositions(vertices);
+    geometry.setColors(colors);
+
+    const containerRect = this.viewer.container.getBoundingClientRect();
+    const material = new LineMaterial({
       vertexColors: true,
-      transparent: true,
-      opacity: 0.65,
+      transparent: false,
       depthWrite: false,
+      linewidth: 1.25,
+      worldUnits: false,
+      resolution: new THREE.Vector2(
+        Math.max(containerRect.width, 1),
+        Math.max(containerRect.height, 1),
+      ),
+      polygonOffset: true,
+      polygonOffsetFactor: -1,
+      polygonOffsetUnits: -1,
     });
 
-    this.groundGrid = new THREE.LineSegments(geometry, material);
+    this.groundGrid = new LineSegments2(geometry, material);
     this.groundGrid.name = "simulation-ground-grid";
     this.groundGrid.renderOrder = 1;
     this.viewer.scene.add(this.groundGrid);
+
+    // Reuses urdfViewer.js's existing resize plumbing (applyContainerResize() keeps
+    // every LineMaterial in this array in sync with the render target size, which
+    // LineMaterial needs to compute a correct constant-pixel line width) instead of
+    // standing up a parallel one here - the array just needs objects with a
+    // material.resolution, it doesn't care that they're pothole edge lines elsewhere.
+    if (Array.isArray(this.viewer.groundHoleEdgeLineObjects)) {
+      const previousIndex = this.viewer.groundHoleEdgeLineObjects.indexOf(
+        this.groundGrid,
+      );
+      if (previousIndex === -1) {
+        this.viewer.groundHoleEdgeLineObjects.push(this.groundGrid);
+      }
+    }
   }
 
   isVehicleOverHoleRegion(targetHoleRegion = null) {

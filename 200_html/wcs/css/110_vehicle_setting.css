@@ -4,6 +4,13 @@
 
 .vehicle-urdf-min-height {
     min-height: 70vh;
+    /* Same runaway-on-resize risk as #vehicle-urdf-viewer in 100_vehicle_status.css -
+       see the comment there. .urdf-container's own max-height: 400px (002_wcs_common.css)
+       doesn't actually help here: with min-height (70vh, normally >400px) larger than
+       max-height, the CSS spec resolves that conflict in min-height's favor, so the
+       cap is effectively ignored. Give it a cap bigger than the min-height floor so it
+       actually applies. */
+    max-height: 100vh;
 }
 
 .setting-unit-chip,

@@ -12,7 +12,18 @@
    cap it well below that. */
 #vehicle-urdf-viewer.urdf-container {
   min-height: 88vh;
-  max-height: none;
+  /* Uncapped (max-height: none) let this runaway on resize: the viewer's <canvas> has
+     no definite-height parent to resolve its own height:100% against (see the comment
+     above), so it falls back to its width/height *attributes* - the actual device-pixel
+     buffer size urdfViewer.js's renderer.setSize() writes there, which can be well
+     above the container's CSS size (devicePixelRatio > 1, etc.). That inflated canvas
+     then grows this auto-height container to match, which the ResizeObserver in
+     urdfViewer.js's setupResizeHandler() picks up as a size change and resizes the
+     renderer again from - compounding a little further each pass instead of settling,
+     and pushing the container (and the vertical scrollbar with it) taller than the
+     viewport. Capping max-height gives the loop a ceiling to settle against.
+  */
+  max-height: 100vh;
 }
 
 .road-detect-overlay-controls {

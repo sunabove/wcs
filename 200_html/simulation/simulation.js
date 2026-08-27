@@ -7427,16 +7427,17 @@ class RapierDriveSimulation {
       const isContacting = isPotholeSensor
         ? obstacleInfo.hasChassisProximity
         : hasWheelSupport;
-      // applyGroundHoleCarvingByCSG() in urdfViewer.js hides the pothole cutter link
-      // (hideHoleCuttersAfterCarving, on by default) once its shape has been carved out
-      // of the ground - it's otherwise pure geometry with nothing to look at, sitting
-      // exactly inside the cavity it cut. Tinting an invisible mesh red would have no
-      // visible effect, so reveal it only for the moment the vehicle is actually over
-      // the hole; it goes back to hidden the instant that's no longer true.
-      if (isPotholeSensor && obstacleInfo.linkObject) {
-        obstacleInfo.linkObject.visible = isContacting;
+      if (isPotholeSensor) {
+        // The pothole cutter link (obstacleInfo.linkObject) is pure CSG-subtraction
+        // geometry with nothing to look at, hidden after carving
+        // (hideHoleCuttersAfterCarving) - setObstacleContactHighlight() tints THAT
+        // mesh, so it would have no visible effect here. What's actually visible is
+        // the depression carved into the ground itself, so light that up instead - see
+        // setGroundHoleCavityAlertActive() in urdfViewer.js.
+        this.viewer?.setGroundHoleCavityAlertActive?.(isContacting);
+      } else {
+        this.setObstacleContactHighlight(obstacleInfo, isContacting);
       }
-      this.setObstacleContactHighlight(obstacleInfo, isContacting);
       hasContact =
         hasContact || hasWheelSupport || obstacleInfo.hasChassisProximity;
     });

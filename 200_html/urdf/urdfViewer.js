@@ -300,6 +300,12 @@ class URDFViewer {
     // sync with the actual render target size (required for correct
     // constant-pixel-width lines) and so they can be disposed together.
     this.groundHoleEdgeLineObjects = [];
+    // Carved pothole cavity nodes whose baked rim/deep vertex-color shading
+    // (applyGroundHoleShading()) can be temporarily swapped for a flat red alert
+    // color while the vehicle is over the hole - see setGroundHoleCavityAlertActive().
+    this.groundHoleCavityAlertTargets = [];
+    this.groundHoleCavityAlertColor = new THREE.Color(0xff0000);
+    this.isGroundHoleCavityAlertActive = false;
     // Fallback only: used when a carved cavity has no measurable depth (e.g.
     // a degenerate/near-zero-height cutter). Normally the actual carved
     // depth of each cavity is measured and used instead — see
@@ -5062,6 +5068,10 @@ class URDFViewer {
     const colors = new Float32Array(positionAttribute.count * 3);
     const triangleCount = Math.floor(positionAttribute.count / 3);
     const depthBelowSurfaceByTriangle = new Float32Array(triangleCount);
+    // Vertex indices belonging to the carved cavity (walls/floor, not the untouched
+    // top surface) - collected below so setGroundHoleCavityAlertActive() can swap just
+    // these vertices' baked color for a flat red alert color and back again.
+    const cavityVertexIndices = [];
 
     // First pass: measure how deep this specific carved cavity actually goes.
     // Hole depth varies a lot between models/meshes (a couple cm for a thin
@@ -5123,14 +5133,20 @@ class URDFViewer {
         colorToWrite = surfaceColor;
       }
 
+      const isCavityTriangle = depthBelowSurface > epsilonMeters;
       [i0, i1, i2].forEach((vertexIndex) => {
         colors[vertexIndex * 3] = colorToWrite.r;
         colors[vertexIndex * 3 + 1] = colorToWrite.g;
         colors[vertexIndex * 3 + 2] = colorToWrite.b;
+        if (isCavityTriangle) {
+          cavityVertexIndices.push(vertexIndex);
+        }
       });
     }
 
     workingGeometry.setAttribute("color", new THREE.BufferAttribute(colors, 3));
+    workingGeometry.userData.potholeCavityVertexIndices = cavityVertexIndices;
+    workingGeometry.userData.potholeCavityBakedColors = colors.slice();
     return workingGeometry;
   }
 
@@ -5261,6 +5277,7 @@ class URDFViewer {
       return;
     }
 
+    this.groundHoleCavityAlertTargets = [];
     const cutterMeshes = [];
     holeLinkKeys.forEach((linkKey) => {
       const holeLink = linkMap[linkKey];
@@ -5331,6 +5348,9 @@ class URDFViewer {
         node.updateMatrixWorld(true);
         this.enableGroundHoleShadingMaterial(node);
         this.attachGroundHoleEdgeLines(node, localGeometry, groundSurfaceAxisInfo);
+        if (localGeometry.userData.potholeCavityVertexIndices?.length > 0) {
+          this.groundHoleCavityAlertTargets.push({ geometry: localGeometry });
+        }
 
         this.disposeTemporaryMesh(resultMesh);
         carvedMeshCount += 1;
@@ -5353,6 +5373,54 @@ class URDFViewer {
         `[URDF] ✅ CSG ground carving applied with ${cutterMeshes.length} cutter(s).`,
       );
     }
+  }
+
+  // Toggles the carved pothole cavity itself (the actual depression cut into the
+  // ground mesh, not the - normally hidden after carving - cutter link) between its
+  // baked rim/deep shading (applyGroundHoleShading()) and a flat red alert color, so
+  // the depression's own surface visibly lights up while a vehicle is over/colliding
+  // with it (see simulation.js's updateObstacleContactState()). Only touches the
+  // vertices applyGroundHoleShading() identified as belonging to the cavity walls/
+  // floor - the surrounding undisturbed ground surface is untouched either way.
+  // Colors are stored per-vertex and multiply the mesh's base material color (three.js
+  // vertex-color semantics), so the result is a red-tinted version of the ground's own
+  // color rather than pure red - still clearly distinct from the normal dark rim/deep
+  // gradient it replaces.
+  setGroundHoleCavityAlertActive(isActive) {
+    if (this.isGroundHoleCavityAlertActive === isActive) {
+      return;
+    }
+    this.isGroundHoleCavityAlertActive = isActive;
+
+    const alertColor = this.groundHoleCavityAlertColor;
+    (this.groundHoleCavityAlertTargets || []).forEach((target) => {
+      const geometry = target?.geometry;
+      const colorAttribute = geometry?.getAttribute("color");
+      const cavityVertexIndices = geometry?.userData?.potholeCavityVertexIndices;
+      const bakedColors = geometry?.userData?.potholeCavityBakedColors;
+      if (!colorAttribute || !cavityVertexIndices || !bakedColors) {
+        return;
+      }
+
+      cavityVertexIndices.forEach((vertexIndex) => {
+        if (isActive) {
+          colorAttribute.setXYZ(
+            vertexIndex,
+            alertColor.r,
+            alertColor.g,
+            alertColor.b,
+          );
+        } else {
+          colorAttribute.setXYZ(
+            vertexIndex,
+            bakedColors[vertexIndex * 3],
+            bakedColors[vertexIndex * 3 + 1],
+            bakedColors[vertexIndex * 3 + 2],
+          );
+        }
+      });
+      colorAttribute.needsUpdate = true;
+    });
   }
 
   // Ground-family visual layers z-fight at grazing camera angles (worst case: view-cube

@@ -7467,6 +7467,23 @@ class RapierDriveSimulation {
     const arcRadius = this.vehicleYawIndicatorGroup.userData.arcRadius;
     const arcSegments = this.vehicleYawIndicatorGroup.userData.arcSegments;
 
+    // The pie/outline materials disable depthTest (see the comment in
+    // ensureVehicleYawIndicator()) so they never z-fight against the roof mesh from
+    // above/oblique angles - but that also means the GPU never occludes them against
+    // the chassis at all. From underneath the vehicle, where the body should visually
+    // block the roof-mounted indicator, that reads as the pie "showing through" the
+    // car. Approximate that occlusion by hand instead: hide the whole indicator
+    // whenever the camera has dropped below the vehicle's own horizontal plane.
+    const camera = this.viewer?.camera;
+    if (camera) {
+      const carUpWorld = new THREE.Vector3(0, 0, 1).applyQuaternion(
+        carQuaternion,
+      );
+      const cameraOffsetFromCar = camera.position.clone().sub(carPosition);
+      this.vehicleYawIndicatorGroup.visible =
+        cameraOffsetFromCar.dot(carUpWorld) > 0;
+    }
+
     this.vehicleYawIndicatorGroup.position.copy(carPosition).add(roofOffset);
     // Copy the roof's actual current orientation directly - same pattern as
     // syncVehicleDirectionArrows() - rather than trying to cancel currentYaw out of

@@ -93,10 +93,17 @@ const WHEEL_SUPPORT_MIN_LIFT_METERS = 0.0005;
 // left the climbing wheel visibly short of the obstacle surface. Weight per meter of lift;
 // a wheel sitting on a ~0.06m step gets roughly triple a grounded wheel's pull.
 const WHEEL_SUPPORT_LIFT_WEIGHT_PER_METER = 35;
-// Obstacle-impact wheel flex: peak lateral kick applied to inner_wheel_*_joint the instant a wheel
-// first touches an obstacle, eased back to 0 as the wheel climbs up onto it.
-const WHEEL_OBSTACLE_FLEX_PEAK_RAD = THREE.MathUtils.degToRad(45);
-const WHEEL_OBSTACLE_FLEX_SMOOTHING_HZ = 12;
+// Wheel-pod climb gait: how quickly inner_wheel_*_joint (the wheel pod's orbiting
+// carrier arm - see the comment on innerWheelJointNameByKey in urdfViewer.js) eases
+// toward the target orbit angle updateWheelClimbGait() computes each frame from that
+// wheel's current obstacle lift.
+const WHEEL_CLIMB_CARRIER_SMOOTHING_HZ = 12;
+// Direction the carrier orbits to sweep the wheel forward-and-up over an obstacle's
+// leading edge, relative to the geometric IK angle updateWheelClimbGait() solves for -
+// not yet verified against the real mechanism's handedness (no live hardware/video
+// timing to check against, only the reference stills), flip if the wheel is ever seen
+// orbiting backward into the step instead of up and over it.
+const WHEEL_CLIMB_CARRIER_SIGN = 1;
 
 const WHEEL_RPM_COMMAND_THRESHOLD = 0.2;
 const STEER_SIGN_EPSILON = 1e-3;
@@ -275,15 +282,16 @@ class RapierDriveSimulation {
       rl: false,
       rr: false,
     };
-    // Steering-axis (vertical) joint on each wheel's swing knuckle; driven only for the
-    // obstacle-impact flex effect below, not for actual steering.
+    // Each wheel pod's orbiting carrier arm (see the comment on
+    // innerWheelJointNameByKey in urdfViewer.js) - NOT a steering/knuckle axis. Driven
+    // by updateWheelClimbGait() below to sweep the wheel up and over a step edge.
     this.innerWheelJointNameByKey = {
       fl: "inner_wheel_fl_joint",
       fr: "inner_wheel_fr_joint",
       rl: "inner_wheel_rl_joint",
       rr: "inner_wheel_rr_joint",
     };
-    this.wheelObstacleFlexAngleRadByKey = {
+    this.wheelClimbCarrierAngleRadByKey = {
       fl: 0,
       fr: 0,
       rl: 0,
@@ -5165,53 +5173,63 @@ class RapierDriveSimulation {
     };
   }
 
-  // Visual-only: on the frame a wheel first contacts an obstacle it snaps toward a lateral flex
-  // angle on inner_wheel_{key}_joint (the vertical swing-knuckle axis), then eases back to 0 as
-  // climbProgress (lift / obstacle height) rises — i.e. as the wheel settles on top of it.
-  updateWheelObstacleFlex(supportProfile, deltaSec) {
-    const jointMap = this.viewer?.robotModel?.joints;
-    if (!jointMap) {
+  // Orbits inner_wheel_{key}_joint - the wheel pod's carrier arm, see the comment on
+  // innerWheelJointNameByKey in urdfViewer.js - so the wheel physically sweeps up and
+  // over a step edge the way the real smart wheel does, instead of the placeholder
+  // lateral-flex kick this replaced (which drove the same joint as if it were an
+  // unrelated knuckle axis). wheel_{key}_joint's own spin and inner_gear_{key}_joint
+  // both keep being driven exactly as before, independently, by urdfViewer.js's
+  // travel-distance rolling logic (applyWheelTravelDistances()/applyWheelAnimation()) -
+  // this only ever touches the carrier.
+  updateWheelClimbGait(supportProfile, deltaSec) {
+    const viewer = this.viewer;
+    if (!viewer || typeof viewer.setInnerWheelCarrierAngle !== "function") {
       return;
     }
 
     const alpha =
-      WHEEL_OBSTACLE_FLEX_SMOOTHING_HZ > 0
+      WHEEL_CLIMB_CARRIER_SMOOTHING_HZ > 0
         ? 1 -
-          Math.exp(-WHEEL_OBSTACLE_FLEX_SMOOTHING_HZ * Math.max(deltaSec, 0))
+          Math.exp(-WHEEL_CLIMB_CARRIER_SMOOTHING_HZ * Math.max(deltaSec, 0))
         : 1;
 
     Object.keys(this.innerWheelJointNameByKey).forEach((wheelKey) => {
+      const orbitRadiusMeters =
+        typeof viewer.measureInnerWheelOrbitRadiusMeters === "function"
+          ? viewer.measureInnerWheelOrbitRadiusMeters(wheelKey)
+          : null;
       const supportObstacle =
         supportProfile?.supportObstacleByKey?.[wheelKey] || null;
       let targetAngleRad = 0;
 
-      if (supportObstacle?.center && supportObstacle?.halfExtents) {
-        const obstacleHeightMeters = Math.max(
-          supportObstacle.center.z +
-            supportObstacle.halfExtents.z -
-            this.groundZ,
-          0.01,
-        );
+      if (
+        supportObstacle?.center &&
+        supportObstacle?.halfExtents &&
+        Number.isFinite(orbitRadiusMeters) &&
+        orbitRadiusMeters > 0
+      ) {
         const liftMeters = Number(supportProfile.liftByKey?.[wheelKey]) || 0;
-        const climbProgress = THREE.MathUtils.clamp(
-          liftMeters / obstacleHeightMeters,
+        // Inverse kinematics on the carrier's own orbit circle: swinging the wheel's
+        // axle up by `lift` meters needs lift = orbitRadius * (1 - cos(angle)), i.e.
+        // angle = acos(1 - lift/orbitRadius). liftMeters can exceed what a single
+        // wheel pod's ~5cm orbit can account for on its own (the chassis's own
+        // kinematic ride-height fit in applyWheelSupportRideHeight() covers the rest),
+        // so clamp the ratio to the angle's full [0, pi] range (ratio in [0, 2]).
+        const liftRatio = THREE.MathUtils.clamp(
+          liftMeters / orbitRadiusMeters,
           0,
-          1,
+          2,
         );
-        // Peak right as contact begins (climbProgress ~ 0), restored once fully climbed on (~ 1).
-        targetAngleRad = WHEEL_OBSTACLE_FLEX_PEAK_RAD * (1 - climbProgress);
+        targetAngleRad = WHEEL_CLIMB_CARRIER_SIGN * Math.acos(1 - liftRatio);
       }
 
       const currentAngleRad =
-        Number(this.wheelObstacleFlexAngleRadByKey[wheelKey]) || 0;
+        Number(this.wheelClimbCarrierAngleRadByKey[wheelKey]) || 0;
       const nextAngleRad =
         currentAngleRad + (targetAngleRad - currentAngleRad) * alpha;
-      this.wheelObstacleFlexAngleRadByKey[wheelKey] = nextAngleRad;
+      this.wheelClimbCarrierAngleRadByKey[wheelKey] = nextAngleRad;
 
-      const joint = jointMap[this.innerWheelJointNameByKey[wheelKey]];
-      if (joint && typeof joint.setJointValue === "function") {
-        joint.setJointValue(nextAngleRad);
-      }
+      viewer.setInnerWheelCarrierAngle(wheelKey, nextAngleRad);
     });
   }
 
@@ -8482,7 +8500,7 @@ class RapierDriveSimulation {
 
     // Wheel support geometry is the single source of truth for ride height.
     this.applyWheelSupportRideHeight(supportProfile);
-    this.updateWheelObstacleFlex(supportProfile, fixedStepSec);
+    this.updateWheelClimbGait(supportProfile, fixedStepSec);
 
     // Center turn must keep the 4-wheel center fixed on every substep, not just per frame.
     this.constrainCenterTurnPivot();
@@ -8983,14 +9001,10 @@ class RapierDriveSimulation {
       rl: false,
       rr: false,
     };
-    Object.keys(this.wheelObstacleFlexAngleRadByKey).forEach((wheelKey) => {
-      this.wheelObstacleFlexAngleRadByKey[wheelKey] = 0;
-      const joint =
-        this.viewer?.robotModel?.joints?.[
-          this.innerWheelJointNameByKey[wheelKey]
-        ];
-      if (joint && typeof joint.setJointValue === "function") {
-        joint.setJointValue(0);
+    Object.keys(this.wheelClimbCarrierAngleRadByKey).forEach((wheelKey) => {
+      this.wheelClimbCarrierAngleRadByKey[wheelKey] = 0;
+      if (typeof this.viewer?.setInnerWheelCarrierAngle === "function") {
+        this.viewer.setInnerWheelCarrierAngle(wheelKey, 0);
       }
     });
     this.obstacleColliderInfos.forEach((obstacleInfo) => {

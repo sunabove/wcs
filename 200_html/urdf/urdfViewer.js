@@ -157,6 +157,41 @@ class URDFViewer {
       rl: null,
       rr: null,
     };
+    // inner_wheel_{key}_joint shares inner_gear_{key}_joint's exact origin/axis (see the
+    // comment above) but is a second, independent continuous joint on swing_link: it's
+    // the carrier arm that the wheel is mounted eccentrically on, not part of the bevel
+    // pair itself. Orbiting it is what lets the wheel physically climb up and over a
+    // step edge instead of just rolling - see simulation.js's updateWheelClimbGait(),
+    // which drives it through setInnerWheelCarrierAngle() below. Kept here (not in
+    // simulation.js) so applyInnerGearRotation() can read the current carrier angle
+    // without simulation.js having to know anything about how inner_gear is driven.
+    this.innerWheelJointNameByKey = {
+      fl: "inner_wheel_fl_joint",
+      fr: "inner_wheel_fr_joint",
+      rl: "inner_wheel_rl_joint",
+      rr: "inner_wheel_rr_joint",
+    };
+    this.innerWheelRuntimeTargetByKey = {
+      fl: null,
+      fr: null,
+      rl: null,
+      rr: null,
+    };
+    this.innerWheelCarrierAngleRadByKey = {
+      fl: 0,
+      fr: 0,
+      rl: 0,
+      rr: 0,
+    };
+    // Populated lazily by measureInnerWheelOrbitRadiusMeters() - unlike
+    // innerGearRatioByKey this only needs the joint/link *tree* (a fixed joint-origin
+    // offset), not mesh geometry, so it's available as soon as robotModel exists.
+    this.innerWheelOrbitRadiusMetersByKey = {
+      fl: null,
+      fr: null,
+      rl: null,
+      rr: null,
+    };
     this.wheelAngles = {
       fl: 0,
       fr: 0,
@@ -3655,6 +3690,29 @@ class URDFViewer {
     });
 
     this.resolveInnerGearJointTargets();
+    this.resolveInnerWheelJointTargets();
+  }
+
+  // See the comment on innerWheelJointNameByKey in the constructor. No-op (leaves every
+  // key null) on models that don't have this joint - setInnerWheelCarrierAngle() below
+  // then just tracks the angle without touching the scene, same as an unresolved wheel
+  // target.
+  resolveInnerWheelJointTargets() {
+    const jointMap = this.robotModel?.joints || {};
+
+    Object.keys(this.innerWheelJointNameByKey).forEach((key) => {
+      const jointName = this.innerWheelJointNameByKey[key];
+      const joint = jointMap[jointName] || null;
+      this.innerWheelRuntimeTargetByKey[key] =
+        joint && typeof joint.setJointValue === "function" ? joint : null;
+      // Force a re-measure against this (possibly new) model's geometry.
+      this.innerWheelOrbitRadiusMetersByKey[key] = null;
+      this.innerWheelCarrierAngleRadByKey[key] = 0;
+
+      if (this.innerWheelRuntimeTargetByKey[key]) {
+        console.log(`[URDF] ${key.toUpperCase()} 캐리어(inner_wheel) 조인트 연결:`, jointName);
+      }
+    });
   }
 
   // See the comment on innerGearJointNameByKey in the constructor. No-op (leaves every
@@ -3749,10 +3807,68 @@ class URDFViewer {
     return ratio;
   }
 
+  // Distance from inner_wheel_{key}_joint's own rotation axis (Z, in swing_link's local
+  // frame - see the comment on innerWheelJointNameByKey in the constructor) out to
+  // wheel_{key}_joint's mount point, i.e. the radius of the circle the wheel's own axle
+  // sweeps out as the carrier orbits. Unlike ensureInnerGearRatioMeasured() this reads a
+  // joint's fixed origin offset, not mesh geometry, so it only needs the joint/link
+  // *tree* to exist (available as soon as robotModel is set, well before this model's
+  // mesh files necessarily finish loading - see urdf-loader-progressive-mesh-reveal in
+  // the project memory).
+  measureInnerWheelOrbitRadiusMeters(key) {
+    const cachedRadius = this.innerWheelOrbitRadiusMetersByKey[key];
+    if (Number.isFinite(cachedRadius)) {
+      return cachedRadius;
+    }
+
+    const wheelJoint = this.robotModel?.joints?.[this.wheelJointNameByKey[key]];
+    const offset = wheelJoint?.position;
+    if (!offset) {
+      return null;
+    }
+
+    // Only the component perpendicular to the carrier's own rotation axis (Z) actually
+    // sweeps as the carrier orbits - offset.z is a fixed along-axis displacement that
+    // stays constant regardless of carrier angle, so it's deliberately excluded here.
+    const radius = Math.hypot(offset.x, offset.y);
+    if (!(radius > 1e-6)) {
+      return null;
+    }
+
+    this.innerWheelOrbitRadiusMetersByKey[key] = radius;
+    console.log(`[URDF] ${key.toUpperCase()} 캐리어 오빗 반경 자동 계산:`, radius);
+    return radius;
+  }
+
+  // Called every frame by simulation.js's updateWheelClimbGait() to orbit the wheel pod's
+  // carrier joint (see the comment on innerWheelJointNameByKey in the constructor) up and
+  // over a step edge. Also just records the angle (even with no joint resolved) so
+  // applyInnerGearRotation() below always has a value to read.
+  setInnerWheelCarrierAngle(key, angleRad) {
+    const numericAngleRad = Number.isFinite(angleRad) ? angleRad : 0;
+    this.innerWheelCarrierAngleRadByKey[key] = numericAngleRad;
+
+    const carrierJoint = this.innerWheelRuntimeTargetByKey[key];
+    if (carrierJoint) {
+      carrierJoint.setJointValue(numericAngleRad);
+    }
+  }
+
   // Drives inner_gear_{key}_joint from the same wheelAngles[key] the wheel joint itself
-  // is about to be set from, scaled by the auto-measured gear ratio. Sign is assumed to
-  // match the wheel's (untested against the actual bevel-gear handedness in the mesh -
-  // flip this if the pinion is ever observed spinning opposite the wheel).
+  // is about to be set from, scaled by the auto-measured gear ratio, plus a correction
+  // for the carrier (inner_wheel_{key}_joint, driven separately by
+  // setInnerWheelCarrierAngle() above) whenever it's orbiting to climb a step. inner_gear
+  // (sun) and wheel (planet) mesh at a fixed center distance carried by inner_wheel, so
+  // the standard planetary relation is (gearAngle - carrierAngle) = k * (wheelAngle -
+  // carrierAngle) for some constant k - solving for gearAngle and picking k = +ratio (the
+  // sign already in use below, before the carrier term existed, for the carrier-parked
+  // case) gives gearAngle = carrierAngle*(1 - ratio) + wheelAngle*ratio. That reduces
+  // exactly to the original wheelAngle*ratio when carrierAngle is 0 (normal driving, the
+  // carrier always parked there), so this is a strict extension, not a behavior change,
+  // for every wheel that never climbs anything. The k = +ratio choice itself is still the
+  // same untested assumption the original comment flagged (sign not verified against the
+  // actual bevel-gear handedness in the mesh) - flip it here if the pinion is ever
+  // observed spinning the wrong way, in either mode.
   applyInnerGearRotation(key) {
     const gearJoint = this.innerGearRuntimeTargetByKey[key];
     if (!gearJoint) {
@@ -3764,7 +3880,10 @@ class URDFViewer {
       return;
     }
 
-    gearJoint.setJointValue(this.wheelAngles[key] * ratio);
+    const carrierAngleRad = Number(this.innerWheelCarrierAngleRadByKey[key]) || 0;
+    gearJoint.setJointValue(
+      carrierAngleRad * (1 - ratio) + this.wheelAngles[key] * ratio,
+    );
   }
 
   logCameraInfos(force) {

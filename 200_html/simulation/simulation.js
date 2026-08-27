@@ -3628,8 +3628,12 @@ class RapierDriveSimulation {
     const isObstacleFamily =
       /^obstacle_/i.test(name) || /^obstacle_/i.test(normalizedName);
 
+    // Not anchored to the start: the actual link name is "obstacle_pothole" (the
+    // isObstacleFamily prefix above), not "pothole" on its own - an earlier ^pothole
+    // anchor here never matched anything, so isPotholeObstacle (and the isSensor flag
+    // it feeds at the call site) was always false for the real pothole link.
     const isPotholeObstacle =
-      /^pothole/i.test(name) || /^pothole/i.test(normalizedName);
+      /pothole/i.test(name) || /pothole/i.test(normalizedName);
     const isRockLike = /rock|stone|boulder|block/i.test(normalizedName);
     const isHemisphereLike = /hemisphere|sphere|ball/i.test(normalizedName);
     const isBarLike = /bar|beam|pole|stick|wood/i.test(normalizedName);

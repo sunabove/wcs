@@ -105,7 +105,7 @@ const WHEEL_CLIMB_CARRIER_SIGN = -1;
 // to a physically nonsensical ~180deg flip). Any obstacle-height shortfall beyond what
 // orbitRadius*(1-cos(this)) of lift alone can cover is left to the chassis's own
 // separate ride-height lift (applyWheelSupportRideHeight()), unaffected by this cap.
-const WHEEL_CLIMB_CARRIER_MAX_ANGLE_RAD = THREE.MathUtils.degToRad(15);
+const WHEEL_CLIMB_CARRIER_MAX_ANGLE_RAD = THREE.MathUtils.degToRad(30);
 // How long a full climb-to-max-angle-and-back cycle's straightening half takes - see the
 // rate-limiting comment in updateWheelClimbGait() for why only that direction (not the
 // climb itself, which must always jump straight to the bisected angle to guarantee no
@@ -964,8 +964,7 @@ class RapierDriveSimulation {
             }
           }
         } else if (wheelSupportProfile) {
-          const wheelSupportZ =
-            wheelSupportProfile.supportZByKey?.[wheelKey];
+          const wheelSupportZ = wheelSupportProfile.supportZByKey?.[wheelKey];
           // supportZByKey only ever moves a wheel *down* from groundZ (the hole branch
           // in getWheelSupportProfile() is a running Math.min against groundZ), so
           // "below groundZ" reliably means the hole logic actually engaged for this
@@ -2941,8 +2940,14 @@ class RapierDriveSimulation {
       return;
     }
 
-    const floorMaterial = this.getGroundInteriorMaterial(authoredMaterial, "floor");
-    const wallMaterial = this.getGroundInteriorMaterial(authoredMaterial, "wall");
+    const floorMaterial = this.getGroundInteriorMaterial(
+      authoredMaterial,
+      "floor",
+    );
+    const wallMaterial = this.getGroundInteriorMaterial(
+      authoredMaterial,
+      "wall",
+    );
     const linerGroup = new THREE.Group();
     linerGroup.name = "simulation-extension-pothole-liners";
     linerGroup.userData.isSimulationGeneratedGround = true;
@@ -3106,7 +3111,9 @@ class RapierDriveSimulation {
       ? surfaceMaterial.clone()
       : new THREE.MeshStandardMaterial();
     const color =
-      role === "wall" ? GROUND_INTERIOR_WALL_COLOR : GROUND_INTERIOR_FLOOR_COLOR;
+      role === "wall"
+        ? GROUND_INTERIOR_WALL_COLOR
+        : GROUND_INTERIOR_FLOOR_COLOR;
     const emissive =
       role === "wall"
         ? GROUND_INTERIOR_WALL_EMISSIVE
@@ -3284,11 +3291,7 @@ class RapierDriveSimulation {
       a.fromBufferAttribute(positionAttribute, i0);
       b.fromBufferAttribute(positionAttribute, i1);
       c.fromBufferAttribute(positionAttribute, i2);
-      const normalZ = b
-        .clone()
-        .sub(a)
-        .cross(c.clone().sub(a))
-        .normalize().z;
+      const normalZ = b.clone().sub(a).cross(c.clone().sub(a)).normalize().z;
       const bucket =
         Math.abs(normalZ) >= GROUND_INTERIOR_WALL_NORMAL_Z_THRESHOLD
           ? floorIndices
@@ -3415,7 +3418,8 @@ class RapierDriveSimulation {
             // unaffected - its own vertices' hull is the same box). A genuinely concave
             // hole shape would get filled out to its convex envelope; there's no such
             // shape among the current models.
-            const holeGeometry = this.buildClosedCutterGeometry(openHoleGeometry);
+            const holeGeometry =
+              this.buildClosedCutterGeometry(openHoleGeometry);
             openHoleGeometry.dispose();
             this.extendCutterAboveSurface(holeGeometry);
             // Split the cutter's own faces into "wall" (material 1) vs "floor" (material 2)
@@ -3777,13 +3781,11 @@ class RapierDriveSimulation {
         const overlapX =
           wheelWorldPosition.x + contactPointToleranceMeters >=
             holeRegion.minX &&
-          wheelWorldPosition.x - contactPointToleranceMeters <=
-            holeRegion.maxX;
+          wheelWorldPosition.x - contactPointToleranceMeters <= holeRegion.maxX;
         const overlapY =
           wheelWorldPosition.y + contactPointToleranceMeters >=
             holeRegion.minY &&
-          wheelWorldPosition.y - contactPointToleranceMeters <=
-            holeRegion.maxY;
+          wheelWorldPosition.y - contactPointToleranceMeters <= holeRegion.maxY;
         return overlapX && overlapY;
       });
     });
@@ -5156,8 +5158,7 @@ class RapierDriveSimulation {
     const meanY =
       samples.reduce((sum, s, i) => sum + weights[i] * s.y, 0) / totalWeight;
     const meanLift =
-      samples.reduce((sum, s, i) => sum + weights[i] * s.lift, 0) /
-      totalWeight;
+      samples.reduce((sum, s, i) => sum + weights[i] * s.lift, 0) / totalWeight;
 
     // Fewer than three contact points cannot define a plane; keep the lift, drop the tilt.
     if (count < 3) {
@@ -5348,9 +5349,7 @@ class RapierDriveSimulation {
         // apples against the same requiredLiftMeters getWheelSupportProfile() would
         // report for this exact horizontal position.
         carrierJoint.setJointValue(0);
-        const flatRestAxleZ = wheelLink.getWorldPosition(
-          new THREE.Vector3(),
-        ).z;
+        const flatRestAxleZ = wheelLink.getWorldPosition(new THREE.Vector3()).z;
 
         // heightSurplus >= 0 means "already clear (at or above the required height for
         // this position)"; treats being fully outside the obstacle's horizontal reach
@@ -6551,8 +6550,14 @@ class RapierDriveSimulation {
       document.body.removeChild(tempTextArea);
     };
 
-    if (navigator.clipboard && typeof navigator.clipboard.writeText === "function") {
-      navigator.clipboard.writeText(textToCopy).then(flashFeedback).catch(copyViaFallback);
+    if (
+      navigator.clipboard &&
+      typeof navigator.clipboard.writeText === "function"
+    ) {
+      navigator.clipboard
+        .writeText(textToCopy)
+        .then(flashFeedback)
+        .catch(copyViaFallback);
     } else {
       copyViaFallback();
     }
@@ -6570,13 +6575,15 @@ class RapierDriveSimulation {
   resetDriveDiagnosticsBaseline() {
     this.driveDiagnosticsTraveledMeters = 0;
     const viewer = this.getDriveSourceViewer() || this.viewer;
-    this.driveDiagnosticsWheelAngleBaselineByKey = ["fl", "fr", "rl", "rr"].reduce(
-      (result, wheelKey) => {
-        result[wheelKey] = Number(viewer?.wheelAngles?.[wheelKey]) || 0;
-        return result;
-      },
-      {},
-    );
+    this.driveDiagnosticsWheelAngleBaselineByKey = [
+      "fl",
+      "fr",
+      "rl",
+      "rr",
+    ].reduce((result, wheelKey) => {
+      result[wheelKey] = Number(viewer?.wheelAngles?.[wheelKey]) || 0;
+      return result;
+    }, {});
   }
 
   syncCameraToVehicleTranslation(position) {
@@ -6631,7 +6638,10 @@ class RapierDriveSimulation {
    * far keeps it well within coverage without ever needing to move every frame.
    */
   maybeFollowDirectionalLightToVehicle(target) {
-    if (!this.viewer || typeof this.viewer.resetDirectionalLight !== "function") {
+    if (
+      !this.viewer ||
+      typeof this.viewer.resetDirectionalLight !== "function"
+    ) {
       return;
     }
 
@@ -6641,7 +6651,10 @@ class RapierDriveSimulation {
     }
 
     const driftMeters = target.distanceTo(this.directionalLightFollowCenter);
-    const radius = Math.max(Number(this.viewer.directionalLightRadius) || 1, 0.001);
+    const radius = Math.max(
+      Number(this.viewer.directionalLightRadius) || 1,
+      0.001,
+    );
     if (driftMeters > radius * 0.5) {
       this.directionalLightFollowCenter.copy(target);
       this.viewer.resetDirectionalLight(target, radius);
@@ -6981,7 +6994,8 @@ class RapierDriveSimulation {
     const panelWidthMeters = signHeightMeters * 0.5;
     const panelHeightMeters =
       panelWidthMeters *
-      (COBOT_SYSTEM_SIGN_TEXTURE_HEIGHT_PX / COBOT_SYSTEM_SIGN_TEXTURE_WIDTH_PX);
+      (COBOT_SYSTEM_SIGN_TEXTURE_HEIGHT_PX /
+        COBOT_SYSTEM_SIGN_TEXTURE_WIDTH_PX);
     // A physical plaque, not a paper-thin plane - a modest board thickness.
     const panelThicknessMeters = panelWidthMeters * 0.06;
 
@@ -7022,7 +7036,8 @@ class RapierDriveSimulation {
     // pre-rotation frame) so they ride along with panel's rotation/position below.
     const borderMarginMeters =
       panelWidthMeters *
-      (COBOT_SYSTEM_SIGN_TEXTURE_BORDER_MARGIN_PX / COBOT_SYSTEM_SIGN_TEXTURE_WIDTH_PX);
+      (COBOT_SYSTEM_SIGN_TEXTURE_BORDER_MARGIN_PX /
+        COBOT_SYSTEM_SIGN_TEXTURE_WIDTH_PX);
     const screwInsetMeters = borderMarginMeters / 2;
     const screwRadiusMeters = borderMarginMeters * 0.4 * (2 / 3);
     const screwDepthMeters = screwRadiusMeters * 0.3;
@@ -7097,7 +7112,9 @@ class RapierDriveSimulation {
       if (!treeHeight) {
         return;
       }
-      this.cobotSystemSignGroup = this.buildCobotSystemSignMesh(treeHeight * 0.95);
+      this.cobotSystemSignGroup = this.buildCobotSystemSignMesh(
+        treeHeight * 0.95,
+      );
     }
     if (!this.cobotSystemSignGroup.parent) {
       this.viewer.scene.add(this.cobotSystemSignGroup);
@@ -7207,8 +7224,7 @@ class RapierDriveSimulation {
     const xSpacingMeters = this.getSceneTreeXGridSpacingMeters();
     const originX = this.getSceneTreeGridOriginX();
     return (
-      originX +
-      Math.round((worldX - originX) / xSpacingMeters) * xSpacingMeters
+      originX + Math.round((worldX - originX) / xSpacingMeters) * xSpacingMeters
     );
   }
 
@@ -7257,7 +7273,9 @@ class RapierDriveSimulation {
   // 10th cell from that origin. No per-frame camera probing, so every tree - now and
   // later - sits on this exact same Y.
   getSceneTreeRowY() {
-    return this.getSceneTreeGridOriginY() - this.getSceneTreeXGridSpacingMeters();
+    return (
+      this.getSceneTreeGridOriginY() - this.getSceneTreeXGridSpacingMeters()
+    );
   }
 
   // Determines which lattice columns should show a tree right now, all on the one fixed

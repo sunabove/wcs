@@ -3642,6 +3642,55 @@ class RapierDriveSimulation {
     });
   }
 
+  // Same idea as isVehicleOverHoleRegion() above, but per-wheel instead of whole-chassis:
+  // true from the moment any single wheel's own footprint first touches a hole region
+  // (wheelRadius as its margin, the same way isVehicleOverHoleRegion() uses the vehicle's
+  // own half-extents) until it clears it, rather than for as long as any part of the
+  // chassis bounding box overlaps the hole - which starts well before a wheel actually
+  // gets there and ends well after the last wheel has left. Used for the pothole red
+  // alert (setPotholeSurfaceAlertActive()) so it tracks actual wheel-hole contact.
+  isAnyWheelOverHoleRegion(targetHoleRegion = null) {
+    const linkMap = this.viewer?.robotModel?.links || null;
+    const holeRegions = targetHoleRegion
+      ? [targetHoleRegion]
+      : Array.isArray(this.holeRegions)
+        ? this.holeRegions
+        : [];
+    if (!linkMap || holeRegions.length === 0) {
+      return false;
+    }
+
+    const wheelRadius = Math.max(
+      Number(this.wheelEffectiveRadiusMeters) || 0,
+      0.03,
+    );
+    const wheelWorldPosition = new THREE.Vector3();
+
+    return Object.values(this.wheelLinkNameByKey).some((wheelLinkName) => {
+      const wheelLink = this.findLinkByName(linkMap, wheelLinkName);
+      if (!wheelLink) {
+        return false;
+      }
+
+      wheelLink.updateWorldMatrix(true, false);
+      wheelLink.getWorldPosition(wheelWorldPosition);
+
+      return holeRegions.some((holeRegion) => {
+        if (!holeRegion) {
+          return false;
+        }
+
+        const overlapX =
+          wheelWorldPosition.x + wheelRadius >= holeRegion.minX &&
+          wheelWorldPosition.x - wheelRadius <= holeRegion.maxX;
+        const overlapY =
+          wheelWorldPosition.y + wheelRadius >= holeRegion.minY &&
+          wheelWorldPosition.y - wheelRadius <= holeRegion.maxY;
+        return overlapX && overlapY;
+      });
+    });
+  }
+
   logWheelGroundDiagnosticsOnce(linkMap, stage = "runtime") {
     if (this.hasLoggedGroundDiagnostics) {
       return;
@@ -7480,27 +7529,31 @@ class RapierDriveSimulation {
         this.isVehicleColliderContactingObstacle(obstacleInfo);
 
       // Red means a wheel is physically supported by this obstacle's top surface - or,
-      // for a pothole sensor, that the vehicle is currently passing over it. It never
-      // represents an AABB approach or an anticipated collision otherwise.
+      // for a pothole sensor, that a wheel is currently over it. It never represents an
+      // AABB approach or an anticipated collision otherwise.
       //
       // hasChassisProximity (above) can't be used for the pothole case: it goes
       // through getObstacleWorldBounds(), which returns null unless
       // obstacleInfo.isActive is true - and isActive is only ever flipped on for
       // obstacles placed by the *dynamic* obstacle system (moveObstacleInfoTo()); the
       // static, URDF-authored obstacle_pothole is never marked active, so this stayed
-      // permanently false. isVehicleOverHoleRegion() is the mechanism that's actually
-      // meant for "is the vehicle currently over this hole" and doesn't have that gate.
-      // Checked two ways: against authoredPotholeTemplate (the static pothole's own
-      // original region, captured once at ground setup) AND with no argument at all,
-      // which falls back to this.holeRegions - because addPotholeRegion()/
-      // applyDynamicSurfaceObstacle() can *replace* the drivable pothole with a
-      // dynamically-repositioned one pushed into this.holeRegions, at a different
-      // location than the original authored one; either can be "the" pothole the
-      // vehicle is actually driving over depending on how this page's obstacle state
-      // was set, so both need checking.
+      // permanently false. isVehicleOverHoleRegion()'s whole-chassis AABB isn't right
+      // either - it lights up as soon as any part of the chassis bounding box reaches
+      // the hole, well before a wheel is actually there, and stays lit until the last
+      // part of the chassis clears it, well after every wheel already has.
+      // isAnyWheelOverHoleRegion() checks per-wheel instead, so this tracks the same
+      // "wheel actually touching it" window obstacle_wood_bar/obstacle_rock_1 get via
+      // hasWheelSupport. Checked two ways: against authoredPotholeTemplate (the static
+      // pothole's own original region, captured once at ground setup) AND with no
+      // argument at all, which falls back to this.holeRegions - because
+      // addPotholeRegion()/applyDynamicSurfaceObstacle() can *replace* the drivable
+      // pothole with a dynamically-repositioned one pushed into this.holeRegions, at a
+      // different location than the original authored one; either can be "the" pothole
+      // the vehicle is actually driving over depending on how this page's obstacle
+      // state was set, so both need checking.
       const isContacting = isPotholeSensor
-        ? this.isVehicleOverHoleRegion(this.authoredPotholeTemplate) ||
-          this.isVehicleOverHoleRegion()
+        ? this.isAnyWheelOverHoleRegion(this.authoredPotholeTemplate) ||
+          this.isAnyWheelOverHoleRegion()
         : hasWheelSupport;
       if (isPotholeSensor) {
         // The pothole cutter link (obstacleInfo.linkObject) is pure CSG-subtraction

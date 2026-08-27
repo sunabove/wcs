@@ -1,5 +1,8 @@
 import * as THREE from "three";
 import { ConvexGeometry } from "three/examples/jsm/geometries/ConvexGeometry.js";
+import { LineSegments2 } from "three/examples/jsm/lines/LineSegments2.js";
+import { LineSegmentsGeometry } from "three/examples/jsm/lines/LineSegmentsGeometry.js";
+import { LineMaterial } from "three/examples/jsm/lines/LineMaterial.js";
 
 const RAPIER_CDN = "https://cdn.skypack.dev/@dimforge/rapier3d-compat@0.11.2";
 const SIM_SPEED_STORAGE_KEY = "wcs.simulation.driveSpeedMps";
@@ -3521,6 +3524,12 @@ class RapierDriveSimulation {
       this.viewer.scene.remove(this.groundGrid);
       this.groundGrid.geometry.dispose();
       this.groundGrid.material.dispose();
+      const staleIndex = this.viewer.groundHoleEdgeLineObjects?.indexOf(
+        this.groundGrid,
+      );
+      if (Number.isInteger(staleIndex) && staleIndex !== -1) {
+        this.viewer.groundHoleEdgeLineObjects.splice(staleIndex, 1);
+      }
     }
 
     // One cell equals one wheel revolution, so travel per rotation is readable on the ground.
@@ -3585,23 +3594,63 @@ class RapierDriveSimulation {
       }
     });
 
-    const geometry = new THREE.BufferGeometry();
-    geometry.setAttribute(
-      "position",
-      new THREE.Float32BufferAttribute(vertices, 3),
-    );
-    geometry.setAttribute("color", new THREE.Float32BufferAttribute(colors, 3));
-    const material = new THREE.LineBasicMaterial({
+    // Built from LineSegments2/LineMaterial rather than plain THREE.LineSegments/
+    // LineBasicMaterial - two problems that only get worse the farther a grid line is
+    // from the camera (i.e. worst right at the horizon, exactly where this was
+    // reported flickering while the vehicle bounces crossing an obstacle):
+    //  1. This grid sits only 1mm above the ground (gridZ = groundZ + 0.001) and
+    //     depthWrite:false alone doesn't stop it depth-*testing* against the ground
+    //     mesh underneath - at that separation, distant grid lines and the ground are
+    //     within the same depth-buffer texel, so which one wins flips with every
+    //     sub-pixel camera bounce. glPolygonOffset (used elsewhere in this codebase to
+    //     fix exactly this kind of z-fight) has no effect on plain gl.LINES primitives
+    //     in WebGL, only on triangles - but LineSegments2 draws each line as a
+    //     screen-facing quad (i.e. triangles), so polygonOffset actually works here.
+    //  2. LineBasicMaterial rasterizes at a fixed 1px regardless of DPI/antialiasing
+    //     settings, which shimmers under motion for the same reason described in
+    //     urdfViewer.js's own reference-grid comment (search groundLineGeometry there)
+    //     - worse near the horizon, where many lines converge into very few screen
+    //     pixels. LineMaterial computes each line's actual screen coverage in its
+    //     fragment shader and antialiases that directly.
+    const geometry = new LineSegmentsGeometry();
+    geometry.setPositions(vertices);
+    geometry.setColors(colors);
+
+    const containerRect = this.viewer.container.getBoundingClientRect();
+    const material = new LineMaterial({
       vertexColors: true,
       transparent: true,
       opacity: 0.65,
       depthWrite: false,
+      linewidth: 1.5,
+      worldUnits: false,
+      resolution: new THREE.Vector2(
+        Math.max(containerRect.width, 1),
+        Math.max(containerRect.height, 1),
+      ),
+      polygonOffset: true,
+      polygonOffsetFactor: -1,
+      polygonOffsetUnits: -1,
     });
 
-    this.groundGrid = new THREE.LineSegments(geometry, material);
+    this.groundGrid = new LineSegments2(geometry, material);
     this.groundGrid.name = "simulation-ground-grid";
     this.groundGrid.renderOrder = 1;
     this.viewer.scene.add(this.groundGrid);
+
+    // Reuses urdfViewer.js's existing resize plumbing (applyContainerResize() keeps
+    // every LineMaterial in this array in sync with the actual render target size,
+    // which LineMaterial needs to compute a correct constant-pixel line width) instead
+    // of standing up a parallel one here - the array just needs objects with a
+    // material.resolution, it doesn't care that they're pothole edge lines elsewhere.
+    if (Array.isArray(this.viewer.groundHoleEdgeLineObjects)) {
+      const previousIndex = this.viewer.groundHoleEdgeLineObjects.indexOf(
+        this.groundGrid,
+      );
+      if (previousIndex === -1) {
+        this.viewer.groundHoleEdgeLineObjects.push(this.groundGrid);
+      }
+    }
   }
 
   isVehicleOverHoleRegion(targetHoleRegion = null) {

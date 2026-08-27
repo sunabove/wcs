@@ -2558,6 +2558,14 @@ class URDFViewer {
     });
 
     this.controls.addEventListener("change", () => {
+      // TEMP DEBUG (remove once the grid-flicker root cause is confirmed): proves
+      // whether OrbitControls is actually receiving input (drag/wheel/trackpad) at the
+      // moments the grid appears to flicker, vs. the flicker having some other cause
+      // that only coincidentally lines up with cursor movement.
+      console.log(
+        "[URDF][DEBUG] controls change fired",
+        performance.now().toFixed(0),
+      );
       // resetDirectionalLight() moves the shadow-casting light's position and its
       // shadow-camera frustum (recomputing shadow.camera.left/right/top/bottom/near/far
       // and calling updateProjectionMatrix()). "change" fires on every single frame of a

@@ -21,6 +21,8 @@ samples/
 
 runs/
 
+.scratch_pw/
+
 *.mp4
 *.avi
 *.mkv

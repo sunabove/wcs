@@ -61,8 +61,15 @@ const GROUND_EXTENSION_HALF_SIZE_METERS = 100;
 // match the scene background urdfViewer.js sets (this.scene.background, currently
 // 0x87ceeb) so faded-out geometry blends into it instead of fading to a visible tint.
 const GROUND_FOG_COLOR = 0x87ceeb;
-const GROUND_FOG_NEAR_METERS = 3;
-const GROUND_FOG_FAR_METERS = 11;
+// Pulled in further (was 3/11m): the ground grid's own material only started
+// actually *receiving* this fog once LineMaterial got fog:true wired up (see
+// addGroundSurfaceGrid()) - before that this range never got a chance to prove out
+// against the real haze it was designed for. Even fully faded by 11m, enough grid
+// lines were still visible with partial opacity in the 3-11m band for their
+// perspective convergence to still read as hazy; a tighter band shows fewer of them
+// before they're gone.
+const GROUND_FOG_NEAR_METERS = 1.5;
+const GROUND_FOG_FAR_METERS = 6;
 // Carved pothole interior uses fixed contrasting colors so the pit shape stays readable.
 // The floor (roughly horizontal, facing up into the cavity) and the walls (roughly
 // vertical, the 4 faces bordering the undisturbed ground at the rim) get two distinct
@@ -3614,15 +3621,16 @@ class RapierDriveSimulation {
     // render pass as the ground so it can actually draw after it - renderOrder below
     // (2, higher than ground's own 1 - see applyGroundLayerPolygonOffsetSeparation())
     // makes that "after" deterministic instead of leaving it to distance-based sort.
-    // The lower opacity (0.5, down from 0.65) is a partial mitigation for the
-    // horizon-haze this transparency reintroduces (many overlapping near-parallel
-    // lines blending together) - won't eliminate it the way fully opaque did, but
-    // should reduce it; revisit if it's still too hazy.
+    // The lower opacity (0.35, down from 0.65 originally) and thinner linewidth (1px,
+    // down from 1.25) are a partial mitigation for the horizon-haze this transparency
+    // reintroduces (many overlapping near-parallel lines blending together) - won't
+    // eliminate it the way fully opaque did, but reduces how much any one overlap
+    // region can accumulate.
     //
     // fog:true matters a lot more for that haze than opacity does: the scene's fog
-    // (added just above, GROUND_FOG_NEAR/FAR_METERS = 3/11m) is what's actually
-    // supposed to hide the "too many lines converging in too few pixels" zone by
-    // fading everything to the sky color well before it gets dense enough to look
+    // (GROUND_FOG_NEAR/FAR_METERS, tightened further for the same reason) is what's
+    // actually supposed to hide the "too many lines converging in too few pixels" zone
+    // by fading everything to the sky color well before it gets dense enough to look
     // hazy - but unlike the built-in materials used elsewhere in this codebase
     // (fog:true by default), LineMaterial doesn't automatically receive scene fog
     // unless told to. Left unset, the grid stayed fully opaque out past where the
@@ -3636,9 +3644,9 @@ class RapierDriveSimulation {
     const material = new LineMaterial({
       vertexColors: true,
       transparent: true,
-      opacity: 0.5,
+      opacity: 0.35,
       depthWrite: false,
-      linewidth: 1.25,
+      linewidth: 1,
       worldUnits: false,
       fog: true,
       resolution: new THREE.Vector2(

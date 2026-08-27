@@ -98,6 +98,11 @@ const WHEEL_SUPPORT_LIFT_WEIGHT_PER_METER = 35;
 // Flipped to -1 (2026-08-27) after visual check in-browser showed +1 orbiting the
 // carrier backward into the step instead of up and over it.
 const WHEEL_CLIMB_CARRIER_SIGN = -1;
+// Caps how fast the carrier can straighten back out once the bisected safe angle in
+// updateWheelClimbGait() drops (obstacle clearing/cleared) - see the rate-limiting
+// comment there for why this is safe to slow down (unlike the climb itself, which must
+// always jump straight to the bisected angle to guarantee no penetration).
+const WHEEL_CLIMB_CARRIER_RESTORE_RATE_RAD_PER_SEC = Math.PI * 0.6;
 
 const WHEEL_RPM_COMMAND_THRESHOLD = 0.2;
 const STEER_SIGN_EPSILON = 1e-3;
@@ -5224,10 +5229,18 @@ class RapierDriveSimulation {
   // formula) is what makes this safe: every candidate hi bound the search narrows to is
   // one that's already verified clear, so the final angle is *never below* what's
   // needed - it can't converge to a value that leaves the wheel's own circle resting
-  // inside the obstacle, however far off the previous frame's angle was. Applied with no
-  // smoothing/lag (unlike the old flex hack) for the same reason
-  // applyWheelSupportRideHeight() itself has none: a lagged carrier angle could sit
-  // inside the obstacle for the few frames it takes to catch up.
+  // inside the obstacle, however far off the previous frame's angle was. The climb
+  // itself (angle increasing) always jumps straight to that bisected value, same reason
+  // applyWheelSupportRideHeight() has no smoothing of its own: a lagged carrier angle
+  // could sit inside the obstacle for the few frames it takes to catch up. Once past the
+  // obstacle (bisected angle dropping back toward 0), though, there's no such
+  // constraint - the wheel is already at/above the required height, so easing back out
+  // instead of snapping is purely cosmetic and safe. WHEEL_CLIMB_CARRIER_RESTORE_RATE_RAD_PER_SEC
+  // rate-limits only that decreasing direction, so the "bends to climb, then visibly
+  // straightens back out" arc the real hardware shows (see the flattened-reference
+  // comment below) doesn't collapse into a single-frame snap once the vehicle is
+  // driving fast enough to clear the obstacle's ~wheelRadius-wide engagement window in
+  // just a few physics steps.
   //
   // Bisection reads the wheel's position against a *flattened* chassis reference (this
   // wheel's real current X/Y/yaw, but Z/pitch/roll reset to the flat-ground baseline),
@@ -5245,7 +5258,7 @@ class RapierDriveSimulation {
   // ~2*orbitRadius reach - taller obstacles still lean on the chassis's own lift on top
   // of this, same as before. Only ever touches carFrame's Z/orientation, restored
   // immediately after this method returns, before anything renders.
-  updateWheelClimbGait(supportProfile) {
+  updateWheelClimbGait(supportProfile, deltaSec) {
     const viewer = this.viewer;
     const jointMap = viewer?.robotModel?.joints;
     const linkMap = viewer?.robotModel?.links;
@@ -5358,6 +5371,23 @@ class RapierDriveSimulation {
           }
           carrierAngleRad = highRad;
         }
+      }
+
+      // Rate-limit only the decreasing direction (straightening back out) - see the
+      // WHEEL_CLIMB_CARRIER_RESTORE_RATE_RAD_PER_SEC comment above for why that's safe.
+      // The increasing direction is never touched here: whenever this frame's bisected
+      // carrierAngleRad is *larger* than last frame's, it passes straight through.
+      const previousMagnitudeRad = Math.abs(
+        Number(this.wheelClimbCarrierAngleRadByKey[wheelKey]) || 0,
+      );
+      if (carrierAngleRad < previousMagnitudeRad) {
+        const maxDecreaseRad =
+          WHEEL_CLIMB_CARRIER_RESTORE_RATE_RAD_PER_SEC *
+          Math.max(Number(deltaSec) || 0, 0);
+        carrierAngleRad = Math.max(
+          carrierAngleRad,
+          previousMagnitudeRad - maxDecreaseRad,
+        );
       }
 
       // carrierAngleRad itself is the unsigned bisection magnitude (heightSurplusAtAngle()
@@ -8646,7 +8676,7 @@ class RapierDriveSimulation {
 
     // Wheel support geometry is the single source of truth for ride height.
     this.applyWheelSupportRideHeight(supportProfile);
-    this.updateWheelClimbGait(supportProfile);
+    this.updateWheelClimbGait(supportProfile, fixedStepSec);
 
     // Center turn must keep the 4-wheel center fixed on every substep, not just per frame.
     this.constrainCenterTurnPivot();

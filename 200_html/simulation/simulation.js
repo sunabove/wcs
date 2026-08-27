@@ -3618,6 +3618,16 @@ class RapierDriveSimulation {
     // horizon-haze this transparency reintroduces (many overlapping near-parallel
     // lines blending together) - won't eliminate it the way fully opaque did, but
     // should reduce it; revisit if it's still too hazy.
+    //
+    // fog:true matters a lot more for that haze than opacity does: the scene's fog
+    // (added just above, GROUND_FOG_NEAR/FAR_METERS = 3/11m) is what's actually
+    // supposed to hide the "too many lines converging in too few pixels" zone by
+    // fading everything to the sky color well before it gets dense enough to look
+    // hazy - but unlike the built-in materials used elsewhere in this codebase
+    // (fog:true by default), LineMaterial doesn't automatically receive scene fog
+    // unless told to. Left unset, the grid stayed fully opaque out past where the
+    // ground/everything else around it had already faded into the sky, which is
+    // exactly what read as a dense, hazy tangle right at the visible horizon.
     const geometry = new LineSegmentsGeometry();
     geometry.setPositions(vertices);
     geometry.setColors(colors);
@@ -3630,6 +3640,7 @@ class RapierDriveSimulation {
       depthWrite: false,
       linewidth: 1.25,
       worldUnits: false,
+      fog: true,
       resolution: new THREE.Vector2(
         Math.max(containerRect.width, 1),
         Math.max(containerRect.height, 1),

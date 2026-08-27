@@ -7436,6 +7436,24 @@ class RapierDriveSimulation {
         ? this.isVehicleOverHoleRegion(this.authoredPotholeTemplate)
         : hasWheelSupport;
       if (isPotholeSensor) {
+        // TEMP DEBUG (remove once the pothole-highlight root cause is confirmed):
+        // throttled so it doesn't spam every physics substep.
+        const nowMs = performance.now();
+        if (!this.__potholeDebugLastLogMs || nowMs - this.__potholeDebugLastLogMs > 500) {
+          this.__potholeDebugLastLogMs = nowMs;
+          console.log("[URDF][Simulation][DEBUG] pothole contact check", {
+            bodyPos: this.body?.translation
+              ? { x: this.body.translation().x, y: this.body.translation().y }
+              : "n/a",
+            authoredPotholeTemplate: this.authoredPotholeTemplate,
+            isContacting,
+            hasViewer: !!this.viewer,
+            hasViewerMethod:
+              typeof this.viewer?.setGroundHoleCavityAlertActive,
+            cavityAlertTargetsCount:
+              this.viewer?.groundHoleCavityAlertTargets?.length,
+          });
+        }
         // The pothole cutter link (obstacleInfo.linkObject) is pure CSG-subtraction
         // geometry with nothing to look at, hidden after carving
         // (hideHoleCuttersAfterCarving) - setObstacleContactHighlight() tints THAT

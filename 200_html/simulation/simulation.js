@@ -5204,71 +5204,66 @@ class RapierDriveSimulation {
         // carrier weren't helping at all (nominal, carrier-neutral wheel position) -
         // exactly what supportObstacleByKey needs, to trigger updateWheelClimbGait() the
         // moment the obstacle comes within the wheel's own radius. Feeding that same full
-        // amount to the *chassis* (liftByKey/averageLift, below) would be wrong, though:
+        // amount to the *chassis* (liftByKey/averageLift, below) would be wrong:
         // applyWheelSupportRideHeight() has no smoothing of its own, so the instant an
         // obstacle wheel's supportObstacle here becomes non-null the whole chassis (and
         // every wheel with it) would jump straight to the full required height in one
         // frame - the outer wheel floating into the air well before the carrier has swept
-        // at all. Obstacles the carrier's own WHEEL_CLIMB_CARRIER_MAX_ANGLE_RAD swing can
-        // fully cover shouldn't move the chassis at all - the pod arm alone bends to climb
-        // them, same as the real hardware (see updateWheelClimbGait()'s own docblock);
-        // only the shortfall beyond that swing (a taller obstacle) should still ask the
-        // chassis for help. Re-evaluate the obstacle from the wheel's position at the
-        // carrier's max angle - its best-effort, fully-deployed pose - and use whatever
-        // height is still short from there instead.
+        // at all.
         //
-        // Uses wheelClimbEngagedObstacleByKey (falling back to it when the nominal-position
-        // supportObstacle above has already gone null) rather than supportObstacle alone -
-        // confirmed in-browser that without this, the two clear at different moments
-        // (nominal/rest position vs. this residual's own max-angle position don't reach
-        // "outside reach" at the same horizontal position) and nominal clearing first
-        // dropped this straight to groundZ - an instant, ungated multi-centimeter chassis
-        // drop - while the carrier itself was still correctly holding its angle (verified
-        // still-unsafe-to-retract by updateWheelClimbGait()'s own bisection), sinking the
-        // wheel into the obstacle's trailing face for the gap in between. supportZ itself
-        // isn't a meaningful upper bound once falling back to the cached obstacle (the
-        // nominal loop above never found it, so supportZ stayed at groundZ) - just floor
-        // the result at groundZ instead; the tangent formula's own sqrt term already keeps
-        // it from running away past obstacleTopZ.
+        // Per the confirmed hardware model, the carrier is responsible for the climb -
+        // the chassis only ever adds whatever's still short *beyond what the carrier's
+        // own current, real angle already provides*, continuously, every frame - not a
+        // hypothetical "if the carrier were fully deployed" future state, and not gated
+        // on the carrier having reached any particular angle either. Confirmed two
+        // different broken alternatives in-browser before landing here: (1) evaluating
+        // the residual at a *hypothetical max-angle* position regardless of the carrier's
+        // real progress let a tall obstacle start lifting the chassis almost immediately
+        // on contact, well before the carrier had moved much - floating again, just gated
+        // on obstacle height instead of nothing. (2) gating this block on the carrier
+        // having *actually* reached its own max angle (a clean-sounding rule, and correct
+        // while the carrier is still ramping *up*) broke down the moment the carrier
+        // started ramping back *down* again during its own verified-safe retraction: the
+        // gate is binary, so carrier magnitude ticking from exactly 30deg down to 28deg
+        // (a small, safe step) yanked chassisFacingSupportZ from "fully assisting" to "0"
+        // in the very same frame - a multi-centimeter drop with no connection to how much
+        // the carrier itself had actually moved. Using the *live* (real, current-angle)
+        // position directly sidesteps both: early on, live gap is still near wheelRadius
+        // (barely touching), so the tangent formula's own sqrt term naturally comes out
+        // at/below groundZ (no premature lift); as the carrier's own real progress closes
+        // the gap, the residual grows to match *exactly* what's left, continuously, no
+        // gate or step anywhere - and it eases back down the same way as the carrier
+        // retracts and the gap reopens, tracking together rather than fighting each other.
         const engagedObstacleForResidual =
           supportObstacle || this.wheelClimbEngagedObstacleByKey[wheelKey] || null;
-        let chassisFacingSupportZ = supportZ;
-        if (
-          engagedObstacleForResidual &&
-          carrierJoint &&
-          typeof carrierJoint.setJointValue === "function"
-        ) {
-          carrierJoint.setJointValue(
-            WHEEL_CLIMB_CARRIER_SIGN * WHEEL_CLIMB_CARRIER_MAX_ANGLE_RAD,
-          );
-          wheelLink.updateWorldMatrix(true, false);
-          const maxAngleWheelPosition = wheelLink.getWorldPosition(
-            new THREE.Vector3(),
-          );
-          carrierJoint.setJointValue(currentCarrierAngleRad);
-
+        let chassisFacingSupportZ = engagedObstacleForResidual
+          ? this.groundZ
+          : supportZ;
+        if (engagedObstacleForResidual) {
+          // carrierJoint is already at currentCarrierAngleRad here (restored right after
+          // the nominal-position read above) - no need to re-pose it.
+          const liveWheelPosition = wheelLink.getWorldPosition(new THREE.Vector3());
           const obstacleTopZ =
             engagedObstacleForResidual.center.z +
             engagedObstacleForResidual.halfExtents.z;
-          const maxAngleGapX = Math.max(
-            Math.abs(maxAngleWheelPosition.x - engagedObstacleForResidual.center.x) -
+          const liveGapX = Math.max(
+            Math.abs(liveWheelPosition.x - engagedObstacleForResidual.center.x) -
               engagedObstacleForResidual.halfExtents.x,
             0,
           );
-          const maxAngleGapY = Math.max(
-            Math.abs(maxAngleWheelPosition.y - engagedObstacleForResidual.center.y) -
+          const liveGapY = Math.max(
+            Math.abs(liveWheelPosition.y - engagedObstacleForResidual.center.y) -
               engagedObstacleForResidual.halfExtents.y,
             0,
           );
-          const maxAngleHorizontalGap = Math.hypot(maxAngleGapX, maxAngleGapY);
+          const liveHorizontalGap = Math.hypot(liveGapX, liveGapY);
           const residualSupportZ =
-            maxAngleHorizontalGap >= wheelRadius
+            liveHorizontalGap >= wheelRadius
               ? this.groundZ
               : obstacleTopZ +
                 Math.sqrt(
                   Math.max(
-                    wheelRadius * wheelRadius -
-                      maxAngleHorizontalGap * maxAngleHorizontalGap,
+                    wheelRadius * wheelRadius - liveHorizontalGap * liveHorizontalGap,
                     0,
                   ),
                 ) -
@@ -9107,6 +9102,7 @@ class RapierDriveSimulation {
   }
 
   stepSimulation() {
+    globalThis.__debugSim = this;
     if (!this.isReady) {
       return;
     }

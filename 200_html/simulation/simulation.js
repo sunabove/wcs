@@ -5482,6 +5482,13 @@ class RapierDriveSimulation {
       return forwardSpeedMetersPerSec * Math.max(Number(deltaSec) || 0, 0);
     })();
 
+    // Reused below to tell a leading-edge (climb) contact from a trailing-edge
+    // (descend) one per wheel - same yaw source as chassisForwardTravelMeters above
+    // (the pre-flatten quaternion), just hoisted out of that IIFE for reuse.
+    const forwardVectorForClimbSign = this.getVehicleForwardVector(
+      this.extractYawFromQuaternion(savedCarFrameQuaternion),
+    );
+
     Object.keys(this.innerWheelJointNameByKey).forEach((wheelKey) => {
       const carrierJoint = jointMap[this.innerWheelJointNameByKey[wheelKey]];
       const wheelLink = this.findLinkByName(
@@ -5508,6 +5515,10 @@ class RapierDriveSimulation {
 
       let carrierAngleRad = 0;
       let isWheelLockedThisFrame = false;
+      // Overwritten below (per-wheel, per-frame) once an engaged obstacle exists to
+      // determine an actual ahead/behind direction; harmless default otherwise since
+      // carrierAngleRad stays 0 in that case (sign * 0 is 0 either way).
+      let wheelClimbCarrierSignForWheel = WHEEL_CLIMB_CARRIER_SIGN;
 
       if (
         carrierJoint &&
@@ -5532,6 +5543,52 @@ class RapierDriveSimulation {
         // below, so it's read once here rather than inside referenceAngleRadAtCandidate().
         const carrierPosition = carrierLink.getWorldPosition(new THREE.Vector3());
 
+        // Climbing a leading edge (contact ahead of the wheel, in the direction of
+        // travel) and descending a trailing edge (contact now behind it, after the
+        // wheel has already passed the obstacle's near face) are mechanical mirror
+        // images of each other on the real hardware - the carrier arm has to swing the
+        // *opposite* way to lower the wheel down the far side from the way it swung to
+        // lift it up the near side. WHEEL_CLIMB_CARRIER_SIGN alone only encodes one of
+        // those two directions (tuned/verified for the climb case); reusing it
+        // unconditionally for both, confirmed in-browser via wheelClimbCarrierAngleRadByKey
+        // logging, made the descent swing identical (same sign, same body-frame motion)
+        // to the climb swing instead of reversed - visually wrong even though the
+        // (sign-agnostic) reference-angle bisection still numerically converged either
+        // way. Fixed by flipping the sign per wheel per frame based on which side of the
+        // engaged obstacle the wheel's own nominal (carrier-neutral) position currently
+        // sits on - read once here, before any candidate probing moves the joint. No
+        // need to save/restore the joint's incoming value first: referenceAngleRadAtCandidate()
+        // right below unconditionally calls setJointValue() on every candidate it
+        // probes, starting with candidate 0 a few lines down, so this probe's own
+        // leftover value never survives to be read by anything else.
+        carrierJoint.setJointValue(0);
+        const nominalWheelPositionForSign = wheelLink.getWorldPosition(
+          new THREE.Vector3(),
+        );
+        const nominalContactXForSign = THREE.MathUtils.clamp(
+          nominalWheelPositionForSign.x,
+          obstacleMinX,
+          obstacleMaxX,
+        );
+        const nominalContactYForSign = THREE.MathUtils.clamp(
+          nominalWheelPositionForSign.y,
+          obstacleMinY,
+          obstacleMaxY,
+        );
+        const forwardDotContactForSign =
+          (nominalContactXForSign - nominalWheelPositionForSign.x) *
+            forwardVectorForClimbSign.x +
+          (nominalContactYForSign - nominalWheelPositionForSign.y) *
+            forwardVectorForClimbSign.y;
+        // >= 0: contact is ahead (or dead-centered/inside, where direction is moot - the
+        // interior-footprint shortcut below returns 0 before this sign is ever used) -
+        // climbing, use the tuned sign as-is. < 0: contact is behind - descending,
+        // flip it.
+        wheelClimbCarrierSignForWheel =
+          forwardDotContactForSign < 0
+            ? -WHEEL_CLIMB_CARRIER_SIGN
+            : WHEEL_CLIMB_CARRIER_SIGN;
+
         // The literal 기준각도 (reference angle): at a candidate carrier angle, the angle
         // at the outer wheel's center between the ray to the reference contact point and
         // the ray to the carrier (inner wheel) center. The reference contact point is
@@ -5541,7 +5598,7 @@ class RapierDriveSimulation {
         // angle closes to ~0, the corner sits directly in line with the carrier arm and
         // the wheel is fully past it - back to a single, normal contact point.
         const referenceAngleRadAtCandidate = (angleRad) => {
-          carrierJoint.setJointValue(WHEEL_CLIMB_CARRIER_SIGN * angleRad);
+          carrierJoint.setJointValue(wheelClimbCarrierSignForWheel * angleRad);
           const wheelPosition = wheelLink.getWorldPosition(new THREE.Vector3());
 
           // Resting anywhere *inside* the obstacle's own footprint - not clamped to
@@ -5709,14 +5766,17 @@ class RapierDriveSimulation {
           carrierAngleRad > 1e-6 ? engagedObstacle : null;
       }
 
-      // carrierAngleRad itself is the unsigned bisection magnitude (referenceAngleRadAtCandidate()
-      // above applies WHEEL_CLIMB_CARRIER_SIGN separately, only to actually move the
-      // joint while probing candidate angles) - everything downstream that reads
-      // wheelClimbCarrierAngleRadByKey (getWheelSupportProfile()'s own carrier
-      // zero/restore, and urdfViewer.js's applyInnerGearRotation() carrier correction)
-      // needs the real signed angle that ends up applied to
-      // inner_wheel_{key}_joint, so convert it here before publishing it.
-      const signedCarrierAngleRad = WHEEL_CLIMB_CARRIER_SIGN * carrierAngleRad;
+      // carrierAngleRad itself is the unsigned bisection magnitude
+      // (referenceAngleRadAtCandidate() above applies wheelClimbCarrierSignForWheel
+      // separately, only to actually move the joint while probing candidate angles) -
+      // everything downstream that reads wheelClimbCarrierAngleRadByKey
+      // (getWheelSupportProfile()'s own carrier zero/restore, and urdfViewer.js's
+      // applyInnerGearRotation() carrier correction) needs the real signed angle that
+      // ends up applied to inner_wheel_{key}_joint, so convert it here before
+      // publishing it - using the same per-wheel, per-frame sign (flipped for a
+      // trailing/descend contact vs a leading/climb one) the bisection itself used.
+      const signedCarrierAngleRad =
+        wheelClimbCarrierSignForWheel * carrierAngleRad;
       this.wheelClimbCarrierAngleRadByKey[wheelKey] = signedCarrierAngleRad;
       this.wheelClimbLockedByKey[wheelKey] = isWheelLockedThisFrame;
       viewer.setInnerWheelCarrierAngle(wheelKey, signedCarrierAngleRad);

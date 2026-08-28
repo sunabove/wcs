@@ -5213,12 +5213,28 @@ class RapierDriveSimulation {
         // fully cover shouldn't move the chassis at all - the pod arm alone bends to climb
         // them, same as the real hardware (see updateWheelClimbGait()'s own docblock);
         // only the shortfall beyond that swing (a taller obstacle) should still ask the
-        // chassis for help. Re-evaluate the *same* supportObstacle from the wheel's
-        // position at the carrier's max angle - its best-effort, fully-deployed pose - and
-        // use whatever height is still short from there instead.
+        // chassis for help. Re-evaluate the obstacle from the wheel's position at the
+        // carrier's max angle - its best-effort, fully-deployed pose - and use whatever
+        // height is still short from there instead.
+        //
+        // Uses wheelClimbEngagedObstacleByKey (falling back to it when the nominal-position
+        // supportObstacle above has already gone null) rather than supportObstacle alone -
+        // confirmed in-browser that without this, the two clear at different moments
+        // (nominal/rest position vs. this residual's own max-angle position don't reach
+        // "outside reach" at the same horizontal position) and nominal clearing first
+        // dropped this straight to groundZ - an instant, ungated multi-centimeter chassis
+        // drop - while the carrier itself was still correctly holding its angle (verified
+        // still-unsafe-to-retract by updateWheelClimbGait()'s own bisection), sinking the
+        // wheel into the obstacle's trailing face for the gap in between. supportZ itself
+        // isn't a meaningful upper bound once falling back to the cached obstacle (the
+        // nominal loop above never found it, so supportZ stayed at groundZ) - just floor
+        // the result at groundZ instead; the tangent formula's own sqrt term already keeps
+        // it from running away past obstacleTopZ.
+        const engagedObstacleForResidual =
+          supportObstacle || this.wheelClimbEngagedObstacleByKey[wheelKey] || null;
         let chassisFacingSupportZ = supportZ;
         if (
-          supportObstacle &&
+          engagedObstacleForResidual &&
           carrierJoint &&
           typeof carrierJoint.setJointValue === "function"
         ) {
@@ -5232,15 +5248,16 @@ class RapierDriveSimulation {
           carrierJoint.setJointValue(currentCarrierAngleRad);
 
           const obstacleTopZ =
-            supportObstacle.center.z + supportObstacle.halfExtents.z;
+            engagedObstacleForResidual.center.z +
+            engagedObstacleForResidual.halfExtents.z;
           const maxAngleGapX = Math.max(
-            Math.abs(maxAngleWheelPosition.x - supportObstacle.center.x) -
-              supportObstacle.halfExtents.x,
+            Math.abs(maxAngleWheelPosition.x - engagedObstacleForResidual.center.x) -
+              engagedObstacleForResidual.halfExtents.x,
             0,
           );
           const maxAngleGapY = Math.max(
-            Math.abs(maxAngleWheelPosition.y - supportObstacle.center.y) -
-              supportObstacle.halfExtents.y,
+            Math.abs(maxAngleWheelPosition.y - engagedObstacleForResidual.center.y) -
+              engagedObstacleForResidual.halfExtents.y,
             0,
           );
           const maxAngleHorizontalGap = Math.hypot(maxAngleGapX, maxAngleGapY);
@@ -5256,11 +5273,7 @@ class RapierDriveSimulation {
                   ),
                 ) -
                 wheelRadius;
-          chassisFacingSupportZ = THREE.MathUtils.clamp(
-            residualSupportZ,
-            this.groundZ,
-            supportZ,
-          );
+          chassisFacingSupportZ = Math.max(this.groundZ, residualSupportZ);
         }
 
         const lift = chassisFacingSupportZ - this.groundZ;
@@ -9062,7 +9075,6 @@ class RapierDriveSimulation {
   }
 
   stepSimulation() {
-    globalThis.__debugSim = this;
     if (!this.isReady) {
       return;
     }

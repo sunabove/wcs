@@ -3208,6 +3208,13 @@ class URDFViewer {
     const forwardWorld = this.getCarFrameForwardWorld();
     Object.keys(this.wheelRuntimeTargetByKey).forEach((key) => {
       if (this.wheelRotationLockedByKey[key]) {
+        // The outer tire itself stays frozen (wheelAngles[key] untouched, wheel joint
+        // untouched), but inner_gear_{key}_joint still has to keep tracking the carrier's
+        // own motion (applyInnerGearRotation()'s carrierAngle term) - per
+        // simulation.js's updateWheelClimbGait(), it's specifically the carrier
+        // ("중간휠") and this gear ("내부휠") that keep moving to close the 기준각도
+        // (reference angle) back to 0; only the outer tire ("외부휠") itself is locked.
+        this.applyInnerGearRotation(key);
         return;
       }
       const runtimeTarget = this.wheelRuntimeTargetByKey[key];
@@ -3259,6 +3266,10 @@ class URDFViewer {
 
     Object.keys(this.wheelSpeedRpmByKey).forEach((key) => {
       if (this.wheelRotationLockedByKey[key]) {
+        // See the matching comment in applyWheelTravelDistances() - the outer tire stays
+        // frozen, but inner_gear_{key}_joint still has to keep tracking the carrier's own
+        // motion while it's the one closing 기준각도 back to 0.
+        this.applyInnerGearRotation(key);
         return;
       }
       const runtimeTarget = this.wheelRuntimeTargetByKey[key];

@@ -5546,6 +5546,38 @@ class RapierDriveSimulation {
         const referenceAngleRadAtCandidate = (angleRad) => {
           carrierJoint.setJointValue(WHEEL_CLIMB_CARRIER_SIGN * angleRad);
           const wheelPosition = wheelLink.getWorldPosition(new THREE.Vector3());
+
+          // Resting well inside the obstacle's own footprint - comfortably past *every*
+          // edge, not just the near one - has only ONE contact point (flat, same as
+          // normal ground driving, just elevated), not the two-contact "riding a corner"
+          // case 기준각도 describes at all. Skip straight to "clear" without even looking
+          // at Z: candidate 0 is deliberately evaluated against a *flattened*, un-lifted
+          // hypothetical (see the flattened-reference comment above this method), so
+          // trusting contactPoint's Z (hardcoded to obstacleTopZ below) here would make
+          // every horizontal position still inside the footprint read as "still needs to
+          // climb" for as long as the wheel stayed over it, regardless of how far from
+          // either edge - confirmed in-browser: driving across a widened test obstacle
+          // (well past both wheel-radius margins) kept the carrier pinned at its max
+          // angle and the outer tire completely frozen for the obstacle's entire ~1m
+          // interior crossing, only releasing once past the far edge. The chassis's own
+          // ride-height lift (getWheelSupportProfile()'s corner formula, unaffected by
+          // this) already handles getting - and keeping - the wheel at the correct
+          // elevated height here; 기준각도 has nothing to do with that.
+          const marginToNearEdgeX = Math.min(
+            wheelPosition.x - obstacleMinX,
+            obstacleMaxX - wheelPosition.x,
+          );
+          const marginToNearEdgeY = Math.min(
+            wheelPosition.y - obstacleMinY,
+            obstacleMaxY - wheelPosition.y,
+          );
+          if (
+            marginToNearEdgeX >= wheelRadiusMeters &&
+            marginToNearEdgeY >= wheelRadiusMeters
+          ) {
+            return 0;
+          }
+
           const contactPoint = new THREE.Vector3(
             THREE.MathUtils.clamp(wheelPosition.x, obstacleMinX, obstacleMaxX),
             THREE.MathUtils.clamp(wheelPosition.y, obstacleMinY, obstacleMaxY),

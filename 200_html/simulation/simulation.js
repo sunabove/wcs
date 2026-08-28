@@ -5044,6 +5044,36 @@ class RapierDriveSimulation {
     const supportObstacleByKey = {};
     const samples = [];
 
+    // Flatten Z/pitch/roll to the flat-ground baseline (keeping X/Y/yaw) for every
+    // wheel-position read below, exactly like updateWheelClimbGait() already does for its
+    // own nominal-position checks and for the same reason: without this, "nominal
+    // (carrier-neutral) position" here meant "wherever the *live*, already-tilted-from-
+    // last-step carFrame puts it", not a true flat-ground baseline. The two functions
+    // disagreeing about what "nominal" means was harmless while this method's own gap
+    // computation only fed a generously-oversized *full* lift value, but became a real bug
+    // once updateWheelClimbGait()'s carrier lock (which *does* use the flattened
+    // reference) and this method's carrier-max-angle residual discount (added later, see
+    // its own comment below) started being compared against each other frame to frame:
+    // a chassis pitch left over from the previous step could make the *unflattened* nominal
+    // position here read "already past the obstacle" (residual lift -> 0) a few frames
+    // before the flattened-reference carrier lock agreed - confirmed in-browser
+    // (playwright + __debugSim) as chassis lift visibly dropping to 0 while the carrier
+    // was still pinned at its max angle and still reporting locked=true, sinking the wheel
+    // into the obstacle's trailing face for the gap in between.
+    const savedCarFramePosition = this.carFrame.position.clone();
+    const savedCarFrameQuaternion = this.carFrame.quaternion.clone();
+    const flatZ = Number.isFinite(Number(this.initialPosition?.z))
+      ? Number(this.initialPosition.z)
+      : this.getGroundContactTargetZ();
+    const canFlattenChassis = Number.isFinite(flatZ);
+    if (canFlattenChassis) {
+      const yawOnlyRad = this.extractYawFromQuaternion(savedCarFrameQuaternion);
+      this.carFrame.position.z = flatZ;
+      this.carFrame.quaternion.setFromAxisAngle(
+        new THREE.Vector3(0, 0, 1),
+        yawOnlyRad,
+      );
+    }
     this.carFrame.updateWorldMatrix(true, false);
 
     Object.entries(this.wheelLinkNameByKey).forEach(
@@ -5242,6 +5272,12 @@ class RapierDriveSimulation {
         samples.push({ x: localOffset.x, y: localOffset.y, lift });
       },
     );
+
+    if (canFlattenChassis) {
+      this.carFrame.position.copy(savedCarFramePosition);
+      this.carFrame.quaternion.copy(savedCarFrameQuaternion);
+      this.carFrame.updateWorldMatrix(true, false);
+    }
 
     if (samples.length === 0) {
       return null;
@@ -9026,6 +9062,7 @@ class RapierDriveSimulation {
   }
 
   stepSimulation() {
+    globalThis.__debugSim = this;
     if (!this.isReady) {
       return;
     }

@@ -346,6 +346,12 @@ class RapierDriveSimulation {
       rr: null,
     };
     this.previousWheelColliderPositionByKey = {};
+    // Separate from previousWheelColliderPositionByKey above (which
+    // syncWheelRotationToBodyTravel() owns and resets on its own cadence, tied to the
+    // normal drive path) - updateWheelClimbGait() maintains this one entirely itself, so
+    // its passive-rotation baseline (see the comment there) is never subject to a reset
+    // happening from a different call site at a different point in the frame.
+    this.wheelClimbPreviousPositionByKey = {};
     // Diagnostic-only: lets updateDriveDiagnosticsOverlay() show actual traveled
     // distance / grid cells crossed / wheel revolutions side by side, so "does 1 grid
     // cell really equal 1 wheel revolution" can be checked with numbers instead of by
@@ -5725,6 +5731,62 @@ class RapierDriveSimulation {
       carFrame.quaternion.copy(savedCarFrameQuaternion);
       carFrame.updateMatrixWorld(true);
     }
+
+    // Drive-commanded rotation is suppressed for a locked wheel (setWheelRotationLocked()
+    // above - covers both the travel-distance and RPM/animation-clock paths), but the
+    // outer tire still has to visibly roll along with wherever the carrier just carried
+    // its center this frame - a wheel whose center moves through space with no
+    // corresponding spin would visibly slide across the obstacle's corner rather than
+    // roll along it. Same rolling-without-slip relation (arc length = forward-projected
+    // distance / radius) syncWheelRotationToBodyTravel() uses for the normal drive case,
+    // just measured here (with the chassis restored to its real pose above, not the
+    // flattened bisection reference) and applied directly via
+    // viewer.applyWheelPassiveRotation() instead of through either drive path.
+    //
+    // Deliberately maintains its own baseline (wheelClimbPreviousPositionByKey) instead
+    // of reusing syncWheelRotationToBodyTravel()'s previousWheelColliderPositionByKey - an
+    // earlier attempt shared that one and measured it reading back *already equal* to the
+    // current position (zero delta) for several consecutive frames despite the wheel's
+    // real world X visibly advancing ~3cm over the same span, root cause unresolved. That
+    // dictionary is owned and reset by a *different* method (syncWheelRotationToBodyTravel,
+    // itself invoked indirectly via renderer.syncVehicle() at the end of every substep, and
+    // again once more per rendered frame via syncCarFrameVisualPose() after the whole
+    // substep loop) - sharing it made this method's own baseline dependent on exactly how
+    // many times, and in what order, a completely different call site happened to run
+    // relative to this one. Fully owning a private baseline here - read at the top,
+    // written at the bottom, every wheel, every call, regardless of lock state - removes
+    // that dependency entirely: this method is now the only writer, so nothing else can
+    // move the goalposts between the read and the write.
+    Object.keys(this.innerWheelJointNameByKey).forEach((wheelKey) => {
+      const wheelLink = this.findLinkByName(
+        linkMap,
+        this.wheelLinkNameByKey[wheelKey],
+      );
+      if (!wheelLink) {
+        return;
+      }
+      const currentPosition = wheelLink.getWorldPosition(new THREE.Vector3());
+      const previousPosition = this.wheelClimbPreviousPositionByKey[wheelKey];
+      if (
+        this.wheelClimbLockedByKey[wheelKey] &&
+        previousPosition &&
+        typeof viewer.applyWheelPassiveRotation === "function"
+      ) {
+        const yawRad = this.extractYawFromQuaternion(savedCarFrameQuaternion);
+        const forwardVector = this.getVehicleForwardVector(yawRad);
+        const distanceMeters =
+          (currentPosition.x - previousPosition.x) * forwardVector.x +
+          (currentPosition.y - previousPosition.y) * forwardVector.y;
+        if (Number.isFinite(distanceMeters)) {
+          viewer.applyWheelPassiveRotation(
+            wheelKey,
+            distanceMeters,
+            wheelRadiusMeters,
+          );
+        }
+      }
+      this.wheelClimbPreviousPositionByKey[wheelKey] = currentPosition;
+    });
   }
 
   applyWheelSupportRideHeight(supportProfile) {
@@ -9527,6 +9589,7 @@ class RapierDriveSimulation {
       this.wheelClimbCarrierAngleRadByKey[wheelKey] = 0;
       this.wheelClimbLockedByKey[wheelKey] = false;
       this.wheelClimbEngagedObstacleByKey[wheelKey] = null;
+      delete this.wheelClimbPreviousPositionByKey[wheelKey];
       if (typeof this.viewer?.setInnerWheelCarrierAngle === "function") {
         this.viewer.setInnerWheelCarrierAngle(wheelKey, 0);
       }

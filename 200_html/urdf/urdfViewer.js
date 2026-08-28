@@ -3204,56 +3204,90 @@ class URDFViewer {
     return this.wheelVisualRotationSign;
   }
 
+  // Shared core of the distance-based (rolling-without-slip) rotation update - factored
+  // out so applyWheelPassiveRotation() below can drive a single locked wheel the exact
+  // same way applyWheelTravelDistances() drives an unlocked one, instead of duplicating
+  // the rotation-sign/inner-gear/joint-vs-link logic.
+  applyWheelDistanceRotationForKey(key, distanceMeters, radiusMeters, forwardWorld) {
+    const runtimeTarget = this.wheelRuntimeTargetByKey[key];
+    if (
+      !runtimeTarget ||
+      !Number.isFinite(distanceMeters) ||
+      !Number.isFinite(radiusMeters) ||
+      radiusMeters <= 0
+    ) {
+      return;
+    }
+
+    const rotationSign = this.getWheelTravelRotationSign(
+      runtimeTarget,
+      forwardWorld,
+    );
+    this.wheelAngles[key] += (rotationSign * distanceMeters) / radiusMeters;
+    // Must happen before the wheel joint itself is driven - see the comment on
+    // innerGearJointNameByKey in the constructor.
+    this.applyInnerGearRotation(key);
+    if (runtimeTarget.type === "joint") {
+      runtimeTarget.ref.setJointValue(this.wheelAngles[key]);
+      return;
+    }
+
+    if (runtimeTarget.type === "link") {
+      const rotationAxis =
+        runtimeTarget.axis || (this.viewerWheelKey ? "x" : "y");
+      const linkRotationSign = Number.isFinite(runtimeTarget.rotationSign)
+        ? runtimeTarget.rotationSign
+        : this.viewerWheelKey
+          ? -1
+          : 1;
+      runtimeTarget.ref.rotation[rotationAxis] =
+        this.wheelAngles[key] * linkRotationSign;
+    }
+  }
+
   applyWheelTravelDistances(distanceMetersByKey, radiusMetersByKey = {}) {
     const forwardWorld = this.getCarFrameForwardWorld();
     Object.keys(this.wheelRuntimeTargetByKey).forEach((key) => {
       if (this.wheelRotationLockedByKey[key]) {
-        // The outer tire itself stays frozen (wheelAngles[key] untouched, wheel joint
-        // untouched), but inner_gear_{key}_joint still has to keep tracking the carrier's
-        // own motion (applyInnerGearRotation()'s carrierAngle term) - per
+        // The outer tire itself stays frozen *relative to normal drive-commanded
+        // rotation* here, but inner_gear_{key}_joint still has to keep tracking the
+        // carrier's own motion (applyInnerGearRotation()'s carrierAngle term) - per
         // simulation.js's updateWheelClimbGait(), it's specifically the carrier
         // ("중간휠") and this gear ("내부휠") that keep moving to close the 기준각도
-        // (reference angle) back to 0; only the outer tire ("외부휠") itself is locked.
+        // (reference angle) back to 0. The outer tire ("외부휠") itself still needs to
+        // passively roll along with wherever the carrier is carrying it, though - see
+        // applyWheelPassiveRotation() below, which updateWheelClimbGait() calls directly
+        // for exactly that, bypassing this drive-commanded path entirely.
         this.applyInnerGearRotation(key);
         return;
       }
-      const runtimeTarget = this.wheelRuntimeTargetByKey[key];
-      const distanceMeters = Number(distanceMetersByKey?.[key]);
-      const radiusMeters = Number(radiusMetersByKey?.[key]);
-      if (
-        !runtimeTarget ||
-        !Number.isFinite(distanceMeters) ||
-        !Number.isFinite(radiusMeters) ||
-        radiusMeters <= 0
-      ) {
-        return;
-      }
-
-      const rotationSign = this.getWheelTravelRotationSign(
-        runtimeTarget,
+      this.applyWheelDistanceRotationForKey(
+        key,
+        Number(distanceMetersByKey?.[key]),
+        Number(radiusMetersByKey?.[key]),
         forwardWorld,
       );
-      this.wheelAngles[key] += (rotationSign * distanceMeters) / radiusMeters;
-      // Must happen before the wheel joint itself is driven - see the comment on
-      // innerGearJointNameByKey in the constructor.
-      this.applyInnerGearRotation(key);
-      if (runtimeTarget.type === "joint") {
-        runtimeTarget.ref.setJointValue(this.wheelAngles[key]);
-        return;
-      }
-
-      if (runtimeTarget.type === "link") {
-        const rotationAxis =
-          runtimeTarget.axis || (this.viewerWheelKey ? "x" : "y");
-        const rotationSign = Number.isFinite(runtimeTarget.rotationSign)
-          ? runtimeTarget.rotationSign
-          : this.viewerWheelKey
-            ? -1
-            : 1;
-        runtimeTarget.ref.rotation[rotationAxis] =
-          this.wheelAngles[key] * rotationSign;
-      }
     });
+  }
+
+  // Called by simulation.js's updateWheelClimbGait() for a wheel it currently has
+  // rotation-locked (see wheelRotationLockedByKey's own comment) - drive-commanded
+  // rotation is suppressed there (applyWheelTravelDistances()/applyWheelAnimation() both
+  // skip the wheel while locked), but the outer tire still has to visually roll along
+  // with however the carrier is moving its center this frame, the same
+  // rolling-without-slip relation the normal drive path uses (arc length = distance /
+  // radius) - a wheel whose center is being carried through space without any
+  // corresponding spin would visibly slide rather than roll. Bypasses
+  // wheelRotationLockedByKey entirely (this call *is* the intentional rotation source
+  // while locked, not a locked-out one) - callers must gate calling this on their own
+  // lock state instead, same as applyInnerGearRotation() being called unconditionally.
+  applyWheelPassiveRotation(key, distanceMeters, radiusMeters) {
+    this.applyWheelDistanceRotationForKey(
+      key,
+      distanceMeters,
+      radiusMeters,
+      this.getCarFrameForwardWorld(),
+    );
   }
 
   applyWheelAnimation(deltaSec) {

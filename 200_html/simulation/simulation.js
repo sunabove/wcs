@@ -107,14 +107,19 @@ const WHEEL_CLIMB_CARRIER_SIGN = -1;
 // separate ride-height lift (applyWheelSupportRideHeight()), unaffected by this cap.
 const WHEEL_CLIMB_CARRIER_MAX_ANGLE_RAD = THREE.MathUtils.degToRad(30);
 // How long a full climb-to-max-angle-and-back cycle's straightening half takes - see the
-// rate-limiting comment in updateWheelClimbGait() for why only that direction (not the
-// climb itself, which must always jump straight to the bisected angle to guarantee no
-// penetration) is safe to pace out over time instead of snapping back instantly.
-// Expressed as a duration (not a flat deg/sec rate) so it stays proportionate if
-// WHEEL_CLIMB_CARRIER_MAX_ANGLE_RAD above is ever retuned.
+// rate-limiting comment in updateWheelClimbGait() for why only that direction (the
+// climb itself is instead paced by actual chassis forward travel, see
+// chassisForwardTravelMeters there) is safe to pace out over time instead of snapping
+// back instantly. Expressed as a duration (not a flat deg/sec rate) so it stays
+// proportionate if WHEEL_CLIMB_CARRIER_MAX_ANGLE_RAD above is ever retuned.
 const WHEEL_CLIMB_CARRIER_RESTORE_DURATION_SEC = 0.5;
 const WHEEL_CLIMB_CARRIER_RESTORE_RATE_RAD_PER_SEC =
   WHEEL_CLIMB_CARRIER_MAX_ANGLE_RAD / WHEEL_CLIMB_CARRIER_RESTORE_DURATION_SEC;
+// Tolerance the "기준각도" (reference angle) bisection in updateWheelClimbGait() treats
+// as "closed" - the angle at the outer wheel's center between the ray to the obstacle's
+// reference contact point and the ray to the carrier center. Exactly 0 is numerically
+// unreachable from a finite bisection, so this is the practical stand-in.
+const WHEEL_CLIMB_REFERENCE_ANGLE_EPSILON_RAD = THREE.MathUtils.degToRad(0.5);
 
 const WHEEL_RPM_COMMAND_THRESHOLD = 0.2;
 const STEER_SIGN_EPSILON = 1e-3;
@@ -301,6 +306,17 @@ class RapierDriveSimulation {
       fr: "inner_wheel_fr_joint",
       rl: "inner_wheel_rl_joint",
       rr: "inner_wheel_rr_joint",
+    };
+    // The carrier *link* itself (child of innerWheelJointNameByKey's joint) - its world
+    // position is the carrier pivot point ("내부휠 중심점"), fixed relative to car_frame
+    // regardless of the carrier joint's own angle (rotating a joint only reorients its
+    // child link, never moves the child link's own origin). updateWheelClimbGait() reads
+    // this to evaluate the reference angle described in its own comment.
+    this.innerWheelCarrierLinkNameByKey = {
+      fl: "inner_wheel_fl",
+      fr: "inner_wheel_fr",
+      rl: "inner_wheel_rl",
+      rr: "inner_wheel_rr",
     };
     this.wheelClimbCarrierAngleRadByKey = {
       fl: 0,
@@ -5246,14 +5262,20 @@ class RapierDriveSimulation {
   // active supportObstacle bisects its own carrier angle within this same frame: pose
   // the joint at a candidate angle, read the wheel link's *true* resulting world
   // position (three.js's own forward kinematics - not worth re-deriving this
-  // mechanism's exact 3D geometry by hand), and check whether that position already
-  // clears the same wheel-radius-aware corner-riding height getWheelSupportProfile()
-  // uses for the chassis. Bisection (not a Newton-style single jump from the lift
-  // formula) is what makes this safe: every candidate hi bound the search narrows to is
-  // one that's already verified clear, so the bisected value is *never below* what's
-  // needed - it can't converge to a value that leaves the wheel's own circle resting
-  // inside the obstacle, however far off the previous frame's angle was. That bisected
-  // value is only a *ceiling* on the climb, though, not the angle applied directly: the
+  // mechanism's exact 3D geometry by hand), and measure the "기준각도" (reference angle)
+  // this produces - the angle, at the wheel's own center, between the ray to the
+  // obstacle's nearest top-face point (the corner/edge it's riding over) and the ray to
+  // the carrier's own center. That angle starts nonzero the moment the wheel's circle
+  // reaches the obstacle and closes toward 0 as the carrier sweeps the wheel up and past
+  // the corner - 0 is exactly the configuration where the corner ends up back in line
+  // with the carrier arm, i.e. the wheel has fully rolled past it and is back to a single
+  // normal contact point. Bisection (not a Newton-style single jump from a closed-form
+  // formula) is what makes finding where that angle closes safe: every candidate hi bound
+  // the search narrows to is one that's already verified clear (angle closed), so the
+  // bisected value is *never below* what's needed - it can't converge to a value that
+  // leaves the wheel's own circle resting inside the obstacle, however far off the
+  // previous frame's angle was. That bisected value is only a *ceiling* on the climb,
+  // though, not the angle applied directly: the
   // real hardware locks the outer tire's own spin the instant it presses against the
   // obstacle face and instead lets the carrier walk the pod up and over at a rate paced
   // by how far the rear drive wheels are actually pushing the chassis forward each step
@@ -5344,6 +5366,10 @@ class RapierDriveSimulation {
         linkMap,
         this.wheelLinkNameByKey[wheelKey],
       );
+      const carrierLink = this.findLinkByName(
+        linkMap,
+        this.innerWheelCarrierLinkNameByKey[wheelKey],
+      );
       const orbitRadiusMeters =
         typeof viewer.measureInnerWheelOrbitRadiusMeters === "function"
           ? viewer.measureInnerWheelOrbitRadiusMeters(wheelKey)
@@ -5358,6 +5384,7 @@ class RapierDriveSimulation {
         carrierJoint &&
         typeof carrierJoint.setJointValue === "function" &&
         wheelLink &&
+        carrierLink &&
         supportObstacle?.center &&
         supportObstacle?.halfExtents &&
         Number.isFinite(orbitRadiusMeters) &&
@@ -5365,75 +5392,76 @@ class RapierDriveSimulation {
       ) {
         const obstacleTopZ =
           supportObstacle.center.z + supportObstacle.halfExtents.z;
+        const obstacleMinX = supportObstacle.center.x - supportObstacle.halfExtents.x;
+        const obstacleMaxX = supportObstacle.center.x + supportObstacle.halfExtents.x;
+        const obstacleMinY = supportObstacle.center.y - supportObstacle.halfExtents.y;
+        const obstacleMaxY = supportObstacle.center.y + supportObstacle.halfExtents.y;
 
-        // obstacleTopZ + sqrt(...) - wheelRadiusMeters (below) is the same corner-riding
-        // formula getWheelSupportProfile() uses for supportZ/liftByKey - but there it's
-        // only ever consumed as supportZ - this.groundZ (see the comment on liftByKey),
-        // a *lift* amount added on top of the chassis's own flat-ground translation, not
-        // a literal world Z. wheelPosition.z here is a real, absolute world Z, so
-        // comparing it directly against that raw formula would be comparing two
-        // different references - a wheel already resting correctly on flat ground (no
-        // climb needed at all) would still come out "below" it. flatRestAxleZ anchors
-        // this wheel's own flat-ground rest height (angle 0, same flattened chassis
-        // heightSurplusAtAngle() itself probes against) once up front, so
-        // (wheelPosition.z - flatRestAxleZ) - i.e. how much *this angle's own carrier
-        // rotation* has raised the wheel above that baseline - can be compared apples to
-        // apples against the same requiredLiftMeters getWheelSupportProfile() would
-        // report for this exact horizontal position.
-        carrierJoint.setJointValue(0);
-        const flatRestAxleZ = wheelLink.getWorldPosition(new THREE.Vector3()).z;
+        // carrierLink's own world position (the joint that rotates it doesn't move its
+        // own origin, only its orientation and everything mounted past it - see the
+        // comment on innerWheelCarrierLinkNameByKey) is fixed for every candidate angle
+        // below, so it's read once here rather than inside referenceAngleRadAtCandidate().
+        const carrierPosition = carrierLink.getWorldPosition(new THREE.Vector3());
 
-        // heightSurplus >= 0 means "already clear (at or above the required height for
-        // this position)"; treats being fully outside the obstacle's horizontal reach
-        // (gap >= wheelRadius) the same way - both mean this angle needs no more climb.
-        const heightSurplusAtAngle = (angleRad) => {
+        // The literal 기준각도 (reference angle): at a candidate carrier angle, the angle
+        // at the outer wheel's center between the ray to the reference contact point and
+        // the ray to the carrier (inner wheel) center. The reference contact point is
+        // the obstacle's top face point nearest the wheel horizontally - the corner/edge
+        // the wheel is riding over while two contact points exist (ground/face contact
+        // plus this top one). Once the carrier has swept the wheel far enough that this
+        // angle closes to ~0, the corner sits directly in line with the carrier arm and
+        // the wheel is fully past it - back to a single, normal contact point.
+        const referenceAngleRadAtCandidate = (angleRad) => {
           carrierJoint.setJointValue(WHEEL_CLIMB_CARRIER_SIGN * angleRad);
           const wheelPosition = wheelLink.getWorldPosition(new THREE.Vector3());
-          const gapX = Math.max(
-            Math.abs(wheelPosition.x - supportObstacle.center.x) -
-              supportObstacle.halfExtents.x,
-            0,
+          const contactPoint = new THREE.Vector3(
+            THREE.MathUtils.clamp(wheelPosition.x, obstacleMinX, obstacleMaxX),
+            THREE.MathUtils.clamp(wheelPosition.y, obstacleMinY, obstacleMaxY),
+            obstacleTopZ,
           );
-          const gapY = Math.max(
-            Math.abs(wheelPosition.y - supportObstacle.center.y) -
-              supportObstacle.halfExtents.y,
-            0,
+          const horizontalGap = Math.hypot(
+            wheelPosition.x - contactPoint.x,
+            wheelPosition.y - contactPoint.y,
           );
-          const horizontalGap = Math.hypot(gapX, gapY);
           if (horizontalGap >= wheelRadiusMeters) {
-            return Infinity;
+            // Outside the wheel's own reach - no second contact point exists yet, so
+            // there's nothing to measure an angle against; treat as already closed.
+            return 0;
           }
-          const requiredLiftMeters =
-            obstacleTopZ +
-            Math.sqrt(
-              Math.max(
-                wheelRadiusMeters * wheelRadiusMeters -
-                  horizontalGap * horizontalGap,
-                0,
-              ),
-            ) -
-            wheelRadiusMeters -
-            this.groundZ;
-          const carrierContributionMeters = wheelPosition.z - flatRestAxleZ;
-          return carrierContributionMeters - requiredLiftMeters;
+          const toContact = contactPoint.clone().sub(wheelPosition);
+          const toCarrier = carrierPosition.clone().sub(wheelPosition);
+          const toContactLength = toContact.length();
+          const toCarrierLength = toCarrier.length();
+          if (toContactLength < 1e-6 || toCarrierLength < 1e-6) {
+            return 0;
+          }
+          const cosAngle = THREE.MathUtils.clamp(
+            toContact.dot(toCarrier) / (toContactLength * toCarrierLength),
+            -1,
+            1,
+          );
+          return Math.acos(cosAngle);
         };
 
-        if (heightSurplusAtAngle(0) < 0) {
+        if (referenceAngleRadAtCandidate(0) > WHEEL_CLIMB_REFERENCE_ANGLE_EPSILON_RAD) {
           isWheelLockedThisFrame = true;
 
-          // Not already clear at rest - bisect for the smallest (unsigned) magnitude in
-          // [0, WHEEL_CLIMB_CARRIER_MAX_ANGLE_RAD] that would already be clear if jumped
-          // to directly. The search invariant (high always verified clear, low never
-          // verified clear) guarantees this can't undershoot into the obstacle. If the
-          // carrier maxes out its whole search range without ever finding clearance,
-          // requiredAngleRad simply stays at that max - the wheel pod alone can't fully
-          // cover this obstacle, and the remainder is left to
-          // applyWheelSupportRideHeight()'s own chassis-level lift instead.
+          // Bisect for the smallest (unsigned) carrier magnitude in
+          // [0, WHEEL_CLIMB_CARRIER_MAX_ANGLE_RAD] at which the reference angle has
+          // already closed to ~0 - i.e. the search invariant is "low: still open (still
+          // locked), high: already closed (already clear)". If the carrier maxes out its
+          // whole search range without the angle ever closing, requiredAngleRad simply
+          // stays at that max - the wheel pod alone can't fully cover this obstacle, and
+          // the remainder is left to applyWheelSupportRideHeight()'s own chassis-level
+          // lift instead.
           let lowRad = 0;
           let highRad = WHEEL_CLIMB_CARRIER_MAX_ANGLE_RAD;
           for (let iteration = 0; iteration < 20; iteration += 1) {
             const midRad = (lowRad + highRad) * 0.5;
-            if (heightSurplusAtAngle(midRad) >= 0) {
+            if (
+              referenceAngleRadAtCandidate(midRad) <=
+              WHEEL_CLIMB_REFERENCE_ANGLE_EPSILON_RAD
+            ) {
               highRad = midRad;
             } else {
               lowRad = midRad;
@@ -5481,7 +5509,7 @@ class RapierDriveSimulation {
         );
       }
 
-      // carrierAngleRad itself is the unsigned bisection magnitude (heightSurplusAtAngle()
+      // carrierAngleRad itself is the unsigned bisection magnitude (referenceAngleRadAtCandidate()
       // above applies WHEEL_CLIMB_CARRIER_SIGN separately, only to actually move the
       // joint while probing candidate angles) - everything downstream that reads
       // wheelClimbCarrierAngleRadByKey (getWheelSupportProfile()'s own carrier

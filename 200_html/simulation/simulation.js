@@ -106,15 +106,6 @@ const WHEEL_CLIMB_CARRIER_SIGN = -1;
 // orbitRadius*(1-cos(this)) of lift alone can cover is left to the chassis's own
 // separate ride-height lift (applyWheelSupportRideHeight()), unaffected by this cap.
 const WHEEL_CLIMB_CARRIER_MAX_ANGLE_RAD = THREE.MathUtils.degToRad(30);
-// How long a full climb-to-max-angle-and-back cycle's straightening half takes - see the
-// rate-limiting comment in updateWheelClimbGait() for why only that direction (the
-// climb itself is instead paced by actual chassis forward travel, see
-// chassisForwardTravelMeters there) is safe to pace out over time instead of snapping
-// back instantly. Expressed as a duration (not a flat deg/sec rate) so it stays
-// proportionate if WHEEL_CLIMB_CARRIER_MAX_ANGLE_RAD above is ever retuned.
-const WHEEL_CLIMB_CARRIER_RESTORE_DURATION_SEC = 0.5;
-const WHEEL_CLIMB_CARRIER_RESTORE_RATE_RAD_PER_SEC =
-  WHEEL_CLIMB_CARRIER_MAX_ANGLE_RAD / WHEEL_CLIMB_CARRIER_RESTORE_DURATION_SEC;
 // Tolerance the "기준각도" (reference angle) bisection in updateWheelClimbGait() treats
 // as "closed" - the angle at the outer wheel's center between the ray to the obstacle's
 // reference contact point and the ray to the carrier center. Exactly 0 is numerically
@@ -5407,15 +5398,11 @@ class RapierDriveSimulation {
   // by how far the rear drive wheels are actually pushing the chassis forward each step
   // (see the "requiredAngleRad above is now only a ceiling" comment below) - the
   // bisected ceiling just guarantees that paced sweep can never lag far enough behind to
-  // leave the wheel resting inside the obstacle. Once past the obstacle (bisected angle
-  // dropping back toward 0), there's no such constraint - the wheel is already at/above
-  // the required height, so easing back out instead of snapping is purely cosmetic and
-  // safe. WHEEL_CLIMB_CARRIER_RESTORE_RATE_RAD_PER_SEC
-  // rate-limits only that decreasing direction, so the "bends to climb, then visibly
-  // straightens back out" arc the real hardware shows (see the flattened-reference
-  // comment below) doesn't collapse into a single-frame snap once the vehicle is
-  // driving fast enough to clear the obstacle's ~wheelRadius-wide engagement window in
-  // just a few physics steps.
+  // leave the wheel resting inside the obstacle. Once past the obstacle (기준각도, the
+  // reference angle, closing back to 0), the carrier snaps straight back to 0 in that
+  // same step, immediately - the same bisection check that decides the wheel is unlocked
+  // has already proven candidate 0 (carrier fully retracted) is safe at the wheel's real
+  // current position, so there's nothing left to pace out.
   //
   // Bisection reads the wheel's position against a *flattened* chassis reference (this
   // wheel's real current X/Y/yaw, but Z/pitch/roll reset to the flat-ground baseline),
@@ -5655,48 +5642,29 @@ class RapierDriveSimulation {
             previousMagnitudeRad + pacedAngleStepRad,
             requiredAngleRad,
           );
-        } else if (previousMagnitudeRad > 1e-6) {
-          // Not (or no longer) locked, but still swung out from an earlier climb -
-          // straighten back out. This can't just rate-limit blindly the way it used to:
-          // retracting the carrier sweeps the wheel backward *and* down (the mirror image
-          // of the forward-and-up climb sweep), and confirmed in-browser
-          // (playwright + __debugSim, see browser-instrumentation-technique in project
-          // memory) that on a narrow obstacle that backward sweep can walk the wheel
-          // straight back into the *same* obstacle's trailing face before the vehicle has
-          // out-driven it - referenceAngleRadAtCandidate(0) closing to ~0 only means the
-          // wheel's current *actual* position is clear, not that every angle between here
-          // and 0 stays clear on the way down. So the decreasing step is bisected exactly
-          // like the climb above, just from the opposite end: high (previousMagnitudeRad)
-          // is always verified-safe (it was itself accepted safe last frame, by the same
-          // induction), low (the naive rate-limited proposal) is not - bisect for the
-          // smallest (closest to fully retracted) angle in between that's still verified
-          // clear, so retraction always goes exactly as fast as the geometry allows and
-          // never faster.
-          const maxDecreaseRad =
-            WHEEL_CLIMB_CARRIER_RESTORE_RATE_RAD_PER_SEC *
-            Math.max(Number(deltaSec) || 0, 0);
-          const proposedRad = Math.max(0, previousMagnitudeRad - maxDecreaseRad);
-          if (
-            referenceAngleRadAtCandidate(proposedRad) <=
-            WHEEL_CLIMB_REFERENCE_ANGLE_EPSILON_RAD
-          ) {
-            carrierAngleRad = proposedRad;
-          } else {
-            let lowRad = proposedRad;
-            let highRad = previousMagnitudeRad;
-            for (let iteration = 0; iteration < 20; iteration += 1) {
-              const midRad = (lowRad + highRad) * 0.5;
-              if (
-                referenceAngleRadAtCandidate(midRad) <=
-                WHEEL_CLIMB_REFERENCE_ANGLE_EPSILON_RAD
-              ) {
-                highRad = midRad;
-              } else {
-                lowRad = midRad;
-              }
-            }
-            carrierAngleRad = highRad;
-          }
+        } else {
+          // Not (or no longer) locked - the *only* way this branch is reached at all is
+          // that referenceAngleRadAtCandidate(0), just above, already came back <=
+          // epsilon - i.e. the exact same check already proved "candidate 0 (carrier
+          // fully retracted) is safe *right now*, at the wheel's real current position".
+          // There's nothing left to verify, so there's no reason to still pace the return
+          // out over WHEEL_CLIMB_CARRIER_RESTORE_RATE_RAD_PER_SEC (~0.5s) the way an
+          // earlier version did purely for a cosmetic "visibly straightens back out"
+          // motion - snap straight to 0 in this same step instead, symmetric with how
+          // outer-tire drive rotation itself already resumes the instant 기준각도 closes
+          // (verified in-browser to the same physics step, not just "soon after").
+          //
+          // This used to instead rate-limit the decrease and re-verify each smaller step
+          // via bisection, because *retracting* the carrier at all sweeps the wheel
+          // backward-and-down (the mirror image of the forward-and-up climb sweep), and a
+          // naive fixed-rate decrease - confirmed in-browser - could walk the wheel back
+          // into the same obstacle's trailing face before the vehicle had out-driven it.
+          // That risk is specific to retracting *while still within the obstacle's
+          // horizontal reach*, i.e. while this branch would NOT yet be reached (the wheel
+          // would still test as locked at candidate 0 in that case). Once genuinely past
+          // that - candidate 0 already reads clear - jumping straight there is the safe
+          // case, not the risky one.
+          carrierAngleRad = 0;
         }
 
         this.wheelClimbEngagedObstacleByKey[wheelKey] =

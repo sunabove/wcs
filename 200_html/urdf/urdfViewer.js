@@ -204,6 +204,19 @@ class URDFViewer {
       rl: 0,
       rr: 0,
     };
+    // Set by simulation.js's updateWheelClimbGait() (setWheelRotationLocked() below) while
+    // a wheel's outer tire is pressed against an obstacle face - the carrier is doing the
+    // climbing instead, see wheelClimbLockedByKey's comment there. Checked by *both*
+    // applyWheelTravelDistances() and applyWheelAnimation() so the lock holds regardless of
+    // which of those two independent drive paths (rolling-without-slip physics travel, or
+    // an externally commanded RPM/animation clock - e.g. MQTT wheel-speed commands) is
+    // actually driving this wheel this frame.
+    this.wheelRotationLockedByKey = {
+      fl: false,
+      fr: false,
+      rl: false,
+      rr: false,
+    };
     this.isWheelRotationDrivenByTravel = false;
     this.wheelAnimationTimeScale = 1;
     const wheelVisualRotationSign = Number.parseFloat(
@@ -3194,6 +3207,9 @@ class URDFViewer {
   applyWheelTravelDistances(distanceMetersByKey, radiusMetersByKey = {}) {
     const forwardWorld = this.getCarFrameForwardWorld();
     Object.keys(this.wheelRuntimeTargetByKey).forEach((key) => {
+      if (this.wheelRotationLockedByKey[key]) {
+        return;
+      }
       const runtimeTarget = this.wheelRuntimeTargetByKey[key];
       const distanceMeters = Number(distanceMetersByKey?.[key]);
       const radiusMeters = Number(radiusMetersByKey?.[key]);
@@ -3242,6 +3258,9 @@ class URDFViewer {
     const forwardWorld = this.getCarFrameForwardWorld();
 
     Object.keys(this.wheelSpeedRpmByKey).forEach((key) => {
+      if (this.wheelRotationLockedByKey[key]) {
+        return;
+      }
       const runtimeTarget = this.wheelRuntimeTargetByKey[key];
       if (!runtimeTarget) {
         return;
@@ -3852,6 +3871,16 @@ class URDFViewer {
     if (carrierJoint) {
       carrierJoint.setJointValue(numericAngleRad);
     }
+  }
+
+  // Called every frame by simulation.js's updateWheelClimbGait() alongside
+  // setInnerWheelCarrierAngle() above - see wheelRotationLockedByKey's own comment in the
+  // constructor for why both wheel-driving methods below need to check this.
+  setWheelRotationLocked(key, locked) {
+    if (!Object.prototype.hasOwnProperty.call(this.wheelRotationLockedByKey, key)) {
+      return;
+    }
+    this.wheelRotationLockedByKey[key] = locked === true;
   }
 
   // Drives inner_gear_{key}_joint from the same wheelAngles[key] the wheel joint itself

@@ -5632,6 +5632,16 @@ class RapierDriveSimulation {
       this.wheelClimbCarrierAngleRadByKey[wheelKey] = signedCarrierAngleRad;
       this.wheelClimbLockedByKey[wheelKey] = isWheelLockedThisFrame;
       viewer.setInnerWheelCarrierAngle(wheelKey, signedCarrierAngleRad);
+      // Locks the outer tire directly at the source (urdfViewer.js), not just via
+      // syncWheelRotationToBodyTravel()'s own distance-skip below - that skip only ever
+      // covers the rolling-without-slip travel-distance drive path. Wheel rotation can
+      // also be driven by an externally commanded RPM/animation clock (e.g. MQTT
+      // wheel-speed commands, isWheelRotationDrivenByCommand) that bypasses travel
+      // distance entirely - without this, a wheel could keep visibly spinning under an
+      // RPM command the whole time its carrier was locked and climbing.
+      if (typeof viewer.setWheelRotationLocked === "function") {
+        viewer.setWheelRotationLocked(wheelKey, isWheelLockedThisFrame);
+      }
     });
 
     if (canFlattenChassis) {
@@ -9443,6 +9453,9 @@ class RapierDriveSimulation {
       this.wheelClimbEngagedObstacleByKey[wheelKey] = null;
       if (typeof this.viewer?.setInnerWheelCarrierAngle === "function") {
         this.viewer.setInnerWheelCarrierAngle(wheelKey, 0);
+      }
+      if (typeof this.viewer?.setWheelRotationLocked === "function") {
+        this.viewer.setWheelRotationLocked(wheelKey, false);
       }
     });
     this.obstacleColliderInfos.forEach((obstacleInfo) => {

@@ -7692,13 +7692,14 @@ class RapierDriveSimulation {
     // and rises above that flat approximation from spot to spot), that near-zero
     // clearance is what produced the torn/starburst gaps in the pie fill at oblique
     // angles: parts of the roof geometry poked back through the polygonOffset nudge
-    // entirely. Padding out to a real ~3cm clearance above the bbox top keeps the pie
-    // above the roof's actual surface variation everywhere, while still reading as
-    // "sitting on the roof" given the pie's own ~20cm radius.
+    // entirely. Padding out above the bbox top keeps the pie above the roof's actual
+    // surface variation everywhere, while sitting as close to the roof as that
+    // variation allows (the pie mesh's own polygonOffset, set below, does the rest of
+    // the z-fighting avoidance, so this world-space gap can stay small).
     const roofOffset = new THREE.Vector3(
       Number(this.vehicleColliderLocalCenter.x) || 0,
       Number(this.vehicleColliderLocalCenter.y) || 0,
-      (Number(this.vehicleColliderLocalCenter.z) || 0) + halfZ + 0.04,
+      (Number(this.vehicleColliderLocalCenter.z) || 0) + halfZ + 0.015,
     ).applyQuaternion(carQuaternion);
     const currentYaw = this.extractYawFromQuaternion(carQuaternion);
 

@@ -111,6 +111,15 @@ const WHEEL_CLIMB_CARRIER_MAX_ANGLE_RAD = THREE.MathUtils.degToRad(30);
 // reference contact point and the ray to the carrier center. Exactly 0 is numerically
 // unreachable from a finite bisection, so this is the practical stand-in.
 const WHEEL_CLIMB_REFERENCE_ANGLE_EPSILON_RAD = THREE.MathUtils.degToRad(0.5);
+// Rate the carrier eases back toward 0 once 기준각도 has closed and the outer wheel's
+// own drive rotation has already resumed - short enough to feel immediate (full
+// WHEEL_CLIMB_CARRIER_MAX_ANGLE_RAD swing retracts in well under a fifth of a second)
+// while still being nonzero, so inner_gear_{key}_joint's angle - driven off the
+// carrier's angle by applyInnerGearRotation()'s planetary-gear relation - eases back
+// smoothly too instead of jumping in a single frame the way an instant `= 0` snap did.
+const WHEEL_CLIMB_CARRIER_RESTORE_DURATION_SEC = 0.12;
+const WHEEL_CLIMB_CARRIER_RESTORE_RATE_RAD_PER_SEC =
+  WHEEL_CLIMB_CARRIER_MAX_ANGLE_RAD / WHEEL_CLIMB_CARRIER_RESTORE_DURATION_SEC;
 
 const WHEEL_RPM_COMMAND_THRESHOLD = 0.2;
 const STEER_SIGN_EPSILON = 1e-3;
@@ -5644,29 +5653,56 @@ class RapierDriveSimulation {
             previousMagnitudeRad + pacedAngleStepRad,
             requiredAngleRad,
           );
-        } else {
-          // Not (or no longer) locked - the *only* way this branch is reached at all is
-          // that referenceAngleRadAtCandidate(0), just above, already came back <=
-          // epsilon - i.e. the exact same check already proved "candidate 0 (carrier
-          // fully retracted) is safe *right now*, at the wheel's real current position".
-          // There's nothing left to verify, so there's no reason to still pace the return
-          // out over WHEEL_CLIMB_CARRIER_RESTORE_RATE_RAD_PER_SEC (~0.5s) the way an
-          // earlier version did purely for a cosmetic "visibly straightens back out"
-          // motion - snap straight to 0 in this same step instead, symmetric with how
-          // outer-tire drive rotation itself already resumes the instant 기준각도 closes
-          // (verified in-browser to the same physics step, not just "soon after").
+        } else if (previousMagnitudeRad > 1e-6) {
+          // Not (or no longer) locked, but still swung out from an earlier climb - ease
+          // back to 0 over WHEEL_CLIMB_CARRIER_RESTORE_RATE_RAD_PER_SEC instead of
+          // snapping there in one step. An earlier version *did* snap straight to 0 here,
+          // reasoning that referenceAngleRadAtCandidate(0) just above already proved
+          // candidate 0 safe *this frame* so there was nothing left to verify - true for
+          // the outer tire (whose own rotation is independently locked/unlocked, no
+          // physical link to the carrier's angle), but not for inner_gear_{key}_joint:
+          // applyInnerGearRotation() drives it as `carrierAngle*(1-ratio) +
+          // wheelAngle*ratio` - a real meshed-gear relation - so snapping carrierAngle
+          // instantly snaps inner_gear's own angle by the same jump in the same frame,
+          // confirmed visually by the user as a sudden, unnatural pop right at the
+          // edge transition. Easing the carrier back out instead keeps inner_gear
+          // continuous too, since it's a smooth function of a now-smooth carrierAngle.
           //
-          // This used to instead rate-limit the decrease and re-verify each smaller step
-          // via bisection, because *retracting* the carrier at all sweeps the wheel
-          // backward-and-down (the mirror image of the forward-and-up climb sweep), and a
-          // naive fixed-rate decrease - confirmed in-browser - could walk the wheel back
-          // into the same obstacle's trailing face before the vehicle had out-driven it.
-          // That risk is specific to retracting *while still within the obstacle's
-          // horizontal reach*, i.e. while this branch would NOT yet be reached (the wheel
-          // would still test as locked at candidate 0 in that case). Once genuinely past
-          // that - candidate 0 already reads clear - jumping straight there is the safe
-          // case, not the risky one.
-          carrierAngleRad = 0;
+          // Still bisects/re-verifies each step rather than blindly rate-limiting,
+          // because *retracting* the carrier at all sweeps the wheel backward-and-down
+          // (the mirror image of the forward-and-up climb sweep) - confirmed in-browser
+          // earlier this session that a naive fixed-rate decrease can walk the wheel
+          // back into the same obstacle's trailing face before the vehicle has
+          // out-driven it. The invariant is the same as the climb bisection, mirrored:
+          // high (previousMagnitudeRad) is always verified-safe (it was itself accepted
+          // safe last frame, by the same induction), low (the rate-limited proposal) is
+          // not - bisect for the smallest (closest to fully retracted) angle in between
+          // that's still verified clear.
+          const maxDecreaseRad =
+            WHEEL_CLIMB_CARRIER_RESTORE_RATE_RAD_PER_SEC *
+            Math.max(Number(deltaSec) || 0, 0);
+          const proposedRad = Math.max(0, previousMagnitudeRad - maxDecreaseRad);
+          if (
+            referenceAngleRadAtCandidate(proposedRad) <=
+            WHEEL_CLIMB_REFERENCE_ANGLE_EPSILON_RAD
+          ) {
+            carrierAngleRad = proposedRad;
+          } else {
+            let lowRad = proposedRad;
+            let highRad = previousMagnitudeRad;
+            for (let iteration = 0; iteration < 20; iteration += 1) {
+              const midRad = (lowRad + highRad) * 0.5;
+              if (
+                referenceAngleRadAtCandidate(midRad) <=
+                WHEEL_CLIMB_REFERENCE_ANGLE_EPSILON_RAD
+              ) {
+                highRad = midRad;
+              } else {
+                lowRad = midRad;
+              }
+            }
+            carrierAngleRad = highRad;
+          }
         }
 
         this.wheelClimbEngagedObstacleByKey[wheelKey] =
@@ -9134,7 +9170,6 @@ class RapierDriveSimulation {
   }
 
   stepSimulation() {
-    globalThis.__debugSim = this;
     if (!this.isReady) {
       return;
     }

@@ -308,6 +308,16 @@ class RapierDriveSimulation {
       rl: 0,
       rr: 0,
     };
+    // True while a wheel's outer tire is pressed against an obstacle face this frame
+    // (updateWheelClimbGait() is actively bisecting for it) - see the comment there.
+    // Consulted by syncWheelRotationToBodyTravel() to lock that wheel's own spin while
+    // the carrier is doing the climbing instead.
+    this.wheelClimbLockedByKey = {
+      fl: false,
+      fr: false,
+      rl: false,
+      rr: false,
+    };
     this.previousWheelColliderPositionByKey = {};
     // Diagnostic-only: lets updateDriveDiagnosticsOverlay() show actual traveled
     // distance / grid cells crossed / wheel revolutions side by side, so "does 1 grid
@@ -5240,15 +5250,19 @@ class RapierDriveSimulation {
   // clears the same wheel-radius-aware corner-riding height getWheelSupportProfile()
   // uses for the chassis. Bisection (not a Newton-style single jump from the lift
   // formula) is what makes this safe: every candidate hi bound the search narrows to is
-  // one that's already verified clear, so the final angle is *never below* what's
+  // one that's already verified clear, so the bisected value is *never below* what's
   // needed - it can't converge to a value that leaves the wheel's own circle resting
-  // inside the obstacle, however far off the previous frame's angle was. The climb
-  // itself (angle increasing) always jumps straight to that bisected value, same reason
-  // applyWheelSupportRideHeight() has no smoothing of its own: a lagged carrier angle
-  // could sit inside the obstacle for the few frames it takes to catch up. Once past the
-  // obstacle (bisected angle dropping back toward 0), though, there's no such
-  // constraint - the wheel is already at/above the required height, so easing back out
-  // instead of snapping is purely cosmetic and safe. WHEEL_CLIMB_CARRIER_RESTORE_RATE_RAD_PER_SEC
+  // inside the obstacle, however far off the previous frame's angle was. That bisected
+  // value is only a *ceiling* on the climb, though, not the angle applied directly: the
+  // real hardware locks the outer tire's own spin the instant it presses against the
+  // obstacle face and instead lets the carrier walk the pod up and over at a rate paced
+  // by how far the rear drive wheels are actually pushing the chassis forward each step
+  // (see the "requiredAngleRad above is now only a ceiling" comment below) - the
+  // bisected ceiling just guarantees that paced sweep can never lag far enough behind to
+  // leave the wheel resting inside the obstacle. Once past the obstacle (bisected angle
+  // dropping back toward 0), there's no such constraint - the wheel is already at/above
+  // the required height, so easing back out instead of snapping is purely cosmetic and
+  // safe. WHEEL_CLIMB_CARRIER_RESTORE_RATE_RAD_PER_SEC
   // rate-limits only that decreasing direction, so the "bends to climb, then visibly
   // straightens back out" arc the real hardware shows (see the flattened-reference
   // comment below) doesn't collapse into a single-frame snap once the vehicle is
@@ -5307,6 +5321,23 @@ class RapierDriveSimulation {
       carFrame.updateMatrixWorld(true);
     }
 
+    // How far the rear drive wheels actually pushed the chassis forward this physics
+    // step - the real hardware's carrier sweep rate below is paced off this, not off
+    // the geometric target directly. Yaw comes from the pre-flatten quaternion (a
+    // clone, unaffected by the flatten above); forward-only, since only forward/back
+    // chassis travel has a defined carrier-arc equivalent.
+    const chassisForwardTravelMeters = (() => {
+      if (!this.body || typeof this.body.linvel !== "function") {
+        return 0;
+      }
+      const yawRad = this.extractYawFromQuaternion(savedCarFrameQuaternion);
+      const forwardVector = this.getVehicleForwardVector(yawRad);
+      const bodyVelocity = this.body.linvel();
+      const forwardSpeedMetersPerSec =
+        bodyVelocity.x * forwardVector.x + bodyVelocity.y * forwardVector.y;
+      return forwardSpeedMetersPerSec * Math.max(Number(deltaSec) || 0, 0);
+    })();
+
     Object.keys(this.innerWheelJointNameByKey).forEach((wheelKey) => {
       const carrierJoint = jointMap[this.innerWheelJointNameByKey[wheelKey]];
       const wheelLink = this.findLinkByName(
@@ -5321,6 +5352,7 @@ class RapierDriveSimulation {
         supportProfile?.supportObstacleByKey?.[wheelKey] || null;
 
       let carrierAngleRad = 0;
+      let isWheelLockedThisFrame = false;
 
       if (
         carrierJoint &&
@@ -5387,13 +5419,15 @@ class RapierDriveSimulation {
         };
 
         if (heightSurplusAtAngle(0) < 0) {
+          isWheelLockedThisFrame = true;
+
           // Not already clear at rest - bisect for the smallest (unsigned) magnitude in
-          // [0, WHEEL_CLIMB_CARRIER_MAX_ANGLE_RAD]: the search invariant (high always
-          // verified clear, low never verified clear) guarantees the result can't
-          // undershoot into the obstacle, regardless of how far off the previous
-          // frame's angle was. If the carrier maxes out its whole search range without
-          // ever finding clearance, highRad simply stays at that max - the wheel pod
-          // alone can't fully cover this obstacle, and the remainder is left to
+          // [0, WHEEL_CLIMB_CARRIER_MAX_ANGLE_RAD] that would already be clear if jumped
+          // to directly. The search invariant (high always verified clear, low never
+          // verified clear) guarantees this can't undershoot into the obstacle. If the
+          // carrier maxes out its whole search range without ever finding clearance,
+          // requiredAngleRad simply stays at that max - the wheel pod alone can't fully
+          // cover this obstacle, and the remainder is left to
           // applyWheelSupportRideHeight()'s own chassis-level lift instead.
           let lowRad = 0;
           let highRad = WHEEL_CLIMB_CARRIER_MAX_ANGLE_RAD;
@@ -5405,14 +5439,35 @@ class RapierDriveSimulation {
               lowRad = midRad;
             }
           }
-          carrierAngleRad = highRad;
+          const requiredAngleRad = highRad;
+
+          // requiredAngleRad above is now only a ceiling, not the value applied
+          // directly. The real hardware locks the outer tire's own spin the instant it
+          // presses against the obstacle face (syncWheelRotationToBodyTravel() reads
+          // wheelClimbLockedByKey, set below, to do that) and instead lets
+          // inner_wheel_{key}_joint - the carrier - walk the pod up and over: the
+          // carrier sweeps forward by the arc length (orbitRadius * angle) equal to the
+          // distance the rear drive wheels actually pushed the chassis forward this
+          // step, not a geometric jump straight to requiredAngleRad. A slow approach
+          // therefore paces the climb smoothly frame by frame; a fast one simply catches
+          // up to the same geometric ceiling as before, so it still can't lag behind far
+          // enough to visibly sink the wheel into the obstacle.
+          const previousMagnitudeRad = Math.abs(
+            Number(this.wheelClimbCarrierAngleRadByKey[wheelKey]) || 0,
+          );
+          const pacedAngleStepRad =
+            Math.max(chassisForwardTravelMeters, 0) / orbitRadiusMeters;
+          carrierAngleRad = Math.min(
+            previousMagnitudeRad + pacedAngleStepRad,
+            requiredAngleRad,
+          );
         }
       }
 
-      // Rate-limit only the decreasing direction (straightening back out) - see the
-      // WHEEL_CLIMB_CARRIER_RESTORE_RATE_RAD_PER_SEC comment above for why that's safe.
-      // The increasing direction is never touched here: whenever this frame's bisected
-      // carrierAngleRad is *larger* than last frame's, it passes straight through.
+      // Rate-limit only the decreasing direction (straightening back out, once no
+      // longer locked) - see the WHEEL_CLIMB_CARRIER_RESTORE_RATE_RAD_PER_SEC comment
+      // above for why that's safe. The increasing/locked direction is already paced by
+      // chassisForwardTravelMeters above, so it never needs limiting here.
       const previousMagnitudeRad = Math.abs(
         Number(this.wheelClimbCarrierAngleRadByKey[wheelKey]) || 0,
       );
@@ -5435,6 +5490,7 @@ class RapierDriveSimulation {
       // inner_wheel_{key}_joint, so convert it here before publishing it.
       const signedCarrierAngleRad = WHEEL_CLIMB_CARRIER_SIGN * carrierAngleRad;
       this.wheelClimbCarrierAngleRadByKey[wheelKey] = signedCarrierAngleRad;
+      this.wheelClimbLockedByKey[wheelKey] = isWheelLockedThisFrame;
       viewer.setInnerWheelCarrierAngle(wheelKey, signedCarrierAngleRad);
     });
 
@@ -6123,7 +6179,15 @@ class RapierDriveSimulation {
         const currentPosition = wheelLink.getWorldPosition(new THREE.Vector3());
         const previousPosition =
           this.previousWheelColliderPositionByKey[wheelKey] || null;
-        if (previousPosition) {
+        // While updateWheelClimbGait() has this wheel locked against an obstacle face,
+        // the outer tire doesn't spin at all - the carrier is doing the climbing
+        // instead (see wheelClimbLockedByKey's comment) - so skip handing this wheel a
+        // distance/radius pair at all here; applyWheelTravelDistances() below leaves any
+        // key without one untouched. previousWheelColliderPositionByKey still tracks
+        // through the lock so the position delta accumulated while locked isn't sprung
+        // on the tire as a sudden spin once it unlocks.
+        const isLocked = Boolean(this.wheelClimbLockedByKey?.[wheelKey]);
+        if (previousPosition && !isLocked) {
           const displacement = currentPosition.clone().sub(previousPosition);
           distanceMetersByKey[wheelKey] =
             displacement.x * forwardVector.x + displacement.y * forwardVector.y;
@@ -9235,6 +9299,7 @@ class RapierDriveSimulation {
     };
     Object.keys(this.wheelClimbCarrierAngleRadByKey).forEach((wheelKey) => {
       this.wheelClimbCarrierAngleRadByKey[wheelKey] = 0;
+      this.wheelClimbLockedByKey[wheelKey] = false;
       if (typeof this.viewer?.setInnerWheelCarrierAngle === "function") {
         this.viewer.setInnerWheelCarrierAngle(wheelKey, 0);
       }

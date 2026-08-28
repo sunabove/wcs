@@ -5535,22 +5535,27 @@ class RapierDriveSimulation {
           carrierJoint.setJointValue(WHEEL_CLIMB_CARRIER_SIGN * angleRad);
           const wheelPosition = wheelLink.getWorldPosition(new THREE.Vector3());
 
-          // Resting well inside the obstacle's own footprint - comfortably past *every*
-          // edge, not just the near one - has only ONE contact point (flat, same as
+          // Resting anywhere *inside* the obstacle's own footprint - not clamped to
+          // either edge on either axis - has only ONE contact point (flat, same as
           // normal ground driving, just elevated), not the two-contact "riding a corner"
-          // case 기준각도 describes at all. Skip straight to "clear" without even looking
-          // at Z: candidate 0 is deliberately evaluated against a *flattened*, un-lifted
-          // hypothetical (see the flattened-reference comment above this method), so
-          // trusting contactPoint's Z (hardcoded to obstacleTopZ below) here would make
-          // every horizontal position still inside the footprint read as "still needs to
-          // climb" for as long as the wheel stayed over it, regardless of how far from
-          // either edge - confirmed in-browser: driving across a widened test obstacle
-          // (well past both wheel-radius margins) kept the carrier pinned at its max
-          // angle and the outer tire completely frozen for the obstacle's entire ~1m
-          // interior crossing, only releasing once past the far edge. The chassis's own
-          // ride-height lift (getWheelSupportProfile()'s corner formula, unaffected by
-          // this) already handles getting - and keeping - the wheel at the correct
-          // elevated height here; 기준각도 has nothing to do with that.
+          // case 기준각도 describes at all: once inside, contactPoint below clamps to
+          // directly beneath the wheel regardless of exactly how far inside, so the angle
+          // it produces is always this pod's own fixed resting baseline (confirmed
+          // in-browser: measured at 8.59deg for this wheel, both here and on genuine flat
+          // ground with no obstacle at all) - never any closer to literal 0, however deep
+          // inside the footprint the wheel gets. An earlier version required a full
+          // wheelRadius margin past *every* edge before treating this as resting flat,
+          // reasoning that the corner-riding case needed a safety buffer - but measured
+          // in-browser (carrierRad logged alongside this candidate-0 angle) that the
+          // carrier had already reached its final committed angle and stopped changing
+          // *0.43 real seconds* before that margin was satisfied: the wheel was already
+          // resting at its correct final height (getWheelSupportProfile()'s own ride-height
+          // lift handles reaching and holding that; 기준각도 has nothing to do with it),
+          // just still needlessly reporting "locked" because of this margin, not because
+          // anything was still unsafe. Being inside the footprint at all (margin >= 0) is
+          // the actual boundary of the two-contact case - there is no partial-credit zone
+          // between "still riding the corner" and "resting flat with the fixed baseline
+          // angle" the way a wheelRadius buffer implied.
           const marginToNearEdgeX = Math.min(
             wheelPosition.x - obstacleMinX,
             obstacleMaxX - wheelPosition.x,
@@ -5559,10 +5564,7 @@ class RapierDriveSimulation {
             wheelPosition.y - obstacleMinY,
             obstacleMaxY - wheelPosition.y,
           );
-          if (
-            marginToNearEdgeX >= wheelRadiusMeters &&
-            marginToNearEdgeY >= wheelRadiusMeters
-          ) {
+          if (marginToNearEdgeX >= 0 && marginToNearEdgeY >= 0) {
             return 0;
           }
 

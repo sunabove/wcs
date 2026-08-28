@@ -334,6 +334,17 @@ class RapierDriveSimulation {
       rl: false,
       rr: false,
     };
+    // The obstacle a wheel is currently (or was most recently) climbing, kept past the
+    // point supportProfile.supportObstacleByKey[key] itself goes null - see the comment
+    // in updateWheelClimbGait() on why the carrier's retraction still needs to verify
+    // itself against this even after the wheel's nominal/rest position no longer detects
+    // it. Cleared once the carrier has fully retracted back to 0.
+    this.wheelClimbEngagedObstacleByKey = {
+      fl: null,
+      fr: null,
+      rl: null,
+      rr: null,
+    };
     this.previousWheelColliderPositionByKey = {};
     // Diagnostic-only: lets updateDriveDiagnosticsOverlay() show actual traveled
     // distance / grid cells crossed / wheel revolutions side by side, so "does 1 grid
@@ -5439,8 +5450,15 @@ class RapierDriveSimulation {
         typeof viewer.measureInnerWheelOrbitRadiusMeters === "function"
           ? viewer.measureInnerWheelOrbitRadiusMeters(wheelKey)
           : null;
-      const supportObstacle =
+      const freshSupportObstacle =
         supportProfile?.supportObstacleByKey?.[wheelKey] || null;
+      // supportObstacleByKey is detected off the wheel's *nominal* (carrier-neutral)
+      // rest position (see getWheelSupportProfile()) and goes null well before the
+      // carrier has actually finished retracting - keep using whatever obstacle was
+      // last engaged so the retraction safety check below still has the right box to
+      // verify against for the rest of that retraction, not just while freshly detected.
+      const engagedObstacle =
+        freshSupportObstacle || this.wheelClimbEngagedObstacleByKey[wheelKey] || null;
 
       let carrierAngleRad = 0;
       let isWheelLockedThisFrame = false;
@@ -5450,17 +5468,17 @@ class RapierDriveSimulation {
         typeof carrierJoint.setJointValue === "function" &&
         wheelLink &&
         carrierLink &&
-        supportObstacle?.center &&
-        supportObstacle?.halfExtents &&
+        engagedObstacle?.center &&
+        engagedObstacle?.halfExtents &&
         Number.isFinite(orbitRadiusMeters) &&
         orbitRadiusMeters > 0
       ) {
         const obstacleTopZ =
-          supportObstacle.center.z + supportObstacle.halfExtents.z;
-        const obstacleMinX = supportObstacle.center.x - supportObstacle.halfExtents.x;
-        const obstacleMaxX = supportObstacle.center.x + supportObstacle.halfExtents.x;
-        const obstacleMinY = supportObstacle.center.y - supportObstacle.halfExtents.y;
-        const obstacleMaxY = supportObstacle.center.y + supportObstacle.halfExtents.y;
+          engagedObstacle.center.z + engagedObstacle.halfExtents.z;
+        const obstacleMinX = engagedObstacle.center.x - engagedObstacle.halfExtents.x;
+        const obstacleMaxX = engagedObstacle.center.x + engagedObstacle.halfExtents.x;
+        const obstacleMinY = engagedObstacle.center.y - engagedObstacle.halfExtents.y;
+        const obstacleMaxY = engagedObstacle.center.y + engagedObstacle.halfExtents.y;
 
         // carrierLink's own world position (the joint that rotates it doesn't move its
         // own origin, only its orientation and everything mounted past it - see the
@@ -5508,6 +5526,10 @@ class RapierDriveSimulation {
           return Math.acos(cosAngle);
         };
 
+        const previousMagnitudeRad = Math.abs(
+          Number(this.wheelClimbCarrierAngleRadByKey[wheelKey]) || 0,
+        );
+
         if (referenceAngleRadAtCandidate(0) > WHEEL_CLIMB_REFERENCE_ANGLE_EPSILON_RAD) {
           isWheelLockedThisFrame = true;
 
@@ -5545,33 +5567,58 @@ class RapierDriveSimulation {
           // therefore paces the climb smoothly frame by frame; a fast one simply catches
           // up to the same geometric ceiling as before, so it still can't lag behind far
           // enough to visibly sink the wheel into the obstacle.
-          const previousMagnitudeRad = Math.abs(
-            Number(this.wheelClimbCarrierAngleRadByKey[wheelKey]) || 0,
-          );
           const pacedAngleStepRad =
             Math.max(chassisForwardTravelMeters, 0) / orbitRadiusMeters;
           carrierAngleRad = Math.min(
             previousMagnitudeRad + pacedAngleStepRad,
             requiredAngleRad,
           );
+        } else if (previousMagnitudeRad > 1e-6) {
+          // Not (or no longer) locked, but still swung out from an earlier climb -
+          // straighten back out. This can't just rate-limit blindly the way it used to:
+          // retracting the carrier sweeps the wheel backward *and* down (the mirror image
+          // of the forward-and-up climb sweep), and confirmed in-browser
+          // (playwright + __debugSim, see browser-instrumentation-technique in project
+          // memory) that on a narrow obstacle that backward sweep can walk the wheel
+          // straight back into the *same* obstacle's trailing face before the vehicle has
+          // out-driven it - referenceAngleRadAtCandidate(0) closing to ~0 only means the
+          // wheel's current *actual* position is clear, not that every angle between here
+          // and 0 stays clear on the way down. So the decreasing step is bisected exactly
+          // like the climb above, just from the opposite end: high (previousMagnitudeRad)
+          // is always verified-safe (it was itself accepted safe last frame, by the same
+          // induction), low (the naive rate-limited proposal) is not - bisect for the
+          // smallest (closest to fully retracted) angle in between that's still verified
+          // clear, so retraction always goes exactly as fast as the geometry allows and
+          // never faster.
+          const maxDecreaseRad =
+            WHEEL_CLIMB_CARRIER_RESTORE_RATE_RAD_PER_SEC *
+            Math.max(Number(deltaSec) || 0, 0);
+          const proposedRad = Math.max(0, previousMagnitudeRad - maxDecreaseRad);
+          if (
+            referenceAngleRadAtCandidate(proposedRad) <=
+            WHEEL_CLIMB_REFERENCE_ANGLE_EPSILON_RAD
+          ) {
+            carrierAngleRad = proposedRad;
+          } else {
+            let lowRad = proposedRad;
+            let highRad = previousMagnitudeRad;
+            for (let iteration = 0; iteration < 20; iteration += 1) {
+              const midRad = (lowRad + highRad) * 0.5;
+              if (
+                referenceAngleRadAtCandidate(midRad) <=
+                WHEEL_CLIMB_REFERENCE_ANGLE_EPSILON_RAD
+              ) {
+                highRad = midRad;
+              } else {
+                lowRad = midRad;
+              }
+            }
+            carrierAngleRad = highRad;
+          }
         }
-      }
 
-      // Rate-limit only the decreasing direction (straightening back out, once no
-      // longer locked) - see the WHEEL_CLIMB_CARRIER_RESTORE_RATE_RAD_PER_SEC comment
-      // above for why that's safe. The increasing/locked direction is already paced by
-      // chassisForwardTravelMeters above, so it never needs limiting here.
-      const previousMagnitudeRad = Math.abs(
-        Number(this.wheelClimbCarrierAngleRadByKey[wheelKey]) || 0,
-      );
-      if (carrierAngleRad < previousMagnitudeRad) {
-        const maxDecreaseRad =
-          WHEEL_CLIMB_CARRIER_RESTORE_RATE_RAD_PER_SEC *
-          Math.max(Number(deltaSec) || 0, 0);
-        carrierAngleRad = Math.max(
-          carrierAngleRad,
-          previousMagnitudeRad - maxDecreaseRad,
-        );
+        this.wheelClimbEngagedObstacleByKey[wheelKey] =
+          carrierAngleRad > 1e-6 ? engagedObstacle : null;
       }
 
       // carrierAngleRad itself is the unsigned bisection magnitude (referenceAngleRadAtCandidate()
@@ -9393,6 +9440,7 @@ class RapierDriveSimulation {
     Object.keys(this.wheelClimbCarrierAngleRadByKey).forEach((wheelKey) => {
       this.wheelClimbCarrierAngleRadByKey[wheelKey] = 0;
       this.wheelClimbLockedByKey[wheelKey] = false;
+      this.wheelClimbEngagedObstacleByKey[wheelKey] = null;
       if (typeof this.viewer?.setInnerWheelCarrierAngle === "function") {
         this.viewer.setInnerWheelCarrierAngle(wheelKey, 0);
       }

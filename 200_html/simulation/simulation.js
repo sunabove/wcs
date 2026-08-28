@@ -5155,11 +5155,76 @@ class RapierDriveSimulation {
           });
         }
 
-        const lift = supportZ - this.groundZ;
-        liftByKey[wheelKey] = lift;
-        supportZByKey[wheelKey] = supportZ;
+        const nominalLift = supportZ - this.groundZ;
         supportObstacleByKey[wheelKey] =
-          lift > WHEEL_SUPPORT_MIN_LIFT_METERS ? supportObstacle : null;
+          nominalLift > WHEEL_SUPPORT_MIN_LIFT_METERS ? supportObstacle : null;
+
+        // supportZ/nominalLift above is the *full* geometric requirement as if the
+        // carrier weren't helping at all (nominal, carrier-neutral wheel position) -
+        // exactly what supportObstacleByKey needs, to trigger updateWheelClimbGait() the
+        // moment the obstacle comes within the wheel's own radius. Feeding that same full
+        // amount to the *chassis* (liftByKey/averageLift, below) would be wrong, though:
+        // applyWheelSupportRideHeight() has no smoothing of its own, so the instant an
+        // obstacle wheel's supportObstacle here becomes non-null the whole chassis (and
+        // every wheel with it) would jump straight to the full required height in one
+        // frame - the outer wheel floating into the air well before the carrier has swept
+        // at all. Obstacles the carrier's own WHEEL_CLIMB_CARRIER_MAX_ANGLE_RAD swing can
+        // fully cover shouldn't move the chassis at all - the pod arm alone bends to climb
+        // them, same as the real hardware (see updateWheelClimbGait()'s own docblock);
+        // only the shortfall beyond that swing (a taller obstacle) should still ask the
+        // chassis for help. Re-evaluate the *same* supportObstacle from the wheel's
+        // position at the carrier's max angle - its best-effort, fully-deployed pose - and
+        // use whatever height is still short from there instead.
+        let chassisFacingSupportZ = supportZ;
+        if (
+          supportObstacle &&
+          carrierJoint &&
+          typeof carrierJoint.setJointValue === "function"
+        ) {
+          carrierJoint.setJointValue(
+            WHEEL_CLIMB_CARRIER_SIGN * WHEEL_CLIMB_CARRIER_MAX_ANGLE_RAD,
+          );
+          wheelLink.updateWorldMatrix(true, false);
+          const maxAngleWheelPosition = wheelLink.getWorldPosition(
+            new THREE.Vector3(),
+          );
+          carrierJoint.setJointValue(currentCarrierAngleRad);
+
+          const obstacleTopZ =
+            supportObstacle.center.z + supportObstacle.halfExtents.z;
+          const maxAngleGapX = Math.max(
+            Math.abs(maxAngleWheelPosition.x - supportObstacle.center.x) -
+              supportObstacle.halfExtents.x,
+            0,
+          );
+          const maxAngleGapY = Math.max(
+            Math.abs(maxAngleWheelPosition.y - supportObstacle.center.y) -
+              supportObstacle.halfExtents.y,
+            0,
+          );
+          const maxAngleHorizontalGap = Math.hypot(maxAngleGapX, maxAngleGapY);
+          const residualSupportZ =
+            maxAngleHorizontalGap >= wheelRadius
+              ? this.groundZ
+              : obstacleTopZ +
+                Math.sqrt(
+                  Math.max(
+                    wheelRadius * wheelRadius -
+                      maxAngleHorizontalGap * maxAngleHorizontalGap,
+                    0,
+                  ),
+                ) -
+                wheelRadius;
+          chassisFacingSupportZ = THREE.MathUtils.clamp(
+            residualSupportZ,
+            this.groundZ,
+            supportZ,
+          );
+        }
+
+        const lift = chassisFacingSupportZ - this.groundZ;
+        liftByKey[wheelKey] = lift;
+        supportZByKey[wheelKey] = chassisFacingSupportZ;
 
         // Chassis-local offsets keep the tilt fit independent of URDF axis conventions.
         const localOffset = this.carFrame.worldToLocal(wheelPosition.clone());

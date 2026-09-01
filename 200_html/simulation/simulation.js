@@ -7867,11 +7867,18 @@ class RapierDriveSimulation {
     // unreadable sliver/dot from head-on or steep top-down angles (a thin 3D rod
     // pointing straight at or away from the camera has almost no silhouette left) -
     // that's what showed up as "renders incompletely" / "doesn't show up from the
-    // front". Two flat chevron panels crossed 90 degrees around the shared forward
-    // axis - one lying flat (visible from above/oblique, matching how this app is
-    // mostly viewed), one standing vertical (visible from the front/side) - guarantee
-    // at least one panel presents real area to the camera from any angle, the same
-    // "cross of planes" trick billboarded tree sprites use.
+    // front". A "cross of two flat panels" (one lying flat, one standing vertical,
+    // sharing the forward axis) was tried next on the theory that at least one panel
+    // would always present real area - it doesn't: both panels contain the shared
+    // forward axis, so any viewing direction close to that axis (which is exactly
+    // where this app's default "front view auto-fit" camera sits) makes BOTH panels
+    // go edge-on at once. Confirmed live in-browser: from one camera position the
+    // arrow read as a normal filled shape, and from a camera moved only slightly
+    // closer along the same sightline it collapsed to a thin line lying on the roof -
+    // a flat panel has literally zero thickness, so there's always some direction
+    // that looks straight along its face. Giving the shape real thickness (extruding
+    // it into a solid instead of two zero-thickness planes) removes that failure mode
+    // entirely: a solid has a non-zero cross-section from every possible direction.
     const arrowShape = new THREE.Shape();
     arrowShape.moveTo(0, -arrowShaftHalfWidth);
     arrowShape.lineTo(arrowShaftLength, -arrowShaftHalfWidth);
@@ -7881,16 +7888,21 @@ class RapierDriveSimulation {
     arrowShape.lineTo(arrowShaftLength, arrowShaftHalfWidth);
     arrowShape.lineTo(0, arrowShaftHalfWidth);
     arrowShape.closePath();
-    const arrowFlagGeometry = new THREE.ShapeGeometry(arrowShape);
+    // Extrude depth is the arrow's real thickness along the vehicle's local up axis
+    // (ExtrudeGeometry extrudes along the shape's local Z, which is up here since the
+    // group takes carFrame's orientation directly - X forward, Y left/right, Z up).
+    const arrowThickness = Math.max(arrowShaftHalfWidth * 1.5, 0.03);
+    const arrowSolidGeometry = new THREE.ExtrudeGeometry(arrowShape, {
+      depth: arrowThickness,
+      bevelEnabled: false,
+    });
+    // Center the extrusion on the flag's placement height instead of building it
+    // upward from height+0 to height+thickness.
+    arrowSolidGeometry.translate(0, 0, -arrowThickness / 2);
 
-    const horizontalFlag = new THREE.Mesh(arrowFlagGeometry, arrowMaterial);
-    horizontalFlag.position.set(arrowOriginX, arrowCenterY, arrowHeight);
-    arrowGroup.add(horizontalFlag);
-
-    const verticalFlag = new THREE.Mesh(arrowFlagGeometry, arrowMaterial);
-    verticalFlag.position.set(arrowOriginX, arrowCenterY, arrowHeight);
-    verticalFlag.rotation.x = Math.PI / 2;
-    arrowGroup.add(verticalFlag);
+    const arrowMesh = new THREE.Mesh(arrowSolidGeometry, arrowMaterial);
+    arrowMesh.position.set(arrowOriginX, arrowCenterY, arrowHeight);
+    arrowGroup.add(arrowMesh);
 
     this.vehicleDirectionArrowGroup = arrowGroup;
     this.viewer.scene.add(arrowGroup);

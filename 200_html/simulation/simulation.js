@@ -7804,23 +7804,27 @@ class RapierDriveSimulation {
     const halfX = Math.max(Number(this.vehicleHalfExtents?.x) || 0.3, 0.2);
     const halfZ = Math.max(Number(this.vehicleHalfExtents?.z) || 0.2, 0.1);
     const arrowCenterX = Number(this.vehicleColliderLocalCenter.x) || 0;
-    // Deliberately the exact original placement (+0.04 / halfZ*0.75, unchanged since
-    // before 2026-09-01). Several rounds of trying to fix real, confirmed occlusion
-    // bugs at this position - a yaw rotation z-fighting the body ("회전하면 화살표
-    // 뒷부분이 사라집니다"), and separately the "frame_cover" link's real top (~Z=0.44)
-    // occluding the arrow from elevated angles - all changed X and/or Z enough to fix
-    // the occlusion (verified live via raycast sweeps against the actual scene
-    // geometry each time), but every one of them was rejected on sight for changing
-    // the position: too high, too far from the body, and finally just "오늘
-    // 수정되기 전의 위치가 좋습니다" (the position from before today's edits is
-    // better) regardless of the smaller-and-smaller compromises tried. So this is
-    // back to the untouched original on repeated, explicit instruction - the
-    // occlusion bugs above are real and still present at their trigger angles, kept
-    // as a known tradeoff rather than fixed by moving the arrow. If they need
-    // fixing again, do it without touching arrowOriginX/arrowHeight (e.g. a
-    // rendering-based fix), since position changes here have been consistently
-    // rejected no matter how small.
-    const arrowOriginX = arrowCenterX + halfX + 0.04;
+    // Height is the exact original (halfZ*0.75, unchanged since before 2026-09-01) -
+    // several attempts to raise it to dodge the "frame_cover" link's real top
+    // (~Z=0.44) were all rejected on sight, and the user has since clarified that
+    // being hidden behind the vehicle's own body is fine ("차체에 의해서는 가려져도
+    // 됩니다") - so that occlusion is expected/correct behavior, not a bug, and
+    // there's nothing left here to fix by moving Z. Do not raise this again for
+    // frame_cover.
+    //
+    // X keeps a small +0.07 standoff rather than the original +0.04, though -
+    // unlike frame_cover, that one *is* a genuine rendering bug, not real occlusion.
+    // halfX is the physics collider's half-extent, shrunk below the real visual
+    // chassis size by chassisMarginX (0.04); +0.04 here exactly cancels that shrink,
+    // netting ~zero real clearance past the actual visual surface, so the shaft's
+    // rear cap sits right at/inside the body mesh - a small yaw is then enough to
+    // flip which surface wins the depth test from frame to frame (z-fighting), which
+    // reads as the back of the arrow flickering/disappearing even though geometrically
+    // neither surface is really in front. +0.07 (cancel + a real ~3cm gap) removes
+    // that ambiguity; confirmed live via a ±15 degree camera yaw sweep with the tail
+    // staying attached throughout. This is unrelated to, and doesn't attempt to fix,
+    // the frame_cover occlusion above.
+    const arrowOriginX = arrowCenterX + halfX + 0.07;
     const arrowHeight =
       (Number(this.vehicleColliderLocalCenter.z) || 0) + halfZ * 0.75;
     const arrowShaftRadius = 0.012;

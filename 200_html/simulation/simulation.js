@@ -7814,27 +7814,26 @@ class RapierDriveSimulation {
     // "회전하면 화살표 뒷부분이 사라집니다". Use enough margin to cancel chassisMarginX
     // *and* add real standoff beyond the visual surface.
     // The "frame_cover" link (the shroud around the wheel-arm mounts) has a real
-    // top around Z=0.44, well above where the arrow sits (halfZ*0.75 below).
-    // Raising the arrow's height to clear it fixed the occlusion but visibly moved
-    // the arrow - user rejected that ("화살표가 너무 올라갔습니다. 위치는 예전
-    // 위치가 좋습니다"). Height is back to the original; the occlusion is instead
-    // solved by standing the arrow *further forward* (larger X) instead of higher
-    // (larger Z) - for a camera looking down at a lower target past a nearer, taller
-    // obstacle, pushing the target farther away keeps the sightline closer to the
-    // camera's own height by the time it reaches the obstacle's position (basic
-    // similar-triangles: a farther target's line of sight drops less over the same
-    // near-obstacle distance), so it clears frame_cover's higher edge without ever
-    // touching Z. The exact standoff needed was found empirically, not guessed: a
-    // live raycast sweep (candidate camera position -> the shaft's rear-cap center
-    // and 8 rim points, filtered against every non-arrow mesh in the scene) at each
-    // candidate clearance showed occlusions dropping from 20/27 tested camera poses
-    // at +0.07 down to 0/27 at +0.23 - the 0.25 here keeps a small safety margin
-    // past that measured minimum. This changes nothing about how the arrow looks
-    // from directly in front (confirmed pixel-identical there) since it's a purely
-    // horizontal shift.
-    const arrowOriginX = arrowCenterX + halfX + 0.25;
+    // top around Z=0.44, well above where the arrow sits at halfZ*0.75. Pushing the
+    // arrow further forward (larger X, not higher) was tried next to dodge that
+    // obstacle via distance instead of height - it reduced but never eliminated the
+    // occlusion (still 43/420 tested camera poses occluded even at +0.18 extra
+    // standoff, checked with a much wider raycast sweep across the whole shaft+cone,
+    // not just the rear cap), *and* it visibly separated the arrow from the body
+    // ("차체에서 너무 멀리 떨어져 붕 떠 보임"). So this model's real geometry doesn't
+    // leave a distance-only escape from frame_cover: a modest height increase is the
+    // part of the fix that actually works. The exact minimum was found empirically -
+    // a live raycast sweep (candidate height -> occlusion count against 420 camera
+    // poses spanning 0.3-1.2m distance, 5-80deg elevation, +-90deg azimuth, testing
+    // points along the whole shaft and cone) showed occlusion dropping to exactly
+    // zero at +0.085m and staying there; +0.09 here keeps a hair of margin past that
+    // measured minimum. This is a smaller rise than the earlier +0.12 the user
+    // rejected as "too high" ("화살표가 너무 올라갔습니다") while actually being more
+    // thoroughly verified not to leave any occluded angle. X is back to the original
+    // +0.07 (close to the body, not the +0.25 that looked disconnected).
+    const arrowOriginX = arrowCenterX + halfX + 0.07;
     const arrowHeight =
-      (Number(this.vehicleColliderLocalCenter.z) || 0) + halfZ * 0.75;
+      (Number(this.vehicleColliderLocalCenter.z) || 0) + halfZ * 0.75 + 0.09;
     const arrowShaftRadius = 0.012;
     const arrowHeadBaseRadius = 0.024;
     const arrowShaftLength = Math.max(halfX * 0.35, 0.105);

@@ -7804,7 +7804,15 @@ class RapierDriveSimulation {
     const halfX = Math.max(Number(this.vehicleHalfExtents?.x) || 0.3, 0.2);
     const halfZ = Math.max(Number(this.vehicleHalfExtents?.z) || 0.2, 0.1);
     const arrowCenterX = Number(this.vehicleColliderLocalCenter.x) || 0;
-    const arrowOriginX = arrowCenterX + halfX + 0.04;
+    // halfX is the *physics collider's* half-extent, which ensureRapierInitialized()
+    // deliberately shrinks below the real visual chassis size by chassisMarginX (0.04).
+    // A "+0.04" here looks like clearance past the body but exactly cancels that shrink,
+    // netting to ~zero real clearance past the actual (unshrunk) visual surface - the
+    // shaft base then sits right at/inside the body mesh, causing the z-fighting/torn
+    // silhouette seen from oblique front angles (same root cause as the yaw-pie
+    // "starburst gaps" bug - see simulation-yaw-pie-depth-fighting memory). Use enough
+    // margin to cancel chassisMarginX *and* add real standoff beyond the visual surface.
+    const arrowOriginX = arrowCenterX + halfX + 0.07;
     const arrowHeight =
       (Number(this.vehicleColliderLocalCenter.z) || 0) + halfZ * 0.75;
     const arrowShaftRadius = 0.012;

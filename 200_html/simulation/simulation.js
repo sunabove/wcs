@@ -7850,13 +7850,37 @@ class RapierDriveSimulation {
       polygonOffsetFactor: -4,
       polygonOffsetUnits: -4,
       vertexShader: `
+        varying vec3 vLocalNormal;
         void main() {
+          // Pass the geometry's own (object-space, pre-transform) normal through so the
+          // fragment shader can tell a flat cap face from an extruded side-wall face -
+          // see the fragment shader comment for why that distinction matters.
+          vLocalNormal = normal;
           gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
         }
       `,
       fragmentShader: `
+        varying vec3 vLocalNormal;
         void main() {
-          gl_FragColor = vec4(0.0, 0.55, 1.0, 1.0);
+          // The solid arrow (see the ExtrudeGeometry comment above) has two kinds of
+          // faces: the flat top/bottom caps (local normal ~= +-Z) and the thin
+          // extruded side walls running around its chevron perimeter (local normal
+          // ~= horizontal, Z ~= 0). Painting every face the exact same flat, unlit
+          // blue made those two kinds indistinguishable - from a grazing angle where
+          // several differently-angled side-wall strips are all nearly edge-on at
+          // once (the chevron outline isn't a single straight edge, so its side walls
+          // aren't all coplanar), the result reads as an unrecognizable smear of thin
+          // ridges instead of a solid shape, and from angles where only the walls
+          // are visible it reads as a shapeless flat-colored block with no visible
+          // arrowhead. Shading by the *local* normal (not view-space) keeps this a
+          // fixed property of the vehicle-relative geometry, independent of scene
+          // lighting or camera angle, so the arrow stays a consistent bright color
+          // like the HUD-style indicator it's meant to be - it just now has two
+          // tones instead of one, giving the eye a face boundary to read the shape by.
+          float isCapFace = abs(vLocalNormal.z);
+          vec3 capColor = vec3(0.0, 0.55, 1.0);
+          vec3 sideWallColor = vec3(0.0, 0.28, 0.6);
+          gl_FragColor = vec4(mix(sideWallColor, capColor, isCapFace), 1.0);
         }
       `,
     });

@@ -7813,6 +7813,14 @@ class RapierDriveSimulation {
     // "starburst gaps" bug - see simulation-yaw-pie-depth-fighting memory). Use enough
     // margin to cancel chassisMarginX *and* add real standoff beyond the visual surface.
     const arrowOriginX = arrowCenterX + halfX + 0.07;
+    // Mirrors arrowCenterX above: the collider's local Y center is ~0 for a symmetric
+    // chassis, but hardcoding 0 here silently assumes every vehicle model is perfectly
+    // left/right-symmetric about local Y=0. Deriving it the same way X is keeps the
+    // arrow actually centered on the real chassis for any model, instead of only ones
+    // that happen to match that assumption - an off-center arrow sits closer to one
+    // side of the body than the other, making it get clipped/occluded by that side
+    // from angles where a perfectly centered arrow would still clear it.
+    const arrowCenterY = Number(this.vehicleColliderLocalCenter.y) || 0;
     const arrowHeight =
       (Number(this.vehicleColliderLocalCenter.z) || 0) + halfZ * 0.75;
     const arrowShaftHalfWidth = 0.02;
@@ -7876,11 +7884,11 @@ class RapierDriveSimulation {
     const arrowFlagGeometry = new THREE.ShapeGeometry(arrowShape);
 
     const horizontalFlag = new THREE.Mesh(arrowFlagGeometry, arrowMaterial);
-    horizontalFlag.position.set(arrowOriginX, 0, arrowHeight);
+    horizontalFlag.position.set(arrowOriginX, arrowCenterY, arrowHeight);
     arrowGroup.add(horizontalFlag);
 
     const verticalFlag = new THREE.Mesh(arrowFlagGeometry, arrowMaterial);
-    verticalFlag.position.set(arrowOriginX, 0, arrowHeight);
+    verticalFlag.position.set(arrowOriginX, arrowCenterY, arrowHeight);
     verticalFlag.rotation.x = Math.PI / 2;
     arrowGroup.add(verticalFlag);
 
@@ -9957,6 +9965,7 @@ globalThis.runSimulationControl = function (button, action) {
 
 try {
   rapierDriveSimulation = new RapierDriveSimulation();
+  globalThis.__debugSim = rapierDriveSimulation; // TEMP debug hook, remove before commit
   rapierDriveSimulation.start();
   applySimulationWheelAngleSpeedCommand(
     globalThis.latestSimulationWheelAngleSpeedCommand,

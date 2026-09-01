@@ -9250,6 +9250,7 @@ class RapierDriveSimulation {
   }
 
   stepSimulation() {
+    globalThis.__debugSim = this;
     if (!this.isReady) {
       return;
     }

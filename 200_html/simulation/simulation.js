@@ -7823,13 +7823,14 @@ class RapierDriveSimulation {
     const arrowCenterY = Number(this.vehicleColliderLocalCenter.y) || 0;
     const arrowHeight =
       (Number(this.vehicleColliderLocalCenter.z) || 0) + halfZ * 0.75;
-    const arrowShaftHalfWidth = 0.02;
-    const arrowHeadHalfWidth = 0.045;
     const arrowShaftLength = Math.max(halfX * 0.35, 0.105);
     const arrowHeadLength = Math.min(
       Math.max(arrowShaftLength * 0.45, 0.05),
       0.08,
     );
+    // Thin relative to its length so the shaft reads as a slender rod rather than a
+    // stubby cylinder - a pencil is long and thin, not fat.
+    const pencilRadius = 0.012;
     const arrowMaterial = new THREE.ShaderMaterial({
       fog: false,
       toneMapped: false,
@@ -7862,71 +7863,70 @@ class RapierDriveSimulation {
       fragmentShader: `
         varying vec3 vLocalNormal;
         void main() {
-          // The solid arrow (see the ExtrudeGeometry comment above) has two kinds of
-          // faces: the flat top/bottom caps (local normal ~= +-Z) and the thin
-          // extruded side walls running around its chevron perimeter (local normal
-          // ~= horizontal, Z ~= 0). Painting every face the exact same flat, unlit
-          // blue made those two kinds indistinguishable - from a grazing angle where
-          // several differently-angled side-wall strips are all nearly edge-on at
-          // once (the chevron outline isn't a single straight edge, so its side walls
-          // aren't all coplanar), the result reads as an unrecognizable smear of thin
-          // ridges instead of a solid shape, and from angles where only the walls
-          // are visible it reads as a shapeless flat-colored block with no visible
-          // arrowhead. Shading by the *local* normal (not view-space) keeps this a
-          // fixed property of the vehicle-relative geometry, independent of scene
-          // lighting or camera angle, so the arrow stays a consistent bright color
-          // like the HUD-style indicator it's meant to be - it just now has two
-          // tones instead of one, giving the eye a face boundary to read the shape by.
-          float isCapFace = abs(vLocalNormal.z);
-          vec3 capColor = vec3(0.0, 0.55, 1.0);
-          vec3 sideWallColor = vec3(0.0, 0.28, 0.6);
-          gl_FragColor = vec4(mix(sideWallColor, capColor, isCapFace), 1.0);
+          // The pencil's wall normals (see the geometry comment below) sweep all
+          // the way around its own forward axis, so their local Z component traces
+          // a smooth -1..1 cycle as you go around the barrel - brightest at the very
+          // top and bottom of the rod, darkest at the left/right sides. Shading by
+          // that gives the classic "lit tube" look a round/faceted shaft needs to
+          // read as solid instead of a flat-colored silhouette, without depending on
+          // scene lighting or camera angle - it's a fixed property of the
+          // vehicle-relative geometry, so the arrow stays a consistent, always-
+          // visible HUD-style color regardless of time of day or view direction.
+          float topFacingAmount = abs(vLocalNormal.z);
+          vec3 brightColor = vec3(0.0, 0.55, 1.0);
+          vec3 darkColor = vec3(0.0, 0.28, 0.6);
+          gl_FragColor = vec4(mix(darkColor, brightColor, topFacingAmount), 1.0);
         }
       `,
     });
     const arrowGroup = new THREE.Group();
     arrowGroup.name = "simulation-vehicle-direction-arrows";
 
-    // A single thin cylinder+cone reads fine from the side, but foreshortens into an
-    // unreadable sliver/dot from head-on or steep top-down angles (a thin 3D rod
-    // pointing straight at or away from the camera has almost no silhouette left) -
-    // that's what showed up as "renders incompletely" / "doesn't show up from the
-    // front". A "cross of two flat panels" (one lying flat, one standing vertical,
-    // sharing the forward axis) was tried next on the theory that at least one panel
-    // would always present real area - it doesn't: both panels contain the shared
-    // forward axis, so any viewing direction close to that axis (which is exactly
-    // where this app's default "front view auto-fit" camera sits) makes BOTH panels
-    // go edge-on at once. Confirmed live in-browser: from one camera position the
-    // arrow read as a normal filled shape, and from a camera moved only slightly
-    // closer along the same sightline it collapsed to a thin line lying on the roof -
-    // a flat panel has literally zero thickness, so there's always some direction
-    // that looks straight along its face. Giving the shape real thickness (extruding
-    // it into a solid instead of two zero-thickness planes) removes that failure mode
-    // entirely: a solid has a non-zero cross-section from every possible direction.
-    const arrowShape = new THREE.Shape();
-    arrowShape.moveTo(0, -arrowShaftHalfWidth);
-    arrowShape.lineTo(arrowShaftLength, -arrowShaftHalfWidth);
-    arrowShape.lineTo(arrowShaftLength, -arrowHeadHalfWidth);
-    arrowShape.lineTo(arrowShaftLength + arrowHeadLength, 0);
-    arrowShape.lineTo(arrowShaftLength, arrowHeadHalfWidth);
-    arrowShape.lineTo(arrowShaftLength, arrowShaftHalfWidth);
-    arrowShape.lineTo(0, arrowShaftHalfWidth);
-    arrowShape.closePath();
-    // Extrude depth is the arrow's real thickness along the vehicle's local up axis
-    // (ExtrudeGeometry extrudes along the shape's local Z, which is up here since the
-    // group takes carFrame's orientation directly - X forward, Y left/right, Z up).
-    const arrowThickness = Math.max(arrowShaftHalfWidth * 1.5, 0.03);
-    const arrowSolidGeometry = new THREE.ExtrudeGeometry(arrowShape, {
-      depth: arrowThickness,
-      bevelEnabled: false,
-    });
-    // Center the extrusion on the flag's placement height instead of building it
-    // upward from height+0 to height+thickness.
-    arrowSolidGeometry.translate(0, 0, -arrowThickness / 2);
+    // Pencil shape: a slender hexagonal shaft tapering to a sharp point, like a
+    // sharpened pencil laid pointing in the direction of travel. Earlier shapes
+    // tried here all failed from some viewing angle because they were flat (zero
+    // thickness in at least one direction): a single flat 2D arrow panel goes
+    // edge-on/invisible from any direction in its own plane, and even crossing two
+    // flat panels 90 degrees apart doesn't help because both still share the
+    // forward axis, so a view close to that axis (this app's default "front view
+    // auto-fit" camera included) makes both edge-on at once - confirmed live
+    // in-browser, see simulation-direction-arrow-flat-panel-degeneracy memory. A
+    // pencil has no flat direction to hide in: it's a solid of near-revolution
+    // around its own forward axis (hexagonal, not perfectly round, but close
+    // enough), so every viewing direction sees a real cross-section - the worst
+    // case, looking straight down the shaft, just shows its small hexagonal
+    // profile, the same way looking at the tip of a real pencil does.
+    const pencilRadialSegments = 6; // hexagonal barrel - reads as a pencil, not a round rod
+    const shaftGeometry = new THREE.CylinderGeometry(
+      pencilRadius,
+      pencilRadius,
+      arrowShaftLength,
+      pencilRadialSegments,
+    );
+    // CylinderGeometry/ConeGeometry are built with their axis along local Y by
+    // default; rotate onto local X (forward) to match this group's forward/
+    // left-right/up convention (X forward, Y left/right, Z up, taken directly from
+    // carFrame's orientation - see syncVehicleDirectionArrows()).
+    shaftGeometry.rotateZ(-Math.PI / 2);
+    // Shift so the shaft runs from the pencil's blunt end (local X=0) to where the
+    // point starts (X=arrowShaftLength), instead of being centered on X=0.
+    shaftGeometry.translate(arrowShaftLength / 2, 0, 0);
 
-    const arrowMesh = new THREE.Mesh(arrowSolidGeometry, arrowMaterial);
-    arrowMesh.position.set(arrowOriginX, arrowCenterY, arrowHeight);
-    arrowGroup.add(arrowMesh);
+    const tipGeometry = new THREE.ConeGeometry(
+      pencilRadius,
+      arrowHeadLength,
+      pencilRadialSegments,
+    );
+    tipGeometry.rotateZ(-Math.PI / 2);
+    tipGeometry.translate(arrowShaftLength + arrowHeadLength / 2, 0, 0);
+
+    const shaftMesh = new THREE.Mesh(shaftGeometry, arrowMaterial);
+    shaftMesh.position.set(arrowOriginX, arrowCenterY, arrowHeight);
+    arrowGroup.add(shaftMesh);
+
+    const tipMesh = new THREE.Mesh(tipGeometry, arrowMaterial);
+    tipMesh.position.set(arrowOriginX, arrowCenterY, arrowHeight);
+    arrowGroup.add(tipMesh);
 
     this.vehicleDirectionArrowGroup = arrowGroup;
     this.viewer.scene.add(arrowGroup);

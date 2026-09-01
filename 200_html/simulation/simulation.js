@@ -7804,33 +7804,16 @@ class RapierDriveSimulation {
     const halfX = Math.max(Number(this.vehicleHalfExtents?.x) || 0.3, 0.2);
     const halfZ = Math.max(Number(this.vehicleHalfExtents?.z) || 0.2, 0.1);
     const arrowCenterX = Number(this.vehicleColliderLocalCenter.x) || 0;
-    // halfX is the *physics collider's* half-extent, which ensureRapierInitialized()
-    // deliberately shrinks below the real visual chassis size by chassisMarginX (0.04).
-    // A "+0.04" here looks like clearance past the body but exactly cancels that shrink,
-    // netting to ~zero real clearance past the actual (unshrunk) visual surface - the
-    // shaft base then sits right at/inside the body mesh, causing the z-fighting/torn
-    // silhouette seen from oblique front angles (same root cause as the yaw-pie
-    // "starburst gaps" bug - see simulation-yaw-pie-depth-fighting memory). Use enough
-    // margin to cancel chassisMarginX *and* add real standoff beyond the visual surface.
-    const arrowOriginX = arrowCenterX + halfX + 0.07;
-    // Mirrors arrowCenterX above: the collider's local Y center is ~0 for a symmetric
-    // chassis, but hardcoding 0 here silently assumes every vehicle model is perfectly
-    // left/right-symmetric about local Y=0. Deriving it the same way X is keeps the
-    // arrow actually centered on the real chassis for any model, instead of only ones
-    // that happen to match that assumption - an off-center arrow sits closer to one
-    // side of the body than the other, making it get clipped/occluded by that side
-    // from angles where a perfectly centered arrow would still clear it.
-    const arrowCenterY = Number(this.vehicleColliderLocalCenter.y) || 0;
+    const arrowOriginX = arrowCenterX + halfX + 0.04;
     const arrowHeight =
       (Number(this.vehicleColliderLocalCenter.z) || 0) + halfZ * 0.75;
+    const arrowShaftRadius = 0.012;
+    const arrowHeadBaseRadius = 0.024;
     const arrowShaftLength = Math.max(halfX * 0.35, 0.105);
     const arrowHeadLength = Math.min(
       Math.max(arrowShaftLength * 0.45, 0.05),
       0.08,
     );
-    // Thin relative to its length so the shaft reads as a slender rod rather than a
-    // stubby cylinder - a pencil is long and thin, not fat.
-    const pencilRadius = 0.012;
     const arrowMaterial = new THREE.ShaderMaterial({
       fog: false,
       toneMapped: false,
@@ -7842,91 +7825,44 @@ class RapierDriveSimulation {
       // read as the arrow going translucent instead of fixing anything, so it's been
       // dropped - the front-angle disappearing case, if it recurs, needs a different fix
       // (e.g. moving the arrow further out, or accepting foreshortening from head-on).
-      // polygonOffset nudges the arrow toward the camera in depth-buffer terms as a
-      // grazing-angle safety net on top of the geometric clearance above - same fix as
-      // the roof yaw-pie indicator's starburst-gap bug (see
-      // simulation-yaw-pie-depth-fighting memory): geometric clearance alone still left
-      // torn/partial fragments at some oblique angles.
-      polygonOffset: true,
-      polygonOffsetFactor: -4,
-      polygonOffsetUnits: -4,
       vertexShader: `
-        varying vec3 vLocalNormal;
         void main() {
-          // Pass the geometry's own (object-space, pre-transform) normal through so the
-          // fragment shader can tell a flat cap face from an extruded side-wall face -
-          // see the fragment shader comment for why that distinction matters.
-          vLocalNormal = normal;
           gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
         }
       `,
       fragmentShader: `
-        varying vec3 vLocalNormal;
         void main() {
-          // The pencil's wall normals (see the geometry comment below) sweep all
-          // the way around its own forward axis, so their local Z component traces
-          // a smooth -1..1 cycle as you go around the barrel - brightest at the very
-          // top and bottom of the rod, darkest at the left/right sides. Shading by
-          // that gives the classic "lit tube" look a round/faceted shaft needs to
-          // read as solid instead of a flat-colored silhouette, without depending on
-          // scene lighting or camera angle - it's a fixed property of the
-          // vehicle-relative geometry, so the arrow stays a consistent, always-
-          // visible HUD-style color regardless of time of day or view direction.
-          float topFacingAmount = abs(vLocalNormal.z);
-          vec3 brightColor = vec3(0.0, 0.55, 1.0);
-          vec3 darkColor = vec3(0.0, 0.28, 0.6);
-          gl_FragColor = vec4(mix(darkColor, brightColor, topFacingAmount), 1.0);
+          gl_FragColor = vec4(0.0, 0.55, 1.0, 1.0);
         }
       `,
     });
     const arrowGroup = new THREE.Group();
     arrowGroup.name = "simulation-vehicle-direction-arrows";
 
-    // Pencil shape: a slender hexagonal shaft tapering to a sharp point, like a
-    // sharpened pencil laid pointing in the direction of travel. Earlier shapes
-    // tried here all failed from some viewing angle because they were flat (zero
-    // thickness in at least one direction): a single flat 2D arrow panel goes
-    // edge-on/invisible from any direction in its own plane, and even crossing two
-    // flat panels 90 degrees apart doesn't help because both still share the
-    // forward axis, so a view close to that axis (this app's default "front view
-    // auto-fit" camera included) makes both edge-on at once - confirmed live
-    // in-browser, see simulation-direction-arrow-flat-panel-degeneracy memory. A
-    // pencil has no flat direction to hide in: it's a solid of near-revolution
-    // around its own forward axis (hexagonal, not perfectly round, but close
-    // enough), so every viewing direction sees a real cross-section - the worst
-    // case, looking straight down the shaft, just shows its small hexagonal
-    // profile, the same way looking at the tip of a real pencil does.
-    const pencilRadialSegments = 6; // hexagonal barrel - reads as a pencil, not a round rod
-    const shaftGeometry = new THREE.CylinderGeometry(
-      pencilRadius,
-      pencilRadius,
-      arrowShaftLength,
-      pencilRadialSegments,
+    const shaft = new THREE.Mesh(
+      new THREE.CylinderGeometry(
+        arrowShaftRadius,
+        arrowShaftRadius,
+        arrowShaftLength,
+        16,
+      ),
+      arrowMaterial,
     );
-    // CylinderGeometry/ConeGeometry are built with their axis along local Y by
-    // default; rotate onto local X (forward) to match this group's forward/
-    // left-right/up convention (X forward, Y left/right, Z up, taken directly from
-    // carFrame's orientation - see syncVehicleDirectionArrows()).
-    shaftGeometry.rotateZ(-Math.PI / 2);
-    // Shift so the shaft runs from the pencil's blunt end (local X=0) to where the
-    // point starts (X=arrowShaftLength), instead of being centered on X=0.
-    shaftGeometry.translate(arrowShaftLength / 2, 0, 0);
+    shaft.position.set(arrowOriginX + arrowShaftLength * 0.5, 0, arrowHeight);
+    shaft.rotation.z = -Math.PI / 2;
+    arrowGroup.add(shaft);
 
-    const tipGeometry = new THREE.ConeGeometry(
-      pencilRadius,
-      arrowHeadLength,
-      pencilRadialSegments,
+    const arrowHead = new THREE.Mesh(
+      new THREE.ConeGeometry(arrowHeadBaseRadius, arrowHeadLength, 16),
+      arrowMaterial,
     );
-    tipGeometry.rotateZ(-Math.PI / 2);
-    tipGeometry.translate(arrowShaftLength + arrowHeadLength / 2, 0, 0);
-
-    const shaftMesh = new THREE.Mesh(shaftGeometry, arrowMaterial);
-    shaftMesh.position.set(arrowOriginX, arrowCenterY, arrowHeight);
-    arrowGroup.add(shaftMesh);
-
-    const tipMesh = new THREE.Mesh(tipGeometry, arrowMaterial);
-    tipMesh.position.set(arrowOriginX, arrowCenterY, arrowHeight);
-    arrowGroup.add(tipMesh);
+    arrowHead.position.set(
+      arrowOriginX + arrowShaftLength + arrowHeadLength * 0.5,
+      0,
+      arrowHeight,
+    );
+    arrowHead.rotation.z = -Math.PI / 2;
+    arrowGroup.add(arrowHead);
 
     this.vehicleDirectionArrowGroup = arrowGroup;
     this.viewer.scene.add(arrowGroup);

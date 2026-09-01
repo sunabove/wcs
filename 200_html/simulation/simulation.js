@@ -7804,36 +7804,25 @@ class RapierDriveSimulation {
     const halfX = Math.max(Number(this.vehicleHalfExtents?.x) || 0.3, 0.2);
     const halfZ = Math.max(Number(this.vehicleHalfExtents?.z) || 0.2, 0.1);
     const arrowCenterX = Number(this.vehicleColliderLocalCenter.x) || 0;
-    // halfX is the *physics collider's* half-extent, which ensureRapierInitialized()
-    // deliberately shrinks below the real visual chassis size by chassisMarginX (0.04).
-    // A "+0.04" here looks like clearance past the body but exactly cancels that shrink,
-    // netting to ~zero real clearance past the actual (unshrunk) visual surface - the
-    // shaft's back cap then sits right at/inside the body mesh, so a small yaw (Z
-    // rotation) is enough to swing it into z-fighting/occlusion against the body and
-    // make the back of the arrow disappear - confirmed live: reported by the user as
-    // "회전하면 화살표 뒷부분이 사라집니다". Use enough margin to cancel chassisMarginX
-    // *and* add real standoff beyond the visual surface.
-    // The "frame_cover" link (the shroud around the wheel-arm mounts) has a real
-    // top around Z=0.44, well above where the arrow sits at halfZ*0.75. Pushing the
-    // arrow further forward (larger X, not higher) was tried next to dodge that
-    // obstacle via distance instead of height - it reduced but never eliminated the
-    // occlusion (still 43/420 tested camera poses occluded even at +0.18 extra
-    // standoff, checked with a much wider raycast sweep across the whole shaft+cone,
-    // not just the rear cap), *and* it visibly separated the arrow from the body
-    // ("차체에서 너무 멀리 떨어져 붕 떠 보임"). So this model's real geometry doesn't
-    // leave a distance-only escape from frame_cover: a modest height increase is the
-    // part of the fix that actually works. The exact minimum was found empirically -
-    // a live raycast sweep (candidate height -> occlusion count against 420 camera
-    // poses spanning 0.3-1.2m distance, 5-80deg elevation, +-90deg azimuth, testing
-    // points along the whole shaft and cone) showed occlusion dropping to exactly
-    // zero at +0.085m and staying there; +0.09 here keeps a hair of margin past that
-    // measured minimum. This is a smaller rise than the earlier +0.12 the user
-    // rejected as "too high" ("화살표가 너무 올라갔습니다") while actually being more
-    // thoroughly verified not to leave any occluded angle. X is back to the original
-    // +0.07 (close to the body, not the +0.25 that looked disconnected).
-    const arrowOriginX = arrowCenterX + halfX + 0.07;
+    // Deliberately the exact original placement (+0.04 / halfZ*0.75, unchanged since
+    // before 2026-09-01). Several rounds of trying to fix real, confirmed occlusion
+    // bugs at this position - a yaw rotation z-fighting the body ("회전하면 화살표
+    // 뒷부분이 사라집니다"), and separately the "frame_cover" link's real top (~Z=0.44)
+    // occluding the arrow from elevated angles - all changed X and/or Z enough to fix
+    // the occlusion (verified live via raycast sweeps against the actual scene
+    // geometry each time), but every one of them was rejected on sight for changing
+    // the position: too high, too far from the body, and finally just "오늘
+    // 수정되기 전의 위치가 좋습니다" (the position from before today's edits is
+    // better) regardless of the smaller-and-smaller compromises tried. So this is
+    // back to the untouched original on repeated, explicit instruction - the
+    // occlusion bugs above are real and still present at their trigger angles, kept
+    // as a known tradeoff rather than fixed by moving the arrow. If they need
+    // fixing again, do it without touching arrowOriginX/arrowHeight (e.g. a
+    // rendering-based fix), since position changes here have been consistently
+    // rejected no matter how small.
+    const arrowOriginX = arrowCenterX + halfX + 0.04;
     const arrowHeight =
-      (Number(this.vehicleColliderLocalCenter.z) || 0) + halfZ * 0.75 + 0.09;
+      (Number(this.vehicleColliderLocalCenter.z) || 0) + halfZ * 0.75;
     const arrowShaftRadius = 0.012;
     const arrowHeadBaseRadius = 0.024;
     const arrowShaftLength = Math.max(halfX * 0.35, 0.105);

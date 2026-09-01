@@ -907,12 +907,28 @@
           return normalizedPath;
         };
 
+  // Read from #vehicle-urdf-viewer's obstaclePublishIntervalSec HTML attribute
+  // (alongside its other show*/urdf config attributes) rather than hardcoding it,
+  // so it's configurable per-page without touching this script - falls back to
+  // 1 second if missing/invalid.
+  function readObstaclePublishIntervalSecAttr() {
+    const raw = $viewer.attr("obstaclePublishIntervalSec");
+    const parsed = parseFloat(raw);
+    return Number.isFinite(parsed) && parsed >= 0 ? parsed : 1.0;
+  }
+
   const DEFAULT_ROAD_DETECT_OPTIONS = Object.freeze({
     detect_type: "road_type",
     remove_noisy_masks: true,
     include_pothole: true,
     pothole_conf: 0.45,
     mqtt_publish: true,
+    // Server holds off publishing "obstacle cleared" (vehicle/surface/obstacle -> 0)
+    // until the obstacle has been continuously absent for this many seconds, so a
+    // single missed-detection frame doesn't flip the topic back and forth - see
+    // RoadDetector._publish_obstacle_state_if_needed. A newly-appearing/changed
+    // obstacle still publishes immediately; this only debounces the clearing edge.
+    obstacle_publish_interval_sec: readObstaclePublishIntervalSecAttr(),
   });
 
   function buildRoadDetectQueryOptions(extraOptions) {

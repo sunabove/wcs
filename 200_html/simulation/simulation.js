@@ -7815,8 +7815,8 @@ class RapierDriveSimulation {
     const arrowOriginX = arrowCenterX + halfX + 0.07;
     const arrowHeight =
       (Number(this.vehicleColliderLocalCenter.z) || 0) + halfZ * 0.75;
-    const arrowShaftRadius = 0.012;
-    const arrowHeadBaseRadius = 0.024;
+    const arrowShaftHalfWidth = 0.02;
+    const arrowHeadHalfWidth = 0.045;
     const arrowShaftLength = Math.max(halfX * 0.35, 0.105);
     const arrowHeadLength = Math.min(
       Math.max(arrowShaftLength * 0.45, 0.05),
@@ -7833,6 +7833,14 @@ class RapierDriveSimulation {
       // read as the arrow going translucent instead of fixing anything, so it's been
       // dropped - the front-angle disappearing case, if it recurs, needs a different fix
       // (e.g. moving the arrow further out, or accepting foreshortening from head-on).
+      // polygonOffset nudges the arrow toward the camera in depth-buffer terms as a
+      // grazing-angle safety net on top of the geometric clearance above - same fix as
+      // the roof yaw-pie indicator's starburst-gap bug (see
+      // simulation-yaw-pie-depth-fighting memory): geometric clearance alone still left
+      // torn/partial fragments at some oblique angles.
+      polygonOffset: true,
+      polygonOffsetFactor: -4,
+      polygonOffsetUnits: -4,
       vertexShader: `
         void main() {
           gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
@@ -7847,30 +7855,34 @@ class RapierDriveSimulation {
     const arrowGroup = new THREE.Group();
     arrowGroup.name = "simulation-vehicle-direction-arrows";
 
-    const shaft = new THREE.Mesh(
-      new THREE.CylinderGeometry(
-        arrowShaftRadius,
-        arrowShaftRadius,
-        arrowShaftLength,
-        16,
-      ),
-      arrowMaterial,
-    );
-    shaft.position.set(arrowOriginX + arrowShaftLength * 0.5, 0, arrowHeight);
-    shaft.rotation.z = -Math.PI / 2;
-    arrowGroup.add(shaft);
+    // A single thin cylinder+cone reads fine from the side, but foreshortens into an
+    // unreadable sliver/dot from head-on or steep top-down angles (a thin 3D rod
+    // pointing straight at or away from the camera has almost no silhouette left) -
+    // that's what showed up as "renders incompletely" / "doesn't show up from the
+    // front". Two flat chevron panels crossed 90 degrees around the shared forward
+    // axis - one lying flat (visible from above/oblique, matching how this app is
+    // mostly viewed), one standing vertical (visible from the front/side) - guarantee
+    // at least one panel presents real area to the camera from any angle, the same
+    // "cross of planes" trick billboarded tree sprites use.
+    const arrowShape = new THREE.Shape();
+    arrowShape.moveTo(0, -arrowShaftHalfWidth);
+    arrowShape.lineTo(arrowShaftLength, -arrowShaftHalfWidth);
+    arrowShape.lineTo(arrowShaftLength, -arrowHeadHalfWidth);
+    arrowShape.lineTo(arrowShaftLength + arrowHeadLength, 0);
+    arrowShape.lineTo(arrowShaftLength, arrowHeadHalfWidth);
+    arrowShape.lineTo(arrowShaftLength, arrowShaftHalfWidth);
+    arrowShape.lineTo(0, arrowShaftHalfWidth);
+    arrowShape.closePath();
+    const arrowFlagGeometry = new THREE.ShapeGeometry(arrowShape);
 
-    const arrowHead = new THREE.Mesh(
-      new THREE.ConeGeometry(arrowHeadBaseRadius, arrowHeadLength, 16),
-      arrowMaterial,
-    );
-    arrowHead.position.set(
-      arrowOriginX + arrowShaftLength + arrowHeadLength * 0.5,
-      0,
-      arrowHeight,
-    );
-    arrowHead.rotation.z = -Math.PI / 2;
-    arrowGroup.add(arrowHead);
+    const horizontalFlag = new THREE.Mesh(arrowFlagGeometry, arrowMaterial);
+    horizontalFlag.position.set(arrowOriginX, 0, arrowHeight);
+    arrowGroup.add(horizontalFlag);
+
+    const verticalFlag = new THREE.Mesh(arrowFlagGeometry, arrowMaterial);
+    verticalFlag.position.set(arrowOriginX, 0, arrowHeight);
+    verticalFlag.rotation.x = Math.PI / 2;
+    arrowGroup.add(verticalFlag);
 
     this.vehicleDirectionArrowGroup = arrowGroup;
     this.viewer.scene.add(arrowGroup);

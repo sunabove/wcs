@@ -9965,7 +9965,6 @@ globalThis.runSimulationControl = function (button, action) {
 
 try {
   rapierDriveSimulation = new RapierDriveSimulation();
-  globalThis.__debugSim = rapierDriveSimulation; // TEMP debug hook, remove before commit
   rapierDriveSimulation.start();
   applySimulationWheelAngleSpeedCommand(
     globalThis.latestSimulationWheelAngleSpeedCommand,

@@ -325,7 +325,7 @@ class URDFViewer {
     );
     this.enableGroundHoleShading = this.parseBooleanAttribute(
       containerElement.getAttribute("enableGroundHoleShading"),
-      true,
+      false,
     );
     // Vertex-color tint multiplied onto the carved pothole walls/floor so the
     // cavity reads as a depression even when the top surface and the CSG-cut

@@ -2524,7 +2524,7 @@ class RoadDetector:
         font_scale = 0.8
         font_thickness = 2
         line_gap = 8
-        right_margin = 10
+        left_margin = 10
         box_padding = 12
 
         (w1, h1), b1 = cv2.getTextSize(header_text, font_face, font_scale, font_thickness)
@@ -2532,7 +2532,7 @@ class RoadDetector:
         header_w = max(w1, w2)
         box_h = h1 + b1 + line_gap + h2 + b2 + 2
 
-        required_width = header_w + box_padding + right_margin
+        required_width = header_w + box_padding + left_margin
         current_height, current_width = detected.shape[:2]
         if current_width < required_width:
             resize_ratio = required_width / float(current_width)
@@ -2543,9 +2543,9 @@ class RoadDetector:
             )
 
         y1_box = 0
-        text_right_x = detected.shape[1] - right_margin
-        x2 = text_right_x + 6
-        x1 = x2 - (header_w + box_padding)
+        text_left_x = left_margin
+        x1 = text_left_x - 6
+        x2 = x1 + (header_w + box_padding)
         y2_box = y1_box + box_h
 
         overlay = detected.copy()
@@ -2555,8 +2555,8 @@ class RoadDetector:
         my = 4
         y1 = y1_box + h1 + my
         y2 = y1 + line_gap + h2 + my
-        cv2.putText(detected, header_text, (text_right_x - w1, y1), font_face, font_scale, (255, 255, 255), font_thickness)
-        cv2.putText(detected, count_text, (text_right_x - w2, y2), font_face, font_scale, (255, 255, 255), font_thickness)
+        cv2.putText(detected, header_text, (text_left_x, y1), font_face, font_scale, (255, 255, 255), font_thickness)
+        cv2.putText(detected, count_text, (text_left_x, y2), font_face, font_scale, (255, 255, 255), font_thickness)
         return detected
     pass # _render_header
 

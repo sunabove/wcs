@@ -23,6 +23,10 @@ runs/
 
 .scratch_pw/
 
+.*
+
+*.flag
+
 *.mp4
 *.avi
 *.mkv

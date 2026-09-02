@@ -5480,7 +5480,7 @@ class URDFViewer {
 
       holeLink.updateWorldMatrix(true, true);
       holeLink.traverse((node) => {
-        if (!node || !node.isMesh || !node.geometry) {
+        if (!node || !node.isMesh || node.isLineSegments2 || !node.geometry) {
           return;
         }
 
@@ -5504,7 +5504,7 @@ class URDFViewer {
 
       groundLink.updateWorldMatrix(true, true);
       groundLink.traverse((node) => {
-        if (!node || !node.isMesh || !node.geometry) {
+        if (!node || !node.isMesh || node.isLineSegments2 || !node.geometry) {
           return;
         }
 

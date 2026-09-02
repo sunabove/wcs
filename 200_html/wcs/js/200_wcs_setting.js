@@ -512,6 +512,60 @@ $(document).ready(function () {
     $("#vehicle-direction-speed-mps-value").text(`${roundedMps.toFixed(1)} m/s`);
   }
 
+  // Maps a click's clientX against the tick strip's own bounds (inset to match the
+  // slider track - see the HTML) to a slider value, snapped to its step. Same approach
+  // as simulation.js's getSliderTickValueAt()/installSliderTickInteractions().
+  function getSliderTickValueAt(sliderElement, tickElement, clientX) {
+    const tickBounds = tickElement.getBoundingClientRect();
+    const minValue = Number.parseFloat(sliderElement.min);
+    const maxValue = Number.parseFloat(sliderElement.max);
+    const stepValue = Number.parseFloat(sliderElement.step) || 1;
+    if (
+      tickBounds.width <= 0 ||
+      !Number.isFinite(minValue) ||
+      !Number.isFinite(maxValue) ||
+      maxValue <= minValue
+    ) {
+      return null;
+    }
+
+    const ratio = Math.min(
+      Math.max((clientX - tickBounds.left) / tickBounds.width, 0),
+      1,
+    );
+    const rawValue = minValue + ratio * (maxValue - minValue);
+    const snappedValue =
+      minValue + Math.round((rawValue - minValue) / stepValue) * stepValue;
+    return Math.min(Math.max(snappedValue, minValue), maxValue);
+  }
+
+  function installVehicleDirectionSpeedTickInteractions() {
+    const tickElement = document.querySelector(
+      ".slider-tick-scale-direction-speed",
+    );
+    const sliderElement = document.getElementById(
+      "vehicle-direction-speed-mps",
+    );
+    if (!tickElement || !sliderElement) {
+      return;
+    }
+
+    tickElement.addEventListener("click", (event) => {
+      const tickValue = getSliderTickValueAt(
+        sliderElement,
+        tickElement,
+        event.clientX,
+      );
+      if (tickValue === null) {
+        return;
+      }
+
+      sliderElement.value = String(tickValue);
+      sliderElement.dispatchEvent(new Event("input", { bubbles: true }));
+      sliderElement.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+  }
+
   function updateVehicleRollAngleUi(rollAngleDeg, shouldPublish = true) {
     const numericRoll = Number.parseInt(rollAngleDeg, 10);
     const normalizedRoll = Number.isFinite(numericRoll)
@@ -2299,6 +2353,7 @@ $(document).ready(function () {
     updateVehicleDirectionSpeedUi($(this).val());
   });
 
+  installVehicleDirectionSpeedTickInteractions();
   updateVehicleDirectionSpeedUi(DEFAULT_VEHICLE_DIRECTION_SPEED_MPS);
 
   $wcsSampleVideoPane.on("click", ".sample-video-item", function () {

@@ -86,6 +86,14 @@
     flex-shrink: 0;
 }
 
+.slider-tick-scale-direction-speed {
+    background: repeating-linear-gradient(
+        to right,
+        #6c757d 0 1px,
+        transparent 1px 10%
+    );
+}
+
 .obstacle-sensor-setting-list {
     max-height: 290px;
     overflow-y: auto;

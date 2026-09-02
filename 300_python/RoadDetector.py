@@ -58,11 +58,14 @@ class RoadDetector:
     _surface_state_samples_by_context = {}
     _mqtt_last_obstacle_state_by_context = {}
     _obstacle_state_samples_by_context = {}
-    # Last time (time.time()) any non-zero obstacle state was actually observed for
-    # a context - used to require a minimum clear-interval of continuous absence
-    # before publishing that the obstacle is gone, so a single missed detection
-    # frame doesn't immediately flip the published state back to "none".
-    _last_obstacle_seen_at_by_context = {}
+    # Symmetric debounce bookkeeping: the majority-vote state a context is currently
+    # "settling on" and the moment it started being observed continuously - a new
+    # value (appearing, changing type, or clearing) only gets published once it has
+    # been the majority state for obstacle_publish_interval_sec straight, so a single
+    # noisy frame can't flip the published state either way. See
+    # _publish_obstacle_state_if_needed().
+    _obstacle_candidate_state_by_context = {}
+    _obstacle_candidate_since_by_context = {}
     DEFAULT_OBSTACLE_PUBLISH_INTERVAL_SEC = 1.0
     _mqtt_state_lock = threading.Lock()
     _mqtt_publish_queue = deque()
@@ -447,30 +450,30 @@ class RoadDetector:
             else:
                 majority_state = max(majority_candidates, key=lambda state: last_seen_ts.get(state, 0.0))
 
-            # Track the most recent moment *any* obstacle was actually observed in
-            # this context, independent of the majority window above - this is what
-            # the clear-interval check below measures against, so a single frame
-            # where the obstacle briefly re-appears resets the "gone since" clock
-            # rather than requiring the whole window to be obstacle-free.
-            if obstacle_value != 0:
-                RoadDetector._last_obstacle_seen_at_by_context[context] = now_ts
-
             last_state = RoadDetector._mqtt_last_obstacle_state_by_context.get(context)
-            if last_state == majority_state:
+
+            # Symmetric debounce: majority_state only becomes a publish *candidate* when
+            # it differs from whatever we were previously settling on, and it only
+            # actually gets published once it has been the majority state continuously
+            # for obstacle_publish_interval_sec straight. Applies the same way whether
+            # the obstacle is appearing, changing type, or clearing - a single noisy
+            # frame can't flip the published state in either direction, and detection
+            # itself is never published faster than the configured interval.
+            candidate_state = RoadDetector._obstacle_candidate_state_by_context.get(context)
+            if candidate_state != majority_state:
+                RoadDetector._obstacle_candidate_state_by_context[context] = majority_state
+                RoadDetector._obstacle_candidate_since_by_context[context] = now_ts
+                candidate_since = now_ts
+            else:
+                candidate_since = float(
+                    RoadDetector._obstacle_candidate_since_by_context.get(context, now_ts)
+                )
+
+            if majority_state == last_state:
                 return
 
-            # Publishing "no obstacle" immediately on the first clear-looking frame
-            # made the topic flap on brief misdetections/occlusion. Once an obstacle
-            # has actually been published, require it to have been continuously
-            # absent for obstacle_publish_interval_sec before publishing the clear -
-            # this only gates the falling edge (obstacle -> none); a new/changed
-            # obstacle still publishes immediately like before.
-            if majority_state == 0 and last_state not in (None, 0):
-                last_seen_obstacle_at = float(
-                    RoadDetector._last_obstacle_seen_at_by_context.get(context, 0.0)
-                )
-                if (now_ts - last_seen_obstacle_at) < float(obstacle_publish_interval_sec):
-                    return
+            if (now_ts - candidate_since) < float(obstacle_publish_interval_sec):
+                return
 
         enqueued = self._enqueue_mqtt_topic("vehicle/surface/obstacle", majority_state)
         if enqueued:

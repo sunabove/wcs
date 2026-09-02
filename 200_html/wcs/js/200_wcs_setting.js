@@ -539,6 +539,31 @@ $(document).ready(function () {
     return Math.min(Math.max(snappedValue, minValue), maxValue);
   }
 
+  let vehicleDirectionSpeedTickTooltipElement = null;
+
+  function ensureVehicleDirectionSpeedTickTooltip() {
+    if (vehicleDirectionSpeedTickTooltipElement) {
+      return vehicleDirectionSpeedTickTooltipElement;
+    }
+
+    const tooltip = document.createElement("div");
+    tooltip.id = "vehicle-direction-speed-tick-tooltip";
+    tooltip.className = "position-fixed badge text-bg-dark shadow-sm";
+    tooltip.style.zIndex = "1080";
+    tooltip.style.pointerEvents = "none";
+    tooltip.style.transform = "translate(-50%, -130%)";
+    tooltip.style.display = "none";
+    document.body.appendChild(tooltip);
+    vehicleDirectionSpeedTickTooltipElement = tooltip;
+    return tooltip;
+  }
+
+  function hideVehicleDirectionSpeedTickTooltip() {
+    if (vehicleDirectionSpeedTickTooltipElement) {
+      vehicleDirectionSpeedTickTooltipElement.style.display = "none";
+    }
+  }
+
   function installVehicleDirectionSpeedTickInteractions() {
     const tickElement = document.querySelector(
       ".slider-tick-scale-direction-speed",
@@ -563,6 +588,31 @@ $(document).ready(function () {
       sliderElement.value = String(tickValue);
       sliderElement.dispatchEvent(new Event("input", { bubbles: true }));
       sliderElement.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+
+    tickElement.addEventListener("mousemove", (event) => {
+      const tickValue = getSliderTickValueAt(
+        sliderElement,
+        tickElement,
+        event.clientX,
+      );
+      if (tickValue === null) {
+        return;
+      }
+
+      const tooltip = ensureVehicleDirectionSpeedTickTooltip();
+      tooltip.textContent = `${tickValue.toFixed(1)} m/s`;
+      tooltip.style.left = `${event.clientX}px`;
+      tooltip.style.top = `${tickElement.getBoundingClientRect().top}px`;
+      tooltip.style.display = "block";
+    });
+
+    tickElement.addEventListener("mouseleave", () =>
+      hideVehicleDirectionSpeedTickTooltip(),
+    );
+
+    window.addEventListener("scroll", () => hideVehicleDirectionSpeedTickTooltip(), {
+      passive: true,
     });
   }
 

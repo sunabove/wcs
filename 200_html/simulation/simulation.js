@@ -54,6 +54,13 @@ const COBOT_SYSTEM_SIGN_TEXTURE_HEIGHT_PX = 105;
 const COBOT_SYSTEM_SIGN_TEXTURE_BORDER_MARGIN_PX = 16;
 // Half-width of the drivable ground built around the authored plate.
 const GROUND_EXTENSION_HALF_SIZE_METERS = 100;
+// The ground/physics extension is a fixed-size patch centered on the authored plate
+// (not something that grows/follows the vehicle) - see checkGroundExtensionBoundary().
+// Once the vehicle gets within this many meters of that patch's edge, driving further
+// would visibly and physically run out of ground, so the drive is reset back to its
+// start pose (and the currently active dynamic obstacle, if any, is re-placed relative
+// to that fresh start) before that ever happens.
+const GROUND_EXTENSION_RESET_MARGIN_METERS = 10;
 // Fog range - see addGroundSurfaceGrid() for why: the ground grid's lines converge
 // toward the horizon over that 100m extension, and without fog to fade them out first,
 // the perspective convergence stacks many semi-transparent lines into the same few
@@ -417,6 +424,9 @@ class RapierDriveSimulation {
     this.dynamicPotholeRegion = null;
     this.isDynamicObstacleRemovalRequested = false;
     this.isRemovingPassedDynamicObstacles = false;
+    // Guards checkGroundExtensionBoundary()'s async reset (below) against re-entry
+    // while a previous boundary-triggered reset is still in flight.
+    this.isResettingForGroundBoundary = false;
     this.authoredPotholeTemplate = null;
     this.groundVisualSourceByMesh = new Map();
     this.groundVisualMaterialSourceByMesh = new Map();
@@ -9369,6 +9379,7 @@ class RapierDriveSimulation {
 
     this.constrainCenterTurnPivot();
     this.syncCarFrameVisualPose();
+    this.checkGroundExtensionBoundary();
   }
 
   async runLoop() {
@@ -9754,6 +9765,56 @@ class RapierDriveSimulation {
 
     this.resetPhysicalState();
     this.syncResetDriveButtonState();
+  }
+
+  // The ground/physics extension is a fixed-size patch centered on the authored plate
+  // (GROUND_EXTENSION_HALF_SIZE_METERS) - it doesn't grow or follow the vehicle, so a
+  // long enough straight drive eventually runs past its edge, visibly (no ground mesh)
+  // and physically (no ground collider/hole regions there). Called every
+  // stepSimulation() while driving: once the vehicle gets within
+  // GROUND_EXTENSION_RESET_MARGIN_METERS of that edge, reset the drive back to its
+  // start pose - re-placing whatever dynamic obstacle is currently active relative to
+  // that fresh start, the same way applyDynamicSurfaceObstacle() originally placed it
+  // relative to the vehicle - rather than let it drive off the world.
+  checkGroundExtensionBoundary() {
+    if (
+      this.isResettingForGroundBoundary ||
+      !this.body ||
+      !this.authoredGroundRect
+    ) {
+      return;
+    }
+
+    const centerX =
+      (this.authoredGroundRect.minX + this.authoredGroundRect.maxX) * 0.5;
+    const centerY =
+      (this.authoredGroundRect.minY + this.authoredGroundRect.maxY) * 0.5;
+    const limit =
+      GROUND_EXTENSION_HALF_SIZE_METERS - GROUND_EXTENSION_RESET_MARGIN_METERS;
+    const bodyPosition = this.body.translation();
+    const offsetX = Math.abs(bodyPosition.x - centerX);
+    const offsetY = Math.abs(bodyPosition.y - centerY);
+    if (offsetX < limit && offsetY < limit) {
+      return;
+    }
+
+    this.isResettingForGroundBoundary = true;
+    const obstacleToRestore = lastAppliedSimulationSurfaceObstacle;
+    this.reset()
+      .then(() =>
+        obstacleToRestore
+          ? this.applyDynamicSurfaceObstacle(obstacleToRestore)
+          : null,
+      )
+      .catch((error) => {
+        console.error(
+          "[URDF][Simulation] ground-boundary reset failed:",
+          error,
+        );
+      })
+      .finally(() => {
+        this.isResettingForGroundBoundary = false;
+      });
   }
 }
 

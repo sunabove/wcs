@@ -33,6 +33,8 @@ $(document).ready(function () {
   const VIDEO_INPUT_TAB_STORAGE_KEY = "wcs.setting.video_input_tab.v1";
   const CURRENT_VIDEO_SELECTION_STORAGE_KEY =
     "wcs.vehicle.current_video_file_name.v1";
+  const VEHICLE_DIRECTION_SPEED_STORAGE_KEY =
+    "wcs.setting.vehicle_direction_speed_mps.v1";
   const OBSTACLE_SENSOR_DEFINITIONS = [
     { id: "ToF", count: 4, target: "거리,장애물", enabled: true },
     { id: "IMU", count: 5, target: "가속도,각속도", enabled: true },
@@ -492,10 +494,47 @@ $(document).ready(function () {
     }
   }
 
+  function saveVehicleDirectionSpeedToStorage(speedMps) {
+    if (typeof window.localStorage === "undefined") {
+      return;
+    }
+
+    try {
+      window.localStorage.setItem(
+        VEHICLE_DIRECTION_SPEED_STORAGE_KEY,
+        String(speedMps),
+      );
+    } catch (error) {
+      // Ignore storage write errors.
+    }
+  }
+
+  function restoreVehicleDirectionSpeedFromStorage() {
+    if (typeof window.localStorage === "undefined") {
+      return null;
+    }
+
+    try {
+      const raw = window.localStorage.getItem(
+        VEHICLE_DIRECTION_SPEED_STORAGE_KEY,
+      );
+      if (raw == null) {
+        return null;
+      }
+
+      const numericMps = Number.parseFloat(raw);
+      return Number.isFinite(numericMps) ? numericMps : null;
+    } catch (error) {
+      return null;
+    }
+  }
+
   // Keeps the range slider, number input, and badge in sync and updates the value used by
   // sendVehicleDirectionCommand() - purely local UI state, nothing published here (the
-  // speed is only sent alongside the next direction command).
-  function updateVehicleDirectionSpeedUi(speedMps) {
+  // speed is only sent alongside the next direction command). Persisted to localStorage
+  // (shouldPersist=false only for the initial restore-from-storage call, so restoring
+  // doesn't immediately rewrite the same value back) so it survives a page reload.
+  function updateVehicleDirectionSpeedUi(speedMps, shouldPersist = true) {
     const numericMps = Number.parseFloat(speedMps);
     const sliderMin = Number.parseFloat($("#vehicle-direction-speed-mps").attr("min"));
     const sliderMax = Number.parseFloat($("#vehicle-direction-speed-mps").attr("max"));
@@ -510,6 +549,10 @@ $(document).ready(function () {
     $("#vehicle-direction-speed-mps").val(roundedMps);
     $("#vehicle-direction-speed-mps-input").val(roundedMps);
     $("#vehicle-direction-speed-mps-value").text(`${roundedMps.toFixed(1)} m/s`);
+
+    if (shouldPersist) {
+      saveVehicleDirectionSpeedToStorage(roundedMps);
+    }
   }
 
   // Maps a click's clientX against the tick strip's own bounds (inset to match the
@@ -2404,7 +2447,11 @@ $(document).ready(function () {
   });
 
   installVehicleDirectionSpeedTickInteractions();
-  updateVehicleDirectionSpeedUi(DEFAULT_VEHICLE_DIRECTION_SPEED_MPS);
+  const storedVehicleDirectionSpeedMps = restoreVehicleDirectionSpeedFromStorage();
+  updateVehicleDirectionSpeedUi(
+    storedVehicleDirectionSpeedMps ?? DEFAULT_VEHICLE_DIRECTION_SPEED_MPS,
+    false,
+  );
 
   $wcsSampleVideoPane.on("click", ".sample-video-item", function () {
     $wcsSampleVideoPane

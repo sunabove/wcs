@@ -2606,21 +2606,30 @@ class URDFViewer {
     this.controls.addEventListener("end", () => {
       this.isDragging = false;
 
-      // setOverlayZoomOutRatio()/setOverlayVerticalDragPixels() (used to zoom/pan the
-      // camera out of the way of the video overlay) compute each new adjustment as a
-      // relative delta from their own remembered overlayZoomOutRatio/overlayDragPanPixels
-      // - they assume the camera hasn't moved except through themselves since the last
-      // call. A real user drag/wheel interaction (enableZoom/enablePan are both on)
-      // breaks that assumption: the next overlay open/close then divides out or reapplies
-      // an offset against a base that no longer means what it used to, and repeating
-      // that (drag the view around while the overlay is open, close it, reopen it, ...)
-      // compounds into the camera's distance run away - the reported "geographic area
-      // shrinks/grows a lot" bug. Absorb the user's end state as the new baseline so the
-      // next overlay adjustment starts fresh instead of compounding on stale bookkeeping.
+      // setOverlayZoomOutRatio() recovers a "base" pre-overlay distance every call via
+      // currentDistance / (1 + overlayZoomOutRatio) - that division assumes the camera's
+      // distance from target hasn't changed except through this same method since the
+      // last call. A real user drag/wheel interaction (enableZoom/enablePan are both on)
+      // breaks that assumption: the next overlay open/close then divides out an offset
+      // against a base that no longer means what it used to, and repeating that (drag/
+      // zoom the view while the overlay is open, close it, reopen it, ...) compounds into
+      // the camera's distance running away - the reported "geographic area shrinks/grows
+      // a lot" bug. Rebase the ratio to the user's end state so the next overlay
+      // adjustment recovers the correct base distance instead of compounding on stale
+      // bookkeeping.
       this.overlayZoomOutRatio = 0;
-      this.overlayDragPanPixels = 0;
       this.goalTarget.copy(this.controls.target);
       this.goalTargetVerticalOffset = 0;
+      // overlayDragPanPixels, in contrast, is a plain incremental counter - no base to
+      // recover, so a user drag/zoom doesn't invalidate it. Zeroing it here (as this once
+      // did, mirroring the ratio reset above) made setOverlayVerticalDragPixels() think no
+      // overlay pan had been applied yet: the next recurring call from the video/image
+      // overlay (it reapplies on every incoming frame, not just open/close - see
+      // applyVehicleViewerDragByOverlayHeight() in 100_vehicle_status_overlay.js) then
+      // recomputed a full-size delta instead of ~0 and panned again on top of the
+      // existing offset - one extra stack per wheel-zoom while the overlay was open,
+      // reported as "the vehicle keeps sliding toward the bottom of the screen while
+      // zooming with the video overlay open". Leave it alone.
 
       // Land on an accurate light/shadow position now that the camera has actually
       // stopped, since the "change" handler below throttles this during the drag itself.

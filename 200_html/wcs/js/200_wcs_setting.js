@@ -34,7 +34,7 @@ $(document).ready(function () {
   const CURRENT_VIDEO_SELECTION_STORAGE_KEY =
     "wcs.vehicle.current_video_file_name.v1";
   const VEHICLE_DIRECTION_SPEED_STORAGE_KEY =
-    "wcs.setting.vehicle_direction_speed_mps.v1";
+    "wcs.setting.vehicle_direction_speed_rpm.v1";
   const OBSTACLE_SENSOR_DEFINITIONS = [
     { id: "ToF", count: 4, target: "거리,장애물", enabled: true },
     { id: "IMU", count: 5, target: "가속도,각속도", enabled: true },
@@ -62,13 +62,14 @@ $(document).ready(function () {
   let pendingDirectionCommandValue = null;
   let pendingDirectionCommandTimer = null;
   let lastVehicleCurrSpeedMsSent = null;
-  const DEFAULT_VEHICLE_DIRECTION_SPEED_MPS = 1.4;
-  // Manually-set speed (m/s) used when publishing 전진/후진/좌회전/우회전 commands from
-  // this page - see updateVehicleDirectionSpeedUi()/sendVehicleDirectionCommand(). Unlike
-  // window.latestVehicleLinearSpeedMs (the vehicle's *reported* live speed, fed by MQTT
-  // topic vehicle/linear/speed), this is a local operator-set test speed, mirroring
-  // simulation.html's drive-speed-mps slider.
-  let vehicleDirectionCommandSpeedMps = DEFAULT_VEHICLE_DIRECTION_SPEED_MPS;
+  const DEFAULT_VEHICLE_DIRECTION_SPEED_RPM = 165.4;
+  // Manually-set wheel speed (rpm) used when publishing 전진/후진/좌회전/우회전 commands
+  // from this page - see updateVehicleDirectionSpeedUi()/sendVehicleDirectionCommand().
+  // This is a local operator-set test speed (like simulation.html's per-wheel rpm
+  // sliders), independent of window.latestVehicleLinearSpeedMs (the vehicle's
+  // *reported* live speed, fed by MQTT topic vehicle/linear/speed - a km/h-denominated
+  // ground speed that isn't directly comparable to a wheel's raw rpm without a radius).
+  let vehicleDirectionCommandSpeedRpm = DEFAULT_VEHICLE_DIRECTION_SPEED_RPM;
   let runInfoSimulationTimer = null;
   let runInfoSimulationBlinkTimer = null;
   let videoPublishToastCounter = 0;
@@ -494,7 +495,7 @@ $(document).ready(function () {
     }
   }
 
-  function saveVehicleDirectionSpeedToStorage(speedMps) {
+  function saveVehicleDirectionSpeedToStorage(speedRpm) {
     if (typeof window.localStorage === "undefined") {
       return;
     }
@@ -502,7 +503,7 @@ $(document).ready(function () {
     try {
       window.localStorage.setItem(
         VEHICLE_DIRECTION_SPEED_STORAGE_KEY,
-        String(speedMps),
+        String(speedRpm),
       );
     } catch (error) {
       // Ignore storage write errors.
@@ -522,8 +523,8 @@ $(document).ready(function () {
         return null;
       }
 
-      const numericMps = Number.parseFloat(raw);
-      return Number.isFinite(numericMps) ? numericMps : null;
+      const numericRpm = Number.parseFloat(raw);
+      return Number.isFinite(numericRpm) ? numericRpm : null;
     } catch (error) {
       return null;
     }
@@ -534,24 +535,24 @@ $(document).ready(function () {
   // speed is only sent alongside the next direction command). Persisted to localStorage
   // (shouldPersist=false only for the initial restore-from-storage call, so restoring
   // doesn't immediately rewrite the same value back) so it survives a page reload.
-  function updateVehicleDirectionSpeedUi(speedMps, shouldPersist = true) {
-    const numericMps = Number.parseFloat(speedMps);
-    const sliderMin = Number.parseFloat($("#vehicle-direction-speed-mps").attr("min"));
-    const sliderMax = Number.parseFloat($("#vehicle-direction-speed-mps").attr("max"));
-    const effectiveMin = Number.isFinite(sliderMin) ? sliderMin : 0.1;
-    const effectiveMax = Number.isFinite(sliderMax) ? sliderMax : 27.8;
-    const normalizedMps = Number.isFinite(numericMps)
-      ? Math.max(effectiveMin, Math.min(effectiveMax, numericMps))
-      : DEFAULT_VEHICLE_DIRECTION_SPEED_MPS;
-    const roundedMps = Number(normalizedMps.toFixed(1));
+  function updateVehicleDirectionSpeedUi(speedRpm, shouldPersist = true) {
+    const numericRpm = Number.parseFloat(speedRpm);
+    const sliderMin = Number.parseFloat($("#vehicle-direction-speed-rpm").attr("min"));
+    const sliderMax = Number.parseFloat($("#vehicle-direction-speed-rpm").attr("max"));
+    const effectiveMin = Number.isFinite(sliderMin) ? sliderMin : 11.8;
+    const effectiveMax = Number.isFinite(sliderMax) ? sliderMax : 3283.5;
+    const normalizedRpm = Number.isFinite(numericRpm)
+      ? Math.max(effectiveMin, Math.min(effectiveMax, numericRpm))
+      : DEFAULT_VEHICLE_DIRECTION_SPEED_RPM;
+    const roundedRpm = Number(normalizedRpm.toFixed(1));
 
-    vehicleDirectionCommandSpeedMps = roundedMps;
-    $("#vehicle-direction-speed-mps").val(roundedMps);
-    $("#vehicle-direction-speed-mps-input").val(roundedMps);
-    $("#vehicle-direction-speed-mps-value").text(`${roundedMps.toFixed(1)} m/s`);
+    vehicleDirectionCommandSpeedRpm = roundedRpm;
+    $("#vehicle-direction-speed-rpm").val(roundedRpm);
+    $("#vehicle-direction-speed-rpm-input").val(roundedRpm);
+    $("#vehicle-direction-speed-rpm-value").text(`${roundedRpm.toFixed(1)} rpm`);
 
     if (shouldPersist) {
-      saveVehicleDirectionSpeedToStorage(roundedMps);
+      saveVehicleDirectionSpeedToStorage(roundedRpm);
     }
   }
 
@@ -612,7 +613,7 @@ $(document).ready(function () {
       ".slider-tick-scale-direction-speed",
     );
     const sliderElement = document.getElementById(
-      "vehicle-direction-speed-mps",
+      "vehicle-direction-speed-rpm",
     );
     if (!tickElement || !sliderElement) {
       return;
@@ -644,7 +645,7 @@ $(document).ready(function () {
       }
 
       const tooltip = ensureVehicleDirectionSpeedTickTooltip();
-      tooltip.textContent = `${tickValue.toFixed(1)} m/s`;
+      tooltip.textContent = `${tickValue.toFixed(1)} rpm`;
       tooltip.style.left = `${event.clientX}px`;
       tooltip.style.top = `${tickElement.getBoundingClientRect().top}px`;
       tooltip.style.display = "block";
@@ -1228,24 +1229,6 @@ $(document).ready(function () {
       .removeClass("text-black");
   }
 
-  function getVehicleWheelRadiusByKey(wheelKey) {
-    const normalizedWheelKey = String(wheelKey || "")
-      .trim()
-      .toLowerCase();
-    const radius = Number(window.wheelRadiusById?.[normalizedWheelKey]);
-    if (!Number.isFinite(radius) || radius <= 0) {
-      return null;
-    }
-
-    return radius;
-  }
-
-  function hasAllVehicleWheelRadii() {
-    return vehicleDirectionWheelKeys.every(
-      (wheelKey) => getVehicleWheelRadiusByKey(wheelKey) !== null,
-    );
-  }
-
   function cancelPendingPublish(topic) {
     if (pendingPublishTimers[topic]) {
       clearTimeout(pendingPublishTimers[topic]);
@@ -1279,63 +1262,61 @@ $(document).ready(function () {
     }, intervalMs);
   }
 
-  function buildVehicleWheelAngleSpeedByCommand(command, speedKmh) {
+  // speedRpm is the wheel's own rotational speed (rpm), not a vehicle ground speed - no
+  // wheel radius is needed to turn it into an angular speed, unlike the old m/s-based
+  // version of this function.
+  function buildVehicleWheelAngleSpeedByCommand(command, speedRpm) {
     const commandNumber = Number(command);
-    const baseSpeedMs = Math.max(0, Number(speedKmh) || 0) / 3.6;
+    const baseAngularSpeedRad =
+      (Math.max(0, Number(speedRpm) || 0) * 2 * Math.PI) / 60;
     const speedScale = vehicleCommandSpeedScale[commandNumber] ?? 1.0;
-    const effectiveSpeedMs = baseSpeedMs * speedScale;
+    const effectiveAngularSpeedRad = baseAngularSpeedRad * speedScale;
     const inPlaceTurn = commandNumber === 3 || commandNumber === 4;
 
     return vehicleDirectionWheelKeys.reduce((accumulator, wheelKey) => {
-      const wheelRadiusM = getVehicleWheelRadiusByKey(wheelKey);
-      if (wheelRadiusM === null) {
-        accumulator[wheelKey] = null;
-        return accumulator;
-      }
-
       const isLeftWheel = wheelKey === "fl" || wheelKey === "rl";
-      let signedSpeedMs = 0;
+      let signedAngularSpeedRad = 0;
 
       switch (commandNumber) {
         case 1:
-          signedSpeedMs = effectiveSpeedMs;
+          signedAngularSpeedRad = effectiveAngularSpeedRad;
           break;
         case 2:
-          signedSpeedMs = -effectiveSpeedMs;
+          signedAngularSpeedRad = -effectiveAngularSpeedRad;
           break;
         case 3:
-          signedSpeedMs = isLeftWheel ? -effectiveSpeedMs : effectiveSpeedMs;
+          signedAngularSpeedRad = isLeftWheel
+            ? -effectiveAngularSpeedRad
+            : effectiveAngularSpeedRad;
           break;
         case 4:
-          signedSpeedMs = isLeftWheel ? effectiveSpeedMs : -effectiveSpeedMs;
+          signedAngularSpeedRad = isLeftWheel
+            ? effectiveAngularSpeedRad
+            : -effectiveAngularSpeedRad;
           break;
         case 0:
         default:
-          signedSpeedMs = 0;
+          signedAngularSpeedRad = 0;
           break;
       }
 
       if (!inPlaceTurn && commandNumber !== 0) {
-        signedSpeedMs =
+        signedAngularSpeedRad =
           commandNumber === 2
-            ? -Math.abs(signedSpeedMs)
-            : Math.abs(signedSpeedMs);
+            ? -Math.abs(signedAngularSpeedRad)
+            : Math.abs(signedAngularSpeedRad);
       }
 
-      accumulator[wheelKey] = Number((signedSpeedMs / wheelRadiusM).toFixed(3));
+      accumulator[wheelKey] = Number(signedAngularSpeedRad.toFixed(3));
       return accumulator;
     }, {});
   }
 
-  function publishVehicleWheelAngleSpeeds(command, speedKmh) {
+  function publishVehicleWheelAngleSpeeds(command, speedRpm) {
     const wheelAngleSpeedByKey = buildVehicleWheelAngleSpeedByCommand(
       command,
-      speedKmh,
+      speedRpm,
     );
-
-    if (!hasAllVehicleWheelRadii()) {
-      return false;
-    }
 
     const payload = vehicleAngleSpeedPayloadWheelKeys
       .map(function (wheelKey) {
@@ -1349,26 +1330,17 @@ $(document).ready(function () {
 
   function sendVehicleDirectionCommand(command) {
     const numericCommand = Number(command);
-    const sliderMaxKmh = Number.parseFloat($("#vehicle-max-speed").val());
-    const effectiveMaxKmh = Number.isFinite(sliderMaxKmh)
-      ? Math.max(0, sliderMaxKmh)
-      : 0;
 
-    // Speed comes from the manual "명령 속도" slider/input above the direction buttons,
-    // not window.latestVehicleLinearSpeedMs (the vehicle's reported live speed) - this
-    // page always publishes at an explicitly operator-chosen speed. Still capped by the
-    // configured 차량 최고 속도 as a safety ceiling.
-    const manualSpeedMps = Math.max(
+    // Speed comes from the manual "명령 속도" slider/input above the direction buttons
+    // (a raw wheel rpm, not window.latestVehicleLinearSpeedMs's km/h ground speed) - this
+    // page always publishes at an explicitly operator-chosen wheel speed. Not clamped by
+    // "차량 최고 속도" (that setting is a km/h ground-speed cap; converting it to an rpm
+    // ceiling would require a wheel radius, which this rpm-based control no longer needs
+    // for anything else).
+    const commandSpeedRpm = Math.max(
       0.1,
-      Number(vehicleDirectionCommandSpeedMps) || DEFAULT_VEHICLE_DIRECTION_SPEED_MPS,
+      Number(vehicleDirectionCommandSpeedRpm) || DEFAULT_VEHICLE_DIRECTION_SPEED_RPM,
     );
-    let commandSpeedKmh = manualSpeedMps * 3.6;
-    if (effectiveMaxKmh > 0) {
-      commandSpeedKmh = Math.min(commandSpeedKmh, effectiveMaxKmh);
-    }
-
-    const speedMs = commandSpeedKmh / 3.6;
-    const roundedSpeedMs = Number(speedMs.toFixed(2));
 
     isDirectionInitSyncWindow = false;
     if (pendingDirectionCommandTimer) {
@@ -1385,8 +1357,7 @@ $(document).ready(function () {
 
     updateVehicleDirectionControlUi(numericCommand);
 
-    publishVehicleWheelAngleSpeeds(numericCommand, commandSpeedKmh);
-    lastVehicleCurrSpeedMsSent = roundedSpeedMs;
+    publishVehicleWheelAngleSpeeds(numericCommand, commandSpeedRpm);
   }
 
   function handleVehicleDirectionUpdate(value) {
@@ -2438,18 +2409,18 @@ $(document).ready(function () {
     updateVehicleMaxSpeedUi($(this).val(), true);
   });
 
-  $("#vehicle-direction-speed-mps").on("input change", function () {
+  $("#vehicle-direction-speed-rpm").on("input change", function () {
     updateVehicleDirectionSpeedUi($(this).val());
   });
 
-  $("#vehicle-direction-speed-mps-input").on("input change", function () {
+  $("#vehicle-direction-speed-rpm-input").on("input change", function () {
     updateVehicleDirectionSpeedUi($(this).val());
   });
 
   installVehicleDirectionSpeedTickInteractions();
-  const storedVehicleDirectionSpeedMps = restoreVehicleDirectionSpeedFromStorage();
+  const storedVehicleDirectionSpeedRpm = restoreVehicleDirectionSpeedFromStorage();
   updateVehicleDirectionSpeedUi(
-    storedVehicleDirectionSpeedMps ?? DEFAULT_VEHICLE_DIRECTION_SPEED_MPS,
+    storedVehicleDirectionSpeedRpm ?? DEFAULT_VEHICLE_DIRECTION_SPEED_RPM,
     false,
   );
 

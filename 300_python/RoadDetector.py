@@ -57,13 +57,13 @@ class RoadDetector:
     _mqtt_last_surface_state_published_at_by_context = {}
     _surface_state_samples_by_context = {}
     _mqtt_last_obstacle_state_by_context = {}
-    _obstacle_state_samples_by_context = {}
-    # Symmetric debounce bookkeeping: the majority-vote state a context is currently
-    # "settling on" and the moment it started being observed continuously - a new
-    # value (appearing, changing type, or clearing) only gets published once it has
-    # been the majority state for obstacle_publish_interval_sec straight, so a single
-    # noisy frame can't flip the published state either way. See
-    # _publish_obstacle_state_if_needed().
+    # Symmetric debounce bookkeeping: the raw per-frame obstacle value a context is
+    # currently "settling on" and the moment it started being observed continuously -
+    # a new value (appearing, changing type, or clearing) only gets published once it
+    # has been the raw detected value on every frame for obstacle_publish_interval_sec
+    # straight, so a single differing frame (a missed detection, a briefly-glimpsed
+    # different obstacle) immediately restarts the countdown instead of being absorbed
+    # by smoothing. See _publish_obstacle_state_if_needed().
     _obstacle_candidate_state_by_context = {}
     _obstacle_candidate_since_by_context = {}
     DEFAULT_OBSTACLE_PUBLISH_INTERVAL_SEC = 1.0
@@ -423,45 +423,22 @@ class RoadDetector:
         context = str(context_key or "global")
         now_ts = time.time()
         with RoadDetector._mqtt_state_lock:
-            samples = RoadDetector._obstacle_state_samples_by_context.get(context)
-            if samples is None:
-                samples = deque()
-                RoadDetector._obstacle_state_samples_by_context[context] = samples
-
-            samples.append((now_ts, obstacle_value))
-
-            cutoff_ts = now_ts - float(self.SURFACE_STATE_MAJORITY_WINDOW_SEC)
-            while samples and samples[0][0] < cutoff_ts:
-                samples.popleft()
-
-            if not samples:
-                return
-
-            counts = {}
-            last_seen_ts = {}
-            for sample_ts, sample_state in samples:
-                counts[sample_state] = counts.get(sample_state, 0) + 1
-                last_seen_ts[sample_state] = sample_ts
-
-            max_count = max(counts.values())
-            majority_candidates = [state for state, count in counts.items() if count == max_count]
-            if len(majority_candidates) == 1:
-                majority_state = majority_candidates[0]
-            else:
-                majority_state = max(majority_candidates, key=lambda state: last_seen_ts.get(state, 0.0))
-
             last_state = RoadDetector._mqtt_last_obstacle_state_by_context.get(context)
 
-            # Symmetric debounce: majority_state only becomes a publish *candidate* when
-            # it differs from whatever we were previously settling on, and it only
-            # actually gets published once it has been the majority state continuously
-            # for obstacle_publish_interval_sec straight. Applies the same way whether
-            # the obstacle is appearing, changing type, or clearing - a single noisy
-            # frame can't flip the published state in either direction, and detection
-            # itself is never published faster than the configured interval.
+            # Symmetric debounce driven directly off the raw per-frame detection (no
+            # majority-vote smoothing): obstacle_value only becomes a publish
+            # *candidate* when it differs from whatever raw value we were previously
+            # tracking, and it only actually gets published once it has been the raw
+            # detected value on every single frame for obstacle_publish_interval_sec
+            # straight. A differing frame - a missed detection, a briefly-glimpsed
+            # different obstacle - immediately restarts the countdown rather than being
+            # outvoted/absorbed, so "새로운 장애물이 감지되면 인터벌이 리셋된다" holds for
+            # appearing/changing-type exactly the same way it already did for clearing.
+            # Applies identically whether the obstacle is appearing, changing type, or
+            # clearing.
             candidate_state = RoadDetector._obstacle_candidate_state_by_context.get(context)
-            if candidate_state != majority_state:
-                RoadDetector._obstacle_candidate_state_by_context[context] = majority_state
+            if candidate_state != obstacle_value:
+                RoadDetector._obstacle_candidate_state_by_context[context] = obstacle_value
                 RoadDetector._obstacle_candidate_since_by_context[context] = now_ts
                 candidate_since = now_ts
             else:
@@ -469,16 +446,16 @@ class RoadDetector:
                     RoadDetector._obstacle_candidate_since_by_context.get(context, now_ts)
                 )
 
-            if majority_state == last_state:
+            if obstacle_value == last_state:
                 return
 
             if (now_ts - candidate_since) < float(obstacle_publish_interval_sec):
                 return
 
-        enqueued = self._enqueue_mqtt_topic("vehicle/surface/obstacle", majority_state)
+        enqueued = self._enqueue_mqtt_topic("vehicle/surface/obstacle", obstacle_value)
         if enqueued:
             with RoadDetector._mqtt_state_lock:
-                RoadDetector._mqtt_last_obstacle_state_by_context[context] = majority_state
+                RoadDetector._mqtt_last_obstacle_state_by_context[context] = obstacle_value
 
     def _get_class_color_map(self):
         color_map = {}

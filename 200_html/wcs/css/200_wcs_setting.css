@@ -81,6 +81,11 @@
     grid-column: auto;
 }
 
+.wcs-direction-speed-input {
+    width: 5.5rem;
+    flex-shrink: 0;
+}
+
 .obstacle-sensor-setting-list {
     max-height: 290px;
     overflow-y: auto;

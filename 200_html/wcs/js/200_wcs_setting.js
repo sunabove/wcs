@@ -60,6 +60,13 @@ $(document).ready(function () {
   let pendingDirectionCommandValue = null;
   let pendingDirectionCommandTimer = null;
   let lastVehicleCurrSpeedMsSent = null;
+  const DEFAULT_VEHICLE_DIRECTION_SPEED_MPS = 1.4;
+  // Manually-set speed (m/s) used when publishing 전진/후진/좌회전/우회전 commands from
+  // this page - see updateVehicleDirectionSpeedUi()/sendVehicleDirectionCommand(). Unlike
+  // window.latestVehicleLinearSpeedMs (the vehicle's *reported* live speed, fed by MQTT
+  // topic vehicle/linear/speed), this is a local operator-set test speed, mirroring
+  // simulation.html's drive-speed-mps slider.
+  let vehicleDirectionCommandSpeedMps = DEFAULT_VEHICLE_DIRECTION_SPEED_MPS;
   let runInfoSimulationTimer = null;
   let runInfoSimulationBlinkTimer = null;
   let videoPublishToastCounter = 0;
@@ -483,6 +490,26 @@ $(document).ready(function () {
       const speedMs = Number((roundedKmh / 3.6).toFixed(2));
       window.WcsMqtt.sendMQTTMessage(maxSpeedTopic, speedMs);
     }
+  }
+
+  // Keeps the range slider, number input, and badge in sync and updates the value used by
+  // sendVehicleDirectionCommand() - purely local UI state, nothing published here (the
+  // speed is only sent alongside the next direction command).
+  function updateVehicleDirectionSpeedUi(speedMps) {
+    const numericMps = Number.parseFloat(speedMps);
+    const sliderMin = Number.parseFloat($("#vehicle-direction-speed-mps").attr("min"));
+    const sliderMax = Number.parseFloat($("#vehicle-direction-speed-mps").attr("max"));
+    const effectiveMin = Number.isFinite(sliderMin) ? sliderMin : 0.1;
+    const effectiveMax = Number.isFinite(sliderMax) ? sliderMax : 27.8;
+    const normalizedMps = Number.isFinite(numericMps)
+      ? Math.max(effectiveMin, Math.min(effectiveMax, numericMps))
+      : DEFAULT_VEHICLE_DIRECTION_SPEED_MPS;
+    const roundedMps = Number(normalizedMps.toFixed(1));
+
+    vehicleDirectionCommandSpeedMps = roundedMps;
+    $("#vehicle-direction-speed-mps").val(roundedMps);
+    $("#vehicle-direction-speed-mps-input").val(roundedMps);
+    $("#vehicle-direction-speed-mps-value").text(`${roundedMps.toFixed(1)} m/s`);
   }
 
   function updateVehicleRollAngleUi(rollAngleDeg, shouldPublish = true) {
@@ -1175,18 +1202,22 @@ $(document).ready(function () {
 
   function sendVehicleDirectionCommand(command) {
     const numericCommand = Number(command);
-    const latestSpeedMs = Number(window.latestVehicleLinearSpeedMs);
     const sliderMaxKmh = Number.parseFloat($("#vehicle-max-speed").val());
     const effectiveMaxKmh = Number.isFinite(sliderMaxKmh)
       ? Math.max(0, sliderMaxKmh)
       : 0;
 
-    let commandSpeedKmh = Number.isFinite(latestSpeedMs)
-      ? Math.max(0, latestSpeedMs * 3.6)
-      : 0;
-
-    if (numericCommand !== 0 && commandSpeedKmh <= 0 && effectiveMaxKmh > 0) {
-      commandSpeedKmh = Number((effectiveMaxKmh * 0.1).toFixed(1));
+    // Speed comes from the manual "명령 속도" slider/input above the direction buttons,
+    // not window.latestVehicleLinearSpeedMs (the vehicle's reported live speed) - this
+    // page always publishes at an explicitly operator-chosen speed. Still capped by the
+    // configured 차량 최고 속도 as a safety ceiling.
+    const manualSpeedMps = Math.max(
+      0.1,
+      Number(vehicleDirectionCommandSpeedMps) || DEFAULT_VEHICLE_DIRECTION_SPEED_MPS,
+    );
+    let commandSpeedKmh = manualSpeedMps * 3.6;
+    if (effectiveMaxKmh > 0) {
+      commandSpeedKmh = Math.min(commandSpeedKmh, effectiveMaxKmh);
     }
 
     const speedMs = commandSpeedKmh / 3.6;
@@ -2259,6 +2290,16 @@ $(document).ready(function () {
   $("#vehicle-max-speed").on("change", function () {
     updateVehicleMaxSpeedUi($(this).val(), true);
   });
+
+  $("#vehicle-direction-speed-mps").on("input change", function () {
+    updateVehicleDirectionSpeedUi($(this).val());
+  });
+
+  $("#vehicle-direction-speed-mps-input").on("input change", function () {
+    updateVehicleDirectionSpeedUi($(this).val());
+  });
+
+  updateVehicleDirectionSpeedUi(DEFAULT_VEHICLE_DIRECTION_SPEED_MPS);
 
   $wcsSampleVideoPane.on("click", ".sample-video-item", function () {
     $wcsSampleVideoPane

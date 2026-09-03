@@ -5885,47 +5885,55 @@ class RapierDriveSimulation {
         const carrierPosition = carrierLink.getWorldPosition(new THREE.Vector3());
 
         // Nearest point on the rim's own perimeter (not "clamp into the footprint",
-        // which is a no-op once already inside) - same single-nearest-edge
-        // simplification getWheelSupportProfile()'s own edge-drop formula already makes
-        // (one edge at a time, not true biaxial corner blending), kept consistent with
-        // it rather than introducing a different approximation just for this angle.
+        // which is a no-op once already inside), restricted to the pair of edges the
+        // wheel actually *rolls* into/out of (perpendicular to the direction of travel),
+        // not whichever of all 4 edges happens to be numerically closest. The carrier is
+        // a fore-aft/vertical swing arm - it has no sideways motion at all, so a lateral
+        // (cross-track) edge isn't something it can ever respond to, and picking it as
+        // "the" reference corner would target a rotation the carrier can't actually
+        // produce. This matters in practice, not just in theory: confirmed in-browser
+        // that a pothole narrower across the track than the wheel's own radius (this
+        // sim's authored sw_15 pothole is 0.15m wide against an ~0.081m wheel radius,
+        // i.e. under the 0.162m a wheelRadius-margin on both lateral sides would need)
+        // has its lateral margin permanently smaller than wheelRadiusMeters everywhere
+        // along the crossing - if lateral edges were allowed to win, the "far enough
+        // inside, no edge in reach" interior shortcut below could never fire at all, so
+        // the wheel stayed locked (and the outer tire frozen) for the *entire* crossing
+        // instead of just the two rolling-direction edges, confirmed via
+        // wheelClimbLockedByKey logging (locked true continuously start to finish rather
+        // than releasing partway through). getWheelSupportProfile()'s own chassis-facing
+        // dip formula is unaffected by this - it isn't a rolling-direction thing at all,
+        // just how far the chassis plane should sink, so it's left using all 4 edges.
+        const isTravelAlongX =
+          Math.abs(forwardVectorForClimbSign.x) >=
+          Math.abs(forwardVectorForClimbSign.y);
+        const travelAxisInsideDistance = (positionVec) =>
+          isTravelAlongX
+            ? Math.min(positionVec.x - holeMinX, holeMaxX - positionVec.x)
+            : Math.min(positionVec.y - holeMinY, holeMaxY - positionVec.y);
         const nearestRimContactPoint = (positionVec) => {
-          const marginMinX = positionVec.x - holeMinX;
-          const marginMaxX = holeMaxX - positionVec.x;
+          if (isTravelAlongX) {
+            const marginMinX = positionVec.x - holeMinX;
+            const marginMaxX = holeMaxX - positionVec.x;
+            const clampedY = THREE.MathUtils.clamp(
+              positionVec.y,
+              holeMinY,
+              holeMaxY,
+            );
+            return marginMinX <= marginMaxX
+              ? new THREE.Vector3(holeMinX, clampedY, this.groundZ)
+              : new THREE.Vector3(holeMaxX, clampedY, this.groundZ);
+          }
           const marginMinY = positionVec.y - holeMinY;
           const marginMaxY = holeMaxY - positionVec.y;
-          const nearestMargin = Math.min(
-            marginMinX,
-            marginMaxX,
-            marginMinY,
-            marginMaxY,
+          const clampedX = THREE.MathUtils.clamp(
+            positionVec.x,
+            holeMinX,
+            holeMaxX,
           );
-          if (nearestMargin === marginMinX) {
-            return new THREE.Vector3(
-              holeMinX,
-              THREE.MathUtils.clamp(positionVec.y, holeMinY, holeMaxY),
-              this.groundZ,
-            );
-          }
-          if (nearestMargin === marginMaxX) {
-            return new THREE.Vector3(
-              holeMaxX,
-              THREE.MathUtils.clamp(positionVec.y, holeMinY, holeMaxY),
-              this.groundZ,
-            );
-          }
-          if (nearestMargin === marginMinY) {
-            return new THREE.Vector3(
-              THREE.MathUtils.clamp(positionVec.x, holeMinX, holeMaxX),
-              holeMinY,
-              this.groundZ,
-            );
-          }
-          return new THREE.Vector3(
-            THREE.MathUtils.clamp(positionVec.x, holeMinX, holeMaxX),
-            holeMaxY,
-            this.groundZ,
-          );
+          return marginMinY <= marginMaxY
+            ? new THREE.Vector3(clampedX, holeMinY, this.groundZ)
+            : new THREE.Vector3(clampedX, holeMaxY, this.groundZ);
         };
 
         // Same ahead/behind sign rule as the obstacle branch, unchanged - worked out
@@ -5957,15 +5965,7 @@ class RapierDriveSimulation {
           carrierJoint.setJointValue(wheelClimbCarrierSignForWheel * angleRad);
           const wheelPosition = wheelLink.getWorldPosition(new THREE.Vector3());
 
-          const marginToNearEdgeX = Math.min(
-            wheelPosition.x - holeMinX,
-            holeMaxX - wheelPosition.x,
-          );
-          const marginToNearEdgeY = Math.min(
-            wheelPosition.y - holeMinY,
-            holeMaxY - wheelPosition.y,
-          );
-          const insideDistance = Math.min(marginToNearEdgeX, marginToNearEdgeY);
+          const insideDistance = travelAxisInsideDistance(wheelPosition);
           if (insideDistance <= 0) {
             // Not yet over the void (still fully on solid ground before the near rim),
             // or already fully past the far rim onto solid ground beyond it - either

@@ -98,6 +98,10 @@
   const LOADING_MESSAGE = "로딩중입니다.";
   const FIRST_FRAME_TIMEOUT_MESSAGE = "동영상이 로딩되지 않았습니다.";
   const NO_SELECTED_VIDEO_MESSAGE = "현재 선택된 동영상이 없습니다.";
+  // Shown by the "ended" handler below instead of "일시 정지" - the video finished
+  // playing on its own (autoReplay off), it wasn't paused by the user, so the pause
+  // message would be misleading about why playback stopped.
+  const VIDEO_PLAYBACK_ENDED_MESSAGE = "동영상 재생 완료";
   const TEMPORARY_STATUS_MESSAGE_MS = 1800;
   const VIEWER_DRAG_PIXELS_RATIO = 0.47;
   const VIEWER_ZOOM_OUT_RATIO = 0.07;
@@ -694,7 +698,7 @@
     }
     $status.toggleClass(
       "road-detect-overlay-status-paused",
-      text === "일시 정지",
+      text === "일시 정지" || text === VIDEO_PLAYBACK_ENDED_MESSAGE,
     );
     $status.toggleClass("d-none", !visible);
   }
@@ -1121,7 +1125,7 @@
           roadFileOverlayReachedEnd = true;
           mediaPlaybackPaused = true;
           writeOverlayMediaPausedState(true);
-          setOverlayStatus("일시 정지", true);
+          setOverlayStatus(VIDEO_PLAYBACK_ENDED_MESSAGE, true);
           updateVideoControlButtons();
           return;
         }
@@ -2634,7 +2638,11 @@
         // Ignore pause issues.
       }
     }
-    setOverlayStatus("일시 정지", true);
+    // Runs after the browser's own native "pause" (fired as part of reaching the end,
+    // ahead of "ended" per spec) has already been handled by the "play pause" listener
+    // above and set the generic pause message - overwrite it here since this is a
+    // distinct end-of-playback state, not a user-initiated pause.
+    setOverlayStatus(VIDEO_PLAYBACK_ENDED_MESSAGE, true);
     updateVideoControlButtons();
   });
 

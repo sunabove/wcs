@@ -15,7 +15,7 @@ const SIM_VISUAL_SPEED_MIN_SCALE = 1 / 4;
 const SIM_VISUAL_SPEED_MAX_SCALE = 4;
 const SIM_VISUAL_SPEED_SCALES = [1 / 4, 1 / 3, 1 / 2, 1, 2, 3, 4];
 const WHEEL_Z_CHART_INITIAL_HALF_RANGE_CM = 5;
-const WHEEL_Z_CHART_HALF_RANGE_STEP_CM = 2;
+const WHEEL_Z_CHART_HALF_RANGE_STEP_CM = 1;
 // Chassis (0x0008) deliberately excludes ground (filter 0x0002); ground contact is handled by manual clamping.
 const COLLISION_GROUP_GROUND = 0x00010002;
 const COLLISION_GROUP_WHEEL = 0x00020005;
@@ -1224,37 +1224,57 @@ class RapierDriveSimulation {
       maxZ += 0.0005;
       minZ -= 0.0005;
     }
-    // Zero-centered range, re-fit every frame to whatever's actually in the *visible*
-    // rolling window (both grows AND shrinks) - this used to only ever grow
-    // (Math.max(this.wheelZChartHalfRangeCm, alignedHalfRangeCm)), so once anything
-    // pushed the range out wide (e.g. climbing an obstacle early in the drive) it
-    // stayed pinned at that width forever, long after the sample that caused it had
-    // scrolled out of the window and the wheels were back to small flat-ground
-    // oscillations - the "seems like a fixed value" the user reported. Re-deriving it
-    // straight from this frame's observedHalfRangeCm instead keeps the axis fit to what's
-    // actually on screen right now. wheelZChartInitialHalfRangeCm (WHEEL_Z_CHART_INITIAL_
-    // HALF_RANGE_CM, never widened elsewhere any more) still acts as a small absolute
-    // floor so it doesn't zoom in to an illegibly tight band the instant the wheels are
-    // briefly dead flat, and the step alignment below keeps it from jittering by tiny
-    // (sub-2cm) amounts frame to frame.
+    // Fit the top (maxZ) and bottom (minZ) halves of the range *independently*, re-fit
+    // every frame to whatever's actually in the *visible* rolling window (both grows AND
+    // shrinks - see the wheelZChartHalfRangeCm history below), instead of mirroring
+    // whichever side has the larger excursion onto both. Climbing a bump is a
+    // positive-only excursion (z never meaningfully dips below 0) and a pothole is
+    // negative-only, so forcing a symmetric range around 0 always wasted the entire
+    // *opposite* half of the plot as blank space in both cases - the "위아래 여백이
+    // 많다" the user reported. 0 (ground level) is still always kept in range on both
+    // sides via the Math.min/Math.max(..., 0) clamps above, just no longer padded out to
+    // match the other side's magnitude.
+    //
+    // This used to only ever grow (Math.max(this.wheelZChartHalfRangeCm,
+    // alignedHalfRangeCm)), so once anything pushed the range out wide (e.g. climbing an
+    // obstacle early in the drive) it stayed pinned at that width forever, long after the
+    // sample that caused it had scrolled out of the window and the wheels were back to
+    // small flat-ground oscillations - the "seems like a fixed value" the user reported
+    // separately. Re-deriving it straight from this frame's data instead keeps the axis
+    // fit to what's actually on screen right now.
     const intervalCount = 4;
-    const observedHalfRangeCm = Math.max(
-      Math.abs(minZ * 100),
-      Math.abs(maxZ * 100),
-    );
-    const requiredHalfRangeCm = observedHalfRangeCm * 1.12;
-    // The 2cm step alignment is only for the *data-driven* growth above the floor (so
-    // real excursions don't jitter the axis by sub-2cm amounts frame to frame) - it must
-    // not touch the floor itself, or wheelZChartInitialHalfRangeCm's configured value
-    // (5cm) would silently render as 6cm (ceil(5/2)*2) instead of the 5cm actually asked
-    // for. So the floor is only ever returned as-is, never fed through the step math.
-    this.wheelZChartHalfRangeCm =
-      requiredHalfRangeCm <= this.wheelZChartInitialHalfRangeCm
-        ? this.wheelZChartInitialHalfRangeCm
-        : Math.ceil(requiredHalfRangeCm / WHEEL_Z_CHART_HALF_RANGE_STEP_CM) *
-          WHEEL_Z_CHART_HALF_RANGE_STEP_CM;
-    minZ = -this.wheelZChartHalfRangeCm / 100;
-    maxZ = this.wheelZChartHalfRangeCm / 100;
+    const fitHalfRangeCm = (observedCm) => {
+      // wheelZChartInitialHalfRangeCm (WHEEL_Z_CHART_INITIAL_HALF_RANGE_CM) is a small
+      // absolute floor so a side doesn't zoom in to an illegibly tight band the instant
+      // it's briefly dead flat. Compared against the *raw, unpadded* observedCm (not
+      // observedCm*1.04 below) and returned as-is, unrounded, whenever it's already
+      // enough - otherwise the padding alone would push anything sitting at/near the
+      // floor (e.g. an obstacle whose own height happens to equal it exactly) just over
+      // it, and the step alignment would then round that sliver up a full extra step
+      // (5cm -> 6cm) for no real reason.
+      if (observedCm <= this.wheelZChartInitialHalfRangeCm) {
+        return this.wheelZChartInitialHalfRangeCm;
+      }
+
+      // Beyond the floor, pad by just enough headroom that a peak doesn't touch the
+      // plot's edge (not the wide margin 1.12 used to be), then align to
+      // WHEEL_Z_CHART_HALF_RANGE_STEP_CM so real excursions don't jitter the axis by
+      // sub-step amounts frame to frame - both reduced together after the user reported
+      // the axis still had a lot of top/bottom whitespace even once it was fitting
+      // per-side (see the asymmetric-range comment above).
+      const requiredCm = observedCm * 1.04;
+      return (
+        Math.ceil(requiredCm / WHEEL_Z_CHART_HALF_RANGE_STEP_CM) *
+        WHEEL_Z_CHART_HALF_RANGE_STEP_CM
+      );
+    };
+    const topHalfRangeCm = fitHalfRangeCm(Math.abs(maxZ * 100));
+    const bottomHalfRangeCm = fitHalfRangeCm(Math.abs(minZ * 100));
+    // Kept in sync as the wider of the two sides - still what reset() (and anything else
+    // treating this as a single "how wide is this chart" figure) reads.
+    this.wheelZChartHalfRangeCm = Math.max(topHalfRangeCm, bottomHalfRangeCm);
+    minZ = -bottomHalfRangeCm / 100;
+    maxZ = topHalfRangeCm / 100;
 
     const toX = (t) =>
       margin.left + ((t - minTimeSec) / effectiveWindowSec) * plotWidth;

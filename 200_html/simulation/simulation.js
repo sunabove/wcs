@@ -6046,6 +6046,24 @@ class RapierDriveSimulation {
           // edge transition. Easing the carrier back out instead keeps inner_gear
           // continuous too, since it's a smooth function of a now-smooth carrierAngle.
           //
+          // Reuse the sign the carrier is actually easing back *from*, not a fresh
+          // recompute: wheelClimbCarrierSignForWheel above is derived from the wheel's
+          // *nominal* (candidate-0) position's side of the obstacle, which is only a
+          // meaningful read while actively engaging a specific edge - by the time
+          // referenceAngleRadAtCandidate(0) has resolved safe (this branch), the chassis
+          // has typically already carried that nominal position past the edge being
+          // climbed/descended, so re-deriving the sign here can flip it relative to what
+          // previousMagnitudeRad's source value actually used. Confirmed in-browser: the
+          // signed angle jumping straight from -30deg to +18.89deg in a single frame at
+          // the lock/unlock boundary - a discontinuous overshoot *through and past* 0
+          // instead of the smooth approach this whole branch exists to provide, since
+          // both directions of that jump are >0 in unsigned bisection terms but land on
+          // opposite sides of 0 once signed. Freezing the sign to whatever
+          // wheelClimbCarrierAngleRadByKey already recorded keeps it continuous for the
+          // rest of the ease-back.
+          wheelClimbCarrierSignForWheel =
+            Number(this.wheelClimbCarrierAngleRadByKey[wheelKey]) < 0 ? -1 : 1;
+          //
           // Still bisects/re-verifies each step rather than blindly rate-limiting,
           // because *retracting* the carrier at all sweeps the wheel backward-and-down
           // (the mirror image of the forward-and-up climb sweep) - confirmed in-browser
@@ -6265,6 +6283,11 @@ class RapierDriveSimulation {
             requiredAngleRad,
           );
         } else if (previousMagnitudeRad > 1e-6) {
+          // Freeze the sign to what's already recorded rather than the fresh
+          // nominal-position recompute above - same overshoot-through-0 bug and same
+          // fix as the obstacle branch's identical retract block, see its comment.
+          wheelClimbCarrierSignForWheel =
+            Number(this.wheelClimbCarrierAngleRadByKey[wheelKey]) < 0 ? -1 : 1;
           const maxDecreaseRad =
             WHEEL_CLIMB_CARRIER_RESTORE_RATE_RAD_PER_SEC *
             Math.max(Number(deltaSec) || 0, 0);

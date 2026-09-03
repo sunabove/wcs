@@ -147,6 +147,8 @@ async def camera_detect_stream_init_service(
     mqtt_publish: bool = Query(False),
     obstacle_publish_interval_sec: float = Query(1.0, ge=0.0, le=30.0),
     show_header: bool = Query(True),
+    obstacle_duration_sec: float = Query(0.0, ge=0.0, le=30.0),
+    obstacle_duration_quality_percent: float = Query(100.0, ge=0.0, le=100.0),
 ):
     from RoadDetector import RoadDetector
 
@@ -164,6 +166,8 @@ async def camera_detect_stream_init_service(
         mqtt_publish=mqtt_publish,
         obstacle_publish_interval_sec=obstacle_publish_interval_sec,
         show_header=show_header,
+        obstacle_duration_sec=obstacle_duration_sec,
+        obstacle_duration_quality_percent=obstacle_duration_quality_percent,
     )
 pass # camera_detect_stream_init_service
 
@@ -249,12 +253,14 @@ def road_detect_service(
     mqtt_publish: bool = Query(False),
     obstacle_publish_interval_sec: float = Query(1.0, ge=0.0, le=30.0),
     show_header: bool = Query(True),
+    obstacle_duration_sec: float = Query(0.0, ge=0.0, le=30.0),
+    obstacle_duration_quality_percent: float = Query(100.0, ge=0.0, le=100.0),
 ):
     from RoadDetector import RoadDetector
 
     detector = RoadDetector()
 
-    return detector.road_detect_service(file_name, detect_type, remove_noisy_masks, show_detect_stats, show_time_bar, include_obstacle, obstacle_conf, mqtt_publish, obstacle_publish_interval_sec, show_header=show_header)
+    return detector.road_detect_service(file_name, detect_type, remove_noisy_masks, show_detect_stats, show_time_bar, include_obstacle, obstacle_conf, mqtt_publish, obstacle_publish_interval_sec, show_header=show_header, obstacle_duration_sec=obstacle_duration_sec, obstacle_duration_quality_percent=obstacle_duration_quality_percent)
 pass # road_detect_service
 
 @router.get("/road_roi/{file_name:path}")
@@ -290,12 +296,14 @@ async def road_detect_mov_stream_service(
     mqtt_publish: bool = Query(False),
     obstacle_publish_interval_sec: float = Query(1.0, ge=0.0, le=30.0),
     show_header: bool = Query(True),
+    obstacle_duration_sec: float = Query(0.0, ge=0.0, le=30.0),
+    obstacle_duration_quality_percent: float = Query(100.0, ge=0.0, le=100.0),
 ):
     from RoadDetector import RoadDetector
 
     detector = RoadDetector()
 
-    return detector.road_detect_mov_stream(file_name, detect_type, remove_noisy_masks, show_detect_stats, show_time_bar, include_obstacle, obstacle_conf, mqtt_publish, obstacle_publish_interval_sec, show_header=show_header)
+    return detector.road_detect_mov_stream(file_name, detect_type, remove_noisy_masks, show_detect_stats, show_time_bar, include_obstacle, obstacle_conf, mqtt_publish, obstacle_publish_interval_sec, show_header=show_header, obstacle_duration_sec=obstacle_duration_sec, obstacle_duration_quality_percent=obstacle_duration_quality_percent)
 pass # road_detect_stream_service
 
 @router.post("/road_detect_stream_init/{file_name:path}")
@@ -310,12 +318,14 @@ async def road_detect_stream_init_service(
     mqtt_publish: bool = Query(False),
     obstacle_publish_interval_sec: float = Query(1.0, ge=0.0, le=30.0),
     show_header: bool = Query(True),
+    obstacle_duration_sec: float = Query(0.0, ge=0.0, le=30.0),
+    obstacle_duration_quality_percent: float = Query(100.0, ge=0.0, le=100.0),
 ):
     from RoadDetector import RoadDetector
 
     detector = RoadDetector()
 
-    return detector.road_detect_stream_init(file_name, detect_type, remove_noisy_masks, show_detect_stats, show_time_bar, include_obstacle, obstacle_conf, mqtt_publish, obstacle_publish_interval_sec, show_header=show_header)
+    return detector.road_detect_stream_init(file_name, detect_type, remove_noisy_masks, show_detect_stats, show_time_bar, include_obstacle, obstacle_conf, mqtt_publish, obstacle_publish_interval_sec, show_header=show_header, obstacle_duration_sec=obstacle_duration_sec, obstacle_duration_quality_percent=obstacle_duration_quality_percent)
 pass # road_detect_stream_init_service
 
 @router.get("/road_detect_stream_next/{file_name:path}")

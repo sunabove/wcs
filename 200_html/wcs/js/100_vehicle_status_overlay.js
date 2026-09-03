@@ -928,6 +928,29 @@
     return raw === undefined ? true : toBoolean(raw);
   }
 
+  // Read from #vehicle-urdf-viewer's obstacleDurationSec/obstacleDurationQualityPercent
+  // HTML attributes - together they control the server-side "obstacle_duration_sec"/
+  // "obstacle_duration_quality_percent" query options, which gate how confidently a
+  // *newly appearing or changed* obstacle type has to be detected before its MQTT topic
+  // is published: RoadDetector._publish_obstacle_state_if_needed() tallies every raw
+  // per-frame reading over the obstacleDurationSec seconds since the type first
+  // differed from what's currently published, and only publishes if at least
+  // obstacleDurationQualityPercent% of those frames matched - so a handful of noisy/
+  // missed-detection frames inside that window don't block (or reset) the confirmation
+  // the way requiring literal 100%-every-frame would. Defaults (0 sec / 100%) collapse
+  // to "publish on the very first frame", matching pre-feature behavior if missing.
+  function readObstacleDurationSecAttr() {
+    const raw = $viewer.attr("obstacleDurationSec");
+    const parsed = parseFloat(raw);
+    return Number.isFinite(parsed) && parsed >= 0 ? parsed : 0.0;
+  }
+
+  function readObstacleDurationQualityPercentAttr() {
+    const raw = $viewer.attr("obstacleDurationQualityPercent");
+    const parsed = parseFloat(raw);
+    return Number.isFinite(parsed) && parsed >= 0 && parsed <= 100 ? parsed : 100.0;
+  }
+
   const DEFAULT_ROAD_DETECT_OPTIONS = Object.freeze({
     detect_type: "road_type",
     remove_noisy_masks: true,
@@ -937,10 +960,13 @@
     // Server holds off publishing "obstacle cleared" (vehicle/surface/obstacle -> 0)
     // until the obstacle has been continuously absent for this many seconds, so a
     // single missed-detection frame doesn't flip the topic back and forth - see
-    // RoadDetector._publish_obstacle_state_if_needed. A newly-appearing/changed
-    // obstacle still publishes immediately; this only debounces the clearing edge.
+    // RoadDetector._publish_obstacle_state_if_needed. This debounces only the clearing
+    // edge; a newly-appearing/changed obstacle is instead gated by the
+    // obstacle_duration_sec/obstacle_duration_quality_percent confirmation window below.
     obstacle_publish_interval_sec: readObstaclePublishIntervalSecAttr(),
     show_header: readShowMovieHeaderAttr(),
+    obstacle_duration_sec: readObstacleDurationSecAttr(),
+    obstacle_duration_quality_percent: readObstacleDurationQualityPercentAttr(),
   });
 
   function buildRoadDetectQueryOptions(extraOptions) {

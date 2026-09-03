@@ -57,13 +57,15 @@ class RoadDetector:
     _mqtt_last_surface_state_published_at_by_context = {}
     _surface_state_samples_by_context = {}
     _mqtt_last_obstacle_state_by_context = {}
-    # Symmetric debounce bookkeeping: the raw per-frame obstacle value a context is
-    # currently "settling on" and the moment it started being observed continuously -
-    # a new value (appearing, changing type, or clearing) only gets published once it
-    # has been the raw detected value on every frame for obstacle_publish_interval_sec
-    # straight, so a single differing frame (a missed detection, a briefly-glimpsed
-    # different obstacle) immediately restarts the countdown instead of being absorbed
-    # by smoothing. See _publish_obstacle_state_if_needed().
+    # Debounce bookkeeping: the raw per-frame obstacle value a context is currently
+    # "settling on" and the moment it started being observed continuously. Only actually
+    # gates a *clearing* transition (obstacle_value == 0) below, via
+    # obstacle_publish_interval_sec - it must have been the raw detected value on every
+    # frame for that many seconds straight, so a single differing frame (a missed
+    # detection, a briefly-glimpsed different obstacle) immediately restarts the
+    # countdown instead of being absorbed by smoothing. Appearing/changing to a
+    # different non-"none" type instead uses the more tolerant appearance-confirmation
+    # window further below. See _publish_obstacle_state_if_needed().
     _obstacle_candidate_state_by_context = {}
     _obstacle_candidate_since_by_context = {}
     # Same-type reoccurrence grace: when a published obstacle type drops to "none"
@@ -77,6 +79,25 @@ class RoadDetector:
     _obstacle_pending_clear_since_by_context = {}
     OBSTACLE_SAME_TYPE_REOCCURRENCE_GRACE_SEC = 1.0
     DEFAULT_OBSTACLE_PUBLISH_INTERVAL_SEC = 1.0
+    # Appearance-confirmation window (obstacleDurationSec/obstacleDurationQualityPercent
+    # HTML attributes): governs the *appearing/changing-to-a-different-type* half of
+    # _publish_obstacle_state_if_needed() only - clearing still goes through the
+    # interval_sec floor and the same-type-reoccurrence-grace above, unchanged. Rather
+    # than requiring the raw detection to match on literally every frame for
+    # obstacle_publish_interval_sec straight (obstacle_candidate_since_by_context's
+    # reset-on-any-differing-frame behavior), this tallies every raw sample seen since
+    # the candidate first differed from the currently-published state and, once
+    # obstacle_duration_sec has elapsed, publishes only if at least
+    # obstacle_duration_quality_percent of those samples matched - so an occasional
+    # missed-detection frame inside the window doesn't reset anything, only enough of
+    # them to actually fail the quality bar do. Defaults (0 sec / 100%) collapse to
+    # "publish on the very first frame", matching pre-feature behavior for any caller
+    # that doesn't pass these.
+    _obstacle_appearance_window_start_by_context = {}
+    _obstacle_appearance_window_counts_by_context = {}
+    _obstacle_appearance_window_total_by_context = {}
+    DEFAULT_OBSTACLE_DURATION_SEC = 0.0
+    DEFAULT_OBSTACLE_DURATION_QUALITY_PERCENT = 100.0
     _mqtt_state_lock = threading.Lock()
     _mqtt_publish_queue = deque()
     _mqtt_publish_condition = threading.Condition()
@@ -417,6 +438,8 @@ class RoadDetector:
         context_key,
         include_obstacle=False,
         obstacle_publish_interval_sec=DEFAULT_OBSTACLE_PUBLISH_INTERVAL_SEC,
+        obstacle_duration_sec=DEFAULT_OBSTACLE_DURATION_SEC,
+        obstacle_duration_quality_percent=DEFAULT_OBSTACLE_DURATION_QUALITY_PERCENT,
     ):
         if not mqtt_publish:
             return
@@ -435,17 +458,19 @@ class RoadDetector:
         with RoadDetector._mqtt_state_lock:
             last_state = RoadDetector._mqtt_last_obstacle_state_by_context.get(context)
 
-            # Symmetric debounce driven directly off the raw per-frame detection (no
-            # majority-vote smoothing): obstacle_value only becomes a publish
-            # *candidate* when it differs from whatever raw value we were previously
-            # tracking, and it only actually gets published once it has been the raw
-            # detected value on every single frame for obstacle_publish_interval_sec
-            # straight. A differing frame - a missed detection, a briefly-glimpsed
-            # different obstacle - immediately restarts the countdown rather than being
-            # outvoted/absorbed, so "새로운 장애물이 감지되면 인터벌이 리셋된다" holds for
-            # appearing/changing-type exactly the same way it already did for clearing.
-            # Applies identically whether the obstacle is appearing, changing type, or
-            # clearing.
+            # Debounce driven directly off the raw per-frame detection (no majority-vote
+            # smoothing): obstacle_value only becomes a publish *candidate* when it
+            # differs from whatever raw value we were previously tracking, and
+            # candidate_since only actually gates a *clearing* transition (obstacle_value
+            # == 0) below via obstacle_publish_interval_sec - it has been the raw
+            # detected value on every single frame for that many seconds straight, so a
+            # differing frame (a missed detection, a briefly-glimpsed different
+            # obstacle) immediately restarts the countdown. Appearing/changing to a
+            # different non-"none" type is instead gated by the more tolerant rolling
+            # confirmation window below (obstacle_duration_sec/
+            # obstacle_duration_quality_percent) - candidate_since/candidate_state are
+            # still tracked unconditionally here since the clearing path further down
+            # needs them regardless of what obstacle_value turns out to be.
             candidate_state = RoadDetector._obstacle_candidate_state_by_context.get(context)
             if candidate_state != obstacle_value:
                 RoadDetector._obstacle_candidate_state_by_context[context] = obstacle_value
@@ -491,10 +516,53 @@ class RoadDetector:
                 RoadDetector._obstacle_pending_clear_since_by_context.pop(context, None)
 
             if obstacle_value == last_state:
+                # Nothing to confirm - drop any in-progress appearance-confirmation
+                # window (below) since the raw signal fell back to what's already
+                # published without ever reaching quality.
+                RoadDetector._obstacle_appearance_window_start_by_context.pop(context, None)
+                RoadDetector._obstacle_appearance_window_counts_by_context.pop(context, None)
+                RoadDetector._obstacle_appearance_window_total_by_context.pop(context, None)
                 return
 
-            if (now_ts - candidate_since) < float(obstacle_publish_interval_sec):
-                return
+            if obstacle_value == 0:
+                # Clearing: unchanged from before this feature - governed by the
+                # same-type-reoccurrence-grace block above plus this floor.
+                if (now_ts - candidate_since) < float(obstacle_publish_interval_sec):
+                    return
+            else:
+                # Appearing, or changing to a different non-"none" type: gated by the
+                # rolling confirmation window described in the class-level comment on
+                # _obstacle_appearance_window_start_by_context, instead of the
+                # interval_sec floor used for clearing above.
+                window_start = RoadDetector._obstacle_appearance_window_start_by_context.get(context)
+                if window_start is None:
+                    window_start = now_ts
+                    RoadDetector._obstacle_appearance_window_start_by_context[context] = window_start
+                    RoadDetector._obstacle_appearance_window_counts_by_context[context] = {}
+                    RoadDetector._obstacle_appearance_window_total_by_context[context] = 0
+
+                counts = RoadDetector._obstacle_appearance_window_counts_by_context[context]
+                counts[obstacle_value] = counts.get(obstacle_value, 0) + 1
+                RoadDetector._obstacle_appearance_window_total_by_context[context] += 1
+
+                if (now_ts - window_start) < float(obstacle_duration_sec):
+                    return
+
+                total = RoadDetector._obstacle_appearance_window_total_by_context[context]
+                matched = counts.get(obstacle_value, 0)
+                quality_percent = (matched / total * 100.0) if total > 0 else 0.0
+
+                # The window closes here either way - a fresh one starts on the very
+                # next frame, whether this one reached quality or not (see class-level
+                # comment: an occasional miss doesn't reset the window mid-flight, but
+                # a window that overall failed to reach quality gets a clean restart
+                # rather than dragging stale low-quality samples into the next one).
+                RoadDetector._obstacle_appearance_window_start_by_context.pop(context, None)
+                RoadDetector._obstacle_appearance_window_counts_by_context.pop(context, None)
+                RoadDetector._obstacle_appearance_window_total_by_context.pop(context, None)
+
+                if quality_percent < float(obstacle_duration_quality_percent):
+                    return
 
         enqueued = self._enqueue_mqtt_topic("vehicle/surface/obstacle", obstacle_value)
         if enqueued:
@@ -792,7 +860,7 @@ class RoadDetector:
             "roi_file": roi_path.name,
         }
 
-    def road_detect_service(self, file_name: str, detect_type: str = "road", remove_noisy_masks: bool = True, show_detect_stats: bool = False, show_time_bar: bool = False, include_obstacle: bool = False, obstacle_conf: float = DEFAULT_OBSTACLE_CONF, mqtt_publish: bool = False, obstacle_publish_interval_sec: float = DEFAULT_OBSTACLE_PUBLISH_INTERVAL_SEC, show_header: bool = True) -> dict:
+    def road_detect_service(self, file_name: str, detect_type: str = "road", remove_noisy_masks: bool = True, show_detect_stats: bool = False, show_time_bar: bool = False, include_obstacle: bool = False, obstacle_conf: float = DEFAULT_OBSTACLE_CONF, mqtt_publish: bool = False, obstacle_publish_interval_sec: float = DEFAULT_OBSTACLE_PUBLISH_INTERVAL_SEC, show_header: bool = True, obstacle_duration_sec: float = DEFAULT_OBSTACLE_DURATION_SEC, obstacle_duration_quality_percent: float = DEFAULT_OBSTACLE_DURATION_QUALITY_PERCENT) -> dict:
         input_path = resolve_upload_image_path(file_name)
         if not input_path.exists() or not input_path.is_file():
             raise HTTPException(status_code=404, detail="Input file not found")
@@ -832,6 +900,8 @@ class RoadDetector:
                 f"image:{file_name}",
                 include_obstacle=include_obstacle,
                 obstacle_publish_interval_sec=obstacle_publish_interval_sec,
+                obstacle_duration_sec=obstacle_duration_sec,
+                obstacle_duration_quality_percent=obstacle_duration_quality_percent,
             )
             if not cv2.imwrite(str(output_path), detected_image):
                 raise HTTPException(status_code=500, detail="Failed to write output image")
@@ -852,6 +922,8 @@ class RoadDetector:
                 obstacle_publish_interval_sec=obstacle_publish_interval_sec,
                 mqtt_publish=mqtt_publish,
                 show_header=show_header,
+                obstacle_duration_sec=obstacle_duration_sec,
+                obstacle_duration_quality_percent=obstacle_duration_quality_percent,
             )
         else:
             raise HTTPException(status_code=400, detail="Only image/video files are supported")
@@ -867,7 +939,7 @@ class RoadDetector:
         }
     pass # road_detect_service
 
-    def detect_video(self, input_path: Path, output_path: Path, detect_type: str, remove_noisy_masks: bool = True, show_detect_stats: bool = False, show_time_bar: bool = False, session_id: str = None, include_obstacle: bool = False, obstacle_conf: float = DEFAULT_OBSTACLE_CONF, mqtt_publish: bool = False, obstacle_publish_interval_sec: float = DEFAULT_OBSTACLE_PUBLISH_INTERVAL_SEC, show_header: bool = True) -> None:
+    def detect_video(self, input_path: Path, output_path: Path, detect_type: str, remove_noisy_masks: bool = True, show_detect_stats: bool = False, show_time_bar: bool = False, session_id: str = None, include_obstacle: bool = False, obstacle_conf: float = DEFAULT_OBSTACLE_CONF, mqtt_publish: bool = False, obstacle_publish_interval_sec: float = DEFAULT_OBSTACLE_PUBLISH_INTERVAL_SEC, show_header: bool = True, obstacle_duration_sec: float = DEFAULT_OBSTACLE_DURATION_SEC, obstacle_duration_quality_percent: float = DEFAULT_OBSTACLE_DURATION_QUALITY_PERCENT) -> None:
         capture = cv2.VideoCapture(str(input_path))
         if not capture.isOpened():
             raise HTTPException(status_code=400, detail="Failed to read video file")
@@ -954,6 +1026,8 @@ class RoadDetector:
                     f"video:{session_id or input_path.as_posix()}",
                     include_obstacle=include_obstacle,
                     obstacle_publish_interval_sec=obstacle_publish_interval_sec,
+                    obstacle_duration_sec=obstacle_duration_sec,
+                    obstacle_duration_quality_percent=obstacle_duration_quality_percent,
                 )
                 detected_frame = detected_result["frame"]
 
@@ -1027,7 +1101,7 @@ class RoadDetector:
                 }
     pass # detect_video
 
-    def road_detect_stream_init(self, file_name: str, detect_type: str = "road", remove_noisy_masks: bool = True, show_detect_stats: bool = False, show_time_bar: bool = False, include_obstacle: bool = False, obstacle_conf: float = DEFAULT_OBSTACLE_CONF, mqtt_publish: bool = False, obstacle_publish_interval_sec: float = DEFAULT_OBSTACLE_PUBLISH_INTERVAL_SEC, show_header: bool = True) -> dict:
+    def road_detect_stream_init(self, file_name: str, detect_type: str = "road", remove_noisy_masks: bool = True, show_detect_stats: bool = False, show_time_bar: bool = False, include_obstacle: bool = False, obstacle_conf: float = DEFAULT_OBSTACLE_CONF, mqtt_publish: bool = False, obstacle_publish_interval_sec: float = DEFAULT_OBSTACLE_PUBLISH_INTERVAL_SEC, show_header: bool = True, obstacle_duration_sec: float = DEFAULT_OBSTACLE_DURATION_SEC, obstacle_duration_quality_percent: float = DEFAULT_OBSTACLE_DURATION_QUALITY_PERCENT) -> dict:
         """비디오 스트리밍 세션 초기화"""
         self._clear_global_stream_stop_requested()
 
@@ -1069,6 +1143,8 @@ class RoadDetector:
             'include_obstacle': bool(include_obstacle),
             'obstacle_conf': float(obstacle_conf),
             'obstacle_publish_interval_sec': float(obstacle_publish_interval_sec),
+            'obstacle_duration_sec': float(obstacle_duration_sec),
+            'obstacle_duration_quality_percent': float(obstacle_duration_quality_percent),
             'remove_noisy_masks': bool(remove_noisy_masks),
             'show_detect_stats': bool(show_detect_stats),
             'show_time_bar': bool(show_time_bar),
@@ -1113,6 +1189,12 @@ class RoadDetector:
             obstacle_conf = float(session.get('obstacle_conf', self.DEFAULT_OBSTACLE_CONF))
             obstacle_publish_interval_sec = float(
                 session.get('obstacle_publish_interval_sec', self.DEFAULT_OBSTACLE_PUBLISH_INTERVAL_SEC)
+            )
+            obstacle_duration_sec = float(
+                session.get('obstacle_duration_sec', self.DEFAULT_OBSTACLE_DURATION_SEC)
+            )
+            obstacle_duration_quality_percent = float(
+                session.get('obstacle_duration_quality_percent', self.DEFAULT_OBSTACLE_DURATION_QUALITY_PERCENT)
             )
             remove_noisy_masks = bool(session.get('remove_noisy_masks', True))
             show_detect_stats = bool(session.get('show_detect_stats', False))
@@ -1169,6 +1251,8 @@ class RoadDetector:
                 f"stream:{session_id}",
                 include_obstacle=include_obstacle,
                 obstacle_publish_interval_sec=obstacle_publish_interval_sec,
+                obstacle_duration_sec=obstacle_duration_sec,
+                obstacle_duration_quality_percent=obstacle_duration_quality_percent,
             )
             detected_frame = detected_result["frame"]
 
@@ -1386,7 +1470,7 @@ class RoadDetector:
         x1, y1, x2, y2 = [int(v) for v in roi]
         roi_path.write_text(f"{x1},{y1},{x2},{y2}\n", encoding="utf-8")
 
-    def camera_detect_stream_init(self, camera_index: int, detect_type: str = "road", camera_name: str = "", remove_noisy_masks: bool = True, show_detect_stats: bool = False, show_time_bar: bool = True, include_obstacle: bool = False, obstacle_conf: float = DEFAULT_OBSTACLE_CONF, mqtt_publish: bool = False, obstacle_publish_interval_sec: float = DEFAULT_OBSTACLE_PUBLISH_INTERVAL_SEC, show_header: bool = True) -> dict:
+    def camera_detect_stream_init(self, camera_index: int, detect_type: str = "road", camera_name: str = "", remove_noisy_masks: bool = True, show_detect_stats: bool = False, show_time_bar: bool = True, include_obstacle: bool = False, obstacle_conf: float = DEFAULT_OBSTACLE_CONF, mqtt_publish: bool = False, obstacle_publish_interval_sec: float = DEFAULT_OBSTACLE_PUBLISH_INTERVAL_SEC, show_header: bool = True, obstacle_duration_sec: float = DEFAULT_OBSTACLE_DURATION_SEC, obstacle_duration_quality_percent: float = DEFAULT_OBSTACLE_DURATION_QUALITY_PERCENT) -> dict:
         self._clear_global_stream_stop_requested()
 
         session_id = f"camera_{camera_index}"
@@ -1422,6 +1506,8 @@ class RoadDetector:
             "include_obstacle": bool(include_obstacle),
             "obstacle_conf": float(obstacle_conf),
             "obstacle_publish_interval_sec": float(obstacle_publish_interval_sec),
+            "obstacle_duration_sec": float(obstacle_duration_sec),
+            "obstacle_duration_quality_percent": float(obstacle_duration_quality_percent),
             "remove_noisy_masks": bool(remove_noisy_masks),
             "show_detect_stats": bool(show_detect_stats),
             "show_time_bar": bool(show_time_bar),
@@ -1472,6 +1558,12 @@ class RoadDetector:
         obstacle_conf = float(session.get("obstacle_conf", self.DEFAULT_OBSTACLE_CONF))
         obstacle_publish_interval_sec = float(
             session.get("obstacle_publish_interval_sec", self.DEFAULT_OBSTACLE_PUBLISH_INTERVAL_SEC)
+        )
+        obstacle_duration_sec = float(
+            session.get("obstacle_duration_sec", self.DEFAULT_OBSTACLE_DURATION_SEC)
+        )
+        obstacle_duration_quality_percent = float(
+            session.get("obstacle_duration_quality_percent", self.DEFAULT_OBSTACLE_DURATION_QUALITY_PERCENT)
         )
         remove_noisy_masks = bool(session.get("remove_noisy_masks", True))
         show_detect_stats = bool(session.get("show_detect_stats", False))
@@ -1535,6 +1627,8 @@ class RoadDetector:
                 f"camera:{session_id}",
                 include_obstacle=include_obstacle,
                 obstacle_publish_interval_sec=obstacle_publish_interval_sec,
+                obstacle_duration_sec=obstacle_duration_sec,
+                obstacle_duration_quality_percent=obstacle_duration_quality_percent,
             )
             detected_frame = detected_result["frame"]
 
@@ -1704,7 +1798,7 @@ class RoadDetector:
         }
     pass # camera_detect_stream_cleanup_all
 
-    def road_detect_mov_stream(self, file_name: str, detect_type: str = "road", remove_noisy_masks: bool = True, show_detect_stats: bool = False, show_time_bar: bool = False, include_obstacle: bool = False, obstacle_conf: float = DEFAULT_OBSTACLE_CONF, mqtt_publish: bool = False, obstacle_publish_interval_sec: float = DEFAULT_OBSTACLE_PUBLISH_INTERVAL_SEC, show_header: bool = True) -> StreamingResponse:
+    def road_detect_mov_stream(self, file_name: str, detect_type: str = "road", remove_noisy_masks: bool = True, show_detect_stats: bool = False, show_time_bar: bool = False, include_obstacle: bool = False, obstacle_conf: float = DEFAULT_OBSTACLE_CONF, mqtt_publish: bool = False, obstacle_publish_interval_sec: float = DEFAULT_OBSTACLE_PUBLISH_INTERVAL_SEC, show_header: bool = True, obstacle_duration_sec: float = DEFAULT_OBSTACLE_DURATION_SEC, obstacle_duration_quality_percent: float = DEFAULT_OBSTACLE_DURATION_QUALITY_PERCENT) -> StreamingResponse:
         """(레거시) 연속 MJPEG 스트리밍 - 하위호환성 유지"""
         input_path = resolve_upload_image_path(file_name)
         if not input_path.exists() or not input_path.is_file():
@@ -1786,6 +1880,8 @@ class RoadDetector:
                         f"legacy_stream:{file_name}",
                         include_obstacle=include_obstacle,
                         obstacle_publish_interval_sec=obstacle_publish_interval_sec,
+                        obstacle_duration_sec=obstacle_duration_sec,
+                        obstacle_duration_quality_percent=obstacle_duration_quality_percent,
                     )
                     detected_frame = detected_result["frame"]
                     encoded_ok, encoded = cv2.imencode(".jpg", detected_frame, [int(cv2.IMWRITE_JPEG_QUALITY), 80])

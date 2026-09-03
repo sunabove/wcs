@@ -14,7 +14,7 @@ const SIM_VISUAL_SPEED_DEFAULT_SCALE = 1;
 const SIM_VISUAL_SPEED_MIN_SCALE = 1 / 4;
 const SIM_VISUAL_SPEED_MAX_SCALE = 4;
 const SIM_VISUAL_SPEED_SCALES = [1 / 4, 1 / 3, 1 / 2, 1, 2, 3, 4];
-const WHEEL_Z_CHART_INITIAL_HALF_RANGE_CM = 4;
+const WHEEL_Z_CHART_INITIAL_HALF_RANGE_CM = 5;
 const WHEEL_Z_CHART_HALF_RANGE_STEP_CM = 2;
 // Chassis (0x0008) deliberately excludes ground (filter 0x0002); ground contact is handled by manual clamping.
 const COLLISION_GROUP_GROUND = 0x00010002;
@@ -1242,13 +1242,17 @@ class RapierDriveSimulation {
       Math.abs(minZ * 100),
       Math.abs(maxZ * 100),
     );
-    const requiredHalfRangeCm = Math.max(
-      this.wheelZChartInitialHalfRangeCm,
-      observedHalfRangeCm * 1.12,
-    );
+    const requiredHalfRangeCm = observedHalfRangeCm * 1.12;
+    // The 2cm step alignment is only for the *data-driven* growth above the floor (so
+    // real excursions don't jitter the axis by sub-2cm amounts frame to frame) - it must
+    // not touch the floor itself, or wheelZChartInitialHalfRangeCm's configured value
+    // (5cm) would silently render as 6cm (ceil(5/2)*2) instead of the 5cm actually asked
+    // for. So the floor is only ever returned as-is, never fed through the step math.
     this.wheelZChartHalfRangeCm =
-      Math.ceil(requiredHalfRangeCm / WHEEL_Z_CHART_HALF_RANGE_STEP_CM) *
-      WHEEL_Z_CHART_HALF_RANGE_STEP_CM;
+      requiredHalfRangeCm <= this.wheelZChartInitialHalfRangeCm
+        ? this.wheelZChartInitialHalfRangeCm
+        : Math.ceil(requiredHalfRangeCm / WHEEL_Z_CHART_HALF_RANGE_STEP_CM) *
+          WHEEL_Z_CHART_HALF_RANGE_STEP_CM;
     minZ = -this.wheelZChartHalfRangeCm / 100;
     maxZ = this.wheelZChartHalfRangeCm / 100;
 

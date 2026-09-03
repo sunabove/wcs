@@ -85,17 +85,18 @@ const GROUND_FOG_FAR_METERS = 11;
 // grid, so real-world distances (e.g. checking where obstaclePosIntervalMeter actually
 // places an obstacle) can be read directly off the ground.
 const GROUND_X_RULER_MINOR_TICK_METERS = 0.1;
+// No numeric labels (text intentionally left off the ruler) - the major tick is just a
+// longer mark every 50cm to make counting minor ticks easier at a glance.
 const GROUND_X_RULER_MAJOR_TICK_METERS = 0.5;
 const GROUND_X_RULER_MINOR_TICK_HALF_LENGTH_METERS = 0.025;
 const GROUND_X_RULER_MAJOR_TICK_HALF_LENGTH_METERS = 0.06;
-// Ticks/labels stop this far past the fog falloff regardless of how far the ground
-// extension itself runs (GROUND_EXTENSION_HALF_SIZE_METERS, 100m) - past the fog line
-// nothing would be legible anyway, so this just keeps the tick/label count bounded.
+// Ticks stop this far past the fog falloff regardless of how far the ground extension
+// itself runs (GROUND_EXTENSION_HALF_SIZE_METERS, 100m) - past the fog line nothing
+// would be visible anyway, so this just keeps the tick count bounded.
 const GROUND_X_RULER_MAX_HALF_EXTENT_METERS = GROUND_FOG_FAR_METERS + 2;
 // Amber - deliberately distinct from the grid's greens so the ruler reads as a separate
 // reference overlay rather than another grid line.
 const GROUND_X_RULER_LINE_COLOR = 0xf59e0b;
-const GROUND_X_RULER_LABEL_TEXT_COLOR = "#f59e0b";
 // Carved pothole interior uses fixed contrasting colors so the pit shape stays readable.
 // The floor (roughly horizontal, facing up into the cavity) and the walls (roughly
 // vertical, the 4 faces bordering the undisturbed ground at the rim) get two distinct
@@ -3846,9 +3847,6 @@ class RapierDriveSimulation {
       vertices.push(x1, y1, rulerZ, x2, y2, rulerZ);
     };
 
-    const labelGroup = new THREE.Group();
-    labelGroup.name = "simulation-ground-x-ruler-labels";
-
     rowPatches.forEach((patch) => {
       const rangeMinX = Math.max(
         patch.minX,
@@ -3885,13 +3883,6 @@ class RapierDriveSimulation {
           ? GROUND_X_RULER_MAJOR_TICK_HALF_LENGTH_METERS
           : GROUND_X_RULER_MINOR_TICK_HALF_LENGTH_METERS;
         appendSegment(tickX, rulerY - halfLength, tickX, rulerY + halfLength);
-
-        if (isMajor) {
-          const distanceCm = Math.round(distanceMeters * 100);
-          const label = this.buildGroundRulerLabel(distanceCm);
-          label.position.set(tickX, rulerY + halfLength + 0.05, rulerZ);
-          labelGroup.add(label);
-        }
       }
     });
 
@@ -3920,68 +3911,14 @@ class RapierDriveSimulation {
     rulerLine.name = "simulation-ground-x-ruler";
     rulerLine.renderOrder = 3;
 
-    const rulerGroup = new THREE.Group();
-    rulerGroup.name = "simulation-ground-x-ruler-group";
-    rulerGroup.add(rulerLine);
-    rulerGroup.add(labelGroup);
-
-    this.viewer.scene.add(rulerGroup);
-    this.groundXAxisRuler = rulerGroup;
+    this.viewer.scene.add(rulerLine);
+    this.groundXAxisRuler = rulerLine;
     this.groundXAxisRulerLineObject = rulerLine;
 
     // Same resize plumbing as this.groundGrid - see that push() above.
     if (Array.isArray(this.viewer.groundHoleEdgeLineObjects)) {
       this.viewer.groundHoleEdgeLineObjects.push(rulerLine);
     }
-  }
-
-  // Small flat (ground-plane-facing, readable from above like the grid itself rather than
-  // standing upright like the cobot sign) text label for addGroundXAxisRuler()'s major
-  // (50cm) ticks. distanceCm may be negative (behind the grid origin along -X).
-  buildGroundRulerLabel(distanceCm) {
-    const text = `${distanceCm}cm`;
-    const canvas = document.createElement("canvas");
-    const context = canvas.getContext("2d");
-    // Supersampled for crisp text at typical camera distances.
-    const fontSizePx = 112;
-    context.font = `bold ${fontSizePx}px 'Trebuchet MS', 'Segoe UI', sans-serif`;
-    const textWidthPx = context.measureText(text).width;
-    canvas.width = Math.ceil(textWidthPx + fontSizePx * 0.6);
-    canvas.height = Math.ceil(fontSizePx * 1.6);
-    // Resizing the canvas resets its 2D context state, so font/alignment must be
-    // (re)applied after.
-    context.font = `bold ${fontSizePx}px 'Trebuchet MS', 'Segoe UI', sans-serif`;
-    context.textAlign = "center";
-    context.textBaseline = "middle";
-    // A soft dark outline first so the amber text stays legible over both the pale
-    // ground and the grid's own light-green horizontal lines.
-    context.lineWidth = fontSizePx * 0.12;
-    context.strokeStyle = "rgba(0, 0, 0, 0.55)";
-    context.strokeText(text, canvas.width / 2, canvas.height / 2 + 2);
-    context.fillStyle = GROUND_X_RULER_LABEL_TEXT_COLOR;
-    context.fillText(text, canvas.width / 2, canvas.height / 2 + 2);
-
-    const texture = new THREE.CanvasTexture(canvas);
-    if (THREE.SRGBColorSpace) {
-      texture.colorSpace = THREE.SRGBColorSpace;
-    }
-
-    const labelHeightMeters = 0.12;
-    const labelWidthMeters = labelHeightMeters * (canvas.width / canvas.height);
-    const material = new THREE.MeshBasicMaterial({
-      map: texture,
-      transparent: true,
-      depthWrite: false,
-    });
-    const label = new THREE.Mesh(
-      new THREE.PlaneGeometry(labelWidthMeters, labelHeightMeters),
-      material,
-    );
-    // PlaneGeometry's default normal is +Z, i.e. already lying flat/face-up in this
-    // scene's Z-up ground plane - no rotation needed, unlike the cobot sign (which
-    // stands upright to be read from the side).
-    label.renderOrder = 3;
-    return label;
   }
 
   isVehicleOverHoleRegion(targetHoleRegion = null) {

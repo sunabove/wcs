@@ -917,6 +917,17 @@
     return Number.isFinite(parsed) && parsed >= 0 ? parsed : 1.0;
   }
 
+  // Read from #vehicle-urdf-viewer's showMovieHeader HTML attribute, same
+  // convention as obstaclePublishIntervalSec above - controls the server-side
+  // "show_header" query option, which toggles the confidence/time/class-count
+  // box RoadDetector._render_header() burns into the top-left of each detected
+  // frame. Defaults to true (shown) if missing, matching the server's own
+  // default.
+  function readShowMovieHeaderAttr() {
+    const raw = $viewer.attr("showMovieHeader");
+    return raw === undefined ? true : toBoolean(raw);
+  }
+
   const DEFAULT_ROAD_DETECT_OPTIONS = Object.freeze({
     detect_type: "road_type",
     remove_noisy_masks: true,
@@ -929,6 +940,7 @@
     // RoadDetector._publish_obstacle_state_if_needed. A newly-appearing/changed
     // obstacle still publishes immediately; this only debounces the clearing edge.
     obstacle_publish_interval_sec: readObstaclePublishIntervalSecAttr(),
+    show_header: readShowMovieHeaderAttr(),
   });
 
   function buildRoadDetectQueryOptions(extraOptions) {

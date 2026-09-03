@@ -530,6 +530,11 @@ class RapierDriveSimulation {
     this.debugTextElement = null;
     this.debugStatusUpdateIntervalSec = 0.2;
     this.debugStatusElapsedSec = 0;
+    // Set true once ensureDebugPanelDockedUnderViewCube() has reparented
+    // #simulation-debug-panel out of the sidebar table and into the 3D viewer's own
+    // overlay container, docked directly under the nav (view) cube - a one-time move, not
+    // redone every frame.
+    this.isDebugPanelDockedInViewer = false;
     this.wheelZChartOverlayElement = null;
     this.wheelZChartPanelElement = null;
     this.wheelZChartBodyElement = null;
@@ -598,14 +603,23 @@ class RapierDriveSimulation {
     this.cycloidChartContext = null;
     this.cycloidChartVisibleStorageKey = "wcs.simulation.cycloidChartVisible";
     this.isCycloidChartVisible = this.loadCycloidChartVisibleState();
-    // Which wheel pod (fl/fr/rl/rr) the chart is currently tracing - null whenever no
-    // wheel is engaged with an obstacle/pothole. Deliberately NOT cleared the instant a
-    // crossing ends, so the finished curve stays on screen (frozen) until the *next*
-    // crossing starts and resets it - see recordCycloidChartSample().
+    // Which wheel pod's (fl/fr/rl/rr) buffer the chart currently *displays* - just a
+    // display selector, prefers whichever wheel is actively engaged with an
+    // obstacle/pothole and otherwise keeps showing whatever it last showed. Switching this
+    // never clears any data (see cycloidChartSamplesByKey below) - each wheel keeps
+    // sampling and rolling its own window continuously regardless of which one is on
+    // screen, so a bump/pothole event never resets the visible curve.
     this.cycloidChartActiveWheelKey = null;
     this.cycloidChartMaxSamples = 400;
-    // Each entry: { outer:{forward,height}, middle:{forward,height}, inner:{forward,height}|null }
-    this.cycloidChartSamples = [];
+    // One continuously-updated ring buffer per wheel (never cleared by a display-key
+    // switch - see cycloidChartActiveWheelKey above), each entry:
+    // { outer:{forward,height}, middle:{forward,height}, inner:{forward,height}|null, spinAngleRad }
+    this.cycloidChartSamplesByKey = {
+      fl: [],
+      fr: [],
+      rl: [],
+      rr: [],
+    };
     this.cycloidChartColors = {
       outer: "#dc3545",
       middle: "#0d6efd",
@@ -650,6 +664,47 @@ class RapierDriveSimulation {
 
     this.debugPanelElement.style.display = "block";
     this.debugTextElement.textContent = "초기화 중...";
+  }
+
+  // Moves #simulation-debug-panel out of its original spot in the sidebar table (below
+  // the 3D viewer) and docks it as an absolute overlay *inside* the viewer container,
+  // directly under the nav (view) cube widget urdfViewer.js draws at its top-left corner -
+  // same "read the cube's own live position/size, don't hardcode it" approach as the rest
+  // of this file's overlays, so this keeps tracking correctly even if the cube's own
+  // layout (button count, padding) ever changes. Runs once (guarded by
+  // isDebugPanelDockedInViewer) from runLoop(), retrying every frame until both the panel
+  // and the cube actually exist - initDebugPanel() itself runs from start(), well before
+  // this.viewer (and the cube it owns) is necessarily ready.
+  ensureDebugPanelDockedUnderViewCube() {
+    if (this.isDebugPanelDockedInViewer) {
+      return;
+    }
+
+    const panel = this.debugPanelElement;
+    const container = this.viewer?.container;
+    const cubeOverlay = this.viewer?.viewCubeOverlayElement;
+    if (!panel || !container || !cubeOverlay) {
+      return;
+    }
+
+    const containerStyle = window.getComputedStyle(container);
+    if (containerStyle.position === "static") {
+      container.style.position = "relative";
+    }
+
+    panel.classList.remove("mt-3", "mb-0");
+    panel.style.position = "absolute";
+    panel.style.left = "10px";
+    panel.style.top = `${cubeOverlay.offsetTop + cubeOverlay.offsetHeight + 8}px`;
+    panel.style.width = "min(280px, 70vw)";
+    panel.style.maxWidth = "70vw";
+    panel.style.zIndex = "999";
+    panel.style.pointerEvents = "auto";
+    panel.style.background = "rgba(255, 255, 255, 0.92)";
+    panel.style.backdropFilter = "blur(2px)";
+
+    container.appendChild(panel);
+    this.isDebugPanelDockedInViewer = true;
   }
 
   ensureWheelZChartOverlay() {
@@ -1793,62 +1848,56 @@ class RapierDriveSimulation {
   // Called once per rendered frame (after stepSimulation() has fully settled the chassis
   // and every wheel pod's joints for this frame - see runLoop()). Always samples - not
   // gated on any obstacle/pothole contact, per the user's explicit "단차/포트홀이 나타나지
-  // 않아도 cycloid 출력" - defaulting to the first wheel key until/unless a wheel is
-  // actually engaged with an obstacle or pothole (wheelClimbEngagedObstacleByKey /
-  // wheelClimbEngagedHoleByKey), which then takes over as the more interesting curve to
-  // show. Buffer resets whenever the active wheel key changes; otherwise it's windowed to
-  // the outer wheel's *last full revolution* (2*PI of spinAngleRad, not a fixed sample
-  // count) so the displayed shape is always exactly "one outer-wheel rotation period" per
-  // the user's request, continuously sliding forward as the wheel keeps turning.
+  // 않아도 cycloid 출력". Every wheel is sampled and windowed every frame, independently
+  // of which one is currently on screen - switching the displayed wheel (see
+  // cycloidChartActiveWheelKey's comment) never touches any buffer, so a bump/pothole
+  // event can never show up as the chart resetting; it can only ever change *which*
+  // already-continuous curve is being displayed. Each wheel's own buffer is windowed to
+  // its outer wheel's *last full revolution* (2*PI of spinAngleRad, not a fixed sample
+  // count or time span) so the displayed shape is always exactly "one outer-wheel rotation
+  // period" per the user's request, continuously sliding forward as that wheel turns.
   recordCycloidChartSample() {
     if (!this.viewer || !this.body) {
       return;
     }
 
     const wheelKeys = Object.keys(this.wheelLinkNameByKey);
+
+    wheelKeys.forEach((wheelKey) => {
+      const sample = this.computeCycloidSample(wheelKey);
+      if (!sample) {
+        return;
+      }
+
+      const samples = this.cycloidChartSamplesByKey[wheelKey];
+      samples.push(sample);
+
+      if (Number.isFinite(sample.spinAngleRad)) {
+        while (
+          samples.length > 2 &&
+          Number.isFinite(samples[0].spinAngleRad) &&
+          Math.abs(sample.spinAngleRad - samples[0].spinAngleRad) > Math.PI * 2
+        ) {
+          samples.shift();
+        }
+      }
+
+      // Safety cap in case spin angle stalls (near-zero speed) for a long stretch - keeps
+      // the buffer from growing unbounded even though the revolution-based window above
+      // never closes in that case.
+      if (samples.length > this.cycloidChartMaxSamples) {
+        samples.splice(0, samples.length - this.cycloidChartMaxSamples);
+      }
+    });
+
     const engagedWheelKey =
       wheelKeys.find(
         (wheelKey) =>
           this.wheelClimbEngagedObstacleByKey[wheelKey] ||
           this.wheelClimbEngagedHoleByKey[wheelKey],
       ) || null;
-    const targetWheelKey =
+    this.cycloidChartActiveWheelKey =
       engagedWheelKey || this.cycloidChartActiveWheelKey || wheelKeys[0];
-
-    if (targetWheelKey !== this.cycloidChartActiveWheelKey) {
-      this.cycloidChartActiveWheelKey = targetWheelKey;
-      this.cycloidChartSamples = [];
-    }
-
-    const sample = this.computeCycloidSample(targetWheelKey);
-    if (!sample) {
-      return;
-    }
-
-    this.cycloidChartSamples.push(sample);
-
-    if (Number.isFinite(sample.spinAngleRad)) {
-      while (
-        this.cycloidChartSamples.length > 2 &&
-        Number.isFinite(this.cycloidChartSamples[0].spinAngleRad) &&
-        Math.abs(
-          sample.spinAngleRad - this.cycloidChartSamples[0].spinAngleRad,
-        ) >
-          Math.PI * 2
-      ) {
-        this.cycloidChartSamples.shift();
-      }
-    }
-
-    // Safety cap in case spin angle stalls (near-zero speed) for a long stretch - keeps
-    // the buffer from growing unbounded even though the revolution-based window above
-    // never closes in that case.
-    if (this.cycloidChartSamples.length > this.cycloidChartMaxSamples) {
-      this.cycloidChartSamples.splice(
-        0,
-        this.cycloidChartSamples.length - this.cycloidChartMaxSamples,
-      );
-    }
   }
 
   renderCycloidChart() {
@@ -1880,7 +1929,7 @@ class RapierDriveSimulation {
     const plotHeight = height - margin.top - margin.bottom;
 
     const wheelKey = this.cycloidChartActiveWheelKey;
-    const samples = this.cycloidChartSamples;
+    const samples = wheelKey ? this.cycloidChartSamplesByKey[wheelKey] || [] : [];
     if (!wheelKey || samples.length < 2) {
       ctx.fillStyle = "#9aa5b1";
       ctx.font = "12px Segoe UI";
@@ -10542,6 +10591,7 @@ class RapierDriveSimulation {
       if (this.viewer) {
         this.ensureWheelZChartOverlay();
         this.ensureCycloidChartOverlay();
+        this.ensureDebugPanelDockedUnderViewCube();
       }
 
       if (this.viewer && !this.isReady && !this.hasFailed) {

@@ -530,11 +530,6 @@ class RapierDriveSimulation {
     this.debugTextElement = null;
     this.debugStatusUpdateIntervalSec = 0.2;
     this.debugStatusElapsedSec = 0;
-    // Set true once ensureDebugPanelDockedUnderViewCube() has reparented
-    // #simulation-debug-panel out of the sidebar table and into the 3D viewer's own
-    // overlay container, docked directly under the nav (view) cube - a one-time move, not
-    // redone every frame.
-    this.isDebugPanelDockedInViewer = false;
     this.wheelZChartOverlayElement = null;
     this.wheelZChartPanelElement = null;
     this.wheelZChartBodyElement = null;
@@ -591,8 +586,8 @@ class RapierDriveSimulation {
     // 중간휠=carrier tip/wheel center, 내부휠=inner-gear rim) for whichever wheel is
     // currently crossing an obstacle or pothole - see recordCycloidChartSample() /
     // renderCycloidChart(). A separate overlay from the Wheel Bottom Height chart above
-    // (spatial X-Z trace, not a time series), docked in the opposite corner so the two
-    // don't overlap.
+    // (spatial X-Z trace, not a time series), stacked directly above it in the same
+    // bottom-right corner - see syncCycloidChartOverlayPosition().
     this.cycloidChartOverlayElement = null;
     this.cycloidChartPanelElement = null;
     this.cycloidChartTitleRowElement = null;
@@ -664,47 +659,6 @@ class RapierDriveSimulation {
 
     this.debugPanelElement.style.display = "block";
     this.debugTextElement.textContent = "초기화 중...";
-  }
-
-  // Moves #simulation-debug-panel out of its original spot in the sidebar table (below
-  // the 3D viewer) and docks it as an absolute overlay *inside* the viewer container,
-  // directly under the nav (view) cube widget urdfViewer.js draws at its top-left corner -
-  // same "read the cube's own live position/size, don't hardcode it" approach as the rest
-  // of this file's overlays, so this keeps tracking correctly even if the cube's own
-  // layout (button count, padding) ever changes. Runs once (guarded by
-  // isDebugPanelDockedInViewer) from runLoop(), retrying every frame until both the panel
-  // and the cube actually exist - initDebugPanel() itself runs from start(), well before
-  // this.viewer (and the cube it owns) is necessarily ready.
-  ensureDebugPanelDockedUnderViewCube() {
-    if (this.isDebugPanelDockedInViewer) {
-      return;
-    }
-
-    const panel = this.debugPanelElement;
-    const container = this.viewer?.container;
-    const cubeOverlay = this.viewer?.viewCubeOverlayElement;
-    if (!panel || !container || !cubeOverlay) {
-      return;
-    }
-
-    const containerStyle = window.getComputedStyle(container);
-    if (containerStyle.position === "static") {
-      container.style.position = "relative";
-    }
-
-    panel.classList.remove("mt-3", "mb-0");
-    panel.style.position = "absolute";
-    panel.style.left = "10px";
-    panel.style.top = `${cubeOverlay.offsetTop + cubeOverlay.offsetHeight + 8}px`;
-    panel.style.width = "min(280px, 70vw)";
-    panel.style.maxWidth = "70vw";
-    panel.style.zIndex = "999";
-    panel.style.pointerEvents = "auto";
-    panel.style.background = "rgba(255, 255, 255, 0.92)";
-    panel.style.backdropFilter = "blur(2px)";
-
-    container.appendChild(panel);
-    this.isDebugPanelDockedInViewer = true;
   }
 
   ensureWheelZChartOverlay() {
@@ -1506,8 +1460,10 @@ class RapierDriveSimulation {
     const overlay = document.createElement("div");
     overlay.id = "cycloid-chart-overlay";
     overlay.className = "position-absolute";
-    // Opposite corner from #wheel-z-chart-overlay so the two panels never collide.
-    overlay.style.left = "12px";
+    // Same corner (bottom-right) as #wheel-z-chart-overlay, stacked directly above it -
+    // see the "bottom" sync at the top of renderCycloidChart(), which keeps this in place
+    // even as the wheel chart's own height changes (e.g. its collapse/expand toggle).
+    overlay.style.right = "12px";
     overlay.style.bottom = "12px";
     overlay.style.width = "min(360px, 84vw)";
     overlay.style.minHeight = "32px";
@@ -1900,7 +1856,25 @@ class RapierDriveSimulation {
       engagedWheelKey || this.cycloidChartActiveWheelKey || wheelKeys[0];
   }
 
+  // Keeps #cycloid-chart-overlay's "bottom" offset pinned to just above
+  // #wheel-z-chart-overlay's current rendered height (read live via offsetHeight, not
+  // hardcoded) - same right-edge dock, stacked above it, so the two panels track each
+  // other even as the wheel chart's own height changes (its collapse/expand toggle).
+  syncCycloidChartOverlayPosition() {
+    const cycloidOverlay = this.cycloidChartOverlayElement;
+    const wheelOverlay = this.wheelZChartOverlayElement;
+    if (!cycloidOverlay || !wheelOverlay) {
+      return;
+    }
+
+    const wheelOverlayHeight = wheelOverlay.offsetHeight || 0;
+    const gapPx = 10;
+    cycloidOverlay.style.bottom = `${12 + wheelOverlayHeight + gapPx}px`;
+  }
+
   renderCycloidChart() {
+    this.syncCycloidChartOverlayPosition();
+
     const ctx = this.cycloidChartContext;
     const canvas = this.cycloidChartCanvasElement;
     if (!ctx || !canvas || !this.isCycloidChartVisible) {
@@ -10591,7 +10565,6 @@ class RapierDriveSimulation {
       if (this.viewer) {
         this.ensureWheelZChartOverlay();
         this.ensureCycloidChartOverlay();
-        this.ensureDebugPanelDockedUnderViewCube();
       }
 
       if (this.viewer && !this.isReady && !this.hasFailed) {

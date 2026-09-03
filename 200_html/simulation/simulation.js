@@ -33,7 +33,7 @@ const OBSTACLE_RAMP_MAX_LENGTH_METERS = 0.65;
 const OBSTACLE_RAMP_HALF_FORWARD_SCALE = 1.5;
 const OBSTACLE_MAX_LATERAL_OFFSET_METERS = 0.8;
 const OBSTACLE_MAX_TILT_DEG = 22;
-// Fallback used only when the urdf-container's osbstaclePositionIntervalMeter
+// Fallback used only when the urdf-container's obstaclePosIntervalMeter
 // attribute (see getDynamicObstacleForwardDistanceMeters()) is missing/invalid.
 const DYNAMIC_OBSTACLE_FORWARD_DISTANCE_METERS_FALLBACK = 1;
 const INITIAL_VEHICLE_CAMERA_OCCUPANCY = 0.8;

@@ -157,6 +157,17 @@ class URDFViewer {
       rl: null,
       rr: null,
     };
+    // Populated lazily by getInnerGearMarkerRadiusMeters() - same "local mesh bounding
+    // radius" measurement ensureInnerGearRatioMeasured() already does for the ratio, just
+    // exposed on its own so simulation.js's cycloid chart can place a marker point out on
+    // the gear's own rim (its *center* never moves - see innerWheelJointNameByKey's
+    // comment below - so a rim point is what actually traces a curve).
+    this.innerGearMarkerRadiusMetersByKey = {
+      fl: null,
+      fr: null,
+      rl: null,
+      rr: null,
+    };
     // inner_wheel_{key}_joint shares inner_gear_{key}_joint's exact origin/axis (see the
     // comment above) but is a second, independent continuous joint on swing_link: it's
     // the carrier arm that the wheel is mounted eccentrically on, not part of the bevel
@@ -3878,6 +3889,32 @@ class URDFViewer {
       ratio,
     });
     return ratio;
+  }
+
+  // Local mesh bounding radius of inner_gear_{key} itself, i.e. a point out on the gear's
+  // own rim rather than its rotation center (which is fixed - see the comment on
+  // innerWheelJointNameByKey - and so traces no curve at all). Used by simulation.js's
+  // cycloid chart to place a marker point whose world position actually moves as the gear
+  // spins, driven by applyInnerGearRotation()'s gearAngle. Cached the same way
+  // ensureInnerGearRatioMeasured() caches gearRadius, and just as dependent on the mesh
+  // file having actually finished loading (see urdf-loader-progressive-mesh-reveal in the
+  // project memory) - returns null and lets callers retry next frame until it does.
+  getInnerGearMarkerRadiusMeters(key) {
+    const cachedRadius = this.innerGearMarkerRadiusMetersByKey[key];
+    if (Number.isFinite(cachedRadius)) {
+      return cachedRadius;
+    }
+
+    const linkMap = this.robotModel?.links || {};
+    const radius = this.measureLinkLocalRadius(
+      linkMap[this.innerGearLinkNameByKey[key]],
+    );
+    if (!Number.isFinite(radius)) {
+      return null;
+    }
+
+    this.innerGearMarkerRadiusMetersByKey[key] = radius;
+    return radius;
   }
 
   // Distance from inner_wheel_{key}_joint's own rotation axis (Z, in swing_link's local

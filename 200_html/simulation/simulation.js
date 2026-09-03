@@ -582,6 +582,35 @@ class RapierDriveSimulation {
       rl: null,
       rr: null,
     };
+    // Cycloid chart: traces the wheel-pod mechanism's own paths (외부휠=tire rim,
+    // 중간휠=carrier tip/wheel center, 내부휠=inner-gear rim) for whichever wheel is
+    // currently crossing an obstacle or pothole - see recordCycloidChartSample() /
+    // renderCycloidChart(). A separate overlay from the Wheel Bottom Height chart above
+    // (spatial X-Z trace, not a time series), docked in the opposite corner so the two
+    // don't overlap.
+    this.cycloidChartOverlayElement = null;
+    this.cycloidChartPanelElement = null;
+    this.cycloidChartTitleRowElement = null;
+    this.cycloidChartTitleElement = null;
+    this.cycloidChartToggleButtonElement = null;
+    this.cycloidChartBodyElement = null;
+    this.cycloidChartCanvasElement = null;
+    this.cycloidChartContext = null;
+    this.cycloidChartVisibleStorageKey = "wcs.simulation.cycloidChartVisible";
+    this.isCycloidChartVisible = this.loadCycloidChartVisibleState();
+    // Which wheel pod (fl/fr/rl/rr) the chart is currently tracing - null whenever no
+    // wheel is engaged with an obstacle/pothole. Deliberately NOT cleared the instant a
+    // crossing ends, so the finished curve stays on screen (frozen) until the *next*
+    // crossing starts and resets it - see recordCycloidChartSample().
+    this.cycloidChartActiveWheelKey = null;
+    this.cycloidChartMaxSamples = 400;
+    // Each entry: { outer:{forward,height}, middle:{forward,height}, inner:{forward,height}|null }
+    this.cycloidChartSamples = [];
+    this.cycloidChartColors = {
+      outer: "#dc3545",
+      middle: "#0d6efd",
+      inner: "#198754",
+    };
   }
 
   kmhToMps(kmh) {
@@ -1396,6 +1425,556 @@ class RapierDriveSimulation {
       ctx.fillRect(legendX, legendY - 4, 14, 6);
       ctx.fillStyle = "#334155";
       ctx.fillText(wheelKey.toUpperCase(), legendX + 19, legendY);
+    });
+    ctx.textBaseline = "alphabetic";
+  }
+
+  ensureCycloidChartOverlay() {
+    if (
+      this.cycloidChartOverlayElement &&
+      this.cycloidChartCanvasElement &&
+      this.cycloidChartContext
+    ) {
+      return;
+    }
+
+    const container = this.viewer?.container || null;
+    if (!container) {
+      return;
+    }
+
+    const containerStyle = window.getComputedStyle(container);
+    if (containerStyle.position === "static") {
+      container.style.position = "relative";
+    }
+
+    const overlay = document.createElement("div");
+    overlay.id = "cycloid-chart-overlay";
+    overlay.className = "position-absolute";
+    // Opposite corner from #wheel-z-chart-overlay so the two panels never collide.
+    overlay.style.left = "12px";
+    overlay.style.bottom = "12px";
+    overlay.style.width = "min(360px, 84vw)";
+    overlay.style.minHeight = "32px";
+    overlay.style.overflow = "visible";
+    overlay.style.pointerEvents = "none";
+    overlay.style.zIndex = "15";
+
+    const buttonDock = document.createElement("div");
+    buttonDock.style.position = "absolute";
+    buttonDock.style.top = "8px";
+    buttonDock.style.right = "8px";
+    buttonDock.style.width = "28px";
+    buttonDock.style.height = "28px";
+    buttonDock.style.pointerEvents = "none";
+    buttonDock.style.zIndex = "16";
+
+    const panel = document.createElement("div");
+    panel.className = "border border-primary-subtle rounded-3 shadow-sm";
+    panel.style.width = "100%";
+    panel.style.minHeight = "48px";
+    panel.style.background = "rgba(255, 255, 255, 0.92)";
+    panel.style.backdropFilter = "blur(2px)";
+    panel.style.pointerEvents = "auto";
+    panel.style.padding = "8px 8px 6px 8px";
+    panel.style.position = "relative";
+    panel.style.touchAction = "none";
+
+    const titleRow = document.createElement("div");
+    titleRow.className =
+      "d-flex align-items-center justify-content-center gap-2";
+    titleRow.style.marginBottom = "4px";
+    titleRow.style.position = "relative";
+    titleRow.style.minHeight = "20px";
+    titleRow.style.padding = "0 36px 0 8px";
+    titleRow.style.width = "100%";
+    titleRow.style.zIndex = "3";
+
+    const title = document.createElement("div");
+    title.className = "small fw-semibold text-primary";
+    title.style.lineHeight = "1.1";
+    title.style.textAlign = "center";
+    title.style.width = "100%";
+    title.textContent = "Wheel Cycloid (외부/중간/내부휠)";
+
+    const toggleButton = document.createElement("button");
+    toggleButton.type = "button";
+    toggleButton.className = "btn btn-sm btn-outline-primary shadow-sm";
+    toggleButton.style.flex = "0 0 auto";
+    toggleButton.style.width = "28px";
+    toggleButton.style.height = "28px";
+    toggleButton.style.padding = "0";
+    toggleButton.style.display = "inline-flex";
+    toggleButton.style.alignItems = "center";
+    toggleButton.style.justifyContent = "center";
+    toggleButton.style.position = "absolute";
+    toggleButton.style.right = "0";
+    toggleButton.style.top = "50%";
+    toggleButton.style.transform = "translateY(-50%)";
+    toggleButton.style.pointerEvents = "auto";
+    toggleButton.style.whiteSpace = "nowrap";
+    toggleButton.style.borderRadius = "999px";
+    toggleButton.style.borderWidth = "1px";
+    toggleButton.style.lineHeight = "1";
+    toggleButton.style.overflow = "hidden";
+    toggleButton.innerHTML = this.getWheelZChartToggleButtonIconSvg(
+      this.isCycloidChartVisible,
+    );
+
+    const canvas = document.createElement("canvas");
+    canvas.width = 344;
+    canvas.height = 220;
+    canvas.style.width = "100%";
+    canvas.style.height = "220px";
+    canvas.style.display = "block";
+
+    const body = document.createElement("div");
+    body.style.display = "block";
+    body.appendChild(canvas);
+
+    titleRow.appendChild(title);
+    panel.appendChild(titleRow);
+    panel.appendChild(body);
+    buttonDock.appendChild(toggleButton);
+    overlay.appendChild(buttonDock);
+    overlay.appendChild(panel);
+
+    const blockViewerInteraction = (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+    };
+
+    [
+      "pointerdown",
+      "pointermove",
+      "pointerup",
+      "mousedown",
+      "mousemove",
+      "mouseup",
+      "click",
+      "dblclick",
+      "wheel",
+      "touchstart",
+      "touchmove",
+      "touchend",
+    ].forEach((eventName) => {
+      overlay.addEventListener(eventName, blockViewerInteraction, {
+        passive: false,
+      });
+      canvas.addEventListener(eventName, blockViewerInteraction, {
+        passive: false,
+      });
+    });
+
+    container.appendChild(overlay);
+
+    this.cycloidChartOverlayElement = overlay;
+    this.cycloidChartPanelElement = panel;
+    this.cycloidChartBodyElement = body;
+    this.cycloidChartTitleRowElement = titleRow;
+    this.cycloidChartTitleElement = title;
+    this.cycloidChartToggleButtonElement = toggleButton;
+    this.cycloidChartCanvasElement = canvas;
+    this.cycloidChartContext = canvas.getContext("2d");
+    toggleButton.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      this.toggleCycloidChartVisible();
+    });
+
+    this.updateCycloidChartVisibility();
+  }
+
+  loadCycloidChartVisibleState() {
+    try {
+      if (typeof window.localStorage === "undefined") {
+        return true;
+      }
+
+      const savedValue = window.localStorage.getItem(
+        this.cycloidChartVisibleStorageKey,
+      );
+      if (savedValue == null) {
+        return true;
+      }
+
+      return savedValue === "1" || savedValue === "true";
+    } catch (error) {
+      return true;
+    }
+  }
+
+  saveCycloidChartVisibleState() {
+    try {
+      if (typeof window.localStorage === "undefined") {
+        return;
+      }
+
+      window.localStorage.setItem(
+        this.cycloidChartVisibleStorageKey,
+        this.isCycloidChartVisible ? "1" : "0",
+      );
+    } catch (error) {
+      // Ignore storage failures in restricted browser modes.
+    }
+  }
+
+  updateCycloidChartToggleButtonState() {
+    if (!this.cycloidChartToggleButtonElement) {
+      return;
+    }
+
+    const isVisible = this.isCycloidChartVisible;
+    this.cycloidChartToggleButtonElement.innerHTML =
+      this.getWheelZChartToggleButtonIconSvg(isVisible);
+    this.cycloidChartToggleButtonElement.setAttribute(
+      "aria-pressed",
+      isVisible ? "true" : "false",
+    );
+    this.cycloidChartToggleButtonElement.setAttribute(
+      "aria-label",
+      isVisible ? "사이클로이드 차트 숨기기" : "사이클로이드 차트 표시",
+    );
+    this.cycloidChartToggleButtonElement.title = isVisible
+      ? "사이클로이드 차트 숨기기"
+      : "사이클로이드 차트 표시";
+  }
+
+  updateCycloidChartVisibility() {
+    const isVisible = this.isCycloidChartVisible;
+
+    if (this.cycloidChartToggleButtonElement) {
+      this.cycloidChartToggleButtonElement.style.top = isVisible ? "50%" : "0";
+      this.cycloidChartToggleButtonElement.style.transform = isVisible
+        ? "translateY(-50%)"
+        : "translateY(0)";
+      this.cycloidChartToggleButtonElement.style.right = isVisible ? "0" : "0";
+    }
+
+    if (this.cycloidChartTitleRowElement) {
+      this.cycloidChartTitleRowElement.style.marginBottom = isVisible
+        ? "4px"
+        : "0";
+      this.cycloidChartTitleRowElement.style.justifyContent = "center";
+      this.cycloidChartTitleRowElement.style.minHeight = isVisible
+        ? "28px"
+        : "0";
+      this.cycloidChartTitleRowElement.style.paddingRight = "0";
+    }
+
+    if (this.cycloidChartTitleElement) {
+      this.cycloidChartTitleElement.style.display = isVisible
+        ? "block"
+        : "none";
+    }
+
+    if (this.cycloidChartBodyElement) {
+      this.cycloidChartBodyElement.style.display = isVisible ? "block" : "none";
+    }
+
+    if (this.cycloidChartPanelElement) {
+      this.cycloidChartPanelElement.style.display = isVisible
+        ? "block"
+        : "none";
+      this.cycloidChartPanelElement.style.opacity = "1";
+    }
+
+    this.updateCycloidChartToggleButtonState();
+  }
+
+  toggleCycloidChartVisible(forceVisible = null) {
+    this.isCycloidChartVisible =
+      typeof forceVisible === "boolean"
+        ? forceVisible
+        : !this.isCycloidChartVisible;
+    this.saveCycloidChartVisibleState();
+    this.updateCycloidChartVisibility();
+  }
+
+  // Computes this frame's 3 mechanism points for one wheel pod, all expressed as
+  // {forward, height} offsets from the carrier/gear pivot (fixed relative to car_frame -
+  // see innerWheelCarrierLinkNameByKey's comment) projected onto the vehicle's own
+  // sagittal plane: forward = along the vehicle's live heading, height = world Z. That
+  // projection (not raw world X/Y/Z) is what actually turns 3D forward-kinematics points
+  // into a flat 2D trace worth charting, and matches the technique
+  // sampleWheelCenterZForChart() already uses elsewhere in this file for the same reason.
+  //
+  //   - outer (외부휠): a point on the *rim* of the tire (wheel center + wheelRadius along
+  //     the link's own local Z), not its center - the center alone only ever traces the
+  //     same plain arc as "middle" below, since the tire is rigidly mounted at the
+  //     carrier's tip. The rim point additionally spins with the tire's own rolling
+  //     rotation, which is what actually produces a cycloid/trochoid loop shape instead of
+  //     a bare circular arc.
+  //   - middle (중간휠/캐리어): the wheel's own center, i.e. the carrier arm's tip - traces
+  //     the circular arc the carrier orbits through (~30° max, see WHEEL_CLIMB constants).
+  //   - inner (내부휠/베벨기어): a point on the gear's own rim (its rotation center is the
+  //     fixed pivot itself and traces nothing - see getInnerGearMarkerRadiusMeters()'s
+  //     comment in urdfViewer.js), driven by applyInnerGearRotation()'s live gear angle,
+  //     which is itself a function of the outer wheel's own rolling angle - so this point's
+  //     position is directly coupled to the outer wheel's motion, just measured on a
+  //     different (fixed-axis) rotating part.
+  computeCycloidSample(wheelKey) {
+    const viewer = this.viewer;
+    const jointMap = viewer?.robotModel?.joints;
+    const linkMap = viewer?.robotModel?.links;
+    if (!viewer || !jointMap || !linkMap || !this.body) {
+      return null;
+    }
+
+    const wheelLink = this.findLinkByName(
+      linkMap,
+      this.wheelLinkNameByKey[wheelKey],
+    );
+    const carrierLink = this.findLinkByName(
+      linkMap,
+      this.innerWheelCarrierLinkNameByKey[wheelKey],
+    );
+    const gearLink = this.findLinkByName(
+      linkMap,
+      viewer.innerGearLinkNameByKey?.[wheelKey],
+    );
+    if (!wheelLink || !carrierLink) {
+      return null;
+    }
+
+    wheelLink.updateWorldMatrix(true, false);
+    carrierLink.updateWorldMatrix(true, false);
+    if (gearLink) {
+      gearLink.updateWorldMatrix(true, false);
+    }
+
+    const bodyYaw = this.extractYawFromQuaternion(this.body.rotation());
+    const forwardVector = this.getVehicleForwardVector(bodyYaw);
+
+    // Everything is measured relative to the pivot (fixed relative to car_frame - see
+    // innerWheelCarrierLinkNameByKey's comment), not the vehicle body, so the chart shows
+    // only the mechanism's own motion rather than being dominated by the vehicle's actual
+    // forward travel through the world.
+    const pivotWorld = carrierLink.getWorldPosition(new THREE.Vector3());
+    const project = (worldPoint) => ({
+      forward:
+        (worldPoint.x - pivotWorld.x) * forwardVector.x +
+        (worldPoint.y - pivotWorld.y) * forwardVector.y,
+      height: worldPoint.z - pivotWorld.z,
+    });
+
+    const wheelRadiusMeters = Math.max(
+      Number(this.wheelRadiusMetersByKey[wheelKey]) ||
+        Number(this.wheelEffectiveRadiusMeters) ||
+        0.16,
+      0.05,
+    );
+    const wheelCenterWorld = wheelLink.getWorldPosition(new THREE.Vector3());
+    const wheelRimWorld = new THREE.Vector3(0, 0, wheelRadiusMeters).applyMatrix4(
+      wheelLink.matrixWorld,
+    );
+
+    let innerPoint = null;
+    if (gearLink && typeof viewer.getInnerGearMarkerRadiusMeters === "function") {
+      const gearRadiusMeters = viewer.getInnerGearMarkerRadiusMeters(wheelKey);
+      if (Number.isFinite(gearRadiusMeters) && gearRadiusMeters > 0) {
+        const gearMarkerWorld = new THREE.Vector3(
+          gearRadiusMeters,
+          0,
+          0,
+        ).applyMatrix4(gearLink.matrixWorld);
+        innerPoint = project(gearMarkerWorld);
+      }
+    }
+
+    return {
+      outer: project(wheelRimWorld),
+      middle: project(wheelCenterWorld),
+      inner: innerPoint,
+    };
+  }
+
+  // Called once per rendered frame (after stepSimulation() has fully settled the chassis
+  // and every wheel pod's joints for this frame - see runLoop()). Only ever samples
+  // whichever wheel is *currently* engaged with an obstacle or pothole
+  // (wheelClimbEngagedObstacleByKey / wheelClimbEngagedHoleByKey, populated by
+  // updateWheelClimbGait() and kept past the exact contact frame through the retraction -
+  // see that field's own comment), per the user's explicit "단차와 포트홀과 접촉 또는
+  // 지나가는 중인 휠의 cycloid만 출력". Buffer resets whenever a *different* wheel becomes
+  // the engaged one (a new crossing), but is deliberately left alone (not cleared) once
+  // the engaged wheel goes back to none, so the finished curve stays visible until the
+  // next crossing overwrites it instead of flashing empty on every gap between obstacles.
+  recordCycloidChartSample() {
+    if (!this.viewer || !this.body) {
+      return;
+    }
+
+    const engagedWheelKey =
+      Object.keys(this.innerWheelJointNameByKey).find(
+        (wheelKey) =>
+          this.wheelClimbEngagedObstacleByKey[wheelKey] ||
+          this.wheelClimbEngagedHoleByKey[wheelKey],
+      ) || null;
+
+    if (!engagedWheelKey) {
+      return;
+    }
+
+    if (engagedWheelKey !== this.cycloidChartActiveWheelKey) {
+      this.cycloidChartActiveWheelKey = engagedWheelKey;
+      this.cycloidChartSamples = [];
+    }
+
+    const sample = this.computeCycloidSample(engagedWheelKey);
+    if (!sample) {
+      return;
+    }
+
+    this.cycloidChartSamples.push(sample);
+    if (this.cycloidChartSamples.length > this.cycloidChartMaxSamples) {
+      this.cycloidChartSamples.splice(
+        0,
+        this.cycloidChartSamples.length - this.cycloidChartMaxSamples,
+      );
+    }
+  }
+
+  renderCycloidChart() {
+    const ctx = this.cycloidChartContext;
+    const canvas = this.cycloidChartCanvasElement;
+    if (!ctx || !canvas || !this.isCycloidChartVisible) {
+      return;
+    }
+
+    const dpr = Math.max(window.devicePixelRatio || 1, 1);
+    const cssWidth = Math.max(Math.floor(canvas.clientWidth || 344), 120);
+    const cssHeight = Math.max(Math.floor(canvas.clientHeight || 220), 120);
+    const targetWidth = Math.floor(cssWidth * dpr);
+    const targetHeight = Math.floor(cssHeight * dpr);
+    if (canvas.width !== targetWidth || canvas.height !== targetHeight) {
+      canvas.width = targetWidth;
+      canvas.height = targetHeight;
+    }
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+    const width = cssWidth;
+    const height = cssHeight;
+    ctx.clearRect(0, 0, width, height);
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, 0, width, height);
+
+    const margin = { left: 34, right: 12, top: 12, bottom: 22 };
+    const plotWidth = width - margin.left - margin.right;
+    const plotHeight = height - margin.top - margin.bottom;
+
+    const wheelKey = this.cycloidChartActiveWheelKey;
+    const samples = this.cycloidChartSamples;
+    if (!wheelKey || samples.length < 2) {
+      ctx.fillStyle = "#9aa5b1";
+      ctx.font = "12px Segoe UI";
+      ctx.textAlign = "center";
+      ctx.fillText(
+        "단차/포트홀 통과 중인 휠 없음",
+        width / 2,
+        margin.top + plotHeight / 2,
+      );
+      ctx.textAlign = "left";
+      return;
+    }
+
+    // Equal-aspect scaling (one shared meters-per-pixel for both axes) - a cycloid's
+    // characteristic loop shape only reads correctly when forward and height aren't
+    // stretched by different amounts, unlike the Wheel Bottom Height chart's independent
+    // time/height axes above.
+    const allPoints = [];
+    samples.forEach((sample) => {
+      allPoints.push(sample.outer, sample.middle);
+      if (sample.inner) {
+        allPoints.push(sample.inner);
+      }
+    });
+    const minForward = Math.min(...allPoints.map((p) => p.forward));
+    const maxForward = Math.max(...allPoints.map((p) => p.forward));
+    const minHeight = Math.min(...allPoints.map((p) => p.height));
+    const maxHeight = Math.max(...allPoints.map((p) => p.height));
+    const spanForward = Math.max(maxForward - minForward, 0.01);
+    const spanHeight = Math.max(maxHeight - minHeight, 0.01);
+    const centerForward = (minForward + maxForward) / 2;
+    const centerHeight = (minHeight + maxHeight) / 2;
+    const metersPerPixel =
+      Math.max(spanForward / plotWidth, spanHeight / plotHeight) * 1.15;
+
+    const toX = (forward) =>
+      margin.left + plotWidth / 2 + (forward - centerForward) / metersPerPixel;
+    const toY = (heightValue) =>
+      margin.top +
+      plotHeight / 2 -
+      (heightValue - centerHeight) / metersPerPixel;
+
+    ctx.strokeStyle = "#e3e8ef";
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(margin.left, toY(centerHeight));
+    ctx.lineTo(margin.left + plotWidth, toY(centerHeight));
+    ctx.moveTo(toX(centerForward), margin.top);
+    ctx.lineTo(toX(centerForward), margin.top + plotHeight);
+    ctx.stroke();
+
+    ctx.strokeStyle = "#495057";
+    ctx.lineWidth = 1.2;
+    ctx.strokeRect(margin.left, margin.top, plotWidth, plotHeight);
+
+    const drawSeries = (key) => {
+      const color = this.cycloidChartColors[key];
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 1.8;
+      ctx.beginPath();
+      let started = false;
+      samples.forEach((sample) => {
+        const point = sample[key];
+        if (!point) {
+          return;
+        }
+        const x = toX(point.forward);
+        const y = toY(point.height);
+        if (!started) {
+          ctx.moveTo(x, y);
+          started = true;
+        } else {
+          ctx.lineTo(x, y);
+        }
+      });
+      ctx.stroke();
+
+      const lastSample = [...samples].reverse().find((s) => s[key]);
+      if (lastSample) {
+        const point = lastSample[key];
+        ctx.fillStyle = color;
+        ctx.beginPath();
+        ctx.arc(toX(point.forward), toY(point.height), 3, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    };
+
+    drawSeries("middle");
+    drawSeries("inner");
+    drawSeries("outer");
+
+    ctx.fillStyle = "#334155";
+    ctx.font = "12px Segoe UI";
+    ctx.fillText(`${wheelKey.toUpperCase()}`, margin.left + 4, margin.top + 12);
+
+    const legendEntries = [
+      ["outer", "외부휠(타이어 림)"],
+      ["middle", "중간휠(캐리어)"],
+      ["inner", "내부휠(베벨기어 림)"],
+    ];
+    const legendStartY = margin.top + 14;
+    const legendRowHeight = 15;
+    ctx.font = "11px Segoe UI";
+    ctx.textBaseline = "middle";
+    legendEntries.forEach(([key, label], index) => {
+      const legendY = legendStartY + legendRowHeight * index;
+      const legendX = margin.left + plotWidth - 108;
+      ctx.fillStyle = this.cycloidChartColors[key];
+      ctx.fillRect(legendX, legendY - 4, 12, 6);
+      ctx.fillStyle = "#334155";
+      ctx.fillText(label, legendX + 16, legendY);
     });
     ctx.textBaseline = "alphabetic";
   }
@@ -9945,6 +10524,7 @@ class RapierDriveSimulation {
 
       if (this.viewer) {
         this.ensureWheelZChartOverlay();
+        this.ensureCycloidChartOverlay();
       }
 
       if (this.viewer && !this.isReady && !this.hasFailed) {
@@ -9957,6 +10537,8 @@ class RapierDriveSimulation {
       this.updateSceneTreePlacement();
       this.trimWheelZChartHistory(this.simulationElapsedSec);
       this.renderWheelZChart(this.simulationElapsedSec);
+      this.recordCycloidChartSample();
+      this.renderCycloidChart();
 
       this.updateDebugPanel(this.physicsFixedTimeStepSec);
     } catch (error) {

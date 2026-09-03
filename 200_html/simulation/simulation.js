@@ -1694,28 +1694,31 @@ class RapierDriveSimulation {
     this.updateCycloidChartVisibility();
   }
 
-  // Computes this frame's 3 mechanism points for one wheel pod, all expressed as
-  // {forward, height} offsets from the carrier/gear pivot (fixed relative to car_frame -
-  // see innerWheelCarrierLinkNameByKey's comment) projected onto the vehicle's own
-  // sagittal plane: forward = along the vehicle's live heading, height = world Z. That
-  // projection (not raw world X/Y/Z) is what actually turns 3D forward-kinematics points
-  // into a flat 2D trace worth charting, and matches the technique
-  // sampleWheelCenterZForChart() already uses elsewhere in this file for the same reason.
+  // Computes this frame's 3 mechanism points for one wheel pod, each projected from its
+  // full 3D world (x, y, z) onto the vehicle's forward-travel plane: forward = world
+  // position dotted with the vehicle's live heading, height = world Z above ground. This
+  // is deliberately an ABSOLUTE (ground-fixed) projection, not relative to a point that
+  // co-moves with the chassis (e.g. the carrier pivot) - a real cycloid is the path a
+  // point traces relative to the *ground* as the wheel rolls forward; subtracting out the
+  // chassis's own forward travel would collapse every curve here into a bare circle
+  // instead of the loop-shaped cycloid/trochoid the user asked to see.
   //
   //   - outer (외부휠): a point on the *rim* of the tire (wheel center + wheelRadius along
   //     the link's own local Z), not its center - the center alone only ever traces the
-  //     same plain arc as "middle" below, since the tire is rigidly mounted at the
+  //     same plain path as "middle" below, since the tire is rigidly mounted at the
   //     carrier's tip. The rim point additionally spins with the tire's own rolling
-  //     rotation, which is what actually produces a cycloid/trochoid loop shape instead of
-  //     a bare circular arc.
-  //   - middle (중간휠/캐리어): the wheel's own center, i.e. the carrier arm's tip - traces
-  //     the circular arc the carrier orbits through (~30° max, see WHEEL_CLIMB constants).
-  //   - inner (내부휠/베벨기어): a point on the gear's own rim (its rotation center is the
-  //     fixed pivot itself and traces nothing - see getInnerGearMarkerRadiusMeters()'s
-  //     comment in urdfViewer.js), driven by applyInnerGearRotation()'s live gear angle,
-  //     which is itself a function of the outer wheel's own rolling angle - so this point's
-  //     position is directly coupled to the outer wheel's motion, just measured on a
-  //     different (fixed-axis) rotating part.
+  //     rotation, which combined with the chassis's forward travel is exactly what
+  //     produces the classic cycloid loop.
+  //   - middle (중간휠/캐리어): the wheel's own center, i.e. the carrier arm's tip - a
+  //     straight line on flat ground (carrier angle pinned at 0, so this point just rides
+  //     along with the chassis) and a curved arc while actually climbing.
+  //   - inner (내부휠/베벨기어): a point on the gear's own rim (its rotation *center* is
+  //     fixed relative to car_frame and traces nothing on its own - see
+  //     getInnerGearMarkerRadiusMeters()'s comment in urdfViewer.js - but the whole car_frame
+  //     still carries it forward with the vehicle), driven by applyInnerGearRotation()'s
+  //     live gear angle, itself a function of the outer wheel's own rolling angle - so this
+  //     point's position is directly coupled to the outer wheel's motion even though it
+  //     spins about a different, fixed-relative-to-chassis axis.
   computeCycloidSample(wheelKey) {
     const viewer = this.viewer;
     const jointMap = viewer?.robotModel?.joints;
@@ -1728,37 +1731,25 @@ class RapierDriveSimulation {
       linkMap,
       this.wheelLinkNameByKey[wheelKey],
     );
-    const carrierLink = this.findLinkByName(
-      linkMap,
-      this.innerWheelCarrierLinkNameByKey[wheelKey],
-    );
     const gearLink = this.findLinkByName(
       linkMap,
       viewer.innerGearLinkNameByKey?.[wheelKey],
     );
-    if (!wheelLink || !carrierLink) {
+    if (!wheelLink) {
       return null;
     }
 
     wheelLink.updateWorldMatrix(true, false);
-    carrierLink.updateWorldMatrix(true, false);
     if (gearLink) {
       gearLink.updateWorldMatrix(true, false);
     }
 
     const bodyYaw = this.extractYawFromQuaternion(this.body.rotation());
     const forwardVector = this.getVehicleForwardVector(bodyYaw);
-
-    // Everything is measured relative to the pivot (fixed relative to car_frame - see
-    // innerWheelCarrierLinkNameByKey's comment), not the vehicle body, so the chart shows
-    // only the mechanism's own motion rather than being dominated by the vehicle's actual
-    // forward travel through the world.
-    const pivotWorld = carrierLink.getWorldPosition(new THREE.Vector3());
+    const groundZ = Number.isFinite(this.groundZ) ? this.groundZ : 0;
     const project = (worldPoint) => ({
-      forward:
-        (worldPoint.x - pivotWorld.x) * forwardVector.x +
-        (worldPoint.y - pivotWorld.y) * forwardVector.y,
-      height: worldPoint.z - pivotWorld.z,
+      forward: worldPoint.x * forwardVector.x + worldPoint.y * forwardVector.y,
+      height: worldPoint.z - groundZ,
     });
 
     const wheelRadiusMeters = Math.max(
@@ -1785,50 +1776,73 @@ class RapierDriveSimulation {
       }
     }
 
+    // Outer wheel's own cumulative spin angle (unbounded - see urdfViewer.js's
+    // wheelAngles comment) - used by recordCycloidChartSample() below to window the chart
+    // to exactly one outer-wheel revolution, regardless of how that revolution happened
+    // to break down into simulation frames.
+    const spinAngleRad = Number(viewer.wheelAngles?.[wheelKey]);
+
     return {
       outer: project(wheelRimWorld),
       middle: project(wheelCenterWorld),
       inner: innerPoint,
+      spinAngleRad: Number.isFinite(spinAngleRad) ? spinAngleRad : null,
     };
   }
 
   // Called once per rendered frame (after stepSimulation() has fully settled the chassis
-  // and every wheel pod's joints for this frame - see runLoop()). Only ever samples
-  // whichever wheel is *currently* engaged with an obstacle or pothole
-  // (wheelClimbEngagedObstacleByKey / wheelClimbEngagedHoleByKey, populated by
-  // updateWheelClimbGait() and kept past the exact contact frame through the retraction -
-  // see that field's own comment), per the user's explicit "단차와 포트홀과 접촉 또는
-  // 지나가는 중인 휠의 cycloid만 출력". Buffer resets whenever a *different* wheel becomes
-  // the engaged one (a new crossing), but is deliberately left alone (not cleared) once
-  // the engaged wheel goes back to none, so the finished curve stays visible until the
-  // next crossing overwrites it instead of flashing empty on every gap between obstacles.
+  // and every wheel pod's joints for this frame - see runLoop()). Always samples - not
+  // gated on any obstacle/pothole contact, per the user's explicit "단차/포트홀이 나타나지
+  // 않아도 cycloid 출력" - defaulting to the first wheel key until/unless a wheel is
+  // actually engaged with an obstacle or pothole (wheelClimbEngagedObstacleByKey /
+  // wheelClimbEngagedHoleByKey), which then takes over as the more interesting curve to
+  // show. Buffer resets whenever the active wheel key changes; otherwise it's windowed to
+  // the outer wheel's *last full revolution* (2*PI of spinAngleRad, not a fixed sample
+  // count) so the displayed shape is always exactly "one outer-wheel rotation period" per
+  // the user's request, continuously sliding forward as the wheel keeps turning.
   recordCycloidChartSample() {
     if (!this.viewer || !this.body) {
       return;
     }
 
+    const wheelKeys = Object.keys(this.wheelLinkNameByKey);
     const engagedWheelKey =
-      Object.keys(this.innerWheelJointNameByKey).find(
+      wheelKeys.find(
         (wheelKey) =>
           this.wheelClimbEngagedObstacleByKey[wheelKey] ||
           this.wheelClimbEngagedHoleByKey[wheelKey],
       ) || null;
+    const targetWheelKey =
+      engagedWheelKey || this.cycloidChartActiveWheelKey || wheelKeys[0];
 
-    if (!engagedWheelKey) {
-      return;
-    }
-
-    if (engagedWheelKey !== this.cycloidChartActiveWheelKey) {
-      this.cycloidChartActiveWheelKey = engagedWheelKey;
+    if (targetWheelKey !== this.cycloidChartActiveWheelKey) {
+      this.cycloidChartActiveWheelKey = targetWheelKey;
       this.cycloidChartSamples = [];
     }
 
-    const sample = this.computeCycloidSample(engagedWheelKey);
+    const sample = this.computeCycloidSample(targetWheelKey);
     if (!sample) {
       return;
     }
 
     this.cycloidChartSamples.push(sample);
+
+    if (Number.isFinite(sample.spinAngleRad)) {
+      while (
+        this.cycloidChartSamples.length > 2 &&
+        Number.isFinite(this.cycloidChartSamples[0].spinAngleRad) &&
+        Math.abs(
+          sample.spinAngleRad - this.cycloidChartSamples[0].spinAngleRad,
+        ) >
+          Math.PI * 2
+      ) {
+        this.cycloidChartSamples.shift();
+      }
+    }
+
+    // Safety cap in case spin angle stalls (near-zero speed) for a long stretch - keeps
+    // the buffer from growing unbounded even though the revolution-based window above
+    // never closes in that case.
     if (this.cycloidChartSamples.length > this.cycloidChartMaxSamples) {
       this.cycloidChartSamples.splice(
         0,
@@ -1872,7 +1886,7 @@ class RapierDriveSimulation {
       ctx.font = "12px Segoe UI";
       ctx.textAlign = "center";
       ctx.fillText(
-        "단차/포트홀 통과 중인 휠 없음",
+        "샘플 수집 중...",
         width / 2,
         margin.top + plotHeight / 2,
       );

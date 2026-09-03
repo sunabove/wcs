@@ -5893,7 +5893,7 @@ class RapierDriveSimulation {
         // "the" reference corner would target a rotation the carrier can't actually
         // produce. This matters in practice, not just in theory: confirmed in-browser
         // that a pothole narrower across the track than the wheel's own radius (this
-        // sim's authored sw_15 pothole is 0.15m wide against an ~0.081m wheel radius,
+        // sim's authored sw_18 pothole is 0.15m wide against an ~0.081m wheel radius,
         // i.e. under the 0.162m a wheelRadius-margin on both lateral sides would need)
         // has its lateral margin permanently smaller than wheelRadiusMeters everywhere
         // along the crossing - if lateral edges were allowed to win, the "far enough

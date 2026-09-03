@@ -352,6 +352,19 @@ class RapierDriveSimulation {
       rl: null,
       rr: null,
     };
+    // Pothole mirror of wheelClimbEngagedObstacleByKey above - the hole region a wheel is
+    // currently (or was most recently) riding the rim of, kept past the point
+    // supportProfile.supportHoleByKey[key] itself goes null for the same reason: the
+    // carrier's retraction still needs a real region to bisect against even after the
+    // wheel's nominal/rest position no longer detects one. Cleared once the carrier has
+    // fully retracted back to 0. Never non-null at the same time as
+    // wheelClimbEngagedObstacleByKey for the same wheel - see updateWheelClimbGait().
+    this.wheelClimbEngagedHoleByKey = {
+      fl: null,
+      fr: null,
+      rl: null,
+      rr: null,
+    };
     this.previousWheelColliderPositionByKey = {};
     // Separate from previousWheelColliderPositionByKey above (which
     // syncWheelRotationToBodyTravel() owns and resets on its own cadence, tied to the
@@ -5058,6 +5071,7 @@ class RapierDriveSimulation {
     const liftByKey = {};
     const supportZByKey = {};
     const supportObstacleByKey = {};
+    const supportHoleByKey = {};
     const samples = [];
 
     // Flatten Z/pitch/roll to the flat-ground baseline (keeping X/Y/yaw) for every
@@ -5097,6 +5111,7 @@ class RapierDriveSimulation {
         liftByKey[wheelKey] = 0;
         supportZByKey[wheelKey] = this.groundZ;
         supportObstacleByKey[wheelKey] = null;
+        supportHoleByKey[wheelKey] = null;
 
         const wheelLink = this.findLinkByName(linkMap, wheelLinkName);
         if (!wheelLink) {
@@ -5184,6 +5199,7 @@ class RapierDriveSimulation {
           supportObstacle = obstacleInfo;
         });
 
+        let engagedHole = null;
         if (!supportObstacle) {
           (this.holeRegions || []).forEach((holeRegion) => {
             const insideDistance = Math.min(
@@ -5205,16 +5221,24 @@ class RapierDriveSimulation {
               Number(holeRegion.depthMeters) || 0,
               0,
             );
-            supportZ = Math.min(
-              supportZ,
-              this.groundZ - Math.min(depthMeters, edgeDrop),
-            );
+            const candidateZ = this.groundZ - Math.min(depthMeters, edgeDrop);
+            if (candidateZ >= supportZ) {
+              return;
+            }
+            supportZ = candidateZ;
+            engagedHole = holeRegion;
           });
         }
 
         const nominalLift = supportZ - this.groundZ;
         supportObstacleByKey[wheelKey] =
           nominalLift > WHEEL_SUPPORT_MIN_LIFT_METERS ? supportObstacle : null;
+        // Mirror of supportObstacleByKey above, for updateWheelClimbGait()'s pothole
+        // branch - a negative nominalLift beyond the same noise floor means the wheel's
+        // nominal (carrier-neutral) position is genuinely riding a hole's rim, not just
+        // numerical noise on flat ground.
+        supportHoleByKey[wheelKey] =
+          nominalLift < -WHEEL_SUPPORT_MIN_LIFT_METERS ? engagedHole : null;
 
         // supportZ/nominalLift above is the *full* geometric requirement as if the
         // carrier weren't helping at all (nominal, carrier-neutral wheel position) -
@@ -5252,9 +5276,15 @@ class RapierDriveSimulation {
         // retracts and the gap reopens, tracking together rather than fighting each other.
         const engagedObstacleForResidual =
           supportObstacle || this.wheelClimbEngagedObstacleByKey[wheelKey] || null;
-        let chassisFacingSupportZ = engagedObstacleForResidual
-          ? this.groundZ
-          : supportZ;
+        // Pothole mirror of engagedObstacleForResidual above - see updateWheelClimbGait()
+        // for why obstacle and hole engagement are never both non-null for the same wheel.
+        const engagedHoleForResidual = engagedObstacleForResidual
+          ? null
+          : engagedHole || this.wheelClimbEngagedHoleByKey[wheelKey] || null;
+        let chassisFacingSupportZ =
+          engagedObstacleForResidual || engagedHoleForResidual
+            ? this.groundZ
+            : supportZ;
         if (engagedObstacleForResidual) {
           // carrierJoint is already at currentCarrierAngleRad here (restored right after
           // the nominal-position read above) - no need to re-pose it.
@@ -5285,6 +5315,39 @@ class RapierDriveSimulation {
                 ) -
                 wheelRadius;
           chassisFacingSupportZ = Math.max(this.groundZ, residualSupportZ);
+        } else if (engagedHoleForResidual) {
+          // Exact mirror of the obstacle branch above, using the carrier's own live
+          // (real, current-angle) position instead of a hypothetical max-angle one, for
+          // the same reason: evaluating against a hypothetical let the chassis start
+          // dipping on contact well before the carrier had actually moved, and a binary
+          // "has the carrier reached its own max angle" gate broke on the way back out
+          // (a tiny, safe retraction step yanking the chassis assist from full to zero in
+          // one frame). liveInsideDistance mirrors liveHorizontalGap: positive while the
+          // wheel's live center is still over the void, collapsing to 0 (no chassis dip
+          // needed) once the carrier's own downward swing has carried it back over solid
+          // ground on either side.
+          const liveWheelPosition = wheelLink.getWorldPosition(new THREE.Vector3());
+          const liveInsideDistance = Math.min(
+            liveWheelPosition.x - engagedHoleForResidual.minX,
+            engagedHoleForResidual.maxX - liveWheelPosition.x,
+            liveWheelPosition.y - engagedHoleForResidual.minY,
+            engagedHoleForResidual.maxY - liveWheelPosition.y,
+          );
+          const depthMeters = Math.max(
+            Number(engagedHoleForResidual.depthMeters) || 0,
+            0,
+          );
+          let residualSupportZ = this.groundZ;
+          if (liveInsideDistance > 0) {
+            const liveReach = Math.min(liveInsideDistance, wheelRadius);
+            const liveEdgeDrop =
+              wheelRadius -
+              Math.sqrt(
+                Math.max(wheelRadius * wheelRadius - liveReach * liveReach, 0),
+              );
+            residualSupportZ = this.groundZ - Math.min(depthMeters, liveEdgeDrop);
+          }
+          chassisFacingSupportZ = Math.min(this.groundZ, residualSupportZ);
         }
 
         const lift = chassisFacingSupportZ - this.groundZ;
@@ -5328,6 +5391,7 @@ class RapierDriveSimulation {
         liftByKey,
         supportZByKey,
         supportObstacleByKey,
+        supportHoleByKey,
         averageLift: Math.max(meanLift, 0),
         pitchRad: 0,
         rollRad: 0,
@@ -5368,6 +5432,7 @@ class RapierDriveSimulation {
       liftByKey,
       supportZByKey,
       supportObstacleByKey,
+      supportHoleByKey,
       // Signed: positive on obstacles, negative inside potholes.
       averageLift: liftAtOrigin,
       pitchRad: THREE.MathUtils.clamp(
@@ -5522,6 +5587,12 @@ class RapierDriveSimulation {
       // verify against for the rest of that retraction, not just while freshly detected.
       const engagedObstacle =
         freshSupportObstacle || this.wheelClimbEngagedObstacleByKey[wheelKey] || null;
+      // Pothole mirror of freshSupportObstacle/engagedObstacle above - see
+      // getWheelSupportProfile()'s supportHoleByKey (never non-null for the same wheel
+      // at the same time as supportObstacleByKey, by construction there).
+      const freshSupportHole = supportProfile?.supportHoleByKey?.[wheelKey] || null;
+      const engagedHole =
+        freshSupportHole || this.wheelClimbEngagedHoleByKey[wheelKey] || null;
 
       let carrierAngleRad = 0;
       let isWheelLockedThisFrame = false;
@@ -5774,6 +5845,215 @@ class RapierDriveSimulation {
 
         this.wheelClimbEngagedObstacleByKey[wheelKey] =
           carrierAngleRad > 1e-6 ? engagedObstacle : null;
+      } else if (
+        carrierJoint &&
+        typeof carrierJoint.setJointValue === "function" &&
+        wheelLink &&
+        carrierLink &&
+        engagedHole &&
+        Number.isFinite(engagedHole.minX) &&
+        Number.isFinite(engagedHole.maxX) &&
+        Number.isFinite(engagedHole.minY) &&
+        Number.isFinite(engagedHole.maxY) &&
+        Number.isFinite(orbitRadiusMeters) &&
+        orbitRadiusMeters > 0
+      ) {
+        // Pothole mirror of the obstacle branch above - same 기준각도/bisection/lock/
+        // pacing machinery, applied to a hole's rim instead of an obstacle's top corner.
+        // Physical difference from a bump, worked out from the rigid-wheel contact model
+        // (a circle's lowest point always needs ground directly below its own center):
+        // a bump's corner-riding phase happens OUTSIDE its footprint (the wheel's rim
+        // reaches the corner before its center arrives, both on the approach and on the
+        // way back down off the far side) - a hole's happens INSIDE its footprint instead
+        // (the wheel keeps normal single-point ground contact right up until its own
+        // center crosses the rim, since nothing above the void needs to intervene before
+        // that). So where the obstacle branch clamps the wheel's XY *into* the box and
+        // gates on being outside it, this branch clamps onto the *nearest rim edge* and
+        // gates on being inside it (but not deep enough that no edge is within reach -
+        // the mirror of the wide-obstacle interior shortcut, and per this mechanism doc's
+        // own 접촉점=0/1 rule: far enough from every edge is "not riding a corner",
+        // whether that means resting flat on the pit floor or genuinely unsupported -
+        // either way outside this carrier gait's job, left to getWheelSupportProfile()'s
+        // own chassis-facing dip). The rim itself sits at this.groundZ (flat-ground
+        // baseline, not an elevated obstacleTopZ) - carFrame is already flattened to that
+        // baseline for this whole method, same as the obstacle branch relies on.
+        const holeMinX = engagedHole.minX;
+        const holeMaxX = engagedHole.maxX;
+        const holeMinY = engagedHole.minY;
+        const holeMaxY = engagedHole.maxY;
+
+        const carrierPosition = carrierLink.getWorldPosition(new THREE.Vector3());
+
+        // Nearest point on the rim's own perimeter (not "clamp into the footprint",
+        // which is a no-op once already inside) - same single-nearest-edge
+        // simplification getWheelSupportProfile()'s own edge-drop formula already makes
+        // (one edge at a time, not true biaxial corner blending), kept consistent with
+        // it rather than introducing a different approximation just for this angle.
+        const nearestRimContactPoint = (positionVec) => {
+          const marginMinX = positionVec.x - holeMinX;
+          const marginMaxX = holeMaxX - positionVec.x;
+          const marginMinY = positionVec.y - holeMinY;
+          const marginMaxY = holeMaxY - positionVec.y;
+          const nearestMargin = Math.min(
+            marginMinX,
+            marginMaxX,
+            marginMinY,
+            marginMaxY,
+          );
+          if (nearestMargin === marginMinX) {
+            return new THREE.Vector3(
+              holeMinX,
+              THREE.MathUtils.clamp(positionVec.y, holeMinY, holeMaxY),
+              this.groundZ,
+            );
+          }
+          if (nearestMargin === marginMaxX) {
+            return new THREE.Vector3(
+              holeMaxX,
+              THREE.MathUtils.clamp(positionVec.y, holeMinY, holeMaxY),
+              this.groundZ,
+            );
+          }
+          if (nearestMargin === marginMinY) {
+            return new THREE.Vector3(
+              THREE.MathUtils.clamp(positionVec.x, holeMinX, holeMaxX),
+              holeMinY,
+              this.groundZ,
+            );
+          }
+          return new THREE.Vector3(
+            THREE.MathUtils.clamp(positionVec.x, holeMinX, holeMaxX),
+            holeMaxY,
+            this.groundZ,
+          );
+        };
+
+        // Same ahead/behind sign rule as the obstacle branch, unchanged - worked out
+        // fresh for the hole case (not just copy-pasted): riding the near/entry rim
+        // (contact behind the wheel, since the center has already crossed it) means
+        // descending, exactly the same body-frame motion as descending an obstacle's
+        // trailing edge; riding the far/exit rim (contact ahead, not yet crossed) means
+        // climbing back up to ground level, exactly the same motion as climbing an
+        // obstacle's leading edge. Ahead -> climb sign, behind -> descend sign, same as
+        // above.
+        carrierJoint.setJointValue(0);
+        const nominalWheelPositionForSign = wheelLink.getWorldPosition(
+          new THREE.Vector3(),
+        );
+        const nominalContactForSign = nearestRimContactPoint(
+          nominalWheelPositionForSign,
+        );
+        const forwardDotContactForSign =
+          (nominalContactForSign.x - nominalWheelPositionForSign.x) *
+            forwardVectorForClimbSign.x +
+          (nominalContactForSign.y - nominalWheelPositionForSign.y) *
+            forwardVectorForClimbSign.y;
+        wheelClimbCarrierSignForWheel =
+          forwardDotContactForSign < 0
+            ? -WHEEL_CLIMB_CARRIER_SIGN
+            : WHEEL_CLIMB_CARRIER_SIGN;
+
+        const referenceAngleRadAtCandidate = (angleRad) => {
+          carrierJoint.setJointValue(wheelClimbCarrierSignForWheel * angleRad);
+          const wheelPosition = wheelLink.getWorldPosition(new THREE.Vector3());
+
+          const marginToNearEdgeX = Math.min(
+            wheelPosition.x - holeMinX,
+            holeMaxX - wheelPosition.x,
+          );
+          const marginToNearEdgeY = Math.min(
+            wheelPosition.y - holeMinY,
+            holeMaxY - wheelPosition.y,
+          );
+          const insideDistance = Math.min(marginToNearEdgeX, marginToNearEdgeY);
+          if (insideDistance <= 0) {
+            // Not yet over the void (still fully on solid ground before the near rim),
+            // or already fully past the far rim onto solid ground beyond it - either
+            // way a rigid wheel's own center has real ground directly below it right
+            // now, so there's no second contact point to measure an angle against.
+            return 0;
+          }
+          if (insideDistance >= wheelRadiusMeters) {
+            // No single rim edge is within the wheel's own reach any more - resting on
+            // the pit floor or genuinely unsupported, not corner-riding (see this
+            // branch's own opening comment).
+            return 0;
+          }
+
+          const contactPoint = nearestRimContactPoint(wheelPosition);
+          const toContact = contactPoint.clone().sub(wheelPosition);
+          const toCarrier = carrierPosition.clone().sub(wheelPosition);
+          const toContactLength = toContact.length();
+          const toCarrierLength = toCarrier.length();
+          if (toContactLength < 1e-6 || toCarrierLength < 1e-6) {
+            return 0;
+          }
+          const cosAngle = THREE.MathUtils.clamp(
+            toContact.dot(toCarrier) / (toContactLength * toCarrierLength),
+            -1,
+            1,
+          );
+          return Math.acos(cosAngle);
+        };
+
+        const previousMagnitudeRad = Math.abs(
+          Number(this.wheelClimbCarrierAngleRadByKey[wheelKey]) || 0,
+        );
+
+        if (referenceAngleRadAtCandidate(0) > WHEEL_CLIMB_REFERENCE_ANGLE_EPSILON_RAD) {
+          isWheelLockedThisFrame = true;
+
+          let lowRad = 0;
+          let highRad = WHEEL_CLIMB_CARRIER_MAX_ANGLE_RAD;
+          for (let iteration = 0; iteration < 20; iteration += 1) {
+            const midRad = (lowRad + highRad) * 0.5;
+            if (
+              referenceAngleRadAtCandidate(midRad) <=
+              WHEEL_CLIMB_REFERENCE_ANGLE_EPSILON_RAD
+            ) {
+              highRad = midRad;
+            } else {
+              lowRad = midRad;
+            }
+          }
+          const requiredAngleRad = highRad;
+
+          const pacedAngleStepRad =
+            Math.max(chassisForwardTravelMeters, 0) / orbitRadiusMeters;
+          carrierAngleRad = Math.min(
+            previousMagnitudeRad + pacedAngleStepRad,
+            requiredAngleRad,
+          );
+        } else if (previousMagnitudeRad > 1e-6) {
+          const maxDecreaseRad =
+            WHEEL_CLIMB_CARRIER_RESTORE_RATE_RAD_PER_SEC *
+            Math.max(Number(deltaSec) || 0, 0);
+          const proposedRad = Math.max(0, previousMagnitudeRad - maxDecreaseRad);
+          if (
+            referenceAngleRadAtCandidate(proposedRad) <=
+            WHEEL_CLIMB_REFERENCE_ANGLE_EPSILON_RAD
+          ) {
+            carrierAngleRad = proposedRad;
+          } else {
+            let lowRad = proposedRad;
+            let highRad = previousMagnitudeRad;
+            for (let iteration = 0; iteration < 20; iteration += 1) {
+              const midRad = (lowRad + highRad) * 0.5;
+              if (
+                referenceAngleRadAtCandidate(midRad) <=
+                WHEEL_CLIMB_REFERENCE_ANGLE_EPSILON_RAD
+              ) {
+                highRad = midRad;
+              } else {
+                lowRad = midRad;
+              }
+            }
+            carrierAngleRad = highRad;
+          }
+        }
+
+        this.wheelClimbEngagedHoleByKey[wheelKey] =
+          carrierAngleRad > 1e-6 ? engagedHole : null;
       }
 
       // carrierAngleRad itself is the unsigned bisection magnitude

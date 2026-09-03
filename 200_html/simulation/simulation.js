@@ -33,7 +33,9 @@ const OBSTACLE_RAMP_MAX_LENGTH_METERS = 0.65;
 const OBSTACLE_RAMP_HALF_FORWARD_SCALE = 1.5;
 const OBSTACLE_MAX_LATERAL_OFFSET_METERS = 0.8;
 const OBSTACLE_MAX_TILT_DEG = 22;
-const DYNAMIC_OBSTACLE_FORWARD_DISTANCE_METERS = 1;
+// Fallback used only when the urdf-container's osbstaclePositionIntervalMeter
+// attribute (see getDynamicObstacleForwardDistanceMeters()) is missing/invalid.
+const DYNAMIC_OBSTACLE_FORWARD_DISTANCE_METERS_FALLBACK = 1;
 const INITIAL_VEHICLE_CAMERA_OCCUPANCY = 0.8;
 const SCENE_TREE_VISIBILITY_CHECK_INTERVAL_MS = 150;
 // Safety cap on simultaneous trees so a degenerate camera/grid state can't spawn an
@@ -4115,11 +4117,28 @@ class RapierDriveSimulation {
     }
   }
 
+  // Read from the urdf-container's osbstaclePositionIntervalMeter HTML attribute
+  // (same convention as showDriveDiagnostics/enableGroundHoleCarving/etc. - see
+  // URDFViewer's constructor) so how far ahead of the vehicle a dynamically
+  // published obstacle (vehicle/surface/obstacle) gets placed is configurable
+  // per-page without touching this file - falls back to
+  // DYNAMIC_OBSTACLE_FORWARD_DISTANCE_METERS_FALLBACK if missing/invalid.
+  getDynamicObstacleForwardDistanceMeters() {
+    const rawValue = this.viewer?.container?.getAttribute(
+      "osbstaclePositionIntervalMeter",
+    );
+    const parsed = parseFloat(rawValue);
+    return Number.isFinite(parsed) && parsed > 0
+      ? parsed
+      : DYNAMIC_OBSTACLE_FORWARD_DISTANCE_METERS_FALLBACK;
+  }
+
   getDynamicObstaclePlacement(lateralWheelKeys = []) {
     if (!this.body || !this.carFrame) {
       return null;
     }
 
+    const forwardDistanceMeters = this.getDynamicObstacleForwardDistanceMeters();
     const bodyPosition = this.body.translation();
     const yaw = this.extractYawFromQuaternion(this.body.rotation());
     const forward = this.getVehicleForwardVector(yaw);
@@ -4152,11 +4171,11 @@ class RapierDriveSimulation {
     return {
       x:
         bodyPosition.x +
-        forward.x * DYNAMIC_OBSTACLE_FORWARD_DISTANCE_METERS +
+        forward.x * forwardDistanceMeters +
         left.x * lateralOffset,
       y:
         bodyPosition.y +
-        forward.y * DYNAMIC_OBSTACLE_FORWARD_DISTANCE_METERS +
+        forward.y * forwardDistanceMeters +
         left.y * lateralOffset,
       forwardX: forward.x,
       forwardY: forward.y,

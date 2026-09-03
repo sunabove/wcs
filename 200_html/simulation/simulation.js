@@ -1522,10 +1522,13 @@ class RapierDriveSimulation {
     );
 
     const canvas = document.createElement("canvas");
+    // Same canvas height as #wheel-z-chart-overlay's chart (WHEEL_Z_CHART constant used
+    // there is 154px) so the two panels line up visually even though they sit in opposite
+    // corners.
     canvas.width = 344;
-    canvas.height = 220;
+    canvas.height = 154;
     canvas.style.width = "100%";
-    canvas.style.height = "220px";
+    canvas.style.height = "154px";
     canvas.style.display = "block";
 
     const body = document.createElement("div");
@@ -1843,7 +1846,7 @@ class RapierDriveSimulation {
 
     const dpr = Math.max(window.devicePixelRatio || 1, 1);
     const cssWidth = Math.max(Math.floor(canvas.clientWidth || 344), 120);
-    const cssHeight = Math.max(Math.floor(canvas.clientHeight || 220), 120);
+    const cssHeight = Math.max(Math.floor(canvas.clientHeight || 154), 90);
     const targetWidth = Math.floor(cssWidth * dpr);
     const targetHeight = Math.floor(cssHeight * dpr);
     if (canvas.width !== targetWidth || canvas.height !== targetHeight) {

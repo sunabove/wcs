@@ -4117,7 +4117,7 @@ class RapierDriveSimulation {
     }
   }
 
-  // Read from the urdf-container's osbstaclePositionIntervalMeter HTML attribute
+  // Read from the urdf-container's obstaclePosIntervalMeter HTML attribute
   // (same convention as showDriveDiagnostics/enableGroundHoleCarving/etc. - see
   // URDFViewer's constructor) so how far ahead of the vehicle a dynamically
   // published obstacle (vehicle/surface/obstacle) gets placed is configurable
@@ -4125,7 +4125,7 @@ class RapierDriveSimulation {
   // DYNAMIC_OBSTACLE_FORWARD_DISTANCE_METERS_FALLBACK if missing/invalid.
   getDynamicObstacleForwardDistanceMeters() {
     const rawValue = this.viewer?.container?.getAttribute(
-      "osbstaclePositionIntervalMeter",
+      "obstaclePosIntervalMeter",
     );
     const parsed = parseFloat(rawValue);
     return Number.isFinite(parsed) && parsed > 0

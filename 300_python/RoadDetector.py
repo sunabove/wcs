@@ -456,6 +456,40 @@ class RoadDetector:
                     RoadDetector._obstacle_candidate_since_by_context.get(context, now_ts)
                 )
 
+            # Same-type reoccurrence grace (see class-level comment above). Holds
+            # off publishing a clear (obstacle_value == 0) while the previously
+            # published type might just be flickering out for a frame or two; if
+            # that same type comes back inside the grace window, drop the whole
+            # clear+reappear pair since the topic never actually needs to change.
+            pending_clear_from = RoadDetector._obstacle_pending_clear_from_state_by_context.get(context)
+            pending_clear_since = RoadDetector._obstacle_pending_clear_since_by_context.get(context)
+
+            if obstacle_value == 0 and last_state not in (None, 0):
+                if pending_clear_from != last_state:
+                    RoadDetector._obstacle_pending_clear_from_state_by_context[context] = last_state
+                    RoadDetector._obstacle_pending_clear_since_by_context[context] = now_ts
+                    pending_clear_since = now_ts
+
+                if (now_ts - pending_clear_since) < self.OBSTACLE_SAME_TYPE_REOCCURRENCE_GRACE_SEC:
+                    return
+
+                # Grace window elapsed and it's still cleared - fall through and
+                # publish the clear below like a normal transition.
+                RoadDetector._obstacle_pending_clear_from_state_by_context.pop(context, None)
+                RoadDetector._obstacle_pending_clear_since_by_context.pop(context, None)
+            elif pending_clear_since is not None:
+                if obstacle_value == pending_clear_from:
+                    # Same obstacle type reappeared inside the grace window -
+                    # nothing changed from the topic's point of view.
+                    RoadDetector._obstacle_pending_clear_from_state_by_context.pop(context, None)
+                    RoadDetector._obstacle_pending_clear_since_by_context.pop(context, None)
+                    return
+
+                # A different, non-"none" obstacle showed up - treat this as a
+                # fresh transition and drop the stale pending-clear bookkeeping.
+                RoadDetector._obstacle_pending_clear_from_state_by_context.pop(context, None)
+                RoadDetector._obstacle_pending_clear_since_by_context.pop(context, None)
+
             if obstacle_value == last_state:
                 return
 

@@ -4284,7 +4284,12 @@ class RapierDriveSimulation {
       : DYNAMIC_OBSTACLE_FORWARD_DISTANCE_METERS_FALLBACK;
   }
 
-  getDynamicObstaclePlacement(lateralWheelKeys = []) {
+  // obstacleHalfExtents (optional, world axis-aligned {x, y}) is the half-size of the
+  // obstacle actually being placed - see the totalForwardOffsetMeters comment below for
+  // why callers that know their obstacle's footprint (the step "wood/bar" collider, the
+  // pothole template) should pass it rather than leaving the gap measured to a bare
+  // point.
+  getDynamicObstaclePlacement(lateralWheelKeys = [], obstacleHalfExtents = null) {
     if (!this.body || !this.carFrame) {
       return null;
     }
@@ -4303,7 +4308,18 @@ class RapierDriveSimulation {
       forward.x,
       forward.y,
     );
-    const totalForwardOffsetMeters = frontOverhangMeters + forwardDistanceMeters;
+    // The obstacle's own footprint has to be pushed out an extra half-length past that
+    // gap too: the value this function returns is the obstacle's *center*, and a gap
+    // measured to the center would be short by the obstacle's own near-half-extent -
+    // i.e. obstaclePosIntervalMeter would land on the obstacle's middle instead of its
+    // near edge. Projected onto the forward axis the same way every other forward/edge
+    // calc in this file does (see getVehicleForwardProjectionRange()).
+    const obstacleHalfForwardMeters = obstacleHalfExtents
+      ? Math.abs(forward.x) * (Number(obstacleHalfExtents.x) || 0) +
+        Math.abs(forward.y) * (Number(obstacleHalfExtents.y) || 0)
+      : 0;
+    const totalForwardOffsetMeters =
+      frontOverhangMeters + forwardDistanceMeters + obstacleHalfForwardMeters;
     const linkMap = this.viewer?.robotModel?.links || null;
     const wheelPositions = Object.entries(this.wheelLinkNameByKey)
       .map(([wheelKey, wheelLinkName]) => {
@@ -4608,9 +4624,12 @@ class RapierDriveSimulation {
     }
 
     if (normalizedValue === 1) {
-      const placement = this.getDynamicObstaclePlacement();
       const stepObstacle = this.obstacleColliderInfos.find((obstacleInfo) =>
         /wood|bar/i.test(obstacleInfo.normalizedLinkName),
+      );
+      const placement = this.getDynamicObstaclePlacement(
+        [],
+        stepObstacle?.halfExtents || null,
       );
       if (placement && stepObstacle) {
         this.moveObstacleInfoTo(stepObstacle, placement.x, placement.y);
@@ -4622,11 +4641,14 @@ class RapierDriveSimulation {
         };
       }
     } else if (normalizedValue === 2) {
-      const placement = this.getDynamicObstaclePlacement(["fl", "rl"]);
       const template = this.authoredPotholeTemplate;
+      const width = template ? template.maxX - template.minX : 0;
+      const height = template ? template.maxY - template.minY : 0;
+      const placement = this.getDynamicObstaclePlacement(
+        ["fl", "rl"],
+        template ? { x: width * 0.5, y: height * 0.5 } : null,
+      );
       if (placement && template) {
-        const width = template.maxX - template.minX;
-        const height = template.maxY - template.minY;
         this.dynamicPotholeRegion = {
           linkName: template.linkName,
           minX: placement.x - width * 0.5,

@@ -1094,58 +1094,15 @@ class RapierDriveSimulation {
     this.trimWheelZChartHistory(nowSec);
   }
 
-  initializeWheelZChartRangeFromObstacles(linkMap) {
-    if (!linkMap || this.obstacleColliderInfos.length === 0) {
-      return;
-    }
-
-    const wheelCenterZs = Object.values(this.wheelLinkNameByKey)
-      .map((wheelLinkName) => {
-        const wheelLink = this.findLinkByName(linkMap, wheelLinkName);
-        if (!wheelLink) {
-          return null;
-        }
-
-        wheelLink.updateWorldMatrix(true, true);
-        return wheelLink.getWorldPosition(new THREE.Vector3()).z;
-      })
-      .filter(Number.isFinite);
-    if (wheelCenterZs.length === 0) {
-      return;
-    }
-
-    const obstacleHeights = this.obstacleColliderInfos
-      .filter(
-        (obstacleInfo) =>
-          obstacleInfo?.center && Number.isFinite(obstacleInfo?.halfExtents?.z),
-      )
-      .flatMap((obstacleInfo) => [
-        obstacleInfo.center.z - obstacleInfo.halfExtents.z,
-        obstacleInfo.center.z + obstacleInfo.halfExtents.z,
-      ]);
-    if (obstacleHeights.length === 0) {
-      return;
-    }
-
-    const minWheelCenterZ = Math.min(...wheelCenterZs);
-    const maxWheelCenterZ = Math.max(...wheelCenterZs);
-    const minObstacleZ = Math.min(...obstacleHeights);
-    const maxObstacleZ = Math.max(...obstacleHeights);
-    const requiredHalfRangeCm = Math.max(
-      WHEEL_Z_CHART_INITIAL_HALF_RANGE_CM,
-      Math.abs(minObstacleZ - maxWheelCenterZ) * 100 * 1.12,
-      Math.abs(maxObstacleZ - minWheelCenterZ) * 100 * 1.12,
-    );
-    const initialHalfRangeCm =
-      Math.ceil(requiredHalfRangeCm / WHEEL_Z_CHART_HALF_RANGE_STEP_CM) *
-      WHEEL_Z_CHART_HALF_RANGE_STEP_CM;
-
-    this.wheelZChartInitialHalfRangeCm = initialHalfRangeCm;
-    this.wheelZChartHalfRangeCm = Math.max(
-      this.wheelZChartHalfRangeCm,
-      initialHalfRangeCm,
-    );
-  }
+  // Note: there used to be an initializeWheelZChartRangeFromObstacles() here that
+  // pre-widened the chart's range once, at scene setup, to fit the tallest obstacle
+  // defined *anywhere* in the URDF - active or not. That's exactly what made the axis
+  // look "fixed": it pinned the range to that worst-case height for the entire session,
+  // including long stretches of plain flat driving with nothing active nearby. Replaced
+  // by the maxActiveObstacleTopMeters block in renderWheelZChart() below, which only
+  // widens for whatever obstacle is actually active right now (mirroring how the
+  // maxHoleDepthMeters block there already handled potholes) and shrinks back down once
+  // it's gone, same as the rest of the range.
 
   renderWheelZChart(nowSec) {
     const ctx = this.wheelZChartContext;
@@ -1227,6 +1184,34 @@ class RapierDriveSimulation {
       }
     }
 
+    // Mirror of the hole-depth block above, for step obstacles: pre-widens maxZ to fit
+    // whatever obstacle is *currently active* (isActive - not every obstacle defined in
+    // the URDF, active or not, which is what the old one-time
+    // initializeWheelZChartRangeFromObstacles() did, and exactly why the axis used to
+    // look pinned to a fixed worst-case size for the whole session) so climbing onto it
+    // doesn't visibly pop the range open on first contact - and, like everything else
+    // here, this recomputes from scratch every frame, so it stops contributing (and the
+    // range can shrink back down) the moment nothing active remains.
+    const maxActiveObstacleTopMeters = (
+      Array.isArray(this.obstacleColliderInfos) ? this.obstacleColliderInfos : []
+    ).reduce((maxTop, obstacleInfo) => {
+      if (
+        !obstacleInfo?.isActive ||
+        !obstacleInfo.center ||
+        !Number.isFinite(obstacleInfo.halfExtents?.z) ||
+        !Number.isFinite(this.groundZ)
+      ) {
+        return maxTop;
+      }
+
+      const topAboveGround =
+        obstacleInfo.center.z + obstacleInfo.halfExtents.z - this.groundZ;
+      return Math.max(maxTop, topAboveGround);
+    }, 0);
+    if (maxActiveObstacleTopMeters > 0) {
+      maxZ = Math.max(maxZ, maxActiveObstacleTopMeters);
+    }
+
     if (!Number.isFinite(minZ) || !Number.isFinite(maxZ)) {
       minZ = 0;
       maxZ = 0.05;
@@ -1247,11 +1232,11 @@ class RapierDriveSimulation {
     // scrolled out of the window and the wheels were back to small flat-ground
     // oscillations - the "seems like a fixed value" the user reported. Re-deriving it
     // straight from this frame's observedHalfRangeCm instead keeps the axis fit to what's
-    // actually on screen right now. wheelZChartInitialHalfRangeCm (set once per obstacle/
-    // reset by initializeWheelZChartRangeFromObstacles()) still acts as a floor so it
-    // doesn't zoom in to an illegibly tight band the instant the wheels are briefly dead
-    // flat, and the step alignment below keeps it from jittering by tiny (sub-2cm)
-    // amounts frame to frame.
+    // actually on screen right now. wheelZChartInitialHalfRangeCm (WHEEL_Z_CHART_INITIAL_
+    // HALF_RANGE_CM, never widened elsewhere any more) still acts as a small absolute
+    // floor so it doesn't zoom in to an illegibly tight band the instant the wheels are
+    // briefly dead flat, and the step alignment below keeps it from jittering by tiny
+    // (sub-2cm) amounts frame to frame.
     const intervalCount = 4;
     const observedHalfRangeCm = Math.max(
       Math.abs(minZ * 100),
@@ -9203,7 +9188,6 @@ class RapierDriveSimulation {
         groundedRotation.w,
       );
       this.addObstacleColliderFromUrdf();
-      this.initializeWheelZChartRangeFromObstacles(linkMap);
       this.ensureVehicleDirectionArrows();
       this.ensureWheelGroundContactMarkers();
       this.ensureVehicleYawIndicator();

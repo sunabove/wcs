@@ -1224,57 +1224,47 @@ class RapierDriveSimulation {
       maxZ += 0.0005;
       minZ -= 0.0005;
     }
-    // Fit the top (maxZ) and bottom (minZ) halves of the range *independently*, re-fit
-    // every frame to whatever's actually in the *visible* rolling window (both grows AND
-    // shrinks - see the wheelZChartHalfRangeCm history below), instead of mirroring
-    // whichever side has the larger excursion onto both. Climbing a bump is a
-    // positive-only excursion (z never meaningfully dips below 0) and a pothole is
-    // negative-only, so forcing a symmetric range around 0 always wasted the entire
-    // *opposite* half of the plot as blank space in both cases - the "위아래 여백이
-    // 많다" the user reported. 0 (ground level) is still always kept in range on both
-    // sides via the Math.min/Math.max(..., 0) clamps above, just no longer padded out to
-    // match the other side's magnitude.
+    // Zero-centered, symmetric range (+/- the same magnitude - the asymmetric per-side
+    // fit tried briefly here didn't do what was wanted: it left 0 off-center and not
+    // guaranteed to land exactly on a tick, per the user's explicit "0 값은 y축 틱에
+    // 항상 표현, +- 최대/최소값의 절대값은 같은 값을 사용"). intervalCount below is even
+    // (4), so with a symmetric range 0 always falls exactly on the middle tick.
     //
-    // This used to only ever grow (Math.max(this.wheelZChartHalfRangeCm,
-    // alignedHalfRangeCm)), so once anything pushed the range out wide (e.g. climbing an
-    // obstacle early in the drive) it stayed pinned at that width forever, long after the
-    // sample that caused it had scrolled out of the window and the wheels were back to
-    // small flat-ground oscillations - the "seems like a fixed value" the user reported
-    // separately. Re-deriving it straight from this frame's data instead keeps the axis
-    // fit to what's actually on screen right now.
+    // Re-fit every frame to whatever's actually in the *visible* rolling window (both
+    // grows AND shrinks) - this used to only ever grow (Math.max(this.
+    // wheelZChartHalfRangeCm, alignedHalfRangeCm)), so once anything pushed the range out
+    // wide (e.g. climbing an obstacle early in the drive) it stayed pinned at that width
+    // forever, long after the sample that caused it had scrolled out of the window and
+    // the wheels were back to small flat-ground oscillations - the "seems like a fixed
+    // value" the user reported separately. Re-deriving it straight from this frame's data
+    // instead keeps the axis fit to what's actually on screen right now.
     const intervalCount = 4;
-    const fitHalfRangeCm = (observedCm) => {
-      // wheelZChartInitialHalfRangeCm (WHEEL_Z_CHART_INITIAL_HALF_RANGE_CM) is a small
-      // absolute floor so a side doesn't zoom in to an illegibly tight band the instant
-      // it's briefly dead flat. Compared against the *raw, unpadded* observedCm (not
-      // observedCm*1.04 below) and returned as-is, unrounded, whenever it's already
-      // enough - otherwise the padding alone would push anything sitting at/near the
-      // floor (e.g. an obstacle whose own height happens to equal it exactly) just over
-      // it, and the step alignment would then round that sliver up a full extra step
-      // (5cm -> 6cm) for no real reason.
-      if (observedCm <= this.wheelZChartInitialHalfRangeCm) {
-        return this.wheelZChartInitialHalfRangeCm;
-      }
-
+    const observedHalfRangeCm = Math.max(
+      Math.abs(minZ * 100),
+      Math.abs(maxZ * 100),
+    );
+    // wheelZChartInitialHalfRangeCm (WHEEL_Z_CHART_INITIAL_HALF_RANGE_CM) is a small
+    // absolute floor so the chart doesn't zoom in to an illegibly tight band the instant
+    // the wheels are briefly dead flat. Compared against the *raw, unpadded*
+    // observedHalfRangeCm (not observedHalfRangeCm*1.04 below) and returned as-is,
+    // unrounded, whenever it's already enough - otherwise the padding alone would push
+    // anything sitting at/near the floor (e.g. an obstacle whose own height happens to
+    // equal it exactly) just over it, and the step alignment would then round that
+    // sliver up a full extra step (5cm -> 6cm) for no real reason.
+    if (observedHalfRangeCm <= this.wheelZChartInitialHalfRangeCm) {
+      this.wheelZChartHalfRangeCm = this.wheelZChartInitialHalfRangeCm;
+    } else {
       // Beyond the floor, pad by just enough headroom that a peak doesn't touch the
       // plot's edge (not the wide margin 1.12 used to be), then align to
       // WHEEL_Z_CHART_HALF_RANGE_STEP_CM so real excursions don't jitter the axis by
-      // sub-step amounts frame to frame - both reduced together after the user reported
-      // the axis still had a lot of top/bottom whitespace even once it was fitting
-      // per-side (see the asymmetric-range comment above).
-      const requiredCm = observedCm * 1.04;
-      return (
-        Math.ceil(requiredCm / WHEEL_Z_CHART_HALF_RANGE_STEP_CM) *
-        WHEEL_Z_CHART_HALF_RANGE_STEP_CM
-      );
-    };
-    const topHalfRangeCm = fitHalfRangeCm(Math.abs(maxZ * 100));
-    const bottomHalfRangeCm = fitHalfRangeCm(Math.abs(minZ * 100));
-    // Kept in sync as the wider of the two sides - still what reset() (and anything else
-    // treating this as a single "how wide is this chart" figure) reads.
-    this.wheelZChartHalfRangeCm = Math.max(topHalfRangeCm, bottomHalfRangeCm);
-    minZ = -bottomHalfRangeCm / 100;
-    maxZ = topHalfRangeCm / 100;
+      // sub-step amounts frame to frame.
+      const requiredHalfRangeCm = observedHalfRangeCm * 1.04;
+      this.wheelZChartHalfRangeCm =
+        Math.ceil(requiredHalfRangeCm / WHEEL_Z_CHART_HALF_RANGE_STEP_CM) *
+        WHEEL_Z_CHART_HALF_RANGE_STEP_CM;
+    }
+    minZ = -this.wheelZChartHalfRangeCm / 100;
+    maxZ = this.wheelZChartHalfRangeCm / 100;
 
     const toX = (t) =>
       margin.left + ((t - minTimeSec) / effectiveWindowSec) * plotWidth;

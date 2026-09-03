@@ -80,6 +80,22 @@ const GROUND_FOG_COLOR = 0x87ceeb;
 // the grid.
 const GROUND_FOG_NEAR_METERS = 3;
 const GROUND_FOG_FAR_METERS = 11;
+// Physical-scale ruler along world X (see addGroundXAxisRuler()) - fixed centimeter
+// ticks, independent of addGroundSurfaceGrid()'s per-wheel-circumference measuring
+// grid, so real-world distances (e.g. checking where obstaclePosIntervalMeter actually
+// places an obstacle) can be read directly off the ground.
+const GROUND_X_RULER_MINOR_TICK_METERS = 0.1;
+const GROUND_X_RULER_MAJOR_TICK_METERS = 0.5;
+const GROUND_X_RULER_MINOR_TICK_HALF_LENGTH_METERS = 0.025;
+const GROUND_X_RULER_MAJOR_TICK_HALF_LENGTH_METERS = 0.06;
+// Ticks/labels stop this far past the fog falloff regardless of how far the ground
+// extension itself runs (GROUND_EXTENSION_HALF_SIZE_METERS, 100m) - past the fog line
+// nothing would be legible anyway, so this just keeps the tick/label count bounded.
+const GROUND_X_RULER_MAX_HALF_EXTENT_METERS = GROUND_FOG_FAR_METERS + 2;
+// Amber - deliberately distinct from the grid's greens so the ruler reads as a separate
+// reference overlay rather than another grid line.
+const GROUND_X_RULER_LINE_COLOR = 0xf59e0b;
+const GROUND_X_RULER_LABEL_TEXT_COLOR = "#f59e0b";
 // Carved pothole interior uses fixed contrasting colors so the pit shape stays readable.
 // The floor (roughly horizontal, facing up into the cavity) and the walls (roughly
 // vertical, the 4 faces bordering the undisturbed ground at the rim) get two distinct
@@ -421,6 +437,9 @@ class RapierDriveSimulation {
     this.groundGrid = null;
     this.groundGridPatches = null;
     this.groundGridBuiltCircumferenceMeters = null;
+    // Physical-scale cm ruler laid over the ground grid - see addGroundXAxisRuler().
+    this.groundXAxisRuler = null;
+    this.groundXAxisRulerLineObject = null;
     this.groundExtensionGroup = null;
     // Pool of trees currently on screen, keyed by their lattice X (fixed string key so
     // float rounding can't create duplicate slots). Reused/cloned from sceneTreeTemplate.
@@ -3768,6 +3787,201 @@ class RapierDriveSimulation {
         this.viewer.groundHoleEdgeLineObjects.push(this.groundGrid);
       }
     }
+
+    this.addGroundXAxisRuler(groundPatches, gridOrigin, gridZ);
+  }
+
+  // Physical-scale ruler along world X, laid flat over the ground grid at the grid's own
+  // Y origin (gridOrigin.y, same phase addGroundSurfaceGrid() uses for the grid/trees/
+  // cobot sign) - see the GROUND_X_RULER_* constants above for why this exists alongside
+  // that per-wheel-circumference grid. Rebuilt every time the grid is (same call site
+  // above), since it depends on that call's groundPatches/gridOrigin/gridZ.
+  addGroundXAxisRuler(groundPatches, gridOrigin, gridZ) {
+    if (this.groundXAxisRuler) {
+      this.viewer.scene.remove(this.groundXAxisRuler);
+      this.groundXAxisRuler.traverse((child) => {
+        child.geometry?.dispose?.();
+        if (Array.isArray(child.material)) {
+          child.material.forEach((material) => material?.dispose?.());
+        } else {
+          child.material?.dispose?.();
+        }
+      });
+      if (Array.isArray(this.viewer?.groundHoleEdgeLineObjects)) {
+        const staleIndex = this.viewer.groundHoleEdgeLineObjects.indexOf(
+          this.groundXAxisRulerLineObject,
+        );
+        if (staleIndex !== -1) {
+          this.viewer.groundHoleEdgeLineObjects.splice(staleIndex, 1);
+        }
+      }
+      this.groundXAxisRuler = null;
+      this.groundXAxisRulerLineObject = null;
+    }
+
+    if (!this.viewer?.scene || !Array.isArray(groundPatches)) {
+      return;
+    }
+
+    const rulerY = gridOrigin.y;
+    const originX = gridOrigin.x;
+    // A hair above the measuring grid (itself already offset off the bare ground - see
+    // gridZ's own comment above) so the ruler doesn't z-fight against grid lines it
+    // happens to cross.
+    const rulerZ = gridZ + 0.001;
+
+    // Same per-patch clipping addGroundSurfaceGrid() relies on to keep grid lines out of
+    // pothole gaps: only patches whose Y-range actually covers this row get drawn, and
+    // each patch's own minX/maxX further clips that patch's ticks - so the ruler
+    // automatically breaks over any hole it crosses instead of drawing through it.
+    const rowPatches = groundPatches.filter(
+      (patch) => patch.minY <= rulerY && rulerY <= patch.maxY,
+    );
+    if (rowPatches.length === 0) {
+      return;
+    }
+
+    const vertices = [];
+    const appendSegment = (x1, y1, x2, y2) => {
+      vertices.push(x1, y1, rulerZ, x2, y2, rulerZ);
+    };
+
+    const labelGroup = new THREE.Group();
+    labelGroup.name = "simulation-ground-x-ruler-labels";
+
+    rowPatches.forEach((patch) => {
+      const rangeMinX = Math.max(
+        patch.minX,
+        originX - GROUND_X_RULER_MAX_HALF_EXTENT_METERS,
+      );
+      const rangeMaxX = Math.min(
+        patch.maxX,
+        originX + GROUND_X_RULER_MAX_HALF_EXTENT_METERS,
+      );
+      if (rangeMaxX <= rangeMinX) {
+        return;
+      }
+
+      appendSegment(rangeMinX, rulerY, rangeMaxX, rulerY);
+
+      const firstTickIndex = Math.ceil(
+        (rangeMinX - originX) / GROUND_X_RULER_MINOR_TICK_METERS - 1e-6,
+      );
+      const lastTickIndex = Math.floor(
+        (rangeMaxX - originX) / GROUND_X_RULER_MINOR_TICK_METERS + 1e-6,
+      );
+      for (
+        let tickIndex = firstTickIndex;
+        tickIndex <= lastTickIndex;
+        tickIndex++
+      ) {
+        const distanceMeters = tickIndex * GROUND_X_RULER_MINOR_TICK_METERS;
+        const tickX = originX + distanceMeters;
+        const majorStepCount =
+          distanceMeters / GROUND_X_RULER_MAJOR_TICK_METERS;
+        const isMajor =
+          Math.abs(majorStepCount - Math.round(majorStepCount)) < 1e-6;
+        const halfLength = isMajor
+          ? GROUND_X_RULER_MAJOR_TICK_HALF_LENGTH_METERS
+          : GROUND_X_RULER_MINOR_TICK_HALF_LENGTH_METERS;
+        appendSegment(tickX, rulerY - halfLength, tickX, rulerY + halfLength);
+
+        if (isMajor) {
+          const distanceCm = Math.round(distanceMeters * 100);
+          const label = this.buildGroundRulerLabel(distanceCm);
+          label.position.set(tickX, rulerY + halfLength + 0.05, rulerZ);
+          labelGroup.add(label);
+        }
+      }
+    });
+
+    const geometry = new LineSegmentsGeometry();
+    geometry.setPositions(vertices);
+
+    const containerRect = this.viewer.container.getBoundingClientRect();
+    const material = new LineMaterial({
+      color: GROUND_X_RULER_LINE_COLOR,
+      transparent: true,
+      opacity: 0.9,
+      depthWrite: false,
+      linewidth: 1.25,
+      worldUnits: false,
+      fog: true,
+      resolution: new THREE.Vector2(
+        Math.max(containerRect.width, 1),
+        Math.max(containerRect.height, 1),
+      ),
+      polygonOffset: true,
+      polygonOffsetFactor: -2,
+      polygonOffsetUnits: -2,
+    });
+
+    const rulerLine = new LineSegments2(geometry, material);
+    rulerLine.name = "simulation-ground-x-ruler";
+    rulerLine.renderOrder = 3;
+
+    const rulerGroup = new THREE.Group();
+    rulerGroup.name = "simulation-ground-x-ruler-group";
+    rulerGroup.add(rulerLine);
+    rulerGroup.add(labelGroup);
+
+    this.viewer.scene.add(rulerGroup);
+    this.groundXAxisRuler = rulerGroup;
+    this.groundXAxisRulerLineObject = rulerLine;
+
+    // Same resize plumbing as this.groundGrid - see that push() above.
+    if (Array.isArray(this.viewer.groundHoleEdgeLineObjects)) {
+      this.viewer.groundHoleEdgeLineObjects.push(rulerLine);
+    }
+  }
+
+  // Small flat (ground-plane-facing, readable from above like the grid itself rather than
+  // standing upright like the cobot sign) text label for addGroundXAxisRuler()'s major
+  // (50cm) ticks. distanceCm may be negative (behind the grid origin along -X).
+  buildGroundRulerLabel(distanceCm) {
+    const text = `${distanceCm}cm`;
+    const canvas = document.createElement("canvas");
+    const context = canvas.getContext("2d");
+    // Supersampled for crisp text at typical camera distances.
+    const fontSizePx = 112;
+    context.font = `bold ${fontSizePx}px 'Trebuchet MS', 'Segoe UI', sans-serif`;
+    const textWidthPx = context.measureText(text).width;
+    canvas.width = Math.ceil(textWidthPx + fontSizePx * 0.6);
+    canvas.height = Math.ceil(fontSizePx * 1.6);
+    // Resizing the canvas resets its 2D context state, so font/alignment must be
+    // (re)applied after.
+    context.font = `bold ${fontSizePx}px 'Trebuchet MS', 'Segoe UI', sans-serif`;
+    context.textAlign = "center";
+    context.textBaseline = "middle";
+    // A soft dark outline first so the amber text stays legible over both the pale
+    // ground and the grid's own light-green horizontal lines.
+    context.lineWidth = fontSizePx * 0.12;
+    context.strokeStyle = "rgba(0, 0, 0, 0.55)";
+    context.strokeText(text, canvas.width / 2, canvas.height / 2 + 2);
+    context.fillStyle = GROUND_X_RULER_LABEL_TEXT_COLOR;
+    context.fillText(text, canvas.width / 2, canvas.height / 2 + 2);
+
+    const texture = new THREE.CanvasTexture(canvas);
+    if (THREE.SRGBColorSpace) {
+      texture.colorSpace = THREE.SRGBColorSpace;
+    }
+
+    const labelHeightMeters = 0.12;
+    const labelWidthMeters = labelHeightMeters * (canvas.width / canvas.height);
+    const material = new THREE.MeshBasicMaterial({
+      map: texture,
+      transparent: true,
+      depthWrite: false,
+    });
+    const label = new THREE.Mesh(
+      new THREE.PlaneGeometry(labelWidthMeters, labelHeightMeters),
+      material,
+    );
+    // PlaneGeometry's default normal is +Z, i.e. already lying flat/face-up in this
+    // scene's Z-up ground plane - no rotation needed, unlike the cobot sign (which
+    // stands upright to be read from the side).
+    label.renderOrder = 3;
+    return label;
   }
 
   isVehicleOverHoleRegion(targetHoleRegion = null) {
@@ -8987,6 +9201,9 @@ class RapierDriveSimulation {
       this.viewer.robotModel.visible = true;
       if (this.groundGrid) {
         this.groundGrid.visible = true;
+      }
+      if (this.groundXAxisRuler) {
+        this.groundXAxisRuler.visible = true;
       }
       this.sceneTreeGroupsByLatticeX.forEach((treeGroup) => {
         treeGroup.visible = true;

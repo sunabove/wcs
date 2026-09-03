@@ -1239,7 +1239,19 @@ class RapierDriveSimulation {
       maxZ += 0.0005;
       minZ -= 0.0005;
     }
-    // Keep a stable zero-centered range; expand only when the data needs it.
+    // Zero-centered range, re-fit every frame to whatever's actually in the *visible*
+    // rolling window (both grows AND shrinks) - this used to only ever grow
+    // (Math.max(this.wheelZChartHalfRangeCm, alignedHalfRangeCm)), so once anything
+    // pushed the range out wide (e.g. climbing an obstacle early in the drive) it
+    // stayed pinned at that width forever, long after the sample that caused it had
+    // scrolled out of the window and the wheels were back to small flat-ground
+    // oscillations - the "seems like a fixed value" the user reported. Re-deriving it
+    // straight from this frame's observedHalfRangeCm instead keeps the axis fit to what's
+    // actually on screen right now. wheelZChartInitialHalfRangeCm (set once per obstacle/
+    // reset by initializeWheelZChartRangeFromObstacles()) still acts as a floor so it
+    // doesn't zoom in to an illegibly tight band the instant the wheels are briefly dead
+    // flat, and the step alignment below keeps it from jittering by tiny (sub-2cm)
+    // amounts frame to frame.
     const intervalCount = 4;
     const observedHalfRangeCm = Math.max(
       Math.abs(minZ * 100),
@@ -1249,13 +1261,9 @@ class RapierDriveSimulation {
       this.wheelZChartInitialHalfRangeCm,
       observedHalfRangeCm * 1.12,
     );
-    const alignedHalfRangeCm =
+    this.wheelZChartHalfRangeCm =
       Math.ceil(requiredHalfRangeCm / WHEEL_Z_CHART_HALF_RANGE_STEP_CM) *
       WHEEL_Z_CHART_HALF_RANGE_STEP_CM;
-    this.wheelZChartHalfRangeCm = Math.max(
-      this.wheelZChartHalfRangeCm,
-      alignedHalfRangeCm,
-    );
     minZ = -this.wheelZChartHalfRangeCm / 100;
     maxZ = this.wheelZChartHalfRangeCm / 100;
 
@@ -9806,6 +9814,7 @@ class RapierDriveSimulation {
   }
 
   stepSimulation() {
+    globalThis.__debugSim = this; // TEMP debug hook - remove before done
     if (!this.isReady) {
       return;
     }

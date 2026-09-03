@@ -66,6 +66,16 @@ class RoadDetector:
     # by smoothing. See _publish_obstacle_state_if_needed().
     _obstacle_candidate_state_by_context = {}
     _obstacle_candidate_since_by_context = {}
+    # Same-type reoccurrence grace: when a published obstacle type drops to "none"
+    # for a brief moment (a missed-detection frame or two) and then the *same*
+    # type reappears within this many seconds, the clear is treated as noise -
+    # neither the clear nor the reappearance gets published, so the topic just
+    # keeps reflecting the type that was already published. A different type, or
+    # a "none" that outlasts the grace window, still publishes normally. See
+    # _publish_obstacle_state_if_needed().
+    _obstacle_pending_clear_from_state_by_context = {}
+    _obstacle_pending_clear_since_by_context = {}
+    OBSTACLE_SAME_TYPE_REOCCURRENCE_GRACE_SEC = 1.0
     DEFAULT_OBSTACLE_PUBLISH_INTERVAL_SEC = 1.0
     _mqtt_state_lock = threading.Lock()
     _mqtt_publish_queue = deque()

@@ -4294,6 +4294,16 @@ class RapierDriveSimulation {
     const yaw = this.extractYawFromQuaternion(this.body.rotation());
     const forward = this.getVehicleForwardVector(yaw);
     const left = { x: -forward.y, y: forward.x };
+    // obstaclePosIntervalMeter is a gap ahead of the vehicle's actual front bumper, not
+    // from the rigid body's own origin (this.body.translation()) - the two aren't the
+    // same point (the body origin is wherever the URDF chassis link's own local origin
+    // happens to be, not necessarily the geometric center let alone the front face). See
+    // getVehicleFrontOverhangMeters().
+    const frontOverhangMeters = this.getVehicleFrontOverhangMeters(
+      forward.x,
+      forward.y,
+    );
+    const totalForwardOffsetMeters = frontOverhangMeters + forwardDistanceMeters;
     const linkMap = this.viewer?.robotModel?.links || null;
     const wheelPositions = Object.entries(this.wheelLinkNameByKey)
       .map(([wheelKey, wheelLinkName]) => {
@@ -4322,15 +4332,65 @@ class RapierDriveSimulation {
     return {
       x:
         bodyPosition.x +
-        forward.x * forwardDistanceMeters +
+        forward.x * totalForwardOffsetMeters +
         left.x * lateralOffset,
       y:
         bodyPosition.y +
-        forward.y * forwardDistanceMeters +
+        forward.y * totalForwardOffsetMeters +
         left.y * lateralOffset,
       forwardX: forward.x,
       forwardY: forward.y,
     };
+  }
+
+  // Projects every vehicle collision part (chassis + wheels, via
+  // getVehicleCollisionBounds()) onto the world-space forward axis (forwardX, forwardY)
+  // and returns the vehicle assembly's overall rearmost/frontmost projections along that
+  // axis - i.e. where the real rear/front bumper sit, as opposed to the rigid body's own
+  // origin (this.body.translation()), which is offset from both. Shared by
+  // hasVehiclePassedDynamicObstacle() (rearEdge) and getVehicleFrontOverhangMeters()
+  // (frontEdge).
+  getVehicleForwardProjectionRange(forwardX, forwardY) {
+    const vehicleBounds = this.getVehicleCollisionBounds();
+    if (vehicleBounds.length === 0) {
+      return null;
+    }
+
+    let rearEdge = Number.POSITIVE_INFINITY;
+    let frontEdge = Number.NEGATIVE_INFINITY;
+    vehicleBounds.forEach((bounds) => {
+      const center = bounds.getCenter(new THREE.Vector3());
+      const halfExtents = bounds.getSize(new THREE.Vector3()).multiplyScalar(0.5);
+      const halfForward =
+        Math.abs(forwardX) * halfExtents.x + Math.abs(forwardY) * halfExtents.y;
+      const centerProjection = center.x * forwardX + center.y * forwardY;
+      rearEdge = Math.min(rearEdge, centerProjection - halfForward);
+      frontEdge = Math.max(frontEdge, centerProjection + halfForward);
+    });
+
+    return { rearEdge, frontEdge };
+  }
+
+  // How far ahead of the rigid body's own origin the vehicle's actual front bumper sits,
+  // projected onto (forwardX, forwardY) - see getVehicleForwardProjectionRange(). Used by
+  // getDynamicObstaclePlacement() so obstaclePosIntervalMeter measures from the real
+  // front instead of from wherever the body origin happens to sit inside the chassis.
+  // Clamped to 0 rather than trusting a negative result (front edge computed behind the
+  // body origin), which would only happen from malformed collision geometry.
+  getVehicleFrontOverhangMeters(forwardX, forwardY) {
+    if (!this.body) {
+      return 0;
+    }
+
+    const projection = this.getVehicleForwardProjectionRange(forwardX, forwardY);
+    if (!projection) {
+      return 0;
+    }
+
+    const bodyPosition = this.body.translation();
+    const bodyForwardProjection =
+      bodyPosition.x * forwardX + bodyPosition.y * forwardY;
+    return Math.max(projection.frontEdge - bodyForwardProjection, 0);
   }
 
   hasVehiclePassedDynamicObstacle(
@@ -4356,24 +4416,12 @@ class RapierDriveSimulation {
       Math.abs(forwardY) * Math.max(Number(halfExtentY) || 0, 0);
     const obstacleForwardEdge =
       centerX * forwardX + centerY * forwardY + obstacleHalfForward;
-    const vehicleBounds = this.getVehicleCollisionBounds();
-    if (vehicleBounds.length === 0) {
+    const projection = this.getVehicleForwardProjectionRange(forwardX, forwardY);
+    if (!projection) {
       return false;
     }
 
-    const vehicleRearEdge = vehicleBounds.reduce((rearEdge, bounds) => {
-      const center = bounds.getCenter(new THREE.Vector3());
-      const halfExtents = bounds
-        .getSize(new THREE.Vector3())
-        .multiplyScalar(0.5);
-      const halfForward =
-        Math.abs(forwardX) * halfExtents.x + Math.abs(forwardY) * halfExtents.y;
-      return Math.min(
-        rearEdge,
-        center.x * forwardX + center.y * forwardY - halfForward,
-      );
-    }, Number.POSITIVE_INFINITY);
-    return vehicleRearEdge > obstacleForwardEdge;
+    return projection.rearEdge > obstacleForwardEdge;
   }
 
   async removePassedDynamicSurfaceObstacles() {

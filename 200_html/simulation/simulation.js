@@ -2365,25 +2365,23 @@ class RapierDriveSimulation {
         resolution,
         fog: false,
         toneMapped: false,
-        // Normal depth test/write (three.js defaults - not overridden here), so the trace
-        // is occluded by real geometry in front of it like any other object in the scene,
-        // instead of always drawing on top of everything ("x-ray" through solid parts,
-        // which reads as the graph rendering with transparency even though its materials
-        // are fully opaque). depthTest:false used to be set here specifically because the
-        // outer/rim point sat exactly on the tire mesh's own surface and permanently lost
-        // that z-fight - CYCLOID_OUTER_RIM_CLEARANCE_METERS (computeCycloidSample()) now
-        // gives that point genuine clearance instead, so depthTest can stay on. Line2's
-        // "fat line" quads are real triangle geometry (unlike native gl.LINES, which
-        // ignores polygonOffset), so polygonOffset works here as a further, smaller
-        // safety margin against any remaining grazing-angle z-fighting.
-        polygonOffset: true,
-        polygonOffsetFactor: -2,
-        polygonOffsetUnits: -2,
+        // depthTest:false so the trace stays visible even while the wheel pod has rotated
+        // it to the far side, or the leg mechanism is genuinely between it and the camera -
+        // per the user's explicit call ("항상 보이도록"): this is a diagnostic/analysis
+        // overlay, and always-identifiable beats matching real occlusion for that purpose.
+        // This does mean it can show through solid geometry that would truly block a real
+        // object there (an "x-ray" look) - CYCLOID_OUTER_RIM_CLEARANCE_METERS below still
+        // keeps the outer/rim point genuinely clear of the tire's own surface so the trace
+        // doesn't *also* z-fight against it, but that's a separate concern from occlusion.
+        // depthWrite:false alongside it so the trace can't punch holes in the depth buffer
+        // for whatever real geometry draws after it.
+        depthTest: false,
+        depthWrite: false,
       });
       const line = new Line2(geometry, material);
       line.visible = false;
-      // Draw after the ground grid (renderOrder 2), a tiebreaker for objects at equal
-      // depth rather than the "always wins" role it had back when depthTest was off.
+      // Draw after the ground grid (renderOrder 2) and everything opaque (default 0), so
+      // the always-on-top depthTest:false above doesn't fight draw-order ties with them.
       line.renderOrder = 5;
       // The curve's own vertex positions are already absolute world coordinates (see
       // computeCycloidSample()'s worldOuter/worldMiddle/worldInner) and the group sits at

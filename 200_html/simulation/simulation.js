@@ -1817,6 +1817,20 @@ class RapierDriveSimulation {
       return;
     }
 
+    // Freeze the buffers - don't push new (duplicate) points - while nothing is actually
+    // moving: simulation paused (isPaused, "시뮬 정지") or the vehicle itself commanded to
+    // stop (commandedDriveMode === "stop", mirroring stepSimulation()'s own early-return
+    // conditions above). Without this, every idle frame still pushed an unchanged sample,
+    // which - since the per-wheel window here is spin-angle-based, not time-based like the
+    // Wheel Bottom Height chart above - never gets windowed out on its own and eventually
+    // evicts real history through cycloidChartMaxSamples once enough idle frames pile up.
+    if (
+      this.isPaused ||
+      String(this.commandedDriveMode || "").toLowerCase() === "stop"
+    ) {
+      return;
+    }
+
     const wheelKeys = Object.keys(this.wheelLinkNameByKey);
 
     wheelKeys.forEach((wheelKey) => {
@@ -1958,6 +1972,31 @@ class RapierDriveSimulation {
     ctx.strokeStyle = "#495057";
     ctx.lineWidth = 1.2;
     ctx.strokeRect(margin.left, margin.top, plotWidth, plotHeight);
+
+    // Y-axis (height, cm) ticks - same "right-aligned label + cm unit in the corner" style
+    // as the Wheel Bottom Height chart's z-axis above, evenly spaced across the plotted
+    // height range (equal-aspect with the forward axis, so this range is whatever
+    // metersPerPixel/plotHeight worked out to above, not a fixed nice number).
+    const yTickCount = 4;
+    ctx.fillStyle = "#5f6b7a";
+    ctx.font = "11px Segoe UI";
+    ctx.textAlign = "right";
+    ctx.textBaseline = "middle";
+    for (let i = 0; i <= yTickCount; i += 1) {
+      const ratio = i / yTickCount;
+      const y = margin.top + plotHeight * ratio;
+      const tickHeight =
+        centerHeight + plotHeight * (0.5 - ratio) * metersPerPixel;
+      ctx.beginPath();
+      ctx.moveTo(margin.left - 3, y);
+      ctx.lineTo(margin.left, y);
+      ctx.stroke();
+      ctx.fillText(String(Math.round(tickHeight * 100)), margin.left - 5, y);
+    }
+    ctx.textAlign = "left";
+    ctx.textBaseline = "alphabetic";
+    ctx.fillStyle = "#5f6b7a";
+    ctx.fillText("cm", 4, 10);
 
     const drawSeries = (key) => {
       const color = this.cycloidChartColors[key];

@@ -645,6 +645,20 @@ class RapierDriveSimulation {
       rl: [],
       rr: [],
     };
+    // Running (never windowed/evicted) min/max height per wheel, across all samples ever
+    // recorded for it since the last resetSimulation() - unlike cycloidChartSamplesByKey
+    // above (which only keeps the last 1.5 revolutions), this never shrinks back down as
+    // old samples fall out of that window. renderCycloidChart()'s Y-axis range is derived
+    // from this instead of the currently-displayed window, per the user's explicit request
+    // that the Y-axis keep the overall min/max seen so far rather than resizing every
+    // revolution to whatever height range that one revolution happened to cover - see
+    // recordCycloidChartSample() for where this is updated.
+    this.cycloidChartHeightRangeByKey = {
+      fl: { min: Infinity, max: -Infinity },
+      fr: { min: Infinity, max: -Infinity },
+      rl: { min: Infinity, max: -Infinity },
+      rr: { min: Infinity, max: -Infinity },
+    };
     this.cycloidChartColors = {
       outer: "#dc3545",
       middle: "#0d6efd",
@@ -1990,6 +2004,26 @@ class RapierDriveSimulation {
       const samples = this.cycloidChartSamplesByKey[wheelKey];
       samples.push(sample);
 
+      // Feed the running (never windowed) height range before the eviction below can drop
+      // this sample from the display buffer - see cycloidChartHeightRangeByKey's own
+      // comment. Same 3-series aggregation (outer/middle/inner) renderCycloidChart() uses
+      // for its own per-window range, just accumulated forever instead of recomputed from
+      // whatever's currently in the window.
+      const heightRange = this.cycloidChartHeightRangeByKey[wheelKey];
+      if (heightRange) {
+        [sample.outer, sample.middle, sample.inner].forEach((point) => {
+          if (!point || !Number.isFinite(point.height)) {
+            return;
+          }
+          if (point.height < heightRange.min) {
+            heightRange.min = point.height;
+          }
+          if (point.height > heightRange.max) {
+            heightRange.max = point.height;
+          }
+        });
+      }
+
       if (Number.isFinite(sample.spinAngleRad)) {
         while (
           samples.length > 2 &&
@@ -2256,8 +2290,21 @@ class RapierDriveSimulation {
     });
     const minForward = Math.min(...allPoints.map((p) => p.forward));
     const maxForward = Math.max(...allPoints.map((p) => p.forward));
-    const minHeight = Math.min(...allPoints.map((p) => p.height));
-    const maxHeight = Math.max(...allPoints.map((p) => p.height));
+    // Y축은 현재 화면에 표시 중인 1회전 창(allPoints)이 아니라, 이 바퀴에 대해 지금까지
+    // 측정된 전체 값의 최대/최소(cycloidChartHeightRangeByKey - recordCycloidChartSample()
+    // 에서 창과 무관하게 계속 누적)를 그대로 유지한다 - 사용자 요청대로, 회전마다 그
+    // 회전의 높이 범위로 축소/재조정되지 않고 지금까지 본 전체 범위를 계속 유지한다.
+    const heightRange = this.cycloidChartHeightRangeByKey[wheelKey];
+    const hasHistoricalHeightRange =
+      heightRange &&
+      Number.isFinite(heightRange.min) &&
+      Number.isFinite(heightRange.max);
+    const minHeight = hasHistoricalHeightRange
+      ? heightRange.min
+      : Math.min(...allPoints.map((p) => p.height));
+    const maxHeight = hasHistoricalHeightRange
+      ? heightRange.max
+      : Math.max(...allPoints.map((p) => p.height));
     const spanForward = Math.max(maxForward - minForward, 0.01);
     const spanHeight = Math.max(maxHeight - minHeight, 0.01);
     const centerForward = (minForward + maxForward) / 2;
@@ -11402,6 +11449,9 @@ class RapierDriveSimulation {
     this.isWheelZChartObstacleContactActive = false;
     Object.keys(this.cycloidChartSamplesByKey).forEach((key) => {
       this.cycloidChartSamplesByKey[key] = [];
+    });
+    Object.keys(this.cycloidChartHeightRangeByKey).forEach((key) => {
+      this.cycloidChartHeightRangeByKey[key] = { min: Infinity, max: -Infinity };
     });
     this.cycloidChartActiveWheelKey = null;
     this.simulationElapsedSec = 0;

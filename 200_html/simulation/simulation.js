@@ -1231,7 +1231,9 @@ class RapierDriveSimulation {
     // here, this recomputes from scratch every frame, so it stops contributing (and the
     // range can shrink back down) the moment nothing active remains.
     const maxActiveObstacleTopMeters = (
-      Array.isArray(this.obstacleColliderInfos) ? this.obstacleColliderInfos : []
+      Array.isArray(this.obstacleColliderInfos)
+        ? this.obstacleColliderInfos
+        : []
     ).reduce((maxTop, obstacleInfo) => {
       if (
         !obstacleInfo?.isActive ||
@@ -1506,7 +1508,7 @@ class RapierDriveSimulation {
     title.style.lineHeight = "1.1";
     title.style.textAlign = "center";
     title.style.width = "100%";
-    title.textContent = "Wheel Cycloid (외부/중간/내부휠)";
+    title.textContent = "Wheel Cycloid";
 
     const toggleButton = document.createElement("button");
     toggleButton.type = "button";
@@ -1770,12 +1772,17 @@ class RapierDriveSimulation {
       0.05,
     );
     const wheelCenterWorld = wheelLink.getWorldPosition(new THREE.Vector3());
-    const wheelRimWorld = new THREE.Vector3(0, 0, wheelRadiusMeters).applyMatrix4(
-      wheelLink.matrixWorld,
-    );
+    const wheelRimWorld = new THREE.Vector3(
+      0,
+      0,
+      wheelRadiusMeters,
+    ).applyMatrix4(wheelLink.matrixWorld);
 
     let innerPoint = null;
-    if (gearLink && typeof viewer.getInnerGearMarkerRadiusMeters === "function") {
+    if (
+      gearLink &&
+      typeof viewer.getInnerGearMarkerRadiusMeters === "function"
+    ) {
       const gearRadiusMeters = viewer.getInnerGearMarkerRadiusMeters(wheelKey);
       if (Number.isFinite(gearRadiusMeters) && gearRadiusMeters > 0) {
         const gearMarkerWorld = new THREE.Vector3(
@@ -1917,16 +1924,14 @@ class RapierDriveSimulation {
     const plotHeight = height - margin.top - margin.bottom;
 
     const wheelKey = this.cycloidChartActiveWheelKey;
-    const samples = wheelKey ? this.cycloidChartSamplesByKey[wheelKey] || [] : [];
+    const samples = wheelKey
+      ? this.cycloidChartSamplesByKey[wheelKey] || []
+      : [];
     if (!wheelKey || samples.length < 2) {
       ctx.fillStyle = "#9aa5b1";
       ctx.font = "12px Segoe UI";
       ctx.textAlign = "center";
-      ctx.fillText(
-        "샘플 수집 중...",
-        width / 2,
-        margin.top + plotHeight / 2,
-      );
+      ctx.fillText("샘플 수집 중...", width / 2, margin.top + plotHeight / 2);
       ctx.textAlign = "left";
       return;
     }
@@ -4954,12 +4959,16 @@ class RapierDriveSimulation {
   // why callers that know their obstacle's footprint (the step "wood/bar" collider, the
   // pothole template) should pass it rather than leaving the gap measured to a bare
   // point.
-  getDynamicObstaclePlacement(lateralWheelKeys = [], obstacleHalfExtents = null) {
+  getDynamicObstaclePlacement(
+    lateralWheelKeys = [],
+    obstacleHalfExtents = null,
+  ) {
     if (!this.body || !this.carFrame) {
       return null;
     }
 
-    const forwardDistanceMeters = this.getDynamicObstacleForwardDistanceMeters();
+    const forwardDistanceMeters =
+      this.getDynamicObstacleForwardDistanceMeters();
     const bodyPosition = this.body.translation();
     const yaw = this.extractYawFromQuaternion(this.body.rotation());
     const forward = this.getVehicleForwardVector(yaw);
@@ -5041,7 +5050,9 @@ class RapierDriveSimulation {
     let frontEdge = Number.NEGATIVE_INFINITY;
     vehicleBounds.forEach((bounds) => {
       const center = bounds.getCenter(new THREE.Vector3());
-      const halfExtents = bounds.getSize(new THREE.Vector3()).multiplyScalar(0.5);
+      const halfExtents = bounds
+        .getSize(new THREE.Vector3())
+        .multiplyScalar(0.5);
       const halfForward =
         Math.abs(forwardX) * halfExtents.x + Math.abs(forwardY) * halfExtents.y;
       const centerProjection = center.x * forwardX + center.y * forwardY;
@@ -5063,7 +5074,10 @@ class RapierDriveSimulation {
       return 0;
     }
 
-    const projection = this.getVehicleForwardProjectionRange(forwardX, forwardY);
+    const projection = this.getVehicleForwardProjectionRange(
+      forwardX,
+      forwardY,
+    );
     if (!projection) {
       return 0;
     }
@@ -5097,7 +5111,10 @@ class RapierDriveSimulation {
       Math.abs(forwardY) * Math.max(Number(halfExtentY) || 0, 0);
     const obstacleForwardEdge =
       centerX * forwardX + centerY * forwardY + obstacleHalfForward;
-    const projection = this.getVehicleForwardProjectionRange(forwardX, forwardY);
+    const projection = this.getVehicleForwardProjectionRange(
+      forwardX,
+      forwardY,
+    );
     if (!projection) {
       return false;
     }
@@ -6180,7 +6197,9 @@ class RapierDriveSimulation {
         // gate or step anywhere - and it eases back down the same way as the carrier
         // retracts and the gap reopens, tracking together rather than fighting each other.
         const engagedObstacleForResidual =
-          supportObstacle || this.wheelClimbEngagedObstacleByKey[wheelKey] || null;
+          supportObstacle ||
+          this.wheelClimbEngagedObstacleByKey[wheelKey] ||
+          null;
         // Pothole mirror of engagedObstacleForResidual above - see updateWheelClimbGait()
         // for why obstacle and hole engagement are never both non-null for the same wheel.
         const engagedHoleForResidual = engagedObstacleForResidual
@@ -6193,18 +6212,22 @@ class RapierDriveSimulation {
         if (engagedObstacleForResidual) {
           // carrierJoint is already at currentCarrierAngleRad here (restored right after
           // the nominal-position read above) - no need to re-pose it.
-          const liveWheelPosition = wheelLink.getWorldPosition(new THREE.Vector3());
+          const liveWheelPosition = wheelLink.getWorldPosition(
+            new THREE.Vector3(),
+          );
           const obstacleTopZ =
             engagedObstacleForResidual.center.z +
             engagedObstacleForResidual.halfExtents.z;
           const liveGapX = Math.max(
-            Math.abs(liveWheelPosition.x - engagedObstacleForResidual.center.x) -
-              engagedObstacleForResidual.halfExtents.x,
+            Math.abs(
+              liveWheelPosition.x - engagedObstacleForResidual.center.x,
+            ) - engagedObstacleForResidual.halfExtents.x,
             0,
           );
           const liveGapY = Math.max(
-            Math.abs(liveWheelPosition.y - engagedObstacleForResidual.center.y) -
-              engagedObstacleForResidual.halfExtents.y,
+            Math.abs(
+              liveWheelPosition.y - engagedObstacleForResidual.center.y,
+            ) - engagedObstacleForResidual.halfExtents.y,
             0,
           );
           const liveHorizontalGap = Math.hypot(liveGapX, liveGapY);
@@ -6214,7 +6237,8 @@ class RapierDriveSimulation {
               : obstacleTopZ +
                 Math.sqrt(
                   Math.max(
-                    wheelRadius * wheelRadius - liveHorizontalGap * liveHorizontalGap,
+                    wheelRadius * wheelRadius -
+                      liveHorizontalGap * liveHorizontalGap,
                     0,
                   ),
                 ) -
@@ -6231,7 +6255,9 @@ class RapierDriveSimulation {
           // wheel's live center is still over the void, collapsing to 0 (no chassis dip
           // needed) once the carrier's own downward swing has carried it back over solid
           // ground on either side.
-          const liveWheelPosition = wheelLink.getWorldPosition(new THREE.Vector3());
+          const liveWheelPosition = wheelLink.getWorldPosition(
+            new THREE.Vector3(),
+          );
           const liveInsideDistance = Math.min(
             liveWheelPosition.x - engagedHoleForResidual.minX,
             engagedHoleForResidual.maxX - liveWheelPosition.x,
@@ -6250,7 +6276,8 @@ class RapierDriveSimulation {
               Math.sqrt(
                 Math.max(wheelRadius * wheelRadius - liveReach * liveReach, 0),
               );
-            residualSupportZ = this.groundZ - Math.min(depthMeters, liveEdgeDrop);
+            residualSupportZ =
+              this.groundZ - Math.min(depthMeters, liveEdgeDrop);
           }
           chassisFacingSupportZ = Math.min(this.groundZ, residualSupportZ);
         }
@@ -6491,11 +6518,14 @@ class RapierDriveSimulation {
       // last engaged so the retraction safety check below still has the right box to
       // verify against for the rest of that retraction, not just while freshly detected.
       const engagedObstacle =
-        freshSupportObstacle || this.wheelClimbEngagedObstacleByKey[wheelKey] || null;
+        freshSupportObstacle ||
+        this.wheelClimbEngagedObstacleByKey[wheelKey] ||
+        null;
       // Pothole mirror of freshSupportObstacle/engagedObstacle above - see
       // getWheelSupportProfile()'s supportHoleByKey (never non-null for the same wheel
       // at the same time as supportObstacleByKey, by construction there).
-      const freshSupportHole = supportProfile?.supportHoleByKey?.[wheelKey] || null;
+      const freshSupportHole =
+        supportProfile?.supportHoleByKey?.[wheelKey] || null;
       const engagedHole =
         freshSupportHole || this.wheelClimbEngagedHoleByKey[wheelKey] || null;
 
@@ -6518,16 +6548,22 @@ class RapierDriveSimulation {
       ) {
         const obstacleTopZ =
           engagedObstacle.center.z + engagedObstacle.halfExtents.z;
-        const obstacleMinX = engagedObstacle.center.x - engagedObstacle.halfExtents.x;
-        const obstacleMaxX = engagedObstacle.center.x + engagedObstacle.halfExtents.x;
-        const obstacleMinY = engagedObstacle.center.y - engagedObstacle.halfExtents.y;
-        const obstacleMaxY = engagedObstacle.center.y + engagedObstacle.halfExtents.y;
+        const obstacleMinX =
+          engagedObstacle.center.x - engagedObstacle.halfExtents.x;
+        const obstacleMaxX =
+          engagedObstacle.center.x + engagedObstacle.halfExtents.x;
+        const obstacleMinY =
+          engagedObstacle.center.y - engagedObstacle.halfExtents.y;
+        const obstacleMaxY =
+          engagedObstacle.center.y + engagedObstacle.halfExtents.y;
 
         // carrierLink's own world position (the joint that rotates it doesn't move its
         // own origin, only its orientation and everything mounted past it - see the
         // comment on innerWheelCarrierLinkNameByKey) is fixed for every candidate angle
         // below, so it's read once here rather than inside referenceAngleRadAtCandidate().
-        const carrierPosition = carrierLink.getWorldPosition(new THREE.Vector3());
+        const carrierPosition = carrierLink.getWorldPosition(
+          new THREE.Vector3(),
+        );
 
         // Climbing a leading edge (contact ahead of the wheel, in the direction of
         // travel) and descending a trailing edge (contact now behind it, after the
@@ -6653,7 +6689,10 @@ class RapierDriveSimulation {
           Number(this.wheelClimbCarrierAngleRadByKey[wheelKey]) || 0,
         );
 
-        if (referenceAngleRadAtCandidate(0) > WHEEL_CLIMB_REFERENCE_ANGLE_EPSILON_RAD) {
+        if (
+          referenceAngleRadAtCandidate(0) >
+          WHEEL_CLIMB_REFERENCE_ANGLE_EPSILON_RAD
+        ) {
           isWheelLockedThisFrame = true;
 
           // Bisect for the smallest (unsigned) carrier magnitude in
@@ -6742,7 +6781,10 @@ class RapierDriveSimulation {
           const maxDecreaseRad =
             WHEEL_CLIMB_CARRIER_RESTORE_RATE_RAD_PER_SEC *
             Math.max(Number(deltaSec) || 0, 0);
-          const proposedRad = Math.max(0, previousMagnitudeRad - maxDecreaseRad);
+          const proposedRad = Math.max(
+            0,
+            previousMagnitudeRad - maxDecreaseRad,
+          );
           if (
             referenceAngleRadAtCandidate(proposedRad) <=
             WHEEL_CLIMB_REFERENCE_ANGLE_EPSILON_RAD
@@ -6805,7 +6847,9 @@ class RapierDriveSimulation {
         const holeMinY = engagedHole.minY;
         const holeMaxY = engagedHole.maxY;
 
-        const carrierPosition = carrierLink.getWorldPosition(new THREE.Vector3());
+        const carrierPosition = carrierLink.getWorldPosition(
+          new THREE.Vector3(),
+        );
 
         // Nearest point on the rim's own perimeter (not "clamp into the footprint",
         // which is a no-op once already inside), restricted to the pair of edges the
@@ -6923,7 +6967,10 @@ class RapierDriveSimulation {
           Number(this.wheelClimbCarrierAngleRadByKey[wheelKey]) || 0,
         );
 
-        if (referenceAngleRadAtCandidate(0) > WHEEL_CLIMB_REFERENCE_ANGLE_EPSILON_RAD) {
+        if (
+          referenceAngleRadAtCandidate(0) >
+          WHEEL_CLIMB_REFERENCE_ANGLE_EPSILON_RAD
+        ) {
           isWheelLockedThisFrame = true;
 
           let lowRad = 0;
@@ -6956,7 +7003,10 @@ class RapierDriveSimulation {
           const maxDecreaseRad =
             WHEEL_CLIMB_CARRIER_RESTORE_RATE_RAD_PER_SEC *
             Math.max(Number(deltaSec) || 0, 0);
-          const proposedRad = Math.max(0, previousMagnitudeRad - maxDecreaseRad);
+          const proposedRad = Math.max(
+            0,
+            previousMagnitudeRad - maxDecreaseRad,
+          );
           if (
             referenceAngleRadAtCandidate(proposedRad) <=
             WHEEL_CLIMB_REFERENCE_ANGLE_EPSILON_RAD

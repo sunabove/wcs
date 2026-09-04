@@ -1920,18 +1920,89 @@ class RapierDriveSimulation {
     const plotWidth = width - margin.left - margin.right;
     const plotHeight = height - margin.top - margin.bottom;
 
+    // Border + center crosshair + X/Y tick marks/labels (height and forward travel, both
+    // cm) - shared by the "not enough samples yet" placeholder below and the populated
+    // chart further down, so the panel always shows its full axis chrome instead of the
+    // ticks popping in only once a curve exists.
+    const drawAxes = (centerForward, centerHeight, metersPerPixel) => {
+      const toYLocal = (heightValue) =>
+        margin.top +
+        plotHeight / 2 -
+        (heightValue - centerHeight) / metersPerPixel;
+      const toXLocal = (forward) =>
+        margin.left +
+        plotWidth / 2 +
+        (forward - centerForward) / metersPerPixel;
+
+      ctx.strokeStyle = "#e3e8ef";
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(margin.left, toYLocal(centerHeight));
+      ctx.lineTo(margin.left + plotWidth, toYLocal(centerHeight));
+      ctx.moveTo(toXLocal(centerForward), margin.top);
+      ctx.lineTo(toXLocal(centerForward), margin.top + plotHeight);
+      ctx.stroke();
+
+      ctx.strokeStyle = "#495057";
+      ctx.lineWidth = 1.2;
+      ctx.strokeRect(margin.left, margin.top, plotWidth, plotHeight);
+
+      const yTickCount = 4;
+      const xTickCount = 4;
+      ctx.strokeStyle = "#9aa5b1";
+      ctx.fillStyle = "#5f6b7a";
+      ctx.font = "11px Segoe UI";
+      ctx.textAlign = "right";
+      ctx.textBaseline = "middle";
+      for (let i = 0; i <= yTickCount; i += 1) {
+        const ratio = i / yTickCount;
+        const y = margin.top + plotHeight * ratio;
+        const tickHeight =
+          centerHeight + plotHeight * (0.5 - ratio) * metersPerPixel;
+        ctx.beginPath();
+        ctx.moveTo(margin.left - 3, y);
+        ctx.lineTo(margin.left, y);
+        ctx.stroke();
+        ctx.fillText(String(Math.round(tickHeight * 100)), margin.left - 6, y);
+      }
+
+      ctx.textAlign = "center";
+      ctx.textBaseline = "top";
+      for (let i = 0; i <= xTickCount; i += 1) {
+        const ratio = i / xTickCount;
+        const x = margin.left + plotWidth * ratio;
+        const tickForward =
+          centerForward + plotWidth * (ratio - 0.5) * metersPerPixel;
+        ctx.beginPath();
+        ctx.moveTo(x, margin.top + plotHeight);
+        ctx.lineTo(x, margin.top + plotHeight + 3);
+        ctx.stroke();
+        ctx.fillText(
+          String(Math.round(tickForward * 100)),
+          x,
+          margin.top + plotHeight + 5,
+        );
+      }
+
+      // Placed in the bottom-left corner, clear of both the Y-axis value column (ends at
+      // margin.left - 6, above) and the first X-axis tick label (centered under
+      // margin.left, below).
+      ctx.textAlign = "left";
+      ctx.fillText("cm", 2, margin.top + plotHeight + 5);
+      ctx.textBaseline = "alphabetic";
+    };
+
     const wheelKey = this.cycloidChartActiveWheelKey;
     const samples = wheelKey
       ? this.cycloidChartSamplesByKey[wheelKey] || []
       : [];
     if (!wheelKey || samples.length < 2) {
-      // Not enough samples yet to plot a curve - show the plot area's bare outline (no
-      // axes/ticks, since there's no data yet to derive a range from) instead of a "샘플
-      // 수집 중..." placeholder message, so the panel reads as "empty chart" rather than
-      // popping in a block of text where the chart will be.
-      ctx.strokeStyle = "#495057";
-      ctx.lineWidth = 1.2;
-      ctx.strokeRect(margin.left, margin.top, plotWidth, plotHeight);
+      // Not enough samples yet to plot a curve - there's no real data to derive a
+      // forward/height range from, so fall back to a placeholder +/- range centered on 0
+      // (0.002 m/px => roughly +/-12cm tall, +/-30cm wide at this panel's default size)
+      // just so the axis chrome (border/ticks) reads the same as the populated chart
+      // instead of popping in a bare box.
+      drawAxes(0, 0, 0.002);
       return;
     }
 
@@ -1964,65 +2035,7 @@ class RapierDriveSimulation {
       plotHeight / 2 -
       (heightValue - centerHeight) / metersPerPixel;
 
-    ctx.strokeStyle = "#e3e8ef";
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.moveTo(margin.left, toY(centerHeight));
-    ctx.lineTo(margin.left + plotWidth, toY(centerHeight));
-    ctx.moveTo(toX(centerForward), margin.top);
-    ctx.lineTo(toX(centerForward), margin.top + plotHeight);
-    ctx.stroke();
-
-    ctx.strokeStyle = "#495057";
-    ctx.lineWidth = 1.2;
-    ctx.strokeRect(margin.left, margin.top, plotWidth, plotHeight);
-
-    // Axis ticks (height on Y, forward travel on X), both in cm - equal-aspect with each
-    // other, so a single "cm" unit label (bottom-left corner, well clear of both tick
-    // columns - see below) covers both instead of repeating the unit per axis.
-    const yTickCount = 4;
-    const xTickCount = 4;
-    ctx.strokeStyle = "#9aa5b1";
-    ctx.fillStyle = "#5f6b7a";
-    ctx.font = "11px Segoe UI";
-    ctx.textAlign = "right";
-    ctx.textBaseline = "middle";
-    for (let i = 0; i <= yTickCount; i += 1) {
-      const ratio = i / yTickCount;
-      const y = margin.top + plotHeight * ratio;
-      const tickHeight =
-        centerHeight + plotHeight * (0.5 - ratio) * metersPerPixel;
-      ctx.beginPath();
-      ctx.moveTo(margin.left - 3, y);
-      ctx.lineTo(margin.left, y);
-      ctx.stroke();
-      ctx.fillText(String(Math.round(tickHeight * 100)), margin.left - 6, y);
-    }
-
-    ctx.textAlign = "center";
-    ctx.textBaseline = "top";
-    for (let i = 0; i <= xTickCount; i += 1) {
-      const ratio = i / xTickCount;
-      const x = margin.left + plotWidth * ratio;
-      const tickForward =
-        centerForward + plotWidth * (ratio - 0.5) * metersPerPixel;
-      ctx.beginPath();
-      ctx.moveTo(x, margin.top + plotHeight);
-      ctx.lineTo(x, margin.top + plotHeight + 3);
-      ctx.stroke();
-      ctx.fillText(
-        String(Math.round(tickForward * 100)),
-        x,
-        margin.top + plotHeight + 5,
-      );
-    }
-
-    // Placed in the bottom-left corner, clear of both the Y-axis value column (ends at
-    // margin.left - 6, above) and the first X-axis tick label (centered under margin.left,
-    // below) - previously shared a single cramped row with the topmost Y-tick number.
-    ctx.textAlign = "left";
-    ctx.fillText("cm", 2, margin.top + plotHeight + 5);
-    ctx.textBaseline = "alphabetic";
+    drawAxes(centerForward, centerHeight, metersPerPixel);
 
     const drawSeries = (key) => {
       const color = this.cycloidChartColors[key];

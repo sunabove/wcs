@@ -146,7 +146,9 @@
     const normalizedValue = Number(obstacleValue);
     if (
       !Number.isInteger(normalizedValue) ||
-      normalizedValue < 0 ||
+      // -1 ("제거") clears every obstacle - see simulation.js's
+      // applyDynamicSurfaceObstacle() comment - not an obstacle type index like 0/1/2.
+      normalizedValue < -1 ||
       normalizedValue > 2
     ) {
       return false;
@@ -311,7 +313,9 @@
     const normalizedValue = Number(obstacleValue);
     if (
       !Number.isInteger(normalizedValue) ||
-      normalizedValue < 0 ||
+      // -1 ("제거") clears every obstacle - see simulation.js's
+      // applyDynamicSurfaceObstacle() comment - not an obstacle type index like 0/1/2.
+      normalizedValue < -1 ||
       normalizedValue > 2
     ) {
       console.warn(

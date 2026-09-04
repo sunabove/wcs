@@ -5726,13 +5726,15 @@ class RapierDriveSimulation {
     const normalizedValue = Number(obstacleValue);
     if (
       !Number.isInteger(normalizedValue) ||
-      normalizedValue < 0 ||
+      // -1 ("제거") is a control value meaning "clear every obstacle" - see below - not
+      // an obstacle type index like 0/1/2, so the valid range extends one below them.
+      normalizedValue < -1 ||
       normalizedValue > 2
     ) {
       return false;
     }
 
-    if (normalizedValue === 0) {
+    if (normalizedValue === 0 || normalizedValue === -1) {
       this.isDynamicObstacleRemovalRequested = true;
       await this.removePassedDynamicSurfaceObstacles();
       return true;
@@ -11613,7 +11615,8 @@ function applySimulationSurfaceObstacle(obstacleValue) {
   const normalizedValue = Number(obstacleValue);
   if (
     !Number.isInteger(normalizedValue) ||
-    normalizedValue < 0 ||
+    // -1 ("제거") clears every obstacle - see applyDynamicSurfaceObstacle()'s comment.
+    normalizedValue < -1 ||
     normalizedValue > 2
   ) {
     return false;

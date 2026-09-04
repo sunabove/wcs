@@ -657,6 +657,29 @@ class RapierDriveSimulation {
       rl: null,
       rr: null,
     };
+    // Self-calibrated TRUE ROLLING radius per wheel - forward distance the chassis
+    // actually travels per radian of this wheel's own spin, measured live (see
+    // recordCycloidChartSample()) from cycloidChartSamplesByKey's own oldest-vs-newest
+    // sample. Confirmed via live measurement (least-squares fit over ~170 samples) to be
+    // meaningfully *smaller* than cycloidWheelRadiusMetersByKey above (the wheel's true
+    // geometric/ground-height radius) for this vehicle - i.e. wheelEffectiveRadiusMeters
+    // (used for commanded-speed conversion) doesn't exactly match the wheel's own visual
+    // mesh size, so the two radii genuinely differ in this simulation. For a rolling point
+    // at distance r from a wheel's own center, the traced curve self-intersects (loops)
+    // whenever r exceeds this true rolling radius, no matter how accurately r otherwise
+    // matches the wheel's physical geometry - this is what "outer" needs, in preference to
+    // cycloidWheelRadiusMetersByKey, to satisfy the user's "사이클로이드 곡선이 겹쳐지지
+    // 않는다" (must not self-overlap on flat ground) requirement. The trade-off: the
+    // resulting curve's cusp then sits a little above true ground level (by the
+    // ~1cm gap between the two radii) instead of touching exactly 0 - a smaller, harder-
+    // to-notice imprecision than a self-intersecting loop, and not fixable here without
+    // correcting the underlying wheel-spin-vs-travel-distance mismatch itself.
+    this.cycloidWheelRollingRadiusMetersByKey = {
+      fl: null,
+      fr: null,
+      rl: null,
+      rr: null,
+    };
     // Running (never windowed/evicted) min/max height per wheel, across all samples ever
     // recorded for it since the last resetSimulation() - unlike cycloidChartSamplesByKey
     // above (which only keeps the last 1.5 revolutions), this never shrinks back down as
@@ -1876,9 +1899,17 @@ class RapierDriveSimulation {
   //     carrier's tip. The rim point additionally spins with the tire's own rolling
   //     rotation, which combined with the chassis's forward travel is exactly what
   //     produces the classic cycloid loop.
-  //   - middle (중간휠/캐리어): the wheel's own center, i.e. the carrier arm's tip - a
-  //     straight line on flat ground (carrier angle pinned at 0, so this point just rides
-  //     along with the chassis) and a curved arc while actually climbing.
+  //   - middle (중간휠/캐리어): a point on the carrier (inner_wheel_{key}) link's own rim
+  //     (carrier center + its own local mesh radius along local +X, mirroring "inner"
+  //     below) - see getInnerWheelMarkerRadiusMeters()'s comment in urdfViewer.js. NOT the
+  //     carrier arm's tip/the wheel's own axle position (the old design here, before the
+  //     user's explicit "모든 휠의 사이클로이드 기준점은 해당 휠의 최외곽 원주에 접해야
+  //     한다" request) - that point sits on the circle the wheel's *mount point* sweeps as
+  //     the carrier orbits, not on the carrier link's own physical circumference, so it
+  //     wasn't actually tangent to anything's outer edge the way "outer"/"inner" are.
+  //     Traces a straight line on flat ground - the carrier itself doesn't rotate there
+  //     (angle pinned at 0), so this rim point just rides along fixed relative to the
+  //     chassis - and a curved arc while actually climbing, as the carrier orbits.
   //   - inner (내부휠/베벨기어): a point on the gear's own rim (its rotation *center* is
   //     fixed relative to car_frame and traces nothing on its own - see
   //     getInnerGearMarkerRadiusMeters()'s comment in urdfViewer.js - but the whole car_frame
@@ -1902,6 +1933,13 @@ class RapierDriveSimulation {
       linkMap,
       viewer.innerGearLinkNameByKey?.[wheelKey],
     );
+    // The carrier (inner_wheel_{key}) - "중간휠" in simulation_mechanism.txt - the arm
+    // the outer wheel is mounted eccentrically on. See its use below for why "middle"
+    // needs this link specifically instead of just the outer wheel's own axle position.
+    const carrierLink = this.findLinkByName(
+      linkMap,
+      viewer.innerWheelLinkNameByKey?.[wheelKey],
+    );
     if (!wheelLink) {
       return null;
     }
@@ -1909,6 +1947,9 @@ class RapierDriveSimulation {
     wheelLink.updateWorldMatrix(true, false);
     if (gearLink) {
       gearLink.updateWorldMatrix(true, false);
+    }
+    if (carrierLink) {
+      carrierLink.updateWorldMatrix(true, false);
     }
 
     const bodyYaw = this.extractYawFromQuaternion(this.body.rotation());
@@ -1943,8 +1984,27 @@ class RapierDriveSimulation {
       }
     }
 
+    // cycloidWheelRollingRadiusMetersByKey (the true rolling radius - see its own comment)
+    // takes priority over cycloidWheelRadiusMetersByKey (ground-height) here: a radius
+    // larger than the true rolling radius makes the traced curve self-intersect on flat
+    // ground regardless of how well it otherwise matches the wheel's physical geometry,
+    // which is the harder, more visually obvious defect between the two. Only actually
+    // differs from cycloidWheelRadiusMetersByKey once recordCycloidChartSample() has
+    // enough buffered rotation to measure it (see its own comment) - falls back to the
+    // ground-height radius (then the older chain) until then, same as before. Shaved down
+    // by a small safety margin (not applied to the other fallbacks below, which don't need
+    // it) - even after EMA-smoothing in recordCycloidChartSample(), the measurement can
+    // still land a hair above the true instantaneous rolling radius on any given frame,
+    // and any amount over produces a self-intersecting loop; a few extra mm of gap above
+    // true ground level is a smaller, far less visible defect than that.
+    const rollingRadiusMeters = Number(
+      this.cycloidWheelRollingRadiusMetersByKey[wheelKey],
+    );
     const wheelRadiusMeters = Math.max(
-      Number(this.cycloidWheelRadiusMetersByKey[wheelKey]) ||
+      (Number.isFinite(rollingRadiusMeters) && rollingRadiusMeters > 0
+        ? rollingRadiusMeters * 0.9
+        : 0) ||
+        Number(this.cycloidWheelRadiusMetersByKey[wheelKey]) ||
         Number(this.wheelRadiusMetersByKey[wheelKey]) ||
         Number(this.wheelEffectiveRadiusMeters) ||
         0.16,
@@ -1990,6 +2050,43 @@ class RapierDriveSimulation {
       }
     }
 
+    // "middle" (중간휠/carrier) marker - a point out on inner_wheel_{key}'s own rim,
+    // mirroring the inner_gear marker above exactly (same shared joint origin/axis - see
+    // innerWheelJointNameByKey's comment in urdfViewer.js - so local +X here is likewise
+    // perpendicular to this link's own spin axis and actually traces a circle). Previously
+    // "middle" just used wheelCenterWorld (the outer wheel's own axle) directly - that
+    // point sits on the circle the wheel's *mount point* sweeps as the carrier orbits
+    // (radius = innerWheelOrbitRadiusMetersByKey, a joint-origin offset), not a point on
+    // the carrier link's own physical rim, so it wasn't actually tangent to the carrier's
+    // own outer circumference the way "outer"/"inner" are tangent to theirs - the bug this
+    // was reported as ("중간휠의 기준점은 중간휠의 중심점을 가리키고 있다").
+    let middlePoint = null;
+    let middleWorld = null;
+    if (
+      carrierLink &&
+      typeof viewer.getInnerWheelMarkerRadiusMeters === "function"
+    ) {
+      const carrierRadiusMeters =
+        viewer.getInnerWheelMarkerRadiusMeters(wheelKey);
+      if (Number.isFinite(carrierRadiusMeters) && carrierRadiusMeters > 0) {
+        const carrierMarkerWorld = new THREE.Vector3(
+          carrierRadiusMeters,
+          0,
+          0,
+        ).applyMatrix4(carrierLink.matrixWorld);
+        middlePoint = project(carrierMarkerWorld);
+        middleWorld = carrierMarkerWorld;
+      }
+    }
+    // Falls back to the outer wheel's own axle (the old behavior) only until the carrier
+    // link/mesh resolves - see getInnerWheelMarkerRadiusMeters()'s own "returns null until
+    // the mesh file has actually finished loading" caveat - so the chart still shows
+    // *something* moving in the meantime instead of a gap.
+    if (!middlePoint) {
+      middlePoint = project(wheelCenterWorld);
+      middleWorld = wheelCenterWorld;
+    }
+
     // Outer wheel's own cumulative spin angle (unbounded - see urdfViewer.js's
     // wheelAngles comment) - used by recordCycloidChartSample() below to window the chart
     // to exactly one outer-wheel revolution, regardless of how that revolution happened
@@ -1999,14 +2096,16 @@ class RapierDriveSimulation {
     return {
       // wheelRimWorldTrue (no clearance offset), not wheelRimWorld - see its own comment.
       outer: project(wheelRimWorldTrue),
-      middle: project(wheelCenterWorld),
+      // middlePoint (carrier rim marker), not the outer wheel's own axle - see its own
+      // comment above.
+      middle: middlePoint,
       inner: innerPoint,
       // Unprojected world points behind outer/middle/inner above - feeds the cycloid 3D
       // 궤적 (trace): ensureCycloidTrace3D()/updateCycloidTrace3D(). worldOuter keeps the
       // clearance offset (wheelRimWorld, not wheelRimWorldTrue) since the 3D trace still
       // needs it to clear the tire mesh's own surface.
       worldOuter: wheelRimWorld,
-      worldMiddle: wheelCenterWorld,
+      worldMiddle: middleWorld,
       worldInner: innerWorld,
       spinAngleRad: Number.isFinite(spinAngleRad) ? spinAngleRad : null,
     };
@@ -2055,6 +2154,62 @@ class RapierDriveSimulation {
 
       const samples = this.cycloidChartSamplesByKey[wheelKey];
       samples.push(sample);
+
+      // Self-calibrate the true rolling radius (forward distance per spin radian) from
+      // this wheel's own oldest-vs-newest buffered sample - see
+      // cycloidWheelRollingRadiusMetersByKey's own comment for why computeCycloidSample()
+      // needs this instead of the ground-height radius for "outer". Uses "middle" (the
+      // carrier marker)'s forward value, not "outer"'s, because "middle" doesn't spin on
+      // flat ground (see computeCycloidSample()'s own comment) so its forward motion is
+      // pure chassis translation, undistorted by the periodic wobble a spinning point like
+      // "outer" would otherwise contaminate this measurement with. Requires a real chunk
+      // of rotation (>= ~72°) between the buffer's ends before trusting the ratio, so a
+      // couple of noisy/near-stationary frames right after a resume can't skew it, and
+      // stays gated to flat, unobstructed driving for the same reason the ground-height
+      // calibration above is.
+      if (
+        !this.isVehicleOverHoleRegion() &&
+        !this.isObstacleTraversalActive() &&
+        samples.length >= 2
+      ) {
+        const oldestSample = samples[0];
+        const deltaSpin =
+          Number.isFinite(sample.spinAngleRad) &&
+          Number.isFinite(oldestSample.spinAngleRad)
+            ? sample.spinAngleRad - oldestSample.spinAngleRad
+            : NaN;
+        const deltaForward =
+          Number.isFinite(sample.middle?.forward) &&
+          Number.isFinite(oldestSample.middle?.forward)
+            ? sample.middle.forward - oldestSample.middle.forward
+            : NaN;
+        if (Number.isFinite(deltaSpin) && deltaSpin > Math.PI * 0.4) {
+          const measuredRollingRadiusMeters = deltaForward / deltaSpin;
+          if (
+            Number.isFinite(measuredRollingRadiusMeters) &&
+            measuredRollingRadiusMeters > 0.02 &&
+            measuredRollingRadiusMeters < 1.0
+          ) {
+            // Light EMA, not the raw per-frame ratio directly - the buffer's oldest/newest
+            // ends both slide every frame, so the raw ratio jitters a little frame to
+            // frame even on a perfectly steady flat drive; smoothing it keeps
+            // computeCycloidSample()'s "outer" radius from occasionally landing a hair
+            // above the *true* instantaneous rolling radius, which is what left a few mm
+            // of residual self-intersection even after switching to this calibration (see
+            // its own safety-margin comment in computeCycloidSample() for the other half
+            // of this fix).
+            const previousRollingRadiusMeters =
+              this.cycloidWheelRollingRadiusMetersByKey[wheelKey];
+            const rollingRadiusEmaAlpha = 0.2;
+            this.cycloidWheelRollingRadiusMetersByKey[wheelKey] = Number.isFinite(
+              previousRollingRadiusMeters,
+            )
+              ? rollingRadiusEmaAlpha * measuredRollingRadiusMeters +
+                (1 - rollingRadiusEmaAlpha) * previousRollingRadiusMeters
+              : measuredRollingRadiusMeters;
+          }
+        }
+      }
 
       // Feed the running (never windowed) height range before the eviction below can drop
       // this sample from the display buffer - see cycloidChartHeightRangeByKey's own

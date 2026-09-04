@@ -182,6 +182,18 @@ class URDFViewer {
       rl: "inner_wheel_rl_joint",
       rr: "inner_wheel_rr_joint",
     };
+    // Same {joint name}_joint -> {link name} stripping convention as wheelLinkNameByKey/
+    // innerGearLinkNameByKey above (confirmed against sw18.urdf: inner_wheel_fl_joint's
+    // child link is inner_wheel_fl, with its own inner_wheel_fl.STL mesh) - used by
+    // getInnerWheelMarkerRadiusMeters() below so simulation.js's cycloid chart can place
+    // its "middle" (중간휠/carrier) marker point on *this* link's own rim, the same way it
+    // already does for inner_gear via getInnerGearMarkerRadiusMeters().
+    this.innerWheelLinkNameByKey = {
+      fl: "inner_wheel_fl",
+      fr: "inner_wheel_fr",
+      rl: "inner_wheel_rl",
+      rr: "inner_wheel_rr",
+    };
     this.innerWheelRuntimeTargetByKey = {
       fl: null,
       fr: null,
@@ -198,6 +210,19 @@ class URDFViewer {
     // innerGearRatioByKey this only needs the joint/link *tree* (a fixed joint-origin
     // offset), not mesh geometry, so it's available as soon as robotModel exists.
     this.innerWheelOrbitRadiusMetersByKey = {
+      fl: null,
+      fr: null,
+      rl: null,
+      rr: null,
+    };
+    // Populated lazily by getInnerWheelMarkerRadiusMeters() - same "local mesh bounding
+    // radius" idea as innerGearMarkerRadiusMetersByKey above, just for inner_wheel_{key}
+    // (the carrier/중간휠) itself instead of inner_gear_{key}. Deliberately distinct from
+    // innerWheelOrbitRadiusMetersByKey above: that one is how far the *wheel's own axle*
+    // sits from the carrier's rotation axis (a joint-origin offset, unrelated to the
+    // carrier's own mesh size), whereas this is a point out on the carrier link's *own*
+    // rim - i.e. a point on the carrier's own outer circumference, not the wheel mount.
+    this.innerWheelMarkerRadiusMetersByKey = {
       fl: null,
       fr: null,
       rl: null,
@@ -3914,6 +3939,33 @@ class URDFViewer {
     }
 
     this.innerGearMarkerRadiusMetersByKey[key] = radius;
+    return radius;
+  }
+
+  // Local mesh bounding radius of inner_wheel_{key} (the carrier/중간휠) itself, i.e. a
+  // point out on the carrier's own rim rather than its rotation center - same idea as
+  // getInnerGearMarkerRadiusMeters() just above, for this link instead. Used by
+  // simulation.js's cycloid chart to place its "middle" series marker tangent to the
+  // carrier's own outer circumference, matching how "outer" (wheel) and "inner"
+  // (inner_gear) already place theirs - previously the "middle" series just used the
+  // wheel's own axle position (wheelCenterWorld), which sits on the circle the *wheel's
+  // mount point* sweeps as the carrier orbits (see innerWheelOrbitRadiusMetersByKey's own
+  // comment), not a point on the carrier link's own physical rim.
+  getInnerWheelMarkerRadiusMeters(key) {
+    const cachedRadius = this.innerWheelMarkerRadiusMetersByKey[key];
+    if (Number.isFinite(cachedRadius)) {
+      return cachedRadius;
+    }
+
+    const linkMap = this.robotModel?.links || {};
+    const radius = this.measureLinkLocalRadius(
+      linkMap[this.innerWheelLinkNameByKey[key]],
+    );
+    if (!Number.isFinite(radius)) {
+      return null;
+    }
+
+    this.innerWheelMarkerRadiusMetersByKey[key] = radius;
     return radius;
   }
 

@@ -3011,7 +3011,7 @@ class RoadDetector:
             return
 
         fps_label = f"{round(actual_output_fps)} fps"
-        font_scale = 0.6
+        font_scale = RoadDetector.TIME_BAR_FONT_SCALE
         (fps_tw, _fps_th), _ = cv2.getTextSize(fps_label, font_face, font_scale, 2)
         fps_tx = int(right_x - fps_tw)
         fps_ty = int(baseline_y)

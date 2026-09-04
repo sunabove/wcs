@@ -3004,12 +3004,13 @@ class RoadDetector:
         if actual_output_fps is None or actual_output_fps <= 0:
             return
 
-        fps_label = f"{actual_output_fps:.1f} fps"
-        (fps_tw, _fps_th), _ = cv2.getTextSize(fps_label, font_face, 0.52, 2)
+        fps_label = f"{round(actual_output_fps)} fps"
+        font_scale = 0.6
+        (fps_tw, _fps_th), _ = cv2.getTextSize(fps_label, font_face, font_scale, 2)
         fps_tx = int(right_x - fps_tw)
         fps_ty = int(baseline_y)
-        cv2.putText(detected, fps_label, (fps_tx, fps_ty), font_face, 0.52, (0, 0, 0), 3, cv2.LINE_AA)
-        cv2.putText(detected, fps_label, (fps_tx, fps_ty), font_face, 0.52, (255, 255, 255), 2, cv2.LINE_AA)
+        cv2.putText(detected, fps_label, (fps_tx, fps_ty), font_face, font_scale, (0, 0, 0), 3, cv2.LINE_AA)
+        cv2.putText(detected, fps_label, (fps_tx, fps_ty), font_face, font_scale, (255, 255, 255), 2, cv2.LINE_AA)
     pass # _draw_actual_output_fps_label
 
     def _prepare_inference_frame_with_road_crop(self, frame, frame_for_inference, conf, roi, detect_key):

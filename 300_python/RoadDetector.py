@@ -31,6 +31,11 @@ class RoadDetector:
     MAX_CONF_GAP_RATIO = 0.10
     DEFAULT_OBSTACLE_CONF = 0.50
     MIN_OVERLAY_COMPONENT_AREA_RATIO = 0.0002
+    # Smoothing factor for the "실제 출력 fps" (actual output fps) shown in
+    # _render_bottom_time_bar_overlay() - an EMA over successive
+    # _update_session_actual_output_fps() measurements so the number displayed on the
+    # bottom time bar doesn't jitter frame-to-frame with normal request-timing noise.
+    ACTUAL_OUTPUT_FPS_EMA_ALPHA = 0.3
     
     OBSTACLE_SCORE_CONF_WEIGHT = 0.7
     OBSTACLE_SCORE_AREA_WEIGHT = 0.3
@@ -1206,6 +1211,9 @@ class RoadDetector:
             fps = float(session.get('fps', 20.0) or 20.0)
             roi = session.get('roi')
             stats_history = session.get('stats_history')
+            # 이 세션의 "다음 프레임" 요청 간 실제 간격을 측정 - 위 fps(소스 동영상의 명목
+            # fps)와 달리 검출 처리 시간까지 포함한 실제 출력 속도.
+            actual_output_fps = self._update_session_actual_output_fps(session)
 
             ok, frame = capture.read()
             if not ok:
@@ -1233,6 +1241,7 @@ class RoadDetector:
                 frame_number=frame_index + 1,
                 total_frames=frame_count,
                 frame_fps=fps,
+                actual_output_fps=actual_output_fps,
                 return_info=True,
                 include_obstacle=include_obstacle,
                 obstacle_conf=obstacle_conf,
@@ -1573,6 +1582,9 @@ class RoadDetector:
         mqtt_publish = bool(session.get("mqtt_publish", False))
         stats_history = session.get("stats_history")
         fps = float(session.get("fps", 20.0) or 20.0)
+        # 이 세션의 "다음 프레임" 요청 간 실제 간격을 측정 - 위 fps(카메라의 명목 fps)와
+        # 달리 검출 처리 시간까지 포함한 실제 출력 속도.
+        actual_output_fps = self._update_session_actual_output_fps(session)
 
         ok, frame = capture.read()
         if not ok or frame is None:
@@ -1609,6 +1621,7 @@ class RoadDetector:
                 stats_history=stats_history,
                 frame_number=int(session.get("frame_index", 0)) + 1,
                 frame_fps=fps,
+                actual_output_fps=actual_output_fps,
                 return_info=True,
                 include_obstacle=include_obstacle,
                 obstacle_conf=obstacle_conf,
@@ -2859,7 +2872,39 @@ class RoadDetector:
             return f"{hours:02d}:{minutes:02d}:{seconds:02d}"
         return f"{minutes:02d}:{seconds:02d}"
 
-    def _render_bottom_time_bar_overlay(self, detected, frame_number=None, total_frames=None, frame_fps=None, font_face=cv2.FONT_HERSHEY_SIMPLEX):
+    def _update_session_actual_output_fps(self, session):
+        """세션별로 이 함수가 호출되는 실제 간격을 측정해 EMA로 평활화한 "실제 출력 fps"를
+        구한다 - detect_road()의 frame_fps(소스 동영상의 명목 fps)와 달리, 검출 처리 시간/
+        네트워크 등을 모두 포함해 프레임이 실제로 나가는 속도를 반영한다. 스트리밍 세션의
+        "다음 프레임" 핸들러 맨 앞에서 매 호출마다 불러야 한다. 세션의 첫 호출에서는 아직
+        비교할 이전 시각이 없으므로 None을 반환한다(그다음 호출부터 값이 채워짐)."""
+        if session is None:
+            return None
+
+        now = time.monotonic()
+        last_served_at = session.get("_last_frame_served_monotonic")
+        session["_last_frame_served_monotonic"] = now
+
+        if last_served_at is None:
+            return session.get("_actual_output_fps")
+
+        elapsed = now - last_served_at
+        if elapsed <= 0:
+            return session.get("_actual_output_fps")
+
+        instant_fps = 1.0 / elapsed
+        previous_fps = session.get("_actual_output_fps")
+        alpha = RoadDetector.ACTUAL_OUTPUT_FPS_EMA_ALPHA
+        smoothed_fps = (
+            instant_fps
+            if previous_fps is None
+            else (alpha * instant_fps) + ((1.0 - alpha) * previous_fps)
+        )
+        session["_actual_output_fps"] = smoothed_fps
+        return smoothed_fps
+    pass # _update_session_actual_output_fps
+
+    def _render_bottom_time_bar_overlay(self, detected, frame_number=None, total_frames=None, frame_fps=None, actual_output_fps=None, font_face=cv2.FONT_HERSHEY_SIMPLEX):
         if detected is None:
             return detected
 
@@ -2895,6 +2940,7 @@ class RoadDetector:
             ty = int(y1 + pad_y + th)
             cv2.putText(detected, time_label, (tx, ty), font_face, 0.62, (0, 0, 0), 3, cv2.LINE_AA)
             cv2.putText(detected, time_label, (tx, ty), font_face, 0.62, (255, 255, 255), 2, cv2.LINE_AA)
+            self._draw_actual_output_fps_label(detected, actual_output_fps, x2, y1 - 8, font_face)
             return detected
 
         frame_idx = max(1, min(frame_idx, frame_total))
@@ -2944,8 +2990,27 @@ class RoadDetector:
         cv2.putText(detected, time_label, (tx, ty), font_face, 0.62, (0, 0, 0), 3, cv2.LINE_AA)
         cv2.putText(detected, time_label, (tx, ty), font_face, 0.62, (255, 255, 255), 2, cv2.LINE_AA)
 
+        # 실제 출력 fps - 하단 바(진행률 바) 오른쪽 위. 프레임 카운터(위, 중앙)와 같은
+        # y좌표를 써서 같은 줄에 나란히 놓이도록 함.
+        self._draw_actual_output_fps_label(detected, actual_output_fps, x1 + bar_w, ty, font_face)
+
         return detected
     pass # _render_bottom_time_bar_overlay
+
+    def _draw_actual_output_fps_label(self, detected, actual_output_fps, right_x, baseline_y, font_face):
+        """"실제 출력 fps" 텍스트를 (right_x, baseline_y)에 오른쪽 정렬로 그린다 -
+        _render_bottom_time_bar_overlay()의 두 분기(진행률 바 / 프레임 카운터 박스)가
+        공유. 값이 아직 없으면(스트리밍 세션의 첫 프레임 등) 아무것도 그리지 않는다."""
+        if actual_output_fps is None or actual_output_fps <= 0:
+            return
+
+        fps_label = f"{actual_output_fps:.1f} fps"
+        (fps_tw, _fps_th), _ = cv2.getTextSize(fps_label, font_face, 0.52, 2)
+        fps_tx = int(right_x - fps_tw)
+        fps_ty = int(baseline_y)
+        cv2.putText(detected, fps_label, (fps_tx, fps_ty), font_face, 0.52, (0, 0, 0), 3, cv2.LINE_AA)
+        cv2.putText(detected, fps_label, (fps_tx, fps_ty), font_face, 0.52, (255, 255, 255), 2, cv2.LINE_AA)
+    pass # _draw_actual_output_fps_label
 
     def _prepare_inference_frame_with_road_crop(self, frame, frame_for_inference, conf, roi, detect_key):
         prepared_inference_roi = None
@@ -3043,6 +3108,7 @@ class RoadDetector:
         frame_number=None,
         total_frames=None,
         frame_fps=None,
+        actual_output_fps=None,
         include_obstacle: bool = False,
         obstacle_conf: float = DEFAULT_OBSTACLE_CONF,
         suppress_header: bool = False,
@@ -3370,6 +3436,7 @@ class RoadDetector:
                 frame_number=frame_number,
                 total_frames=total_frames,
                 frame_fps=frame_fps,
+                actual_output_fps=actual_output_fps,
                 font_face=font_face,
             )
 

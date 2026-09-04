@@ -26,6 +26,10 @@ const WHEEL_Z_CHART_HALF_RANGE_STEP_CM = 1;
 // ensureCycloidTrace3D()) for the cycloid 3D 궤적 (trace) lines - deliberately thick so the
 // trace reads clearly against the vehicle/ground instead of as a hairline.
 const CYCLOID_TRACE_3D_LINEWIDTH_PX = 4;
+// World-space radius (meters) of the small sphere marking each cycloid 3D 궤적 series'
+// current (newest) sample - the trace's "기준점" (reference point), sized to read clearly
+// as a distinct dot against the wheel pod without dwarfing it.
+const CYCLOID_TRACE_3D_MARKER_RADIUS_METERS = 0.012;
 // Chassis (0x0008) deliberately excludes ground (filter 0x0002); ground contact is handled by manual clamping.
 const COLLISION_GROUP_GROUND = 0x00010002;
 const COLLISION_GROUP_WHEEL = 0x00020005;
@@ -649,6 +653,11 @@ class RapierDriveSimulation {
     // canvas plot - see ensureCycloidTrace3D()/updateCycloidTrace3D().
     this.cycloidTrace3DGroup = null;
     this.cycloidTrace3DLinesByKey = { outer: null, middle: null, inner: null };
+    // One small sphere per series, parked at that series' *current* (newest) sample -
+    // the reference point ("기준점") for the trace, marked distinctly from the trailing
+    // curve itself so it's obvious which end is "now" regardless of how far the tail
+    // reaches back - see ensureCycloidTrace3D()/updateCycloidTrace3D().
+    this.cycloidTrace3DMarkersByKey = { outer: null, middle: null, inner: null };
   }
 
   kmhToMps(kmh) {
@@ -2290,6 +2299,14 @@ class RapierDriveSimulation {
     const group = new THREE.Group();
     group.name = "simulation-cycloid-trace-3d";
 
+    // Shared by all 3 markers below (only their material's color differs) - one geometry
+    // instance is enough since none of them are ever deformed individually.
+    const markerGeometry = new THREE.SphereGeometry(
+      CYCLOID_TRACE_3D_MARKER_RADIUS_METERS,
+      12,
+      8,
+    );
+
     Object.keys(this.cycloidTrace3DLinesByKey).forEach((key) => {
       const geometry = new LineGeometry();
       // A single degenerate (zero-length) segment as a placeholder - LineGeometry can't be
@@ -2329,6 +2346,26 @@ class RapierDriveSimulation {
       this.cycloidTrace3DLinesByKey[key] = line;
       group.add(line);
 
+      // The "기준점" marker - a small solid sphere at this series' current (newest)
+      // sample, positioned every frame in updateCycloidTrace3D(). Same always-on-top
+      // depthTest:false/depthWrite:false treatment as the line above and for the same
+      // reason (it sits right at/inside the wheel pod's own opaque geometry), with a
+      // slightly higher renderOrder so it wins any draw-order tie against the line itself.
+      const marker = new THREE.Mesh(
+        markerGeometry,
+        new THREE.MeshBasicMaterial({
+          color: this.cycloidChartColors[key],
+          fog: false,
+          toneMapped: false,
+          depthTest: false,
+          depthWrite: false,
+        }),
+      );
+      marker.visible = false;
+      marker.renderOrder = 6;
+      this.cycloidTrace3DMarkersByKey[key] = marker;
+      group.add(marker);
+
       // Reuses urdfViewer.js's existing resize plumbing (applyContainerResize() keeps
       // every LineMaterial in this array in sync with the render target size) instead of
       // standing up a parallel one here - see addGroundSurfaceGrid()'s identical use of it.
@@ -2361,6 +2398,7 @@ class RapierDriveSimulation {
       : [];
 
     Object.entries(this.cycloidTrace3DLinesByKey).forEach(([key, line]) => {
+      const marker = this.cycloidTrace3DMarkersByKey[key];
       if (!line) {
         return;
       }
@@ -2369,18 +2407,34 @@ class RapierDriveSimulation {
       // handleCycloidChartLegendClick().
       if (!this.cycloidSeriesVisibleByKey[key]) {
         line.visible = false;
+        if (marker) {
+          marker.visible = false;
+        }
         return;
       }
 
       const worldFieldName = `world${key.charAt(0).toUpperCase()}${key.slice(1)}`;
       const flatPositions = [];
+      let newestWorldPoint = null;
       samples.forEach((sample) => {
         const worldPoint = sample[worldFieldName];
         if (!worldPoint) {
           return;
         }
         flatPositions.push(worldPoint.x, worldPoint.y, worldPoint.z);
+        newestWorldPoint = worldPoint;
       });
+
+      // The "기준점" marker only needs a single current point, unlike the line below -
+      // update/show it independently of whether there's enough data yet for a curve.
+      if (marker) {
+        if (newestWorldPoint) {
+          marker.position.copy(newestWorldPoint);
+          marker.visible = true;
+        } else {
+          marker.visible = false;
+        }
+      }
 
       // LineGeometry needs >=2 points (1 segment) to be valid - hide the line instead of
       // calling setPositions() with less than that.

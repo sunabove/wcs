@@ -1977,8 +1977,16 @@ class RapierDriveSimulation {
         ctx.moveTo(x, margin.top + plotHeight);
         ctx.lineTo(x, margin.top + plotHeight + 3);
         ctx.stroke();
+        // Forward travel is an absolute ground-fixed cm value that grows unbounded as the
+        // vehicle drives on (see computeCycloidSample()'s comment) - wrap it into 0..999
+        // (a floored, always-non-negative modulo, not JS's %, which can go negative) so
+        // the label stays a short, readable "position within the current 1000cm span"
+        // instead of an ever-growing absolute number.
+        const tickForwardCm = Math.round(tickForward * 100);
+        const wrappedTickForwardCm =
+          ((tickForwardCm % 1000) + 1000) % 1000;
         ctx.fillText(
-          String(Math.round(tickForward * 100)),
+          String(wrappedTickForwardCm),
           x,
           margin.top + plotHeight + 5,
         );

@@ -31,11 +31,16 @@ class RoadDetector:
     MAX_CONF_GAP_RATIO = 0.10
     DEFAULT_OBSTACLE_CONF = 0.50
     MIN_OVERLAY_COMPONENT_AREA_RATIO = 0.0002
-    # Smoothing factor for the "실제 출력 fps" (actual output fps) shown in
-    # _render_bottom_time_bar_overlay() - an EMA over successive
-    # _update_session_actual_output_fps() measurements so the number displayed on the
-    # bottom time bar doesn't jitter frame-to-frame with normal request-timing noise.
-    ACTUAL_OUTPUT_FPS_EMA_ALPHA = 0.3
+    # "실제 출력 fps"(_render_bottom_time_bar_overlay()에 표시) 측정 창 길이 -
+    # _update_session_actual_output_fps()는 매 프레임 시각을 기록해 두고 이 시간
+    # 동안 쌓인 타임스탬프들로 구간 평균을 낸다. 프레임 하나하나의 처리 시간 편차
+    # (스레드 스케줄링, 디스크 I/O, 모델 추론 편차 등)에 곧바로 반응하는 순간 fps 대신
+    # 최근 몇 초간의 평균을 보여줘서, 화면에 표시되는 숫자가 매 프레임 1~2씩 튀지 않게
+    # 한다. 예전에는 alpha=0.3짜리 EMA를 썼는데, 단일 프레임의 처리 시간 잡음에도 즉시
+    # 반응해 반올림 경계 근처에서 프레임마다 숫자가 깜빡였다 - 값 하나의 영향력이
+    # (alpha에 비례해) 고정된 EMA와 달리, 시간 창 평균은 그 값의 영향력이 창 안의
+    # 표본 개수(대략 fps * 이 값)에 반비례해 옅어지므로 훨씬 안정적이다.
+    ACTUAL_OUTPUT_FPS_WINDOW_SEC = 2.0
     # Shared font scale for every text drawn on the bottom time bar overlay
     # (_render_bottom_time_bar_overlay()'s frame counter and _draw_actual_output_fps_label()'s
     # fps label) - one knob so both stay the same size instead of drifting apart.
@@ -3156,35 +3161,37 @@ class RoadDetector:
         return f"{minutes:02d}:{seconds:02d}"
 
     def _update_session_actual_output_fps(self, session):
-        """세션별로 이 함수가 호출되는 실제 간격을 측정해 EMA로 평활화한 "실제 출력 fps"를
-        구한다 - detect_road()의 frame_fps(소스 동영상의 명목 fps)와 달리, 검출 처리 시간/
-        네트워크 등을 모두 포함해 프레임이 실제로 나가는 속도를 반영한다. 스트리밍 세션의
-        "다음 프레임" 핸들러 맨 앞에서 매 호출마다 불러야 한다. 세션의 첫 호출에서는 아직
-        비교할 이전 시각이 없으므로 None을 반환한다(그다음 호출부터 값이 채워짐)."""
+        """세션별로 이 함수가 호출되는 시각들을 최근 ACTUAL_OUTPUT_FPS_WINDOW_SEC초
+        동안 모아 그 구간의 평균 간격으로 "실제 출력 fps"를 구한다 - detect_road()의
+        frame_fps(소스 동영상의 명목 fps)와 달리, 검출 처리 시간/네트워크 등을 모두
+        포함해 프레임이 실제로 나가는 속도를 반영한다. 스트리밍 세션의 "다음 프레임"
+        핸들러 맨 앞에서 매 호출마다 불러야 한다. 창 안에 아직 표본이 2개 미만이면(세션
+        시작 직후) 이전 값을 그대로 반환한다(첫 호출은 None)."""
         if session is None:
             return None
 
         now = time.monotonic()
-        last_served_at = session.get("_last_frame_served_monotonic")
-        session["_last_frame_served_monotonic"] = now
+        timestamps = session.get("_actual_output_fps_timestamps")
+        if timestamps is None:
+            timestamps = deque()
+            session["_actual_output_fps_timestamps"] = timestamps
 
-        if last_served_at is None:
+        timestamps.append(now)
+
+        window_sec = RoadDetector.ACTUAL_OUTPUT_FPS_WINDOW_SEC
+        while len(timestamps) > 2 and (now - timestamps[0]) > window_sec:
+            timestamps.popleft()
+
+        if len(timestamps) < 2:
             return session.get("_actual_output_fps")
 
-        elapsed = now - last_served_at
+        elapsed = timestamps[-1] - timestamps[0]
         if elapsed <= 0:
             return session.get("_actual_output_fps")
 
-        instant_fps = 1.0 / elapsed
-        previous_fps = session.get("_actual_output_fps")
-        alpha = RoadDetector.ACTUAL_OUTPUT_FPS_EMA_ALPHA
-        smoothed_fps = (
-            instant_fps
-            if previous_fps is None
-            else (alpha * instant_fps) + ((1.0 - alpha) * previous_fps)
-        )
-        session["_actual_output_fps"] = smoothed_fps
-        return smoothed_fps
+        windowed_fps = (len(timestamps) - 1) / elapsed
+        session["_actual_output_fps"] = windowed_fps
+        return windowed_fps
     pass # _update_session_actual_output_fps
 
     def _render_bottom_time_bar_overlay(self, detected, frame_number=None, total_frames=None, frame_fps=None, actual_output_fps=None, font_face=cv2.FONT_HERSHEY_SIMPLEX):

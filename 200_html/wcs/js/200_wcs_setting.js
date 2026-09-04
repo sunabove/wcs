@@ -1668,8 +1668,9 @@ $(document).ready(function () {
     $track.prepend($tile);
   }
 
-  // 샘플 동영상 탭에서 우클릭(contextmenu)으로 삭제 - 사용자 확인 후 DELETE 요청을 보내고,
-  // 삭제된 동영상이 현재 선택된 동영상이었다면 선택을 해제한 뒤 현재 폴더 목록을 새로고침.
+  // 샘플 동영상 탭에서 우클릭 팝업 메뉴의 "삭제" 버튼을 눌렀을 때(see
+  // showSampleVideoContextMenu() below) DELETE 요청을 보내고, 삭제된 동영상이 현재 선택된
+  // 동영상이었다면 선택을 해제한 뒤 현재 폴더 목록을 새로고침.
   async function deleteSampleVideoFile(fileName) {
     try {
       const response = await fetch(buildSampleFileDeleteUrl(fileName), {
@@ -1701,6 +1702,64 @@ $(document).ready(function () {
     } catch (_error) {
       window.alert("삭제 중 네트워크 오류가 발생했습니다.");
     }
+  }
+
+  // ---- 우클릭 팝업 메뉴 (샘플 동영상 아이콘 우클릭 시 "삭제" 버튼 하나짜리 메뉴) ----
+  // body에 한 번만 붙여두고(fixed 위치) 우클릭할 때마다 좌표만 옮겨 재사용 - 매번 새로
+  // 만들지 않음. 대상 파일명은 showSampleVideoContextMenu()가 클로저가 아니라
+  // sampleVideoContextMenuFileName에 저장해뒀다가, "삭제" 클릭 시 그 값을 사용.
+
+  let $sampleVideoContextMenu = null;
+  let sampleVideoContextMenuFileName = "";
+
+  function buildSampleVideoContextMenu() {
+    if ($sampleVideoContextMenu) {
+      return $sampleVideoContextMenu;
+    }
+
+    $sampleVideoContextMenu = $(
+      '<div class="dropdown-menu shadow sample-video-context-menu" style="position:fixed; display:none;"></div>',
+    );
+    const $deleteButton = $(
+      '<button type="button" class="dropdown-item text-danger sample-video-context-delete">' +
+        '<i class="bi bi-trash3 me-2"></i>삭제' +
+        "</button>",
+    );
+    $sampleVideoContextMenu.append($deleteButton);
+    $("body").append($sampleVideoContextMenu);
+
+    $deleteButton.on("click", function () {
+      const fileName = sampleVideoContextMenuFileName;
+      hideSampleVideoContextMenu();
+      if (fileName) {
+        void deleteSampleVideoFile(fileName);
+      }
+    });
+
+    return $sampleVideoContextMenu;
+  }
+
+  function showSampleVideoContextMenu(fileName, clientX, clientY) {
+    const $menu = buildSampleVideoContextMenu();
+    sampleVideoContextMenuFileName = fileName;
+    $menu.css("display", "block");
+
+    // 화면 밖으로 넘치지 않도록 위치 보정.
+    const menuWidth = $menu.outerWidth() || 0;
+    const menuHeight = $menu.outerHeight() || 0;
+    const maxLeft = Math.max(window.innerWidth - menuWidth - 4, 0);
+    const maxTop = Math.max(window.innerHeight - menuHeight - 4, 0);
+    $menu.css({
+      left: Math.min(clientX, maxLeft) + "px",
+      top: Math.min(clientY, maxTop) + "px",
+    });
+  }
+
+  function hideSampleVideoContextMenu() {
+    if ($sampleVideoContextMenu) {
+      $sampleVideoContextMenu.css("display", "none");
+    }
+    sampleVideoContextMenuFileName = "";
   }
 
   const buildSamplesUrl =
@@ -2742,13 +2801,30 @@ $(document).ready(function () {
       return;
     }
 
-    const label = fileName.split("/").pop() || fileName;
-    if (!window.confirm(`'${label}' 동영상을 삭제하시겠습니까?`)) {
-      return;
-    }
-
-    void deleteSampleVideoFile(fileName);
+    showSampleVideoContextMenu(fileName, event.clientX, event.clientY);
   });
+
+  // 메뉴 바깥 클릭/스크롤/리사이즈/Esc/다른 곳 우클릭 - 모두 메뉴를 닫는다.
+  $(document).on("click", function (event) {
+    if (
+      $sampleVideoContextMenu &&
+      $sampleVideoContextMenu.is(":visible") &&
+      $(event.target).closest(".sample-video-context-menu").length === 0
+    ) {
+      hideSampleVideoContextMenu();
+    }
+  });
+  $(document).on("contextmenu", function (event) {
+    if ($(event.target).closest(".sample-video-item").length === 0) {
+      hideSampleVideoContextMenu();
+    }
+  });
+  $(document).on("keydown", function (event) {
+    if (event.key === "Escape") {
+      hideSampleVideoContextMenu();
+    }
+  });
+  $(window).on("scroll resize", hideSampleVideoContextMenu);
 
   $wcsSampleVideoPane.on("click", ".sample-folder-item", function () {
     const folderPath = String($(this).attr("data-folder-path") || "").trim();

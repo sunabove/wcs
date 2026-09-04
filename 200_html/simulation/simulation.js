@@ -598,12 +598,11 @@ class RapierDriveSimulation {
     this.cycloidChartContext = null;
     this.cycloidChartVisibleStorageKey = "wcs.simulation.cycloidChartVisible";
     this.isCycloidChartVisible = this.loadCycloidChartVisibleState();
-    // Which wheel pod's (fl/fr/rl/rr) buffer the chart currently *displays* - just a
-    // display selector, prefers whichever wheel is actively engaged with an
-    // obstacle/pothole and otherwise keeps showing whatever it last showed. Switching this
-    // never clears any data (see cycloidChartSamplesByKey below) - each wheel keeps
-    // sampling and rolling its own window continuously regardless of which one is on
-    // screen, so a bump/pothole event never resets the visible curve.
+    // Which wheel pod's (fl/fr/rl/rr) buffer the chart currently *displays* - pinned to
+    // "fl" once samples exist (see recordCycloidChartSample()), not an obstacle/pothole-
+    // engagement selector. Switching this never clears any data (see
+    // cycloidChartSamplesByKey below) - each wheel keeps sampling and rolling its own
+    // window continuously regardless of which one is on screen.
     this.cycloidChartActiveWheelKey = null;
     this.cycloidChartMaxSamples = 400;
     // One continuously-updated ring buffer per wheel (never cleared by a display-key
@@ -2078,16 +2077,19 @@ class RapierDriveSimulation {
     ctx.font = "11px Segoe UI";
     ctx.textBaseline = "middle";
     ctx.textAlign = "right";
+    // Swatch column sits one shared distance in from the right edge, sized to the
+    // *widest* label - using each row's own measured width here (as before) let the
+    // swatch column position jitter per row instead of lining up, which read as "not
+    // really right-aligned" even though every label's own right edge was flush.
+    const legendMaxLabelWidth = Math.max(
+      ...legendEntries.map(([, label]) => ctx.measureText(label).width),
+    );
+    const legendSwatchX =
+      legendRightEdge - legendMaxLabelWidth - legendSwatchGap - legendSwatchWidth;
     legendEntries.forEach(([key, label], index) => {
       const legendY = legendStartY + legendRowHeight * index;
-      // Right-align the whole [swatch][label] group to the plot's right edge - label
-      // widths differ per entry, so the swatch position is derived from the label's
-      // measured width rather than a fixed offset from the right edge.
-      const labelWidth = ctx.measureText(label).width;
-      const swatchX =
-        legendRightEdge - labelWidth - legendSwatchGap - legendSwatchWidth;
       ctx.fillStyle = this.cycloidChartColors[key];
-      ctx.fillRect(swatchX, legendY - 4, legendSwatchWidth, 6);
+      ctx.fillRect(legendSwatchX, legendY - 4, legendSwatchWidth, 6);
       ctx.fillStyle = "#334155";
       ctx.fillText(label, legendRightEdge, legendY);
     });
@@ -10925,6 +10927,10 @@ class RapierDriveSimulation {
     });
     this.wheelZChartObstacleContactEvents = [];
     this.isWheelZChartObstacleContactActive = false;
+    Object.keys(this.cycloidChartSamplesByKey).forEach((key) => {
+      this.cycloidChartSamplesByKey[key] = [];
+    });
+    this.cycloidChartActiveWheelKey = null;
     this.simulationElapsedSec = 0;
     this.wheelZChartHalfRangeCm = this.wheelZChartInitialHalfRangeCm;
     this.vehicleYawAccumulatedRad = null;

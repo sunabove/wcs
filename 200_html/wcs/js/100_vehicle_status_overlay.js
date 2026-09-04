@@ -1114,18 +1114,23 @@
           markFirstFrameReady();
         }
 
-        if (stopAfterFrame) {
-          mediaPlaybackPaused = true;
-          setOverlayStatus("일시 정지", true);
-          updateVideoControlButtons();
-          return;
-        }
-
+        // has_next===false(진짜 끝)를 stopAfterFrame(첫 프레임 대기/일시정지 위치
+        // 복원용 "한 프레임만 받고 멈춤")보다 먼저 검사한다 - 복원한 위치가 하필
+        // 영상의 마지막 프레임이면(끝난 채로 저장된 영상을 다시 열 때 흔함),
+        // stopAfterFrame이 먼저 걸려 "일시 정지"로 표시되고 "동영상 재생 완료"가
+        // 나오지 않던 문제가 있었다.
         if (result?.has_next === false) {
           roadFileOverlayReachedEnd = true;
           mediaPlaybackPaused = true;
           writeOverlayMediaPausedState(true);
           setOverlayStatus(VIDEO_PLAYBACK_ENDED_MESSAGE, true);
+          updateVideoControlButtons();
+          return;
+        }
+
+        if (stopAfterFrame) {
+          mediaPlaybackPaused = true;
+          setOverlayStatus("일시 정지", true);
           updateVideoControlButtons();
           return;
         }

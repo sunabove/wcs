@@ -30,6 +30,15 @@ const CYCLOID_TRACE_3D_LINEWIDTH_PX = 4;
 // current (newest) sample - the trace's "기준점" (reference point), sized to read clearly
 // as a distinct dot against the wheel pod without dwarfing it.
 const CYCLOID_TRACE_3D_MARKER_RADIUS_METERS = 0.012;
+// Real radial clearance (meters) added to the outer/rim sample point's radius - purely so
+// that point sits just outside the tire's actual physical surface instead of exactly on
+// it. See computeCycloidSample()'s wheelRimWorld for why: with the point sitting exactly
+// on the wheel mesh's own surface, the 3D trace needed depthTest disabled to be visible at
+// all (it permanently z-fought the wheel mesh, which won every time) - which in turn made
+// it draw through solid geometry that should have been occluding it, an "x-ray" look easily
+// read as the graph "having transparency". A few mm of genuine clearance lets the trace use
+// normal depth testing instead, so it's occluded like a real object would be.
+const CYCLOID_OUTER_RIM_CLEARANCE_METERS = 0.008;
 // Chassis (0x0008) deliberately excludes ground (filter 0x0002); ground contact is handled by manual clamping.
 const COLLISION_GROUP_GROUND = 0x00010002;
 const COLLISION_GROUP_WHEEL = 0x00020005;
@@ -1880,10 +1889,13 @@ class RapierDriveSimulation {
       0.05,
     );
     const wheelCenterWorld = wheelLink.getWorldPosition(new THREE.Vector3());
+    // See CYCLOID_OUTER_RIM_CLEARANCE_METERS's comment above - a few mm past the tire's
+    // real radius, not the exact radius, so the cycloid 3D 궤적's rim point clears the
+    // tire mesh's own surface instead of sitting exactly on it.
     const wheelRimWorld = new THREE.Vector3(
       0,
       0,
-      wheelRadiusMeters,
+      wheelRadiusMeters + CYCLOID_OUTER_RIM_CLEARANCE_METERS,
     ).applyMatrix4(wheelLink.matrixWorld);
 
     let innerPoint = null;
@@ -2320,23 +2332,25 @@ class RapierDriveSimulation {
         resolution,
         fog: false,
         toneMapped: false,
-        // The outer/middle/inner trace points sit essentially ON or inside the wheel
-        // pod's own opaque geometry (outer = literally the tire rim surface) - confirmed
-        // in-browser that with normal depth testing the wheel mesh fully occludes/
-        // z-fights the trace out of visibility every frame, not just at grazing angles.
-        // depthTest:false makes the trace always draw on top instead (this is a
-        // diagnostic overlay, not a physically-embedded object, so "always visible"
-        // is the correct behavior here - unlike e.g. the yaw indicator pie, which
-        // legitimately sits in open air above the roof and should be occludable);
-        // depthWrite:false alongside it so the trace can't itself punch holes in
-        // later-drawn opaque geometry's depth buffer.
-        depthTest: false,
-        depthWrite: false,
+        // Normal depth test/write (three.js defaults - not overridden here), so the trace
+        // is occluded by real geometry in front of it like any other object in the scene,
+        // instead of always drawing on top of everything ("x-ray" through solid parts,
+        // which reads as the graph rendering with transparency even though its materials
+        // are fully opaque). depthTest:false used to be set here specifically because the
+        // outer/rim point sat exactly on the tire mesh's own surface and permanently lost
+        // that z-fight - CYCLOID_OUTER_RIM_CLEARANCE_METERS (computeCycloidSample()) now
+        // gives that point genuine clearance instead, so depthTest can stay on. Line2's
+        // "fat line" quads are real triangle geometry (unlike native gl.LINES, which
+        // ignores polygonOffset), so polygonOffset works here as a further, smaller
+        // safety margin against any remaining grazing-angle z-fighting.
+        polygonOffset: true,
+        polygonOffsetFactor: -2,
+        polygonOffsetUnits: -2,
       });
       const line = new Line2(geometry, material);
       line.visible = false;
-      // Draw after the ground grid (renderOrder 2) and everything opaque (default 0), so
-      // the always-on-top depthTest:false above doesn't fight draw-order ties with them.
+      // Draw after the ground grid (renderOrder 2), a tiebreaker for objects at equal
+      // depth rather than the "always wins" role it had back when depthTest was off.
       line.renderOrder = 5;
       // The curve's own vertex positions are already absolute world coordinates (see
       // computeCycloidSample()'s worldOuter/worldMiddle/worldInner) and the group sits at
@@ -2347,18 +2361,19 @@ class RapierDriveSimulation {
       group.add(line);
 
       // The "기준점" marker - a small solid sphere at this series' current (newest)
-      // sample, positioned every frame in updateCycloidTrace3D(). Same always-on-top
-      // depthTest:false/depthWrite:false treatment as the line above and for the same
-      // reason (it sits right at/inside the wheel pod's own opaque geometry), with a
-      // slightly higher renderOrder so it wins any draw-order tie against the line itself.
+      // sample, positioned every frame in updateCycloidTrace3D(). Normal depth test/write
+      // here too (see the line material's comment above for why depthTest:false was
+      // dropped) - a real polygonOffset nudge instead, which works correctly since this is
+      // an actual triangle mesh.
       const marker = new THREE.Mesh(
         markerGeometry,
         new THREE.MeshBasicMaterial({
           color: this.cycloidChartColors[key],
           fog: false,
           toneMapped: false,
-          depthTest: false,
-          depthWrite: false,
+          polygonOffset: true,
+          polygonOffsetFactor: -3,
+          polygonOffsetUnits: -3,
         }),
       );
       marker.visible = false;

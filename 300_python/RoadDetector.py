@@ -36,6 +36,10 @@ class RoadDetector:
     # _update_session_actual_output_fps() measurements so the number displayed on the
     # bottom time bar doesn't jitter frame-to-frame with normal request-timing noise.
     ACTUAL_OUTPUT_FPS_EMA_ALPHA = 0.3
+    # Shared font scale for every text drawn on the bottom time bar overlay
+    # (_render_bottom_time_bar_overlay()'s frame counter and _draw_actual_output_fps_label()'s
+    # fps label) - one knob so both stay the same size instead of drifting apart.
+    TIME_BAR_FONT_SCALE = 0.62
     
     OBSTACLE_SCORE_CONF_WEIGHT = 0.7
     OBSTACLE_SCORE_AREA_WEIGHT = 0.3
@@ -2919,9 +2923,11 @@ class RoadDetector:
 
         h, w = detected.shape[:2]
 
+        font_scale = RoadDetector.TIME_BAR_FONT_SCALE
+
         if frame_total <= 0:
             time_label = f"{int(frame_idx):5d}"
-            (tw, th), _ = cv2.getTextSize(time_label, font_face, 0.62, 2)
+            (tw, th), _ = cv2.getTextSize(time_label, font_face, font_scale, 2)
             pad_x = 10
             pad_y = 6
             box_w = tw + (pad_x * 2)
@@ -2938,8 +2944,8 @@ class RoadDetector:
 
             tx = int(x1 + pad_x)
             ty = int(y1 + pad_y + th)
-            cv2.putText(detected, time_label, (tx, ty), font_face, 0.62, (0, 0, 0), 3, cv2.LINE_AA)
-            cv2.putText(detected, time_label, (tx, ty), font_face, 0.62, (255, 255, 255), 2, cv2.LINE_AA)
+            cv2.putText(detected, time_label, (tx, ty), font_face, font_scale, (0, 0, 0), 3, cv2.LINE_AA)
+            cv2.putText(detected, time_label, (tx, ty), font_face, font_scale, (255, 255, 255), 2, cv2.LINE_AA)
             self._draw_actual_output_fps_label(detected, actual_output_fps, x2, y1 - 8, font_face)
             return detected
 

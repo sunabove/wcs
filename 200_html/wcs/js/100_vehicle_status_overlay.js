@@ -862,6 +862,17 @@
     firstFrameRequestToken += 1;
     clearFirstFrameTimeout();
     clearTemporaryStatusMessage();
+    // road-detect-overlay-video 경로는 매 프레임마다 <img src>를 새로 갈아끼우므로,
+    // 그때마다 브라우저의 네이티브 "load" 이벤트가 비동기로 뒤따라 발생하고 그 핸들러가
+    // 이 함수를 다시 호출한다. 마지막 프레임의 경우 requestRoadFileOverlayNextFrame()이
+    // has_next===false를 보고 이미 "동영상 재생 완료"를 동기적으로 표시해 둔 뒤인데,
+    // 그 직후 도착하는 load 이벤트에서 mediaPlaybackPaused만 보고 "일시 정지"로 덮어써
+    // 버리는 문제가 있었다 - 재생 완료도 mediaPlaybackPaused=true를 공유하기 때문.
+    // roadFileOverlayReachedEnd로 그 경우를 구분해 먼저 처리한다.
+    if (roadFileOverlayReachedEnd) {
+      setOverlayStatus(VIDEO_PLAYBACK_ENDED_MESSAGE, true);
+      return;
+    }
     if (mediaPlaybackPaused) {
       setOverlayStatus("일시 정지", true);
       return;
@@ -1120,6 +1131,24 @@
         // stopAfterFrame이 먼저 걸려 "일시 정지"로 표시되고 "동영상 재생 완료"가
         // 나오지 않던 문제가 있었다.
         if (result?.has_next === false) {
+          if (autoReplayEnabled && !mediaHiddenByUser) {
+            // 자동 반복 On - replayActiveOverlayMedia()의 "image" 분기는 여기 쓸 수
+            // 없다(lastMediaSource가 실제 이미지 URL이 아니라 이 스트리밍 세션의
+            // 동영상 파일명이라, 그대로 <img src>에 넣으면 로드에 실패한다). 재생
+            // 버튼으로 "재생 완료" 상태에서 이어 재생할 때와 동일하게, 세션을 1번
+            // 프레임으로 되감아 그대로 폴링을 계속해서 무한 반복시킨다.
+            roadFileOverlayReachedEnd = false;
+            roadFileOverlayFrameNumber = 0;
+            $.ajax({
+              url: buildRoadDetectStreamSeekUrl(sessionId, 1),
+              method: "POST",
+              timeout: 5000,
+            }).always(function () {
+              requestRoadFileOverlayNextFrame();
+            });
+            return;
+          }
+
           roadFileOverlayReachedEnd = true;
           mediaPlaybackPaused = true;
           writeOverlayMediaPausedState(true);

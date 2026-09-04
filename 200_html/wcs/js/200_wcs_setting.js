@@ -1437,13 +1437,14 @@ $(document).ready(function () {
           return "/fast/sample_browser/" + encodePathForRoute(folderName);
         };
 
-  // NOTE: no existing "upload a sample video" backend route was found anywhere in this
-  // repo (which only has the frontend, not the FastAPI backend) to reuse - this mirrors
-  // the /fast/sample_browser/<path> naming convention already used for *browsing* samples
-  // (see buildSampleBrowserUrl above), as a plausible sibling endpoint. If the real backend
-  // uses a different path/field names, update this one function.
+  // POST /fast/upload_image (300_python/RoadDetectService.py -> upload_image.py) already
+  // handles this exact case: save_uploaded_image() saves a video file (by content-type or
+  // extension) straight into a samples/video/<target_folder> subfolder when a non-empty
+  // target_folder form field is given - the *same* SAMPLES_DIR-relative folder path
+  // convention (e.g. "video", "video/cobot" - no "samples/" prefix) the sample browser's
+  // own /fast/sample_browser/<path> GET route already uses. No new backend route needed.
   function buildSampleVideoUploadUrl() {
-    return "/fast/sample_browser/upload";
+    return "/fast/upload_image";
   }
 
   // ---- 동영상 업로드 타일 (500_ai_sam2.html의 #sam2-drop-zone과 같은 클릭/드래그 UI) ----
@@ -1601,8 +1602,11 @@ $(document).ready(function () {
 
       const formData = new FormData();
       formData.append("file", file);
-      // 현재 탐색 중인 폴더 - 없으면(전체 파일 모드 등) 최상위 폴더("video")로.
-      formData.append("folder_path", folderPath || "video");
+      // "target_folder" - the exact form field name save_uploaded_image() (upload_image.py)
+      // expects. 현재 탐색 중인 폴더 - 없으면(전체 파일 모드 등) 최상위 폴더("video")로.
+      // Must stay non-empty: an empty target_folder makes the backend fall through to its
+      // generic single-file hash-named upload dir instead of a sample video subfolder.
+      formData.append("target_folder", folderPath || "video");
       xhr.send(formData);
     });
   }

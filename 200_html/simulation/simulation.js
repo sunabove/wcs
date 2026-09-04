@@ -5734,7 +5734,26 @@ class RapierDriveSimulation {
       return false;
     }
 
-    if (normalizedValue === 0 || normalizedValue === -1) {
+    if (normalizedValue === -1) {
+      // "제거" - immediate, unconditional removal of *every* obstacle (including ones
+      // still ahead of the vehicle), unlike 0 below, which only removes obstacles the
+      // vehicle has already driven past. hideDynamicSurfaceObstacles() (no args) sweeps
+      // every entry in obstacleColliderInfos regardless of vehicle position.
+      this.isDynamicObstacleRemovalRequested = false;
+      this.hideDynamicSurfaceObstacles();
+      if (this.dynamicPotholeRegion) {
+        this.holeRegions = this.holeRegions.filter(
+          (holeRegion) => holeRegion !== this.dynamicPotholeRegion,
+        );
+        this.dynamicPotholeRegion = null;
+      }
+      this.lastWheelSupportProfile = null;
+      this.addGroundSurfaceExtension();
+      await this.carveGroundVisualForHoles(true);
+      return true;
+    }
+
+    if (normalizedValue === 0) {
       this.isDynamicObstacleRemovalRequested = true;
       await this.removePassedDynamicSurfaceObstacles();
       return true;

@@ -313,6 +313,12 @@ function wcsBuildSampleBrowserHeader(options) {
     return $header;
 }
 
+// Returns a jQuery collection of standalone .sample-thumbnail-item elements (not wrapped
+// in an outer container) - sized and laid out identically to the video thumbnail items
+// built from wcs-sample-video-item-template (same 180px flex-item width, same 120px
+// preview-area height, same small-text-truncate caption), so the caller can drop them
+// straight into the *same* .sample-thumbnail-track as the video items instead of showing
+// folders as a separate, smaller row of plain buttons above them.
 function wcsRenderSampleFolderTiles(options) {
     const config = Object.assign({
         baseFolder: '',
@@ -321,28 +327,31 @@ function wcsRenderSampleFolderTiles(options) {
         leafOnlyLabel: false,
     }, options || {});
 
-    const $wrapper = $('<div class="d-flex flex-wrap gap-2 mb-2"></div>');
     const folders = Array.isArray(config.childFolders) ? config.childFolders : [];
-
     if (folders.length === 0) {
-        return $wrapper;
+        return $();
     }
 
-    folders.forEach(function (folderPath) {
+    const $items = folders.map(function (folderPath) {
         const normalizedFolder = wcsNormalizeSampleFolderPath(folderPath, config.baseFolder);
         const label = wcsBuildFolderLabel(config.baseFolder, normalizedFolder, {
             leafOnly: Boolean(config.leafOnlyLabel),
             defaultLabel: '기본 폴더',
         });
-        const $button = $('<button type="button" class="btn btn-light border sample-folder-item"></button>')
+        const displayLabel = label || normalizedFolder;
+
+        const $iconArea = $('<div class="d-flex align-items-center justify-content-center rounded mb-1 sample-folder-item-icon"></div>')
+            .append('<i class="bi bi-folder-fill text-warning"></i>');
+        const $button = $('<button type="button" class="btn btn-outline-secondary w-100 p-2 h-100 sample-folder-item"></button>')
             .attr('data-pane', config.paneSelector)
             .attr('data-folder-path', normalizedFolder)
-            .append('<i class="bi bi-folder-fill text-warning me-1"></i>')
-            .append($('<span class="small"></span>').text(label || normalizedFolder));
-        $wrapper.append($button);
+            .append($iconArea)
+            .append($('<div class="small text-truncate"></div>').attr('title', displayLabel).text(displayLabel));
+
+        return $('<div class="sample-thumbnail-item"></div>').append($button).get(0);
     });
 
-    return $wrapper;
+    return $($items);
 }
 
 function wcsExtractSampleVideoFiles(result) {
@@ -406,56 +415,61 @@ function wcsRenderSampleVideoThumbnails(options) {
     const fileNames = Array.isArray(browserData.files) ? browserData.files : [];
 
     $pane.empty().append(config.buildSampleBrowserHeader(config.baseFolder, currentFolder, Boolean(config.showAllFiles)));
+
+    // Folders and video files render as same-sized tiles in one shared track (not folders
+    // as a separate, smaller row of plain buttons above the video thumbnails) - see
+    // wcsRenderSampleFolderTiles()'s own comment.
+    const $scrollContainer = $('<div class="sample-thumbnail-scroll"></div>');
+    const $track = $('<div class="sample-thumbnail-track"></div>');
+
     if (!config.showAllFiles) {
-        $pane.append(config.renderSampleFolderTiles(config.baseFolder, currentFolder, childFolders, config.paneSelector));
+        $track.append(config.renderSampleFolderTiles(config.baseFolder, currentFolder, childFolders, config.paneSelector));
     }
 
-    if (!Array.isArray(fileNames) || fileNames.length === 0) {
+    const hasFiles = Array.isArray(fileNames) && fileNames.length > 0;
+    const canRenderFiles = hasFiles && config.itemTemplate && config.itemTemplate.content;
+
+    if (canRenderFiles) {
+        fileNames.forEach(function (fileName) {
+            const safeFileName = config.normalizePath(fileName);
+            const thumbnailUrl = config.buildVideoThumbnailUrl(safeFileName);
+            const label = safeFileName.split('/').pop() || safeFileName;
+
+            const node = config.itemTemplate.content.firstElementChild.cloneNode(true);
+            const button = node.querySelector('.sample-video-item');
+            const thumbnailImage = node.querySelector('.sample-video-thumbnail');
+            const video = node.querySelector('video');
+            const caption = node.querySelector('.small');
+
+            if (button) {
+                button.setAttribute('data-file-name', safeFileName);
+            }
+            if (thumbnailImage) {
+                thumbnailImage.setAttribute('src', thumbnailUrl);
+                thumbnailImage.setAttribute('alt', label);
+            } else if (video) {
+                video.removeAttribute('src');
+                video.setAttribute('poster', thumbnailUrl);
+                video.setAttribute('preload', 'none');
+                if (typeof video.load === 'function') {
+                    video.load();
+                }
+            }
+            if (caption) {
+                caption.setAttribute('title', safeFileName);
+                caption.textContent = label;
+            }
+
+            $track.append(node);
+        });
+    }
+
+    if ($track.children().length === 0) {
         if (config.emptyMessage) {
             $pane.append('<div class="text-muted text-center py-3">' + String(config.emptyMessage) + '</div>');
         }
         return;
     }
-
-    if (!config.itemTemplate || !config.itemTemplate.content) {
-        return;
-    }
-
-    const $scrollContainer = $('<div class="sample-thumbnail-scroll"></div>');
-    const $track = $('<div class="sample-thumbnail-track"></div>');
-
-    fileNames.forEach(function (fileName) {
-        const safeFileName = config.normalizePath(fileName);
-        const thumbnailUrl = config.buildVideoThumbnailUrl(safeFileName);
-        const label = safeFileName.split('/').pop() || safeFileName;
-
-        const node = config.itemTemplate.content.firstElementChild.cloneNode(true);
-        const button = node.querySelector('.sample-video-item');
-        const thumbnailImage = node.querySelector('.sample-video-thumbnail');
-        const video = node.querySelector('video');
-        const caption = node.querySelector('.small');
-
-        if (button) {
-            button.setAttribute('data-file-name', safeFileName);
-        }
-        if (thumbnailImage) {
-            thumbnailImage.setAttribute('src', thumbnailUrl);
-            thumbnailImage.setAttribute('alt', label);
-        } else if (video) {
-            video.removeAttribute('src');
-            video.setAttribute('poster', thumbnailUrl);
-            video.setAttribute('preload', 'none');
-            if (typeof video.load === 'function') {
-                video.load();
-            }
-        }
-        if (caption) {
-            caption.setAttribute('title', safeFileName);
-            caption.textContent = label;
-        }
-
-        $track.append(node);
-    });
 
     $scrollContainer.append($track);
     $pane.append($scrollContainer);

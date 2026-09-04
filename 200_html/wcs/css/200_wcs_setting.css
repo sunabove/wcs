@@ -38,6 +38,20 @@
     flex: 0 0 180px;
 }
 
+/* Same 120px preview-area height as .sample-video-thumbnail/<video>, so a folder tile
+   (icon in place of a thumbnail image) matches a video tile's size exactly. */
+.sample-folder-item-icon {
+    height: 120px;
+    width: 100%;
+    background-color: var(--bs-tertiary-bg, #f1f3f5);
+    border-radius: var(--bs-border-radius, 0.375rem);
+    margin-bottom: 0.25rem;
+}
+
+.sample-folder-item-icon .bi-folder-fill {
+    font-size: 48px;
+}
+
 .sample-video-item.selected-sample {
     border-color: var(--bs-primary) !important;
     box-shadow: 0 0 0 0.18rem rgba(13, 110, 253, 0.2);

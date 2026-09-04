@@ -42,6 +42,21 @@
     min-height: 170px;
 }
 
+/* Folder tile's preview area (icon in place of a thumbnail image/video) - sized to match
+   the .sample-image-item/.sample-video-item tiles' own min-height above, so folder and
+   video/image tiles read as the same size in the shared thumbnail track. */
+.sample-folder-item-icon {
+    height: 130px;
+    width: 100%;
+    background-color: rgba(0, 0, 0, 0.03);
+    border-radius: 0.375rem;
+    margin-bottom: 0.25rem;
+}
+
+.sample-folder-item-icon .bi-folder-fill {
+    font-size: 48px;
+}
+
 .sample-thumbnail-item .sample-image-item .small {
     background-color: #0b5ed7;
     color: #ffffff;

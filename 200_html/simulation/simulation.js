@@ -2062,6 +2062,9 @@ class RapierDriveSimulation {
     const margin = { left: 34, right: 12, top: 12, bottom: 26 };
     const plotWidth = width - margin.left - margin.right;
     const plotHeight = height - margin.top - margin.bottom;
+    // Shared with the Y-center-snapping below (after the real data range is known) so the
+    // tick grid drawAxes() actually draws always matches the one 0 was snapped onto.
+    const yTickCount = 4;
 
     // Border + center crosshair + X/Y tick marks/labels (height and forward travel, both
     // cm) - shared by the "not enough samples yet" placeholder below and the populated
@@ -2090,7 +2093,6 @@ class RapierDriveSimulation {
       ctx.lineWidth = 1.2;
       ctx.strokeRect(margin.left, margin.top, plotWidth, plotHeight);
 
-      const yTickCount = 4;
       const xTickCount = 4;
       ctx.strokeStyle = "#9aa5b1";
       ctx.fillStyle = "#5f6b7a";
@@ -2259,9 +2261,22 @@ class RapierDriveSimulation {
     const spanForward = Math.max(maxForward - minForward, 0.01);
     const spanHeight = Math.max(maxHeight - minHeight, 0.01);
     const centerForward = (minForward + maxForward) / 2;
-    const centerHeight = (minHeight + maxHeight) / 2;
+    const dataCenterHeight = (minHeight + maxHeight) / 2;
     const metersPerPixel =
       Math.max(spanForward / plotWidth, spanHeight / plotHeight) * 1.15;
+
+    // Y축에 항상 0 값 틱이 찍히도록, 데이터가 원하는 중심(dataCenterHeight) 대신 0을
+    // 지나는 가장 가까운 눈금 격자 위치로 축 중심을 스냅한다 - drawAxes() 아래가 그리는
+    // 눈금은 centerHeight ± {0, 1, 2}×yTickStep이므로(yTickCount=4), centerHeight 자체가
+    // yTickStep의 배수이기만 하면 그중 하나가 정확히 0이 된다. metersPerPixel(축척)은
+    // 그대로 두므로 등축 스케일은 안 깨지고, 스냅으로 인한 최대 이동폭(절반 눈금 간격,
+    // 전체 표시 범위의 12.5%)은 위 1.15배 여유분(15%) 안에 들어와 실데이터 범위가
+    // 잘려나가지 않는다.
+    const yTickStep = (plotHeight * metersPerPixel) / yTickCount;
+    const centerHeight =
+      yTickStep > 0
+        ? Math.round(dataCenterHeight / yTickStep) * yTickStep
+        : dataCenterHeight;
 
     const toX = (forward) =>
       margin.left + plotWidth / 2 + (forward - centerForward) / metersPerPixel;
@@ -2393,7 +2408,14 @@ class RapierDriveSimulation {
       line.visible = false;
       // Draw after the ground grid (renderOrder 2) and everything opaque (default 0), so
       // the always-on-top depthTest:false above doesn't fight draw-order ties with them.
-      line.renderOrder = 5;
+      // Also after ensureWheelGroundContactMarkers()'s wheel "shadow" ellipses
+      // (renderOrder 10, transparent, opacity 0.42) - both live in the transparent queue,
+      // so whichever has the higher renderOrder wins the tie and draws last/on top. Left
+      // below that, the trace used to draw *first* and the semi-transparent wheel marker
+      // would then paint over it wherever they overlapped, reading as the trace itself
+      // going translucent under the "shadow". 20 leaves headroom above every renderOrder
+      // currently used in the scene (ground layers 0-3, this marker 10).
+      line.renderOrder = 20;
       // The curve's own vertex positions are already absolute world coordinates (see
       // computeCycloidSample()'s worldOuter/worldMiddle/worldInner) and the group sits at
       // the scene's own origin/identity below - frustum culling is left on here (unlike
@@ -2422,7 +2444,7 @@ class RapierDriveSimulation {
       );
       marker.visible = false;
       // Higher than the line's renderOrder so it wins any draw-order tie against it.
-      marker.renderOrder = 6;
+      marker.renderOrder = 21;
       this.cycloidTrace3DMarkersByKey[key] = marker;
       group.add(marker);
 

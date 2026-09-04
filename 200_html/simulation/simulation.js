@@ -2200,13 +2200,39 @@ class RapierDriveSimulation {
             // of this fix).
             const previousRollingRadiusMeters =
               this.cycloidWheelRollingRadiusMetersByKey[wheelKey];
-            const rollingRadiusEmaAlpha = 0.2;
-            this.cycloidWheelRollingRadiusMetersByKey[wheelKey] = Number.isFinite(
+            const isFirstCalibration = !Number.isFinite(
               previousRollingRadiusMeters,
-            )
-              ? rollingRadiusEmaAlpha * measuredRollingRadiusMeters +
-                (1 - rollingRadiusEmaAlpha) * previousRollingRadiusMeters
-              : measuredRollingRadiusMeters;
+            );
+            const rollingRadiusEmaAlpha = 0.2;
+            this.cycloidWheelRollingRadiusMetersByKey[wheelKey] =
+              isFirstCalibration
+                ? measuredRollingRadiusMeters
+                : rollingRadiusEmaAlpha * measuredRollingRadiusMeters +
+                  (1 - rollingRadiusEmaAlpha) * previousRollingRadiusMeters;
+
+            // Every sample already buffered before this point (from page load, or since
+            // the last resetSimulation()) was built with computeCycloidSample()'s earlier
+            // fallback radius (wheelRadiusMetersByKey/wheelEffectiveRadiusMeters, both
+            // typically wrong-sized - see that function's own comment), not this now-
+            // calibrated rolling radius. Mixing those into the same displayed
+            // window/history alongside newly-calibrated samples is exactly what produced
+            // the sharp, non-smooth kink partway around the loop and the residual
+            // self-intersection the user reported (screenshot showed a visible seam, not
+            // a smooth curve) - the "outer" curve effectively jumped to a different-sized
+            // circle mid-buffer the instant calibration finished. Drop every sample but
+            // the one just pushed (built with the now-final radius) so the visible curve
+            // and the all-time height range both restart clean from here - this only ever
+            // fires once per wheel per session (or per resetSimulation()), a few tenths of
+            // a second into driving.
+            if (isFirstCalibration) {
+              samples.splice(0, samples.length - 1);
+              const heightRangeToReset =
+                this.cycloidChartHeightRangeByKey[wheelKey];
+              if (heightRangeToReset) {
+                heightRangeToReset.min = Infinity;
+                heightRangeToReset.max = -Infinity;
+              }
+            }
           }
         }
       }
@@ -2512,7 +2538,29 @@ class RapierDriveSimulation {
     const maxHeight = hasHistoricalHeightRange
       ? heightRange.max
       : Math.max(...allPoints.map((p) => p.height));
-    const spanForward = Math.max(maxForward - minForward, 0.01);
+    // X축 스팬을 현재 창(maxForward-minForward)으로 직접 재는 대신, 이 바퀴의 보정된
+    // 구름 반지름(computeCycloidSample()의 cycloidWheelRollingRadiusMetersByKey/
+    // cycloidWheelRadiusMetersByKey - 둘 다 미터 단위 회전당 이동거리를 나타내는 안정된
+    // 값) 기준 "한 바퀴 회전이 이론적으로 커버하는 전진거리"(2π×반지름)를 쓴다. 등축
+    // 스케일(metersPerPixel)이 max(스팬X, 스팬Y)로 정해지므로, X축 스팬이 매 프레임
+    // 창이 밀리며 살짝씩 흔들리면(가감속 등으로 실측 maxForward-minForward가 프레임마다
+    // 조금씩 달라짐) 그게 그대로 Y축 배율/눈금 값까지 흔든다 - 실제 높이 데이터는
+    // 전혀 안 바뀌었는데도 Y축 틱 숫자가 계속 바뀌어 보이던 원인. 이 이론값은 반지름
+    // 보정이 끝난 뒤로는 프레임마다 거의 고정되므로 X/Y 틱 모두 안정된다. 아직 보정이
+    // 안 끝났으면(주행 시작 직후) 기존 방식(실측 창 범위)으로 대체한다.
+    const calibratedRollingRadiusMeters =
+      Number(this.cycloidWheelRollingRadiusMetersByKey[wheelKey]) ||
+      Number(this.cycloidWheelRadiusMetersByKey[wheelKey]) ||
+      null;
+    const theoreticalRevolutionSpan = Number.isFinite(
+      calibratedRollingRadiusMeters,
+    )
+      ? calibratedRollingRadiusMeters * Math.PI * 2
+      : null;
+    const spanForward =
+      theoreticalRevolutionSpan && theoreticalRevolutionSpan > 0.01
+        ? theoreticalRevolutionSpan
+        : Math.max(maxForward - minForward, 0.01);
     const spanHeight = Math.max(maxHeight - minHeight, 0.01);
     const centerForward = (minForward + maxForward) / 2;
     const dataCenterHeight = (minHeight + maxHeight) / 2;

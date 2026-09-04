@@ -2178,27 +2178,17 @@ class RapierDriveSimulation {
     // Equal-aspect scaling (one shared meters-per-pixel for both axes) - a cycloid's
     // characteristic loop shape only reads correctly when forward and height aren't
     // stretched by different amounts, unlike the Wheel Bottom Height chart's independent
-    // time/height axes above. Only visible (not legend-toggled-off) series feed the fitted
-    // range, so hiding a series rescales the plot to the remaining ones instead of leaving
-    // empty space sized for a curve that isn't being drawn.
-    const visibleSeriesKeys = ["outer", "middle", "inner"].filter(
-      (key) => this.cycloidSeriesVisibleByKey[key],
-    );
+    // time/height axes above. Always fit to all 3 series' data regardless of which are
+    // currently legend-toggled off - the axis scale (and therefore the Y-tick max/min)
+    // should stay put as series are toggled, not jump around to fit whatever's left
+    // visible; only *drawSeries()* below is gated by cycloidSeriesVisibleByKey.
     const allPoints = [];
     samples.forEach((sample) => {
-      visibleSeriesKeys.forEach((key) => {
-        if (sample[key]) {
-          allPoints.push(sample[key]);
-        }
-      });
+      allPoints.push(sample.outer, sample.middle);
+      if (sample.inner) {
+        allPoints.push(sample.inner);
+      }
     });
-    if (allPoints.length < 2) {
-      // Every series is toggled off - nothing to fit a range from, but the legend still
-      // needs to be drawn (and stay clickable) so a hidden series can be turned back on.
-      drawAxes(0, 0, 0.002);
-      drawLegend();
-      return;
-    }
     const minForward = Math.min(...allPoints.map((p) => p.forward));
     const maxForward = Math.max(...allPoints.map((p) => p.forward));
     const minHeight = Math.min(...allPoints.map((p) => p.height));
@@ -2389,7 +2379,25 @@ class RapierDriveSimulation {
         return;
       }
       line.visible = true;
-      line.geometry.setPositions(flatPositions);
+      // A fresh LineGeometry every update, not geometry.setPositions() reused on the same
+      // instance - confirmed in-browser (a raw WebGL pixel scan of the rendered canvas,
+      // not just eyeballing a screenshot) that reusing one geometry across calls with a
+      // *growing* point count draws nothing at all past its first-ever setPositions() call:
+      // LineSegmentsGeometry (LineGeometry's parent) internally caches an instance count
+      // the first time the geometry is drawn/queried, and nothing in setPositions()
+      // invalidates that cache on a later call with a differently-sized array - so the
+      // draw call silently used the *original* (here: 1-segment placeholder, see
+      // ensureCycloidTrace3D() above) count forever after, regardless of how much real
+      // data was actually uploaded. Poking the cache field directly
+      // (geometry._maxInstanceCount = null) looked right in a screenshot but the pixel
+      // scan showed it actually still drew zero instances; a brand-new geometry object has
+      // no stale cache to invalidate in the first place, which is what the scan confirmed
+      // does work. Old geometry is disposed to free its GPU buffers.
+      const oldGeometry = line.geometry;
+      const newGeometry = new LineGeometry();
+      newGeometry.setPositions(flatPositions);
+      line.geometry = newGeometry;
+      oldGeometry.dispose();
     });
   }
 
@@ -10974,7 +10982,6 @@ class RapierDriveSimulation {
 
   async runLoop() {
     try {
-      globalThis.__debugSim = this;
       // If command APIs are bound after this module starts, retry hook installation.
       this.installDriveCommandHooks();
 

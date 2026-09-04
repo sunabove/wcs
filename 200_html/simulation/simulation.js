@@ -607,7 +607,11 @@ class RapierDriveSimulation {
     this.cycloidChartMaxSamples = 400;
     // One continuously-updated ring buffer per wheel (never cleared by a display-key
     // switch - see cycloidChartActiveWheelKey above), each entry:
-    // { outer:{forward,height}, middle:{forward,height}, inner:{forward,height}|null, spinAngleRad }
+    // { outer:{forward,height}, middle:{forward,height}, inner:{forward,height}|null,
+    //   worldOuter:Vector3, worldMiddle:Vector3, worldInner:Vector3|null, spinAngleRad }
+    // The world* fields are the same points before their forward/height projection - kept
+    // around for ensureCycloid3DVisualization()/updateCycloid3DVisualization() below,
+    // which trace them as actual 3D line geometry in the URDF viewer's own scene.
     this.cycloidChartSamplesByKey = {
       fl: [],
       fr: [],
@@ -619,6 +623,10 @@ class RapierDriveSimulation {
       middle: "#0d6efd",
       inner: "#198754",
     };
+    // 3D in-scene trace of the same FL-wheel cycloid the 2D chart shows - see
+    // ensureCycloid3DVisualization()/updateCycloid3DVisualization().
+    this.cycloidChart3DGroup = null;
+    this.cycloidChart3DLinesByKey = { outer: null, middle: null, inner: null };
   }
 
   kmhToMps(kmh) {
@@ -1778,6 +1786,7 @@ class RapierDriveSimulation {
     ).applyMatrix4(wheelLink.matrixWorld);
 
     let innerPoint = null;
+    let innerWorld = null;
     if (
       gearLink &&
       typeof viewer.getInnerGearMarkerRadiusMeters === "function"
@@ -1790,6 +1799,7 @@ class RapierDriveSimulation {
           0,
         ).applyMatrix4(gearLink.matrixWorld);
         innerPoint = project(gearMarkerWorld);
+        innerWorld = gearMarkerWorld;
       }
     }
 
@@ -1803,6 +1813,11 @@ class RapierDriveSimulation {
       outer: project(wheelRimWorld),
       middle: project(wheelCenterWorld),
       inner: innerPoint,
+      // Unprojected world points behind outer/middle/inner above - see
+      // ensureCycloid3DVisualization()/updateCycloid3DVisualization().
+      worldOuter: wheelRimWorld,
+      worldMiddle: wheelCenterWorld,
+      worldInner: innerWorld,
       spinAngleRad: Number.isFinite(spinAngleRad) ? spinAngleRad : null,
     };
   }
@@ -2116,6 +2131,92 @@ class RapierDriveSimulation {
     });
     ctx.textAlign = "left";
     ctx.textBaseline = "alphabetic";
+  }
+
+  // Builds the 3D counterpart of the 2D cycloid chart above: three THREE.Line objects
+  // (outer/middle/inner, same colors as cycloidChartColors) added directly to the URDF
+  // viewer's own scene, so the FL wheel pod's traced path shows up as an actual object in
+  // the 3D view instead of only on the flat 2D overlay panel. Each line's geometry is a
+  // single preallocated buffer (cycloidChartMaxSamples vertices) with a live draw range -
+  // same pattern as the yaw-indicator pie/outline in ensureVehicleYawIndicator() - rather
+  // than reallocating a new BufferGeometry every frame.
+  ensureCycloid3DVisualization() {
+    if (this.cycloidChart3DGroup || !this.viewer?.scene) {
+      return;
+    }
+
+    const group = new THREE.Group();
+    group.name = "simulation-cycloid-3d";
+
+    Object.keys(this.cycloidChart3DLinesByKey).forEach((key) => {
+      const geometry = new THREE.BufferGeometry();
+      geometry.setAttribute(
+        "position",
+        new THREE.BufferAttribute(
+          new Float32Array(this.cycloidChartMaxSamples * 3),
+          3,
+        ),
+      );
+      geometry.setDrawRange(0, 0);
+      const line = new THREE.Line(
+        geometry,
+        new THREE.LineBasicMaterial({
+          color: this.cycloidChartColors[key],
+          fog: false,
+          toneMapped: false,
+        }),
+      );
+      // The buffer's own vertex positions are already absolute world coordinates (see
+      // computeCycloidSample()'s worldOuter/worldMiddle/worldInner) and the group sits at
+      // the scene's own origin/identity below - draw-range-only updates mean three.js's
+      // default frustum-culling sphere (computed once, from whatever was in the buffer at
+      // that time) can't be trusted to track the live curve as it slides forward.
+      line.frustumCulled = false;
+      this.cycloidChart3DLinesByKey[key] = line;
+      group.add(line);
+    });
+
+    group.visible = this.isCycloidChartVisible;
+    this.cycloidChart3DGroup = group;
+    this.viewer.scene.add(group);
+  }
+
+  // Called once per frame after recordCycloidChartSample() (see runLoop()) - copies that
+  // same FL-wheel sample buffer's raw world points into the 3D lines built above.
+  updateCycloid3DVisualization() {
+    if (!this.cycloidChart3DGroup) {
+      return;
+    }
+
+    this.cycloidChart3DGroup.visible = this.isCycloidChartVisible;
+    if (!this.isCycloidChartVisible) {
+      return;
+    }
+
+    const wheelKey = this.cycloidChartActiveWheelKey;
+    const samples = wheelKey
+      ? this.cycloidChartSamplesByKey[wheelKey] || []
+      : [];
+
+    Object.entries(this.cycloidChart3DLinesByKey).forEach(([key, line]) => {
+      if (!line) {
+        return;
+      }
+
+      const worldFieldName = `world${key.charAt(0).toUpperCase()}${key.slice(1)}`;
+      const positions = line.geometry.attributes.position;
+      let vertexCount = 0;
+      samples.forEach((sample) => {
+        const worldPoint = sample[worldFieldName];
+        if (!worldPoint || vertexCount >= this.cycloidChartMaxSamples) {
+          return;
+        }
+        positions.setXYZ(vertexCount, worldPoint.x, worldPoint.y, worldPoint.z);
+        vertexCount += 1;
+      });
+      positions.needsUpdate = true;
+      line.geometry.setDrawRange(0, vertexCount);
+    });
   }
 
   updateDebugPanel(deltaSec = 0) {
@@ -10709,6 +10810,7 @@ class RapierDriveSimulation {
       if (this.viewer) {
         this.ensureWheelZChartOverlay();
         this.ensureCycloidChartOverlay();
+        this.ensureCycloid3DVisualization();
       }
 
       if (this.viewer && !this.isReady && !this.hasFailed) {
@@ -10723,6 +10825,7 @@ class RapierDriveSimulation {
       this.renderWheelZChart(this.simulationElapsedSec);
       this.recordCycloidChartSample();
       this.renderCycloidChart();
+      this.updateCycloid3DVisualization();
 
       this.updateDebugPanel(this.physicsFixedTimeStepSec);
     } catch (error) {

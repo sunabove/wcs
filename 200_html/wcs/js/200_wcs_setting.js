@@ -1689,7 +1689,13 @@ $(document).ready(function () {
             baseFolder: baseFolder,
             childFolders: childFolders,
             paneSelector: "video",
-            leafOnlyLabel: false,
+            // Each tile is one folder button in the current directory - show only that
+            // folder's own name, not the full path from baseFolder (matches
+            // 300_ai_road.js's identical call). This is the actually-used branch (this
+            // window.wcsRenderSampleFolderTiles function exists, defined in
+            // 010_wcs_common.js) - the local buildFolderLabel()-based fallback below is
+            // dead code on any page where it's loaded, but kept in sync anyway.
+            leafOnlyLabel: true,
           });
         }
       : function (baseFolder, childFolders) {

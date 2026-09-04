@@ -2072,16 +2072,26 @@ class RapierDriveSimulation {
     ];
     const legendStartY = margin.top + 14;
     const legendRowHeight = 15;
+    const legendSwatchWidth = 12;
+    const legendSwatchGap = 4;
+    const legendRightEdge = margin.left + plotWidth - 4;
     ctx.font = "11px Segoe UI";
     ctx.textBaseline = "middle";
+    ctx.textAlign = "right";
     legendEntries.forEach(([key, label], index) => {
       const legendY = legendStartY + legendRowHeight * index;
-      const legendX = margin.left + plotWidth - 108;
+      // Right-align the whole [swatch][label] group to the plot's right edge - label
+      // widths differ per entry, so the swatch position is derived from the label's
+      // measured width rather than a fixed offset from the right edge.
+      const labelWidth = ctx.measureText(label).width;
+      const swatchX =
+        legendRightEdge - labelWidth - legendSwatchGap - legendSwatchWidth;
       ctx.fillStyle = this.cycloidChartColors[key];
-      ctx.fillRect(legendX, legendY - 4, 12, 6);
+      ctx.fillRect(swatchX, legendY - 4, legendSwatchWidth, 6);
       ctx.fillStyle = "#334155";
-      ctx.fillText(label, legendX + 16, legendY);
+      ctx.fillText(label, legendRightEdge, legendY);
     });
+    ctx.textAlign = "left";
     ctx.textBaseline = "alphabetic";
   }
 

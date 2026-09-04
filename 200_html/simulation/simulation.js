@@ -10959,6 +10959,7 @@ class RapierDriveSimulation {
 
   async runLoop() {
     try {
+      globalThis.__debugSim = this;
       // If command APIs are bound after this module starts, retry hook installation.
       this.installDriveCommandHooks();
 

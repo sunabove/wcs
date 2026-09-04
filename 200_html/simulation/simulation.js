@@ -36,9 +36,14 @@ const CYCLOID_TRACE_3D_MARKER_RADIUS_METERS = 0.006;
 // on the wheel mesh's own surface, the 3D trace needed depthTest disabled to be visible at
 // all (it permanently z-fought the wheel mesh, which won every time) - which in turn made
 // it draw through solid geometry that should have been occluding it, an "x-ray" look easily
-// read as the graph "having transparency". A few mm of genuine clearance lets the trace use
-// normal depth testing instead, so it's occluded like a real object would be.
-const CYCLOID_OUTER_RIM_CLEARANCE_METERS = 0.008;
+// read as the graph "having transparency". Genuine clearance instead lets the trace use
+// normal depth testing, so it's occluded like a real object would be. Must clear the
+// marker sphere's own radius (CYCLOID_TRACE_3D_MARKER_RADIUS_METERS above), not just the
+// bare centerline point - confirmed in-browser that an earlier, smaller clearance left the
+// sphere's near side poking back into the tire even though its *center* point was already
+// technically outside it, and that too small a gap reads as "still touching/inside the
+// wheel" even once genuinely non-negative.
+const CYCLOID_OUTER_RIM_CLEARANCE_METERS = 0.02;
 // Chassis (0x0008) deliberately excludes ground (filter 0x0002); ground contact is handled by manual clamping.
 const COLLISION_GROUP_GROUND = 0x00010002;
 const COLLISION_GROUP_WHEEL = 0x00020005;
@@ -11070,7 +11075,6 @@ class RapierDriveSimulation {
 
   async runLoop() {
     try {
-      globalThis.__debugSim = this;
       // If command APIs are bound after this module starts, retry hook installation.
       this.installDriveCommandHooks();
 

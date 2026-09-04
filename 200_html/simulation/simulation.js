@@ -2361,16 +2361,26 @@ class RapierDriveSimulation {
     const spanHeight = Math.max(maxHeight - minHeight, 0.01);
     const centerForward = (minForward + maxForward) / 2;
     const dataCenterHeight = (minHeight + maxHeight) / 2;
-    const metersPerPixel =
-      Math.max(spanForward / plotWidth, spanHeight / plotHeight) * 1.15;
+    // Y축 0-틱 스냅(아래)이 축 중심을 최대 반 눈금(yTickStep/2)까지 옮길 수 있으므로,
+    // 그 이동 후에도 실데이터가 반드시 화면 안에 남도록 Y축 쪽 배율에는 X축(spanForward,
+    // 스냅되지 않으므로 15% 여유로 충분)과 다른, 더 큰 최소 여유를 둔다. 표시되는 전체
+    // 높이 범위를 D, 눈금 개수를 N(yTickCount)이라 하면 스냅 최대 이동폭은 D/(2N)이고,
+    // 스냅 후에도 실데이터(spanHeight)가 들어가려면 D*(1 - 1/N) >= spanHeight, 즉
+    // D >= spanHeight * N/(N-1)이어야 한다 - N=4일 때 4/3배. 1.08배를 더 곱해 반올림/
+    // 부동소수점 오차에 대한 여유를 추가로 둔다(이전에는 이 축만의 요구량을 계산하지
+    // 않고 X축과 같은 1.15배를 그대로 썼다가, 스냅 이동폭이 그 여유보다 커서 곡선이
+    // 챠트 범위 위로 튀어나오는 문제가 있었다).
+    const heightMarginFactor = (yTickCount / (yTickCount - 1)) * 1.08;
+    const metersPerPixel = Math.max(
+      (spanForward / plotWidth) * 1.15,
+      (spanHeight / plotHeight) * heightMarginFactor,
+    );
 
     // Y축에 항상 0 값 틱이 찍히도록, 데이터가 원하는 중심(dataCenterHeight) 대신 0을
     // 지나는 가장 가까운 눈금 격자 위치로 축 중심을 스냅한다 - drawAxes() 아래가 그리는
     // 눈금은 centerHeight ± {0, 1, 2}×yTickStep이므로(yTickCount=4), centerHeight 자체가
-    // yTickStep의 배수이기만 하면 그중 하나가 정확히 0이 된다. metersPerPixel(축척)은
-    // 그대로 두므로 등축 스케일은 안 깨지고, 스냅으로 인한 최대 이동폭(절반 눈금 간격,
-    // 전체 표시 범위의 12.5%)은 위 1.15배 여유분(15%) 안에 들어와 실데이터 범위가
-    // 잘려나가지 않는다.
+    // yTickStep의 배수이기만 하면 그중 하나가 정확히 0이 된다. metersPerPixel은 위에서
+    // 이미 이 스냅 이동폭까지 감안해 계산했으므로 실데이터 범위가 잘려나가지 않는다.
     const yTickStep = (plotHeight * metersPerPixel) / yTickCount;
     const centerHeight =
       yTickStep > 0

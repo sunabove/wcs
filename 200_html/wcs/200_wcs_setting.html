@@ -438,6 +438,12 @@
                                             </button>
                                         </li>
                                     </ul>
+                                    <!-- 500_ai_sam2.html의 업로드 동영상 입력란과 같은 방식(클릭/드래그) - 항상 hidden,
+                                         드롭존 클릭이 이 input을 연다. 탭 콘텐츠(샘플 동영상 목록) 바깥에 둬서
+                                         wcsRenderSampleVideoThumbnails()의 매 렌더링마다 실행되는 pane.empty()에
+                                         영향받지 않음. -->
+                                    <input type="file" id="wcs-sample-video-upload-input" class="d-none"
+                                        accept="video/*">
                                     <div class="tab-content">
                                         <div class="tab-pane fade show active" id="wcs-input-sample-video-pane"
                                             role="tabpanel" tabindex="0">
@@ -455,6 +461,31 @@
                                                             hidden muted playsinline preload="metadata"></video>
                                                         <div class="small text-truncate" title=""></div>
                                                     </button>
+                                                </div>
+                                            </template>
+                                            <!-- 샘플 동영상 탭 맨 앞 타일 - 500_ai_sam2.html의 업로드 드롭존과 같은
+                                                 클릭/드래그 업로드 UI. renderSampleVideoUploadTile()이 매 목록
+                                                 렌더링 후 .sample-thumbnail-track의 첫 자리로 이 노드를 옮겨 붙임
+                                                 (복제가 아니라 이동이라 상태/이벤트 핸들러가 재렌더링 후에도 유지됨). -->
+                                            <template id="wcs-sample-video-upload-item-template">
+                                                <div class="sample-thumbnail-item">
+                                                    <div class="sample-video-upload-zone border border-2 rounded p-2 h-100 d-flex flex-column align-items-center justify-content-center text-center text-secondary"
+                                                        role="button" tabindex="0" aria-label="동영상 드래그 업로드 영역">
+                                                        <i class="bi bi-upload fs-3 mb-1"></i>
+                                                        <div class="fw-semibold small">동영상 업로드</div>
+                                                        <div class="form-text mt-1 text-truncate sample-video-upload-status"
+                                                            style="max-width: 100%;" title="클릭 또는 드래그">클릭 또는 드래그
+                                                        </div>
+                                                        <div class="w-100 mt-2 d-none sample-video-upload-progress-wrap"
+                                                            aria-live="polite">
+                                                            <div class="progress" role="progressbar"
+                                                                aria-label="동영상 업로드 진행률" aria-valuemin="0"
+                                                                aria-valuemax="100" style="height: 6px;">
+                                                                <div class="progress-bar progress-bar-striped progress-bar-animated sample-video-upload-progress-bar"
+                                                                    style="width: 0%;"></div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
                                                 </div>
                                             </template>
                                         </div>

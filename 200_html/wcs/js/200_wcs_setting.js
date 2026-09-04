@@ -17,6 +17,12 @@ $(document).ready(function () {
   const wcsCameraDeviceItemTemplate = document.getElementById(
     "wcs-camera-device-item-template",
   );
+  // 500_ai_sam2.html의 업로드 동영상 입력란과 같은 방식의 "동영상 업로드" 타일 -
+  // ensureSampleVideoUploadTile()/uploadSampleVideoFile() 참고.
+  const wcsSampleVideoUploadItemTemplate = document.getElementById(
+    "wcs-sample-video-upload-item-template",
+  );
+  const $wcsSampleVideoUploadInput = $("#wcs-sample-video-upload-input");
   const pendingPublishTimers = {};
   const vehicleDirectionWheelKeys = ["fl", "fr", "rl", "rr"];
   const vehicleAngleSpeedPayloadWheelKeys = ["fr", "fl", "rr", "rl"];
@@ -1431,6 +1437,226 @@ $(document).ready(function () {
           return "/fast/sample_browser/" + encodePathForRoute(folderName);
         };
 
+  // NOTE: no existing "upload a sample video" backend route was found anywhere in this
+  // repo (which only has the frontend, not the FastAPI backend) to reuse - this mirrors
+  // the /fast/sample_browser/<path> naming convention already used for *browsing* samples
+  // (see buildSampleBrowserUrl above), as a plausible sibling endpoint. If the real backend
+  // uses a different path/field names, update this one function.
+  function buildSampleVideoUploadUrl() {
+    return "/fast/sample_browser/upload";
+  }
+
+  // ---- 동영상 업로드 타일 (500_ai_sam2.html의 #sam2-drop-zone과 같은 클릭/드래그 UI) ----
+  // 매 목록 재렌더링(wcsRenderSampleVideoThumbnails()의 $pane.empty())마다 새로 만들지
+  // 않고, 한 번 만든 노드를 .sample-thumbnail-track의 첫 자리로 "이동"시켜 붙인다(복제가
+  // 아니므로 업로드 중 상태/이벤트 핸들러가 재렌더링을 넘어 유지됨) - ensureSampleVideoUploadTile().
+
+  let $sampleVideoUploadTile = null;
+  let isSampleVideoUploading = false;
+
+  function buildSampleVideoUploadTile() {
+    if ($sampleVideoUploadTile && $sampleVideoUploadTile.length > 0) {
+      return $sampleVideoUploadTile;
+    }
+    if (
+      !wcsSampleVideoUploadItemTemplate ||
+      !wcsSampleVideoUploadItemTemplate.content
+    ) {
+      return null;
+    }
+
+    const node =
+      wcsSampleVideoUploadItemTemplate.content.firstElementChild.cloneNode(
+        true,
+      );
+    $sampleVideoUploadTile = $(node);
+
+    const $zone = $sampleVideoUploadTile.find(".sample-video-upload-zone");
+    $zone.on("click", function () {
+      if (isSampleVideoUploading) {
+        return;
+      }
+      $wcsSampleVideoUploadInput.trigger("click");
+    });
+    $zone.on("keydown", function (event) {
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        if (!isSampleVideoUploading) {
+          $wcsSampleVideoUploadInput.trigger("click");
+        }
+      }
+    });
+    $zone.on("dragenter dragover", function (event) {
+      event.preventDefault();
+      event.stopPropagation();
+      $zone.addClass("drag-active");
+    });
+    $zone.on("dragleave dragend", function (event) {
+      event.preventDefault();
+      event.stopPropagation();
+      $zone.removeClass("drag-active");
+    });
+    $zone.on("drop", function (event) {
+      event.preventDefault();
+      event.stopPropagation();
+      $zone.removeClass("drag-active");
+      const dataTransfer =
+        event.originalEvent && event.originalEvent.dataTransfer;
+      const file = pickFirstSampleVideoFile(
+        dataTransfer && dataTransfer.files,
+      );
+      if (!file) {
+        setSampleVideoUploadStatus("드롭한 파일 중 동영상이 없습니다.", true);
+        return;
+      }
+      void uploadSampleVideoFile(file);
+    });
+
+    return $sampleVideoUploadTile;
+  }
+
+  function isSampleVideoFile(file) {
+    if (!file) {
+      return false;
+    }
+    if (file.type && file.type.indexOf("video/") === 0) {
+      return true;
+    }
+    return /\.(mp4|avi|mov|mkv|wmv|webm|m4v)$/i.test(String(file.name || ""));
+  }
+
+  function pickFirstSampleVideoFile(fileList) {
+    const files = Array.from(fileList || []);
+    return files.find(isSampleVideoFile) || null;
+  }
+
+  function setSampleVideoUploadStatus(text, isError) {
+    const $tile = buildSampleVideoUploadTile();
+    if (!$tile) {
+      return;
+    }
+    const $status = $tile.find(".sample-video-upload-status");
+    $status.text(text).attr("title", text);
+    $status.toggleClass("text-danger", Boolean(isError));
+  }
+
+  function setSampleVideoUploadProgress(percent) {
+    const $tile = buildSampleVideoUploadTile();
+    if (!$tile) {
+      return;
+    }
+    const normalized = Math.max(0, Math.min(100, Number(percent) || 0));
+    $tile.find(".sample-video-upload-progress-wrap").removeClass("d-none");
+    $tile
+      .find(".sample-video-upload-progress-bar")
+      .css("width", normalized + "%");
+  }
+
+  function hideSampleVideoUploadProgress() {
+    const $tile = buildSampleVideoUploadTile();
+    if (!$tile) {
+      return;
+    }
+    $tile.find(".sample-video-upload-progress-wrap").addClass("d-none");
+    $tile.find(".sample-video-upload-progress-bar").css("width", "0%");
+  }
+
+  function uploadSampleVideoWithProgress(file, folderPath) {
+    return new Promise(function (resolve, reject) {
+      const xhr = new XMLHttpRequest();
+      xhr.open("POST", buildSampleVideoUploadUrl(), true);
+      xhr.timeout = 10 * 60 * 1000;
+
+      xhr.upload.addEventListener("progress", function (event) {
+        if (event && event.lengthComputable && event.total > 0) {
+          setSampleVideoUploadProgress(
+            Math.round((event.loaded / event.total) * 100),
+          );
+        }
+      });
+
+      xhr.addEventListener("load", function () {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          setSampleVideoUploadProgress(100);
+          resolve();
+          return;
+        }
+        let message = "업로드 실패 (" + xhr.status + ")";
+        try {
+          const body = JSON.parse(xhr.responseText || "{}");
+          if (body && body.detail) {
+            message = String(body.detail);
+          }
+        } catch (_ignore) {
+          // Keep default message.
+        }
+        reject(new Error(message));
+      });
+      xhr.addEventListener("error", function () {
+        reject(new Error("업로드 중 네트워크 오류가 발생했습니다."));
+      });
+      xhr.addEventListener("timeout", function () {
+        reject(new Error("업로드 시간이 초과되었습니다."));
+      });
+
+      const formData = new FormData();
+      formData.append("file", file);
+      // 현재 탐색 중인 폴더 - 없으면(전체 파일 모드 등) 최상위 폴더("video")로.
+      formData.append("folder_path", folderPath || "video");
+      xhr.send(formData);
+    });
+  }
+
+  async function uploadSampleVideoFile(file) {
+    if (isSampleVideoUploading) {
+      return;
+    }
+    isSampleVideoUploading = true;
+    setSampleVideoUploadStatus("업로드 중...", false);
+    setSampleVideoUploadProgress(0);
+
+    const targetFolder = sampleVideoShowAllFiles
+      ? "video"
+      : sampleVideoBrowserPath || "video";
+
+    try {
+      await uploadSampleVideoWithProgress(file, targetFolder);
+      setSampleVideoUploadStatus("업로드 완료", false);
+      loadSampleVideos(sampleVideoBrowserPath, sampleVideoShowAllFiles);
+    } catch (error) {
+      const message = error && error.message ? error.message : String(error);
+      setSampleVideoUploadStatus(message, true);
+    } finally {
+      isSampleVideoUploading = false;
+      hideSampleVideoUploadProgress();
+      $wcsSampleVideoUploadInput.val("");
+    }
+  }
+
+  // renderSampleVideoThumbnails()의 onAfterRender마다 호출 - 목록이 완전히 비어 있어
+  // .sample-thumbnail-track 자체가 없는 경우엔 업로드 타일 전용 track을 새로 만든다.
+  function ensureSampleVideoUploadTile() {
+    if ($wcsSampleVideoPane.length === 0) {
+      return;
+    }
+    const $tile = buildSampleVideoUploadTile();
+    if (!$tile) {
+      return;
+    }
+
+    let $track = $wcsSampleVideoPane.find(".sample-thumbnail-track");
+    if ($track.length === 0) {
+      $wcsSampleVideoPane.find("> .text-muted.text-center.py-3").remove();
+      const $scrollContainer = $(
+        '<div class="sample-thumbnail-scroll"></div>',
+      );
+      $track = $('<div class="sample-thumbnail-track"></div>');
+      $scrollContainer.append($track);
+      $wcsSampleVideoPane.append($scrollContainer);
+    }
+    $track.prepend($tile);
+  }
+
   const buildSamplesUrl =
     typeof window.wcsBuildSamplesUrl === "function"
       ? window.wcsBuildSamplesUrl
@@ -1877,6 +2103,7 @@ $(document).ready(function () {
             },
             buildVideoThumbnailUrl: buildVideoThumbnailUrl,
             onAfterRender: function () {
+              ensureSampleVideoUploadTile();
               applyCurrentVideoHighlight();
               moveSampleVideoThumbnailsToBottom();
             },
@@ -1971,6 +2198,7 @@ $(document).ready(function () {
 
           $scrollContainer.append($track);
           $wcsSampleVideoPane.append($scrollContainer);
+          ensureSampleVideoUploadTile();
           applyCurrentVideoHighlight();
           moveSampleVideoThumbnailsToBottom();
         };
@@ -2491,6 +2719,13 @@ $(document).ready(function () {
     saveCurrentVideoSelectionToStorage("");
     const published = sendMQTTMessage("vehicle/current_video/file_name", "");
     showVideoPublishToast(Boolean(published), "", this);
+  });
+
+  $wcsSampleVideoUploadInput.on("change", function () {
+    const file = pickFirstSampleVideoFile(this.files);
+    if (file) {
+      void uploadSampleVideoFile(file);
+    }
   });
 
   $wcsCameraPane.on("click", ".wcs-camera-device-item", function () {

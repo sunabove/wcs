@@ -52,6 +52,28 @@
     font-size: 48px;
 }
 
+/* 500_ai_sam2.html의 #sam2-drop-zone과 같은 대시보더 드롭존 스타일 - 폴더/동영상 타일과
+   같은 .sample-thumbnail-item(180px) 크기라 같은 줄에서 크기가 통일됨. */
+.sample-video-upload-zone {
+    min-height: 163px;
+    border-style: dashed !important;
+    border-color: #9aa4b2 !important;
+    background: #f8fafc;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.sample-video-upload-zone:hover {
+    border-color: #0d6efd !important;
+    background: #eef4ff;
+}
+
+.sample-video-upload-zone.drag-active {
+    border-color: #0d6efd !important;
+    background: #e8f1ff;
+    box-shadow: inset 0 0 0 1px rgba(13, 110, 253, 0.2);
+}
+
 .sample-video-item.selected-sample {
     border-color: var(--bs-primary) !important;
     box-shadow: 0 0 0 0.18rem rgba(13, 110, 253, 0.2);

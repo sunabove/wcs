@@ -468,6 +468,12 @@ function wcsRenderSampleVideoThumbnails(options) {
         if (config.emptyMessage) {
             $pane.append('<div class="text-muted text-center py-3">' + String(config.emptyMessage) + '</div>');
         }
+        // Still let the caller run its own onAfterRender - e.g. 200_wcs_setting.js's own
+        // upload-tile hook needs to run even for a genuinely empty folder (no folders, no
+        // files), not just when there's other content to show alongside it.
+        if (typeof config.onAfterRender === 'function') {
+            config.onAfterRender();
+        }
         return;
     }
 

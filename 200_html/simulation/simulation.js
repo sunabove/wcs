@@ -1976,11 +1976,12 @@ class RapierDriveSimulation {
     ctx.lineWidth = 1.2;
     ctx.strokeRect(margin.left, margin.top, plotWidth, plotHeight);
 
-    // Y-axis (height, cm) ticks - same "right-aligned label + cm unit in the corner" style
-    // as the Wheel Bottom Height chart's z-axis above, evenly spaced across the plotted
-    // height range (equal-aspect with the forward axis, so this range is whatever
-    // metersPerPixel/plotHeight worked out to above, not a fixed nice number).
+    // Axis ticks (height on Y, forward travel on X), both in cm - equal-aspect with each
+    // other, so a single "cm" unit label (bottom-left corner, well clear of both tick
+    // columns - see below) covers both instead of repeating the unit per axis.
     const yTickCount = 4;
+    const xTickCount = 4;
+    ctx.strokeStyle = "#9aa5b1";
     ctx.fillStyle = "#5f6b7a";
     ctx.font = "11px Segoe UI";
     ctx.textAlign = "right";
@@ -1994,12 +1995,33 @@ class RapierDriveSimulation {
       ctx.moveTo(margin.left - 3, y);
       ctx.lineTo(margin.left, y);
       ctx.stroke();
-      ctx.fillText(String(Math.round(tickHeight * 100)), margin.left - 5, y);
+      ctx.fillText(String(Math.round(tickHeight * 100)), margin.left - 6, y);
     }
+
+    ctx.textAlign = "center";
+    ctx.textBaseline = "top";
+    for (let i = 0; i <= xTickCount; i += 1) {
+      const ratio = i / xTickCount;
+      const x = margin.left + plotWidth * ratio;
+      const tickForward =
+        centerForward + plotWidth * (ratio - 0.5) * metersPerPixel;
+      ctx.beginPath();
+      ctx.moveTo(x, margin.top + plotHeight);
+      ctx.lineTo(x, margin.top + plotHeight + 3);
+      ctx.stroke();
+      ctx.fillText(
+        String(Math.round(tickForward * 100)),
+        x,
+        margin.top + plotHeight + 5,
+      );
+    }
+
+    // Placed in the bottom-left corner, clear of both the Y-axis value column (ends at
+    // margin.left - 6, above) and the first X-axis tick label (centered under margin.left,
+    // below) - previously shared a single cramped row with the topmost Y-tick number.
     ctx.textAlign = "left";
+    ctx.fillText("cm", 2, margin.top + plotHeight + 5);
     ctx.textBaseline = "alphabetic";
-    ctx.fillStyle = "#5f6b7a";
-    ctx.fillText("cm", 4, 10);
 
     const drawSeries = (key) => {
       const color = this.cycloidChartColors[key];
@@ -2042,9 +2064,9 @@ class RapierDriveSimulation {
     ctx.fillText(`${wheelKey.toUpperCase()}`, margin.left + 4, margin.top + 12);
 
     const legendEntries = [
-      ["outer", "외부휠(타이어 림)"],
-      ["middle", "중간휠(캐리어)"],
-      ["inner", "내부휠(베벨기어 림)"],
+      ["outer", "외부휠"],
+      ["middle", "중간휠"],
+      ["inner", "내부휠"],
     ];
     const legendStartY = margin.top + 14;
     const legendRowHeight = 15;

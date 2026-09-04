@@ -11072,6 +11072,7 @@ class RapierDriveSimulation {
   }
 
   stepSimulation() {
+    globalThis.__debugSim = this; // TEMP debug hook - remove before commit
     if (!this.isReady) {
       return;
     }

@@ -39,7 +39,7 @@ class RoadDetector:
     # Shared font scale for every text drawn on the bottom time bar overlay
     # (_render_bottom_time_bar_overlay()'s frame counter and _draw_actual_output_fps_label()'s
     # fps label) - one knob so both stay the same size instead of drifting apart.
-    TIME_BAR_FONT_SCALE = 0.62
+    TIME_BAR_FONT_SCALE = 0.82 # 0.62
     
     OBSTACLE_SCORE_CONF_WEIGHT = 0.7
     OBSTACLE_SCORE_AREA_WEIGHT = 0.3
@@ -2990,11 +2990,11 @@ class RoadDetector:
 
         time_label = f"{frame_idx} / {frame_total}"
 
-        (tw, th), bl = cv2.getTextSize(time_label, font_face, 0.62, 2)
+        (tw, th), bl = cv2.getTextSize(time_label, font_face, font_scale, 2)
         tx = int((w - tw) / 2)
         ty = max(th + 4, y1 - 8)
-        cv2.putText(detected, time_label, (tx, ty), font_face, 0.62, (0, 0, 0), 3, cv2.LINE_AA)
-        cv2.putText(detected, time_label, (tx, ty), font_face, 0.62, (255, 255, 255), 2, cv2.LINE_AA)
+        cv2.putText(detected, time_label, (tx, ty), font_face, font_scale, (0, 0, 0), 3, cv2.LINE_AA)
+        cv2.putText(detected, time_label, (tx, ty), font_face, font_scale, (255, 255, 255), 2, cv2.LINE_AA)
 
         # 실제 출력 fps - 하단 바(진행률 바) 오른쪽 위. 프레임 카운터(위, 중앙)와 같은
         # y좌표를 써서 같은 줄에 나란히 놓이도록 함.

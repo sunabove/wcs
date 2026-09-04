@@ -31,18 +31,17 @@ const CYCLOID_TRACE_3D_LINEWIDTH_PX = 4;
 // as a distinct dot against the wheel pod without dwarfing it.
 const CYCLOID_TRACE_3D_MARKER_RADIUS_METERS = 0.006;
 // Real radial clearance (meters) added to the outer/rim sample point's radius - purely so
-// that point sits just outside the tire's actual physical surface instead of exactly on
-// it. See computeCycloidSample()'s wheelRimWorld for why: with the point sitting exactly
-// on the wheel mesh's own surface, the 3D trace needed depthTest disabled to be visible at
-// all (it permanently z-fought the wheel mesh, which won every time) - which in turn made
-// it draw through solid geometry that should have been occluding it, an "x-ray" look easily
-// read as the graph "having transparency". Genuine clearance instead lets the trace use
-// normal depth testing, so it's occluded like a real object would be. Must clear the
-// marker sphere's own radius (CYCLOID_TRACE_3D_MARKER_RADIUS_METERS above), not just the
-// bare centerline point - confirmed in-browser that an earlier, smaller clearance left the
-// sphere's near side poking back into the tire even though its *center* point was already
-// technically outside it, and that too small a gap reads as "still touching/inside the
-// wheel" even once genuinely non-negative.
+// that point (and the marker sphere drawn at it) sits just outside the tire's actual
+// physical surface instead of exactly on/inside it. See computeCycloidSample()'s
+// wheelRimWorld. Needed independently of depthTest (ensureCycloidTrace3D()'s line/marker
+// materials draw on top of everything regardless, per the user's "always visible" call) -
+// without this, the point/sphere is drawn *literally inside* the tire mesh's own geometry,
+// which visually reads as the trace clipping into the wheel even though it's still fully
+// visible. Must clear the marker sphere's own radius
+// (CYCLOID_TRACE_3D_MARKER_RADIUS_METERS above), not just the bare centerline point -
+// confirmed in-browser that an earlier, smaller clearance left the sphere's near side
+// poking back into the tire even though its *center* point was already technically
+// outside it.
 const CYCLOID_OUTER_RIM_CLEARANCE_METERS = 0.02;
 // Chassis (0x0008) deliberately excludes ground (filter 0x0002); ground contact is handled by manual clamping.
 const COLLISION_GROUP_GROUND = 0x00010002;

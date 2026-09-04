@@ -1867,14 +1867,12 @@ class RapierDriveSimulation {
       }
     });
 
-    const engagedWheelKey =
-      wheelKeys.find(
-        (wheelKey) =>
-          this.wheelClimbEngagedObstacleByKey[wheelKey] ||
-          this.wheelClimbEngagedHoleByKey[wheelKey],
-      ) || null;
-    this.cycloidChartActiveWheelKey =
-      engagedWheelKey || this.cycloidChartActiveWheelKey || wheelKeys[0];
+    // Per the user's request, always chart the FL wheel pod - no more auto-switching to
+    // whichever wheel is currently engaged with an obstacle/hole (previously via
+    // wheelClimbEngagedObstacleByKey/wheelClimbEngagedHoleByKey).
+    this.cycloidChartActiveWheelKey = wheelKeys.includes("fl")
+      ? "fl"
+      : wheelKeys[0] || null;
   }
 
   // Keeps #cycloid-chart-overlay's "bottom" offset pinned to just above

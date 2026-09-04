@@ -2142,12 +2142,22 @@ class RapierDriveSimulation {
       legendEntries.forEach(([key, label], index) => {
         const legendY = legendStartY + legendRowHeight * index;
         const isSeriesVisible = this.cycloidSeriesVisibleByKey[key];
-        // Toggled-off entries dim to a light gray (swatch included) instead of their real
-        // series color, so the legend itself shows which curves are currently hidden.
-        ctx.fillStyle = isSeriesVisible ? this.cycloidChartColors[key] : "#c3c9d1";
+        // Toggled-off entries keep their real swatch/text color (unlike the earlier gray-
+        // dim treatment) - a strikethrough drawn across the label is what marks "off"
+        // instead, per the user's explicit choice of style.
+        ctx.fillStyle = this.cycloidChartColors[key];
         ctx.fillRect(legendSwatchX, legendY - 4, legendSwatchWidth, 6);
-        ctx.fillStyle = isSeriesVisible ? "#334155" : "#adb5bd";
+        ctx.fillStyle = "#334155";
         ctx.fillText(label, legendRightEdge, legendY);
+        if (!isSeriesVisible) {
+          const labelWidth = ctx.measureText(label).width;
+          ctx.strokeStyle = "#334155";
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.moveTo(legendRightEdge - labelWidth, legendY);
+          ctx.lineTo(legendRightEdge, legendY);
+          ctx.stroke();
+        }
         this.cycloidChartLegendHitRects.push({
           key,
           x0: legendSwatchX - 2,

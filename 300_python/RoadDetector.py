@@ -439,6 +439,43 @@ class RoadDetector:
                 RoadDetector._mqtt_last_surface_state_by_context[context] = majority_state
                 RoadDetector._mqtt_last_surface_state_published_at_by_context[context] = now_ts
 
+    def _publish_obstacle_cleared_immediately(
+        self,
+        detect_key,
+        mqtt_publish,
+        context_key,
+        include_obstacle=False,
+    ):
+        """새 비디오 스트리밍 세션을 시작할 때(오버레이에 첫 프레임이 출력되기 직전)
+        호출한다. _publish_obstacle_state_if_needed()의 디바운스/유예 로직을 그대로
+        타면 이전 세션(혹은 같은 파일의 이전 재생)에서 남아있던 장애물 상태가
+        새 영상 첫 프레임 이후에도 한동안 잔류해 보일 수 있으므로, 그 로직을 거치지
+        않고 즉시 "장애물 없음"을 발행하고 해당 컨텍스트의 디바운스 상태를 초기화한다."""
+        if not mqtt_publish:
+            return
+        if self._is_global_stream_stop_requested():
+            return
+
+        key = str(detect_key or "").strip().lower()
+        if key != "obstacle" and not include_obstacle:
+            return
+
+        context = str(context_key or "global")
+        with RoadDetector._mqtt_state_lock:
+            RoadDetector._obstacle_candidate_state_by_context.pop(context, None)
+            RoadDetector._obstacle_candidate_since_by_context.pop(context, None)
+            RoadDetector._obstacle_pending_clear_from_state_by_context.pop(context, None)
+            RoadDetector._obstacle_pending_clear_since_by_context.pop(context, None)
+            RoadDetector._obstacle_appearance_window_start_by_context.pop(context, None)
+            RoadDetector._obstacle_appearance_window_counts_by_context.pop(context, None)
+            RoadDetector._obstacle_appearance_window_total_by_context.pop(context, None)
+
+        enqueued = self._enqueue_mqtt_topic("vehicle/surface/obstacle", 0)
+        if enqueued:
+            with RoadDetector._mqtt_state_lock:
+                RoadDetector._mqtt_last_obstacle_state_by_context[context] = 0
+    pass # _publish_obstacle_cleared_immediately
+
     def _publish_obstacle_state_if_needed(
         self,
         detect_key,
@@ -1168,6 +1205,16 @@ class RoadDetector:
                 int(capture.get(cv2.CAP_PROP_FRAME_HEIGHT)),
             )
         }
+
+        # 오버레이에 이 영상의 첫 프레임이 출력되기 직전 시점 - 이전 세션(또는 같은
+        # 파일의 이전 재생)에서 남아있던 장애물 상태가 새 영상에 잔류해 보이지 않도록
+        # 디바운스를 거치지 않고 즉시 "장애물 없음"을 발행한다.
+        self._publish_obstacle_cleared_immediately(
+            detect_type,
+            mqtt_publish,
+            f"stream:{session_id}",
+            include_obstacle=include_obstacle,
+        )
 
         return {
             'session_id': session_id,

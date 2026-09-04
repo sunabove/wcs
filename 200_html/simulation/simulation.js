@@ -3,6 +3,12 @@ import { ConvexGeometry } from "three/examples/jsm/geometries/ConvexGeometry.js"
 import { LineSegments2 } from "three/examples/jsm/lines/LineSegments2.js";
 import { LineSegmentsGeometry } from "three/examples/jsm/lines/LineSegmentsGeometry.js";
 import { LineMaterial } from "three/examples/jsm/lines/LineMaterial.js";
+// Line2/LineGeometry (continuous-polyline counterparts of LineSegments2/
+// LineSegmentsGeometry above) - used for the cycloid 3D 궤적 (trace)'s constant-pixel-width
+// "fat" lines, since plain THREE.Line + LineBasicMaterial's linewidth is a no-op on most
+// platforms' WebGL implementations (clamped to 1px).
+import { Line2 } from "three/examples/jsm/lines/Line2.js";
+import { LineGeometry } from "three/examples/jsm/lines/LineGeometry.js";
 
 const RAPIER_CDN = "https://cdn.skypack.dev/@dimforge/rapier3d-compat@0.11.2";
 const SIM_SPEED_STORAGE_KEY = "wcs.simulation.driveSpeedMps";
@@ -16,6 +22,10 @@ const SIM_VISUAL_SPEED_MAX_SCALE = 4;
 const SIM_VISUAL_SPEED_SCALES = [1 / 4, 1 / 3, 1 / 2, 1, 2, 3, 4];
 const WHEEL_Z_CHART_INITIAL_HALF_RANGE_CM = 5;
 const WHEEL_Z_CHART_HALF_RANGE_STEP_CM = 1;
+// Constant on-screen pixel width (LineMaterial's worldUnits:false, see
+// ensureCycloidTrace3D()) for the cycloid 3D 궤적 (trace) lines - deliberately thick so the
+// trace reads clearly against the vehicle/ground instead of as a hairline.
+const CYCLOID_TRACE_3D_LINEWIDTH_PX = 4;
 // Chassis (0x0008) deliberately excludes ground (filter 0x0002); ground contact is handled by manual clamping.
 const COLLISION_GROUP_GROUND = 0x00010002;
 const COLLISION_GROUP_WHEEL = 0x00020005;
@@ -610,8 +620,8 @@ class RapierDriveSimulation {
     // { outer:{forward,height}, middle:{forward,height}, inner:{forward,height}|null,
     //   worldOuter:Vector3, worldMiddle:Vector3, worldInner:Vector3|null, spinAngleRad }
     // The world* fields are the same points before their forward/height projection - kept
-    // around for ensureCycloid3DVisualization()/updateCycloid3DVisualization() below,
-    // which trace them as actual 3D line geometry in the URDF viewer's own scene.
+    // around for the cycloid 3D 궤적 (trace) below: ensureCycloidTrace3D()/
+    // updateCycloidTrace3D().
     this.cycloidChartSamplesByKey = {
       fl: [],
       fr: [],
@@ -623,10 +633,22 @@ class RapierDriveSimulation {
       middle: "#0d6efd",
       inner: "#198754",
     };
-    // 3D in-scene trace of the same FL-wheel cycloid the 2D chart shows - see
-    // ensureCycloid3DVisualization()/updateCycloid3DVisualization().
-    this.cycloidChart3DGroup = null;
-    this.cycloidChart3DLinesByKey = { outer: null, middle: null, inner: null };
+    // Per-series (outer/middle/inner) show/hide, toggled by clicking that series' legend
+    // entry in the 2D 챠트 - see handleCycloidChartLegendClick(). Shared by both the 2D
+    // 챠트's drawSeries() and the cycloid 3D 궤적's updateCycloidTrace3D(), and persisted
+    // to localStorage (loadCycloidSeriesVisibleState()/saveCycloidSeriesVisibleState()) so
+    // it survives a page reload.
+    this.cycloidSeriesVisibleStorageKeyPrefix =
+      "wcs.simulation.cycloidSeriesVisible.";
+    this.cycloidSeriesVisibleByKey = this.loadCycloidSeriesVisibleState();
+    // Legend entry click regions (in the 2D 챠트 canvas's own CSS-pixel coordinate space),
+    // recomputed every renderCycloidChart() call - see handleCycloidChartLegendClick().
+    this.cycloidChartLegendHitRects = [];
+    // Cycloid 3D 궤적 (trace) - the same FL-wheel cycloid the 2D 챠트 (chart) above shows,
+    // but as actual 3D line geometry in the URDF viewer's own scene rather than a flat
+    // canvas plot - see ensureCycloidTrace3D()/updateCycloidTrace3D().
+    this.cycloidTrace3DGroup = null;
+    this.cycloidTrace3DLinesByKey = { outer: null, middle: null, inner: null };
   }
 
   kmhToMps(kmh) {
@@ -1515,7 +1537,7 @@ class RapierDriveSimulation {
     title.style.lineHeight = "1.1";
     title.style.textAlign = "center";
     title.style.width = "100%";
-    title.textContent = "Wheel Cycloid";
+    title.textContent = "Wheel Cycloid 2D 챠트";
 
     const toggleButton = document.createElement("button");
     toggleButton.type = "button";
@@ -1604,6 +1626,9 @@ class RapierDriveSimulation {
       event.stopPropagation();
       this.toggleCycloidChartVisible();
     });
+    canvas.addEventListener("click", (event) => {
+      this.handleCycloidChartLegendClick(event);
+    });
 
     this.updateCycloidChartVisibility();
   }
@@ -1640,6 +1665,73 @@ class RapierDriveSimulation {
     } catch (error) {
       // Ignore storage failures in restricted browser modes.
     }
+  }
+
+  loadCycloidSeriesVisibleState() {
+    const defaults = { outer: true, middle: true, inner: true };
+    try {
+      if (typeof window.localStorage === "undefined") {
+        return defaults;
+      }
+
+      Object.keys(defaults).forEach((key) => {
+        const savedValue = window.localStorage.getItem(
+          `${this.cycloidSeriesVisibleStorageKeyPrefix}${key}`,
+        );
+        if (savedValue != null) {
+          defaults[key] = savedValue === "1" || savedValue === "true";
+        }
+      });
+    } catch (error) {
+      // Ignore storage failures in restricted browser modes - defaults (all visible) apply.
+    }
+    return defaults;
+  }
+
+  saveCycloidSeriesVisibleState(key) {
+    try {
+      if (typeof window.localStorage === "undefined") {
+        return;
+      }
+
+      window.localStorage.setItem(
+        `${this.cycloidSeriesVisibleStorageKeyPrefix}${key}`,
+        this.cycloidSeriesVisibleByKey[key] ? "1" : "0",
+      );
+    } catch (error) {
+      // Ignore storage failures in restricted browser modes.
+    }
+  }
+
+  // Toggles one series (outer/middle/inner) off/on across both the 2D 챠트 (drawSeries() in
+  // renderCycloidChart()) and the cycloid 3D 궤적 (updateCycloidTrace3D()) - both read
+  // cycloidSeriesVisibleByKey live every frame, so no explicit re-render is needed here.
+  toggleCycloidSeriesVisible(key) {
+    if (!this.cycloidSeriesVisibleByKey || !(key in this.cycloidSeriesVisibleByKey)) {
+      return;
+    }
+
+    this.cycloidSeriesVisibleByKey[key] = !this.cycloidSeriesVisibleByKey[key];
+    this.saveCycloidSeriesVisibleState(key);
+  }
+
+  // Hit-tests a click on the 2D 챠트 canvas against that frame's legend entry rects (see
+  // renderCycloidChart()'s legend block, which repopulates cycloidChartLegendHitRects every
+  // call) and toggles that series if one was hit. event.offsetX/Y are already in the
+  // canvas's own CSS-pixel space, matching the coordinates used to draw the legend.
+  handleCycloidChartLegendClick(event) {
+    const rects = this.cycloidChartLegendHitRects || [];
+    const hitRect = rects.find(
+      (rect) =>
+        event.offsetX >= rect.x0 &&
+        event.offsetX <= rect.x1 &&
+        event.offsetY >= rect.y0 &&
+        event.offsetY <= rect.y1,
+    );
+    if (!hitRect) {
+      return;
+    }
+    this.toggleCycloidSeriesVisible(hitRect.key);
   }
 
   updateCycloidChartToggleButtonState() {
@@ -1813,8 +1905,8 @@ class RapierDriveSimulation {
       outer: project(wheelRimWorld),
       middle: project(wheelCenterWorld),
       inner: innerPoint,
-      // Unprojected world points behind outer/middle/inner above - see
-      // ensureCycloid3DVisualization()/updateCycloid3DVisualization().
+      // Unprojected world points behind outer/middle/inner above - feeds the cycloid 3D
+      // 궤적 (trace): ensureCycloidTrace3D()/updateCycloidTrace3D().
       worldOuter: wheelRimWorld,
       worldMiddle: wheelCenterWorld,
       worldInner: innerWorld,
@@ -2015,6 +2107,59 @@ class RapierDriveSimulation {
       ctx.textBaseline = "alphabetic";
     };
 
+    // Legend (outer/middle/inner, right-aligned inside the plot's top-right) - shared by
+    // every branch below (including the two "nothing to plot" early-outs), since it must
+    // stay clickable (see handleCycloidChartLegendClick()) whenever the panel is visible at
+    // all, not only once there's a curve on screen - e.g. toggling every series off would
+    // otherwise remove the only way to toggle one back on.
+    const legendEntries = [
+      ["outer", "외부휠"],
+      ["middle", "중간휠"],
+      ["inner", "내부휠"],
+    ];
+    const legendStartY = margin.top + 14;
+    const legendRowHeight = 15;
+    const legendSwatchWidth = 12;
+    const legendSwatchGap = 4;
+    const legendRightEdge = margin.left + plotWidth - 4;
+    const drawLegend = () => {
+      ctx.font = "11px Segoe UI";
+      ctx.textBaseline = "middle";
+      ctx.textAlign = "right";
+      // Swatch column sits one shared distance in from the right edge, sized to the
+      // *widest* label - using each row's own measured width would let the swatch column
+      // position jitter per row instead of lining up.
+      const legendMaxLabelWidth = Math.max(
+        ...legendEntries.map(([, label]) => ctx.measureText(label).width),
+      );
+      const legendSwatchX =
+        legendRightEdge - legendMaxLabelWidth - legendSwatchGap - legendSwatchWidth;
+      // Repopulated every render - see handleCycloidChartLegendClick(), which hit-tests
+      // clicks against these rects to toggle a series. Padded a couple px past the swatch/
+      // text glyph bounds on every side so the click target is comfortably bigger than the
+      // visible glyphs, not a pixel-exact hitbox.
+      this.cycloidChartLegendHitRects = [];
+      legendEntries.forEach(([key, label], index) => {
+        const legendY = legendStartY + legendRowHeight * index;
+        const isSeriesVisible = this.cycloidSeriesVisibleByKey[key];
+        // Toggled-off entries dim to a light gray (swatch included) instead of their real
+        // series color, so the legend itself shows which curves are currently hidden.
+        ctx.fillStyle = isSeriesVisible ? this.cycloidChartColors[key] : "#c3c9d1";
+        ctx.fillRect(legendSwatchX, legendY - 4, legendSwatchWidth, 6);
+        ctx.fillStyle = isSeriesVisible ? "#334155" : "#adb5bd";
+        ctx.fillText(label, legendRightEdge, legendY);
+        this.cycloidChartLegendHitRects.push({
+          key,
+          x0: legendSwatchX - 2,
+          y0: legendY - legendRowHeight / 2,
+          x1: legendRightEdge + 2,
+          y1: legendY + legendRowHeight / 2,
+        });
+      });
+      ctx.textAlign = "left";
+      ctx.textBaseline = "alphabetic";
+    };
+
     const wheelKey = this.cycloidChartActiveWheelKey;
     const samples = wheelKey
       ? this.cycloidChartSamplesByKey[wheelKey] || []
@@ -2026,20 +2171,34 @@ class RapierDriveSimulation {
       // just so the axis chrome (border/ticks) reads the same as the populated chart
       // instead of popping in a bare box.
       drawAxes(0, 0, 0.002);
+      drawLegend();
       return;
     }
 
     // Equal-aspect scaling (one shared meters-per-pixel for both axes) - a cycloid's
     // characteristic loop shape only reads correctly when forward and height aren't
     // stretched by different amounts, unlike the Wheel Bottom Height chart's independent
-    // time/height axes above.
+    // time/height axes above. Only visible (not legend-toggled-off) series feed the fitted
+    // range, so hiding a series rescales the plot to the remaining ones instead of leaving
+    // empty space sized for a curve that isn't being drawn.
+    const visibleSeriesKeys = ["outer", "middle", "inner"].filter(
+      (key) => this.cycloidSeriesVisibleByKey[key],
+    );
     const allPoints = [];
     samples.forEach((sample) => {
-      allPoints.push(sample.outer, sample.middle);
-      if (sample.inner) {
-        allPoints.push(sample.inner);
-      }
+      visibleSeriesKeys.forEach((key) => {
+        if (sample[key]) {
+          allPoints.push(sample[key]);
+        }
+      });
     });
+    if (allPoints.length < 2) {
+      // Every series is toggled off - nothing to fit a range from, but the legend still
+      // needs to be drawn (and stay clickable) so a hidden series can be turned back on.
+      drawAxes(0, 0, 0.002);
+      drawLegend();
+      return;
+    }
     const minForward = Math.min(...allPoints.map((p) => p.forward));
     const maxForward = Math.max(...allPoints.map((p) => p.forward));
     const minHeight = Math.min(...allPoints.map((p) => p.height));
@@ -2092,104 +2251,92 @@ class RapierDriveSimulation {
       }
     };
 
-    drawSeries("middle");
-    drawSeries("inner");
-    drawSeries("outer");
+    if (this.cycloidSeriesVisibleByKey.middle) {
+      drawSeries("middle");
+    }
+    if (this.cycloidSeriesVisibleByKey.inner) {
+      drawSeries("inner");
+    }
+    if (this.cycloidSeriesVisibleByKey.outer) {
+      drawSeries("outer");
+    }
 
     ctx.fillStyle = "#334155";
     ctx.font = "12px Segoe UI";
     ctx.fillText(`${wheelKey.toUpperCase()}`, margin.left + 4, margin.top + 12);
 
-    const legendEntries = [
-      ["outer", "외부휠"],
-      ["middle", "중간휠"],
-      ["inner", "내부휠"],
-    ];
-    const legendStartY = margin.top + 14;
-    const legendRowHeight = 15;
-    const legendSwatchWidth = 12;
-    const legendSwatchGap = 4;
-    const legendRightEdge = margin.left + plotWidth - 4;
-    ctx.font = "11px Segoe UI";
-    ctx.textBaseline = "middle";
-    ctx.textAlign = "right";
-    // Swatch column sits one shared distance in from the right edge, sized to the
-    // *widest* label - using each row's own measured width here (as before) let the
-    // swatch column position jitter per row instead of lining up, which read as "not
-    // really right-aligned" even though every label's own right edge was flush.
-    const legendMaxLabelWidth = Math.max(
-      ...legendEntries.map(([, label]) => ctx.measureText(label).width),
-    );
-    const legendSwatchX =
-      legendRightEdge - legendMaxLabelWidth - legendSwatchGap - legendSwatchWidth;
-    legendEntries.forEach(([key, label], index) => {
-      const legendY = legendStartY + legendRowHeight * index;
-      ctx.fillStyle = this.cycloidChartColors[key];
-      ctx.fillRect(legendSwatchX, legendY - 4, legendSwatchWidth, 6);
-      ctx.fillStyle = "#334155";
-      ctx.fillText(label, legendRightEdge, legendY);
-    });
-    ctx.textAlign = "left";
-    ctx.textBaseline = "alphabetic";
+    drawLegend();
   }
 
-  // Builds the 3D counterpart of the 2D cycloid chart above: three THREE.Line objects
-  // (outer/middle/inner, same colors as cycloidChartColors) added directly to the URDF
-  // viewer's own scene, so the FL wheel pod's traced path shows up as an actual object in
-  // the 3D view instead of only on the flat 2D overlay panel. Each line's geometry is a
-  // single preallocated buffer (cycloidChartMaxSamples vertices) with a live draw range -
-  // same pattern as the yaw-indicator pie/outline in ensureVehicleYawIndicator() - rather
-  // than reallocating a new BufferGeometry every frame.
-  ensureCycloid3DVisualization() {
-    if (this.cycloidChart3DGroup || !this.viewer?.scene) {
+  // Builds the cycloid 3D 궤적 (trace) - the 3D counterpart of the 2D 챠트 (chart) above:
+  // three Line2 "fat lines" (outer/middle/inner, same colors as cycloidChartColors) added
+  // directly to the URDF viewer's own scene, so the FL wheel pod's traced path shows up as
+  // an actual object in the 3D view instead of only on the flat 2D overlay panel. Line2 +
+  // LineGeometry + LineMaterial (not plain THREE.Line + LineBasicMaterial) because
+  // LineBasicMaterial's linewidth is a no-op on most platforms' WebGL implementations
+  // (clamped to 1px) - same "fat line" approach addGroundSurfaceGrid() already uses for the
+  // ground grid, so the trace reads as a visibly thick line instead of a hairline.
+  ensureCycloidTrace3D() {
+    if (this.cycloidTrace3DGroup || !this.viewer?.scene) {
       return;
     }
 
-    const group = new THREE.Group();
-    group.name = "simulation-cycloid-3d";
+    const containerRect = this.viewer.container.getBoundingClientRect();
+    const resolution = new THREE.Vector2(
+      Math.max(containerRect.width, 1),
+      Math.max(containerRect.height, 1),
+    );
 
-    Object.keys(this.cycloidChart3DLinesByKey).forEach((key) => {
-      const geometry = new THREE.BufferGeometry();
-      geometry.setAttribute(
-        "position",
-        new THREE.BufferAttribute(
-          new Float32Array(this.cycloidChartMaxSamples * 3),
-          3,
-        ),
-      );
-      geometry.setDrawRange(0, 0);
-      const line = new THREE.Line(
-        geometry,
-        new THREE.LineBasicMaterial({
-          color: this.cycloidChartColors[key],
-          fog: false,
-          toneMapped: false,
-        }),
-      );
-      // The buffer's own vertex positions are already absolute world coordinates (see
+    const group = new THREE.Group();
+    group.name = "simulation-cycloid-trace-3d";
+
+    Object.keys(this.cycloidTrace3DLinesByKey).forEach((key) => {
+      const geometry = new LineGeometry();
+      // A single degenerate (zero-length) segment as a placeholder - LineGeometry can't be
+      // constructed with no positions at all; updateCycloidTrace3D() replaces this with the
+      // real curve (via setPositions()) as soon as there are >=2 sampled points.
+      geometry.setPositions([0, 0, 0, 0, 0, 0]);
+      const material = new LineMaterial({
+        color: this.cycloidChartColors[key],
+        linewidth: CYCLOID_TRACE_3D_LINEWIDTH_PX,
+        worldUnits: false,
+        resolution,
+        fog: false,
+        toneMapped: false,
+      });
+      const line = new Line2(geometry, material);
+      line.visible = false;
+      // The curve's own vertex positions are already absolute world coordinates (see
       // computeCycloidSample()'s worldOuter/worldMiddle/worldInner) and the group sits at
-      // the scene's own origin/identity below - draw-range-only updates mean three.js's
-      // default frustum-culling sphere (computed once, from whatever was in the buffer at
-      // that time) can't be trusted to track the live curve as it slides forward.
-      line.frustumCulled = false;
-      this.cycloidChart3DLinesByKey[key] = line;
+      // the scene's own origin/identity below - frustum culling is left on here (unlike
+      // the old THREE.Line version) since setPositions() below recomputes a correct
+      // bounding sphere from the live points every call.
+      this.cycloidTrace3DLinesByKey[key] = line;
       group.add(line);
+
+      // Reuses urdfViewer.js's existing resize plumbing (applyContainerResize() keeps
+      // every LineMaterial in this array in sync with the render target size) instead of
+      // standing up a parallel one here - see addGroundSurfaceGrid()'s identical use of it.
+      if (Array.isArray(this.viewer.groundHoleEdgeLineObjects)) {
+        this.viewer.groundHoleEdgeLineObjects.push(line);
+      }
     });
 
-    group.visible = this.isCycloidChartVisible;
-    this.cycloidChart3DGroup = group;
+    // Independent of the 2D 챠트's own show/hide toggle - see updateCycloidTrace3D().
+    group.visible = true;
+    this.cycloidTrace3DGroup = group;
     this.viewer.scene.add(group);
   }
 
-  // Called once per frame after recordCycloidChartSample() (see runLoop()) - copies that
-  // same FL-wheel sample buffer's raw world points into the 3D lines built above.
-  updateCycloid3DVisualization() {
-    if (!this.cycloidChart3DGroup) {
-      return;
-    }
-
-    this.cycloidChart3DGroup.visible = this.isCycloidChartVisible;
-    if (!this.isCycloidChartVisible) {
+  // Called once per frame after recordCycloidChartSample() (see runLoop()) - rebuilds the
+  // cycloid 3D 궤적 (trace) lines built above from that same FL-wheel sample buffer's raw
+  // world points. Deliberately independent of the 2D 챠트's own isCycloidChartVisible
+  // toggle - the 3D trace keeps sampling/showing in the viewer even while the 2D panel is
+  // hidden (per the user's explicit "2D 챠트가 사라져도 [3D는] 표시"), and always runs
+  // (never early-returns on visibility) so a reset's cleared samples show up here on the
+  // very next frame regardless of the 2D panel's toggle state.
+  updateCycloidTrace3D() {
+    if (!this.cycloidTrace3DGroup) {
       return;
     }
 
@@ -2198,24 +2345,36 @@ class RapierDriveSimulation {
       ? this.cycloidChartSamplesByKey[wheelKey] || []
       : [];
 
-    Object.entries(this.cycloidChart3DLinesByKey).forEach(([key, line]) => {
+    Object.entries(this.cycloidTrace3DLinesByKey).forEach(([key, line]) => {
       if (!line) {
         return;
       }
 
+      // Same per-series legend toggle the 2D 챠트's drawSeries() respects - see
+      // handleCycloidChartLegendClick().
+      if (!this.cycloidSeriesVisibleByKey[key]) {
+        line.visible = false;
+        return;
+      }
+
       const worldFieldName = `world${key.charAt(0).toUpperCase()}${key.slice(1)}`;
-      const positions = line.geometry.attributes.position;
-      let vertexCount = 0;
+      const flatPositions = [];
       samples.forEach((sample) => {
         const worldPoint = sample[worldFieldName];
-        if (!worldPoint || vertexCount >= this.cycloidChartMaxSamples) {
+        if (!worldPoint) {
           return;
         }
-        positions.setXYZ(vertexCount, worldPoint.x, worldPoint.y, worldPoint.z);
-        vertexCount += 1;
+        flatPositions.push(worldPoint.x, worldPoint.y, worldPoint.z);
       });
-      positions.needsUpdate = true;
-      line.geometry.setDrawRange(0, vertexCount);
+
+      // LineGeometry needs >=2 points (1 segment) to be valid - hide the line instead of
+      // calling setPositions() with less than that.
+      if (flatPositions.length < 6) {
+        line.visible = false;
+        return;
+      }
+      line.visible = true;
+      line.geometry.setPositions(flatPositions);
     });
   }
 
@@ -10810,7 +10969,7 @@ class RapierDriveSimulation {
       if (this.viewer) {
         this.ensureWheelZChartOverlay();
         this.ensureCycloidChartOverlay();
-        this.ensureCycloid3DVisualization();
+        this.ensureCycloidTrace3D();
       }
 
       if (this.viewer && !this.isReady && !this.hasFailed) {
@@ -10825,7 +10984,7 @@ class RapierDriveSimulation {
       this.renderWheelZChart(this.simulationElapsedSec);
       this.recordCycloidChartSample();
       this.renderCycloidChart();
-      this.updateCycloid3DVisualization();
+      this.updateCycloidTrace3D();
 
       this.updateDebugPanel(this.physicsFixedTimeStepSec);
     } catch (error) {

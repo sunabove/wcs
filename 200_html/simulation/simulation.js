@@ -29,7 +29,7 @@ const CYCLOID_TRACE_3D_LINEWIDTH_PX = 4;
 // World-space radius (meters) of the small sphere marking each cycloid 3D 궤적 series'
 // current (newest) sample - the trace's "기준점" (reference point), sized to read clearly
 // as a distinct dot against the wheel pod without dwarfing it.
-const CYCLOID_TRACE_3D_MARKER_RADIUS_METERS = 0.012;
+const CYCLOID_TRACE_3D_MARKER_RADIUS_METERS = 0.006;
 // Real radial clearance (meters) added to the outer/rim sample point's radius - purely so
 // that point sits just outside the tire's actual physical surface instead of exactly on
 // it. See computeCycloidSample()'s wheelRimWorld for why: with the point sitting exactly
@@ -666,7 +666,11 @@ class RapierDriveSimulation {
     // the reference point ("기준점") for the trace, marked distinctly from the trailing
     // curve itself so it's obvious which end is "now" regardless of how far the tail
     // reaches back - see ensureCycloidTrace3D()/updateCycloidTrace3D().
-    this.cycloidTrace3DMarkersByKey = { outer: null, middle: null, inner: null };
+    this.cycloidTrace3DMarkersByKey = {
+      outer: null,
+      middle: null,
+      inner: null,
+    };
   }
 
   kmhToMps(kmh) {
@@ -1725,7 +1729,10 @@ class RapierDriveSimulation {
   // renderCycloidChart()) and the cycloid 3D 궤적 (updateCycloidTrace3D()) - both read
   // cycloidSeriesVisibleByKey live every frame, so no explicit re-render is needed here.
   toggleCycloidSeriesVisible(key) {
-    if (!this.cycloidSeriesVisibleByKey || !(key in this.cycloidSeriesVisibleByKey)) {
+    if (
+      !this.cycloidSeriesVisibleByKey ||
+      !(key in this.cycloidSeriesVisibleByKey)
+    ) {
       return;
     }
 
@@ -2111,8 +2118,7 @@ class RapierDriveSimulation {
         // the label stays a short, readable "position within the current 1000cm span"
         // instead of an ever-growing absolute number.
         const tickForwardCm = Math.round(tickForward * 100);
-        const wrappedTickForwardCm =
-          ((tickForwardCm % 1000) + 1000) % 1000;
+        const wrappedTickForwardCm = ((tickForwardCm % 1000) + 1000) % 1000;
         ctx.fillText(
           String(wrappedTickForwardCm),
           x,
@@ -2154,7 +2160,10 @@ class RapierDriveSimulation {
         ...legendEntries.map(([, label]) => ctx.measureText(label).width),
       );
       const legendSwatchX =
-        legendRightEdge - legendMaxLabelWidth - legendSwatchGap - legendSwatchWidth;
+        legendRightEdge -
+        legendMaxLabelWidth -
+        legendSwatchGap -
+        legendSwatchWidth;
       // Repopulated every render - see handleCycloidChartLegendClick(), which hit-tests
       // clicks against these rects to toggle a series. Padded a couple px past the swatch/
       // text glyph bounds on every side so the click target is comfortably bigger than the

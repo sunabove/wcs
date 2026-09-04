@@ -107,6 +107,22 @@ class RoadDetector:
     _obstacle_appearance_window_total_by_context = {}
     DEFAULT_OBSTACLE_DURATION_SEC = 0.0
     DEFAULT_OBSTACLE_DURATION_QUALITY_PERCENT = 100.0
+    # 비디오 스트리밍 프리버퍼링(road_detect_stream_init/next) - 프레임을 요청이 오기
+    # 전에 백그라운드 스레드로 미리 읽고 검출/인코딩까지 마쳐 버퍼에 쌓아 둔다.
+    # 예전에는 매 "다음 프레임" HTTP 요청마다 읽기+검출+인코딩을 동기적으로 수행했기
+    # 때문에, 그 처리 시간이 그대로 응답 지연에 더해져 체감 재생 속도가 실제 동영상
+    # fps보다 느려졌다(클라이언트는 다음 요청을 "응답 도착 후 1000/fps ms"에 예약하므로,
+    # 처리 시간이 조금만 있어도 프레임 간 실제 간격이 1000/fps보다 항상 커진다). 이제는
+    # 프로듀서 스레드가 미리 만들어 둔 프레임을 버퍼에서 꺼내기만 하면 되므로, 버퍼가
+    # 마르지 않는 한 응답이 즉시 오고 클라이언트의 fps 기반 타이머가 실제 재생 속도를
+    # 그대로 결정한다. 자세한 내용은 _stream_frame_producer_loop() 참고.
+    STREAM_BUFFER_MAX_FRAMES = 45  # 백프레셔 상한(대략 30fps 기준 1.5초 분량)
+    # road_detect_stream_next()가 다음 프레임을 기다리는 상한 - 정상적인 처리 지연(모델
+    # 최초 로딩 등)은 이보다 훨씬 짧게 끝나므로, 이 시간을 넘기는 것은 프로듀서가 실제로
+    # 멈춰버렸다는 뜻으로 보고 504로 응답한다(자세한 이유는 road_detect_stream_next()의
+    # 주석 참고). 클라이언트 ajax timeout(8초, 100_vehicle_status_overlay.js)보다 넉넉히
+    # 길게 잡아, 클라이언트가 먼저 abort하는 것과 서버가 504를 보내는 것이 뒤섞이지 않게 한다.
+    STREAM_NEXT_FRAME_WAIT_TIMEOUT_SEC = 20.0
     _mqtt_state_lock = threading.Lock()
     _mqtt_publish_queue = deque()
     _mqtt_publish_condition = threading.Condition()
@@ -1162,7 +1178,9 @@ class RoadDetector:
         session_id = file_name
         if session_id in RoadDetector._stream_sessions:
             try:
-                old_capture = RoadDetector._stream_sessions[session_id].get('capture')
+                old_session = RoadDetector._stream_sessions[session_id]
+                self._stop_stream_frame_producer(old_session)
+                old_capture = old_session.get('capture')
                 if old_capture is not None:
                     old_capture.release()
             except Exception as e:
@@ -1203,8 +1221,22 @@ class RoadDetector:
                 input_path,
                 int(capture.get(cv2.CAP_PROP_FRAME_WIDTH)),
                 int(capture.get(cv2.CAP_PROP_FRAME_HEIGHT)),
-            )
+            ),
+            # 프리버퍼링 스트리밍 상태 - _start_stream_frame_producer()/
+            # _stream_frame_producer_loop() 참고. capture_lock/buffer_lock은 세션
+            # 수명 동안 고정된 객체를 계속 재사용한다(seek 시 producer만 재시작).
+            'capture_lock': threading.Lock(),
+            'buffer_lock': threading.Lock(),
+            'frame_buffer': deque(),
+            'produced_index': 0,
+            'generation': 0,
+            'stop_event': threading.Event(),
+            'producer_thread': None,
+            'producer_error': None,
         }
+        RoadDetector._stream_sessions[session_id]['buffer_condition'] = threading.Condition(
+            RoadDetector._stream_sessions[session_id]['buffer_lock']
+        )
 
         # 오버레이에 이 영상의 첫 프레임이 출력되기 직전 시점 - 이전 세션(또는 같은
         # 파일의 이전 재생)에서 남아있던 장애물 상태가 새 영상에 잔류해 보이지 않도록
@@ -1216,6 +1248,8 @@ class RoadDetector:
             include_obstacle=include_obstacle,
         )
 
+        self._start_stream_frame_producer(session_id)
+
         return {
             'session_id': session_id,
             'total_frames': frame_count,
@@ -1224,8 +1258,226 @@ class RoadDetector:
         }
     pass # road_detect_stream_init
 
+    def _start_stream_frame_producer(self, session_id, start_frame_index=None):
+        """세션의 프리버퍼링 프로듀서 스레드를 (재)시작한다. 기존 버퍼는 비우고
+        generation을 올려, 방금 멈춘(또는 아직 멈추는 중인) 이전 스레드가 뒤늦게
+        내놓는 결과물은 _stream_frame_producer_loop()의 generation 검사에서
+        조용히 버려지도록 한다."""
+        session = RoadDetector._stream_sessions.get(session_id)
+        if session is None:
+            return
+
+        buffer_lock = session['buffer_lock']
+        buffer_cv = session['buffer_condition']
+        with buffer_lock:
+            session['generation'] = int(session.get('generation', 0)) + 1
+            generation = session['generation']
+            session['frame_buffer'].clear()
+            session['produced_index'] = int(
+                session.get('frame_index', 0) if start_frame_index is None else start_frame_index
+            )
+            session['producer_error'] = None
+            buffer_cv.notify_all()
+
+        session['stop_event'] = threading.Event()
+
+        thread = threading.Thread(
+            target=self._stream_frame_producer_loop,
+            args=(session_id, generation),
+            daemon=True,
+            name=f"road-stream-producer-{session_id}",
+        )
+        session['producer_thread'] = thread
+        thread.start()
+    pass # _start_stream_frame_producer
+
+    def _stop_stream_frame_producer(self, session, join_timeout=1.5):
+        """세션의 프로듀서 스레드에 중단을 요청하고(락 대기/버퍼 가득 참 대기 중이면
+        즉시 깨워서) 짧게 join을 시도한다. cv2 read() 자체는 중단시킬 수 없으므로
+        join은 최선의 노력일 뿐이며, 실패해도 이후 capture_lock을 통해 안전하게
+        직렬화된다(_stream_frame_producer_loop()의 lock-then-check 순서 참고)."""
+        if not isinstance(session, dict):
+            return
+
+        stop_event = session.get('stop_event')
+        if stop_event is not None:
+            stop_event.set()
+
+        buffer_lock = session.get('buffer_lock')
+        buffer_cv = session.get('buffer_condition')
+        if buffer_lock is not None and buffer_cv is not None:
+            with buffer_lock:
+                buffer_cv.notify_all()
+
+        thread = session.get('producer_thread')
+        if thread is not None and thread.is_alive():
+            thread.join(timeout=join_timeout)
+    pass # _stop_stream_frame_producer
+
+    def _stream_frame_producer_loop(self, session_id, generation):
+        """비디오 스트리밍 세션의 백그라운드 프로듀서. 실제 파일 fps와 같은 속도로
+        재생되도록, 프레임을 요청이 오기 전에 미리 읽고 검출/인코딩까지 마쳐
+        session['frame_buffer']에 쌓아 둔다. road_detect_stream_next()는 이 버퍼에서
+        꺼내기만 하므로, 검출 처리 시간이 매 요청의 응답 지연으로 그대로 더해지던
+        문제가 사라진다. capture_lock으로 감싼 짧은 구간에서만 capture.read()를
+        호출해 road_detect_stream_seek()의 capture.set()과 안전하게 직렬화한다."""
+        session = RoadDetector._stream_sessions.get(session_id)
+        if session is None:
+            return
+
+        stop_event = session['stop_event']
+        buffer_lock = session['buffer_lock']
+        buffer_cv = session['buffer_condition']
+
+        def is_stale():
+            return stop_event.is_set() or session.get('generation') != generation
+
+        try:
+            self._stream_frame_producer_loop_body(session_id, session, is_stale)
+        except Exception as e:
+            # 개별 프레임 처리 실패는 루프 안(아래)에서 이미 흡수한다 - 여기까지
+            # 올라오는 예외는 락/버퍼 처리 자체의 버그 등 정말 예상 못한 상황이므로,
+            # producer_error로 남겨 road_detect_stream_next()가 무한정 기다리지 않고
+            # 진단 가능한 오류로 응답하게 한다.
+            logger.exception("Fatal error in stream producer loop for %s: %s", session_id, e)
+            try:
+                with buffer_lock:
+                    if not is_stale():
+                        session['producer_error'] = str(e)
+                        buffer_cv.notify_all()
+            except Exception:
+                pass
+    pass # _stream_frame_producer_loop
+
+    def _stream_frame_producer_loop_body(self, session_id, session, is_stale):
+        capture_lock = session['capture_lock']
+        buffer_lock = session['buffer_lock']
+        buffer_cv = session['buffer_condition']
+        frame_count = session['frame_count']
+
+        while True:
+            if is_stale():
+                return
+
+            # 버퍼가 가득 차 있으면 소비될 때까지 대기(백프레셔).
+            with buffer_lock:
+                while len(session['frame_buffer']) >= self.STREAM_BUFFER_MAX_FRAMES and not is_stale():
+                    buffer_cv.wait(timeout=0.5)
+                if is_stale():
+                    return
+
+            with capture_lock:
+                if is_stale():
+                    return
+                capture = session['capture']
+                ok, frame = capture.read()
+
+            if not ok or frame is None:
+                with buffer_lock:
+                    if not is_stale():
+                        session['frame_buffer'].append({'end': True})
+                        buffer_cv.notify_all()
+                return
+
+            frame_number = session['produced_index'] + 1
+            frame_b64 = None
+            try:
+                detect_type = session['detect_type']
+                remove_noisy_masks = bool(session.get('remove_noisy_masks', True))
+                show_detect_stats = bool(session.get('show_detect_stats', False))
+                show_time_bar = bool(session.get('show_time_bar', False))
+                show_header = bool(session.get('show_header', True))
+                include_obstacle = bool(session.get('include_obstacle', False))
+                obstacle_conf = float(session.get('obstacle_conf', self.DEFAULT_OBSTACLE_CONF))
+                mqtt_publish = bool(session.get('mqtt_publish', False))
+                obstacle_publish_interval_sec = float(
+                    session.get('obstacle_publish_interval_sec', self.DEFAULT_OBSTACLE_PUBLISH_INTERVAL_SEC)
+                )
+                obstacle_duration_sec = float(
+                    session.get('obstacle_duration_sec', self.DEFAULT_OBSTACLE_DURATION_SEC)
+                )
+                obstacle_duration_quality_percent = float(
+                    session.get('obstacle_duration_quality_percent', self.DEFAULT_OBSTACLE_DURATION_QUALITY_PERCENT)
+                )
+                fps = float(session.get('fps', 20.0) or 20.0)
+                stats_history = session.get('stats_history')
+
+                # Reflect edited ROI immediately during streaming.
+                roi = self._load_or_create_roi(session['input_path'], frame.shape[1], frame.shape[0])
+                session['roi'] = roi
+
+                # 이 세션에서 프레임이 실제로 만들어지는 간격을 측정 - fps(소스 동영상의
+                # 명목 fps)와 달리 검출 처리 시간까지 포함한 실제 처리 속도.
+                actual_output_fps = self._update_session_actual_output_fps(session)
+
+                detected_result = self.detect_road(
+                    frame,
+                    detect_type,
+                    roi=roi,
+                    remove_noisy_masks=remove_noisy_masks,
+                    show_detect_stats=show_detect_stats,
+                    show_time_bar=show_time_bar,
+                    stats_history=stats_history,
+                    frame_number=frame_number,
+                    total_frames=frame_count,
+                    frame_fps=fps,
+                    actual_output_fps=actual_output_fps,
+                    return_info=True,
+                    include_obstacle=include_obstacle,
+                    obstacle_conf=obstacle_conf,
+                    show_header=show_header,
+                )
+                self._publish_surface_state_if_needed(
+                    detect_type,
+                    detected_result.get("stats"),
+                    mqtt_publish,
+                    f"stream:{session_id}",
+                )
+                self._publish_obstacle_state_if_needed(
+                    detect_type,
+                    detected_result.get("stats"),
+                    mqtt_publish,
+                    f"stream:{session_id}",
+                    include_obstacle=include_obstacle,
+                    obstacle_publish_interval_sec=obstacle_publish_interval_sec,
+                    obstacle_duration_sec=obstacle_duration_sec,
+                    obstacle_duration_quality_percent=obstacle_duration_quality_percent,
+                )
+                detected_frame = detected_result["frame"]
+
+                encoded_ok, encoded = cv2.imencode(".jpg", detected_frame, [int(cv2.IMWRITE_JPEG_QUALITY), 85])
+                if not encoded_ok:
+                    raise RuntimeError("Failed to encode frame")
+
+                frame_b64 = base64.b64encode(encoded.tobytes()).decode('utf-8')
+            except Exception as e:
+                # 이 프레임 하나만 건너뛰고 계속 진행한다(기존 동기 처리 시절에도 한
+                # 프레임의 예외가 스트림 전체를 끝내지는 않았다) - 특히 300_ai_road.js의
+                # playFrameStream()은 frame이 비어 있으면 곧장 세션을 정리해버리므로,
+                # 여기서 스레드를 완전히 멈추면 그 한 번의 실패로 스트림 전체가 죽는다.
+                logger.exception("Error producing stream frame for %s: %s", session_id, e)
+
+            with buffer_lock:
+                if is_stale():
+                    return
+                session['produced_index'] = frame_number
+                if frame_b64 is not None:
+                    session['frame_buffer'].append({
+                        'frame_number': frame_number,
+                        'frame_b64': frame_b64,
+                        'has_next': frame_number < frame_count,
+                    })
+                    buffer_cv.notify_all()
+
+            if frame_number >= frame_count:
+                return
+    pass # _stream_frame_producer_loop
+
     def road_detect_stream_next(self, file_name: str) -> dict:
-        """다음 프레임 반환 (JSON 형식)"""
+        """버퍼에 미리 준비된 다음 프레임을 반환한다(JSON 형식). 실제 읽기/검출/
+        인코딩은 _stream_frame_producer_loop()가 백그라운드에서 미리 수행해 두므로,
+        버퍼가 마르지 않는 한 이 호출은 거의 즉시 반환되고 클라이언트의 fps 기반
+        타이머가 실제 재생 속도를 그대로 결정한다."""
         session_id = file_name
         if session_id not in RoadDetector._stream_sessions:
             # 세션이 없으면 종료 신호 반환
@@ -1237,104 +1489,72 @@ class RoadDetector:
                 'error': 'Session not found'
             }
 
+        session = RoadDetector._stream_sessions[session_id]
         try:
-            session = RoadDetector._stream_sessions[session_id]
-            capture = session['capture']
-            detect_type = session['detect_type']
-            include_obstacle = bool(session.get('include_obstacle', False))
-            obstacle_conf = float(session.get('obstacle_conf', self.DEFAULT_OBSTACLE_CONF))
-            obstacle_publish_interval_sec = float(
-                session.get('obstacle_publish_interval_sec', self.DEFAULT_OBSTACLE_PUBLISH_INTERVAL_SEC)
-            )
-            obstacle_duration_sec = float(
-                session.get('obstacle_duration_sec', self.DEFAULT_OBSTACLE_DURATION_SEC)
-            )
-            obstacle_duration_quality_percent = float(
-                session.get('obstacle_duration_quality_percent', self.DEFAULT_OBSTACLE_DURATION_QUALITY_PERCENT)
-            )
-            remove_noisy_masks = bool(session.get('remove_noisy_masks', True))
-            show_detect_stats = bool(session.get('show_detect_stats', False))
-            show_time_bar = bool(session.get('show_time_bar', False))
-            show_header = bool(session.get('show_header', True))
-            mqtt_publish = bool(session.get('mqtt_publish', False))
-            frame_index = session['frame_index']
+            buffer_lock = session['buffer_lock']
+            buffer_cv = session['buffer_condition']
+            frame_buffer = session['frame_buffer']
             frame_count = session['frame_count']
+            # 소스 동영상의 명목 fps - road_detect_stream_init()이 세션에 저장해 둔 값을
+            # 그대로 매 응답에 실어 보낸다. 클라이언트(100_vehicle_status_overlay.js의
+            # requestRoadFileOverlayNextFrame)는 이 값으로 다음 프레임 요청 간격을
+            # 계산하므로, 이 필드가 빠지면 실제 영상 fps와 무관하게 하드코딩된 기본
+            # 간격(80ms)으로만 재생되어 버린다.
             fps = float(session.get('fps', 20.0) or 20.0)
-            roi = session.get('roi')
-            stats_history = session.get('stats_history')
-            # 이 세션의 "다음 프레임" 요청 간 실제 간격을 측정 - 위 fps(소스 동영상의 명목
-            # fps)와 달리 검출 처리 시간까지 포함한 실제 출력 속도.
-            actual_output_fps = self._update_session_actual_output_fps(session)
 
-            ok, frame = capture.read()
-            if not ok:
-                # 마지막 프레임
+            with buffer_lock:
+                # 기존(동기 처리) 시절과 같은 계약을 유지한다: 이 호출은 실제 프레임을
+                # 손에 넣거나 진짜로 스트림이 끝났다는 것을 확인할 때까지 블로킹한다.
+                # 호출자 중 300_ai_road.js의 playFrameStream()은 has_next를 보지 않고
+                # "frame이 비어 있으면 스트림 종료"로 취급해 세션을 정리해버리므로,
+                # "아직 준비 안 됨" 같은 임시 상태를 frame:None으로 반환하면 안 된다.
+                # STREAM_NEXT_FRAME_WAIT_TIMEOUT_SEC은 프로듀서가 정말 멈춰버린 경우를
+                # 위한 안전장치일 뿐이다 - 정상적인 처리 지연은 이 안에서 흡수된다.
+                deadline = time.monotonic() + self.STREAM_NEXT_FRAME_WAIT_TIMEOUT_SEC
+                while not frame_buffer and not session.get('producer_error'):
+                    remaining = deadline - time.monotonic()
+                    if remaining <= 0:
+                        break
+                    buffer_cv.wait(timeout=remaining)
+
+                if not frame_buffer:
+                    producer_error = session.get('producer_error')
+                    session['producer_error'] = None
+                    if producer_error:
+                        raise HTTPException(
+                            status_code=500,
+                            detail=f"Stream processing error: {producer_error}",
+                        )
+                    raise HTTPException(
+                        status_code=504,
+                        detail="Timed out waiting for the next stream frame",
+                    )
+
+                item = frame_buffer.popleft()
+                buffer_cv.notify_all()
+
+            if item.get('end'):
+                session['frame_index'] = frame_count
                 return {
                     'has_next': False,
-                    'frame_number': frame_index,
+                    'frame_number': frame_count,
                     'total_frames': frame_count,
-                    'frame': None
+                    'frame': None,
+                    'fps': fps,
                 }
 
-            # Reflect edited ROI immediately during streaming.
-            roi = self._load_or_create_roi(session['input_path'], frame.shape[1], frame.shape[0])
-            session['roi'] = roi
-
-            # 프레임 감지 처리
-            detected_result = self.detect_road(
-                frame,
-                detect_type,
-                roi=roi,
-                remove_noisy_masks=remove_noisy_masks,
-                show_detect_stats=show_detect_stats,
-                show_time_bar=show_time_bar,
-                stats_history=stats_history,
-                frame_number=frame_index + 1,
-                total_frames=frame_count,
-                frame_fps=fps,
-                actual_output_fps=actual_output_fps,
-                return_info=True,
-                include_obstacle=include_obstacle,
-                obstacle_conf=obstacle_conf,
-                show_header=show_header,
-            )
-            self._publish_surface_state_if_needed(
-                detect_type,
-                detected_result.get("stats"),
-                mqtt_publish,
-                f"stream:{session_id}",
-            )
-            self._publish_obstacle_state_if_needed(
-                detect_type,
-                detected_result.get("stats"),
-                mqtt_publish,
-                f"stream:{session_id}",
-                include_obstacle=include_obstacle,
-                obstacle_publish_interval_sec=obstacle_publish_interval_sec,
-                obstacle_duration_sec=obstacle_duration_sec,
-                obstacle_duration_quality_percent=obstacle_duration_quality_percent,
-            )
-            detected_frame = detected_result["frame"]
-
-            # JPEG로 인코딩
-            encoded_ok, encoded = cv2.imencode(".jpg", detected_frame, [int(cv2.IMWRITE_JPEG_QUALITY), 85])
-            if not encoded_ok:
-                raise HTTPException(status_code=500, detail="Failed to encode frame")
-
-            # Base64 인코딩
-            frame_bytes = encoded.tobytes()
-            frame_b64 = base64.b64encode(frame_bytes).decode('utf-8')
-
-            # 세션 업데이트
-            session['frame_index'] = frame_index + 1
+            session['frame_index'] = item['frame_number']
 
             return {
-                'has_next': session['frame_index'] < frame_count,
-                'frame_number': frame_index + 1,
+                'has_next': item['has_next'],
+                'frame_number': item['frame_number'],
                 'total_frames': frame_count,
-                'frame': frame_b64,
-                'detect_type': detect_type,
+                'frame': item['frame_b64'],
+                'detect_type': session.get('detect_type'),
+                'fps': fps,
             }
+        except HTTPException:
+            raise
         except Exception as e:
             logger.exception("Error in road_detect_stream_next: %s", e)
             raise HTTPException(status_code=500, detail=f"Stream processing error: {e}")
@@ -1347,6 +1567,11 @@ class RoadDetector:
             raise HTTPException(status_code=404, detail="Session not found")
 
         session = RoadDetector._stream_sessions[session_id]
+
+        # capture.set()과 프로듀서의 capture.read()가 겹치지 않도록, 먼저 프로듀서를
+        # 멈춘다(최선 노력 join - 그래도 안전한 이유는 capture_lock 참고).
+        self._stop_stream_frame_producer(session)
+
         capture = session['capture']
         frame_count = int(session.get('frame_count', 0))
         if frame_count <= 0:
@@ -1355,11 +1580,15 @@ class RoadDetector:
         target_frame = max(1, min(int(frame_number), frame_count))
         zero_based_index = target_frame - 1
 
-        if not capture.set(cv2.CAP_PROP_POS_FRAMES, zero_based_index):
-            raise HTTPException(status_code=500, detail="Failed to seek frame")
+        capture_lock = session['capture_lock']
+        with capture_lock:
+            if not capture.set(cv2.CAP_PROP_POS_FRAMES, zero_based_index):
+                raise HTTPException(status_code=500, detail="Failed to seek frame")
 
         session['frame_index'] = zero_based_index
         session['stats_history'] = []
+
+        self._start_stream_frame_producer(session_id, start_frame_index=zero_based_index)
 
         return {
             'session_id': session_id,
@@ -1382,7 +1611,7 @@ class RoadDetector:
         with RoadDetector._legacy_stream_stop_lock:
             for stop_key in stop_key_candidates:
                 RoadDetector._legacy_stream_stop_requested_by_key[stop_key] = True
-        
+
         # 세션이 없으면 이미 정리된 것
         if session_id not in RoadDetector._stream_sessions:
             return {
@@ -1392,11 +1621,12 @@ class RoadDetector:
 
         try:
             session = RoadDetector._stream_sessions[session_id]
+            self._stop_stream_frame_producer(session)
             if 'capture' in session and session['capture'] is not None:
                 session['capture'].release()
         except Exception as e:
             logger.warning("Error releasing capture for %s: %s", session_id, e)
-        
+
         try:
             del RoadDetector._stream_sessions[session_id]
         except KeyError:
@@ -1421,6 +1651,8 @@ class RoadDetector:
 
         for session_id, session in list(RoadDetector._stream_sessions.items()):
             try:
+                if isinstance(session, dict):
+                    self._stop_stream_frame_producer(session)
                 capture = session.get('capture') if isinstance(session, dict) else None
                 if capture is not None:
                     capture.release()

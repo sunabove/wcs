@@ -2364,6 +2364,18 @@ class RapierDriveSimulation {
         resolution,
         fog: false,
         toneMapped: false,
+        // transparent:true + opacity:1 (not fully opaque, despite the color being 100%
+        // solid): three.js renders its entire opaque list before its entire transparent
+        // list, regardless of renderOrder - renderOrder only breaks ties *within* whichever
+        // list an object landed in. The ground layer is itself transparent:true (see
+        // addGroundSurfaceGrid()'s identical fix/comment for its grid), so an opaque trace
+        // here always got drawn first and then painted over by the ground's own alpha
+        // blending on top of it, which is exactly the "trace blends into the ground color"
+        // bug this was reported as. Staying in the transparent list (at opacity:1, so the
+        // color itself is still fully solid/undiluted) lets renderOrder below (5, higher
+        // than the ground grid's 2 and the ground layer's own 1) actually put it after them.
+        transparent: true,
+        opacity: 1,
         // depthTest:false so the trace stays visible even while the wheel pod has rotated
         // it to the far side, or the leg mechanism is genuinely between it and the camera -
         // per the user's explicit call ("항상 보이도록"): this is a diagnostic/analysis
@@ -2400,6 +2412,10 @@ class RapierDriveSimulation {
           color: this.cycloidChartColors[key],
           fog: false,
           toneMapped: false,
+          // Same transparent:true/opacity:1 fix as the line material above, and for the
+          // same reason - see its comment.
+          transparent: true,
+          opacity: 1,
           depthTest: false,
           depthWrite: false,
         }),

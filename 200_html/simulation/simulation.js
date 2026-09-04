@@ -1926,11 +1926,13 @@ class RapierDriveSimulation {
       ? this.cycloidChartSamplesByKey[wheelKey] || []
       : [];
     if (!wheelKey || samples.length < 2) {
-      ctx.fillStyle = "#9aa5b1";
-      ctx.font = "12px Segoe UI";
-      ctx.textAlign = "center";
-      ctx.fillText("샘플 수집 중...", width / 2, margin.top + plotHeight / 2);
-      ctx.textAlign = "left";
+      // Not enough samples yet to plot a curve - show the plot area's bare outline (no
+      // axes/ticks, since there's no data yet to derive a range from) instead of a "샘플
+      // 수집 중..." placeholder message, so the panel reads as "empty chart" rather than
+      // popping in a block of text where the chart will be.
+      ctx.strokeStyle = "#495057";
+      ctx.lineWidth = 1.2;
+      ctx.strokeRect(margin.left, margin.top, plotWidth, plotHeight);
       return;
     }
 

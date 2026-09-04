@@ -2392,22 +2392,21 @@ class RapierDriveSimulation {
       group.add(line);
 
       // The "기준점" marker - a small solid sphere at this series' current (newest)
-      // sample, positioned every frame in updateCycloidTrace3D(). Normal depth test/write
-      // here too (see the line material's comment above for why depthTest:false was
-      // dropped) - a real polygonOffset nudge instead, which works correctly since this is
-      // an actual triangle mesh.
+      // sample, positioned every frame in updateCycloidTrace3D(). Same always-on-top
+      // depthTest:false/depthWrite:false treatment as the line above and for the same
+      // reason - see its comment.
       const marker = new THREE.Mesh(
         markerGeometry,
         new THREE.MeshBasicMaterial({
           color: this.cycloidChartColors[key],
           fog: false,
           toneMapped: false,
-          polygonOffset: true,
-          polygonOffsetFactor: -3,
-          polygonOffsetUnits: -3,
+          depthTest: false,
+          depthWrite: false,
         }),
       );
       marker.visible = false;
+      // Higher than the line's renderOrder so it wins any draw-order tie against it.
       marker.renderOrder = 6;
       this.cycloidTrace3DMarkersByKey[key] = marker;
       group.add(marker);

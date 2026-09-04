@@ -1917,7 +1917,7 @@ class RapierDriveSimulation {
     ctx.fillStyle = "#ffffff";
     ctx.fillRect(0, 0, width, height);
 
-    const margin = { left: 34, right: 12, top: 12, bottom: 22 };
+    const margin = { left: 34, right: 12, top: 12, bottom: 26 };
     const plotWidth = width - margin.left - margin.right;
     const plotHeight = height - margin.top - margin.bottom;
 

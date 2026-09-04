@@ -1590,11 +1590,14 @@ $(document).ready(function () {
     $thumbnailScroll.appendTo($wcsSampleVideoPane);
   }
 
+  // leafOnly:true - each call site below labels one folder *button* in the current
+  // directory's listing (see the sample-folder-item loop), so it should show only that
+  // folder's own name, not the full path down from baseFolder through its parents.
   const buildFolderLabel =
     typeof window.wcsBuildFolderLabel === "function"
       ? function (baseFolder, folderPath) {
           return window.wcsBuildFolderLabel(baseFolder, folderPath, {
-            leafOnly: false,
+            leafOnly: true,
             defaultLabel: "기본 폴더",
           });
         }
@@ -1603,7 +1606,12 @@ $(document).ready(function () {
           if (normalized === baseFolder) {
             return "기본 폴더";
           }
-          return normalized.replace(new RegExp("^" + baseFolder + "/?"), "");
+          const relative = normalized.replace(
+            new RegExp("^" + baseFolder + "/?"),
+            "",
+          );
+          const parts = relative.split("/").filter(Boolean);
+          return parts.length > 0 ? parts[parts.length - 1] : relative;
         };
 
   const buildSampleBrowserHeader =

@@ -122,6 +122,16 @@ async def sample_data_browser_service(folder_name: str):
 pass # sample_data_browser_service
 
 
+@router.delete("/sample_file")
+async def sample_data_delete_service(
+    file_name: str = Query(...),
+):
+    from sample_data_file_name_list import delete_sample_file
+
+    return delete_sample_file(file_name)
+pass # sample_data_delete_service
+
+
 @router.get("/camera/devices")
 async def camera_devices_service(
     max_devices: int = Query(10, ge=1, le=32)

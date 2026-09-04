@@ -115,3 +115,39 @@ def sample_data_browser_list(folder_name: str) -> dict:
         "files": files,
     }
 pass # sample_data_browser_list
+
+
+def delete_sample_file(file_name: str) -> dict:
+    # file_name is whatever sample_data_browser_list()/sample_data_file_name_list() above
+    # returned (e.g. "samples/video/cobot/foo.mp4") - accept that "samples/" prefix, but
+    # also a bare "video/cobot/foo.mp4" for robustness.
+    normalized = str(file_name or "").strip().replace("\\", "/")
+    if normalized.startswith("samples/"):
+        normalized = normalized[len("samples/"):]
+    if not normalized or normalized in {".", ".."}:
+        raise HTTPException(status_code=400, detail="Invalid file name")
+
+    samples_path, target_path = _resolve_target_path(normalized)
+
+    if not target_path.is_file():
+        raise HTTPException(status_code=404, detail="Sample file not found")
+
+    deleted_names = []
+
+    def remove_file(path):
+        if path.is_file() or path.is_symlink():
+            path.unlink(missing_ok=True)
+            deleted_names.append(path.relative_to(samples_path).as_posix())
+
+    remove_file(target_path)
+    # A transcoded .playable.mp4 sibling get_browser_playable_video_url() (send_image.py)
+    # may have created next to a non-mp4/m4v/webm source - clean that up too, same as
+    # Sam2VideoService.delete_uploaded_video() does for its own uploaded videos.
+    remove_file(target_path.with_name(f"{target_path.stem}.playable.mp4"))
+
+    return {
+        "file_name": f"samples/{normalized}",
+        "deleted": True,
+        "deleted_count": len(deleted_names),
+    }
+pass # delete_sample_file

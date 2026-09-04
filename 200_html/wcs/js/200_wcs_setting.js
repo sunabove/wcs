@@ -1447,6 +1447,13 @@ $(document).ready(function () {
     return "/fast/upload_image";
   }
 
+  // DELETE /fast/sample_file?file_name=... (300_python/RoadDetectService.py ->
+  // sample_data_file_name_list.delete_sample_file()) - file_name is exactly the value the
+  // browser/thumbnail listing already returns (e.g. "samples/video/cobot/foo.mp4").
+  function buildSampleFileDeleteUrl(fileName) {
+    return "/fast/sample_file?file_name=" + encodeURIComponent(fileName);
+  }
+
   // ---- 동영상 업로드 타일 (500_ai_sam2.html의 #sam2-drop-zone과 같은 클릭/드래그 UI) ----
   // 매 목록 재렌더링(wcsRenderSampleVideoThumbnails()의 $pane.empty())마다 새로 만들지
   // 않고, 한 번 만든 노드를 .sample-thumbnail-track의 첫 자리로 "이동"시켜 붙인다(복제가
@@ -1659,6 +1666,41 @@ $(document).ready(function () {
       $wcsSampleVideoPane.append($scrollContainer);
     }
     $track.prepend($tile);
+  }
+
+  // 샘플 동영상 탭에서 우클릭(contextmenu)으로 삭제 - 사용자 확인 후 DELETE 요청을 보내고,
+  // 삭제된 동영상이 현재 선택된 동영상이었다면 선택을 해제한 뒤 현재 폴더 목록을 새로고침.
+  async function deleteSampleVideoFile(fileName) {
+    try {
+      const response = await fetch(buildSampleFileDeleteUrl(fileName), {
+        method: "DELETE",
+      });
+
+      if (!response.ok) {
+        let message = "삭제 실패 (" + response.status + ")";
+        try {
+          const body = await response.json();
+          if (body && body.detail) {
+            message = String(body.detail);
+          }
+        } catch (_ignore) {
+          // Keep default message.
+        }
+        window.alert(message);
+        return;
+      }
+
+      if (normalizePath(currentVideoFileName) === normalizePath(fileName)) {
+        currentVideoFileName = "";
+        applyCurrentVideoHighlight();
+        saveCurrentVideoSelectionToStorage("");
+        sendMQTTMessage("vehicle/current_video/file_name", "");
+      }
+
+      loadSampleVideos(sampleVideoBrowserPath, sampleVideoShowAllFiles);
+    } catch (_error) {
+      window.alert("삭제 중 네트워크 오류가 발생했습니다.");
+    }
   }
 
   const buildSamplesUrl =
@@ -2690,6 +2732,22 @@ $(document).ready(function () {
       );
       showVideoPublishToast(Boolean(published), selectedVideoFileName, this);
     }
+  });
+
+  $wcsSampleVideoPane.on("contextmenu", ".sample-video-item", function (event) {
+    event.preventDefault();
+
+    const fileName = String($(this).attr("data-file-name") || "").trim();
+    if (!fileName) {
+      return;
+    }
+
+    const label = fileName.split("/").pop() || fileName;
+    if (!window.confirm(`'${label}' 동영상을 삭제하시겠습니까?`)) {
+      return;
+    }
+
+    void deleteSampleVideoFile(fileName);
   });
 
   $wcsSampleVideoPane.on("click", ".sample-folder-item", function () {

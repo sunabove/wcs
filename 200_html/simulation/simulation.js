@@ -2303,9 +2303,24 @@ class RapierDriveSimulation {
         resolution,
         fog: false,
         toneMapped: false,
+        // The outer/middle/inner trace points sit essentially ON or inside the wheel
+        // pod's own opaque geometry (outer = literally the tire rim surface) - confirmed
+        // in-browser that with normal depth testing the wheel mesh fully occludes/
+        // z-fights the trace out of visibility every frame, not just at grazing angles.
+        // depthTest:false makes the trace always draw on top instead (this is a
+        // diagnostic overlay, not a physically-embedded object, so "always visible"
+        // is the correct behavior here - unlike e.g. the yaw indicator pie, which
+        // legitimately sits in open air above the roof and should be occludable);
+        // depthWrite:false alongside it so the trace can't itself punch holes in
+        // later-drawn opaque geometry's depth buffer.
+        depthTest: false,
+        depthWrite: false,
       });
       const line = new Line2(geometry, material);
       line.visible = false;
+      // Draw after the ground grid (renderOrder 2) and everything opaque (default 0), so
+      // the always-on-top depthTest:false above doesn't fight draw-order ties with them.
+      line.renderOrder = 5;
       // The curve's own vertex positions are already absolute world coordinates (see
       // computeCycloidSample()'s worldOuter/worldMiddle/worldInner) and the group sits at
       // the scene's own origin/identity below - frustum culling is left on here (unlike
@@ -10959,7 +10974,6 @@ class RapierDriveSimulation {
 
   async runLoop() {
     try {
-      globalThis.__debugSim = this;
       // If command APIs are bound after this module starts, retry hook installation.
       this.installDriveCommandHooks();
 

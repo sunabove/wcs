@@ -1955,9 +1955,12 @@ class RapierDriveSimulation {
   // cycloidChartActiveWheelKey's comment) never touches any buffer, so a bump/pothole
   // event can never show up as the chart resetting; it can only ever change *which*
   // already-continuous curve is being displayed. Each wheel's own buffer is windowed to
-  // its outer wheel's *last full revolution* (2*PI of spinAngleRad, not a fixed sample
-  // count or time span) so the displayed shape is always exactly "one outer-wheel rotation
-  // period" per the user's request, continuously sliding forward as that wheel turns.
+  // its outer wheel's *last 1.5 revolutions* (3*PI of spinAngleRad, not a fixed sample
+  // count or time span), per the user's explicit request that the cycloid 3D 궤적 always
+  // keep 1.5 revolutions of history. The 2D 챠트 still only *displays* the most recent 1
+  // revolution of that - see its own windowing in renderCycloidChart() - so this buffer is
+  // sized for whichever consumer needs the longer history, not a change to the 2D chart's
+  // own displayed span.
   recordCycloidChartSample() {
     if (!this.viewer || !this.body) {
       return;
@@ -1992,7 +1995,8 @@ class RapierDriveSimulation {
         while (
           samples.length > 2 &&
           Number.isFinite(samples[0].spinAngleRad) &&
-          Math.abs(sample.spinAngleRad - samples[0].spinAngleRad) > Math.PI * 2
+          // 1.5 revolutions (3*PI), not 1 (2*PI) - see this method's own comment above.
+          Math.abs(sample.spinAngleRad - samples[0].spinAngleRad) > Math.PI * 3
         ) {
           samples.shift();
         }
@@ -2206,9 +2210,24 @@ class RapierDriveSimulation {
     };
 
     const wheelKey = this.cycloidChartActiveWheelKey;
-    const samples = wheelKey
+    const fullBufferSamples = wheelKey
       ? this.cycloidChartSamplesByKey[wheelKey] || []
       : [];
+    // The shared buffer now retains 1.5 revolutions (see recordCycloidChartSample()'s
+    // comment) for the cycloid 3D 궤적's benefit, but the 2D 챠트 itself still only ever
+    // displays the most recent 1 - windowed back down here rather than changing what's
+    // actually stored.
+    const newestSpinAngleRad =
+      fullBufferSamples.length > 0
+        ? fullBufferSamples[fullBufferSamples.length - 1].spinAngleRad
+        : null;
+    const samples = Number.isFinite(newestSpinAngleRad)
+      ? fullBufferSamples.filter(
+          (sample) =>
+            !Number.isFinite(sample.spinAngleRad) ||
+            Math.abs(newestSpinAngleRad - sample.spinAngleRad) <= Math.PI * 2,
+        )
+      : fullBufferSamples;
     if (!wheelKey || samples.length < 2) {
       // Not enough samples yet to plot a curve - there's no real data to derive a
       // forward/height range from, so fall back to a placeholder +/- range centered on 0

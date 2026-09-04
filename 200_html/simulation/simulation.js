@@ -645,6 +645,18 @@ class RapierDriveSimulation {
       rl: [],
       rr: [],
     };
+    // Self-calibrated per-wheel radius used by computeCycloidSample() for the "outer" rim
+    // point, instead of trusting wheelRadiusMetersByKey/wheelEffectiveRadiusMeters as-is -
+    // see computeCycloidSample()'s own comment for why. null until the first flat-ground
+    // measurement; never reset by anything short of a full page reload (a wheel's physical
+    // radius doesn't change mid-session, so unlike cycloidChartSamplesByKey above there's
+    // no reason to clear this on resetSimulation()).
+    this.cycloidWheelRadiusMetersByKey = {
+      fl: null,
+      fr: null,
+      rl: null,
+      rr: null,
+    };
     // Running (never windowed/evicted) min/max height per wheel, across all samples ever
     // recorded for it since the last resetSimulation() - unlike cycloidChartSamplesByKey
     // above (which only keeps the last 1.5 revolutions), this never shrinks back down as
@@ -1907,20 +1919,57 @@ class RapierDriveSimulation {
       height: worldPoint.z - groundZ,
     });
 
+    const wheelCenterWorld = wheelLink.getWorldPosition(new THREE.Vector3());
+
+    // wheelRadiusMetersByKey (mesh-derived via extractWheelRadiusMetersFromLink()) and
+    // wheelEffectiveRadiusMeters (a driving-dynamics constant, not a per-wheel geometric
+    // measurement) can both be missing or slightly off for this wheel's actual mesh - the
+    // extraction only recognizes a plain THREE.CylinderGeometry child, which this wheel's
+    // real mesh may not be, silently leaving wheelRadiusMetersByKey[wheelKey] unset
+    // forever. Using either as-is for the "outer" rim point's radius let it land a
+    // centimeter or so past the true tire surface, which for a wheel resting on flat
+    // ground (radius = center height above ground, by definition, at the bottom of its
+    // rotation) meant the rim point's traced circle dipped *below* ground - the "reference
+    // point isn't tangent to the wheel's own outer circumference" bug this was reported
+    // as. Self-calibrate instead: while confirmed driving on flat, unobstructed ground,
+    // the wheel center's live height above ground *is* the true radius, so measure and
+    // cache it here; hold the last cached value while over an obstacle/hole, where the
+    // live height reflects the terrain the wheel is currently riding over, not its own
+    // fixed physical radius.
+    if (!this.isVehicleOverHoleRegion() && !this.isObstacleTraversalActive()) {
+      const measuredRadiusMeters = wheelCenterWorld.z - groundZ;
+      if (Number.isFinite(measuredRadiusMeters) && measuredRadiusMeters > 0.02) {
+        this.cycloidWheelRadiusMetersByKey[wheelKey] = measuredRadiusMeters;
+      }
+    }
+
     const wheelRadiusMeters = Math.max(
-      Number(this.wheelRadiusMetersByKey[wheelKey]) ||
+      Number(this.cycloidWheelRadiusMetersByKey[wheelKey]) ||
+        Number(this.wheelRadiusMetersByKey[wheelKey]) ||
         Number(this.wheelEffectiveRadiusMeters) ||
         0.16,
       0.05,
     );
-    const wheelCenterWorld = wheelLink.getWorldPosition(new THREE.Vector3());
     // See CYCLOID_OUTER_RIM_CLEARANCE_METERS's comment above - a few mm past the tire's
     // real radius, not the exact radius, so the cycloid 3D 궤적's rim point clears the
-    // tire mesh's own surface instead of sitting exactly on it.
+    // tire mesh's own surface instead of sitting exactly on it. Deliberately kept separate
+    // from wheelRimWorldTrue below - this offset is a 3D-view-only anti-z-fighting nudge,
+    // not part of the wheel's real geometry, so it must not leak into the 2D 챠트's plotted
+    // "outer" height (which is what wheelRimWorldTrue is for) or every revolution would
+    // show the outer curve dipping CYCLOID_OUTER_RIM_CLEARANCE_METERS below 0 on flat
+    // ground even with wheelRadiusMeters itself now correctly calibrated above.
     const wheelRimWorld = new THREE.Vector3(
       0,
       0,
       wheelRadiusMeters + CYCLOID_OUTER_RIM_CLEARANCE_METERS,
+    ).applyMatrix4(wheelLink.matrixWorld);
+    // The 2D 챠트's "outer" series reads this one instead - sitting exactly on the tire's
+    // true (calibrated) radius, so it's tangent to the ground at the bottom of each
+    // revolution rather than offset by the 3D view's clearance margin.
+    const wheelRimWorldTrue = new THREE.Vector3(
+      0,
+      0,
+      wheelRadiusMeters,
     ).applyMatrix4(wheelLink.matrixWorld);
 
     let innerPoint = null;
@@ -1948,11 +1997,14 @@ class RapierDriveSimulation {
     const spinAngleRad = Number(viewer.wheelAngles?.[wheelKey]);
 
     return {
-      outer: project(wheelRimWorld),
+      // wheelRimWorldTrue (no clearance offset), not wheelRimWorld - see its own comment.
+      outer: project(wheelRimWorldTrue),
       middle: project(wheelCenterWorld),
       inner: innerPoint,
       // Unprojected world points behind outer/middle/inner above - feeds the cycloid 3D
-      // 궤적 (trace): ensureCycloidTrace3D()/updateCycloidTrace3D().
+      // 궤적 (trace): ensureCycloidTrace3D()/updateCycloidTrace3D(). worldOuter keeps the
+      // clearance offset (wheelRimWorld, not wheelRimWorldTrue) since the 3D trace still
+      // needs it to clear the tire mesh's own surface.
       worldOuter: wheelRimWorld,
       worldMiddle: wheelCenterWorld,
       worldInner: innerWorld,
@@ -11072,7 +11124,6 @@ class RapierDriveSimulation {
   }
 
   stepSimulation() {
-    globalThis.__debugSim = this; // TEMP debug hook - remove before commit
     if (!this.isReady) {
       return;
     }

@@ -2209,26 +2209,55 @@ class RapierDriveSimulation {
     return this.hasVehicleSettledForCycloidChart;
   }
 
-  // True once this wheel's *rolling radius* (forward distance per spin radian - see
-  // cycloidWheelRollingRadiusMetersByKey's own comment) has been measured for real, at
-  // least once, from actual buffered motion. Before that, every buffered sample's "outer"
-  // point was built from computeCycloidSample()'s fallback ground-height radius, which -
-  // per that function's own comment - is typically the wrong size and produces a visibly
-  // wrong/self-intersecting curve. recordCycloidChartSample() must keep recording (and
-  // keep pushing into the buffer) through this window regardless, since the calibration
-  // itself is measured from that same buffer's oldest-vs-newest samples; this helper only
-  // gates the two *display* consumers (renderCycloidChart()'s 2D chart and
-  // updateCycloidTrace3D()'s 3D trace) so the pre-calibration, wrong-radius segment never
-  // reaches the screen. A short start/stop drive burst (well under the ~72 deg of spin
-  // recordCycloidChartSample() requires before it first calibrates) would otherwise leave
-  // that wrong segment on screen indefinitely - it's only ever corrected retroactively by
-  // the buffer-wipe recordCycloidChartSample() does the instant calibration locks in, which
-  // never happens for a burst that short.
-  isCycloidWheelCalibrated(wheelKey) {
-    return (
-      !!wheelKey &&
-      Number.isFinite(this.cycloidWheelRollingRadiusMetersByKey[wheelKey])
-    );
+  // Two independent reasons the two *display* consumers (renderCycloidChart()'s 2D chart
+  // and updateCycloidTrace3D()'s 3D trace) must withhold this wheel's buffer rather than
+  // draw whatever's currently in it - recordCycloidChartSample() itself must keep
+  // recording (and keep pushing into the buffer) through both windows below regardless,
+  // since the rolling-radius calibration is measured from that same buffer's
+  // oldest-vs-newest samples:
+  //   1. Not yet calibrated - this wheel's *rolling radius* (forward distance per spin
+  //      radian, see cycloidWheelRollingRadiusMetersByKey's own comment) has never been
+  //      measured for real. Every buffered sample's "outer" point was instead built from
+  //      computeCycloidSample()'s fallback ground-height radius, which - per that
+  //      function's own comment - is typically the wrong size and produces a visibly
+  //      wrong/self-intersecting curve. A short start/stop drive burst (well under the
+  //      ~72 deg of spin recordCycloidChartSample() requires before it first calibrates)
+  //      would otherwise leave that wrong segment on screen indefinitely - it's only ever
+  //      corrected retroactively by the buffer-wipe recordCycloidChartSample() does the
+  //      instant calibration locks in, which never happens for a burst that short.
+  //   2. Calibrated, but the buffer hasn't yet re-accumulated a full revolution's worth of
+  //      samples - true right after that same buffer-wipe (a fresh calibration keeps only
+  //      the single newest sample), and *every* time driving resumes from an empty buffer
+  //      with an *already*-calibrated radius (e.g. right after resetSimulation(), which
+  //      clears cycloidChartSamplesByKey but deliberately keeps the calibrated radius -
+  //      see its own comment). renderCycloidChart()/updateCycloidTrace3D() both window to
+  //      "the most recent revolution", so with less than that buffered they'd draw an
+  //      honest but visibly incomplete open arc - a "hook" that never closes into a loop,
+  //      ending abruptly at whatever sample happens to be newest - not a wrong-radius
+  //      defect, but the same visibly-broken-curve symptom the user keeps reporting right
+  //      after every drive-start. Reuses recordCycloidChartSample()'s own 1.5-revolution
+  //      buffer (not the 2D chart's smaller 1-revolution display window) so this settles
+  //      slightly before the display window itself is completely full, not after.
+  isCycloidWheelReadyToDisplay(wheelKey) {
+    if (
+      !wheelKey ||
+      !Number.isFinite(this.cycloidWheelRollingRadiusMetersByKey[wheelKey])
+    ) {
+      return false;
+    }
+    const samples = this.cycloidChartSamplesByKey[wheelKey] || [];
+    if (samples.length < 2) {
+      return false;
+    }
+    const oldestSpinAngleRad = samples[0].spinAngleRad;
+    const newestSpinAngleRad = samples[samples.length - 1].spinAngleRad;
+    if (
+      !Number.isFinite(oldestSpinAngleRad) ||
+      !Number.isFinite(newestSpinAngleRad)
+    ) {
+      return false;
+    }
+    return Math.abs(newestSpinAngleRad - oldestSpinAngleRad) >= Math.PI * 1.9;
   }
 
   recordCycloidChartSample() {
@@ -2594,13 +2623,12 @@ class RapierDriveSimulation {
     };
 
     const wheelKey = this.cycloidChartActiveWheelKey;
-    // Withhold the buffer entirely until this wheel's rolling radius has actually been
-    // calibrated - see isCycloidWheelCalibrated()'s own comment for why: every sample
-    // pushed before that point was built from a fallback radius known to be the wrong
-    // size, and would otherwise render as a visibly wrong curve segment (potentially for
-    // as long as the vehicle never drives far enough in one go to calibrate at all).
+    // Withhold the buffer entirely until this wheel is both radius-calibrated and has
+    // re-accumulated a full revolution's worth of samples - see
+    // isCycloidWheelReadyToDisplay()'s own comment for why either gap would otherwise
+    // render as a visibly wrong/incomplete curve segment.
     const fullBufferSamples =
-      wheelKey && this.isCycloidWheelCalibrated(wheelKey)
+      wheelKey && this.isCycloidWheelReadyToDisplay(wheelKey)
         ? this.cycloidChartSamplesByKey[wheelKey] || []
         : [];
     // The shared buffer now retains 1.5 revolutions (see recordCycloidChartSample()'s
@@ -2909,10 +2937,10 @@ class RapierDriveSimulation {
     }
 
     const wheelKey = this.cycloidChartActiveWheelKey;
-    // Same pre-calibration withholding as renderCycloidChart() - see
-    // isCycloidWheelCalibrated()'s own comment.
+    // Same withholding as renderCycloidChart() - see isCycloidWheelReadyToDisplay()'s own
+    // comment.
     const samples =
-      wheelKey && this.isCycloidWheelCalibrated(wheelKey)
+      wheelKey && this.isCycloidWheelReadyToDisplay(wheelKey)
         ? this.cycloidChartSamplesByKey[wheelKey] || []
         : [];
 

@@ -2000,6 +2000,53 @@ class RapierDriveSimulation {
     heightRange.max = estimatedRadiusMeters * 2.3;
   }
 
+  // estimateCycloidWheelRadiusMeters() above, with the same safety margin
+  // computeCycloidSample() applies to whichever source it returns - see that call site's
+  // own comment for why the margin must apply uniformly regardless of source. Shared here
+  // so recordCycloidChartSample()'s calibration-lock retroactive recompute (below) uses the
+  // exact same number computeCycloidSample() would for a fresh sample right now.
+  marginedCycloidWheelRadiusMeters(wheelKey) {
+    return Math.max(this.estimateCycloidWheelRadiusMeters(wheelKey) * 0.9, 0.05);
+  }
+
+  // Rebuilds a sample's "outer" (2D-plotted forward/height) and worldOuter (3D-trace world
+  // point) fields for a given radius, from the wheel-center/axis-direction/projection-basis
+  // a sample already carries (see computeCycloidSample()'s own use of this for why those are
+  // stored per-sample instead of just baking a radius in once). `centerWorld`/`axisWorldDir`
+  // (a *non-unit* vector already scaled to what 1m of radius maps to in world space, from
+  // wheelLink.matrixWorld's own scale/rotation - not the vector's own true length) - a
+  // radius is applied by scaling axisWorldDir the given amount and adding it to centerWorld,
+  // which for any affine wheelLink.matrixWorld is mathematically identical to what
+  // computeCycloidSample() would get computing `new THREE.Vector3(0,0,radius).applyMatrix4(wheelLink.matrixWorld)`
+  // fresh, without needing that live matrix again later.
+  computeCycloidOuterFields(
+    centerWorld,
+    axisWorldDir,
+    radiusMeters,
+    forwardVector,
+    groundZ,
+  ) {
+    const truePoint = centerWorld
+      .clone()
+      .addScaledVector(axisWorldDir, radiusMeters);
+    // See CYCLOID_OUTER_RIM_CLEARANCE_METERS's comment in computeCycloidSample() - kept
+    // separate from the true (no-clearance) point below for the same reason.
+    const clearancePoint = centerWorld
+      .clone()
+      .addScaledVector(
+        axisWorldDir,
+        radiusMeters + CYCLOID_OUTER_RIM_CLEARANCE_METERS,
+      );
+    return {
+      outer: {
+        forward:
+          truePoint.x * forwardVector.x + truePoint.y * forwardVector.y,
+        height: truePoint.z - groundZ,
+      },
+      worldOuter: clearancePoint,
+    };
+  }
+
   computeCycloidSample(wheelKey) {
     const viewer = this.viewer;
     const jointMap = viewer?.robotModel?.joints;
@@ -2074,45 +2121,29 @@ class RapierDriveSimulation {
     // which is the harder, more visually obvious defect between the two. Only actually
     // differs from cycloidWheelRadiusMetersByKey once recordCycloidChartSample() has
     // enough buffered rotation to measure it (see its own comment) - falls back to the
-    // ground-height radius (then the older chain) until then, same as before - see
-    // estimateCycloidWheelRadiusMeters()'s own comment for this shared priority chain.
-    const rawWheelRadiusMeters = this.estimateCycloidWheelRadiusMeters(wheelKey);
-    // Safety margin applied uniformly to whichever source above won, not just the rolling
-    // radius - a radius even a hair over the true rolling radius always self-intersects
-    // (see the branch comment above), while one that's a little under just leaves a few
-    // extra mm of gap above true ground level, a far less visible defect. This matters
-    // just as much for the ground-height fallback (cycloidWheelRadiusMetersByKey): earlier
-    // measurements found this vehicle's ground-height radius (~0.090m) is itself already
-    // ~11% larger than its true rolling radius (~0.080m) - a real, pre-existing mismatch,
-    // not a measurement error. renderCycloidChart()/updateCycloidTrace3D() now display the
-    // buffer immediately (no longer withheld until calibrated - see their own comments),
-    // so showing that ground-height radius unmargined during the pre-calibration window
-    // would reproduce the exact self-intersecting loop this margin exists to prevent.
-    // Margining it down to ~0.081m lands close enough to the true rolling radius that the
-    // pre-/post-calibration seam recordCycloidChartSample() irons out on lock-in is now
-    // barely visible too.
-    const wheelRadiusMeters = Math.max(rawWheelRadiusMeters * 0.9, 0.05);
-    // See CYCLOID_OUTER_RIM_CLEARANCE_METERS's comment above - a few mm past the tire's
-    // real radius, not the exact radius, so the cycloid 3D 궤적's rim point clears the
-    // tire mesh's own surface instead of sitting exactly on it. Deliberately kept separate
-    // from wheelRimWorldTrue below - this offset is a 3D-view-only anti-z-fighting nudge,
-    // not part of the wheel's real geometry, so it must not leak into the 2D 챠트's plotted
-    // "outer" height (which is what wheelRimWorldTrue is for) or every revolution would
-    // show the outer curve dipping CYCLOID_OUTER_RIM_CLEARANCE_METERS below 0 on flat
-    // ground even with wheelRadiusMeters itself now correctly calibrated above.
-    const wheelRimWorld = new THREE.Vector3(
-      0,
-      0,
-      wheelRadiusMeters + CYCLOID_OUTER_RIM_CLEARANCE_METERS,
-    ).applyMatrix4(wheelLink.matrixWorld);
-    // The 2D 챠트's "outer" series reads this one instead - sitting exactly on the tire's
-    // true (calibrated) radius, so it's tangent to the ground at the bottom of each
-    // revolution rather than offset by the 3D view's clearance margin.
-    const wheelRimWorldTrue = new THREE.Vector3(
-      0,
-      0,
-      wheelRadiusMeters,
-    ).applyMatrix4(wheelLink.matrixWorld);
+    // ground-height radius (then the older chain) until then, same as before. Margined
+    // uniformly regardless of which source wins - see marginedCycloidWheelRadiusMeters()'s
+    // own comment for why (a radius even a hair over the true rolling radius always
+    // self-intersects, while one a little under just leaves a few harmless extra mm of gap).
+    const wheelRadiusMeters = this.marginedCycloidWheelRadiusMeters(wheelKey);
+    // axisWorldDir: what a full 1m of radius maps to in world space from this wheel's own
+    // local +Z, given wheelLink.matrixWorld's current rotation (and scale, if any) -
+    // *not* a unit vector. Stored on the returned sample (with wheelCenterWorld/
+    // forwardVector/groundZ below) so recordCycloidChartSample() can retroactively rebuild
+    // "outer"/worldOuter for every already-buffered sample the instant the rolling radius
+    // is first calibrated, instead of only using this radius for samples from here on -
+    // see computeCycloidOuterFields()'s own comment for the math this relies on.
+    const wheelAxisWorldDir = new THREE.Vector3(0, 0, 1)
+      .applyMatrix4(wheelLink.matrixWorld)
+      .sub(wheelCenterWorld);
+    const { outer: outerPoint, worldOuter: wheelRimWorld } =
+      this.computeCycloidOuterFields(
+        wheelCenterWorld,
+        wheelAxisWorldDir,
+        wheelRadiusMeters,
+        forwardVector,
+        groundZ,
+      );
 
     let innerPoint = null;
     let innerWorld = null;
@@ -2176,19 +2207,27 @@ class RapierDriveSimulation {
     const spinAngleRad = Number(viewer.wheelAngles?.[wheelKey]);
 
     return {
-      // wheelRimWorldTrue (no clearance offset), not wheelRimWorld - see its own comment.
-      outer: project(wheelRimWorldTrue),
+      // outerPoint already has the clearance-free radius baked in (no clearance offset),
+      // not wheelRimWorld below - see computeCycloidOuterFields()'s own comment.
+      outer: outerPoint,
       // middlePoint (carrier rim marker), not the outer wheel's own axle - see its own
       // comment above.
       middle: middlePoint,
       inner: innerPoint,
       // Unprojected world points behind outer/middle/inner above - feeds the cycloid 3D
       // 궤적 (trace): ensureCycloidTrace3D()/updateCycloidTrace3D(). worldOuter keeps the
-      // clearance offset (wheelRimWorld, not wheelRimWorldTrue) since the 3D trace still
-      // needs it to clear the tire mesh's own surface.
+      // clearance offset (wheelRimWorld, not the clearance-free outerPoint above) since the
+      // 3D trace still needs it to clear the tire mesh's own surface.
       worldOuter: wheelRimWorld,
       worldMiddle: middleWorld,
       worldInner: innerWorld,
+      // Everything computeCycloidOuterFields() needs to retroactively rebuild outer/
+      // worldOuter above for a *different* radius later, without re-touching wheelLink -
+      // see recordCycloidChartSample()'s calibration-lock use of this.
+      outerCenterWorld: wheelCenterWorld,
+      outerAxisWorldDir: wheelAxisWorldDir,
+      outerForwardVector: { x: forwardVector.x, y: forwardVector.y },
+      outerGroundZ: groundZ,
       spinAngleRad: Number.isFinite(spinAngleRad) ? spinAngleRad : null,
     };
   }
@@ -2358,25 +2397,43 @@ class RapierDriveSimulation {
             // Every sample already buffered before this point (from page load, or since
             // the last resetSimulation()) was built with computeCycloidSample()'s earlier
             // fallback radius (ground-height, or the older mesh/effective-radius chain
-            // behind it) instead of this now-calibrated rolling radius. This USED to wipe
-            // every sample but the one just pushed here (`samples.splice(0, samples.length
-            // - 1)`) so the visible curve restarted clean from a single consistent-radius
-            // point, fixing a sharp kink/self-intersection this whole buffer's fallback
-            // radius produced pre-calibration. That wipe is no longer needed - and is
-            // actively harmful now: since renderCycloidChart()/updateCycloidTrace3D() both
-            // display this buffer *live* (no longer withheld until calibrated), wiping it
-            // down to one sample makes the 3D trace's line drop below its own >=2-point
-            // minimum for a frame (line.visible = false in updateCycloidTrace3D()) and then
-            // regrow from a single new point completely disconnected from everything drawn
-            // before it - exactly the "curve breaks and doesn't connect to the previous
-            // curve" the user reported, reliably reproducing right around when calibration
-            // first locks in (~0.3-1.5s into driving depending on speed). computeCycloidSample()'s
-            // wheelRadiusMeters now margins *every* fallback (not just the rolling radius)
-            // down toward the true rolling radius - see its own comment - so the
-            // pre-calibration fallback radius is already close enough (a few mm) to the
-            // now-calibrated one that leaving old samples in place produces no visible seam
-            // to fix in the first place. Nothing to do here anymore but let the EMA above
-            // take over for future frames.
+            // behind it), not this now-calibrated rolling radius - a small (few-mm, thanks
+            // to computeCycloidSample()'s uniform margin) but real mismatch that still shows
+            // as a faint kink right at this point in the curve. Used to fix this by wiping
+            // every sample but the one just pushed (`samples.splice(0, samples.length - 1)`)
+            // - abandoned (see git history/simulation-cycloid-radius-calibration memory)
+            // once renderCycloidChart()/updateCycloidTrace3D() started displaying this
+            // buffer *live*: wiping it down to one sample dropped the 3D trace's line below
+            // its own >=2-point minimum for a frame and regrew it fully disconnected from
+            // everything drawn before - a *worse* defect than the kink it was fixing.
+            // Instead, retroactively rebuild *every already-buffered sample's* outer/
+            // worldOuter with this new radius, in place - each sample already carries
+            // everything computeCycloidOuterFields() needs (outerCenterWorld/
+            // outerAxisWorldDir/outerForwardVector/outerGroundZ, all captured at that
+            // sample's own moment - see computeCycloidSample()'s own comment) to do this
+            // without re-touching any live THREE.js object. This keeps every point in the
+            // curve on one consistent radius with no visible seam at all, not just a
+            // smaller one - and touches no other field (spinAngleRad, middle, inner), so
+            // the buffer's window/eviction logic below is completely unaffected.
+            const rebuiltRadiusMeters =
+              this.marginedCycloidWheelRadiusMeters(wheelKey);
+            samples.forEach((bufferedSample) => {
+              if (
+                !bufferedSample.outerCenterWorld ||
+                !bufferedSample.outerAxisWorldDir
+              ) {
+                return;
+              }
+              const rebuilt = this.computeCycloidOuterFields(
+                bufferedSample.outerCenterWorld,
+                bufferedSample.outerAxisWorldDir,
+                rebuiltRadiusMeters,
+                bufferedSample.outerForwardVector,
+                bufferedSample.outerGroundZ,
+              );
+              bufferedSample.outer = rebuilt.outer;
+              bufferedSample.worldOuter = rebuilt.worldOuter;
+            });
           }
         }
       }

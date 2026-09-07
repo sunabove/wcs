@@ -2357,32 +2357,26 @@ class RapierDriveSimulation {
 
             // Every sample already buffered before this point (from page load, or since
             // the last resetSimulation()) was built with computeCycloidSample()'s earlier
-            // fallback radius (wheelRadiusMetersByKey/wheelEffectiveRadiusMeters, both
-            // typically wrong-sized - see that function's own comment), not this now-
-            // calibrated rolling radius. Mixing those into the same displayed
-            // window/history alongside newly-calibrated samples is exactly what produced
-            // the sharp, non-smooth kink partway around the loop and the residual
-            // self-intersection the user reported (screenshot showed a visible seam, not
-            // a smooth curve) - the "outer" curve effectively jumped to a different-sized
-            // circle mid-buffer the instant calibration finished. Drop every sample but
-            // the one just pushed (built with the now-final radius) so the visible curve
-            // and the all-time height range both restart clean from here - this only ever
-            // fires once per wheel per session (or per resetSimulation()), a few tenths of
-            // a second into driving.
-            if (isFirstCalibration) {
-              samples.splice(0, samples.length - 1);
-              const heightRangeToReset =
-                this.cycloidChartHeightRangeByKey[wheelKey];
-              if (heightRangeToReset) {
-                // Re-seed (not blank to Infinity/-Infinity) with a fresh estimate now
-                // that the true rolling radius is known - see seedCycloidHeightRange()'s
-                // own comment for why leaving this degenerate here would cause a second,
-                // separate axis rescale on top of the first-ever-sample seeding below.
-                heightRangeToReset.min = Infinity;
-                heightRangeToReset.max = -Infinity;
-                this.seedCycloidHeightRange(wheelKey);
-              }
-            }
+            // fallback radius (ground-height, or the older mesh/effective-radius chain
+            // behind it) instead of this now-calibrated rolling radius. This USED to wipe
+            // every sample but the one just pushed here (`samples.splice(0, samples.length
+            // - 1)`) so the visible curve restarted clean from a single consistent-radius
+            // point, fixing a sharp kink/self-intersection this whole buffer's fallback
+            // radius produced pre-calibration. That wipe is no longer needed - and is
+            // actively harmful now: since renderCycloidChart()/updateCycloidTrace3D() both
+            // display this buffer *live* (no longer withheld until calibrated), wiping it
+            // down to one sample makes the 3D trace's line drop below its own >=2-point
+            // minimum for a frame (line.visible = false in updateCycloidTrace3D()) and then
+            // regrow from a single new point completely disconnected from everything drawn
+            // before it - exactly the "curve breaks and doesn't connect to the previous
+            // curve" the user reported, reliably reproducing right around when calibration
+            // first locks in (~0.3-1.5s into driving depending on speed). computeCycloidSample()'s
+            // wheelRadiusMeters now margins *every* fallback (not just the rolling radius)
+            // down toward the true rolling radius - see its own comment - so the
+            // pre-calibration fallback radius is already close enough (a few mm) to the
+            // now-calibrated one that leaving old samples in place produces no visible seam
+            // to fix in the first place. Nothing to do here anymore but let the EMA above
+            // take over for future frames.
           }
         }
       }

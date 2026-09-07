@@ -23,6 +23,11 @@
   let initialClientConnectObserved = false;
   let initialWheelSyncCompleted = false;
   let pendingStartupLocalCommand = null;
+  // A real wheel/angle/speed message that arrived *before* initialClientConnectObserved
+  // flipped true - see the message handler's own comment for why this can happen (retained
+  // delivery on subscribe can beat this client's own "client/connect" publish-then-echo
+  // round trip) and why it must be remembered here instead of silently dropped.
+  let pendingReceivedCommand = null;
   const latestWheelLinearSpeedByKey = WHEEL_KEYS.reduce(function (
     result,
     wheelKey,
@@ -180,17 +185,19 @@
     return true;
   }
 
-  // receivedCommand: when this unlock is triggered by the *first* real wheel/angle/speed
-  // message arriving after "client/connect" (see the message handler's own call site
-  // below), that message's already-built command - the broker's actual current state
-  // (e.g. a real robot that kept driving forward across this page reload), not a stale
-  // guess. Previously this first message's content was discarded here in favor of
+  // receivedCommand: when this unlock is triggered directly by a real wheel/angle/speed
+  // message (see the message handler's own call site below), that message's already-built
+  // command - the broker's actual current state (e.g. a real robot that kept driving
+  // forward across this page reload), not a stale guess. Priority order: a command passed
+  // in here directly > pendingReceivedCommand (an earlier real message that arrived before
+  // initialClientConnectObserved was true - see its own comment) > pendingStartupLocalCommand
+  // (a command only *this* tab locally queued before the round trip finished) > stop.
+  // Previously any real received message's content was discarded here in favor of
   // pendingStartupLocalCommand-or-stop, which meant a page reload while a robot was
-  // genuinely still driving forward always inserted one unnecessary "stop" beat before
-  // the *next* message resumed it - visible in the simulation (and its cycloid chart) as
-  // a brief disappear-then-jump on every reload. Prioritized over pendingStartupLocalCommand
-  // (a command only *this* tab locally queued before the round trip finished) since a
-  // genuinely received message is the more authoritative, current source of truth.
+  // genuinely still driving forward always inserted an unnecessary "stop" beat (sometimes
+  // permanently, if no *further* message ever arrived to correct it) - visible in the
+  // simulation (and its cycloid chart) as a brief disappear-then-jump, or a stall, on
+  // every reload.
   function completeInitialWheelSync(receivedCommand) {
     if (initialWheelSyncCompleted) {
       return;
@@ -205,7 +212,9 @@
       latestWheelLinearSpeedByKey[wheelKey] = 0;
     });
     initialWheelSyncCompleted = true;
-    const commandToApply = receivedCommand || pendingStartupLocalCommand;
+    const commandToApply =
+      receivedCommand || pendingReceivedCommand || pendingStartupLocalCommand;
+    pendingReceivedCommand = null;
     pendingStartupLocalCommand = null;
     if (commandToApply) {
       dispatchWheelCommand(commandToApply);
@@ -364,10 +373,18 @@
     if (topic === "client/connect") {
       initialClientConnectObserved = true;
       window.clearTimeout(initialSyncUnlockTimer);
-      initialSyncUnlockTimer = window.setTimeout(
-        completeInitialWheelSync,
-        INITIAL_SYNC_UNLOCK_TIMEOUT_MS,
-      );
+      // A real wheel/angle/speed message may have already arrived and been remembered as
+      // pendingReceivedCommand (see its own comment) - retained delivery on subscribe can
+      // beat this client's own publish-then-echo round trip for "client/connect" itself.
+      // Apply it right away instead of waiting out the full timeout for no reason.
+      if (!initialWheelSyncCompleted && pendingReceivedCommand) {
+        completeInitialWheelSync(pendingReceivedCommand);
+      } else {
+        initialSyncUnlockTimer = window.setTimeout(
+          completeInitialWheelSync,
+          INITIAL_SYNC_UNLOCK_TIMEOUT_MS,
+        );
+      }
       return;
     }
 
@@ -394,10 +411,17 @@
     }
 
     if (!initialWheelSyncCompleted) {
+      const command = buildWheelCommand(angleSpeedByKey);
       if (initialClientConnectObserved) {
-        // Apply this first real message's own state directly - see
+        // Apply this real message's own state directly - see
         // completeInitialWheelSync()'s own comment for why it must no longer be discarded.
-        completeInitialWheelSync(buildWheelCommand(angleSpeedByKey));
+        completeInitialWheelSync(command);
+      } else {
+        // "client/connect"'s own echo hasn't arrived yet - retained delivery on subscribe
+        // can beat it. Remember this instead of silently dropping it (see
+        // pendingReceivedCommand's own comment) so the "client/connect" handler (or, failing
+        // that, the timeout) can still apply it instead of forcing an unwanted stop.
+        pendingReceivedCommand = command;
       }
       return;
     }

@@ -43,6 +43,15 @@ const CYCLOID_TRACE_3D_MARKER_RADIUS_METERS = 0.006;
 // poking back into the tire even though its *center* point was already technically
 // outside it.
 const CYCLOID_OUTER_RIM_CLEARANCE_METERS = 0.02;
+// isVehicleSettledForCycloidChart()'s rest thresholds and required run-length - see that
+// method's own comment and hasVehicleSettledForCycloidChart's constructor comment for why
+// recordCycloidChartSample() is gated on this. Deliberately checks only *vertical* linear
+// speed and *roll/pitch* angular speed (not forward/lateral speed or yaw rate - see the
+// method itself), so ordinary driving/turning never blocks the gate from opening once the
+// one-time initial-load/post-reset contact-settle transient has actually died down.
+const CYCLOID_SETTLE_VERTICAL_VELOCITY_MPS = 0.01;
+const CYCLOID_SETTLE_ROLL_PITCH_VELOCITY_RAD_S = 0.05;
+const CYCLOID_SETTLE_REQUIRED_STABLE_FRAMES = 5;
 // Chassis (0x0008) deliberately excludes ground (filter 0x0002); ground contact is handled by manual clamping.
 const COLLISION_GROUP_GROUND = 0x00010002;
 const COLLISION_GROUP_WHEEL = 0x00020005;
@@ -645,6 +654,28 @@ class RapierDriveSimulation {
       rl: [],
       rr: [],
     };
+    // Guards recordCycloidChartSample() against the initial-load (and post-resetSimulation())
+    // physics transient - right after ensureRapierInitialized()/settlePhysicsAfterReset()
+    // place the chassis at its computed ground-contact pose, Rapier still needs a handful of
+    // steps to resolve contact/suspension forces to rest. During that transient a wheel's
+    // live height above ground can briefly read higher than its true resting radius, which
+    // computeCycloidSample() would otherwise self-calibrate into cycloidWheelRadiusMetersByKey
+    // and bake into that frame's "outer"/"middle" sample - drawn (since the wheel hasn't
+    // spun yet, so it survives the spin-angle window) as a stray line reaching outside the
+    // real curve for roughly the first revolution after load. isVehicleSettledForCycloidChart()
+    // below requires this.body's vertical/roll/pitch velocity to stay under a small threshold
+    // for several consecutive *real physics steps* before recordCycloidChartSample() starts
+    // pushing samples; false until that first happens, then sticky true until the next
+    // resetPhysicalState().
+    this.hasVehicleSettledForCycloidChart = false;
+    this.cycloidChartSettleStableFrameCount = 0;
+    // Real Rapier world.step() calls executed since the last resetPhysicalState() - see
+    // isVehicleSettledForCycloidChart()'s own comment for why this (not just elapsed time or
+    // render frames) gates the settle check: stepSimulation() force-zeroes this.body's
+    // velocity directly (via stopSimulationMotion(), never calling world.step()) for as long
+    // as commandedDriveMode stays "stop", which would otherwise trivially satisfy a velocity
+    // threshold before the physics engine has run even once.
+    this.cycloidChartSettlePhysicsStepCount = 0;
     // Self-calibrated per-wheel radius used by computeCycloidSample() for the "outer" rim
     // point, instead of trusting wheelRadiusMetersByKey/wheelEffectiveRadiusMeters as-is -
     // see computeCycloidSample()'s own comment for why. null until the first flat-ground
@@ -2125,8 +2156,71 @@ class RapierDriveSimulation {
   // revolution of that - see its own windowing in renderCycloidChart() - so this buffer is
   // sized for whichever consumer needs the longer history, not a change to the 2D chart's
   // own displayed span.
+  // True once this.body's *vertical* linear speed and *roll/pitch* angular speed have both
+  // stayed under CYCLOID_SETTLE_VERTICAL_VELOCITY_MPS/CYCLOID_SETTLE_ROLL_PITCH_VELOCITY_RAD_S
+  // for CYCLOID_SETTLE_REQUIRED_STABLE_FRAMES consecutive real physics steps - see
+  // hasVehicleSettledForCycloidChart's own constructor comment for why
+  // recordCycloidChartSample() needs this. Deliberately ignores forward/lateral linear speed
+  // and yaw rate: those are the vehicle's normal, intentional driving motion, not the
+  // contact-settle transient this is meant to catch, and gating on them too would mean the
+  // chart could never start once the vehicle is continuously driving (it would never read as
+  // "still"). Also deliberately requires cycloidChartSettlePhysicsStepCount > 0 first - see
+  // that field's own comment - so the artificial, velocity-forced-to-zero
+  // commandedDriveMode === "stop" state (which stepSimulation() never runs world.step() for)
+  // can't trivially satisfy the thresholds before the real settle transient, which only
+  // happens once actual physics stepping begins, has had any chance to occur. Sticky: once
+  // true, stays true until the next resetPhysicalState() re-arms it. Called once per frame
+  // from recordCycloidChartSample() below, after stepSimulation() has run for that frame.
+  isVehicleSettledForCycloidChart() {
+    if (this.hasVehicleSettledForCycloidChart) {
+      return true;
+    }
+    if (
+      this.cycloidChartSettlePhysicsStepCount <= 0 ||
+      !this.body ||
+      typeof this.body.linvel !== "function"
+    ) {
+      return false;
+    }
+
+    const linear = this.body.linvel();
+    const angular =
+      typeof this.body.angvel === "function"
+        ? this.body.angvel()
+        : { x: 0, y: 0, z: 0 };
+    const verticalSpeed = Math.abs(linear.z);
+    const rollPitchSpeed = Math.hypot(angular.x, angular.y);
+
+    if (
+      verticalSpeed <= CYCLOID_SETTLE_VERTICAL_VELOCITY_MPS &&
+      rollPitchSpeed <= CYCLOID_SETTLE_ROLL_PITCH_VELOCITY_RAD_S
+    ) {
+      this.cycloidChartSettleStableFrameCount += 1;
+    } else {
+      this.cycloidChartSettleStableFrameCount = 0;
+    }
+
+    if (
+      this.cycloidChartSettleStableFrameCount >=
+      CYCLOID_SETTLE_REQUIRED_STABLE_FRAMES
+    ) {
+      this.hasVehicleSettledForCycloidChart = true;
+    }
+    return this.hasVehicleSettledForCycloidChart;
+  }
+
   recordCycloidChartSample() {
     if (!this.viewer || !this.body) {
+      return;
+    }
+
+    // Exclude the initial-load (and post-resetSimulation()) physics settle transient from
+    // the chart entirely - see isVehicleSettledForCycloidChart()'s own comment and
+    // hasVehicleSettledForCycloidChart's constructor comment for why: before the chassis
+    // has actually come to rest on the ground, a wheel's momentarily-too-high live height
+    // would otherwise get self-calibrated into computeCycloidSample()'s wheel radius and
+    // baked into that frame's sample.
+    if (!this.isVehicleSettledForCycloidChart()) {
       return;
     }
 
@@ -11441,6 +11535,9 @@ class RapierDriveSimulation {
       this.runPhysicsSubstep(context);
       this.physicsAccumulatorSec -= this.physicsFixedTimeStepSec;
       stepIndex += 1;
+      // See cycloidChartSettlePhysicsStepCount's own constructor comment -
+      // isVehicleSettledForCycloidChart() needs to know real dynamics have actually run.
+      this.cycloidChartSettlePhysicsStepCount += 1;
     }
 
     const hasObstacleContact = this.finalizeObstacleFrame(context);
@@ -11719,6 +11816,12 @@ class RapierDriveSimulation {
       this.cycloidChartHeightRangeByKey[key] = { min: Infinity, max: -Infinity };
     });
     this.cycloidChartActiveWheelKey = null;
+    // Re-arm the settle gate (see isVehicleSettledForCycloidChart()) so the next
+    // settlePhysicsAfterReset() transient gets excluded from the freshly-cleared buffers
+    // above too, not just the very first load.
+    this.hasVehicleSettledForCycloidChart = false;
+    this.cycloidChartSettleStableFrameCount = 0;
+    this.cycloidChartSettlePhysicsStepCount = 0;
     this.simulationElapsedSec = 0;
     this.wheelZChartHalfRangeCm = this.wheelZChartInitialHalfRangeCm;
     this.vehicleYawAccumulatedRad = null;

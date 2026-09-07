@@ -2393,50 +2393,45 @@ class RapierDriveSimulation {
                 ? measuredRollingRadiusMeters
                 : rollingRadiusEmaAlpha * measuredRollingRadiusMeters +
                   (1 - rollingRadiusEmaAlpha) * previousRollingRadiusMeters;
-
-            // Every sample already buffered before this point (from page load, or since
-            // the last resetSimulation()) was built with computeCycloidSample()'s earlier
-            // fallback radius (ground-height, or the older mesh/effective-radius chain
-            // behind it), not this now-calibrated rolling radius - a small (few-mm, thanks
-            // to computeCycloidSample()'s uniform margin) but real mismatch that still shows
-            // as a faint kink right at this point in the curve. Used to fix this by wiping
-            // every sample but the one just pushed (`samples.splice(0, samples.length - 1)`)
-            // - abandoned (see git history/simulation-cycloid-radius-calibration memory)
-            // once renderCycloidChart()/updateCycloidTrace3D() started displaying this
-            // buffer *live*: wiping it down to one sample dropped the 3D trace's line below
-            // its own >=2-point minimum for a frame and regrew it fully disconnected from
-            // everything drawn before - a *worse* defect than the kink it was fixing.
-            // Instead, retroactively rebuild *every already-buffered sample's* outer/
-            // worldOuter with this new radius, in place - each sample already carries
-            // everything computeCycloidOuterFields() needs (outerCenterWorld/
-            // outerAxisWorldDir/outerForwardVector/outerGroundZ, all captured at that
-            // sample's own moment - see computeCycloidSample()'s own comment) to do this
-            // without re-touching any live THREE.js object. This keeps every point in the
-            // curve on one consistent radius with no visible seam at all, not just a
-            // smaller one - and touches no other field (spinAngleRad, middle, inner), so
-            // the buffer's window/eviction logic below is completely unaffected.
-            const rebuiltRadiusMeters =
-              this.marginedCycloidWheelRadiusMeters(wheelKey);
-            samples.forEach((bufferedSample) => {
-              if (
-                !bufferedSample.outerCenterWorld ||
-                !bufferedSample.outerAxisWorldDir
-              ) {
-                return;
-              }
-              const rebuilt = this.computeCycloidOuterFields(
-                bufferedSample.outerCenterWorld,
-                bufferedSample.outerAxisWorldDir,
-                rebuiltRadiusMeters,
-                bufferedSample.outerForwardVector,
-                bufferedSample.outerGroundZ,
-              );
-              bufferedSample.outer = rebuilt.outer;
-              bufferedSample.worldOuter = rebuilt.worldOuter;
-            });
           }
         }
       }
+
+      // Every sample already buffered keeps its outer/worldOuter permanently in sync with
+      // whichever radius computeCycloidSample() would use for a brand-new sample *right
+      // now* - run every frame (not just once, on the first-ever calibration lock) because
+      // cycloidWheelRollingRadiusMetersByKey keeps EMA-refining after that first lock (see
+      // the block above) and cycloidWheelRadiusMetersByKey (the pre-calibration ground-
+      // height fallback) keeps re-measuring too - both drift by small amounts frame to
+      // frame even on a steady flat drive. Baking in whatever radius happened to be current
+      // at each sample's own record time, and never touching it again, meant the buffer was
+      // never quite on one single radius - showing as a faint continuous "wobble" in the
+      // curve's size rather than a one-time seam. Rebuilding unconditionally like this
+      // keeps the *entire* visible curve on exactly one radius at every instant, not just
+      // near the one-time calibration-lock moment - see computeCycloidOuterFields()'s own
+      // comment for why this needs no live THREE.js object, only what each sample already
+      // carries (outerCenterWorld/outerAxisWorldDir/outerForwardVector/outerGroundZ - see
+      // computeCycloidSample()'s own comment). Cheap even at this buffer's largest
+      // (cycloidChartMaxSamples, 400): plain vector arithmetic, no matrix work.
+      const currentOuterRadiusMeters =
+        this.marginedCycloidWheelRadiusMeters(wheelKey);
+      samples.forEach((bufferedSample) => {
+        if (
+          !bufferedSample.outerCenterWorld ||
+          !bufferedSample.outerAxisWorldDir
+        ) {
+          return;
+        }
+        const rebuilt = this.computeCycloidOuterFields(
+          bufferedSample.outerCenterWorld,
+          bufferedSample.outerAxisWorldDir,
+          currentOuterRadiusMeters,
+          bufferedSample.outerForwardVector,
+          bufferedSample.outerGroundZ,
+        );
+        bufferedSample.outer = rebuilt.outer;
+        bufferedSample.worldOuter = rebuilt.worldOuter;
+      });
 
       // Seed a generous estimated range before accumulating real data into it below - see
       // seedCycloidHeightRange()'s own comment. No-op once already seeded (min is no

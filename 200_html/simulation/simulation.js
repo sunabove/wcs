@@ -1948,6 +1948,58 @@ class RapierDriveSimulation {
   //     live gear angle, itself a function of the outer wheel's own rolling angle - so this
   //     point's position is directly coupled to the outer wheel's motion even though it
   //     spins about a different, fixed-relative-to-chassis axis.
+  // Shared "best radius estimate available right now" - same priority chain
+  // computeCycloidSample()'s own wheelRadiusMeters and renderCycloidChart()'s
+  // theoreticalRevolutionSpan each used to duplicate inline: the calibrated true rolling
+  // radius once recordCycloidChartSample() has measured it, else the self-calibrated
+  // ground-height radius, else mesh/effective-radius geometry, else a generic default.
+  // Also used by seedCycloidHeightRange() below to size the Y-axis before any real height
+  // data has been observed.
+  estimateCycloidWheelRadiusMeters(wheelKey) {
+    const rollingRadiusMeters = Number(
+      this.cycloidWheelRollingRadiusMetersByKey[wheelKey],
+    );
+    return (
+      (Number.isFinite(rollingRadiusMeters) && rollingRadiusMeters > 0
+        ? rollingRadiusMeters
+        : 0) ||
+      Number(this.cycloidWheelRadiusMetersByKey[wheelKey]) ||
+      Number(this.wheelRadiusMetersByKey[wheelKey]) ||
+      Number(this.wheelEffectiveRadiusMeters) ||
+      0.16
+    );
+  }
+
+  // Seeds cycloidChartHeightRangeByKey[wheelKey] with a generous *estimated* range instead
+  // of leaving it at the degenerate {min: Infinity, max: -Infinity} it starts as (in the
+  // constructor, on resetSimulation(), and again the instant recordCycloidChartSample()'s
+  // rolling-radius calibration first locks in - see that call site's own comment). Without
+  // this, the Y-axis in renderCycloidChart() has to *discover* the true height swing purely
+  // from real accumulated samples, which takes most of a revolution - during that window
+  // the axis visibly grows/rescales every time a new sample pushes the running min or max
+  // out further, on top of an *identical* second rescale-from-scratch the moment
+  // calibration locks in and wipes this same range again. Both together are what made the
+  // chart look like it "briefly disappears and changes discontinuously" on every reload,
+  // even though the vehicle itself never stopped moving - the 3D scene was fine throughout,
+  // only this 2D chart's own axis scale was unstable. A trochoid/cycloid "outer" rim point
+  // swings from ~0 (touching ground) up to ~2x the wheel radius (directly opposite ground
+  // contact); "middle"/"inner" ride a narrower band close to the wheel's own axle height,
+  // comfortably inside that same span - so a single generous estimate covers all 3 series.
+  // Only ever *widens* the range (never shrinks it) if real data later exceeds this
+  // estimate - see recordCycloidChartSample()'s own accumulation, unchanged.
+  seedCycloidHeightRange(wheelKey) {
+    const heightRange = this.cycloidChartHeightRangeByKey[wheelKey];
+    if (!heightRange || Number.isFinite(heightRange.min)) {
+      return;
+    }
+    const estimatedRadiusMeters = this.estimateCycloidWheelRadiusMeters(wheelKey);
+    if (!Number.isFinite(estimatedRadiusMeters) || estimatedRadiusMeters <= 0) {
+      return;
+    }
+    heightRange.min = -estimatedRadiusMeters * 0.15;
+    heightRange.max = estimatedRadiusMeters * 2.3;
+  }
+
   computeCycloidSample(wheelKey) {
     const viewer = this.viewer;
     const jointMap = viewer?.robotModel?.joints;
@@ -2022,18 +2074,9 @@ class RapierDriveSimulation {
     // which is the harder, more visually obvious defect between the two. Only actually
     // differs from cycloidWheelRadiusMetersByKey once recordCycloidChartSample() has
     // enough buffered rotation to measure it (see its own comment) - falls back to the
-    // ground-height radius (then the older chain) until then, same as before.
-    const rollingRadiusMeters = Number(
-      this.cycloidWheelRollingRadiusMetersByKey[wheelKey],
-    );
-    const rawWheelRadiusMeters =
-      (Number.isFinite(rollingRadiusMeters) && rollingRadiusMeters > 0
-        ? rollingRadiusMeters
-        : 0) ||
-      Number(this.cycloidWheelRadiusMetersByKey[wheelKey]) ||
-      Number(this.wheelRadiusMetersByKey[wheelKey]) ||
-      Number(this.wheelEffectiveRadiusMeters) ||
-      0.16;
+    // ground-height radius (then the older chain) until then, same as before - see
+    // estimateCycloidWheelRadiusMeters()'s own comment for this shared priority chain.
+    const rawWheelRadiusMeters = this.estimateCycloidWheelRadiusMeters(wheelKey);
     // Safety margin applied uniformly to whichever source above won, not just the rolling
     // radius - a radius even a hair over the true rolling radius always self-intersects
     // (see the branch comment above), while one that's a little under just leaves a few
@@ -2331,13 +2374,24 @@ class RapierDriveSimulation {
               const heightRangeToReset =
                 this.cycloidChartHeightRangeByKey[wheelKey];
               if (heightRangeToReset) {
+                // Re-seed (not blank to Infinity/-Infinity) with a fresh estimate now
+                // that the true rolling radius is known - see seedCycloidHeightRange()'s
+                // own comment for why leaving this degenerate here would cause a second,
+                // separate axis rescale on top of the first-ever-sample seeding below.
                 heightRangeToReset.min = Infinity;
                 heightRangeToReset.max = -Infinity;
+                this.seedCycloidHeightRange(wheelKey);
               }
             }
           }
         }
       }
+
+      // Seed a generous estimated range before accumulating real data into it below - see
+      // seedCycloidHeightRange()'s own comment. No-op once already seeded (min is no
+      // longer Infinity), so this only ever does anything on this wheel's very first
+      // sample of the session/since the last resetSimulation().
+      this.seedCycloidHeightRange(wheelKey);
 
       // Feed the running (never windowed) height range before the eviction below can drop
       // this sample from the display buffer - see cycloidChartHeightRangeByKey's own

@@ -180,7 +180,18 @@
     return true;
   }
 
-  function completeInitialWheelSync() {
+  // receivedCommand: when this unlock is triggered by the *first* real wheel/angle/speed
+  // message arriving after "client/connect" (see the message handler's own call site
+  // below), that message's already-built command - the broker's actual current state
+  // (e.g. a real robot that kept driving forward across this page reload), not a stale
+  // guess. Previously this first message's content was discarded here in favor of
+  // pendingStartupLocalCommand-or-stop, which meant a page reload while a robot was
+  // genuinely still driving forward always inserted one unnecessary "stop" beat before
+  // the *next* message resumed it - visible in the simulation (and its cycloid chart) as
+  // a brief disappear-then-jump on every reload. Prioritized over pendingStartupLocalCommand
+  // (a command only *this* tab locally queued before the round trip finished) since a
+  // genuinely received message is the more authoritative, current source of truth.
+  function completeInitialWheelSync(receivedCommand) {
     if (initialWheelSyncCompleted) {
       return;
     }
@@ -194,9 +205,10 @@
       latestWheelLinearSpeedByKey[wheelKey] = 0;
     });
     initialWheelSyncCompleted = true;
-    if (pendingStartupLocalCommand) {
-      dispatchWheelCommand(pendingStartupLocalCommand);
-      pendingStartupLocalCommand = null;
+    const commandToApply = receivedCommand || pendingStartupLocalCommand;
+    pendingStartupLocalCommand = null;
+    if (commandToApply) {
+      dispatchWheelCommand(commandToApply);
     } else {
       dispatchStopCommand();
     }
@@ -383,7 +395,9 @@
 
     if (!initialWheelSyncCompleted) {
       if (initialClientConnectObserved) {
-        completeInitialWheelSync();
+        // Apply this first real message's own state directly - see
+        // completeInitialWheelSync()'s own comment for why it must no longer be discarded.
+        completeInitialWheelSync(buildWheelCommand(angleSpeedByKey));
       }
       return;
     }

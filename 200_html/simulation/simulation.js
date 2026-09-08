@@ -43,6 +43,16 @@ const CYCLOID_TRACE_3D_MARKER_RADIUS_METERS = 0.006;
 // poking back into the tire even though its *center* point was already technically
 // outside it.
 const CYCLOID_OUTER_RIM_CLEARANCE_METERS = 0.02;
+// Minimum gap (meters) marginedCycloidWheelRadiusMeters()'s radius - *plus* whatever
+// clearance safeCycloidOuterRimClearanceMeters() ends up adding on top of it for the 3D
+// trace - must keep below the calibrated rolling radius (estimateCycloidWheelRadiusMeters()).
+// Even a radius nominally *below* the rolling radius can still show a real several-mm
+// backward ("regression") step in forward(θ) once you sample it at real per-frame spin
+// increments instead of continuously - worse at higher drive speed, confirmed in-browser
+// (see [[browser-instrumentation-technique]]) as an actual self-crossing loop in the 3D
+// trace at this UI's full 0.1-2 m/s slider range, not just a theoretical edge case. This is
+// the gap size that keeps that discretization artifact imperceptible (<5mm) up to 2 m/s.
+const CYCLOID_ANTI_LOOP_SAFETY_BUFFER_METERS = 0.012;
 // isVehicleSettledForCycloidChart()'s rest thresholds and required run-length - see that
 // method's own comment and hasVehicleSettledForCycloidChart's constructor comment for why
 // recordCycloidChartSample() is gated on this. Deliberately checks only *vertical* linear
@@ -2005,8 +2015,47 @@ class RapierDriveSimulation {
   // own comment for why the margin must apply uniformly regardless of source. Shared here
   // so recordCycloidChartSample()'s calibration-lock retroactive recompute (below) uses the
   // exact same number computeCycloidSample() would for a fresh sample right now.
+  // Factor widened from an earlier 0.9 (only ~8mm below the calibrated rolling radius on
+  // this vehicle) to 0.75 - confirmed in-browser (see
+  // [[browser-instrumentation-technique]]/simulation-cycloid-radius-calibration memory's
+  // "Follow-up 9") that 0.9's thin gap let a real forward drive at realistic speed (0.3-2
+  // m/s, this UI's slider range) show a genuine several-mm backward step in forward(θ) right
+  // at the cusp - a real self-crossing loop, not just a theoretical risk - because the true
+  // per-sample translation-per-spin-radian isn't perfectly constant (matches
+  // CYCLOID_ANTI_LOOP_SAFETY_BUFFER_METERS's own comment). 0.75 keeps that regression
+  // imperceptible (<1mm on the no-clearance "outer" field) up to the UI's full 2 m/s.
   marginedCycloidWheelRadiusMeters(wheelKey) {
-    return Math.max(this.estimateCycloidWheelRadiusMeters(wheelKey) * 0.9, 0.05);
+    return Math.max(this.estimateCycloidWheelRadiusMeters(wheelKey) * 0.75, 0.05);
+  }
+
+  // The 3D trace's worldOuter point (see computeCycloidOuterFields() below) wants two
+  // things that can conflict once marginedCycloidWheelRadiusMeters() above is small enough
+  // to keep "outer" loop-free at realistic driving speed: CYCLOID_OUTER_RIM_CLEARANCE_METERS
+  // exists to push that point (and its marker sphere) *outside* the tire's real physical
+  // surface, but blindly adding the full constant back on top of an aggressively margined
+  // radius can push the *3D-only* point past the calibrated rolling radius even though the
+  // 2D "outer" field (no clearance) stays safely under it - reintroducing the exact
+  // self-intersecting-loop bug the margin above exists to prevent, just for the 3D trace
+  // (confirmed in-browser: a real forward drive at realistic speed reproduced a genuine
+  // several-mm-to-cm backward step in the 3D trace's forward projection even though the 2D
+  // field stayed clean - see [[browser-instrumentation-technique]]). Caps the *applied*
+  // clearance so the resulting 3D radius keeps the same safety buffer below the rolling
+  // radius the 2D field already keeps; if that leaves less than the marker sphere's own
+  // radius, this vehicle's real tire-vs-rolling-radius mismatch (see
+  // cycloidWheelRollingRadiusMetersByKey's own comment) is too large to satisfy both at
+  // once, and avoiding the loop wins - the marker may then sit closer to (or just inside)
+  // the tire's real surface than ideal, a cosmetic-only trade-off (ensureCycloidTrace3D()'s
+  // line/marker materials already draw with depthTest off, so they stay visible either way,
+  // just without perfectly hugging the tire).
+  safeCycloidOuterRimClearanceMeters(wheelKey, radiusMeters) {
+    const antiLoopCeilingMeters =
+      this.estimateCycloidWheelRadiusMeters(wheelKey) -
+      CYCLOID_ANTI_LOOP_SAFETY_BUFFER_METERS;
+    const maxSafeClearanceMeters = Math.max(
+      antiLoopCeilingMeters - radiusMeters,
+      CYCLOID_TRACE_3D_MARKER_RADIUS_METERS + 0.002,
+    );
+    return Math.min(CYCLOID_OUTER_RIM_CLEARANCE_METERS, maxSafeClearanceMeters);
   }
 
   // Rebuilds a sample's "outer" (2D-plotted forward/height) and worldOuter (3D-trace world
@@ -2020,6 +2069,7 @@ class RapierDriveSimulation {
   // computeCycloidSample() would get computing `new THREE.Vector3(0,0,radius).applyMatrix4(wheelLink.matrixWorld)`
   // fresh, without needing that live matrix again later.
   computeCycloidOuterFields(
+    wheelKey,
     centerWorld,
     axisWorldDir,
     radiusMeters,
@@ -2030,12 +2080,15 @@ class RapierDriveSimulation {
       .clone()
       .addScaledVector(axisWorldDir, radiusMeters);
     // See CYCLOID_OUTER_RIM_CLEARANCE_METERS's comment in computeCycloidSample() - kept
-    // separate from the true (no-clearance) point below for the same reason.
+    // separate from the true (no-clearance) point below for the same reason. The clearance
+    // itself is capped per safeCycloidOuterRimClearanceMeters()'s own comment - not always
+    // the full constant.
     const clearancePoint = centerWorld
       .clone()
       .addScaledVector(
         axisWorldDir,
-        radiusMeters + CYCLOID_OUTER_RIM_CLEARANCE_METERS,
+        radiusMeters +
+          this.safeCycloidOuterRimClearanceMeters(wheelKey, radiusMeters),
       );
     return {
       outer: {
@@ -2138,6 +2191,7 @@ class RapierDriveSimulation {
       .sub(wheelCenterWorld);
     const { outer: outerPoint, worldOuter: wheelRimWorld } =
       this.computeCycloidOuterFields(
+        wheelKey,
         wheelCenterWorld,
         wheelAxisWorldDir,
         wheelRadiusMeters,
@@ -2423,6 +2477,7 @@ class RapierDriveSimulation {
           return;
         }
         const rebuilt = this.computeCycloidOuterFields(
+          wheelKey,
           bufferedSample.outerCenterWorld,
           bufferedSample.outerAxisWorldDir,
           currentOuterRadiusMeters,

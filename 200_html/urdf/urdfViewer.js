@@ -3879,6 +3879,76 @@ class URDFViewer {
     return radius > 1e-6 ? radius : null;
   }
 
+  // True outer-rim radius of a link's own mesh, for placing a marker point that should
+  // visibly sit right on that link's own visible edge (used by getInnerGearMarkerRadiusMeters()/
+  // getInnerWheelMarkerRadiusMeters() below - *not* measureLinkLocalRadius() above, which
+  // stays as-is since ensureInnerGearRatioMeasured() relies on its specific "bounding-box
+  // heuristic" number for the wheel<->gear ratio and changing it would silently change that
+  // animation's speed). measureLinkLocalRadius()'s "two largest bounding-box dimensions are
+  // the diameter, the smallest is thickness" assumption only holds for a simple, roughly
+  // disc-shaped mesh centered on its own spin axis (true for wheel_{key}, which is why that
+  // heuristic looks right there) - it silently breaks for inner_gear_{key} (a small bevel
+  // gear with a shaft *longer* than its own tooth diameter along its spin axis, so the
+  // heuristic picks the shaft length as if it were a diameter) and for inner_wheel_{key}
+  // (an arm-shaped carrier whose mesh isn't centered on its own rotation axis at all, so
+  // half its bounding-box span isn't the true radius either) - confirmed in-browser via
+  // [[browser-instrumentation-technique]] that this undercounts inner_wheel_{key}'s true rim
+  // by roughly 40%, which is why its cycloid "middle" marker visibly sat well inside the
+  // carrier's own outer edge instead of tangent to it as required. Finds the link's nearest
+  // ancestor URDFJoint (the joint whose rotation actually moves this link) to get its spin
+  // axis, then returns the largest distance from that axis - not from the mesh's local
+  // origin - to any vertex, i.e. the true radial extent in the plane the link actually
+  // sweeps through as it spins. Falls back to null (letting the caller use
+  // measureLinkLocalRadius() instead) if there's no ancestor joint or usable mesh.
+  measureLinkLocalRimRadius(link) {
+    if (!link) {
+      return null;
+    }
+
+    let mesh = null;
+    link.traverse((child) => {
+      if (!mesh && child.isMesh && child.geometry) {
+        mesh = child;
+      }
+    });
+    const position = mesh?.geometry?.attributes?.position;
+    if (!position) {
+      return null;
+    }
+
+    let jointNode = link.parent;
+    while (jointNode && !jointNode.isURDFJoint) {
+      jointNode = jointNode.parent;
+    }
+    const axis = jointNode?.axis;
+    const axisLength = axis
+      ? Math.hypot(axis.x, axis.y, axis.z)
+      : 0;
+    if (!axisLength) {
+      return null;
+    }
+    const axisX = axis.x / axisLength;
+    const axisY = axis.y / axisLength;
+    const axisZ = axis.z / axisLength;
+
+    let maxRadius = 0;
+    for (let i = 0; i < position.count; i += 1) {
+      const x = position.getX(i);
+      const y = position.getY(i);
+      const z = position.getZ(i);
+      const along = x * axisX + y * axisY + z * axisZ;
+      const radius = Math.hypot(
+        x - along * axisX,
+        y - along * axisY,
+        z - along * axisZ,
+      );
+      if (radius > maxRadius) {
+        maxRadius = radius;
+      }
+    }
+    return maxRadius > 1e-6 ? maxRadius : null;
+  }
+
   // Returns null (not an error - just "not measurable yet") until both links' mesh
   // files have actually finished loading; see urdf-loader-progressive-mesh-reveal in
   // the project memory for why that can lag well behind the joint/link tree parsing.
@@ -3931,9 +4001,13 @@ class URDFViewer {
     }
 
     const linkMap = this.robotModel?.links || {};
-    const radius = this.measureLinkLocalRadius(
-      linkMap[this.innerGearLinkNameByKey[key]],
-    );
+    const link = linkMap[this.innerGearLinkNameByKey[key]];
+    // measureLinkLocalRimRadius() (axis-aware, the true outer edge) over
+    // measureLinkLocalRadius() (bounding-box heuristic, wrong for this gear's shaft-along-
+    // spin-axis shape) - see that method's own comment. Falls back to the heuristic only if
+    // the axis-aware measurement can't run yet (mesh/joint not ready).
+    const radius =
+      this.measureLinkLocalRimRadius(link) ?? this.measureLinkLocalRadius(link);
     if (!Number.isFinite(radius)) {
       return null;
     }
@@ -3958,9 +4032,13 @@ class URDFViewer {
     }
 
     const linkMap = this.robotModel?.links || {};
-    const radius = this.measureLinkLocalRadius(
-      linkMap[this.innerWheelLinkNameByKey[key]],
-    );
+    const link = linkMap[this.innerWheelLinkNameByKey[key]];
+    // measureLinkLocalRimRadius() (axis-aware, the true outer edge) over
+    // measureLinkLocalRadius() (bounding-box heuristic, wrong for this carrier arm's
+    // off-axis-center shape) - see that method's own comment. Falls back to the heuristic
+    // only if the axis-aware measurement can't run yet (mesh/joint not ready).
+    const radius =
+      this.measureLinkLocalRimRadius(link) ?? this.measureLinkLocalRadius(link);
     if (!Number.isFinite(radius)) {
       return null;
     }

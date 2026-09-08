@@ -10,6 +10,14 @@
 
   const WHEEL_ANGLE_SPEED_TOPIC = wheelCommand.TOPIC;
   const SURFACE_OBSTACLE_TOPIC = "vehicle/surface/obstacle";
+  // Persists the last surface-obstacle value this tab actually applied (button click or a
+  // real incoming MQTT message) across a page reload - see dispatchSurfaceObstacle()'s own
+  // comment for why this is needed: SURFACE_OBSTACLE_TOPIC publishes aren't retained by the
+  // broker (unlike WHEEL_ANGLE_SPEED_TOPIC's own reconciliation via 'client/connect'), so
+  // there's nothing for a freshly-reloaded tab to resync from there. A plain localStorage
+  // value, scoped to this browser only, is enough since this is the *simulation* page's own
+  // "what should the scene look like on load" state, not a value the real robot needs.
+  const SURFACE_OBSTACLE_STORAGE_KEY = "wcs.simulation.lastSurfaceObstacle";
   const WHEEL_KEYS = wheelCommand.WHEEL_KEYS;
   const DEFAULT_WHEEL_RADIUS_METERS = 0.16;
   const WHEEL_RADIUS_PUBLISH_RETRY_COUNT = 40;
@@ -170,6 +178,45 @@
     return true;
   }
 
+  // Guarded the same way simulation.js's own localStorage reads/writes are (see e.g.
+  // loadWheelZChartVisibleState()) - ignore failures in restricted browser modes rather
+  // than let a storage error break obstacle dispatch itself.
+  function saveLastSurfaceObstacle(normalizedValue) {
+    try {
+      if (typeof window.localStorage === "undefined") {
+        return;
+      }
+      window.localStorage.setItem(
+        SURFACE_OBSTACLE_STORAGE_KEY,
+        String(normalizedValue),
+      );
+    } catch (error) {
+      // Ignore storage failures in restricted browser modes.
+    }
+  }
+
+  function loadLastSurfaceObstacle() {
+    try {
+      if (typeof window.localStorage === "undefined") {
+        return null;
+      }
+      const savedValue = window.localStorage.getItem(
+        SURFACE_OBSTACLE_STORAGE_KEY,
+      );
+      if (savedValue == null) {
+        return null;
+      }
+      const parsedValue = Number(savedValue);
+      return Number.isInteger(parsedValue) &&
+        parsedValue >= -1 &&
+        parsedValue <= 2
+        ? parsedValue
+        : null;
+    } catch (error) {
+      return null;
+    }
+  }
+
   function dispatchSurfaceObstacle(obstacleValue) {
     const normalizedValue = Number(obstacleValue);
     if (!syncSurfaceObstacleButtons(normalizedValue)) {
@@ -177,6 +224,7 @@
     }
 
     window.latestSimulationSurfaceObstacle = normalizedValue;
+    saveLastSurfaceObstacle(normalizedValue);
     window.dispatchEvent(
       new CustomEvent("wcs:simulation-surface-obstacle", {
         detail: { value: normalizedValue },
@@ -433,5 +481,13 @@
   };
 
   dispatchStopCommand();
-  dispatchSurfaceObstacle(0);
+  // Restore whatever obstacle state this tab last actually applied (button click or a real
+  // incoming MQTT message - see saveLastSurfaceObstacle()'s own comment for why this can't
+  // just resync from the broker) instead of unconditionally forcing 0 ("문지르고 지나간
+  // 장애물만 치움" - only removes obstacles already passed) on every reload, which is a
+  // no-op right after a reload (the vehicle hasn't passed anything yet) and so left whatever
+  // obstacle the scene starts with visible even if the user had explicitly clicked "제거"
+  // (-1, unconditional removal) before reloading - the bug this was reported as ("장애물
+  // 제거 버튼을 클릭후에 화면을 로딩하면 다시 장애물이 나타납니다").
+  dispatchSurfaceObstacle(loadLastSurfaceObstacle() ?? 0);
 })();

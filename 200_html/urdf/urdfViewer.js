@@ -3878,35 +3878,35 @@ class URDFViewer {
     return radius > 1e-6 ? radius : null;
   }
 
-  // Local-frame position of the single mesh vertex farthest from a link's own rotation
-  // axis, for placing a marker point that should visibly sit right on that link's own
-  // visible edge (used by getInnerGearMarkerLocalPoint()/getInnerWheelMarkerLocalPoint()
-  // below - *not* measureLinkLocalRadius() above, which stays as-is since
-  // ensureInnerGearRatioMeasured() relies on its specific "bounding-box heuristic" number
-  // for the wheel<->gear ratio and changing it would silently change that animation's
-  // speed). measureLinkLocalRadius()'s "two largest bounding-box dimensions are the
-  // diameter, the smallest is thickness" assumption only holds for a simple, roughly
-  // disc-shaped mesh centered on its own spin axis (true for wheel_{key}, which is why that
-  // heuristic looks right there) - it silently breaks for inner_gear_{key} (a small bevel
-  // gear with a shaft *longer* than its own tooth diameter along its spin axis, so the
-  // heuristic picks the shaft length as if it were a diameter) and for inner_wheel_{key}
-  // (an arm-shaped carrier whose mesh isn't centered on its own rotation axis at all, so
-  // half its bounding-box span isn't the true radius either) - confirmed in-browser via
-  // [[browser-instrumentation-technique]] that this undercounts inner_wheel_{key}'s true rim
-  // by roughly 40%.
+  // Local-frame position of a link's own bottom-most (minimum local Y, see the loop's own
+  // comment below for why) mesh vertex, for placing a marker point that should visibly sit
+  // right on that link's own visible edge (used by getInnerGearMarkerLocalPoint()/
+  // getInnerWheelMarkerLocalPoint() below - *not* measureLinkLocalRadius() above, which
+  // stays as-is since ensureInnerGearRatioMeasured() relies on its specific "bounding-box
+  // heuristic" number for the wheel<->gear ratio and changing it would silently change
+  // that animation's speed). measureLinkLocalRadius()'s "two largest bounding-box
+  // dimensions are the diameter, the smallest is thickness" assumption only holds for a
+  // simple, roughly disc-shaped mesh centered on its own spin axis (true for wheel_{key},
+  // which is why that heuristic looks right there) - it silently breaks for
+  // inner_gear_{key} (a small bevel gear with a shaft *longer* than its own tooth diameter
+  // along its spin axis, so the heuristic picks the shaft length as if it were a diameter)
+  // and for inner_wheel_{key} (an arm-shaped carrier whose mesh isn't centered on its own
+  // rotation axis at all, so half its bounding-box span isn't the true radius either) -
+  // confirmed in-browser via [[browser-instrumentation-technique]] that this undercounts
+  // inner_wheel_{key}'s true rim by roughly 40%.
   //
-  // Returns the farthest vertex's *actual local (x,y,z) position* (its along-axis
-  // component zeroed out, so it lies exactly in the plane the link sweeps through) rather
-  // than just that distance as a bare number - an earlier version of this method returned
-  // only the scalar radius, which its caller then had to place along a fixed, arbitrary
-  // local axis (+X) via `new THREE.Vector3(radius, 0, 0)`. That's only correct for a mesh
-  // that's radially even (any direction has the same extent, like a wheel) - for an
-  // asymmetric arm shape like inner_wheel_{key}, the true farthest point is *not*
-  // generally at "radius meters along +X", so combining this method's correct magnitude
-  // with that caller's fixed +X direction placed the marker at a real distance from the
-  // link's center but off in an arbitrary direction - which, once this method started
-  // returning inner_wheel_{key}'s true (much larger) radius, visibly flung the marker
-  // well past the carrier arm's own physical geometry into empty space. Returning the
+  // Returns the chosen vertex's *actual local (x,y,z) position* (its along-axis component
+  // zeroed out, so it lies exactly in the plane the link sweeps through) rather than just
+  // a distance as a bare number - an earlier version of this method picked the single
+  // *farthest* vertex from the axis and returned only that scalar radius, which its caller
+  // then had to place along a fixed, arbitrary local axis (+X) via
+  // `new THREE.Vector3(radius, 0, 0)`. That's only correct for a mesh that's radially even
+  // (any direction has the same extent, like a wheel) - for an asymmetric arm shape like
+  // inner_wheel_{key}, the true farthest point is *not* generally at "radius meters along
+  // +X", so combining that magnitude with a fixed +X direction placed the marker at a real
+  // distance from the link's center but off in an arbitrary direction - once this method
+  // started returning inner_wheel_{key}'s true (much larger) radius, that visibly flung the
+  // marker well past the carrier arm's own physical geometry into empty space. Returning an
   // actual vertex position instead means the caller can `.applyMatrix4(link.matrixWorld)`
   // it directly with no direction assumption at all - it's a real point already sitting on
   // the mesh, by construction.
@@ -3945,23 +3945,33 @@ class URDFViewer {
     const axisY = axis.y / axisLength;
     const axisZ = axis.z / axisLength;
 
-    let maxRadius = 0;
-    let farthestPoint = null;
+    // Among the mesh's own vertices, prefer the one with the smallest local Y - confirmed
+    // in-browser (see [[browser-instrumentation-technique]]) that local -Y is this model's
+    // "toward the ground" direction for both inner_gear_{key} and inner_wheel_{key} at
+    // rest (their minimum-Y vertex's world Z lands right near groundZ, their maximum-Y
+    // vertex's world Z lands up near the pod's axle height) - so this places the reference
+    // point at the bottom/ground-facing side of the component, the same convention "outer"
+    // already reads as natural (its own cycloid trace starts from ground contact). Not
+    // simply "the farthest vertex from the axis" (this method's earlier behavior) - that
+    // picked whichever direction happened to be farthest at all, which for inner_wheel_{key}
+    // (an arm reaching mostly toward +Y, not -Y) landed *opposite* the ground-facing side.
+    let minY = Infinity;
+    let bottomPoint = null;
     for (let i = 0; i < position.count; i += 1) {
       const x = position.getX(i);
       const y = position.getY(i);
       const z = position.getZ(i);
-      const along = x * axisX + y * axisY + z * axisZ;
-      const radialX = x - along * axisX;
-      const radialY = y - along * axisY;
-      const radialZ = z - along * axisZ;
-      const radius = Math.hypot(radialX, radialY, radialZ);
-      if (radius > maxRadius) {
-        maxRadius = radius;
-        farthestPoint = { x: radialX, y: radialY, z: radialZ };
+      if (y < minY) {
+        const along = x * axisX + y * axisY + z * axisZ;
+        minY = y;
+        bottomPoint = {
+          x: x - along * axisX,
+          y: y - along * axisY,
+          z: z - along * axisZ,
+        };
       }
     }
-    return maxRadius > 1e-6 ? farthestPoint : null;
+    return bottomPoint;
   }
 
   // Returns null (not an error - just "not measurable yet") until both links' mesh

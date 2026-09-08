@@ -1941,8 +1941,8 @@ class RapierDriveSimulation {
   //     rotation, which combined with the chassis's forward travel is exactly what
   //     produces the classic cycloid loop.
   //   - middle (중간휠/캐리어): a point on the carrier (inner_wheel_{key}) link's own rim
-  //     (carrier center + its own local mesh radius along local +X, mirroring "inner"
-  //     below) - see getInnerWheelMarkerRadiusMeters()'s comment in urdfViewer.js. NOT the
+  //     (its own farthest-vertex local point, mirroring "inner" below) - see
+  //     getInnerWheelMarkerLocalPoint()'s comment in urdfViewer.js. NOT the
   //     carrier arm's tip/the wheel's own axle position (the old design here, before the
   //     user's explicit "모든 휠의 사이클로이드 기준점은 해당 휠의 최외곽 원주에 접해야
   //     한다" request) - that point sits on the circle the wheel's *mount point* sweeps as
@@ -1953,7 +1953,7 @@ class RapierDriveSimulation {
   //     chassis - and a curved arc while actually climbing, as the carrier orbits.
   //   - inner (내부휠/베벨기어): a point on the gear's own rim (its rotation *center* is
   //     fixed relative to car_frame and traces nothing on its own - see
-  //     getInnerGearMarkerRadiusMeters()'s comment in urdfViewer.js - but the whole car_frame
+  //     getInnerGearMarkerLocalPoint()'s comment in urdfViewer.js - but the whole car_frame
   //     still carries it forward with the vehicle), driven by applyInnerGearRotation()'s
   //     live gear angle, itself a function of the outer wheel's own rolling angle - so this
   //     point's position is directly coupled to the outer wheel's motion even though it
@@ -2203,14 +2203,14 @@ class RapierDriveSimulation {
     let innerWorld = null;
     if (
       gearLink &&
-      typeof viewer.getInnerGearMarkerRadiusMeters === "function"
+      typeof viewer.getInnerGearMarkerLocalPoint === "function"
     ) {
-      const gearRadiusMeters = viewer.getInnerGearMarkerRadiusMeters(wheelKey);
-      if (Number.isFinite(gearRadiusMeters) && gearRadiusMeters > 0) {
+      const gearLocalPoint = viewer.getInnerGearMarkerLocalPoint(wheelKey);
+      if (gearLocalPoint) {
         const gearMarkerWorld = new THREE.Vector3(
-          gearRadiusMeters,
-          0,
-          0,
+          gearLocalPoint.x,
+          gearLocalPoint.y,
+          gearLocalPoint.z,
         ).applyMatrix4(gearLink.matrixWorld);
         innerPoint = project(gearMarkerWorld);
         innerWorld = gearMarkerWorld;
@@ -2219,34 +2219,37 @@ class RapierDriveSimulation {
 
     // "middle" (중간휠/carrier) marker - a point out on inner_wheel_{key}'s own rim,
     // mirroring the inner_gear marker above exactly (same shared joint origin/axis - see
-    // innerWheelJointNameByKey's comment in urdfViewer.js - so local +X here is likewise
-    // perpendicular to this link's own spin axis and actually traces a circle). Previously
-    // "middle" just used wheelCenterWorld (the outer wheel's own axle) directly - that
-    // point sits on the circle the wheel's *mount point* sweeps as the carrier orbits
-    // (radius = innerWheelOrbitRadiusMetersByKey, a joint-origin offset), not a point on
-    // the carrier link's own physical rim, so it wasn't actually tangent to the carrier's
-    // own outer circumference the way "outer"/"inner" are tangent to theirs - the bug this
-    // was reported as ("중간휠의 기준점은 중간휠의 중심점을 가리키고 있다").
+    // innerWheelJointNameByKey's comment in urdfViewer.js). Previously "middle" just used
+    // wheelCenterWorld (the outer wheel's own axle) directly - that point sits on the
+    // circle the wheel's *mount point* sweeps as the carrier orbits (radius =
+    // innerWheelOrbitRadiusMetersByKey, a joint-origin offset), not a point on the
+    // carrier link's own physical rim, so it wasn't actually tangent to the carrier's own
+    // outer circumference the way "outer"/"inner" are tangent to theirs - the bug this was
+    // reported as ("중간휠의 기준점은 중간휠의 중심점을 가리키고 있다"). getInnerWheelMarkerLocalPoint()
+    // returns the carrier's *actual* farthest-vertex position (see
+    // measureLinkLocalRimPoint()'s own comment in urdfViewer.js) rather than a bare radius
+    // placed along an assumed local +X - the carrier arm's real geometry isn't radially
+    // even, so forcing its true (larger) radius onto a fixed +X direction previously flung
+    // this marker well past the arm's own physical shape.
     let middlePoint = null;
     let middleWorld = null;
     if (
       carrierLink &&
-      typeof viewer.getInnerWheelMarkerRadiusMeters === "function"
+      typeof viewer.getInnerWheelMarkerLocalPoint === "function"
     ) {
-      const carrierRadiusMeters =
-        viewer.getInnerWheelMarkerRadiusMeters(wheelKey);
-      if (Number.isFinite(carrierRadiusMeters) && carrierRadiusMeters > 0) {
+      const carrierLocalPoint = viewer.getInnerWheelMarkerLocalPoint(wheelKey);
+      if (carrierLocalPoint) {
         const carrierMarkerWorld = new THREE.Vector3(
-          carrierRadiusMeters,
-          0,
-          0,
+          carrierLocalPoint.x,
+          carrierLocalPoint.y,
+          carrierLocalPoint.z,
         ).applyMatrix4(carrierLink.matrixWorld);
         middlePoint = project(carrierMarkerWorld);
         middleWorld = carrierMarkerWorld;
       }
     }
     // Falls back to the outer wheel's own axle (the old behavior) only until the carrier
-    // link/mesh resolves - see getInnerWheelMarkerRadiusMeters()'s own "returns null until
+    // link/mesh resolves - see getInnerWheelMarkerLocalPoint()'s own "returns null until
     // the mesh file has actually finished loading" caveat - so the chart still shows
     // *something* moving in the meantime instead of a gap.
     if (!middlePoint) {

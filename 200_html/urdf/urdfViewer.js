@@ -157,12 +157,11 @@ class URDFViewer {
       rl: null,
       rr: null,
     };
-    // Populated lazily by getInnerGearMarkerRadiusMeters() - same "local mesh bounding
-    // radius" measurement ensureInnerGearRatioMeasured() already does for the ratio, just
-    // exposed on its own so simulation.js's cycloid chart can place a marker point out on
-    // the gear's own rim (its *center* never moves - see innerWheelJointNameByKey's
-    // comment below - so a rim point is what actually traces a curve).
-    this.innerGearMarkerRadiusMetersByKey = {
+    // Populated lazily by getInnerGearMarkerLocalPoint() - the gear's own local-frame rim
+    // point (its *center* never moves - see innerWheelJointNameByKey's comment below - so
+    // a rim point is what actually traces a curve). See measureLinkLocalRimPoint()'s own
+    // comment for why this caches a point, not a bare radius.
+    this.innerGearMarkerLocalPointByKey = {
       fl: null,
       fr: null,
       rl: null,
@@ -185,9 +184,9 @@ class URDFViewer {
     // Same {joint name}_joint -> {link name} stripping convention as wheelLinkNameByKey/
     // innerGearLinkNameByKey above (confirmed against sw18.urdf: inner_wheel_fl_joint's
     // child link is inner_wheel_fl, with its own inner_wheel_fl.STL mesh) - used by
-    // getInnerWheelMarkerRadiusMeters() below so simulation.js's cycloid chart can place
+    // getInnerWheelMarkerLocalPoint() below so simulation.js's cycloid chart can place
     // its "middle" (중간휠/carrier) marker point on *this* link's own rim, the same way it
-    // already does for inner_gear via getInnerGearMarkerRadiusMeters().
+    // already does for inner_gear via getInnerGearMarkerLocalPoint().
     this.innerWheelLinkNameByKey = {
       fl: "inner_wheel_fl",
       fr: "inner_wheel_fr",
@@ -215,14 +214,14 @@ class URDFViewer {
       rl: null,
       rr: null,
     };
-    // Populated lazily by getInnerWheelMarkerRadiusMeters() - same "local mesh bounding
-    // radius" idea as innerGearMarkerRadiusMetersByKey above, just for inner_wheel_{key}
-    // (the carrier/중간휠) itself instead of inner_gear_{key}. Deliberately distinct from
+    // Populated lazily by getInnerWheelMarkerLocalPoint() - same idea as
+    // innerGearMarkerLocalPointByKey above, just for inner_wheel_{key} (the carrier/
+    // 중간휠) itself instead of inner_gear_{key}. Deliberately distinct from
     // innerWheelOrbitRadiusMetersByKey above: that one is how far the *wheel's own axle*
     // sits from the carrier's rotation axis (a joint-origin offset, unrelated to the
     // carrier's own mesh size), whereas this is a point out on the carrier link's *own*
     // rim - i.e. a point on the carrier's own outer circumference, not the wheel mount.
-    this.innerWheelMarkerRadiusMetersByKey = {
+    this.innerWheelMarkerLocalPointByKey = {
       fl: null,
       fr: null,
       rl: null,
@@ -3879,13 +3878,14 @@ class URDFViewer {
     return radius > 1e-6 ? radius : null;
   }
 
-  // True outer-rim radius of a link's own mesh, for placing a marker point that should
-  // visibly sit right on that link's own visible edge (used by getInnerGearMarkerRadiusMeters()/
-  // getInnerWheelMarkerRadiusMeters() below - *not* measureLinkLocalRadius() above, which
-  // stays as-is since ensureInnerGearRatioMeasured() relies on its specific "bounding-box
-  // heuristic" number for the wheel<->gear ratio and changing it would silently change that
-  // animation's speed). measureLinkLocalRadius()'s "two largest bounding-box dimensions are
-  // the diameter, the smallest is thickness" assumption only holds for a simple, roughly
+  // Local-frame position of the single mesh vertex farthest from a link's own rotation
+  // axis, for placing a marker point that should visibly sit right on that link's own
+  // visible edge (used by getInnerGearMarkerLocalPoint()/getInnerWheelMarkerLocalPoint()
+  // below - *not* measureLinkLocalRadius() above, which stays as-is since
+  // ensureInnerGearRatioMeasured() relies on its specific "bounding-box heuristic" number
+  // for the wheel<->gear ratio and changing it would silently change that animation's
+  // speed). measureLinkLocalRadius()'s "two largest bounding-box dimensions are the
+  // diameter, the smallest is thickness" assumption only holds for a simple, roughly
   // disc-shaped mesh centered on its own spin axis (true for wheel_{key}, which is why that
   // heuristic looks right there) - it silently breaks for inner_gear_{key} (a small bevel
   // gear with a shaft *longer* than its own tooth diameter along its spin axis, so the
@@ -3893,14 +3893,28 @@ class URDFViewer {
   // (an arm-shaped carrier whose mesh isn't centered on its own rotation axis at all, so
   // half its bounding-box span isn't the true radius either) - confirmed in-browser via
   // [[browser-instrumentation-technique]] that this undercounts inner_wheel_{key}'s true rim
-  // by roughly 40%, which is why its cycloid "middle" marker visibly sat well inside the
-  // carrier's own outer edge instead of tangent to it as required. Finds the link's nearest
-  // ancestor URDFJoint (the joint whose rotation actually moves this link) to get its spin
-  // axis, then returns the largest distance from that axis - not from the mesh's local
-  // origin - to any vertex, i.e. the true radial extent in the plane the link actually
-  // sweeps through as it spins. Falls back to null (letting the caller use
+  // by roughly 40%.
+  //
+  // Returns the farthest vertex's *actual local (x,y,z) position* (its along-axis
+  // component zeroed out, so it lies exactly in the plane the link sweeps through) rather
+  // than just that distance as a bare number - an earlier version of this method returned
+  // only the scalar radius, which its caller then had to place along a fixed, arbitrary
+  // local axis (+X) via `new THREE.Vector3(radius, 0, 0)`. That's only correct for a mesh
+  // that's radially even (any direction has the same extent, like a wheel) - for an
+  // asymmetric arm shape like inner_wheel_{key}, the true farthest point is *not*
+  // generally at "radius meters along +X", so combining this method's correct magnitude
+  // with that caller's fixed +X direction placed the marker at a real distance from the
+  // link's center but off in an arbitrary direction - which, once this method started
+  // returning inner_wheel_{key}'s true (much larger) radius, visibly flung the marker
+  // well past the carrier arm's own physical geometry into empty space. Returning the
+  // actual vertex position instead means the caller can `.applyMatrix4(link.matrixWorld)`
+  // it directly with no direction assumption at all - it's a real point already sitting on
+  // the mesh, by construction.
+  //
+  // Finds the link's nearest ancestor URDFJoint (the joint whose rotation actually moves
+  // this link) to get its spin axis. Falls back to null (letting the caller use
   // measureLinkLocalRadius() instead) if there's no ancestor joint or usable mesh.
-  measureLinkLocalRimRadius(link) {
+  measureLinkLocalRimPoint(link) {
     if (!link) {
       return null;
     }
@@ -3932,21 +3946,22 @@ class URDFViewer {
     const axisZ = axis.z / axisLength;
 
     let maxRadius = 0;
+    let farthestPoint = null;
     for (let i = 0; i < position.count; i += 1) {
       const x = position.getX(i);
       const y = position.getY(i);
       const z = position.getZ(i);
       const along = x * axisX + y * axisY + z * axisZ;
-      const radius = Math.hypot(
-        x - along * axisX,
-        y - along * axisY,
-        z - along * axisZ,
-      );
+      const radialX = x - along * axisX;
+      const radialY = y - along * axisY;
+      const radialZ = z - along * axisZ;
+      const radius = Math.hypot(radialX, radialY, radialZ);
       if (radius > maxRadius) {
         maxRadius = radius;
+        farthestPoint = { x: radialX, y: radialY, z: radialZ };
       }
     }
-    return maxRadius > 1e-6 ? maxRadius : null;
+    return maxRadius > 1e-6 ? farthestPoint : null;
   }
 
   // Returns null (not an error - just "not measurable yet") until both links' mesh
@@ -3994,57 +4009,78 @@ class URDFViewer {
   // ensureInnerGearRatioMeasured() caches gearRadius, and just as dependent on the mesh
   // file having actually finished loading (see urdf-loader-progressive-mesh-reveal in the
   // project memory) - returns null and lets callers retry next frame until it does.
-  getInnerGearMarkerRadiusMeters(key) {
-    const cachedRadius = this.innerGearMarkerRadiusMetersByKey[key];
-    if (Number.isFinite(cachedRadius)) {
-      return cachedRadius;
+  // Local-frame point (see measureLinkLocalRimPoint()'s own comment for why a point, not a
+  // bare radius) out on inner_gear_{key}'s own rim rather than its rotation center (which
+  // is fixed - see the comment on innerWheelJointNameByKey - and so traces no curve at
+  // all). Used by simulation.js's cycloid chart to place a marker point whose world
+  // position actually moves as the gear spins, driven by applyInnerGearRotation()'s
+  // gearAngle. Cached the same way ensureInnerGearRatioMeasured() caches gearRadius, and
+  // just as dependent on the mesh file having actually finished loading (see
+  // urdf-loader-progressive-mesh-reveal in the project memory) - returns null and lets
+  // callers retry next frame until it does.
+  getInnerGearMarkerLocalPoint(key) {
+    const cachedPoint = this.innerGearMarkerLocalPointByKey[key];
+    if (cachedPoint) {
+      return cachedPoint;
     }
 
     const linkMap = this.robotModel?.links || {};
     const link = linkMap[this.innerGearLinkNameByKey[key]];
-    // measureLinkLocalRimRadius() (axis-aware, the true outer edge) over
-    // measureLinkLocalRadius() (bounding-box heuristic, wrong for this gear's shaft-along-
-    // spin-axis shape) - see that method's own comment. Falls back to the heuristic only if
-    // the axis-aware measurement can't run yet (mesh/joint not ready).
-    const radius =
-      this.measureLinkLocalRimRadius(link) ?? this.measureLinkLocalRadius(link);
-    if (!Number.isFinite(radius)) {
+    // measureLinkLocalRimPoint() (axis-aware, the true outer edge, in its own real
+    // direction) over a synthetic `(measureLinkLocalRadius(), 0, 0)` point (bounding-box
+    // heuristic magnitude forced onto an arbitrary +X direction, wrong for this gear's
+    // shaft-along-spin-axis shape) - see measureLinkLocalRimPoint()'s own comment. Falls
+    // back to the heuristic only if the axis-aware measurement can't run yet (mesh/joint
+    // not ready).
+    const fallbackRadius = this.measureLinkLocalRadius(link);
+    const point =
+      this.measureLinkLocalRimPoint(link) ??
+      (Number.isFinite(fallbackRadius)
+        ? { x: fallbackRadius, y: 0, z: 0 }
+        : null);
+    if (!point) {
       return null;
     }
 
-    this.innerGearMarkerRadiusMetersByKey[key] = radius;
-    return radius;
+    this.innerGearMarkerLocalPointByKey[key] = point;
+    return point;
   }
 
-  // Local mesh bounding radius of inner_wheel_{key} (the carrier/중간휠) itself, i.e. a
-  // point out on the carrier's own rim rather than its rotation center - same idea as
-  // getInnerGearMarkerRadiusMeters() just above, for this link instead. Used by
-  // simulation.js's cycloid chart to place its "middle" series marker tangent to the
-  // carrier's own outer circumference, matching how "outer" (wheel) and "inner"
-  // (inner_gear) already place theirs - previously the "middle" series just used the
-  // wheel's own axle position (wheelCenterWorld), which sits on the circle the *wheel's
-  // mount point* sweeps as the carrier orbits (see innerWheelOrbitRadiusMetersByKey's own
-  // comment), not a point on the carrier link's own physical rim.
-  getInnerWheelMarkerRadiusMeters(key) {
-    const cachedRadius = this.innerWheelMarkerRadiusMetersByKey[key];
-    if (Number.isFinite(cachedRadius)) {
-      return cachedRadius;
+  // Local-frame point out on inner_wheel_{key} (the carrier/중간휠)'s own rim rather than
+  // its rotation center - same idea as getInnerGearMarkerLocalPoint() just above, for this
+  // link instead. Used by simulation.js's cycloid chart to place its "middle" series
+  // marker tangent to the carrier's own outer circumference, matching how "outer" (wheel)
+  // and "inner" (inner_gear) already place theirs - previously the "middle" series just
+  // used the wheel's own axle position (wheelCenterWorld), which sits on the circle the
+  // *wheel's mount point* sweeps as the carrier orbits (see innerWheelOrbitRadiusMetersByKey's
+  // own comment), not a point on the carrier link's own physical rim.
+  getInnerWheelMarkerLocalPoint(key) {
+    const cachedPoint = this.innerWheelMarkerLocalPointByKey[key];
+    if (cachedPoint) {
+      return cachedPoint;
     }
 
     const linkMap = this.robotModel?.links || {};
     const link = linkMap[this.innerWheelLinkNameByKey[key]];
-    // measureLinkLocalRimRadius() (axis-aware, the true outer edge) over
-    // measureLinkLocalRadius() (bounding-box heuristic, wrong for this carrier arm's
-    // off-axis-center shape) - see that method's own comment. Falls back to the heuristic
-    // only if the axis-aware measurement can't run yet (mesh/joint not ready).
-    const radius =
-      this.measureLinkLocalRimRadius(link) ?? this.measureLinkLocalRadius(link);
-    if (!Number.isFinite(radius)) {
+    // measureLinkLocalRimPoint() (axis-aware, the true outer edge, in its own real
+    // direction) over a synthetic `(measureLinkLocalRadius(), 0, 0)` point (bounding-box
+    // heuristic magnitude forced onto an arbitrary +X direction, wrong for this carrier
+    // arm's off-axis-center shape - see measureLinkLocalRimPoint()'s own comment for why
+    // combining that heuristic's magnitude with a fixed +X direction flings the marker off
+    // into empty space instead of just landing a little short). Falls back to the
+    // heuristic only if the axis-aware measurement can't run yet (mesh/joint not ready).
+    const fallbackRadius = this.measureLinkLocalRadius(link);
+    const point =
+      this.measureLinkLocalRimPoint(link) ??
+      (Number.isFinite(fallbackRadius)
+        ? { x: fallbackRadius, y: 0, z: 0 }
+        : null);
+    if (!point) {
       return null;
     }
 
-    this.innerWheelMarkerRadiusMetersByKey[key] = radius;
-    return radius;
+    this.innerWheelMarkerLocalPointByKey[key] = point;
+    return point;
   }
 
   // Distance from inner_wheel_{key}_joint's own rotation axis (Z, in swing_link's local

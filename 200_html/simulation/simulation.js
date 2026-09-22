@@ -1653,7 +1653,7 @@ class RapierDriveSimulation {
     title.style.lineHeight = "1.1";
     title.style.textAlign = "center";
     title.style.width = "100%";
-    title.textContent = "Wheel Cycloid 2D 챠트";
+    title.textContent = "Wheel Cycloid";
 
     const toggleButton = document.createElement("button");
     toggleButton.type = "button";

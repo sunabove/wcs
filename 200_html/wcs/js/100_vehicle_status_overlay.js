@@ -435,9 +435,13 @@
       const rawValue = window.localStorage.getItem(
         OVERLAY_AUTO_REPLAY_STORAGE_KEY,
       );
-      const normalized = String(rawValue || "")
-        .trim()
-        .toLowerCase();
+      // No saved preference yet (first visit, or storage cleared) - default the loop
+      // toggle to on, per the user's explicit request. Once a user has actually
+      // toggled it, their explicit choice (including turning it back off) still wins.
+      if (rawValue == null) {
+        return true;
+      }
+      const normalized = String(rawValue).trim().toLowerCase();
       return (
         normalized === "true" ||
         normalized === "1" ||
@@ -445,7 +449,7 @@
         normalized === "on"
       );
     } catch (error) {
-      return false;
+      return true;
     }
   }
 

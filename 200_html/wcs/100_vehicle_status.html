@@ -48,6 +48,7 @@
     <script src="./js/014_wcs_chart.js" defer></script>
     <script src="./js/102_mqtt_process_status.js?v=20260824-wheel-angle-speed-receive" defer></script>
     <script src="./js/100_vehicle_status_overlay.js?v=20260824-overlay-zoom-before-pan" defer></script>
+    <script src="./js/100_page_zoom.js?v=20260922page-zoom-spinner" defer></script>
     <script src="../simulation/simulation_mqtt.js?v=20260824-status-simulation" defer></script>
     <script type="module" src="../urdf/urdfViewer.js?v=20260922camera-autofit-left-view"></script>
     <script type="module" src="../simulation/simulation.js?v=20260922chart-toggle-touch-fix"></script>
@@ -111,6 +112,20 @@
                 &nbsp;
 
                 <div id="mqtt-header-ui"></div>
+
+                <div id="page-zoom-control" class="d-flex align-items-center gap-1 ms-2"
+                    role="group" aria-label="화면 확대/축소">
+                    <button type="button" id="page-zoom-decrease" class="btn btn-sm btn-outline-light"
+                        aria-label="화면 축소" title="화면 축소">
+                        <i class="bi bi-dash-lg"></i>
+                    </button>
+                    <span id="page-zoom-value" class="text-white small text-center"
+                        style="min-width: 3.2em;">100%</span>
+                    <button type="button" id="page-zoom-increase" class="btn btn-sm btn-outline-light"
+                        aria-label="화면 확대" title="화면 확대">
+                        <i class="bi bi-plus-lg"></i>
+                    </button>
+                </div>
 
             </div>
         </div>

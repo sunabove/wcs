@@ -4273,6 +4273,50 @@ class URDFViewer {
     return Math.max(distanceByHeight, distanceByWidth, 0.001);
   }
 
+  // A saved (localStorage) or attribute-provided camera pose is trusted blindly by
+  // default, but it can go stale relative to the *current* model - e.g. captured
+  // against a different URDF (different scale/origin) sharing the same container id,
+  // or left over from before this model's geometry changed. Two ways that shows up as
+  // "nothing but the sky-blue background renders": the camera ends up inside (or
+  // nearly inside) the model's own bounding sphere, so only its inward-facing,
+  // backface-culled triangles surround it and nothing draws; or the pose simply points
+  // the camera away from the model entirely. Both are cheap to detect up front against
+  // the bounding sphere just measured for this load, without waiting for the user to
+  // notice a blank viewer.
+  isCameraPoseShowingModel(candidatePosition, candidateTarget, sphere) {
+    if (!this.camera || !sphere || !candidatePosition || !candidateTarget) {
+      return true;
+    }
+
+    const radius = Math.max(sphere.radius, 0.001);
+    const distanceToCenter = candidatePosition.distanceTo(sphere.center);
+    if (distanceToCenter <= radius * 1.02) {
+      return false;
+    }
+
+    const savedPosition = this.camera.position.clone();
+    const savedQuaternion = this.camera.quaternion.clone();
+
+    this.camera.position.copy(candidatePosition);
+    this.camera.lookAt(candidateTarget);
+    this.camera.updateMatrixWorld(true);
+
+    const projScreenMatrix = new THREE.Matrix4().multiplyMatrices(
+      this.camera.projectionMatrix,
+      this.camera.matrixWorldInverse,
+    );
+    const frustum = new THREE.Frustum().setFromProjectionMatrix(
+      projScreenMatrix,
+    );
+    const isVisible = frustum.intersectsSphere(sphere);
+
+    this.camera.position.copy(savedPosition);
+    this.camera.quaternion.copy(savedQuaternion);
+    this.camera.updateMatrixWorld(true);
+
+    return isVisible;
+  }
+
   resetDirectionalLight(center, radius) {
     if (!this.directionalLight) {
       return;
@@ -5180,7 +5224,24 @@ class URDFViewer {
           this.updateAxisGuideLengthsByModelSize(size);
           this.updateAxisLabelScaleByModelSize(size);
 
-          if (this.hasCustomCameraPosition) {
+          const customPoseTarget = this.hasCustomCameraTarget
+            ? this.cameraTarget
+            : center;
+          const isCustomPoseUsable =
+            this.hasCustomCameraPosition &&
+            this.isCameraPoseShowingModel(
+              this.cameraPosition,
+              customPoseTarget,
+              sphere,
+            );
+
+          if (this.hasCustomCameraPosition && !isCustomPoseUsable) {
+            console.warn(
+              "[URDF] 지정/저장된 카메라 위치에서 모델이 보이지 않아 auto-fit으로 대체합니다.",
+            );
+          }
+
+          if (isCustomPoseUsable) {
             console.log("[URDF] cameraPose 지정됨: 사용자 카메라 위치 유지");
           } else {
             const fitDistance = this.calculateFitDistanceForFace(
@@ -5190,7 +5251,7 @@ class URDFViewer {
             );
             this.setCameraFromFace(center, fitDistance, "front");
             console.log(
-              "[URDF] cameraPose/저장 포즈 미지정: front view 자동 피팅 카메라 적용 (마진 5%)",
+              "[URDF] cameraPose/저장 포즈 미지정 또는 모델이 보이지 않음: front view 자동 피팅 카메라 적용 (마진 5%)",
             );
           }
 

@@ -432,8 +432,15 @@ class URDFViewer {
     const rawCameraTarget = containerElement.getAttribute("cameraTarget");
     const rawCameraUp = containerElement.getAttribute("cameraUp");
     const parsedCameraPose = this.parseCameraPose(rawCameraPose);
-    const parsedSavedCameraPose =
-      parsedCameraPose == null ? this.loadSavedCameraPose() : null;
+    // Initial page load always starts from auto-fit (front-view fit here, or
+    // simulation.js's own vehicle-bounds fit for pages that drive one - see
+    // fitInitialCameraToVehicle()'s hasStoredCameraPose branch) rather than restoring
+    // whatever pose localStorage last had. A stale saved pose is exactly what let a
+    // camera end up inside/away from the model on reload (see
+    // isCameraPoseShowingModel() above) - simplest fix is to just not apply it at
+    // load. saveCurrentCameraPoseToStorage() still writes on every drag/zoom/pan, so
+    // this only changes what happens on load, not whether pose changes get persisted.
+    const parsedSavedCameraPose = null;
     const effectiveCameraPose = parsedCameraPose || parsedSavedCameraPose;
     this.hasCustomCameraPose = parsedCameraPose != null;
     this.hasStoredCameraPose = parsedSavedCameraPose != null;

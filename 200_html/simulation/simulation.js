@@ -1709,12 +1709,59 @@ class RapierDriveSimulation {
     overlay.appendChild(buttonDock);
     overlay.appendChild(panel);
 
+    // Same offsetX/offsetY-vs-canvas-buffer-space convention handleCycloidChartLegendClick()
+    // already relies on for a real click - reused here so a touch is judged against the
+    // legend exactly the same way a mouse click already is. TouchEvent has no offsetX/Y of
+    // its own, so it's derived from the touch point and the canvas's own bounding rect.
+    const getCanvasRelativePoint = (event) => {
+      if (
+        typeof event.offsetX === "number" &&
+        typeof event.offsetY === "number" &&
+        event.target === canvas
+      ) {
+        return { x: event.offsetX, y: event.offsetY };
+      }
+
+      const touch =
+        (event.touches && event.touches[0]) ||
+        (event.changedTouches && event.changedTouches[0]);
+      if (!touch) {
+        return null;
+      }
+
+      const rect = canvas.getBoundingClientRect();
+      return { x: touch.clientX - rect.left, y: touch.clientY - rect.top };
+    };
+
+    const isPointOnCycloidLegend = (event) => {
+      const point = getCanvasRelativePoint(event);
+      if (!point) {
+        return false;
+      }
+
+      const rects = this.cycloidChartLegendHitRects || [];
+      return rects.some(
+        (rect) =>
+          point.x >= rect.x0 &&
+          point.x <= rect.x1 &&
+          point.y >= rect.y0 &&
+          point.y <= rect.y1,
+      );
+    };
+
     // See the matching comment in ensureWheelZChartOverlay(): toggleButton is a
     // descendant of `overlay`, so an unconditional preventDefault() on touchstart here
     // also swallows the synthetic click that would otherwise fire on toggleButton after
-    // a tap, breaking the hide/show button on touch-only devices.
+    // a tap, breaking the hide/show button on touch-only devices. The legend (outer/
+    // middle/inner wheel toggles baked into the canvas itself, not separate DOM buttons -
+    // see handleCycloidChartLegendClick()) needs the same exemption, just coordinate-based
+    // instead of toggleButton.contains(), since there's no element to check .contains()
+    // against.
     const blockViewerInteraction = (event) => {
       if (toggleButton.contains(event.target)) {
+        return;
+      }
+      if (event.target === canvas && isPointOnCycloidLegend(event)) {
         return;
       }
       event.preventDefault();

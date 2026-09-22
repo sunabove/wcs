@@ -5251,14 +5251,17 @@ class URDFViewer {
           if (isCustomPoseUsable) {
             console.log("[URDF] cameraPose 지정됨: 사용자 카메라 위치 유지");
           } else {
+            // "left" matches the view-cube's L button (see getCameraVectorsByFace()/
+            // setCameraByViewCubeFace()) so an auto-fit on load lands on the same view
+            // a user would get by clicking L, instead of the front (+X) view.
             const fitDistance = this.calculateFitDistanceForFace(
               size,
-              "front",
+              "left",
               this.cameraFitMarginRatio,
             );
-            this.setCameraFromFace(center, fitDistance, "front");
+            this.setCameraFromFace(center, fitDistance, "left");
             console.log(
-              "[URDF] cameraPose/저장 포즈 미지정 또는 모델이 보이지 않음: front view 자동 피팅 카메라 적용 (마진 5%)",
+              "[URDF] cameraPose/저장 포즈 미지정 또는 모델이 보이지 않음: left view(view-cube L) 자동 피팅 카메라 적용 (마진 5%)",
             );
           }
 

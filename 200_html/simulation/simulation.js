@@ -915,7 +915,16 @@ class RapierDriveSimulation {
     overlay.appendChild(buttonDock);
     overlay.appendChild(panel);
 
+    // toggleButton sits inside `overlay` (via buttonDock), so a touchstart/touchend on
+    // it bubbles up to these same listeners. preventDefault() on a touch event is also
+    // what tells the browser not to synthesize the follow-up click - blocking it
+    // unconditionally here silenced the toggle button on touch-only devices (no mouse
+    // to fall back on) even though toggleButton's own "click" listener below calls
+    // stopPropagation() and works fine with a real mouse click.
     const blockViewerInteraction = (event) => {
+      if (toggleButton.contains(event.target)) {
+        return;
+      }
       event.preventDefault();
       event.stopPropagation();
     };
@@ -1700,7 +1709,14 @@ class RapierDriveSimulation {
     overlay.appendChild(buttonDock);
     overlay.appendChild(panel);
 
+    // See the matching comment in ensureWheelZChartOverlay(): toggleButton is a
+    // descendant of `overlay`, so an unconditional preventDefault() on touchstart here
+    // also swallows the synthetic click that would otherwise fire on toggleButton after
+    // a tap, breaking the hide/show button on touch-only devices.
     const blockViewerInteraction = (event) => {
+      if (toggleButton.contains(event.target)) {
+        return;
+      }
       event.preventDefault();
       event.stopPropagation();
     };

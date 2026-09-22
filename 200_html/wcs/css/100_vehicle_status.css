@@ -43,6 +43,37 @@
   max-height: none;
 }
 
+/* Force this page to always present as landscape, even on a tablet (e.g. a Galaxy Tab)
+   whose OS/browser orientation is locked to portrait - meant for a device physically
+   mounted/held sideways while auto-rotate stays off, not for someone reading it upright.
+   screen.orientation.lock() can't be used here: most mobile browsers only allow it in
+   fullscreen mode, so it silently fails/throws in a normal tab. Rotating <html> itself
+   with a pure CSS transform works everywhere with no permission or fullscreen requirement
+   - the tradeoff is that raw vh/vw units no longer mean "tall/narrow axis of the visible
+   layout" once rotated (they still measure the *physical*, unrotated viewport), so
+   anything sized with them inside this page needs its axis swapped to match - see
+   #vehicle-urdf-viewer.urdf-container below, which is the one such rule this page has. */
+@media screen and (orientation: portrait) {
+  html {
+    width: 100vh;
+    height: 100vw;
+    transform: rotate(-90deg);
+    transform-origin: left top;
+    position: absolute;
+    top: 100%;
+    left: 0;
+    overflow-x: hidden;
+  }
+
+  /* Same rule as above, axis-swapped: calc(100vh - 90px) assumes vh is the screen's
+     short axis, which is only true on a genuinely landscape device. Under the rotation
+     above, the physically short axis is the portrait device's own width (100vw), so
+     that's what the "screen height minus chrome" calc needs to subtract from here. */
+  #vehicle-urdf-viewer.urdf-container {
+    height: calc(100vw - 90px);
+  }
+}
+
 .road-detect-overlay-controls {
   position: absolute;
   top: 10px;

@@ -129,10 +129,174 @@ async function ensureWcsMqttHeaderUi() {
     }
 }
 
+// Same root-relative-path reasoning as WCS_MQTT_HEADER_COMPONENT_PATH above: this file
+// is shared across pages in several different top-level directories.
+const WCS_PAGE_ZOOM_COMPONENT_PATH = '/wcs/020_component_page_zoom.html';
+const WCS_PAGE_ZOOM_FALLBACK_HTML = [
+    '<div class="page-zoom-control-inline d-flex flex-nowrap align-items-center border rounded-3 px-2 py-1">',
+    '    <button type="button" id="page-zoom-decrease" class="btn btn-sm btn-outline-light" aria-label="화면 축소" title="화면 축소">',
+    '        <i class="bi bi-dash-lg"></i>',
+    '    </button>',
+    '    <span id="page-zoom-value" class="text-white small text-center mx-1" style="min-width: 3.2em;">100%</span>',
+    '    <button type="button" id="page-zoom-increase" class="btn btn-sm btn-outline-light" aria-label="화면 확대" title="화면 확대">',
+    '        <i class="bi bi-plus-lg"></i>',
+    '    </button>',
+    '</div>',
+].join('');
+
+const WCS_PAGE_ZOOM_STORAGE_KEY = 'wcs.pageZoomPercent';
+const WCS_PAGE_ZOOM_STEP_PERCENT = 5;
+const WCS_PAGE_ZOOM_MIN_PERCENT = 40;
+const WCS_PAGE_ZOOM_MAX_PERCENT = 150;
+const WCS_PAGE_ZOOM_TABLET_DEFAULT_PERCENT = 67;
+const WCS_PAGE_ZOOM_DESKTOP_DEFAULT_PERCENT = 100;
+// Android's own resource-qualifier breakpoint (sw600dp) for "this is a tablet, not a
+// phone" - screen.width/height are physical CSS px and don't change with this page's own
+// zoom or any portrait-forcing rotation, so the shorter of the two is a stable stand-in
+// for the device's short edge regardless of current orientation/zoom.
+const WCS_PAGE_ZOOM_TABLET_MIN_SHORT_SIDE_PX = 600;
+
+function isWcsLargeAndroidTablet() {
+    const isAndroid = /Android/i.test(navigator.userAgent || '');
+    if (!isAndroid) {
+        return false;
+    }
+
+    const shortSidePx = Math.min(
+        Number(window.screen && window.screen.width) || 0,
+        Number(window.screen && window.screen.height) || 0,
+    );
+    return shortSidePx >= WCS_PAGE_ZOOM_TABLET_MIN_SHORT_SIDE_PX;
+}
+
+function clampWcsPageZoomPercent(percent) {
+    return Math.min(WCS_PAGE_ZOOM_MAX_PERCENT, Math.max(WCS_PAGE_ZOOM_MIN_PERCENT, percent));
+}
+
+function getDefaultWcsPageZoomPercent() {
+    return isWcsLargeAndroidTablet()
+        ? WCS_PAGE_ZOOM_TABLET_DEFAULT_PERCENT
+        : WCS_PAGE_ZOOM_DESKTOP_DEFAULT_PERCENT;
+}
+
+function loadWcsPageZoomPercent() {
+    try {
+        if (typeof window.localStorage === 'undefined') {
+            return getDefaultWcsPageZoomPercent();
+        }
+
+        const savedValue = window.localStorage.getItem(WCS_PAGE_ZOOM_STORAGE_KEY);
+        if (savedValue == null) {
+            return getDefaultWcsPageZoomPercent();
+        }
+
+        const parsedValue = Number.parseInt(savedValue, 10);
+        return Number.isFinite(parsedValue)
+            ? clampWcsPageZoomPercent(parsedValue)
+            : getDefaultWcsPageZoomPercent();
+    } catch (error) {
+        return getDefaultWcsPageZoomPercent();
+    }
+}
+
+function saveWcsPageZoomPercent(percent) {
+    try {
+        if (typeof window.localStorage === 'undefined') {
+            return;
+        }
+        window.localStorage.setItem(WCS_PAGE_ZOOM_STORAGE_KEY, String(percent));
+    } catch (error) {
+        // Ignore storage write errors in restricted browser modes.
+    }
+}
+
+function ensureWcsPageZoomMountPoint() {
+    let $mountPoint = $('#page-zoom-control');
+    if ($mountPoint.length > 0) {
+        return $mountPoint;
+    }
+
+    const $headerRow = $('header .top-header-row').first();
+    if ($headerRow.length === 0) {
+        return $();
+    }
+
+    $mountPoint = $('<div id="page-zoom-control" class="ms-2"></div>');
+    $headerRow.append($mountPoint);
+    return $mountPoint;
+}
+
+function wireUpWcsPageZoomControls($mountPoint) {
+    const decreaseButton = $mountPoint.find('#page-zoom-decrease').get(0);
+    const increaseButton = $mountPoint.find('#page-zoom-increase').get(0);
+    const valueLabel = $mountPoint.find('#page-zoom-value').get(0);
+    if (!decreaseButton || !increaseButton || !valueLabel) {
+        return;
+    }
+
+    let currentZoomPercent = clampWcsPageZoomPercent(loadWcsPageZoomPercent());
+
+    function applyZoomPercent(percent) {
+        // <html> (not <body>/an inner wrapper) is what makes Chrome treat this as a real
+        // page zoom - vh/vw/100% layout throughout the page recompute against the
+        // rescaled effective viewport, same as the browser's own Ctrl+-/pinch zoom, so
+        // content actually gains/loses screen real estate instead of rendering smaller
+        // inside an unchanged-size box.
+        document.documentElement.style.zoom = `${percent}%`;
+        valueLabel.textContent = `${percent}%`;
+        decreaseButton.disabled = percent <= WCS_PAGE_ZOOM_MIN_PERCENT;
+        increaseButton.disabled = percent >= WCS_PAGE_ZOOM_MAX_PERCENT;
+    }
+
+    function setZoomPercent(nextPercent) {
+        currentZoomPercent = clampWcsPageZoomPercent(nextPercent);
+        saveWcsPageZoomPercent(currentZoomPercent);
+        applyZoomPercent(currentZoomPercent);
+    }
+
+    applyZoomPercent(currentZoomPercent);
+
+    decreaseButton.addEventListener('click', () => {
+        setZoomPercent(currentZoomPercent - WCS_PAGE_ZOOM_STEP_PERCENT);
+    });
+    increaseButton.addEventListener('click', () => {
+        setZoomPercent(currentZoomPercent + WCS_PAGE_ZOOM_STEP_PERCENT);
+    });
+}
+
+async function ensureWcsPageZoomUi() {
+    const $existingButtons = $('#page-zoom-decrease, #page-zoom-increase');
+    if ($existingButtons.length > 0) {
+        return;
+    }
+
+    const $mountPoint = ensureWcsPageZoomMountPoint();
+    if ($mountPoint.length === 0) {
+        return;
+    }
+
+    try {
+        const response = await fetch(WCS_PAGE_ZOOM_COMPONENT_PATH, { cache: 'no-cache' });
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+        }
+
+        const componentHtml = await response.text();
+        $mountPoint.html(componentHtml);
+    } catch (error) {
+        console.error('[WCS] Page zoom component load failed:', error);
+        $mountPoint.html(WCS_PAGE_ZOOM_FALLBACK_HTML);
+    }
+
+    wireUpWcsPageZoomControls($mountPoint);
+}
+
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', function () {
         void ensureWcsMqttHeaderUi();
+        void ensureWcsPageZoomUi();
     });
 } else {
     void ensureWcsMqttHeaderUi();
+    void ensureWcsPageZoomUi();
 }

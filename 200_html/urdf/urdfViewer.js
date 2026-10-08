@@ -445,11 +445,25 @@ class URDFViewer {
       containerElement.getAttribute("autoFitOnLoad"),
       false,
     );
-    const parsedSavedCameraPose = this.autoFitOnLoad
-      ? null
-      : parsedCameraPose == null
-        ? this.loadSavedCameraPose()
-        : null;
+    // Opt-in initial view-cube face (front/back/left/right/top/bottom) for the
+    // load-time auto-fit, e.g. initialViewFace="top" on 110_vehicle_setting.html so the
+    // viewer always opens exactly as if the view-cube's U button had been clicked.
+    // Like autoFitOnLoad, setting it skips restoring a saved pose so the face applies
+    // on every load.
+    const rawInitialViewFace = String(
+      containerElement.getAttribute("initialViewFace") || "",
+    )
+      .trim()
+      .toLowerCase();
+    this.initialViewFace = this.getCameraVectorsByFace(rawInitialViewFace)
+      ? rawInitialViewFace
+      : null;
+    const parsedSavedCameraPose =
+      this.autoFitOnLoad || this.initialViewFace
+        ? null
+        : parsedCameraPose == null
+          ? this.loadSavedCameraPose()
+          : null;
     const effectiveCameraPose = parsedCameraPose || parsedSavedCameraPose;
     this.hasCustomCameraPose = parsedCameraPose != null;
     this.hasStoredCameraPose = parsedSavedCameraPose != null;
@@ -5263,12 +5277,13 @@ class URDFViewer {
             // "left" matches the view-cube's L button (see getCameraVectorsByFace()/
             // setCameraByViewCubeFace()) so an auto-fit on load lands on the same view
             // a user would get by clicking L, instead of the front (+X) view.
+            const fitFace = this.initialViewFace || "left";
             const fitDistance = this.calculateFitDistanceForFace(
               size,
-              "left",
+              fitFace,
               this.cameraFitMarginRatio,
             );
-            this.setCameraFromFace(center, fitDistance, "left");
+            this.setCameraFromFace(center, fitDistance, fitFace);
             console.log(
               "[URDF] cameraPose/저장 포즈 미지정 또는 모델이 보이지 않음: left view(view-cube L) 자동 피팅 카메라 적용 (마진 5%)",
             );

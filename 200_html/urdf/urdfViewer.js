@@ -2419,6 +2419,41 @@ class URDFViewer {
     };
   }
 
+  // Bounds of the whole vehicle: car_frame plus every descendant link (wheels,
+  // gears), unlike getPrimaryFocusBounds() which keeps only car_frame's own meshes.
+  // Excludes the ground plate, obstacles and holes that share the URDF.
+  getVehicleFocusBounds() {
+    const carFrame = this.robotModel?.links?.car_frame || null;
+    if (!carFrame) {
+      return null;
+    }
+
+    carFrame.updateWorldMatrix(true, true);
+    const bbox = new THREE.Box3();
+    carFrame.traverse((node) => {
+      if (!node?.isMesh || !node.geometry || !node.visible) {
+        return;
+      }
+      if (!node.geometry.boundingBox) {
+        node.geometry.computeBoundingBox();
+      }
+      if (node.geometry.boundingBox) {
+        bbox.union(
+          node.geometry.boundingBox.clone().applyMatrix4(node.matrixWorld),
+        );
+      }
+    });
+
+    if (bbox.isEmpty()) {
+      return null;
+    }
+
+    return {
+      center: bbox.getCenter(new THREE.Vector3()),
+      size: bbox.getSize(new THREE.Vector3()),
+    };
+  }
+
   getCameraVectorsByFace(faceKey) {
     const directionByFace = {
       front: new THREE.Vector3(1, 0, 0),
@@ -5271,6 +5306,8 @@ class URDFViewer {
             );
           }
 
+          let fitCenter = center;
+          let sceneFitDistance = 0;
           if (isCustomPoseUsable) {
             console.log("[URDF] cameraPose 지정됨: 사용자 카메라 위치 유지");
           } else {
@@ -5278,32 +5315,71 @@ class URDFViewer {
             // setCameraByViewCubeFace()) so an auto-fit on load lands on the same view
             // a user would get by clicking L, instead of the front (+X) view.
             const fitFace = this.initialViewFace || "left";
-            const fitDistance = this.calculateFitDistanceForFace(
-              size,
-              fitFace,
-              this.cameraFitMarginRatio,
-            );
-            this.setCameraFromFace(center, fitDistance, fitFace);
+            // With initialViewFace set, frame the vehicle itself (car_frame + its
+            // wheels/gears) instead of the whole URDF: the full model also contains
+            // the ground plate, obstacles and holes, which made the vehicle a small
+            // speck in the middle of the road on load.
+            const vehicleBounds = this.initialViewFace
+              ? this.getVehicleFocusBounds()
+              : null;
+            let fitSize = size;
+            let fitDepthOffset = 0;
+            if (vehicleBounds) {
+              fitCenter = vehicleBounds.center;
+              fitSize = vehicleBounds.size;
+              // calculateFitDistanceForFace() measures to the box center; add the
+              // half-depth along the view axis so the near face (e.g. the roof for
+              // "top") is what gets fitted, not the plane through the middle.
+              const depthAxisByFace = {
+                front: "x",
+                back: "x",
+                left: "y",
+                right: "y",
+                top: "z",
+                bottom: "z",
+              };
+              fitDepthOffset = fitSize[depthAxisByFace[fitFace]] * 0.5;
+              // Keep the whole scene reachable by zooming out.
+              sceneFitDistance = this.calculateFitDistanceForFace(
+                size,
+                fitFace,
+                this.cameraFitMarginRatio,
+              );
+            }
+            const fitDistance =
+              this.calculateFitDistanceForFace(
+                fitSize,
+                fitFace,
+                this.cameraFitMarginRatio,
+              ) + fitDepthOffset;
+            this.setCameraFromFace(fitCenter, fitDistance, fitFace);
             console.log(
-              "[URDF] cameraPose/저장 포즈 미지정 또는 모델이 보이지 않음: left view(view-cube L) 자동 피팅 카메라 적용 (마진 5%)",
+              `[URDF] cameraPose/저장 포즈 미지정 또는 모델이 보이지 않음: ${fitFace} view 자동 피팅 카메라 적용 (마진 5%${vehicleBounds ? ", 차량 기준" : ""})`,
             );
           }
 
           const poseTarget = this.hasCustomCameraTarget
             ? this.cameraTarget.clone()
-            : center.clone();
+            : fitCenter.clone();
           const currentCameraDist = Math.max(
             this.camera.position.distanceTo(poseTarget),
             0.01,
           );
           this.camera.near = Math.max(currentCameraDist / 100, 0.01);
-          this.camera.far = Math.max(currentCameraDist * 100, 10);
+          this.camera.far = Math.max(
+            currentCameraDist * 100,
+            sceneFitDistance * 10,
+            10,
+          );
           this.camera.updateProjectionMatrix();
 
           this.goalTarget.copy(poseTarget);
           this.applyGoalTargetToControls();
           this.controls.minDistance = currentCameraDist * 0.2;
-          this.controls.maxDistance = currentCameraDist * 8;
+          this.controls.maxDistance = Math.max(
+            currentCameraDist * 8,
+            sceneFitDistance * 2,
+          );
           this.resetDirectionalLight(this.controls.target, radius);
           this.snapshotInitialCameraPose();
           this.logCameraInfos(true);

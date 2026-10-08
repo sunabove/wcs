@@ -139,7 +139,7 @@ $(document).ready(function() {
             const selectedWheel = $('input[name="wheelPosition"]:checked').val();
             console.log('[Vehicle Setting] 🎯 선택된 바퀴:', selectedWheel);
 
-            const topic = `wheel/${selectedWheel}/tof/calibration`;
+            const topic = `wheel/${selectedWheel.toLowerCase()}/tof/calibration`;
             const message = calibration;
 
             console.log('[Vehicle Setting] 📤 MQTT 전송 준비 - 토픽:', topic, '메시지:', message, '타입:', typeof message);
@@ -174,13 +174,13 @@ $(document).ready(function() {
 
         console.log(`[Vehicle Setting] 🏷️ 바퀴 ID 변경: ${wheelId}, 선택된 바퀴: ${selectedWheel}`);
 
-        const topic = `wheel/${selectedWheel}/id`;
+        const topic = `wheel/${selectedWheel.toLowerCase()}/id`;
         const message = wheelId;
 
         console.log('[Vehicle Setting] 📤 MQTT 전송 준비 - 토픽:', topic, '메시지:', message, '타입:', typeof message);
 
         try {
-            sendMQTTMessage(topic, message, 1);
+            window.WcsMqtt.sendMQTTMessage(topic, message, 1);
             console.log(`[Vehicle Setting] 🏷️ 바퀴 ID 자동 설정 - 바퀴: ${selectedWheel}, ID: ${wheelId}`);
         } catch (error) {
             console.error('[Vehicle Setting] ❌ sendMQTTMessage 호출 에러:', error);
@@ -196,13 +196,13 @@ $(document).ready(function() {
         console.log(`[Vehicle Setting] 🏷️ 바퀴 ID 수동 설정: ${wheelId}, 선택된 바퀴: ${selectedWheel}`);
 
         if (wheelId >= 1 && wheelId <= 4) {
-            const topic = `wheel/${selectedWheel}/id`;
+            const topic = `wheel/${selectedWheel.toLowerCase()}/id`;
             const message = wheelId;
 
             console.log('[Vehicle Setting] 📤 MQTT 전송 준비 - 토픽:', topic, '메시지:', message, '타입:', typeof message);
 
             try {
-                sendMQTTMessage(topic, message, 1);
+                window.WcsMqtt.sendMQTTMessage(topic, message, 1);
                 console.log(`[Vehicle Setting] 🏷️ 바퀴 ID 수동 설정 - 바퀴: ${selectedWheel}, ID: ${wheelId}`);
 
                 $(this).removeClass('btn-outline-primary').addClass('btn btn-success');

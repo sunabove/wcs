@@ -32,6 +32,9 @@ def default_dataset_yaml() -> Path:
 
 
 def default_model_source() -> str:
+	# yolo11m-seg.yaml: 로컬 파일이 아니라 ultralytics 패키지에 내장된 모델 구조 설정 이름.
+	# YOLO11 세그멘테이션 구조(cfg/models/11/yolo11-seg.yaml)에 크기 m(medium) 스케일을 적용하며,
+	# 사전학습 가중치 없이 처음부터 학습한다. (.pt를 지정하면 사전학습 가중치로 파인튜닝)
 	return "yolo11m-seg.yaml"
 
 
